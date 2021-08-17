@@ -1,0 +1,118 @@
+.container {
+    min-height: 100vh;
+    width: 100%;
+    margin: 0px auto;
+    padding: 0px 0px 0px 75px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: #f8f8f8;
+}
+.heading {
+    text-align: left;
+    font-weight: 500;
+    color: gray;
+    padding: 0px 70px;
+}
+.introContent {
+    width: 100%;
+    min-height: 100vh;
+}
+.cardHolder {
+    display: flex;
+    width: 100%;
+    justify-content: space-around;
+}
+.introCard {
+    display: flex;
+    width: 40%;
+    padding: 10px 20px;
+    height: 420px;
+    border-radius: 15px;
+    display: flex;
+    flex-direction: column;
+}
+.welcomeContent {
+    display: flex;
+    height: 100%;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+.calendar {
+    border: none;
+    height: 400px;
+    width: 100%;
+    border-radius: 10px;
+}
+.welcomeLogo {
+    height: 100px;
+    width: 100px;
+}
+.welcomeText {
+    font-size: 25px;
+    color: white;
+    font-weight: 600;
+}
+.welcomeSubText {
+    text-align: center;
+    color: white;
+}
+.newFeaturesButton {
+    background-color: white;
+    color: #8b74ff;
+    height: 35px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    width: 140px;
+    border-radius: 5px;
+    border: none;
+}
+.bellIcon {
+    font-size: 20px;
+    color: white;
+    background-color: #8977ff;
+    padding: 10px;
+    border-top-left-radius: 15px;
+    border-top-right-radius: 15px;
+    border-bottom-right-radius: 15px;
+}
+.introBottom {
+    width: 100%;
+    height: 10vh;
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    padding: 0px 20px;
+}
+.date {
+    border: 1px solid lightgray;
+    height: 35px;
+    width: 60px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: #8b74ff;
+    border-radius: 10px;
+}
+.dateCard {
+    display: flex;
+    background-color: violet;
+    justify-content: center;
+    align-items: center;
+    width: 40%;
+    border-radius: 15px;
+    height: 400px;
+}
+.introHead {
+    display: flex;
+    height: 10vh;
+    width: 100%;
+    align-items: center;
+    justify-content: space-between;
+}
+.icon {
+    font-size: 20px;
+    color: black;
+    height: 20px;
+}
