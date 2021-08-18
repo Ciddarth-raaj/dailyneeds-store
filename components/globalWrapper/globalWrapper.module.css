@@ -1,0 +1,15 @@
+.childContainer {
+	margin-left: 70px;
+	background-color: rgb(241, 241, 241);
+	padding: 20px;
+}
+
+.headingWrapper {
+	width: 100%;
+	margin-bottom: 20px;
+}
+
+.headingWrapper h1 {
+	font-weight: bold;
+	font-size: 32px;
+}

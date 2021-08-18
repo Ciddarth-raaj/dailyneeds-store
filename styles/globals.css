@@ -14,7 +14,7 @@ a {
 
 :root {
 	--primaryColor: #8977ff;
-  --secondaryColor: #8b74ff;
+	--secondaryColor: #8b74ff;
 }
 
 * {
@@ -94,7 +94,7 @@ a {
 }
 .button {
 	color: white;
-  background-color: var(--primaryColor);
+	background-color: var(--primaryColor);
 	padding: 10px;
 	border: none;
 	outline: none;

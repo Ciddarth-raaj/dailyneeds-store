@@ -1,36 +1,36 @@
 .container {
-    min-height: 100vh;
-    width: 5%;
-    margin: 0px auto;
-    z-index: 200;
-    padding: 20px 7px;
-    display: flex;
-    background-color: #ffffff;
-    border-right: 1px solid lightgray;
-    align-items: center;
-    position: fixed;
-    left: 0%;
-    flex-direction: column;
-    align-items: center;
-    border-bottom: 0.5px solid lightgray;
-    box-shadow: 0px 9px 0px 0px rgba(0,0,0,0.9);
-    transition: 300ms ease-in-out;
+	min-height: 100vh;
+	width: 70px;
+	margin: 0px auto;
+	z-index: 200;
+	padding: 20px 7px;
+	display: flex;
+	background-color: #ffffff;
+	border-right: 1px solid lightgray;
+	align-items: center;
+	position: fixed;
+	left: 0%;
+	flex-direction: column;
+	align-items: center;
+	border-bottom: 0.5px solid lightgray;
+	box-shadow: 0px 9px 0px 0px rgba(0, 0, 0, 0.9);
+	transition: 300ms ease-in-out;
 }
 .container:hover {
-    width: 15%;
+	width: 15%;
 }
 .logo {
-    margin-bottom: 70px;
+	margin-bottom: 70px;
 }
 .sideBarOptions {
-    display: flex;
-    flex-direction: column;
-    justify-content: space-evenly;
+	display: flex;
+	flex-direction: column;
+	justify-content: space-evenly;
 }
 .icons {
-    font-size: 18px;
-    cursor: pointer;
-    color: black;
-    height: 20px;
-    margin-bottom: 30px;
+	font-size: 18px;
+	cursor: pointer;
+	color: black;
+	height: 20px;
+	margin-bottom: 30px;
 }
