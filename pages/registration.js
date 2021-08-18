@@ -840,7 +840,12 @@ export default class Registration extends React.Component {
 							</div>
 						</Container>
 
-						<Container className={styles.container}>
+						<Container
+							className={styles.container}
+							mt="20px"
+							pb="20px"
+						>
+							<p>File Uploads</p>
 							<div className={styles.uploadHolder}>
 								<label
 									className={styles.uploaderTitle}
