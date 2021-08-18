@@ -2,7 +2,13 @@ import React from "react";
 import Head from "../../util/head";
 import SideBar from "../../components/sideBar/sideBar";
 import Header from "../../components/header/header";
-import styles from "../../styles/registration.module.css"
+import styles from "../../styles/registration.module.css";
+import { Grid, GridItem } from "@chakra-ui/react";
+import { Input } from "@chakra-ui/react";
+import { Textarea } from "@chakra-ui/react";
+import { Select } from "@chakra-ui/react";
+import 'react-dropzone-uploader/dist/styles.css'
+import Dropzone from 'react-dropzone-uploader'
 export default class Registration extends React.Component {
     constructor(props) {
         super(props);
@@ -26,118 +32,6 @@ export default class Registration extends React.Component {
             joiningDate: "",
             resignationDate: "",
             idNo: "",
-            gender_array: [
-                {
-                    gender_id: 1,
-                    title: "Male",
-                },
-                {
-                    gender_id: 2,
-                    title: "Female",
-                },
-                {
-                    gender_id: 3,
-                    title: "Transgender"
-                },
-            ],
-            marital_array: [
-                {
-                    marital_id: 1,
-                    title: "Single",
-                },
-                {
-                    marital_id: 2,
-                    title: "Married"
-                },
-                {
-                    marital_id: 3,
-                    title: "Divorced"
-                }
-            ],
-            store_array: [
-                {
-                    store_id: 1,
-                    title: "store1"
-                },
-                {
-                    store_id: 2,
-                    title: "store2"
-                },
-                {
-                    store_id: 3,
-                    title: "store3"
-                }
-            ],
-            department_array: [
-                {
-                    department_id: 1,
-                    title: "department1"
-                },
-                {
-                    department_id: 2,
-                    title: "department2"
-                },
-                {
-                    department_id: 3,
-                    title: "department3"
-                }
-            ],
-            designation_array: [
-                {
-                    designation_id: 1,
-                    title: "designation1"
-                },
-                {
-                    designation_id: 2,
-                    title: "designation2"
-                },
-                {
-                    designation_id: 3,
-                    title: "designation3"
-                }
-            ],
-            shift_array: [
-                {
-                    shift_id: 1,
-                    title: "shift1"
-                },
-                {
-                    shift_id: 2,
-                    title: "shift2"
-                },
-                {
-                    shift_id: 3,
-                    title: "shift3"
-                }
-            ],
-            card_array: [
-                {
-                    card_type_id: 1,
-                    title: "card1"
-                },
-                {
-                    card_type_id: 2,
-                    title: "card2"
-                },  
-                {
-                    card_type_id: 3,
-                    title: "card3"
-                }  
-            ],
-            blood_array: [
-                {
-                    blood_group_id: 1,
-                    title: "blood group1"
-                },
-                {
-                    blood_group_id: 2,
-                    title: "blood group2"
-                },
-                {
-                    blood_group_id: 3,
-                    title: "blood group3"
-                }
-            ],
         };
     }
     componentDidMount() {
@@ -153,8 +47,8 @@ export default class Registration extends React.Component {
             .catch((err) => console.log(err));
     }
     async getData() {
-		try {
-			const {
+        try {
+            const {
                 profileImage,
                 name,
                 fatherName,
@@ -182,103 +76,103 @@ export default class Registration extends React.Component {
                 shift_id,
                 card_type_id,
                 blood_group_id,
-			} = this.state;
+            } = this.state;
             const alertInitText = "";
-			let alertText = alertInitText;
-            if(name === "") {
+            let alertText = alertInitText;
+            if (name === "") {
                 alertText += "• Name\n";
             }
 
-            if(fatherName === "") {
+            if (fatherName === "") {
                 alertText += "• Father Name\n";
             }
-            if(dob === "") {
+            if (dob === "") {
                 alertText += "• Date of Birth\n";
             }
-            if(permanentAddress === "") {
+            if (permanentAddress === "") {
                 alertText += "• Permanent Address"
             }
-            if(residentialAddress === "") {
+            if (residentialAddress === "") {
                 alertText += "• Residential Address"
             }
-            if(contactNo === "") {
+            if (contactNo === "") {
                 alertText += "• Contact No"
             }
-            if(alternateNo === "") {
+            if (alternateNo === "") {
                 alertText += "• Alternate No"
             }
-            if(email === "") {
+            if (email === "") {
                 alertText += "• Email"
             }
-            if(educationalQualification === "") {
+            if (educationalQualification === "") {
                 alertText += "• Educational Qualification"
             }
-            if(introducerName === "") {
+            if (introducerName === "") {
                 alertText += "• Introducer Name"
             }
-            if(introducerDetails === "") {
+            if (introducerDetails === "") {
                 alertText += "• Introducer Details"
             }
-            if(salary === "") {
+            if (salary === "") {
                 alertText += "• Salary"
             }
-            if(unifrom === "") {
+            if (unifrom === "") {
                 alertText += "• unifrom"
             }
-            if(idNo === "") {
+            if (idNo === "") {
                 alertText += "• ID Number"
             }
-            if(experience === "") {
+            if (experience === "") {
                 alertText += "• Experience"
             }
-            if(joiningDate === "") {
+            if (joiningDate === "") {
                 alertText += "• Joining Date"
             }
-            if(resignationDate === "") {
+            if (resignationDate === "") {
                 alertInitText += "• Resignation Date"
             }
-            if(employeeId === "") {
+            if (employeeId === "") {
                 alertText += "• Employee ID"
             }
-            if(gender_id === 0) {
+            if (gender_id === 0) {
                 alertText += "• Gender ID"
             }
-            if(marital_id === 0) {
+            if (marital_id === 0) {
                 alertText += "• Marital ID"
             }
-            if(store_id === 0) {
+            if (store_id === 0) {
                 alertText += "• Store ID"
             }
-            if(department_id === 0) {
+            if (department_id === 0) {
                 alertText += "• Department ID"
             }
-            if(designation_id === 0) {
+            if (designation_id === 0) {
                 alertText += "• Designation ID"
             }
-            if(shift_id === 0) {
+            if (shift_id === 0) {
                 alertText += "• Shift ID"
             }
-            if(card_type_id === 0) {
+            if (card_type_id === 0) {
                 alertText += "• Card Type ID"
             }
-            if(blood_group_id === 0) {
+            if (blood_group_id === 0) {
                 alertText += "• Blood Group ID"
             }
             if (profileImage !== undefined && profileImage != null) {
-				if (check("profileImage", brochure))
-					this.filesData["profileImage"] = {
-						key: "profileImage",
-						url: (
-							await FilesHelper.upload(
-								profileImage,
-								"profileImage",
-								"/" +
-								name
-							)
-						).data,
-						file: profileImage,
-					};
-			}
+                if (check("profileImage", brochure))
+                    this.filesData["profileImage"] = {
+                        key: "profileImage",
+                        url: (
+                            await FilesHelper.upload(
+                                profileImage,
+                                "profileImage",
+                                "/" +
+                                name
+                            )
+                        ).data,
+                        file: profileImage,
+                    };
+            }
 
             const data = {
                 name: name,
@@ -307,15 +201,15 @@ export default class Registration extends React.Component {
                 shift_id: shift_id,
                 card_type_id: card_type_id,
                 blood_group_id: blood_group_id,
-			};
+            };
             if (this.filesData["profileImage"] !== undefined) {
-				data.profileImage = this.filesData["profileImage"].url;
-			}
+                data.profileImage = this.filesData["profileImage"].url;
+            }
 
         } catch (err) {
-			this.logError(err);
-		}
-	}
+            this.logError(err);
+        }
+    }
 
     getInputField(key, label, accept) {
         return (
@@ -345,7 +239,12 @@ export default class Registration extends React.Component {
         );
     }
     render() {
-        const { 
+        const getUploadParams = ({ meta }) => { return { url: 'https://httpbin.org/post' } }
+
+        const handleChangeStatus = ({ meta, file }, status) => { console.log(status, meta, file) }
+
+        const handleSubmit = (files) => { console.log(files.map(f => f.meta)) }
+        const {
             name,
             fatherName,
             dob,
@@ -372,402 +271,475 @@ export default class Registration extends React.Component {
             shift_id,
             card_type_id,
             blood_group_id,
-            gender_array,
-            department_array,
-            designation_array,
-            blood_array,
-            card_array,
-            marital_array,
-            store_array,
-            shift_array
         } = this.state;
         return (
             <div>
                 <Head />
                 <SideBar />
                 <Header />
-                <div className={styles.mainWrapper}>
-                    <h2 className={styles.heading}>New Employee</h2>
-                    <div className={styles.wrapper}>
-                        <div className={styles.inputDiv}>
-                            <div className={`inputGroup`}>
-                                <input
-                                    type="text"
-                                    placeholder=" "
-                                    maxLength="50"
-                                    id="name"
-                                    value={name}
-                                    className={`inputText ${styles.inputText}`}
-                                    style={{ textTransform: "capitalize" }}
-                                />
-                                <label for="name">Name</label>
+                <Grid
+                    h="100%"
+                    templateRows="repeat(2, 1fr)"
+                    templateColumns="repeat(5, 1fr)"
+                    gap={10}
+                    className={styles.grid}
+                >
+                    <GridItem rowSpan={2} colSpan={2} className={styles.subGrid}>
+                        <div className={styles.header}>
+                            <h2 className={styles.heading}>New Employee</h2>
+                        </div>
+                        <div className={styles.personalDetails}>
+                            <p>Personal Details : </p>
+                        </div>
+                        <div className={styles.personalInputHolder}>
+                            <div className={styles.inputHolder}>
+                                <div className={styles.personalInputs}>
+                                    <label for="name">Name</label>
+                                    <Input
+                                        // value={value}
+                                        // onChange={handleChange}
+                                        placeholder="Name"
+                                        size="sm"
+                                        id="name"
+                                        width="230px"
+                                        value={name}
+                                        onChange={(e) => this.setState({
+                                            name: e.target.value,
+                                        })}
+                                        className={styles.inputField}
+                                    />
+                                </div>
+                                <div className={styles.personalInputs}>
+                                    <label for="fatherName">Father/Spouse Name</label>
+                                    <Input
+                                        // value={value}
+                                        // onChange={handleChange}
+                                        placeholder="Father Name"
+                                        size="sm"
+                                        id="fatherName"
+                                        width="230px"
+                                        className={styles.inputField}
+                                        value={fatherName}
+                                        onChange={(e) => this.setState({
+                                            fatherName: e.target.value,
+                                        })}
+                                    />
+                                </div>
+                                <div className={styles.personalInputs}>
+                                    <label for="dob">Date of Birth</label>
+                                    <Input
+                                        // value={value}
+                                        // onChange={handleChange}
+                                        placeholder="date of birth"
+                                        size="sm"
+                                        id="dob"
+                                        width="230px"
+                                        className={styles.inputField}
+                                        value={dob}
+                                        onChange={(e) => this.setState({
+                                            dob: e.target.value,
+                                        })}
+                                    />
+                                </div>
                             </div>
-
-                            <div className={`inputGroup`}>
-                                <input
-                                    type="text"
-                                    placeholder=" "
-                                    maxLength="50"
-                                    className={`inputText ${styles.inputText}`}
-                                    id="fatherName"
-                                    value={fatherName}
-                                />
-                                <label for="fatherName">Father/Spouse Name</label>
+                            <div className={styles.inputHolder}>
+                                <div className={styles.personalInputs}>
+                                    <label for="gender">Gender</label>
+                                    <Select placeholder="Choose gender" for="gender" width="230px" value={gender_id} onChange={(e) => this.setState({ gender_id: e.target.value })}>
+                                        <option value="option1">Male</option>
+                                        <option value="option2">Female</option>
+                                        <option value="option3">Transgender</option>
+                                    </Select>
+                                </div>
+                                <div className={styles.personalInputs}>
+                                    <label for="contactNo">Primary Contact No</label>
+                                    <Input
+                                        // value={value}
+                                        // onChange={handleChange}
+                                        placeholder="Contact Number"
+                                        size="sm"
+                                        id="contactNo"
+                                        width="230px"
+                                        className={styles.inputField}
+                                        value={contactNo}
+                                        onChange={(e) => this.setState({
+                                            contactNo: e.target.value,
+                                        })}
+                                    />
+                                </div>
+                                <div className={styles.personalInputs}>
+                                    <label for="alternateNo">Alternative Contact No</label>
+                                    <Input
+                                        // value={value}
+                                        // onChange={handleChange}
+                                        placeholder="Alternate Contact Number"
+                                        size="sm"
+                                        id="alternateNo"
+                                        width="230px"
+                                        className={styles.inputField}
+                                        value={alternateNo}
+                                        onChange={(e) => this.setState({
+                                            alternateNo: e.target.value,
+                                        })}
+                                    />
+                                </div>
                             </div>
-                            <div className={`inputGroup`}>
-                                <input
-                                    type="text"
-                                    placeholder=" "
-                                    maxLength="50"
-                                    className={`inputText ${styles.inputText}`}
-                                    id="dob"
-                                    value={dob}
-                                />
-                                <label for="dob">Date Of Birth</label>
-                            </div>
-                            <div className={styles.inputGroup1}>
-                                <select
-                                    className={`select ${styles.inputText}`}
-                                    value={gender_id}
-                                    onChange={(e) =>
-                                        this.setState({
-                                            gender_id: e.target.value,
-                                        })
-                                    }
-                                >
-                                    <option value={0} disabled selected>
-                                        Gender
-                                    </option>
-                                    {gender_array.map((m) => (
-										<option value={m.gender_id}>
-											{m.title}
-										</option>
-									))}
-                                </select>
-                            </div>
-
-                            <div className={styles.inputGroup1}>
-                                <select
-                                    className={`select ${styles.inputText}`}
-                                    value={marital_id}
-                                    onChange={(e) =>
-                                        this.setState({
-                                            marital_id: e.target.value,
-                                        })
-                                    }
-                                >
-                                    <option value={0} disabled selected>
-                                        Marital Status
-                                    </option>
-                                    {marital_array.map((m) => (
-										<option value={m.marital_id}>
-											{m.title}
-										</option>
-									))}
-                                </select>
-                            </div>
-                            <div className={styles.inputGroup1}>
-                                <textarea
-                                    type="text"
+                        </div>
+                        <div className={styles.inputHolder}>
+                            <div className={styles.personalInputs}>
+                                <label for="dob">Permanent Address</label>
+                                <Textarea
+                                    // value={value}
+                                    // onChange={handleChange}
                                     placeholder="Permanent Address"
-                                    className={`inputText ${styles.inputText}`}
-                                    style={{ height: 100 }}
-                                    id="permenantAddress"
+                                    size="sm"
+                                    id="dob"
+                                    height="150px"
+                                    className={styles.textField}
                                     value={permanentAddress}
+                                    onChange={(e) => 
+                                        this.setState({ 
+                                            permanentAddress: e.target.value
+                                        })
+                                    }
                                 />
                             </div>
-                            <div className={styles.inputGroup1}>
-                                <textarea
-                                    type="text"
+                            <div className={styles.personalInputs}>
+                                <label for="residentialAddress">Residential Address</label>
+                                <Textarea
+                                    // value={value}
+                                    // onChange={handleChange}
                                     placeholder="Residential Address"
-                                    className={`inputText ${styles.inputText}`}
-                                    style={{ height: 100 }}
+                                    size="sm"
                                     id="residentialAddress"
+                                    height="150px"
+                                    className={styles.textField}
                                     value={residentialAddress}
-                                />
-                            </div>
-                            <div className={`inputGroup`}>
-                                <input
-                                    type="text"
-                                    placeholder=" "
-                                    maxLength="50"
-                                    className={`inputText ${styles.inputText}`}
-                                    id="contactNo"
-                                    value={contactNo}
-                                />
-                                <label for="contactNo">Primary Contact No.</label>
-                            </div>
-                            <div className={`inputGroup`}>
-                                <input
-                                    type="text"
-                                    placeholder=" "
-                                    maxLength="50"
-                                    className={`inputText ${styles.inputText}`}
-                                    id="altContact"
-                                    value={alternateNo}
-                                />
-                                <label for="altContact">Alternative Contact No.</label>
-                            </div>
-                            <div className={`inputGroup`}>
-                                <input
-                                    type="text"
-                                    placeholder=" "
-                                    maxLength="50"
-                                    className={`inputText ${styles.inputText}`}
-                                    id="email"
-                                    value={email}
-                                />
-                                <label for="email">Email ID</label>
-                            </div>
-                            <div className={styles.inputGroup1}>
-                                <select
-                                    className={`select ${styles.inputText}`}
-                                    value={blood_group_id}
-                                    onChange={(e) =>
+                                    onChange={(e) => 
                                         this.setState({
-                                            blood_group_id: e.target.value,
+                                            residentialAddress: e.target.value
                                         })
                                     }
-                                >
-                                    <option value={0} disabled selected>
-                                        Blood Group
-                                    </option>
-                                    {blood_array.map((m) => (
-										<option value={m.blood_group_id}>
-											{m.title}
-										</option>
-									))}
-                                </select>
-                            </div>
-                            <div className={`inputGroup`}>
-                                <input
-                                    type="text"
-                                    placeholder=" "
-                                    maxLength="50"
-                                    className={`inputText ${styles.inputText}`}
-                                    id="educationQual"
-                                    value={educationalQualification}
                                 />
-                                <label for="educationQual">Educational Qualification</label>
                             </div>
-                            <div className={`inputGroup`}>
-                                <input
-                                    type="text"
-                                    placeholder=" "
-                                    maxLength="50"
-                                    className={`inputText ${styles.inputText}`}
-                                    id="introducerName"
-                                    value={introducerName}
-                                />
-                                <label for="introducerName">Introducer's Name</label>
+                            <div className={styles.personalInputHolder}>
+                                <div className={styles.inputHolder}>
+                                    <div className={styles.personalInputs}>
+                                        <label for="email">Email ID</label>
+                                        <Input
+                                            // value={value}
+                                            // onChange={handleChange}
+                                            placeholder="Email ID"
+                                            size="sm"
+                                            id="email"
+                                            width="230px"
+                                            className={styles.inputField}
+                                            value={email}
+                                            onChange={(e) => 
+                                                this.setState({
+                                                    email: e.target.value
+                                                }) 
+                                            }
+                                        />
+                                    </div>
+                                    <div className={styles.personalInputs}>
+                                        <label for="bloodgroup">Blood Group</label>
+                                        <Select placeholder="Choose gender" for="bloodgroup" width="230px" value={blood_group_id} onChange={(e) => this.setState({ blood_group_id: e.target.value})}>
+                                            <option value="option1">Blood group1</option>
+                                            <option value="option2">Blood group2</option>
+                                            <option value="option3">blood group3</option>
+                                        </Select>
+                                    </div>
+                                    <div className={styles.personalInputs}>
+                                        <label for="qualification">Educational Qualification</label>
+                                        <Input
+                                            // value={value}
+                                            // onChange={handleChange}
+                                            placeholder="Educational Qualification"
+                                            size="sm"
+                                            id="qualification"
+                                            width="230px"
+                                            className={styles.inputField}
+                                            value={educationalQualification}
+                                            onChange={(e) => 
+                                                this.setState({
+                                                    educationalQualification: e.target.value
+                                                })
+                                            }
+                                        />
+                                    </div>
+                                </div>
+                                <div className={styles.inputHolder}>
+                                    <div className={styles.personalInputs}>
+                                        <label for="introducerName">Introducer's Name</label>
+                                        <Input
+                                            // value={value}
+                                            // onChange={handleChange}
+                                            placeholder="Introducer Name"
+                                            size="sm"
+                                            id="introducerName"
+                                            width="230px"
+                                            className={styles.inputField}
+                                            value={introducerName}
+                                            onChange={(e) => 
+                                                this.setState({
+                                                    introducerName: e.target.value
+                                                })
+                                            }
+                                        />
+                                    </div>
+                                    <div className={styles.personalInputs}>
+                                        <label for="salary">Salary / Month</label>
+                                        <Input
+                                            // value={value}
+                                            // onChange={handleChange}
+                                            placeholder="Salary"
+                                            size="sm"
+                                            id="salary"
+                                            width="230px"
+                                            className={styles.inputField}
+                                            value={salary}
+                                            onChange={(e) => 
+                                                this.setState({
+                                                    salary: e.target.value
+                                                })
+                                            }
+                                        />
+                                    </div>
+                                    <div className={styles.personalInputs}>
+                                        <label for="maritalStatus">Marital Status</label>
+                                        <Select placeholder="Marital Status" for="maritalStatus" width="230px" value={marital_id} onChange={(e) => this.setState({ marital_id: e.target.value})}>
+                                            <option value="option1">Single</option>
+                                            <option value="option2">Married</option>
+                                            <option value="option3">Divorced</option>
+                                        </Select>
+                                    </div>
+                                </div>
                             </div>
-                            <div className={styles.inputGroup1}>
-                                <textarea
-                                    type="text"
+                            <div className={styles.personalInputs}>
+                                <label for="introducerDetails"> Introducer Details</label>
+                                <Textarea
+                                    // value={value}
+                                    // onChange={handleChange}
                                     placeholder="Introducer Details"
-                                    className={`inputText ${styles.inputText}`}
+                                    size="sm"
                                     id="introducerDetails"
+                                    height="150px"
+                                    className={styles.textField}
                                     value={introducerDetails}
-                                />
-                            </div>
-                        </div>
-                        <div className={styles.inputDiv}>
-                            {this.getInputField(
-                                "profileImage",
-                                "Upload Image :",
-                                "image/*"
-                            )}
-                            <div className={`inputGroup`}>
-                                <input
-                                    type="text"
-                                    placeholder=" "
-                                    maxLength="50"
-                                    className={`inputText ${styles.inputText}`}
-                                    id="employeeId"
-                                    value={employeeId}
-                                />
-                                <label for="employeeId">Employee ID</label>
-                            </div>
-                            <div className={`inputGroup`}>
-                                <input
-                                    type="text"
-                                    placeholder=" "
-                                    maxLength="50"
-                                    className={`inputText ${styles.inputText}`}
-                                    id="salary"
-                                    value={salary}
-                                />
-                                <label for="salary">Salary / Month</label>
-                            </div>
-                            <div className={`inputGroup`}>
-                                <input
-                                    type="text"
-                                    placeholder=" "
-                                    maxLength="50"
-                                    className={`inputText ${styles.inputText}`}
-                                    id="unifrom"
-                                    value={unifrom}
-                                />
-                                <label for="unifrom">Unifrom</label>
-                            </div>
-                            <div className={styles.inputGroup1}>
-                                <select
-                                    className={`select ${styles.inputText}`}
-                                    onChange={(e) =>
-                                	this.setState({
-                                        store_id: e.target.value,
-                                	})
-                                    }
-                                    value={store_id}
-                                >
-                                    <option value={0} disabled selected>
-                                        Select Store
-                                    </option>
-                                    {store_array.map((m) => (
-										<option value={m.store_id}>
-											{m.title}
-										</option>
-									))}
-                                </select>
-                            </div>
-                            <div className={styles.inputGroup1}>
-                                <select
-                                    className={`select ${styles.inputText}`}
-                                    value={department_id}
-                                    onChange={(e) =>
+                                    onChange={(e) => 
                                         this.setState({
-                                            department_id: e.target.value,
+                                            introducerDetails: e.target.value
                                         })
                                     }
-                                >
-                                    <option value={0} disabled selected>
-                                        Select Department
-                                    </option>
-                                    {department_array.map((m) => (
-										<option value={m.department_id}>
-											{m.title}
-										</option>
-									))}
-                                </select>
-                            </div>
-                            <div className={styles.inputGroup1}>
-                                <select
-                                    className={`select ${styles.inputText}`}
-                                    value={designation_id}
-                                    onChange={(e) =>
-                                        this.setState({
-                                            designation_id: e.target.value,
-                                        })
-                                    }
-                                >
-                                    <option value={0} disabled selected>
-                                        Select Designation
-                                    </option>
-                                    {designation_array.map((m) => (
-										<option value={m.designation_id}>
-											{m.title}
-										</option>
-									))}
-                                </select>
-                            </div>
-                            <div className={`inputGroup`}>
-                                <input
-                                    type="text"
-                                    placeholder=" "
-                                    maxLength="50"
-                                    className={`inputText ${styles.inputText}`}
-                                    id="experience"
-                                    value={experience}
                                 />
-                                <label for="experience">Previous Experience</label>
+                                 <img src="/assets/logo-icon.png" className={styles.logo} />
                             </div>
-                            <div className={styles.inputGroup1}>
-                                <select
-                                    className={`select ${styles.inputText}`}
-                                    value={shift_id}
-                                    onChange={(e) =>
-                                    	this.setState({
-                                            shift_id: e.target.value,
-                                    	})
-                                    }
-                                >
-                                    <option value={0} disabled selected>
-                                        Shift Details
-                                    </option>
-                                    {shift_array.map((m) => (
-										<option value={m.shift_id}>
-											{m.title}
-										</option>
-									))}
-                                </select>
-                            </div>
-                            <div className={`inputGroup`}>
-                                <input
-                                    type="text"
-                                    placeholder=" "
-                                    maxLength="50"
-                                    className={`inputText ${styles.inputText}`}
-                                    id="joining"
-                                    value={joiningDate}
-                                />
-                                <label for="joining">Date of Joining</label>
-                            </div>
-                            <div className={`inputGroup`}>
-                                <input
-                                    type="text"
-                                    placeholder=" "
-                                    maxLength="50"
-                                    className={`inputText ${styles.inputText}`}
-                                    id="resignationDate"
-                                    value={resignationDate}
-                                />
-                                <label for="resignationDate">Date of Resignation</label>
-                            </div>
-                            <div className={styles.inputGroup1}>
-                                <select
-                                    className={`select ${styles.inputText}`}
-                                    value={card_type_id}
-                                    onChange={(e) =>
-                                    	this.setState({
-                                            card_type_id: e.target.value,
-                                    	})
-                                    }
-                                >
-                                    <option value={0} disabled selected>
-                                        ID Card Type
-                                    </option>
-                                    {card_array.map((m) => (
-										<option value={m.card_type_id}>
-											{m.title}
-										</option>
-									))}
-                                </select>
-                            </div>
-                            <div className={`inputGroup`}>
-                                <input
-                                    type="text"
-                                    placeholder=" "
-                                    maxLength="50"
-                                    className={`inputText ${styles.inputText}`}
-                                    id="cardNo"
-                                    value={idNo}
-                                />
-                                <label for="cardNo">ID Card No</label>
-                            </div>
-                            {this.getInputField(
-                                "ProfileID",
-                                "Upload ID :",
-                                "image/*"
-                            )}
-                            <button
-								onClick={() => this.getData()}
-								className={`button ${styles.button}`}
-							>
-								{"Submit"}
-							</button>
                         </div>
-                    </div>
-                </div>
+                    </GridItem>
+                    <GridItem colSpan={3} width="600px" className={styles.employeeDetails}>
+                        <div className={styles.employeeHeader}>
+                            <p className={styles.employeeHeading}>Employee Details :</p>
+                        </div>
+                        <div className={styles.employeeHolder}>
+                            <div className={styles.employeeInputHolder}>
+                                <div className={styles.employeeInputs}>
+                                    <label for="employeeId">Employee ID </label>
+                                    <Input
+                                        // value={value}
+                                        // onChange={handleChange}
+                                        placeholder="Employee Id"
+                                        size="sm"
+                                        id="employeeId"
+                                        width="255px"
+                                        className={styles.inputField}
+                                        value={employeeId}
+                                        onChange={(e) => 
+                                            this.setState({
+                                                employeeId: e.target.value
+                                            })
+                                        }
+                                    />
+                                </div>
+
+                                <div className={styles.employeeInputs}>
+                                    <label for="experience">Previous Experience</label>
+                                    <Input
+                                        // value={value}
+                                        // onChange={handleChange}
+                                        placeholder="Experience"
+                                        size="sm"
+                                        id="experience"
+                                        width="255px"
+                                        className={styles.inputField}
+                                        value={experience}
+                                        onChange={(e) => 
+                                            this.setState({
+                                                experience: e.target.value
+                                            })
+                                        }
+                                    />
+                                </div>
+                            </div>
+                            <div className={styles.employeeInputHolder}>
+                                <div className={styles.employeeInputs}>
+                                    <label for="unifrom">Unifrom</label>
+                                    <Input
+                                        // value={value}
+                                        // onChange={handleChange}
+                                        placeholder="Unifrom"
+                                        size="sm"
+                                        id="unifrom"
+                                        width="255px"
+                                        className={styles.inputField}
+                                        value={unifrom}
+                                        onChange={(e) => 
+                                            this.setState({
+                                                unifrom: e.target.value
+                                            })
+                                        }
+                                    />
+                                </div>
+                                <div className={styles.employeeInputs}>
+                                    <label for="cardType">ID Card Type</label>
+                                    <Select placeholder="ID Card Type" for="cardType" width="255px" value={card_type_id} onChange={(e) => this.setState({ card_type_id: e.target.value})}>
+                                        <option value="option1">card1</option>
+                                        <option value="option2">card2</option>
+                                        <option value="option3">card3</option>
+                                    </Select>
+                                </div>
+                            </div>
+                            <div className={styles.employeeInputHolder}>
+                                <div className={styles.employeeInputs}>
+                                    <label for="shiftDetails">Shift Details</label>
+                                    <Select placeholder="Shift Details" for="shiftDetails" width="255px" value={shift_id} onChange={(e) => this.setState({ shift_id: e.target.value})}>
+                                        <option value="option1">card1</option>
+                                        <option value="option2">card2</option>
+                                        <option value="option3">card3</option>
+                                    </Select>
+                                </div>
+                                <div className={styles.employeeInputs}>
+                                    <label for="designation">Select Designation</label>
+                                    <Select placeholder="Select Designation Details" for="designation" width="255px" value={designation_id} onChange={(e) => this.setState({ designation_id: e.target.value})}>
+                                        <option value="option1">Designation1</option>
+                                        <option value="option2">Designation2</option>
+                                        <option value="option3">Designation3</option>
+                                    </Select>
+                                </div>
+                            </div>
+                            <div className={styles.employeeInputHolder}>
+                                <div className={styles.employeeInputs}>
+                                    <label for="joining">Date of Joining</label>
+                                    <Input
+                                        // value={value}
+                                        // onChange={handleChange}
+                                        placeholder="DD/MM/YYYY"
+                                        size="sm"
+                                        id="joining"
+                                        width="255px"
+                                        className={styles.inputField}
+                                        value={joiningDate}
+                                        onChange={(e) => 
+                                            this.setState({
+                                                joiningDate: e.target.value
+                                            })
+                                        }
+                                    />
+                                </div>
+                                <div className={styles.employeeInputs}>
+                                    <label for="resignationDate">Date of Resignation</label>
+                                    <Input
+                                        // value={value}
+                                        // onChange={handleChange}
+                                        placeholder="DD/MM/YYYY"
+                                        size="sm"
+                                        id="resignationDate"
+                                        width="255px"
+                                        className={styles.inputField}
+                                        value={resignationDate}
+                                        onChange={(e) => 
+                                            this.setState({
+                                                resignationDate: e.target.value
+                                            })
+                                        }
+                                    />
+                                </div>
+                            </div>
+                            <div className={styles.employeeInputHolder}>
+                                <div className={styles.employeeInputs}>
+                                    <label for="cardNo">ID Card No</label>
+                                    <Input
+                                        // value={value}
+                                        // onChange={handleChange}
+                                        placeholder="ID Card No"
+                                        size="sm"
+                                        id="cardNo"
+                                        width="255px"
+                                        className={styles.inputField}
+                                        value={idNo}
+                                        onChange={(e) => 
+                                            this.setState({
+                                                idNo: e.target.value
+                                            })
+                                        }
+                                    />
+                                </div>
+                                <div className={styles.employeeInputs}>
+                                    <label for="store">Select Store</label>
+                                    <Select placeholder="Select Store" for="store" width="255px" value={store_id} onChange={(e) => this.setState({ store_id: e.target.value})}>
+                                        <option value="option1">Store1</option>
+                                        <option value="option2">Store2</option>
+                                        <option value="option3">Store3</option>
+                                    </Select>
+                                </div>
+                            </div>
+                            <div className={styles.employeeInputHolder}>
+                            <div className={styles.employeeInputs}>
+                                    <label for="department">Select Department</label>
+                                    <Select placeholder="Select Department" for="department" width="255px" value={department_id} onChange={(e) => this.setState({ department_id: e.target.value})}>
+                                        <option value="option1">department1</option>
+                                        <option value="option2">department2</option>
+                                        <option value="option3">department3</option>
+                                    </Select>
+                                </div>
+                            </div>
+                        </div>
+                    </GridItem>
+                    <GridItem colSpan={3} width="600px" className={styles.uploadDetails}>
+                        <div className={styles.uploadHolder}>
+                            <label className={styles.uploaderTitle} for="uploadImage">Upload Image :</label>
+                            <br />
+                            <br />
+                            <Dropzone
+                                getUploadParams={getUploadParams}
+                                onChangeStatus={handleChangeStatus}
+                                onSubmit={handleSubmit}
+                                accept="image/*,audio/*,video/*"
+                                id="uploadImage"
+                            />
+                        </div>
+                        <br />
+                        <div className={styles.uploadHolder}>
+                            <label className={styles.uploaderTitle} for="uploadImage">Upload ID :</label>
+                            <br />
+                            <br />
+                            <Dropzone
+                                getUploadParams={getUploadParams}
+                                onChangeStatus={handleChangeStatus}
+                                onSubmit={handleSubmit}
+                                accept="image/*,audio/*,video/*"
+                                id="uploadImage"
+                            />
+                        </div>
+                        <button
+                            onClick={() => this.getData()}
+                            className={`button ${styles.button}`}
+                        >
+                            {"Submit"}
+                        </button>
+                    </GridItem>
+                    <GridItem colSpan={4} />
+                </Grid>
             </div>
         )
     }
