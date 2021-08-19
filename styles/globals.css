@@ -92,6 +92,9 @@ a {
 	text-transform: capitalize;
 	outline: none;
 }
+.errorMessage {
+	color: 	#d83131;
+}
 .button {
 	color: white;
 	background-color: var(--primaryColor);

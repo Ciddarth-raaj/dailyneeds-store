@@ -83,6 +83,7 @@
 }
 .uploadHolder {
 	width: 100%;
+	margin-top: 60px;
 }
 .uploadDetails {
 	margin-top: 50px;
@@ -109,14 +110,31 @@
 	flex-direction: column;
 	justify-content: flex-end;
 }
+.errorMessage {
+	position: absolute;
+	top: 0%;
+	left: 0;
+}
+
 .personalInputs {
 	display: flex;
 	flex-direction: column;
+	/* background-color: lightgray; */
+	height: 90px;
 	margin-bottom: 30px;
+	position: relative;
 	padding: 0px 10px;
 }
+.label {
+	color: gray;
+	font-size: 15px;
+}
 .inputField {
-	border: 1px solid black;
+	transition: 500ms ease-in-out;
+	border: 1px solid lightgray;
+	border-radius: 5px;
+	padding: 3px;
+	outline-color: var(--primaryColor);
 	margin-top: 5px;
 }
 .textField {
@@ -126,10 +144,19 @@
 }
 .personalInputHolder {
 	display: flex;
+	height: 200px;
+	margin-top: 20px;
 	justify-content: space-between;
+
 }
 .inputHolder {
 	min-height: 30vh;
+	width: 50%;
+}
+.textAreaHolder {
+	width: 100%;
+	padding-bottom: 25px;
+	padding-top: 10px;
 }
 .employeeHolder {
 	display: flex;
@@ -182,6 +209,14 @@
 
 .inputGroup1 select {
 	width: 100%;
+}
+.buttonHolder {
+	width: 100%;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	margin-top: 50px;
+	margin-bottom: 30px;
 }
 .button {
 	width: 70%;
