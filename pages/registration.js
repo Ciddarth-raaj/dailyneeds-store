@@ -40,6 +40,11 @@ function Registration() {
         joiningDate: "",
         resignationDate: "",
         idNo: "",
+        gender: "",
+        blood_group_id: "",
+        designation_id: "",
+        store_id: "",
+        department_id: "",
     }
     return (
         <Formik
@@ -53,7 +58,6 @@ function Registration() {
                 <GlobalWrapper title="New Employee">
                     <Head />
                     <Flex templateColumns="repeat(3, 1fr)" gap={6} colSpan={2}>
-
                         <Container height="100%" className={styles.container} boxShadow="lg">
                             <p>Personal Details</p>
                             <div>

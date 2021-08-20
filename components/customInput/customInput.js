@@ -20,11 +20,13 @@ const TextField = ({ label, values ,method, ...props }) => {
       />
       }
       {method === "switch" &&
-      <Select placeholder="Select option">
+      <Select {...field} placeholder="Select option">
       {values.map((m) => (
       <Fragment>
       <option value={m.id}>{m.value}</option>
+      <ErrorMessage component="div" name={field.name} className={`errorMessage`} />
       </Fragment>
+      
       ))}
       </Select>
       }
