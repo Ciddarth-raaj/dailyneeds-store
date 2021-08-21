@@ -36,7 +36,6 @@
 	height: 200px;
 	margin-top: 20px;
 	justify-content: space-between;
-
 }
 
 .inputHolder {
@@ -54,55 +53,53 @@
 .searchBar {
 	display: flex;
 	flex: 1;
-    justify-content: flex-end;
-    align-items: center;
-    margin-bottom: 15px;
+	justify-content: flex-end;
+	align-items: center;
+	margin-bottom: 15px;
 }
 
 .searchBar div {
-    padding-left: 10px;
+	padding-left: 10px;
 }
 
 .searchButton {
-    display: flex;
-    justify-content: center;
-	position: relative;
+	display: flex;
+	justify-content: center;
 	padding: 0px 10px;
-    margin-bottom: 20px;
-    margin-top: 30px;
+	margin-top: 30px;
 }
 
 .searchButton div {
-    padding-right: 10px;
+	padding-right: 10px;
 }
 
 .searchButton button {
-    padding: 5px;
-    padding-left: 30px;
+	padding: 5px;
+	padding-left: 30px;
 	padding-right: 30px;
 	border-radius: 5px;
-    border: 1px solid rgb(226, 226, 226);
-    cursor: pointer;
-    align-self: center;
+	border: 1px solid rgb(226, 226, 226);
+	cursor: pointer;
+	align-self: center;
 }
 
 .searchButton button:hover {
-    background-color: #e6e6e6;
-    border: 1px solid white;
+	background-color: #e6e6e6;
+	border: 1px solid white;
 }
 
 .icon {
-    width: 20px;
-    height: 20px;
-    color: var(--primaryColor);
-    margin-left: 15px;
+	width: 20px;
+	height: 20px;
+	color: var(--primaryColor);
+	margin-left: 15px;
 }
 
 .table {
 	width: 100%;
 	border-collapse: collapse;
-    border: 1px solid rgb(226, 226, 226);
-    margin-bottom: 20px;
+	border: 1px solid rgb(226, 226, 226);
+	margin-bottom: 20px;
 }
 .table thead {
 	border-radius: 10px;
@@ -113,7 +110,7 @@
 }
 
 .table > thead th {
-    border: 1px solid rgb(226, 226, 226);
+	border: 1px solid rgb(226, 226, 226);
 	padding: 20px;
 	margin-bottom: 20px;
 }
@@ -148,7 +145,7 @@
 	.inputHolder {
 		width: 100%;
 	}
-    .table thead {
+	.table thead {
 		display: none;
 	}
 	.table,

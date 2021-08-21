@@ -49,56 +49,46 @@ function Registration() {
                             <div>
                                 <div className={styles.personalInputHolder}>
                                     <div className={styles.inputHolder}>
-                                        <div className={styles.personalInputs}>
-                                            <CustomInput
-                                                label="All Stores"
-                                                name="stores"
-                                                type="text"
-                                                method="switch"
-                                            />
-                                        </div>
-                                        <div className={styles.personalInputs}>
-                                            <CustomInput
-                                                label="Joining Date"
-                                                name="dob_1"
-                                                type="text"
-                                            />
-                                        </div>
+                                        <CustomInput
+                                            label="All Stores"
+                                            name="stores"
+                                            type="text"
+                                            method="switch"
+                                        />
+                                        <CustomInput
+                                            label="Joining Date"
+                                            name="dob_1"
+                                            type="text"
+                                        />
                                     </div>
                                     <div className={styles.inputHolder}>
-                                        <div className={styles.personalInputs}>
-                                            <CustomInput
-                                                label="All Designation"
-                                                name="designation"
-                                                type="text"
-                                                method="switch"
-                                            />
-                                        </div>
-                                        <div className={styles.personalInputs}>
-                                            <CustomInput
-                                                label="Resignation Date"
-                                                name="dob_2"
-                                                type="text"
-                                            />
-                                        </div>
+                                        <CustomInput
+                                            label="All Designation"
+                                            name="designation"
+                                            type="text"
+                                            method="switch"
+                                        />
+                                        <CustomInput
+                                            label="Resignation Date"
+                                            name="dob_2"
+                                            type="text"
+                                        />
                                     </div>
                                     <div className={styles.inputHolder}>
-                                        <div className={styles.personalInputs}>
-                                            <CustomInput
-                                                label="Current Employees"
-                                                name="employee"
-                                                type="text"
-                                                method="switch"
-                                            />
-                                        </div>
+                                        <CustomInput
+                                            label="Current Employees"
+                                            name="employee"
+                                            type="text"
+                                            method="switch"
+                                        />
                                     </div>
                                 </div>
+
                                 <div className={styles.searchButton}>
-                                    <div>
-                                        <CustomInput name="search" type="text" />
-                                    </div>
+                                    <CustomInput name="search" type="text" />
                                     <button>{"Search"}</button>
                                 </div>
+
                                 <table className={styles.table}>
                                     <thead>
                                         <tr>
@@ -124,9 +114,9 @@ function Registration() {
                                                 <td>{m.status}</td>
                                                 <td>
                                                     <img
-												        src={"/assets/edit.png"}
-												        className={styles.icon}
-											        /> 
+                                                        src={"/assets/edit.png"}
+                                                        className={styles.icon}
+                                                    />
                                                 </td>
                                             </tr>
                                         ))}
