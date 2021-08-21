@@ -45,7 +45,6 @@
 }
 .employeeHeader {
 	min-height: 10vh;
-	/* background-color: aqua; */
 	padding: 20px;
 	display: flex;
 	justify-content: center;
@@ -54,7 +53,6 @@
 .employeeInputs {
 	display: flex;
 	flex-direction: column;
-	/* padding: 20px; */
 }
 .employeeHeading {
 	font-size: 1.5em;
@@ -117,18 +115,16 @@
 }
 
 .personalInputs {
+	width: 100%;
 	display: flex;
 	flex-direction: column;
-	/* background-color: lightgray; */
-	height: 90px;
-	margin-bottom: 30px;
-	position: relative;
-	padding: 0px 10px;
+	align-items: flex-start;
+	justify-content:flex-start;
+	height: 120px;
+	padding: 0px 7px;
+	position: relative;	
 }
-.label {
-	color: gray;
-	font-size: 15px;
-}
+
 .inputField {
 	transition: 500ms ease-in-out;
 	border: 1px solid lightgray;
@@ -142,19 +138,29 @@
 	margin-top: 5px;
 	width: 100%;
 }
+.label {
+	font-size: 15px;
+}
+
+
 .personalInputHolder {
 	display: flex;
-	height: 200px;
+	height: 250px;
 	margin-top: 20px;
 	justify-content: space-between;
 
 }
 .inputHolder {
-	min-height: 30vh;
+	height: 100%;
+	display: flex;
+	flex-direction: column;
+	justify-content: space-between;
 	width: 50%;
 }
 .textAreaHolder {
 	width: 100%;
+	margin-top: 20px;
+	margin-bottom: 30px;
 	padding-bottom: 25px;
 	padding-top: 10px;
 }
@@ -237,6 +243,7 @@
 	flex-direction: column;
 	flex: 1;
 }
+
 .inputText {
 	flex: 1;
 }

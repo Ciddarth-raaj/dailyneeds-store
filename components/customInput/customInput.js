@@ -1,13 +1,15 @@
 
-import React from 'react';
+import React, { Fragment } from 'react';
 import { ErrorMessage, useField } from 'formik';
 import { Input, Textarea, Select } from "@chakra-ui/react";
+import styles from "../../styles/registration.module.css";
 
-const TextField = ({ label, value1, value2, value3, method, ...props }) => {
+
+const TextField = ({ label, values ,method, ...props }) => {
   const [field, meta] = useField(props);
   return (
-    <div>
-      <label htmlFor={field.name}>{label}</label>
+    <div className={styles.personalInputs}>
+      <label htmlFor={field.name} className={styles.label}>{label}</label>
       {method === "TextArea" &&
       <Textarea
       {...field}
@@ -18,13 +20,18 @@ const TextField = ({ label, value1, value2, value3, method, ...props }) => {
       />
       }
       {method === "switch" &&
-      <Select placeholder="Select option">
-      <option value="option1">{value1}</option>
-      <option value="option2">{value2}</option>
-      <option value="option3">{value3}</option>
+      <Select {...field} placeholder="Select option">
+      {values.map((m) => (
+      <Fragment>
+      <option value={m.id}>{m.value}</option>
+      <ErrorMessage component="div" name={field.name} className={`errorMessage`} />
+      </Fragment>
+      
+      ))}
       </Select>
       }
       {method === undefined &&
+      
       <Input
         {...field} {...props}
         autoComplete="off"
