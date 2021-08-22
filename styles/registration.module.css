@@ -130,14 +130,12 @@
 
 .personalInputHolder {
 	display: flex;
+	flex-direction: column;
 	justify-content: space-between;
 }
 .inputHolder {
-	/* height: 100%; */
 	display: flex;
-	flex-direction: column;
-	/* justify-content: space-between; */
-	width: 50%;
+	width: 100%;
 }
 .textAreaHolder {
 	width: 100%;

@@ -275,6 +275,9 @@ export default class Create extends React.Component {
 													styles.personalInputHolder
 												}
 											>
+												<div className={
+													styles.inputHolder
+												}>
 												<CustomInput
 													label="Educational Qualification *"
 													name="educationalQualification"
@@ -285,6 +288,7 @@ export default class Create extends React.Component {
 													name="introducerName"
 													type="text"
 												/>
+												</div>
 											</div>
 											<div
 												className={
@@ -309,22 +313,22 @@ export default class Create extends React.Component {
 														styles.personalInputHolder
 													}
 												>
-													<CustomInput
-														label="Employee ID *"
-														name="employeeId"
-														type="text"
-													/>
-													<CustomInput
-														label="Salary / Month *"
-														name="salary"
-														type="text"
-													/>
-												</div>
-												<div
-													className={
-														styles.personalInputHolder
-													}
-												>
+													<div
+														className={
+															styles.inputHolder
+														}
+													>
+														<CustomInput
+															label="Employee ID *"
+															name="employeeId"
+															type="text"
+														/>
+														<CustomInput
+															label="Salary / Month *"
+															name="salary"
+															type="text"
+														/>
+													</div>
 													<div
 														className={
 															styles.inputHolder
@@ -341,6 +345,12 @@ export default class Create extends React.Component {
 															type="text"
 														/>
 													</div>
+												</div>
+												<div
+													className={
+														styles.personalInputHolder
+													}
+												>
 													<div
 														className={
 															styles.inputHolder
@@ -358,12 +368,6 @@ export default class Create extends React.Component {
 															type="text"
 														/>
 													</div>
-												</div>
-												<div
-													className={
-														styles.personalInputHolder
-													}
-												>
 													<div
 														className={
 															styles.inputHolder
@@ -395,6 +399,12 @@ export default class Create extends React.Component {
 															type="text"
 														/>
 													</div>
+												</div>
+												<div
+													className={
+														styles.personalInputHolder
+													}
+												>
 													<div
 														className={
 															styles.inputHolder
@@ -441,22 +451,28 @@ export default class Create extends React.Component {
 															method="switch"
 														/>
 													</div>
-												</div>
-												<div
+													<div
 													className={
 														styles.personalInputHolder
 													}
-												>
-													<CustomInput
-														label="Date of Resignation"
-														name="resignationDate"
-														type="text"
-													/>
-													<CustomInput
-														label="ID Card No"
-														name="idNo"
-														type="text"
-													/>
+													>
+													<div
+															className={
+																styles.inputHolder
+															}
+														>
+															<CustomInput
+																label="Date of Resignation"
+																name="resignationDate"
+																type="text"
+															/>
+															<CustomInput
+																label="ID Card No"
+																name="idNo"
+																type="text"
+															/>
+														</div>
+														</div>
 												</div>
 											</div>
 										</Container>
