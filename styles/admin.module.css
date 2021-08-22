@@ -1,0 +1,176 @@
+.container {
+	background-color: white;
+	border-radius: 20px;
+	padding-top: 120px;
+	position: relative;
+}
+
+.container p {
+	border-bottom: 1px solid rgb(211, 211, 211);
+	position: absolute;
+	top: 30px;
+	width: 100%;
+	left: 0;
+	padding-left: 30px;
+	padding-bottom: 30px;
+	font-weight: bold;
+	font-size: 24px;
+}
+
+.personalInputs {
+	display: flex;
+	flex-direction: column;
+	height: 90px;
+	margin-bottom: 30px;
+	position: relative;
+	padding: 0px 10px;
+}
+
+.label {
+	color: gray;
+	font-size: 15px;
+}
+
+.personalInputHolder {
+	display: flex;
+	height: 200px;
+	margin-top: 20px;
+	justify-content: space-between;
+}
+
+.inputHolder {
+	min-height: 30vh;
+	width: 50%;
+}
+
+.inputDiv {
+	display: flex;
+	max-width: 300px;
+	flex-direction: column;
+	flex: 1;
+}
+
+.searchBar {
+	display: flex;
+	flex: 1;
+	justify-content: flex-end;
+	align-items: center;
+	margin-bottom: 15px;
+}
+
+.searchBar div {
+	padding-left: 10px;
+}
+
+.searchButton {
+	display: flex;
+	justify-content: center;
+	padding: 0px 10px;
+	margin-top: 30px;
+}
+
+.searchButton div {
+	padding-right: 10px;
+}
+
+.searchButton button {
+	padding: 5px;
+	padding-left: 30px;
+	padding-right: 30px;
+	border-radius: 5px;
+	border: 1px solid rgb(226, 226, 226);
+	cursor: pointer;
+	align-self: center;
+}
+
+.searchButton button:hover {
+	background-color: #e6e6e6;
+	border: 1px solid white;
+}
+
+.icon {
+	width: 20px;
+	height: 20px;
+	color: var(--primaryColor);
+	margin-left: 15px;
+}
+
+.table {
+	width: 100%;
+	border-collapse: collapse;
+	border: 1px solid rgb(226, 226, 226);
+	margin-bottom: 20px;
+}
+.table thead {
+	border-radius: 10px;
+}
+.table > thead tr {
+	text-align: center;
+	padding: 20px;
+}
+
+.table > thead th {
+	border: 1px solid rgb(226, 226, 226);
+	padding: 20px;
+	margin-bottom: 20px;
+}
+
+.table > tbody td {
+	text-align: center;
+	padding: 20px;
+	margin-bottom: 20px;
+}
+
+.table > tbody tr {
+	border-bottom: 1px solid rgb(226, 226, 226);
+}
+
+.table td {
+	border-left: 1px solid rgb(226, 226, 226);
+	border-right: 1px solid rgb(226, 226, 226);
+}
+
+.view-more {
+	color: blue;
+	cursor: pointer;
+}
+
+@media (max-width: 600px) {
+	.personalInputHolder {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+	}
+	.inputHolder {
+		width: 100%;
+	}
+	.table thead {
+		display: none;
+	}
+	.table,
+	.table tbody,
+	.table tr,
+	.table td {
+		display: block;
+		width: 100%;
+	}
+	.table tr {
+		margin-bottom: 15px;
+	}
+
+	.table tbody tr td {
+		text-align: right;
+		position: relative;
+	}
+
+	.table td::before {
+		content: attr(data-label);
+		position: absolute;
+		left: 0;
+		padding-left: 15px;
+		font-weight: bold;
+		font-size: 16px;
+		text-align: left;
+	}
+}
