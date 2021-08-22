@@ -28,7 +28,7 @@ const TextField = ({ label, values, method, ...props }) => {
 							<ErrorMessage
 								component="div"
 								name={field.name}
-								className={`errorMessage`}
+								className={styles.errorMessage}
 							/>
 						</Fragment>
 					))}
@@ -40,7 +40,7 @@ const TextField = ({ label, values, method, ...props }) => {
 			<ErrorMessage
 				component="div"
 				name={field.name}
-				className={`errorMessage`}
+				className={styles.errorMessage}
 			/>
 		</div>
 	);

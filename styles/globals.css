@@ -93,16 +93,14 @@ a {
 	outline: none;
 }
 .dropzone {
-	overflow: auto; 
-	border: 1px solid #999; 
+	overflow: auto;
+	border: 1px solid #999;
 	background: #f5f5f5;
 }
 .inputLabelWithFiles {
 	margin: 20px 3%;
 }
-.errorMessage {
-	color: 	#d83131;
-}
+
 .button {
 	color: white;
 	background-color: var(--primaryColor);
