@@ -14,12 +14,12 @@ export default class SideBar extends React.Component {
 			menu: {
 				dashboard: {
 					title: "Dashboard",
-					selected: true,
+					selected: false,
 					icon: "fa-columns",
 				},
 				employee: {
 					title: "Employees",
-					selected: true,
+					selected: false,
 					icon: "fa-users",
 					subMenu: {
 						add: {
@@ -36,6 +36,12 @@ export default class SideBar extends React.Component {
 				},
 			},
 		};
+	}
+
+	handleMenuClick = (key) => {
+		const { menu } = this.state;
+		menu[key].selected = true;
+		this.setState({ menu: menu })
 	}
 
 	render() {
@@ -55,7 +61,7 @@ export default class SideBar extends React.Component {
 							className={styles.menuWrapper}
 						>
 							<Link href={menu[key].location == undefined ? "" : menu[key].location}>
-								<div className={styles.optionHolder}>
+								<div className={styles.optionHolder} onClick={() => this.handleMenuClick(key)}>
 									<i className={`fa ${menu[key].icon} ${styles.icons}`} />
 									{showTitle && (
 										<span>{menu[key].title}</span>
