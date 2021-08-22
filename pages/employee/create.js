@@ -65,11 +65,16 @@ export default class Create extends React.Component {
 			styles: {
 				dropzone: {
 					overflow: "auto",
-					border: "1px solid #999",
-					background: "#f5f5f5",
+					border: "none",
+					borderRadius: "10px",
+					background: "#EEEEEE",
 				},
 				inputLabelWithFiles: {
 					margin: "20px 3%",
+				},
+				inputLabel: {
+					color: "black",
+					fontSize: "14px",
 				},
 			},
 			multiple: false,

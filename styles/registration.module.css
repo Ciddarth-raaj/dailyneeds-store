@@ -230,6 +230,10 @@
 	flex: 1;
 }
 
+.uploaderTitle {
+	font-size: 14px;
+}
+
 @media (max-width: 600px) {
 	.grid {
 		padding: none;
