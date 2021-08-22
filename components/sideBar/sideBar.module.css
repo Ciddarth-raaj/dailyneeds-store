@@ -25,19 +25,74 @@
 }
 .optionHolder {
 	display: flex;
-	width: 100%;
 	height: 50px;
 	margin-bottom: 5px;
 	border-radius: 10px;
-	justify-content: center;
 	align-items: center;
 	transition: 0.3s ease-in-out;
 	cursor: pointer;
+	width: 90%;
 }
-.optionHolder:hover {
-	background-color: rgba(183, 0, 255, 0.253);
-	color: rgb(135, 0, 189);
+
+.optionHolder span {
+	font-weight: bold;
 }
+
+.menuWrapper {
+	/* width: 100%; */
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	margin-bottom: 10px;
+}
+
+.menuWrapper:hover .optionHolder i,
+.optionHolder:hover,
+.optionHolder:hover i {
+	color: rgb(106, 0, 148);
+}
+
+.optionHolder i {
+	font-size: 18px;
+	cursor: pointer;
+	color: black;
+	padding: 10px;
+	height: 40px;
+	width: 40px;
+	transition: 0.3s;
+}
+
+.menuWrapper:hover .optionHolder {
+	background-color: rgba(226, 153, 255, 0.253);
+	color: rgb(106, 0, 148);
+}
+
+.subMenuWrapper {
+	/* margin-left: -20px; */
+	margin-top: 10px;
+}
+
+.subMenuWrapper p::before {
+	content: "-";
+	margin-right: 5px;
+}
+
+.subMenuWrapper p {
+	margin-bottom: 15px;
+	cursor: pointer;
+	color: rgb(87, 87, 87);
+	font-weight: 600;
+	transition: 0.3s ease-in-out;
+}
+
+.subMenuWrapper p:last-child {
+	margin-bottom: 0px;
+}
+
+.subMenuWrapper p:hover {
+	color: black;
+}
+
 .optionName {
 	font-weight: 500;
 	padding: none;
@@ -47,7 +102,7 @@
 }
 
 .container:hover {
-	width: 15%;
+	width: 25%;
 }
 .logo {
 	margin-bottom: 50px;
@@ -73,7 +128,6 @@
 .topicContents {
 	font-size: 14px;
 	color: rgb(135, 0, 189);
-
 }
 .sideBarHolder {
 	display: none;
@@ -83,29 +137,20 @@
 .sideBarOptions {
 	display: flex;
 	flex-direction: column;
-	-ms-overflow-style: none;  
-  	scrollbar-width: none;
-	  /* background-color: lightgreen; */
+	-ms-overflow-style: none;
+	scrollbar-width: none;
+	/* background-color: lightgreen; */
 	align-items: flex-start;
 	overflow: scroll;
 	height: 100%;
 	width: 100%;
 	justify-content: flex-start;
+	align-items: center;
 }
 
 .sideBarOptions::-webkit-scrollbar {
 	display: none;
 }
-.icons {
-	font-size: 18px;
-	cursor: pointer;
-	color: rgb(100, 100, 100);
-	padding: 10px;
-	height: 40px;
-	width: 40px;
-	border-radius: 10px;
-}
-
 .optionTitle {
 	width: 100%;
 	display: flex;
