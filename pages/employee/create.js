@@ -2,7 +2,7 @@
 import React from "react";
 import { Formik, Form } from "formik";
 import Dropzone from "react-dropzone-uploader";
-import { Container, Flex, ButtonGroup, Button } from "@chakra-ui/react";
+import { Container, Flex, ButtonGroup, Button, Center } from "@chakra-ui/react";
 
 //Styles
 import styles from "../../styles/registration.module.css";
@@ -76,6 +76,12 @@ export default class Create extends React.Component {
 			accept: "image/*",
 		};
 
+		const containerProps = {
+			className: styles.container,
+			boxShadow: "lg",
+			minW: "600px",
+		};
+
 		return (
 			<GlobalWrapper title="New Employee">
 				<Head />
@@ -87,16 +93,8 @@ export default class Create extends React.Component {
 					validationSchema={Validation}
 				>
 					<Form>
-						<Flex
-							templateColumns="repeat(3, 1fr)"
-							gap={6}
-							colSpan={2}
-						>
-							<Container
-								height="100%"
-								className={styles.container}
-								boxShadow="lg"
-							>
+						<Flex>
+							<Container {...containerProps}>
 								<p>Personal Details</p>
 								<div>
 									<div className={styles.personalInputHolder}>
@@ -236,11 +234,7 @@ export default class Create extends React.Component {
 								</div>
 							</Container>
 							<Container>
-								<Container
-									className={styles.container}
-									// height="50%"
-									boxShadow="lg"
-								>
+								<Container {...containerProps}>
 									<p>Employee Details</p>
 									<div>
 										<div
@@ -368,10 +362,9 @@ export default class Create extends React.Component {
 									</div>
 								</Container>
 								<Container
-									boxShadow="lg"
-									className={styles.container}
-									mt="20px"
-									pb="20px"
+									{...containerProps}
+									mt={"20px"}
+									pb={"20px"}
 								>
 									<p>File Uploads</p>
 									<div className={styles.uploadHolder}>

@@ -1,13 +1,10 @@
 .container {
 	background-color: white;
 	border-radius: 20px;
-	min-height: 50vh;
 	display: flex;
 	padding-top: 250px;
 	flex-direction: column;
 	width: 100%;
-	justify-content: center;
-	align-items: center;
 	position: relative;
 }
 .container p {
