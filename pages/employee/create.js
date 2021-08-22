@@ -527,7 +527,7 @@ export default class Create extends React.Component {
 														handleSubmit()
 													}
 												>
-													Save
+													Create
 												</Button>
 											</ButtonGroup>
 										</Container>

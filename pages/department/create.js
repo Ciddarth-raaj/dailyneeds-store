@@ -1,33 +1,42 @@
 import { Formik, Form } from "formik";
-import 'react-dropzone-uploader/dist/styles.css';
+import { Flex, Container, ButtonGroup, Button } from "@chakra-ui/react";
+
+import styles from "../../styles/create.module.css";
+
 import Head from "../../util/head";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import { Create } from "../../util/validation";
-import styles from "../../styles/create.module.css";
-import { Flex, Container } from "@chakra-ui/react";
 import CustomInput from "../../components/customInput/customInput";
+import React from "react";
 
-
-
-function Department() {
-    const initialValue = {
-        departmentName: "",
-        status: "",
+const initialValue = {
+    departmentName: "",
+    status: "",
+}
+export default class CreateDepartment extends React.Component {
+    constructor(props) {
+        super(props);
+        this.state = { loading: false }
     }
-    return (
-        <Formik
-            initialValues={initialValue}
-            onSubmit={values => {
-                console.log(values)
-            }}
-            validationSchema={Create}
-        >
-            <Form>
-                <GlobalWrapper title="Add Department">
-                    <Head />
-                    <Flex templateColumns="repeat(1, 1fr)" gap={6} colSpan={1}>
-                        <Container height="100%" maxW="container.xl" className={styles.container}>
-                        <p>Add New Department</p>
+
+    render() {
+        const { loading } = this.state;
+
+        return <GlobalWrapper title="Department">
+            <Head />
+            <Formik
+                initialValues={initialValue}
+                onSubmit={values => {
+                    console.log(values)
+                }}
+                validationSchema={Create}
+            >
+                {(formikProps) => {
+                    const { handleSubmit } = formikProps;
+
+                    return <Form>
+                        <Container maxW="container.xl" className={styles.container} pb={"20px"}>
+                            <p>Add New Department</p>
                             <div className={styles.wrapper}>
                                 <div className={styles.inputHolder}>
                                     <CustomInput
@@ -56,23 +65,31 @@ function Department() {
                                         method="switch"
                                     />
                                 </div>
-                                <div className={styles.createHandler}>
-                                    <div className={styles.buttonHolder}>
-                                        <button className={`button ${styles.submitButton}`}>
-                                            Submit
-                                        </button>
-                                        <button className={`button ${styles.declineButton}`}>
-                                            Reset
-                                        </button>
-                                    </div>
-                                </div>
+                                <ButtonGroup
+                                    spacing="6"
+                                    mt={10}
+                                    style={{
+                                        width: "100%",
+                                        justifyContent: "flex-end",
+                                    }}
+                                >
+                                    <Button>Cancel</Button>
+                                    <Button
+                                        isLoading={loading}
+                                        loadingText="Submitting"
+                                        colorScheme="purple"
+                                        onClick={() =>
+                                            handleSubmit()
+                                        }
+                                    >
+                                        Create
+                                    </Button>
+                                </ButtonGroup>
                             </div>
                         </Container>
-                        </Flex>
-                </GlobalWrapper>
-            </Form>
-        </Formik>
-    )
+                    </Form>
+                }}
+            </Formik>
+        </GlobalWrapper>
+    }
 }
-
-export default Department;
