@@ -49,6 +49,7 @@
 
 .optionHolder span {
 	font-weight: bold;
+	margin-left: 10px;
 }
 
 .menuWrapper {
@@ -68,7 +69,7 @@
 .optionHolder i {
 	font-size: 18px;
 	cursor: pointer;
-	color: black;
+	/* color: black; */
 	padding: 10px;
 	height: 40px;
 	width: 40px;
@@ -100,6 +101,18 @@
 	color: rgb(87, 87, 87);
 	font-weight: 600;
 	transition: 0.3s ease-in-out;
+}
+
+.menuWrapper:hover .icons-selected {
+	color: rgb(106, 0, 148);
+	background-color: unset;
+	border-radius: 10px;
+}
+
+.icons-selected {
+	color: rgb(106, 0, 148);
+	background-color: rgba(226, 153, 255, 0.253);
+	border-radius: 10px;
 }
 
 .subMenuWrapper p:last-child {

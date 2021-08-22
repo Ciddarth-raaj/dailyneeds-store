@@ -20,6 +20,7 @@ export default class SideBar extends React.Component {
 				employee: {
 					title: "Employees",
 					selected: false,
+					openPage: true,
 					icon: "fa-users",
 					subMenu: {
 						add: {
@@ -62,7 +63,7 @@ export default class SideBar extends React.Component {
 						>
 							<Link href={menu[key].location == undefined ? "" : menu[key].location}>
 								<div className={styles.optionHolder} onClick={() => this.handleMenuClick(key)}>
-									<i className={`fa ${menu[key].icon} ${styles.icons}`} />
+									<i className={`fa ${menu[key].icon} ${menu[key].openPage ? styles["icons-selected"] : ""}`} />
 									{showTitle && (
 										<span>{menu[key].title}</span>
 									)}
