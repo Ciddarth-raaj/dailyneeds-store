@@ -14,36 +14,38 @@ import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import { Validation } from "../../util/validation";
 
 const INITIAL_VALUES = {
-	name: "",
-	fatherName: "",
-	dob: "",
-	permanentAddress: "",
-	residentialAddress: "",
-	contactNo: "",
-	alternateNo: "",
-	email: "",
-	educationalQualification: "",
-	introducerName: "",
-	introducerDetails: "",
-	employeeId: "",
-	salary: "",
-	unifrom: "",
-	experience: "",
-	joiningDate: "",
-	resignationDate: "",
-	idNo: "",
+	name: null,
+	fatherName: null,
+	dob: null,
+	permanentAddress: null,
+	residentialAddress: null,
+	contactNo: null,
+	alternateNo: null,
+	email: null,
+	educationalQualification: null,
+	introducerName: null,
+	introducerDetails: null,
+	employeeId: null,
+	salary: null,
+	unifrom: null,
+	experience: null,
+	joiningDate: null,
+	resignationDate: null,
+	idNo: null,
 	gender: "Male",
-	blood_group_id: "",
-	designation_id: "",
-	store_id: "",
-	department_id: "",
+	blood_group_id: null,
+	designation_id: null,
+	store_id: null,
+	department_id: null,
 	maritalStatus: "Married",
 };
 
 export default class Create extends React.Component {
 	constructor(props) {
 		super(props);
-		this.state = {};
+		this.state = {
+			loading: false,
+		};
 	}
 
 	getUploadParams = ({ meta }) => {
@@ -61,6 +63,8 @@ export default class Create extends React.Component {
 	};
 
 	render() {
+		const { loading } = this.state;
+
 		const dropDownProps = {
 			styles: {
 				dropzone: {
@@ -516,7 +520,7 @@ export default class Create extends React.Component {
 											>
 												<Button>Cancel</Button>
 												<Button
-													// isLoading
+													isLoading={loading}
 													loadingText="Submitting"
 													colorScheme="purple"
 													onClick={() =>
