@@ -19,7 +19,7 @@ export default class SideBar extends React.Component {
 				},
 				employee: {
 					title: "Employees",
-					selected: false,
+					selected: true,
 					openPage: true,
 					icon: "fa-users",
 					subMenu: {
@@ -32,6 +32,26 @@ export default class SideBar extends React.Component {
 							title: "View Employee",
 							selected: false,
 							location: "/employee"
+						},
+						view_departments: {
+							title: "View Departments",
+							selected: false,
+							location: "/department"
+						},
+						add_departments: {
+							title: "Add Departments",
+							selected: false,
+							location: "/department/create"
+						},
+						view_designation: {
+							title: "View Designations",
+							selected: false,
+							location: "/designation"
+						},
+						add_designation: {
+							title: "Add Designation",
+							selected: false,
+							location: "/designation/create"
 						},
 					},
 				},
