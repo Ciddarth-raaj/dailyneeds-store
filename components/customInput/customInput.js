@@ -21,7 +21,7 @@ const TextField = ({ label, values, method, ...props }) => {
 				/>
 			)}
 			{method === "switch" && (
-				<Select {...field} placeholder="Select option">
+				<Select {...field} placeholder="Select Option">
 					{values?.map((m) => (
 						<Fragment>
 							<option value={m.id}>{m.value}</option>

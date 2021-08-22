@@ -32,11 +32,12 @@ const INITIAL_VALUES = {
 	joiningDate: "",
 	resignationDate: "",
 	idNo: "",
-	gender: "",
+	gender: "Male",
 	blood_group_id: "",
 	designation_id: "",
 	store_id: "",
 	department_id: "",
+	maritalStatus: "Married",
 };
 
 export default class Create extends React.Component {
@@ -112,14 +113,14 @@ export default class Create extends React.Component {
 													}
 												>
 													<CustomInput
-														label="Name"
+														label="Name *"
 														name="name"
 														type="text"
 													/>
 
 													<CustomInput
-														label="Father Name"
-														name="fatherName"
+														label="Date of Birth *"
+														name="dob"
 														type="text"
 													/>
 												</div>
@@ -129,23 +130,24 @@ export default class Create extends React.Component {
 													}
 												>
 													<CustomInput
-														label="Date of Birth"
-														name="dob"
+														label="Father / Spouse Name *"
+														name="fatherName"
 														type="text"
 													/>
+
 													<CustomInput
-														label="Gender"
+														label="Gender *"
 														values={[
 															{
-																id: 1,
+																id: "Male",
 																value: "Male",
 															},
 															{
-																id: 2,
+																id: "Female",
 																value: "Female",
 															},
 															{
-																id: 3,
+																id: "Transgendar",
 																value: "Transgendar",
 															},
 														]}
@@ -155,14 +157,52 @@ export default class Create extends React.Component {
 													/>
 												</div>
 											</div>
+											<div className={styles.inputHolder}>
+												<CustomInput
+													label="Marital Status *"
+													values={[
+														{
+															id: "Married",
+															value: "Married",
+														},
+														{
+															id: "Widowed",
+															value: "Widowed",
+														},
+														{
+															id: "Divorced",
+															value: "Divorced",
+														},
+														{
+															id: "Separated",
+															value: "Separated",
+														},
+													]}
+													name="maritalStatus"
+													type="text"
+													method="switch"
+												/>
+											</div>
 											<div
 												className={
 													styles.personalInputHolder
 												}
 											>
 												<CustomInput
-													label="Permanent Address"
+													label="Permanent Address *"
 													name="permanentAddress"
+													type="text"
+													method="TextArea"
+												/>
+											</div>
+											<div
+												className={
+													styles.personalInputHolder
+												}
+											>
+												<CustomInput
+													label="Residential Address"
+													name="residentialAddress"
 													type="text"
 													method="TextArea"
 												/>
@@ -178,7 +218,7 @@ export default class Create extends React.Component {
 													}
 												>
 													<CustomInput
-														label="Primary Contact Number"
+														label="Primary Contact Number *"
 														name="contactNo"
 														type="text"
 													/>
@@ -194,13 +234,13 @@ export default class Create extends React.Component {
 													}
 												>
 													<CustomInput
-														label="Email Address"
+														label="Email ID *"
 														name="email"
 														type="text"
 													/>
 
 													<CustomInput
-														label="Blood Group"
+														label="Blood Group *"
 														values={[
 															{
 																id: 1,
@@ -227,49 +267,15 @@ export default class Create extends React.Component {
 												}
 											>
 												<CustomInput
-													label="Permanent Address"
-													name="permanentAddress"
+													label="Educational Qualification *"
+													name="educationalQualification"
 													type="text"
-													method="TextArea"
 												/>
-											</div>
-											<div
-												className={
-													styles.personalInputHolder
-												}
-											>
-												<div
-													className={
-														styles.inputHolder
-													}
-												>
-													<CustomInput
-														label="Educational Qualification"
-														name="educationalQualification"
-														type="text"
-													/>
-													<CustomInput
-														label="Introducer's Name"
-														name="introducerName"
-														type="text"
-													/>
-												</div>
-												<div
-													className={
-														styles.inputHolder
-													}
-												>
-													<CustomInput
-														label="Salary / Month"
-														name="salary"
-														type="text"
-													/>
-													<CustomInput
-														label="Employee Id"
-														name="employeeId"
-														type="text"
-													/>
-												</div>
+												<CustomInput
+													label="Introducer's Name"
+													name="introducerName"
+													type="text"
+												/>
 											</div>
 											<div
 												className={
@@ -289,6 +295,22 @@ export default class Create extends React.Component {
 										<Container {...containerProps}>
 											<p>Employee Details</p>
 											<div>
+												<div
+													className={
+														styles.personalInputHolder
+													}
+												>
+													<CustomInput
+														label="Employee ID *"
+														name="employeeId"
+														type="text"
+													/>
+													<CustomInput
+														label="Salary / Month *"
+														name="salary"
+														type="text"
+													/>
+												</div>
 												<div
 													className={
 														styles.personalInputHolder
@@ -339,7 +361,7 @@ export default class Create extends React.Component {
 														}
 													>
 														<CustomInput
-															label="Select Designation"
+															label="Select Designation *"
 															values={[
 																{
 																	id: 1,
@@ -370,7 +392,7 @@ export default class Create extends React.Component {
 														}
 													>
 														<CustomInput
-															label="Select Store"
+															label="Select Store *"
 															values={[
 																{
 																	id: 1,
@@ -390,7 +412,7 @@ export default class Create extends React.Component {
 															method="switch"
 														/>
 														<CustomInput
-															label="Select Department"
+															label="Select Department *"
 															values={[
 																{
 																	id: 1,
