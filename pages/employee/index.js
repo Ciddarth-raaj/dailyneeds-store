@@ -1,8 +1,10 @@
 import { Formik, Form } from "formik";
-import CustomInput from "../../components/customInput/customInput";
-import styles from "../styles/admin.module.css";
-import Head from "../../util/head";
 import { Container, Flex } from "@chakra-ui/react";
+
+import styles from "../../styles/admin.module.css";
+
+import CustomInput from "../../components/customInput/customInput";
+import Head from "../../util/head";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import { Validation } from "../../util/validation";
 import IconButton from "../../components/iconButton/iconButton";
