@@ -1,13 +1,13 @@
 .container {
 	background-color: white;
 	border-radius: 20px;
-    min-height: 50vh;
-    display: flex;
-    padding-top: 250px;
-    flex-direction: column;
-    width: 100%;
-    justify-content: center;
-    align-items: center;
+	min-height: 50vh;
+	display: flex;
+	padding-top: 250px;
+	flex-direction: column;
+	width: 100%;
+	justify-content: center;
+	align-items: center;
 	position: relative;
 }
 .container p {
@@ -23,60 +23,60 @@
 }
 
 .wrapper {
-    display: flex;
-    flex-direction: column;
-    width: 100%;
-    padding: 0px 20px;
-    position: absolute;
-    top: 40%;
-    justify-content: center;
+	display: flex;
+	flex-direction: column;
+	width: 100%;
+	padding: 0px 20px;
+	position: absolute;
+	top: 40%;
+	justify-content: center;
 }
 .createHandler {
-    width: 100%;
-    display: flex;
-    justify-content: center;
-    align-items: flex-end;
+	width: 100%;
+	display: flex;
+	justify-content: center;
+	align-items: flex-end;
 }
 .inputHolder {
-    display: flex;
+	display: flex;
 }
 .buttonHolder {
-    align-self: right;
-    width: 35%;
-    min-width: 400px;
-    display: flex;
-    margin-bottom: 40px;
-    justify-content: space-around;
-    align-items: flex-end;
+	align-self: right;
+	width: 35%;
+	min-width: 400px;
+	display: flex;
+	margin-bottom: 40px;
+	justify-content: space-around;
+	align-items: flex-end;
 }
 .submitButton {
-    width: 50%;
-    height: 50px;
-    min-width: 25%;
-    border-radius: 15px;
-    border: 1px solid lightgray;
+	width: 50%;
+	height: 50px;
+	min-width: 25%;
+	border-radius: 15px;
+	border: 1px solid lightgray;
 }
 .submitButton:hover {
-    color: var(--primaryColor);
+	color: var(--primaryColor);
 	background-color: white;
 	border: 1px solid lightgray;
 }
 .declineButton {
-    width: 50%;
-    min-width: 25%;
-    height: 50px;
-    margin-left: 50px;
-    background-color: #d83131;
-    border-radius: 15px;
-    border: 1px solid lightgray;
+	width: 50%;
+	min-width: 25%;
+	height: 50px;
+	margin-left: 50px;
+	background-color: #d83131;
+	border-radius: 15px;
+	border: 1px solid lightgray;
 }
 .declineButton:hover {
-    color: #d83131;
-    background-color: white;
-    border: 1px solid lightgray;
+	color: #d83131;
+	background-color: white;
+	border: 1px solid lightgray;
 }
 .button {
 	width: 30%;
-    height: 50px;
-    border-radius: 15px;
+	height: 50px;
+	border-radius: 15px;
 }

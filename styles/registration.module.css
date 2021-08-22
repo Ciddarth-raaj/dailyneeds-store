@@ -81,7 +81,7 @@
 }
 .uploadHolder {
 	width: 100%;
-	margin-top: 60px;
+	/* margin-top: 60px; */
 }
 .uploadDetails {
 	margin-top: 50px;
@@ -114,17 +114,6 @@
 	left: 0;
 }
 
-.personalInputs {
-	width: 100%;
-	display: flex;
-	flex-direction: column;
-	align-items: flex-start;
-	justify-content:flex-start;
-	height: 120px;
-	padding: 0px 7px;
-	position: relative;	
-}
-
 .inputField {
 	transition: 500ms ease-in-out;
 	border: 1px solid lightgray;
@@ -138,20 +127,13 @@
 	margin-top: 5px;
 	width: 100%;
 }
-.label {
-	font-size: 15px;
-}
-
 
 .personalInputHolder {
 	display: flex;
-	height: 250px;
-	margin-top: 20px;
 	justify-content: space-between;
-
 }
 .inputHolder {
-	height: 100%;
+	/* height: 100%; */
 	display: flex;
 	flex-direction: column;
 	justify-content: space-between;
