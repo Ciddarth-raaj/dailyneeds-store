@@ -35,7 +35,7 @@ export default class CreateDepartment extends React.Component {
                     const { handleSubmit } = formikProps;
 
                     return <Form>
-                        <Container maxW="container.xl" className={styles.container} pb={"20px"}>
+                        <Container maxW="container.xl" className={styles.container} pb={"20px"} boxShadow="lg">
                             <p>Add New Department</p>
                             <div className={styles.wrapper}>
                                 <div className={styles.inputHolder}>
