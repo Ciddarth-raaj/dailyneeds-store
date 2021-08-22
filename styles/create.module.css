@@ -2,11 +2,12 @@
 	background-color: white;
 	border-radius: 20px;
 	display: flex;
-	padding-top: 250px;
+	padding-top: 130px;
 	flex-direction: column;
 	width: 100%;
 	position: relative;
 }
+
 .container p {
 	border-bottom: 1px solid rgb(211, 211, 211);
 	position: absolute;
@@ -24,8 +25,6 @@
 	flex-direction: column;
 	width: 100%;
 	padding: 0px 20px;
-	position: absolute;
-	top: 40%;
 	justify-content: center;
 }
 .createHandler {
@@ -35,7 +34,7 @@
 	align-items: flex-end;
 }
 .inputHolder {
-	display: flex;
+	/* display: flex; */
 }
 .buttonHolder {
 	align-self: right;
