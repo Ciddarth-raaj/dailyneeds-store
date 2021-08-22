@@ -1,6 +1,14 @@
 //External Dependencies
 import { Formik, Form } from "formik";
-import { Flex, Container, ButtonGroup, Button } from "@chakra-ui/react";
+import {
+	Flex,
+	Container,
+	ButtonGroup,
+	Button,
+	CheckboxGroup,
+	Grid,
+	Checkbox,
+} from "@chakra-ui/react";
 
 //Styles
 import styles from "../../styles/create.module.css";
@@ -10,6 +18,9 @@ import Head from "../../util/head";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import { Create } from "../../util/validation";
 import CustomInput from "../../components/customInput/customInput";
+
+//Constants
+import { PERMISSIONS } from "../../constants/permissions";
 
 function Designation() {
 	const initialValue = {
@@ -63,6 +74,19 @@ function Designation() {
 										method="switch"
 									/>
 								</div>
+								<CheckboxGroup defaultValue={["dashboard"]}>
+									<Grid
+										templateColumns="repeat(3, 1fr)"
+										gap={6}
+									>
+										{Object.keys(PERMISSIONS).map((key) => (
+											<Checkbox value={key}>
+												{PERMISSIONS[key]}
+											</Checkbox>
+										))}
+									</Grid>
+								</CheckboxGroup>
+
 								<ButtonGroup
 									spacing="6"
 									style={{
