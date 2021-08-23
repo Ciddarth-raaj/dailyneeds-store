@@ -8,7 +8,10 @@ export default function Cell({ content, header, sortCallback, headingKey }) {
 
   const cellMarkup = header ? (
     <th className={styles.table}>
-      {content} <Icon sortCallback={sortCallback} headingKey={headingKey} />
+      <div>
+        <span>{content} </span>
+        <Icon sortCallback={sortCallback} headingKey={headingKey} />
+      </div>
     </th>
   ) : (
     <td className={styles.table}>

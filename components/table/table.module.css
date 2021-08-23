@@ -3,18 +3,27 @@
 	border-collapse: collapse;
 	border: 1px solid rgb(226, 226, 226);
 	margin-bottom: 20px;
-    font-size: 15px;
+	font-size: 15px;
 }
 .table thead {
 	border-radius: 10px;
 }
 
 .table > thead th {
-    font-size: 16px;
+	font-size: 16px;
 	border: 1px solid rgb(226, 226, 226);
 	padding: 18px;
 	margin-bottom: 20px;
-    
+}
+
+.table > thead th > div {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.table > thead th > div * {
+	height: 100%;
 }
 
 .table > tbody td {
