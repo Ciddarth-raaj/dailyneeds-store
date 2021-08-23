@@ -9,39 +9,56 @@ import {
 	Grid,
 	Checkbox,
 } from "@chakra-ui/react";
-
-//Styles
+import React from "react";
+import DesignationHelper from "../../helper/designation";
+//Styles/
 import styles from "../../styles/create.module.css";
 
 //Internal Dependencies
 import Head from "../../util/head";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
-import { Create } from "../../util/validation";
+import { DesignationValidation } from "../../util/validation";
 import CustomInput from "../../components/customInput/customInput";
 
 //Constants
 import { PERMISSIONS } from "../../constants/permissions";
+const initialValue = {
+	designation_name: "",
+	status: "",
+};
+export default class CreateDesignation extends React.Component {
+	constructor(props) {
+        super(props);
+        this.state = { 
+            loading: false, 
+        }
+    }
 
-function Designation() {
-	const initialValue = {
-		designationName: "",
-		status: "",
-	};
-
-	return (
-		<GlobalWrapper title="Designation">
+	CreateDesignation(values) {
+        DesignationHelper.createDesignation(values)
+            .then((data) => {
+                if (data == 200) {
+                    toast.success("Successfully Added Designation!");
+                } else {
+                    toast.error("Error creating Designation!");
+                    throw `${data.msg}`
+                }
+            })
+            .catch((err) => console.log(err));
+    }
+	render() {
+	return <GlobalWrapper title="Designation">
 			<Head />
 			<Formik
 				initialValues={initialValue}
+				validationSchema={DesignationValidation}
 				onSubmit={(values) => {
-					console.log(values);
+					this.CreateDesignation(values);
 				}}
-				validationSchema={Create}
 			>
 				{(formikProps) => {
 					const { handleSubmit } = formikProps;
-					return (
-						<Form>
+					return <Form onSubmit={formikProps.handleSubmit}>
 							<Container
 								maxW="container.xl"
 								className={styles.container}
@@ -53,7 +70,7 @@ function Designation() {
 									<div className={styles.inputHolder}>
 										<CustomInput
 											label="Designation Name"
-											name="designationName"
+											name="designation_name"
 											type="text"
 										/>
 										<CustomInput
@@ -61,18 +78,32 @@ function Designation() {
 											values={[
 												{
 													id: 1,
-													value: "Status 1",
+													value: "Active"
 												},
 												{
 													id: 2,
-													value: "Status 2",
-												},
-												{
-													id: 3,
-													value: "Status 3",
+													value: "Inactive"
 												},
 											]}
 											name="status"
+											type="text"
+											method="switch"
+										/>
+									</div>
+									<div className={styles.inputHolder}>
+									<CustomInput
+											label="Online Access"
+											name="online_portal"
+											values={[
+												{
+													id: 1,
+													value: "Grant Access"
+												},
+												{
+													id: 2,
+													value: "Discard Access"
+												},
+											]}
 											type="text"
 											method="switch"
 										/>
@@ -114,11 +145,9 @@ function Designation() {
 								</div>
 							</Container>
 						</Form>
-					);
 				}}
 			</Formik>
 		</GlobalWrapper>
-	);
+	}
 }
 
-export default Designation;
