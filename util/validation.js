@@ -46,8 +46,15 @@ export const Validation = Yup.object({
 	// idNo: Yup.number().required("Fill ID Card No"),
 });
 
-export const Create = Yup.object({
-	departmentName: Yup.string().required("Fill department Name"),
-	designationName: Yup.string().required("Fill department Name"),
+export const DepartmentValidation = Yup.object({
+	department_name: Yup.string().required("Fill department Name"),
+	// designationName: Yup.string().required("Fill department Name"),
 	status: Yup.string().required("Choose status"),
+});
+
+export const DesignationValidation = Yup.object({
+	designation_name: Yup.string().required("Fill designation Name"),
+	// designationName: Yup.string().required("Fill department Name"),
+	status: Yup.string().required("Choose status"),
+	online_portal: Yup.string().nullable().required("Choose Access"),
 });

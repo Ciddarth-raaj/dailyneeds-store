@@ -1,47 +1,67 @@
+//External Dependencies
+import React from "react";
 import { Formik, Form } from "formik";
-import { Flex, Container, ButtonGroup, Button } from "@chakra-ui/react";
+import { Container, ButtonGroup, Button } from "@chakra-ui/react";
+import { toast } from "react-toastify";
 
+//Style
 import styles from "../../styles/create.module.css";
 
+//Internal Dependencies
+import DepartmentHelper from "../../helper/department";
 import Head from "../../util/head";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
-import { Create } from "../../util/validation";
+import { DepartmentValidation } from "../../util/validation";
 import CustomInput from "../../components/customInput/customInput";
-import React from "react";
 
 const initialValue = {
-    departmentName: "",
+    department_name: "",
     status: "",
 }
 export default class CreateDepartment extends React.Component {
     constructor(props) {
         super(props);
-        this.state = { loading: false }
+        this.state = {
+            loading: false,
+        }
+    }
+
+    createDepartment(values) {
+        this.setState({ loading: true });
+        DepartmentHelper.createDepartment(values)
+            .then((data) => {
+                if (data == 200) {
+                    toast.success("Successfully Added Department!");
+                } else {
+                    toast.error("Error creating Department!");
+                    throw `${data.msg}`
+                }
+            })
+            .catch((err) => console.log(err))
+            .finally(() => this.setState({ loading: false }));
     }
 
     render() {
         const { loading } = this.state;
-
         return <GlobalWrapper title="Department">
             <Head />
             <Formik
                 initialValues={initialValue}
+                validationSchema={DepartmentValidation}
                 onSubmit={values => {
-                    console.log(values)
+                    this.createDepartment(values);
                 }}
-                validationSchema={Create}
             >
                 {(formikProps) => {
                     const { handleSubmit } = formikProps;
-
-                    return <Form>
+                    return <Form onSubmit={formikProps.handleSubmit}>
                         <Container maxW="container.xl" className={styles.container} pb={"20px"} boxShadow="lg">
                             <p>Add New Department</p>
                             <div className={styles.wrapper}>
                                 <div className={styles.inputHolder}>
                                     <CustomInput
                                         label="Department Name"
-                                        name="departmentName"
+                                        name="department_name"
                                         type="text"
                                     />
                                     <CustomInput
@@ -49,15 +69,11 @@ export default class CreateDepartment extends React.Component {
                                         values={[
                                             {
                                                 id: 1,
-                                                value: "Status 1"
+                                                value: "Active"
                                             },
                                             {
-                                                id: 2,
-                                                value: "Status 2"
-                                            },
-                                            {
-                                                id: 3,
-                                                value: "Status 3"
+                                                id: 0,
+                                                value: "Inactive"
                                             },
                                         ]}
                                         name="status"
@@ -72,6 +88,7 @@ export default class CreateDepartment extends React.Component {
                                         width: "100%",
                                         justifyContent: "flex-end",
                                     }}
+                                    type="submit"
                                 >
                                     <Button>Cancel</Button>
                                     <Button
