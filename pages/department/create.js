@@ -1,15 +1,18 @@
+//External Dependencies
+import React from "react";
 import { Formik, Form } from "formik";
 import { Container, ButtonGroup, Button } from "@chakra-ui/react";
+import { toast } from "react-toastify";
 
-import { ToastContainer, toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css"
+//Style
 import styles from "../../styles/create.module.css";
+
+//Internal Dependencies
 import DepartmentHelper from "../../helper/department";
 import Head from "../../util/head";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import { DepartmentValidation } from "../../util/validation";
 import CustomInput from "../../components/customInput/customInput";
-import React from "react";
 
 const initialValue = {
     department_name: "",
@@ -18,8 +21,8 @@ const initialValue = {
 export default class CreateDepartment extends React.Component {
     constructor(props) {
         super(props);
-        this.state = { 
-            loading: false, 
+        this.state = {
+            loading: false,
         }
     }
     CreateDepartment(values) {
@@ -38,7 +41,6 @@ export default class CreateDepartment extends React.Component {
         const { loading } = this.state;
         return <GlobalWrapper title="Department">
             <Head />
-            <ToastContainer />
             <Formik
                 initialValues={initialValue}
                 validationSchema={DepartmentValidation}
