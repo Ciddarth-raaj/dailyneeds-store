@@ -25,7 +25,9 @@ export default class CreateDepartment extends React.Component {
             loading: false,
         }
     }
-    CreateDepartment(values) {
+
+    createDepartment(values) {
+        this.setState({ loading: true });
         DepartmentHelper.createDepartment(values)
             .then((data) => {
                 if (data == 200) {
@@ -35,8 +37,10 @@ export default class CreateDepartment extends React.Component {
                     throw `${data.msg}`
                 }
             })
-            .catch((err) => console.log(err));
+            .catch((err) => console.log(err))
+            .finally(() => this.setState({ loading: false }));
     }
+
     render() {
         const { loading } = this.state;
         return <GlobalWrapper title="Department">
@@ -45,7 +49,7 @@ export default class CreateDepartment extends React.Component {
                 initialValues={initialValue}
                 validationSchema={DepartmentValidation}
                 onSubmit={values => {
-                    this.CreateDepartment(values);
+                    this.createDepartment(values);
                 }}
             >
                 {(formikProps) => {
@@ -68,7 +72,7 @@ export default class CreateDepartment extends React.Component {
                                                 value: "Active"
                                             },
                                             {
-                                                id: 2,
+                                                id: 0,
                                                 value: "Inactive"
                                             },
                                         ]}

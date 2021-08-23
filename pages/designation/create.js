@@ -55,6 +55,8 @@ export default class CreateDesignation extends React.Component {
 	}
 
 	render() {
+		const { loading } = this.state;
+
 		return <GlobalWrapper title="Designation">
 			<Head />
 			<Formik
@@ -142,7 +144,7 @@ export default class CreateDesignation extends React.Component {
 								>
 									<Button>Cancel</Button>
 									<Button
-										// isLoading
+										isLoading={loading}
 										loadingText="Submitting"
 										colorScheme="purple"
 										onClick={() => handleSubmit()}
