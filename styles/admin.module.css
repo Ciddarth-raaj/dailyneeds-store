@@ -92,42 +92,7 @@
 	width: 20px;
 	height: 20px;
 	color: var(--primaryColor);
-	margin-left: 15px;
-}
-
-.table {
-	width: 100%;
-	border-collapse: collapse;
-	border: 1px solid rgb(226, 226, 226);
-	margin-bottom: 20px;
-}
-.table thead {
-	border-radius: 10px;
-}
-.table > thead tr {
-	text-align: center;
-	padding: 20px;
-}
-
-.table > thead th {
-	border: 1px solid rgb(226, 226, 226);
-	padding: 20px;
-	margin-bottom: 20px;
-}
-
-.table > tbody td {
-	text-align: center;
-	padding: 20px;
-	margin-bottom: 20px;
-}
-
-.table > tbody tr {
-	border-bottom: 1px solid rgb(226, 226, 226);
-}
-
-.table td {
-	border-left: 1px solid rgb(226, 226, 226);
-	border-right: 1px solid rgb(226, 226, 226);
+	margin-left: 50px;
 }
 
 .view-more {
@@ -144,33 +109,5 @@
 	}
 	.inputHolder {
 		width: 100%;
-	}
-	.table thead {
-		display: none;
-	}
-	.table,
-	.table tbody,
-	.table tr,
-	.table td {
-		display: block;
-		width: 100%;
-	}
-	.table tr {
-		margin-bottom: 15px;
-	}
-
-	.table tbody tr td {
-		text-align: right;
-		position: relative;
-	}
-
-	.table td::before {
-		content: attr(data-label);
-		position: absolute;
-		left: 0;
-		padding-left: 15px;
-		font-weight: bold;
-		font-size: 16px;
-		text-align: left;
 	}
 }
