@@ -60,6 +60,11 @@ function Registration() {
 			<img src={"/assets/edit.png"} className={styles.icon} />
 		],
 	];
+
+	const sortCallback = (key, type) => {
+		console.log(key, type)
+	}
+
 	return (
 		<Formik
 			initialValues={initialValue}
@@ -116,7 +121,7 @@ function Registration() {
 									<CustomInput name="search" type="text" />
 									<button>{"Search"}</button>
 								</div>
-								<Table heading={table_title} rows={valuesNew} />
+								<Table heading={table_title} rows={valuesNew} sortCallback={(key, type) => sortCallback(key, type)} />
 							</div>
 						</Container>
 					</Flex>

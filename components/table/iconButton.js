@@ -26,16 +26,25 @@ export default class IconButton extends React.Component {
 
     onSortChange = () => {
         const { currentSort } = this.state;
+        const { sortCallback, headingKey } = this.props;
         let nextSort;
 
-        if (currentSort === "down") nextSort = "up";
-        else if (currentSort === "up") nextSort = "default";
-        else if (currentSort === "default") nextSort = "down";
+        if (currentSort === "down") {
+            nextSort = "up";
+        }
+        else if (currentSort === "up") {
+            nextSort = "default";
+        }
+        else if (currentSort === "default") {
+            nextSort = "down";
+        }
 
+        sortCallback(headingKey, nextSort);
         this.setState({
             currentSort: nextSort,
         });
     };
+
     upArrow() {
         console.log("UP");
     }

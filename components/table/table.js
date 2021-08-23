@@ -7,7 +7,7 @@ import Cell from "./cell.js";
 export default class Table extends React.Component {
 
     render() {
-        const { heading, rows } = this.props;
+        const { heading, rows, sortCallback } = this.props;
 
         return (
             <table className={styles.table} style={{ tableLayout: "fixed" }}>
@@ -16,7 +16,8 @@ export default class Table extends React.Component {
                         key={`heading-${index}`}
                         content={heading[key]}
                         header={true}
-                        key={key}
+                        headingKey={key}
+                        sortCallback={sortCallback}
                     />)}</thead>
                 <tbody>{
                     rows.map(row => Object.keys(row).map((key, index) => <Cell
