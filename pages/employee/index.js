@@ -7,33 +7,64 @@ import CustomInput from "../../components/customInput/customInput";
 import Head from "../../util/head";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import { Validation } from "../../util/validation";
-import IconButton from "../../components/iconButton/iconButton";
+import Table from "../../components/table/table";
 
 function Registration() {
 	const initialValue = {
 		dob_1: "",
 		dob_2: "",
 	};
-	const details = [
+
+	const table_title = {
+		employee_id: 'Employee Id',
+		name: 'Name',
+		store_name: 'Store Name',
+		designation: 'Designation',
+		joining_date: 'Joining Date',
+		resignation_date: 'Resignation Date',
+		status: 'Status',
+		action: 'Action'
+	}
+
+	const valuesNew = [
 		{
 			id: "1",
-			name: "KEERTHI",
-			store: "ssss",
+			name: "Ciddarth",
+			store_name: "Store 1",
 			designation: "Manager",
-			join: "12.10/1996",
-			resign: "12/10/2000",
-			status: "Active",
-		},
-		{
-			id: "2",
-			name: "Sindhu HI",
-			store: "gh",
-			designation: "Manager",
-			join: "12.10/1996",
-			resign: "12/10/2000",
-			status: "Active",
-		},
+			joining_date: "21/08/22",
+			resignation_date: "22/08/22",
+			status: "Active"
+		}
+	]
+
+	const values = [
+		[
+			'1',
+			'KEERTHI',
+			'Saravana',
+			'Manager',
+			'12.10/1996',
+			'12/10/2000',
+			'Active',
+			<img src={"/assets/edit.png"} className={styles.icon} />
+		],
+		[
+			'2',
+			'NAME 1',
+			'Krishna Sweets',
+			'Manager',
+			'12.10/1996',
+			'12/10/2000',
+			'Active',
+			<img src={"/assets/edit.png"} className={styles.icon} />
+		],
 	];
+
+	const sortCallback = (key, type) => {
+		console.log(key, type)
+	}
+
 	return (
 		<Formik
 			initialValues={initialValue}
@@ -90,64 +121,7 @@ function Registration() {
 									<CustomInput name="search" type="text" />
 									<button>{"Search"}</button>
 								</div>
-
-								<table className={styles.table}>
-									<thead>
-										<tr>
-											<th>
-												Employee ID
-												<IconButton />{" "}
-											</th>
-											<th>
-												Name
-												<IconButton />
-											</th>
-											<th>
-												Store Name
-												<IconButton />
-											</th>
-											<th>
-												Designation
-												<IconButton />
-											</th>
-											<th>
-												Joining Date
-												<IconButton />
-											</th>
-											<th>
-												Resignation Date
-												<IconButton />
-											</th>
-											<th>
-												Seen Status
-												<IconButton />
-											</th>
-											<th>
-												Action
-												<IconButton />
-											</th>
-										</tr>
-									</thead>
-									<tbody>
-										{details.map((m) => (
-											<tr>
-												<td>{m.id}</td>
-												<td>{m.name}</td>
-												<td>{m.store}</td>
-												<td>{m.designation}</td>
-												<td>{m.join}</td>
-												<td>{m.resign}</td>
-												<td>{m.status}</td>
-												<td>
-													<img
-														src={"/assets/edit.png"}
-														className={styles.icon}
-													/>
-												</td>
-											</tr>
-										))}
-									</tbody>
-								</table>
+								<Table heading={table_title} rows={valuesNew} sortCallback={(key, type) => sortCallback(key, type)} />
 							</div>
 						</Container>
 					</Flex>
