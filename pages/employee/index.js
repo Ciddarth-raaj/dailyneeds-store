@@ -15,16 +15,28 @@ function Registration() {
 		dob_2: "",
 	};
 
-	const table_title = [
-		'Employee Id',
-		'Name',
-		'Store Name',
-		'Designation',
-		'Joining Date',
-		'Resignation Date',
-		'Seen Status',
-		'Action'
-	];
+	const table_title = {
+		employee_id: 'Employee Id',
+		name: 'Name',
+		store_name: 'Store Name',
+		designation: 'Designation',
+		joining_date: 'Joining Date',
+		resignation_date: 'Resignation Date',
+		status: 'Status',
+		action: 'Action'
+	}
+
+	const valuesNew = [
+		{
+			id: "1",
+			name: "Ciddarth",
+			store_name: "Store 1",
+			designation: "Manager",
+			joining_date: "21/08/22",
+			resignation_date: "22/08/22",
+			status: "Active"
+		}
+	]
 
 	const values = [
 		[
@@ -35,7 +47,7 @@ function Registration() {
 			'12.10/1996',
 			'12/10/2000',
 			'Active',
-			<img src={"/assets/edit.png"} className={styles.icon}/>
+			<img src={"/assets/edit.png"} className={styles.icon} />
 		],
 		[
 			'2',
@@ -45,7 +57,7 @@ function Registration() {
 			'12.10/1996',
 			'12/10/2000',
 			'Active',
-			<img src={"/assets/edit.png"} className={styles.icon}/>
+			<img src={"/assets/edit.png"} className={styles.icon} />
 		],
 	];
 	return (
@@ -104,7 +116,7 @@ function Registration() {
 									<CustomInput name="search" type="text" />
 									<button>{"Search"}</button>
 								</div>
-									<Table heading={table_title} rows={values} />
+								<Table heading={table_title} rows={valuesNew} />
 							</div>
 						</Container>
 					</Flex>
