@@ -1,19 +1,21 @@
 import * as Yup from "yup";
 
 export const Validation = Yup.object({
-	name: Yup.string().nullable().required("Fill Name"),
-	fatherName: Yup.string().nullable().required("Fill Father Name"),
+	employee_name: Yup.string().nullable().required("Fill Name"),
+	father_name: Yup.string().nullable().required("Fill Father Name"),
 	dob: Yup.string()
 		.nullable()
 		.max(new Date(), "Must be 15 characters or less")
 		.required("Fill Date of birth"),
-	permanentAddress: Yup.string().nullable().required("Fill Address"),
+	permanent_address: Yup.string().nullable().required("Fill Address"),
 	gender: Yup.string().nullable().required("Choose Gender"),
-	blood_group_id: Yup.string().nullable().required("Choose BloodGroup"),
+	blood_group: Yup.string().nullable().required("Choose BloodGroup"),
 	designation_id: Yup.string().nullable().required("Choose Designation"),
+	marital_status: Yup.string().nullable().required("Choose Marital Status"),
+	shift_id: Yup.string().nullable().required("Choose Shift"),
 	store_id: Yup.string().nullable().required("Choose Store"),
 	department_id: Yup.string().nullable().required("Choose Department"),
-	contactNo: Yup.number()
+	primary_contact_number: Yup.number()
 		.nullable()
 		.typeError("Must be a number")
 		.min(123456789, "Must be 9 or More")
@@ -23,23 +25,23 @@ export const Validation = Yup.object({
 	// 	.min(123456789, "Must be 9 or More")
 	// 	.max(12345678900, "Must be 10 characters or less")
 	// 	.required("Fill Alternate Number"),
-	email: Yup.string()
+	email_id: Yup.string()
 		.nullable()
 		.email("Invalid email")
 		.required("Fill Email"),
-	educationalQualification: Yup.string()
+	qualification: Yup.string()
 		.nullable()
 		.required("Fill Educational Qualification"),
 	// introducerName: Yup.string().required("Fill Introducer Name"),
 	// introducerDetails: Yup.string()
 	// 	.min(30, "Must be 30 characters or more")
 	// 	.required("Fill Introducer Details"),
-	employeeId: Yup.number()
+	id_number: Yup.number()
 		.typeError("Must be a number")
 		.nullable()
 		.required("Fill Employee ID"),
 	salary: Yup.string().nullable().required("Fill Salary"),
-	// unifrom: Yup.string().required("Fill Unifrom"),
+	// uniform_qty: Yup.string().required("Fill Unifrom"),
 	// experience: Yup.string().required("Fill Experience"),
 	// joiningDate: Yup.string().required("Fill Joining Date"),
 	// resignationDate: Yup.string().required("Fill Resignation Date"),
