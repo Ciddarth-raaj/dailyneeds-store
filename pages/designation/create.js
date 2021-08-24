@@ -1,14 +1,6 @@
 //External Dependencies
 import { Formik, Form } from "formik";
-import {
-	Flex,
-	Container,
-	ButtonGroup,
-	Button,
-	CheckboxGroup,
-	Grid,
-	Checkbox,
-} from "@chakra-ui/react";
+import { Flex, Container, ButtonGroup, Button, CheckboxGroup, Grid, Checkbox } from "@chakra-ui/react";
 import React from "react";
 import { toast } from "react-toastify";
 
@@ -34,17 +26,21 @@ export default class CreateDesignation extends React.Component {
 		super(props);
 		this.state = {
 			loading: false,
-		}
+			permissions: [],
+		};
 	}
 
 	createDesignation(values) {
+		const { permissions } = this.state;
+
 		this.setState({ loading: true });
-		DesignationHelper.createDesignation(values)
+		DesignationHelper.createDesignation({ ...values, permissions })
 			.then((data) => {
+				console.log(data);
 				if (data.code == 200) {
 					toast.success("Successfully Creating Designation!");
 				} else {
-					throw `${data.msg}`
+					throw `${data.msg}`;
 				}
 			})
 			.catch((err) => {
@@ -54,110 +50,106 @@ export default class CreateDesignation extends React.Component {
 			.finally(() => this.setState({ loading: false }));
 	}
 
+	handleCheckbox(key, checked) {
+		let { permissions } = this.state;
+
+		if (permissions.includes(key) && !checked) {
+			const index = permissions.findIndex((v) => v == key);
+			permissions.splice(index, 1);
+		} else {
+			permissions.push(key);
+		}
+
+		this.setState({ permissions: permissions });
+	}
+
 	render() {
 		const { loading } = this.state;
 
-		return <GlobalWrapper title="Designation">
-			<Head />
-			<Formik
-				initialValues={initialValue}
-				validationSchema={DesignationValidation}
-				onSubmit={(values) => {
-					this.createDesignation(values);
-				}}
-			>
-				{(formikProps) => {
-					const { handleSubmit } = formikProps;
-					return <Form onSubmit={formikProps.handleSubmit}>
-						<Container
-							maxW="container.xl"
-							className={styles.container}
-							pb={"40px"}
-							boxShadow="lg"
-						>
-							<p>Add New Designation</p>
-							<div className={styles.wrapper}>
-								<div className={styles.inputHolder}>
-									<CustomInput
-										label="Designation Name"
-										name="designation_name"
-										type="text"
-									/>
-									<CustomInput
-										label="Status"
-										values={[
-											{
-												id: 1,
-												value: "Active"
-											},
-											{
-												id: 2,
-												value: "Inactive"
-											},
-										]}
-										name="status"
-										type="text"
-										method="switch"
-									/>
-								</div>
-								<div className={styles.inputHolder}>
-									<CustomInput
-										label="Online Access"
-										name="online_portal"
-										values={[
-											{
-												id: 1,
-												value: "Grant Access"
-											},
-											{
-												id: 2,
-												value: "Discard Access"
-											},
-										]}
-										type="text"
-										method="switch"
-									/>
-								</div>
-								<CheckboxGroup
-									defaultValue={["dashboard"]}
-								>
-									<Grid
-										templateColumns="repeat(3, 1fr)"
-										gap={6}
-									>
-										{Object.keys(PERMISSIONS).map(
-											(key) => (
-												<Checkbox value={key}>
-													{PERMISSIONS[key]}
-												</Checkbox>
-											)
-										)}
-									</Grid>
-								</CheckboxGroup>
+		return (
+			<GlobalWrapper title="Designation">
+				<Head />
+				<Formik
+					initialValues={initialValue}
+					validationSchema={DesignationValidation}
+					onSubmit={(values) => {
+						this.createDesignation(values);
+					}}
+				>
+					{(formikProps) => {
+						const { handleSubmit } = formikProps;
+						return (
+							<Form onSubmit={formikProps.handleSubmit}>
+								<Container maxW="container.xl" className={styles.container} pb={"40px"} boxShadow="lg">
+									<p>Add New Designation</p>
+									<div className={styles.wrapper}>
+										<div className={styles.inputHolder}>
+											<CustomInput label="Designation Name" name="designation_name" type="text" />
+											<CustomInput
+												label="Status"
+												values={[
+													{
+														id: 1,
+														value: "Active",
+													},
+													{
+														id: 2,
+														value: "Inactive",
+													},
+												]}
+												name="status"
+												type="text"
+												method="switch"
+											/>
+										</div>
+										<div className={styles.inputHolder}>
+											<CustomInput
+												label="Online Access"
+												name="online_portal"
+												values={[
+													{
+														id: 1,
+														value: "Grant Access",
+													},
+													{
+														id: 2,
+														value: "Discard Access",
+													},
+												]}
+												type="text"
+												method="switch"
+											/>
+										</div>
+										{/* <CheckboxGroup defaultValue={["dashboard"]}> */}
+										<CheckboxGroup>
+											<Grid templateColumns="repeat(3, 1fr)" gap={6}>
+												{Object.keys(PERMISSIONS).map((key) => (
+													<Checkbox value={key} onChange={(e) => this.handleCheckbox(key, e.target.checked)}>
+														{PERMISSIONS[key]}
+													</Checkbox>
+												))}
+											</Grid>
+										</CheckboxGroup>
 
-								<ButtonGroup
-									spacing="6"
-									style={{
-										width: "100%",
-										justifyContent: "flex-end",
-									}}
-								>
-									<Button>Cancel</Button>
-									<Button
-										isLoading={loading}
-										loadingText="Submitting"
-										colorScheme="purple"
-										onClick={() => handleSubmit()}
-									>
-										Create
-									</Button>
-								</ButtonGroup>
-							</div>
-						</Container>
-					</Form>
-				}}
-			</Formik>
-		</GlobalWrapper>
+										<ButtonGroup
+											spacing="6"
+											style={{
+												width: "100%",
+												justifyContent: "flex-end",
+											}}
+										>
+											<Button>Cancel</Button>
+											<Button isLoading={loading} loadingText="Submitting" colorScheme="purple" onClick={() => handleSubmit()}>
+												Create
+											</Button>
+										</ButtonGroup>
+									</div>
+								</Container>
+							</Form>
+						);
+					}}
+				</Formik>
+			</GlobalWrapper>
+		);
 	}
 }
-

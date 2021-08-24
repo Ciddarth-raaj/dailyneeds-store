@@ -6,7 +6,7 @@ const designation = {
 			API.get("/designation")
 				.then(async (res) => {
 					resolve(designation.formatBrand(res.data));
-                    console.log({data: res.data});
+					console.log({ data: res.data });
 				})
 				.catch((err) => {
 					reject(err);
@@ -24,15 +24,16 @@ const designation = {
 
 		return formattedData;
 	},
-    createDesignation: (data) =>
+	createDesignation: (data) =>
 		new Promise(function (resolve, reject) {
+			console.log(data);
 			API.post("/designation/create", data)
 				.then(async (res) => {
-                    if (res.status === 200) {
-					resolve(res.data);
-                    } else {
-                        reject(res.data.msg);
-                    }
+					if (res.status === 200) {
+						resolve(res.data);
+					} else {
+						reject(res.data.msg);
+					}
 				})
 				.catch((err) => {
 					reject(err);
