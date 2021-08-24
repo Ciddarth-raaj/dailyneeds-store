@@ -1,6 +1,6 @@
 import { Formik, Form } from "formik";
 import { Container, Flex } from "@chakra-ui/react";
-
+import { useState, useEffect } from 'react';
 import styles from "../../styles/admin.module.css";
 
 import CustomInput from "../../components/customInput/customInput";
@@ -8,6 +8,8 @@ import Head from "../../util/head";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import { Validation } from "../../util/validation";
 import Table from "../../components/table/table";
+//import { useEffect } from "react";
+import Pagination from "../../components/pagination/pagination";
 
 function Registration() {
 	const initialValue = {
@@ -34,6 +36,24 @@ function Registration() {
 			designation: "Manager",
 			joining_date: "21/08/22",
 			resignation_date: "22/08/22",
+			status: "Active"
+		},
+		{
+			id: "2",
+			name: "Keerthi",
+			store_name: "Store 2",
+			designation: "Manager",
+			joining_date: "21/08/26",
+			resignation_date: "22/08/98",
+			status: "Active"
+		},
+		{
+			id: "3",
+			name: "Saravana",
+			store_name: "Store 2",
+			designation: "Manager",
+			joining_date: "21/08/26",
+			resignation_date: "22/08/98",
 			status: "Active"
 		}
 	]
@@ -64,7 +84,28 @@ function Registration() {
 	const sortCallback = (key, type) => {
 		console.log(key, type)
 	}
+	const [posts, setPosts] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [postsPerPage] = useState(1);
 
+	useEffect(() => {
+		const fetchPosts = async () => {
+			setLoading(true);
+			setPosts(valuesNew);
+			setLoading(false);
+		};
+		fetchPosts();
+	},[]);
+
+	//Get Current Posts
+	const indexOfLastPost = currentPage * postsPerPage;
+	const indexOfFirstPost = indexOfLastPost - postsPerPage;
+	const currentPosts = valuesNew.slice(indexOfFirstPost, indexOfLastPost);
+
+	//Change Page
+	const paginate = (pageNumber) => setCurrentPage(pageNumber);
+	
 	return (
 		<Formik
 			initialValues={initialValue}
@@ -121,7 +162,11 @@ function Registration() {
 									<CustomInput name="search" type="text" />
 									<button>{"Search"}</button>
 								</div>
-								<Table heading={table_title} rows={valuesNew} sortCallback={(key, type) => sortCallback(key, type)} />
+								<Table heading={table_title} rows={currentPosts} sortCallback={(key, type) => sortCallback(key, type)} />
+								<Pagination
+										postsPerPage={postsPerPage}
+										totalPosts={posts.length}
+										paginate={paginate} />
 							</div>
 						</Container>
 					</Flex>

@@ -38,39 +38,3 @@
 .table td:last-child {
 	border-right: none;
 }
-
-.view-more {
-	color: blue;
-	cursor: pointer;
-}
-
-@media (max-width: 480px) {
-	.table thead {
-		display: none;
-	}
-	.table,
-	.table tbody,
-	.table tr,
-	.table td {
-		display: block;
-		width: 100%;
-	}
-	.table tr {
-		margin-bottom: 15px;
-	}
-
-	.table tbody tr td {
-		text-align: right;
-		position: relative;
-	}
-
-	.table td::before {
-		content: attr(data-label);
-		position: absolute;
-		left: 0;
-		padding-left: 15px;
-		font-weight: bold;
-		font-size: 16px;
-		text-align: left;
-	}
-}
