@@ -48,6 +48,7 @@ const INITIAL_VALUES = {
 	department_id: "",
 	marital_status: "Married",
 	employee_image: "",
+
 	card_image: "",
 	bank_name: "",
 	ifsc: 10000,
@@ -59,7 +60,6 @@ const INITIAL_VALUES = {
 	UAN: 10000,
 	spouse_name: "",
 	online_portal: 0,
-
 };
 
 export default class Create extends React.Component {
@@ -74,32 +74,37 @@ export default class Create extends React.Component {
 			uploadId: [],
 		};
 	}
+
 	componentDidMount() {
-		this.GetDesignation();
-		this.GetDepartment();
-		this.GetShift();
+		this.getDesignation();
+		this.getDepartment();
+		this.getShift();
 	}
-	GetShift() {
-		ShiftHelper.get() 
+
+	getShift() {
+		ShiftHelper.get()
 			.then((data) => {
-				this.setState({ shift: data});
+				this.setState({ shift: data });
 			})
 			.catch((err) => console.log(err));
 	}
-	GetDesignation() {
+
+	getDesignation() {
 		DesignationHelper.getDesignation()
 			.then((data) => {
 				this.setState({ designation: data });
 			})
 			.catch((err) => console.log(err));
 	}
-	GetDepartment() {
+
+	getDepartment() {
 		DepartmentHelper.getDepartment()
 			.then((data) => {
 				this.setState({ department: data });
 			})
 			.catch((err) => console.log(err));
 	}
+
 	CreateEmployee(values) {
 		values.employee_image = this.state.uploadImage ? this.state.uploadImage : "";
 		values.card_image = this.state.uploadId ? this.state.uploadId : "";
@@ -110,61 +115,51 @@ export default class Create extends React.Component {
 					toast.success("Successfully created Account");
 				} else {
 					toast.error("Error creating Account");
-					throw `${data.msg}`
+					throw `${data.msg}`;
 				}
 			})
 			.catch((err) => console.log(err));
 	}
+
 	getImageUploadParams = ({ meta }) => {
 		const { uploadImage } = this.state;
 		return { url: uploadImage };
 	};
+
 	getIdUploadParams = ({ meta }) => {
 		const { uploadId } = this.state;
 		return { url: uploadId };
 	};
 
-	IdHandleChangeStatus = async ({ meta, file }, status) => {
-		if(status === "headers_received") {
-				try {
-					const Idarray = [];
-					Idarray.push(
-						await FilesHelper.upload(
-							file,
-							"uploadId",
-							"dashboard_file" 
-						)
-					);
-					this.setState({uploadId: Idarray.length > 0 ? Idarray[0].remoteUrl : ""});
-				} catch(err) {
-					console.log(err);
-				}
+	idHandleChangeStatus = async ({ meta, file }, status) => {
+		if (status === "headers_received") {
+			try {
+				const Idarray = [];
+				Idarray.push(await FilesHelper.upload(file, "uploadId", "dashboard_file"));
+				this.setState({ uploadId: Idarray.length > 0 ? Idarray[0].remoteUrl : "" });
+			} catch (err) {
+				console.log(err);
+			}
 		}
 	};
-	ImageChangeStatus = async ({ meta, file }, status) => {
-	if(status === "headers_received") {
+
+	imageChangeStatus = async ({ meta, file }, status) => {
+		if (status === "headers_received") {
 			try {
 				const Imagearray = [];
-				Imagearray.push(
-					await FilesHelper.upload(
-						file,
-						"uploadImage",
-						"dashboard_file" 
-					)
-				);
-				this.setState({uploadImage: Imagearray.length > 0 ? Imagearray[0].remoteUrl : ""});
-			} catch(err) {
+				Imagearray.push(await FilesHelper.upload(file, "uploadImage", "dashboard_file"));
+				this.setState({ uploadImage: Imagearray.length > 0 ? Imagearray[0].remoteUrl : "" });
+			} catch (err) {
 				console.log(err);
 				reject(err);
 			}
-	}
+		}
 	};
 
 	handleSubmit = async (files) => {
 		console.log(files);
 	};
 
-	
 	render() {
 		const { loading, designation, department, shift } = this.state;
 		const dropDownProps = {
@@ -193,7 +188,7 @@ export default class Create extends React.Component {
 			boxShadow: "lg",
 			minW: "600px",
 		};
-		
+
 		return (
 			<GlobalWrapper title="New Employee">
 				<Head />
@@ -214,38 +209,14 @@ export default class Create extends React.Component {
 									<Container {...containerProps}>
 										<p>Personal Details</p>
 										<div>
-											<div
-												className={
-													styles.personalInputHolder
-												}
-											>
-												<div
-													className={
-														styles.inputHolder
-													}
-												>
-													<CustomInput
-														label="Name *"
-														name="employee_name"
-														type="text"
-													/>
+											<div className={styles.personalInputHolder}>
+												<div className={styles.inputHolder}>
+													<CustomInput label="Name *" name="employee_name" type="text" />
 
-													<CustomInput
-														label="Date of Birth *"
-														name="dob"
-														type="text"
-													/>
+													<CustomInput label="Date of Birth *" name="dob" type="text" />
 												</div>
-												<div
-													className={
-														styles.inputHolder
-													}
-												>
-													<CustomInput
-														label="Father / Spouse Name *"
-														name="father_name"
-														type="text"
-													/>
+												<div className={styles.inputHolder}>
+													<CustomInput label="Father / Spouse Name *" name="father_name" type="text" />
 
 													<CustomInput
 														label="Gender *"
@@ -295,61 +266,19 @@ export default class Create extends React.Component {
 													method="switch"
 												/>
 											</div>
-											<div
-												className={
-													styles.personalInputHolder
-												}
-											>
-												<CustomInput
-													label="Permanent Address *"
-													name="permanent_address"
-													type="text"
-													method="TextArea"
-												/>
+											<div className={styles.personalInputHolder}>
+												<CustomInput label="Permanent Address *" name="permanent_address" type="text" method="TextArea" />
 											</div>
-											<div
-												className={
-													styles.personalInputHolder
-												}
-											>
-												<CustomInput
-													label="Residential Address"
-													name="residential_address"
-													type="text"
-													method="TextArea"
-												/>
+											<div className={styles.personalInputHolder}>
+												<CustomInput label="Residential Address" name="residential_address" type="text" method="TextArea" />
 											</div>
-											<div
-												className={
-													styles.personalInputHolder
-												}
-											>
-												<div
-													className={
-														styles.inputHolder
-													}
-												>
-													<CustomInput
-														label="Primary Contact Number *"
-														name="primary_contact_number"
-														type="text"
-													/>
-													<CustomInput
-														label="Alternate Number"
-														name="alternate_contact_number"
-														type="text"
-													/>
+											<div className={styles.personalInputHolder}>
+												<div className={styles.inputHolder}>
+													<CustomInput label="Primary Contact Number *" name="primary_contact_number" type="text" />
+													<CustomInput label="Alternate Number" name="alternate_contact_number" type="text" />
 												</div>
-												<div
-													className={
-														styles.inputHolder
-													}
-												>
-													<CustomInput
-														label="Email ID *"
-														name="email_id"
-														type="text"
-													/>
+												<div className={styles.inputHolder}>
+													<CustomInput label="Email ID *" name="email_id" type="text" />
 
 													<CustomInput
 														label="Blood Group *"
@@ -373,37 +302,14 @@ export default class Create extends React.Component {
 													/>
 												</div>
 											</div>
-											<div
-												className={
-													styles.personalInputHolder
-												}
-											>
-												<div className={
-													styles.inputHolder
-												}>
-													<CustomInput
-														label="Educational Qualification *"
-														name="qualification"
-														type="text"
-													/>
-													<CustomInput
-														label="Introducer's Name"
-														name="introducer_name"
-														type="text"
-													/>
+											<div className={styles.personalInputHolder}>
+												<div className={styles.inputHolder}>
+													<CustomInput label="Educational Qualification *" name="qualification" type="text" />
+													<CustomInput label="Introducer's Name" name="introducer_name" type="text" />
 												</div>
 											</div>
-											<div
-												className={
-													styles.personalInputHolder
-												}
-											>
-												<CustomInput
-													label="Introducer Details"
-													name="introducer_details"
-													type="text"
-													method="TextArea"
-												/>
+											<div className={styles.personalInputHolder}>
+												<CustomInput label="Introducer Details" name="introducer_details" type="text" method="TextArea" />
 											</div>
 										</div>
 									</Container>
@@ -411,107 +317,47 @@ export default class Create extends React.Component {
 										<Container {...containerProps}>
 											<p>Employee Details</p>
 											<div>
-												<div
-													className={
-														styles.personalInputHolder
-													}
-												>
-													<div
-														className={
-															styles.inputHolder
-														}
-													>
-														<CustomInput
-															label="Employee ID *"
-															name="id_number"
-															type="text"
-														/>
-														<CustomInput
-															label="Salary / Month *"
-															name="salary"
-															type="text"
-														/>
+												<div className={styles.personalInputHolder}>
+													<div className={styles.inputHolder}>
+														<CustomInput label="Employee ID *" name="id_number" type="text" />
+														<CustomInput label="Salary / Month *" name="salary" type="text" />
 													</div>
-													<div
-														className={
-															styles.inputHolder
-														}
-													>
-														<CustomInput
-															label="Previous Experience"
-															name="previous_experience"
-															type="text"
-														/>
-														<CustomInput
-															label="Unifrom"
-															name="uniform_qty"
-															type="text"
-														/>
+													<div className={styles.inputHolder}>
+														<CustomInput label="Previous Experience" name="previous_experience" type="text" />
+														<CustomInput label="Unifrom" name="uniform_qty" type="text" />
 													</div>
 												</div>
-												<div
-													className={
-														styles.personalInputHolder
-													}
-												>
-													<div
-														className={
-															styles.inputHolder
-														}
-													>
-														<CustomInput
-															label="ID Card Type"
-															name="id_card"
-															type="text"
-														/>
+												<div className={styles.personalInputHolder}>
+													<div className={styles.inputHolder}>
+														<CustomInput label="ID Card Type" name="id_card" type="text" />
 
 														<CustomInput
 															label="Shift Details"
-															values={shift.map((m) => (
-																{
-																	id: m.id,
-																	value: m.value
-																}
-															))}
+															values={shift.map((m) => ({
+																id: m.id,
+																value: m.value,
+															}))}
 															name="shift_id"
 															type="text"
-															method= "switch"
+															method="switch"
 														/>
 													</div>
-													<div
-														className={
-															styles.inputHolder
-														}
-													>
+													<div className={styles.inputHolder}>
 														<CustomInput
 															label="Select Designation *"
-															values={designation.map((m) => (
-																{
-																	id: m.id,
-																	value: m.value,
-																}
-															))}
+															values={designation.map((m) => ({
+																id: m.id,
+																value: m.value,
+															}))}
 															name="designation_id"
 															type="text"
 															method="switch"
 														/>
-														<CustomInput
-															label="Date of Joining"
-															name="date_of_joining"
-															type="text"
-														/>
+														<CustomInput label="Date of Joining" name="date_of_joining" type="text" />
 													</div>
 												</div>
-												<div
-													className={
-														styles.personalInputHolder
-													}
-												>
-													<div
-														className={
-															styles.inputHolder
-														}
-													>
+												<div className={styles.personalInputHolder}>
+													<div className={styles.inputHolder}>
 														<CustomInput
 															label="Select Store *"
 															values={[
@@ -532,94 +378,41 @@ export default class Create extends React.Component {
 															type="text"
 															method="switch"
 														/>
-														
+
 														<CustomInput
 															label="Select Department *"
-															values={department.map((m) => (
-																{
-																	id: m.id,
-																	value: m.value,
-																}
-															))}
+															values={department.map((m) => ({
+																id: m.id,
+																value: m.value,
+															}))}
 															name="department_id"
 															type="text"
 															method="switch"
 														/>
 													</div>
-													<div
-														className={
-															styles.personalInputHolder
-														}
-													>
-														<div
-															className={
-																styles.inputHolder
-															}
-														>
-															<CustomInput
-																label="Date of Resignation"
-																name="date_of_termination"
-																type="text"
-															/>
-															<CustomInput
-																label="ID Card No"
-																name="id_card_no"
-																type="text"
-															/>
+													<div className={styles.personalInputHolder}>
+														<div className={styles.inputHolder}>
+															<CustomInput label="Date of Resignation" name="date_of_termination" type="text" />
+															<CustomInput label="ID Card No" name="id_card_no" type="text" />
 														</div>
 													</div>
 												</div>
 											</div>
 										</Container>
-										<Container
-											{...containerProps}
-											mt={"20px"}
-											pb={"20px"}
-										>
+										<Container {...containerProps} mt={"20px"} pb={"20px"}>
 											<p>File Uploads</p>
-											<div
-												className={styles.uploadHolder}
-											>
-												<label
-													className={
-														styles.uploaderTitle
-													}
-													for="uploadImage"
-												>
+											<div className={styles.uploadHolder}>
+												<label className={styles.uploaderTitle} for="uploadImage">
 													Upload Image
 												</label>
-												<Dropzone
-													getUploadParams={
-														this.getImageUploadParams
-													}
-													onChangeStatus={
-														this.ImageChangeStatus
-													}
-													{...dropDownProps}
-												/>
+												<Dropzone getUploadParams={this.getImageUploadParams} onChangeStatus={this.imageChangeStatus} {...dropDownProps} />
 											</div>
 
-											<div
-												className={styles.uploadHolder}
-												style={{ marginTop: 30 }}
-											>
-												<label
-													className={
-														styles.uploaderTitle
-													}
-													for="uploadID"
-												>
+											<div className={styles.uploadHolder} style={{ marginTop: 30 }}>
+												<label className={styles.uploaderTitle} for="uploadID">
 													Upload ID
 												</label>
-												<Dropzone
-													getUploadParams={
-														this.getIdUploadParams
-													}
-													onChangeStatus={
-														this.IdHandleChangeStatus
-													}
-													{...dropDownProps}
-												/>
+												<Dropzone getUploadParams={this.getIdUploadParams} onChangeStatus={this.idHandleChangeStatus} {...dropDownProps} />
 											</div>
 											<ButtonGroup
 												spacing="6"
@@ -630,14 +423,7 @@ export default class Create extends React.Component {
 												}}
 											>
 												<Button>Cancel</Button>
-												<Button
-													isLoading={loading}
-													loadingText="Submitting"
-													colorScheme="purple"
-													onClick={() =>
-														handleSubmit()
-													}
-												>
+												<Button isLoading={loading} loadingText="Submitting" colorScheme="purple" onClick={() => handleSubmit()}>
 													Create
 												</Button>
 											</ButtonGroup>
