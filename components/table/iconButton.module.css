@@ -1,0 +1,12 @@
+.arrow {
+	display: flex;
+	justify-content: flex-end;
+	/* margin-top: -23px; */
+	/* margin-right: -8px; */
+	margin-left: 10px;
+}
+
+.icon {
+	width: 12px;
+	/* margin-bottom: -3px; */
+}

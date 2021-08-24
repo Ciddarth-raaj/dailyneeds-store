@@ -10,7 +10,7 @@
 	flex-direction: column;
 	align-items: center;
 	overflow-y: scroll;
-	transition: all 0.5s;
+	transition: all 0.2s;
 }
 
 .container::-webkit-scrollbar {
@@ -175,6 +175,11 @@
 .sideBarOptions::-webkit-scrollbar {
 	display: none;
 }
+
+.sideBarOptions > * {
+	white-space: nowrap;
+}
+
 .optionTitle {
 	width: 100%;
 	display: flex;

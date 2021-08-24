@@ -1,15 +1,18 @@
+//External Dependencies
+import React from "react";
 import { Formik, Form } from "formik";
 import { Container, ButtonGroup, Button } from "@chakra-ui/react";
+import { toast } from "react-toastify";
 
-import { ToastContainer, toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css"
+//Style
 import styles from "../../styles/create.module.css";
+
+//Internal Dependencies
 import DepartmentHelper from "../../helper/department";
 import Head from "../../util/head";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import { DepartmentValidation } from "../../util/validation";
 import CustomInput from "../../components/customInput/customInput";
-import React from "react";
 
 const initialValue = {
     department_name: "",
@@ -18,11 +21,13 @@ const initialValue = {
 export default class CreateDepartment extends React.Component {
     constructor(props) {
         super(props);
-        this.state = { 
-            loading: false, 
+        this.state = {
+            loading: false,
         }
     }
-    CreateDepartment(values) {
+
+    createDepartment(values) {
+        this.setState({ loading: true });
         DepartmentHelper.createDepartment(values)
             .then((data) => {
                 if (data == 200) {
@@ -32,18 +37,19 @@ export default class CreateDepartment extends React.Component {
                     throw `${data.msg}`
                 }
             })
-            .catch((err) => console.log(err));
+            .catch((err) => console.log(err))
+            .finally(() => this.setState({ loading: false }));
     }
+
     render() {
         const { loading } = this.state;
         return <GlobalWrapper title="Department">
             <Head />
-            <ToastContainer />
             <Formik
                 initialValues={initialValue}
                 validationSchema={DepartmentValidation}
                 onSubmit={values => {
-                    this.CreateDepartment(values);
+                    this.createDepartment(values);
                 }}
             >
                 {(formikProps) => {
@@ -66,7 +72,7 @@ export default class CreateDepartment extends React.Component {
                                                 value: "Active"
                                             },
                                             {
-                                                id: 2,
+                                                id: 0,
                                                 value: "Inactive"
                                             },
                                         ]}
