@@ -3,6 +3,8 @@ import React from "react";
 import { Formik, Form } from "formik";
 import Dropzone from "react-dropzone-uploader";
 import { Container, Flex, ButtonGroup, Button, Center } from "@chakra-ui/react";
+import { toast } from "react-toastify";
+import FormikErrorFocus from "formik-error-focus";
 
 //Styles
 import styles from "../../styles/registration.module.css";
@@ -19,7 +21,6 @@ import CustomInput from "../../components/customInput/customInput";
 import Head from "../../util/head";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import { Validation } from "../../util/validation";
-import { ToastContainer, toast } from "react-toastify";
 
 const INITIAL_VALUES = {
 	employee_name: "",
@@ -192,7 +193,6 @@ export default class Create extends React.Component {
 		return (
 			<GlobalWrapper title="New Employee">
 				<Head />
-				<ToastContainer />
 				<Formik
 					initialValues={INITIAL_VALUES}
 					validationSchema={Validation}
@@ -205,6 +205,7 @@ export default class Create extends React.Component {
 
 						return (
 							<Form>
+								<FormikErrorFocus align={"middle"} ease={"linear"} duration={200} />
 								<Flex>
 									<Container {...containerProps}>
 										<p>Personal Details</p>

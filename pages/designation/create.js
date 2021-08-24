@@ -3,6 +3,7 @@ import { Formik, Form } from "formik";
 import { Flex, Container, ButtonGroup, Button, CheckboxGroup, Grid, Checkbox } from "@chakra-ui/react";
 import React from "react";
 import { toast } from "react-toastify";
+import FormikErrorFocus from "formik-error-focus";
 
 //Styles
 import styles from "../../styles/create.module.css";
@@ -80,6 +81,7 @@ export default class CreateDesignation extends React.Component {
 						const { handleSubmit } = formikProps;
 						return (
 							<Form onSubmit={formikProps.handleSubmit}>
+								<FormikErrorFocus align={"middle"} ease={"linear"} duration={200} />
 								<Container maxW="container.xl" className={styles.container} pb={"40px"} boxShadow="lg">
 									<p>Add New Designation</p>
 									<div className={styles.wrapper}>
