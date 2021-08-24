@@ -1,23 +1,54 @@
-
-import React from 'react';
+import React, { useState } from "react";
 import styles from "./pagination.module.css";
 
-const Pagination = ({ postsPerPage, totalPosts, paginate, next}) => {
+const Pagination = ({ postsPerPage, totalPosts, paginate }) => {
+    const [currentPage, setCurrentPage] = useState(0);
     const pageNumber = [];
-    for(let i=1; i<=Math.ceil(totalPosts / postsPerPage); i++) {
+    for (let i = 1; i <= Math.ceil(totalPosts / postsPerPage); i++) {
         pageNumber.push(i);
     }
     return (
         <div className={styles.post}>
-                {pageNumber.map(number => (
-                    <div key={number} style={{padding: 5}}>
-                        <a onClick={()=> paginate(number)} className={styles.button}>
-                            {number}
-                        </a>
-                    </div>
-                ))}
-                
+            {pageNumber.includes(currentPage - 1) ? (
+                <a
+                    onClick={() => {
+                        setCurrentPage(currentPage - 1);
+                        paginate(currentPage - 1);
+                    }}
+                    className={styles.button}
+                >
+                    {"Prev"}
+                </a>
+            ) : (
+                <a className={styles.disableButton}>{"Prev"}</a>
+            )}
+            {pageNumber.map((number) => (
+                <div key={number} style={{ padding: 5 }}>
+                    <a
+                        onClick={() => {
+                            setCurrentPage(number);
+                            paginate(number);
+                        }}
+                        className={styles.button}
+                    >
+                        {number}
+                    </a>
                 </div>
-    )
-}
-export default Pagination
+            ))}
+            {pageNumber.includes(currentPage + 1) ? (
+                <a
+                    onClick={() => {
+                        setCurrentPage(currentPage + 1);
+                        paginate(currentPage + 1);
+                    }}
+                    className={styles.button}
+                >
+                    {"Next"}
+                </a>
+            ) : (
+                <a className={styles.disableButton}>{"Next"}</a>
+            )}
+        </div>
+    );
+};
+export default Pagination;
