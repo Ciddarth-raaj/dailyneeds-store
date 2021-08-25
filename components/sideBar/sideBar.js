@@ -26,32 +26,42 @@ export default class SideBar extends React.Component {
 						add: {
 							title: "Add Employee",
 							selected: false,
-							location: "/employee/create"
+							location: "/employee/create",
 						},
 						view: {
 							title: "View Employee",
 							selected: false,
-							location: "/employee"
+							location: "/employee",
 						},
 						view_departments: {
 							title: "View Departments",
 							selected: false,
-							location: "/department"
+							location: "/department",
 						},
 						add_departments: {
 							title: "Add Departments",
 							selected: false,
-							location: "/department/create"
+							location: "/department/create",
 						},
 						view_designation: {
 							title: "View Designations",
 							selected: false,
-							location: "/designation"
+							location: "/designation",
 						},
 						add_designation: {
 							title: "Add Designation",
 							selected: false,
-							location: "/designation/create"
+							location: "/designation/create",
+						},
+						view_designation: {
+							title: "View Shift",
+							selected: false,
+							location: "/shift",
+						},
+						add_designation: {
+							title: "Add Shift",
+							selected: false,
+							location: "/shift/create",
 						},
 					},
 				},
@@ -62,47 +72,33 @@ export default class SideBar extends React.Component {
 	handleMenuClick = (key) => {
 		const { menu } = this.state;
 		menu[key].selected = true;
-		this.setState({ menu: menu })
-	}
+		this.setState({ menu: menu });
+	};
 
 	render() {
 		const { showTitle, menu } = this.state;
 		return (
-			<div
-				className={styles.container}
-				onMouseEnter={() => this.setState({ showTitle: true })}
-				onMouseLeave={() => this.setState({ showTitle: false })}
-			>
+			<div className={styles.container} onMouseEnter={() => this.setState({ showTitle: true })} onMouseLeave={() => this.setState({ showTitle: false })}>
 				<Head />
 
 				<div className={styles.sideBarOptions}>
 					{Object.keys(menu).map((key) => (
-						<div
-							style={showTitle ? { width: "100%" } : {}}
-							className={styles.menuWrapper}
-						>
+						<div style={showTitle ? { width: "100%" } : {}} className={styles.menuWrapper}>
 							<Link href={menu[key].location == undefined ? "" : menu[key].location}>
 								<div className={styles.optionHolder} onClick={() => this.handleMenuClick(key)}>
 									<i className={`fa ${menu[key].icon} ${menu[key].openPage ? styles["icons-selected"] : ""}`} />
-									{showTitle && (
-										<span>{menu[key].title}</span>
-									)}
+									{showTitle && <span>{menu[key].title}</span>}
 								</div>
 							</Link>
-							{showTitle &&
-								menu[key].selected &&
-								menu[key].subMenu != undefined &&
-								Object.keys(menu[key].subMenu).length > 0 && (
-									<div className={styles.subMenuWrapper}>
-										{Object.keys(menu[key].subMenu).map(
-											(sKey) => (
-												<Link href={menu[key].subMenu[sKey].location == undefined ? "" : menu[key].subMenu[sKey].location}>
-													<p>{menu[key].subMenu[sKey].title}</p>
-												</Link>
-											)
-										)}
-									</div>
-								)}
+							{showTitle && menu[key].selected && menu[key].subMenu != undefined && Object.keys(menu[key].subMenu).length > 0 && (
+								<div className={styles.subMenuWrapper}>
+									{Object.keys(menu[key].subMenu).map((sKey) => (
+										<Link href={menu[key].subMenu[sKey].location == undefined ? "" : menu[key].subMenu[sKey].location}>
+											<p>{menu[key].subMenu[sKey].title}</p>
+										</Link>
+									))}
+								</div>
+							)}
 						</div>
 					))}
 				</div>
