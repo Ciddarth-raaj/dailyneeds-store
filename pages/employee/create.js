@@ -212,36 +212,38 @@ export default class Create extends React.Component {
 										<div>
 											<div className={styles.personalInputHolder}>
 												<div className={styles.inputHolder}>
-													<CustomInput label="Name *" name="employee_name" type="text" />
+													<CustomInput label="Employee ID *" name="id_number" type="text" />
 
-													<CustomInput label="Date of Birth *" name="dob" type="text" />
+													<CustomInput label="Name *" name="employee_name" type="text" />
 												</div>
 												<div className={styles.inputHolder}>
-													<CustomInput label="Father / Spouse Name *" name="father_name" type="text" />
+													<CustomInput label="Date of Birth *" name="dob" type="text" />
 
-													<CustomInput
-														label="Gender *"
-														values={[
-															{
-																id: "Male",
-																value: "Male",
-															},
-															{
-																id: "Female",
-																value: "Female",
-															},
-															{
-																id: "Transgendar",
-																value: "Transgendar",
-															},
-														]}
-														name="gender"
-														type="text"
-														method="switch"
-													/>
+													<CustomInput label="Father / Spouse Name *" name="father_name" type="text" />
 												</div>
 											</div>
 											<div className={styles.inputHolder}>
+												<CustomInput
+													label="Gender *"
+													values={[
+														{
+															id: "Male",
+															value: "Male",
+														},
+														{
+															id: "Female",
+															value: "Female",
+														},
+														{
+															id: "Transgendar",
+															value: "Transgendar",
+														},
+													]}
+													name="gender"
+													type="text"
+													method="switch"
+												/>
+
 												<CustomInput
 													label="Marital Status *"
 													values={[
@@ -320,18 +322,16 @@ export default class Create extends React.Component {
 											<div>
 												<div className={styles.personalInputHolder}>
 													<div className={styles.inputHolder}>
-														<CustomInput label="Employee ID *" name="id_number" type="text" />
 														<CustomInput label="Salary / Month *" name="salary" type="text" />
+														<CustomInput label="Previous Experience" name="previous_experience" type="text" />
 													</div>
 													<div className={styles.inputHolder}>
-														<CustomInput label="Previous Experience" name="previous_experience" type="text" />
 														<CustomInput label="Unifrom" name="uniform_qty" type="text" />
+														<CustomInput label="ID Card Type" name="id_card" type="text" />
 													</div>
 												</div>
 												<div className={styles.personalInputHolder}>
 													<div className={styles.inputHolder}>
-														<CustomInput label="ID Card Type" name="id_card" type="text" />
-
 														<CustomInput
 															label="Shift Details"
 															values={shift.map((m) => ({
@@ -342,8 +342,6 @@ export default class Create extends React.Component {
 															type="text"
 															method="switch"
 														/>
-													</div>
-													<div className={styles.inputHolder}>
 														<CustomInput
 															label="Select Designation *"
 															values={designation.map((m) => ({
@@ -354,11 +352,9 @@ export default class Create extends React.Component {
 															type="text"
 															method="switch"
 														/>
-														<CustomInput label="Date of Joining" name="date_of_joining" type="text" />
 													</div>
-												</div>
-												<div className={styles.personalInputHolder}>
 													<div className={styles.inputHolder}>
+														<CustomInput label="Date of Joining" name="date_of_joining" type="text" />
 														<CustomInput
 															label="Select Store *"
 															values={[
@@ -379,7 +375,10 @@ export default class Create extends React.Component {
 															type="text"
 															method="switch"
 														/>
-
+													</div>
+												</div>
+												<div className={styles.personalInputHolder}>
+													<div className={styles.inputHolder}>
 														<CustomInput
 															label="Select Department *"
 															values={department.map((m) => ({
@@ -390,10 +389,10 @@ export default class Create extends React.Component {
 															type="text"
 															method="switch"
 														/>
+														<CustomInput label="Date of Resignation" name="date_of_termination" type="text" />
 													</div>
 													<div className={styles.personalInputHolder}>
 														<div className={styles.inputHolder}>
-															<CustomInput label="Date of Resignation" name="date_of_termination" type="text" />
 															<CustomInput label="ID Card No" name="id_card_no" type="text" />
 														</div>
 													</div>
@@ -404,14 +403,14 @@ export default class Create extends React.Component {
 											<p>File Uploads</p>
 											<div className={styles.uploadHolder}>
 												<label className={styles.uploaderTitle} for="uploadImage">
-													Upload Image
+													Upload Employee Image *
 												</label>
 												<Dropzone getUploadParams={this.getImageUploadParams} onChangeStatus={this.imageChangeStatus} {...dropDownProps} />
 											</div>
 
 											<div className={styles.uploadHolder} style={{ marginTop: 30 }}>
 												<label className={styles.uploaderTitle} for="uploadID">
-													Upload ID
+													Upload ID *
 												</label>
 												<Dropzone getUploadParams={this.getIdUploadParams} onChangeStatus={this.idHandleChangeStatus} {...dropDownProps} />
 											</div>
