@@ -83,7 +83,7 @@ export default class Create extends React.Component {
 	}
 
 	getShift() {
-		ShiftHelper.get()
+		ShiftHelper.getShift()
 			.then((data) => {
 				this.setState({ shift: data });
 			})

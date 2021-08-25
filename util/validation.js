@@ -60,3 +60,16 @@ export const DesignationValidation = Yup.object({
 	status: Yup.string().required("Choose status"),
 	online_portal: Yup.string().nullable().required("Choose Access"),
 });
+
+export const ShiftValidation = Yup.object({
+	status: Yup.string().required("Choose status"),
+	shift_name: Yup.string().required("Fill designation Name"),
+	shift_in_time: Yup.string()
+	.nullable()
+	.max(new Date(), "Must be 15 characters or less")
+	.required("Fill Shift in Time"),
+	shift_out_time: Yup.string()
+	.nullable()
+	.max(new Date(), "Must be 15 characters or less")
+	.required("Fill Shift out Time"),
+});
