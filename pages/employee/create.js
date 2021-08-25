@@ -404,14 +404,14 @@ export default class Create extends React.Component {
 											<p>File Uploads</p>
 											<div className={styles.uploadHolder}>
 												<label className={styles.uploaderTitle} for="uploadImage">
-													Upload Image
+													Upload Employee Image *
 												</label>
 												<Dropzone getUploadParams={this.getImageUploadParams} onChangeStatus={this.imageChangeStatus} {...dropDownProps} />
 											</div>
 
 											<div className={styles.uploadHolder} style={{ marginTop: 30 }}>
 												<label className={styles.uploaderTitle} for="uploadID">
-													Upload ID
+													Upload ID *
 												</label>
 												<Dropzone getUploadParams={this.getIdUploadParams} onChangeStatus={this.idHandleChangeStatus} {...dropDownProps} />
 											</div>
