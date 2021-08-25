@@ -43,8 +43,8 @@ export default class CreateShift extends React.Component {
             .catch((err) => console.log(err));
     }
 	createShift(values) {
-        values.shift_in_time = moment(values.shift_in_time).format("YYYY-MM-DD");
-        values.shift_out_time = moment(values.shift_out_time).format("YYYY-MM-DD");
+        values.shift_in_time = moment(values.shift_in_time).format("hh:mm:ss");
+        values.shift_out_time = moment(values.shift_out_time).format("hh:mm:ss");
 		this.setState({ loading: true });
 		ShiftHelper.createShift(values)
 			.then((data) => {
@@ -105,12 +105,12 @@ export default class CreateShift extends React.Component {
 											<CustomInput
 												label="Shift start time"
 												name="shift_in_time"
-                                                method="datepicker"
+                                                method="timepicker"
 											/>
 											<CustomInput
 												label="Shift end time"
                                                 name="shift_out_time"
-                                                method="datepicker"
+                                                method="timepicker"
 											/>
 										</div>
 										<ButtonGroup

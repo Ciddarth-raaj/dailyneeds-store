@@ -26,7 +26,7 @@ import moment from "moment";
 const INITIAL_VALUES = {
 	employee_name: "",
 	father_name: "",
-	dob: "0000-00-00",
+	dob: "",
 	permanent_address: "",
 	residential_address: "",
 	primary_contact_number: "",
@@ -39,8 +39,8 @@ const INITIAL_VALUES = {
 	salary: "",
 	uniform_qty: "",
 	previous_experience: "",
-	date_of_joining: "0000-00-00",
-	date_of_termination: "0000-00-00",
+	date_of_joining: "",
+	date_of_termination: "",
 	id_card_no: "",
 	gender: "Male",
 	blood_group: "",
@@ -76,6 +76,7 @@ export default class Create extends React.Component {
 			uploadId: [],
 			idHolder: [],
 			imageHolder: [],
+
 		};
 	}
 
@@ -232,7 +233,12 @@ export default class Create extends React.Component {
 													<CustomInput label="Name *" name="employee_name" type="text" />
 												</div>
 												<div className={styles.inputHolder}>
-													<CustomInput label="Date of Birth *" name="dob" type="text" />
+													<CustomInput 
+													label="Date of Birth *" 
+													name="dob" 
+													type="text"
+													method="datepicker"
+													/>
 
 													<CustomInput label="Father / Spouse Name *" name="father_name" type="text" />
 												</div>
@@ -369,7 +375,12 @@ export default class Create extends React.Component {
 														/>
 													</div>
 													<div className={styles.inputHolder}>
-														<CustomInput label="Date of Joining" name="date_of_joining" type="text" />
+														<CustomInput 
+														label="Date of Joining" 
+														name="date_of_joining" 
+														type="text" 
+														method="datepicker"
+														/>
 														<CustomInput
 															label="Select Store *"
 															values={[
@@ -404,7 +415,12 @@ export default class Create extends React.Component {
 															type="text"
 															method="switch"
 														/>
-														<CustomInput label="Date of Resignation" name="date_of_termination"  type="text" />
+														<CustomInput 
+														label="Date of Resignation" 
+														name="date_of_termination"  
+														type="text" 
+														method="datepicker"
+														/>
 													</div>
 													<div className={styles.personalInputHolder}>
 														<div className={styles.inputHolder}>

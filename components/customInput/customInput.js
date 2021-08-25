@@ -36,6 +36,30 @@ const TextField = ({ label, values, method, selected,onChange, ...props }) => {
 					))}
 				</Select>
 			)}
+			{method === "timepicker" && (
+				<>
+				 <DatePicker
+      				{...field}
+					showTimeSelect
+      				showTimeSelectOnly
+					timeCaption="Time"
+					dateFormat="hh:mm:ss"
+      				{...props}
+      				selected={(field.value && new Date(field.value)) || null}
+      				onChange={val => {
+      				  setFieldValue(field.name, val);
+      				}}
+					className={styles.datePicker}
+    			/>
+				{selected === "" && (
+				<ErrorMessage
+					component="div"
+					name={field.name}
+					className={styles.errorMessage}
+				/>
+				)}
+				</>
+			)}
 			{method === "datepicker" && (
 				<>
 				 <DatePicker
