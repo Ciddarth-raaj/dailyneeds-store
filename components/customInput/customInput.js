@@ -1,10 +1,12 @@
 import React, { Fragment } from "react";
-import { ErrorMessage, useField } from "formik";
+import { ErrorMessage, useField, useFormikContext } from "formik";
 import { Input, Textarea, Select } from "@chakra-ui/react";
-
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 import styles from "./customInput.module.css";
 
-const TextField = ({ label, values, method, ...props }) => {
+const TextField = ({ label, values, method, selected,onChange, ...props }) => {
+	const { setFieldValue } = useFormikContext();
 	const [field, meta] = useField(props);
 	return (
 		<div className={styles.personalInputs}>
@@ -33,6 +35,26 @@ const TextField = ({ label, values, method, ...props }) => {
 						</Fragment>
 					))}
 				</Select>
+			)}
+			{method === "datepicker" && (
+				<>
+				 <DatePicker
+      				{...field}
+      				{...props}
+      				selected={(field.value && new Date(field.value)) || null}
+      				onChange={val => {
+      				  setFieldValue(field.name, val);
+      				}}
+					className={styles.datePicker}
+    			/>
+				{selected === "" && (
+				<ErrorMessage
+					component="div"
+					name={field.name}
+					className={styles.errorMessage}
+				/>
+				)}
+				</>
 			)}
 			{method === undefined && (
 				<Input {...field} {...props} autoComplete="off" />

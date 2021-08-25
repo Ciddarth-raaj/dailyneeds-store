@@ -14,6 +14,7 @@ import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import { ShiftValidation } from "../../util/validation";
 import CustomInput from "../../components/customInput/customInput";
 import ShiftHelper from "../../helper/shift";
+import moment from "moment";
 
 const initialValue = {
 	shift_name: "",
@@ -27,6 +28,8 @@ export default class CreateShift extends React.Component {
 		this.state = {
 			loading: false,
             shift: [],
+            shift_in_time: "",
+            shift_out_time: "",
 		};
 	}
     componentDidMount() {
@@ -40,6 +43,8 @@ export default class CreateShift extends React.Component {
             .catch((err) => console.log(err));
     }
 	createShift(values) {
+        values.shift_in_time = moment(values.shift_in_time).format("YYYY-MM-DD");
+        values.shift_out_time = moment(values.shift_out_time).format("YYYY-MM-DD");
 		this.setState({ loading: true });
 		ShiftHelper.createShift(values)
 			.then((data) => {
@@ -96,16 +101,16 @@ export default class CreateShift extends React.Component {
 												method="switch"
 											/>
 										</div>
-                                        <div className={styles.inputHolder}>
+                                        <div className={styles.dateHolder}>
 											<CustomInput
 												label="Shift start time"
 												name="shift_in_time"
-												type="time"
+                                                method="datepicker"
 											/>
 											<CustomInput
 												label="Shift end time"
-												name="shift_out_time"
-												type="time"
+                                                name="shift_out_time"
+                                                method="datepicker"
 											/>
 										</div>
 										<ButtonGroup

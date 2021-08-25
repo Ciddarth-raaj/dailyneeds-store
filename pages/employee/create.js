@@ -21,11 +21,12 @@ import CustomInput from "../../components/customInput/customInput";
 import Head from "../../util/head";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import { Validation } from "../../util/validation";
+import moment from "moment";
 
 const INITIAL_VALUES = {
 	employee_name: "",
 	father_name: "",
-	dob: "",
+	dob: "0000-00-00",
 	permanent_address: "",
 	residential_address: "",
 	primary_contact_number: "",
@@ -73,6 +74,8 @@ export default class Create extends React.Component {
 			shift: [],
 			uploadImage: [],
 			uploadId: [],
+			idHolder: [],
+			imageHolder: [],
 		};
 	}
 
@@ -106,9 +109,26 @@ export default class Create extends React.Component {
 			.catch((err) => console.log(err));
 	}
 
-	CreateEmployee(values) {
-		values.employee_image = this.state.uploadImage ? this.state.uploadImage : "";
-		values.card_image = this.state.uploadId ? this.state.uploadId : "";
+	CreateEmployee = async (values) => {
+		try {
+			const Idarray = [];
+			Idarray.push(await FilesHelper.upload(
+				this.state.idHolder, 
+				"uploadId", 
+				"dashboard_file"
+			));
+			values.card_image = Idarray.length > 0 ? Idarray[0].remoteUrl : "";
+
+			const Imagearray = [];
+			Imagearray.push(await FilesHelper.upload(
+				this.state.imageHolder, 
+				"uploadImage", 
+				"dashboard_file"
+			));
+			values.employee_image = Imagearray.length > 0 ? Imagearray[0].remoteUrl : "";
+		} catch (err) {
+			console.log(err);
+		}
 		console.log(values);
 		EmployeeHelper.register(values)
 			.then((data) => {
@@ -123,21 +143,19 @@ export default class Create extends React.Component {
 	}
 
 	getImageUploadParams = ({ meta }) => {
-		const { uploadImage } = this.state;
-		return { url: uploadImage };
+		const { imageHolder } = this.state;
+		return { url: imageHolder };
 	};
 
 	getIdUploadParams = ({ meta }) => {
-		const { uploadId } = this.state;
-		return { url: uploadId };
+		const { idHolder } = this.state;
+		return { url: idHolder };
 	};
-
+	
 	idHandleChangeStatus = async ({ meta, file }, status) => {
 		if (status === "headers_received") {
 			try {
-				const Idarray = [];
-				Idarray.push(await FilesHelper.upload(file, "uploadId", "dashboard_file"));
-				this.setState({ uploadId: Idarray.length > 0 ? Idarray[0].remoteUrl : "" });
+				this.setState({ idHolder: file });
 			} catch (err) {
 				console.log(err);
 			}
@@ -147,12 +165,9 @@ export default class Create extends React.Component {
 	imageChangeStatus = async ({ meta, file }, status) => {
 		if (status === "headers_received") {
 			try {
-				const Imagearray = [];
-				Imagearray.push(await FilesHelper.upload(file, "uploadImage", "dashboard_file"));
-				this.setState({ uploadImage: Imagearray.length > 0 ? Imagearray[0].remoteUrl : "" });
+				this.setState({ imageHolder: file });
 			} catch (err) {
 				console.log(err);
-				reject(err);
 			}
 		}
 	};
@@ -389,7 +404,7 @@ export default class Create extends React.Component {
 															type="text"
 															method="switch"
 														/>
-														<CustomInput label="Date of Resignation" name="date_of_termination" type="text" />
+														<CustomInput label="Date of Resignation" name="date_of_termination"  type="text" />
 													</div>
 													<div className={styles.personalInputHolder}>
 														<div className={styles.inputHolder}>
