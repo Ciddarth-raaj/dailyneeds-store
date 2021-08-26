@@ -1,11 +1,15 @@
-import React, { Fragment } from "react";
+import React, { Fragment, forwardRef } from "react";
 import { ErrorMessage, useField, useFormikContext } from "formik";
 import { Input, Textarea, Select } from "@chakra-ui/react";
 import DatePicker from "react-datepicker";
-import "react-datepicker/dist/react-datepicker.css";
+
 import styles from "./customInput.module.css";
 
-const TextField = ({ label, values, method, selected,onChange, ...props }) => {
+const ExampleCustomInput = forwardRef(({ value, onClick, onChange }, ref) => (
+	<Input value={value} onChange={onChange} autoComplete="off" ref={ref} onClick={onClick} />
+));
+
+const TextField = ({ label, values, method, selected, onChange, ...props }) => {
 	const { setFieldValue } = useFormikContext();
 	const [field, meta] = useField(props);
 	return (
@@ -38,46 +42,47 @@ const TextField = ({ label, values, method, selected,onChange, ...props }) => {
 			)}
 			{method === "timepicker" && (
 				<>
-				 <DatePicker
-      				{...field}
-					showTimeSelect
-      				showTimeSelectOnly
-					timeCaption="Time"
-					dateFormat="hh:mm:ss"
-      				{...props}
-      				selected={(field.value && new Date(field.value)) || null}
-      				onChange={val => {
-      				  setFieldValue(field.name, val);
-      				}}
-					className={styles.datePicker}
-    			/>
-				{selected === "" && (
-				<ErrorMessage
-					component="div"
-					name={field.name}
-					className={styles.errorMessage}
-				/>
-				)}
+					<DatePicker
+						{...field}
+						showTimeSelect
+						showTimeSelectOnly
+						timeCaption="Time"
+						dateFormat="hh:mm:ss"
+						{...props}
+						selected={(field.value && new Date(field.value)) || null}
+						onChange={val => {
+							setFieldValue(field.name, val);
+						}}
+						className={styles.datePicker}
+					/>
+					{selected === "" && (
+						<ErrorMessage
+							component="div"
+							name={field.name}
+							className={styles.errorMessage}
+						/>
+					)}
 				</>
 			)}
 			{method === "datepicker" && (
 				<>
-				 <DatePicker
-      				{...field}
-      				{...props}
-      				selected={(field.value && new Date(field.value)) || null}
-      				onChange={val => {
-      				  setFieldValue(field.name, val);
-      				}}
-					className={styles.datePicker}
-    			/>
-				{selected === "" && (
-				<ErrorMessage
-					component="div"
-					name={field.name}
-					className={styles.errorMessage}
-				/>
-				)}
+					<DatePicker
+						{...field}
+						{...props}
+						selected={(field.value && new Date(field.value)) || null}
+						onChange={val => {
+							setFieldValue(field.name, val);
+						}}
+						className={styles.datePicker}
+						customInput={<ExampleCustomInput />}
+					/>
+					{selected === "" && (
+						<ErrorMessage
+							component="div"
+							name={field.name}
+							className={styles.errorMessage}
+						/>
+					)}
 				</>
 			)}
 			{method === undefined && (
