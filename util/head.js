@@ -3,11 +3,11 @@ import { string } from "prop-types";
 
 import Colors from "../constants/colors";
 
-const defaultDescription = "Cuba";
-const defaultKeywords = "Cuba";
-const defaultOGURL = "https://Cuba.com";
+const defaultDescription = "Dailyneeds";
+const defaultKeywords = "Dailyneeds";
+const defaultOGURL = "https://dailyneeds.com";
 const defaultOGImage = "/assets/logo-icon.png";
-const defaultTitle = "Cuba";
+const defaultTitle = "Dailyneeds | Store Manager";
 
 const Head = (props) => (
 	<NextHead>
@@ -73,27 +73,9 @@ const Head = (props) => (
 			rel="stylesheet"
 		/>
 
-		 <script defer src="/your-path-to-fontawesome/js/brands.js"></script>
-  		 <script defer src="/your-path-to-fontawesome/js/solid.js"></script>
-  		 <script defer src="/your-path-to-fontawesome/js/fontawesome.js"></script>
-		{true && (
-			<script
-				async
-				src="https://www.googletagmanager.com/gtag/js?id=GTM-5RVX47Q"
-			></script>
-		)}
-
-		{true && (
-			<script
-				dangerouslySetInnerHTML={{
-					__html: ` window.dataLayer = window.dataLayer || [];
-						function gtag(){dataLayer.push(arguments);}
-						gtag('js', new Date());
-					  
-						gtag('config', 'GTM-5RVX47Q');`,
-				}}
-			/>
-		)}
+		<script defer src="/your-path-to-fontawesome/js/brands.js"></script>
+		<script defer src="/your-path-to-fontawesome/js/solid.js"></script>
+		<script defer src="/your-path-to-fontawesome/js/fontawesome.js"></script>
 	</NextHead>
 );
 

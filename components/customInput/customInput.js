@@ -9,11 +9,12 @@ const CustomDateTimeInput = forwardRef(({ value, onClick, onChange }, ref) => (
 	<Input value={value} onChange={onChange} autoComplete="off" ref={ref} onClick={onClick} />
 ));
 
-const TextField = ({ label, values, method, selected, onChange, ...props }) => {
+const TextField = ({ label, values, method, selected, onChange, containerStyle, ...props }) => {
 	const { setFieldValue } = useFormikContext();
 	const [field, meta] = useField(props);
+
 	return (
-		<div className={styles.personalInputs}>
+		<div className={styles.personalInputs} style={containerStyle}>
 			<label htmlFor={field.name} className={styles.label}>
 				{label}
 			</label>

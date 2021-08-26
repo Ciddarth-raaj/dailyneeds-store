@@ -53,15 +53,19 @@ const INITIAL_VALUES = {
 
 	card_image: "",
 	bank_name: "",
-	ifsc: 10000,
-	account_no: 10000,
+	ifsc: "",
+	account_no: "",
+
 	esi: 0,
-	esi_number: 10000,
-	pf: 10,
-	pf_number: 10000,
-	UAN: 10000,
+	esi_number: "",
+	pf: 0,
+	pf_number: "",
+	UAN: "",
+
 	spouse_name: "",
 	online_portal: 0,
+
+	payment_type: 0,
 };
 
 export default class Create extends React.Component {
@@ -114,16 +118,16 @@ export default class Create extends React.Component {
 		try {
 			const Idarray = [];
 			Idarray.push(await FilesHelper.upload(
-				this.state.idHolder, 
-				"uploadId", 
+				this.state.idHolder,
+				"uploadId",
 				"dashboard_file"
 			));
 			values.card_image = Idarray.length > 0 ? Idarray[0].remoteUrl : "";
 
 			const Imagearray = [];
 			Imagearray.push(await FilesHelper.upload(
-				this.state.imageHolder, 
-				"uploadImage", 
+				this.state.imageHolder,
+				"uploadImage",
 				"dashboard_file"
 			));
 			values.employee_image = Imagearray.length > 0 ? Imagearray[0].remoteUrl : "";
@@ -152,7 +156,7 @@ export default class Create extends React.Component {
 		const { idHolder } = this.state;
 		return { url: idHolder };
 	};
-	
+
 	idHandleChangeStatus = async ({ meta, file }, status) => {
 		if (status === "headers_received") {
 			try {
@@ -223,87 +227,94 @@ export default class Create extends React.Component {
 							<Form>
 								<FormikErrorFocus align={"middle"} ease={"linear"} duration={200} />
 								<Flex>
-									<Container {...containerProps}>
-										<p>Personal Details</p>
-										<div>
-											<div className={styles.personalInputHolder}>
-												<div className={styles.inputHolder}>
-													<CustomInput label="Employee ID *" name="id_number" type="text" />
+									<Container p={"0px"}>
+										<Container {...containerProps} mb="20px">
+											<p>Employee Information</p>
 
-													<CustomInput label="Name *" name="employee_name" type="text" />
+											<div>
+												<div className={styles.personalInputHolder}>
+													<div className={styles.inputHolder}>
+														<CustomInput label="Employee ID *" name="id_number" type="text" />
+
+														<CustomInput label="Name *" name="employee_name" type="text" />
+													</div>
+													<div className={styles.inputHolder}>
+														<CustomInput
+															label="Date of Birth *"
+															name="dob"
+															type="text"
+															method="datepicker"
+														/>
+
+														<CustomInput label="Father / Spouse Name *" name="father_name" type="text" />
+													</div>
 												</div>
 												<div className={styles.inputHolder}>
-													<CustomInput 
-													label="Date of Birth *" 
-													name="dob" 
-													type="text"
-													method="datepicker"
+													<CustomInput
+														label="Gender *"
+														values={[
+															{
+																id: "Male",
+																value: "Male",
+															},
+															{
+																id: "Female",
+																value: "Female",
+															},
+															{
+																id: "Transgendar",
+																value: "Transgendar",
+															},
+														]}
+														name="gender"
+														type="text"
+														method="switch"
 													/>
-
-													<CustomInput label="Father / Spouse Name *" name="father_name" type="text" />
+													<CustomInput label="Email ID *" name="email_id" type="text" />
 												</div>
-											</div>
-											<div className={styles.inputHolder}>
-												<CustomInput
-													label="Gender *"
-													values={[
-														{
-															id: "Male",
-															value: "Male",
-														},
-														{
-															id: "Female",
-															value: "Female",
-														},
-														{
-															id: "Transgendar",
-															value: "Transgendar",
-														},
-													]}
-													name="gender"
-													type="text"
-													method="switch"
-												/>
-
-												<CustomInput
-													label="Marital Status *"
-													values={[
-														{
-															id: "Married",
-															value: "Married",
-														},
-														{
-															id: "Widowed",
-															value: "Widowed",
-														},
-														{
-															id: "Divorced",
-															value: "Divorced",
-														},
-														{
-															id: "Separated",
-															value: "Separated",
-														},
-													]}
-													name="marital_status"
-													type="text"
-													method="switch"
-												/>
-											</div>
-											<div className={styles.personalInputHolder}>
-												<CustomInput label="Permanent Address *" name="permanent_address" type="text" method="TextArea" />
-											</div>
-											<div className={styles.personalInputHolder}>
-												<CustomInput label="Residential Address" name="residential_address" type="text" method="TextArea" />
-											</div>
-											<div className={styles.personalInputHolder}>
 												<div className={styles.inputHolder}>
 													<CustomInput label="Primary Contact Number *" name="primary_contact_number" type="text" />
 													<CustomInput label="Alternate Number" name="alternate_contact_number" type="text" />
 												</div>
-												<div className={styles.inputHolder}>
-													<CustomInput label="Email ID *" name="email_id" type="text" />
+											</div>
+										</Container>
 
+										<Container {...containerProps} mb={"20px"}>
+											<p>Personal Details</p>
+											<div>
+												<div className={styles.inputHolder}>
+													<CustomInput
+														label="Marital Status *"
+														values={[
+															{
+																id: "Married",
+																value: "Married",
+															},
+															{
+																id: "Widowed",
+																value: "Widowed",
+															},
+															{
+																id: "Divorced",
+																value: "Divorced",
+															},
+															{
+																id: "Separated",
+																value: "Separated",
+															},
+														]}
+														name="marital_status"
+														type="text"
+														method="switch"
+													/>
+												</div>
+												<div className={styles.personalInputHolder}>
+													<CustomInput label="Permanent Address *" name="permanent_address" type="text" method="TextArea" />
+												</div>
+												<div className={styles.personalInputHolder}>
+													<CustomInput label="Residential Address" name="residential_address" type="text" method="TextArea" />
+												</div>
+												<div className={styles.inputHolder}>
 													<CustomInput
 														label="Blood Group *"
 														values={[
@@ -324,33 +335,40 @@ export default class Create extends React.Component {
 														type="text"
 														method="switch"
 													/>
-												</div>
-											</div>
-											<div className={styles.personalInputHolder}>
-												<div className={styles.inputHolder}>
-													<CustomInput label="Educational Qualification *" name="qualification" type="text" />
 													<CustomInput label="Introducer's Name" name="introducer_name" type="text" />
 												</div>
-											</div>
-											<div className={styles.personalInputHolder}>
-												<CustomInput label="Introducer Details" name="introducer_details" type="text" method="TextArea" />
-											</div>
-										</div>
-									</Container>
-									<Container>
-										<Container {...containerProps}>
-											<p>Employee Details</p>
-											<div>
 												<div className={styles.personalInputHolder}>
-													<div className={styles.inputHolder}>
-														<CustomInput label="Salary / Month *" name="salary" type="text" />
-														<CustomInput label="Previous Experience" name="previous_experience" type="text" />
-													</div>
-													<div className={styles.inputHolder}>
-														<CustomInput label="Unifrom" name="uniform_qty" type="text" />
-														<CustomInput label="ID Card Type" name="id_card" type="text" />
-													</div>
+													<CustomInput label="Introducer Details" name="introducer_details" type="text" method="TextArea" />
 												</div>
+											</div>
+										</Container>
+
+										<Container {...containerProps} mb={"20px"}>
+											<p>Joining Details</p>
+
+											<div>
+												<div className={styles.inputHolder}>
+													<CustomInput
+														label="Date of Joining"
+														name="date_of_joining"
+														type="text"
+														method="datepicker"
+													/>
+
+													<CustomInput
+														label="Date of Resignation"
+														name="date_of_termination"
+														type="text"
+														method="datepicker"
+													/>
+												</div>
+											</div>
+										</Container>
+
+										<Container {...containerProps} mb="20px">
+											<p>Current Position</p>
+
+											<div>
 												<div className={styles.personalInputHolder}>
 													<div className={styles.inputHolder}>
 														<CustomInput
@@ -375,12 +393,6 @@ export default class Create extends React.Component {
 														/>
 													</div>
 													<div className={styles.inputHolder}>
-														<CustomInput 
-														label="Date of Joining" 
-														name="date_of_joining" 
-														type="text" 
-														method="datepicker"
-														/>
 														<CustomInput
 															label="Select Store *"
 															values={[
@@ -402,8 +414,6 @@ export default class Create extends React.Component {
 															method="switch"
 														/>
 													</div>
-												</div>
-												<div className={styles.personalInputHolder}>
 													<div className={styles.inputHolder}>
 														<CustomInput
 															label="Select Department *"
@@ -415,36 +425,120 @@ export default class Create extends React.Component {
 															type="text"
 															method="switch"
 														/>
-														<CustomInput 
-														label="Date of Resignation" 
-														name="date_of_termination"  
-														type="text" 
-														method="datepicker"
-														/>
-													</div>
-													<div className={styles.personalInputHolder}>
-														<div className={styles.inputHolder}>
-															<CustomInput label="ID Card No" name="id_card_no" type="text" />
-														</div>
 													</div>
 												</div>
 											</div>
 										</Container>
-										<Container {...containerProps} mt={"20px"} pb={"20px"}>
-											<p>File Uploads</p>
-											<div className={styles.uploadHolder}>
-												<label className={styles.uploaderTitle} for="uploadImage">
-													Upload Employee Image *
-												</label>
-												<Dropzone getUploadParams={this.getImageUploadParams} onChangeStatus={this.imageChangeStatus} {...dropDownProps} />
+
+										<Container {...containerProps} mb={"20px"}>
+											<p>Education Details</p>
+											<div>
+												<div className={styles.inputHolder}>
+													<CustomInput label="Educational Qualification *" name="qualification" type="text" />
+													<CustomInput label="Previous Experience" name="previous_experience" type="text" />
+												</div>
+											</div>
+										</Container>
+									</Container>
+									<Container>
+										<Container {...containerProps} pb={"20px"} mb={"20px"}>
+											<p>Employee Identity</p>
+
+											<div>
+												<div className={styles.uploadHolder}>
+													<label className={styles.uploaderTitle} for="uploadImage">
+														Upload Employee Image *
+													</label>
+													<Dropzone getUploadParams={this.getImageUploadParams} onChangeStatus={this.imageChangeStatus} {...dropDownProps} />
+												</div>
+
+												<div className={styles.inputHolder} style={{ marginTop: 20, marginBottom: 0 }}>
+													<CustomInput label="Unifrom" name="uniform_qty" type="text" containerStyle={{ marginBottom: 30 }} />
+												</div>
+
+												<div className={styles.inputHolder} style={{ marginBottom: 0 }}>
+													<CustomInput label="ID Card Type" name="id_card" type="text" containerStyle={{ marginBottom: 30 }} />
+												</div>
+
+
+												<div className={styles.inputHolder}>
+													<CustomInput label="ID Card No" name="id_card_no" type="text" containerStyle={{ marginBottom: 0 }} />
+												</div>
+
+												<div className={styles.uploadHolder} style={{ marginTop: 30 }}>
+													<label className={styles.uploaderTitle} for="uploadID">
+														Upload ID *
+													</label>
+													<Dropzone getUploadParams={this.getIdUploadParams} onChangeStatus={this.idHandleChangeStatus} {...dropDownProps} />
+												</div>
+											</div>
+										</Container>
+
+										<Container {...containerProps} mb={"20px"}>
+											<p>{"PF & ESI"}</p>
+
+											<div>
+												<div className={styles.inputHolder}>
+													<CustomInput label="PAN No *" name="id_card_no" type="text" />
+												</div>
+												<div className={styles.inputHolder}>
+													<CustomInput label="PF Number *" name="pf_number" type="text" />
+													<CustomInput label="UAN Number *" name="UAN" type="text" />
+												</div>
+												<div className={styles.inputHolder}>
+													<CustomInput label="ESI Number *" name="esi_number" type="text" />
+												</div>
+											</div>
+										</Container>
+
+										<Container {...containerProps} mb={"20px"}>
+											<p>Bank Details</p>
+
+											<div>
+												<div className={styles.inputHolder}>
+													<CustomInput
+														label="Payment Type *"
+														values={[
+															{
+																id: 1,
+																value: "Cash",
+															},
+															{
+																id: 2,
+																value: "Bank Transfer",
+															},
+															{
+																id: 3,
+																value: "Cheque",
+															},
+															{
+																id: 3,
+																value: "Demand Draft",
+															},
+														]}
+														name="payment_type"
+														type="text"
+														method="switch"
+													/>
+												</div>
+												<div className={styles.inputHolder}>
+													<CustomInput label="Bank Name *" name="bank_name" type="text" />
+													<CustomInput label="IFSC Code *" name="ifsc" type="text" />
+												</div>
+												<div className={styles.inputHolder}>
+													<CustomInput label="Account Number *" name="account_no" type="text" />
+												</div>
+
+											</div>
+										</Container>
+
+										<Container {...containerProps} pb={"20px"}>
+											<p>Salary Details</p>
+
+											<div className={styles.inputHolder}>
+												<CustomInput label="Salary / Month *" name="salary" type="text" containerStyle={{ marginBottom: 0 }} />
 											</div>
 
-											<div className={styles.uploadHolder} style={{ marginTop: 30 }}>
-												<label className={styles.uploaderTitle} for="uploadID">
-													Upload ID *
-												</label>
-												<Dropzone getUploadParams={this.getIdUploadParams} onChangeStatus={this.idHandleChangeStatus} {...dropDownProps} />
-											</div>
 											<ButtonGroup
 												spacing="6"
 												mt={10}
