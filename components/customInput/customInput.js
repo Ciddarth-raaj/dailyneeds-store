@@ -5,7 +5,7 @@ import DatePicker from "react-datepicker";
 
 import styles from "./customInput.module.css";
 
-const ExampleCustomInput = forwardRef(({ value, onClick, onChange }, ref) => (
+const CustomDateTimeInput = forwardRef(({ value, onClick, onChange }, ref) => (
 	<Input value={value} onChange={onChange} autoComplete="off" ref={ref} onClick={onClick} />
 ));
 
@@ -53,7 +53,7 @@ const TextField = ({ label, values, method, selected, onChange, ...props }) => {
 						onChange={val => {
 							setFieldValue(field.name, val);
 						}}
-						className={styles.datePicker}
+						customInput={<CustomDateTimeInput />}
 					/>
 					{selected === "" && (
 						<ErrorMessage
@@ -73,8 +73,7 @@ const TextField = ({ label, values, method, selected, onChange, ...props }) => {
 						onChange={val => {
 							setFieldValue(field.name, val);
 						}}
-						className={styles.datePicker}
-						customInput={<ExampleCustomInput />}
+						customInput={<CustomDateTimeInput />}
 					/>
 					{selected === "" && (
 						<ErrorMessage
