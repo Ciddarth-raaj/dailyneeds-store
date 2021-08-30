@@ -10,6 +10,7 @@ import FormikErrorFocus from "formik-error-focus";
 import styles from "../../styles/registration.module.css";
 
 //Helpers
+import DocumentHelper from "../../helper/document";
 import EmployeeHelper from "../../helper/employee";
 import DesignationHelper from "../../helper/designation";
 import ShiftHelper from "../../helper/shift";
@@ -41,7 +42,7 @@ const INITIAL_VALUES = {
 	previous_experience: "",
 	date_of_joining: "",
 	date_of_termination: "",
-	id_card_no: "",
+	// id_card_no: "",
 	gender: "Male",
 	blood_group: "",
 	designation_id: "",
@@ -51,7 +52,6 @@ const INITIAL_VALUES = {
 	marital_status: "Married",
 	employee_image: "",
 
-	card_image: "",
 	bank_name: "",
 	ifsc: "",
 	account_no: "",
@@ -65,7 +65,24 @@ const INITIAL_VALUES = {
 	spouse_name: "",
 	online_portal: 0,
 
-	payment_type: 0,
+	// payment_type: 0,
+	file: [
+		{
+			id_card: "",
+			id_card_no: "",
+			file: "",
+		},
+		{
+			id_card: "",
+			id_card_no: "",
+			file: "",
+		},
+		{
+			id_card: "",
+			id_card_no: "",
+			file: "",
+		}
+	],
 };
 
 export default class Create extends React.Component {
@@ -78,9 +95,13 @@ export default class Create extends React.Component {
 			shift: [],
 			uploadImage: [],
 			uploadId: [],
+			subUploadId: [],
 			idHolder: [],
+			subIdHolder: [],
+			docType: [],
 			imageHolder: [],
-
+			employeeCards: false,
+			subIdHolder2: [],
 		};
 	}
 
@@ -88,6 +109,7 @@ export default class Create extends React.Component {
 		this.getDesignation();
 		this.getDepartment();
 		this.getShift();
+		this.getDocumentType();
 	}
 
 	getShift() {
@@ -105,7 +127,13 @@ export default class Create extends React.Component {
 			})
 			.catch((err) => console.log(err));
 	}
-
+	getDocumentType() {
+		DocumentHelper.getDocType()
+			.then((data) => {
+				this.setState({ docType: data })
+			})
+			.catch((err) => console.log(err));
+	}
 	getDepartment() {
 		DepartmentHelper.getDepartment()
 			.then((data) => {
@@ -122,8 +150,27 @@ export default class Create extends React.Component {
 				"uploadId",
 				"dashboard_file"
 			));
-			values.card_image = Idarray.length > 0 ? Idarray[0].remoteUrl : "";
+			values.file[0].file = Idarray.length > 0 ? Idarray[0].remoteUrl : "";
 
+			if (this.state.subIdHolder !== "") {
+				const Subarray = [];
+				Subarray.push(await FilesHelper.upload(
+					this.state.subIdHolder,
+					"subUploadId",
+					"dashboard_file"
+				));
+				values.file[1].file = Subarray.length > 0 ? Subarray[0].remoteUrl : "";
+			}
+
+			if (this.state.subIdHolder !== "") {
+				const Subarray = [];
+				Subarray.push(await FilesHelper.upload(
+					this.state.subIdHolder,
+					"subUploadId",
+					"dashboard_file"
+				));
+				values.file[2].file = Subarray.length > 0 ? Subarray[0].remoteUrl : "";
+			}
 			const Imagearray = [];
 			Imagearray.push(await FilesHelper.upload(
 				this.state.imageHolder,
@@ -157,6 +204,14 @@ export default class Create extends React.Component {
 		return { url: idHolder };
 	};
 
+	getSubIdUploadParams = ({ meta }) => {
+		const { subIdHolder } = this.state;
+		return { url: subIdHolder };
+	};
+	getNewSubIdUploadParams = ({ meta }) => {
+		const { subIdHolder2 } = this.state;
+		return { url: subIdHolder2 };
+	};
 	idHandleChangeStatus = async ({ meta, file }, status) => {
 		if (status === "headers_received") {
 			try {
@@ -167,6 +222,25 @@ export default class Create extends React.Component {
 		}
 	};
 
+	subIdHandleChangeStatus = async ({ meta, file }, status) => {
+		if (status === "headers_received") {
+			try {
+				this.setState({ subIdHolder: file });
+			} catch (err) {
+				console.log(err);
+			}
+		}
+	};
+
+	NewSubIdHandleChangeStatus = async ({ meta, file }, status) => {
+		if (status === "headers_received") {
+			try {
+				this.setState({ subIdHolder2: file });
+			} catch (err) {
+				console.log(err);
+			}
+		}
+	};
 	imageChangeStatus = async ({ meta, file }, status) => {
 		if (status === "headers_received") {
 			try {
@@ -182,7 +256,7 @@ export default class Create extends React.Component {
 	};
 
 	render() {
-		const { loading, designation, department, shift } = this.state;
+		const { loading, designation, department, shift, employeeCards, docType } = this.state;
 		const dropDownProps = {
 			styles: {
 				dropzone: {
@@ -243,7 +317,6 @@ export default class Create extends React.Component {
 															label="Date of Birth *"
 															name="dob"
 															type="text"
-															method="datepicker"
 														/>
 
 														<CustomInput label="Father / Spouse Name *" name="father_name" type="text" />
@@ -352,14 +425,12 @@ export default class Create extends React.Component {
 														label="Date of Joining"
 														name="date_of_joining"
 														type="text"
-														method="datepicker"
 													/>
 
 													<CustomInput
 														label="Date of Resignation"
 														name="date_of_termination"
 														type="text"
-														method="datepicker"
 													/>
 												</div>
 											</div>
@@ -455,22 +526,58 @@ export default class Create extends React.Component {
 												<div className={styles.inputHolder} style={{ marginTop: 20, marginBottom: 0 }}>
 													<CustomInput label="Unifrom" name="uniform_qty" type="text" containerStyle={{ marginBottom: 30 }} />
 												</div>
-
 												<div className={styles.inputHolder} style={{ marginBottom: 0 }}>
-													<CustomInput label="ID Card Type" name="id_card" type="text" containerStyle={{ marginBottom: 30 }} />
+													<CustomInput label="New ID Card Type" values={docType.map((d) => ({ id: d.id, value: d.value }))} name="file[2].id_card" type="text" method="switch" containerStyle={{ marginTop: 30, marginBottom: 30 }} />
 												</div>
 
-
 												<div className={styles.inputHolder}>
-													<CustomInput label="ID Card No" name="id_card_no" type="text" containerStyle={{ marginBottom: 0 }} />
+													<CustomInput label="New ID Card No" name="file[2].id_card_no" type="text" containerStyle={{ marginBottom: 0 }} />
 												</div>
 
 												<div className={styles.uploadHolder} style={{ marginTop: 30 }}>
-													<label className={styles.uploaderTitle} for="uploadID">
+													<label className={styles.uploaderTitle} for="subUploadID">
 														Upload ID *
 													</label>
-													<Dropzone getUploadParams={this.getIdUploadParams} onChangeStatus={this.idHandleChangeStatus} {...dropDownProps} />
+													<Dropzone getUploadParams={this.getNewSubIdUploadParams} onChangeStatus={this.NewSubIdHandleChangeStatus} {...dropDownProps} />
 												</div>
+												<div className={styles.inputHolder} style={{ marginTop: 20, marginBottom: 20 }} >
+													<Button isLoading={loading} loadingText="Generating" colorScheme="purple" onClick={() => this.setState({ employeeCards: !employeeCards })}>
+														{employeeCards === true ? "Remove" : "Add"}
+													</Button>
+												</div>
+												{employeeCards === true && (
+													<>
+														<div className={styles.inputHolder} style={{ marginBottom: 0 }}>
+															<CustomInput label="ID Card Type" name="file[0].id_card" values={docType.map((d) => ({ id: d.id, value: d.value }))} type="text" method="switch" containerStyle={{ marginBottom: 30 }} />
+														</div>
+
+
+														<div className={styles.inputHolder}>
+															<CustomInput label="ID Card No" name="file[0].id_card_no" type="text" containerStyle={{ marginBottom: 0 }} />
+														</div>
+
+														<div className={styles.uploadHolder} style={{ marginTop: 30 }}>
+															<label className={styles.uploaderTitle} for="uploadID">
+																Upload ID *
+															</label>
+															<Dropzone getUploadParams={this.getIdUploadParams} onChangeStatus={this.idHandleChangeStatus} {...dropDownProps} />
+														</div>
+														<div className={styles.inputHolder} style={{ marginBottom: 0 }}>
+															<CustomInput label="New ID Card Type" values={docType.map((d) => ({ id: d.id, value: d.value }))} name="file[1].id_card" type="text" method="switch" containerStyle={{ marginTop: 30, marginBottom: 30 }} />
+														</div>
+
+														<div className={styles.inputHolder}>
+															<CustomInput label="New ID Card No" name="file[1].id_card_no" type="text" containerStyle={{ marginBottom: 0 }} />
+														</div>
+
+														<div className={styles.uploadHolder} style={{ marginTop: 30 }}>
+															<label className={styles.uploaderTitle} for="subUploadID">
+																Upload ID *
+															</label>
+															<Dropzone getUploadParams={this.getSubIdUploadParams} onChangeStatus={this.subIdHandleChangeStatus} {...dropDownProps} />
+														</div>
+													</>
+												)}
 											</div>
 										</Container>
 
@@ -478,9 +585,9 @@ export default class Create extends React.Component {
 											<p>{"PF & ESI"}</p>
 
 											<div>
-												<div className={styles.inputHolder}>
+												{/* <div className={styles.inputHolder}>
 													<CustomInput label="PAN No *" name="id_card_no" type="text" />
-												</div>
+												</div> */}
 												<div className={styles.inputHolder}>
 													<CustomInput label="PF Number *" name="pf_number" type="text" />
 													<CustomInput label="UAN Number *" name="UAN" type="text" />
