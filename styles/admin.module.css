@@ -43,6 +43,12 @@
 	width: 50%;
 }
 
+.buttoninputHolder {
+	display: flex;
+	justify-content: space-between;
+	width: 100%;
+}
+
 .inputDiv {
 	display: flex;
 	max-width: 300px;
@@ -93,11 +99,6 @@
 	height: 20px;
 	color: var(--primaryColor);
 	margin-left: 50px;
-}
-
-.view-more {
-	color: blue;
-	cursor: pointer;
 }
 
 @media (max-width: 600px) {
