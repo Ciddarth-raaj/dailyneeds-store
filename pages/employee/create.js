@@ -311,12 +311,12 @@ export default class Create extends React.Component {
 
 											<div>
 												<div className={styles.personalInputHolder}>
-												<div className={styles.uploadHolder}>
-													<label className={styles.uploaderTitle} for="uploadImage">
-														Upload Employee Image *
-													</label>
-													<Dropzone getUploadParams={this.getImageUploadParams} onChangeStatus={this.imageChangeStatus} {...dropDownProps} />
-												</div>
+													<div className={styles.uploadHolder}>
+														<label className={styles.uploaderTitle} for="uploadImage">
+															Upload Employee Image *
+														</label>
+														<Dropzone getUploadParams={this.getImageUploadParams} onChangeStatus={this.imageChangeStatus} {...dropDownProps} />
+													</div>
 													<div className={styles.inputHolder}>
 														<CustomInput label="Employee ID *" name="id_number" type="text" />
 
@@ -344,11 +344,11 @@ export default class Create extends React.Component {
 														type="text"
 														method="switch"
 													/>
-													<CustomInput label="Email ID *" name="email_id" type="text" />
+													<CustomInput label="Email ID" name="email_id" type="text" />
 												</div>
 												<div className={styles.inputHolder}>
-													<CustomInput label="Primary Contact Number *" name="primary_contact_number" type="text" />
-													<CustomInput label="Alternate Number" name="alternate_contact_number" type="text" />
+													<CustomInput label="Primary Mobile Number *" name="primary_contact_number" type="text" />
+													<CustomInput label="Alternate Mobile Number" name="alternate_contact_number" type="text" />
 												</div>
 												<div className={styles.inputHolder}>
 													<CustomInput
@@ -409,7 +409,7 @@ export default class Create extends React.Component {
 													<CustomInput label="Permanent Address *" name="permanent_address" type="text" method="TextArea" />
 												</div>
 												<div className={styles.personalInputHolder}>
-													<CustomInput label="Residential Address" name="residential_address" type="text" method="TextArea" />
+													<CustomInput label="Residential Address *" name="residential_address" type="text" method="TextArea" />
 												</div>
 												<div className={styles.inputHolder}>
 													<CustomInput label="Father Name *" name="father_name" type="text" />
@@ -419,7 +419,7 @@ export default class Create extends React.Component {
 												</div>
 												<div className={styles.personalInputHolder}>
 													<CustomInput
-														label="Blood Group *"
+														label="Blood Group"
 														values={BloodGroup.map((m) => ({
 															id: m.id,
 															value: m.value
@@ -471,7 +471,7 @@ export default class Create extends React.Component {
 														/>
 													</div>
 													<div className={styles.inputHolder}>
-													<CustomInput
+														<CustomInput
 															label="Select Designation *"
 															values={designation.map((m) => ({
 																id: m.id,
@@ -483,7 +483,7 @@ export default class Create extends React.Component {
 														/>
 													</div>
 													<div className={styles.inputHolder}>
-													<CustomInput
+														<CustomInput
 															label="Shift Details"
 															values={shift.map((m) => ({
 																id: m.id,
@@ -516,7 +516,7 @@ export default class Create extends React.Component {
 											<p>Employee Identity</p>
 
 											<div>
-											<div className={styles.inputHolder}>
+												<div className={styles.inputHolder}>
 													<CustomInput
 														label="Payment Type *"
 														values={PaymentType.map((m) => ({
@@ -530,14 +530,14 @@ export default class Create extends React.Component {
 												</div>
 												{values.payment_type === "1" && (
 													<>
-												<div className={styles.inputHolder}>
-													<CustomInput label="Bank Name *" name="bank_name" type="text" />
-													<CustomInput label="IFSC Code *" name="ifsc" type="text" />
-												</div>
-												<div className={styles.inputHolder}>
-													<CustomInput label="Account Number *" name="account_no" type="text" />
-												</div>
-												</>
+														<div className={styles.inputHolder}>
+															<CustomInput label="Bank Name *" name="bank_name" type="text" />
+															<CustomInput label="IFSC Code *" name="ifsc" type="text" />
+														</div>
+														<div className={styles.inputHolder}>
+															<CustomInput label="Account Number *" name="account_no" type="text" />
+														</div>
+													</>
 												)}
 												<div className={styles.inputHolder} style={{ marginTop: 20, marginBottom: 0 }}>
 													<CustomInput label="Unifrom" name="uniform_qty" type="text" containerStyle={{ marginBottom: 30 }} />
@@ -545,11 +545,11 @@ export default class Create extends React.Component {
 												<div className={styles.inputHolder} style={{ marginBottom: 0 }}>
 													<CustomInput label="New ID Card Type" values={docType.map((d) => ({ id: d.id, value: d.value }))} name="file[2].id_card" type="text" method="switch" containerStyle={{ marginTop: 30, marginBottom: 30 }} />
 												</div>
-												<br/>
+												<br />
 												<div className={styles.inputHolder}>
 													<CustomInput label="New ID Card No" name="file[2].id_card_no" type="text" containerStyle={{ marginBottom: 0 }} />
 												</div>
-												<br/>
+												<br />
 												<div className={styles.uploadHolder} style={{ marginTop: 30 }}>
 													<label className={styles.uploaderTitle} for="subUploadID">
 														Upload ID *
@@ -602,28 +602,28 @@ export default class Create extends React.Component {
 
 											<div>
 												<div className={styles.personalInputHolder} >
-												<div className={styles.inputHolder}>
-													<CustomInput label="PAN No *" name="id_card_no" type="text" />
-												</div>
-												<div className={styles.switchHolder}>
-													<label>PF Number & UAN Number</label>
-  													<Switch className={styles.switch} id="email-alerts" onChange={() => this.setState({pfToggle: !pfToggle})} />
-												</div>
+													<div className={styles.inputHolder}>
+														<CustomInput label="PAN No *" name="id_card_no" type="text" />
+													</div>
+													<div className={styles.switchHolder}>
+														<label>PF Number & UAN Number</label>
+														<Switch className={styles.switch} id="email-alerts" onChange={() => this.setState({ pfToggle: !pfToggle })} />
+													</div>
 												</div>
 												{pfToggle === true && (
-												<div className={styles.inputHolder}>
-													<CustomInput label="PF Number *" name="pf_number" type="text" />
-													<CustomInput label="UAN Number *" name="UAN" type="text" />
-												</div>
+													<div className={styles.inputHolder}>
+														<CustomInput label="PF Number *" name="pf_number" type="text" />
+														<CustomInput label="UAN Number *" name="UAN" type="text" />
+													</div>
 												)}
 												<div className={styles.switchHolder}>
 													<label>ESI Number</label>
-  													<Switch className={styles.switch} id="email-alerts" onChange={() => this.setState({esiToggle: !esiToggle})} />
+													<Switch className={styles.switch} id="email-alerts" onChange={() => this.setState({ esiToggle: !esiToggle })} />
 												</div>
 												{esiToggle === true && (
-												<div className={styles.inputHolder}>
-													<CustomInput label="ESI Number *" name="esi_number" type="text" />
-												</div>
+													<div className={styles.inputHolder}>
+														<CustomInput label="ESI Number *" name="esi_number" type="text" />
+													</div>
 												)}
 											</div>
 										</Container>
