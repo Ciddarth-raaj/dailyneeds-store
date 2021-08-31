@@ -2,7 +2,7 @@
 import React from "react";
 import { Formik, Form } from "formik";
 import Dropzone from "react-dropzone-uploader";
-import { Container, Flex, ButtonGroup, Button, Center } from "@chakra-ui/react";
+import { Container, Flex, ButtonGroup, Button, Center, FormControl, FormLabel, Switch } from "@chakra-ui/react";
 import { toast } from "react-toastify";
 import FormikErrorFocus from "formik-error-focus";
 
@@ -11,6 +11,7 @@ import styles from "../../styles/registration.module.css";
 
 //Helpers
 import DocumentHelper from "../../helper/document";
+import { BloodGroup, PaymentType } from "../../constants/values";
 import EmployeeHelper from "../../helper/employee";
 import DesignationHelper from "../../helper/designation";
 import ShiftHelper from "../../helper/shift";
@@ -50,6 +51,7 @@ const INITIAL_VALUES = {
 	shift_id: "",
 	department_id: "",
 	marital_status: "Married",
+	marriage_date: "",
 	employee_image: "",
 
 	bank_name: "",
@@ -61,11 +63,11 @@ const INITIAL_VALUES = {
 	pf: 0,
 	pf_number: "",
 	UAN: "",
-
+	additional_course: "",
 	spouse_name: "",
 	online_portal: 0,
 
-	// payment_type: 0,
+	payment_type: 0,
 	file: [
 		{
 			id_card: "",
@@ -102,6 +104,8 @@ export default class Create extends React.Component {
 			imageHolder: [],
 			employeeCards: false,
 			subIdHolder2: [],
+			pfToggle: false,
+			esiToggle: false,
 		};
 	}
 
@@ -110,6 +114,7 @@ export default class Create extends React.Component {
 		this.getDepartment();
 		this.getShift();
 		this.getDocumentType();
+		console.log({ jesus: INITIAL_VALUES })
 	}
 
 	getShift() {
@@ -181,7 +186,6 @@ export default class Create extends React.Component {
 		} catch (err) {
 			console.log(err);
 		}
-		console.log(values);
 		EmployeeHelper.register(values)
 			.then((data) => {
 				if (data === 200) {
@@ -256,7 +260,7 @@ export default class Create extends React.Component {
 	};
 
 	render() {
-		const { loading, designation, department, shift, employeeCards, docType } = this.state;
+		const { loading, designation, department, shift, employeeCards, docType, pfToggle, esiToggle } = this.state;
 		const dropDownProps = {
 			styles: {
 				dropzone: {
@@ -295,8 +299,8 @@ export default class Create extends React.Component {
 					}}
 				>
 					{(formikProps) => {
-						const { handleSubmit } = formikProps;
-
+						const { handleSubmit, values } = formikProps;
+						console.log(values);
 						return (
 							<Form>
 								<FormikErrorFocus align={"middle"} ease={"linear"} duration={200} />
@@ -307,19 +311,16 @@ export default class Create extends React.Component {
 
 											<div>
 												<div className={styles.personalInputHolder}>
+												<div className={styles.uploadHolder}>
+													<label className={styles.uploaderTitle} for="uploadImage">
+														Upload Employee Image *
+													</label>
+													<Dropzone getUploadParams={this.getImageUploadParams} onChangeStatus={this.imageChangeStatus} {...dropDownProps} />
+												</div>
 													<div className={styles.inputHolder}>
 														<CustomInput label="Employee ID *" name="id_number" type="text" />
 
 														<CustomInput label="Name *" name="employee_name" type="text" />
-													</div>
-													<div className={styles.inputHolder}>
-														<CustomInput
-															label="Date of Birth *"
-															name="dob"
-															type="text"
-														/>
-
-														<CustomInput label="Father / Spouse Name *" name="father_name" type="text" />
 													</div>
 												</div>
 												<div className={styles.inputHolder}>
@@ -348,6 +349,13 @@ export default class Create extends React.Component {
 												<div className={styles.inputHolder}>
 													<CustomInput label="Primary Contact Number *" name="primary_contact_number" type="text" />
 													<CustomInput label="Alternate Number" name="alternate_contact_number" type="text" />
+												</div>
+												<div className={styles.inputHolder}>
+													<CustomInput
+														label="Date of Joining"
+														name="date_of_joining"
+														type="text"
+													/>
 												</div>
 											</div>
 										</Container>
@@ -380,6 +388,22 @@ export default class Create extends React.Component {
 														type="text"
 														method="switch"
 													/>
+													<div className={styles.inputHolder}>
+														<CustomInput
+															label="Date of Birth *"
+															name="dob"
+															type="text"
+														/>
+													</div>
+												</div>
+												<div className={styles.personalInputHolder}	>
+													{values.marital_status === "Married" && (
+														<CustomInput
+															label="Marriage Date *"
+															name="marriage_date"
+															type="text"
+														/>
+													)}
 												</div>
 												<div className={styles.personalInputHolder}>
 													<CustomInput label="Permanent Address *" name="permanent_address" type="text" method="TextArea" />
@@ -388,50 +412,23 @@ export default class Create extends React.Component {
 													<CustomInput label="Residential Address" name="residential_address" type="text" method="TextArea" />
 												</div>
 												<div className={styles.inputHolder}>
+													<CustomInput label="Father Name *" name="father_name" type="text" />
+													{values.marital_status === "Married" &&
+														<CustomInput label="Spouse Name *" name="spouse_name" type="text" />
+													}
+												</div>
+												<div className={styles.personalInputHolder}>
 													<CustomInput
 														label="Blood Group *"
-														values={[
-															{
-																id: 1,
-																value: "Blood group A",
-															},
-															{
-																id: 2,
-																value: "Blood group B",
-															},
-															{
-																id: 3,
-																value: "Blood group O",
-															},
-														]}
+														values={BloodGroup.map((m) => ({
+															id: m.id,
+															value: m.value
+														}))}
 														name="blood_group"
 														type="text"
 														method="switch"
 													/>
-													<CustomInput label="Introducer's Name" name="introducer_name" type="text" />
-												</div>
-												<div className={styles.personalInputHolder}>
-													<CustomInput label="Introducer Details" name="introducer_details" type="text" method="TextArea" />
-												</div>
-											</div>
-										</Container>
 
-										<Container {...containerProps} mb={"20px"}>
-											<p>Joining Details</p>
-
-											<div>
-												<div className={styles.inputHolder}>
-													<CustomInput
-														label="Date of Joining"
-														name="date_of_joining"
-														type="text"
-													/>
-
-													<CustomInput
-														label="Date of Resignation"
-														name="date_of_termination"
-														type="text"
-													/>
 												</div>
 											</div>
 										</Container>
@@ -441,28 +438,6 @@ export default class Create extends React.Component {
 
 											<div>
 												<div className={styles.personalInputHolder}>
-													<div className={styles.inputHolder}>
-														<CustomInput
-															label="Shift Details"
-															values={shift.map((m) => ({
-																id: m.id,
-																value: m.value,
-															}))}
-															name="shift_id"
-															type="text"
-															method="switch"
-														/>
-														<CustomInput
-															label="Select Designation *"
-															values={designation.map((m) => ({
-																id: m.id,
-																value: m.value,
-															}))}
-															name="designation_id"
-															type="text"
-															method="switch"
-														/>
-													</div>
 													<div className={styles.inputHolder}>
 														<CustomInput
 															label="Select Store *"
@@ -484,8 +459,6 @@ export default class Create extends React.Component {
 															type="text"
 															method="switch"
 														/>
-													</div>
-													<div className={styles.inputHolder}>
 														<CustomInput
 															label="Select Department *"
 															values={department.map((m) => ({
@@ -493,6 +466,30 @@ export default class Create extends React.Component {
 																value: m.value,
 															}))}
 															name="department_id"
+															type="text"
+															method="switch"
+														/>
+													</div>
+													<div className={styles.inputHolder}>
+													<CustomInput
+															label="Select Designation *"
+															values={designation.map((m) => ({
+																id: m.id,
+																value: m.value,
+															}))}
+															name="designation_id"
+															type="text"
+															method="switch"
+														/>
+													</div>
+													<div className={styles.inputHolder}>
+													<CustomInput
+															label="Shift Details"
+															values={shift.map((m) => ({
+																id: m.id,
+																value: m.value,
+															}))}
+															name="shift_id"
 															type="text"
 															method="switch"
 														/>
@@ -508,6 +505,9 @@ export default class Create extends React.Component {
 													<CustomInput label="Educational Qualification *" name="qualification" type="text" />
 													<CustomInput label="Previous Experience" name="previous_experience" type="text" />
 												</div>
+												<div className={styles.personalInputHolder}>
+													<CustomInput label="Additional Courses" name="additional_course" type="text" method="TextArea" />
+												</div>
 											</div>
 										</Container>
 									</Container>
@@ -516,24 +516,40 @@ export default class Create extends React.Component {
 											<p>Employee Identity</p>
 
 											<div>
-												<div className={styles.uploadHolder}>
-													<label className={styles.uploaderTitle} for="uploadImage">
-														Upload Employee Image *
-													</label>
-													<Dropzone getUploadParams={this.getImageUploadParams} onChangeStatus={this.imageChangeStatus} {...dropDownProps} />
+											<div className={styles.inputHolder}>
+													<CustomInput
+														label="Payment Type *"
+														values={PaymentType.map((m) => ({
+															id: m.id,
+															value: m.value
+														}))}
+														name="payment_type"
+														type="text"
+														method="switch"
+													/>
 												</div>
-
+												{values.payment_type === "1" && (
+													<>
+												<div className={styles.inputHolder}>
+													<CustomInput label="Bank Name *" name="bank_name" type="text" />
+													<CustomInput label="IFSC Code *" name="ifsc" type="text" />
+												</div>
+												<div className={styles.inputHolder}>
+													<CustomInput label="Account Number *" name="account_no" type="text" />
+												</div>
+												</>
+												)}
 												<div className={styles.inputHolder} style={{ marginTop: 20, marginBottom: 0 }}>
 													<CustomInput label="Unifrom" name="uniform_qty" type="text" containerStyle={{ marginBottom: 30 }} />
 												</div>
 												<div className={styles.inputHolder} style={{ marginBottom: 0 }}>
 													<CustomInput label="New ID Card Type" values={docType.map((d) => ({ id: d.id, value: d.value }))} name="file[2].id_card" type="text" method="switch" containerStyle={{ marginTop: 30, marginBottom: 30 }} />
 												</div>
-
+												<br/>
 												<div className={styles.inputHolder}>
 													<CustomInput label="New ID Card No" name="file[2].id_card_no" type="text" containerStyle={{ marginBottom: 0 }} />
 												</div>
-
+												<br/>
 												<div className={styles.uploadHolder} style={{ marginTop: 30 }}>
 													<label className={styles.uploaderTitle} for="subUploadID">
 														Upload ID *
@@ -585,65 +601,57 @@ export default class Create extends React.Component {
 											<p>{"PF & ESI"}</p>
 
 											<div>
-												{/* <div className={styles.inputHolder}>
+												<div className={styles.personalInputHolder} >
+												<div className={styles.inputHolder}>
 													<CustomInput label="PAN No *" name="id_card_no" type="text" />
-												</div> */}
+												</div>
+												<div className={styles.switchHolder}>
+													<label>PF Number & UAN Number</label>
+  													<Switch className={styles.switch} id="email-alerts" onChange={() => this.setState({pfToggle: !pfToggle})} />
+												</div>
+												</div>
+												{pfToggle === true && (
 												<div className={styles.inputHolder}>
 													<CustomInput label="PF Number *" name="pf_number" type="text" />
 													<CustomInput label="UAN Number *" name="UAN" type="text" />
 												</div>
+												)}
+												<div className={styles.switchHolder}>
+													<label>ESI Number</label>
+  													<Switch className={styles.switch} id="email-alerts" onChange={() => this.setState({esiToggle: !esiToggle})} />
+												</div>
+												{esiToggle === true && (
 												<div className={styles.inputHolder}>
 													<CustomInput label="ESI Number *" name="esi_number" type="text" />
 												</div>
+												)}
 											</div>
 										</Container>
-
-										<Container {...containerProps} mb={"20px"}>
-											<p>Bank Details</p>
-
-											<div>
-												<div className={styles.inputHolder}>
-													<CustomInput
-														label="Payment Type *"
-														values={[
-															{
-																id: 1,
-																value: "Cash",
-															},
-															{
-																id: 2,
-																value: "Bank Transfer",
-															},
-															{
-																id: 3,
-																value: "Cheque",
-															},
-															{
-																id: 3,
-																value: "Demand Draft",
-															},
-														]}
-														name="payment_type"
-														type="text"
-														method="switch"
-													/>
-												</div>
-												<div className={styles.inputHolder}>
-													<CustomInput label="Bank Name *" name="bank_name" type="text" />
-													<CustomInput label="IFSC Code *" name="ifsc" type="text" />
-												</div>
-												<div className={styles.inputHolder}>
-													<CustomInput label="Account Number *" name="account_no" type="text" />
-												</div>
-
-											</div>
-										</Container>
-
 										<Container {...containerProps} pb={"20px"}>
 											<p>Salary Details</p>
 
 											<div className={styles.inputHolder}>
 												<CustomInput label="Salary / Month *" name="salary" type="text" containerStyle={{ marginBottom: 0 }} />
+											</div>
+										</Container>
+										<br />
+										<Container {...containerProps} pb={"20px"}>
+											<p>Others</p>
+
+											<div className={styles.personalInputHolder}>
+												<CustomInput
+													label="Introducer's Name"
+													name="introducer_name"
+													type="text"
+												/>
+											</div>
+											<div className={styles.personalInputHolder}>
+												<CustomInput
+													label="Introducer Details"
+													name="introducer_details"
+													type="text"
+													method="TextArea"
+												/>
 											</div>
 
 											<ButtonGroup

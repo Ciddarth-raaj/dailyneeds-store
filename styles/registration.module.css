@@ -79,9 +79,36 @@
 	background: #ffffff;
 	box-shadow: 5px 5px 10px #e6e6e6, -5px -5px 10px #ffffff;
 }
+.switchHolder {
+	width: 100%;
+	height: 30px;
+	/* background-color: rgb(32, 56, 48); */
+	margin-bottom: 20px;
+	padding-bottom: 40px;
+	display: flex;
+	justify-content: flex-start;
+	align-items: center;
+	font-weight: 500;
+}
+.switchHolder label {
+	margin-left: 5px;
+	display: flex;
+	justify-content: center;
+	height: 40px;
+	margin-bottom: 4px;
+	/* background-color: black; */
+	align-items: center;
+}
+.switch {
+	display: flex;
+	justify-content: flex-end;
+	align-items: flex-end;
+	margin-left: 20px;
+}
 .uploadHolder {
 	width: 100%;
 	/* margin-top: 60px; */
+	padding-bottom: 25px;
 }
 .uploadDetails {
 	margin-top: 50px;

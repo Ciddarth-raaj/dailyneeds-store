@@ -8,8 +8,9 @@ export const Validation = Yup.object({
 		.max(new Date(), "Must be 15 characters or less")
 		.required("Fill Date of birth"),
 	permanent_address: Yup.string().nullable().required("Fill Address"),
+	residential_address: Yup.string().nullable().required("Fill Residential Address"),
 	gender: Yup.string().nullable().required("Choose Gender"),
-	blood_group: Yup.string().nullable().required("Choose BloodGroup"),
+	// blood_group: Yup.string().nullable().required("Choose BloodGroup"),
 	designation_id: Yup.string().nullable().required("Choose Designation"),
 	marital_status: Yup.string().nullable().required("Choose Marital Status"),
 	shift_id: Yup.string().nullable().required("Choose Shift"),
@@ -25,10 +26,10 @@ export const Validation = Yup.object({
 	// 	.min(123456789, "Must be 9 or More")
 	// 	.max(12345678900, "Must be 10 characters or less")
 	// 	.required("Fill Alternate Number"),
-	email_id: Yup.string()
-		.nullable()
-		.email("Invalid email")
-		.required("Fill Email"),
+	// email_id: Yup.string()
+	// 	.nullable()
+	// 	.email("Invalid email")
+	// 	.required("Fill Email"),
 	qualification: Yup.string()
 		.nullable()
 		.required("Fill Educational Qualification"),
