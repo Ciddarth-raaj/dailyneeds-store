@@ -37,10 +37,10 @@ export const Validation = Yup.object({
 	// introducerDetails: Yup.string()
 	// 	.min(30, "Must be 30 characters or more")
 	// 	.required("Fill Introducer Details"),
-	id_number: Yup.number()
-		.typeError("Must be a number")
-		.nullable()
-		.required("Fill Employee ID"),
+	// id_number: Yup.number()
+	// 	.typeError("Must be a number")
+	// 	.nullable()
+	// 	.required("Fill Employee ID"),
 	salary: Yup.string().nullable().required("Fill Salary"),
 	// uniform_qty: Yup.string().required("Fill Unifrom"),
 	// experience: Yup.string().required("Fill Experience"),

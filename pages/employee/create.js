@@ -37,12 +37,10 @@ const INITIAL_VALUES = {
 	qualification: "",
 	introducer_name: "",
 	introducer_details: "",
-	id_number: "",
 	salary: "",
 	uniform_qty: "",
 	previous_experience: "",
 	date_of_joining: "",
-	// id_card_no: "",
 	gender: "Male",
 	blood_group: "",
 	designation_id: "",
@@ -65,7 +63,7 @@ const INITIAL_VALUES = {
 	additional_course: "",
 	spouse_name: "",
 	online_portal: 0,
-
+	pan_no: "",
 	payment_type: 0,
 	files: [
 		{
@@ -141,6 +139,15 @@ export default class Create extends React.Component {
 
 	CreateEmployee = async (values) => {
 		try {
+			
+			const Imagearray = [];
+			Imagearray.push(await FilesHelper.upload(
+				this.state.imageHolder,
+				"uploadImage",
+				"dashboard_file"
+			));
+			values.employee_image = Imagearray.length > 0 ? Imagearray[0].remoteUrl : "";
+
 			const Idarray = [];
 			Idarray.push(await FilesHelper.upload(
 				this.state.licenseHolder,
@@ -179,15 +186,7 @@ export default class Create extends React.Component {
 						values.files[i].file = Subarray.length > 0 ? Subarray[0].remoteUrl : "";
 					}
 				}
-			}
-			const Imagearray = [];
-			Imagearray.push(await FilesHelper.upload(
-				this.state.imageHolder,
-				"uploadImage",
-				"dashboard_file"
-			));
-			values.employee_image = Imagearray.length > 0 ? Imagearray[0].remoteUrl : "";
-
+			}	
 		} catch (err) {
 			console.log(err);
 		}
@@ -329,8 +328,6 @@ export default class Create extends React.Component {
 														<Dropzone getUploadParams={this.getImageUploadParams} onChangeStatus={this.imageChangeStatus} {...dropDownProps} />
 													</div>
 													<div className={styles.inputHolder}>
-														<CustomInput label="Employee ID *" name="id_number" type="text" />
-
 														<CustomInput label="Name *" name="employee_name" type="text" />
 													</div>
 												</div>
@@ -633,7 +630,7 @@ export default class Create extends React.Component {
 											<div>
 												<div className={styles.personalInputHolder} >
 													<div className={styles.inputHolder}>
-														<CustomInput label="PAN No *" name="id_card_no" type="text" />
+														<CustomInput label="PAN No *" name="pan_no" type="text" />
 													</div>
 													<div className={styles.switchHolder}>
 														<label>PF Number & UAN Number</label>
