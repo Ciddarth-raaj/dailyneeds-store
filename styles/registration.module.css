@@ -232,15 +232,13 @@
 	margin-bottom: 30px;
 }
 .button {
-	width: 70%;
-	/* margin-top: 40px; */
-	border: 1px solid black;
+	margin-right: 20px;
 }
-.button:hover {
+/* .button:hover {
 	color: var(--primaryColor);
 	background-color: white;
 	border: 1px solid black;
-}
+} */
 .inputGroup1 textarea {
 	width: 100%;
 }
