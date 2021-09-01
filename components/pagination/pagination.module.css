@@ -22,3 +22,11 @@
     background-color: rgb(226, 226, 226);
     cursor: not-allowed;
 }
+
+.notActiveButton {
+    background-color: rgb(226, 226, 226);
+    border: 2px solid rgb(226, 226, 226);
+    border-radius: 7px;
+    padding: 5px 12px;
+    color: #777;
+}

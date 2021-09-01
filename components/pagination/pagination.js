@@ -1,8 +1,9 @@
+import { color } from "@chakra-ui/styled-system";
 import React, { useState } from "react";
 import styles from "./pagination.module.css";
 
 const Pagination = ({ postsPerPage, totalPosts, paginate }) => {
-    const [currentPage, setCurrentPage] = useState(0);
+    const [currentPage, setCurrentPage] = useState(1);
     const pageNumber = [];
     for (let i = 1; i <= Math.ceil(totalPosts / postsPerPage); i++) {
         pageNumber.push(i);
@@ -29,8 +30,13 @@ const Pagination = ({ postsPerPage, totalPosts, paginate }) => {
                             setCurrentPage(number);
                             paginate(number);
                         }}
-                        className={styles.button}
+                        className={
+                            currentPage === number
+                                ? styles.notActiveButton
+                                : styles.button
+                        }
                     >
+                        {console.log(currentPage)}
                         {number}
                     </a>
                 </div>

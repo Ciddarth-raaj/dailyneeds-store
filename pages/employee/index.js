@@ -55,56 +55,51 @@ function Registration() {
 			joining_date: "21/08/26",
 			resignation_date: "22/08/98",
 			status: "Active"
+		},
+		{
+			id: "4",
+			name: "Four",
+			store_name: "Store 4",
+			designation: "Manager",
+			joining_date: "21/08/26",
+			resignation_date: "22/08/98",
+			status: "Active"
+		},
+		{
+			id: "5",
+			name: "Five",
+			store_name: "Store 5",
+			designation: "Manager",
+			joining_date: "21/08/26",
+			resignation_date: "22/08/98",
+			status: "Active"
 		}
 	]
-
-	const values = [
-		[
-			'1',
-			'KEERTHI',
-			'Saravana',
-			'Manager',
-			'12.10/1996',
-			'12/10/2000',
-			'Active',
-			<img src={"/assets/edit.png"} className={styles.icon} />
-		],
-		[
-			'2',
-			'NAME 1',
-			'Krishna Sweets',
-			'Manager',
-			'12.10/1996',
-			'12/10/2000',
-			'Active',
-			<img src={"/assets/edit.png"} className={styles.icon} />
-		],
-	];
 
 	const sortCallback = (key, type) => {
 		console.log(key, type)
 	}
-	const [posts, setPosts] = useState([]);
-    const [loading, setLoading] = useState(false);
-    const [currentPage, setCurrentPage] = useState(1);
-    const [postsPerPage] = useState(1);
+	// const [posts, setPosts] = useState([]);
+    // const [loading, setLoading] = useState(false);
+    // const [currentPage, setCurrentPage] = useState(1);
+    // const [postsPerPage] = useState(1);
 
-	useEffect(() => {
-		const fetchPosts = async () => {
-			setLoading(true);
-			setPosts(valuesNew);
-			setLoading(false);
-		};
-		fetchPosts();
-	},[]);
+	// useEffect(() => {
+	// 	const fetchPosts = async () => {
+	// 		setLoading(true);
+	// 		setPosts(valuesNew);
+	// 		setLoading(false);
+	// 	};
+	// 	fetchPosts();
+	// },[]);
 
-	//Get Current Posts
-	const indexOfLastPost = currentPage * postsPerPage;
-	const indexOfFirstPost = indexOfLastPost - postsPerPage;
-	const currentPosts = valuesNew.slice(indexOfFirstPost, indexOfLastPost);
+	// //Get Current Posts
+	// const indexOfLastPost = currentPage * postsPerPage;
+	// const indexOfFirstPost = indexOfLastPost - postsPerPage;
+	// const currentPosts = valuesNew.slice(indexOfFirstPost, indexOfLastPost);
 
-	//Change Page
-	const paginate = (pageNumber) => setCurrentPage(pageNumber);
+	// //Change Page
+	// const paginate = (pageNumber) => setCurrentPage(pageNumber);
 	
 	return (
 		<Formik
@@ -162,11 +157,11 @@ function Registration() {
 									<CustomInput name="search" type="text" />
 									<button>{"Search"}</button>
 								</div>
-								<Table heading={table_title} rows={currentPosts} sortCallback={(key, type) => sortCallback(key, type)} />
-								<Pagination
+								<Table heading={table_title} rows={valuesNew} sortCallback={(key, type) => sortCallback(key, type)} />
+								{/* <Pagination
 										postsPerPage={postsPerPage}
 										totalPosts={posts.length}
-										paginate={paginate} />
+										paginate={paginate} /> */}
 							</div>
 						</Container>
 					</Flex>
