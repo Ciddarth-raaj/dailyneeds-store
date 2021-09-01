@@ -358,8 +358,8 @@ export default class Create extends React.Component {
 													<CustomInput label="Email ID" name="email_id" type="text" />
 												</div>
 												<div className={styles.inputHolder}>
-													<CustomInput label="Primary Contact Number *" name="primary_contact_number" type="text" />
-													<CustomInput label="Alternate Number" name="alternate_contact_number" type="text" />
+													<CustomInput label="Primary Mobile Number *" name="primary_contact_number" type="text" />
+													<CustomInput label="Alternate Mobile Number" name="alternate_contact_number" type="text" />
 												</div>
 												<div className={styles.inputHolder}>
 													<CustomInput
@@ -420,7 +420,7 @@ export default class Create extends React.Component {
 													<CustomInput label="Permanent Address *" name="permanent_address" type="text" method="TextArea" />
 												</div>
 												<div className={styles.personalInputHolder}>
-													<CustomInput label="Residential Address" name="residential_address" type="text" method="TextArea" />
+													<CustomInput label="Residential Address *" name="residential_address" type="text" method="TextArea" />
 												</div>
 												<div className={styles.inputHolder}>
 													<CustomInput label="Father Name *" name="father_name" type="text" />
