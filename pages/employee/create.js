@@ -139,7 +139,7 @@ export default class Create extends React.Component {
 
 	CreateEmployee = async (values) => {
 		try {
-			
+
 			const Imagearray = [];
 			Imagearray.push(await FilesHelper.upload(
 				this.state.imageHolder,
@@ -186,7 +186,7 @@ export default class Create extends React.Component {
 						values.files[i].file = Subarray.length > 0 ? Subarray[0].remoteUrl : "";
 					}
 				}
-			}	
+			}
 		} catch (err) {
 			console.log(err);
 		}
@@ -547,9 +547,6 @@ export default class Create extends React.Component {
 														</div>
 													</>
 												)}
-												<div className={styles.inputHolder} style={{ marginTop: 20, marginBottom: 0 }}>
-													<CustomInput label="Unifrom" name="uniform_qty" type="text" containerStyle={{ marginBottom: 30 }} />
-												</div>
 												<FieldArray name="files">
 													{fieldArrayProps => {
 														const { push, remove, form } = fieldArrayProps
@@ -665,6 +662,10 @@ export default class Create extends React.Component {
 										<Container {...containerProps} pb={"20px"}>
 											<p>Others</p>
 
+											<div className={styles.inputHolder} style={{ marginTop: 20, marginBottom: 0 }}>
+												<CustomInput label="Unifrom" name="uniform_qty" type="text" containerStyle={{ marginBottom: 30 }} />
+											</div>
+
 											<div className={styles.personalInputHolder}>
 												<CustomInput
 													label="Introducer's Name"
@@ -678,6 +679,7 @@ export default class Create extends React.Component {
 													name="introducer_details"
 													type="text"
 													method="TextArea"
+													containerStyle={{ marginBottom: 10 }}
 												/>
 											</div>
 
