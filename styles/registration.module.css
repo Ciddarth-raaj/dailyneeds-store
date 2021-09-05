@@ -5,7 +5,7 @@
 	position: relative;
 }
 
-.container p {
+.container > p {
 	border-bottom: 1px solid rgb(211, 211, 211);
 	position: absolute;
 	top: 30px;

@@ -17,7 +17,7 @@
 	transition: 300ms ease-in-out;
 	padding: 20px;
 }
-.datePicker:focus{
+.datePicker:focus {
 	outline: #3f8ad1;
 	border: 1.7px solid #3f8ad1;
 }
@@ -30,4 +30,12 @@
 	position: absolute;
 	bottom: -25px;
 	font-size: 14px;
+}
+
+.infoText {
+	font-weight: 600;
+}
+
+.infoLabel {
+	color: var(--chakra-colors-purple-500);
 }
