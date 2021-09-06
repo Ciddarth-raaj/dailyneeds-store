@@ -97,6 +97,8 @@ export default class Create extends React.Component {
 			subIdHolder2: [],
 			pfToggle: false,
 			esiToggle: false,
+
+			editableEmpInfo: false
 		};
 	}
 

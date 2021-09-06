@@ -12,15 +12,14 @@ const CustomDateTimeInput = forwardRef(({ value, onClick, onChange }, ref) => (
 const TextField = ({ label, values, method, selected, onChange, containerStyle, editable, ...props }) => {
 	const { setFieldValue } = useFormikContext();
 	const [field, meta] = useField(props);
-	console.log(field);
 
 	return (
 		<div className={styles.personalInputs} style={containerStyle}>
-			<label htmlFor={field.name} className={`${styles.label} ${styles.infoLabel}`}>
+			<label htmlFor={field.name} className={`${styles.label} ${editable ? styles.infoLabel : ""}`}>
 				{label}
 			</label>
 			{
-				true ? <p className={styles.infoText}>{field.value}</p> : <>
+				editable ? <p className={styles.infoText}>{field.value}</p> : <>
 					{method === "TextArea" && (
 						<Textarea
 							{...field}
