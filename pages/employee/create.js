@@ -106,6 +106,15 @@ export default class Create extends React.Component {
 			editablePFInfo: false,
 			editableSalInfo: false,
 			editableOtherInfo: false,
+
+			loadingEmpInfo: false,
+			loadingPerInfo: false,
+			loadingPosiInfo: false,
+			loadingEducaInfo: false,
+			loadingIdenInfo: false,
+			loadingPFInfo: false,
+			loadingSalInfo: false,
+			loadingOtherInfo: false,
 		};
 	}
 
@@ -293,6 +302,14 @@ export default class Create extends React.Component {
 			editablePFInfo,
 			editableSalInfo,
 			editableOtherInfo,
+			loadingEmpInfo,
+			loadingPerInfo,
+			loadingPosiInfo,
+			loadingEducaInfo,
+			loadingIdenInfo,
+			loadingPFInfo,
+			loadingSalInfo,
+			loadingOtherInfo,
 		} = this.state;
 		const dropDownProps = {
 			styles: {
@@ -343,17 +360,15 @@ export default class Create extends React.Component {
 								<Flex>
 									<Container p={"0px"}>
 										<Container {...containerProps} mb="20px">
-											<p style={{display: "flex",justifyContent: "space-between"}}>
+											<p className={styles.title}>
 												<div>Employee Information</div>
-												<div style={{paddingRight: 10}}>
-													<Button isLoading={loading} 
+													<Button isLoading={loadingEmpInfo} variant="outline"
 														leftIcon={editableEmpInfo ? <i class="fa fa-floppy-o" aria-hidden="true" /> : <i class="fa fa-pencil" aria-hidden="true" />} 
 														colorScheme="purple" 
 														onClick={() => this.setState({editableEmpInfo: !editableEmpInfo})}
 													>
 														{editableEmpInfo ? "Save": "Edit"}
 													</Button>
-												</div>
 											</p>
 
 											<div>
@@ -408,17 +423,15 @@ export default class Create extends React.Component {
 										</Container>
 
 										<Container {...containerProps} mb={"20px"}>
-											<p style={{display: "flex",justifyContent: "space-between"}}>
+											<p className={styles.title}>
 												<div>Personal Details</div>
-												<div style={{paddingRight: 10}}>
-													<Button isLoading={loading} 
+													<Button isLoading={loadingPerInfo} variant="outline"
 														leftIcon={editablePerInfo ? <i class="fa fa-floppy-o" aria-hidden="true" /> : <i class="fa fa-pencil" aria-hidden="true" />}
 														colorScheme="purple"
 														onClick={() => this.setState({editablePerInfo: !editablePerInfo})}
 													>
 														{editablePerInfo ? "Save" : "Edit"}
 													</Button>
-												</div>
 											</p>
 											<div>
 												<div className={styles.inputHolder}>
@@ -496,17 +509,15 @@ export default class Create extends React.Component {
 										</Container>
 
 										<Container {...containerProps} mb="20px">
-											<p style={{display: "flex",justifyContent: "space-between"}}>
+											<p className={styles.title}>
 												<div>Current Position</div>
-												<div style={{paddingRight: 10}}>
-													<Button isLoading={loading} 
+													<Button isLoading={loadingPosiInfo} variant="outline"
 														leftIcon={editablePosiInfo ? <i class="fa fa-floppy-o" aria-hidden="true" /> : <i class="fa fa-pencil" aria-hidden="true" />} 
 														colorScheme="purple" 
 														onClick={() => this.setState({editablePosiInfo: !editablePosiInfo})}
 													>
 														{editablePosiInfo ? "Save" : "Edit"}
 													</Button>
-												</div>
 											</p>
 
 											<div>
@@ -576,17 +587,15 @@ export default class Create extends React.Component {
 										</Container>
 
 										<Container {...containerProps} mb={"20px"}>
-											<p style={{display: "flex",justifyContent: "space-between"}}>
+											<p className={styles.title}>
 												<div>Education Details</div>
-												<div style={{paddingRight: 10}}>
-													<Button isLoading={loading} 
+													<Button isLoading={loadingEducaInfo} variant="outline"
 														leftIcon={editableEducaInfo ? <i class="fa fa-floppy-o" aria-hidden="true" /> : <i class="fa fa-pencil" aria-hidden="true" />} 
 														colorScheme="purple" 
 														onClick={() => this.setState({editableEducaInfo: !editableEducaInfo})}
 													>
 														{editableEducaInfo ? "Save" : "Edit"}
 													</Button>
-												</div>
 											</p>
 											<div>
 												<div className={styles.inputHolder}>
@@ -601,17 +610,15 @@ export default class Create extends React.Component {
 									</Container>
 									<Container>
 										<Container {...containerProps} pb={"20px"} mb={"20px"}>
-											<p style={{display: "flex",justifyContent: "space-between"}}>
+											<p className={styles.title}>
 												<div>Employee Identity</div>
-												<div style={{paddingRight: 10}}>
-													<Button isLoading={loading} 
+													<Button isLoading={loadingIdenInfo } variant="outline"
 														leftIcon={editableIdenInfo ? <i class="fa fa-floppy-o" aria-hidden="true" /> : <i class="fa fa-pencil" aria-hidden="true" />} 
 														colorScheme="purple" 
 														onClick={() => this.setState({editableIdenInfo: !editableIdenInfo})}
 													>
 														{editableIdenInfo ? "Save" : "Edit"}
 													</Button>
-												</div>
 											</p>
 
 											<div>
@@ -714,17 +721,15 @@ export default class Create extends React.Component {
 										</Container>
 
 										<Container {...containerProps} mb={"20px"}>
-											<p style={{display: "flex",justifyContent: "space-between"}}>
+											<p className={styles.title}>
 												<div>PF & ESI</div>
-												<div style={{paddingRight: 10}}>
-													<Button isLoading={loading} 
+													<Button isLoading={loadingPFInfo} variant="outline"
 														leftIcon={editablePFInfo ? <i class="fa fa-floppy-o" aria-hidden="true" /> : <i class="fa fa-pencil" aria-hidden="true" />} 
 														colorScheme="purple" 
 														onClick={() => this.setState({editablePFInfo: !editablePFInfo})}
 													>
 														{editablePFInfo ? "Save" : "Edit"}
 													</Button>
-												</div>
 											</p>
 
 											<div>
@@ -755,17 +760,15 @@ export default class Create extends React.Component {
 											</div>
 										</Container>
 										<Container {...containerProps} pb={"20px"}>
-											<p style={{display: "flex",justifyContent: "space-between"}}>
+											<p className={styles.title}>
 												<div>Salary Details</div>
-												<div style={{paddingRight: 10}}>
-													<Button isLoading={loading} 
+													<Button isLoading={loadingSalInfo} variant="outline"
 														leftIcon={editableSalInfo ? <i class="fa fa-floppy-o" aria-hidden="true" /> : <i class="fa fa-pencil" aria-hidden="true" />} 
 														colorScheme="purple" 
 														onClick={() => this.setState({editableSalInfo: !editableSalInfo})}
 													>
 														{editableSalInfo ? "Save" : "Edit"}
 													</Button>
-												</div>
 											</p>
 
 											<div className={styles.inputHolder}>
@@ -774,17 +777,15 @@ export default class Create extends React.Component {
 										</Container>
 										<br />
 										<Container {...containerProps} pb={"20px"}>
-										<p style={{display: "flex",justifyContent: "space-between"}}>
+										<p className={styles.title}>
 												<div>Others</div>
-												<div style={{paddingRight: 10}}>
-													<Button isLoading={loading} 
+													<Button isLoading={loadingOtherInfo} variant="outline"
 														leftIcon={editableOtherInfo ? <i class="fa fa-floppy-o" aria-hidden="true" /> : <i class="fa fa-pencil" aria-hidden="true" />} 
 														colorScheme="purple" 
 														onClick={() => this.setState({editableOtherInfo: !editableOtherInfo})}
 													>
 														{editableOtherInfo ? "Save" : "Edit"}
 													</Button>
-												</div>
 											</p>
 
 											<div className={styles.inputHolder} style={{ marginTop: 20, marginBottom: 0 }}>
@@ -814,7 +815,8 @@ export default class Create extends React.Component {
 												spacing="6"
 												mt={10}
 												style={{
-													width: "100%",
+													display: "flex",
+													// width: "100%",
 													justifyContent: "flex-end",
 												}}
 											>
