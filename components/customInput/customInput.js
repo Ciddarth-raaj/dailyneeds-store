@@ -19,7 +19,7 @@ const TextField = ({ label, values, method, selected, onChange, containerStyle, 
 				{label}
 			</label>
 			{
-				!editable ? <p className={styles.infoText}>{field.value}</p> : <>
+				editable != undefined && !editable ? <p className={styles.infoText}>{field.value}</p> : <>
 					{method === "TextArea" && (
 						<Textarea
 							{...field}
