@@ -1,6 +1,7 @@
 import React from "react";
 import styles from "./header.module.css"
 import Head from "../../util/head";
+import SideBarMobile from "../sideBarMobile/sideBarMobile";
 
 export default class Header extends React.Component {
 
@@ -13,6 +14,7 @@ export default class Header extends React.Component {
         const {} = this.state;
         return (
             <div className={styles.container}>
+                <SideBarMobile />
                 <Head />
                 {/* <div className={styles.buttonHolder}>
                     <a className={styles.buttonBonus}><img src="/assets/stack.png" className={styles.icon} />Bonus Ui</a>
@@ -55,7 +57,7 @@ export default class Header extends React.Component {
                             </a>
                         </div>
                     </div>
-                 </div>
+                </div>
             </div>
         )
     }

@@ -190,3 +190,13 @@
 .title {
 	display: none;
 }
+
+.desktopVersion {
+	display: none;
+}
+
+@media (max-width: 480px) {
+	.container {
+		display: none;
+	}
+}

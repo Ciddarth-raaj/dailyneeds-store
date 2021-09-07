@@ -14,3 +14,10 @@
 	font-weight: bold;
 	font-size: 32px;
 }
+
+@media (max-width: 480px) {
+	.childContainer {
+		margin-left: 0px;
+		padding: 20px;
+	}
+}
