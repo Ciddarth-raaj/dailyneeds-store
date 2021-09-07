@@ -3,6 +3,7 @@ import React from "react";
 import styles from "./globalWrapper.module.css";
 
 import SideBar from "../sideBar/sideBar";
+import Header from "../header/header";
 
 export default class GlobalWrapper extends React.Component {
 	constructor(props) {
@@ -18,6 +19,7 @@ export default class GlobalWrapper extends React.Component {
 		return (
 			<div>
 				<SideBar />
+				<Header />
 				<div className={styles.childContainer}>
 					{title != "" && (
 						<div className={styles.headingWrapper}>

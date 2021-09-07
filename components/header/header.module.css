@@ -21,7 +21,9 @@
     height: 100%;
     display: flex;
     align-items: center;
-    justify-content:space-evenly;
+    justify-content: flex-end;
+    padding-right: 20px;
+    /* justify-content:space-evenly; */
 }
 .buttonBonus {
     margin-right: 25px;
@@ -45,4 +47,23 @@
     border-radius: 5px;
     background-color: #fee0e8;
     color: #cb4f73;
+}
+.wrapper {
+    display: flex;
+}
+.image {
+    display: flex;
+    justify-content: center;
+}
+.image img {
+    width: 50px;
+    border-radius: 10px;
+}
+.name {
+    padding-left: 10px;
+    font-weight: bold;
+}
+.nameSize {
+    font-size: 12px;
+    font-weight: normal;
 }
