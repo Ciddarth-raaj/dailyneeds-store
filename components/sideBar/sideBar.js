@@ -53,12 +53,12 @@ export default class SideBar extends React.Component {
 							selected: false,
 							location: "/designation/create",
 						},
-						view_designation: {
+						view_shift: {
 							title: "View Shift",
 							selected: false,
 							location: "/shift/view",
 						},
-						add_designation: {
+						add_shift: {
 							title: "Add Shift",
 							selected: false,
 							location: "/shift/create",

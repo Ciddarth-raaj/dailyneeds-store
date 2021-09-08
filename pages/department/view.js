@@ -1,7 +1,15 @@
+//External Dependancies
 import { Formik, Form } from "formik";
 import { Container, Flex, Button } from "@chakra-ui/react";
+import React, { useState, useEffect } from "react";
+
+//Styles
 import styles from "../../styles/admin.module.css";
 
+//Helpers
+import DepartmentHelper from "../../helper/department";
+
+//InternalDependancies
 import CustomInput from "../../components/customInput/customInput";
 import Head from "../../util/head";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
@@ -23,36 +31,34 @@ function departmentView() {
     const table_title = {
         employee_id: "Employee Id",
         name: "Name",
+        status: "Status",
         action: "Action",
     };
 
-    const valuesNew = [
+    const [
+        data,
+        setData
+    ] = useState({
+        department: []
+    })
+    useEffect(() => getDepartmentData(), [])
+
+    function getDepartmentData() {
+        DepartmentHelper.getDepartment()
+            .then((data) => {
+                setData({ department: data });
+            })
+            .catch((err) => console.log(err));
+    }
+
+    const valuesNew = data.department.map((m) => (
         {
-            id: "1",
-            name: "Ciddarth",
+            id: m.id,
+            name: m.value,
+            status: m.status ? "Active" : "In Active",
             action: image,
-        },
-        {
-            id: "2",
-            name: "Keerthi",
-            action: image,
-        },
-        {
-            id: "3",
-            name: "Saravana",
-            action: image,
-        },
-        {
-            id: "4",
-            name: "Four",
-            action: image,
-        },
-        {
-            id: "5",
-            name: "Five",
-            action: image,
-        },
-    ];
+        }
+    ));
 
     const sortCallback = (key, type) => {
         console.log(key, type);
@@ -82,13 +88,13 @@ function departmentView() {
                                 </div>
                             </p>
                             <div>
-                                <div className={styles.personalInputHolder}>
-                                    {/* <CustomInput label="Store" name="stores" type="text" method="switch" />
-									<CustomInput label="Designation" name="designation" type="text" method="switch" /> */}
-                                    {/* <CustomInput label="Joining Date" name="dob_1" type="text" /> */}
-                                    {/* <CustomInput label="Resignation Date" name="dob_2" type="text" /> */}
-                                    {/* <CustomInput label="Current Employees" name="employee" type="text" method="switch" /> */}
-                                </div>
+                                    <div className={styles.personalInputHolder}>
+                                        {/* <CustomInput label="Store" name="stores" type="text" method="switch" />
+                                        <CustomInput label="Designation" name="designation" type="text" method="switch" /> */}
+                                        {/* <CustomInput label="Joining Date" name="dob_1" type="text" /> */}
+                                        {/* <CustomInput label="Resignation Date" name="dob_2" type="text" /> */}
+                                        {/* <CustomInput label="Current Employees" name="employee" type="text" method="switch" /> */}
+                                    </div>
                                 <Table
                                     heading={table_title}
                                     rows={valuesNew}

@@ -1,7 +1,8 @@
 import { Formik, Form } from "formik";
 import { Container, Flex, Button } from "@chakra-ui/react";
 import styles from "../../styles/admin.module.css";
-
+import React, { useState, useEffect } from "react";
+import DesignationHelper from "../../helper/designation";
 import CustomInput from "../../components/customInput/customInput";
 import Head from "../../util/head";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
@@ -21,38 +22,36 @@ function designationView() {
     );
 
     const table_title = {
-        employee_id: "Employee Id",
-        name: "Name",
+        designation_id: "Designation Id",
+        designation_name: "Designation Name",
+        status: "Status",
         action: "Action",
     };
 
-    const valuesNew = [
-        {
-            id: "1",
-            name: "Ciddarth",
-            action: image,
-        },
-        {
-            id: "2",
-            name: "Keerthi",
-            action: image,
-        },
-        {
-            id: "3",
-            name: "Saravana",
-            action: image,
-        },
-        {
-            id: "4",
-            name: "Four",
-            action: image,
-        },
-        {
-            id: "5",
-            name: "Five",
-            action: image,
-        },
-    ];
+    const [
+        data,
+        setData
+    ] = useState({
+        designation: []
+    })
+    useEffect(() => getDesignationData(), [])
+
+    function getDesignationData() {
+        DesignationHelper.getDesignation()
+            .then((data) => {
+                setData({ designation: data });
+            })
+            .catch((err) => console.log(err));
+    }
+
+    const valuesNew = data.designation.map((m) => (
+            {
+                designation_id: m.id,
+                designation_name: m.value,
+                status: m.status ? "Active" : "In Active",
+                action: image
+            }
+        ));
 
     const sortCallback = (key, type) => {
         console.log(key, type);
@@ -74,7 +73,7 @@ function designationView() {
                             <p className={styles.buttoninputHolder}>
                                 <div>View Designation</div>
                                 <div style={{ paddingRight: 10 }}>
-                                <Button colorScheme="purple">
+                                    <Button colorScheme="purple">
                                         <Link href="/designation/create">
                                             {"Add"}
                                         </Link>
