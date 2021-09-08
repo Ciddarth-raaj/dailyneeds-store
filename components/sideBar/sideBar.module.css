@@ -18,7 +18,8 @@
 }
 
 .container:hover {
-	width: 20%;
+	/* width: 20%; */
+	width: auto;
 	box-shadow: -1px 1px 84px -9px rgba(0, 0, 0, 0.2);
 	-webkit-box-shadow: -1px 1px 84px -9px rgba(0, 0, 0, 0.2);
 	-moz-box-shadow: -1px 1px 84px -9px rgba(0, 0, 0, 0.2);

@@ -34,7 +34,7 @@ export default class Header extends React.Component {
                         <div className={styles.name}>
                             <p>{"Emma"}</p>
                             <p className={styles.nameSize}>
-                                {"Admin"}<i class={`fa fa-angle-down`} aria-hidden="true" />
+                                {"Admin"}&nbsp;<i class={`fa fa-angle-down`} aria-hidden="true" />
                             </p>
                         </div>
                         <div class="dropdown-content" style={{right: 0}}>
