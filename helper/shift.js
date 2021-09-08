@@ -17,8 +17,8 @@ const shift = {
 			formattedData.push({
 				id: d.shift_id,
 				value: d.shift_name,
-				start_date: d.shift_in_time,
-				end_date: d.shift_out_time, 
+				start_time: d.shift_in_time,
+				end_time: d.shift_out_time, 
 				status: d.status,
 			});
 		}
@@ -29,7 +29,6 @@ const shift = {
 	new Promise(function (resolve, reject) {
 		API.post("/shift/create", data)
 			.then(async (res) => {
-				console.log(res.status);
 				if (res.status === 200) {
 					resolve(res.data);
 				} else {
@@ -38,7 +37,6 @@ const shift = {
 			})
 			.catch((err) => {
 				reject(err);
-				console.log({helper: err});
 			});
 	}),
 };

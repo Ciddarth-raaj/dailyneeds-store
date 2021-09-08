@@ -1,6 +1,11 @@
 import { Formik, Form } from "formik";
 import { Container, Flex, Button } from "@chakra-ui/react";
 import styles from "../../styles/admin.module.css";
+import EmployeeHelper from "../../helper/employee";
+import DesignationHelper from "../../helper/designation";
+import StoreHelper from "../../helper/store";
+
+import React, { useState, useEffect } from "react";
 
 import CustomInput from "../../components/customInput/customInput";
 import Head from "../../util/head";
@@ -20,22 +25,82 @@ function Registration() {
 		name: "Name",
 		store_name: "Store Name",
 		designation: "Designation",
-		joining_date: "Joining Date",
-		resignation_date: "Resignation Date",
 		status: "Status",
 	};
+	const [
+        data,
+        setData
+    ] = useState({
+        employee: []
+    })
+	const [
+        designationData,
+        setDesignationData
+    ] = useState({
+		designation: []
+    })
+	const [
+        storeData,
+        setStoreData
+    ] = useState({
+		store: []
+    })
+    // useEffect(() => getEmployeeData(), getDesignationData(), [])
+	useEffect(() => {
+		getEmployeeData();
+		getDesignationData();
+		getStoreData();
+	}, [])
 
-	const valuesNew = [
+    function getEmployeeData() {
+        EmployeeHelper.getEmployee()
+            .then((data) => {
+                setData({ employee: data });
+            })
+            .catch((err) => console.log(err));
+    }
+
+	function getDesignationData() {
+        DesignationHelper.getDesignation()
+            .then((data) => {
+                setDesignationData({ designation: data });
+            })
+            .catch((err) => console.log(err));
+    }
+	function getStoreData() {
+		StoreHelper.getStore()
+			.then((data) => {
+				setStoreData({ store: data});
+			})
+			.catch((err) => console.log(err));
+	}
+	function designationName(id) {
+		var name = "";
+			designationData.designation.map((m) => {
+			if(m.id == id) {
+				name = m.value;
+			}
+		})
+		return name;
+	} 
+	function storeName(id) {
+		var storeName = "";
+		storeData.store.map((m) => {
+			if(m.id == id) {
+				storeName = m.value;
+			}
+		})		
+		return storeName
+	}
+	const valuesNew = data.employee.map((m) => (
 		{
-			id: <span>{"1"}</span>,
-			name: <span>{"Ciddarth"}</span>,
-			store_name: <span>{"Store 1"}</span>,
-			designation: <span>{"Manager"}</span>,
-			joining_date: <span>{"21/08/22"}</span>,
-			resignation_date: <span>{"22/08/22"}</span>,
-			status: <span>{"Active"}</span>,
-		},
-	];
+			id: m.employee_id,
+			name: m.employee_name,
+			store_name: storeName(m.store_id),
+			designation: designationName(m.designation_id),
+			status: m.status ? "Active" : "In Active",
+		}
+	));
 
 	const sortCallback = (key, type) => {
 		console.log(key, type);
@@ -66,8 +131,8 @@ function Registration() {
 							</p>
 							<div>
 								<div className={styles.personalInputHolder}>
-									<CustomInput label="Store" name="stores" type="text" method="switch" />
-									<CustomInput label="Designation" name="designation" type="text" method="switch" />
+									{/* <CustomInput label="Store" name="stores" type="text" method="switch" />
+									<CustomInput label="Designation" name="designation" type="text" method="switch" /> */}
 									{/* <CustomInput label="Joining Date" name="dob_1" type="text" /> */}
 									{/* <CustomInput label="Resignation Date" name="dob_2" type="text" /> */}
 									{/* <CustomInput label="Current Employees" name="employee" type="text" method="switch" /> */}
