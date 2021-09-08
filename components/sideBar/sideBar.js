@@ -36,7 +36,7 @@ export default class SideBar extends React.Component {
 						view_departments: {
 							title: "View Departments",
 							selected: false,
-							location: "/department",
+							location: "/department/view",
 						},
 						add_departments: {
 							title: "Add Departments",
@@ -46,7 +46,7 @@ export default class SideBar extends React.Component {
 						view_designation: {
 							title: "View Designations",
 							selected: false,
-							location: "/designation",
+							location: "/designation/view",
 						},
 						add_designation: {
 							title: "Add Designation",
@@ -56,7 +56,7 @@ export default class SideBar extends React.Component {
 						view_designation: {
 							title: "View Shift",
 							selected: false,
-							location: "/shift",
+							location: "/shift/view",
 						},
 						add_designation: {
 							title: "Add Shift",

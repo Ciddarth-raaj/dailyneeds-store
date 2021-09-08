@@ -20,10 +20,12 @@ export default class Table extends React.Component {
                         sortCallback={sortCallback}
                     />)}</thead>
                 <tbody>{
-                    rows.map(row => Object.keys(row).map((key, index) => <Cell
+                    rows.map(row => 
+                        <tr>
+                        {Object.keys(row).map((key, index) => <Cell
                         key={`${key}-${index}`}
                         content={row[key]}
-                    />))
+                    />)}</tr>)
                 }</tbody>
             </table>
         );
