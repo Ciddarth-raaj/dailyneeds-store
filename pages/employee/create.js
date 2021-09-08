@@ -294,8 +294,8 @@ export default class Create extends React.Component {
 		const containerProps = {
 			className: styles.container,
 			boxShadow: "lg",
-			minW: "600px",
-		};
+			// minW: "600px",
+		}; 
 
 		return (
 			<GlobalWrapper title="New Employee">
@@ -316,7 +316,7 @@ export default class Create extends React.Component {
 						return (
 							<Form>
 								<FormikErrorFocus align={"middle"} ease={"linear"} duration={200} />
-								<Flex>
+								<Flex className={styles.responsive}>
 									<Container p={"0px"}>
 										<Container {...containerProps} mb="20px">
 											<p>Employee Information</p>

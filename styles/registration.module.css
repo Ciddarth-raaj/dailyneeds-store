@@ -258,6 +258,10 @@
 }
 
 @media (max-width: 600px) {
+	.responsive{
+		display: flex;
+		flex-direction: column;
+	}
 	.grid {
 		padding: none;
 		margin: 0%;
