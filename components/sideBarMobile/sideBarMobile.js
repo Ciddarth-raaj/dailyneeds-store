@@ -105,7 +105,7 @@ export default class SideBarMobile extends React.Component {
                                     <i
                                         className={`${
                                             menu[key].openPage
-                                                ? ""
+                                                ? styles["icons-selected"]
                                                 : "fa fa-bars"
                                         }`}
                                         aria-hidden="true"
