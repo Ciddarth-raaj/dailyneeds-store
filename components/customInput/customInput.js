@@ -15,11 +15,11 @@ const TextField = ({ label, values, method, selected, onChange, containerStyle, 
 
 	return (
 		<div className={styles.personalInputs} style={containerStyle}>
-			<label htmlFor={field.name} className={`${styles.label} ${editable ? styles.infoLabel : ""}`}>
+			<label htmlFor={field.name} className={`${styles.label} ${!editable ? styles.infoLabel : ""}`}>
 				{label}
 			</label>
 			{
-				editable ? <p className={styles.infoText}>{field.value}</p> : <>
+				editable != undefined && !editable ? <p className={styles.infoText}>{field.value}</p> : <>
 					{method === "TextArea" && (
 						<Textarea
 							{...field}

@@ -98,7 +98,23 @@ export default class Create extends React.Component {
 			pfToggle: false,
 			esiToggle: false,
 
-			editableEmpInfo: false
+			editableEmpInfo: false,
+			editablePerInfo: false,
+			editablePosiInfo: false,
+			editableEducaInfo: false,
+			editableIdenInfo: false,
+			editablePFInfo: false,
+			editableSalInfo: false,
+			editableOtherInfo: false,
+
+			loadingEmpInfo: false,
+			loadingPerInfo: false,
+			loadingPosiInfo: false,
+			loadingEducaInfo: false,
+			loadingIdenInfo: false,
+			loadingPFInfo: false,
+			loadingSalInfo: false,
+			loadingOtherInfo: false,
 		};
 	}
 
@@ -269,7 +285,32 @@ export default class Create extends React.Component {
 
 
 	render() {
-		const { loading, designation, department, shift, employeeCards, docType, pfToggle, esiToggle } = this.state;
+		const { 
+			loading,
+			designation,
+			department,
+			shift,
+			employeeCards,
+			docType,
+			pfToggle,
+			esiToggle,
+			editableEmpInfo,
+			editablePerInfo,
+			editablePosiInfo,
+			editableEducaInfo,
+			editableIdenInfo,
+			editablePFInfo,
+			editableSalInfo,
+			editableOtherInfo,
+			loadingEmpInfo,
+			loadingPerInfo,
+			loadingPosiInfo,
+			loadingEducaInfo,
+			loadingIdenInfo,
+			loadingPFInfo,
+			loadingSalInfo,
+			loadingOtherInfo,
+		} = this.state;
 		const dropDownProps = {
 			styles: {
 				dropzone: {
@@ -319,7 +360,16 @@ export default class Create extends React.Component {
 								<Flex className={styles.responsive}>
 									<Container p={"0px"}>
 										<Container {...containerProps} mb="20px">
-											<p>Employee Information</p>
+											<p className={styles.title}>
+												<div>Employee Information</div>
+													<Button isLoading={loadingEmpInfo} variant="outline"
+														leftIcon={editableEmpInfo ? <i class="fa fa-floppy-o" aria-hidden="true" /> : <i class="fa fa-pencil" aria-hidden="true" />} 
+														colorScheme="purple" 
+														onClick={() => this.setState({editableEmpInfo: !editableEmpInfo})}
+													>
+														{editableEmpInfo ? "Save": "Edit"}
+													</Button>
+											</p>
 
 											<div>
 												<div className={styles.personalInputHolder}>
@@ -330,7 +380,7 @@ export default class Create extends React.Component {
 														<Dropzone getUploadParams={this.getImageUploadParams} onChangeStatus={this.imageChangeStatus} {...dropDownProps} />
 													</div>
 													<div className={styles.inputHolder}>
-														<CustomInput label="Name *" name="employee_name" type="text" />
+														<CustomInput label="Name *" name="employee_name" type="text" editable={editableEmpInfo} />
 													</div>
 												</div>
 												<div className={styles.inputHolder}>
@@ -353,25 +403,36 @@ export default class Create extends React.Component {
 														name="gender"
 														type="text"
 														method="switch"
+														editable={editableEmpInfo}
 													/>
-													<CustomInput label="Email ID" name="email_id" type="text" />
+													<CustomInput label="Email ID" name="email_id" type="text" editable={editableEmpInfo} />
 												</div>
 												<div className={styles.inputHolder}>
-													<CustomInput label="Primary Mobile Number *" name="primary_contact_number" type="text" />
-													<CustomInput label="Alternate Mobile Number" name="alternate_contact_number" type="text" />
+													<CustomInput label="Primary Mobile Number *" name="primary_contact_number" type="text" editable={editableEmpInfo} />
+													<CustomInput label="Alternate Mobile Number" name="alternate_contact_number" type="text" editable={editableEmpInfo} />
 												</div>
 												<div className={styles.inputHolder}>
 													<CustomInput
 														label="Date of Joining"
 														name="date_of_joining"
 														type="text"
+														editable={editableEmpInfo}
 													/>
 												</div>
 											</div>
 										</Container>
 
 										<Container {...containerProps} mb={"20px"}>
-											<p>Personal Details</p>
+											<p className={styles.title}>
+												<div>Personal Details</div>
+													<Button isLoading={loadingPerInfo} variant="outline"
+														leftIcon={editablePerInfo ? <i class="fa fa-floppy-o" aria-hidden="true" /> : <i class="fa fa-pencil" aria-hidden="true" />}
+														colorScheme="purple"
+														onClick={() => this.setState({editablePerInfo: !editablePerInfo})}
+													>
+														{editablePerInfo ? "Save" : "Edit"}
+													</Button>
+											</p>
 											<div>
 												<div className={styles.inputHolder}>
 													<CustomInput
@@ -397,12 +458,14 @@ export default class Create extends React.Component {
 														name="marital_status"
 														type="text"
 														method="switch"
+														editable={editablePerInfo}
 													/>
 													<div className={styles.inputHolder}>
 														<CustomInput
 															label="Date of Birth *"
 															name="dob"
 															type="text"
+															editable={editablePerInfo}
 														/>
 													</div>
 												</div>
@@ -412,19 +475,20 @@ export default class Create extends React.Component {
 															label="Marriage Date"
 															name="marriage_date"
 															type="text"
+															editable={editablePerInfo}
 														/>
 													)}
 												</div>
 												<div className={styles.personalInputHolder}>
-													<CustomInput label="Permanent Address *" name="permanent_address" type="text" method="TextArea" />
+													<CustomInput label="Permanent Address *" name="permanent_address" type="text" method="TextArea" editable={editablePerInfo} />
 												</div>
 												<div className={styles.personalInputHolder}>
-													<CustomInput label="Residential Address *" name="residential_address" type="text" method="TextArea" />
+													<CustomInput label="Residential Address *" name="residential_address" type="text" method="TextArea" editable={editablePerInfo} />
 												</div>
 												<div className={styles.inputHolder}>
-													<CustomInput label="Father Name *" name="father_name" type="text" />
+													<CustomInput label="Father Name *" name="father_name" type="text" editable={editablePerInfo} />
 													{values.marital_status === "Married" &&
-														<CustomInput label="Spouse Name" name="spouse_name" type="text" />
+														<CustomInput label="Spouse Name" name="spouse_name" type="text" editable={editablePerInfo} />
 													}
 												</div>
 												<div className={styles.personalInputHolder}>
@@ -437,6 +501,7 @@ export default class Create extends React.Component {
 														name="blood_group"
 														type="text"
 														method="switch"
+														editable={editablePerInfo}
 													/>
 
 												</div>
@@ -444,7 +509,16 @@ export default class Create extends React.Component {
 										</Container>
 
 										<Container {...containerProps} mb="20px">
-											<p>Current Position</p>
+											<p className={styles.title}>
+												<div>Current Position</div>
+													<Button isLoading={loadingPosiInfo} variant="outline"
+														leftIcon={editablePosiInfo ? <i class="fa fa-floppy-o" aria-hidden="true" /> : <i class="fa fa-pencil" aria-hidden="true" />} 
+														colorScheme="purple" 
+														onClick={() => this.setState({editablePosiInfo: !editablePosiInfo})}
+													>
+														{editablePosiInfo ? "Save" : "Edit"}
+													</Button>
+											</p>
 
 											<div>
 												<div className={styles.personalInputHolder}>
@@ -468,6 +542,7 @@ export default class Create extends React.Component {
 															name="store_id"
 															type="text"
 															method="switch"
+															editable={editablePosiInfo}
 														/>
 														<CustomInput
 															label="Select Department *"
@@ -478,6 +553,7 @@ export default class Create extends React.Component {
 															name="department_id"
 															type="text"
 															method="switch"
+															editable={editablePosiInfo}
 														/>
 													</div>
 													<div className={styles.inputHolder}>
@@ -490,6 +566,7 @@ export default class Create extends React.Component {
 															name="designation_id"
 															type="text"
 															method="switch"
+															editable={editablePosiInfo}
 														/>
 													</div>
 													<div className={styles.inputHolder}>
@@ -502,6 +579,7 @@ export default class Create extends React.Component {
 															name="shift_id"
 															type="text"
 															method="switch"
+															editable={editablePosiInfo}
 														/>
 													</div>
 												</div>
@@ -509,21 +587,39 @@ export default class Create extends React.Component {
 										</Container>
 
 										<Container {...containerProps} mb={"20px"}>
-											<p>Education Details</p>
+											<p className={styles.title}>
+												<div>Education Details</div>
+													<Button isLoading={loadingEducaInfo} variant="outline"
+														leftIcon={editableEducaInfo ? <i class="fa fa-floppy-o" aria-hidden="true" /> : <i class="fa fa-pencil" aria-hidden="true" />} 
+														colorScheme="purple" 
+														onClick={() => this.setState({editableEducaInfo: !editableEducaInfo})}
+													>
+														{editableEducaInfo ? "Save" : "Edit"}
+													</Button>
+											</p>
 											<div>
 												<div className={styles.inputHolder}>
-													<CustomInput label="Educational Qualification *" name="qualification" type="text" />
-													<CustomInput label="Previous Experience" name="previous_experience" type="text" />
+													<CustomInput label="Educational Qualification *" name="qualification" type="text" editable={editableEducaInfo} />
+													<CustomInput label="Previous Experience" name="previous_experience" type="text" editable={editableEducaInfo} />
 												</div>
 												<div className={styles.personalInputHolder}>
-													<CustomInput label="Additional Courses" name="additional_course" type="text" method="TextArea" />
+													<CustomInput label="Additional Courses" name="additional_course" type="text" method="TextArea" editable={editableEducaInfo} />
 												</div>
 											</div>
 										</Container>
 									</Container>
 									<Container>
 										<Container {...containerProps} pb={"20px"} mb={"20px"}>
-											<p>Employee Identity</p>
+											<p className={styles.title}>
+												<div>Employee Identity</div>
+													<Button isLoading={loadingIdenInfo } variant="outline"
+														leftIcon={editableIdenInfo ? <i class="fa fa-floppy-o" aria-hidden="true" /> : <i class="fa fa-pencil" aria-hidden="true" />} 
+														colorScheme="purple" 
+														onClick={() => this.setState({editableIdenInfo: !editableIdenInfo})}
+													>
+														{editableIdenInfo ? "Save" : "Edit"}
+													</Button>
+											</p>
 
 											<div>
 												<div className={styles.inputHolder}>
@@ -536,16 +632,17 @@ export default class Create extends React.Component {
 														name="payment_type"
 														type="text"
 														method="switch"
+														editable={editableIdenInfo}
 													/>
 												</div>
 												{values.payment_type === "1" && (
 													<>
 														<div className={styles.inputHolder}>
-															<CustomInput label="Bank Name *" name="bank_name" type="text" />
-															<CustomInput label="IFSC Code *" name="ifsc" type="text" />
+															<CustomInput label="Bank Name *" name="bank_name" type="text" editable={editableIdenInfo} />
+															<CustomInput label="IFSC Code *" name="ifsc" type="text" editable={editableIdenInfo} />
 														</div>
 														<div className={styles.inputHolder}>
-															<CustomInput label="Account Number *" name="account_no" type="text" />
+															<CustomInput label="Account Number *" name="account_no" type="text" editable={editableIdenInfo} />
 														</div>
 													</>
 												)}
@@ -558,13 +655,13 @@ export default class Create extends React.Component {
 															{files.map((file, index) => (
 																<>
 																	<div className={styles.inputHolder} key={index} style={{ marginBottom: 0 }}>
-																		<CustomInput label="New ID Card Type" values={docType.map((d) => ({ id: d.id, value: d.value }))} name={`files[${index}].id_card`} type="text" method="switch" containerStyle={{ marginTop: 30, marginBottom: 30 }} />
+																		<CustomInput label="New ID Card Type" values={docType.map((d) => ({ id: d.id, value: d.value }))} name={`files[${index}].id_card`} type="text" method="switch" containerStyle={{ marginTop: 30, marginBottom: 30 }} editable={editableIdenInfo} />
 																	</div>
 																	{files[0].id_card && files[index].id_card === "1" && (
 																		<>
 																			<div className={styles.inputHolder} key={index}>
-																				<CustomInput label="Adhaar Card Number" name={`files[${index}].id_card_no`} type="text" containerStyle={{ marginBottom: 0 }} />
-																				<CustomInput label="Name in Adhaar Card" name={`files[${index}].id_card_name`} type="text" containerStyle={{ marginBottom: 0 }} />
+																				<CustomInput label="Adhaar Card Number" name={`files[${index}].id_card_no`} type="text" containerStyle={{ marginBottom: 0 }} editable={editableIdenInfo} />
+																				<CustomInput label="Name in Adhaar Card" name={`files[${index}].id_card_name`} type="text" containerStyle={{ marginBottom: 0 }} editable={editableIdenInfo} />
 																				<br />
 																			</div>
 																			<div className={styles.uploadHolder} style={{ marginTop: 30 }}>
@@ -578,9 +675,9 @@ export default class Create extends React.Component {
 																	{files[0].id_card && files[index].id_card === "2" && (
 																		<>
 																			<div className={styles.inputHolder} key={index}>
-																				<CustomInput label="Driving license Number" name={`files[${index}].id_card_no`} type="text" containerStyle={{ marginBottom: 0 }} />
-																				<CustomInput label="Name in Driving License" name={`files[${index}].id_card_name`} type="text" containerStyle={{ marginBottom: 0 }} />
-																				<CustomInput label="Expiry Date" name={`files[${index}].expiry_date`} type="text" containerStyle={{ marginBottom: 0 }} />
+																				<CustomInput label="Driving license Number" name={`files[${index}].id_card_no`} type="text" containerStyle={{ marginBottom: 0 }} editable={editableIdenInfo} />
+																				<CustomInput label="Name in Driving License" name={`files[${index}].id_card_name`} type="text" containerStyle={{ marginBottom: 0 }} editable={editableIdenInfo} />
+																				<CustomInput label="Expiry Date" name={`files[${index}].expiry_date`} type="text" containerStyle={{ marginBottom: 0 }} editable={editableIdenInfo} />
 																				<br />
 																			</div>
 																			<div className={styles.uploadHolder} style={{ marginTop: 30 }}>
@@ -594,8 +691,8 @@ export default class Create extends React.Component {
 																	{files[0].id_card && files[index].id_card === "3" && (
 																		<>
 																			<div className={styles.inputHolder} key={index}>
-																				<CustomInput label="Voter Id Number" name={`files[${index}].id_card_no`} type="text" containerStyle={{ marginBottom: 0 }} />
-																				<CustomInput label="Name in Voter Id" name={`files[${index}].id_card_name`} type="text" containerStyle={{ marginBottom: 0 }} />
+																				<CustomInput label="Voter Id Number" name={`files[${index}].id_card_no`} type="text" containerStyle={{ marginBottom: 0 }} editable={editableIdenInfo} />
+																				<CustomInput label="Name in Voter Id" name={`files[${index}].id_card_name`} type="text" containerStyle={{ marginBottom: 0 }} editable={editableIdenInfo} />
 																				<br />
 																			</div>
 																			<div className={styles.uploadHolder} style={{ marginTop: 30 }}>
@@ -624,12 +721,21 @@ export default class Create extends React.Component {
 										</Container>
 
 										<Container {...containerProps} mb={"20px"}>
-											<p>{"PF & ESI"}</p>
+											<p className={styles.title}>
+												<div>PF & ESI</div>
+													<Button isLoading={loadingPFInfo} variant="outline"
+														leftIcon={editablePFInfo ? <i class="fa fa-floppy-o" aria-hidden="true" /> : <i class="fa fa-pencil" aria-hidden="true" />} 
+														colorScheme="purple" 
+														onClick={() => this.setState({editablePFInfo: !editablePFInfo})}
+													>
+														{editablePFInfo ? "Save" : "Edit"}
+													</Button>
+											</p>
 
 											<div>
 												<div className={styles.personalInputHolder} >
 													<div className={styles.inputHolder}>
-														<CustomInput label="PAN No *" name="pan_no" type="text" />
+														<CustomInput label="PAN No *" name="pan_no" type="text" editable={editablePFInfo} />
 													</div>
 													<div className={styles.switchHolder}>
 														<label>PF Number & UAN Number</label>
@@ -638,8 +744,8 @@ export default class Create extends React.Component {
 												</div>
 												{pfToggle === true && (
 													<div className={styles.inputHolder}>
-														<CustomInput label="PF Number *" name="pf_number" type="text" />
-														<CustomInput label="UAN Number *" name="UAN" type="text" />
+														<CustomInput label="PF Number *" name="pf_number" type="text" editable={editablePFInfo} />
+														<CustomInput label="UAN Number *" name="UAN" type="text" editable={editablePFInfo} />
 													</div>
 												)}
 												<div className={styles.switchHolder}>
@@ -648,24 +754,42 @@ export default class Create extends React.Component {
 												</div>
 												{esiToggle === true && (
 													<div className={styles.inputHolder}>
-														<CustomInput label="ESI Number *" name="esi_number" type="text" />
+														<CustomInput label="ESI Number *" name="esi_number" type="text" editable={editablePFInfo} />
 													</div>
 												)}
 											</div>
 										</Container>
 										<Container {...containerProps} pb={"20px"}>
-											<p>Salary Details</p>
+											<p className={styles.title}>
+												<div>Salary Details</div>
+													<Button isLoading={loadingSalInfo} variant="outline"
+														leftIcon={editableSalInfo ? <i class="fa fa-floppy-o" aria-hidden="true" /> : <i class="fa fa-pencil" aria-hidden="true" />} 
+														colorScheme="purple" 
+														onClick={() => this.setState({editableSalInfo: !editableSalInfo})}
+													>
+														{editableSalInfo ? "Save" : "Edit"}
+													</Button>
+											</p>
 
 											<div className={styles.inputHolder}>
-												<CustomInput label="Salary / Month *" name="salary" type="text" containerStyle={{ marginBottom: 0 }} />
+												<CustomInput label="Salary / Month *" name="salary" type="text" containerStyle={{ marginBottom: 0 }} editable={editableSalInfo} />
 											</div>
 										</Container>
 										<br />
 										<Container {...containerProps} pb={"20px"}>
-											<p>Others</p>
+										<p className={styles.title}>
+												<div>Others</div>
+													<Button isLoading={loadingOtherInfo} variant="outline"
+														leftIcon={editableOtherInfo ? <i class="fa fa-floppy-o" aria-hidden="true" /> : <i class="fa fa-pencil" aria-hidden="true" />} 
+														colorScheme="purple" 
+														onClick={() => this.setState({editableOtherInfo: !editableOtherInfo})}
+													>
+														{editableOtherInfo ? "Save" : "Edit"}
+													</Button>
+											</p>
 
 											<div className={styles.inputHolder} style={{ marginTop: 20, marginBottom: 0 }}>
-												<CustomInput label="Unifrom" name="uniform_qty" type="text" containerStyle={{ marginBottom: 30 }} />
+												<CustomInput label="Unifrom" name="uniform_qty" type="text" containerStyle={{ marginBottom: 30 }} editable={editableOtherInfo} />
 											</div>
 
 											<div className={styles.personalInputHolder}>
@@ -673,6 +797,7 @@ export default class Create extends React.Component {
 													label="Introducer's Name"
 													name="introducer_name"
 													type="text"
+													editable={editableOtherInfo}
 												/>
 											</div>
 											<div className={styles.personalInputHolder}>
@@ -682,6 +807,7 @@ export default class Create extends React.Component {
 													type="text"
 													method="TextArea"
 													containerStyle={{ marginBottom: 10 }}
+													editable={editableOtherInfo}
 												/>
 											</div>
 
@@ -689,7 +815,8 @@ export default class Create extends React.Component {
 												spacing="6"
 												mt={10}
 												style={{
-													width: "100%",
+													display: "flex",
+													// width: "100%",
 													justifyContent: "flex-end",
 												}}
 											>
