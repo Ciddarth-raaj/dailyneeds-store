@@ -16,6 +16,7 @@ export default class Header extends React.Component {
                 branch: {
                     title: "Branch Details",
                     icon: "fa fa-sitemap",
+                    link: "/branch-details",
                 },
                 sms: {
                     title: "SMS Config",
@@ -78,7 +79,7 @@ export default class Header extends React.Component {
                         </div>
                         <div class="dropdown-content" style={{right: 0}}>
                             {Object.keys(settings).map((key) => (
-                                <a href="">
+                                <a href={settings[key].link}>
                                     <i className={`${settings[key].icon} ${styles.icon}`} aria-hidden="true" />
                                     {settings[key].title}
                                 </a>

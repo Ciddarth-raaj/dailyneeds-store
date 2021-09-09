@@ -74,3 +74,15 @@ export const ShiftValidation = Yup.object({
 	.max(new Date(), "Must be 15 characters or less")
 	.required("Fill Shift out Time"),
 });
+
+export const BranchValidation = Yup.object({
+	brand_name: Yup.string().nullable().required("Fill Name"),
+	brand_nickname: Yup.string().nullable().required("Fill Nickname"),
+	contact_number: Yup.number()
+	.nullable()
+	.typeError("Must be a number")
+	.min(123456789, "Must be 9 or More")
+	.max(12345678900, "Must be 10 characters or less")
+	.required("Fill Contact Number"),
+	address: Yup.string().nullable().required("Fill Address"),
+});
