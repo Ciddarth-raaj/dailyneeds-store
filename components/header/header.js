@@ -7,11 +7,50 @@ export default class Header extends React.Component {
 
     constructor(props) {
         super(props);
-        this.state = {};
+        this.state = {
+            settings: {
+                company: {
+                    title: "Company Details",
+                    icon: "fa fa-building-o",
+                },
+                branch: {
+                    title: "Branch Details",
+                    icon: "fa fa-sitemap",
+                },
+                sms: {
+                    title: "SMS Config",
+                    icon: "fa fa-commenting-o"
+                },
+                email: {
+                    title: "Email Config",
+                    icon: "fa fa-envelope-o"
+                },
+                push: {
+                    title: "Push Notifications",
+                    icon: "fa fa-bell-o"
+                },
+                cash: {
+                    title: "Cash Denomination",
+                    icon: "fa fa-money"
+                },
+                letter: {
+                    title: "Letter Template",
+                    icon: "fa fa-file-text-o"
+                },
+                product: {
+                    title: "Product Master",
+                    icon: "fa fa-product-hunt"
+                },
+                employee: {
+                    title: "Employee Role",
+                    icon: "fa fa-users"
+                },
+            }
+        };
     }
     
     render() {
-        const {} = this.state;
+        const { settings } = this.state;
         return (
             <div className={styles.container}>
                 <SideBarMobile />
@@ -38,7 +77,13 @@ export default class Header extends React.Component {
                             </p>
                         </div>
                         <div class="dropdown-content" style={{right: 0}}>
-                            <a href="">
+                            {Object.keys(settings).map((key) => (
+                                <a href="">
+                                    <i className={`${settings[key].icon} ${styles.icon}`} aria-hidden="true" />
+                                    {settings[key].title}
+                                </a>
+                            ))}
+                            {/* <a href="">
                                 <i class={`fa fa-user-o ${styles.icon}`} aria-hidden="true" />
                                 {"Account"}
                             </a>
@@ -52,9 +97,9 @@ export default class Header extends React.Component {
                             </a>
                             <a href="">
                                 <img className={` ${styles.icon}`} src="/assets/logout.png" />
-                                {/* <i class={`fa fa-sign-out ${styles.icon}`} aria-hidden="true" /> */}
+                                {/* <i class={`fa fa-sign-out ${styles.icon}`} aria-hidden="true" /> 
                                 {"Log Out"}
-                            </a>
+                            </a> */}
                         </div>
                     </div>
                 </div>
