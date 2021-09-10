@@ -19,13 +19,18 @@ function Registration() {
 		dob_1: "",
 		dob_2: "",
 	};
-
+	const image = (m) => (
+        <div style={{ display: "flex", justifyContent: "center" }}>
+            <img src={"/assets/edit.png"} onClick={() => window.location = `/employee/${m}`} className={styles.icon} />
+        </div>
+	);
 	const table_title = {
 		employee_id: "Employee Id",
 		name: "Name",
 		store_name: "Store Name",
 		designation: "Designation",
 		status: "Status",
+		action: "Action",
 	};
 	const [
         data,
@@ -99,6 +104,7 @@ function Registration() {
 			store_name: storeName(m.store_id),
 			designation: designationName(m.designation_id),
 			status: m.status ? "Active" : "In Active",
+			action: image(m.employee_id),
 		}
 	));
 
