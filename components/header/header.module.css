@@ -40,10 +40,10 @@
     border-radius: 5px;
 }
 .icon {
-    width: 17px;
+    width: 19px;
+    height: 17px;
     margin-right: 5px;
     margin-top: 5px;
-    height: 15px;
     cursor: pointer;
 }
 .buttonLevel {
