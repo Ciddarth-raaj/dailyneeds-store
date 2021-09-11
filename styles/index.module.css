@@ -1,0 +1,68 @@
+.container {
+	padding-top: 80px;
+    padding-bottom: 60px;
+	position: relative;
+}
+
+.container {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+}
+
+.boxContainer {
+    height: 350px;
+    width: 400px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+	transition: all 250ms ease-in-out;
+}
+.boxContainer:hover {
+    transform: translateY(-5%);
+}
+.badges {
+    padding: 8px;
+}
+.titleContent {
+    font-size: 1.5em;
+    text-transform: "uppercase";
+    text-align:"center";
+    display: flex;
+    padding-bottom: 30px;
+    justify-content: flex-end;
+    border-bottom: 1px solid lightgray;
+}
+.count {
+    font-size: 2em;
+    text-transform: "uppercase";
+    text-align:"center";
+    align-self: flex-end;
+    justify-content: flex-end;
+    display: flex;
+    margin-top: 50px;
+    margin-bottom: 20px;
+    width: 70%;
+    background-color: #f3eafd;
+}
+.countNumber {
+    margin-right: 20px; 
+    color: #8b74ff;
+}
+.actionHolder {
+    display: flex;
+    margin-bottom: 15px;
+    width: 100%;
+    justify-content: space-between;
+    align-items: center;
+}
+.icon {
+    font-size: 1.5em;
+    transition: all 200ms ease-in-out;
+}
+.icon:hover {
+    transform: translateX(10%)
+}
+.title {
+    margin-right: 20px;
+}
