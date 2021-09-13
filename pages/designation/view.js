@@ -15,11 +15,11 @@ function designationView() {
         dob_1: "",
         dob_2: "",
     };
-    const image = (
+    const image = (m) => (
         <div style={{ display: "flex", justifyContent: "center" }}>
-            <img src={"/assets/edit.png"} className={styles.icon} />
+            <img src={"/assets/edit.png"} onClick={() => window.location = `/designation/${m}`} className={styles.icon} />
         </div>
-    );
+	);
 
     const table_title = {
         designation_id: "Designation Id",
@@ -49,7 +49,7 @@ function designationView() {
                 designation_id: m.id,
                 designation_name: m.value,
                 status: m.status ? "Active" : "In Active",
-                action: image
+                action: image(m.id)
             }
         ));
 

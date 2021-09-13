@@ -6,7 +6,6 @@ const designation = {
 			API.get("/designation")
 				.then(async (res) => {
 					resolve(designation.formatBrand(res.data));
-					console.log({ data: res.data });
 				})
 				.catch((err) => {
 					reject(err);
@@ -26,7 +25,6 @@ const designation = {
 	},
 	createDesignation: (data) =>
 		new Promise(function (resolve, reject) {
-			console.log(data);
 			API.post("/designation/create", data)
 				.then(async (res) => {
 					if (res.status === 200) {
@@ -39,5 +37,35 @@ const designation = {
 					reject(err);
 				});
 		}),
+
+	getDesignationById: (designation_id) => 
+		new Promise(function (resolve, reject) {
+		API.get("/designation/designation_id?designation_id= " + designation_id)
+			.then(async (res) => {
+				if (res.status === 200) {
+				resolve(res.data);
+				} else {
+					reject(res.data.msg);
+				}
+			})
+			.catch((err) => {
+				reject(err);
+			});
+	}),
+	updateDesignation: (data) =>
+	new Promise(function (resolve, reject) {
+		API.post("/designation/update-designation", data)
+			.then(async (res) => {
+				if (res.status === 200) {
+					resolve(res.data);
+				} else {
+					reject(res.data.msg);
+				}
+			})
+			.catch((err) => {
+				reject(err);
+			});
+	})
+		
 };
 export default designation;

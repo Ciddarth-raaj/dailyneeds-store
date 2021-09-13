@@ -22,11 +22,11 @@ function departmentView() {
         dob_1: "",
         dob_2: "",
     };
-    const image = (
+	const image = (m) => (
         <div style={{ display: "flex", justifyContent: "center" }}>
-            <img src={"/assets/edit.png"} className={styles.icon} />
+            <img src={"/assets/edit.png"} onClick={() => window.location = `/department/${m}`} className={styles.icon} />
         </div>
-    );
+	);
 
     const table_title = {
         employee_id: "Employee Id",
@@ -56,7 +56,7 @@ function departmentView() {
             id: m.id,
             name: m.value,
             status: m.status ? "Active" : "In Active",
-            action: image,
+            action: image(m.id),
         }
     ));
 

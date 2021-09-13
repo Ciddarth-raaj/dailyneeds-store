@@ -6,7 +6,6 @@ const department = {
 			API.get("/department")
 				.then(async (res) => {
 					resolve(department.formatBrand(res.data));
-                    console.log({data: res.data});
 				})
 				.catch((err) => {
 					reject(err);
@@ -38,5 +37,34 @@ const department = {
 					reject(err);
 				});
 		}),
+	getDepartmentById: (department_id) => 
+		new Promise(function (resolve, reject) {
+		API.get("/department/department_id?department_id= " + department_id)
+			.then(async (res) => {
+				if (res.status === 200) {
+				resolve(res.data);
+				} else {
+					reject(res.data.msg);
+				}
+			})
+			.catch((err) => {
+				reject(err);
+			});
+	}),
+	updateDepartment: (data) =>
+	new Promise(function (resolve, reject) {
+		API.post("/department/update-department", data)
+			.then(async (res) => {
+				if (res.status === 200) {
+					resolve(res.data);
+				} else {
+					reject(res.data.msg);
+				}
+			})
+			.catch((err) => {
+				reject(err);
+			});
+	})
+		
 };
 export default department;
