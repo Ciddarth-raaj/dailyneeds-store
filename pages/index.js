@@ -4,6 +4,7 @@ import styles from "../styles/index.module.css";
 import React from "react";
 import { Box, Badge, Image } from "@chakra-ui/react";
 import { ArrowForwardIcon } from '@chakra-ui/icons'
+import EmployeeHelper from "../helper/employee";
 import Head from "../util/head";
 import { Calendar, momentLocalizer } from 'react-big-calendar';
 import "react-big-calendar/lib/css/react-big-calendar.css";
@@ -36,7 +37,10 @@ export default class CreateShift extends React.Component {
                     .toDate(),
                   title: "Birthday!"
                 }
-              ]
+              ],
+            headcount: "",
+            newJoiner: "",
+            resignedEmp: "",
         };
     }
 
@@ -54,8 +58,34 @@ export default class CreateShift extends React.Component {
             style: style
         };
     };
+    componentDidMount(){
+        this.getHeadCount();
+        this.getNewJoiner();
+        this.getResignedEmp();
+    }
+    getHeadCount() {
+        EmployeeHelper.getHeadCount()
+            .then((data) => {
+                this.setState({ headcount: data[0].head_count });
+            })
+            .catch((err) => console.log(err));
+    }
+    getResignedEmp() {
+        EmployeeHelper.getResignedEmp()
+            .then((data) => {
+                this.setState({ resignedemp: data[0].Resigned_employee });
+            })
+            .catch((err) => console.log(err));
+    }
+    getNewJoiner() {
+        EmployeeHelper.getNewJoiner()
+            .then((data) => {
+                this.setState({ newjoiner: data[0].new_joiners });
+            })
+            .catch((err) => console.log(err));
+    }
     render() {
-        const { events } = this.state;
+        const { events, resignedemp, newjoiner, headcount } = this.state;
         const localizer = momentLocalizer(moment);
         return (
             <Formik>
@@ -79,7 +109,7 @@ export default class CreateShift extends React.Component {
                                         letterSpacing="wide"
                                         className={styles.count}
                                     >
-                                        <p className={styles.countNumber}>0</p>
+                                        <p className={styles.countNumber}>{headcount}</p>
                                     </Box>
                                     <Box
                                         color="gray.500"
@@ -115,7 +145,7 @@ export default class CreateShift extends React.Component {
                                         letterSpacing="wide"
                                         className={styles.count}
                                     >
-                                        <p className={styles.countNumber}>0</p>
+                                        <p className={styles.countNumber}>{newjoiner}</p>
                                     </Box>
                                     <Box
                                         color="gray.500"
@@ -151,7 +181,7 @@ export default class CreateShift extends React.Component {
                                         letterSpacing="wide"
                                         className={styles.count}
                                     >
-                                        <p className={styles.countNumber}>0</p>
+                                        <p className={styles.countNumber}>{resignedemp}</p>
                                     </Box>
                                     <Box
                                         color="gray.500"

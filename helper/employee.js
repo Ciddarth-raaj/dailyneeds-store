@@ -11,6 +11,36 @@ const employee = {
                     reject(err);
                 });
         }),
+    getHeadCount: () =>
+        new Promise(function (resolve, reject) {
+            API.get("/employee/headcount")
+                .then(async (res) => {
+                    resolve(res.data);
+                })
+                .catch((err) => {
+                    reject(err);
+                });
+        }),
+    getResignedEmp: () =>
+        new Promise(function (resolve, reject) {
+            API.get("/employee/resignedemp")
+                .then(async (res) => {
+                    resolve(res.data);
+                })
+                .catch((err) => {
+                    reject(err);
+                });
+        }),
+    getNewJoiner: () =>
+        new Promise(function (resolve, reject) {
+            API.get("/employee/newjoiner")
+                .then(async (res) => {
+                    resolve(res.data);
+                })
+                .catch((err) => {
+                    reject(err);
+                });
+        }),
     getEmployeeByID: (employee_id) =>
         new Promise(function (resolve, reject) {
             API.get("/employee/employee_id?employee_id=" + employee_id)
@@ -34,12 +64,12 @@ const employee = {
                 .catch((err) => {
                     reject(err);
                 });
-    }),
-    updateEmployeeDetails: (data) => 
+        }),
+    updateEmployeeDetails: (data) =>
         new Promise(function (resolve, reject) {
             API.post("/employee/updatedata", data)
                 .then(async (res) => {
-                    console.log({res: res.status});
+                    console.log({ res: res.status });
                     if (res.status === 200) {
                         resolve(res.data);
                     } else {
