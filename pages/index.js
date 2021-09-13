@@ -5,6 +5,9 @@ import React from "react";
 import { Box, Badge, Image } from "@chakra-ui/react";
 import { ArrowForwardIcon } from '@chakra-ui/icons'
 import Head from "../util/head";
+import { Calendar, momentLocalizer } from 'react-big-calendar';
+import "react-big-calendar/lib/css/react-big-calendar.css";
+import moment from 'moment';
 import GlobalWrapper from "../components/globalWrapper/globalWrapper";
 
 const details = [
@@ -26,10 +29,34 @@ export default class CreateShift extends React.Component {
         this.state = {
             branchModalVisibility: false,
             selectedData: undefined,
+            events: [
+                {
+                  start: moment().toDate(),
+                  end: moment()
+                    .toDate(),
+                  title: "Birthday!"
+                }
+              ]
         };
     }
 
+    eventStyleGetter() {
+        var backgroundColor = "#dec6f8";
+        var style = {
+            backgroundColor: backgroundColor,
+            color: 'black',
+            // borderRadius: '0px',
+            // opacity: 0.8,
+            // border: '0px',
+            // display: 'block'
+        };
+        return {
+            style: style
+        };
+    };
     render() {
+        const { events } = this.state;
+        const localizer = momentLocalizer(moment);
         return (
             <Formik>
                 <Form>
@@ -60,7 +87,7 @@ export default class CreateShift extends React.Component {
                                         letterSpacing="wide"
                                         className={styles.titleContent}
                                     >
-                                        <p className={styles.title}>Salary Advance</p>
+                                        <p className={styles.title}>Employee Head Count</p>
                                     </Box>
                                     <Box p="6">
                                         <Box d="flex" alignItems="baseline">
@@ -96,7 +123,7 @@ export default class CreateShift extends React.Component {
                                         letterSpacing="wide"
                                         className={styles.titleContent}
                                     >
-                                        <p className={styles.title}>Material Requests</p>
+                                        <p className={styles.title}>New Joiners</p>
                                     </Box>
                                     <Box p="6">
                                         <Box d="flex" alignItems="baseline">
@@ -132,7 +159,7 @@ export default class CreateShift extends React.Component {
                                         letterSpacing="wide"
                                         className={styles.titleContent}
                                     >
-                                        <p className={styles.title}>Open Issues</p>
+                                        <p className={styles.title}>Resigned Employee</p>
                                     </Box>
                                     <Box p="6">
                                         <Box d="flex" alignItems="baseline">
@@ -154,6 +181,18 @@ export default class CreateShift extends React.Component {
                                 </Box>
                             </Container>
                         </Flex>
+                        <div className={styles.calendarHolder}>
+                        <Calendar
+                        localizer={localizer}
+                        defaultDate={new Date()}
+                        defaultView="month"
+                        events={events}
+                        eventPropGetter={this.eventStyleGetter}
+                        toolbar="true"
+                        style={{ height: 500 }}
+                        className={styles.calendar}
+                        />
+                    </div>
                     </GlobalWrapper>
                 </Form>
             </Formik>
