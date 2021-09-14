@@ -1,28 +1,16 @@
+import React from "react";
 import { Formik, Form } from "formik";
 import { Container, Flex } from "@chakra-ui/react";
-import styles from "../styles/index.module.css";
-import React from "react";
 import { Box, Badge, Image } from "@chakra-ui/react";
 import { ArrowForwardIcon } from '@chakra-ui/icons'
+import { Calendar, momentLocalizer } from 'react-big-calendar';
+import moment from 'moment';
+
+import styles from "../styles/index.module.css";
+
 import EmployeeHelper from "../helper/employee";
 import Head from "../util/head";
-import { Calendar, momentLocalizer } from 'react-big-calendar';
-import "react-big-calendar/lib/css/react-big-calendar.css";
-import moment from 'moment';
 import GlobalWrapper from "../components/globalWrapper/globalWrapper";
-
-const details = [
-    {
-        id: "1",
-        name: "Keerthika",
-        nick_name: "Keerthi",
-    },
-    {
-        id: "2",
-        name: "Sindhu",
-        nick_name: "Priya",
-    },
-];
 
 export default class CreateShift extends React.Component {
     constructor(props) {
@@ -32,15 +20,32 @@ export default class CreateShift extends React.Component {
             selectedData: undefined,
             events: [
                 {
-                  start: moment().toDate(),
-                  end: moment()
-                    .toDate(),
-                  title: "Birthday!"
+                    start: moment().toDate(),
+                    end: moment()
+                        .toDate(),
+                    title: "Birthday!"
                 }
-              ],
+            ],
             headcount: "",
             newJoiner: "",
             resignedEmp: "",
+            cards: [
+                {
+                    id: 1,
+                    title: "Employee Head Count",
+                    count: 0
+                },
+                {
+                    id: 2,
+                    title: "New Joiners",
+                    count: 0
+                },
+                {
+                    id: 3,
+                    title: "Resigned Employee",
+                    count: 0
+                },
+            ]
         };
     }
 
@@ -58,7 +63,7 @@ export default class CreateShift extends React.Component {
             style: style
         };
     };
-    componentDidMount(){
+    componentDidMount() {
         this.getHeadCount();
         this.getNewJoiner();
         this.getResignedEmp();
@@ -84,8 +89,9 @@ export default class CreateShift extends React.Component {
             })
             .catch((err) => console.log(err));
     }
+
     render() {
-        const { events, resignedemp, newjoiner, headcount } = this.state;
+        const { events, resignedemp, newjoiner, headcount, cards } = this.state;
         const localizer = momentLocalizer(moment);
         return (
             <Formik>
@@ -97,132 +103,60 @@ export default class CreateShift extends React.Component {
                             gap={6}
                             colSpan={2}
                         >
-                            <Container
-                                className={styles.container}
-                                // boxShadow="lg"
-                            >
-                                <Box maxW="sm" className={styles.boxContainer} borderWidth="1px" boxShadow="lg" borderRadius="20px" overflow="hidden">
-                                    {/* <Image src={property.imageUrl} alt={property.imageAlt} /> */}
-                                    <Box
-                                        color="gray.500"
-                                        fontWeight="semibold"
-                                        letterSpacing="wide"
-                                        className={styles.count}
-                                    >
-                                        <p className={styles.countNumber}>{headcount}</p>
-                                    </Box>
-                                    <Box
-                                        color="gray.500"
-                                        fontWeight="semibold"
-                                        letterSpacing="wide"
-                                        className={styles.titleContent}
-                                    >
-                                        <p className={styles.title}>Employee Head Count</p>
-                                    </Box>
-                                    <Box p="6">
-                                        <Box d="flex" alignItems="baseline">
+                            <Container className={styles.container}>
+                                {
+                                    cards.map(c => (
+                                        <Box maxW="sm" className={styles.boxContainer} borderWidth="1px" borderWidth="1px" borderRadius="20px" overflow="hidden">
                                             <Box
-                                                mt="1"
+                                                color="gray.500"
                                                 fontWeight="semibold"
-                                                as="h4"
-                                                lineHeight="tight"
-                                                isTruncated
-                                                className={styles.actionHolder}
+                                                // letterSpacing="wide"
+                                                className={styles.count}
                                             >
-                                                <Badge borderRadius="lg" fontSize="1.1em" fontWeight="medium" className={styles.badges} px="7"color="gray.600" background="#dec6f8" >
-                                                    View Details
-                                                </Badge>
-                                                <ArrowForwardIcon className={styles.icon} />
+                                                <p className={styles.countNumber}>{c.count}</p>
+                                            </Box>
+                                            <Box
+                                                color="gray.500"
+                                                fontWeight="semibold"
+                                                letterSpacing="wide"
+                                                className={styles.titleContent}
+                                            >
+                                                <p className={styles.title}>{c.title}</p>
+                                            </Box>
+                                            <Box p="5">
+                                                <Box d="flex" alignItems="baseline">
+                                                    <Box
+                                                        // mt="1"
+                                                        fontWeight="semibold"
+                                                        as="h4"
+                                                        lineHeight="tight"
+                                                        isTruncated
+                                                        className={styles.actionHolder}
+                                                    >
+                                                        <Badge borderRadius="lg" fontSize="1.1em" fontWeight="medium" className={styles.badges} px="7" color="gray.600" background="#dec6f8" >
+                                                            View Details
+                                                        </Badge>
+                                                        <ArrowForwardIcon className={styles.icon} />
+                                                    </Box>
+                                                </Box>
                                             </Box>
                                         </Box>
-                                    </Box>
-                                </Box>
-                                <Box maxW="sm" className={styles.boxContainer} borderWidth="1px" boxShadow="lg" borderRadius="20px" overflow="hidden">
-                                    {/* <Image src={property.imageUrl} alt={property.imageAlt} /> */}
-                                    <Box
-                                        color="gray.500"
-                                        fontWeight="semibold"
-                                        letterSpacing="wide"
-                                        className={styles.count}
-                                    >
-                                        <p className={styles.countNumber}>{newjoiner}</p>
-                                    </Box>
-                                    <Box
-                                        color="gray.500"
-                                        fontWeight="semibold"
-                                        letterSpacing="wide"
-                                        className={styles.titleContent}
-                                    >
-                                        <p className={styles.title}>New Joiners</p>
-                                    </Box>
-                                    <Box p="6">
-                                        <Box d="flex" alignItems="baseline">
-                                            <Box
-                                                mt="1"
-                                                fontWeight="semibold"
-                                                as="h4"
-                                                lineHeight="tight"
-                                                isTruncated
-                                                className={styles.actionHolder}
-                                            >
-                                                <Badge borderRadius="lg" fontSize="1.1em" fontWeight="medium" className={styles.badges} px="7"color="gray.600" background="#dec6f8" >
-                                                    View Details
-                                                </Badge>
-                                                <ArrowForwardIcon className={styles.icon} />
-                                            </Box>
-                                        </Box>
-                                    </Box>
-                                </Box>
-                                <Box maxW="sm" className={styles.boxContainer} borderWidth="1px" boxShadow="lg" borderRadius="20px" overflow="hidden">
-                                    {/* <Image src={property.imageUrl} alt={property.imageAlt} /> */}
-                                    <Box
-                                        color="gray.500"
-                                        fontWeight="semibold"
-                                        letterSpacing="wide"
-                                        className={styles.count}
-                                    >
-                                        <p className={styles.countNumber}>{resignedemp}</p>
-                                    </Box>
-                                    <Box
-                                        color="gray.500"
-                                        fontWeight="semibold"
-                                        letterSpacing="wide"
-                                        className={styles.titleContent}
-                                    >
-                                        <p className={styles.title}>Resigned Employee</p>
-                                    </Box>
-                                    <Box p="6">
-                                        <Box d="flex" alignItems="baseline">
-                                            <Box
-                                                mt="1"
-                                                fontWeight="semibold"
-                                                as="h4"
-                                                lineHeight="tight"
-                                                isTruncated
-                                                className={styles.actionHolder}
-                                            >
-                                                <Badge borderRadius="lg" fontSize="1.1em" fontWeight="medium" className={styles.badges} px="7"color="gray.600" background="#dec6f8" >
-                                                    View Details
-                                                </Badge>
-                                                <ArrowForwardIcon className={styles.icon} />
-                                            </Box>
-                                        </Box>
-                                    </Box>
-                                </Box>
+                                    ))
+                                }
                             </Container>
                         </Flex>
                         <div className={styles.calendarHolder}>
-                        <Calendar
-                        localizer={localizer}
-                        defaultDate={new Date()}
-                        defaultView="month"
-                        events={events}
-                        eventPropGetter={this.eventStyleGetter}
-                        toolbar="true"
-                        style={{ height: 500 }}
-                        className={styles.calendar}
-                        />
-                    </div>
+                            <Calendar
+                                localizer={localizer}
+                                defaultDate={new Date()}
+                                defaultView="month"
+                                events={events}
+                                eventPropGetter={this.eventStyleGetter}
+                                toolbar="true"
+                                style={{ height: 500 }}
+                                className={styles.calendar}
+                            />
+                        </div>
                     </GlobalWrapper>
                 </Form>
             </Formik>

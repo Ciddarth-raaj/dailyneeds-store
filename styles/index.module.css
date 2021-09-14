@@ -1,106 +1,105 @@
 .container {
-	padding-top: 80px;
-    padding-bottom: 60px;
+	padding-top: 20px;
+	padding-bottom: 20px;
 	position: relative;
 }
 
 .container {
-    display: flex;
-    justify-content: space-around;
-    align-items: center;
-    width: 100%;
-    /* background-color: red; */
+	display: flex;
+	justify-content: space-around;
+	align-items: center;
+	width: 100%;
+	/* background-color: red; */
 }
 
 .boxContainer {
-    height: 350px;
-    width: 350px;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-around;
+	/* height: 250px; */
+	width: 350px;
+	display: flex;
+	flex-direction: column;
+	justify-content: space-around;
 	transition: all 250ms ease-in-out;
 }
-.boxContainer:hover {
-    transform: translateY(-5%);
-}
 .badges {
-    padding: 8px;
-    cursor: pointer;
+	padding: 8px;
+	cursor: pointer;
 }
 .titleContent {
-    font-size: 1.5em;
-    text-transform: "uppercase";
-    text-align:"center";
-    display: flex;
-    padding-bottom: 30px;
-    justify-content: flex-end;
-    border-bottom: 1px solid lightgray;
+	font-size: 1.5em;
+	text-transform: "uppercase";
+	text-align: "center";
+	display: flex;
+	padding-bottom: 30px;
+	justify-content: flex-end;
+	border-bottom: 1px solid lightgray;
 }
 .count {
-    font-size: 2em;
-    text-transform: "uppercase";
-    text-align:"center";
-    align-self: flex-end;
-    justify-content: flex-end;
-    display: flex;
-    margin-top: 50px;
-    margin-bottom: 20px;
-    width: 70%;
-    background-color: #f3eafd;
+	font-size: 2em;
+	text-transform: "uppercase";
+	text-align: "center";
+	align-self: flex-end;
+	justify-content: flex-end;
+	display: flex;
+	/* margin-top: 50px; */
+	/* margin-bottom: 20px; */
+	/* width: 70%; */
+	/* background-color: #f3eafd; */
 }
 .countNumber {
-    margin-right: 20px; 
-    color: #8b74ff;
+	margin-right: 20px;
+	color: #8b74ff;
+	font-size: 62px;
 }
 .calendar {
-    color: #7d75a5;
-    font-size: 1.2em;
-    font-weight: 400;
-    width: 100%;
+	color: #7d75a5;
+	font-size: 1.2em;
+	font-weight: 400;
+	width: 100%;
 }
 .calendarHolder {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    width: 96%;
-    margin-left: 30px;
-    margin-top: 40px;
-    /* background-color: aquamarine; */
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	width: 96%;
+	margin-left: 30px;
+	margin-top: 40px;
+	/* background-color: aquamarine; */
 }
 .actionHolder {
-    display: flex;
-    margin-bottom: 15px;
-    width: 100%;
-    justify-content: space-between;
-    align-items: center;
+	display: flex;
+	/* margin-bottom: 15px; */
+	width: 100%;
+	justify-content: space-between;
+	align-items: center;
 }
 .icon {
-    font-size: 1.5em;
-    cursor: pointer;
+	font-size: 1.5em;
+	cursor: pointer;
 }
 .title {
-    margin-right: 20px;
+	margin-right: 20px;
+	margin-left: 20px;
 }
 
 @media (max-width: 1300px) {
-    .boxContainer {
-        height: 250px;
-        width: 300px;
-        margin-bottom: 40px;
-    }
+	.boxContainer {
+		/* height: 250px; */
+		width: 300px;
+		margin-bottom: 40px;
+	}
 }
 @media (max-width: 1100px) {
-    .container {
-        display: flex;
-        flex-direction: column;
-    }
-    .boxContainer {
-        margin-bottom: 40px;
-    }
-    .calendarHolder {
-        display: flex;
-        justify-content: space-around;
-        width: 92%;
-        margin-top: 40px;
-    }
+	.container {
+		display: flex;
+		flex-direction: column;
+	}
+	.boxContainer {
+		margin-bottom: 40px;
+	}
+	.calendarHolder {
+		display: flex;
+		justify-content: space-around;
+		width: 92%;
+		margin-top: 40px;
+	}
 }

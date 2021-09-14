@@ -2,6 +2,7 @@ import "../styles/globals.css";
 import "react-dropzone-uploader/dist/styles.css";
 import "react-toastify/dist/ReactToastify.css"
 import "react-datepicker/dist/react-datepicker.css";
+import "react-big-calendar/lib/css/react-big-calendar.css";
 
 import { ToastContainer } from "react-toastify";
 
