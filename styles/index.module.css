@@ -2,14 +2,10 @@
 	padding-top: 20px;
 	padding-bottom: 20px;
 	position: relative;
-}
-
-.container {
 	display: flex;
 	justify-content: space-around;
 	align-items: center;
 	width: 100%;
-	/* background-color: red; */
 }
 
 .boxContainer {
@@ -69,11 +65,12 @@
 	display: flex;
 	/* margin-bottom: 15px; */
 	width: 100%;
-	justify-content: space-between;
+	justify-content: flex-end;
 	align-items: center;
 }
+
 .icon {
-	font-size: 1.5em;
+	font-size: 1.25em;
 	cursor: pointer;
 }
 .title {

@@ -1,6 +1,6 @@
 import React from "react";
 import { Formik, Form } from "formik";
-import { Container, Flex } from "@chakra-ui/react";
+import { Container, Flex, Button } from "@chakra-ui/react";
 import { Box, Badge, Image } from "@chakra-ui/react";
 import { ArrowForwardIcon } from '@chakra-ui/icons'
 import { Calendar, momentLocalizer } from 'react-big-calendar';
@@ -126,17 +126,15 @@ export default class CreateShift extends React.Component {
                                             <Box p="5">
                                                 <Box d="flex" alignItems="baseline">
                                                     <Box
-                                                        // mt="1"
                                                         fontWeight="semibold"
-                                                        as="h4"
                                                         lineHeight="tight"
                                                         isTruncated
                                                         className={styles.actionHolder}
                                                     >
-                                                        <Badge borderRadius="lg" fontSize="1.1em" fontWeight="medium" className={styles.badges} px="7" color="gray.600" background="#dec6f8" >
+                                                        <Button className={styles.button} borderRadius="lg" fontSize="1.1em" fontWeight="medium" className={styles.badges} px="7" color="gray.600" background="#dec6f8" >
                                                             View Details
-                                                        </Badge>
-                                                        <ArrowForwardIcon className={styles.icon} />
+                                                            <ArrowForwardIcon ml="20px" className={styles.icon} />
+                                                        </Button>
                                                     </Box>
                                                 </Box>
                                             </Box>
