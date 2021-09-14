@@ -4,6 +4,7 @@ import Link from "next/link";
 import styles from "./sideBarMobile.module.css";
 
 import Head from "../../util/head";
+import MENU_LIST from "../../constants/menus";
 
 export default class SideBarMobile extends React.Component {
     constructor(props) {
@@ -11,61 +12,7 @@ export default class SideBarMobile extends React.Component {
         this.state = {
             showTitle: false,
             subOptions: "",
-            menu: {
-                dashboard: {
-                    title: "Dashboard",
-                    selected: false,
-                    icon: "fa-columns",
-                },
-                employee: {
-                    title: "Employees",
-                    selected: true,
-                    openPage: true,
-                    icon: "fa-users",
-                    subMenu: {
-                        add: {
-                            title: "Add Employee",
-                            selected: false,
-                            location: "/employee/create",
-                        },
-                        view: {
-                            title: "View Employee",
-                            selected: false,
-                            location: "/employee",
-                        },
-                        view_departments: {
-                            title: "View Departments",
-                            selected: false,
-                            location: "/department",
-                        },
-                        add_departments: {
-                            title: "Add Departments",
-                            selected: false,
-                            location: "/department/create",
-                        },
-                        view_designation: {
-                            title: "View Designations",
-                            selected: false,
-                            location: "/designation",
-                        },
-                        add_designation: {
-                            title: "Add Designation",
-                            selected: false,
-                            location: "/designation/create",
-                        },
-                        view_designation: {
-                            title: "View Shift",
-                            selected: false,
-                            location: "/shift",
-                        },
-                        add_designation: {
-                            title: "Add Shift",
-                            selected: false,
-                            location: "/shift/create",
-                        },
-                    },
-                },
-            },
+            menu: MENU_LIST,
         };
     }
 
@@ -103,11 +50,10 @@ export default class SideBarMobile extends React.Component {
                                     onClick={() => this.handleMenuClick(key)}
                                 >
                                     <i
-                                        className={`${
-                                            menu[key].openPage
+                                        className={`${menu[key].openPage
                                                 ? styles["icons-selected"]
                                                 : "fa fa-bars"
-                                        }`}
+                                            }`}
                                         aria-hidden="true"
                                     ></i>
                                     {showTitle && (
@@ -126,11 +72,11 @@ export default class SideBarMobile extends React.Component {
                                                     href={
                                                         menu[key].subMenu[sKey]
                                                             .location ==
-                                                        undefined
+                                                            undefined
                                                             ? ""
                                                             : menu[key].subMenu[
-                                                                  sKey
-                                                              ].location
+                                                                sKey
+                                                            ].location
                                                     }
                                                 >
                                                     <p>

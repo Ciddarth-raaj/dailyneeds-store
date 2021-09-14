@@ -4,6 +4,7 @@ import Link from "next/link";
 import styles from "./sideBar.module.css";
 
 import Head from "../../util/head";
+import MENU_LIST from "../../constants/menus";
 
 export default class SideBar extends React.Component {
 	constructor(props) {
@@ -11,61 +12,7 @@ export default class SideBar extends React.Component {
 		this.state = {
 			showTitle: false,
 			subOptions: "",
-			menu: {
-				dashboard: {
-					title: "Dashboard",
-					selected: false,
-					icon: "fa-columns",
-				},
-				employee: {
-					title: "Employees",
-					selected: true,
-					openPage: true,
-					icon: "fa-users",
-					subMenu: {
-						add: {
-							title: "Add Employee",
-							selected: false,
-							location: "/employee/create",
-						},
-						view: {
-							title: "View Employee",
-							selected: false,
-							location: "/employee",
-						},
-						view_departments: {
-							title: "View Departments",
-							selected: false,
-							location: "/department/view",
-						},
-						add_departments: {
-							title: "Add Departments",
-							selected: false,
-							location: "/department/create",
-						},
-						view_designation: {
-							title: "View Designations",
-							selected: false,
-							location: "/designation/view",
-						},
-						add_designation: {
-							title: "Add Designation",
-							selected: false,
-							location: `/designation/create`,
-						},
-						view_shift: {
-							title: "View Shift",
-							selected: false,
-							location: "/shift/view",
-						},
-						add_shift: {
-							title: "Add Shift",
-							selected: false,
-							location: "/shift/create",
-						},
-					},
-				},
-			},
+			menu: MENU_LIST,
 		};
 	}
 
