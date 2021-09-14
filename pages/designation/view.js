@@ -19,7 +19,7 @@ function designationView() {
         <div style={{ display: "flex", justifyContent: "center" }}>
             <img src={"/assets/edit.png"} onClick={() => window.location = `/designation/${m}`} className={styles.icon} />
         </div>
-	);
+    );
 
     const table_title = {
         designation_id: "Designation Id",
@@ -45,13 +45,13 @@ function designationView() {
     }
 
     const valuesNew = data.designation.map((m) => (
-            {
-                designation_id: m.id,
-                designation_name: m.value,
-                status: m.status ? "Active" : "In Active",
-                action: image(m.id)
-            }
-        ));
+        {
+            designation_id: m.id,
+            designation_name: m.value,
+            status: m.status ? "Active" : "In Active",
+            action: image(m.id)
+        }
+    ));
 
     const sortCallback = (key, type) => {
         console.log(key, type);
@@ -73,11 +73,11 @@ function designationView() {
                             <p className={styles.buttoninputHolder}>
                                 <div>View Designation</div>
                                 <div style={{ paddingRight: 10 }}>
-                                    <Button colorScheme="purple">
-                                        <Link href="/designation/create">
+                                    <Link href="/designation/create">
+                                        <Button colorScheme="purple">
                                             {"Add"}
-                                        </Link>
-                                    </Button>
+                                        </Button>
+                                    </Link>
                                 </div>
                             </p>
                             <div>

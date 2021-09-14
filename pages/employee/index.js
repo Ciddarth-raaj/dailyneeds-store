@@ -20,9 +20,9 @@ function Registration() {
 		dob_2: "",
 	};
 	const image = (m) => (
-        <div style={{ display: "flex", justifyContent: "center" }}>
-            <img src={"/assets/edit.png"} onClick={() => window.location = `/employee/${m}`} className={styles.icon} />
-        </div>
+		<div style={{ display: "flex", justifyContent: "center" }}>
+			<img src={"/assets/edit.png"} onClick={() => window.location = `/employee/${m}`} className={styles.icon} />
+		</div>
 	);
 	const table_title = {
 		employee_id: "Employee Id",
@@ -33,68 +33,68 @@ function Registration() {
 		action: "Action",
 	};
 	const [
-        data,
-        setData
-    ] = useState({
-        employee: []
-    })
+		data,
+		setData
+	] = useState({
+		employee: []
+	})
 	const [
-        designationData,
-        setDesignationData
-    ] = useState({
+		designationData,
+		setDesignationData
+	] = useState({
 		designation: []
-    })
+	})
 	const [
-        storeData,
-        setStoreData
-    ] = useState({
+		storeData,
+		setStoreData
+	] = useState({
 		store: []
-    })
-    // useEffect(() => getEmployeeData(), getDesignationData(), [])
+	})
+	// useEffect(() => getEmployeeData(), getDesignationData(), [])
 	useEffect(() => {
 		getEmployeeData();
 		getDesignationData();
 		getStoreData();
 	}, [])
 
-    function getEmployeeData() {
-        EmployeeHelper.getEmployee()
-            .then((data) => {
-                setData({ employee: data });
-            })
-            .catch((err) => console.log(err));
-    }
+	function getEmployeeData() {
+		EmployeeHelper.getEmployee()
+			.then((data) => {
+				setData({ employee: data });
+			})
+			.catch((err) => console.log(err));
+	}
 
 	function getDesignationData() {
-        DesignationHelper.getDesignation()
-            .then((data) => {
-                setDesignationData({ designation: data });
-            })
-            .catch((err) => console.log(err));
-    }
+		DesignationHelper.getDesignation()
+			.then((data) => {
+				setDesignationData({ designation: data });
+			})
+			.catch((err) => console.log(err));
+	}
 	function getStoreData() {
 		StoreHelper.getStore()
 			.then((data) => {
-				setStoreData({ store: data});
+				setStoreData({ store: data });
 			})
 			.catch((err) => console.log(err));
 	}
 	function designationName(id) {
 		var name = "";
-			designationData.designation.map((m) => {
-			if(m.id == id) {
+		designationData.designation.map((m) => {
+			if (m.id == id) {
 				name = m.value;
 			}
 		})
 		return name;
-	} 
+	}
 	function storeName(id) {
 		var storeName = "";
 		storeData.store.map((m) => {
-			if(m.id == id) {
+			if (m.id == id) {
 				storeName = m.value;
 			}
-		})		
+		})
 		return storeName
 	}
 	const valuesNew = data.employee.map((m) => (
@@ -127,27 +127,15 @@ function Registration() {
 						<Container className={styles.container} boxShadow="lg">
 							<p className={styles.buttoninputHolder} >
 								<div>Employee</div>
-								<div style={{paddingRight: 10}}>
-									<Button colorScheme="purple">
-										<Link href="/employee/create">
+								<div style={{ paddingRight: 10 }}>
+									<Link href="/employee/create">
+										<Button colorScheme="purple">
 											{"Add"}
-										</Link>
-									</Button>
+										</Button>
+									</Link>
 								</div>
 							</p>
 							<div>
-								<div className={styles.personalInputHolder}>
-									{/* <CustomInput label="Store" name="stores" type="text" method="switch" />
-									<CustomInput label="Designation" name="designation" type="text" method="switch" /> */}
-									{/* <CustomInput label="Joining Date" name="dob_1" type="text" /> */}
-									{/* <CustomInput label="Resignation Date" name="dob_2" type="text" /> */}
-									{/* <CustomInput label="Current Employees" name="employee" type="text" method="switch" /> */}
-								</div>
-
-								{/* <div className={styles.searchButton}>
-									<CustomInput name="search" type="text" />
-									<button>{"Search"}</button>
-								</div> */}
 								<Table heading={table_title} rows={valuesNew} sortCallback={(key, type) => sortCallback(key, type)} />
 							</div>
 						</Container>

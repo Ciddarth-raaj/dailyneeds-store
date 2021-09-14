@@ -77,11 +77,11 @@ function shiftView() {
                             <p className={styles.buttoninputHolder}>
                                 <div>View Shift</div>
                                 <div style={{ paddingRight: 10 }}>
-                                    <Button colorScheme="purple">
-                                        <Link href="/shift/create">
+                                    <Link href="/shift/create">
+                                        <Button colorScheme="purple">
                                             {"Add"}
-                                        </Link>
-                                    </Button>
+                                        </Button>
+                                    </Link>
                                 </div>
                             </p>
                             <div>

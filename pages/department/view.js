@@ -22,11 +22,11 @@ function departmentView() {
         dob_1: "",
         dob_2: "",
     };
-	const image = (m) => (
+    const image = (m) => (
         <div style={{ display: "flex", justifyContent: "center" }}>
             <img src={"/assets/edit.png"} onClick={() => window.location = `/department/${m}`} className={styles.icon} />
         </div>
-	);
+    );
 
     const table_title = {
         employee_id: "Employee Id",
@@ -80,21 +80,21 @@ function departmentView() {
                             <p className={styles.buttoninputHolder}>
                                 <div>View Department</div>
                                 <div style={{ paddingRight: 10 }}>
-                                    <Button colorScheme="purple">
-                                        <Link href="/department/create">
+                                    <Link href="/department/create">
+                                        <Button colorScheme="purple">
                                             {"Add"}
-                                        </Link>
-                                    </Button>
+                                        </Button>
+                                    </Link>
                                 </div>
                             </p>
                             <div>
-                                    <div className={styles.personalInputHolder}>
-                                        {/* <CustomInput label="Store" name="stores" type="text" method="switch" />
+                                <div className={styles.personalInputHolder}>
+                                    {/* <CustomInput label="Store" name="stores" type="text" method="switch" />
                                         <CustomInput label="Designation" name="designation" type="text" method="switch" /> */}
-                                        {/* <CustomInput label="Joining Date" name="dob_1" type="text" /> */}
-                                        {/* <CustomInput label="Resignation Date" name="dob_2" type="text" /> */}
-                                        {/* <CustomInput label="Current Employees" name="employee" type="text" method="switch" /> */}
-                                    </div>
+                                    {/* <CustomInput label="Joining Date" name="dob_1" type="text" /> */}
+                                    {/* <CustomInput label="Resignation Date" name="dob_2" type="text" /> */}
+                                    {/* <CustomInput label="Current Employees" name="employee" type="text" method="switch" /> */}
+                                </div>
                                 <Table
                                     heading={table_title}
                                     rows={valuesNew}
