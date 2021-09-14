@@ -26,9 +26,6 @@ export default class CreateShift extends React.Component {
                     title: "Birthday!"
                 }
             ],
-            headcount: "",
-            newJoiner: "",
-            resignedEmp: "",
             cards: [
                 {
                     id: 1,
@@ -45,7 +42,10 @@ export default class CreateShift extends React.Component {
                     title: "Resigned Employee",
                     count: 0
                 },
-            ]
+            ],
+            headcount: "",
+            newJoiner: "",
+            resignedEmp: "",
         };
     }
 
@@ -92,6 +92,10 @@ export default class CreateShift extends React.Component {
 
     render() {
         const { events, resignedemp, newjoiner, headcount, cards } = this.state;
+        cards[0].count = headcount;
+        cards[1].count = newjoiner;
+        cards[2].count = resignedemp;
+        const date = new Date();
         const localizer = momentLocalizer(moment);
         return (
             <Formik>
@@ -144,14 +148,15 @@ export default class CreateShift extends React.Component {
                             </Container>
                         </Flex>
                         <div className={styles.calendarHolder}>
+                            <p className={styles.dateHeader}>{moment(date).format("MMMM YY")}</p>
                             <Calendar
                                 localizer={localizer}
                                 defaultDate={new Date()}
                                 defaultView="month"
                                 events={events}
                                 eventPropGetter={this.eventStyleGetter}
-                                toolbar="true"
                                 style={{ height: 500 }}
+                                toolbar={false}
                                 className={styles.calendar}
                             />
                         </div>

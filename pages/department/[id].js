@@ -16,7 +16,8 @@ import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import { DepartmentValidation } from "../../util/validation";
 import CustomInput from "../../components/customInput/customInput";
 
-class UpdateDepartment extends React.Component {
+
+class CreateDepartment extends React.Component {
 	constructor(props) {
 		super(props);
 		this.state = {
@@ -24,6 +25,20 @@ class UpdateDepartment extends React.Component {
 		};
 	}
 
+	createDepartment(values) {
+		this.setState({ loading: true });
+		DepartmentHelper.createDepartment(values)
+			.then((data) => {
+				if (data == 200) {
+					toast.success("Successfully Added Department!");
+				} else {
+					toast.error("Error creating Department!");
+					throw `${data.msg}`;
+				}
+			})
+			.catch((err) => console.log(err))
+			.finally(() => this.setState({ loading: false }));
+	}
 	updateDepartment(values) {
         const { department_id } = this.props.data[0];
 		this.setState({ loading: true });
@@ -42,20 +57,21 @@ class UpdateDepartment extends React.Component {
 			.catch((err) => console.log(err))
 			.finally(() => this.setState({ loading: false }));
 	}
-
+	
 	render() {
 		const { loading } = this.state;
+		const { id } = this.props;
 		return (
-			<GlobalWrapper title="Update Department">
+			<GlobalWrapper title="Department">
 				<Head />
 				<Formik
 					initialValues={{
-                        department_name: this.props.data[0].department_name,
-	                    status: this.props.data[0].status,
-                    }}
+						department_name: this.props.data[0]?.department_name,
+	                    status: this.props.data[0]?.status,
+					}}
 					validationSchema={DepartmentValidation}
 					onSubmit={(values) => {
-						this.updateDepartment(values);
+						id === "create" ? this.createDepartment(values) : this.updateDepartment(values);
 					}}
 				>
 					{(formikProps) => {
@@ -64,7 +80,9 @@ class UpdateDepartment extends React.Component {
 							<Form onSubmit={formikProps.handleSubmit}>
 								<FormikErrorFocus align={"middle"} ease={"linear"} duration={200} />
 								<Container maxW="container.xl" className={styles.container} pb={"20px"} boxShadow="lg">
-									<p>Update Department</p>
+									{id !== null ? 
+									<p>Update Department</p> :
+									<p>Add New Department</p>}
 									<div className={styles.wrapper}>
 										<div className={styles.inputHolder}>
 											<CustomInput label="Department Name" name="department_name" type="text" />
@@ -96,7 +114,7 @@ class UpdateDepartment extends React.Component {
 										>
 											<Button>Cancel</Button>
 											<Button isLoading={loading} loadingText="Submitting" colorScheme="purple" onClick={() => handleSubmit()}>
-												Update
+												{id === null ? "Create" : "Update"}
 											</Button>
 										</ButtonGroup>
 									</div>
@@ -112,9 +130,10 @@ class UpdateDepartment extends React.Component {
 
 export async function getServerSideProps(context) {
 	const data = await DepartmentHelper.getDepartmentById(context.query.id);
+	const id = context.query.id != "create" ? data[0].department_id : null;
 	return {
-		props: { data }
+		props: { data, id }
 	};
 }
 
-export default withRouter(UpdateDepartment);
+export default withRouter(CreateDepartment);

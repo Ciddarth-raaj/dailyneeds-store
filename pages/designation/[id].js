@@ -1,28 +1,52 @@
 //External Dependencies
-import React from "react";
 import { Formik, Form } from "formik";
-import { Container, ButtonGroup, Button } from "@chakra-ui/react";
+import { Flex, Container, ButtonGroup, Button, CheckboxGroup, Grid, Checkbox } from "@chakra-ui/react";
+import React from "react";
 import { toast } from "react-toastify";
 import FormikErrorFocus from "formik-error-focus";
-import { withRouter } from 'next/router';
+import { withRouter } from "next/router";
 
-//Style
+//Styles
 import styles from "../../styles/create.module.css";
 
 //Internal Dependencies
-import DesignationHelper from "../../helper/designation";
 import Head from "../../util/head";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import { DesignationValidation } from "../../util/validation";
 import CustomInput from "../../components/customInput/customInput";
+import DesignationHelper from "../../helper/designation";
+
+//Constants
+import { PERMISSIONS } from "../../constants/permissions";
 
 
-class UpdateDesignation extends React.Component {
+class CreateDesignation extends React.Component {
 	constructor(props) {
 		super(props);
 		this.state = {
 			loading: false,
+			permissions: [],
 		};
+	}
+
+	createDesignation(values) {
+		const { permissions } = this.state;
+
+		this.setState({ loading: true });
+		DesignationHelper.createDesignation({ ...values, permissions })
+			.then((data) => {
+				console.log(data);
+				if (data.code == 200) {
+					toast.success("Successfully Creating Designation!");
+				} else {
+					throw `${data.msg}`;
+				}
+			})
+			.catch((err) => {
+				console.log(err);
+				toast.error("Error Creating Designation!");
+			})
+			.finally(() => this.setState({ loading: false }));
 	}
 
 	updateDesignation(values) {
@@ -44,18 +68,35 @@ class UpdateDesignation extends React.Component {
 			.finally(() => this.setState({ loading: false }));
 	}
 
+	handleCheckbox(key, checked) {
+		let { permissions } = this.state;
+
+		if (permissions.includes(key) && !checked) {
+			const index = permissions.findIndex((v) => v == key);
+			permissions.splice(index, 1);
+		} else {
+			permissions.push(key);
+		}
+
+		this.setState({ permissions: permissions });
+	}
+
 	render() {
 		const { loading } = this.state;
+		const { id } = this.props;
 		return (
-			<GlobalWrapper title="Update Designation">
+			<GlobalWrapper title="Designation">
 				<Head />
 				<Formik
 					initialValues={{
-                        designation_name: this.props.data[0].designation_name,
-	                    status: this.props.data[0].status,
-                    }}
+						designation_name: this.props.data[0]?.designation_name,
+						status: this.props.data[0]?.status,
+						online_portal: this.props.data[0]?.online_portal
+					}}
+					validationSchema={DesignationValidation}
 					onSubmit={(values) => {
-						this.updateDesignation(values);
+						id !== null ? this.updateDesignation(values) : this.createDesignation(values);
+						
 					}}
 				>
 					{(formikProps) => {
@@ -63,8 +104,10 @@ class UpdateDesignation extends React.Component {
 						return (
 							<Form onSubmit={formikProps.handleSubmit}>
 								<FormikErrorFocus align={"middle"} ease={"linear"} duration={200} />
-								<Container maxW="container.xl" className={styles.container} pb={"20px"} boxShadow="lg">
-									<p>Update Designation</p>
+								<Container maxW="container.xl" className={styles.container} pb={"40px"} boxShadow="lg">
+									{id !== null ? 
+									<p>Update Designation</p> :
+									<p>Add New Designation</p>}
 									<div className={styles.wrapper}>
 										<div className={styles.inputHolder}>
 											<CustomInput label="Designation Name" name="designation_name" type="text" />
@@ -85,18 +128,45 @@ class UpdateDesignation extends React.Component {
 												method="switch"
 											/>
 										</div>
+										<div className={styles.inputHolder}>
+											<CustomInput
+												label="Online Access"
+												name="online_portal"
+												values={[
+													{
+														id: 1,
+														value: "Grant Access",
+													},
+													{
+														id: 0,
+														value: "Discard Access",
+													},
+												]}
+												type="text"
+												method="switch"
+											/>
+										</div>
+										{/* <CheckboxGroup defaultValue={["dashboard"]}> */}
+										<CheckboxGroup>
+											<Grid templateColumns="repeat(3, 1fr)" gap={6}>
+												{Object.keys(PERMISSIONS).map((key) => (
+													<Checkbox value={key} onChange={(e) => this.handleCheckbox(key, e.target.checked)}>
+														{PERMISSIONS[key]}
+													</Checkbox>
+												))}
+											</Grid>
+										</CheckboxGroup>
+
 										<ButtonGroup
 											spacing="6"
-											mt={10}
 											style={{
 												width: "100%",
 												justifyContent: "flex-end",
 											}}
-											type="submit"
 										>
 											<Button>Cancel</Button>
 											<Button isLoading={loading} loadingText="Submitting" colorScheme="purple" onClick={() => handleSubmit()}>
-												Update
+												{id !== null ? "Update" : "Create"}
 											</Button>
 										</ButtonGroup>
 									</div>
@@ -110,11 +180,13 @@ class UpdateDesignation extends React.Component {
 	}
 }
 
+
 export async function getServerSideProps(context) {
 	const data = await DesignationHelper.getDesignationById(context.query.id);
+	const id = context.query.id != "create" ? data[0].designation_id : null;
 	return {
-		props: { data }
+		props: { data, id }
 	};
 }
 
-export default withRouter(UpdateDesignation);
+export default withRouter(CreateDesignation);

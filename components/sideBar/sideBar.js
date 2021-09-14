@@ -26,7 +26,7 @@ export default class SideBar extends React.Component {
 						add: {
 							title: "Add Employee",
 							selected: false,
-							location: `/employee/${"create"}`,
+							location: "/employee/create",
 						},
 						view: {
 							title: "View Employee",
@@ -51,7 +51,7 @@ export default class SideBar extends React.Component {
 						add_designation: {
 							title: "Add Designation",
 							selected: false,
-							location: "/designation/create",
+							location: `/designation/create`,
 						},
 						view_shift: {
 							title: "View Shift",
