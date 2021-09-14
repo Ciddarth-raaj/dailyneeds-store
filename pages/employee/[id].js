@@ -32,6 +32,7 @@ class Create extends React.Component {
 	constructor(props) {
 		super(props);
 		this.state = {
+			employee_image: props.data[0]?.employee_image,
 			loading: false,
 			department: [],
 			designation: [],
@@ -75,7 +76,6 @@ class Create extends React.Component {
 		this.getDepartment();
 		this.getShift();
 	}
-
 	getShift() {
 		ShiftHelper.getShift()
 			.then((data) => {
@@ -210,6 +210,8 @@ class Create extends React.Component {
 		} catch (err) {
 			console.log(err);
 		}
+		values.date_of_joining = moment(values.date_of_joining).format("YYYY-MM-DD");
+		values.dob = moment(values.dob).format("YYYY-MM-DD");
 		const { employee_id } = this.props.data[0];
 		EmployeeHelper.updateEmployeeDetails({
 			employee_id: employee_id,
@@ -297,6 +299,7 @@ class Create extends React.Component {
 			loading,
 			designation,
 			department,
+			employee_image,
 			shift,
 			employeeCards,
 			pfToggle,
@@ -319,6 +322,7 @@ class Create extends React.Component {
 			loadingOtherInfo,
 			id,
 		} = this.state;
+		const { doc } = this.props;
 		const dropDownProps = {
 			styles: {
 				dropzone: {
@@ -353,7 +357,7 @@ class Create extends React.Component {
 				initialValues={{
 						employee_name: this.props.data[0]?.employee_name,
 						father_name: this.props.data[0]?.father_name,
-						dob: moment(this.props.data[0]?.dob).format("YYYY-MM-DD"),
+						dob: moment(this.props.data[0]?.dob).format("MM/DD/YYYY"),
 						permanent_address: this.props.data[0]?.permanent_address,
 						residential_address: this.props.data[0]?.residential_address,
 						primary_contact_number: this.props.data[0]?.primary_contact_number,
@@ -365,7 +369,7 @@ class Create extends React.Component {
 						salary: this.props.data[0]?.salary,
 						uniform_qty: this.props.data[0]?.uniform_qty,
 						previous_experience: this.props.data[0]?.previous_experience,
-						date_of_joining: this.props.data[0]?.date_of_joining,
+						date_of_joining: moment(this.props.data[0]?.date_of_joining).format("MM/DD/YYYY"),
 						gender: this.props.data[0]?.gender,
 						blood_group: this.props.data[0]?.blood_group,
 						designation_id: this.props.data[0]?.designation_id,
@@ -422,9 +426,9 @@ class Create extends React.Component {
 													<Button isLoading={loadingEmpInfo} variant="outline"
 														leftIcon={editableEmpInfo ? <i class="fa fa-floppy-o" aria-hidden="true" /> : <i class="fa fa-pencil" aria-hidden="true" />} 
 														colorScheme="purple" 
-														onClick={() => this.setState({editableEmpInfo: !editableEmpInfo})}
+														onClick={() => {editableEmpInfo === true && handleSubmit(), this.setState({editableEmpInfo: !editableEmpInfo})}}
 													>
-														{editableEmpInfo ? "Save": "Edit"}
+														{editableEmpInfo ? "Save" : "Edit"}
 													</Button>
 												}
 											</p>
@@ -435,7 +439,10 @@ class Create extends React.Component {
 														<label className={styles.uploaderTitle} for="uploadImage">
 															Upload Employee Image *
 														</label>
-														<Dropzone getUploadParams={this.getImageUploadParams} onChangeStatus={this.imageChangeStatus} {...dropDownProps} />
+														{id !== null ? 
+														<img src={employee_image} className={styles.employee_image}/>
+														:
+														<Dropzone getUploadParams={this.getImageUploadParams} onChangeStatus={this.imageChangeStatus} {...dropDownProps} /> }
 													</div>
 													<div className={styles.inputHolder}>
 														<CustomInput label="Name *" name="employee_name" type="text" editable={id !== null ? editableEmpInfo : !editableEmpInfo} />
@@ -474,6 +481,7 @@ class Create extends React.Component {
 														label="Date of Joining"
 														name="date_of_joining"
 														type="text"
+														method="datepicker"
 														editable={id !== null ? editableEmpInfo : !editableEmpInfo}
 													/>
 												</div>
@@ -487,7 +495,7 @@ class Create extends React.Component {
 														<Button isLoading={loadingPerInfo} variant="outline"
 														leftIcon={editablePerInfo ? <i class="fa fa-floppy-o" aria-hidden="true" /> : <i class="fa fa-pencil" aria-hidden="true" />}
 														colorScheme="purple"
-														onClick={() => this.setState({editablePerInfo: !editablePerInfo})}
+														onClick={() => {editablePerInfo === true && handleSubmit(), this.setState({editablePerInfo: !editablePerInfo})}}
 													>
 														{editablePerInfo ? "Save" : "Edit"}
 													</Button>
@@ -501,6 +509,10 @@ class Create extends React.Component {
 															{
 																id: "Married",
 																value: "Married",
+															},
+															{
+																id: "Un Married",
+																value: "Un Married",
 															},
 															{
 																id: "Widowed",
@@ -525,6 +537,7 @@ class Create extends React.Component {
 															label="Date of Birth *"
 															name="dob"
 															type="text"
+															method="datepicker"
 															editable={id !== null ? editablePerInfo : !editablePerInfo}
 														/>
 													</div>
@@ -575,7 +588,7 @@ class Create extends React.Component {
 													<Button isLoading={loadingPosiInfo} variant="outline"
 														leftIcon={editablePosiInfo ? <i class="fa fa-floppy-o" aria-hidden="true" /> : <i class="fa fa-pencil" aria-hidden="true" />} 
 														colorScheme="purple" 
-														onClick={() => this.setState({editablePosiInfo: !editablePosiInfo})}
+														onClick={() => {editablePosiInfo === true && handleSubmit(), this.setState({editablePosiInfo: !editablePosiInfo})}}
 													>
 														{editablePosiInfo ? "Save" : "Edit"}
 													</Button>
@@ -655,7 +668,7 @@ class Create extends React.Component {
 														<Button isLoading={loadingEducaInfo} variant="outline"
 														leftIcon={editableEducaInfo ? <i class="fa fa-floppy-o" aria-hidden="true" /> : <i class="fa fa-pencil" aria-hidden="true" />} 
 														colorScheme="purple" 
-														onClick={() => this.setState({editableEducaInfo: !editableEducaInfo})}
+														onClick={() => {editableEducaInfo === true && handleSubmit(), this.setState({editableEducaInfo: !editableEducaInfo})}}
 													>
 														{editableEducaInfo ? "Save" : "Edit"}
 													</Button>
@@ -680,7 +693,7 @@ class Create extends React.Component {
 														<Button isLoading={loadingIdenInfo } variant="outline"
 														leftIcon={editableIdenInfo ? <i class="fa fa-floppy-o" aria-hidden="true" /> : <i class="fa fa-pencil" aria-hidden="true" />} 
 														colorScheme="purple" 
-														onClick={() => this.setState({editableIdenInfo: !editableIdenInfo})}
+														onClick={() => {editableIdenInfo === true && handleSubmit(), this.setState({editableIdenInfo: !editableIdenInfo})}}
 													>
 														{editableIdenInfo ? "Save" : "Edit"}
 													</Button>
@@ -712,6 +725,26 @@ class Create extends React.Component {
 														</div>
 													</>
 												)}
+												{doc !== null && (
+													<div>
+														{doc.map((m) => (
+															<>
+																<div className={styles.inputHolder} style={{ marginBottom: 0 }}>
+																<CustomInput label="Card Type" name="card_type" value={m.card_type === '1' ? "Adhaar Card" : m.card_type === '2' ? "License" : m.card_type === '3' ? "Voter ID" : "pan card"} type="text" method="readonly" containerStyle={{ marginTop: 30, marginBottom: 30 }}  />
+																</div>
+																<div className={styles.inputHolder} >
+																	<CustomInput label="Card Number" name={`card_no`} value={m.card_number} type="text" method="readonly" containerStyle={{ marginBottom: 0 }} />
+																	<CustomInput label="Name in Card" name={`card_name`} value={m.card_name} type="text" method="readonly" containerStyle={{ marginBottom: 0 }}  />
+																	<br />
+																</div>
+																<div>
+																	<img src={m.file} className={styles.employee_image}/>
+																</div>
+															</>
+														))}
+													</div>
+												)}
+												{editableIdenInfo === true || id === null ?  
 												<FieldArray name="files">
 													{fieldArrayProps => {
 														const { push, remove, form } = fieldArrayProps
@@ -723,6 +756,7 @@ class Create extends React.Component {
 																	<div className={styles.inputHolder} key={index} style={{ marginBottom: 0 }}>
 																		<CustomInput label="New ID Card Type" values={IdCardType.map((d) => ({ id: d.id, value: d.value }))} name={`files[${index}].id_card`} type="text" method="switch" containerStyle={{ marginTop: 30, marginBottom: 30 }} editable={id !== null ? editableIdenInfo : !editableIdenInfo} />
 																	</div>
+																	
 																	{files[0].id_card && files[index].id_card === "1" && (
 																		<>
 																			<div className={styles.inputHolder} key={index}>
@@ -790,6 +824,11 @@ class Create extends React.Component {
 																			{"Remove"}
 																		</Button>
 																	)}
+																	{index <= 0 && (
+																		<Button className={styles.button} isLoading={loading} loadingText="Generating" isDisabled={true} colorScheme="red" onClick={() => remove(index)}>
+																			{"Remove"}
+																		</Button>
+																	)}
 																	<Button isLoading={loading} loadingText="Generating" colorScheme="purple" onClick={() => push('')}>
 																		{"Add"}
 																	</Button>
@@ -798,6 +837,7 @@ class Create extends React.Component {
 														</div>
 													}}
 												</FieldArray>
+												: ""}
 											</div>
 										</Container>
 
@@ -808,7 +848,7 @@ class Create extends React.Component {
 													<Button isLoading={loadingPFInfo} variant="outline"
 														leftIcon={editablePFInfo ? <i class="fa fa-floppy-o" aria-hidden="true" /> : <i class="fa fa-pencil" aria-hidden="true" />} 
 														colorScheme="purple" 
-														onClick={() => this.setState({editablePFInfo: !editablePFInfo})}
+														onClick={() => {editablePFInfo === true && handleSubmit(), this.setState({editablePFInfo: !editablePFInfo})}}
 													>
 														{editablePFInfo ? "Save" : "Edit"}
 													</Button>
@@ -820,26 +860,41 @@ class Create extends React.Component {
 													<div className={styles.inputHolder}>
 														<CustomInput label="PAN No *" name="pan_no" type="text" editable={id !== null ? editablePFInfo : !editablePFInfo} />
 													</div>
+													{id !== null ? 
+													<div className={styles.switchHolder}>
+													<label>PF Number & UAN Number</label>
+													<Switch className={styles.switch} id="email-alerts" isChecked={true} isDisabled={true} onChange={() => this.setState({ pfToggle: true })} />
+													</div>
+													:
 													<div className={styles.switchHolder}>
 														<label>PF Number & UAN Number</label>
 														<Switch className={styles.switch} id="email-alerts" onChange={() => this.setState({ pfToggle: !pfToggle })} />
 													</div>
+													}
 												</div>
-												{pfToggle === true && (
+												{pfToggle === true || id !== null ? (
 													<div className={styles.inputHolder}>
 														<CustomInput label="PF Number *" name="pf_number" type="text" editable={id !== null ? editablePFInfo : !editablePFInfo} />
 														<CustomInput label="UAN Number *" name="UAN" type="text" editable={id !== null ? editablePFInfo : !editablePFInfo} />
 													</div>
-												)}
+												) : ""}
+
+												{id !== null ?
+												<div className={styles.switchHolder}>
+												<label>ESI Number</label>
+												<Switch className={styles.switch} id="email-alerts" isChecked={true} isDisabled={true} onChange={() => this.setState({ esiToggle: !esiToggle })} />
+												</div>
+											 	: 
 												<div className={styles.switchHolder}>
 													<label>ESI Number</label>
 													<Switch className={styles.switch} id="email-alerts" onChange={() => this.setState({ esiToggle: !esiToggle })} />
 												</div>
-												{esiToggle === true && (
+												}
+												{esiToggle === true || id !== null ?  (
 													<div className={styles.inputHolder}>
 														<CustomInput label="ESI Number *" name="esi_number" type="text" editable={id !== null ? editablePFInfo : !editablePFInfo} />
 													</div>
-												)}
+												) : ""}
 											</div>
 										</Container>
 										<Container {...containerProps} pb={"20px"}>
@@ -849,7 +904,7 @@ class Create extends React.Component {
 													<Button isLoading={loadingSalInfo} variant="outline"
 														leftIcon={editableSalInfo ? <i class="fa fa-floppy-o" aria-hidden="true" /> : <i class="fa fa-pencil" aria-hidden="true" />} 
 														colorScheme="purple" 
-														onClick={() => this.setState({editableSalInfo: !editableSalInfo})}
+														onClick={() => {editableSalInfo === true && handleSubmit(), this.setState({editableSalInfo: !editableSalInfo})}}
 													>
 														{editableSalInfo ? "Save" : "Edit"}
 													</Button>
@@ -868,7 +923,7 @@ class Create extends React.Component {
 													<Button isLoading={loadingOtherInfo} variant="outline"
 														leftIcon={editableOtherInfo ? <i class="fa fa-floppy-o" aria-hidden="true" /> : <i class="fa fa-pencil" aria-hidden="true" />} 
 														colorScheme="purple" 
-														onClick={() => this.setState({editableOtherInfo: !editableOtherInfo})}
+														onClick={() => {editableOtherInfo === true && handleSubmit(), this.setState({editableOtherInfo: !editableOtherInfo})}}
 													>
 														{editableOtherInfo ? "Save" : "Edit"}
 													</Button>
@@ -897,7 +952,7 @@ class Create extends React.Component {
 													editable={id !== null ? editableOtherInfo : !editableOtherInfo}
 												/>
 											</div>
-
+											{id === null && (
 											<ButtonGroup
 												spacing="6"
 												mt={10}
@@ -909,9 +964,10 @@ class Create extends React.Component {
 											>
 												<Button>Cancel</Button>
 												<Button isLoading={loading} loadingText="Submitting" colorScheme="purple" onClick={() => handleSubmit()}>
-													{id !== null ? "Update" : "Create"}
+													{"Create"}
 												</Button>
 											</ButtonGroup>
+											)}
 										</Container>
 									</Container>
 								</Flex>
@@ -927,8 +983,12 @@ class Create extends React.Component {
 export async function getServerSideProps(context) {
 	const data = await EmployeeHelper.getEmployeeByID(context.query.id);
 	const id = context.query.id != "create" ? data[0].employee_id : null;
+	console.log(id);
+	let doc = [];
+	doc = context.query.id == "create" ? null : await DocumentHelper.getDocType(id);
+	console.log({doc: doc});
 	return {
-		props: { data, id }
+		props: { data, id, doc }
 	};
 }
 

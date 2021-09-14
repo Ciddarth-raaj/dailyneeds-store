@@ -87,6 +87,9 @@ const TextField = ({ label, values, method, selected, onChange, containerStyle, 
 							)}
 						</>
 					)}
+					{method === "readonly" && (
+						<Input {...field} {...props} isDisabled={true} autoComplete="off" />
+					)}
 					{method === undefined && (
 						<Input {...field} {...props} autoComplete="off" />
 					)}
