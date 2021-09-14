@@ -12,7 +12,7 @@ import styles from "../../styles/registration.module.css";
 
 //Helpers
 import DocumentHelper from "../../helper/document";
-import { BloodGroup, PaymentType } from "../../constants/values";
+import { BloodGroup, PaymentType, IdCardType } from "../../constants/values";
 import EmployeeHelper from "../../helper/employee";
 import DesignationHelper from "../../helper/designation";
 import ShiftHelper from "../../helper/shift";
@@ -26,54 +26,12 @@ import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import { Validation } from "../../util/validation";
 import moment from "moment";
 
-const INITIAL_VALUES = {
 
-};
 
-class Id extends React.Component {
+class Create extends React.Component {
 	constructor(props) {
 		super(props);
 		this.state = {
-			employee_name: props.data.employee_name,
-			father_name: props.data.father_name,
-			dob: props.data.dob,
-			permanent_address: props.data.permanent_address,
-			residential_address: props.data.residential_address,
-			primary_contact_number: props.data.primary_contact_number,
-			alternate_contact_number: props.data.alternate_contact_number,
-			email_id: props.data.email_id,
-			qualification: props.data.qualification,
-			introducer_name: props.data.introducer_name,
-			introducer_details: props.data.introducer_details,
-			salary: props.data.salary,
-			uniform_qty: props.data.uniform_qty,
-			previous_experience: props.data.previous_experience,
-			date_of_joining: props.data.date_of_joining,
-			gender: props.data.gender,
-			blood_group: props.data.blood_group,
-			designation_id: props.data.designation_id,
-			store_id: props.data.store_id,
-			shift_id: props.data.shift_id,
-			department_id: props.data.department_id,
-			marital_status: props.data.marital_status,
-			marriage_date: props.data.marriage_date,
-			employee_image: props.data.employee_image,
-
-			bank_name: props.data.bank_name,
-			ifsc: props.data.ifsc,
-			account_no: props.data.account_no,
-
-			esi: props.data.esi,
-			esi_number: props.data.esi_number,
-			pf: props.data.pf,
-			pf_number: props.data.pf_number,
-			UAN: props.data.uan,
-			additional_course: props.data.additional_course,
-			spouse_name: props.data.spouse_name,
-			online_portal: props.data.online_portal,
-			pan_no: props.data.pan_no,
-			payment_type: props.data.payment_type,
-
 			loading: false,
 			department: [],
 			designation: [],
@@ -85,7 +43,6 @@ class Id extends React.Component {
 			adhaarHolder: [],
 			voterHolder: [],
 			subIdHolder: [],
-			docType: [],
 			imageHolder: [],
 			employeeCards: false,
 			subIdHolder2: [],
@@ -109,6 +66,7 @@ class Id extends React.Component {
 			loadingPFInfo: false,
 			loadingSalInfo: false,
 			loadingOtherInfo: false,
+			id: props.id,
 		};
 	}
 
@@ -116,7 +74,6 @@ class Id extends React.Component {
 		this.getDesignation();
 		this.getDepartment();
 		this.getShift();
-		this.getDocumentType();
 	}
 
 	getShift() {
@@ -134,13 +91,7 @@ class Id extends React.Component {
 			})
 			.catch((err) => console.log(err));
 	}
-	getDocumentType() {
-		DocumentHelper.getDocType()
-			.then((data) => {
-				this.setState({ docType: data })
-			})
-			.catch((err) => console.log(err));
-	}
+	
 	getDepartment() {
 		DepartmentHelper.getDepartment()
 			.then((data) => {
@@ -149,7 +100,72 @@ class Id extends React.Component {
 			.catch((err) => console.log(err));
 	}
 
-	updateEmployeeDetails = async (values) => {
+	createEmployee = async (values) => {
+		try {
+
+			const Imagearray = [];
+			Imagearray.push(await FilesHelper.upload(
+				this.state.imageHolder,
+				"uploadImage",
+				"dashboard_file"
+			));
+			values.employee_image = Imagearray.length > 0 ? Imagearray[0].remoteUrl : "";
+
+			const Idarray = [];
+			Idarray.push(await FilesHelper.upload(
+				this.state.licenseHolder,
+				"licenseUpload",
+				"dashboard_file"
+			));
+			for (let i = 0; i < values.files.length; i++) {
+				if (values.files[i].id_card === "2") {
+					values.files[i].file = Idarray.length > 0 ? Idarray[0].remoteUrl : "";
+				}
+			}
+
+			if (this.state.voterHolder !== "") {
+				const Subarray = [];
+				Subarray.push(await FilesHelper.upload(
+					this.state.voterHolder,
+					"voterIdUpload",
+					"dashboard_file"
+				));
+				for (let i = 0; i < values.files.length; i++) {
+					if (values.files[i].id_card === "3") {
+						values.files[i].file = Subarray.length > 0 ? Subarray[0].remoteUrl : "";
+					}
+				}
+			}
+
+			if (this.state.adhaarHolder !== "") {
+				const Subarray = [];
+				Subarray.push(await FilesHelper.upload(
+					this.state.adhaarHolder,
+					"adhaarUpload",
+					"dashboard_file"
+				));
+				for (let i = 0; i <= values.files.length; i++) {
+					if (values.files[i].id_card === "1") {
+						values.files[i].file = Subarray.length > 0 ? Subarray[0].remoteUrl : "";
+					}
+				}
+			}
+		} catch (err) {
+			console.log(err);
+		}
+		EmployeeHelper.register(values)
+			.then((data) => {
+				if (data === 200) {
+					toast.success("Successfully created Account");
+				} else {
+					toast.error("Error creating Account");
+					throw `${data.msg}`;
+				}
+			})
+			.catch((err) => console.log(err));
+	}
+
+	updateEmployee = async (values) => {
 		try {
 			if (this.state.licenseHolder !== "") {
 				const Idarray = [];
@@ -275,13 +291,14 @@ class Id extends React.Component {
 		console.log(files);
 	};
 
+
 	render() {
-		const {
+		const { 
+			loading,
 			designation,
 			department,
 			shift,
 			employeeCards,
-			docType,
 			pfToggle,
 			esiToggle,
 			editableEmpInfo,
@@ -300,10 +317,8 @@ class Id extends React.Component {
 			loadingPFInfo,
 			loadingSalInfo,
 			loadingOtherInfo,
+			id,
 		} = this.state;
-		const {
-			employee_image
-		} = this.props.data[0];
 		const dropDownProps = {
 			styles: {
 				dropzone: {
@@ -329,51 +344,52 @@ class Id extends React.Component {
 			className: styles.container,
 			boxShadow: "lg",
 			// minW: "600px",
-		};
+		}; 
+
 		return (
-			<GlobalWrapper title="Update Employee">
+			<GlobalWrapper title="New Employee">
 				<Head />
 				<Formik
-					initialValues={{
-						employee_name: this.props.data[0].employee_name,
-						father_name: this.props.data[0].father_name,
-						dob: moment(this.props.data[0].dob).format("YYYY-MM-DD"),
-						permanent_address: this.props.data[0].permanent_address,
-						residential_address: this.props.data[0].residential_address,
-						primary_contact_number: this.props.data[0].primary_contact_number,
-						alternate_contact_number: this.props.data[0].alternate_contact_number,
-						email_id: this.props.data[0].email_id,
-						qualification: this.props.data[0].qualification,
-						introducer_name: this.props.data[0].introducer_name,
-						introducer_details: this.props.data[0].introducer_details,
-						salary: this.props.data[0].salary,
-						uniform_qty: this.props.data[0].uniform_qty,
-						previous_experience: this.props.data[0].previous_experience,
-						date_of_joining: this.props.data[0].date_of_joining,
-						gender: this.props.data[0].gender,
-						blood_group: this.props.data[0].blood_group,
-						designation_id: this.props.data[0].designation_id,
-						store_id: this.props.data[0].store_id,
-						shift_id: this.props.data[0].shift_id,
-						department_id: this.props.data[0].department_id,
-						marital_status: this.props.data[0].marital_status,
-						marriage_date: this.props.data[0].marriage_date,
-						employee_image: this.props.data[0].employee_image,
+				initialValues={{
+						employee_name: this.props.data[0]?.employee_name,
+						father_name: this.props.data[0]?.father_name,
+						dob: moment(this.props.data[0]?.dob).format("YYYY-MM-DD"),
+						permanent_address: this.props.data[0]?.permanent_address,
+						residential_address: this.props.data[0]?.residential_address,
+						primary_contact_number: this.props.data[0]?.primary_contact_number,
+						alternate_contact_number: this.props.data[0]?.alternate_contact_number,
+						email_id: this.props.data[0]?.email_id,
+						qualification: this.props.data[0]?.qualification,
+						introducer_name: this.props.data[0]?.introducer_name,
+						introducer_details: this.props.data[0]?.introducer_details,
+						salary: this.props.data[0]?.salary,
+						uniform_qty: this.props.data[0]?.uniform_qty,
+						previous_experience: this.props.data[0]?.previous_experience,
+						date_of_joining: this.props.data[0]?.date_of_joining,
+						gender: this.props.data[0]?.gender,
+						blood_group: this.props.data[0]?.blood_group,
+						designation_id: this.props.data[0]?.designation_id,
+						store_id: this.props.data[0]?.store_id,
+						shift_id: this.props.data[0]?.shift_id,
+						department_id: this.props.data[0]?.department_id,
+						marital_status: this.props.data[0]?.marital_status,
+						marriage_date: this.props.data[0]?.marriage_date,
+						employee_image: this.props.data[0]?.employee_image,
 
-						bank_name: this.props.data[0].bank_name,
-						ifsc: this.props.data[0].ifsc,
-						account_no: this.props.data[0].account_no,
+						bank_name: this.props.data[0]?.bank_name,
+						ifsc: this.props.data[0]?.ifsc,
+						account_no: this.props.data[0]?.account_no,
 
-						esi: this.props.data[0].esi,
-						esi_number: this.props.data[0].esi_number,
-						pf: this.props.data[0].pf,
-						pf_number: this.props.data[0].pf_number,
-						UAN: this.props.data[0].uan,
-						additional_course: this.props.data[0].additional_course,
-						spouse_name: this.props.data[0].spouse_name,
-						online_portal: this.props.data[0].online_portal,
-						pan_no: this.props.data[0].pan_no,
-						payment_type: this.props.data[0].payment_type,
+						esi: this.props.data[0]?.esi,
+						esi_number: this.props.data[0]?.esi_number,
+						pf: this.props.data[0]?.pf,
+						pf_number: this.props.data[0]?.pf_number,
+						UAN: this.props.data[0]?.uan,
+						additional_course: this.props.data[0]?.additional_course,
+						spouse_name: this.props.data[0]?.spouse_name,
+						online_portal: this.props.data[0]?.online_portal,
+						pan_no: this.props.data[0]?.pan_no,
+						payment_type: this.props.data[0]?.payment_type,
 						files: [
 							{
 								id_card: "",
@@ -386,11 +402,9 @@ class Id extends React.Component {
 					}}
 					validationSchema={Validation}
 					onSubmit={(values) => {
-						this.updateEmployeeDetails(values);
-
+						id !== null ? this.updateEmployee(values) : this.createEmployee(values);
 					}}
 				>
-
 					{(formikProps) => {
 						const { handleSubmit, values } = formikProps;
 						const handleEvent = () => {
@@ -404,44 +418,29 @@ class Id extends React.Component {
 										<Container {...containerProps} mb="20px">
 											<p className={styles.title}>
 												<div>Employee Information</div>
-												<Button isLoading={loadingEmpInfo} variant="outline"
-													leftIcon={editableEmpInfo ? <i class="fa fa-floppy-o" aria-hidden="true" /> : <i class="fa fa-pencil" aria-hidden="true" />}
-													colorScheme="purple"
-													onClick={() => {
-														this.setState({ editableEmpInfo: !editableEmpInfo })
-														editableEmpInfo && handleSubmit()
-													}}
-												>
-													{editableEmpInfo ? "Save" : "Edit"}
-												</Button>
+												{id !== null &&
+													<Button isLoading={loadingEmpInfo} variant="outline"
+														leftIcon={editableEmpInfo ? <i class="fa fa-floppy-o" aria-hidden="true" /> : <i class="fa fa-pencil" aria-hidden="true" />} 
+														colorScheme="purple" 
+														onClick={() => this.setState({editableEmpInfo: !editableEmpInfo})}
+													>
+														{editableEmpInfo ? "Save": "Edit"}
+													</Button>
+												}
 											</p>
 
 											<div>
-												{employee_image === null ? (
-													<div className={styles.personalInputHolder}>
-														<div className={styles.uploadHolder}>
-															<label className={styles.uploaderTitle} for="uploadImage">
-																Upload Employee Image *
-															</label>
-															<Dropzone getUploadParams={this.getImageUploadParams} onChangeStatus={this.imageChangeStatus} {...dropDownProps} />
-														</div>
-														<div className={styles.inputHolder}>
-															<CustomInput label="Name *" name="employee_name" type="text" editable={editableEmpInfo} />
-														</div>
+												<div className={styles.personalInputHolder}>
+													<div className={styles.uploadHolder}>
+														<label className={styles.uploaderTitle} for="uploadImage">
+															Upload Employee Image *
+														</label>
+														<Dropzone getUploadParams={this.getImageUploadParams} onChangeStatus={this.imageChangeStatus} {...dropDownProps} />
 													</div>
-												) : (
-													<div className={styles.personalInputHolder}>
-														<div className={styles.uploadHolder}>
-															<label className={styles.uploaderTitle} for="uploadImage">
-																Upload Employee Image *
-															</label>
-															<img id="uploadImage" className={styles.employee_image} src={`${employee_image}`} />
-														</div>
-														<div className={styles.inputHolder}>
-															<CustomInput label="Name *" name="employee_name" type="text" editable={editableEmpInfo} />
-														</div>
+													<div className={styles.inputHolder}>
+														<CustomInput label="Name *" name="employee_name" type="text" editable={id !== null ? editableEmpInfo : !editableEmpInfo} />
 													</div>
-												)}
+												</div>
 												<div className={styles.inputHolder}>
 													<CustomInput
 														label="Gender *"
@@ -462,20 +461,20 @@ class Id extends React.Component {
 														name="gender"
 														type="text"
 														method="switch"
-														editable={editableEmpInfo}
+														editable={id !== null ? editableEmpInfo : !editableEmpInfo}
 													/>
-													<CustomInput label="Email ID" name="email_id" type="text" editable={editableEmpInfo} />
+													<CustomInput label="Email ID" name="email_id" type="text" editable={id !== null ? editableEmpInfo : !editableEmpInfo} />
 												</div>
 												<div className={styles.inputHolder}>
-													<CustomInput label="Primary Mobile Number *" name="primary_contact_number" type="text" editable={editableEmpInfo} />
-													<CustomInput label="Alternate Mobile Number" name="alternate_contact_number" type="text" editable={editableEmpInfo} />
+													<CustomInput label="Primary Mobile Number *" name="primary_contact_number" type="text" editable={id !== null ? editableEmpInfo : !editableEmpInfo} />
+													<CustomInput label="Alternate Mobile Number" name="alternate_contact_number" type="text" editable={id !== null ? editableEmpInfo : !editableEmpInfo} />
 												</div>
 												<div className={styles.inputHolder}>
 													<CustomInput
 														label="Date of Joining"
 														name="date_of_joining"
 														type="text"
-														editable={editableEmpInfo}
+														editable={id !== null ? editableEmpInfo : !editableEmpInfo}
 													/>
 												</div>
 											</div>
@@ -484,16 +483,15 @@ class Id extends React.Component {
 										<Container {...containerProps} mb={"20px"}>
 											<p className={styles.title}>
 												<div>Personal Details</div>
-												<Button isLoading={loadingPerInfo} variant="outline"
-													leftIcon={editablePerInfo ? <i class="fa fa-floppy-o" aria-hidden="true" /> : <i class="fa fa-pencil" aria-hidden="true" />}
-													colorScheme="purple"
-													onClick={() => {
-														this.setState({ editablePerInfo: !editablePerInfo })
-																		editablePerInfo && handleSubmit()
-													}}
-												>
-													{editablePerInfo ? "Save" : "Edit"}
-												</Button>
+													{id !== null &&
+														<Button isLoading={loadingPerInfo} variant="outline"
+														leftIcon={editablePerInfo ? <i class="fa fa-floppy-o" aria-hidden="true" /> : <i class="fa fa-pencil" aria-hidden="true" />}
+														colorScheme="purple"
+														onClick={() => this.setState({editablePerInfo: !editablePerInfo})}
+													>
+														{editablePerInfo ? "Save" : "Edit"}
+													</Button>
+													}
 											</p>
 											<div>
 												<div className={styles.inputHolder}>
@@ -520,14 +518,14 @@ class Id extends React.Component {
 														name="marital_status"
 														type="text"
 														method="switch"
-														editable={editablePerInfo}
+														editable={id !== null ? editablePerInfo : !editablePerInfo}
 													/>
 													<div className={styles.inputHolder}>
 														<CustomInput
 															label="Date of Birth *"
 															name="dob"
 															type="text"
-															editable={editablePerInfo}
+															editable={id !== null ? editablePerInfo : !editablePerInfo}
 														/>
 													</div>
 												</div>
@@ -537,20 +535,20 @@ class Id extends React.Component {
 															label="Marriage Date"
 															name="marriage_date"
 															type="text"
-															editable={editablePerInfo}
+															editable={id !== null ? editablePerInfo : !editablePerInfo}
 														/>
 													)}
 												</div>
 												<div className={styles.personalInputHolder}>
-													<CustomInput label="Permanent Address *" name="permanent_address" type="text" method="TextArea" editable={editablePerInfo} />
+													<CustomInput label="Permanent Address *" name="permanent_address" type="text" method="TextArea" editable={id !== null ? editablePerInfo : !editablePerInfo} />
 												</div>
 												<div className={styles.personalInputHolder}>
-													<CustomInput label="Residential Address *" name="residential_address" type="text" method="TextArea" editable={editablePerInfo} />
+													<CustomInput label="Residential Address *" name="residential_address" type="text" method="TextArea" editable={id !== null ? editablePerInfo : !editablePerInfo} />
 												</div>
 												<div className={styles.inputHolder}>
-													<CustomInput label="Father Name *" name="father_name" type="text" editable={editablePerInfo} />
+													<CustomInput label="Father Name *" name="father_name" type="text" editable={id !== null ? editablePerInfo : !editablePerInfo} />
 													{values.marital_status === "Married" &&
-														<CustomInput label="Spouse Name" name="spouse_name" type="text" editable={editablePerInfo} />
+														<CustomInput label="Spouse Name" name="spouse_name" type="text" editable={id !== null ? editablePerInfo : !editablePerInfo} />
 													}
 												</div>
 												<div className={styles.personalInputHolder}>
@@ -563,7 +561,7 @@ class Id extends React.Component {
 														name="blood_group"
 														type="text"
 														method="switch"
-														editable={editablePerInfo}
+														editable={id !== null ? editablePerInfo : !editablePerInfo}
 													/>
 
 												</div>
@@ -573,16 +571,15 @@ class Id extends React.Component {
 										<Container {...containerProps} mb="20px">
 											<p className={styles.title}>
 												<div>Current Position</div>
-												<Button isLoading={loadingPosiInfo} variant="outline"
-													leftIcon={editablePosiInfo ? <i class="fa fa-floppy-o" aria-hidden="true" /> : <i class="fa fa-pencil" aria-hidden="true" />}
-													colorScheme="purple"
-													onClick={() => {
-														this.setState({ editablePosiInfo: !editablePosiInfo })
-																		editablePosiInfo && handleSubmit()
-													}}
-												>
-													{editablePosiInfo ? "Save" : "Edit"}
-												</Button>
+												{id !== null &&
+													<Button isLoading={loadingPosiInfo} variant="outline"
+														leftIcon={editablePosiInfo ? <i class="fa fa-floppy-o" aria-hidden="true" /> : <i class="fa fa-pencil" aria-hidden="true" />} 
+														colorScheme="purple" 
+														onClick={() => this.setState({editablePosiInfo: !editablePosiInfo})}
+													>
+														{editablePosiInfo ? "Save" : "Edit"}
+													</Button>
+												}
 											</p>
 
 											<div>
@@ -607,7 +604,7 @@ class Id extends React.Component {
 															name="store_id"
 															type="text"
 															method="switch"
-															editable={editablePosiInfo}
+															editable={id !== null ? editablePosiInfo : !editablePosiInfo}
 														/>
 														<CustomInput
 															label="Select Department *"
@@ -618,7 +615,7 @@ class Id extends React.Component {
 															name="department_id"
 															type="text"
 															method="switch"
-															editable={editablePosiInfo}
+															editable={id !== null ? editablePosiInfo : !editablePosiInfo}
 														/>
 													</div>
 													<div className={styles.inputHolder}>
@@ -631,7 +628,7 @@ class Id extends React.Component {
 															name="designation_id"
 															type="text"
 															method="switch"
-															editable={editablePosiInfo}
+															editable={id !== null ? editablePosiInfo : !editablePosiInfo}
 														/>
 													</div>
 													<div className={styles.inputHolder}>
@@ -644,7 +641,7 @@ class Id extends React.Component {
 															name="shift_id"
 															type="text"
 															method="switch"
-															editable={editablePosiInfo}
+															editable={id !== null ? editablePosiInfo : !editablePosiInfo}
 														/>
 													</div>
 												</div>
@@ -654,24 +651,23 @@ class Id extends React.Component {
 										<Container {...containerProps} mb={"20px"}>
 											<p className={styles.title}>
 												<div>Education Details</div>
-												<Button isLoading={loadingEducaInfo} variant="outline"
-													leftIcon={editableEducaInfo ? <i class="fa fa-floppy-o" aria-hidden="true" /> : <i class="fa fa-pencil" aria-hidden="true" />}
-													colorScheme="purple"
-													onClick={() => {
-														this.setState({ editableEducaInfo: !editableEducaInfo })
-																		editableEducaInfo && handleSubmit()
-													}}
-												>
-													{editableEducaInfo ? "Save" : "Edit"}
-												</Button>
+													{id != null &&
+														<Button isLoading={loadingEducaInfo} variant="outline"
+														leftIcon={editableEducaInfo ? <i class="fa fa-floppy-o" aria-hidden="true" /> : <i class="fa fa-pencil" aria-hidden="true" />} 
+														colorScheme="purple" 
+														onClick={() => this.setState({editableEducaInfo: !editableEducaInfo})}
+													>
+														{editableEducaInfo ? "Save" : "Edit"}
+													</Button>
+													}
 											</p>
 											<div>
 												<div className={styles.inputHolder}>
-													<CustomInput label="Educational Qualification *" name="qualification" type="text" editable={editableEducaInfo} />
-													<CustomInput label="Previous Experience" name="previous_experience" type="text" editable={editableEducaInfo} />
+													<CustomInput label="Educational Qualification *" name="qualification" type="text" editable={id !== null ? editableEducaInfo : !editableEducaInfo} />
+													<CustomInput label="Previous Experience" name="previous_experience" type="text" editable={id !== null ? editableEducaInfo : !editableEducaInfo} />
 												</div>
 												<div className={styles.personalInputHolder}>
-													<CustomInput label="Additional Courses" name="additional_course" type="text" method="TextArea" editable={editableEducaInfo} />
+													<CustomInput label="Additional Courses" name="additional_course" type="text" method="TextArea" editable={id !== null ? editableEducaInfo : !editableEducaInfo} />
 												</div>
 											</div>
 										</Container>
@@ -680,16 +676,15 @@ class Id extends React.Component {
 										<Container {...containerProps} pb={"20px"} mb={"20px"}>
 											<p className={styles.title}>
 												<div>Employee Identity</div>
-												<Button isLoading={loadingIdenInfo} variant="outline"
-													leftIcon={editableIdenInfo ? <i class="fa fa-floppy-o" aria-hidden="true" /> : <i class="fa fa-pencil" aria-hidden="true" />}
-													colorScheme="purple"
-													onClick={() => {
-														this.setState({ editableIdenInfo: !editableIdenInfo })
-													    				editableIdenInfo && handleSubmit()
-													}}
-												>
-													{editableIdenInfo ? "Save" : "Edit"}
-												</Button>
+													{id !== null &&
+														<Button isLoading={loadingIdenInfo } variant="outline"
+														leftIcon={editableIdenInfo ? <i class="fa fa-floppy-o" aria-hidden="true" /> : <i class="fa fa-pencil" aria-hidden="true" />} 
+														colorScheme="purple" 
+														onClick={() => this.setState({editableIdenInfo: !editableIdenInfo})}
+													>
+														{editableIdenInfo ? "Save" : "Edit"}
+													</Button>
+													}
 											</p>
 
 											<div>
@@ -703,21 +698,20 @@ class Id extends React.Component {
 														name="payment_type"
 														type="text"
 														method="switch"
-														editable={editableIdenInfo}
+														editable={id !== null ? editableIdenInfo : !editableIdenInfo}
 													/>
 												</div>
 												{values.payment_type === "1" && (
 													<>
 														<div className={styles.inputHolder}>
-															<CustomInput label="Bank Name *" name="bank_name" type="text" editable={editableIdenInfo} />
-															<CustomInput label="IFSC Code *" name="ifsc" type="text" editable={editableIdenInfo} />
+															<CustomInput label="Bank Name *" name="bank_name" type="text" editable={id !== null ? editableIdenInfo : !editableIdenInfo} />
+															<CustomInput label="IFSC Code *" name="ifsc" type="text" editable={id !== null ? editableIdenInfo : !editableIdenInfo} />
 														</div>
 														<div className={styles.inputHolder}>
-															<CustomInput label="Account Number *" name="account_no" type="text" editable={editableIdenInfo} />
+															<CustomInput label="Account Number *" name="account_no" type="text" editable={id !== null ? editableIdenInfo : !editableIdenInfo} />
 														</div>
 													</>
 												)}
-
 												<FieldArray name="files">
 													{fieldArrayProps => {
 														const { push, remove, form } = fieldArrayProps
@@ -727,13 +721,13 @@ class Id extends React.Component {
 															{files.map((file, index) => (
 																<>
 																	<div className={styles.inputHolder} key={index} style={{ marginBottom: 0 }}>
-																		<CustomInput label="New ID Card Type" values={docType.map((d) => ({ id: d.id, value: d.value }))} name={`files[${index}].id_card`} type="text" method="switch" containerStyle={{ marginTop: 30, marginBottom: 30 }} editable={editableIdenInfo} />
+																		<CustomInput label="New ID Card Type" values={IdCardType.map((d) => ({ id: d.id, value: d.value }))} name={`files[${index}].id_card`} type="text" method="switch" containerStyle={{ marginTop: 30, marginBottom: 30 }} editable={id !== null ? editableIdenInfo : !editableIdenInfo} />
 																	</div>
 																	{files[0].id_card && files[index].id_card === "1" && (
 																		<>
 																			<div className={styles.inputHolder} key={index}>
-																				<CustomInput label="Adhaar Card Number" name={`files[${index}].id_card_no`} type="text" containerStyle={{ marginBottom: 0 }} editable={editableIdenInfo} />
-																				<CustomInput label="Name in Adhaar Card" name={`files[${index}].id_card_name`} type="text" containerStyle={{ marginBottom: 0 }} editable={editableIdenInfo} />
+																				<CustomInput label="Adhaar Card Number" name={`files[${index}].id_card_no`} type="text" containerStyle={{ marginBottom: 0 }} editable={id !== null ? editableIdenInfo : !editableIdenInfo} />
+																				<CustomInput label="Name in Adhaar Card" name={`files[${index}].id_card_name`} type="text" containerStyle={{ marginBottom: 0 }} editable={id !== null ? editableIdenInfo : !editableIdenInfo} />
 																				<br />
 																			</div>
 																			<div className={styles.uploadHolder} style={{ marginTop: 30 }}>
@@ -747,9 +741,9 @@ class Id extends React.Component {
 																	{files[0].id_card && files[index].id_card === "2" && (
 																		<>
 																			<div className={styles.inputHolder} key={index}>
-																				<CustomInput label="Driving license Number" name={`files[${index}].id_card_no`} type="text" containerStyle={{ marginBottom: 0 }} editable={editableIdenInfo} />
-																				<CustomInput label="Name in Driving License" name={`files[${index}].id_card_name`} type="text" containerStyle={{ marginBottom: 0 }} editable={editableIdenInfo} />
-																				<CustomInput label="Expiry Date" name={`files[${index}].expiry_date`} type="text" containerStyle={{ marginBottom: 0 }} editable={editableIdenInfo} />
+																				<CustomInput label="Driving license Number" name={`files[${index}].id_card_no`} type="text" containerStyle={{ marginBottom: 0 }} editable={id !== null ? editableIdenInfo : !editableIdenInfo} />
+																				<CustomInput label="Name in Driving License" name={`files[${index}].id_card_name`} type="text" containerStyle={{ marginBottom: 0 }} editable={id !== null ? editableIdenInfo : !editableIdenInfo} />
+																				<CustomInput label="Expiry Date" name={`files[${index}].expiry_date`} type="text" containerStyle={{ marginBottom: 0 }} editable={id !== null ? editableIdenInfo : !editableIdenInfo} />
 																				<br />
 																			</div>
 																			<div className={styles.uploadHolder} style={{ marginTop: 30 }}>
@@ -763,8 +757,23 @@ class Id extends React.Component {
 																	{files[0].id_card && files[index].id_card === "3" && (
 																		<>
 																			<div className={styles.inputHolder} key={index}>
-																				<CustomInput label="Voter Id Number" name={`files[${index}].id_card_no`} type="text" containerStyle={{ marginBottom: 0 }} editable={editableIdenInfo} />
-																				<CustomInput label="Name in Voter Id" name={`files[${index}].id_card_name`} type="text" containerStyle={{ marginBottom: 0 }} editable={editableIdenInfo} />
+																				<CustomInput label="Voter Id Number" name={`files[${index}].id_card_no`} type="text" containerStyle={{ marginBottom: 0 }} editable={id !== null ? editableIdenInfo : !editableIdenInfo} />
+																				<CustomInput label="Name in Voter Id" name={`files[${index}].id_card_name`} type="text" containerStyle={{ marginBottom: 0 }} editable={id !== null ? editableIdenInfo : !editableIdenInfo} />
+																				<br />
+																			</div>
+																			<div className={styles.uploadHolder} style={{ marginTop: 30 }}>
+																				<label className={styles.uploaderTitle} for="subUploadID">
+																					Upload ID *
+																				</label>
+																				<Dropzone getUploadParams={this.voterIdUploadParams} onChangeStatus={this.voterIdChangeStatus} {...dropDownProps} />
+																			</div>
+																		</>
+																	)}
+																	{files[0].id_card && files[index].id_card === "4" && (
+																		<>
+																			<div className={styles.inputHolder} key={index}>
+																				<CustomInput label="Pan Number" name={`files[${index}].id_card_no`} type="text" containerStyle={{ marginBottom: 0 }} editable={id !== null ? editableIdenInfo : !editableIdenInfo} />
+																				<CustomInput label="Name in Pan" name={`files[${index}].id_card_name`} type="text" containerStyle={{ marginBottom: 0 }} editable={id !== null ? editableIdenInfo : !editableIdenInfo} />
 																				<br />
 																			</div>
 																			<div className={styles.uploadHolder} style={{ marginTop: 30 }}>
@@ -777,11 +786,11 @@ class Id extends React.Component {
 																	)}
 																	<br />
 																	{index > 0 && (
-																		<Button className={styles.button} isLoading={loadingOtherInfo} loadingText="Generating" colorScheme="red" onClick={() => remove(index)}>
+																		<Button className={styles.button} isLoading={loading} loadingText="Generating" colorScheme="red" onClick={() => remove(index)}>
 																			{"Remove"}
 																		</Button>
 																	)}
-																	<Button isLoading={loadingOtherInfo} loadingText="Generating" colorScheme="purple" onClick={() => push('')}>
+																	<Button isLoading={loading} loadingText="Generating" colorScheme="purple" onClick={() => push('')}>
 																		{"Add"}
 																	</Button>
 																</>
@@ -795,22 +804,21 @@ class Id extends React.Component {
 										<Container {...containerProps} mb={"20px"}>
 											<p className={styles.title}>
 												<div>PF & ESI</div>
-												<Button isLoading={loadingPFInfo} variant="outline"
-													leftIcon={editablePFInfo ? <i class="fa fa-floppy-o" aria-hidden="true" /> : <i class="fa fa-pencil" aria-hidden="true" />}
-													colorScheme="purple"
-													onClick={() => {
-														this.setState({ editablePFInfo: !editablePFInfo })
-																	 	editablePFInfo && handleSubmit()
-													}}
-												>
-													{editablePFInfo ? "Save" : "Edit"}
-												</Button>
+													{id !== null &&
+													<Button isLoading={loadingPFInfo} variant="outline"
+														leftIcon={editablePFInfo ? <i class="fa fa-floppy-o" aria-hidden="true" /> : <i class="fa fa-pencil" aria-hidden="true" />} 
+														colorScheme="purple" 
+														onClick={() => this.setState({editablePFInfo: !editablePFInfo})}
+													>
+														{editablePFInfo ? "Save" : "Edit"}
+													</Button>
+													}
 											</p>
 
 											<div>
 												<div className={styles.personalInputHolder} >
 													<div className={styles.inputHolder}>
-														<CustomInput label="PAN No *" name="pan_no" type="text" editable={editablePFInfo} />
+														<CustomInput label="PAN No *" name="pan_no" type="text" editable={id !== null ? editablePFInfo : !editablePFInfo} />
 													</div>
 													<div className={styles.switchHolder}>
 														<label>PF Number & UAN Number</label>
@@ -819,8 +827,8 @@ class Id extends React.Component {
 												</div>
 												{pfToggle === true && (
 													<div className={styles.inputHolder}>
-														<CustomInput label="PF Number *" name="pf_number" type="text" editable={editablePFInfo} />
-														<CustomInput label="UAN Number *" name="UAN" type="text" editable={editablePFInfo} />
+														<CustomInput label="PF Number *" name="pf_number" type="text" editable={id !== null ? editablePFInfo : !editablePFInfo} />
+														<CustomInput label="UAN Number *" name="UAN" type="text" editable={id !== null ? editablePFInfo : !editablePFInfo} />
 													</div>
 												)}
 												<div className={styles.switchHolder}>
@@ -829,7 +837,7 @@ class Id extends React.Component {
 												</div>
 												{esiToggle === true && (
 													<div className={styles.inputHolder}>
-														<CustomInput label="ESI Number *" name="esi_number" type="text" editable={editablePFInfo} />
+														<CustomInput label="ESI Number *" name="esi_number" type="text" editable={id !== null ? editablePFInfo : !editablePFInfo} />
 													</div>
 												)}
 											</div>
@@ -837,40 +845,38 @@ class Id extends React.Component {
 										<Container {...containerProps} pb={"20px"}>
 											<p className={styles.title}>
 												<div>Salary Details</div>
-												<Button isLoading={loadingSalInfo} variant="outline"
-													leftIcon={editableSalInfo ? <i class="fa fa-floppy-o" aria-hidden="true" /> : <i class="fa fa-pencil" aria-hidden="true" />}
-													colorScheme="purple"
-													onClick={() => {
-														this.setState({ editableSalInfo: !editableSalInfo })
-																		editableSalInfo && handleSubmit()
-													}}
-												>
-													{editableSalInfo ? "Save" : "Edit"}
-												</Button>
+												{id !== null &&
+													<Button isLoading={loadingSalInfo} variant="outline"
+														leftIcon={editableSalInfo ? <i class="fa fa-floppy-o" aria-hidden="true" /> : <i class="fa fa-pencil" aria-hidden="true" />} 
+														colorScheme="purple" 
+														onClick={() => this.setState({editableSalInfo: !editableSalInfo})}
+													>
+														{editableSalInfo ? "Save" : "Edit"}
+													</Button>
+												}
 											</p>
 
 											<div className={styles.inputHolder}>
-												<CustomInput label="Salary / Month *" name="salary" type="text" containerStyle={{ marginBottom: 0 }} editable={editableSalInfo} />
+												<CustomInput label="Salary / Month *" name="salary" type="text" containerStyle={{ marginBottom: 0 }} editable={id !== null ? editableSalInfo : !editableSalInfo} />
 											</div>
 										</Container>
 										<br />
 										<Container {...containerProps} pb={"20px"}>
-											<p className={styles.title}>
+										<p className={styles.title}>
 												<div>Others</div>
-												<Button isLoading={loadingOtherInfo} variant="outline"
-													leftIcon={editableOtherInfo ? <i class="fa fa-floppy-o" aria-hidden="true" /> : <i class="fa fa-pencil" aria-hidden="true" />}
-													colorScheme="purple"
-													onClick={() => {
-														this.setState({ editableOtherInfo: !editableOtherInfo })
-																		editableOtherInfo && handleSubmit()
-													}}
-												>
-													{editableOtherInfo ? "Save" : "Edit"}
-												</Button>
+												{id !== null &&
+													<Button isLoading={loadingOtherInfo} variant="outline"
+														leftIcon={editableOtherInfo ? <i class="fa fa-floppy-o" aria-hidden="true" /> : <i class="fa fa-pencil" aria-hidden="true" />} 
+														colorScheme="purple" 
+														onClick={() => this.setState({editableOtherInfo: !editableOtherInfo})}
+													>
+														{editableOtherInfo ? "Save" : "Edit"}
+													</Button>
+												}
 											</p>
 
 											<div className={styles.inputHolder} style={{ marginTop: 20, marginBottom: 0 }}>
-												<CustomInput label="Unifrom" name="uniform_qty" type="text" containerStyle={{ marginBottom: 30 }} editable={editableOtherInfo} />
+												<CustomInput label="Unifrom" name="uniform_qty" type="text" containerStyle={{ marginBottom: 30 }} editable={id !== null ? editableOtherInfo : !editableOtherInfo} />
 											</div>
 
 											<div className={styles.personalInputHolder}>
@@ -878,7 +884,7 @@ class Id extends React.Component {
 													label="Introducer's Name"
 													name="introducer_name"
 													type="text"
-													editable={editableOtherInfo}
+													editable={id !== null ? editableOtherInfo : !editableOtherInfo}
 												/>
 											</div>
 											<div className={styles.personalInputHolder}>
@@ -888,9 +894,24 @@ class Id extends React.Component {
 													type="text"
 													method="TextArea"
 													containerStyle={{ marginBottom: 10 }}
-													editable={editableOtherInfo}
+													editable={id !== null ? editableOtherInfo : !editableOtherInfo}
 												/>
 											</div>
+
+											<ButtonGroup
+												spacing="6"
+												mt={10}
+												style={{
+													display: "flex",
+													// width: "100%",
+													justifyContent: "flex-end",
+												}}
+											>
+												<Button>Cancel</Button>
+												<Button isLoading={loading} loadingText="Submitting" colorScheme="purple" onClick={() => handleSubmit()}>
+													{id !== null ? "Update" : "Create"}
+												</Button>
+											</ButtonGroup>
 										</Container>
 									</Container>
 								</Flex>
@@ -905,9 +926,10 @@ class Id extends React.Component {
 
 export async function getServerSideProps(context) {
 	const data = await EmployeeHelper.getEmployeeByID(context.query.id);
+	const id = context.query.id != "create" ? data[0].employee_id : null;
 	return {
-		props: { data }
+		props: { data, id }
 	};
 }
 
-export default withRouter(Id);
+export default withRouter(Create);

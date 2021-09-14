@@ -69,7 +69,6 @@ const employee = {
         new Promise(function (resolve, reject) {
             API.post("/employee/updatedata", data)
                 .then(async (res) => {
-                    console.log({ res: res.status });
                     if (res.status === 200) {
                         resolve(res.data);
                     } else {

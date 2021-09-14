@@ -35,3 +35,22 @@ export const PaymentType = [
         value: "Cash"
     }
 ]
+
+export const IdCardType = [
+    {
+        id: 1,
+        value: "Adhaar Card"
+    },
+    {
+        id: 2,
+        value: "Driving License"
+    },
+    {
+        id: 3,
+        value: "Voter Id"
+    },
+    {
+        id: 4,
+        value: "Pan"
+    }
+]

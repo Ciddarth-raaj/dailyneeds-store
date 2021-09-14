@@ -26,7 +26,7 @@ export default class SideBar extends React.Component {
 						add: {
 							title: "Add Employee",
 							selected: false,
-							location: "/employee/create",
+							location: `/employee/${"create"}`,
 						},
 						view: {
 							title: "View Employee",
