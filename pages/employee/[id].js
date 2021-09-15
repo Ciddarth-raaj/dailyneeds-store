@@ -786,7 +786,7 @@ class Create extends React.Component {
 																			<div className={styles.inputHolder} key={index}>
 																				<CustomInput label="Driving license Number" name={`files[${index}].id_card_no`} type="text" containerStyle={{ marginBottom: 0 }} editable={id !== null ? editableIdenInfo : !editableIdenInfo} />
 																				<CustomInput label="Name in Driving License" name={`files[${index}].id_card_name`} type="text" containerStyle={{ marginBottom: 0 }} editable={id !== null ? editableIdenInfo : !editableIdenInfo} />
-																				<CustomInput label="Expiry Date" name={`files[${index}].expiry_date`} type="text" containerStyle={{ marginBottom: 0 }} editable={id !== null ? editableIdenInfo : !editableIdenInfo} />
+																				<CustomInput label="Expiry Date" name={`files[${index}].expiry_date`} type="text" method="datepicker" containerStyle={{ marginBottom: 0 }} editable={id !== null ? editableIdenInfo : !editableIdenInfo} />
 																				<br />
 																			</div>
 																			<div className={styles.uploadHolder} style={{ marginTop: 30 }}>
