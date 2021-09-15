@@ -213,6 +213,10 @@ class Create extends React.Component {
 		values.date_of_joining = moment(values.date_of_joining).format("YYYY-MM-DD");
 		values.dob = moment(values.dob).format("YYYY-MM-DD");
 		const { employee_id } = this.props.data[0];
+		delete values.department_name;
+		delete values.designation_name;
+		delete values.store_name;
+		delete values.shift_name;
 		EmployeeHelper.updateEmployeeDetails({
 			employee_id: employee_id,
 			employee_details: values
@@ -373,9 +377,13 @@ class Create extends React.Component {
 						gender: this.props.data[0]?.gender,
 						blood_group: this.props.data[0]?.blood_group,
 						designation_id: this.props.data[0]?.designation_id,
+						designation_name: this.props.data[0]?.designation_name,
 						store_id: this.props.data[0]?.store_id,
+						store_name: this.props.data[0]?.store_name,
 						shift_id: this.props.data[0]?.shift_id,
+						shift_name: this.props.data[0]?.shift_name,
 						department_id: this.props.data[0]?.department_id,
+						department_name: this.props.data[0]?.department_name,
 						marital_status: this.props.data[0]?.marital_status,
 						marriage_date: this.props.data[0]?.marriage_date,
 						employee_image: this.props.data[0]?.employee_image,
@@ -614,7 +622,7 @@ class Create extends React.Component {
 																	value: "Store3",
 																},
 															]}
-															name="store_id"
+															name={editablePosiInfo ? "store_id" : "store_name"}
 															type="text"
 															method="switch"
 															editable={id !== null ? editablePosiInfo : !editablePosiInfo}
@@ -625,7 +633,7 @@ class Create extends React.Component {
 																id: m.id,
 																value: m.value,
 															}))}
-															name="department_id"
+															name={editablePosiInfo ? "department_id" : "department_name"}
 															type="text"
 															method="switch"
 															editable={id !== null ? editablePosiInfo : !editablePosiInfo}
@@ -638,7 +646,7 @@ class Create extends React.Component {
 																id: m.id,
 																value: m.value,
 															}))}
-															name="designation_id"
+															name={editablePosiInfo ? "designation_id" : "designation_name"}
 															type="text"
 															method="switch"
 															editable={id !== null ? editablePosiInfo : !editablePosiInfo}
@@ -652,6 +660,7 @@ class Create extends React.Component {
 																value: m.value,
 															}))}
 															name="shift_id"
+															name={editablePosiInfo ? "shift_id" : "shift_name"}
 															type="text"
 															method="switch"
 															editable={id !== null ? editablePosiInfo : !editablePosiInfo}
@@ -983,10 +992,8 @@ class Create extends React.Component {
 export async function getServerSideProps(context) {
 	const data = await EmployeeHelper.getEmployeeByID(context.query.id);
 	const id = context.query.id != "create" ? data[0].employee_id : null;
-	console.log(id);
 	let doc = [];
 	doc = context.query.id == "create" ? null : await DocumentHelper.getDocType(id);
-	console.log({doc: doc});
 	return {
 		props: { data, id, doc }
 	};
