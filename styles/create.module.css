@@ -24,6 +24,9 @@
 	display: flex;
 	align-items: center;
 }
+.infoLabel {
+	color: var(--chakra-colors-purple-500);
+}
 .wrapper {
 	display: flex;
 	flex-direction: column;
@@ -41,6 +44,9 @@
 .inputHolder {
 	display: flex;
 	width: 100%;
+}
+.switch {
+	padding-top: 10px;
 }
 .buttonHolder {
 	align-self: right;

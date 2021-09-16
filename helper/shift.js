@@ -25,6 +25,34 @@ const shift = {
 
 		return formattedData;
 	},
+	getShiftById: (shift_id) => 
+		new Promise(function (resolve, reject) {
+		API.get("/shift/shift_id?shift_id= " + shift_id)
+			.then(async (res) => {
+				if (res.status === 200) {
+				resolve(res.data);
+				} else {
+					reject(res.data.msg);
+				}
+			})
+			.catch((err) => {
+				reject(err);
+			});
+	}),
+	updateShift: (data) =>
+	new Promise(function (resolve, reject) {
+		API.post("/shift/update-shift", data)
+			.then(async (res) => {
+				if (res.status === 200) {
+					resolve(res.data);
+				} else {
+					reject(res.data.msg);
+				}
+			})
+			.catch((err) => {
+				reject(err);
+			});
+	}),
 	createShift: (data) =>
 	new Promise(function (resolve, reject) {
 		API.post("/shift/create", data)

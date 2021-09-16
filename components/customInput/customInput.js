@@ -4,6 +4,7 @@ import { Input, Textarea, Select } from "@chakra-ui/react";
 import DatePicker from "react-datepicker";
 
 import styles from "./customInput.module.css";
+import moment from "moment";
 
 const CustomDateTimeInput = forwardRef(({ value, onClick, onChange }, ref) => (
 	<Input value={value} onChange={onChange} autoComplete="off" ref={ref} onClick={onClick} />
@@ -52,7 +53,7 @@ const TextField = ({ label, values, method, selected, onChange, containerStyle, 
 								timeCaption="Time"
 								dateFormat="hh:mm:ss"
 								{...props}
-								selected={(field.value && new Date(field.value)) || null}
+								selected={(moment(field.value).toISOString() && new Date(field.value)) || null}
 								onChange={val => {
 									setFieldValue(field.name, val);
 								}}
