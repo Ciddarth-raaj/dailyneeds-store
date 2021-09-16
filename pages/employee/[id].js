@@ -32,6 +32,7 @@ class Create extends React.Component {
 	constructor(props) {
 		super(props);
 		this.state = {
+			imageContainer: false,
 			employee_image: props.data[0]?.employee_image,
 			loading: false,
 			department: [],
@@ -41,6 +42,7 @@ class Create extends React.Component {
 			uploadId: [],
 			subUploadId: [],
 			licenseHolder: [],
+			modifiedImageHolder: [],
 			adhaarHolder: [],
 			voterHolder: [],
 			subIdHolder: [],
@@ -91,7 +93,7 @@ class Create extends React.Component {
 			})
 			.catch((err) => console.log(err));
 	}
-	
+ 
 	getDepartment() {
 		DepartmentHelper.getDepartment()
 			.then((data) => {
@@ -167,6 +169,16 @@ class Create extends React.Component {
 
 	updateEmployee = async (values) => {
 		try {
+			if (this.state.modifiedImageHolder !== "") {
+				const Modifiedarray = [];
+				Modifiedarray.push(await FilesHelper.upload(
+					this.state.modifiedImageHolder,
+					"modifiedUploadImage",
+					"dashboard_file"
+				));
+				values.modified_employee_image = Modifiedarray.length > 0 ? Modifiedarray[0].remoteUrl : "";
+			}
+
 			if (this.state.licenseHolder !== "") {
 				const Idarray = [];
 				Idarray.push(await FilesHelper.upload(
@@ -217,6 +229,8 @@ class Create extends React.Component {
 		delete values.designation_name;
 		delete values.store_name;
 		delete values.shift_name;
+		delete values.payment_name;
+		delete values.employee_image;
 		EmployeeHelper.updateEmployeeDetails({
 			employee_id: employee_id,
 			employee_details: values
@@ -237,6 +251,11 @@ class Create extends React.Component {
 	getImageUploadParams = ({ meta }) => {
 		const { imageHolder } = this.state;
 		return { url: imageHolder };
+	};
+
+	getModifyImageUploadParams = ({ meta }) => {
+		const { modifiedImageHolder } = this.state;
+		return { url: modifiedImageHolder };
 	};
 
 	licenseUploadParams = ({ meta }) => {
@@ -282,7 +301,15 @@ class Create extends React.Component {
 			}
 		}
 	};
-
+	modifyImageChangeStatus = async ({ meta, file }, status) => {
+		if (status === "headers_received") {
+			try {
+				this.setState({ modifiedImageHolder: file });
+			} catch (err) {
+				console.log(err);
+			}
+		}
+	};
 	imageChangeStatus = async ({ meta, file }, status) => {
 		if (status === "headers_received") {
 			try {
@@ -325,6 +352,7 @@ class Create extends React.Component {
 			loadingSalInfo,
 			loadingOtherInfo,
 			id,
+			imageContainer,
 		} = this.state;
 		const { doc } = this.props;
 		const dropDownProps = {
@@ -402,6 +430,8 @@ class Create extends React.Component {
 						online_portal: this.props.data[0]?.online_portal,
 						pan_no: this.props.data[0]?.pan_no,
 						payment_type: this.props.data[0]?.payment_type,
+						payment_name: this.props.data[0]?.payment_type === "1" ? "Bank" : "Cash",
+						modified_employee_image: "",
 						files: [
 							{
 								id_card: "",
@@ -432,9 +462,9 @@ class Create extends React.Component {
 												<div>Employee Information</div>
 												{id !== null &&
 													<Button isLoading={loadingEmpInfo} variant="outline"
-														leftIcon={editableEmpInfo ? <i class="fa fa-floppy-o" aria-hidden="true" /> : <i class="fa fa-pencil" aria-hidden="true" />} 
+														leftIcon={editableEmpInfo ? <i class="fa fa-floppy-o" aria-hidden="true" /> : <i class="fa fa-pencil" aria-hidden="true" />}
 														colorScheme="purple" 
-														onClick={() => {editableEmpInfo === true && handleSubmit(), this.setState({editableEmpInfo: !editableEmpInfo})}}
+														onClick={() => { editableEmpInfo === true && handleSubmit(), this.setState({ editableEmpInfo: !editableEmpInfo }) }}
 													>
 														{editableEmpInfo ? "Save" : "Edit"}
 													</Button>
@@ -447,10 +477,29 @@ class Create extends React.Component {
 														<label className={styles.uploaderTitle} for="uploadImage">
 															Upload Employee Image *
 														</label>
-														{id !== null ? 
-														<img src={employee_image} className={styles.employee_image}/>
-														:
-														<Dropzone getUploadParams={this.getImageUploadParams} onChangeStatus={this.imageChangeStatus} {...dropDownProps} /> }
+														{id !== null ?
+															<div className={styles.employeeImageModify}>
+																<img src={employee_image} className={styles.employee_image} />
+																{editableEmpInfo === true && (
+																<>
+																<Button variant="outline"
+																	leftIcon={imageContainer ? <i class="fa fa-trash-o" aria-hidden="true" /> : <i class="fa fa-pencil" aria-hidden="true" />}
+																	colorScheme={imageContainer ? "red" : "purple"}
+																	className={styles.modifyButton}
+																	onClick={() => this.setState({ imageContainer: !imageContainer })}
+																>
+																	{imageContainer ? "Remove" : "Add New Image"}
+																</Button>
+																{imageContainer === true && (
+																	<Dropzone getUploadParams={this.getModifyImageUploadParams} onChangeStatus={this.modifyImageChangeStatus} {...dropDownProps} />
+																)}
+																</>
+																)}
+															</div>
+															: ""}
+														{id === null ?
+															<Dropzone getUploadParams={this.getImageUploadParams} onChangeStatus={this.imageChangeStatus} {...dropDownProps} />
+															: ""}
 													</div>
 													<div className={styles.inputHolder}>
 														<CustomInput label="Name *" name="employee_name" type="text" editable={id !== null ? editableEmpInfo : !editableEmpInfo} />
@@ -499,15 +548,15 @@ class Create extends React.Component {
 										<Container {...containerProps} mb={"20px"}>
 											<p className={styles.title}>
 												<div>Personal Details</div>
-													{id !== null &&
-														<Button isLoading={loadingPerInfo} variant="outline"
+												{id !== null &&
+													<Button isLoading={loadingPerInfo} variant="outline"
 														leftIcon={editablePerInfo ? <i class="fa fa-floppy-o" aria-hidden="true" /> : <i class="fa fa-pencil" aria-hidden="true" />}
 														colorScheme="purple"
-														onClick={() => {editablePerInfo === true && handleSubmit(), this.setState({editablePerInfo: !editablePerInfo})}}
+														onClick={() => { editablePerInfo === true && handleSubmit(), this.setState({ editablePerInfo: !editablePerInfo }) }}
 													>
 														{editablePerInfo ? "Save" : "Edit"}
 													</Button>
-													}
+												}
 											</p>
 											<div>
 												<div className={styles.inputHolder}>
@@ -594,9 +643,9 @@ class Create extends React.Component {
 												<div>Current Position</div>
 												{id !== null &&
 													<Button isLoading={loadingPosiInfo} variant="outline"
-														leftIcon={editablePosiInfo ? <i class="fa fa-floppy-o" aria-hidden="true" /> : <i class="fa fa-pencil" aria-hidden="true" />} 
+														leftIcon={editablePosiInfo ? <i class="fa fa-floppy-o" aria-hidden="true" /> : <i class="fa fa-pencil" aria-hidden="true" />}
 														colorScheme="purple" 
-														onClick={() => {editablePosiInfo === true && handleSubmit(), this.setState({editablePosiInfo: !editablePosiInfo})}}
+														onClick={() => {editablePosiInfo === true && handleSubmit(), this.setState({ editablePosiInfo: !editablePosiInfo }) }}
 													>
 														{editablePosiInfo ? "Save" : "Edit"}
 													</Button>
@@ -673,15 +722,15 @@ class Create extends React.Component {
 										<Container {...containerProps} mb={"20px"}>
 											<p className={styles.title}>
 												<div>Education Details</div>
-													{id != null &&
-														<Button isLoading={loadingEducaInfo} variant="outline"
-														leftIcon={editableEducaInfo ? <i class="fa fa-floppy-o" aria-hidden="true" /> : <i class="fa fa-pencil" aria-hidden="true" />} 
-														colorScheme="purple" 
-														onClick={() => {editableEducaInfo === true && handleSubmit(), this.setState({editableEducaInfo: !editableEducaInfo})}}
+												{id != null &&
+													<Button isLoading={loadingEducaInfo} variant="outline"
+														leftIcon={editableEducaInfo ? <i class="fa fa-floppy-o" aria-hidden="true" /> : <i class="fa fa-pencil" aria-hidden="true" />}
+														colorScheme="purple"
+														onClick={() => { editableEducaInfo === true && handleSubmit(), this.setState({ editableEducaInfo: !editableEducaInfo }) }}
 													>
 														{editableEducaInfo ? "Save" : "Edit"}
 													</Button>
-													}
+												}
 											</p>
 											<div>
 												<div className={styles.inputHolder}>
@@ -698,15 +747,15 @@ class Create extends React.Component {
 										<Container {...containerProps} pb={"20px"} mb={"20px"}>
 											<p className={styles.title}>
 												<div>Employee Identity</div>
-													{id !== null &&
-														<Button isLoading={loadingIdenInfo } variant="outline"
-														leftIcon={editableIdenInfo ? <i class="fa fa-floppy-o" aria-hidden="true" /> : <i class="fa fa-pencil" aria-hidden="true" />} 
-														colorScheme="purple" 
-														onClick={() => {editableIdenInfo === true && handleSubmit(), this.setState({editableIdenInfo: !editableIdenInfo})}}
+												{id !== null &&
+													<Button isLoading={loadingIdenInfo} variant="outline"
+														leftIcon={editableIdenInfo ? <i class="fa fa-floppy-o" aria-hidden="true" /> : <i class="fa fa-pencil" aria-hidden="true" />}
+														colorScheme="purple"
+														onClick={() => { editableIdenInfo === true && handleSubmit(), this.setState({ editableIdenInfo: !editableIdenInfo }) }}
 													>
 														{editableIdenInfo ? "Save" : "Edit"}
 													</Button>
-													}
+												}
 											</p>
 
 											<div>
@@ -717,7 +766,7 @@ class Create extends React.Component {
 															id: m.id,
 															value: m.value
 														}))}
-														name="payment_type"
+														name={editableIdenInfo ? "payment_type" : "payment_name"}
 														type="text"
 														method="switch"
 														editable={id !== null ? editableIdenInfo : !editableIdenInfo}
@@ -739,129 +788,129 @@ class Create extends React.Component {
 														{doc.map((m) => (
 															<>
 																<div className={styles.inputHolder} style={{ marginBottom: 0 }}>
-																<CustomInput label="Card Type" name="card_type" value={m.card_type === '1' ? "Adhaar Card" : m.card_type === '2' ? "License" : m.card_type === '3' ? "Voter ID" : "pan card"} type="text" method="readonly" containerStyle={{ marginTop: 30, marginBottom: 30 }}  />
+																	<CustomInput label="Card Type" name="card_type" value={m.card_type === '1' ? "Adhaar Card" : m.card_type === '2' ? "License" : m.card_type === '3' ? "Voter ID" : "pan card"} type="text" method="readonly" containerStyle={{ marginTop: 30, marginBottom: 30 }} />
 																</div>
 																<div className={styles.inputHolder} >
 																	<CustomInput label="Card Number" name={`card_no`} value={m.card_number} type="text" method="readonly" containerStyle={{ marginBottom: 0 }} />
-																	<CustomInput label="Name in Card" name={`card_name`} value={m.card_name} type="text" method="readonly" containerStyle={{ marginBottom: 0 }}  />
+																	<CustomInput label="Name in Card" name={`card_name`} value={m.card_name} type="text" method="readonly" containerStyle={{ marginBottom: 0 }} />
 																	<br />
 																</div>
 																<div>
-																	<img src={m.file} className={styles.employee_image}/>
+																	<img src={m.file} className={styles.employee_image} />
 																</div>
 															</>
 														))}
 													</div>
 												)}
-												{editableIdenInfo === true || id === null ?  
-												<FieldArray name="files">
-													{fieldArrayProps => {
-														const { push, remove, form } = fieldArrayProps
-														const { values } = form
-														const { files } = values;
-														return <div>
-															{files.map((file, index) => (
-																<>
-																	<div className={styles.inputHolder} key={index} style={{ marginBottom: 0 }}>
-																		<CustomInput label="New ID Card Type" values={IdCardType.map((d) => ({ id: d.id, value: d.value }))} name={`files[${index}].id_card`} type="text" method="switch" containerStyle={{ marginTop: 30, marginBottom: 30 }} editable={id !== null ? editableIdenInfo : !editableIdenInfo} />
-																	</div>
-																	
-																	{files[0].id_card && files[index].id_card === "1" && (
-																		<>
-																			<div className={styles.inputHolder} key={index}>
-																				<CustomInput label="Adhaar Card Number" name={`files[${index}].id_card_no`} type="text" containerStyle={{ marginBottom: 0 }} editable={id !== null ? editableIdenInfo : !editableIdenInfo} />
-																				<CustomInput label="Name in Adhaar Card" name={`files[${index}].id_card_name`} type="text" containerStyle={{ marginBottom: 0 }} editable={id !== null ? editableIdenInfo : !editableIdenInfo} />
-																				<br />
-																			</div>
-																			<div className={styles.uploadHolder} style={{ marginTop: 30 }}>
-																				<label className={styles.uploaderTitle} for="subUploadID">
-																					Upload ID *
-																				</label>
-																				<Dropzone getUploadParams={this.adhaarUploadParams} onChangeStatus={this.adhaarChangeStatus} {...dropDownProps} />
-																			</div>
-																		</>
-																	)}
-																	{files[0].id_card && files[index].id_card === "2" && (
-																		<>
-																			<div className={styles.inputHolder} key={index}>
-																				<CustomInput label="Driving license Number" name={`files[${index}].id_card_no`} type="text" containerStyle={{ marginBottom: 0 }} editable={id !== null ? editableIdenInfo : !editableIdenInfo} />
-																				<CustomInput label="Name in Driving License" name={`files[${index}].id_card_name`} type="text" containerStyle={{ marginBottom: 0 }} editable={id !== null ? editableIdenInfo : !editableIdenInfo} />
-																				<CustomInput label="Expiry Date" name={`files[${index}].expiry_date`} type="text" method="datepicker" containerStyle={{ marginBottom: 0 }} editable={id !== null ? editableIdenInfo : !editableIdenInfo} />
-																				<br />
-																			</div>
-																			<div className={styles.uploadHolder} style={{ marginTop: 30 }}>
-																				<label className={styles.uploaderTitle} for="subUploadID">
-																					Upload ID *
-																				</label>
-																				<Dropzone getUploadParams={this.licenseUploadParams} onChangeStatus={this.licenseChangeStatus} {...dropDownProps} />
-																			</div>
-																		</>
-																	)}
-																	{files[0].id_card && files[index].id_card === "3" && (
-																		<>
-																			<div className={styles.inputHolder} key={index}>
-																				<CustomInput label="Voter Id Number" name={`files[${index}].id_card_no`} type="text" containerStyle={{ marginBottom: 0 }} editable={id !== null ? editableIdenInfo : !editableIdenInfo} />
-																				<CustomInput label="Name in Voter Id" name={`files[${index}].id_card_name`} type="text" containerStyle={{ marginBottom: 0 }} editable={id !== null ? editableIdenInfo : !editableIdenInfo} />
-																				<br />
-																			</div>
-																			<div className={styles.uploadHolder} style={{ marginTop: 30 }}>
-																				<label className={styles.uploaderTitle} for="subUploadID">
-																					Upload ID *
-																				</label>
-																				<Dropzone getUploadParams={this.voterIdUploadParams} onChangeStatus={this.voterIdChangeStatus} {...dropDownProps} />
-																			</div>
-																		</>
-																	)}
-																	{files[0].id_card && files[index].id_card === "4" && (
-																		<>
-																			<div className={styles.inputHolder} key={index}>
-																				<CustomInput label="Pan Number" name={`files[${index}].id_card_no`} type="text" containerStyle={{ marginBottom: 0 }} editable={id !== null ? editableIdenInfo : !editableIdenInfo} />
-																				<CustomInput label="Name in Pan" name={`files[${index}].id_card_name`} type="text" containerStyle={{ marginBottom: 0 }} editable={id !== null ? editableIdenInfo : !editableIdenInfo} />
-																				<br />
-																			</div>
-																			<div className={styles.uploadHolder} style={{ marginTop: 30 }}>
-																				<label className={styles.uploaderTitle} for="subUploadID">
-																					Upload ID *
-																				</label>
-																				<Dropzone getUploadParams={this.voterIdUploadParams} onChangeStatus={this.voterIdChangeStatus} {...dropDownProps} />
-																			</div>
-																		</>
-																	)}
-																	<br />
-																	{index > 0 && (
-																		<Button className={styles.button} isLoading={loading} loadingText="Generating" colorScheme="red" onClick={() => remove(index)}>
-																			{"Remove"}
+												{editableIdenInfo === true || id === null ?
+													<FieldArray name="files">
+														{fieldArrayProps => {
+															const { push, remove, form } = fieldArrayProps
+															const { values } = form
+															const { files } = values;
+															return <div>
+																{files.map((file, index) => (
+																	<>
+																		<div className={styles.inputHolder} key={index} style={{ marginBottom: 0 }}>
+																			<CustomInput label="New ID Card Type" values={IdCardType.map((d) => ({ id: d.id, value: d.value }))} name={`files[${index}].id_card`} type="text" method="switch" containerStyle={{ marginTop: 30, marginBottom: 30 }} editable={id !== null ? editableIdenInfo : !editableIdenInfo} />
+																		</div>
+
+																		{files[0].id_card && files[index].id_card === "1" && (
+																			<>
+																				<div className={styles.inputHolder} key={index}>
+																					<CustomInput label="Adhaar Card Number" name={`files[${index}].id_card_no`} type="text" containerStyle={{ marginBottom: 0 }} editable={id !== null ? editableIdenInfo : !editableIdenInfo} />
+																					<CustomInput label="Name in Adhaar Card" name={`files[${index}].id_card_name`} type="text" containerStyle={{ marginBottom: 0 }} editable={id !== null ? editableIdenInfo : !editableIdenInfo} />
+																					<br />
+																				</div>
+																				<div className={styles.uploadHolder} style={{ marginTop: 30 }}>
+																					<label className={styles.uploaderTitle} for="subUploadID">
+																						Upload ID *
+																					</label>
+																					<Dropzone getUploadParams={this.adhaarUploadParams} onChangeStatus={this.adhaarChangeStatus} {...dropDownProps} />
+																				</div>
+																			</>
+																		)}
+																		{files[0].id_card && files[index].id_card === "2" && (
+																			<>
+																				<div className={styles.inputHolder} key={index}>
+																					<CustomInput label="Driving license Number" name={`files[${index}].id_card_no`} type="text" containerStyle={{ marginBottom: 0 }} editable={id !== null ? editableIdenInfo : !editableIdenInfo} />
+																					<CustomInput label="Name in Driving License" name={`files[${index}].id_card_name`} type="text" containerStyle={{ marginBottom: 0 }} editable={id !== null ? editableIdenInfo : !editableIdenInfo} />
+																					<CustomInput label="Expiry Date" name={`files[${index}].expiry_date`} type="text" method="datepicker" containerStyle={{ marginBottom: 0 }} editable={id !== null ? editableIdenInfo : !editableIdenInfo} />
+																					<br />
+																				</div>
+																				<div className={styles.uploadHolder} style={{ marginTop: 30 }}>
+																					<label className={styles.uploaderTitle} for="subUploadID">
+																						Upload ID *
+																					</label>
+																					<Dropzone getUploadParams={this.licenseUploadParams} onChangeStatus={this.licenseChangeStatus} {...dropDownProps} />
+																				</div>
+																			</>
+																		)}
+																		{files[0].id_card && files[index].id_card === "3" && (
+																			<>
+																				<div className={styles.inputHolder} key={index}>
+																					<CustomInput label="Voter Id Number" name={`files[${index}].id_card_no`} type="text" containerStyle={{ marginBottom: 0 }} editable={id !== null ? editableIdenInfo : !editableIdenInfo} />
+																					<CustomInput label="Name in Voter Id" name={`files[${index}].id_card_name`} type="text" containerStyle={{ marginBottom: 0 }} editable={id !== null ? editableIdenInfo : !editableIdenInfo} />
+																					<br />
+																				</div>
+																				<div className={styles.uploadHolder} style={{ marginTop: 30 }}>
+																					<label className={styles.uploaderTitle} for="subUploadID">
+																						Upload ID *
+																					</label>
+																					<Dropzone getUploadParams={this.voterIdUploadParams} onChangeStatus={this.voterIdChangeStatus} {...dropDownProps} />
+																				</div>
+																			</>
+																		)}
+																		{files[0].id_card && files[index].id_card === "4" && (
+																			<>
+																				<div className={styles.inputHolder} key={index}>
+																					<CustomInput label="Pan Number" name={`files[${index}].id_card_no`} type="text" containerStyle={{ marginBottom: 0 }} editable={id !== null ? editableIdenInfo : !editableIdenInfo} />
+																					<CustomInput label="Name in Pan" name={`files[${index}].id_card_name`} type="text" containerStyle={{ marginBottom: 0 }} editable={id !== null ? editableIdenInfo : !editableIdenInfo} />
+																					<br />
+																				</div>
+																				<div className={styles.uploadHolder} style={{ marginTop: 30 }}>
+																					<label className={styles.uploaderTitle} for="subUploadID">
+																						Upload ID *
+																					</label>
+																					<Dropzone getUploadParams={this.voterIdUploadParams} onChangeStatus={this.voterIdChangeStatus} {...dropDownProps} />
+																				</div>
+																			</>
+																		)}
+																		<br />
+																		{index > 0 && (
+																			<Button className={styles.button} isLoading={loading} loadingText="Generating" colorScheme="red" onClick={() => remove(index)}>
+																				{"Remove"}
+																			</Button>
+																		)}
+																		{index <= 0 && (
+																			<Button className={styles.button} isLoading={loading} loadingText="Generating" isDisabled={true} colorScheme="red" onClick={() => remove(index)}>
+																				{"Remove"}
+																			</Button>
+																		)}
+																		<Button isLoading={loading} loadingText="Generating" colorScheme="purple" onClick={() => push('')}>
+																			{"Add"}
 																		</Button>
-																	)}
-																	{index <= 0 && (
-																		<Button className={styles.button} isLoading={loading} loadingText="Generating" isDisabled={true} colorScheme="red" onClick={() => remove(index)}>
-																			{"Remove"}
-																		</Button>
-																	)}
-																	<Button isLoading={loading} loadingText="Generating" colorScheme="purple" onClick={() => push('')}>
-																		{"Add"}
-																	</Button>
-																</>
-															))}
-														</div>
-													}}
-												</FieldArray>
-												: ""}
+																	</>
+																))}
+															</div>
+														}}
+													</FieldArray>
+													: ""}
 											</div>
 										</Container>
 
 										<Container {...containerProps} mb={"20px"}>
 											<p className={styles.title}>
 												<div>PF & ESI</div>
-													{id !== null &&
+												{id !== null &&
 													<Button isLoading={loadingPFInfo} variant="outline"
-														leftIcon={editablePFInfo ? <i class="fa fa-floppy-o" aria-hidden="true" /> : <i class="fa fa-pencil" aria-hidden="true" />} 
-														colorScheme="purple" 
-														onClick={() => {editablePFInfo === true && handleSubmit(), this.setState({editablePFInfo: !editablePFInfo})}}
+														leftIcon={editablePFInfo ? <i class="fa fa-floppy-o" aria-hidden="true" /> : <i class="fa fa-pencil" aria-hidden="true" />}
+														colorScheme="purple"
+														onClick={() => { editablePFInfo === true && handleSubmit(), this.setState({ editablePFInfo: !editablePFInfo }) }}
 													>
 														{editablePFInfo ? "Save" : "Edit"}
 													</Button>
-													}
+												}
 											</p>
 
 											<div>
@@ -869,16 +918,16 @@ class Create extends React.Component {
 													<div className={styles.inputHolder}>
 														<CustomInput label="PAN No *" name="pan_no" type="text" editable={id !== null ? editablePFInfo : !editablePFInfo} />
 													</div>
-													{id !== null ? 
-													<div className={styles.switchHolder}>
-													<label>PF Number & UAN Number</label>
-													<Switch className={styles.switch} id="email-alerts" isChecked={true} isDisabled={true} onChange={() => this.setState({ pfToggle: true })} />
-													</div>
-													:
-													<div className={styles.switchHolder}>
-														<label>PF Number & UAN Number</label>
-														<Switch className={styles.switch} id="email-alerts" onChange={() => this.setState({ pfToggle: !pfToggle })} />
-													</div>
+													{id !== null ?
+														<div className={styles.switchHolder}>
+															<label>PF Number & UAN Number</label>
+															<Switch className={styles.switch} id="email-alerts" isChecked={true} isDisabled={true} onChange={() => this.setState({ pfToggle: true })} />
+														</div>
+														:
+														<div className={styles.switchHolder}>
+															<label>PF Number & UAN Number</label>
+															<Switch className={styles.switch} id="email-alerts" onChange={() => this.setState({ pfToggle: !pfToggle })} />
+														</div>
 													}
 												</div>
 												{pfToggle === true || id !== null ? (
@@ -889,17 +938,17 @@ class Create extends React.Component {
 												) : ""}
 
 												{id !== null ?
-												<div className={styles.switchHolder}>
-												<label>ESI Number</label>
-												<Switch className={styles.switch} id="email-alerts" isChecked={true} isDisabled={true} onChange={() => this.setState({ esiToggle: !esiToggle })} />
-												</div>
-											 	: 
-												<div className={styles.switchHolder}>
-													<label>ESI Number</label>
-													<Switch className={styles.switch} id="email-alerts" onChange={() => this.setState({ esiToggle: !esiToggle })} />
-												</div>
+													<div className={styles.switchHolder}>
+														<label>ESI Number</label>
+														<Switch className={styles.switch} id="email-alerts" isChecked={true} isDisabled={true} onChange={() => this.setState({ esiToggle: !esiToggle })} />
+													</div>
+													:
+													<div className={styles.switchHolder}>
+														<label>ESI Number</label>
+														<Switch className={styles.switch} id="email-alerts" onChange={() => this.setState({ esiToggle: !esiToggle })} />
+													</div>
 												}
-												{esiToggle === true || id !== null ?  (
+												{esiToggle === true || id !== null ? (
 													<div className={styles.inputHolder}>
 														<CustomInput label="ESI Number *" name="esi_number" type="text" editable={id !== null ? editablePFInfo : !editablePFInfo} />
 													</div>
@@ -911,9 +960,9 @@ class Create extends React.Component {
 												<div>Salary Details</div>
 												{id !== null &&
 													<Button isLoading={loadingSalInfo} variant="outline"
-														leftIcon={editableSalInfo ? <i class="fa fa-floppy-o" aria-hidden="true" /> : <i class="fa fa-pencil" aria-hidden="true" />} 
-														colorScheme="purple" 
-														onClick={() => {editableSalInfo === true && handleSubmit(), this.setState({editableSalInfo: !editableSalInfo})}}
+														leftIcon={editableSalInfo ? <i class="fa fa-floppy-o" aria-hidden="true" /> : <i class="fa fa-pencil" aria-hidden="true" />}
+														colorScheme="purple"
+														onClick={() => { editableSalInfo === true && handleSubmit(), this.setState({ editableSalInfo: !editableSalInfo }) }}
 													>
 														{editableSalInfo ? "Save" : "Edit"}
 													</Button>
@@ -926,13 +975,13 @@ class Create extends React.Component {
 										</Container>
 										<br />
 										<Container {...containerProps} pb={"20px"}>
-										<p className={styles.title}>
+											<p className={styles.title}>
 												<div>Others</div>
 												{id !== null &&
 													<Button isLoading={loadingOtherInfo} variant="outline"
-														leftIcon={editableOtherInfo ? <i class="fa fa-floppy-o" aria-hidden="true" /> : <i class="fa fa-pencil" aria-hidden="true" />} 
-														colorScheme="purple" 
-														onClick={() => {editableOtherInfo === true && handleSubmit(), this.setState({editableOtherInfo: !editableOtherInfo})}}
+														leftIcon={editableOtherInfo ? <i class="fa fa-floppy-o" aria-hidden="true" /> : <i class="fa fa-pencil" aria-hidden="true" />}
+														colorScheme="purple"
+														onClick={() => { editableOtherInfo === true && handleSubmit(), this.setState({ editableOtherInfo: !editableOtherInfo }) }}
 													>
 														{editableOtherInfo ? "Save" : "Edit"}
 													</Button>
@@ -962,20 +1011,20 @@ class Create extends React.Component {
 												/>
 											</div>
 											{id === null && (
-											<ButtonGroup
-												spacing="6"
-												mt={10}
-												style={{
-													display: "flex",
-													// width: "100%",
-													justifyContent: "flex-end",
-												}}
-											>
-												<Button>Cancel</Button>
-												<Button isLoading={loading} loadingText="Submitting" colorScheme="purple" onClick={() => handleSubmit()}>
-													{"Create"}
-												</Button>
-											</ButtonGroup>
+												<ButtonGroup
+													spacing="6"
+													mt={10}
+													style={{
+														display: "flex",
+														// width: "100%",
+														justifyContent: "flex-end",
+													}}
+												>
+													<Button>Cancel</Button>
+													<Button isLoading={loading} loadingText="Submitting" colorScheme="purple" onClick={() => handleSubmit()}>
+														{"Create"}
+													</Button>
+												</ButtonGroup>
 											)}
 										</Container>
 									</Container>
