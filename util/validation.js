@@ -86,3 +86,18 @@ export const BranchValidation = Yup.object({
 	.required("Fill Contact Number"),
 	address: Yup.string().nullable().required("Fill Address"),
 });
+export const CompanyDetailsValidation = Yup.object({
+	company_name: Yup.string().nullable().required("Fill Company Name"),
+	contact_number: Yup.number()
+	.nullable()
+	.typeError("Must be a number")
+	.min(123456789, "Must be 9 or More")
+	.max(12345678900, "Must be 10 characters or less")
+	.required("Fill Contact Number"),
+	address: Yup.string().nullable().required("Fill Address"),
+	gst: Yup.string().nullable().required("Fill GST"),
+	tan: Yup.string().nullable().required("Fill TAN"),
+	pan: Yup.string().nullable().required("Fill PAN"),
+	ps: Yup.string().nullable().required("Fill PS"),
+	esi: Yup.string().nullable().required("Fill ESI"),
+});

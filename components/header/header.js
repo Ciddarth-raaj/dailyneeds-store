@@ -12,6 +12,7 @@ export default class Header extends React.Component {
                 company: {
                     title: "Company Details",
                     icon: "fa fa-building-o",
+                    link: "/company-details",
                 },
                 branch: {
                     title: "Branch Details",

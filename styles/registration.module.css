@@ -269,6 +269,15 @@
 	justify-content: space-between;
 	padding-right: 10px;
 }
+.buttoninputHolder {
+	display: flex;
+	justify-content: space-between;
+	width: 100%;
+}
+
+.hidden {
+	visibility: hidden;
+}
 
 @media (max-width: 600px) {
 	.responsive{
