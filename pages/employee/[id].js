@@ -223,14 +223,14 @@ class Create extends React.Component {
 		})
 			.then((data) => {
 				if (data.code == 200) {
-					toast.success("Employee verified!");
+					toast.success("Employee details Updated!");
 				} else {
 					throw "error";
 				}
 			})
 			.catch((err) => {
 				console.log(err);
-				alert("Error verifying seller!");
+				alert("Error Updating Employee details!");
 			});
 	}
 

@@ -16,19 +16,19 @@ function shiftView() {
         dob_1: "",
         dob_2: "",
     };
-    const image = (
+    const image = (m) => (
         <div style={{ display: "flex", justifyContent: "center" }}>
-            <img src={"/assets/edit.png"} className={styles.icon} />
+            <img src={"/assets/edit.png"} onClick={() => window.location = `/shift/${m}`} className={styles.icon} />
         </div>
     );
 
     const table_title = {
         id: "Shift Id",
         name: "Shift Name",
-        action: "Action",
         start_time: "Start Time",
+        end_time: "End Time",       
         status: "Status",
-        end_time: "End Time"
+        action: "Action",
     };
 
     const [
@@ -53,7 +53,7 @@ function shiftView() {
             start_time: m.start_time,
             end_time: m.end_time,
             status: m.status ? "Active" : "In Active",
-            action: image,
+            action: image(m.id),
         }
     ));
 
