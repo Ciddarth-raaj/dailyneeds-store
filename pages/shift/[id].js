@@ -4,7 +4,7 @@ import { Container, ButtonGroup, Button, CheckboxGroup, Grid, Checkbox } from "@
 import React from "react";
 import { toast } from "react-toastify";
 import FormikErrorFocus from "formik-error-focus";
-import { withRouter  } from "next/router";
+import { withRouter } from "next/router";
 //Styles
 import styles from "../../styles/create.module.css";
 
@@ -32,9 +32,11 @@ class CreateShift extends React.Component {
 
 	createShift(values) {
 		this.setState({ loading: true });
+		values.shift_in_time = moment(values.shift_in_time).format("hh:mm:ss");
+		values.shift_out_time = moment(values.shift_out_time).format("hh:mm:ss");
 		ShiftHelper.createShift(values)
 			.then((data) => {
-				console.log({data:data});
+				console.log({ data: data });
 				if (data.code == 200) {
 					toast.success("Successfully Creating Shift!");
 				} else {
@@ -48,16 +50,16 @@ class CreateShift extends React.Component {
 			.finally(() => this.setState({ loading: false }));
 	}
 	updateShift(values) {
-		values.shift_in_time = moment(values.shift_in_time).format("hh:mm:ss");
-		values.shift_out_time = moment(values.shift_out_time).format("hh:mm:ss");
-        const { shift_id } = this.props.data[0];
+		// values.shift_in_time = moment(values.shift_in_time).format("hh:mm:ss");
+		// values.shift_out_time = moment(values.shift_out_time).format("hh:mm:ss");
+		const { shift_id } = this.props.data[0];
 		this.setState({ loading: true });
 		ShiftHelper.updateShift({
-            shift_id: shift_id,
-            shift_details: values
-        })
+			shift_id: shift_id,
+			shift_details: values
+		})
 			.then((data) => {
-				console.log({Data: data});
+				console.log({ Data: data });
 				if (data.code === 200) {
 					toast.success("Successfully Updated Shift!");
 				} else {
@@ -70,15 +72,15 @@ class CreateShift extends React.Component {
 	}
 	render() {
 		const { loading, shift } = this.state;
-		const { id } = this.props; 	
+		const { id } = this.props;
 		return (
 			<GlobalWrapper title="Shift">
 				<Head />
 				<Formik
 					initialValues={{
 						shift_name: this.props.data[0]?.shift_name,
-						shift_in_time: this.props.data[0]?.shift_in_time,
-						shift_out_time: this.props.data[0]?.shift_out_time,
+						shift_in_time: this.props.data[0]?.shift_in_time || null,
+						shift_out_time: this.props.data[0]?.shift_out_time || null,
 						status: this.props.data[0]?.status,
 					}}
 					validationSchema={ShiftValidation}
@@ -92,9 +94,9 @@ class CreateShift extends React.Component {
 							<Form onSubmit={formikProps.handleSubmit}>
 								<FormikErrorFocus align={"middle"} ease={"linear"} duration={200} />
 								<Container maxW="container.xl" className={styles.container} pb={"40px"} boxShadow="lg">
-									{id !== null ? 
-									<p>Update Shift</p> :
-									<p>Add New Shiftt</p>}
+									{id !== null ?
+										<p>Update Shift</p> :
+										<p>Add New Shiftt</p>}
 									<div className={styles.wrapper}>
 										<div className={styles.inputHolder}>
 											<CustomInput label="Shift Name" name="shift_name" type="text" />
@@ -115,16 +117,16 @@ class CreateShift extends React.Component {
 												method="switch"
 											/>
 										</div>
-                                        <div className={styles.dateHolder}>
+										<div className={styles.dateHolder}>
 											<CustomInput
 												label="Shift start time"
 												name="shift_in_time"
-                                                method="timepicker"
+												method="timepicker"
 											/>
 											<CustomInput
 												label="Shift end time"
-                                                name="shift_out_time"
-                                                method="timepicker"
+												name="shift_out_time"
+												method="timepicker"
 											/>
 										</div>
 										<ButtonGroup
