@@ -101,3 +101,43 @@ export const CompanyDetailsValidation = Yup.object({
 	ps: Yup.string().nullable().required("Fill PS"),
 	esi: Yup.string().nullable().required("Fill ESI"),
 });
+export const ProductItemsValidation = Yup.object({
+	id: Yup.number().nullable().required("Fill Id"),
+	name: Yup.string().nullable().required("Fill Name"),
+	brand_name: Yup.string().nullable().required("Fill Brand Name"),
+	combo_name: Yup.string().nullable().required("Fill Combo Name"),
+	department_name: Yup.string().nullable().required("Fill Department Name"),
+	category_name: Yup.string().nullable().required("Fill Category Name"),
+	subcategory_name: Yup.string().nullable().required("Fill Sub Category Name"),
+	distributor: Yup.string().nullable().required("Fill Distributor"),
+	distributor_name: Yup.string().nullable().required("Fill Distributor Name"),
+	manufacturer_name: Yup.string().nullable().required("Fill Manufacturer Name"),
+	flavours: Yup.string().nullable().required("Fill Flavours"),
+	measure: Yup.string().nullable().required("Fill Measure"),
+	measure_in: Yup.string().nullable().required("Fill Measure In"),
+	packaging_type: Yup.string().nullable().required("Fill Packaging Type"),
+	preparation_type: Yup.string().nullable().required("Fill Preparation Type"),
+	cleaning: Yup.number().nullable().required("Fill Cleaning"),
+	sticker: Yup.number().nullable().required("Fill Sticker"),
+	grinding: Yup.number().nullable().required("Fill Grinding"),
+	cover_type: Yup.number().nullable().required("Fill Cover Type"),
+	cover_size: Yup.number().nullable().required("Fill Cover Size"),
+	tax_id: Yup.string().nullable().required("Fill Tax Id"),
+	hsn_code: Yup.string().nullable().required("Fill HSN Code"),
+	status: Yup.string().nullable().required("Fill Status"),
+	is_online_allowed: Yup.number().nullable().required("Fill Alllowed Online"),
+	life_cucle: Yup.string().nullable().required("Fill Life Cycle"),
+});
+export const EmployeeFamilyValidation = Yup.object({
+	name: Yup.string().nullable().required("Fill Name"),
+	dob: Yup.string()
+		.nullable()
+		.max(new Date(), "Must be 15 characters or less")
+		.required("Fill Date of birth"),
+	gender: Yup.string().nullable().required("Choose Gender"),
+	blood_group: Yup.string().nullable().required("Choose BloodGroup"),
+	relation: Yup.string().nullable().required("Choose Relation"),
+	copy_address: Yup.string().nullable().required("Choose Address"),
+	profession: Yup.string().nullable().required("Fill Profession"),
+	nationality: Yup.string().nullable().required("Choose Nationality"),
+});
