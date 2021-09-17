@@ -169,7 +169,7 @@ class Create extends React.Component {
 
 	updateEmployee = async (values) => {
 		try {
-			if (this.state.modifiedImageHolder !== "") {
+			if(this.state.modifiedImageHolder.length !== 0) {
 				const Modifiedarray = [];
 				Modifiedarray.push(await FilesHelper.upload(
 					this.state.modifiedImageHolder,
