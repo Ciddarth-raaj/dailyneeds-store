@@ -128,3 +128,16 @@ export const ProductItemsValidation = Yup.object({
 	is_online_allowed: Yup.number().nullable().required("Fill Alllowed Online"),
 	life_cucle: Yup.string().nullable().required("Fill Life Cycle"),
 });
+export const EmployeeFamilyValidation = Yup.object({
+	name: Yup.string().nullable().required("Fill Name"),
+	dob: Yup.string()
+		.nullable()
+		.max(new Date(), "Must be 15 characters or less")
+		.required("Fill Date of birth"),
+	gender: Yup.string().nullable().required("Choose Gender"),
+	blood_group: Yup.string().nullable().required("Choose BloodGroup"),
+	relation: Yup.string().nullable().required("Choose Relation"),
+	copy_address: Yup.string().nullable().required("Choose Address"),
+	profession: Yup.string().nullable().required("Fill Profession"),
+	nationality: Yup.string().nullable().required("Choose Nationality"),
+});
