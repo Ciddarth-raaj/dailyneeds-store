@@ -32,7 +32,10 @@ class Create extends React.Component {
 	constructor(props) {
 		super(props);
 		this.state = {
+			card_name_change: false,
+			card_number_change: false,
 			imageContainer: false,
+			idContainer: false,
 			employee_image: props.data[0]?.employee_image,
 			loading: false,
 			department: [],
@@ -43,6 +46,10 @@ class Create extends React.Component {
 			subUploadId: [],
 			licenseHolder: [],
 			modifiedImageHolder: [],
+			modifiedAdhaarHolder: [],
+			modifiedLicenseHolder: [],
+			modifiedVoterHolder: [],
+			modifiedPanHolder: [],
 			adhaarHolder: [],
 			voterHolder: [],
 			subIdHolder: [],
@@ -69,7 +76,7 @@ class Create extends React.Component {
 			loadingPFInfo: false,
 			loadingSalInfo: false,
 			loadingOtherInfo: false,
-			id: props.id,
+			id: props.id
 		};
 	}
 
@@ -178,6 +185,43 @@ class Create extends React.Component {
 				));
 				values.modified_employee_image = Modifiedarray.length > 0 ? Modifiedarray[0].remoteUrl : "";
 			}
+			if(this.state.modifiedAdhaarHolder.length !== 0) {
+				const ModifiedAdhaararray = [];
+				ModifiedAdhaararray.push(await FilesHelper.upload(
+					this.state.modifiedAdhaarHolder,
+					"modifiedAdhaarImage",
+					"dashboard_file"
+				));
+				
+				values.docupdate[0].file = ModifiedAdhaararray.length > 0 ? ModifiedAdhaararray[0].remoteUrl : "";
+			}
+			if(this.state.modifiedLicenseHolder.length !== 0) {
+				const ModifiedLicensearray = [];
+				ModifiedLicensearray.push(await FilesHelper.upload(
+					this.state.modifiedLicenseHolder,
+					"modifiedLicenseImage",
+					"dashboard_file"
+				));
+				values.docupdate[1].file = ModifiedLicensearray.length > 0 ? ModifiedLicensearray[0].remoteUrl : "";
+			}
+			if(this.state.modifiedVoterHolder.length !== 0) {
+				const ModifiedVoterarray = [];
+				ModifiedVoterarray.push(await FilesHelper.upload(
+					this.state.modifiedVoterHolder,
+					"modifiedVoterImage",
+					"dashboard_file"
+				));
+				values.docupdate[2].file = ModifiedVoterarray.length > 0 ? ModifiedVoterarray[0].remoteUrl : "";
+			}
+			if(this.state.modifiedPanHolder.length !== 0) {
+				const ModifiedPanarray = [];
+				ModifiedPanarray.push(await FilesHelper.upload(
+					this.state.modifiedPanHolder,
+					"modifiedPanImage",
+					"dashboard_file"
+				));
+				values.docupdate[3].file = ModifiedPanarray.length > 0 ? ModifiedPanarray[0].remoteUrl : "";
+			}
 
 			if (this.state.licenseHolder !== "") {
 				const Idarray = [];
@@ -222,6 +266,7 @@ class Create extends React.Component {
 		} catch (err) {
 			console.log(err);
 		}
+		
 		values.date_of_joining = moment(values.date_of_joining).format("YYYY-MM-DD");
 		values.dob = moment(values.dob).format("YYYY-MM-DD");
 		const { employee_id } = this.props.data[0];
@@ -244,7 +289,7 @@ class Create extends React.Component {
 			})
 			.catch((err) => {
 				console.log(err);
-				alert("Error Updating Employee details!");
+				toast.error("Error Updating Employee details!");
 			});
 	}
 
@@ -252,11 +297,28 @@ class Create extends React.Component {
 		const { imageHolder } = this.state;
 		return { url: imageHolder };
 	};
-
+	
+	
 	getModifyImageUploadParams = ({ meta }) => {
 		const { modifiedImageHolder } = this.state;
 		return { url: modifiedImageHolder };
 	};
+	getModifyAdhaarUploadParams = ({ meta }) => {
+		const { modifiedAdhaarHolder } = this.state;
+		return { url: modifiedAdhaarHolder };
+	}
+	getModifyLicenseUploadParams = ({ meta }) => {
+		const { modifiedLicenseHolder } = this.state;
+		return { url: modifiedLicenseHolder };
+	}
+	getModifyVoterUploadParams = ({ meta }) => {
+		const { modifiedVoterHolder } = this.state;
+		return { url: modifiedVoterHolder };
+	}
+	getModifyPanUploadParams = ({ meta }) => {
+		const { modifiedPanHolder } = this.state;
+		return { url: modifiedPanHolder };
+	}
 
 	licenseUploadParams = ({ meta }) => {
 		const { licenseHolder } = this.state;
@@ -310,6 +372,42 @@ class Create extends React.Component {
 			}
 		}
 	};
+	modifyAdhaarChangeStatus = async ({ meta, file }, status) => {
+		if (status === "headers_received") {
+			try {
+				this.setState({ modifiedAdhaarHolder: file });
+			} catch (err) {
+				console.log(err);
+			}
+		}
+	};
+	modifyLicenseChangeStatus = async ({ meta, file }, status) => {
+		if (status === "headers_received") {
+			try {
+				this.setState({ modifiedLicenseHolder: file });
+			} catch (err) {
+				console.log(err);
+			}
+		}
+	};
+	modifyVoterChangeStatus = async ({ meta, file }, status) => {
+		if (status === "headers_received") {
+			try {
+				this.setState({ modifiedVoterHolder: file });
+			} catch (err) {
+				console.log(err);
+			}
+		}
+	};
+	modifyPanChangeStatus = async ({ meta, file }, status) => {
+		if (status === "headers_received") {
+			try {
+				this.setState({ modifiedPanHolder: file });
+			} catch (err) {
+				console.log(err);
+			}
+		}
+	};
 	imageChangeStatus = async ({ meta, file }, status) => {
 		if (status === "headers_received") {
 			try {
@@ -353,6 +451,7 @@ class Create extends React.Component {
 			loadingOtherInfo,
 			id,
 			imageContainer,
+			idContainer,
 		} = this.state;
 		const { doc } = this.props;
 		const dropDownProps = {
@@ -362,6 +461,7 @@ class Create extends React.Component {
 					border: "none",
 					borderRadius: "10px",
 					background: "#EEEEEE",
+					marginTop: "10px"
 				},
 				inputLabelWithFiles: {
 					margin: "20px 3%",
@@ -441,6 +541,32 @@ class Create extends React.Component {
 								file: "",
 							},
 						],
+						docupdate: [
+							{
+								card_type: "1",
+								card_name:this.props.doc ? this.props.doc[0]?.card_name : "",
+								card_no: this.props.doc ? this.props.doc[0]?.card_number : "",
+								file: "",
+							},
+							{
+								card_type: "2",
+								card_name: this.props.doc ? this.props.doc[1]?.card_name : "",
+								card_no: this.props.doc ? this.props.doc[1]?.card_number : "",
+								file: "",
+							},
+							{
+								card_type: "3",
+								card_name: this.props.doc ? this.props.doc[2]?.card_name : "",
+								card_no: this.props.doc ? this.props.doc[2]?.card_number : "",
+								file: "",
+							},
+							{
+								card_type: "4",
+								card_name: this.props.doc ? this.props.doc[3]?.card_name : "",
+								card_no: this.props.doc ? this.props.doc[3]?.card_number : "",
+								file: "",
+							},
+						]
 					}}
 					validationSchema={Validation}
 					onSubmit={(values) => {
@@ -751,7 +877,7 @@ class Create extends React.Component {
 													<Button isLoading={loadingIdenInfo} variant="outline"
 														leftIcon={editableIdenInfo ? <i class="fa fa-floppy-o" aria-hidden="true" /> : <i class="fa fa-pencil" aria-hidden="true" />}
 														colorScheme="purple"
-														onClick={() => { editableIdenInfo === true && handleSubmit(), this.setState({ editableIdenInfo: !editableIdenInfo }) }}
+														onClick={() => { editableIdenInfo === true && handleSubmit(), this.setState({ editableIdenInfo: !editableIdenInfo, idContainer: !idContainer }) }}
 													>
 														{editableIdenInfo ? "Save" : "Edit"}
 													</Button>
@@ -785,23 +911,49 @@ class Create extends React.Component {
 												)}
 												{doc !== null && (
 													<div>
-														{doc.map((m) => (
-															<>
+														{doc.map((m, i) => (
+															<>	
 																<div className={styles.inputHolder} style={{ marginBottom: 0 }}>
 																	<CustomInput label="Card Type" name="card_type" value={m.card_type === '1' ? "Adhaar Card" : m.card_type === '2' ? "License" : m.card_type === '3' ? "Voter ID" : "pan card"} type="text" method="readonly" containerStyle={{ marginTop: 30, marginBottom: 30 }} />
 																</div>
 																<div className={styles.inputHolder} >
-																	<CustomInput label="Card Number" name={`card_no`} value={m.card_number} type="text" method="readonly" containerStyle={{ marginBottom: 0 }} />
-																	<CustomInput label="Name in Card" name={`card_name`} value={m.card_name} type="text" method="readonly" containerStyle={{ marginBottom: 0 }} />
+																	<CustomInput label="Card Number" name={`docupdate[${i}].card_no`} type="text" editable={id !== null ? editableIdenInfo : !editableIdenInfo} containerStyle={{ marginBottom: 0 }} />
+																	<CustomInput label="Name in Card" name={`docupdate[${i}].card_name`}  type="text" editable={id !== null ? editableIdenInfo : !editableIdenInfo} containerStyle={{ marginBottom: 0 }} />
 																	<br />
 																</div>
 																<div>
-																	<img src={m.file} className={styles.employee_image} />
+																{id !== null ?
+																<div className={styles.employeeImageModify}>
+																<img src={m.file} className={styles.employee_image} />
+																{idContainer === true && (
+																<Dropzone 
+																	getUploadParams={
+																		m.card_type === "1" ? this.getModifyAdhaarUploadParams : 
+																		m.card_type === "2" ? this.getModifyLicenseUploadParams : 
+																		m.card_type === '3' ? this.getModifyVoterUploadParams : 
+																		this.getModifyPanUploadParams
+																	} 
+																	onChangeStatus={
+																		m.card_type === "1" ? this.modifyAdhaarChangeStatus : 
+																		m.card_type === "2" ? this.modifyLicenseChangeStatus : 
+																		m.card_type === '3' ? this.modifyVoterChangeStatus : 
+																		this.modifyPanChangeStatus
+																	} 
+																	{...dropDownProps} 
+																	style={{marginTop: "60px"}}
+																/>
+																)}
+															</div>
+															: ""}
+															{id === null ?
+															<Dropzone getUploadParams={this.getImageUploadParams} onChangeStatus={this.imageChangeStatus} {...dropDownProps} />
+															: ""}
 																</div>
 															</>
 														))}
 													</div>
 												)}
+												{id !== null && editableIdenInfo === true && <p className={styles.newDocumentSet}>To Upload New Documents</p>}
 												{editableIdenInfo === true || id === null ?
 													<FieldArray name="files">
 														{fieldArrayProps => {
