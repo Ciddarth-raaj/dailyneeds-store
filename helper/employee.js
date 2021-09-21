@@ -1,9 +1,20 @@
 import API from "../util/api";
+import moment from "moment";
 
 const employee = {
     getEmployee: () =>
         new Promise(function (resolve, reject) {
             API.get("/employee/employees")
+                .then(async (res) => {
+                    resolve(res.data);
+                })
+                .catch((err) => {
+                    reject(err);
+                });
+        }),
+        getAnniversary: () =>
+        new Promise(function (resolve, reject) {
+            API.get("/employee/anniversary")
                 .then(async (res) => {
                     resolve(res.data);
                 })
@@ -41,6 +52,27 @@ const employee = {
                     reject(err);
                 });
         }),
+    getBirthday: () =>
+        new Promise(function (resolve, reject) {
+            API.get("/employee/birthday")
+                .then(async (res) => {
+                    resolve(employee.formatBrand(res.data));
+                })
+                .catch((err) => {
+                    reject(err);
+                });
+        }),
+        formatBrand: (data) => {
+            const formattedData = [];
+            for (const d of data) {
+                formattedData.push({
+                    birthday: d.birthday,
+                    dob: moment(d.dob).format("DD MMMM YYYY"),
+                });
+            }
+    
+            return formattedData;
+        },
     getEmployeeByID: (employee_id) =>
         new Promise(function (resolve, reject) {
             API.get("/employee/employee_id?employee_id=" + employee_id)

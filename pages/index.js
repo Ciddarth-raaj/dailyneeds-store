@@ -1,15 +1,14 @@
 import React from "react";
 import { Formik, Form } from "formik";
-import { Container, Flex, Button } from "@chakra-ui/react";
-import { Box, Badge, Image } from "@chakra-ui/react";
-import { ArrowForwardIcon } from '@chakra-ui/icons'
+import { Grid, GridItem, Box, Button } from "@chakra-ui/react";
+import { ArrowForwardIcon, WarningIcon, InfoOutlineIcon } from '@chakra-ui/icons'
 import { Calendar, momentLocalizer } from 'react-big-calendar';
 import moment from 'moment';
-
+import { Bar, Doughnut } from 'react-chartjs-2';
 import styles from "../styles/index.module.css";
-
 import EmployeeHelper from "../helper/employee";
 import Head from "../util/head";
+import { MONTH } from "../constants/values";
 import GlobalWrapper from "../components/globalWrapper/globalWrapper";
 
 export default class CreateShift extends React.Component {
@@ -26,6 +25,25 @@ export default class CreateShift extends React.Component {
                     title: "Birthday!"
                 }
             ],
+            head_count: {
+                labels: ['jan', 'feb', 'march'],
+                datasets: [
+                    {
+                        label: 'Employee Head Count',
+                        data: ['0', '1', '2'],
+                        backgroundColor: "#8b74ff"
+                    },
+                ],
+            },
+            resigned_employee: {
+                labels: ['', 'Resigned Employees'],
+                datasets: [
+                    {
+                        label: 'Resigned employee Count',
+                        data: ['100'],
+                    },
+                ],
+            },
             cards: [
                 {
                     id: 1,
@@ -43,9 +61,11 @@ export default class CreateShift extends React.Component {
                     count: 0
                 },
             ],
-            headcount: "",
-            newJoiner: "",
+            headcount: [],
+            newJoiner: [],
             resignedEmp: "",
+            birthdays: [],
+            anniversary: [],
         };
     }
 
@@ -67,18 +87,64 @@ export default class CreateShift extends React.Component {
         this.getHeadCount();
         this.getNewJoiner();
         this.getResignedEmp();
+        this.getBirthday();
+        this.getAnniversary();
     }
     getHeadCount() {
         EmployeeHelper.getHeadCount()
             .then((data) => {
-                this.setState({ headcount: data[0].head_count });
+                let date = []
+                let count = []
+                let detailsMapper = {}
+                let updatedCountArr = []
+                data.map((detail) => {
+                    detailsMapper[moment(detail.created_at).format("MMMM")] = detail.head_count;
+                })
+                MONTH.map((el1) => {
+                    var temp = {}
+                    if (el1 in detailsMapper) {
+                        temp.date = el1;
+                        temp.count = parseInt(detailsMapper[el1]);
+                    } else {
+                        temp.date = el1;
+                        temp.count = 0;
+                    }
+                    updatedCountArr.push(temp);
+                })
+                for (const val of updatedCountArr) {
+                    date.push(val.date);
+                    count.push(val.count);
+                    this.setState({
+                        head_count: {
+                            labels: date,
+                            datasets: [
+                                {
+                                    label: "Employee Head Count",
+                                    data: count,
+                                    backgroundColor: "#8b74ff"
+                                },
+                            ],
+                        },
+                    })
+                }
             })
             .catch((err) => console.log(err));
     }
     getResignedEmp() {
         EmployeeHelper.getResignedEmp()
             .then((data) => {
-                this.setState({ resignedemp: data[0].Resigned_employee });
+                this.setState({
+                    resigned_employee: {
+                        label: ['Resigned Employees'],
+                        datasets: [
+                            {
+                                label: "Employee Head Count",
+                                data: ['100', data[0].Resigned_employee],
+                                backgroundColor: ["#8b74ff", "lightpink"],
+                            },
+                        ],
+                    },
+                });
             })
             .catch((err) => console.log(err));
     }
@@ -89,77 +155,122 @@ export default class CreateShift extends React.Component {
             })
             .catch((err) => console.log(err));
     }
+    getAnniversary() {
+        EmployeeHelper.getAnniversary()
+            .then((data) => {
+                this.setState({ anniversary: data });
+            })
+            .catch((err) => console.log(err));
+    }
+    getBirthday() {
+        EmployeeHelper.getBirthday()
+            .then((data) => {
+                this.setState({ birthdays: data });
+            })
+            .catch((err) => console.log(err));
+    }
 
     render() {
-        const { events, resignedemp, newjoiner, headcount, cards } = this.state;
-        cards[0].count = headcount;
-        cards[1].count = newjoiner;
-        cards[2].count = resignedemp;
-        const date = new Date();
-        const localizer = momentLocalizer(moment);
+        const { newjoiner, birthdays, resigned_employee, head_count, anniversary } = this.state;
         return (
             <Formik>
                 <Form>
                     <GlobalWrapper title="DashBoard">
                         <Head />
-                        <Flex
-                            templateColumns="repeat(3, 1fr)"
-                            gap={6}
-                            colSpan={2}
+                        <Grid
+                            h="650px"
+                            templateRows="repeat(2, 1fr)"
+                            templateColumns="repeat(5, 1fr)"
+                            gap={4}
                         >
-                            <Container className={styles.container}>
-                                {
-                                    cards.map(c => (
-                                        <Box maxW="sm" className={styles.boxContainer} borderWidth="1px" borderWidth="1px" borderRadius="20px" overflow="hidden">
-                                            <Box
-                                                color="gray.500"
-                                                fontWeight="semibold"
-                                                // letterSpacing="wide"
-                                                className={styles.count}
-                                            >
-                                                <p className={styles.countNumber}>{c.count}</p>
-                                            </Box>
-                                            <Box
-                                                color="gray.500"
-                                                fontWeight="semibold"
-                                                letterSpacing="wide"
-                                                className={styles.titleContent}
-                                            >
-                                                <p className={styles.title}>{c.title}</p>
-                                            </Box>
-                                            <Box p="5">
-                                                <Box d="flex" alignItems="baseline">
-                                                    <Box
-                                                        fontWeight="semibold"
-                                                        lineHeight="tight"
-                                                        isTruncated
-                                                        className={styles.actionHolder}
-                                                    >
-                                                        <Button className={styles.button} borderRadius="lg" fontSize="1.1em" fontWeight="medium" className={styles.badges} px="7" color="gray.600" background="#dec6f8" >
-                                                            View Details
-                                                            <ArrowForwardIcon ml="20px" className={styles.icon} />
-                                                        </Button>
-                                                    </Box>
+                            <GridItem colSpan={4}>
+                                <Bar
+                                    data={head_count}
+                                    options={{ maintainAspectRatio: false }}
+                                />
+                            </GridItem>
+                            <GridItem rowSpan={2} w="450px" className={styles.birthdayWeek} colSpan={1} >
+                                <p className={styles.fontBirthday}>Birthday Week</p>
+                                <div className={styles.rightHolder}>
+                                <div className={styles.birthdayHolder}>
+                                {birthdays.length === 0 && (
+                                <div style={{display: "flex", flexDirection: "column", justifyContent: "center", marginTop: "100px", alignItems: "center"}}>
+                                    <InfoOutlineIcon color="red.400" ml="5px" className={styles.infoIcon} />
+                                    <p className={styles.birthdayContent}>No Birthdays for this week</p>
+                                    </div>
+                                )}
+                                {birthdays.length !== 0 && birthdays.map((m) => (
+                                <div style={{display: "flex", justifyContent: "space-between", padding: "10px", marginTop: "20px", alignItems: "center"}}>
+                                <p className={styles.birthdayContent}><WarningIcon color="#78719c" ml="5px" className={styles.warningIcon} />{m.birthday}</p>
+                                <p className={styles.birthdayContent}>{m.dob}</p>
+                                </div>
+                                ))}
+                                </div>
+                                <div className={styles.anniversaryHolder} style={{marginTop: "50px"}}>
+                                <p className={styles.fontBirthday}>Anniversary Week</p>
+                                <div className={styles.anniversaryScroll}>
+                                {anniversary.length === 0 && (
+                                <div style={{display: "flex", flexDirection: "column", justifyContent: "center", marginTop: "100px", alignItems: "center"}}>
+                                    <InfoOutlineIcon color="red.400" ml="5px" className={styles.infoIcon} />
+                                    <p className={styles.birthdayContent}>No Anniversary for this week</p>
+                                    </div>
+                                )}
+                                {anniversary.length !== 0 && anniversary.map((m) => (
+                                <div style={{display: "flex", justifyContent: "space-between", padding: "10px", marginTop: "20px", alignItems: "center"}}>
+                                <p className={styles.birthdayContent}><WarningIcon color="#78719c" ml="5px" className={styles.warningIcon} />{m.anniversary}</p>
+                                <p className={styles.birthdayContent}>{m.dob}</p>
+                                </div>
+                                ))}
+                                </div>
+                                </div>
+                                </div>
+                            </GridItem>
+                            <GridItem colSpan={2}>
+                                <p className={styles.fontMod}>New Joinee</p>
+                                    <Box maxW="sm" className={styles.boxContainer} borderWidth="1px" borderWidth="1px" borderRadius="20px" overflow="hidden">
+                                        <Box
+                                            color="gray.500"
+                                            fontWeight="semibold"
+                                            // letterSpacing="wide"
+                                            className={styles.count}
+                                        >
+                                            <p className={styles.countNumber}>{newjoiner}</p>
+                                        </Box>
+                                        <Box
+                                            color="gray.500"
+                                            fontWeight="semibold"
+                                            letterSpacing="wide"
+                                            className={styles.titleContent}
+                                        >
+                                            <p className={styles.title}>New Joiner Count</p>
+                                        </Box>
+                                        <Box p="5">
+                                            <Box d="flex" alignItems="baseline">
+                                                <Box
+                                                    fontWeight="semibold"
+                                                    lineHeight="tight"
+                                                    isTruncated
+                                                    className={styles.actionHolder}
+                                                >
+                                                    <Button className={styles.button} borderRadius="lg" fontSize="1.1em" fontWeight="medium" className={styles.badges} px="7" color="gray.600" background="#dec6f8" >
+                                                        View Details
+                                                        <ArrowForwardIcon ml="20px" className={styles.icon} />
+                                                    </Button>
                                                 </Box>
                                             </Box>
                                         </Box>
-                                    ))
-                                }
-                            </Container>
-                        </Flex>
-                        <div className={styles.calendarHolder}>
-                            <p className={styles.dateHeader}>{moment(date).format("MMMM YY")}</p>
-                            <Calendar
-                                localizer={localizer}
-                                defaultDate={new Date()}
-                                defaultView="month"
-                                events={events}
-                                eventPropGetter={this.eventStyleGetter}
-                                style={{ height: 500 }}
-                                toolbar={false}
-                                className={styles.calendar}
-                            />
-                        </div>
+                                    </Box>
+                            </GridItem>
+                            <div className={styles.resignedEmp}>
+                                <p className={styles.fontResigned}>Resigned Employee</p>
+                                <GridItem colSpan={3} width="400px" height="250px">
+                                    <Doughnut
+                                        data={resigned_employee}
+                                        options={{ maintainAspectRatio: false }}
+                                    />
+                                </GridItem>
+                            </div>
+                        </Grid>
                     </GlobalWrapper>
                 </Form>
             </Formik>

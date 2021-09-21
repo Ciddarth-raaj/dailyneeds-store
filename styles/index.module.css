@@ -7,7 +7,12 @@
 	align-items: center;
 	width: 100%;
 }
-
+.newJoineeHolder {
+	display: flex;
+	flex-direction: column;
+	justify-content: flex-start;
+	align-items: center;
+}
 .boxContainer {
 	/* height: 250px; */
 	width: 350px;
@@ -42,6 +47,45 @@
 	color: #8b74ff;
 	font-size: 62px;
 }
+.fontMod {
+	/* margin-bottom: 20px; */
+	font-weight: 700;
+	font-size: 25px;
+	color: gray;
+	/* color: #8b74ff; */
+}
+.birthdayContent {
+	font-size: 15px; 
+	font-weight: 600;
+	color: gray;
+}
+.rightHolder {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	justify-content: space-between;
+}
+.birthdayWeek {
+padding: 10px;
+ margin-top: 10px;
+ width: 480px;
+ height: 95%;
+ display: flex;
+ flex-direction: column;
+}
+.fontBirthday {
+	font-weight: 700;
+	font-size: 25px;
+	color: gray;
+	margin-left: 10px; 
+}
+.fontResigned {
+	margin-bottom: 20px;
+	font-weight: 700;
+	font-size: 25px;
+	color: gray;
+	margin-left: 50px; 
+}
 .calendar {
 	color: #7d75a5;
 	font-size: 1.2em;
@@ -62,6 +106,33 @@
 	margin-left: 30px;
 	margin-top: 40px;
 }
+.birthdayHolder {
+	height: 220px;
+	overflow-y: scroll;
+}
+
+.anniversaryScroll {
+	height: 300px;
+	overflow-y: scroll;
+}
+.birthdayHolder::-webkit-scrollbar {
+	scrollbar-width: 0;
+	display: none;
+	background: transparent;
+}
+
+.anniversaryScroll::-webkit-scrollbar {
+	scrollbar-width: 0;
+	display: none;
+	background: transparent;
+}
+.resignedEmp {
+	display: flex;
+	margin-left: 300px;
+	flex-direction: column;
+	justify-content: flex-start;
+	align-items: flex-start;
+}
 .actionHolder {
 	display: flex;
 	width: 100%;
@@ -72,6 +143,20 @@
 .icon {
 	font-size: 1.25em;
 	cursor: pointer;
+}
+.warningIcon {
+	font-size: 0.8em;
+	cursor: pointer;
+	color: red;
+	margin-right: 4px;
+}
+
+.infoIcon {
+	margin-bottom: 10px;
+	font-size: 1.5em;
+	cursor: pointer;
+	color: red;
+	margin-right: 4px;
 }
 .title {
 	margin-right: 20px;
