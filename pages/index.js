@@ -218,7 +218,7 @@ export default class CreateShift extends React.Component {
                                 {anniversary.length !== 0 && anniversary.map((m) => (
                                 <div style={{display: "flex", justifyContent: "space-between", padding: "10px", marginTop: "20px", alignItems: "center"}}>
                                 <p className={styles.birthdayContent}><WarningIcon color="#78719c" ml="5px" className={styles.warningIcon} />{m.anniversary}</p>
-                                <p className={styles.birthdayContent}>{m.dob}</p>
+                                <p className={styles.birthdayContent}>{moment(m.dob).format("DD MMMM YYYY")}</p>
                                 </div>
                                 ))}
                                 </div>

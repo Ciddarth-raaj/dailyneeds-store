@@ -12,7 +12,7 @@ const employee = {
                     reject(err);
                 });
         }),
-        getAnniversary: () =>
+    getAnniversary: () =>
         new Promise(function (resolve, reject) {
             API.get("/employee/anniversary")
                 .then(async (res) => {
