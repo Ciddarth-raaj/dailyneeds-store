@@ -35,6 +35,11 @@ export default {
                 selected: false,
                 location: "/family/view",
             },
+            view_adhaar: {
+                title: "View Adhaar",
+                selected: false,
+                location: "/adhaar/view",
+            },
         },
     },
 }
