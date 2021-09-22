@@ -32,6 +32,16 @@ const employee = {
                     reject(err);
                 });
         }),
+    getBank: () =>
+        new Promise(function (resolve, reject) {
+            API.get("/employee/bank")
+                .then(async (res) => {
+                    resolve(res.data);
+                })
+                .catch((err) => {
+                    reject(err);
+                });
+        }),
     getResignedEmp: () =>
         new Promise(function (resolve, reject) {
             API.get("/employee/resignedemp")

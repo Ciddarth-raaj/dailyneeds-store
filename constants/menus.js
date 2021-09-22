@@ -40,6 +40,11 @@ export default {
                 selected: false,
                 location: "/adhaar/view",
             },
+            view_bank: {
+                title: "Users Without Bank Details",
+                selected: false,
+                location: "/bank/view",
+            },
         },
     },
 }

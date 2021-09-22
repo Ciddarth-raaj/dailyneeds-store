@@ -7,7 +7,7 @@ import React, { useState, useEffect } from "react";
 import styles from "../../styles/admin.module.css";
 
 //Helpers
-import DocumentHelper from "../../helper/document";
+import EmployeeHelper from "../../helper/employee";
 
 //InternalDependancies
 import CustomInput from "../../components/customInput/customInput";
@@ -16,39 +16,35 @@ import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import { Validation } from "../../util/validation";
 import Table from "../../components/table/table";
 
-function adhaarView() {
+function BankView() {
     const initialValue = {};
     const table_title = {
         sno: "Sno",
         employee_id: "Employee Id",
         name: "Employee Name",
-        adhaar_number: "Adhaar No",
-        adhaar_name: "Name as per Adhaar Card",
     };
 
     const [
         data,
         setData
     ] = useState({
-        adhaar: []
+        bank: []
     })
-    useEffect(() => getAdhaarData(), [])
+    useEffect(() => getBankData(), [])
 
-    function getAdhaarData() {
-        DocumentHelper.getAdhaar()
+    function getBankData() {
+        EmployeeHelper.getBank()
             .then((data) => {
-                setData({ adhaar: data });
+                setData({ bank: data });
             })
             .catch((err) => console.log(err));
     }
 
-    const valuesNew = data.adhaar.map((m, n) => (
+    const valuesNew = data.bank.map((m, n) => (
         {
             sno: n + 1,   
             employee_id: m.employee_id,
             name: m.employee_name,
-            adhaar_number: m.card_number,
-            adhaar_name: m.card_name,
         }
     ));
 
@@ -65,12 +61,12 @@ function adhaarView() {
             validationSchema={Validation}
         >
             <Form>
-                <GlobalWrapper title="Adhaar Card Details">
+                <GlobalWrapper title="View Details">
                     <Head />
                     <Flex templateColumns="repeat(3, 1fr)" gap={6} colSpan={2}>
                         <Container className={styles.container} boxShadow="lg">
                             <p className={styles.buttoninputHolder}>
-                                <div>View Adhaar</div>
+                                <div>Users Without Bank Details</div>
                             </p>
                             <div>
                                 <div className={styles.personalInputHolder}>
@@ -96,4 +92,4 @@ function adhaarView() {
     );
 }
 
-export default adhaarView;
+export default BankView;

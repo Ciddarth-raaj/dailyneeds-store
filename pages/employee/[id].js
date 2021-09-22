@@ -892,7 +892,7 @@ class Create extends React.Component {
 															id: m.id,
 															value: m.value
 														}))}
-														name={editableIdenInfo ? "payment_type" : "payment_name"}
+														name={editableIdenInfo || id === null ? "payment_type" : "payment_name"}
 														type="text"
 														method="switch"
 														editable={id !== null ? editableIdenInfo : !editableIdenInfo}
