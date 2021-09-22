@@ -1,7 +1,7 @@
 //External Dependencies
 import React from "react";
 import { Formik, Form } from "formik";
-import { Container, Button, Checkbox } from "@chakra-ui/react";
+import { Container, Button, Checkbox, ButtonGroup} from "@chakra-ui/react";
 import { toast } from "react-toastify";
 import FormikErrorFocus from "formik-error-focus";
 import { withRouter } from "next/router";
@@ -10,13 +10,15 @@ import { withRouter } from "next/router";
 import styles from "../../styles/registration.module.css";
 
 //Helper
-import { BloodGroup } from "../../constants/values";
+import { BloodGroup, Gender, Nationality, Relation } from "../../constants/values";
 
 //Internal Dependencies
+import FamilyHelper from "../../helper/family";
 import CustomInput from "../../components/customInput/customInput";
 import Head from "../../util/head";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import { EmployeeFamilyValidation } from "../../util/validation";
+import moment from "moment";
 
 class Family extends React.Component {
     constructor(props) {
@@ -26,40 +28,67 @@ class Family extends React.Component {
             editFamily: false,
         };
     }
-
-    save() {
-        const { editFamily } = this.state;
-        editFamily ? "" : toast.success("Successfully Saved!");
-    }
+    createFamily(values) {
+		this.setState({ loadingFamily: true });
+        values.dob = moment(values.dob).format("YYYY-MM-DD");
+		FamilyHelper.createFamily(values)
+			.then((data) => {
+				if (data == 200) {
+					toast.success("Successfully Added New Family Member!");
+				} else {
+					toast.error("Error Adding Member!");
+					throw `${data.msg}`;
+				}
+			})
+			.catch((err) => console.log(err))
+			.finally(() => this.setState({ loadingFamily: false }));
+	}
+    updateFamily(values) {
+        const { family_id } = this.props.data[0];
+		this.setState({ loading: true });
+		FamilyHelper.updateFamily({
+            family_id: family_id,
+            family_details: values
+        })
+			.then((data) => {
+				if (data.code === 200) {
+					toast.success("Successfully Updated Department!");
+				} else {
+					toast.error("Error Updating Department!");
+					throw `${data.msg}`;
+				}
+			})
+			.catch((err) => console.log(err))
+			.finally(() => this.setState({ loading: false }));
+	}
 
     render() {
         const { loadingFamily, editFamily } = this.state;
-
+        const { id } = this.props;
         return (
             <GlobalWrapper title="Family">
                 <Head />
                 <Formik
                     initialValues={{
-                        name: "Keerthika",
-                        dob: "09/11/2000",
-                        gender: "",
-                        blood_group: "",
-                        relation: "",
-                        copy_address: "",
-                        profession: "Teacher",
-                        nationality: "",
-                        remarks: "None",
-
+                        name: this.props.data[0]?.name,
+                        dob: moment(this.props.data[0]?.dob).format("MM/DD/YYYY"),
+                        gender: this.props.data[0]?.gender,
+                        blood_group: this.props.data[0]?.blood_group,
+                        relation: this.props.data[0]?.relation,
+                        address: this.props.data[0]?.address,
+                        profession: this.props.data[0]?.profession,
+                        nationality: this.props.data[0]?.nationality,
+                        remarks: this.props.data[0]?.remarks,
                     }}
                     validationSchema={EmployeeFamilyValidation}
-                    onSubmit={() => {
-                        this.save();
+                    onSubmit={(values) => {
+                        id !== null ? this.updateFamily(values) : this.createFamily(values);
                     }}
                 >
                     {(formikProps) => {
                         const { handleSubmit } = formikProps;
                         return (
-                            <Form>
+                            <Form onSubmit={formikProps.handleSubmit}> 
                                 <FormikErrorFocus
                                     align={"middle"}
                                     ease={"linear"}
@@ -72,6 +101,7 @@ class Family extends React.Component {
                                 >
                                     <p className={styles.buttoninputHolder}>
                                         <div>Family Details</div>
+                                        {id !== null && (
                                         <div style={{ paddingRight: 10 }}>
                                             <Button
                                                 isLoading={loadingFamily}
@@ -91,15 +121,16 @@ class Family extends React.Component {
                                                 }
                                                 colorScheme="purple"
                                                 onClick={() => {
+                                                    editFamily === true && handleSubmit(),
                                                     this.setState({
                                                         editFamily: !editFamily,
-                                                    });
-                                                    handleSubmit();
+                                                    })
                                                 }}
                                             >
                                                 {editFamily ? "Save" : "Edit"}
                                             </Button>
                                         </div>
+                                        )}
                                     </p>
 
                                     <div>
@@ -108,38 +139,28 @@ class Family extends React.Component {
                                                 label="Name *"
                                                 name="name"
                                                 type="text"
-                                                editable={editFamily}
+                                                editable={id !== null ? editFamily : !editFamily}
                                             />
                                             <CustomInput
                                                 label="DOB *"
                                                 name="dob"
                                                 type="text"
                                                 method="datepicker"
-                                                editable={editFamily}
+                                                editable={id !== null ? editFamily : !editFamily}
                                             />
                                         </div>
 
                                         <div className={styles.inputHolder}>
                                             <CustomInput
                                                 label="Gender *"
-                                                values={[
-                                                    {
-                                                        id: "Male",
-                                                        value: "Male",
-                                                    },
-                                                    {
-                                                        id: "Female",
-                                                        value: "Female",
-                                                    },
-                                                    {
-                                                        id: "Transgendar",
-                                                        value: "Transgendar",
-                                                    },
-                                                ]}
+                                                values={Gender.map((m) => ({
+                                                    id: m.id,
+                                                    value: m.value
+                                                }))}
                                                 name="gender"
                                                 type="text"
                                                 method="switch"
-                                                editable={editFamily}
+                                                editable={id !== null ? editFamily : !editFamily}
                                             />
                                             <CustomInput
                                                 label="Blood Group *"
@@ -150,43 +171,21 @@ class Family extends React.Component {
                                                 name="blood_group"
                                                 type="text"
                                                 method="switch"
-                                                editable={editFamily}
+                                                editable={id !== null ? editFamily : !editFamily}
                                             />
                                         </div>
 
                                         <div className={styles.inputHolder}>
                                             <CustomInput
                                                 label="Relation *"
-                                                values={[
-                                                    {
-                                                        id: "Mother",
-                                                        value: "Mother",
-                                                    },
-                                                    {
-                                                        id: "Father",
-                                                        value: "Father",
-                                                    },
-                                                    {
-                                                        id: "Husband",
-                                                        value: "Husband",
-                                                    },
-                                                    {
-                                                        id: "Wife",
-                                                        value: "Wife",
-                                                    },
-                                                    {
-                                                        id: "Daughter",
-                                                        value: "Daughter",
-                                                    },
-                                                    {
-                                                        id: "Son",
-                                                        value: "Son",
-                                                    },
-                                                ]}
+                                                values={Relation.map((m) => ({
+                                                    id: m.id,
+                                                    value: m.value
+                                                }))}
                                                 name="relation"
                                                 type="text"
                                                 method="switch"
-                                                editable={editFamily}
+                                                editable={id !== null ? editFamily : !editFamily}
                                             />
                                             <div
                                                 className={`${styles.inputHolder} ${styles.hidden}`}
@@ -218,10 +217,10 @@ class Family extends React.Component {
                                                         value: "Old Address",
                                                     },
                                                 ]}
-                                                name="copy_address"
+                                                name="address"
                                                 type="text"
                                                 method="switch"
-                                                editable={editFamily}
+                                                editable={id !== null ? editFamily : !editFamily}
                                             />
                                             <div
                                                 className={`${styles.inputHolder} ${styles.hidden}`}
@@ -233,32 +232,18 @@ class Family extends React.Component {
                                                 label="Profession *"
                                                 name="profession"
                                                 type="text"
-                                                editable={editFamily}
+                                                editable={id !== null ? editFamily : !editFamily}
                                             />
                                             <CustomInput
                                                 label="Nationality *"
-                                                values={[
-                                                    {
-                                                        id: "American",
-                                                        value: "American",
-                                                    },
-                                                    {
-                                                        id: "Canadian",
-                                                        value: "Canadian",
-                                                    },
-                                                    {
-                                                        id: "Chinese",
-                                                        value: "Chinese",
-                                                    },
-                                                    {
-                                                        id: "Indian",
-                                                        value: "Indian",
-                                                    },
-                                                ]}
+                                                values={Nationality.map((m) => ({
+                                                    id: m.id,
+                                                    value: m.value
+                                                }))}
                                                 name="nationality"
                                                 type="text"
                                                 method="switch"
-                                                editable={editFamily}
+                                                editable={id !== null ? editFamily : !editFamily}
                                             />
                                         </div>
 
@@ -268,12 +253,28 @@ class Family extends React.Component {
                                                 name="remarks"
                                                 type="text"
                                                 method="TextArea"
-                                                editable={editFamily}
+                                                editable={id !== null ? editFamily : !editFamily}
                                             />
                                             <div
                                                 className={`${styles.inputHolder} ${styles.hidden}`}
                                             ></div>
                                         </div>
+                                        {id === null && (
+												<ButtonGroup
+													spacing="6"
+													mt={10}
+													style={{
+														display: "flex",
+														// width: "100%",
+														justifyContent: "flex-end",
+													}}
+												>
+													<Button>Cancel</Button>
+													<Button isLoading={loadingFamily} loadingText="Submitting" colorScheme="purple" onClick={() => handleSubmit()}>
+														{"Create"}
+													</Button>
+												</ButtonGroup>
+											)}
                                     </div>
                                 </Container>
                             </Form>
@@ -285,4 +286,11 @@ class Family extends React.Component {
     }
 }
 
+export async function getServerSideProps(context) {
+	const data = await FamilyHelper.getFamilyById(context.query.id);
+	const id = context.query.id != "create" ? data[0].family_id : null;
+	return {
+		props: { data, id }
+	};
+}
 export default withRouter(Family);

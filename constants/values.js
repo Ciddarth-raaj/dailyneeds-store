@@ -24,6 +24,64 @@ export const BloodGroup = [
         value: "AB Negative"
     }
 ]
+export const Relation = [
+    {
+        id: "Mother",
+        value: "Mother",
+    },
+    {
+        id: "Father",
+        value: "Father",
+    },
+    {
+        id: "Husband",
+        value: "Husband",
+    },
+    {
+        id: "Wife",
+        value: "Wife",
+    },
+    {
+        id: "Daughter",
+        value: "Daughter",
+    },
+    {
+        id: "Son",
+        value: "Son",
+    }
+]
+export const Nationality = [
+    {
+        id: "American",
+        value: "American",
+    },
+    {
+        id: "Canadian",
+        value: "Canadian",
+    },
+    {
+        id: "Chinese",
+        value: "Chinese",
+    },
+    {
+        id: "Indian",
+        value: "Indian",
+    }
+]
+export const Gender = [
+    {
+        id: "Male",
+        value: "Male",
+    },
+    {
+        id: "Female",
+        value: "Female",
+    },
+    {
+        id: "Transgendar",
+        value: "Transgendar",
+    }
+]
 export const MONTH = [
     'January', 
     'February',

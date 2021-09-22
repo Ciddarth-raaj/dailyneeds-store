@@ -75,7 +75,7 @@ const TextField = ({ label, values, method, selected, onChange, containerStyle, 
 								{...props}
 								selected={(field.value && new Date(field.value)) || null}
 								onChange={val => {
-									setFieldValue(field.name, val);
+									setFieldValue(field.name, moment(val).format("MM/DD/YYYY"));
 								}}
 								customInput={<CustomDateTimeInput />}
 							/>

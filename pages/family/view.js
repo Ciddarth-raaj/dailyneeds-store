@@ -4,6 +4,7 @@ import styles from "../../styles/admin.module.css";
 import React, { useState, useEffect } from "react";
 
 import Head from "../../util/head";
+import FamilyHelper from "../../helper/family";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import { Validation } from "../../util/validation";
 import Table from "../../components/table/table";
@@ -14,9 +15,10 @@ function viewFamily() {
         dob_1: "",
         dob_2: "",
     };
-    const onClick = (m) => (
+
+    const image = (m) => (
         <div style={{ display: "flex", justifyContent: "center" }}>
-            <Link href="/employee/family">{m.name}</Link>
+            <img src={"/assets/edit.png"} onClick={() => window.location = `/family/${m}`} className={styles.icon} />
         </div>
     );
 
@@ -24,30 +26,30 @@ function viewFamily() {
         id: "Id",
         name: "Name",
         relation: "Relation",
+        action: "Action"
     };
 
-    const details = [
-        {
-            id: "1",
-            name: "Keerthi",
-            relation: "Sister",
-        },
-        {
-            id: "2",
-            name: "Sindhu",
-            relation: "Sister",
-        },
-        {
-            id: "3",
-            name: "Naveen",
-            relation: "Brother",
-        },
-    ];
+    const [
+        data,
+        setData
+    ] = useState({
+        details: []
+    })
+    useEffect(() => getFamilyData(), [])
 
-    const valuesNew = details.map((m) => ({
-        id: m.id,
-        name: onClick(m),
+    function getFamilyData() {
+        FamilyHelper.getFamily()
+            .then((data) => {
+                setData({ details: data });
+            })
+            .catch((err) => console.log(err));
+    }
+
+    const valuesNew = data.details.map((m) => ({
+        id: m.family_id,
+        name: m.name,
         relation: m.relation,
+        action: image(m.family_id),
     }));
 
     const sortCallback = (key, type) => {
@@ -70,7 +72,7 @@ function viewFamily() {
                             <p className={styles.buttoninputHolder}>
                                 <div>View Details</div>
                                 <div style={{ paddingRight: 10 }}>
-                                    <Link href="/employee/family">
+                                    <Link href="/family/create">
                                         <Button colorScheme="purple">
                                             {"Add"}
                                         </Button>
