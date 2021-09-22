@@ -30,6 +30,11 @@ export default {
                 selected: false,
                 location: "/shift/view",
             },
+            view_family: {
+                title: "View Family",
+                selected: false,
+                location: "/family/view",
+            },
         },
     },
 }

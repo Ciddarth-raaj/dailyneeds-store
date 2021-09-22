@@ -88,7 +88,7 @@ class Family extends React.Component {
                     {(formikProps) => {
                         const { handleSubmit } = formikProps;
                         return (
-                            <Form onSubmit={formikProps.handleSubmit}> 
+                            <Form> 
                                 <FormikErrorFocus
                                     align={"middle"}
                                     ease={"linear"}
