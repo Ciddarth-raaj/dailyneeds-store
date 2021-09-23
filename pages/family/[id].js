@@ -46,15 +46,16 @@ class Family extends React.Component {
     updateFamily(values) {
         const { family_id } = this.props.data[0];
 		this.setState({ loading: true });
+        values.dob = moment(values.dob).format("YYYY-MM-DD");
 		FamilyHelper.updateFamily({
             family_id: family_id,
             family_details: values
         })
 			.then((data) => {
 				if (data.code === 200) {
-					toast.success("Successfully Updated Department!");
+					toast.success("Successfully Updated Family Member Detail!");
 				} else {
-					toast.error("Error Updating Department!");
+					toast.error("Error Updating Family Member Detail!");
 					throw `${data.msg}`;
 				}
 			})
@@ -75,7 +76,6 @@ class Family extends React.Component {
                         gender: this.props.data[0]?.gender,
                         blood_group: this.props.data[0]?.blood_group,
                         relation: this.props.data[0]?.relation,
-                        address: this.props.data[0]?.address,
                         profession: this.props.data[0]?.profession,
                         nationality: this.props.data[0]?.nationality,
                         remarks: this.props.data[0]?.remarks,
@@ -88,7 +88,7 @@ class Family extends React.Component {
                     {(formikProps) => {
                         const { handleSubmit } = formikProps;
                         return (
-                            <Form> 
+                            <Form onSubmit={formikProps.handleSubmit}> 
                                 <FormikErrorFocus
                                     align={"middle"}
                                     ease={"linear"}
@@ -191,42 +191,6 @@ class Family extends React.Component {
                                                 className={`${styles.inputHolder} ${styles.hidden}`}
                                             ></div>
                                         </div>
-
-                                        <div
-                                            className={styles.inputHolder}
-                                            style={{
-                                                paddingLeft: 10,
-                                                paddingBottom: 20,
-                                            }}
-                                        >
-                                            <Checkbox colorScheme="purple">
-                                                Address Same As Employee
-                                            </Checkbox>
-                                        </div>
-
-                                        <div className={styles.inputHolder}>
-                                            <CustomInput
-                                                label="Copy Address From *"
-                                                values={[
-                                                    {
-                                                        id: "Present Address",
-                                                        value: "Present Address",
-                                                    },
-                                                    {
-                                                        id: "Old Address",
-                                                        value: "Old Address",
-                                                    },
-                                                ]}
-                                                name="address"
-                                                type="text"
-                                                method="switch"
-                                                editable={id !== null ? editFamily : !editFamily}
-                                            />
-                                            <div
-                                                className={`${styles.inputHolder} ${styles.hidden}`}
-                                            ></div>
-                                        </div>
-
                                         <div className={styles.inputHolder}>
                                             <CustomInput
                                                 label="Profession *"

@@ -183,13 +183,13 @@ export default class CreateShift extends React.Component {
                             templateColumns="repeat(5, 1fr)"
                             gap={4}
                         >
-                            <GridItem colSpan={4}>
+                            <GridItem colSpan={4} bg="white" borderRadius="10px" boxShadow="lg">
                                 <Bar
                                     data={head_count}
                                     options={{ maintainAspectRatio: false }}
                                 />
                             </GridItem>
-                            <GridItem rowSpan={2} w="450px" className={styles.birthdayWeek} colSpan={1} >
+                            <GridItem boxShadow="lg" bg="white" rowSpan={2} w="450px" className={styles.birthdayWeek} colSpan={1} >
                                 <p className={styles.fontBirthday}>Birthday Week</p>
                                 <div className={styles.rightHolder}>
                                 <div className={styles.birthdayHolder}>
@@ -206,7 +206,7 @@ export default class CreateShift extends React.Component {
                                 </div>
                                 ))}
                                 </div>
-                                <div className={styles.anniversaryHolder} style={{marginTop: "50px"}}>
+                                <div className={styles.anniversaryHolder}>
                                 <p className={styles.fontBirthday}>Anniversary Week</p>
                                 <div className={styles.anniversaryScroll}>
                                 {anniversary.length === 0 && (
@@ -216,7 +216,7 @@ export default class CreateShift extends React.Component {
                                     </div>
                                 )}
                                 {anniversary.length !== 0 && anniversary.map((m) => (
-                                <div style={{display: "flex", justifyContent: "space-between", padding: "10px", marginTop: "20px", alignItems: "center"}}>
+                                <div className={styles.anniversaryContent}>
                                 <p className={styles.birthdayContent}><WarningIcon color="#78719c" ml="5px" className={styles.warningIcon} />{m.anniversary}</p>
                                 <p className={styles.birthdayContent}>{moment(m.dob).format("DD MMMM YYYY")}</p>
                                 </div>
@@ -225,16 +225,16 @@ export default class CreateShift extends React.Component {
                                 </div>
                                 </div>
                             </GridItem>
-                            <GridItem colSpan={2}>
+                            <GridItem marginTop="20px" colSpan={2}>
                                 <p className={styles.fontMod}>New Joinee</p>
-                                    <Box maxW="sm" className={styles.boxContainer} borderWidth="1px" borderWidth="1px" borderRadius="20px" overflow="hidden">
+                                    <Box boxShadow="lg" bg="white"  maxW="sm" className={styles.boxContainer} borderRadius="20px" overflow="hidden">
                                         <Box
                                             color="gray.500"
                                             fontWeight="semibold"
                                             // letterSpacing="wide"
                                             className={styles.count}
                                         >
-                                            <p className={styles.countNumber}>{newjoiner}</p>
+                                            <p className={styles.countNumber}>{newjoiner ? newjoiner : 0}</p>
                                         </Box>
                                         <Box
                                             color="gray.500"
@@ -263,7 +263,7 @@ export default class CreateShift extends React.Component {
                             </GridItem>
                             <div className={styles.resignedEmp}>
                                 <p className={styles.fontResigned}>Resigned Employee</p>
-                                <GridItem colSpan={3} width="400px" height="250px">
+                                <GridItem  boxShadow="lg" bg="white" borderRadius="20px"  colSpan={3} padding="10px" width="400px" height="250px">
                                     <Doughnut
                                         data={resigned_employee}
                                         options={{ maintainAspectRatio: false }}

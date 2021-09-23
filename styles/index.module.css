@@ -14,7 +14,7 @@
 	align-items: center;
 }
 .boxContainer {
-	/* height: 250px; */
+	height: 250px;
 	width: 350px;
 	display: flex;
 	flex-direction: column;
@@ -48,11 +48,9 @@
 	font-size: 62px;
 }
 .fontMod {
-	/* margin-bottom: 20px; */
 	font-weight: 700;
 	font-size: 25px;
 	color: gray;
-	/* color: #8b74ff; */
 }
 .birthdayContent {
 	font-size: 15px; 
@@ -65,11 +63,18 @@
 	height: 100%;
 	justify-content: space-between;
 }
+.anniversaryContent {
+	display: flex; 
+	justify-content: space-between; 
+	padding: 10px; 
+	margin-top: 20px; 
+	align-items: center;
+}
 .birthdayWeek {
-padding: 10px;
- margin-top: 10px;
+ padding: 15px;
+ border-radius: 20px;
  width: 480px;
- height: 95%;
+ height: 98%;
  display: flex;
  flex-direction: column;
 }
@@ -80,11 +85,9 @@ padding: 10px;
 	margin-left: 10px; 
 }
 .fontResigned {
-	margin-bottom: 20px;
 	font-weight: 700;
 	font-size: 25px;
 	color: gray;
-	margin-left: 50px; 
 }
 .calendar {
 	color: #7d75a5;
@@ -108,12 +111,19 @@ padding: 10px;
 }
 .birthdayHolder {
 	height: 220px;
+	margin-top: 10px;
+	border-bottom: 1px solid lightgray;
 	overflow-y: scroll;
 }
 
 .anniversaryScroll {
-	height: 300px;
+	height: 250px;
+	margin-top: 10px;
+	margin-bottom: 40px;
 	overflow-y: scroll;
+}
+.anniversaryHolder {
+	margin-top: 50px;
 }
 .birthdayHolder::-webkit-scrollbar {
 	scrollbar-width: 0;
@@ -128,6 +138,7 @@ padding: 10px;
 }
 .resignedEmp {
 	display: flex;
+	margin-top: 20px;
 	margin-left: 300px;
 	flex-direction: column;
 	justify-content: flex-start;

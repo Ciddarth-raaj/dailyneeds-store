@@ -132,12 +132,11 @@ export const EmployeeFamilyValidation = Yup.object({
 	name: Yup.string().nullable().required("Fill Name"),
 	dob: Yup.string()
 		.nullable()
-		.max(new Date(), "Must be 15 characters or less")
+		.max(new Date(), "Enter a valid Date")
 		.required("Fill Date of birth"),
 	gender: Yup.string().nullable().required("Choose Gender"),
 	blood_group: Yup.string().nullable().required("Choose BloodGroup"),
 	relation: Yup.string().nullable().required("Choose Relation"),
-	copy_address: Yup.string().nullable().required("Choose Address"),
 	profession: Yup.string().nullable().required("Fill Profession"),
 	nationality: Yup.string().nullable().required("Choose Nationality"),
 });

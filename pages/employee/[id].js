@@ -1191,7 +1191,10 @@ class Create extends React.Component {
 }
 
 export async function getServerSideProps(context) {
-	const data = await EmployeeHelper.getEmployeeByID(context.query.id);
+	var data = [];
+	if(context.query.id !== "create") {
+	data = await EmployeeHelper.getEmployeeByID(context.query.id);
+	}
 	const id = context.query.id != "create" ? data[0].employee_id : null;
 	let doc = [];
 	doc = context.query.id == "create" ? null : await DocumentHelper.getDocType(id);
