@@ -19,6 +19,16 @@
 	font-weight: bold;
 	font-size: 24px;
 }
+
+.employee_image {
+	margin-top: 20px;
+	border-radius: 20px;
+	object-fit: cover;
+	width: 100%;
+	background-color: aqua;
+	height: 350px;
+}
+
 .dateHolder {
 	width: 100%;
 	display: flex;

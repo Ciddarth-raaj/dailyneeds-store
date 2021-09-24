@@ -24,6 +24,40 @@ const document = {
 
 		return formattedData;
 	},
+	getAllDocuments: () =>
+	new Promise(function (resolve, reject) {
+		API.get("/document/all")
+			.then(async (res) => {
+				resolve(res.data);
+			})
+			.catch((err) => {
+				reject(err);
+			});
+	}),
+	approveDocument: (data) =>
+	new Promise(function (resolve, reject) {
+		API.post("/document/update-document", data)
+			.then(async (res) => {
+				if (res.status === 200) {
+					resolve(res.data);
+				} else {
+					reject(res.data.msg);
+				}
+			})
+			.catch((err) => {
+				reject(err);
+			});
+	}),
+	getDocumentById: (document_id) =>
+	new Promise(function (resolve, reject) {
+		API.get("/document/document_id?document_id=" + document_id)
+			.then(async (res) => {
+				resolve(res.data);
+			})
+			.catch((err) => {
+				reject(err);
+			});
+	}),
 	getAdhaar: () =>
 		new Promise(function (resolve, reject) {
 			API.get("/document/adhaar")

@@ -16,17 +16,19 @@ function viewFamily() {
         dob_2: "",
     };
 
-    const image = (m) => (
-        <div style={{ display: "flex", justifyContent: "center" }}>
-            <img src={"/assets/edit.png"} onClick={() => window.location = `/family/${m}`} className={styles.icon} />
-        </div>
+    // const image = (m) => (
+    //     <div style={{ display: "flex", justifyContent: "center" }}>
+    //         <img src={"/assets/edit.png"} onClick={() => window.location = `/family/${m}`} className={styles.icon} />
+    //     </div>
+    // );
+    const onClick = (m) => (
+        <Link href={`/family/${m.id}`}>{m.value}</Link>
     );
-
     const table_title = {
         id: "Id",
         name: "Name",
         relation: "Relation",
-        action: "Action"
+        // action: "Action"
     };
 
     const [
@@ -47,9 +49,9 @@ function viewFamily() {
 
     const valuesNew = data.details.map((m) => ({
         id: m.family_id,
-        name: m.name,
-        relation: m.relation,
-        action: image(m.family_id),
+        name: onClick({value: m.name, id: m.family_id}),
+        relation: onClick({value: m.relation, id: m.id}),
+        // action: image(m.family_id),
     }));
 
     const sortCallback = (key, type) => {

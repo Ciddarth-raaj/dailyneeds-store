@@ -45,6 +45,11 @@ export default {
                 selected: false,
                 location: "/bank/view",
             },
+            view_documents: {
+                title: "View documents",
+                selected: false,
+                location: "/document/view",
+            },
         },
     },
 }

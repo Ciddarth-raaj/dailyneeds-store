@@ -19,18 +19,18 @@ function Registration() {
 		dob_1: "",
 		dob_2: "",
 	};
-	const image = (m) => (
-		<div style={{ display: "flex", justifyContent: "center" }}>
-			<img src={"/assets/edit.png"} onClick={() => window.location = `/employee/${m}`} className={styles.icon} />
-		</div>
-	);
+	// const image = (m) => (
+	// 	<div style={{ display: "flex", justifyContent: "center" }}>
+	// 		<img src={"/assets/edit.png"} onClick={() => window.location = `/employee/${m}`} className={styles.icon} />
+	// 	</div>
+	// );
 	const table_title = {
 		employee_id: "Employee Id",
 		name: "Name",
 		store_name: "Store Name",
 		designation: "Designation",
 		status: "Status",
-		action: "Action",
+		// action: "Action",
 	};
 	const [
 		data,
@@ -79,32 +79,35 @@ function Registration() {
 			})
 			.catch((err) => console.log(err));
 	}
-	function designationName(id) {
+	const onClick = (m) => (
+        <Link href={`/employee/${m.id}`}>{m.value}</Link>
+	)
+	function designationName(n) {
 		var name = "";
 		designationData.designation.map((m) => {
-			if (m.id == id) {
+			if (m.id == n.value) {
 				name = m.value;
 			}
 		})
-		return name;
+		return <Link href={`/employee/${n.id}`}>{name}</Link>;
 	}
-	function storeName(id) {
+	function storeName(n) {
 		var storeName = "";
 		storeData.store.map((m) => {
-			if (m.id == id) {
+			if (m.id == n.value) {
 				storeName = m.value;
 			}
 		})
-		return storeName
+		return <Link href={`/employee/${n.id}`}>{storeName}</Link>;
 	}
 	const valuesNew = data.employee.map((m) => (
 		{
 			id: m.employee_id,
-			name: m.employee_name,
-			store_name: storeName(m.store_id),
-			designation: designationName(m.designation_id),
-			status: m.status ? "Active" : "In Active",
-			action: image(m.employee_id),
+			name: onClick({value: m.employee_name, id: m.employee_id}),
+			store_name: storeName({value: m.store_id, id: m.employee_id}),
+			designation: designationName({value: m.designation_id, id: m.employee_id}),
+			status: onClick({value: m.status ? "Active" : "In Active", id: m.employee_id}),
+			// action: image(m.employee_id),
 		}
 	));
 

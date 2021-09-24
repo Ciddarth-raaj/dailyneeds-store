@@ -15,17 +15,20 @@ function designationView() {
         dob_1: "",
         dob_2: "",
     };
-    const image = (m) => (
-        <div style={{ display: "flex", justifyContent: "center" }}>
-            <img src={"/assets/edit.png"} onClick={() => window.location = `/designation/${m}`} className={styles.icon} />
-        </div>
-    );
+    // const image = (m) => (
+    //     <div style={{ display: "flex", justifyContent: "center" }}>
+    //         <img src={"/assets/edit.png"} onClick={() => window.location = `/designation/${m}`} className={styles.icon} />
+    //     </div>
+    // );
 
+    const onClick = (m) => (
+        <Link href={`/designation/${m.id}`}>{m.value}</Link>
+    );
     const table_title = {
         designation_id: "Designation Id",
         designation_name: "Designation Name",
         status: "Status",
-        action: "Action",
+        // action: "Action",
     };
 
     const [
@@ -47,9 +50,9 @@ function designationView() {
     const valuesNew = data.designation.map((m) => (
         {
             designation_id: m.id,
-            designation_name: m.value,
-            status: m.status ? "Active" : "In Active",
-            action: image(m.id)
+            designation_name: onClick({value: m.value, id: m.id}),
+            status: onClick({value: m.status ? "Active" : "In Active", id: m.id}),
+            // action: image(m.id)
         }
     ));
 
