@@ -50,7 +50,7 @@ function viewFamily() {
     const valuesNew = data.details.map((m) => ({
         id: m.family_id,
         name: onClick({value: m.name, id: m.family_id}),
-        relation: onClick({value: m.relation, id: m.id}),
+        relation: onClick({value: m.relation, id: m.family_id}),
         // action: image(m.family_id),
     }));
 
