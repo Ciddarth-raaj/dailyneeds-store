@@ -169,7 +169,7 @@ class CompanyDetails extends React.Component {
                                                 editable={editCompany}
                                             />
                                             <CustomInput
-                                                label="PS Number *"
+                                                label="PF Number *"
                                                 name="ps"
                                                 type="text"
                                                 editable={editCompany}
