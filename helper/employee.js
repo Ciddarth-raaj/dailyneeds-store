@@ -12,6 +12,16 @@ const employee = {
                     reject(err);
                 });
         }),
+    getFamilyDet: () =>
+    new Promise(function (resolve, reject) {
+        API.get("/employee/familydet")
+            .then(async (res) => {
+                resolve(res.data);
+            })
+            .catch((err) => {
+                reject(err);
+            });
+    }),
     getAnniversary: () =>
         new Promise(function (resolve, reject) {
             API.get("/employee/anniversary")

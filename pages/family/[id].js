@@ -1,7 +1,7 @@
 //External Dependencies
 import React from "react";
 import { Formik, Form } from "formik";
-import { Container, Button, Checkbox, ButtonGroup} from "@chakra-ui/react";
+import { Container, Button, ButtonGroup } from "@chakra-ui/react";
 import { toast } from "react-toastify";
 import FormikErrorFocus from "formik-error-focus";
 import { withRouter } from "next/router";
@@ -14,6 +14,7 @@ import { BloodGroup, Gender, Nationality, Relation } from "../../constants/value
 
 //Internal Dependencies
 import FamilyHelper from "../../helper/family";
+import EmployeeHelper from "../../helper/employee";
 import CustomInput from "../../components/customInput/customInput";
 import Head from "../../util/head";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
@@ -26,46 +27,65 @@ class Family extends React.Component {
         this.state = {
             loadingFamily: false,
             editFamily: false,
+            employeeDet: [],
+            hoverElement: false,
+            employee_name: "",
         };
     }
+    componentDidMount() {
+        this.getEmployeeDet();
+    }
+    getEmployeeDet() {
+        EmployeeHelper.getFamilyDet()
+            .then((data) => {
+                this.setState({ employeeDet: data })
+            })
+            .catch((err) => console.log(err))
+    }
     createFamily(values) {
-		this.setState({ loadingFamily: true });
+        const { employee_name } = this.state;
+        this.setState({ loadingFamily: true });
         values.dob = moment(values.dob).format("YYYY-MM-DD");
-		FamilyHelper.createFamily(values)
-			.then((data) => {
-				if (data == 200) {
-					toast.success("Successfully Added New Family Member!");
-				} else {
-					toast.error("Error Adding Member!");
-					throw `${data.msg}`;
-				}
-			})
-			.catch((err) => console.log(err))
-			.finally(() => this.setState({ loadingFamily: false }));
-	}
+        values.employee_name = employee_name;
+        FamilyHelper.createFamily(values)
+            .then((data) => {
+                if (data == 200) {
+                    toast.success("Successfully Added New Family Member!");
+                } else {
+                    toast.error("Error Adding Member!");
+                    throw `${data.msg}`;
+                }
+            })
+            .catch((err) => console.log(err))
+            .finally(() => this.setState({ loadingFamily: false }));
+    }
     updateFamily(values) {
         const { family_id } = this.props.data[0];
-		this.setState({ loading: true });
+        this.setState({ loading: true });
         values.dob = moment(values.dob).format("YYYY-MM-DD");
-		FamilyHelper.updateFamily({
+        FamilyHelper.updateFamily({
             family_id: family_id,
             family_details: values
         })
-			.then((data) => {
-				if (data.code === 200) {
-					toast.success("Successfully Updated Family Member Detail!");
-				} else {
-					toast.error("Error Updating Family Member Detail!");
-					throw `${data.msg}`;
-				}
-			})
-			.catch((err) => console.log(err))
-			.finally(() => this.setState({ loading: false }));
-	}
-
+            .then((data) => {
+                if (data.code === 200) {
+                    toast.success("Successfully Updated Family Member Detail!");
+                } else {
+                    toast.error("Error Updating Family Member Detail!");
+                    throw `${data.msg}`;
+                }
+            })
+            .catch((err) => console.log(err))
+            .finally(() => this.setState({ loading: false }));
+    }
+    pTag() {
+        <p>hello</p>
+    }
     render() {
-        const { loadingFamily, editFamily } = this.state;
+        const { loadingFamily, editFamily, employeeDet, employee_id, hoverElement, employee_name } = this.state;
         const { id } = this.props;
+        console.log({ employee: employeeDet });
+        console.log({state: this.state});
         return (
             <GlobalWrapper title="Family">
                 <Head />
@@ -79,6 +99,7 @@ class Family extends React.Component {
                         profession: this.props.data[0]?.profession,
                         nationality: this.props.data[0]?.nationality,
                         remarks: this.props.data[0]?.remarks,
+                        employee_name: this.props.data[0]?.employee_name,
                     }}
                     validationSchema={EmployeeFamilyValidation}
                     onSubmit={(values) => {
@@ -86,9 +107,10 @@ class Family extends React.Component {
                     }}
                 >
                     {(formikProps) => {
-                        const { handleSubmit } = formikProps;
+                        const { handleSubmit, values } = formikProps;
+                        console.log({Values: values});
                         return (
-                            <Form onSubmit={formikProps.handleSubmit}> 
+                            <Form onSubmit={formikProps.handleSubmit}>
                                 <FormikErrorFocus
                                     align={"middle"}
                                     ease={"linear"}
@@ -102,34 +124,34 @@ class Family extends React.Component {
                                     <p className={styles.buttoninputHolder}>
                                         <div>Family Details</div>
                                         {id !== null && (
-                                        <div style={{ paddingRight: 10 }}>
-                                            <Button
-                                                isLoading={loadingFamily}
-                                                variant="outline"
-                                                leftIcon={
-                                                    editFamily ? (
-                                                        <i
-                                                            class="fa fa-floppy-o"
-                                                            aria-hidden="true"
-                                                        />
-                                                    ) : (
-                                                        <i
-                                                            class="fa fa-pencil"
-                                                            aria-hidden="true"
-                                                        />
-                                                    )
-                                                }
-                                                colorScheme="purple"
-                                                onClick={() => {
-                                                    editFamily === true && handleSubmit(),
-                                                    this.setState({
-                                                        editFamily: !editFamily,
-                                                    })
-                                                }}
-                                            >
-                                                {editFamily ? "Save" : "Edit"}
-                                            </Button>
-                                        </div>
+                                            <div style={{ paddingRight: 10 }}>
+                                                <Button
+                                                    isLoading={loadingFamily}
+                                                    variant="outline"
+                                                    leftIcon={
+                                                        editFamily ? (
+                                                            <i
+                                                                class="fa fa-floppy-o"
+                                                                aria-hidden="true"
+                                                            />
+                                                        ) : (
+                                                            <i
+                                                                class="fa fa-pencil"
+                                                                aria-hidden="true"
+                                                            />
+                                                        )
+                                                    }
+                                                    colorScheme="purple"
+                                                    onClick={() => {
+                                                        editFamily === true && handleSubmit(),
+                                                            this.setState({
+                                                                editFamily: !editFamily,
+                                                            })
+                                                    }}
+                                                >
+                                                    {editFamily ? "Save" : "Edit"}
+                                                </Button>
+                                            </div>
                                         )}
                                     </p>
 
@@ -187,74 +209,96 @@ class Family extends React.Component {
                                                 method="switch"
                                                 editable={id !== null ? editFamily : !editFamily}
                                             />
-                                            <div
-                                                className={`${styles.inputHolder} ${styles.hidden}`}
-                                            ></div>
-                                        </div>
-                                        <div className={styles.inputHolder}>
-                                            <CustomInput
-                                                label="Profession *"
-                                                name="profession"
-                                                type="text"
-                                                editable={id !== null ? editFamily : !editFamily}
-                                            />
-                                            <CustomInput
-                                                label="Nationality *"
-                                                values={Nationality.map((m) => ({
-                                                    id: m.id,
-                                                    value: m.value
-                                                }))}
-                                                name="nationality"
-                                                type="text"
-                                                method="switch"
-                                                editable={id !== null ? editFamily : !editFamily}
-                                            />
-                                        </div>
-
-                                        <div className={styles.inputHolder}>
-                                            <CustomInput
-                                                label="Remarks"
-                                                name="remarks"
-                                                type="text"
-                                                method="TextArea"
-                                                editable={id !== null ? editFamily : !editFamily}
-                                            />
-                                            <div
-                                                className={`${styles.inputHolder} ${styles.hidden}`}
-                                            ></div>
-                                        </div>
-                                        {id === null && (
-												<ButtonGroup
-													spacing="6"
-													mt={10}
-													style={{
-														display: "flex",
-														// width: "100%",
-														justifyContent: "flex-end",
-													}}
-												>
-													<Button>Cancel</Button>
-													<Button isLoading={loadingFamily} loadingText="Submitting" colorScheme="purple" onClick={() => handleSubmit()}>
-														{"Create"}
-													</Button>
-												</ButtonGroup>
-											)}
+                                            {id !== null ? (
+                                                <div className={styles.dropdown}>
+                                                <button onMouseEnter={() => editFamily ? this.setState({hoverElement: false}) : this.setState({hoverElement: true})} className={styles.dropbtn}>
+                                                    {values.employee_name ? `Employee Name: ${values.employee_name} ${employee_name}` : "Employee Name"}
+                                                </button>
+                                                <div className={styles.dropdowncontent} style={hoverElement === false ? {color: "black"} : {display: "none"}}>
+                                                    {employeeDet.map((m) => (
+                                                    <a onClick={() => (this.setState({ employee_id: m.employee_id, employee_name: m.employee_name, hoverElement: true}))}>
+                                                        <img src={m.employee_image} width="30" height="25" className={styles.dropdownImg} />{m.employee_name}</a>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                            ) : (
+                                            <div className={styles.dropdown}>
+                                                <button onMouseEnter={() => this.setState({hoverElement: false}) } className={styles.dropbtn}>
+                                                    {employee_name === "" ? "Employee Name" : `Succesfully Added ${employee_name}`}
+                                                </button>
+                                                <div className={styles.dropdowncontent} style={hoverElement === false ? {color: "black"} : {display: "none"}}>
+                                                    {employeeDet.map((m) => (
+                                                    <a onClick={() => (this.setState({ employee_name: m.employee_name, hoverElement: true}))}>
+                                                        <img src={m.employee_image} width="30" height="25" className={styles.dropdownImg} />{m.employee_name}</a>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                            )}
                                     </div>
-                                </Container>
+                                    <div className={styles.inputHolder}>
+                                        <CustomInput
+                                            label="Profession *"
+                                            name="profession"
+                                            type="text"
+                                            editable={id !== null ? editFamily : !editFamily}
+                                        />
+                                        <CustomInput
+                                            label="Nationality *"
+                                            values={Nationality.map((m) => ({
+                                                id: m.id,
+                                                value: m.value
+                                            }))}
+                                            name="nationality"
+                                            type="text"
+                                            method="switch"
+                                            editable={id !== null ? editFamily : !editFamily}
+                                        />
+                                    </div>
+
+                                    <div className={styles.inputHolder}>
+                                        <CustomInput
+                                            label="Remarks"
+                                            name="remarks"
+                                            type="text"
+                                            method="TextArea"
+                                            editable={id !== null ? editFamily : !editFamily}
+                                        />
+                                        <div
+                                            className={`${styles.inputHolder} ${styles.hidden}`}
+                                        ></div>
+                                    </div>
+                                    {id === null && (
+                                        <ButtonGroup
+                                            spacing="6"
+                                            mt={10}
+                                            style={{
+                                                display: "flex",
+                                                // width: "100%",
+                                                justifyContent: "flex-end",
+                                            }}
+                                        >
+                                            <Button>Cancel</Button>
+                                            <Button isLoading={loadingFamily} loadingText="Submitting" colorScheme="purple" onClick={() => handleSubmit()}>
+                                                {"Create"}
+                                            </Button>
+                                        </ButtonGroup>
+                                    )}
+                                </div>
+                            </Container>
                             </Form>
-                        );
+                );
                     }}
-                </Formik>
-            </GlobalWrapper>
+            </Formik>
+            </GlobalWrapper >
         );
     }
 }
 
 export async function getServerSideProps(context) {
-	const data = await FamilyHelper.getFamilyById(context.query.id);
-	const id = context.query.id != "create" ? data[0].family_id : null;
-	return {
-		props: { data, id }
-	};
+    const data = await FamilyHelper.getFamilyById(context.query.id);
+    const id = context.query.id != "create" ? data[0].family_id : null;
+    return {
+        props: { data, id }
+    };
 }
 export default withRouter(Family);
