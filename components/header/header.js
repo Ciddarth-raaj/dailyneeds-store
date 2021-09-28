@@ -41,7 +41,8 @@ export default class Header extends React.Component {
                 },
                 product: {
                     title: "Product Master",
-                    icon: "fa fa-product-hunt"
+                    icon: "fa fa-product-hunt",
+                    link: "/items",
                 },
                 employee: {
                     title: "Employee Role",
@@ -50,7 +51,7 @@ export default class Header extends React.Component {
             }
         };
     }
-    
+
     render() {
         const { settings } = this.state;
         return (
@@ -78,7 +79,7 @@ export default class Header extends React.Component {
                                 {"Admin"}&nbsp;<i class={`fa fa-angle-down`} aria-hidden="true" />
                             </p>
                         </div>
-                        <div class="dropdown-content" style={{right: 0}}>
+                        <div class="dropdown-content" style={{ right: 0 }}>
                             {Object.keys(settings).map((key) => (
                                 <a href={settings[key].link}>
                                     <i className={`${settings[key].icon} ${styles.icon}`} aria-hidden="true" />
