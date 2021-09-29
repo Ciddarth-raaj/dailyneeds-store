@@ -23,6 +23,20 @@ const designation = {
 
 		return formattedData;
 	},
+	updateStatus: (data) =>
+	new Promise(function (resolve, reject) {
+		API.post("/designation/update-status", data)
+			.then(async (res) => {
+				if (res.status === 200) {
+					resolve(res.data);
+				} else {
+					reject(res.data.msg);
+				}
+			})
+			.catch((err) => {
+				reject(err);
+			});
+	}),
 	createDesignation: (data) =>
 		new Promise(function (resolve, reject) {
 			API.post("/designation/create", data)

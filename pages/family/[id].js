@@ -63,6 +63,7 @@ class Family extends React.Component {
         const { family_id } = this.props.data[0];
         this.setState({ loading: true });
         values.dob = moment(values.dob).format("YYYY-MM-DD");
+        values.remarks = values.remarks === null ? "" : values.remarks;  
         FamilyHelper.updateFamily({
             family_id: family_id,
             family_details: values
@@ -84,8 +85,6 @@ class Family extends React.Component {
     render() {
         const { loadingFamily, editFamily, employeeDet, employee_id, hoverElement, employee_name } = this.state;
         const { id } = this.props;
-        console.log({ employee: employeeDet });
-        console.log({state: this.state});
         return (
             <GlobalWrapper title="Family">
                 <Head />
@@ -163,13 +162,34 @@ class Family extends React.Component {
                                                 type="text"
                                                 editable={id !== null ? editFamily : !editFamily}
                                             />
-                                            <CustomInput
-                                                label="DOB *"
-                                                name="dob"
-                                                type="text"
-                                                method="datepicker"
-                                                editable={id !== null ? editFamily : !editFamily}
-                                            />
+                                            <div
+                                            className={`${styles.inputHolder}`}>
+                                                {id !== null ? (
+                                                <div className={styles.dropdown}>
+                                                <label htmlFor="id" className={styles.employeeNameLabel} style={editFamily ? {color: "black"} : { color: "#9f8fdd" } }>Employee Name *</label>
+                                                <input type="text" value={employee_name === "" ? values.employee_name : `${employee_name}`} onMouseEnter={() => editFamily ? 
+                                                this.setState({hoverElement: false}) : this.setState({hoverElement: true})} style={editFamily ? {color: "black"} : {border: "none"}} className={styles.dropbtn} />
+                                                <div className={styles.dropdowncontent} style={hoverElement === false ? {color: "black"} : {display: "none"}}>
+                                                    {employeeDet.map((m) => (
+                                                    <a onClick={() => (this.setState({ employee_id: m.employee_id, employee_name: m.employee_name, hoverElement: true}))}>
+                                                        <img src={m.employee_image} width="30" height="25" className={styles.dropdownImg} />{m.employee_name}<br/>{`# ${m.employee_id}`}</a>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                            ) : (
+                                            <div className={styles.dropdown}>
+                                                 <label htmlFor="id" className={styles.employeeNameLabel}>Employee Name *</label>
+                                                <input type="text" value={employee_name === "" ? values.employee_name : `${employee_name}`} onMouseEnter={() => this.setState({hoverElement: false})} 
+                                                 className={styles.dropbtn} />
+                                                <div className={styles.dropdowncontent} style={hoverElement === false ? {color: "black"} : {display: "none"}}>
+                                                    {employeeDet.map((m) => (
+                                                    <a onClick={() => (this.setState({ employee_name: m.employee_name, hoverElement: true}))}>
+                                                        <img src={m.employee_image} width="30" height="25" className={styles.dropdownImg} />{m.employee_name}<br/>{`# ${m.employee_id}`}</a>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                            )}
+                                            </div>
                                         </div>
 
                                         <div className={styles.inputHolder}>
@@ -209,31 +229,13 @@ class Family extends React.Component {
                                                 method="switch"
                                                 editable={id !== null ? editFamily : !editFamily}
                                             />
-                                            {id !== null ? (
-                                                <div className={styles.dropdown}>
-                                                <button onMouseEnter={() => editFamily ? this.setState({hoverElement: false}) : this.setState({hoverElement: true})} className={styles.dropbtn}>
-                                                    {values.employee_name ? `Employee Name: ${values.employee_name} ${employee_name}` : "Employee Name"}
-                                                </button>
-                                                <div className={styles.dropdowncontent} style={hoverElement === false ? {color: "black"} : {display: "none"}}>
-                                                    {employeeDet.map((m) => (
-                                                    <a onClick={() => (this.setState({ employee_id: m.employee_id, employee_name: m.employee_name, hoverElement: true}))}>
-                                                        <img src={m.employee_image} width="30" height="25" className={styles.dropdownImg} />{m.employee_name}</a>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                            ) : (
-                                            <div className={styles.dropdown}>
-                                                <button onMouseEnter={() => this.setState({hoverElement: false}) } className={styles.dropbtn}>
-                                                    {employee_name === "" ? "Employee Name" : `Succesfully Added ${employee_name}`}
-                                                </button>
-                                                <div className={styles.dropdowncontent} style={hoverElement === false ? {color: "black"} : {display: "none"}}>
-                                                    {employeeDet.map((m) => (
-                                                    <a onClick={() => (this.setState({ employee_name: m.employee_name, hoverElement: true}))}>
-                                                        <img src={m.employee_image} width="30" height="25" className={styles.dropdownImg} />{m.employee_name}</a>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                            )}
+                                             <CustomInput
+                                                label="DOB *"
+                                                name="dob"
+                                                type="text"
+                                                method="datepicker"
+                                                editable={id !== null ? editFamily : !editFamily}
+                                            />
                                     </div>
                                     <div className={styles.inputHolder}>
                                         <CustomInput
@@ -263,9 +265,9 @@ class Family extends React.Component {
                                             method="TextArea"
                                             editable={id !== null ? editFamily : !editFamily}
                                         />
-                                        <div
+                                        {/* <div
                                             className={`${styles.inputHolder} ${styles.hidden}`}
-                                        ></div>
+                                        ></div> */}
                                     </div>
                                     {id === null && (
                                         <ButtonGroup

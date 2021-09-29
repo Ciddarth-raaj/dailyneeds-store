@@ -1,31 +1,22 @@
 import { Formik, Form } from "formik";
-import { Container, Flex } from "@chakra-ui/react";
+import { Container, Flex, Switch } from "@chakra-ui/react";
 import styles from "../styles/admin.module.css";
 import React from "react";
 
 import BranchModal from "../components/branchModal/branchModal";
+import BranchHelper from "../helper/outlets";
+import { toast } from "react-toastify";
 import Head from "../util/head";
 import GlobalWrapper from "../components/globalWrapper/globalWrapper";
 import Table from "../components/table/table";
 
 const table_title = {
-    id: "Id",
-    name: "Name",
-    nick_name: "Nickname",
+    outlet_id: "Id",
+    outlet_name: "Name",
+    outlet_nickname: "Nickname",
     action: "Action",
 };
-const details = [
-    {
-        id: "1",
-        name: "Keerthika",
-        nick_name: "Keerthi",
-    },
-    {
-        id: "2",
-        name: "Sindhu",
-        nick_name: "Priya",
-    },
-];
+
 
 export default class CreateShift extends React.Component {
     constructor(props) {
@@ -33,33 +24,73 @@ export default class CreateShift extends React.Component {
         this.state = {
             branchModalVisibility: false,
             selectedData: undefined,
+            company: [],
+            status: '',
+            id: 0,
         };
     }
-
+    updateStatus() {
+        const { status, id } = this.state;
+            BranchHelper.updateStatus({
+                outlet_id: id,
+                is_active: status
+            })
+                .then((data) => {
+                   if(data.code === 200) {
+                       toast.success("Successfully updated Status");
+                   } else {
+                       toast.error("Not Updated")
+                   }
+                })
+                .catch((err) => console.log(err));
+}
     sortCallback = (key, type) => {
         console.log(key, type);
     };
-
+    componentDidUpdate() {
+        if(this.state.status !== '') {
+            this.updateStatus();
+        }
+    }
+    componentDidMount() {
+        this.getBranchData();
+    }
+    getBranchData() {
+        BranchHelper.getOutlet()
+            .then((data) => {
+                this.setState({ company: data });
+            })
+            .catch((err) => console.log(err));
+    }
+    badge = (m) => (
+        <Switch className={styles.switch} id="email-alerts" defaultChecked={m.value === 1} onChange={() => { this.setState({ status: m.value === 1 ? 0 : 1, id: m.id})}} />
+    )
+    onClick = (m) => (
+        <div onClick={() => this.setState({ branchModalVisibility: true, selectedData: m.data})} style={{ display: "flex", cursor: "pointer" ,justifyContent: "center" }}>
+                {m.value}
+        </div>
+	)
     render() {
-        const { branchModalVisibility, selectedData } = this.state;
-
-        const image = (
-            <div style={{ display: "flex", justifyContent: "center" }}>
-                <img
-                    src={"/assets/edit.png"}
-                    className={styles.icon}
-                    onClick={() =>
-                        this.setState({
-                            branchModalVisibility: true,
-                        })
-                    }
-                />
-            </div>
-        );
-        const valuesNew = details.map((m) => ({
-            id: m.id,
-            name: m.name,
-            nick_name: m.nick_name,
+        const { branchModalVisibility, status, id, company, selectedData } = this.state;
+        
+        // const image = (
+        //     <div style={{ display: "flex", justifyContent: "center" }}>
+        //         <img
+        //             src={"/assets/edit.png"}
+        //             className={styles.icon}
+        //             onClick={() =>
+        //                 this.setState({
+        //                     branchModalVisibility: true,
+        //                 })
+        //             }
+        //         />
+        //     </div>
+        // );
+        const valuesNew = company.map((m) => ({
+            outlet_id: m.outlet_id,
+            outlet_name: this.onClick({value: m.outlet_name, id: m.outlet_id, data: m}),
+            outlet_nickname: this.onClick({value: m.outlet_nickname, id: m.outlet_id, data: m}),
+            status: this.badge({value: m.is_active, id: m.outlet_id}),
             action: (
                 <div style={{ display: "flex", justifyContent: "center" }}>
                     <img

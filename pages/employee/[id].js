@@ -45,6 +45,7 @@ class Create extends React.Component {
 			uploadId: [],
 			subUploadId: [],
 			licenseHolder: [],
+			panHolder: [],
 			modifiedImageHolder: [],
 			modifiedAdhaarHolder: [],
 			modifiedLicenseHolder: [],
@@ -110,27 +111,34 @@ class Create extends React.Component {
 	}
 
 	createEmployee = async (values) => {
-		try {
-
-			const Imagearray = [];
-			Imagearray.push(await FilesHelper.upload(
-				this.state.imageHolder,
-				"uploadImage",
-				"dashboard_file"
-			));
-			values.employee_image = Imagearray.length > 0 ? Imagearray[0].remoteUrl : "";
-
+			
+			if (this.state.licenseHolder !== "") {
 			const Idarray = [];
 			Idarray.push(await FilesHelper.upload(
 				this.state.licenseHolder,
 				"licenseUpload",
 				"dashboard_file"
 			));
-			for (let i = 0; i < values.files.length; i++) {
+			for (let i = 0; i < values.files.length - 1 ; i++) {
 				if (values.files[i].id_card === "2") {
 					values.files[i].file = Idarray.length > 0 ? Idarray[0].remoteUrl : "";
 				}
 			}
+		}
+		if (this.state.adhaarHolder !== "") {
+			const Adhaararray = [];
+			Adhaararray.push(await FilesHelper.upload(
+				this.state.adhaarHolder,
+				"adhaarUpload",
+				"dashboard_file"
+			));
+			for (let i = 0; i <= values.files.length - 1; i++) {
+				console.log({i:values.files[i]});
+				if (values.files[i].id_card === "1") {
+					values.files[i].file = Adhaararray.length > 0 ? Adhaararray[0].remoteUrl : "";
+				}
+			}
+		}
 
 			if (this.state.voterHolder !== "") {
 				const Subarray = [];
@@ -139,29 +147,50 @@ class Create extends React.Component {
 					"voterIdUpload",
 					"dashboard_file"
 				));
-				for (let i = 0; i < values.files.length; i++) {
+				for (let i = 0; i < values.files.length - 1; i++) {
 					if (values.files[i].id_card === "3") {
 						values.files[i].file = Subarray.length > 0 ? Subarray[0].remoteUrl : "";
 					}
 				}
 			}
 
-			if (this.state.adhaarHolder !== "") {
-				const Subarray = [];
-				Subarray.push(await FilesHelper.upload(
-					this.state.adhaarHolder,
-					"adhaarUpload",
+			if (this.state.panHolder !== "") {
+				const Panarray = [];
+				Panarray.push(await FilesHelper.upload(
+					this.state.panHolder,
+					"panUpload",
 					"dashboard_file"
 				));
-				for (let i = 0; i <= values.files.length; i++) {
-					if (values.files[i].id_card === "1") {
-						values.files[i].file = Subarray.length > 0 ? Subarray[0].remoteUrl : "";
+				for (let i = 0; i <= values.files.length - 1; i++) {
+					if (values.files[i].id_card === "4") {
+						values.files[i].file = Panarray.length > 0 ? Panarray[0].remoteUrl : "";
 					}
 				}
 			}
-		} catch (err) {
-			console.log(err);
-		}
+
+			const Imagearray = [];
+			Imagearray.push(await FilesHelper.upload(
+				this.state.imageHolder,
+				"uploadImage",
+				"dashboard_file"
+			));
+			values.employee_image = Imagearray.length > 0 ? Imagearray[0].remoteUrl : "";
+			
+		
+		values.department_name = values.department_id;
+		values.designation_name = values.designation_id;
+		values.date_of_joining = moment(values.date_of_joining).format("YYYY-MM-DD");
+		values.dob = moment(values.dob).format("YYYY-MM-DD");
+		values.store_name = values.store_id;
+		values.shift_name = values.shift_id;
+		delete values.department_name;
+		delete values.designation_name;
+		delete values.store_name;
+		delete values.shift_name;
+		delete values.modified_employee_image;
+		delete values.payment_name;
+		delete values.docupdate;
+		
 		EmployeeHelper.register(values)
 			.then((data) => {
 				if (data === 200) {
@@ -251,15 +280,15 @@ class Create extends React.Component {
 			}
 
 			if (this.state.adhaarHolder !== "") {
-				const Subarray = [];
-				Subarray.push(await FilesHelper.upload(
+				const Adhaararray = [];
+				Adhaararray.push(await FilesHelper.upload(
 					this.state.adhaarHolder,
 					"adhaarUpload",
 					"dashboard_file"
 				));
 				for (let i = 0; i <= values.files.length; i++) {
 					if (values.files[i].id_card === "1") {
-						values.files[i].file = Subarray.length > 0 ? Subarray[0].remoteUrl : "";
+						values.files[i].file = Adhaararray.length > 0 ? Adhaararray[0].remoteUrl : "";
 					}
 				}
 			}
@@ -348,6 +377,19 @@ class Create extends React.Component {
 				console.log(err);
 			}
 		}
+	};
+	panChangeStatus = async ({ meta, file }, status) => {
+		if (status === "headers_received") {
+			try {
+				this.setState({ panHolder: file });
+			} catch (err) {
+				console.log(err);
+			}
+		}
+	};
+	panUploadParams = ({ meta }) => {
+		const { panHolder } = this.state;
+		return { url: panHolder };
 	};
 	voterIdUploadParams = ({ meta }) => {
 		const { voterHolder } = this.state;
@@ -568,7 +610,7 @@ class Create extends React.Component {
 							},
 						]
 					}}
-					validationSchema={Validation}
+					// validationSchema={Validation}
 					onSubmit={(values) => {
 						id !== null ? this.updateEmployee(values) : this.createEmployee(values);
 					}}
@@ -579,7 +621,7 @@ class Create extends React.Component {
 							this.setState([...values.files, { id_card: "", id_card_no: "", file: "" }])
 						}
 						return (
-							<Form>
+							<Form onSubmit={formikProps.handleSubmit}>
 								<FormikErrorFocus align={"middle"} ease={"linear"} duration={200} />
 								<Flex className={styles.responsive}>
 									<Container p={"0px"}>
@@ -781,6 +823,7 @@ class Create extends React.Component {
 											<div>
 												<div className={styles.personalInputHolder}>
 													<div className={styles.inputHolder}>
+													{id !== null ? (
 														<CustomInput
 															label="Select Store *"
 															values={[
@@ -802,6 +845,30 @@ class Create extends React.Component {
 															method="switch"
 															editable={id !== null ? editablePosiInfo : !editablePosiInfo}
 														/>
+													) : (
+														<CustomInput
+															label="Select Store *"
+															values={[
+																{
+																	id: 1,
+																	value: "Store1",
+																},
+																{
+																	id: 2,
+																	value: "Store2",
+																},
+																{
+																	id: 3,
+																	value: "Store3",
+																},
+															]}
+															name={"store_id"}
+															type="text"
+															method="switch"
+															editable={id !== null ? editablePosiInfo : !editablePosiInfo}
+														/>
+													)}
+														{id !== null ? (
 														<CustomInput
 															label="Select Department *"
 															values={department.map((m) => ({
@@ -813,8 +880,22 @@ class Create extends React.Component {
 															method="switch"
 															editable={id !== null ? editablePosiInfo : !editablePosiInfo}
 														/>
+														) : (
+															<CustomInput
+															label="Select Department *"
+															values={department.map((m) => ({
+																id: m.id,
+																value: m.value,
+															}))}
+															name={"department_id"}
+															type="text"
+															method="switch"
+															editable={id !== null ? editablePosiInfo : !editablePosiInfo}
+														/>
+														)}
 													</div>
 													<div className={styles.inputHolder}>
+													{id !== null ? (
 														<CustomInput
 															label="Select Designation *"
 															values={designation.map((m) => ({
@@ -826,8 +907,22 @@ class Create extends React.Component {
 															method="switch"
 															editable={id !== null ? editablePosiInfo : !editablePosiInfo}
 														/>
+													) : (
+														<CustomInput
+															label="Select Designation *"
+															values={designation.map((m) => ({
+																id: m.id,
+																value: m.value,
+															}))}
+															name={"designation_id"}
+															type="text"
+															method="switch"
+															editable={id !== null ? editablePosiInfo : !editablePosiInfo}
+														/>
+													)}
 													</div>
 													<div className={styles.inputHolder}>
+													{id !== null ? (
 														<CustomInput
 															label="Shift Details"
 															values={shift.map((m) => ({
@@ -840,6 +935,20 @@ class Create extends React.Component {
 															method="switch"
 															editable={id !== null ? editablePosiInfo : !editablePosiInfo}
 														/>
+													) : ( 
+														<CustomInput
+															label="Shift Details"
+															values={shift.map((m) => ({
+																id: m.id,
+																value: m.value,
+															}))}
+															name="shift_id"
+															name={"shift_id"}
+															type="text"
+															method="switch"
+															editable={id !== null ? editablePosiInfo : !editablePosiInfo}
+														/>
+													)}
 													</div>
 												</div>
 											</div>
@@ -1024,7 +1133,7 @@ class Create extends React.Component {
 																					<label className={styles.uploaderTitle} for="subUploadID">
 																						Upload ID *
 																					</label>
-																					<Dropzone getUploadParams={this.voterIdUploadParams} onChangeStatus={this.voterIdChangeStatus} {...dropDownProps} />
+																					<Dropzone getUploadParams={this.panUploadParams} onChangeStatus={this.panChangeStatus} {...dropDownProps} />
 																				</div>
 																			</>
 																		)}

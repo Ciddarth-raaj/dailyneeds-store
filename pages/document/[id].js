@@ -30,7 +30,7 @@ class ApproveDocument extends React.Component {
 		this.setState({ loading: true });
 		DocumentHelper.approveDocument({
             document_id: document_id, 
-            status: values.status
+            is_verified: values.is_verified
         })
 			.then((data) => {
 				if (data.code == 200) {
@@ -52,14 +52,14 @@ class ApproveDocument extends React.Component {
 		const { loading } = this.state;
 		const { id } = this.props;
 		return (
-			<GlobalWrapper title="Department">
+			<GlobalWrapper title="Document">
 				<Head />
 				<Formik
 					initialValues={{
 						card_name: this.props.data[0]?.card_name,
 	                    card_no: this.props.data[0]?.card_no,
 	                    file: this.props.data[0]?.file,
-                        status: this.props.data[0]?.status,
+                        is_verified: this.props.data[0]?.is_verified,
 					}}
 					onSubmit={(values) => {
 						this.ApproveDocument(values);
@@ -89,10 +89,10 @@ class ApproveDocument extends React.Component {
 											}}
 											type="submit"
 										>
-                                            <Button isLoading={loading} loadingText="Submitting" colorScheme="red" onClick={() => {setFieldValue("status", 0), handleSubmit()}}>
+                                            <Button isLoading={loading} loadingText="Submitting" colorScheme="red" onClick={() => {setFieldValue("is_verified", -1), handleSubmit()}}>
 												{"Decline"}
 											</Button>
-											<Button isLoading={loading} loadingText="Submitting" colorScheme="purple" onClick={() => {setFieldValue("status", 1), handleSubmit()}}>
+											<Button isLoading={loading} loadingText="Submitting" colorScheme="purple" onClick={() => {setFieldValue("is_verified", 1), handleSubmit()}}>
 												{"Approve"}
 											</Button>
 										</ButtonGroup>

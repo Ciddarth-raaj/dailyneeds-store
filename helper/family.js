@@ -3,7 +3,6 @@ import API from "../util/api";
 const family = {
 	getFamily: () =>
 		new Promise(function (resolve, reject) {
-            console.log("jesus");
 			API.get("/family")
 				.then(async (res) => {
 					resolve(res.data);

@@ -1,47 +1,19 @@
 import API from "../util/api";
 
-const shift = {
-	getShift: () =>
+const outlet = {
+	getOutlet: () =>
 		new Promise(function (resolve, reject) {
-			API.get("/shift")
+			API.get("/outlet")
 				.then(async (res) => {
-					resolve(shift.formatBrand(res.data));
+					resolve(res.data);
 				})
 				.catch((err) => {
 					reject(err);
 				});
 		}),
-	formatBrand: (data) => {
-		const formattedData = [];
-		for (const d of data) {
-			formattedData.push({
-				id: d.shift_id,
-				value: d.shift_name,
-				start_time: d.shift_in_time,
-				end_time: d.shift_out_time, 
-				status: d.status,
-			});
-		}
-
-		return formattedData;
-	},
-	updateStatus: (data) =>
-	new Promise(function (resolve, reject) {
-		API.post("/shift/update-status", data)
-			.then(async (res) => {
-				if (res.status === 200) {
-					resolve(res.data);
-				} else {
-					reject(res.data.msg);
-				}
-			})
-			.catch((err) => {
-				reject(err);
-			});
-	}),
-	getShiftById: (shift_id) => 
+	getOutletById: (outlet_id) => 
 		new Promise(function (resolve, reject) {
-		API.get("/shift/shift_id?shift_id= " + shift_id)
+		API.get("/outlet/outlet_id?outlet_id= " + outlet_id)
 			.then(async (res) => {
 				if (res.status === 200) {
 				resolve(res.data);
@@ -53,9 +25,9 @@ const shift = {
 				reject(err);
 			});
 	}),
-	updateShift: (data) =>
+    updateStatus: (data) =>
 	new Promise(function (resolve, reject) {
-		API.post("/shift/update-shift", data)
+		API.post("/outlet/update-status", data)
 			.then(async (res) => {
 				if (res.status === 200) {
 					resolve(res.data);
@@ -67,9 +39,23 @@ const shift = {
 				reject(err);
 			});
 	}),
-	createShift: (data) =>
+	updateOutlet: (data) =>
 	new Promise(function (resolve, reject) {
-		API.post("/shift/create", data)
+		API.post("/outlet/update-outlet", data)
+			.then(async (res) => {
+				if (res.status === 200) {
+					resolve(res.data);
+				} else {
+					reject(res.data.msg);
+				}
+			})
+			.catch((err) => {
+				reject(err);
+			});
+	}),
+	createOutlet: (data) =>
+	new Promise(function (resolve, reject) {
+		API.post("/outlet/create", data)
 			.then(async (res) => {
 				if (res.status === 200) {
 					resolve(res.data);
@@ -82,4 +68,4 @@ const shift = {
 			});
 	}),
 };
-export default shift;
+export default outlet;

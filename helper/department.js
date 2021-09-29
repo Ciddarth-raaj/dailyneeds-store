@@ -23,6 +23,20 @@ const department = {
 
 		return formattedData;
 	},
+	updateStatus: (data) =>
+	new Promise(function (resolve, reject) {
+		API.post("/department/update-status", data)
+			.then(async (res) => {
+				if (res.status === 200) {
+					resolve(res.data);
+				} else {
+					reject(res.data.msg);
+				}
+			})
+			.catch((err) => {
+				reject(err);
+			});
+	}),
     createDepartment: (data) =>
 		new Promise(function (resolve, reject) {
 			API.post("/department/create", data)

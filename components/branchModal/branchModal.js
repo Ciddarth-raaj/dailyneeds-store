@@ -6,17 +6,9 @@ import { toast } from "react-toastify";
 import { CloseIcon } from "@chakra-ui/icons";
 import { Container, Button, Switch } from "@chakra-ui/react";
 import { Formik, Form } from "formik";
-
+import OutletHelper from "../../helper/outlets";
 import CustomInput from "../customInput/customInput";
 import { BranchValidation } from "../../util/validation";
-
-const initialValue = {
-    brand_name: "adidas",
-    brand_nickname: "adidas",
-    contact_number: "1234567890",
-    phone_number: "1234567890",
-    address: "Vadapalani",
-};
 
 export default class BranchModal extends React.Component {
     constructor(props) {
@@ -27,21 +19,35 @@ export default class BranchModal extends React.Component {
         };
     }
 
-    update() {
-        toast.success("Successfully Updated!");
-        this.props.setVisibility(false);
-    }
-
+    updateOutlet(values) {
+		OutletHelper.updateOutlet({
+			outlet_id: this.props.data.outlet_id,
+            outlet_details: values
+		})
+			.then((data) => {
+			   if(data.code === 200) {
+				   toast.success("Successfully updated Branch");
+			   } else {
+				   toast.error("Error updating Branch")
+			   }
+			})
+			.catch((err) => console.log(err));
+	}
     render() {
-        console.log(this.props.data)
         const { setVisibility } = this.props;
         const { toggle, isLoading } = this.state;
         return (
             <Formik
-                initialValues={initialValue}
+                initialValues={{
+                    outlet_name: this.props.data?.outlet_name,
+                    outlet_nickname: this.props.data?.outlet_nickname,
+                    outlet_phone: this.props.data?.outlet_phone,
+                    phone: this.props.data?.phone,
+                    outlet_address: this.props.data?.outlet_address,
+                }}
                 validationSchema={BranchValidation}
-                onSubmit={() => {
-                    this.update();
+                onSubmit={(values) => {
+                    this.updateOutlet(values);
                 }}
             >
                 {(formikProps) => {
@@ -66,49 +72,37 @@ export default class BranchModal extends React.Component {
                                     <div className={styles.inputHolder}>
                                         <CustomInput
                                             label="Brand Name"
-                                            name="brand_name"
+                                            name="outlet_name"
                                             type="text"
                                         />
                                     </div>
                                     <div className={styles.inputHolder}>
                                         <CustomInput
                                             label="Brand Nickname"
-                                            name="brand_nickname"
+                                            name="outlet_nickname"
                                             type="text"
                                         />
                                     </div>
                                     <div className={styles.inputHolder}>
                                         <CustomInput
                                             label="Contact Number"
-                                            name="contact_number"
+                                            name="outlet_phone"
                                             type="text"
                                         />
                                     </div>
                                     <div className={styles.inputHolder}>
                                         <CustomInput
                                             label="Phone Numbers (Separated by ,)"
-                                            name="phone_number"
+                                            name="phone"
                                             type="text"
                                         />
                                     </div>
                                     <div className={styles.inputHolder}>
                                         <CustomInput
                                             label="Address"
-                                            name="address"
+                                            name="outlet_address"
                                             type="text"
                                             method="TextArea"
-                                        />
-                                    </div>
-                                    <div className={styles.switchHolder}>
-                                        <Switch
-                                            className={styles.switch}
-                                            colorScheme="purple"
-                                            size="lg"
-                                            onChange={() =>
-                                                this.setState({
-                                                    toggle: !toggle,
-                                                })
-                                            }
                                         />
                                     </div>
                                     <Button

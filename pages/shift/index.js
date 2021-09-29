@@ -1,38 +1,65 @@
-//External Dependancies
 import { Formik, Form } from "formik";
-import { Container, Flex, Button } from "@chakra-ui/react";
+import { Container, Flex, Button, Switch, Badge } from "@chakra-ui/react";
+import styles from "../../styles/admin.module.css";
+import ShiftHelper from "../../helper/shift";
 import React, { useState, useEffect } from "react";
 
-//Styles
-import styles from "../../styles/admin.module.css";
-
-//Helpers
-import DepartmentHelper from "../../helper/department";
-
-//InternalDependancies
 import CustomInput from "../../components/customInput/customInput";
 import Head from "../../util/head";
+import { toast } from "react-toastify";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import { Validation } from "../../util/validation";
 import Table from "../../components/table/table";
 import Link from "next/link";
 
-function departmentView() {
+function shiftView() {
     const initialValue = {
         dob_1: "",
         dob_2: "",
     };
     // const image = (m) => (
     //     <div style={{ display: "flex", justifyContent: "center" }}>
-    //         <img src={"/assets/edit.png"} onClick={() => window.location = `/department/${m}`} className={styles.icon} />
+    //         <img src={"/assets/edit.png"} onClick={() => window.location = `/shift/${m}`} className={styles.icon} />
     //     </div>
     // );
+
     const onClick = (m) => (
-        <Link href={`/department/${m.id}`}>{m.value}</Link>
+        <Link href={`/shift/${m.id}`}>{m.value}</Link>
     );
+    const [
+        status,
+        setStatus
+    ] = useState({
+        id: 0,
+        status: ''
+    })
+    useEffect(() => updateStatus(), [status])
+    const badge = (m) => (
+        <Switch className={styles.switch} id="email-alerts" defaultChecked={m.value === 1} onChange={() => { setStatus({ status: m.value === 1 ? 0 : 1, id: m.id})}} />
+    )
+    function updateStatus() {
+        if(status.status !== '' ) {
+            ShiftHelper.updateStatus({
+                shift_id: status.id,
+                status: status.status
+            })
+                .then((data) => {
+                   if(data.code === 200) {
+                       toast.success("Successfully updated Status");
+                   } else {
+                       toast.error("Not Updated")
+                   }
+                })
+                .catch((err) => console.log(err));
+            } else {
+                console.log('clear');
+            }
+        }
     const table_title = {
-        employee_id: "Employee Id",
-        name: "Name",
+        id: "Shift Id",
+        name: "Shift Name",
+        start_time: "Start Time",
+        end_time: "End Time",       
         status: "Status",
         // action: "Action",
     };
@@ -41,23 +68,24 @@ function departmentView() {
         data,
         setData
     ] = useState({
-        department: []
+        shift: []
     })
-    useEffect(() => getDepartmentData(), [])
+    useEffect(() => getShiftData(), [])
 
-    function getDepartmentData() {
-        DepartmentHelper.getDepartment()
+    function getShiftData() {
+        ShiftHelper.getShift()
             .then((data) => {
-                setData({ department: data });
+                setData({ shift: data });
             })
             .catch((err) => console.log(err));
     }
-
-    const valuesNew = data.department.map((m) => (
+    const valuesNew = data.shift.map((m) => (
         {
             id: m.id,
             name: onClick({value: m.value, id: m.id}),
-            status: onClick({value: m.status ? "Active" : "In Active", id: m.id}),
+            start_time: onClick({value: m.start_time, id: m.id}),
+            end_time: onClick({value: m.end_time, id: m.id}),
+            status: badge({value: m.status, id: m.id}),
             // action: image(m.id),
         }
     ));
@@ -75,14 +103,14 @@ function departmentView() {
             validationSchema={Validation}
         >
             <Form>
-                <GlobalWrapper title="Department Details">
+                <GlobalWrapper title="Shift Details">
                     <Head />
                     <Flex templateColumns="repeat(3, 1fr)" gap={6} colSpan={2}>
                         <Container className={styles.container} boxShadow="lg">
                             <p className={styles.buttoninputHolder}>
-                                <div>View Department</div>
+                                <div>View Shift</div>
                                 <div style={{ paddingRight: 10 }}>
-                                    <Link href="/department/create">
+                                    <Link href="/shift/create">
                                         <Button colorScheme="purple">
                                             {"Add"}
                                         </Button>
@@ -92,7 +120,7 @@ function departmentView() {
                             <div>
                                 <div className={styles.personalInputHolder}>
                                     {/* <CustomInput label="Store" name="stores" type="text" method="switch" />
-                                        <CustomInput label="Designation" name="designation" type="text" method="switch" /> */}
+									<CustomInput label="Designation" name="designation" type="text" method="switch" /> */}
                                     {/* <CustomInput label="Joining Date" name="dob_1" type="text" /> */}
                                     {/* <CustomInput label="Resignation Date" name="dob_2" type="text" /> */}
                                     {/* <CustomInput label="Current Employees" name="employee" type="text" method="switch" /> */}
@@ -113,4 +141,4 @@ function departmentView() {
     );
 }
 
-export default departmentView;
+export default shiftView;

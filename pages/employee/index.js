@@ -1,5 +1,5 @@
 import { Formik, Form } from "formik";
-import { Container, Flex, Button } from "@chakra-ui/react";
+import { Container, Flex, Button, Switch, Badge } from "@chakra-ui/react";
 import styles from "../../styles/admin.module.css";
 import EmployeeHelper from "../../helper/employee";
 import DesignationHelper from "../../helper/designation";
@@ -9,6 +9,7 @@ import React, { useState, useEffect } from "react";
 
 import CustomInput from "../../components/customInput/customInput";
 import Head from "../../util/head";
+import { toast } from "react-toastify";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import { Validation } from "../../util/validation";
 import Table from "../../components/table/table";
@@ -82,6 +83,35 @@ function Registration() {
 	const onClick = (m) => (
         <Link href={`/employee/${m.id}`}>{m.value}</Link>
 	)
+	const [
+        status,
+        setStatus
+    ] = useState({
+        id: 0,
+        status: ''
+    })
+    useEffect(() => updateStatus(), [status])
+	const badge = (m) => (
+        <Switch className={styles.switch} id="email-alerts" defaultChecked={m.value === 1} onChange={() => { setStatus({ status: m.value === 1 ? 0 : 1, id: m.id})}} />
+    )
+	function updateStatus() {
+		if(status.status !== '' ) {
+			EmployeeHelper.updateStatus({
+				employee_id: status.id,
+				status: status.status
+			})
+				.then((data) => {
+				   if(data.code === 200) {
+					   toast.success("Successfully updated Status");
+				   } else {
+					   toast.error("Not Updated")
+				   }
+				})
+				.catch((err) => console.log(err));
+			} else {
+				console.log('clear');
+			}
+		}
 	function designationName(n) {
 		var name = "";
 		designationData.designation.map((m) => {
@@ -106,7 +136,7 @@ function Registration() {
 			name: onClick({value: m.employee_name, id: m.employee_id}),
 			store_name: storeName({value: m.store_id, id: m.employee_id}),
 			designation: designationName({value: m.designation_id, id: m.employee_id}),
-			status: onClick({value: m.status ? "Active" : "In Active", id: m.employee_id}),
+			status: badge({value: m.status, id: m.employee_id}),
 			// action: image(m.employee_id),
 		}
 	));

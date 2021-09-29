@@ -1,6 +1,6 @@
 //External Dependancies
 import { Formik, Form } from "formik";
-import { Container, Flex, Button } from "@chakra-ui/react";
+import { Container, Flex, Button, Badge, Switch } from "@chakra-ui/react";
 import React, { useState, useEffect } from "react";
 
 //Styles
@@ -11,6 +11,7 @@ import DocumentHelper from "../../helper/document";
 
 //InternalDependancies
 import { IdCardType } from "../../constants/values";
+import { toast } from "react-toastify";
 import CustomInput from "../../components/customInput/customInput";
 import Head from "../../util/head";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
@@ -31,12 +32,54 @@ function documentView() {
     const onClick = (m) => (
         <Link href={`/document/${m.id}`}>{m.value}</Link>
     );
+    const [
+        status,
+        setStatus
+    ] = useState({
+        id: 0,
+        status: ''
+    })
+    useEffect(() => updateStatus(), [status])
+    function getAllDocuments() {
+        DocumentHelper.getAllDocuments()
+            .then((data) => {
+                setData({ document: data });
+                console.log({dahj: data});
+            })
+            .catch((err) => console.log(err));
+    }
+    const badge = (m) => (
+        <Switch className={styles.switch} id="email-alerts" defaultChecked={m.value === 1} onChange={() => { setStatus({ status: m.value === 1 ? 0 : 1, id: m.id})}} />
+    )
+    function updateStatus() {
+    if(status.status !== '' ) {
+        DocumentHelper.updateStatus({
+            document_id: status.id,
+            status: status.status
+        })
+            .then((data) => {
+               if(data.code === 200) {
+                   toast.success("Successfully updated Status");
+               } else {
+                   toast.error("Not Updated")
+               }
+            })
+            .catch((err) => console.log(err));
+        } else {
+            console.log('clear');
+        }
+    }
+    const verify = (m) => (
+        <Link href={`/document/${m.id}`}>
+        <Badge colorScheme={m.value === "new" ? "" : m.value === "verified" ? "green" : "red"}>{m.value}</Badge></Link>
+    )
     const table_title = {
         employee_id: "Document Id",
         name: "Employee Name",
         card_type: "Card Type",
         card_no: "Card Number",
         card_name: "Card Name",
+        verified: "Verification",
         status: "Status",
         // action: "Action",
     };
@@ -62,6 +105,7 @@ function documentView() {
         DocumentHelper.getAllDocuments()
             .then((data) => {
                 setData({ document: data });
+                console.log({dahj: data});
             })
             .catch((err) => console.log(err));
     }
@@ -73,7 +117,8 @@ function documentView() {
             card_type: type({value: m.card_type, id: m.document_id}),
             card_no: onClick({value: m.card_no, id: m.document_id}),
             card_name: onClick({value: m.card_name, id: m.document_id}),
-            status: onClick({value: m.status ? "Active" : "In Active", id: m.document_id}),
+            verified: verify({value: m.is_verified === 0 ? "new" : m.is_verified === 1 ? "verified" : "denied", id: m.document_id}),
+            status: badge({value: m.status , id: m.document_id}),
             // action: image(m.id),
         }
     ));

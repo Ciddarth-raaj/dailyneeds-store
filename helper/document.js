@@ -48,6 +48,20 @@ const document = {
 				reject(err);
 			});
 	}),
+	updateStatus: (data) =>
+	new Promise(function (resolve, reject) {
+		API.post("/document/update-status", data)
+			.then(async (res) => {
+				if (res.status === 200) {
+					resolve(res.data);
+				} else {
+					reject(res.data.msg);
+				}
+			})
+			.catch((err) => {
+				reject(err);
+			});
+	}),
 	getDocumentById: (document_id) =>
 	new Promise(function (resolve, reject) {
 		API.get("/document/document_id?document_id=" + document_id)
