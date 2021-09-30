@@ -27,6 +27,7 @@ class ApproveDocument extends React.Component {
 
 	ApproveDocument(values) {
         const { document_id } = this.props.data[0];
+		const { router } = this.props;
 		this.setState({ loading: true });
 		DocumentHelper.approveDocument({
             document_id: document_id, 
@@ -45,7 +46,8 @@ class ApproveDocument extends React.Component {
 				}
 			})
 			.catch((err) => console.log(err))
-			.finally(() => this.setState({ loading: false }));
+			.finally(() => this.setState({ loading: false }),
+							router.push("/document"));
 	}
 	
 	render() {

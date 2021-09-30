@@ -45,7 +45,6 @@ function designationView() {
                 status: status.status
             })
                 .then((data) => {
-                    console.log(data)
                    if(data.code === 200) {
                        toast.success("Successfully updated Status");
                    } else {

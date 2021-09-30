@@ -1,9 +1,10 @@
 import { Formik, Form } from "formik";
-import { Container, Flex, Button, ButtonGroup } from "@chakra-ui/react";
+import { Container, Flex, Button, Switch, ButtonGroup } from "@chakra-ui/react";
 import styles from "../../styles/admin.module.css";
 import React, { useState, useEffect } from "react";
-
+import { toast } from "react-toastify";
 import Head from "../../util/head";
+import MaterialHelper from "../../helper/material";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import { Validation } from "../../util/validation";
 import Table from "../../components/table/table";
@@ -12,48 +13,86 @@ import exportCSVFile from "../../util/exportCSVFile";
 import moment from "moment";
 
 function items() {
+
     const initialValue = {
         dob_1: "",
         dob_2: "",
     };
-    const image = (m) => (
-        <div style={{ display: "flex", justifyContent: "center" }}>
-            <img
-                src={"/assets/edit.png"}
-                //onClick={() => window.location = `/items/${m}`}
-                className={styles.icon}
-            />
-        </div>
+    // const image = (m) => (
+    //     <div style={{ display: "flex", justifyContent: "center" }}>
+    //         <img
+    //             src={"/assets/edit.png"}
+    //             //onClick={() => window.location = `/items/${m}`}
+    //             className={styles.icon}
+    //         />
+    //     </div>
+    // );
+
+    const onClick = (m) => (
+        <Link href={`/items/${m.id}`}>{m.value}</Link>
     );
+
+    const [
+        status,
+        setStatus
+    ] = useState({
+        id: 0,
+        status: ''
+    })
+    useEffect(() => updateStatus(), [status])
+
+    const badge = (m) => (
+        <Switch className={styles.switch} id="email-alerts" defaultChecked={m.value === 1} onChange={() => { setStatus({ status: m.value === 1 ? 0 : 1, id: m.id})}} />
+    )
+    function updateStatus() {
+        if(status.status !== '' ) {
+            MaterialHelper.updateStatus({
+                material_id: status.id,
+                status: status.status
+            })
+                .then((data) => {
+                   if(data.code === 200) {
+                       toast.success("Successfully updated Status");
+                   } else {
+                       toast.error("Not Updated")
+                   }
+                })
+                .catch((err) => console.log(err));
+            } else {
+                console.log('clear');
+            }
+    }
 
     const table_title = {
         id: "Material Id",
         name: "Material Name",
         description: "Description",
-        action: "Action",
+        status: "Status",
     };
 
-    const value = [
-        {
-            id: "1",
-            name: "Pen",
-            description: "Pen",
-        },
-        {
-            id: "2",
-            name: "Pencil",
-            description: "Pencil Pen",
-        },
-    ];
-
-    const [data, setData] = useState({
-        items: [],
+    const [
+        data, 
+        setData
+    ] = useState({
+        material: [],
     });
-    const valuesNew = value.map((m) => ({
-        id: m.id,
-        name: m.name,
-        description: m.description,
-        action: image(m.id),
+
+    useEffect(() => getMaterials(), [])
+
+    function getMaterials() {
+        MaterialHelper.getMaterial()
+            .then((data) => {
+                setData({ material: data });
+                console.log(data);
+            })
+            .catch((err) => console.log(err));
+    }
+
+    const valuesNew = data.material.map((m) => ({
+        id: m.material_id,
+        name: onClick({value: m.material_name, id: m.material_id}),
+        description: onClick({value: m.description !== '' ? m.description : "NULL", id: m.material_id}),
+        status: badge({value: m.status, id: m.material_id})
     }));
 
     const sortCallback = (key, type) => {

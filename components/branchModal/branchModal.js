@@ -106,6 +106,8 @@ export default class BranchModal extends React.Component {
                                         />
                                     </div>
                                     <Button
+                                        className={styles.updateButton}
+                                        style={{width: "97%"}}
                                         isLoading={isLoading}
                                         colorScheme="purple"
                                         loadingText="Updating"

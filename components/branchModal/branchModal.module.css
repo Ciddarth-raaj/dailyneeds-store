@@ -10,7 +10,10 @@
     justify-content: center;
     align-items: center;
 }
-
+.updateButton {
+    margin-top: 50px;
+    margin-left: 5px;
+}
 .wrapper {
     position: relative;
     background-color: white;

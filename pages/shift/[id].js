@@ -31,6 +31,7 @@ class CreateShift extends React.Component {
 	}
 
 	createShift(values) {
+		const { router } = this.props;
 		this.setState({ loading: true });
 		values.shift_in_time = moment(values.shift_in_time).format("hh:mm:ss");
 		values.shift_out_time = moment(values.shift_out_time).format("hh:mm:ss");
@@ -47,12 +48,14 @@ class CreateShift extends React.Component {
 				console.log(err);
 				toast.error("Error Creating Shift!");
 			})
-			.finally(() => this.setState({ loading: false }));
+			.finally(() => this.setState({ loading: false }),
+						   router.push("/shift"));
 	}
 	updateShift(values) {
 		// values.shift_in_time = moment(values.shift_in_time).format("hh:mm:ss");
 		// values.shift_out_time = moment(values.shift_out_time).format("hh:mm:ss");
 		const { shift_id } = this.props.data[0];
+		const { router } = this.props;
 		this.setState({ loading: true });
 		ShiftHelper.updateShift({
 			shift_id: shift_id,
@@ -68,7 +71,8 @@ class CreateShift extends React.Component {
 				}
 			})
 			.catch((err) => console.log(err))
-			.finally(() => this.setState({ loading: false }));
+			.finally(() => this.setState({ loading: false }),
+								router.push("/shift"));
 	}
 	render() {
 		const { loading, shift } = this.state;

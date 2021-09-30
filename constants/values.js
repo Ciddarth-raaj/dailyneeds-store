@@ -82,6 +82,22 @@ export const Gender = [
         value: "Transgendar",
     }
 ]
+
+export const Category = [
+    {
+        id: 1,
+        value: "Stationary",
+    },
+    {
+        id: 2,
+        value: "Food",
+    },
+    {
+        id: 3,
+        value: "Clothes",
+    },
+]
+
 export const MONTH = [
     'January', 
     'February',
