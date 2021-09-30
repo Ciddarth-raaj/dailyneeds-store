@@ -27,6 +27,7 @@ class CreateDepartment extends React.Component {
 
 	createDepartment(values) {
 		this.setState({ loading: true });
+		const { router } = this.props;
 		DepartmentHelper.createDepartment(values)
 			.then((data) => {
 				if (data == 200) {
@@ -37,10 +38,12 @@ class CreateDepartment extends React.Component {
 				}
 			})
 			.catch((err) => console.log(err))
-			.finally(() => this.setState({ loading: false }));
+			.finally(() => this.setState({ loading: false }),
+						   router.push("/department"));
 	}
 	updateDepartment(values) {
         const { department_id } = this.props.data[0];
+		const { router } = this.props;
 		this.setState({ loading: true });
 		DepartmentHelper.updateDepartment({
             department_id: department_id,
@@ -55,7 +58,8 @@ class CreateDepartment extends React.Component {
 				}
 			})
 			.catch((err) => console.log(err))
-			.finally(() => this.setState({ loading: false }));
+			.finally(() => this.setState({ loading: false }),
+							router.push("/department"));
 	}
 	
 	render() {

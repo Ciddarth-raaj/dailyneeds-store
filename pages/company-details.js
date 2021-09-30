@@ -29,6 +29,7 @@ class CompanyDetails extends React.Component {
     }
 
     createCompany(values) {
+        const { router } = this.props;
 		this.setState({ loading: true });
 		CompanyHelper.createCompany(values)
 			.then((data) => {
@@ -40,7 +41,8 @@ class CompanyDetails extends React.Component {
 				}
 			})
 			.catch((err) => console.log(err))
-			.finally(() => this.setState({ loading: false }));
+			.finally(() => this.setState({ loading: false }),
+                                router.push("/"));
 	}
 
     render() {
@@ -81,6 +83,35 @@ class CompanyDetails extends React.Component {
                                 >
                                     <p className={styles.buttoninputHolder}>
                                         <div>Company Information</div>
+                                        <div style={{ paddingRight: 10 }}>
+                                            <Button
+                                                isLoading={loadingCompany}
+                                                variant="outline"
+                                                leftIcon={
+                                                    editCompany ? (
+                                                        <i
+                                                            class="fa fa-floppy-o"
+                                                            aria-hidden="true"
+                                                        />
+                                                    ) : (
+                                                        <i
+                                                            class="fa fa-pencil"
+                                                            aria-hidden="true"
+                                                        />
+                                                    )
+                                                }
+                                                colorScheme="purple"
+                                                onClick={() => {
+                                                    this.setState({
+                                                        editCompany:
+                                                            !editCompany,
+                                                    });
+                                                    editCompany === true && handleSubmit();
+                                                }}
+                                            >
+                                                {editCompany ? "Save" : "Edit"}
+                                            </Button>
+                                        </div>
                                     </p>
                                     <div>
                                         <div className={styles.inputHolder}>
@@ -88,6 +119,13 @@ class CompanyDetails extends React.Component {
                                                 label="Company Name *"
                                                 name="company_name"
                                                 type="text"
+                                                editable={editCompany}
+                                            />
+                                            <CustomInput
+                                                label="Contact Number *"
+                                                name="contact_number"
+                                                type="text"
+                                                editable={editCompany}
                                             />
                                         </div>
 
@@ -97,27 +135,21 @@ class CompanyDetails extends React.Component {
                                                 name="reg_address"
                                                 type="text"
                                                 method="TextArea"
+                                                editable={editCompany}
                                             />
                                         </div>
-
-                                        <div className={styles.inputHolder}>
-                                            <CustomInput
-                                                label="Contact Number *"
-                                                name="contact_number"
-                                                type="text"
-                                            />
-                                        </div>
-
                                         <div className={styles.inputHolder}>
                                             <CustomInput
                                                 label="GST Number *"
                                                 name="gst_number"
                                                 type="text"
+                                                editable={editCompany}
                                             />
                                             <CustomInput
                                                 label="TAN Number *"
                                                 name="tan_number"
                                                 type="text"
+                                                editable={editCompany}
                                             />
                                         </div>
 
@@ -126,6 +158,7 @@ class CompanyDetails extends React.Component {
                                                 label="PAN Number *"
                                                 name="pan_number"
                                                 type="text"
+                                                editable={editCompany}
                                             />
                                         </div>
 
@@ -134,27 +167,15 @@ class CompanyDetails extends React.Component {
                                                 label="ESI Number *"
                                                 name="esi_number"
                                                 type="text"
+                                                editable={editCompany}
                                             />
                                             <CustomInput
                                                 label="PF Number *"
                                                 name="pf_number"
                                                 type="text"
+                                                editable={editCompany}
                                             />
                                         </div>
-                                        <ButtonGroup
-											spacing="6"
-											mt={10}
-											style={{
-												width: "100%",
-												justifyContent: "flex-end",
-											}}
-											type="submit"
-										>
-											<Button>Cancel</Button>
-											<Button isLoading={loading} loadingText="Submitting" colorScheme="purple" onClick={() => handleSubmit()}>
-												{"Create"}
-											</Button>
-										</ButtonGroup>
                                     </div>
                                 </Container>
                             </Form>

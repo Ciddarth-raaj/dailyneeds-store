@@ -141,8 +141,7 @@ export const EmployeeFamilyValidation = Yup.object({
 	nationality: Yup.string().nullable().required("Choose Nationality"),
 });
 export const ItemsValidation = Yup.object({
-	name: Yup.string().nullable().required("Fill Name"),
+	material_name: Yup.string().nullable().required("Fill Material Name"),
 	description: Yup.string().nullable().required("Choose Description"),
-	status: Yup.string().nullable().required("Choose Status"),
-	category: Yup.string().nullable().required("Choose Category"),
+	material_category: Yup.string().nullable().required("Choose Category"),
 });

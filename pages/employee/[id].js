@@ -111,7 +111,7 @@ class Create extends React.Component {
 	}
 
 	createEmployee = async (values) => {
-			
+			const { router } = this.props;
 			if (this.state.licenseHolder !== "") {
 			const Idarray = [];
 			Idarray.push(await FilesHelper.upload(
@@ -200,7 +200,9 @@ class Create extends React.Component {
 					throw `${data.msg}`;
 				}
 			})
-			.catch((err) => console.log(err));
+			.catch((err) => console.log(err))
+			.finally(() => this.setState({ loading: false }),
+                           router.push("/employee"));
 	}
 
 	updateEmployee = async (values) => {
@@ -299,6 +301,7 @@ class Create extends React.Component {
 		values.date_of_joining = moment(values.date_of_joining).format("YYYY-MM-DD");
 		values.dob = moment(values.dob).format("YYYY-MM-DD");
 		const { employee_id } = this.props.data[0];
+		const { router } = this.props;
 		delete values.department_name;
 		delete values.designation_name;
 		delete values.store_name;
@@ -319,7 +322,9 @@ class Create extends React.Component {
 			.catch((err) => {
 				console.log(err);
 				toast.error("Error Updating Employee details!");
-			});
+			})
+			.finally(() => this.setState({ loading: false }),
+                           router.push("/employee"));
 	}
 
 	getImageUploadParams = ({ meta }) => {

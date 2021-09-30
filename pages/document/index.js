@@ -101,14 +101,6 @@ function documentView() {
         })
         return <Link href={`/document/${n.id}`}>{cardName}</Link>;
     }
-    function getAllDocuments() {
-        DocumentHelper.getAllDocuments()
-            .then((data) => {
-                setData({ document: data });
-                console.log({dahj: data});
-            })
-            .catch((err) => console.log(err));
-    }
 
     const valuesNew = data.document.map((m) => (
         {

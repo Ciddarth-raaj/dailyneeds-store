@@ -10,6 +10,8 @@ import { withRouter } from "next/router";
 import styles from "../../styles/registration.module.css";
 
 //Internal Dependencies
+import MaterialHelper from "../../helper/material";
+import { Category } from "../../constants/values";
 import CustomInput from "../../components/customInput/customInput";
 import Head from "../../util/head";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
@@ -25,22 +27,60 @@ class CreateItems extends React.Component {
             editItems: false,
         };
     }
-    createItems(values) {
-        toast.success("Successfully Added New Item");
-    }
 
+    createMaterial(values) {
+        this.setState({ loadingSubmit: true });
+        const { router } = this.props;
+        MaterialHelper.createMaterial(values)
+            .then((data) => {
+                if (data == 200) {
+                    toast.success("Successfully Added New Family Member!");
+                } else {
+                    toast.error("Error Adding Member!");
+                    throw `${data.msg}`;
+                }
+            })
+            .catch((err) => console.log(err))
+            .finally(() => this.setState({ loadingSubmit: false }),
+                            router.push("/items"));
+    }
+    updateMaterial(values) {
+        const { material_id } = this.props.data[0];
+        const { router } = this.props;
+        this.setState({ loadingSubmit: true });
+        MaterialHelper.updateMaterial({
+            material_id: material_id,
+            material_details: values
+        })
+            .then((data) => {
+                if (data.code === 200) {
+                    toast.success("Successfully Updated Material Details!");
+                } else {
+                    toast.error("Error Updating Material Details!");
+                    throw `${data.msg}`;
+                }
+            })
+            .catch((err) => console.log(err))
+            .finally(() => this.setState({ loadingSubmit: false }),
+                            router.push("/items"));
+    }
     render() {
         const { loadingItem, loadingSubmit, loadingReset, editItems } =
             this.state;
         const { id } = this.props;
+        console.log({prop: this.props});
         return (
             <GlobalWrapper title="Items">
                 <Head />
                 <Formik
-                    initialValues={{}}
+                    initialValues={{
+                        material_name: this.props.data[0]?.material_name,
+                        description: this.props.data[0]?.description,
+                        material_category: this.props.data[0]?.material_category
+                    }}
                     validationSchema={ItemsValidation}
                     onSubmit={(values) => {
-                        this.createItems(values);
+                        id !== null ? this.updateMaterial(values) :  this.createMaterial(values);
                     }}
                 >
                     {(formikProps) => {
@@ -60,7 +100,8 @@ class CreateItems extends React.Component {
                                     <p className={styles.buttoninputHolder}>
                                         <div>Add Items</div>
                                         <div style={{ paddingRight: 10 }}>
-                                            <Button
+                                            {id !== null ? (                                            
+                                                <Button
                                                 isLoading={loadingItem}
                                                 variant="outline"
                                                 leftIcon={
@@ -83,11 +124,14 @@ class CreateItems extends React.Component {
                                                         this.setState({
                                                             editItems:
                                                                 !editItems,
-                                                        });
+                                                        })
                                                 }}
                                             >
                                                 {editItems ? "Save" : "Edit"}
                                             </Button>
+                                            ) : (
+                                                <div></div>
+                                            )}
                                         </div>
                                     </p>
 
@@ -95,7 +139,7 @@ class CreateItems extends React.Component {
                                         <div className={styles.inputHolder}>
                                             <CustomInput
                                                 label="Material Name *"
-                                                name="name"
+                                                name="material_name"
                                                 type="text"
                                                 editable={
                                                     id !== null
@@ -104,18 +148,12 @@ class CreateItems extends React.Component {
                                                 }
                                             />
                                             <CustomInput
-                                                label="Status *"
-                                                values={[
-                                                    {
-                                                        id: "Available",
-                                                        value: "Available",
-                                                    },
-                                                    {
-                                                        id: "UnAvailable",
-                                                        value: "UnAvailable",
-                                                    },
-                                                ]}
-                                                name="status"
+                                                label="Category *"
+                                                values={Category.map((m) => ({
+                                                    id: m.id,
+                                                    value: m.value
+                                                }))}
+                                                name="material_category"
                                                 type="text"
                                                 method="switch"
                                                 editable={
@@ -138,33 +176,8 @@ class CreateItems extends React.Component {
                                                         : !editItems
                                                 }
                                             />
-                                            <CustomInput
-                                                label="Category *"
-                                                values={[
-                                                    {
-                                                        id: "Stationary",
-                                                        value: "Stationary",
-                                                    },
-                                                    {
-                                                        id: "Food",
-                                                        value: "Food",
-                                                    },
-                                                    {
-                                                        id: "Clothes",
-                                                        value: "Clothes",
-                                                    },
-                                                ]}
-                                                name="category"
-                                                type="text"
-                                                method="switch"
-                                                editable={
-                                                    id !== null
-                                                        ? editItems
-                                                        : !editItems
-                                                }
-                                            />
                                         </div>
-
+                                        {id === null && (
                                         <ButtonGroup
                                             spacing="6"
                                             style={{
@@ -177,6 +190,7 @@ class CreateItems extends React.Component {
                                                 isLoading={loadingSubmit}
                                                 loadingText="Submitting"
                                                 colorScheme="purple"
+                                                onClick={() => handleSubmit()}
                                             >
                                                 {"Submit"}
                                             </Button>
@@ -186,7 +200,9 @@ class CreateItems extends React.Component {
                                             >
                                                 Reset
                                             </Button>
+                                            
                                         </ButtonGroup>
+                                            )}
                                     </div>
                                 </Container>
                             </Form>
@@ -198,11 +214,11 @@ class CreateItems extends React.Component {
     }
 }
 
-// export async function getServerSideProps(context) {
-// 	const data = await FamilyHelper.getFamilyById(context.query.id);
-// 	const id = context.query.id != "create" ? data[0].family_id : null;
-// 	return {
-// 		props: { data, id }
-// 	};
-// }
+export async function getServerSideProps(context) {
+	const data = await MaterialHelper.getMaterialById(context.query.id);
+	const id = context.query.id != "create" ? data[0].material_id : null;
+	return {
+		props: { data, id }
+	};
+}
 export default withRouter(CreateItems);

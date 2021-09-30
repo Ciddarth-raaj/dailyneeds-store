@@ -31,7 +31,7 @@ class CreateDesignation extends React.Component {
 
 	createDesignation(values) {
 		const { permissions } = this.state;
-
+		const { router } = this.props;
 		this.setState({ loading: true });
 		DesignationHelper.createDesignation({ ...values, permissions })
 			.then((data) => {
@@ -46,11 +46,13 @@ class CreateDesignation extends React.Component {
 				console.log(err);
 				toast.error("Error Creating Designation!");
 			})
-			.finally(() => this.setState({ loading: false }));
+			.finally(() => this.setState({ loading: false }),
+						   router.push("/designation"));
 	}
 
 	updateDesignation(values) {
         const { designation_id } = this.props.data[0];
+		const { router } = this.props;
 		this.setState({ loading: true });
 		DesignationHelper.updateDesignation({
             designation_id: designation_id,
@@ -65,7 +67,8 @@ class CreateDesignation extends React.Component {
 				}
 			})
 			.catch((err) => console.log(err))
-			.finally(() => this.setState({ loading: false }));
+			.finally(() => this.setState({ loading: false }),
+							router.push("/designation"));
 	}
 
 	handleCheckbox(key, checked) {

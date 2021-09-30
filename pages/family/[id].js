@@ -43,6 +43,7 @@ class Family extends React.Component {
             .catch((err) => console.log(err))
     }
     createFamily(values) {
+        const { router } = this.props;
         const { employee_name } = this.state;
         this.setState({ loadingFamily: true });
         values.dob = moment(values.dob).format("YYYY-MM-DD");
@@ -57,10 +58,12 @@ class Family extends React.Component {
                 }
             })
             .catch((err) => console.log(err))
-            .finally(() => this.setState({ loadingFamily: false }));
-    }
+            .finally(() => this.setState({ loadingFamily: false }),
+                           router.push("/family"));
+        }
     updateFamily(values) {
         const { family_id } = this.props.data[0];
+        const { router } = this.props;
         this.setState({ loading: true });
         values.dob = moment(values.dob).format("YYYY-MM-DD");
         values.remarks = values.remarks === null ? "" : values.remarks;  
@@ -77,7 +80,8 @@ class Family extends React.Component {
                 }
             })
             .catch((err) => console.log(err))
-            .finally(() => this.setState({ loading: false }));
+            .finally(() => this.setState({ loading: false }),
+                           router.push("/family"));
     }
     pTag() {
         <p>hello</p>
