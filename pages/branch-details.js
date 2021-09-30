@@ -1,5 +1,5 @@
 import { Formik, Form } from "formik";
-import { Container, Flex, Switch } from "@chakra-ui/react";
+import { Container, Flex, Switch , ButtonGroup, Button } from "@chakra-ui/react";
 import styles from "../styles/admin.module.css";
 import React from "react";
 
@@ -9,6 +9,8 @@ import { toast } from "react-toastify";
 import Head from "../util/head";
 import GlobalWrapper from "../components/globalWrapper/globalWrapper";
 import Table from "../components/table/table";
+import exportCSVFile from "../util/exportCSVFile";
+import moment from "moment";
 
 const table_title = {
     outlet_id: "Id",
@@ -106,6 +108,30 @@ export default class CreateShift extends React.Component {
                 </div>
             ),
         }));
+
+        const getExportFile = () => {
+            const TABLE_HEADER = {
+                SNo: "SNo",
+                outlet_id: "Id",
+                outlet_name: "Name",
+                outlet_nickname: "Nickname",
+            };
+            const formattedData = [];
+            valuesNew.forEach((d, i) => {
+                formattedData.push({
+                    SNo: i + 1,
+                    outlet_id: d.outlet_id,
+                    outlet_name: d.outlet_name,
+                    outlet_nickname: d.outlet_nickname,
+                });
+            });
+            exportCSVFile(
+                TABLE_HEADER,
+                formattedData,
+                "branch_details" + moment().format("DD-MMY-YYYY")
+            );
+        };
+
         return (
             <Formik>
                 <Form>
@@ -140,6 +166,20 @@ export default class CreateShift extends React.Component {
                                             sortCallback(key, type)
                                         }
                                     />
+                                    <ButtonGroup
+                                    style={{
+                                        display: "flex",
+                                        justifyContent: "flex-end",
+                                        paddingBottom: 15,
+                                    }}
+                                >
+                                    <Button
+                                        colorScheme="purple"
+                                        onClick={() => getExportFile()}
+                                    >
+                                        {"Export"}
+                                    </Button>
+                                </ButtonGroup>
                                 </div>
                             </Container>
                         </Flex>
