@@ -20,12 +20,17 @@
 	font-size: 24px;
 }
 
+.noImageAlert {
+	margin-top: 30px;
+	color: var(--chakra-colors-purple-500);
+	font-size: 17px;
+}
 .employee_image {
 	margin-top: 20px;
-	border-radius: 20px;
+	border-radius: 10px;
+	border: 1px solid lightgray;
 	object-fit: cover;
 	width: 100%;
-	background-color: aqua;
 	height: 350px;
 }
 

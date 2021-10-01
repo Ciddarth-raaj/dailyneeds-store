@@ -80,7 +80,11 @@ class ApproveDocument extends React.Component {
                                             <CustomInput label="Card Number" name="card_no" type="text" method="disabled" />
 										</div>
                                         <div className={styles.personalInputHolder}>
+											{values.file  ? (
                                             <img src={values.file} className={styles.employee_image} />
+											) : ( 
+												<div className={styles.noImageAlert}>NO IMAGE AVAILABLE</div> 
+											)} 
                                         </div>
 										<ButtonGroup
 											spacing="6"

@@ -63,8 +63,9 @@ class Family extends React.Component {
         }
     updateFamily(values) {
         const { family_id } = this.props.data[0];
-        const { router } = this.props;
+        const { employee_name } = this.state;
         this.setState({ loading: true });
+        values.employee_name = employee_name ? employee_name : "";
         values.dob = moment(values.dob).format("YYYY-MM-DD");
         values.remarks = values.remarks === null ? "" : values.remarks;  
         FamilyHelper.updateFamily({
@@ -111,7 +112,6 @@ class Family extends React.Component {
                 >
                     {(formikProps) => {
                         const { handleSubmit, values } = formikProps;
-                        console.log({Values: values});
                         return (
                             <Form onSubmit={formikProps.handleSubmit}>
                                 <FormikErrorFocus

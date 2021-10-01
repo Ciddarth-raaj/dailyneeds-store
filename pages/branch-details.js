@@ -31,6 +31,7 @@ export default class CreateShift extends React.Component {
     }
     updateStatus() {
         const { status, id } = this.state;
+        if(status !== '') {
             BranchHelper.updateStatus({
                 outlet_id: id,
                 is_active: status
@@ -38,11 +39,13 @@ export default class CreateShift extends React.Component {
                 .then((data) => {
                    if(data.code === 200) {
                        toast.success("Successfully updated Status");
+                       this.setState({ status: ''});
                    } else {
                        toast.error("Not Updated")
                    }
                 })
                 .catch((err) => console.log(err));
+        }
 }
     sortCallback = (key, type) => {
         console.log(key, type);
