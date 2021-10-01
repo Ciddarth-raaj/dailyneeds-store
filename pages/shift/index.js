@@ -1,5 +1,5 @@
 import { Formik, Form } from "formik";
-import { Container, Flex, Button, Switch, Badge } from "@chakra-ui/react";
+import { Container, Flex, Button, ButtonGroup, Switch, Badge } from "@chakra-ui/react";
 import styles from "../../styles/admin.module.css";
 import ShiftHelper from "../../helper/shift";
 import React, { useState, useEffect } from "react";
@@ -11,6 +11,8 @@ import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import { Validation } from "../../util/validation";
 import Table from "../../components/table/table";
 import Link from "next/link";
+import exportCSVFile from "../../util/exportCSVFile";
+import moment from "moment";
 
 function shiftView() {
     const initialValue = {
@@ -94,6 +96,33 @@ function shiftView() {
         console.log(key, type);
     };
 
+    const getExportFile = () => {
+        const TABLE_HEADER = {
+            SNo: "SNo",
+            id: "Shift Id",
+            name: "Shift Name",
+            start_time: "Start Time",
+            end_time: "End Time",       
+            status: "Status",
+        };
+        const formattedData = [];
+        valuesNew.forEach((d, i) => {
+            formattedData.push({
+                SNo: i + 1,
+                id: d.id,
+                name: d.value,
+                start_time: d.start_time,
+                end_time: d.end_time,
+                status: d.status
+            });
+        });
+        exportCSVFile(
+            TABLE_HEADER,
+            formattedData,
+            "shift_details" + moment().format("DD-MMY-YYYY")
+        );
+    };
+
     return (
         <Formik
             initialValues={initialValue}
@@ -132,6 +161,20 @@ function shiftView() {
                                         sortCallback(key, type)
                                     }
                                 />
+                                <ButtonGroup
+                                    style={{
+                                        display: "flex",
+                                        justifyContent: "flex-end",
+                                        paddingBottom: 15,
+                                    }}
+                                >
+                                    <Button
+                                        colorScheme="purple"
+                                        onClick={() => getExportFile()}
+                                    >
+                                        {"Export"}
+                                    </Button>
+                                </ButtonGroup>
                             </div>
                         </Container>
                     </Flex>

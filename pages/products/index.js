@@ -13,6 +13,8 @@ import CustomInput from "../../components/customInput/customInput";
 import Head from "../../util/head";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import Table from "../../components/table/table";
+import exportCSVFile from "../../util/exportCSVFile";
+import moment from "moment";
 
 function product() {
     const loading = false;
@@ -66,6 +68,30 @@ function product() {
         console.log(key, type);
     };
 
+    const getExportFile = () => {
+        const TABLE_HEADER = {
+            SNo: "SNo",
+            id: "Id",
+            name: "Name",
+            variants: "Variants",
+        };
+        const formattedData = [];
+        valuesNew.forEach((d, i) => {
+            formattedData.push({
+                SNo: i + 1,
+                id: d.id,
+                name: d.name,
+                variants: d.variants,
+
+            });
+        });
+        exportCSVFile(
+            TABLE_HEADER,
+            formattedData,
+            "product_details" + moment().format("DD-MMY-YYYY")
+        );
+    };
+
     return (
         <Formik>
             <Form>
@@ -116,6 +142,20 @@ function product() {
                                         sortCallback(key, type)
                                     }
                                 />
+                                <ButtonGroup
+                                    style={{
+                                        display: "flex",
+                                        justifyContent: "flex-end",
+                                        paddingBottom: 15,
+                                    }}
+                                >
+                                    <Button
+                                        colorScheme="purple"
+                                        onClick={() => getExportFile()}
+                                    >
+                                        {"Export"}
+                                    </Button>
+                                </ButtonGroup>
                             </div>
                         </Container>
                     </Flex>

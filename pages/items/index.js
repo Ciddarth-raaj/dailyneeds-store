@@ -1,5 +1,5 @@
 import { Formik, Form } from "formik";
-import { Container, Flex, Button, Switch } from "@chakra-ui/react";
+import { Container, Flex, Button, Switch, ButtonGroup } from "@chakra-ui/react";
 import styles from "../../styles/admin.module.css";
 import React, { useState, useEffect } from "react";
 import { toast } from "react-toastify";
@@ -9,6 +9,8 @@ import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import { Validation } from "../../util/validation";
 import Table from "../../components/table/table";
 import Link from "next/link";
+import exportCSVFile from "../../util/exportCSVFile";
+import moment from "moment";
 
 function items() {
 
@@ -97,6 +99,29 @@ function items() {
         console.log(key, type);
     };
 
+    const getExportFile = () => {
+        const TABLE_HEADER = {
+            SNo: "SNo",
+            id: "Material ID",
+            name: "Material Name",
+            description: "Description",
+        };
+        const formattedData = [];
+        valuesNew.forEach((d, i) => {
+            formattedData.push({
+                SNo: i + 1,
+                id: d.id,
+                name: d.name,
+                description: d.description,
+            });
+        });
+        exportCSVFile(
+            TABLE_HEADER,
+            formattedData,
+            "product_details" + moment().format("DD-MMY-YYYY")
+        );
+    };
+
     return (
         <Formik
             initialValues={initialValue}
@@ -128,6 +153,20 @@ function items() {
                                         sortCallback(key, type)
                                     }
                                 />
+                                <ButtonGroup
+                                    style={{
+                                        display: "flex",
+                                        justifyContent: "flex-end",
+                                        paddingBottom: 15,
+                                    }}
+                                >
+                                    <Button
+                                        colorScheme="purple"
+                                        onClick={() => getExportFile()}
+                                    >
+                                        {"Export"}
+                                    </Button>
+                                </ButtonGroup>
                             </div>
                         </Container>
                     </Flex>

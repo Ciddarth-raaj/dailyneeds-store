@@ -1,5 +1,5 @@
 import { Formik, Form } from "formik";
-import { Container, Flex, Button } from "@chakra-ui/react";
+import { Container, Flex, Button, ButtonGroup } from "@chakra-ui/react";
 import styles from "../../styles/admin.module.css";
 import React, { useState, useEffect } from "react";
 
@@ -9,6 +9,8 @@ import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import { Validation } from "../../util/validation";
 import Table from "../../components/table/table";
 import Link from "next/link";
+import exportCSVFile from "../../util/exportCSVFile";
+import moment from "moment";
 
 function viewFamily() {
     const initialValue = {
@@ -58,6 +60,29 @@ function viewFamily() {
         console.log(key, type);
     };
 
+    const getExportFile = () => {
+        const TABLE_HEADER = {
+            SNo: "SNo",
+            id: "Id",
+            name: "Name",
+            relation: "Relation",
+        };
+        const formattedData = [];
+        valuesNew.forEach((d, i) => {
+            formattedData.push({
+                SNo: i + 1,
+                id: d.family_id,
+                name: d.name,
+                relation: d.relation,
+            });
+        });
+        exportCSVFile(
+            TABLE_HEADER,
+            formattedData,
+            "family_details" + moment().format("DD-MMY-YYYY")
+        );
+    };
+
     return (
         <Formik
             initialValues={initialValue}
@@ -89,6 +114,20 @@ function viewFamily() {
                                         sortCallback(key, type)
                                     }
                                 />
+                                <ButtonGroup
+                                    style={{
+                                        display: "flex",
+                                        justifyContent: "flex-end",
+                                        paddingBottom: 15,
+                                    }}
+                                >
+                                    <Button
+                                        colorScheme="purple"
+                                        onClick={() => getExportFile()}
+                                    >
+                                        {"Export"}
+                                    </Button>
+                                </ButtonGroup>
                             </div>
                         </Container>
                     </Flex>
