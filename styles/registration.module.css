@@ -210,6 +210,12 @@
 	/* margin-top: 60px; */
 	padding-bottom: 25px;
 }
+.logoUploadHolder {
+	width: 99%;
+	margin-left: 5px;
+	color: #8b74ff;
+	padding-bottom: 25px;
+}
 .uploadDetails {
 	margin-top: 50px;
 	padding: 20px;

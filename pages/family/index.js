@@ -29,6 +29,7 @@ function viewFamily() {
     const table_title = {
         id: "Id",
         name: "Name",
+        employee_name: "Employee Name",
         relation: "Relation",
         // action: "Action"
     };
@@ -52,6 +53,7 @@ function viewFamily() {
     const valuesNew = data.details.map((m) => ({
         id: m.family_id,
         name: onClick({value: m.name, id: m.family_id}),
+        employee_name: m.employee_name,
         relation: onClick({value: m.relation, id: m.family_id}),
         // action: image(m.family_id),
     }));
@@ -65,6 +67,7 @@ function viewFamily() {
             SNo: "SNo",
             id: "Id",
             name: "Name",
+            employee_name: "Employee Name",
             relation: "Relation",
         };
         const formattedData = [];

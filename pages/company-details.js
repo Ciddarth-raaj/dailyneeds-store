@@ -1,6 +1,7 @@
 //External Dependencies
 import React from "react";
 import { Formik, Form } from "formik";
+import Dropzone from "react-dropzone-uploader";
 import { Container, ButtonGroup, Button } from "@chakra-ui/react";
 import { toast } from "react-toastify";
 import FormikErrorFocus from "formik-error-focus";
@@ -11,7 +12,7 @@ import styles from "../styles/registration.module.css";
 
 //helper
 import CompanyHelper from "../helper/company";
-
+import FilesHelper from "../helper/asset";
 //Internal Dependencies
 import CustomInput from "../components/customInput/customInput";
 import Head from "../util/head";
@@ -25,10 +26,34 @@ class CompanyDetails extends React.Component {
             loadingCompany: false,
 			loading: false,
             editCompany: false,
+            imageHolder: [],
         };
     }
 
-    createCompany(values) {
+    getLogoUploadParams = ({ meta }) => {
+		const { imageHolder } = this.state;
+		return { url: imageHolder };
+	};
+    
+    logoChangeStatus = async ({ meta, file }, status) => {
+		if (status === "headers_received") {
+			try {
+				this.setState({ imageHolder: file });
+			} catch (err) {
+				console.log(err);
+			}
+		}
+	};
+
+    async createCompany(values) {
+        const Imagearray = [];
+			Imagearray.push(await FilesHelper.upload(
+				this.state.imageHolder,
+				"uploadLogo",
+				"dashboard_file"
+			));
+		values.logo = Imagearray.length > 0 ? Imagearray[0].remoteUrl : "";
+
         const { router } = this.props;
 		this.setState({ loading: true });
 		CompanyHelper.createCompany(values)
@@ -47,6 +72,27 @@ class CompanyDetails extends React.Component {
 
     render() {
         const { loadingCompany, loading, editCompany } = this.state;
+        const dropDownProps = {
+			styles: {
+				dropzone: {
+					overflow: "auto",
+					border: "none",
+					borderRadius: "10px",
+					background: "#EEEEEE",
+					marginTop: "10px"
+				},
+				inputLabelWithFiles: {
+					margin: "20px 3%",
+				},
+				inputLabel: {
+					color: "black",
+					fontSize: "14px",
+				},
+			},
+			multiple: false,
+			maxFiles: 1,
+			accept: "image/*",
+		};
 
         return (
             <GlobalWrapper title="Company Details">
@@ -61,6 +107,7 @@ class CompanyDetails extends React.Component {
                         pan_number: "",
                         esi_number: "",
                         pf_number: "",
+                        logo: "",
                     }}
                     validationSchema={CompanyDetailsValidation}
                     onSubmit={(values) => {
@@ -175,6 +222,14 @@ class CompanyDetails extends React.Component {
                                                 type="text"
                                                 editable={editCompany}
                                             />
+                                        </div>
+                                        <div className={styles.inputHolder}>
+											<div className={styles.logoUploadHolder}>
+                                            <label className={styles.uploaderTitle} for="uploadImage">
+												Upload Employee Image *
+											</label>
+                                            <Dropzone getUploadParams={this.getLogoUploadParams} onChangeStatus={this.logoChangeStatus} {...dropDownProps} />
+                                            </div>
                                         </div>
                                     </div>
                                 </Container>
