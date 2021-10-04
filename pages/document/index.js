@@ -2,7 +2,7 @@
 import { Formik, Form } from "formik";
 import { Container, Flex, Button, ButtonGroup, Badge } from "@chakra-ui/react";
 import React, { useState, useEffect } from "react";
-import { CheckIcon, CloseIcon } from '@chakra-ui/icons'
+import { CheckIcon, CloseIcon, LockIcon } from '@chakra-ui/icons'
 
 //Styles
 import styles from "../../styles/admin.module.css";
@@ -47,14 +47,19 @@ function documentView() {
         DocumentHelper.getAllDocuments()
             .then((data) => {
                 setData({ document: data });
-                console.log({dahj: data});
             })
             .catch((err) => console.log(err));
     }
     const badge = (m) => (
         <>
+        {m.verifycheck !== 1 ? (
+        <>
         <CheckIcon style={{color: "green"}} id="email-alerts" onClick={() => {ApproveDocument({id: m.id, is_verified: "1"})}}/>
         <CloseIcon style={{color: "red"}} className={styles.switch} id="email-alerts"  onClick={() => {ApproveDocument({id: m.id, is_verified: "-1"})}}  />
+        </>
+        ) : (
+        <LockIcon />
+        )}
         </>
     )
 
@@ -172,7 +177,7 @@ function documentView() {
             card_name: onClick({value: m.card_name, id: m.document_id}),
             verified: verify({value: m.is_verified === 0 ? "new" : m.is_verified === 1 ? "verified" : "denied", id: m.document_id}),
             // status: badge({value: m.status , id: m.document_id}),
-            action: badge({id: m.document_id}),
+            action: badge({id: m.document_id, verifycheck: m.is_verified}),
             downloader: downloader({file: m.file})
         }
     ));
