@@ -97,6 +97,38 @@ function documentView() {
             console.log('clear');
         }
     }
+    const download = (href) => {
+        console.log({href: href});
+		fetch(href, {
+            mode: 'no-cors',
+			method: "GET",
+			headers: {},
+		})
+			.then((response) => {
+				response.arrayBuffer().then(function (buffer) {
+					const url = window.URL.createObjectURL(new Blob([buffer]));
+					const link = document.createElement("a");
+					link.href = url;
+					const extension =
+						href.split(".")[href.split(".").length - 1];
+					link.setAttribute("download", `file.${extension}`);
+					document.body.appendChild(link);
+					link.click();
+				});
+			})
+			.catch((err) => {
+				console.log(err);
+			});
+	};
+    const downloader = (m) => (
+        <a
+			href={m.file}
+			target="_blank"
+            onClick={() => download(m.file)}
+		>
+			<img src="/assets/downloadblack.png" className={styles.iconDownload}/>
+		</a>
+    )
     const verify = (m) => (
         <Link href={`/document/${m.id}`}>
         <Badge colorScheme={m.value === "new" ? "" : m.value === "verified" ? "green" : "red"}>{m.value}</Badge></Link>
@@ -110,6 +142,7 @@ function documentView() {
         verified: "Verification",
         // status: "Status",
         action: "Action",
+        downloader: "Download"
     };
 
     const [
@@ -140,6 +173,7 @@ function documentView() {
             verified: verify({value: m.is_verified === 0 ? "new" : m.is_verified === 1 ? "verified" : "denied", id: m.document_id}),
             // status: badge({value: m.status , id: m.document_id}),
             action: badge({id: m.document_id}),
+            downloader: downloader({file: m.file})
         }
     ));
 

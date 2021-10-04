@@ -4,7 +4,11 @@
 	padding-top: 120px;
 	position: relative;
 }
-
+.iconDownload {
+	height: 18px;
+	width: 18px;
+	margin-left: 55px;
+}
 .dropbtn {
 	border: 1px solid lightgray;
 	color: black;
