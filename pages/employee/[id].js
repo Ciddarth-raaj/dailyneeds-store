@@ -615,7 +615,7 @@ class Create extends React.Component {
 							},
 						]
 					}}
-					// validationSchema={Validation}
+					validationSchema={Validation}
 					onSubmit={(values) => {
 						id !== null ? this.updateEmployee(values) : this.createEmployee(values);
 					}}

@@ -1,15 +1,15 @@
 export default {
-    dashboard: {
-        title: "Dashboard",
-        selected: false,
-        icon: "fa-columns",
-    },
     employee: {
         title: "Employees",
         selected: true,
         openPage: true,
         icon: "fa-users",
         subMenu: {
+            dashboard: {
+                title: "Dashboard",
+                selected: false,
+                location: "/"
+            },
             view: {
                 title: "View Employee",
                 selected: false,

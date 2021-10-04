@@ -1,7 +1,8 @@
 //External Dependancies
 import { Formik, Form } from "formik";
-import { Container, Flex, Button, ButtonGroup, Badge, Switch } from "@chakra-ui/react";
+import { Container, Flex, Button, ButtonGroup, Badge } from "@chakra-ui/react";
 import React, { useState, useEffect } from "react";
+import { CheckIcon, CloseIcon } from '@chakra-ui/icons'
 
 //Styles
 import styles from "../../styles/admin.module.css";
@@ -51,8 +52,33 @@ function documentView() {
             .catch((err) => console.log(err));
     }
     const badge = (m) => (
-        <Switch className={styles.switch} id="email-alerts" defaultChecked={m.value === 1} onChange={() => { setStatus({ status: m.value === 1 ? 0 : 1, id: m.id})}} />
+        <>
+        <CheckIcon style={{color: "green"}} id="email-alerts" onClick={() => {ApproveDocument({id: m.id, is_verified: "1"})}}/>
+        <CloseIcon style={{color: "red"}} className={styles.switch} id="email-alerts"  onClick={() => {ApproveDocument({id: m.id, is_verified: "-1"})}}  />
+        </>
     )
+
+    function ApproveDocument(id) {
+		DocumentHelper.approveDocument({
+            document_id: id.id, 
+            is_verified: id.is_verified
+        })
+			.then((data) => {
+                console.log(data);
+				if (data.code == 200) {
+                    if(id.is_verified === 1) {
+					toast.success("Successfully Approved Document!");
+                    } else {
+					toast.success("Successfully Declined Document!");
+                    }
+				} else {
+					toast.error("Error Approving Document!");
+					throw `${data.msg}`;
+				}
+			})
+			.catch((err) => console.log(err))
+	}
+
     function updateStatus() {
     if(status.status !== '' ) {
         DocumentHelper.updateStatus({
@@ -82,8 +108,8 @@ function documentView() {
         card_no: "Card Number",
         card_name: "Card Name",
         verified: "Verification",
-        status: "Status",
-        // action: "Action",
+        // status: "Status",
+        action: "Action",
     };
 
     const [
@@ -112,8 +138,8 @@ function documentView() {
             card_no: onClick({value: m.card_no, id: m.document_id}),
             card_name: onClick({value: m.card_name, id: m.document_id}),
             verified: verify({value: m.is_verified === 0 ? "new" : m.is_verified === 1 ? "verified" : "denied", id: m.document_id}),
-            status: badge({value: m.status , id: m.document_id}),
-            // action: image(m.id),
+            // status: badge({value: m.status , id: m.document_id}),
+            action: badge({id: m.document_id}),
         }
     ));
 

@@ -5,6 +5,85 @@
 	position: relative;
 }
 
+.dropbtn {
+	border: 1px solid lightgray;
+	color: black;
+	padding: 16px;
+	height: 40px;
+	width: 100%;
+	display: flex;
+	border-radius: 7px;
+	justify-content: center;
+	align-items: center;
+	font-size: 16px;
+	/* border: none; */
+	cursor: pointer;
+}
+
+.dropdown {
+	position: relative;
+	display: inline-block;
+	width: 30%;
+	padding-bottom: 5px;
+	height: 60%;
+}
+
+.dropdowncontent {
+	width: 100%;
+	display: none;
+	position: absolute;
+	cursor: pointer;
+	background-color: white;
+	border-bottom-left-radius: 15px;
+	border-bottom-right-radius: 15px;
+	min-width: 160px;
+	height: 200px;
+	box-shadow: 0px 8px 16px 
+		0px rgba(0, 0, 0, 0.2);
+	z-index: 1;
+	overflow-y: scroll;
+	/* padding-top: 11px; */
+}
+.dropdowncontent::-webkit-scrollbar {
+	display: none;
+}
+.dropdownImg {
+	border-radius: 50%;
+	height: 30px;
+	margin-top: 10px;
+	margin-right: 30px;
+}
+.employeeNameLabel {
+	font-size: 14px;
+	margin-bottom: none;
+}
+.dropdowncontent a {
+	color: black;
+	padding: 9px 16px;
+	text-decoration: none;
+	margin: 0px 10px;
+	display: block;
+	font-size: 15px;
+	margin-top: 4px;
+	font-weight: 500;
+	display: flex;
+	width: 30%;
+	justify-content: space-between;
+}
+/* .dropdowncontent a:hover {
+	background-color: #f1f1f1;
+}
+*/
+.dropdown:hover .dropdowncontent {
+	display: block;
+} 
+
+/* .dropdown:hover .dropbtn {
+	background-color: var(--secondaryColor);
+} */
+
+
+
 .container p {
 	border-bottom: 1px solid rgb(211, 211, 211);
 	position: absolute;
@@ -16,7 +95,9 @@
 	font-weight: bold;
 	font-size: 24px;
 }
-
+.switch {
+	margin-left: 40px;
+}
 .personalInputs {
 	display: flex;
 	flex-direction: column;
