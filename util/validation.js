@@ -3,10 +3,7 @@ import * as Yup from "yup";
 export const Validation = Yup.object({
 	employee_name: Yup.string().nullable().required("Fill Name"),
 	father_name: Yup.string().nullable().required("Fill Father Name"),
-	dob: Yup.string()
-		.nullable()
-		.max(new Date(), "Must be 15 characters or less")
-		.required("Fill Date of birth"),
+	dob: Yup.string().nullable().max(new Date(), "Must be 15 characters or less").required("Fill Date of birth"),
 	permanent_address: Yup.string().nullable().required("Fill Address"),
 	residential_address: Yup.string().nullable().required("Fill Residential Address"),
 	gender: Yup.string().nullable().required("Choose Gender"),
@@ -16,12 +13,7 @@ export const Validation = Yup.object({
 	shift_id: Yup.string().nullable().required("Choose Shift"),
 	store_id: Yup.string().nullable().required("Choose Store"),
 	department_id: Yup.string().nullable().required("Choose Department"),
-	primary_contact_number: Yup.number()
-		.nullable()
-		.typeError("Must be a number")
-		.min(123456789, "Must be 9 or More")
-		.max(12345678900, "Must be 10 characters or less")
-		.required("Fill Contact Number"),
+	primary_contact_number: Yup.number().nullable().typeError("Must be a number").min(123456789, "Must be 9 or More").max(12345678900, "Must be 10 characters or less").required("Fill Contact Number"),
 	// alternateNo: Yup.string()
 	// 	.min(123456789, "Must be 9 or More")
 	// 	.max(12345678900, "Must be 10 characters or less")
@@ -30,9 +22,7 @@ export const Validation = Yup.object({
 	// 	.nullable()
 	// 	.email("Invalid email")
 	// 	.required("Fill Email"),
-	qualification: Yup.string()
-		.nullable()
-		.required("Fill Educational Qualification"),
+	qualification: Yup.string().nullable().required("Fill Educational Qualification"),
 	// introducerName: Yup.string().required("Fill Introducer Name"),
 	// introducerDetails: Yup.string()
 	// 	.min(30, "Must be 30 characters or more")
@@ -64,33 +54,19 @@ export const DesignationValidation = Yup.object({
 
 export const ShiftValidation = Yup.object({
 	shift_name: Yup.string().required("Fill Shift Name"),
-	shift_in_time: Yup.string()
-		.nullable()
-		.required("Fill Shift in Time"),
-	shift_out_time: Yup.string()
-		.nullable()
-		.required("Fill Shift out Time"),
+	shift_in_time: Yup.string().nullable().required("Fill Shift in Time"),
+	shift_out_time: Yup.string().nullable().required("Fill Shift out Time"),
 });
 
 export const BranchValidation = Yup.object({
 	outlet_name: Yup.string().nullable().required("Fill Name"),
 	outlet_nickname: Yup.string().nullable().required("Fill Nickname"),
-	outlet_phone: Yup.number()
-	.nullable()
-	.typeError("Must be a number")
-	.min(123456789, "Must be 9 or More")
-	.max(12345678900, "Must be 10 characters or less")
-	.required("Fill Contact Number"),
+	outlet_phone: Yup.number().nullable().typeError("Must be a number").min(123456789, "Must be 9 or More").max(12345678900, "Must be 10 characters or less").required("Fill Contact Number"),
 	outlet_address: Yup.string().nullable().required("Fill Address"),
 });
 export const CompanyDetailsValidation = Yup.object({
 	company_name: Yup.string().nullable().required("Fill Company Name"),
-	contact_number: Yup.number()
-	.nullable()
-	.typeError("Must be a number")
-	.min(123456789, "Must be 9 or More")
-	.max(12345678900, "Must be 10 characters or less")
-	.required("Fill Contact Number"),
+	contact_number: Yup.number().nullable().typeError("Must be a number").min(123456789, "Must be 9 or More").max(12345678900, "Must be 10 characters or less").required("Fill Contact Number"),
 	reg_address: Yup.string().nullable().required("Fill Address"),
 	gst_number: Yup.string().nullable().required("Fill GST"),
 	tan_number: Yup.string().nullable().required("Fill TAN"),
@@ -127,10 +103,7 @@ export const ProductItemsValidation = Yup.object({
 });
 export const EmployeeFamilyValidation = Yup.object({
 	name: Yup.string().nullable().required("Fill Name"),
-	dob: Yup.string()
-		.nullable()
-		.max(new Date(), "Enter a valid Date")
-		.required("Fill Date of birth"),
+	dob: Yup.string().nullable().max(new Date(), "Enter a valid Date").required("Fill Date of birth"),
 	gender: Yup.string().nullable().required("Choose Gender"),
 	blood_group: Yup.string().nullable().required("Choose BloodGroup"),
 	relation: Yup.string().nullable().required("Choose Relation"),
@@ -139,6 +112,6 @@ export const EmployeeFamilyValidation = Yup.object({
 });
 export const ItemsValidation = Yup.object({
 	material_name: Yup.string().nullable().required("Fill Material Name"),
-	description: Yup.string().nullable().required("Choose Description"),
+	description: Yup.string().nullable(),
 	material_category: Yup.string().nullable().required("Choose Category"),
 });

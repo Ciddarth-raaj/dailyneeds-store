@@ -15,6 +15,13 @@ a {
 :root {
 	--primaryColor: #8977ff;
 	--secondaryColor: #8b74ff;
+    --main-box-shadow: none;
+	--top-selected-color: #8977ff;
+}
+
+.react-timekeeper {
+    border: 1px solid #c9c9c9;
+	margin-top: 20px;
 }
 
 * {
@@ -154,13 +161,13 @@ a {
 	-webkit-box-shadow: -1px 1px 84px -9px rgba(0, 0, 0, 0.2);
 	-moz-box-shadow: -1px 1px 84px -9px rgba(0, 0, 0, 0.2);
 	
-    animation: fadein 1s;
-	-moz-animation: fadein 1s;
-	-webkit-animation: fadein 1s;
+    animation: fadein 0.5s;
+	-moz-animation: fadein 0.5s;
+	-webkit-animation: fadein 0.5s;
 }
 
 .dropdown-content a {
-	color: black;
+	color: rgb(36, 36, 36);
 	padding: 10px;
 	text-decoration: none;
 	display: flex;
@@ -169,11 +176,13 @@ a {
 	cursor: pointer;
 	font-size: 14px;
 	border-bottom: 1px solid rgb(228, 228, 228);
+	transition: color 0.3s;
 }
 
 .dropdown-content a:hover {
-	font-weight: bold;
+	/* font-weight: bold; */
 	border-radius: 5px;
+	color: var(--primaryColor);
 }
 
 .dropdown:hover .dropdown-content {
