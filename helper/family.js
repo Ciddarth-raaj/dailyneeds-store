@@ -11,6 +11,16 @@ const family = {
 					reject(err);
 				});
 		}),
+	getFamilyOnEmployee: (employee_name) => 
+	new Promise(function (resolve, reject) {
+	API.get("/family/employee_name?employee_name=" + employee_name)
+		.then(async (res) => {
+			resolve(res.data);
+		})
+		.catch((err) => {
+			reject(err);
+		});
+}),
     getFamilyById: (family_id) => 
 		new Promise(function (resolve, reject) {
 		API.get("/family/family_id?family_id= " + family_id)

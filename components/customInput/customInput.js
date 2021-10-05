@@ -67,7 +67,7 @@ const TextField = ({ label, values, method, selected, onChange, containerStyle, 
 							)}
 						</>
 					)}
-					{method === "datepicker" && (
+					{/* {method === "datepicker" && (
 						<>
 							<TimeRangePicker
 								{...field}
@@ -86,7 +86,7 @@ const TextField = ({ label, values, method, selected, onChange, containerStyle, 
 								/>
 							)}
 						</>
-					)}
+					)} */}
 					{method === "readonly" && (
 						<Input {...field} {...props} isDisabled={true} autoComplete="off" />
 					)}
