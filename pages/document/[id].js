@@ -37,8 +37,10 @@ class ApproveDocument extends React.Component {
 				if (data.code == 200) {
                     if(values.status === 1) {
 					toast.success("Successfully Approved Document!");
+					router.push("/document")
                     } else {
 					toast.success("Successfully Declined Document!");
+					router.push("/document")
                     }
 				} else {
 					toast.error("Error Approving Document!");
@@ -46,8 +48,7 @@ class ApproveDocument extends React.Component {
 				}
 			})
 			.catch((err) => console.log(err))
-			.finally(() => this.setState({ loading: false }),
-							router.push("/document"));
+			.finally(() => this.setState({ loading: false }));
 	}
 	
 	render() {

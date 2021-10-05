@@ -52,14 +52,14 @@ class Family extends React.Component {
             .then((data) => {
                 if (data == 200) {
                     toast.success("Successfully Added New Family Member!");
+                    router.push("/family")
                 } else {
                     toast.error("Error Adding Member!");
                     throw `${data.msg}`;
                 }
             })
             .catch((err) => console.log(err))
-            .finally(() => this.setState({ loadingFamily: false }),
-                           router.push("/family"));
+            .finally(() => this.setState({ loadingFamily: false }));
         }
     updateFamily(values) {
         const { family_id } = this.props.data[0];
@@ -75,14 +75,14 @@ class Family extends React.Component {
             .then((data) => {
                 if (data.code === 200) {
                     toast.success("Successfully Updated Family Member Detail!");
+                    router.push("/family")
                 } else {
                     toast.error("Error Updating Family Member Detail!");
                     throw `${data.msg}`;
                 }
             })
             .catch((err) => console.log(err))
-            .finally(() => this.setState({ loading: false }),
-                           router.push("/family"));
+            .finally(() => this.setState({ loading: false }));
     }
     pTag() {
         <p>hello</p>

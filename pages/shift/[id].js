@@ -42,6 +42,7 @@ class CreateShift extends React.Component {
 				console.log({ data: data });
 				if (data.code == 200) {
 					toast.success("Successfully Creating Shift!");
+					router.push("/shift")
 				} else {
 					throw `${data.msg}`;
 				}
@@ -66,14 +67,14 @@ class CreateShift extends React.Component {
 			.then((data) => {
 				if (data.code === 200) {
 					toast.success("Successfully Updated Shift!");
+					router.push("/shift")
 				} else {
 					toast.error("Error Updating Shift!");
 					throw `${data.msg}`;
 				}
 			})
 			.catch((err) => console.log(err))
-			.finally(() => this.setState({ loading: false }),
-								router.push("/shift"));
+			.finally(() => this.setState({ loading: false }));
 	}
 	render() {
 		const { loading, shift } = this.state;

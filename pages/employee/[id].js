@@ -195,14 +195,14 @@ class Create extends React.Component {
 			.then((data) => {
 				if (data === 200) {
 					toast.success("Successfully created Account");
+					router.push("/employee")
 				} else {
 					toast.error("Error creating Account");
 					throw `${data.msg}`;
 				}
 			})
 			.catch((err) => console.log(err))
-			.finally(() => this.setState({ loading: false }),
-                           router.push("/employee"));
+			.finally(() => this.setState({ loading: false }));
 	}
 
 	updateEmployee = async (values) => {
@@ -315,6 +315,7 @@ class Create extends React.Component {
 			.then((data) => {
 				if (data.code == 200) {
 					toast.success("Employee details Updated!");
+					router.push("/employee")
 				} else {
 					throw "error";
 				}
@@ -323,8 +324,7 @@ class Create extends React.Component {
 				console.log(err);
 				toast.error("Error Updating Employee details!");
 			})
-			.finally(() => this.setState({ loading: false }),
-                           router.push("/employee"));
+			.finally(() => this.setState({ loading: false }));
 	}
 
 	getImageUploadParams = ({ meta }) => {

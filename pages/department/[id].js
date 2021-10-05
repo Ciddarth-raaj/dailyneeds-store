@@ -32,14 +32,14 @@ class CreateDepartment extends React.Component {
 			.then((data) => {
 				if (data == 200) {
 					toast.success("Successfully Added Department!");
+					router.push("/department")
 				} else {
 					toast.error("Error creating Department!");
 					throw `${data.msg}`;
 				}
 			})
 			.catch((err) => console.log(err))
-			.finally(() => this.setState({ loading: false }),
-						   router.push("/department"));
+			.finally(() => this.setState({ loading: false }));
 	}
 	updateDepartment(values) {
         const { department_id } = this.props.data[0];
@@ -52,14 +52,14 @@ class CreateDepartment extends React.Component {
 			.then((data) => {
 				if (data.code === 200) {
 					toast.success("Successfully Updated Department!");
+					router.push("/department")
 				} else {
 					toast.error("Error Updating Department!");
 					throw `${data.msg}`;
 				}
 			})
 			.catch((err) => console.log(err))
-			.finally(() => this.setState({ loading: false }),
-							router.push("/department"));
+			.finally(() => this.setState({ loading: false }));
 	}
 	
 	render() {

@@ -35,14 +35,14 @@ class CreateItems extends React.Component {
             .then((data) => {
                 if (data == 200) {
                     toast.success("Successfully Added New Family Member!");
+                    router.push("/items")
                 } else {
                     toast.error("Error Adding Member!");
                     throw `${data.msg}`;
                 }
             })
             .catch((err) => console.log(err))
-            .finally(() => this.setState({ loadingSubmit: false }),
-                            router.push("/items"));
+            .finally(() => this.setState({ loadingSubmit: false }));
     }
     updateMaterial(values) {
         const { material_id } = this.props.data[0];
@@ -55,14 +55,14 @@ class CreateItems extends React.Component {
             .then((data) => {
                 if (data.code === 200) {
                     toast.success("Successfully Updated Material Details!");
+                    router.push("/items")
                 } else {
                     toast.error("Error Updating Material Details!");
                     throw `${data.msg}`;
                 }
             })
             .catch((err) => console.log(err))
-            .finally(() => this.setState({ loadingSubmit: false }),
-                            router.push("/items"));
+            .finally(() => this.setState({ loadingSubmit: false }));
     }
     render() {
         const { loadingItem, loadingSubmit, loadingReset, editItems } =

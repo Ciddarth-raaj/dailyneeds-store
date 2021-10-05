@@ -38,6 +38,7 @@ class CreateDesignation extends React.Component {
 				console.log(data);
 				if (data.code == 200) {
 					toast.success("Successfully Creating Designation!");
+					router.push("/designation")
 				} else {
 					throw `${data.msg}`;
 				}
@@ -46,8 +47,7 @@ class CreateDesignation extends React.Component {
 				console.log(err);
 				toast.error("Error Creating Designation!");
 			})
-			.finally(() => this.setState({ loading: false }),
-						   router.push("/designation"));
+			.finally(() => this.setState({ loading: false }));
 	}
 
 	updateDesignation(values) {
@@ -61,14 +61,14 @@ class CreateDesignation extends React.Component {
 			.then((data) => {
 				if (data.code === 200) {
 					toast.success("Successfully Updated Designation!");
+					router.push("/designation")
 				} else {
 					toast.error("Error Updating Designation!");
 					throw `${data.msg}`;
 				}
 			})
 			.catch((err) => console.log(err))
-			.finally(() => this.setState({ loading: false }),
-							router.push("/designation"));
+			.finally(() => this.setState({ loading: false }));
 	}
 
 	handleCheckbox(key, checked) {
