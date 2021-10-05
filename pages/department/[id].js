@@ -70,12 +70,11 @@ class CreateDepartment extends React.Component {
 				<Head />
 				<Formik
 					initialValues={{
-						department_name: this.props.data[0]?.department_name,
-	                    status: this.props.data[0]?.status,
+						department_name: this.props.data[0]?.department_name
 					}}
 					validationSchema={DepartmentValidation}
 					onSubmit={(values) => {
-						id === "create" ? this.createDepartment(values) : this.updateDepartment(values);
+						id === null ? this.createDepartment(values) : this.updateDepartment(values);
 					}}
 				>
 					{(formikProps) => {
@@ -89,23 +88,7 @@ class CreateDepartment extends React.Component {
 									<p>Add New Department</p>}
 									<div className={styles.wrapper}>
 										<div className={styles.inputHolder}>
-											<CustomInput label="Department Name" name="department_name" type="text" />
-											<CustomInput
-												label="Status"
-												values={[
-													{
-														id: 1,
-														value: "Active",
-													},
-													{
-														id: 0,
-														value: "Inactive",
-													},
-												]}
-												name="status"
-												type="text"
-												method="switch"
-											/>
+											<CustomInput label="Department Name" name="department_name" type="text" />	
 										</div>
 										<ButtonGroup
 											spacing="6"

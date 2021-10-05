@@ -48,6 +48,32 @@ const document = {
 				reject(err);
 			});
 	}),
+	userWithoutAdhaar: (data) =>
+	new Promise(function (resolve, reject) {
+		API.get("/document/withoutadhaar", data)
+			.then(async (res) => {
+				if (res.status === 200) {
+					resolve(document.formatAdhaar(res.data));
+				} else {
+					reject(res.data.msg);
+				}
+			})
+			.catch((err) => {
+				reject(err);
+			});
+	}),
+	formatAdhaar: (data) => {
+		const formattedData = [];
+		for (const d of data) {
+			formattedData.push({
+				employee_id: d.employee_id,
+				employee_name: d.employee_name,
+				files: JSON.parse(d.files),
+			});
+		}
+
+		return formattedData;
+	},
 	updateStatus: (data) =>
 	new Promise(function (resolve, reject) {
 		API.post("/document/update-status", data)

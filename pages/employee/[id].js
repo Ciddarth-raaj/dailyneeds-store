@@ -125,7 +125,7 @@ class Create extends React.Component {
 				}
 			}
 		}
-		if (this.state.adhaarHolder !== "") {
+			if (this.state.adhaarHolder.length !== 0) {
 			const Adhaararray = [];
 			Adhaararray.push(await FilesHelper.upload(
 				this.state.adhaarHolder,

@@ -93,7 +93,7 @@ class CreateDesignation extends React.Component {
 				<Formik
 					initialValues={{
 						designation_name: this.props.data[0]?.designation_name,
-						status: this.props.data[0]?.status,
+						// status: this.props.data[0]?.status,
 						online_portal: this.props.data[0]?.online_portal
 					}}
 					validationSchema={DesignationValidation}
@@ -114,7 +114,7 @@ class CreateDesignation extends React.Component {
 									<div className={styles.wrapper}>
 										<div className={styles.inputHolder}>
 											<CustomInput label="Designation Name" name="designation_name" type="text" />
-											<CustomInput
+											{/* <CustomInput
 												label="Status"
 												values={[
 													{
@@ -129,7 +129,7 @@ class CreateDesignation extends React.Component {
 												name="status"
 												type="text"
 												method="switch"
-											/>
+											/> */}
 										</div>
 										<div className={styles.inputHolder}>
 											<CustomInput

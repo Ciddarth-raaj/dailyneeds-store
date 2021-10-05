@@ -52,14 +52,8 @@ function documentView() {
     }
     const badge = (m) => (
         <>
-        {m.verifycheck !== 1 ? (
-        <>
         <CheckIcon style={{color: "green"}} id="email-alerts" onClick={() => {ApproveDocument({id: m.id, is_verified: "1"})}}/>
         <CloseIcon style={{color: "red"}} className={styles.switch} id="email-alerts"  onClick={() => {ApproveDocument({id: m.id, is_verified: "-1"})}}  />
-        </>
-        ) : (
-        <LockIcon />
-        )}
         </>
     )
 

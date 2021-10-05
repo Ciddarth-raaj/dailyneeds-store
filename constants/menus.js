@@ -50,6 +50,11 @@ export default {
                 selected: false,
                 location: "/document",
             },
+            view_withoutAdhaar: {
+                title: "Users Without Adhaar",
+                selected: false,
+                location: "/without-adhaar",
+            },
         },
     },
 }

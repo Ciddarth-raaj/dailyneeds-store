@@ -3,6 +3,7 @@ import { Formik, Form } from "formik";
 import { Container, ButtonGroup, Button, CheckboxGroup, Grid, Checkbox } from "@chakra-ui/react";
 import React from "react";
 import { toast } from "react-toastify";
+import Timekeeper from 'react-timekeeper';
 import FormikErrorFocus from "formik-error-focus";
 import { withRouter } from "next/router";
 //Styles
@@ -33,8 +34,9 @@ class CreateShift extends React.Component {
 	createShift(values) {
 		const { router } = this.props;
 		this.setState({ loading: true });
-		values.shift_in_time = moment(values.shift_in_time).format("hh:mm:ss");
-		values.shift_out_time = moment(values.shift_out_time).format("hh:mm:ss");
+		values.status = 1;
+		values.shift_in_time = values.shift_in_time + ":00"
+		values.shift_out_time = values.shift_out_time + ":00"
 		ShiftHelper.createShift(values)
 			.then((data) => {
 				console.log({ data: data });
@@ -62,7 +64,6 @@ class CreateShift extends React.Component {
 			shift_details: values
 		})
 			.then((data) => {
-				console.log({ Data: data });
 				if (data.code === 200) {
 					toast.success("Successfully Updated Shift!");
 				} else {
@@ -85,7 +86,7 @@ class CreateShift extends React.Component {
 						shift_name: this.props.data[0]?.shift_name,
 						shift_in_time: this.props.data[0]?.shift_in_time || null,
 						shift_out_time: this.props.data[0]?.shift_out_time || null,
-						status: this.props.data[0]?.status,
+						status: this.props.data	[0]?.status,
 					}}
 					validationSchema={ShiftValidation}
 					onSubmit={(values) => {
@@ -104,22 +105,6 @@ class CreateShift extends React.Component {
 									<div className={styles.wrapper}>
 										<div className={styles.inputHolder}>
 											<CustomInput label="Shift Name" name="shift_name" type="text" />
-											<CustomInput
-												label="Status"
-												values={[
-													{
-														id: 1,
-														value: "Active",
-													},
-													{
-														id: 0,
-														value: "Inactive",
-													},
-												]}
-												name="status"
-												type="text"
-												method="switch"
-											/>
 										</div>
 										<div className={styles.dateHolder}>
 											<CustomInput

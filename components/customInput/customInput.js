@@ -2,7 +2,7 @@ import React, { Fragment, forwardRef } from "react";
 import { ErrorMessage, useField, useFormikContext } from "formik";
 import { Input, Textarea, Select } from "@chakra-ui/react";
 import DatePicker from "react-datepicker";
-
+import Timekeeper from 'react-timekeeper';
 import styles from "./customInput.module.css";
 import moment from "moment";
 
@@ -13,7 +13,6 @@ const CustomDateTimeInput = forwardRef(({ value, onClick, onChange }, ref) => (
 const TextField = ({ label, values, method, selected, onChange, containerStyle, editable, ...props }) => {
 	const { setFieldValue } = useFormikContext();
 	const [field, meta] = useField(props);
-
 	return (
 		<div className={styles.personalInputs} style={containerStyle}>
 			<label htmlFor={field.name} className={`${styles.label} ${!editable ? styles.infoLabel : ""}`}>
@@ -46,7 +45,7 @@ const TextField = ({ label, values, method, selected, onChange, containerStyle, 
 					)}
 					{method === "timepicker" && (
 						<>
-							<DatePicker
+							<Timekeeper
 								{...field}
 								showTimeSelect
 								showTimeSelectOnly
@@ -55,7 +54,7 @@ const TextField = ({ label, values, method, selected, onChange, containerStyle, 
 								{...props}
 								selected={(moment(field.value).toISOString() && new Date(field.value)) || null}
 								onChange={val => {
-									setFieldValue(field.name, val);
+									setFieldValue(field.name, val.formattedSimple);
 								}}
 								customInput={<CustomDateTimeInput />}
 							/>
@@ -70,7 +69,7 @@ const TextField = ({ label, values, method, selected, onChange, containerStyle, 
 					)}
 					{method === "datepicker" && (
 						<>
-							<DatePicker
+							<TimeRangePicker
 								{...field}
 								{...props}
 								selected={(field.value && new Date(field.value)) || null}

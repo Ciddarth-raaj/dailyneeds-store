@@ -52,26 +52,23 @@ export const Validation = Yup.object({
 export const DepartmentValidation = Yup.object({
 	department_name: Yup.string().required("Fill department Name"),
 	// designationName: Yup.string().required("Fill department Name"),
-	status: Yup.string().required("Choose status"),
+	// status: Yup.string().required("Choose status"),
 });
 
 export const DesignationValidation = Yup.object({
 	designation_name: Yup.string().required("Fill designation Name"),
 	// designationName: Yup.string().required("Fill department Name"),
-	status: Yup.string().required("Choose status"),
+	// status: Yup.string().required("Choose status"),
 	online_portal: Yup.string().nullable().required("Choose Access"),
 });
 
 export const ShiftValidation = Yup.object({
-	status: Yup.string().required("Choose status"),
-	shift_name: Yup.string().required("Fill designation Name"),
+	shift_name: Yup.string().required("Fill Shift Name"),
 	shift_in_time: Yup.string()
 		.nullable()
-		.max(new Date(), "Must be 15 characters or less")
 		.required("Fill Shift in Time"),
 	shift_out_time: Yup.string()
 		.nullable()
-		.max(new Date(), "Must be 15 characters or less")
 		.required("Fill Shift out Time"),
 });
 
