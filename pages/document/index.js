@@ -238,11 +238,6 @@ function documentView () {
             <Container className={styles.container} boxShadow='lg'>
               <p className={styles.buttoninputHolder}>
                 <div>View Documents</div>
-                <div style={{ paddingRight: 10 }}>
-                  <Link href='/department/create'>
-                    <Button colorScheme='purple'>{'Add'}</Button>
-                  </Link>
-                </div>
               </p>
               <div>
                 <Table
