@@ -15,6 +15,12 @@ a {
 :root {
 	--primaryColor: #8977ff;
 	--secondaryColor: #8b74ff;
+    --main-box-shadow: none;
+}
+
+.react-timekeeper {
+    border: 1px solid #c9c9c9;
+	margin-top: 20px;
 }
 
 * {
