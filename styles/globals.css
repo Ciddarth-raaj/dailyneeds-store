@@ -16,6 +16,7 @@ a {
 	--primaryColor: #8977ff;
 	--secondaryColor: #8b74ff;
     --main-box-shadow: none;
+	--top-selected-color: #8977ff;
 }
 
 .react-timekeeper {
