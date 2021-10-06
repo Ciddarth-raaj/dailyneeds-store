@@ -115,7 +115,10 @@ class ApproveDocument extends React.Component {
 }
 
 export async function getServerSideProps(context) {
-	const data = await DocumentHelper.getDocumentById(context.query.id);
+	var data = [];
+	if(context.query.id !== "create") {
+	data = await DocumentHelper.getDocumentById(context.query.id);
+	}
 	return {
 		props: { data }
 	};

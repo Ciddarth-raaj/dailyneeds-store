@@ -144,7 +144,10 @@ class CreateShift extends React.Component {
 
 
 export async function getServerSideProps(context) {
-	const data = await ShiftHelper.getShiftById(context.query.id);
+	var data = [];
+	if(context.query.id !== "create") {
+	data = await ShiftHelper.getShiftById(context.query.id);
+	}
 	const id = context.query.id != "create" ? data[0].shift_id : null;
 	return {
 		props: { data, id }

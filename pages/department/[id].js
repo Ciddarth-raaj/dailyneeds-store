@@ -116,7 +116,10 @@ class CreateDepartment extends React.Component {
 }
 
 export async function getServerSideProps(context) {
-	const data = await DepartmentHelper.getDepartmentById(context.query.id);
+	var data = [];
+	if(context.query.id !== "create") {
+	data = await DepartmentHelper.getDepartmentById(context.query.id);
+	}
 	const id = context.query.id != "create" ? data[0].department_id : null;
 	return {
 		props: { data, id }

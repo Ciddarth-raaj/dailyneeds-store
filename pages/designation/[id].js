@@ -185,7 +185,10 @@ class CreateDesignation extends React.Component {
 
 
 export async function getServerSideProps(context) {
-	const data = await DesignationHelper.getDesignationById(context.query.id);
+	var data = [];
+	if(context.query.id !== "create") {
+	data = await DesignationHelper.getDesignationById(context.query.id);
+	}
 	const id = context.query.id != "create" ? data[0].designation_id : null;
 	return {
 		props: { data, id }

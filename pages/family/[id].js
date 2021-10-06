@@ -301,7 +301,10 @@ class Family extends React.Component {
 }
 
 export async function getServerSideProps(context) {
-    const data = await FamilyHelper.getFamilyById(context.query.id);
+    var data = [];
+	if(context.query.id !== "create") {
+    data = await FamilyHelper.getFamilyById(context.query.id);
+    }
     const id = context.query.id != "create" ? data[0].family_id : null;
     return {
         props: { data, id }
