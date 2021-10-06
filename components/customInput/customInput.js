@@ -94,7 +94,7 @@ const TextField = ({
           )}
           {method === 'datepicker' && (
             <>
-              <TimeRangePicker
+              <DatePicker
                 {...field}
                 {...props}
                 selected={(field.value && new Date(field.value)) || null}
