@@ -30,6 +30,7 @@ class Family extends React.Component {
             employeeDet: [],
             hoverElement: false,
             employee_name: "",
+            name: ''
         };
     }
     componentDidMount() {
@@ -88,7 +89,7 @@ class Family extends React.Component {
         <p>hello</p>
     }
     render() {
-        const { loadingFamily, editFamily, employeeDet, employee_id, hoverElement, employee_name } = this.state;
+        const { loadingFamily, editFamily, employeeDet, employee_id, hoverElement, name, employee_name } = this.state;
         const { id } = this.props;
         return (
             <GlobalWrapper title="Family">
@@ -183,10 +184,10 @@ class Family extends React.Component {
                                             ) : (
                                             <div className={styles.dropdown}>
                                                  <label htmlFor="id" className={styles.employeeNameLabel}>Employee Name *</label>
-                                                <input type="text" value={employee_name === "" ? values.employee_name : `${employee_name}`} onMouseEnter={() => this.setState({hoverElement: false})} 
+                                                <input type="text"onChange={(e) => this.setState({ name: e.target.value  })} value={employee_name === "" ? values.employee_name : `${employee_name}`} onMouseEnter={() => this.setState({hoverElement: false})} 
                                                  className={styles.dropbtn} />
                                                 <div className={styles.dropdowncontent} style={hoverElement === false ? {color: "black"} : {display: "none"}}>
-                                                    {employeeDet.map((m) => (
+                                                    {employeeDet.filter(({employee_name}) => employee_name.indexOf(name.toLowerCase()) > -1).map((m) => (
                                                     <a onClick={() => (this.setState({ employee_name: m.employee_name, hoverElement: true}))}>
                                                         <img src={m.employee_image} width="30" height="25" className={styles.dropdownImg} />{m.employee_name}<br/>{`# ${m.employee_id}`}</a>
                                                     ))}
