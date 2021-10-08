@@ -132,6 +132,12 @@
 	justify-content: space-between;
 	width: 100%;
 }
+.salaryButtoninputHolder {
+	display: flex;
+	justify-content: space-between;
+	width: 100%;
+	height: 120px;
+}
 
 .inputDiv {
 	display: flex;

@@ -7,7 +7,75 @@
 	width: 100%;
 	position: relative;
 }
+.dropbtn {
+	border: 0.5px solid lightgray;
+	color: black;
+	padding: 16px;
+	height: 40px;
+	width: 100%;
+	display: flex;
+	border-radius: 7px;
+	justify-content: center;
+	align-items: center;
+	font-size: 16px;
+	/* border: none; */
+	cursor: pointer;
+}
 
+.dropdown {
+	position: relative;
+	display: inline-block;
+	width: 100%;
+	/* padding-bottom: 30px; */
+	height: 60%;
+}
+
+.dropdowncontent {
+	width: 100%;
+	display: none;
+	position: absolute;
+	cursor: pointer;
+	background-color: white;
+	border-bottom-left-radius: 15px;
+	border-bottom-right-radius: 15px;
+	min-width: 160px;
+	height: 200px;
+	box-shadow: 0px 8px 16px 
+		0px rgba(0, 0, 0, 0.2);
+	z-index: 1;
+	overflow-y: scroll;
+	/* padding-top: 11px; */
+}
+.dropdowncontent::-webkit-scrollbar {
+	display: none;
+}
+.dropdownImg {
+	border-radius: 50%;
+	height: 30px;
+	margin-top: 10px;
+	margin-right: 30px;
+}
+.employeeNameLabel {
+	font-size: 14px;
+	color: var(--chakra-colors-purple-500);
+	margin-bottom: none;
+}
+.dropdowncontent a {
+	color: black;
+	padding: 9px 16px;
+	text-decoration: none;
+	margin: 0px 10px;
+	font-size: 18px;
+	font-weight: 500;
+	display: block;
+	display: flex;
+	width: 30%;
+	justify-content: space-between;
+}
+
+.dropdown:hover .dropdowncontent {
+	display: block;
+} 
 .container p {
 	border-bottom: 1px solid rgb(211, 211, 211);
 	position: absolute;

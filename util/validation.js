@@ -39,6 +39,12 @@ export const Validation = Yup.object({
 	// idNo: Yup.number().required("Fill ID Card No"),
 });
 
+export const SalaryValidation = Yup.object({
+	employee_name: Yup.string().required("Choose Employee Name"),
+	loan_amount: Yup.string().required("Enter Loan Amount"),
+	installment: Yup.string().required("Select An Installment Duration")
+})
+
 export const DepartmentValidation = Yup.object({
 	department_name: Yup.string().required("Fill department Name"),
 	// designationName: Yup.string().required("Fill department Name"),

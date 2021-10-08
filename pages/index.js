@@ -7,6 +7,7 @@ import moment from 'moment';
 import { Bar, Doughnut } from 'react-chartjs-2';
 import styles from "../styles/index.module.css";
 import EmployeeHelper from "../helper/employee";
+import StoreHelper from "../helper/store";
 import Head from "../util/head";
 import { MONTH } from "../constants/values";
 import GlobalWrapper from "../components/globalWrapper/globalWrapper";
@@ -17,6 +18,13 @@ export default class CreateShift extends React.Component {
         this.state = {
             branchModalVisibility: false,
             selectedData: undefined,
+            hoverElement: false,
+            employeeDet: [],
+            store_data: [],
+            store_name: '',
+            store: '',
+            final_store: [],
+            store_id: 0,
             events: [
                 {
                     start: moment().toDate(),
@@ -25,6 +33,16 @@ export default class CreateShift extends React.Component {
                     title: "Birthday!"
                 }
             ],
+            store_count: {
+                labels: [],
+                datasets: [
+                    {
+                        label: 'Employee Head Count On Branch',
+                        data: ['0', '1', '2'],
+                        backgroundColor: "#8b74ff"
+                    },
+                ],
+            },
             head_count: {
                 labels: ['jan', 'feb', 'march'],
                 datasets: [
@@ -84,11 +102,78 @@ export default class CreateShift extends React.Component {
         };
     };
     componentDidMount() {
+        this.getStore();
         this.getHeadCount();
         this.getNewJoiner();
         this.getResignedEmp();
         this.getBirthday();
         this.getAnniversary();
+        this.getEmployeeDet();
+    }
+    componentDidUpdate() {
+        if(this.state.store_name !== '') {
+            this.getEmployeeByStore();
+        }
+        this.state.store = this.state.store_name;
+        this.state.store_name = '';
+        this.state.store_id = 0;
+    }
+    getEmployeeByStore() {
+        const { store_id } = this.state;
+        EmployeeHelper.getStoreById(
+            store_id
+        )
+            .then((data) => {
+                let date = []
+                let count = []
+                let detailsMapper = {}
+                let updatedCountArr = []
+                data.map((detail) => {
+                    detailsMapper[moment(detail.created_at).format("MMMM")] = detail.store_count;
+                })
+                MONTH.map((el1) => {
+                    var temp = {}
+                    if (el1 in detailsMapper) {
+                        temp.date = el1;
+                        temp.count = parseInt(detailsMapper[el1]);
+                    } else {
+                        temp.date = el1;
+                        temp.count = 0;
+                    }
+                    updatedCountArr.push(temp);
+                })
+                for (const val of updatedCountArr) {
+                    date.push(val.date);
+                    count.push(val.count);
+                    this.setState({
+                        store_count: {
+                            labels: date,
+                            datasets: [
+                                {
+                                    label: "Store Head Count",
+                                    data: count,
+                                    backgroundColor: "#8b74ff"
+                                },
+                            ],
+                        },
+                    })
+                }
+            })
+            .catch((err) => console.log(err))
+    }
+    getStore() {
+        StoreHelper.getStore()
+            .then((data) => {
+                this.setState({ store_data: data })
+            })
+            .catch((err) => console.log(err))
+    }
+    getEmployeeDet() {
+        EmployeeHelper.getFamilyDet()
+            .then((data) => {
+                this.setState({ employeeDet: data })
+            })
+            .catch((err) => console.log(err))
     }
     getHeadCount() {
         EmployeeHelper.getHeadCount()
@@ -171,7 +256,8 @@ export default class CreateShift extends React.Component {
     }
 
     render() {
-        const { newjoiner, birthdays, resigned_employee, head_count, anniversary } = this.state;
+        const { newjoiner, birthdays, store_data,employeeDet, hoverElement, store, store_name, resigned_employee, store_count, head_count, anniversary } = this.state;
+        
         return (
             <Formik>
                 <Form>
@@ -184,10 +270,23 @@ export default class CreateShift extends React.Component {
                             gap={4}
                         >
                             <GridItem colSpan={4} bg="white" borderRadius="10px" boxShadow="lg">
+                            <div className={styles.dropdown}>
+                                    <input placeholder="Store Name" onChange={(e) => this.setState({ store: e.target.value  })} type="text" value={store === "" ? store : `${store}`} onMouseEnter={() => this.setState({hoverElement: false})} 
+                                     className={styles.dropbtn} />
+                                    <div className={styles.newDropdowncontent} style={hoverElement === false ? {color: "black"} : {display: "none"}}>
+                                        {store_data.filter(({value}) => value.indexOf(store.toLowerCase()) > -1).map((m) => (
+                                        <a onClick={() => (this.setState({ store_name: m.value, store_id: m.id, hoverElement: true}))}>
+                                           {m.value}<br/>{`# ${m.id}`}</a>
+                                        ))}
+                                    </div>
+                                </div>
+                            <div>
                                 <Bar
-                                    data={head_count}
+                                    data={store_count.labels.length === 0 ? head_count : store_count}
+                                    style={{height: "250px"}}
                                     options={{ maintainAspectRatio: false }}
                                 />
+                                </div>
                             </GridItem>
                             <GridItem boxShadow="lg" bg="white" rowSpan={2} w="450px" className={styles.birthdayWeek} colSpan={1} >
                                 <p className={styles.fontBirthday}>Birthday Week</p>

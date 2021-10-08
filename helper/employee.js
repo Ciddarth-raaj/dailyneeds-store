@@ -12,6 +12,16 @@ const employee = {
                     reject(err);
                 });
         }),
+    getStoreById: (store_id) =>
+    new Promise(function (resolve, reject) {
+        API.get("/employee/store_id?store_id=" + store_id)
+            .then(async (res) => {
+                resolve(res.data);
+            })
+            .catch((err) => {
+                reject(err);
+            });
+    }),
     getFamilyDet: () =>
     new Promise(function (resolve, reject) {
         API.get("/employee/familydet")

@@ -54,6 +54,11 @@ export default {
         title: 'Users Without Bank Details',
         selected: false,
         location: '/bank'
+      },
+      view_salary: {
+        title: 'All Employee Salary Advance',
+        selected: false,
+        location: '/salary'
       }
     }
   }

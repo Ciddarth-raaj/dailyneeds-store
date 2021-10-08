@@ -7,7 +7,134 @@
 	align-items: center;
 	width: 100%;
 }
-.newJoineeHolder {
+
+.graphHolder{
+	width:65%;
+	height: 300px;
+	position: relative;
+	-webkit-border-radius: 25px;
+	border-radius: 25px;
+	background: #ffffff;
+	-webkit-box-shadow: 5px 5px 10px #d9d9d9, -5px -5px 10px #ffffff;
+	box-shadow: 5px 5px 10px #d9d9d9, -5px -5px 10px #ffffff;
+}
+.dropbtn {
+	border: 1px solid lightgray;
+	color: black;
+	padding: 16px;
+	height: 40px;
+	width: 100%;
+	display: flex;
+	border-radius: 7px;
+	justify-content: center;
+	align-items: center;
+	font-size: 16px;
+	/* border: none; */
+	cursor: pointer;
+}
+
+.dropdown {
+	position: relative;
+	display: inline-block;
+	width: 30%;
+	margin-top: 10px;
+	margin-left: 10px;
+	/* padding-bottom: 30px; */
+	/* height: 60%; */
+}
+
+.dropdowncontent {
+	width: 100%;
+	display: none;
+	position: absolute;
+	cursor: pointer;
+	background-color: white;
+	border-bottom-left-radius: 15px;
+	border-bottom-right-radius: 15px;
+	min-width: 160px;
+	height: 200px;
+	box-shadow: 0px 8px 16px 
+		0px rgba(0, 0, 0, 0.2);
+	z-index: 1;
+	overflow-y: scroll;
+	/* padding-top: 11px; */
+}
+.newDropdowncontent {
+	width: 100%;
+	display: none;
+	position: absolute;
+	cursor: pointer;
+	background-color: white;
+	border-bottom-left-radius: 15px;
+	border-bottom-right-radius: 15px;
+	min-width: 160px;
+	height: 200px;
+	box-shadow: 0px 8px 16px 
+		0px rgba(0, 0, 0, 0.2);
+	z-index: 1;
+	overflow-y: scroll;
+	/* padding-top: 11px; */
+}
+.dropdowncontent::-webkit-scrollbar {
+	display: none;
+}
+.newDropdowncontent::-webkit-scrollbar {
+	display: none;
+}
+.dropdownImg {
+	border-radius: 50%;
+	height: 30px;
+	margin-top: 10px;
+	margin-right: 30px;
+}
+.employeeNameLabel {
+	font-size: 14px;
+	margin-bottom: none;
+}
+.dropdowncontent a {
+	color: black;
+	padding: 9px 16px;
+	text-decoration: none;
+	margin: 0px 10px;
+	font-size: 15px;
+	margin-top: 10px;
+	font-weight: 400;
+	display: block;
+	display: flex;
+	width: 30%;
+	justify-content: space-between;
+}
+.newDropdowncontent a {
+	color: black;
+	padding: 9px 16px;
+	text-decoration: none;
+	margin: 0px 10px;
+	font-size: 15px;
+	margin-top: 10px;
+	font-weight: 400;
+	display: block;
+	display: flex;
+	width: 60%;
+	justify-content: space-between;
+}
+/* .dropdowncontent a:hover {
+	background-color: #f1f1f1;
+}
+*/
+.dropdown:hover .dropdowncontent {
+	display: block;
+} 
+.dropdown:hover .newDropdowncontent {
+	display: block;
+} 
+
+/* .dropdown:hover .dropbtn {
+	background-color: var(--secondaryColor);
+} */
+
+
+
+.newJoineeHolder { 
 	display: flex;
 	flex-direction: column;
 	justify-content: flex-start;
