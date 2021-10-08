@@ -98,7 +98,7 @@ class CreateSalary extends React.Component {
                                             <CustomInput
 												label="Installment Duration"
 												name="installment"
-												method="timepicker"
+												type="text"
 											/>
 										</div>
 										<ButtonGroup
