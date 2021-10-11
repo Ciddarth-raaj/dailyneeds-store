@@ -16,41 +16,6 @@ import moment from "moment";
 import SalaryHelper from "../../helper/salary";
 import StoreHelper from "../../helper/store";
 
-const Details = [
-    {
-        id: "1",
-        store_name: "nice store",
-        employee_name: "scoob",
-        payment_date: "2000/07/01",
-        payment_amount: "2000",
-        installments: "200",
-        approval_status: <Badge colorScheme="green">approved</Badge>,
-        paid_status: <Badge colorScheme="green">Paid</Badge>,
-        action: [<CheckIcon style={{marginLeft: 10}} />, <LockIcon style={{marginLeft: 10}} />, <CloseIcon style={{marginLeft: 10}} />],
-    },
-    {
-        id: "2",
-        store_name: "nice store",
-        employee_name: "scoob",
-        payment_date: "2000/07/01",
-        payment_amount: "2000",
-        installments: "200",
-        approval_status: <Badge colorScheme="green">approved</Badge>,
-        paid_status: <Badge colorScheme="red">Not Paid</Badge>,
-        action: [<CheckIcon style={{marginLeft: 10}} />, <LockIcon style={{marginLeft: 10}} />, <CloseIcon style={{marginLeft: 10}} />],
-    },
-    {
-        id: "3",
-        store_name: "nice store",
-        employee_name: "scoob",
-        payment_date: "2000/07/01",
-        payment_amount: "2000",
-        installments: "200",
-        approval_status: <Badge colorScheme="green">approved</Badge>,
-        paid_status: <Badge colorScheme="green">Paid</Badge>,
-        action: [<CheckIcon style={{marginLeft: 10}} />, <LockIcon style={{marginLeft: 10}} />, <CloseIcon style={{marginLeft: 10}} />],
-    }
-];
 
 export default class viewSalary extends React.Component {
     constructor(props) {
@@ -220,7 +185,7 @@ export default class viewSalary extends React.Component {
 	}
 
     paid_status = (m) => (
-        <Switch className={styles.switch} id="email-alerts" defaultChecked={m.value === 1} onChange={() => { this.setState({ paid_status: m.value === 1 ? 0 : 1, newId: m.id})}} />
+        <Switch className={styles.switchSalary} id="email-alerts" defaultChecked={m.value === 1} onChange={() => { this.setState({ paid_status: m.value === 1 ? 0 : 1, newId: m.id})}} />
     )
     render() {
         const { employeeDet, name, store, updatedFamily, salary, hoverElement, details } = this.state;
