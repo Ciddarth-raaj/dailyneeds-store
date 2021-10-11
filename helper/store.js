@@ -23,5 +23,15 @@ const store = {
 
 		return formattedData;
 	},
+	getStoreById: (store_id) =>
+	new Promise(function (resolve, reject) {
+		API.get("/store/store_id?store_id=" + store_id)
+			.then(async (res) => {
+				resolve(res.data);
+			})
+			.catch((err) => {
+				reject(err);
+			});
+	}),
 };
 export default store;

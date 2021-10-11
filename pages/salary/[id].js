@@ -10,6 +10,7 @@ import { withRouter } from "next/router";
 import styles from "../../styles/create.module.css";
 
 //Internal Dependencies
+import SalaryHelper from "../../helper/salary";
 import Head from "../../util/head";
 import EmployeeHelper from "../../helper/employee";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
@@ -42,10 +43,47 @@ class CreateSalary extends React.Component {
             })
             .catch((err) => console.log(err))
     }
+	
+	createSalary(values) {
+		const { employee_name } = this.state;
+		this.setState({ loading: true });
+		const { router } = this.props;
+		values.status = 0;
+		values.employee = employee_name;
+		SalaryHelper.createSalary(values)
+		.then((data) => {
+			if (data == 200) {
+				toast.success("Successfully Added Salary Advance!");
+				router.push("/salary")
+			} else {
+				toast.error("Error creating Salary Advance!");
+				throw `${data.msg}`;
+			}
+		})
+		.catch((err) => console.log(err))
+		.finally(() => this.setState({ loading: false }));
+	}
 
-	createSalary(values) {}
-
-	updateSalary(values) {}
+	updateSalary(values) {
+		const { payment_id } = this.props.data[0];
+		const { router } = this.props;
+		this.setState({ loading: true });
+		SalaryHelper.updateSalary({
+            payment_id: payment_id,
+            payment_details: values
+        })
+			.then((data) => {
+				if (data.code === 200) {
+					toast.success("Successfully Updated Salary Advance!");
+					router.push("/salary")
+				} else {
+					toast.error("Error Updating Salary Advance!");
+					throw `${data.msg}`;
+				}
+			})
+			.catch((err) => console.log(err))
+			.finally(() => this.setState({ loading: false }));
+	}
 
 	render() {
 		const { loading,  employeeDet, hoverElement, employee_name, name } = this.state;
@@ -55,9 +93,9 @@ class CreateSalary extends React.Component {
 				<Head />
 				<Formik
 					initialValues={{
-						employee_name: this.props.data[0]?.employee_name,
+						employee: this.props.data[0]?.employee_name,
 						loan_amount: this.props.data[0]?.loan_amount,
-						installment: this.props.data[0]?.installment,
+						installment_duration: this.props.data[0]?.installment,
 					}}
 					validationSchema={SalaryValidation}
 					onSubmit={(values) => {
@@ -97,7 +135,7 @@ class CreateSalary extends React.Component {
 										<div className={styles.inputHolder}>
                                             <CustomInput
 												label="Installment Duration"
-												name="installment"
+												name="installment_duration"
 												type="text"
 											/>
 										</div>
@@ -128,9 +166,9 @@ class CreateSalary extends React.Component {
 export async function getServerSideProps(context) {
 	var data = [];
 	if(context.query.id !== "create") {
-	data = await DesignationHelper.getDesignationById(context.query.id);
+	data = await SalaryHelper.getSalaryById(context.query.id);
 	}
-	const id = context.query.id != "create" ? data[0].designation_id : null;
+	const id = context.query.id != "create" ? data[0].payment_id : null;
 	return {
 		props: { data, id }
 	};

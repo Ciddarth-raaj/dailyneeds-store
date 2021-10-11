@@ -40,9 +40,9 @@ export const Validation = Yup.object({
 });
 
 export const SalaryValidation = Yup.object({
-	employee_name: Yup.string().required("Choose Employee Name"),
+	// employee: Yup.string().required("Choose Employee Name"),
 	loan_amount: Yup.string().required("Enter Loan Amount"),
-	installment: Yup.string().required("Select An Installment Duration")
+	installment_duration: Yup.string().required("Select An Installment Duration")
 })
 
 export const DepartmentValidation = Yup.object({
