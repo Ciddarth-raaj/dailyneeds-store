@@ -296,9 +296,8 @@ export default class viewSalary extends React.Component {
                                     </Link>
                                 </div>
                             </p>
-                            <div style={{paddingTop: 80}}>
+                            <div style={{paddingTop: 30}}>
                                 <Table
-                                    style={{marginTop: "50px"}}
                                     heading={table_title}
                                     rows={valuesNew}
                                     sortCallback={(key, type) =>
