@@ -59,6 +59,11 @@ export default {
         title: 'All Employee Salary Advance',
         selected: false,
         location: '/salary'
+      },
+      view_resignation: {
+        title: 'Resignation',
+        selected: false,
+        location: '/resignation'
       }
     }
   }

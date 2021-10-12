@@ -16,7 +16,8 @@ import moment from "moment";
 import SalaryHelper from "../../helper/salary";
 import StoreHelper from "../../helper/store";
 
-
+var storeName = "";
+let valuesNew = [];
 export default class viewSalary extends React.Component {
     constructor(props) {
         super(props);
@@ -118,10 +119,10 @@ export default class viewSalary extends React.Component {
     getExportFile = () => {
         const TABLE_HEADER = {
             SNo: "SNo",
-            store_name: "Store Name",
             employee_name: "Employee Name",
             payment_date: "Payment Date",
             payment_amount: "Payment Amount",
+            installments: "installment duration",
             approval_status: "Approval Status",
             paid_status: "Paid Status",
             action: "Action",
@@ -130,9 +131,19 @@ export default class viewSalary extends React.Component {
         valuesNew.forEach((d, i) => {
             formattedData.push({
                 SNo: i + 1,
-                id: d.family_id,
-                name: d.name,
-                relation: d.relation,
+                employee_name: d.employee_name,
+                payment_date: moment(d.created_at).format("YYYY-MM-DD"),
+                payment_amount: d.loan_amount,
+                installments: d.installment_duration,
+                approval_status: 
+                      d.status === 0
+                        ? 'new'
+                        : d.status === 1
+                        ? 'verified'
+                        : 'denied',
+                paid_status: d.paid_status === 0
+                        ? 'Not Paid'
+                        : 'Paid'
             });
         });
         
@@ -175,7 +186,6 @@ export default class viewSalary extends React.Component {
       )
 
       storeName(n) {
-		var storeName = "";
 		this.state.store.map((m) => {
 			if (m.id == n.value) {
 				storeName = m.value;
@@ -189,7 +199,6 @@ export default class viewSalary extends React.Component {
     )
     render() {
         const { employeeDet, name, store, updatedFamily, salary, hoverElement, details } = this.state;
-        let valuesNew = [];
         const initialValue = {
             dob_1: "",
             dob_2: "",
@@ -278,7 +287,7 @@ export default class viewSalary extends React.Component {
                                 >
                                     <Button
                                         colorScheme="purple"
-                                        onClick={() => getExportFile()}
+                                        onClick={() => this.getExportFile()}
                                     >
                                         {"Export"}
                                     </Button>

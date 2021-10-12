@@ -24,6 +24,25 @@ export const BloodGroup = [
         value: "AB Negative"
     }
 ]
+
+export const Reason = [
+    {
+        id: "Sick",
+        value: "Sick",
+    },
+    {
+        id: "Terminated",
+        value: "Terminated",
+    },
+    {
+        id: "Resigned",
+        value: "Resigned",
+    },
+    {
+        id: "Expired",
+        value: "Expired"
+    }
+]
 export const Relation = [
     {
         id: "Mother",
