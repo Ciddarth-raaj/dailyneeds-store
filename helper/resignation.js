@@ -18,6 +18,7 @@ const resignation = {
 			formattedData.push({
 				id: d.resignation_id,
 				employee_name: d.employee_name,
+                reason_type: d.reason_type,
 				reason: d.reason,
 				resignation_date: d.resignation_date,
 			});
@@ -39,9 +40,9 @@ const resignation = {
 					reject(err);
 				});
 		}),
-	getResignationById: (resignation_id) => 
+	getResignationByName: (employee_name) => 
 		new Promise(function (resolve, reject) {
-		API.get("/resignation/resignation_id?resignation_id= " + resignation_id)
+		API.get("/resignation/employee_name?employee_name=" + employee_name)
 			.then(async (res) => {
 				if (res.status === 200) {
 				resolve(res.data);

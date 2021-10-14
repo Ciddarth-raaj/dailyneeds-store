@@ -40,6 +40,7 @@ export const Validation = Yup.object({
 });
 export const ResignationValidation = Yup.object({
 	reason: Yup.string().required("Fill Reason"),
+	reason_type: Yup.string().required("choose Reason Type"),
 	resignation_date: Yup.string().required("Choose Resignation Date")
 })
 export const SalaryValidation = Yup.object({

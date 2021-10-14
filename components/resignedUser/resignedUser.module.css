@@ -1,0 +1,78 @@
+.mainWrapper {
+    display: flex;
+    position: fixed;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.5);
+    top: 0;
+    left: 0;
+    z-index: 200;
+    justify-content: center;
+    align-items: center;
+}
+.updateButton {
+    margin-top: 50px;
+    margin-left: 5px;
+}
+.wrapper {
+    position: relative;
+    background-color: white;
+    border-radius: 3px;
+    padding: 10px;
+    width: 400px;
+    height: auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.title {
+    text-align: center;
+    margin-bottom: 20px;
+    font-weight: bold;
+    font-size: 18px;
+}
+
+.closeButton {
+    position: absolute;
+    width: 30px;
+    height: 30px;
+    top: 10px;
+    right: 10px;
+    cursor: pointer;
+}
+.label {
+    color: var(--chakra-colors-purple-500);
+}
+.switchHolder {
+    margin-bottom: 10px;
+    margin-top: 30px;
+    display: flex;
+    justify-content: center;
+}
+.textAreaHolder {
+    margin-top: 30px;
+    margin-left: 5px;
+    padding-top: 20px;
+}
+.textAreaHolder::-webkit-scrollbar {
+	display: none;
+}
+.switch {
+    display: flex;
+    justify-content: flex-end;
+    align-items: flex-end;
+    margin-left: 20px;
+}
+.inputHolder {
+    margin-left: 5px;
+    height: 60px;
+}
+@media (max-width: 480px) {
+    .closeButton {
+        width: 20px;
+        height: 20px;
+        top: 10px;
+        right: 8px;
+    }
+}

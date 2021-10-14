@@ -12,8 +12,10 @@ import styles from "../../styles/registration.module.css";
 
 //Helpers
 import DocumentHelper from "../../helper/document";
+import ResignedUser from "../../components/resignedUser/resignedUser";
 import { BloodGroup, PaymentType, IdCardType } from "../../constants/values";
 import EmployeeHelper from "../../helper/employee";
+import ResignationHelper from "../../helper/resignation";
 import DesignationHelper from "../../helper/designation";
 import ShiftHelper from "../../helper/shift";
 import DepartmentHelper from "../../helper/department";
@@ -27,7 +29,13 @@ import { Validation } from "../../util/validation";
 import moment from "moment";
 
 
-
+const selectedData = [{
+	outlet_name: "three",
+	outlet_nickname: "three",
+	outlet_phone: "9898989898",
+	phone: "9898989898",
+	outlet_address: "9898989898",
+}]
 class Create extends React.Component {
 	constructor(props) {
 		super(props);
@@ -38,6 +46,7 @@ class Create extends React.Component {
 			idContainer: false,
 			employee_image: props.data[0]?.employee_image,
 			loading: false,
+			handlingSubmit: '',
 			department: [],
 			designation: [],
 			shift: [],
@@ -51,14 +60,19 @@ class Create extends React.Component {
 			modifiedLicenseHolder: [],
 			modifiedVoterHolder: [],
 			modifiedPanHolder: [],
+			resignationData: [],
 			adhaarHolder: [],
 			voterHolder: [],
 			subIdHolder: [],
+			employee_name: '',
 			imageHolder: [],
+			adhaarChecker: [],
 			employeeCards: false,
 			subIdHolder2: [],
 			pfToggle: false,
 			esiToggle: false,
+			adhaarAlert: false,
+			branchModalVisibility: false,
 
 			editableEmpInfo: false,
 			editablePerInfo: false,
@@ -85,6 +99,27 @@ class Create extends React.Component {
 		this.getDesignation();
 		this.getDepartment();
 		this.getShift();
+		this.getAdhaar();
+	}
+	componentDidUpdate() {
+		const { employee_name, handlingSubmit } = this.state;
+		if(employee_name !== '') {
+			this.getResignation();
+			this.setState({employee_name: ''})
+		}
+		if(handlingSubmit === false) {
+			this.handleSubmit();
+			this.setState({handlingSubmit: true})
+		}
+	}
+
+	getResignation() {
+		const { employee_name } = this.state;
+		ResignationHelper.getResignationByName(employee_name)
+			.then((data) => {	
+				this.setState({resignationData: data, branchModalVisibility: true})
+			})
+			.catch((err) => console.log(err));
 	}
 	getShift() {
 		ShiftHelper.getShift()
@@ -101,7 +136,15 @@ class Create extends React.Component {
 			})
 			.catch((err) => console.log(err));
 	}
- 
+
+	getAdhaar() {
+		DocumentHelper.getAdhaar()
+			.then((data) => {
+				this.setState({ adhaarChecker: data });
+			})
+			.catch((err) => console.log(err));
+	}
+
 	getDepartment() {
 		DepartmentHelper.getDepartment()
 			.then((data) => {
@@ -109,7 +152,7 @@ class Create extends React.Component {
 			})
 			.catch((err) => console.log(err));
 	}
-
+	
 	createEmployee = async (values) => {
 			const { router } = this.props;
 			if (this.state.licenseHolder !== "") {
@@ -133,7 +176,6 @@ class Create extends React.Component {
 				"dashboard_file"
 			));
 			for (let i = 0; i <= values.files.length - 1; i++) {
-				console.log({i:values.files[i]});
 				if (values.files[i].id_card === "1") {
 					values.files[i].file = Adhaararray.length > 0 ? Adhaararray[0].remoteUrl : "";
 				}
@@ -469,7 +511,17 @@ class Create extends React.Component {
 		console.log(files);
 	};
 
-
+	// AlertChecker(values) {
+	// 	for(let i = 0; i < values.files.length; i++) {
+	// 			if(values.files[i].id_card === "1") {
+	// 				this.setState({adhaarAlert: true })
+	// 			}
+	// 			break;
+	// 	}
+	// }
+	resignedEmployee() {
+		this.handleSubmit();
+	}
 	render() {
 		const { 
 			loading,
@@ -478,8 +530,14 @@ class Create extends React.Component {
 			employee_image,
 			shift,
 			employeeCards,
+			employee_create,
+			branchModalVisibility,
 			pfToggle,
+			handlingSubmit,
+			resignationData,
+			adhaarChecker,
 			esiToggle,
+			adhaarAlert,
 			editableEmpInfo,
 			editablePerInfo,
 			editablePosiInfo,
@@ -495,11 +553,14 @@ class Create extends React.Component {
 			loadingIdenInfo,
 			loadingPFInfo,
 			loadingSalInfo,
+			employee_name,
 			loadingOtherInfo,
 			id,
 			imageContainer,
 			idContainer,
 		} = this.state;
+		console.log({resignationData: this.state});
+		console.log({checker: adhaarChecker});
 		const { doc } = this.props;
 		const dropDownProps = {
 			styles: {
@@ -522,7 +583,7 @@ class Create extends React.Component {
 			maxFiles: 1,
 			accept: "image/*",
 		};
-
+		console.log({adhaar: resignationData});
 		const containerProps = {
 			className: styles.container,
 			boxShadow: "lg",
@@ -615,7 +676,7 @@ class Create extends React.Component {
 							},
 						]
 					}}
-					validationSchema={Validation}
+					// validationSchema={Validation}
 					onSubmit={(values) => {
 						id !== null ? this.updateEmployee(values) : this.createEmployee(values);
 					}}
@@ -625,11 +686,36 @@ class Create extends React.Component {
 						const handleEvent = () => {
 							this.setState([...values.files, { id_card: "", id_card_no: "", file: "" }])
 						}
+						const AlertChecker = () => {
+							const { handlingSubmit, resignationData } = this.state;
+							for(let i = 0; i < values.files.length; i++) {
+								for(let j = 0; j < adhaarChecker.length - 1; j++) {
+									if(values.files[i].id_card_no === adhaarChecker[j].card_number) {
+										this.setState({employee_name: adhaarChecker[j].employee_name, handlingSubmit: true});
+										break;
+									}
+								}
+								if(resignationData.length > 0) {
+									handleSubmit();
+									break;
+								}
+							}
+						}
+						
 						return (
 							<Form onSubmit={formikProps.handleSubmit}>
 								<FormikErrorFocus align={"middle"} ease={"linear"} duration={200} />
 								<Flex className={styles.responsive}>
 									<Container p={"0px"}>
+									{branchModalVisibility && (
+                        			    <ResignedUser
+                        			        data={resignationData}
+                        			        visibility={branchModalVisibility}
+                        			        setVisibility={(v) =>
+                        			            this.setState({ branchModalVisibility: v, handlingSubmit: v })
+                        			        }
+                        			    />
+                        			)}
 										<Container {...containerProps} mb="20px">
 											<p className={styles.title}>
 												<div>Employee Information</div>
@@ -1080,7 +1166,7 @@ class Create extends React.Component {
 																		<div className={styles.inputHolder} key={index} style={{ marginBottom: 0 }}>
 																			<CustomInput label="New ID Card Type" values={IdCardType.map((d) => ({ id: d.id, value: d.value }))} name={`files[${index}].id_card`} type="text" method="switch" containerStyle={{ marginTop: 30, marginBottom: 30 }} editable={id !== null ? editableIdenInfo : !editableIdenInfo} />
 																		</div>
-
+																		
 																		{files[0].id_card && files[index].id_card === "1" && (
 																			<>
 																				<div className={styles.inputHolder} key={index}>
@@ -1287,7 +1373,7 @@ class Create extends React.Component {
 													}}
 												>
 													<Button>Cancel</Button>
-													<Button isLoading={loading} loadingText="Submitting" colorScheme="purple" onClick={() => handleSubmit()}>
+													<Button isLoading={loading} loadingText="Submitting" colorScheme="purple" onClick={() => AlertChecker()}>
 														{"Create"}
 													</Button>
 												</ButtonGroup>

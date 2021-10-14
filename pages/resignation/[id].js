@@ -66,6 +66,7 @@ class CreateResignation extends React.Component {
                 <Formik
                     initialValues={{
                         employee_name: "",
+                        reason_type: "",
                         reason: "",
                         resignation_date: ""
                     }}
@@ -95,16 +96,18 @@ class CreateResignation extends React.Component {
                                                     ))}
                                                 </div>
                                             </div>
+                                            <div style={{ width: "100%", marginTop: "3px"}}>
                                             <CustomInput
-														label="Reason *"
+														label="Reason Type *"
 														values={Reason.map((m) => ({
 															id: m.id,
 															value: m.value
 														}))}
-														name="reason"
+														name="reason_type"
 														type="text"
 														method="switch"
 											/>
+                                            </div>
                                         </div>
                                         <div className={styles.dateHolder}>
                                         <CustomInput
@@ -112,6 +115,14 @@ class CreateResignation extends React.Component {
 												name="resignation_date"
 												method="datepicker"
 										/>
+                                        </div>
+                                        <div className={styles.inputHolder}>
+                                        <CustomInput 
+                                                label="Reason *" 
+                                                name="reason" 
+                                                type="text" 
+                                                method="TextArea"
+                                        />
                                         </div>
                                         <ButtonGroup
                                             spacing="6"
@@ -137,16 +148,5 @@ class CreateResignation extends React.Component {
         );
     }
 }
-
-// export async function getServerSideProps(context) {
-// 	var data = [];
-// 	if(context.query.id !== "create") {
-// 	data = await DepartmentHelper.getDepartmentById(context.query.id);
-// 	}
-// 	const id = context.query.id != "create" ? data[0].department_id : null;
-// 	return {
-// 		props: { data, id }
-// 	};
-// }
 
 export default withRouter(CreateResignation);

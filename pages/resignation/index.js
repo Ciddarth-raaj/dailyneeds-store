@@ -69,7 +69,7 @@ export default class viewResignation extends React.Component {
         const table_title = {
             id: "SNo",
             employee_name: "Employee Name",
-            reason: "Reason",
+            reason_type: "Reason",
             resignation_date: "Resignation Date"
         };
 
@@ -77,7 +77,7 @@ export default class viewResignation extends React.Component {
             {
                 id: m.id,
                 employee_name: m.employee_name,
-                reason: m.reason,
+                reason_type: m.reason_type,
                 resignation_date: m.resignation_date
             }
         ));
