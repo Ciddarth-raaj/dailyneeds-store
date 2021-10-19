@@ -25,6 +25,192 @@ export const BloodGroup = [
     }
 ]
 
+export const DropDownOption = [
+    {
+        value: "id",
+        label: "Id",
+        final: {
+            id: "Id"
+        }
+    },
+    {
+        value: "name",
+        label: "Name",
+        final: {
+            name: "Name"
+        }
+    },
+    {
+        value: "display_name",
+        label: "Display Name",
+        final: {
+            display_name: "Display Name"
+        }
+    },
+    {
+        value: "brand_name",
+        label: "Brand Name",
+        final: {
+            brand_name: "Brand Name"
+        }
+    },
+    {
+        value: "combo_name",
+        label: "Combo Name",
+        final: {
+            combo_name: "Combo Name"
+        }
+    },
+    {
+        value: "department_name",
+        label: "Department Name",
+        final: {
+            department_name: "Department Name"
+        }
+    },
+    {
+        value: "category_name",
+        label: "Category Name",
+        final: {
+            category_name: "Category Name"
+        }
+    },
+    {
+        value: "subcategory_name",
+        label: "SubCategory Name",
+        final: {
+            subcategory_name: "Sub Category Name"
+        }
+    },
+    {
+        value: "distributor",
+        label: "Distributor",
+        final: {
+            distributor: "Distributor"
+        }
+    },
+    {
+        value: "distributor_name",
+        label: "Distributor Name",
+        final: {
+            distributor_name: "Distributor Name"
+        }
+    },
+    {
+        value: "flavours",
+        label: "Flavours",
+        final: {
+            flavours: "Flavours"
+        }
+    },
+    {
+        value: "measure",
+        label: "Measure",
+        final: {
+            measure: "Measure"
+        }
+    },
+    {
+        value: "measure_in",
+        label: "Measure In",
+        final: {
+            measure_in: "Measure In"
+        }
+    },
+    {
+        value: "packaging_type",
+        label: "Packaging Type",
+        final: {
+            packaging_type: "Packaging Type"
+        }
+    },
+    {
+        value: "preparation_type",
+        label: "Preparation Type",
+        final: {
+            preparation_type: "Preparation Type"
+        }
+    },
+    {
+        value: "cleaning",
+        label: "Cleaning",
+        final: {
+            cleaning: "Cleaning"
+        }
+    },
+    {
+        value: "packing_type",
+        label: "Packing Type",
+        final: {
+            packing_type: "Packing Type"
+        }
+    },
+    {
+        value: "sticker",
+        label: "Sticker",
+        final: {
+            sticker: "Sticker"
+        }
+    },
+    {
+        value: "grinding",
+        label: "Grinding",
+        final: {
+            grinding: "Grinding"
+        }
+    },
+    {
+        value: "cover_type",
+        label: "Cover Type",
+        final: {
+            cover_type: "Cover Type"
+        }
+    },
+    {
+        value: "cover_size",
+        label: "Cover Size",
+        final: {
+            cover_size: "Cover Size"
+        }
+    },
+    {
+        value: "tax_id",
+        label: "Tax Id",
+        final: {
+            tax_id: "Tax Id"
+        }
+    },
+    {
+        value: "hsn_code",
+        label: "Hsn Code",
+        final: {
+            hsn_code: "Hsn Code"
+        }
+    },
+    {
+        value: "status",
+        label: "Status",
+        final: {
+            status: "Status"
+        }
+    },
+    {
+        value: "is_online_allowed",
+        label: "Is Allowed",
+        final: {
+            is_online_allowed: "Is Allowed"
+        }
+    },
+    {
+        value: "life_cycle",
+        label: "Life Cycle",
+        final: {
+            life_cycle: "Life Cycle"
+        }
+    },
+];
+
+
 export const Reason = [
     {
         id: "Sick",

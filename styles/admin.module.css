@@ -121,12 +121,20 @@
 	margin-top: 20px;
 	justify-content: space-between;
 }
-
+.infoLabel {
+	color: var(--chakra-colors-purple-500);
+}
 .inputHolder {
 	min-height: 30vh;
 	width: 50%;
 }
-
+.subInputHolder {
+	width: 93%;
+	margin-left: 7px;
+}
+.subButtonHolder {
+	margin-top: 30px;
+}
 .buttoninputHolder {
 	display: flex;
 	justify-content: space-between;

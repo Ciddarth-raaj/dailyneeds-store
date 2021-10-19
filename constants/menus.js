@@ -64,6 +64,11 @@ export default {
         title: 'Resignation',
         selected: false,
         location: '/resignation'
+      },
+      view_products: {
+        title: 'View Products',
+        selected: false,
+        location: '/products'
       }
     }
   }
