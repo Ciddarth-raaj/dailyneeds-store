@@ -583,7 +583,6 @@ class Create extends React.Component {
 			maxFiles: 1,
 			accept: "image/*",
 		};
-		console.log({adhaar: resignationData});
 		const containerProps = {
 			className: styles.container,
 			boxShadow: "lg",

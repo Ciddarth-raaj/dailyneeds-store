@@ -95,7 +95,7 @@ class product extends React.Component {
             <div style={{ display: "flex", justifyContent: "center" }}>
                 <img
                     src={"/assets/edit.png"}
-                    onClick={() => (window.location = `/designation/${m}`)}
+                    onClick={() => (window.location = `/products/${m}`)}
                     className={styles.icon}
                 />
             </div>
