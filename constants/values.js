@@ -27,38 +27,38 @@ export const BloodGroup = [
 
 export const DropDownOption = [
     {
-        value: "id",
-        label: "Id",
+        value: "product_id",
+        label: "Product Id",
         final: {
-            id: "Id"
+            product_id: "Product Id"
         }
     },
     {
-        value: "name",
-        label: "Name",
+        value: "gf_item_name",
+        label: "Item Name",
         final: {
-            name: "Name"
+            gf_item_name: "Item Name"
         }
     },
     {
-        value: "display_name",
-        label: "Display Name",
+        value: "variant",
+        label: "Variant",
         final: {
-            display_name: "Display Name"
+            variant: "Variant"
         }
     },
     {
-        value: "brand_name",
+        value: "variant_of",
+        label: "Variant Of",
+        final: {
+            variant_of: "Variant Of"
+        }
+    },
+    {
+        value: "brand_id",
         label: "Brand Name",
         final: {
-            brand_name: "Brand Name"
-        }
-    },
-    {
-        value: "combo_name",
-        label: "Combo Name",
-        final: {
-            combo_name: "Combo Name"
+            brand_id: "Brand Name"
         }
     },
     {
@@ -83,24 +83,59 @@ export const DropDownOption = [
         }
     },
     {
-        value: "distributor",
+        value: "de_distributor",
         label: "Distributor",
         final: {
-            distributor: "Distributor"
+            de_distributor: "Distributor"
         }
     },
     {
-        value: "distributor_name",
-        label: "Distributor Name",
+        value: "keywords",
+        label: "Keywords",
         final: {
-            distributor_name: "Distributor Name"
+            keywords: "Keywords"
         }
     },
     {
-        value: "flavours",
-        label: "Flavours",
+        value: "gf_manufacturer",
+        label: "Manufacturer",
         final: {
-            flavours: "Flavours"
+            gf_manufacturer: "Manufacturer"
+        }
+    },
+    {
+        value: "gf_food_type",
+        label: "Food Type",
+        final: {
+            gf_food_type: "Food Type"
+        }
+    },
+    {
+        value: "gf_description",
+        label: "Description",
+        final: {
+            gf_description: "Description"
+        }
+    },
+    {
+        value: "gf_detailed_description",
+        label: "Detailed Description",
+        final: {
+            gf_detailed_description: "Detailed Description"
+        }
+    },
+    {
+        value: "gf_weight_grams",
+        label: "Weight Grams",
+        final: {
+            gf_weight_grams: "Wight Grams"
+        }
+    },
+    {
+        value: "gf_item_product_type",
+        label: "Product Type",
+        final: {
+            gf_item_product_type: "Product Type"
         }
     },
     {
@@ -125,24 +160,10 @@ export const DropDownOption = [
         }
     },
     {
-        value: "preparation_type",
-        label: "Preparation Type",
-        final: {
-            preparation_type: "Preparation Type"
-        }
-    },
-    {
         value: "cleaning",
         label: "Cleaning",
         final: {
             cleaning: "Cleaning"
-        }
-    },
-    {
-        value: "packing_type",
-        label: "Packing Type",
-        final: {
-            packing_type: "Packing Type"
         }
     },
     {
@@ -167,45 +188,38 @@ export const DropDownOption = [
         }
     },
     {
-        value: "cover_size",
-        label: "Cover Size",
+        value: "cover_sizes",
+        label: "Cover Sizes",
         final: {
-            cover_size: "Cover Size"
+            cover_sizes: "Cover Sizes"
         }
     },
     {
-        value: "tax_id",
+        value: "gf_tax_id",
         label: "Tax Id",
         final: {
-            tax_id: "Tax Id"
+            gf_tax_id: "Tax Id"
         }
     },
     {
-        value: "hsn_code",
-        label: "Hsn Code",
+        value: "return",
+        label: "Return",
         final: {
-            hsn_code: "Hsn Code"
+            return: "Return"
         }
     },
     {
-        value: "status",
+        value: "gf_status",
         label: "Status",
         final: {
-            status: "Status"
+            gf_status: "Status"
         }
     },
     {
-        value: "is_online_allowed",
-        label: "Is Allowed",
+        value: "gf_applies_online",
+        label: "Applies Online",
         final: {
-            is_online_allowed: "Is Allowed"
-        }
-    },
-    {
-        value: "life_cycle",
-        label: "Life Cycle",
-        final: {
-            life_cycle: "Life Cycle"
+            gf_applies_online: "Applies Online"
         }
     },
 ];

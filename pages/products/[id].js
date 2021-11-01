@@ -1,7 +1,7 @@
 //External Dependencies
 import React from "react";
 import { Formik, Form } from "formik";
-import { Container, Button, Badge } from "@chakra-ui/react";
+import { Container, Button, Badge, Switch } from "@chakra-ui/react";
 import { toast } from "react-toastify";
 import Dropzone from "react-dropzone-uploader";
 import Table from "../../components/table/table";
@@ -11,6 +11,8 @@ import { withRouter } from "next/router";
 import styles from "../../styles/productpage.module.css";
 
 //Internal Dependencies
+import ProductHelper from "../../helper/product";
+import ImageHelper from "../../helper/image";
 import SortableList from "../../components/sort/sortableList";
 import CustomInput from "../../components/customInput/customInput";
 import Head from "../../util/head";
@@ -23,35 +25,78 @@ class ProductItems extends React.Component {
         this.state = {
             loadingItems: false,
             editItems: false,
+            editableProductInfo: false,
+            editableCustomInfo: false,
+            editableGofrugalInfo: false,
+            editableDeliumInfo: false,
             documentUploader: false,
             imageHolder: [],
-            image: [
-                "/assets/stack.png",
-                "/assets/6993435.jpg",
-                "/assets/6993435.jpg",
-            ]
+            image: this.props.image,
         };
     }
 
-    save() {
-        const { editItems } = this.state;
-        editItems ? "" : toast.success("Successfully Saved!");
-    }
-	getImageUploadParams = ({ meta }) => {
-		const { imageHolder } = this.state;
-		return { url: imageHolder };
-	};
+    // save() {
+    //     const { editItems } = this.state;
+    //     editItems ? "" : toast.success("Successfully Saved!");
+    // }
+    getImageUploadParams = ({ meta }) => {
+        const { imageHolder } = this.state;
+        return { url: imageHolder };
+    };
     imageChangeStatus = async ({ meta, file }, status) => {
-		if (status === "headers_received") {
-			try {
-				this.setState({ imageHolder: file });
-			} catch (err) {
-				console.log(err);
-			}
-		}
-	};
+        if (status === "headers_received") {
+            try {
+                this.setState({ imageHolder: file });
+            } catch (err) {
+                console.log(err);
+            }
+        }
+    };
+    updateProduct = async (values) => {     
+		const { router } = this.props;
+
+        delete values.gf_item_name;
+        delete values.brand_name;
+        delete values.category_name;
+        delete values.subcategory_name;
+        delete values.gf_manufacturer;         
+        delete values.gf_food_type;            
+
+        delete values.gf_weight_grams;
+        delete values.gf_item_product_type; 
+        delete values.measure;
+        delete values.measure_in;
+
+        delete values.gf_tax_id;
+        delete values.gf_status;
+        delete values.gf_applies_online;
+        delete values.packaging_name;
+        delete values.cover_name;
+        delete values.packaging_name;
+        
+        ProductHelper.updateProductDetails({
+			product_id: this.props.data[0].product_id,
+			product_details: values
+		})
+			.then((data) => {
+                console.log({funny: data});
+				if (data.code == 200) {
+					toast.success("Product details Updated!");
+					router.push("/products")
+				} else {
+					throw "error";
+				}
+			})
+			.catch((err) => {
+				console.log({err: err});
+				toast.error("Error Updating Product details!");
+			})
+			.finally(() => this.setState({ loading: false }));
+	}
     render() {
-        const { loadingItems, editItems, documentUploader, image } = this.state;
+        const { loadingItems, editItems, documentUploader, editableCustomInfo, editableGofrugalInfo, editableDeliumInfo,editableProductInfo, image } = this.state;
+        const { id } = this.props;
+        console.log({props: this.props.data[0].variant})
         const table_title = {
             branch: "Branch",
             mrp: "MRP",
@@ -101,69 +146,71 @@ class ProductItems extends React.Component {
             }
         ));
         const dropDownProps = {
-			styles: {
-				dropzone: {
-					overflow: "auto",
-					border: "none",
-					borderRadius: "20px",
-					background: "#EEEEEE",
-					marginTop: "10px",
+            styles: {
+                dropzone: {
+                    overflow: "auto",
+                    border: "none",
+                    borderRadius: "20px",
+                    background: "#EEEEEE",
+                    marginTop: "10px",
                     // width: "92%",
                     height: "150px"
-				},
-				inputLabelWithFiles: {
-					margin: "20px 3%",
-				},
-				inputLabel: {
-					color: "black",
-					fontSize: "14px",
-				},
-			},
-			multiple: false,
-			maxFiles: 1,
-			accept: "image/*",
-		};
+                },
+                inputLabelWithFiles: {
+                    margin: "20px 3%",
+                },
+                inputLabel: {
+                    color: "black",
+                    fontSize: "14px",
+                },
+            },
+            multiple: false,
+            maxFiles: 1,
+            accept: "image/*",
+        };
         return (
             <GlobalWrapper title="Products">
                 <Head />
                 <Formik
                     initialValues={{
-                        id: "19",
-                        name: "Noodles",
-                        display_name: "Tom Ramen",
-                        brand_name: "Nestlé",
-                        combo_name: "Family Pack",
-                        department_name: "Food",
-                        category_name: "Noodles",
-                        subcategory_name: "Cup Noodles",
-                        distributor: "City Supermarket",
-                        keywords: "four, five, six",
-                        distributor_name: "Ram",
-                        manufacturer_name: "Nestlé",
-                        flavours: "Medium Spicy",
-                        measure: "",
-                        measure_in: "22",
-                        packaging_type: "Box, Family Pack, Sachet",
-                        preparation_type: "1",
-                        cleaning: "",
-                        packing_type: "3",
-                        sticker: "",
-                        grinding: "",
-                        cover_type: "",
-                        cover_size: "70",
-                        tax_id: "",
-                        hsn_code: "190230",
-                        status: "Available",
-                        is_online_allowed: "",
-                        life_cycle: "5",
+                        product_id: this.props.data[0]?.product_id,
+                        gf_item_name: this.props.data[0]?.gf_item_name,
+                        variant: this.props.data[0]?.variant,
+                        variant_of: this.props.data[0]?.variant_of,
+                        brand_name: "name",
+                        category_name: "three",
+                        subcategory_name: "four",
+                        de_distributor: this.props.data[0]?.de_distributor,
+                        keywords: this.props.data[0]?.keywords,
+                        gf_manufacturer: this.props.data[0]?.gf_manufacturer,
+                        gf_food_type: this.props.data[0]?.gf_food_type,
+                        gf_description: this.props.data[0]?.gf_description,
+                        gf_detailed_description: this.props.data[0]?.gf_detailed_description,
+                        gf_weight_grams: this.props.data[0]?.gf_weight_grams,
+                        gf_item_product_type: this.props.data[0]?.gf_item_product_type,
+                        measure: this.props.data[0]?.measure,
+                        measure_in: this.props.data[0]?.measure_in,
+                        packaging_type: this.props.data[0]?.packaging_type,
+                        cleaning: this.props.data[0]?.cleaning,
+                        sticker: this.props.data[0]?.sticker,
+                        grinding: this.props.data[0]?.grinding,
+                        cover_type: this.props.data[0]?.cover_type,
+                        cover_sizes: this.props.data[0]?.cover_sizes,
+                        gf_tax_id: this.props.data[0]?.gf_tax_id,
+                        return: this.props.data[0]?.return,
+                        gf_status: this.props.data[0]?.gf_status,
+                        gf_applies_online: this.props.data[0]?.gf_applies_online,
+						packaging_name: this.props.data[0]?.packaging_type === "1" ? "one" : "two",
+                        cover_name: this.props.data[0]?.cover_type === "1" ? "one" : "two"
                     }}
                     validationSchema={ProductItemsValidation}
-                    onSubmit={() => {
-                        this.save();
+                    onSubmit={(values) => {
+                        this.updateProduct(values);
                     }}
                 >
                     {(formikProps) => {
-                        const { handleSubmit, values } = formikProps;
+                        const { handleSubmit, values, setFieldValue } = formikProps;
+                        console.log({values: values});
                         return (
                             <Form>
                                 <FormikErrorFocus
@@ -175,32 +222,33 @@ class ProductItems extends React.Component {
                                     className={styles.container}
                                     pb={"40px"}
                                     boxShadow="lg"
+                                    marginBottom="50px"
                                 >
                                     <p className={styles.headerInputHolder}>
                                         <div className={styles.productHeader}>
-                                            <div className={styles.headerDescription}>{values.department_name} <span>|</span> {values.category_name} <span>|</span> {values.subcategory_name}</div>
-                                            <div className={styles.mainTitle}>{values.display_name}</div>
+                                            <div className={styles.headerDescription}>{values.brand_name} <span>|</span> {values.category_name} <span>|</span> {values.subcategory_name}</div>
+                                            <div className={styles.mainTitle}>{values.gf_item_name}</div>
                                             <div>
-                                                {values.measure_in !== "" && 
-                                                <Badge
-                                                    ml="1"
-                                                    fontSize="0.6em"
-                                                    variant="subtle"
-                                                    style={{ marginRight: "10px" }}
-                                                    colorScheme="purple"
-                                                >
-                                                    {values.measure_in + "gms"}
-                                                </Badge>
+                                                {values.measure_in !== "" &&
+                                                    <Badge
+                                                        ml="1"
+                                                        fontSize="0.6em"
+                                                        variant="subtle"
+                                                        style={{ marginRight: "10px" }}
+                                                        colorScheme="purple"
+                                                    >
+                                                        {values.measure + "gms"}
+                                                    </Badge>
                                                 }
                                                 {values.manufacturer_name !== "" &&
-                                                <Badge
-                                                    ml="1"
-                                                    fontSize="0.6em"
-                                                    variant="subtle"
-                                                    colorScheme="purple"
-                                                >
-                                                    {values.manufacturer_name}
-                                                </Badge>
+                                                    <Badge
+                                                        ml="1"
+                                                        fontSize="0.6em"
+                                                        variant="subtle"
+                                                        colorScheme="purple"
+                                                    >
+                                                        {values.manufacturer_name}
+                                                    </Badge>
                                                 }
                                             </div>
                                         </div>
@@ -209,7 +257,7 @@ class ProductItems extends React.Component {
                                                 isLoading={loadingItems}
                                                 variant="outline"
                                                 leftIcon={
-                                                    editItems ? (
+                                                    editableProductInfo ? (
                                                         <i
                                                             class="fa fa-floppy-o"
                                                             aria-hidden="true"
@@ -225,56 +273,259 @@ class ProductItems extends React.Component {
                                                 colorScheme="purple"
                                                 onClick={() => {
                                                     this.setState({
-                                                        editItems: !editItems,
+                                                        editableProductInfo: !editableProductInfo,
                                                     });
                                                     handleSubmit();
                                                 }}
                                             >
-                                                {editItems ? "Save" : "Edit"}
+                                                {editableProductInfo ? "Save" : "Edit"}
                                             </Button>
                                         </div>
                                     </p>
-                                    <div>
                                         <div className={styles.subHeader}>
                                             <p>Image</p>
                                         </div>
                                         <Container>
                                             <SortableList items={image} />
-                                            <div style={{marginTop: "60px", paddingBottom: "30px", width: '100%'}}>
+                                            <div style={{ marginTop: "60px", paddingBottom: "30px", width: '100%' }}>
                                                 <Button
-                                                variant="outline"
-                                                colorScheme="purple"
-                                                onClick={() => this.setState({ documentUploader: !documentUploader })}
+                                                    variant="outline"
+                                                    colorScheme="purple"
+                                                    onClick={() => this.setState({ documentUploader: !documentUploader })}
                                                 >
                                                     {documentUploader === true ? "Remove" : "Upload New Image"}
                                                 </Button>
-                                                {documentUploader === true && 
-												<Dropzone id="upload" getUploadParams={this.getImageUploadParams} onChangeStatus={this.imageChangeStatus} {...dropDownProps} />
+                                                {documentUploader === true &&
+                                                    <Dropzone id="upload" getUploadParams={this.getImageUploadParams} onChangeStatus={this.imageChangeStatus} {...dropDownProps} />
                                                 }
                                             </div>
-                                            
+
                                         </Container>
                                         <div className={styles.subHeader}>
                                             <p>Branch Details</p>
                                         </div>
-								        <Table heading={table_title} rows={valuesNew} sortCallback={(key, type) => sortCallback(key, type)} />
-                                        <div className={styles.keySubHeader}>
-                                            <p>Keywords</p>
+                                        <Table heading={table_title} rows={valuesNew} sortCallback={(key, type) => sortCallback(key, type)} />
+                                        </Container>
+                                        <Container
+                                    className={styles.subContainer}
+                                    pb={"40px"}
+                                    boxShadow="lg"
+                                    marginBottom="50px"
+                                >
+                                        <div className={styles.subContentHeader}>
+                                            <p>Custom</p>
+                                            <div style={{ width: "30%", display: "flex", alignItems: "center", justifyContent: "center", paddingRight: 10 }}>
+                                            <Button
+                                                isLoading={loadingItems}
+                                                variant="outline"
+                                                leftIcon={
+                                                    editableCustomInfo ? (
+                                                        <i
+                                                            class="fa fa-floppy-o"
+                                                            aria-hidden="true"
+                                                        />
+                                                    ) : (
+                                                        <i
+                                                            class="fa fa-pencil"
+                                                            aria-hidden="true"
+                                                        />
+                                                    )
+                                                }
+                                                width="180px"
+                                                colorScheme="purple"
+														onClick={() => { editableCustomInfo === true && handleSubmit(), this.setState({ editableCustomInfo: !editableCustomInfo }) }}
+                                            >
+                                                {editableCustomInfo ? "Save" : "Edit"}
+                                            </Button>
                                         </div>
-                                        <CustomInput 
-                                        name="keywords" 
-                                        type="text" 
-                                        method="TextArea"
-                                        />
-                                         <div className={styles.keySubHeader}>
-                                            <p>Description</p>
                                         </div>
-                                        <CustomInput 
-                                        name="description" 
-                                        type="text" 
-                                        method="TextArea"
+                                        <div style={{ marginTop: "50px" }}>
+                                            <CustomInput
+                                                label="Keywords"
+                                                name="keywords"
+                                                type="text"
+                                                method="TextArea"
+                                                editable={id !== null ? editableCustomInfo : !editableCustomInfo}
+                                            />
+                                            <div className={styles.inputHolder}>
+                                            <CustomInput
+                                                    label="Packaging Type"
+                                                    values={[
+                                                        {
+                                                            id: 1,
+                                                            value: "One",
+                                                        },
+                                                        {
+                                                            id: 2,
+                                                            value: "Two",
+                                                        },
+                                                    ]}
+                                                    name={editableCustomInfo || id === null ? "packaging_type" : "packaging_name"}
+                                                    type="text"
+                                                    method="switch"
+                                                    editable={id !== null ? editableCustomInfo : !editableCustomInfo}
+                                                />
+                                                <CustomInput label="Variant Of" editable={id !== null ? editableCustomInfo : !editableCustomInfo} name="variant_of" type="text" />
+                                            </div>
+                                            <div className={styles.inputHolder}>
+                                            <CustomInput
+                                                label="Cover Type"
+                                                values={[
+                                                    {
+                                                        id: 1,
+                                                        value: "One",
+                                                    },
+                                                    {
+                                                        id: 2,
+                                                        value: "Two",
+                                                    },
+                                                ]}
+                                                editable={id !== null ? editableCustomInfo : !editableCustomInfo}
+                                                name={editableCustomInfo || id === null ? "cover_type" : "cover_name"}
+                                                type="text"
+                                                method="switch"
+                                            />
+                                            <CustomInput editable={id !== null ? editableCustomInfo : !editableCustomInfo} label="Cover Sizes" name="cover_sizes" type="text" />
+                                        </div>
+                                            <CustomInput
+                                                label="Description"
+                                                name="gf_description"
+                                                type="text"
+                                                method="TextArea"
+                                                editable={id !== null ? editableCustomInfo : !editableCustomInfo}
+                                            />
+                                        </div>
+                                        
+                                        <CustomInput
+                                            label="Detailed Description"
+                                            editable={id !== null ? editableCustomInfo : !editableCustomInfo}
+                                            name="gf_detailed_description"
+                                            type="text"
+                                            method="TextArea"
                                         />
-                                    </div>
+                                        <div className={styles.inputHolder}>
+                                            <div className={styles.switchHolder}>
+                                                <label>Variant</label>
+                                                <Switch className={styles.switch} isChecked={values.variant === 1 ? true : false} 
+                                                onChange={() => values.variant === 1 ? setFieldValue("variant", 0) : setFieldValue("variant", 1)} id="email-alerts" />
+                                            </div>
+                                            <div className={styles.switchHolder}>
+                                                <label>Cleaning</label>
+                                                <Switch className={styles.switch} isChecked={values.cleaning === 1 ? true : false}
+                                                onChange={() => values.cleaning === 1 ? setFieldValue("cleaning", 0) : setFieldValue("cleaning", 1)}  id="email-alerts" />
+                                            </div>
+                                        </div>
+                                        <div className={styles.inputHolder}>
+                                            <div className={styles.switchHolder}>
+                                                <label>Sticker</label>
+                                                <Switch className={styles.switch} isChecked={values.sticker === 1 ? true : false} 
+                                                onChange={() => values.sticker === 1 ? setFieldValue("sticker", 0) : setFieldValue("sticker", 1)}  id="email-alerts" />
+                                            </div>
+                                            <div className={styles.switchHolder}>
+                                                <label>Grinding</label>
+                                                <Switch className={styles.switch} isChecked={values.grinding === 1 ? true : false} 
+                                                onChange={() => values.grinding === 1 ? setFieldValue("grinding", 0) : setFieldValue("grinding", 1)} id="email-alerts" />
+                                            </div>
+                                        </div>
+                                        <div className={styles.inputHolder}>
+                                            <div className={styles.switchHolder}>
+                                                <label>Return</label>
+                                                <Switch className={styles.switch} isChecked={values.return === 1 ? true : false} 
+                                                onChange={() => values.return === 1 ? setFieldValue("return", 0) : setFieldValue("return", 1)} id="email-alerts" />
+                                            </div>
+                                        </div>
+                                        </Container>
+                                        <Container
+                                    className={styles.subContainer}
+                                    pb={"40px"}
+                                    boxShadow="lg"
+                                    marginBottom="50px"
+
+                                >
+                                        <div className={styles.subContentHeader}>
+                                            <p>Gofrugal</p>
+                                        </div>
+                                        <div className={styles.inputHolder}>
+                                            <CustomInput 
+                                                label="Item Name" 
+                                                name="gf_item_name" 
+                                                type="text"
+                                                editable={id !== null ? editableGofrugalInfo : !editableGofrugalInfo}
+                                                method="disabled" 
+                                                />
+											<CustomInput label="Weight Grams" editable={id !== null ? editableGofrugalInfo : !editableGofrugalInfo} name="gf_weight_grams" type="text" method="disabled" />
+										</div>
+                                        <div className={styles.inputHolder}>
+                                            <CustomInput 
+                                                label="Apply Online" 
+                                                name="gf_applies_online" 
+                                                type="text"
+                                                editable={id !== null ? editableGofrugalInfo : !editableGofrugalInfo}
+                                                method="disabled" 
+                                                />
+											<CustomInput label="Product Type" editable={id !== null ? editableGofrugalInfo : !editableGofrugalInfo} name="gf_item_product_type" type="text" method="disabled" />
+										</div>
+                                        <div className={styles.inputHolder}>
+                                            <CustomInput 
+                                                label="Manufacturer" 
+                                                name="gf_manufacturer" 
+                                                type="text"
+                                                editable={id !== null ? editableGofrugalInfo : !editableGofrugalInfo}
+                                                method="disabled" 
+                                                />
+											<CustomInput label="Food Type" editable={id !== null ? editableGofrugalInfo : !editableGofrugalInfo} name="gf_food_type" type="text" method="disabled" />
+										</div>
+                                        <div className={styles.inputHolder}>
+                                            <CustomInput 
+                                                label="Tax" 
+                                                name="gf_tax_id" 
+                                                type="text"
+                                                method="disabled" 
+                                                editable={id !== null ? editableGofrugalInfo : !editableGofrugalInfo}
+                                                />
+											<CustomInput label="Status" editable={id !== null ? editableGofrugalInfo : !editableGofrugalInfo}  name="gf_status" type="text" method="disabled" />
+										</div>
+                                        </Container>
+                                        <Container
+                                        className={styles.subContainer}
+                                        pb={"40px"}
+                                        boxShadow="lg"
+                                    marginBottom="50px"
+
+                                        >
+                                        <div className={styles.subContentHeader}>
+                                            <p>Delium</p>                            
+                                        </div>
+                                        <div className={styles.inputHolder}>
+                                            <CustomInput 
+                                                label="Distributer" 
+                                                name="de_distributor" 
+                                                type="text"
+                                                editable={id !== null ? editableDeliumInfo : !editableDeliumInfo}
+                                                method="disabled" 
+                                                />
+											<CustomInput label="Brand" editable={id !== null ? editableDeliumInfo : !editableDeliumInfo} name="brand_name" type="text" method="disabled" />
+										</div>
+                                        <div className={styles.inputHolder}>
+                                            <CustomInput 
+                                                label="Category Name" 
+                                                name="category_name" 
+                                                editable={id !== null ? editableDeliumInfo : !editableDeliumInfo}
+                                                type="text"
+                                                method="disabled" 
+                                                />
+											<CustomInput label="Sub Category Name"editable={id !== null ? editableDeliumInfo : !editableDeliumInfo}  name="subcategory_name" type="text" method="disabled" />
+										</div>
+                                        <div className={styles.inputHolder}>
+                                            <CustomInput 
+                                                label="Measure" 
+                                                editable={id !== null ? editableDeliumInfo : !editableDeliumInfo}
+                                                name="measure" 
+                                                type="text"
+                                                method="disabled" 
+                                                />
+											<CustomInput label="Measure In"editable={id !== null ? editableDeliumInfo : !editableDeliumInfo}  name="measure_in" type="text" method="disabled" />
+										</div>
                                 </Container>
                             </Form>
                         );
@@ -283,6 +534,20 @@ class ProductItems extends React.Component {
             </GlobalWrapper>
         );
     }
+}
+
+export async function getServerSideProps(context) {
+	var data = [];
+    var image = [];
+	if(context.query.id !== "create") {
+	data = await ProductHelper.getProductById(context.query.id);
+	image = await ImageHelper.getImageById(context.query.id);
+    }
+    console.log({correctdataah: data});
+	const id = context.query.id != "create" ? data[0].product_id : null;
+	return {
+		props: { data, image, id }
+	};
 }
 
 export default withRouter(ProductItems);

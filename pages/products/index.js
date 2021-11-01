@@ -16,6 +16,7 @@ import {
 import { withRouter } from "next/router";
 import { default as ReactSelect } from "react-select";
 import { DropDownOption } from "../../constants/values";
+import productHelper from "../../helper/product";
 import styles from "../../styles/admin.module.css";
 import CustomInput from "../../components/customInput/customInput";
 import Head from "../../util/head";
@@ -25,14 +26,26 @@ import exportCSVFile from "../../util/exportCSVFile";
 import moment from "moment";
 import { m } from "framer-motion";
 
+let valuesNew = [];
 class product extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
             loading: false,
             optionSelected: null,
+            details: [],
             new_header: false,
         };
+    }
+    componentDidMount() {
+        this.getProductData();
+    }
+    getProductData() {
+        productHelper.getProduct()
+            .then((data) => {
+                this.setState({ details: data });
+            })
+            .catch((err) => console.log(err));
     }
 
     Option = (props) => {
@@ -51,20 +64,69 @@ class product extends React.Component {
     };
     getExportFile = () => {
         const TABLE_HEADER = {
-            SNo: "SNo",
-            id: "Id",
-            name: "Name",
-            variants: "Variants",
+            s_no: "S.No",
+            product_id: "Product Id",
+            gf_item_name: "Item Name",
+            variant: "Variant" ,
+            variant_of: "Variant Of",
+            brand_name: "Brand Name",
+            department_name: "Department Name",
+            category_name: "Category Name",
+            subcategory_name: "Subcategory Name",
+            de_distributor: "Distributor",
+            keywords: "Keywords",
+            gf_manufacturer: "Manufacturer",
+            gf_food_type: "Food Type",
+            gf_description: "Description",
+            gf_detailed_description: "Detailed Description",
+            gf_weight_grams: "Wight Grams",
+            gf_item_product_type: "Product Type",
+            measure: "Measure",
+            measure_in: "Measure In",
+            packaging_type: "Packaging Type",
+            cleaning: "Cleaning",
+            sticker: "Sticker",
+            grinding: "Grinding",
+            cover_type: "Cover Type",
+            cover_sizes: "Cover Sizes",
+            gf_tax_id: "Tax Id",
+            return: "Return",
+            gf_status: "Status",
+            gf_applies_online: "Applies Online"
         };
         const formattedData = [];
         valuesNew.forEach((d, i) => {
             formattedData.push({
                 SNo: i + 1,
-                id: d.id,
-                name: d.name,
-                variants: d.variants,
-
-            });
+                product_id: d.product_id,
+                gf_item_name:d.gf_item_name,
+                variant: d.variant,
+                variant_of: d.variant_of,
+                brand_name: d.brand_name,
+                department_name: d.department_name,
+                category_name: d.category_name,
+                subcategory_name: d.subcategory_name,
+                de_distributor: d.de_distributor,
+                keywords: d.keywords,
+                gf_manufacturer: d.gf_manufacturer,
+                gf_food_type: d.gf_food_type,
+                gf_description: d.gf_description,
+                gf_detailed_description: d.gf_detailed_description,
+                gf_weight_grams: d.gf_weight_grams,
+                gf_item_product_type: d.gf_item_product_type,
+                measure: d.measure,
+                measure_in: d.measure_in,
+                packaging_type: d.packaging_type,
+                cleaning: d.cleaning,
+                sticker: d.sticker,
+                grinding: d.grinding,
+                cover_type: d.cover_type,
+                cover_sizes: d.cover_sizes,
+                gf_tax_id: d.gf_tax_id,
+                return: d.return,
+                gf_status: d.gf_status,
+                gf_applies_online: d.gf_applies_online
+                });
         });
         exportCSVFile(
             TABLE_HEADER,
@@ -79,16 +141,17 @@ class product extends React.Component {
     };
 
     render() {
-        const { loading, optionSelected, new_header } = this.state;
+        const { loading, optionSelected, new_header, details } = this.state;
 
         let new_table_title = {};
         let new_table_value = {};
         let table_title = {
             s_no: "S.No",
-            id: "Id",
-            name: "Name",
-            department_name: "Department Name",
-            action: "Action",
+            product_id: "Product Id",
+            gf_item_name: "Item Name",
+            gf_manufacturer: "Manufacturer",
+            de_distrubutor: "Distributor",
+            action: "Action"
         }
 
         const image = (m) => (
@@ -107,106 +170,17 @@ class product extends React.Component {
                 new_table_value[index] = m.value
             ))
         }
-        const details = [
+        console.log({details: details});
+        valuesNew = details.map((m, i) => (
             {
-                s_no: "1",
-                id: "19",
-                name: "Noodles",
-                display_name: "Gobi",
-                brand_name: "Nestlé",
-                combo_name: "Family Pack",
-                department_name: "Food",
-                category_name: "Noodles",
-                subcategory_name: "Cup Noodles",
-                distributor: "City Supermarket",
-                distributor_name: "Ram",
-                manufacturer_name: "Nestlé",
-                flavours: "Medium Spicy",
-                measure: "",
-                measure_in: "22",
-                packaging_type: "Box, Family Pack, Sachet",
-                preparation_type: "1",
-                cleaning: "",
-                packing_type: "3",
-                sticker: "",
-                grinding: "",
-                cover_type: "",
-                cover_size: "70",
-                tax_id: "",
-                hsn_code: "190230",
-                status: "Available",
-                is_online_allowed: "",
-                life_cycle: "5",
-            },
-            {
-                s_no: "2",
-                id: "19",
-                name: "Noodles",
-                display_name: "Maggi",
-                brand_name: "Nestlé",
-                combo_name: "Family Pack",
-                department_name: "Food",
-                category_name: "Noodles",
-                subcategory_name: "Cup Noodles",
-                distributor: "City Supermarket",
-                distributor_name: "Ram",
-                manufacturer_name: "Nestlé",
-                flavours: "Medium Spicy",
-                measure: "",
-                measure_in: "22",
-                packaging_type: "Box, Family Pack, Sachet",
-                preparation_type: "1",
-                cleaning: "",
-                packing_type: "3",
-                sticker: "",
-                grinding: "",
-                cover_type: "",
-                cover_size: "70",
-                tax_id: "",
-                hsn_code: "190230",
-                status: "Available",
-                is_online_allowed: "",
-                life_cycle: "5",
-            },
-            {
-                s_no: "3",
-                id: "19",
-                name: "Noodles",
-                display_name: "Maggi",
-                brand_name: "Nestlé",
-                combo_name: "Family Pack",
-                department_name: "Food",
-                category_name: "Noodles",
-                subcategory_name: "Cup Noodles",
-                distributor: "City Supermarket",
-                distributor_name: "Ram",
-                manufacturer_name: "Nestlé",
-                flavours: "Medium Spicy",
-                measure: "",
-                measure_in: "22",
-                packaging_type: "Box, Family Pack, Sachet",
-                preparation_type: "1",
-                cleaning: "",
-                packing_type: "3",
-                sticker: "",
-                grinding: "",
-                cover_type: "",
-                cover_size: "70",
-                tax_id: "",
-                hsn_code: "190230",
-                status: "Available",
-                is_online_allowed: "",
-                life_cycle: "5",
-            },
-        ];
-        var valuesNew = {};
-        valuesNew = details.map((m) => ({
-            s_no: m.s_no,
-            id: m.id,
-            name: m.name,
-            department_name: m.department_name,
-            action: image(m.id),
-        }));
+                s_no: i+1,
+                product_id: m.product_id,
+                gf_item_name: m.gf_item_name,
+                gf_manufacturer: m.gf_manufacturer,
+                de_distrubutor: m.de_distributor,
+                action: image(m.product_id)
+            }
+        ));
 
         if(new_header === true) {
             valuesNew = details.map((m, i) => (

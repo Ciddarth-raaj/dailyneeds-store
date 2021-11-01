@@ -293,7 +293,7 @@ class Family extends React.Component {
                                 </div>
                             </Container>
                             </Form>
-                );
+                        );
                     }}
             </Formik>
             </GlobalWrapper >
@@ -311,4 +311,5 @@ export async function getServerSideProps(context) {
         props: { data, id }
     };
 }
+
 export default withRouter(Family);
