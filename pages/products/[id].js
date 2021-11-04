@@ -35,10 +35,6 @@ class ProductItems extends React.Component {
         };
     }
 
-    // save() {
-    //     const { editItems } = this.state;
-    //     editItems ? "" : toast.success("Successfully Saved!");
-    // }
     getImageUploadParams = ({ meta }) => {
         const { imageHolder } = this.state;
         return { url: imageHolder };
@@ -73,13 +69,13 @@ class ProductItems extends React.Component {
         delete values.packaging_name;
         delete values.cover_name;
         delete values.packaging_name;
-        
+        values.variant_of = parseInt(values.variant_of);
+        values.cover_sizes = parseInt(values.cover_sizes);
         ProductHelper.updateProductDetails({
 			product_id: this.props.data[0].product_id,
 			product_details: values
 		})
 			.then((data) => {
-                console.log({funny: data});
 				if (data.code == 200) {
 					toast.success("Product details Updated!");
 					router.push("/products")
@@ -96,7 +92,6 @@ class ProductItems extends React.Component {
     render() {
         const { loadingItems, editItems, documentUploader, editableCustomInfo, editableGofrugalInfo, editableDeliumInfo,editableProductInfo, image } = this.state;
         const { id } = this.props;
-        console.log({props: this.props.data[0].variant})
         const table_title = {
             branch: "Branch",
             mrp: "MRP",
@@ -153,7 +148,6 @@ class ProductItems extends React.Component {
                     borderRadius: "20px",
                     background: "#EEEEEE",
                     marginTop: "10px",
-                    // width: "92%",
                     height: "150px"
                 },
                 inputLabelWithFiles: {
