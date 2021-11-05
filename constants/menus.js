@@ -46,17 +46,17 @@ export default {
         location: '/document'
       },
       view_withoutAdhaar: {
-        title: 'Users Without Adhaar',
+        title: 'Without Adhaar',
         selected: false,
         location: '/without-adhaar'
       },
       view_bank: {
-        title: 'Users Without Bank Details',
+        title: 'Without Bank Details',
         selected: false,
         location: '/bank'
       },
       view_salary: {
-        title: 'All Employee Salary Advance',
+        title: 'Salary Advance',
         selected: false,
         location: '/salary'
       },
@@ -65,6 +65,14 @@ export default {
         selected: false,
         location: '/resignation'
       },
+    }
+  },
+  products: {
+    title: 'Products',
+    selected: false,
+    openPage: false,
+    icon: 'fa-archive',
+    subMenu: {
       view_products: {
         title: 'View Products',
         selected: false,
