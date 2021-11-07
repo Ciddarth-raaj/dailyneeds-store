@@ -170,7 +170,7 @@ class product extends React.Component {
                 new_table_value[index] = m.value
             ))
         }
-        console.log({ details: details });
+
         valuesNew = details.map((m, i) => (
             {
                 s_no: i + 1,
