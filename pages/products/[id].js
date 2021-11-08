@@ -62,6 +62,7 @@ class ProductItems extends React.Component {
         delete values.gf_item_product_type;
         delete values.measure;
         delete values.measure_in;
+        delete values.department_name,
 
         delete values.gf_tax_id;
         delete values.de_display_name;
@@ -577,7 +578,6 @@ export async function getServerSideProps(context) {
 	if(context.query.id !== "create") {
 	data = await ProductHelper.getProductById(context.query.id);
 	image = await ImageHelper.getImageById(context.query.id);
-    // additionalDetail = await ProductHelper.getById(context.query.id);
     }
 	const id = context.query.id != "create" ? data[0].product_id : null;
 	return {
