@@ -20,6 +20,7 @@ const product = {
 			API.get("/product?offset=0&limit=10")
 				.then(async (res) => {
 					resolve(res.data);
+					console.log({checkdata: res.data});
 				})
 				.catch((err) => {
 					reject(err);
@@ -30,7 +31,7 @@ const product = {
 			API.get("/product?offset=0&limit=1&product_id=" + product_id)
 				.then(async (res) => {
 					resolve(res.data);
-					console.log({idhu: res.data});
+					// console.log({idhu: res.data});
 				})
 				.catch((err) => {
 					reject(err);

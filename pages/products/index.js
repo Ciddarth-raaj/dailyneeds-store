@@ -46,6 +46,7 @@ class product extends React.Component {
         productHelper.getProduct()
             .then((data) => {
                 this.setState({ details: data });
+                console.log("details",{ details: data });
             })
             .catch((err) => console.log(err));
     }
@@ -144,22 +145,20 @@ class product extends React.Component {
 
     render() {
         const { loading, optionSelected, new_header, details } = this.state;
-
+        const onClick = (m) => {
+            return (
+                <Link href={`/products/${m.id}`}><a>{m.value}</a></Link>
+            )
+        };  
         let new_table_title = {};
         let new_table_value = {};
         let table_title = {
             s_no: "S.No",
             product_id: "Product Id",
-            brand_name: "Name",
-            category_name: "Category Name",
-            subcategory_name: "Sub Category Name",
-            department_name: "Department Name",
-            // action: "Action"
+            gf_item_name: "Name",
+            de_distrubutor: "Distributor",
+            gf_manufacturer: "Manufacturer",
         }
-
-        const onClick = (m) => (
-            <Link href={`/products/${m.id}`}>{m.value}</Link>
-        );
         const image = (m) => (
             <div style={{ display: "flex", justifyContent: "center" }}>
                 <img
@@ -177,17 +176,13 @@ class product extends React.Component {
             ))
         }
 
-        valuesNew = details.map((m, i) => (
-            {
+        valuesNew = details.map((m, i) => ({
                 s_no: i + 1,
                 product_id: m.product_id,
-                brand_name: onClick({value: m.brand_name !== "" ? m.brand_name : m.de_display_name, id: m.product_id}),
-                category_name: onClick({value: m.category_name, id: m.product_id}),
-                subcategory_name: onClick({value: m.subcategory_name, id: m.product_id}),
-                department_name: onClick({value: m.department_name, id: m.product_id}),
-                // action: image(m.product_id)
-            }
-        ));
+                gf_item_name: onClick({value: m.gf_item_name !== null ? m.gf_item_name : m.de_display_name, id: m.product_id}),
+                de_distrubutor: onClick({value: m.de_distributor, id: m.product_id}),
+                gf_manufacturer: onClick({value: m.gf_manufacturer, id: m.product_id}),
+            }));
 
         if (new_header === true) {
             valuesNew = details.map((m, i) => (
