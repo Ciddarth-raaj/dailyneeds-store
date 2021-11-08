@@ -168,9 +168,10 @@ class ProductItems extends React.Component {
                     initialValues={{
                         product_id: this.props.data[0]?.product_id,
                         gf_item_name: this.props.data[0]?.gf_item_name,
-                        brand_name: this.props.additionalDetail[0]?.brand_name,
-                        category_name: this.props.additionalDetail[0]?.category_name,
-                        subcategory_name: this.props.additionalDetail[0]?.subcategory_name,
+                        brand_name: this.props.data[0]?.brand_name,
+                        category_name: this.props.data[0]?.category_name,
+                        subcategory_name: this.props.data[0]?.subcategory_name,
+                        department_name: this.props.data[0]?.department_name,
                         de_distributor: this.props.data[0]?.de_distributor,
                         de_display_name: this.props.data[0]?.de_display_name,
                         keywords: this.props.data[0]?.keywords,
@@ -267,7 +268,7 @@ class ProductItems extends React.Component {
                                                     this.setState({
                                                         editableProductInfo: !editableProductInfo,
                                                     });
-                                                    handleSubmit();
+                                                    // handleSubmit();
                                                 }}
                                             >
                                                 {editableProductInfo ? "Save" : "Edit"}
@@ -552,6 +553,15 @@ class ProductItems extends React.Component {
                                                 />
 											<CustomInput label="Measure In"editable={id !== null ? editableDeliumInfo : !editableDeliumInfo}  name="measure_in" type="text" method="disabled" />
 										</div>
+                                        <div className={styles.inputHolder}>
+                                            <CustomInput 
+                                                label="Department Name" 
+                                                name="department_name" 
+                                                editable={id !== null ? editableDeliumInfo : !editableDeliumInfo}
+                                                type="text"
+                                                method="disabled" 
+                                                />
+                                        </div>
                                 </Container>
                             </Form>
                         );
@@ -569,12 +579,11 @@ export async function getServerSideProps(context) {
 	if(context.query.id !== "create") {
 	data = await ProductHelper.getProductById(context.query.id);
 	image = await ImageHelper.getImageById(context.query.id);
-    additionalDetail = await ProductHelper.getById(context.query.id);
+    // additionalDetail = await ProductHelper.getById(context.query.id);
     }
-    // console.log({correctdataah: data});
 	const id = context.query.id != "create" ? data[0].product_id : null;
 	return {
-		props: { data, image, id, additionalDetail }
+		props: { data, image, id }
 	};
 }
 
