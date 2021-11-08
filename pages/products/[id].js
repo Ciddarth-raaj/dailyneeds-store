@@ -64,6 +64,7 @@ class ProductItems extends React.Component {
         delete values.measure_in;
 
         delete values.gf_tax_id;
+        delete values.de_display_name;
         delete values.gf_status;
         delete values.gf_applies_online;
         delete values.packaging_name;
@@ -91,6 +92,7 @@ class ProductItems extends React.Component {
 	}
     render() {
         const { loadingItems, editItems, documentUploader, editableCustomInfo, editableGofrugalInfo, editableDeliumInfo,editableProductInfo, image } = this.state;
+        console.log({whatisthisdata: this.props.data[0]})
         const { id } = this.props;
         const table_title = {
             branch: "Branch",
@@ -171,10 +173,11 @@ class ProductItems extends React.Component {
                         gf_item_name: this.props.data[0]?.gf_item_name,
                         variant: this.props.data[0]?.variant,
                         variant_of: this.props.data[0]?.variant_of,
-                        brand_name: "name",
-                        category_name: "three",
-                        subcategory_name: "four",
+                        brand_name: this.props.data[0]?.brand_name,
+                        category_name: this.props.data[0]?.category_name,
+                        subcategory_name: this.props.data[0]?.subcategory_name,
                         de_distributor: this.props.data[0]?.de_distributor,
+                        de_display_name: this.props.data[0]?.de_display_name,
                         keywords: this.props.data[0]?.keywords,
                         gf_manufacturer: this.props.data[0]?.gf_manufacturer,
                         gf_food_type: this.props.data[0]?.gf_food_type,
@@ -192,8 +195,8 @@ class ProductItems extends React.Component {
                         cover_sizes: this.props.data[0]?.cover_sizes,
                         gf_tax_id: this.props.data[0]?.gf_tax_id,
                         return: this.props.data[0]?.return,
-                        gf_status: this.props.data[0]?.gf_status,
-                        gf_applies_online: this.props.data[0]?.gf_applies_online,
+                        gf_status: this.props.data[0]?.gf_status === "1" ? "true" : "false",
+                        gf_applies_online: this.props.data[0]?.gf_applies_online  === "1" ? "true" : "false",
 						packaging_name: this.props.data[0]?.packaging_type === "1" ? "one" : "two",
                         cover_name: this.props.data[0]?.cover_type === "1" ? "one" : "two"
                     }}
@@ -204,7 +207,6 @@ class ProductItems extends React.Component {
                 >
                     {(formikProps) => {
                         const { handleSubmit, values, setFieldValue } = formikProps;
-                        console.log({values: values});
                         return (
                             <Form>
                                 <FormikErrorFocus
@@ -220,8 +222,8 @@ class ProductItems extends React.Component {
                                 >
                                     <p className={styles.headerInputHolder}>
                                         <div className={styles.productHeader}>
-                                            <div className={styles.headerDescription}>{values.brand_name} <span>|</span> {values.category_name} <span>|</span> {values.subcategory_name}</div>
-                                            <div className={styles.mainTitle}>{values.gf_item_name}</div>
+                                            <div className={styles.headerDescription}>{values.brand_name !== "" ? values.brand_name : values.de_display_name} <span>|</span> {values.category_name} <span>|</span> {values.subcategory_name}</div>
+                                            <div className={styles.mainTitle}>{values.gf_item_name !== "" ? values.gf_item_name : values.de_display_name}</div>
                                             <div>
                                                 {values.measure_in !== "" &&
                                                     <Badge
@@ -250,6 +252,7 @@ class ProductItems extends React.Component {
                                             <Button
                                                 isLoading={loadingItems}
                                                 variant="outline"
+                                                marginRight="20px"
                                                 leftIcon={
                                                     editableProductInfo ? (
                                                         <i
@@ -274,26 +277,34 @@ class ProductItems extends React.Component {
                                             >
                                                 {editableProductInfo ? "Save" : "Edit"}
                                             </Button>
+                                            <Button
+                                                isLoading={loadingItems}
+                                                variant="outline"
+                                                width="180px"
+                                                colorScheme="red"
+														onClick={() => { editableCustomInfo === true && this.setState({ editableCustomInfo: !editableCustomInfo }) }}
+                                            >
+                                                {"cancel"}
+                                            </Button>
                                         </div>
                                     </p>
-                                        <div className={styles.subHeader}>
+                                        <div className={styles.imageSubHeader}>
                                             <p>Image</p>
-                                        </div>
-                                        <Container>
-                                            <SortableList items={image} />
-                                            <div style={{ marginTop: "60px", paddingBottom: "30px", width: '100%' }}>
+                                            <div style={{display: "flex", alignItems: "center", marginTop: "8px"}}>
                                                 <Button
                                                     variant="outline"
                                                     colorScheme="purple"
                                                     onClick={() => this.setState({ documentUploader: !documentUploader })}
                                                 >
-                                                    {documentUploader === true ? "Remove" : "Upload New Image"}
+                                                    {documentUploader === true ? "-" : "+"}
                                                 </Button>
                                                 {documentUploader === true &&
                                                     <Dropzone id="upload" getUploadParams={this.getImageUploadParams} onChangeStatus={this.imageChangeStatus} {...dropDownProps} />
                                                 }
                                             </div>
-
+                                        </div>
+                                        <Container>
+                                            <SortableList items={image} />
                                         </Container>
                                         <div className={styles.subHeader}>
                                             <p>Branch Details</p>
@@ -311,6 +322,7 @@ class ProductItems extends React.Component {
                                             <div style={{ width: "30%", display: "flex", alignItems: "center", justifyContent: "center", paddingRight: 10 }}>
                                             <Button
                                                 isLoading={loadingItems}
+                                                marginRight="20px"
                                                 variant="outline"
                                                 leftIcon={
                                                     editableCustomInfo ? (
@@ -330,6 +342,15 @@ class ProductItems extends React.Component {
 														onClick={() => { editableCustomInfo === true && handleSubmit(), this.setState({ editableCustomInfo: !editableCustomInfo }) }}
                                             >
                                                 {editableCustomInfo ? "Save" : "Edit"}
+                                            </Button>
+                                            <Button
+                                                isLoading={loadingItems}
+                                                variant="outline"
+                                                width="180px"
+                                                colorScheme="red"
+														onClick={() => { editableCustomInfo === true && this.setState({ editableCustomInfo: !editableCustomInfo }) }}
+                                            >
+                                                {"cancel"}
                                             </Button>
                                         </div>
                                         </div>
@@ -359,7 +380,7 @@ class ProductItems extends React.Component {
                                                     method="switch"
                                                     editable={id !== null ? editableCustomInfo : !editableCustomInfo}
                                                 />
-                                                <CustomInput label="Variant Of" editable={id !== null ? editableCustomInfo : !editableCustomInfo} name="variant_of" type="text" />
+                                                {/* <CustomInput label="Variant Of" editable={id !== null ? editableCustomInfo : !editableCustomInfo} name="variant_of" type="text" /> */}
                                             </div>
                                             <div className={styles.inputHolder}>
                                             <CustomInput
@@ -379,7 +400,23 @@ class ProductItems extends React.Component {
                                                 type="text"
                                                 method="switch"
                                             />
-                                            <CustomInput editable={id !== null ? editableCustomInfo : !editableCustomInfo} label="Cover Sizes" name="cover_sizes" type="text" />
+                                            <CustomInput 
+                                                editable={id !== null ? editableCustomInfo : !editableCustomInfo} 
+                                                label="Cover Sizes" 
+                                                name="cover_sizes"
+                                                values={[
+                                                    {
+                                                        id: 1,
+                                                        value: "One",
+                                                    },
+                                                    {
+                                                        id: 2,
+                                                        value: "Two",
+                                                    },
+                                                ]} 
+                                                type="text"
+                                                method="switch"
+                                                 />
                                         </div>
                                             <CustomInput
                                                 label="Description"
@@ -397,18 +434,13 @@ class ProductItems extends React.Component {
                                             type="text"
                                             method="TextArea"
                                         />
-                                        <div className={styles.inputHolder}>
-                                            <div className={styles.switchHolder}>
+                                        {/* <div className={styles.inputHolder}> */}
+                                            {/* <div className={styles.switchHolder}>
                                                 <label>Variant</label>
                                                 <Switch className={styles.switch} isChecked={values.variant === 1 ? true : false} 
                                                 onChange={() => values.variant === 1 ? setFieldValue("variant", 0) : setFieldValue("variant", 1)} id="email-alerts" />
-                                            </div>
-                                            <div className={styles.switchHolder}>
-                                                <label>Cleaning</label>
-                                                <Switch className={styles.switch} isChecked={values.cleaning === 1 ? true : false}
-                                                onChange={() => values.cleaning === 1 ? setFieldValue("cleaning", 0) : setFieldValue("cleaning", 1)}  id="email-alerts" />
-                                            </div>
-                                        </div>
+                                            </div> */}
+                                        {/* </div> */}
                                         <div className={styles.inputHolder}>
                                             <div className={styles.switchHolder}>
                                                 <label>Sticker</label>
@@ -426,6 +458,11 @@ class ProductItems extends React.Component {
                                                 <label>Return</label>
                                                 <Switch className={styles.switch} isChecked={values.return === 1 ? true : false} 
                                                 onChange={() => values.return === 1 ? setFieldValue("return", 0) : setFieldValue("return", 1)} id="email-alerts" />
+                                            </div>
+                                            <div className={styles.switchHolder}>
+                                                <label>Cleaning</label>
+                                                <Switch className={styles.switch} isChecked={values.cleaning === 1 ? true : false}
+                                                onChange={() => values.cleaning === 1 ? setFieldValue("cleaning", 0) : setFieldValue("cleaning", 1)}  id="email-alerts" />
                                             </div>
                                         </div>
                                         </Container>
@@ -477,7 +514,7 @@ class ProductItems extends React.Component {
                                                 method="disabled" 
                                                 editable={id !== null ? editableGofrugalInfo : !editableGofrugalInfo}
                                                 />
-											<CustomInput label="Status" editable={id !== null ? editableGofrugalInfo : !editableGofrugalInfo}  name="gf_status" type="text" method="disabled" />
+											<CustomInput label="Status" editable={id !== null ? editableGofrugalInfo : !editableGofrugalInfo}  name={"gf_status"} type="text" method="disabled" />
 										</div>
                                         </Container>
                                         <Container
@@ -537,7 +574,7 @@ export async function getServerSideProps(context) {
 	data = await ProductHelper.getProductById(context.query.id);
 	image = await ImageHelper.getImageById(context.query.id);
     }
-    console.log({correctdataah: data});
+    // console.log({correctdataah: data});
 	const id = context.query.id != "create" ? data[0].product_id : null;
 	return {
 		props: { data, image, id }

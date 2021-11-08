@@ -24,6 +24,7 @@ import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import Table from "../../components/table/table";
 import exportCSVFile from "../../util/exportCSVFile";
 import moment from "moment";
+import Link from "next/link";
 import { m } from "framer-motion";
 
 let valuesNew = [];
@@ -40,6 +41,7 @@ class product extends React.Component {
     componentDidMount() {
         this.getProductData();
     }
+  
     getProductData() {
         productHelper.getProduct()
             .then((data) => {
@@ -151,9 +153,12 @@ class product extends React.Component {
             gf_item_name: "Item Name",
             gf_manufacturer: "Manufacturer",
             de_distrubutor: "Distributor",
-            action: "Action"
+            // action: "Action"
         }
 
+        const onClick = (m) => (
+            <Link href={`/products/${m.id}`}>{m.value}</Link>
+        );
         const image = (m) => (
             <div style={{ display: "flex", justifyContent: "center" }}>
                 <img
@@ -175,10 +180,10 @@ class product extends React.Component {
             {
                 s_no: i+1,
                 product_id: m.product_id,
-                gf_item_name: m.gf_item_name,
-                gf_manufacturer: m.gf_manufacturer,
-                de_distrubutor: m.de_distributor,
-                action: image(m.product_id)
+                gf_item_name: onClick({value: m.gf_item_name !== "" ? m.gf_item_name : m.de_display_name, id: m.product_id}),
+                gf_manufacturer: onClick({value: m.gf_manufacturer, id: m.product_id}),
+                de_distrubutor: onClick({value: m.de_distributor, id: m.product_id}),
+                // action: image(m.product_id)
             }
         ));
 
