@@ -150,11 +150,11 @@ class product extends React.Component {
         let table_title = {
             s_no: "S.No",
             product_id: "Product Id",
-            gf_item_name: "Name",
-            de_distrubutor: "Distributor",
-            // brand_id: "Brand",
+            brand_name: "Name",
+            category_name: "Category Name",
+            subcategory_name: "Sub Category Name",
+            department_name: "Department Name",
             // action: "Action"
-            action: "Action"
         }
 
         const onClick = (m) => (
@@ -181,9 +181,10 @@ class product extends React.Component {
             {
                 s_no: i + 1,
                 product_id: m.product_id,
-                gf_item_name: onClick({value: m.gf_item_name !== "" ? m.gf_item_name : m.de_display_name, id: m.product_id}),
-                gf_manufacturer: onClick({value: m.gf_manufacturer, id: m.product_id}),
-                de_distrubutor: onClick({value: m.de_distributor, id: m.product_id}),
+                brand_name: onClick({value: m.brand_name !== "" ? m.brand_name : m.de_display_name, id: m.product_id}),
+                category_name: onClick({value: m.category_name, id: m.product_id}),
+                subcategory_name: onClick({value: m.subcategory_name, id: m.product_id}),
+                department_name: onClick({value: m.department_name, id: m.product_id}),
                 // action: image(m.product_id)
             }
         ));

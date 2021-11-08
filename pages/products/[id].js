@@ -48,7 +48,7 @@ class ProductItems extends React.Component {
             }
         }
     };
-    updateProduct = async (values) => {     
+    updateProduct = async (values) => {
 		const { router } = this.props;
 
         delete values.gf_item_name;
@@ -70,8 +70,6 @@ class ProductItems extends React.Component {
         delete values.packaging_name;
         delete values.cover_name;
         delete values.packaging_name;
-        values.variant_of = parseInt(values.variant_of);
-        values.cover_sizes = parseInt(values.cover_sizes);
         ProductHelper.updateProductDetails({
 			product_id: this.props.data[0].product_id,
 			product_details: values
@@ -92,7 +90,6 @@ class ProductItems extends React.Component {
 	}
     render() {
         const { loadingItems, editItems, documentUploader, editableCustomInfo, editableGofrugalInfo, editableDeliumInfo,editableProductInfo, image } = this.state;
-        console.log({whatisthisdata: this.props.data[0]})
         const { id } = this.props;
         const table_title = {
             branch: "Branch",
@@ -171,11 +168,9 @@ class ProductItems extends React.Component {
                     initialValues={{
                         product_id: this.props.data[0]?.product_id,
                         gf_item_name: this.props.data[0]?.gf_item_name,
-                        variant: this.props.data[0]?.variant,
-                        variant_of: this.props.data[0]?.variant_of,
-                        brand_name: this.props.data[0]?.brand_name,
-                        category_name: this.props.data[0]?.category_name,
-                        subcategory_name: this.props.data[0]?.subcategory_name,
+                        brand_name: this.props.additionalDetail[0]?.brand_name,
+                        category_name: this.props.additionalDetail[0]?.category_name,
+                        subcategory_name: this.props.additionalDetail[0]?.subcategory_name,
                         de_distributor: this.props.data[0]?.de_distributor,
                         de_display_name: this.props.data[0]?.de_display_name,
                         keywords: this.props.data[0]?.keywords,
@@ -200,7 +195,7 @@ class ProductItems extends React.Component {
 						packaging_name: this.props.data[0]?.packaging_type === "1" ? "one" : "two",
                         cover_name: this.props.data[0]?.cover_type === "1" ? "one" : "two"
                     }}
-                    validationSchema={ProductItemsValidation}
+                    // validationSchema={ProductItemsValidation}
                     onSubmit={(values) => {
                         this.updateProduct(values);
                     }}
@@ -223,7 +218,7 @@ class ProductItems extends React.Component {
                                     <p className={styles.headerInputHolder}>
                                         <div className={styles.productHeader}>
                                             <div className={styles.headerDescription}>{values.brand_name !== "" ? values.brand_name : values.de_display_name} <span>|</span> {values.category_name} <span>|</span> {values.subcategory_name}</div>
-                                            <div className={styles.mainTitle}>{values.gf_item_name !== "" ? values.gf_item_name : values.de_display_name}</div>
+                                            <div className={styles.mainTitle}>{values.gf_item_name !== null ? values.gf_item_name : values.de_display_name}</div>
                                             <div>
                                                 {values.measure_in !== "" &&
                                                     <Badge
@@ -570,14 +565,16 @@ class ProductItems extends React.Component {
 export async function getServerSideProps(context) {
 	var data = [];
     var image = [];
+    var additionalDetail = [];
 	if(context.query.id !== "create") {
 	data = await ProductHelper.getProductById(context.query.id);
 	image = await ImageHelper.getImageById(context.query.id);
+    additionalDetail = await ProductHelper.getById(context.query.id);
     }
     // console.log({correctdataah: data});
 	const id = context.query.id != "create" ? data[0].product_id : null;
 	return {
-		props: { data, image, id }
+		props: { data, image, id, additionalDetail }
 	};
 }
 

@@ -25,6 +25,17 @@ const product = {
 					reject(err);
 				});
 		}),
+	getById: (product_id) =>
+		new Promise(function (resolve, reject) {
+			API.get("/product?offset=0&limit=1&product_id=" + product_id)
+				.then(async (res) => {
+					resolve(res.data);
+					console.log({idhu: res.data});
+				})
+				.catch((err) => {
+					reject(err);
+				});
+		}),
 	getProductById: (product_id) =>
 		new Promise(function (resolve, reject) {
 			API.get("/product/product_id?product_id=" + product_id)
