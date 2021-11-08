@@ -69,7 +69,7 @@ class product extends React.Component {
             s_no: "S.No",
             product_id: "Product Id",
             gf_item_name: "Item Name",
-            variant: "Variant" ,
+            variant: "Variant",
             variant_of: "Variant Of",
             brand_name: "Brand Name",
             department_name: "Department Name",
@@ -101,7 +101,7 @@ class product extends React.Component {
             formattedData.push({
                 SNo: i + 1,
                 product_id: d.product_id,
-                gf_item_name:d.gf_item_name,
+                gf_item_name: d.gf_item_name,
                 variant: d.variant,
                 variant_of: d.variant_of,
                 brand_name: d.brand_name,
@@ -128,7 +128,7 @@ class product extends React.Component {
                 return: d.return,
                 gf_status: d.gf_status,
                 gf_applies_online: d.gf_applies_online
-                });
+            });
         });
         exportCSVFile(
             TABLE_HEADER,
@@ -150,10 +150,11 @@ class product extends React.Component {
         let table_title = {
             s_no: "S.No",
             product_id: "Product Id",
-            gf_item_name: "Item Name",
-            gf_manufacturer: "Manufacturer",
+            gf_item_name: "Name",
             de_distrubutor: "Distributor",
+            // brand_id: "Brand",
             // action: "Action"
+            action: "Action"
         }
 
         const onClick = (m) => (
@@ -175,10 +176,10 @@ class product extends React.Component {
                 new_table_value[index] = m.value
             ))
         }
-        console.log({details: details});
+
         valuesNew = details.map((m, i) => (
             {
-                s_no: i+1,
+                s_no: i + 1,
                 product_id: m.product_id,
                 gf_item_name: onClick({value: m.gf_item_name !== "" ? m.gf_item_name : m.de_display_name, id: m.product_id}),
                 gf_manufacturer: onClick({value: m.gf_manufacturer, id: m.product_id}),
@@ -187,12 +188,12 @@ class product extends React.Component {
             }
         ));
 
-        if(new_header === true) {
+        if (new_header === true) {
             valuesNew = details.map((m, i) => (
-            optionSelected.map((n) => (
+                optionSelected.map((n) => (
                     new_table_value[i] = m[n.value]
                 ))
-        ))
+            ))
         }
 
         const sortCallback = (key, type) => {
@@ -230,9 +231,9 @@ class product extends React.Component {
                                             </Button>
                                         </ButtonGroup>
                                     </div>
-                                    <div style={{marginBottom: "60px", display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+                                    <div style={{ marginBottom: "60px", display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
                                         <div className={styles.subInputHolder}>
-                                        <label className={styles.infoLabel}>Choose Table Filter</label>
+                                            <label className={styles.infoLabel}>Choose Table Filter</label>
                                             <div>
                                                 <ReactSelect
                                                     options={
@@ -256,16 +257,16 @@ class product extends React.Component {
                                             >
                                                 <Button
                                                     isLoading={loading}
-                                                    loadingText="Searching"
+                                                    loadingText="Loading"
                                                     colorScheme="purple"
                                                     onClick={() => this.setState({ new_header: true })}
                                                 >
-                                                    {"Search"}
+                                                    {"Done"}
                                                 </Button>
                                             </ButtonGroup>
                                         </div>
                                     </div>
-                                    <CheckboxGroup colorScheme="purple">
+                                    {/* <CheckboxGroup colorScheme="purple">
                                         <Grid
                                             templateColumns="repeat(3, 1fr)"
                                             gap={6}
@@ -276,7 +277,7 @@ class product extends React.Component {
                                             <Checkbox>W/O Description</Checkbox>
                                             <Checkbox>New</Checkbox>
                                         </Grid>
-                                    </CheckboxGroup>
+                                    </CheckboxGroup> */}
                                     <Table
                                         heading={new_header === false ? table_title : new_table_title}
                                         rows={valuesNew}
