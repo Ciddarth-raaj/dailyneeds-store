@@ -55,7 +55,7 @@ export const DropDownOption = [
         }
     },
     {
-        value: "brand_id",
+        value: "brand_name",
         label: "Brand Name",
         final: {
             brand_id: "Brand Name"
