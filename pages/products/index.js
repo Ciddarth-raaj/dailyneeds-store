@@ -169,7 +169,6 @@ class product extends React.Component {
 
     render() {
         const { loading, optionSelected, new_header, details, offset, pages, splice } = this.state;
-        console.log({off: offset});
         const onClick = (m) => {
             return (
                 <Link href={`/products/${m.id}`}><a>{m.value}</a></Link>
