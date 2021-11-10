@@ -72,7 +72,6 @@ class product extends React.Component {
                 for (let i = 0; i <= count - 1; i++) {
                     tempArray.push(i);
                 }
-                console.log({temp: tempArray});
                 this.setState({ pages: tempArray })
             })
     }
