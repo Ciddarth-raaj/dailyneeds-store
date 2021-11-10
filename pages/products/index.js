@@ -39,6 +39,7 @@ class product extends React.Component {
             new_header: false,
             pages: [],
             offset: 0,
+            offsetToggle: false,
             splice: [0, 10],
         };
     }
@@ -47,8 +48,10 @@ class product extends React.Component {
         this.getProductCount();
     }
     componentDidUpdate() {
-        if(this.state.offset !== 0) {
+        const { offsetToggle} = this.state;
+        if(offsetToggle !== false) {
             this.getProductData();
+            this.setState({ offsetToggle: false})
         }
     }
     getProductData() {
@@ -66,7 +69,7 @@ class product extends React.Component {
         productHelper.getProductCount()
             .then((data) => {
                 count = parseInt(data[0].product_count) / 10;
-                for (let i = 1; i <= count; i++) {
+                for (let i = 0; i <= count - 1; i++) {
                     tempArray.push(i);
                 }
                 console.log({temp: tempArray});
@@ -167,6 +170,7 @@ class product extends React.Component {
 
     render() {
         const { loading, optionSelected, new_header, details, offset, pages, splice } = this.state;
+        console.log({off: offset});
         const onClick = (m) => {
             return (
                 <Link href={`/products/${m.id}`}><a>{m.value}</a></Link>
@@ -319,7 +323,7 @@ class product extends React.Component {
                                                 <div
                                                     className={styles.paginateHolder}
                                                     onClick={() => {
-                                                        this.setState({ offset: m * 10 })
+                                                        this.setState({offsetToggle: true,offset: m * 10})
                                                     }}
                                                 >
                                                     {m}
