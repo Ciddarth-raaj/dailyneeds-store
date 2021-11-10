@@ -46,7 +46,11 @@ class product extends React.Component {
         this.getProductData();
         this.getProductCount();
     }
-
+    componentDidUpdate() {
+        if(this.state.offset !== 0) {
+            this.getProductData();
+        }
+    }
     getProductData() {
         const { offset } = this.state;
         productHelper.getProduct(offset)
@@ -62,9 +66,10 @@ class product extends React.Component {
         productHelper.getProductCount()
             .then((data) => {
                 count = parseInt(data[0].product_count) / 10;
-                for (let i = 1; i <= count - 1; i++) {
+                for (let i = 1; i <= count; i++) {
                     tempArray.push(i);
                 }
+                console.log({temp: tempArray});
                 this.setState({ pages: tempArray })
             })
     }
@@ -314,8 +319,7 @@ class product extends React.Component {
                                                 <div
                                                     className={styles.paginateHolder}
                                                     onClick={() => {
-                                                        this.setState({ offset: m * 10 }),
-                                                            this.getProductData()
+                                                        this.setState({ offset: m * 10 })
                                                     }}
                                                 >
                                                     {m}
