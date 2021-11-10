@@ -15,12 +15,21 @@ const product = {
 					reject(err);
 				});
 		}),
-	getProduct: () =>
+	getProduct: (offset) =>
 		new Promise(function (resolve, reject) {
-			API.get("/product?offset=0&limit=10")
+			API.get(`/product?offset=${offset}&limit=10`)
 				.then(async (res) => {
 					resolve(res.data);
-					console.log({checkdata: res.data});
+				})
+				.catch((err) => {
+					reject(err);
+				});
+		}),
+	getProductCount: () =>
+		new Promise(function (resolve, reject) {
+			API.get("/product/prodcount")
+				.then(async (res) => {
+					resolve(res.data);
 				})
 				.catch((err) => {
 					reject(err);
@@ -31,7 +40,6 @@ const product = {
 			API.get("/product/product_id?product_id=" + product_id)
 				.then(async (res) => {
 					resolve(res.data);
-					console.log({ workingah: res.data });
 				})
 				.catch((err) => {
 					reject(err);

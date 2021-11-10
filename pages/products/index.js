@@ -15,6 +15,7 @@ import {
 } from "@chakra-ui/react";
 import { withRouter } from "next/router";
 import { default as ReactSelect } from "react-select";
+import { ChevronRightIcon, ChevronLeftIcon } from "@chakra-ui/icons";
 import { DropDownOption } from "../../constants/values";
 import productHelper from "../../helper/product";
 import styles from "../../styles/admin.module.css";
@@ -36,21 +37,37 @@ class product extends React.Component {
             optionSelected: null,
             details: [],
             new_header: false,
+            pages: [],
+            offset: 0,
+            splice: [0, 10],
         };
     }
     componentDidMount() {
         this.getProductData();
+        this.getProductCount();
     }
-  
+
     getProductData() {
-        productHelper.getProduct()
+        const { offset } = this.state;
+        productHelper.getProduct(offset)
             .then((data) => {
                 this.setState({ details: data });
-                console.log("details",{ details: data });
             })
             .catch((err) => console.log(err));
     }
 
+    getProductCount() {
+        const tempArray = []
+        var count = 0;
+        productHelper.getProductCount()
+            .then((data) => {
+                count = parseInt(data[0].product_count) / 10;
+                for (let i = 1; i <= count - 1; i++) {
+                    tempArray.push(i);
+                }
+                this.setState({ pages: tempArray })
+            })
+    }
     Option = (props) => {
         return (
             <div>
@@ -144,12 +161,12 @@ class product extends React.Component {
     };
 
     render() {
-        const { loading, optionSelected, new_header, details } = this.state;
+        const { loading, optionSelected, new_header, details, offset, pages, splice } = this.state;
         const onClick = (m) => {
             return (
                 <Link href={`/products/${m.id}`}><a>{m.value}</a></Link>
             )
-        };  
+        };
         let new_table_title = {};
         let new_table_value = {};
         let table_title = {
@@ -177,12 +194,12 @@ class product extends React.Component {
         }
 
         valuesNew = details.map((m, i) => ({
-                s_no: i + 1,
-                product_id: m.product_id,
-                gf_item_name: onClick({value: m.gf_item_name !== null ? m.gf_item_name : m.de_display_name, id: m.product_id}),
-                de_distrubutor: onClick({value: m.de_distributor, id: m.product_id}),
-                gf_manufacturer: onClick({value: m.gf_manufacturer, id: m.product_id}),
-            }));
+            s_no: i + 1,
+            product_id: m.product_id,
+            gf_item_name: onClick({ value: m.gf_item_name !== null ? m.gf_item_name : m.de_display_name, id: m.product_id }),
+            de_distrubutor: onClick({ value: m.de_distributor, id: m.product_id }),
+            gf_manufacturer: onClick({ value: m.gf_manufacturer, id: m.product_id }),
+        }));
 
         if (new_header === true) {
             valuesNew = details.map((m, i) => (
@@ -281,6 +298,40 @@ class product extends React.Component {
                                             sortCallback(key, type)
                                         }
                                     />
+                                    <div className={styles.paginate}>
+                                        <div className={styles.paginateContent}>
+                                            <div
+                                                className={styles.arrow}
+                                                style={{ pointerEvents: this.state.splice[0] !== 0 ? "auto" : "none" }}
+                                                onClick={() =>
+                                                    this.setState({
+                                                        splice: [this.state.splice[0] - 10, this.state.splice[1] - 10]
+                                                    })}
+                                            >
+                                                <ChevronLeftIcon />
+                                            </div>
+                                            {pages.slice(splice[0], splice[1]).map((m) => (
+                                                <div
+                                                    className={styles.paginateHolder}
+                                                    onClick={() => {
+                                                        this.setState({ offset: m * 10 }),
+                                                            this.getProductData()
+                                                    }}
+                                                >
+                                                    {m}
+                                                </div>
+                                            ))}
+                                            <div
+                                                className={styles.arrow}
+                                                onClick={() =>
+                                                    this.setState({
+                                                        splice: [this.state.splice[0] + 10, this.state.splice[1] + 10]
+                                                    })}
+                                            >
+                                                <ChevronRightIcon />
+                                            </div>
+                                        </div>
+                                    </div>
                                     <ButtonGroup
                                         style={{
                                             display: "flex",

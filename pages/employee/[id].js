@@ -559,8 +559,6 @@ class Create extends React.Component {
 			imageContainer,
 			idContainer,
 		} = this.state;
-		console.log({resignationData: this.state});
-		console.log({checker: adhaarChecker});
 		const { doc } = this.props;
 		const dropDownProps = {
 			styles: {
