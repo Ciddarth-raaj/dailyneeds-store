@@ -25,6 +25,24 @@ export const BloodGroup = [
     }
 ]
 
+export const PackagingType = [
+    {
+        id: "ref",
+        value: "ref"
+    },
+    {
+        id: "jar",
+        value: "jar",
+    },
+    {
+        id: "tin",
+        value: "tin"
+    },
+    {
+        id: "bar",
+        value: "bar",
+    }
+]
 export const DropDownOption = [
     {
         value: "product_id",

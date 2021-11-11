@@ -11,6 +11,7 @@ import { withRouter } from "next/router";
 import styles from "../../styles/productpage.module.css";
 
 //Internal Dependencies
+import { PackagingType } from "../../constants/values";  
 import ProductHelper from "../../helper/product";
 import ImageHelper from "../../helper/image";
 import SortableList from "../../components/sort/sortableList";
@@ -54,6 +55,8 @@ class ProductItems extends React.Component {
         delete values.gf_item_name;
         delete values.brand_name;
         delete values.category_name;
+        delete values.de_preparation_type;
+        delete values.de_name;
         delete values.subcategory_name;
         delete values.gf_manufacturer;
         delete values.gf_food_type;
@@ -64,6 +67,8 @@ class ProductItems extends React.Component {
         delete values.measure_in;
         delete values.department_name,
 
+        delete values.de_flavour;
+        delete values.de_combo_name;
         delete values.gf_tax_id;
         delete values.de_display_name;
         delete values.gf_status;
@@ -168,8 +173,15 @@ class ProductItems extends React.Component {
                 <Formik
                     initialValues={{
                         product_id: this.props.data[0]?.product_id,
+                        de_name: this.props.data[0]?.de_name,
                         gf_item_name: this.props.data[0]?.gf_item_name,
                         brand_name: this.props.data[0]?.brand_name,
+
+                        de_preparation_type: this.props.data[0]?.de_preparation_type,
+                        de_combo_name: this.props.data[0]?.de_combo_name,
+                        de_packaging_type: this.props.data[0]?.de_packaging_type,
+                        de_flavour: this.props.data[0]?.de_flavour,
+
                         category_name: this.props.data[0]?.category_name,
                         subcategory_name: this.props.data[0]?.subcategory_name,
                         department_name: this.props.data[0]?.department_name,
@@ -184,7 +196,7 @@ class ProductItems extends React.Component {
                         gf_item_product_type: this.props.data[0]?.gf_item_product_type,
                         measure: this.props.data[0]?.measure,
                         measure_in: this.props.data[0]?.measure_in,
-                        packaging_type: this.props.data[0]?.packaging_type,
+                        // packaging_type: this.props.data[0]?.packaging_type,
                         cleaning: this.props.data[0]?.cleaning,
                         sticker: this.props.data[0]?.sticker,
                         grinding: this.props.data[0]?.grinding,
@@ -194,7 +206,11 @@ class ProductItems extends React.Component {
                         return: this.props.data[0]?.return,
                         gf_status: this.props.data[0]?.gf_status === "1" ? "true" : "false",
                         gf_applies_online: this.props.data[0]?.gf_applies_online === "1" ? "true" : "false",
-                        packaging_name: this.props.data[0]?.packaging_type === "1" ? "one" : "two",
+                        packaging_name: this.props.data[0]?.de_packaging_type === 
+                        "ref" ? "ref" : 
+                        "jar" ? "jar" : 
+                        "bags" ? "bags" :
+                        "tin",
                         cover_name: this.props.data[0]?.cover_type === "1" ? "one" : "two"
                     }}
                     // validationSchema={ProductItemsValidation}
@@ -362,17 +378,11 @@ class ProductItems extends React.Component {
                                         <div className={styles.inputHolder}>
                                             <CustomInput
                                                 label="Packaging Type"
-                                                values={[
-                                                    {
-                                                        id: 1,
-                                                        value: "One",
-                                                    },
-                                                    {
-                                                        id: 2,
-                                                        value: "Two",
-                                                    },
-                                                ]}
-                                                name={editableCustomInfo || id === null ? "packaging_type" : "packaging_name"}
+                                                values={PackagingType.map((m) => ({
+                                                    id: m.id,
+                                                    value: m.value
+                                                }))}
+                                                name={editableCustomInfo || id === null ? "de_packaging_type" : "packaging_name"}
                                                 type="text"
                                                 method="switch"
                                                 editable={id !== null ? editableCustomInfo : !editableCustomInfo}
@@ -557,6 +567,29 @@ class ProductItems extends React.Component {
                                             <CustomInput 
                                                 label="Department Name" 
                                                 name="department_name" 
+                                                editable={id !== null ? editableDeliumInfo : !editableDeliumInfo}
+                                                type="text"
+                                                method="disabled" 
+                                                />
+                                            <CustomInput 
+                                                label="Preparation Type"
+                                                name="de_preparation_type"
+                                                editable={id !== null ? editableDeliumInfo : !editableDeliumInfo}
+                                                type="text"
+                                                method="disabled"
+                                                />
+                                        </div>
+                                        <div className={styles.inputHolder}>
+                                            <CustomInput 
+                                                label="Combo Name" 
+                                                name="de_combo_name" 
+                                                editable={id !== null ? editableDeliumInfo : !editableDeliumInfo}
+                                                type="text"
+                                                method="disabled" 
+                                                />
+                                            <CustomInput 
+                                                label="Flavour"
+                                                name="de_flavour"
                                                 editable={id !== null ? editableDeliumInfo : !editableDeliumInfo}
                                                 type="text"
                                                 method="disabled" 
