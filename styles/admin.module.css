@@ -68,26 +68,6 @@
 	padding-bottom: 30px;
 	height: 60%;
 }
-
-.dropdowncontent {
-	width: 100%;
-	display: none;
-	position: absolute;
-	cursor: pointer;
-	background-color: white;
-	border-bottom-left-radius: 15px;
-	border-bottom-right-radius: 15px;
-	min-width: 160px;
-	height: 200px;
-	box-shadow: 0px 8px 16px 
-		0px rgba(0, 0, 0, 0.2);
-	z-index: 1;
-	overflow-y: scroll;
-	/* padding-top: 11px; */
-}
-.dropdowncontent::-webkit-scrollbar {
-	display: none;
-}
 .dropdownImg {
 	border-radius: 50%;
 	height: 30px;
@@ -110,18 +90,81 @@
 	width: 30%;
 	justify-content: space-between;
 }
-/* .dropdowncontent a:hover {
-	background-color: #f1f1f1;
+.dropdowncontent {
+	width: 100%;
+	display: none;
+	position: absolute;
+	cursor: pointer;
+	background-color: white;
+	border-bottom-left-radius: 15px;
+	border-bottom-right-radius: 15px;
+	min-width: 160px;
+	height: 200px;
+	box-shadow: 0px 8px 16px 
+		0px rgba(0, 0, 0, 0.2);
+	z-index: 1;
+	overflow-y: scroll;
+	/* padding-top: 11px; */
 }
-*/
+.dropdowncontent::-webkit-scrollbar {
+	display: none;
+}
 .dropdown:hover .dropdowncontent {
 	display: block;
-} 
+}
 
-/* .dropdown:hover .dropbtn {
-	background-color: var(--secondaryColor);
-} */
-
+.dropdownProduct {
+	position: relative;
+	display: inline-block;
+	width: 93.5%;
+	padding-bottom: 30px;
+	height: 60%;
+}
+.dropdownImg {
+	border-radius: 50%;
+	height: 30px;
+	margin-top: 10px;
+	margin-right: 30px;
+}
+.employeeNameLabel {
+	font-size: 14px;
+	margin-bottom: none;
+}
+.dropdownProductContent a {
+	color: black;
+	padding: 9px 16px;
+	text-decoration: none;
+	margin: 0px 10px;
+	font-size: 18px;
+	font-weight: 500;
+	display: block;
+	display: flex;
+	width: 60%;
+	justify-content: space-between;
+}
+.dropdownProductContent {
+	width: 100%;
+	display: none;
+	position: absolute;
+	cursor: pointer;
+	background-color: white;
+	border-bottom-left-radius: 15px;
+	border-bottom-right-radius: 15px;
+	min-width: 160px;
+	margin-bottom: 50px;
+	height: 200px;
+	box-shadow: 0px 8px 16px 
+		0px rgba(0, 0, 0, 0.2);
+	z-index: 1;
+	overflow-y: scroll;
+	/* padding-top: 11px; */
+}
+.dropdownProductContent::-webkit-scrollbar {
+	display: none;
+}
+.dropdownProduct:hover .dropdownProductContent {
+	display: block;
+}
 
 .container p {
 	border-bottom: 1px solid rgb(211, 211, 211);

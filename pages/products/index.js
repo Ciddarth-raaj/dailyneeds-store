@@ -35,11 +35,18 @@ class product extends React.Component {
         this.state = {
             loading: false,
             optionSelected: null,
+            hoverElement: false,
             details: [],
             new_header: false,
+            name: '',
+            paginate_filter: false,
+            filter: "",
             pages: [],
+            filter_click: false,
             offset: 0,
+            filter_details: [],
             offsetToggle: false,
+            filterOffsetToggle: false,
             splice: [0, 10],
         };
     }
@@ -48,10 +55,21 @@ class product extends React.Component {
         this.getProductCount();
     }
     componentDidUpdate() {
-        const { offsetToggle} = this.state;
-        if(offsetToggle !== false) {
+        const { offsetToggle, filterOffsetToggle,name, filter_click } = this.state;
+        if (offsetToggle !== false) {
             this.getProductData();
-            this.setState({ offsetToggle: false})
+            this.setState({ offsetToggle: false })
+        }
+
+        if(filter_click === true) {
+            if(name !== '') {
+            this.filterData();
+            this.setState({ filter_click: false })
+            } 
+        }
+        if (filterOffsetToggle !== false) {
+            this.filterData();
+            this.setState({ filterOffsetToggle: false })
         }
     }
     getProductData() {
@@ -63,6 +81,14 @@ class product extends React.Component {
             .catch((err) => console.log(err));
     }
 
+    filterData() {
+        const { name, offset } = this.state;
+        productHelper.getFilteredProduct(name, offset)
+            .then((data) => {
+                this.setState({ filter_details: data });
+            })
+            .catch((err) => console.log(err));
+    }
     getProductCount() {
         const tempArray = []
         var count = 0;
@@ -166,9 +192,18 @@ class product extends React.Component {
             optionSelected: selected
         });
     };
-
+    // filter(details) {
+    //     const { name } = this.state;
+    //     const columns = details[0] && Object.keys(details[0]);
+    //     return details.filter((detail) =>
+    //         columns.some(
+    //             (column) => detail[column] === null ? "" : 
+    //             detail[column].toString().toLowerCase().indexOf(name) > - 1
+    //         )
+    //     );
+    // }
     render() {
-        const { loading, optionSelected, new_header, details, offset, pages, splice } = this.state;
+        const { loading, optionSelected, filter, filter_details, paginate_filter, filter_click,hoverElement, new_header, details, pages, name, splice } = this.state;
         const onClick = (m) => {
             return (
                 <Link href={`/products/${m.id}`}><a>{m.value}</a></Link>
@@ -200,6 +235,7 @@ class product extends React.Component {
             ))
         }
 
+        if(filter_details.length === 0) {
         valuesNew = details.map((m, i) => ({
             s_no: i + 1,
             product_id: m.product_id,
@@ -207,13 +243,30 @@ class product extends React.Component {
             de_distrubutor: onClick({ value: m.de_distributor, id: m.product_id }),
             gf_manufacturer: onClick({ value: m.gf_manufacturer, id: m.product_id }),
         }));
+    } else {
+        valuesNew = filter_details.map((m, i) => ({
+            s_no: i + 1,
+            product_id: m.product_id,
+            gf_item_name: onClick({ value: m.gf_item_name !== null ? m.gf_item_name : m.de_display_name, id: m.product_id }),
+            de_distrubutor: onClick({ value: m.de_distributor, id: m.product_id }),
+            gf_manufacturer: onClick({ value: m.gf_manufacturer, id: m.product_id }),
+        }));
+    }
 
         if (new_header === true) {
+            if(filter_details.length === 0) {
             valuesNew = details.map((m, i) => (
                 optionSelected.map((n) => (
                     new_table_value[i] = m[n.value]
                 ))
             ))
+            } else {
+                valuesNew = filter_details.map((m, i) => (
+                    optionSelected.map((n) => (
+                        new_table_value[i] = m[n.value]
+                    ))
+                ))
+            }
         }
 
         const sortCallback = (key, type) => {
@@ -231,25 +284,32 @@ class product extends React.Component {
                                 </p>
                                 <div>
                                     <div className={styles.personalInputHolder}>
-                                        <CustomInput
-                                            label="Search by Name or ID"
-                                            name="search"
-                                            type="text"
-                                        />
-
-                                        <ButtonGroup
-                                            mt={5}
-                                            style={{ justifyContent: "flex-end" }}
-                                            type="submit"
-                                        >
-                                            <Button
-                                                isLoading={loading}
-                                                loadingText="Searching"
-                                                colorScheme="purple"
+                                        <div className={styles.dropdownProduct}>
+                                            <input onChange={(e) => this.setState({ name: e.target.value })} type="text" value={name === "" ? "" : `${name}`} onMouseEnter={() => this.setState({ hoverElement: false })}
+                                                className={styles.dropbtn} />
+                                            {/* <div className={styles.dropdownProductContent} style={hoverElement === false ? { color: "black" } : { display: "none" }}>
+                                                {this.filter(details).map((m) => (
+                                                    <a onClick={() => (this.setState({ filter: `de_name = ${m.de_name}`, hoverElement: true }))}>
+                                                        {m.product_id} - {m.gf_item_name !== null ? m.gf_item_name + "-": ""}{m.de_name} - {m.de_display_name} - {m.de_distributor}<br /></a>
+                                                ))}
+                                            </div> */}
+                                        </div>
+                                        <div>
+                                            <ButtonGroup
+                                                // mt={5}
+                                                style={{ justifyContent: "flex-end" }}
+                                                type="submit"
                                             >
-                                                {"Search"}
-                                            </Button>
-                                        </ButtonGroup>
+                                                <Button
+                                                    isLoading={loading}
+                                                    loadingText="Searching"
+                                                    colorScheme="purple"
+                                                    onClick={() => this.setState({ filter_click: true, paginate_filter: true })}
+                                                >
+                                                    {"Search"}
+                                                </Button>
+                                            </ButtonGroup>
+                                        </div>
                                     </div>
                                     <div style={{ marginBottom: "60px", display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
                                         <div className={styles.subInputHolder}>
@@ -305,7 +365,8 @@ class product extends React.Component {
                                             sortCallback(key, type)
                                         }
                                     />
-                                    <div className={styles.paginate}>
+                                    {paginate_filter !== true ? (
+                                        <div className={styles.paginate}>
                                         <div className={styles.paginateContent}>
                                             <div
                                                 className={styles.arrow}
@@ -321,7 +382,7 @@ class product extends React.Component {
                                                 <div
                                                     className={styles.paginateHolder}
                                                     onClick={() => {
-                                                        this.setState({offsetToggle: true,offset: m * 10})
+                                                        this.setState({ offsetToggle: true, offset: m * 10 })
                                                     }}
                                                 >
                                                     {m}
@@ -338,6 +399,41 @@ class product extends React.Component {
                                             </div>
                                         </div>
                                     </div>
+                                    ) : (
+                                        <div className={styles.paginate}>
+                                        <div className={styles.paginateContent}>
+                                            <div
+                                                className={styles.arrow}
+                                                style={{ pointerEvents: this.state.splice[0] !== 0 ? "auto" : "none" }}
+                                                onClick={() =>
+                                                    this.setState({
+                                                        splice: [this.state.splice[0] - 10, this.state.splice[1] - 10]
+                                                    })}
+                                            >
+                                                <ChevronLeftIcon />
+                                            </div>
+                                            {pages.slice(splice[0], splice[1]).map((m) => (
+                                                <div
+                                                    className={styles.paginateHolder}
+                                                    onClick={() => {
+                                                        this.setState({ filterOffsetToggle: true, offset: m * 10 })
+                                                    }}
+                                                >
+                                                    {m}
+                                                </div>
+                                            ))}
+                                            <div
+                                                className={styles.arrow}
+                                                onClick={() =>
+                                                    this.setState({
+                                                        splice: [this.state.splice[0] + 10, this.state.splice[1] + 10]
+                                                    })}
+                                            >
+                                                <ChevronRightIcon />
+                                            </div>
+                                        </div>
+                                    </div>
+                                    )}
                                     <ButtonGroup
                                         style={{
                                             display: "flex",

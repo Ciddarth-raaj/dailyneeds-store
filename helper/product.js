@@ -45,6 +45,16 @@ const product = {
 					reject(err);
 				});
 		}),
+		getFilteredProduct: (name, offset, limit) =>
+		new Promise(function (resolve, reject) {
+			API.get(`/product/filter?filter=${name}&offset=${offset}&limit=10`)
+				.then(async (res) => {
+					resolve(res.data);
+				})
+				.catch((err) => {
+					reject(err);
+				});
+		}),
 	updateProductDetails: (data) =>
 		new Promise(function (resolve, reject) {
 			API.post("/product/updatedata", data)
