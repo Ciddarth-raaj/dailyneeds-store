@@ -7,12 +7,11 @@ import {
     Flex,
     ButtonGroup,
     Button,
-    CheckboxGroup,
-    VStack,
-    Checkbox,
+    Input,
     Select,
-    Grid,
 } from "@chakra-ui/react";
+
+import { ProductPerPage } from "../../constants/values";
 import { withRouter } from "next/router";
 import { default as ReactSelect } from "react-select";
 import { ChevronRightIcon, ChevronLeftIcon } from "@chakra-ui/icons";
@@ -41,9 +40,11 @@ class product extends React.Component {
             name: '',
             paginate_filter: false,
             filter: "",
+            limit: 10,
             pages: [],
             filter_click: false,
             offset: 0,
+            productToggle: false,
             filter_details: [],
             offsetToggle: false,
             filterOffsetToggle: false,
@@ -55,17 +56,27 @@ class product extends React.Component {
         this.getProductCount();
     }
     componentDidUpdate() {
-        const { offsetToggle, filterOffsetToggle,name, filter_click } = this.state;
+        const { offsetToggle, filterOffsetToggle, name, filter_click, productToggle } = this.state;
         if (offsetToggle !== false) {
             this.getProductData();
             this.setState({ offsetToggle: false })
         }
 
-        if(filter_click === true) {
-            if(name !== '') {
-            this.filterData();
-            this.setState({ filter_click: false })
+        if (filter_click === true) {
+            if (name !== '') {
+                this.filterData();
+                this.setState({ filter_click: false })
+            }
+        }
+        if (productToggle === true) {
+            if (name !== '') {
+                this.filterData();
+                this.setState({ productToggle: false })
             } 
+            if(name === '') {
+                this.getProductData();
+                this.setState({ productToggle: false })
+            }
         }
         if (filterOffsetToggle !== false) {
             this.filterData();
@@ -73,8 +84,8 @@ class product extends React.Component {
         }
     }
     getProductData() {
-        const { offset } = this.state;
-        productHelper.getProduct(offset)
+        const { offset, limit } = this.state;
+        productHelper.getProduct(offset, limit)
             .then((data) => {
                 this.setState({ details: data });
             })
@@ -82,8 +93,8 @@ class product extends React.Component {
     }
 
     filterData() {
-        const { name, offset } = this.state;
-        productHelper.getFilteredProduct(name, offset)
+        const { name, offset, limit } = this.state;
+        productHelper.getFilteredProduct(name, offset, limit)
             .then((data) => {
                 this.setState({ filter_details: data });
             })
@@ -202,8 +213,22 @@ class product extends React.Component {
     //         )
     //     );
     // }
+    handleOnChange = (e) => {
+        this.setState({
+            limit: e.target.value
+        })
+    }
     render() {
-        const { loading, optionSelected, filter, filter_details, paginate_filter, filter_click,hoverElement, new_header, details, pages, name, splice } = this.state;
+        const { loading,
+            optionSelected,
+            filter_details,
+            paginate_filter,
+            new_header,
+            details,
+            pages,
+            name,
+            splice,
+        } = this.state;
         const onClick = (m) => {
             return (
                 <Link href={`/products/${m.id}`}><a>{m.value}</a></Link>
@@ -235,31 +260,31 @@ class product extends React.Component {
             ))
         }
 
-        if(filter_details.length === 0) {
-        valuesNew = details.map((m, i) => ({
-            s_no: i + 1,
-            product_id: m.product_id,
-            gf_item_name: onClick({ value: m.gf_item_name !== null ? m.gf_item_name : m.de_display_name, id: m.product_id }),
-            de_distrubutor: onClick({ value: m.de_distributor, id: m.product_id }),
-            gf_manufacturer: onClick({ value: m.gf_manufacturer, id: m.product_id }),
-        }));
-    } else {
-        valuesNew = filter_details.map((m, i) => ({
-            s_no: i + 1,
-            product_id: m.product_id,
-            gf_item_name: onClick({ value: m.gf_item_name !== null ? m.gf_item_name : m.de_display_name, id: m.product_id }),
-            de_distrubutor: onClick({ value: m.de_distributor, id: m.product_id }),
-            gf_manufacturer: onClick({ value: m.gf_manufacturer, id: m.product_id }),
-        }));
-    }
+        if (filter_details.length === 0) {
+            valuesNew = details.map((m, i) => ({
+                s_no: i + 1,
+                product_id: m.product_id,
+                gf_item_name: onClick({ value: m.gf_item_name !== null ? m.gf_item_name : m.de_display_name, id: m.product_id }),
+                de_distrubutor: onClick({ value: m.de_distributor, id: m.product_id }),
+                gf_manufacturer: onClick({ value: m.gf_manufacturer, id: m.product_id }),
+            }));
+        } else {
+            valuesNew = filter_details.map((m, i) => ({
+                s_no: i + 1,
+                product_id: m.product_id,
+                gf_item_name: onClick({ value: m.gf_item_name !== null ? m.gf_item_name : m.de_display_name, id: m.product_id }),
+                de_distrubutor: onClick({ value: m.de_distributor, id: m.product_id }),
+                gf_manufacturer: onClick({ value: m.gf_manufacturer, id: m.product_id }),
+            }));
+        }
 
         if (new_header === true) {
-            if(filter_details.length === 0) {
-            valuesNew = details.map((m, i) => (
-                optionSelected.map((n) => (
-                    new_table_value[i] = m[n.value]
+            if (filter_details.length === 0) {
+                valuesNew = details.map((m, i) => (
+                    optionSelected.map((n) => (
+                        new_table_value[i] = m[n.value]
+                    ))
                 ))
-            ))
             } else {
                 valuesNew = filter_details.map((m, i) => (
                     optionSelected.map((n) => (
@@ -283,21 +308,17 @@ class product extends React.Component {
                                     <div>Product Details</div>
                                 </p>
                                 <div>
-                                    <div className={styles.personalInputHolder}>
-                                        <div className={styles.dropdownProduct}>
-                                            <input onChange={(e) => this.setState({ name: e.target.value })} type="text" value={name === "" ? "" : `${name}`} onMouseEnter={() => this.setState({ hoverElement: false })}
+                                    <div style={{ marginBottom: "60px", display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+                                        <div className={styles.subInputHolder}>
+                                            <label htmlFor="searchbar"
+                                                className={styles.infoLabel}>
+                                                Search
+                                            </label>
+                                            <Input id="searchbar" onChange={(e) => this.setState({ name: e.target.value })} type="text" value={name === "" ? "" : `${name}`} onMouseEnter={() => this.setState({ hoverElement: false })}
                                                 className={styles.dropbtn} />
-                                            {/* <div className={styles.dropdownProductContent} style={hoverElement === false ? { color: "black" } : { display: "none" }}>
-                                                {this.filter(details).map((m) => (
-                                                    <a onClick={() => (this.setState({ filter: `de_name = ${m.de_name}`, hoverElement: true }))}>
-                                                        {m.product_id} - {m.gf_item_name !== null ? m.gf_item_name + "-": ""}{m.de_name} - {m.de_display_name} - {m.de_distributor}<br /></a>
-                                                ))}
-                                            </div> */}
                                         </div>
-                                        <div>
+                                        <div className={styles.subButtonHolder}>
                                             <ButtonGroup
-                                                // mt={5}
-                                                style={{ justifyContent: "flex-end" }}
                                                 type="submit"
                                             >
                                                 <Button
@@ -346,18 +367,34 @@ class product extends React.Component {
                                             </ButtonGroup>
                                         </div>
                                     </div>
-                                    {/* <CheckboxGroup colorScheme="purple">
-                                        <Grid
-                                            templateColumns="repeat(3, 1fr)"
-                                            gap={6}
-                                            mb={5}
-                                            ml={2}
-                                        >
-                                            <Checkbox>W/O Images</Checkbox>
-                                            <Checkbox>W/O Description</Checkbox>
-                                            <Checkbox>New</Checkbox>
-                                        </Grid>
-                                    </CheckboxGroup> */}
+                                    <div style={{ marginBottom: "60px", display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+                                        <div className={styles.subInputHolder}>
+                                            <label
+                                                className={styles.infoLabel}
+                                            >
+                                                Choose number of products to display
+                                            </label>
+                                            <Select placeholder="Select..." color={"blackAlpha.700"} height={"9"} borderColor={"gray.400"} onChange={this.handleOnChange}>
+                                                {ProductPerPage.map((m) => (
+                                                    <option>{m.value}</option>
+                                                ))}
+                                            </Select>
+                                        </div>
+                                        <div className={styles.subButtonHolder}>
+                                            <ButtonGroup
+                                                type="submit"
+                                            >
+                                                <Button
+                                                    isLoading={loading}
+                                                    loadingText="Loading"
+                                                    colorScheme="purple"
+                                                    onClick={() => this.setState({ productToggle: true })}
+                                                >
+                                                    {"Done"}
+                                                </Button>
+                                            </ButtonGroup>
+                                        </div>
+                                    </div>
                                     <Table
                                         heading={new_header === false ? table_title : new_table_title}
                                         rows={valuesNew}
@@ -367,72 +404,72 @@ class product extends React.Component {
                                     />
                                     {paginate_filter !== true ? (
                                         <div className={styles.paginate}>
-                                        <div className={styles.paginateContent}>
-                                            <div
-                                                className={styles.arrow}
-                                                style={{ pointerEvents: this.state.splice[0] !== 0 ? "auto" : "none" }}
-                                                onClick={() =>
-                                                    this.setState({
-                                                        splice: [this.state.splice[0] - 10, this.state.splice[1] - 10]
-                                                    })}
-                                            >
-                                                <ChevronLeftIcon />
-                                            </div>
-                                            {pages.slice(splice[0], splice[1]).map((m) => (
+                                            <div className={styles.paginateContent}>
                                                 <div
-                                                    className={styles.paginateHolder}
-                                                    onClick={() => {
-                                                        this.setState({ offsetToggle: true, offset: m * 10 })
-                                                    }}
+                                                    className={styles.arrow}
+                                                    style={{ pointerEvents: this.state.splice[0] !== 0 ? "auto" : "none" }}
+                                                    onClick={() =>
+                                                        this.setState({
+                                                            splice: [this.state.splice[0] - 10, this.state.splice[1] - 10]
+                                                        })}
                                                 >
-                                                    {m}
+                                                    <ChevronLeftIcon />
                                                 </div>
-                                            ))}
-                                            <div
-                                                className={styles.arrow}
-                                                onClick={() =>
-                                                    this.setState({
-                                                        splice: [this.state.splice[0] + 10, this.state.splice[1] + 10]
-                                                    })}
-                                            >
-                                                <ChevronRightIcon />
+                                                {pages.slice(splice[0], splice[1]).map((m) => (
+                                                    <div
+                                                        className={styles.paginateHolder}
+                                                        onClick={() => {
+                                                            this.setState({ offsetToggle: true, offset: m * 10 })
+                                                        }}
+                                                    >
+                                                        {m}
+                                                    </div>
+                                                ))}
+                                                <div
+                                                    className={styles.arrow}
+                                                    onClick={() =>
+                                                        this.setState({
+                                                            splice: [this.state.splice[0] + 10, this.state.splice[1] + 10]
+                                                        })}
+                                                >
+                                                    <ChevronRightIcon />
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
                                     ) : (
                                         <div className={styles.paginate}>
-                                        <div className={styles.paginateContent}>
-                                            <div
-                                                className={styles.arrow}
-                                                style={{ pointerEvents: this.state.splice[0] !== 0 ? "auto" : "none" }}
-                                                onClick={() =>
-                                                    this.setState({
-                                                        splice: [this.state.splice[0] - 10, this.state.splice[1] - 10]
-                                                    })}
-                                            >
-                                                <ChevronLeftIcon />
-                                            </div>
-                                            {pages.slice(splice[0], splice[1]).map((m) => (
+                                            <div className={styles.paginateContent}>
                                                 <div
-                                                    className={styles.paginateHolder}
-                                                    onClick={() => {
-                                                        this.setState({ filterOffsetToggle: true, offset: m * 10 })
-                                                    }}
+                                                    className={styles.arrow}
+                                                    style={{ pointerEvents: this.state.splice[0] !== 0 ? "auto" : "none" }}
+                                                    onClick={() =>
+                                                        this.setState({
+                                                            splice: [this.state.splice[0] - 10, this.state.splice[1] - 10]
+                                                        })}
                                                 >
-                                                    {m}
+                                                    <ChevronLeftIcon />
                                                 </div>
-                                            ))}
-                                            <div
-                                                className={styles.arrow}
-                                                onClick={() =>
-                                                    this.setState({
-                                                        splice: [this.state.splice[0] + 10, this.state.splice[1] + 10]
-                                                    })}
-                                            >
-                                                <ChevronRightIcon />
+                                                {pages.slice(splice[0], splice[1]).map((m) => (
+                                                    <div
+                                                        className={styles.paginateHolder}
+                                                        onClick={() => {
+                                                            this.setState({ filterOffsetToggle: true, offset: m * 10 })
+                                                        }}
+                                                    >
+                                                        {m}
+                                                    </div>
+                                                ))}
+                                                <div
+                                                    className={styles.arrow}
+                                                    onClick={() =>
+                                                        this.setState({
+                                                            splice: [this.state.splice[0] + 10, this.state.splice[1] + 10]
+                                                        })}
+                                                >
+                                                    <ChevronRightIcon />
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
                                     )}
                                     <ButtonGroup
                                         style={{

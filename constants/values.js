@@ -25,6 +25,32 @@ export const BloodGroup = [
     }
 ]
 
+export const ProductPerPage = [
+    {
+        id: 10,
+        value: 10
+    },
+    { 
+        id: 25,
+        value: 25
+    },
+    {
+        id: 50,
+        value: 50
+    },
+    {
+        id: 100,
+        value: 100
+    },
+    {
+        id: 200,
+        value: 200
+    },
+    {
+        id: 500,
+        value: 500
+    },
+] 
 export const PackagingType = [
     {
         id: "ref",

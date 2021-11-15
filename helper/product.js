@@ -15,9 +15,9 @@ const product = {
 					reject(err);
 				});
 		}),
-	getProduct: (offset) =>
+	getProduct: (offset, limit) =>
 		new Promise(function (resolve, reject) {
-			API.get(`/product?offset=${offset}&limit=10`)
+			API.get(`/product?offset=${offset}&limit=${limit}`)
 				.then(async (res) => {
 					resolve(res.data);
 				})
@@ -47,7 +47,7 @@ const product = {
 		}),
 		getFilteredProduct: (name, offset, limit) =>
 		new Promise(function (resolve, reject) {
-			API.get(`/product/filter?filter=${name}&offset=${offset}&limit=10`)
+			API.get(`/product/filter?filter=${name}&offset=${offset}&limit=${limit}`)
 				.then(async (res) => {
 					resolve(res.data);
 				})

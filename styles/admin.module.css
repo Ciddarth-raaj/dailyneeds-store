@@ -13,8 +13,8 @@
 .dropbtn {
 	border: 1px solid lightgray;
 	color: black;
-	padding: 16px;
-	height: 40px;
+	/* padding: 16px; */
+	height: 38px;
 	width: 100%;
 	display: flex;
 	border-radius: 7px;
