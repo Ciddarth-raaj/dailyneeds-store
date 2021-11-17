@@ -35,6 +35,21 @@ export default {
         selected: false,
         location: '/family'
       },
+      view_brands: {
+        title: 'View Brands',
+        selected: false,
+        location: '/brands'
+      },
+      view_category: {
+        title: 'View Categories',
+        selected: false,
+        location: '/categories'
+      },
+      view_subcategory: {
+        title: 'View Sub Categories',
+        selected: false,
+        location: '/subcategories'
+      },
       // view_adhaar: {
       //     title: "View Adhaar",
       //     selected: false,
