@@ -93,7 +93,7 @@ class viewSubCategory extends React.Component {
             "subcategory_details" + moment().format("DD-MMY-YYYY")
         );
     };
- 
+
     imageUpload = async (m) => {
         const { selectedFile } = this.state;
         const Imagearray = [];
@@ -124,26 +124,26 @@ class viewSubCategory extends React.Component {
     };
 
     render() {
-        const { details, paginate_filter, splice, pages, id ,selectedFile } = this.state;
+        const { details, paginate_filter, splice, pages, id, selectedFile } = this.state;
         let valuesNew = [];
         const initialValue = {
             dob_1: "",
             dob_2: "",
         };
 
-        const imageHolder = (m) => {      
+        const imageHolder = (m) => {
             return (
                 <div style={{ height: "100%", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center" }}>
-                    <img style={{ height: "60px", width: "70px", display: "flex", marginBottom: "20px", justifyContent: "center", alignItems: "center" }} src={m.value} />
+                    <img style={{ height: "100px", width: "100px", objectFit: "contain", display: "flex", marginBottom: "20px", justifyContent: "center", alignItems: "center" }} src={m.value} />
                     <label htmlFor='upload-button'>
                         <div className={styles.chooseFile}>
-                            <Badge variant="subtle" style={{cursor: "pointer", width: "70px", height: "20px"}} onClick={() => {this.setState({ id: m.id })}} colorScheme="purple">Upload</Badge>
+                            <Badge variant="subtle" style={{ cursor: "pointer", width: "70px", height: "20px" }} onClick={() => { this.setState({ id: m.id }) }} colorScheme="purple">Upload</Badge>
                         </div>
                         <div>
                             {id === m.id && selectedFile !== null ? selectedFile.name : ''}
                         </div>
                     </label>
-                    <input type="file" id='upload-button' style={{marginBottom: "20px", marginLeft: "60px", display: "none"}} onChange={this.onFileChange} />
+                    <input type="file" id='upload-button' style={{ marginBottom: "20px", marginLeft: "60px", display: "none" }} onChange={this.onFileChange} />
                 </div>
             )
         }
