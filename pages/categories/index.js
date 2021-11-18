@@ -1,10 +1,12 @@
 import { Formik, Form } from "formik";
-import { Container, Flex, Button, ButtonGroup } from "@chakra-ui/react";
+import { Container, Flex, Button, ButtonGroup, Badge } from "@chakra-ui/react";
 import styles from "../../styles/admin.module.css";
+import { toast } from "react-toastify";
 import React, { useState, useEffect } from "react";
 import { ChevronRightIcon, ChevronLeftIcon } from "@chakra-ui/icons";
 
 import Head from "../../util/head";
+import FilesHelper from "../../helper/asset";
 import CategoryHelper from "../../helper/categories";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import { Validation } from "../../util/validation";
@@ -21,6 +23,10 @@ class viewCategory extends React.Component {
             details: [],
             paginate_filter: false,
             pages: [],
+            image_url: '',
+            id: '',
+            selectedFile: null,
+            category_id: '',
             limit: 10,
             splice: [0, 10],
             offsetToggle: false,
@@ -57,7 +63,6 @@ class viewCategory extends React.Component {
         CategoryHelper.getCategories(offset, limit)
             .then((data) => {
                 this.setState({ details: data });
-                console.log({data: data});
             })
             .catch((err) => console.log(err));
     }
@@ -87,25 +92,89 @@ class viewCategory extends React.Component {
             "category_details" + moment().format("DD-MMY-YYYY")
         );
     };
+
+    imageUpload = async (m) => {
+        const { selectedFile } = this.state;
+        const Imagearray = [];
+        var image_url = ''
+        if (selectedFile.length !== 0) {
+            Imagearray.push(await FilesHelper.upload(
+                selectedFile,
+                "uploadImage",
+                "dashboard_file"
+            ));
+            image_url = Imagearray.length > 0 ? Imagearray[0].remoteUrl : "";
+        }
+        CategoryHelper.uploadCategoryImage({ image_url: image_url, category_id: m })
+            .then((data) => {
+                if (data === 200) {
+                    toast.success("Successfully uploaded image");
+                    this.setState({ id: '' });
+                    this.getCategoryData();
+                } else {
+                    toast.error("Error uploading image");
+                }
+            })
+            .catch((err) => console.log(err))
+    }
+
+    onFileChange = (e) => {
+        this.setState({ selectedFile: e.target.files[0] });
+    };
+
     render() {
-        const { details, pages, splice, paginate_filter } = this.state;
-        console.log({pages: pages});
+        const { details, pages, splice, paginate_filter, id, selectedFile } = this.state;
         let valuesNew = [];
         const initialValue = {
             dob_1: "",
             dob_2: "",
         };
+
+        const imageHolder = (m) => {      
+            return (
+                <div style={{ height: "100%", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center" }}>
+                    <img style={{ height: "60px", width: "70px", display: "flex", marginBottom: "20px", justifyContent: "center", alignItems: "center" }} src={m.value} />
+                    <label htmlFor='upload-button'>
+                        <div className={styles.chooseFile}>
+                            <Badge variant="subtle" style={{cursor: "pointer", width: "70px", height: "20px"}} onClick={() => {this.setState({ id: m.id })}} colorScheme="purple">Upload</Badge>
+                        </div>
+                        <div>
+                            {id === m.id && selectedFile !== null ? selectedFile.name : ''}
+                        </div>
+                    </label>
+                    <input type="file" id='upload-button' style={{marginBottom: "20px", marginLeft: "60px", display: "none"}} onChange={this.onFileChange} />
+                </div>
+            )
+        }
+        const save = (m) => {
+            return (
+                <div>
+                    <Button
+                        variant="outline"
+                        colorScheme="purple"
+                        onClick={() => this.imageUpload(m.id)}
+                    >
+                        {"Save"}
+                    </Button>
+                </div>
+            )
+        }
+
         const table_title = {
             id: "Id",
             category_id: "Category Id",
             name: "Category Name",
-            department_name: "Department Name"
+            department_name: "Department Name",
+            image_url: "Image",
+            save: "Upload"
         };
         valuesNew = details.map((m, i) => ({
             SNo: i + 1,
             id: m.category_id,
             name: m.category_name,
-            department_name: m.department_name
+            department_name: m.department_name,
+            image_url: imageHolder({ value: m.image_url, id: m.category_id }),
+            save: save({ id: m.category_id })
         }));
 
 

@@ -8,7 +8,21 @@
 	height: 18px;
 	width: 18px;
 	margin-left: 55px;
-} 
+}
+
+.chooseFile {
+    display: 'flex';
+    justify-content: 'flex-start';
+    align-items: 'center';
+    flex-direction: 'row';
+    width: '20vw';
+    padding: 5;
+    border-style: 'solid';
+    border-width: 1;
+    border-color: 'green';
+    border-radius: 5;
+    color: 'green';
+}
 
 .dropbtn {
 	border: 1px solid lightgray;

@@ -21,5 +21,15 @@ const subcategories = {
 					reject(err);
 				});
 		}),
+	uploadSubCategoryImage: (data) => 
+	new Promise(function (resolve, reject) {
+		API.post("/subcategory/imageupload", data)
+			.then(async (res) => {
+				resolve(res.data);
+			})
+			.catch((err) => {
+				reject(err);
+			});
+	}),
 };
 export default subcategories;

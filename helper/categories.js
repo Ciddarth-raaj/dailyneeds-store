@@ -11,9 +11,19 @@ const categories = {
 					reject(err);
 				});
 		}),
-		getCategoryCount: () =>  
+	getCategoryCount: () =>
 		new Promise(function (resolve, reject) {
 			API.get("/category/catcount")
+				.then(async (res) => {
+					resolve(res.data);
+				})
+				.catch((err) => {
+					reject(err);
+				});
+		}),
+	uploadCategoryImage: (data) =>
+		new Promise(function (resolve, reject) {
+			API.post("/category/imageupload", data)
 				.then(async (res) => {
 					resolve(res.data);
 				})
