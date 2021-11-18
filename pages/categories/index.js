@@ -94,17 +94,7 @@ class viewCategory extends React.Component {
     };
 
     imageUpload = async (m) => {
-        const { selectedFile } = this.state;
-        const Imagearray = [];
-        var image_url = ''
-        if (selectedFile.length !== 0) {
-            Imagearray.push(await FilesHelper.upload(
-                selectedFile,
-                "uploadImage",
-                "dashboard_file"
-            ));
-            image_url = Imagearray.length > 0 ? Imagearray[0].remoteUrl : "";
-        }
+        const { image_url } = this.state;
         CategoryHelper.uploadCategoryImage({ image_url: image_url, category_id: m })
             .then((data) => {
                 if (data === 200) {
@@ -118,12 +108,21 @@ class viewCategory extends React.Component {
             .catch((err) => console.log(err))
     }
 
-    onFileChange = (e) => {
-        this.setState({ selectedFile: e.target.files[0] });
+    onFileChange = async(e) => {
+        const Imagearray = [];
+        var image_url = ''
+        var uploadedFile = e.target.files[0];
+            Imagearray.push(await FilesHelper.upload(
+                uploadedFile,
+                "uploadImage",
+                "dashboard_file"
+            ));
+            image_url = Imagearray.length > 0 ? Imagearray[0].remoteUrl : "";
+            this.setState({ image_url: image_url });
     };
 
     render() {
-        const { details, pages, splice, paginate_filter, id, selectedFile } = this.state;
+        const { details, pages, splice, paginate_filter, id, selectedFile, image_url } = this.state;
         let valuesNew = [];
         const initialValue = {
             dob_1: "",
@@ -133,7 +132,7 @@ class viewCategory extends React.Component {
         const imageHolder = (m) => {      
             return (
                 <div style={{ height: "100%", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center" }}>
-                    <img style={{ height: "60px", width: "70px", display: "flex", marginBottom: "20px", justifyContent: "center", alignItems: "center" }} src={m.value} />
+                    <img style={{ height: "60px", width: "70px", display: "flex", marginBottom: "20px", justifyContent: "center", alignItems: "center" }} src={id === m.id && image_url !== '' ? image_url : m.value} />
                     <label htmlFor='upload-button'>
                         <div className={styles.chooseFile}>
                             <Badge variant="subtle" style={{cursor: "pointer", width: "70px", height: "20px"}} onClick={() => {this.setState({ id: m.id })}} colorScheme="purple">Upload</Badge>

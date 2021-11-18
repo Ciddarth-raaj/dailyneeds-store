@@ -17,6 +17,7 @@ const department = {
 			formattedData.push({
 				id: d.department_id,
 				value: d.department_name,
+				image_url: d.image_url,
 				status: d.status,
 			});
 		}
@@ -32,6 +33,16 @@ const department = {
 				} else {
 					reject(res.data.msg);
 				}
+			})
+			.catch((err) => {
+				reject(err);
+			});
+	}),
+	uploadDepartmentImage: (data) => 
+	new Promise(function (resolve, reject) {
+		API.post("/department/imageupload", data)
+			.then(async (res) => {
+				resolve(res.data);
 			})
 			.catch((err) => {
 				reject(err);

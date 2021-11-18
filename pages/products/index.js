@@ -219,7 +219,8 @@ class product extends React.Component {
         })
     }
     render() {
-        const { loading,
+        const { 
+            loading,
             optionSelected,
             filter_details,
             paginate_filter,
