@@ -93,11 +93,11 @@ export default {
         selected: false,
         location: '/products'
       },
-      view_departments: {
-        title: 'View Deapartments',
-        selected: false,
-        location: '/department'
-      },
+      // view_departments: {
+      //   title: 'View Deapartments',
+      //   selected: false,
+      //   location: '/department'
+      // },
       view_category: {
         title: 'View Category',
         selected: false,
@@ -107,6 +107,11 @@ export default {
         title: 'View Subcategory',
         selected: false,
         location: '/subcategories'
+      },
+      view_brands: {
+        title: 'View Brand',
+        selected: false,
+        location: '/brands'
       },
     }
   }
