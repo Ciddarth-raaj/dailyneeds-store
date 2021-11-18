@@ -77,7 +77,7 @@ class viewCategory extends React.Component {
             category_name: "Category Name",
             department_name: "Department Name"
         };
-        const formattedData = []; 
+        const formattedData = [];
         valuesNew.forEach((d, i) => {
             formattedData.push({
                 SNo: i + 1,
@@ -129,19 +129,19 @@ class viewCategory extends React.Component {
             dob_2: "",
         };
 
-        const imageHolder = (m) => {      
+        const imageHolder = (m) => {
             return (
                 <div style={{ height: "100%", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center" }}>
-                    <img style={{ height: "60px", width: "70px", display: "flex", marginBottom: "20px", justifyContent: "center", alignItems: "center" }} src={id === m.id && image_url !== '' ? image_url : m.value} />
+                    <img style={{ height: "100px", width: "100px", objectFit: "contain", display: "flex", marginBottom: "20px", justifyContent: "center", alignItems: "center" }} src={id === m.id && image_url !== '' ? image_url : m.value} />
                     <label htmlFor='upload-button'>
                         <div className={styles.chooseFile}>
-                            <Badge variant="subtle" style={{cursor: "pointer", width: "70px", height: "20px"}} onClick={() => {this.setState({ id: m.id })}} colorScheme="purple">Upload</Badge>
+                            <Badge variant="subtle" style={{ cursor: "pointer", width: "70px", height: "20px" }} onClick={() => { this.setState({ id: m.id }) }} colorScheme="purple">Upload</Badge>
                         </div>
                         <div>
                             {id === m.id && selectedFile !== null ? selectedFile.name : ''}
                         </div>
                     </label>
-                    <input type="file" id='upload-button' style={{marginBottom: "20px", marginLeft: "60px", display: "none"}} onChange={this.onFileChange} />
+                    <input type="file" id='upload-button' style={{ marginBottom: "20px", marginLeft: "60px", display: "none" }} onChange={this.onFileChange} />
                 </div>
             )
         }
@@ -165,7 +165,7 @@ class viewCategory extends React.Component {
             name: "Category Name",
             department_name: "Department Name",
             image_url: "Image",
-            save: "Upload"
+            save: "Action"
         };
         valuesNew = details.map((m, i) => ({
             SNo: i + 1,
@@ -177,31 +177,31 @@ class viewCategory extends React.Component {
         }));
 
 
-    return (
-        <Formik
-            initialValues={initialValue}
-            onSubmit={(values) => {
-                console.log(values);
-            }}
-            validationSchema={Validation}
-        >
-            <Form>
-                <GlobalWrapper title="Category Details">
-                    <Head />
-                    <Flex templateColumns="repeat(3, 1fr)" gap={6} colSpan={2}>
-                        <Container className={styles.container} boxShadow="lg">
-                            <p className={styles.buttoninputHolder}>
-                                <div>View Details</div>
-                            </p>
-                            <div>
-                                <Table
-                                    heading={table_title}
-                                    rows={valuesNew}
-                                    sortCallback={(key, type) =>
-                                        sortCallback(key, type)
-                                    }
-                                />
-                                 {paginate_filter !== true ? (
+        return (
+            <Formik
+                initialValues={initialValue}
+                onSubmit={(values) => {
+                    console.log(values);
+                }}
+                validationSchema={Validation}
+            >
+                <Form>
+                    <GlobalWrapper title="Category Details">
+                        <Head />
+                        <Flex templateColumns="repeat(3, 1fr)" gap={6} colSpan={2}>
+                            <Container className={styles.container} boxShadow="lg">
+                                <p className={styles.buttoninputHolder}>
+                                    <div>View Details</div>
+                                </p>
+                                <div>
+                                    <Table
+                                        heading={table_title}
+                                        rows={valuesNew}
+                                        sortCallback={(key, type) =>
+                                            sortCallback(key, type)
+                                        }
+                                    />
+                                    {paginate_filter !== true ? (
                                         <div className={styles.paginate}>
                                             <div className={styles.paginateContent}>
                                                 <div
@@ -270,28 +270,28 @@ class viewCategory extends React.Component {
                                             </div>
                                         </div>
                                     )}
-                                <ButtonGroup
-                                    style={{
-                                        display: "flex",
-                                        justifyContent: "flex-end",
-                                        paddingBottom: 15,
-                                    }}
-                                >
-                                    <Button
-                                        colorScheme="purple"
-                                        onClick={() => getExportFile()}
+                                    <ButtonGroup
+                                        style={{
+                                            display: "flex",
+                                            justifyContent: "flex-end",
+                                            paddingBottom: 15,
+                                        }}
                                     >
-                                        {"Export"}
-                                    </Button>
-                                </ButtonGroup>
-                            </div>
-                        </Container>
-                    </Flex>
-                </GlobalWrapper>
-            </Form>
-        </Formik>
-    );
-}
+                                        <Button
+                                            colorScheme="purple"
+                                            onClick={() => getExportFile()}
+                                        >
+                                            {"Export"}
+                                        </Button>
+                                    </ButtonGroup>
+                                </div>
+                            </Container>
+                        </Flex>
+                    </GlobalWrapper>
+                </Form>
+            </Formik>
+        );
+    }
 }
 
 export default viewCategory;
