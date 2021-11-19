@@ -1,6 +1,8 @@
 import { Formik, Form } from "formik";
-import { Container, Flex, Button, ButtonGroup, Badge } from "@chakra-ui/react";
+import { Container, Flex, Button, ButtonGroup, Badge, Select} from "@chakra-ui/react";
 import styles from "../../styles/admin.module.css";
+import { ProductPerPage } from "../../constants/values";
+
 import { toast } from "react-toastify";
 import React, { useState, useEffect } from "react";
 import { ChevronRightIcon, ChevronLeftIcon } from "@chakra-ui/icons";
@@ -20,6 +22,8 @@ class viewCategory extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
+            loading: false,
+            categoryToggle: false,
             details: [],
             paginate_filter: false,
             pages: [],
@@ -39,21 +43,27 @@ class viewCategory extends React.Component {
         this.getCategoryCount();
     }
     componentDidUpdate() {
-        const { offsetToggle } = this.state;
+        const { offsetToggle, categoryToggle } = this.state;
         if (offsetToggle !== false) {
             this.getCategoryData();
             this.setState({ offsetToggle: false })
         }
+
+        if(categoryToggle === true) {
+            this.getCategoryData()
+            this.setState({ categoryToggle: false })
+        }
     }
     getCategoryCount() {
         const tempArray = []
-        var count = 0;
+        var count = 1;
         CategoryHelper.getCategoryCount()
             .then((data) => {
-                count = parseInt(data[0].catcount) / 10;
-                for (let i = 0; i <= count - 1; i++) {
+                count = Math.ceil(parseInt(data[0].catcount) / 10);
+                for (let i = 1; i <= count; i++) {
                     tempArray.push(i);
                 }
+                console.log({tempArray: tempArray});
                 this.setState({ pages: tempArray })
             })
     }
@@ -121,8 +131,14 @@ class viewCategory extends React.Component {
             this.setState({ image_url: image_url });
     };
 
+    handleOnChange = (e) => {
+        this.setState({
+            limit: e.target.value
+        })
+    }
+
     render() {
-        const { details, pages, splice, paginate_filter, id, selectedFile, image_url } = this.state;
+        const { details, pages, splice, paginate_filter, id, selectedFile, image_url, loading } = this.state;
         let valuesNew = [];
         const initialValue = {
             dob_1: "",
@@ -194,6 +210,34 @@ class viewCategory extends React.Component {
                                     <div>View Details</div>
                                 </p>
                                 <div>
+                                <div style={{ marginBottom: "60px", display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+                                        <div className={styles.subInputHolder}>
+                                            <label
+                                                className={styles.infoLabel}
+                                            >
+                                                Choose number of categories to display
+                                            </label>
+                                            <Select placeholder="Select..." color={"blackAlpha.700"} height={"9"} borderColor={"gray.400"} onChange={this.handleOnChange}>
+                                                {ProductPerPage.map((m) => (
+                                                    <option>{m.value}</option>
+                                                ))}
+                                            </Select>
+                                        </div>
+                                        <div className={styles.subButtonHolder}>
+                                            <ButtonGroup
+                                                type="submit"
+                                            >
+                                                <Button
+                                                    isLoading={loading}
+                                                    loadingText="Loading"
+                                                    colorScheme="purple"
+                                                    onClick={() => this.setState({ categoryToggle: true })}
+                                                >
+                                                    {"Done"}
+                                                </Button>
+                                            </ButtonGroup>
+                                        </div>
+                                    </div>
                                     <Table
                                         heading={table_title}
                                         rows={valuesNew}
@@ -218,7 +262,7 @@ class viewCategory extends React.Component {
                                                     <div
                                                         className={styles.paginateHolder}
                                                         onClick={() => {
-                                                            this.setState({ offsetToggle: true, offset: m * 10 })
+                                                            this.setState({ offsetToggle: true, offset: (m - 1) * 10  })
                                                         }}
                                                     >
                                                         {m}
@@ -252,7 +296,7 @@ class viewCategory extends React.Component {
                                                     <div
                                                         className={styles.paginateHolder}
                                                         onClick={() => {
-                                                            this.setState({ filterOffsetToggle: true, offset: m * 10 })
+                                                            this.setState({ filterOffsetToggle: true, offset: (m - 1) * 10 })
                                                         }}
                                                     >
                                                         {m}

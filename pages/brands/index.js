@@ -1,11 +1,12 @@
 import { Formik, Form } from "formik";
-import { Container, Flex, Button, ButtonGroup } from "@chakra-ui/react";
+import { Container, Flex, Button, ButtonGroup, Select } from "@chakra-ui/react";
 import styles from "../../styles/admin.module.css";
 import React, { useState, useEffect } from "react";
 import { ChevronRightIcon, ChevronLeftIcon } from "@chakra-ui/icons";
 
 import Head from "../../util/head";
 import BrandsHelper from "../../helper/brands";
+import { ProductPerPage } from "../../constants/values";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import { Validation } from "../../util/validation";
 import Table from "../../components/table/table";
@@ -18,10 +19,12 @@ class viewBrands extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
+            loading: false,
             details: [],
             pages: [],
             paginate_filter: false,
             limit: 10,
+            brandToggle: false,
             offset: 0,
             splice: [0, 10],
         };
@@ -32,10 +35,15 @@ class viewBrands extends React.Component {
         this.getBrandsCount();
     }
     componentDidUpdate() {
-        const { offsetToggle } = this.state;
+        const { offsetToggle, brandToggle } = this.state;
         if (offsetToggle !== false) {
             this.getBrandsData();
             this.setState({ offsetToggle: false })
+        }
+
+        if (brandToggle === true) {
+                this.getBrandsData();
+                this.setState({ brandToggle: false })
         }
     }
     getBrandsCount() {
@@ -43,8 +51,8 @@ class viewBrands extends React.Component {
         var count = 0;
         BrandsHelper.getBrandsCount()
             .then((data) => {
-                count = parseInt(data[0].brand_count) / 10;
-                for (let i = 0; i <= count - 1; i++) {
+                count = Math.ceil(parseInt(data[0].brand_count) / 10);
+                for (let i = 1; i <= count; i++) {
                     tempArray.push(i);
                 }
                 this.setState({ pages: tempArray })
@@ -85,8 +93,13 @@ class viewBrands extends React.Component {
             "category_details" + moment().format("DD-MMY-YYYY")
         );
     };
+    handleOnChange = (e) => {
+        this.setState({
+            limit: e.target.value
+        })
+    }
     render() {
-        const { details, paginate_filter, splice, pages } = this.state;
+        const { details, paginate_filter, splice, pages, loading } = this.state;
         let valuesNew = [];
         const initialValue = {
             dob_1: "",
@@ -96,13 +109,11 @@ class viewBrands extends React.Component {
             id: "Id",
             brand_id: "Brand Id",
             name: "Brand Name",
-            category_name: "Category Name",
         };
         valuesNew = details.map((m, i) => ({
             SNo: i + 1,
             id: m.brand_id,
-            name: m.brand_name,
-            category_name: m.category_name
+            name: m.brand_name
         }));
 
 
@@ -123,6 +134,34 @@ class viewBrands extends React.Component {
                                 <div>View Details</div>
                             </p>
                             <div>
+                            <div style={{ marginBottom: "60px", display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+                                        <div className={styles.subInputHolder}>
+                                            <label
+                                                className={styles.infoLabel}
+                                            >
+                                                Choose number of brands to display
+                                            </label>
+                                            <Select placeholder="Select..." color={"blackAlpha.700"} height={"9"} borderColor={"gray.400"} onChange={this.handleOnChange}>
+                                                {ProductPerPage.map((m) => (
+                                                    <option>{m.value}</option>
+                                                ))}
+                                            </Select>
+                                        </div>
+                                        <div className={styles.subButtonHolder}>
+                                            <ButtonGroup
+                                                type="submit"
+                                            >
+                                                <Button
+                                                    isLoading={loading}
+                                                    loadingText="Loading"
+                                                    colorScheme="purple"
+                                                    onClick={() => this.setState({ brandToggle: true })}
+                                                >
+                                                    {"Done"}
+                                                </Button>
+                                            </ButtonGroup>
+                                        </div>
+                                    </div>
                                 <Table
                                     heading={table_title}
                                     rows={valuesNew}
@@ -147,7 +186,7 @@ class viewBrands extends React.Component {
                                                     <div
                                                         className={styles.paginateHolder}
                                                         onClick={() => {
-                                                            this.setState({ offsetToggle: true, offset: m * 10 })
+                                                            this.setState({ offsetToggle: true, offset: (m - 1) * 10 })
                                                         }}
                                                     >
                                                         {m}
@@ -181,7 +220,7 @@ class viewBrands extends React.Component {
                                                     <div
                                                         className={styles.paginateHolder}
                                                         onClick={() => {
-                                                            this.setState({ filterOffsetToggle: true, offset: m * 10 })
+                                                            this.setState({ filterOffsetToggle: true, offset: (m - 1) * 10 })
                                                         }}
                                                     >
                                                         {m}
