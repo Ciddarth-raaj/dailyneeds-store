@@ -28,6 +28,11 @@ import Link from "next/link";
 import { m } from "framer-motion";
 
 let valuesNew = [];
+const options = [
+    { value: 'chocolate', label: 'Chocolate' },
+    { value: 'strawberry', label: 'Strawberry' },
+    { value: 'vanilla', label: 'Vanilla' }
+]
 class product extends React.Component {
     constructor(props) {
         super(props);
@@ -72,8 +77,8 @@ class product extends React.Component {
             if (name !== '') {
                 this.filterData();
                 this.setState({ productToggle: false })
-            } 
-            if(name === '') {
+            }
+            if (name === '') {
                 this.getProductData();
                 this.setState({ productToggle: false })
             }
@@ -219,7 +224,7 @@ class product extends React.Component {
         })
     }
     render() {
-        const { 
+        const {
             loading,
             optionSelected,
             filter_details,
@@ -239,8 +244,8 @@ class product extends React.Component {
         let new_table_value = {};
         let table_title = {
             s_no: "S.No",
-            product_id: "Product Id",
-            gf_item_name: "Name",
+            product_id: "Item Id",
+            gf_item_name: "Item Name",
             de_distrubutor: "Distributor",
             gf_manufacturer: "Manufacturer",
         }
@@ -343,13 +348,22 @@ class product extends React.Component {
                                                     }
                                                     isMulti
                                                     theme={this.customTheme}
+                                                    defaultValue=
+                                                    {[
+                                                        DropDownOption[0],
+                                                        DropDownOption[1],
+                                                        DropDownOption[8],
+                                                        DropDownOption[10]
+
+                                                    ]}
                                                     closeMenuOnSelect={false}
                                                     hideSelectedOptions={false}
                                                     isSearchable
                                                     components={this.Option}
                                                     onChange={this.handleChange}
                                                     allowSelectAll={true}
-                                                    value={optionSelected}
+                                                    className="basic-multi-select"
+                                                    classNamePrefix="select"
                                                 />
                                             </div>
                                         </div>
