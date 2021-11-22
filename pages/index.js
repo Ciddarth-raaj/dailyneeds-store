@@ -111,7 +111,7 @@ export default class CreateShift extends React.Component {
         this.getEmployeeDet();
     }
     componentDidUpdate() {
-        if(this.state.store_name !== '') {
+        if (this.state.store_name !== '') {
             this.getEmployeeByStore();
         }
         this.state.store = this.state.store_name;
@@ -256,120 +256,121 @@ export default class CreateShift extends React.Component {
     }
 
     render() {
-        const { newjoiner, birthdays, store_data,employeeDet, hoverElement, store, store_name, resigned_employee, store_count, head_count, anniversary } = this.state;
-        
+        const { newjoiner, birthdays, store_data, employeeDet, hoverElement, store, store_name, resigned_employee, store_count, head_count, anniversary } = this.state;
+
         return (
             <Formik>
                 <Form>
                     <GlobalWrapper title="DashBoard">
                         <Head />
-                        <Grid
-                            h="650px"
-                            templateRows="repeat(2, 1fr)"
-                            templateColumns="repeat(5, 1fr)"
-                            gap={4}
-                        >
-                            <GridItem colSpan={4} bg="white" borderRadius="10px" boxShadow="lg">
-                            <div className={styles.dropdown}>
-                                    <input placeholder="Store Name" onChange={(e) => this.setState({ store: e.target.value  })} type="text" value={store === "" ? store : `${store}`} onMouseEnter={() => this.setState({hoverElement: false})} 
-                                     className={styles.dropbtn} />
-                                    <div className={styles.newDropdowncontent} style={hoverElement === false ? {color: "black"} : {display: "none"}}>
-                                        {store_data.filter(({value}) => value.indexOf(store.toLowerCase()) > -1).map((m) => (
-                                        <a onClick={() => (this.setState({ store_name: m.value, store_id: m.id, hoverElement: true}))}>
-                                           {m.value}<br/>{`# ${m.id}`}</a>
-                                        ))}
+                        <div className={styles.mainWrapper}>
+                            <div className={styles.leftHolder}>
+                                <Box boxShadow="lg" bg="white" padding="10px" borderRadius="20px" overflow="hidden">
+                                    <div className={styles.dropdown}>
+                                        <input placeholder="Store Name" onChange={(e) => this.setState({ store: e.target.value })} type="text" value={store === "" ? store : `${store}`} onMouseEnter={() => this.setState({ hoverElement: false })}
+                                            className={styles.dropbtn} />
+                                        <div className={styles.newDropdowncontent} style={hoverElement === false ? { color: "black" } : { display: "none" }}>
+                                            {store_data.filter(({ value }) => value.indexOf(store.toLowerCase()) > -1).map((m) => (
+                                                <a onClick={() => (this.setState({ store_name: m.value, store_id: m.id, hoverElement: true }))}>
+                                                    {m.value}<br />{`# ${m.id}`}</a>
+                                            ))}
+                                        </div>
                                     </div>
-                                </div>
-                            <div>
-                                <Bar
-                                    data={store_count.labels.length === 0 ? head_count : store_count}
-                                    style={{height: "250px"}}
-                                    options={{ maintainAspectRatio: false }}
-                                />
-                                </div>
-                            </GridItem>
-                            <GridItem boxShadow="lg" bg="white" rowSpan={2} w="450px" className={styles.birthdayWeek} colSpan={1} >
-                                <p className={styles.fontBirthday}>Birthday Week</p>
-                                <div className={styles.rightHolder}>
-                                <div className={styles.birthdayHolder}>
-                                {birthdays.length === 0 && (
-                                <div style={{display: "flex", flexDirection: "column", justifyContent: "center", marginTop: "100px", alignItems: "center"}}>
-                                    <InfoOutlineIcon color="red.400" ml="5px" className={styles.infoIcon} />
-                                    <p className={styles.birthdayContent}>No Birthdays for this week</p>
+                                    <div style={{ width: "97%" }}>
+                                        <Bar
+                                            data={store_count.labels.length === 0 ? head_count : store_count}
+                                            style={{ height: "240px", width: "20px" }}
+                                            options={{ maintainAspectRatio: false }}
+                                        />
                                     </div>
-                                )}
-                                {birthdays.length !== 0 && birthdays.map((m) => (
-                                <div style={{display: "flex", justifyContent: "space-between", padding: "10px", marginTop: "20px", alignItems: "center"}}>
-                                <p className={styles.birthdayContent}><WarningIcon color="#78719c" ml="5px" className={styles.warningIcon} />{m.birthday}</p>
-                                <p className={styles.birthdayContent}>{m.dob}</p>
-                                </div>
-                                ))}
-                                </div>
-                                <div className={styles.anniversaryHolder}>
-                                <p className={styles.fontBirthday}>Anniversary Week</p>
-                                <div className={styles.anniversaryScroll}>
-                                {anniversary.length === 0 && (
-                                <div style={{display: "flex", flexDirection: "column", justifyContent: "center", marginTop: "100px", alignItems: "center"}}>
-                                    <InfoOutlineIcon color="red.400" ml="5px" className={styles.infoIcon} />
-                                    <p className={styles.birthdayContent}>No Anniversary for this week</p>
-                                    </div>
-                                )}
-                                {anniversary.length !== 0 && anniversary.map((m) => (
-                                <div className={styles.anniversaryContent}>
-                                <p className={styles.birthdayContent}><WarningIcon color="#78719c" ml="5px" className={styles.warningIcon} />{m.anniversary}</p>
-                                <p className={styles.birthdayContent}>{moment(m.dob).format("DD MMMM YYYY")}</p>
-                                </div>
-                                ))}
-                                </div>
-                                </div>
-                                </div>
-                            </GridItem>
-                            <GridItem marginTop="20px" colSpan={2}>
-                                <p className={styles.fontMod}>New Joinee</p>
-                                    <Box boxShadow="lg" bg="white"  maxW="sm" className={styles.boxContainer} borderRadius="20px" overflow="hidden">
-                                        <Box
-                                            color="gray.500"
-                                            fontWeight="semibold"
-                                            // letterSpacing="wide"
-                                            className={styles.count}
-                                        >
-                                            <p className={styles.countNumber}>{newjoiner ? newjoiner : 0}</p>
-                                        </Box>
-                                        <Box
-                                            color="gray.500"
-                                            fontWeight="semibold"
-                                            letterSpacing="wide"
-                                            className={styles.titleContent}
-                                        >
-                                            <p className={styles.title}>New Joiner Count</p>
-                                        </Box>
-                                        <Box p="5">
-                                            <Box d="flex" alignItems="baseline">
-                                                <Box
-                                                    fontWeight="semibold"
-                                                    lineHeight="tight"
-                                                    isTruncated
-                                                    className={styles.actionHolder}
-                                                >
-                                                    <Button className={styles.button} borderRadius="lg" fontSize="1.1em" fontWeight="medium" className={styles.badges} px="7" color="gray.600" background="#dec6f8" >
-                                                        View Details
-                                                        <ArrowForwardIcon ml="20px" className={styles.icon} />
-                                                    </Button>
+                                </Box>
+                                <div className={styles.cardHolder}>
+                                    <div>
+                                        <p className={styles.fontMod}>New Joinee</p>
+                                        <Box boxShadow="lg" bg="white" className={styles.boxContainer} borderRadius="20px" overflow="hidden">
+                                            <Box
+                                                color="gray.500"
+                                                fontWeight="semibold"
+                                                // letterSpacing="wide"
+                                                className={styles.count}
+                                            >
+                                                <p className={styles.countNumber}>{newjoiner ? newjoiner : 0}</p>
+                                            </Box>
+                                            <Box
+                                                color="gray.500"
+                                                fontWeight="semibold"
+                                                letterSpacing="wide"
+                                                className={styles.titleContent}
+                                            >
+                                                <p className={styles.title}>New Joiner Count</p>
+                                            </Box>
+                                            <Box p="5">
+                                                <Box d="flex" alignItems="baseline">
+                                                    <Box
+                                                        fontWeight="semibold"
+                                                        lineHeight="tight"
+                                                        isTruncated
+                                                        className={styles.actionHolder}
+                                                    >
+                                                        <Button className={styles.button} borderRadius="lg" fontSize="1.1em" fontWeight="medium" className={styles.badges} px="7" color="gray.600" background="#dec6f8" >
+                                                            View Details
+                                                            <ArrowForwardIcon ml="20px" className={styles.icon} />
+                                                        </Button>
+                                                    </Box>
                                                 </Box>
                                             </Box>
                                         </Box>
-                                    </Box>
-                            </GridItem>
-                            <div className={styles.resignedEmp}>
-                                <p className={styles.fontResigned}>Resigned Employee</p>
-                                <GridItem  boxShadow="lg" bg="white" borderRadius="20px"  colSpan={3} padding="10px" width="400px" height="250px">
-                                    <Doughnut
-                                        data={resigned_employee}
-                                        options={{ maintainAspectRatio: false }}
-                                    />
-                                </GridItem>
+                                    </div>
+                                    <div>
+                                        <p className={styles.fontResigned}>Resigned Employee</p>
+                                        <Box boxShadow="lg" bg="white" className={styles.boxContainer} borderRadius="20px" overflow="hidden">
+                                            <Doughnut
+                                                data={resigned_employee}
+                                                options={{ maintainAspectRatio: false }}
+                                            />
+                                        </Box>
+                                    </div>
+                                </div>
                             </div>
-                        </Grid>
+                            <div className={styles.rightHold}>
+                                <Box boxShadow="lg" bg="white" borderRadius="20px" height="620px" padding="10px" overflow="hidden">
+                                    <p className={styles.fontBirthday}>Birthday Week</p>
+                                    <div className={styles.rightHolder}>
+                                        <div className={styles.birthdayHolder}>
+                                            {birthdays.length === 0 && (
+                                                <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", marginTop: "100px", alignItems: "center" }}>
+                                                    <InfoOutlineIcon color="red.400" ml="5px" className={styles.infoIcon} />
+                                                    <p className={styles.birthdayContent}>No Birthdays for this week</p>
+                                                </div>
+                                            )}
+                                            {birthdays.length !== 0 && birthdays.map((m) => (
+                                                <div style={{ display: "flex", justifyContent: "space-between", padding: "10px", marginTop: "20px", alignItems: "center" }}>
+                                                    <p className={styles.birthdayContent}><WarningIcon color="#78719c" ml="5px" className={styles.warningIcon} />{m.birthday}</p>
+                                                    <p className={styles.birthdayContent}>{m.dob}</p>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <div className={styles.anniversaryHolder}>
+                                            <p className={styles.fontBirthday}>Anniversary Week</p>
+                                            <div className={styles.anniversaryScroll}>
+                                                {anniversary.length === 0 && (
+                                                    <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", marginTop: "100px", alignItems: "center" }}>
+                                                        <InfoOutlineIcon color="red.400" ml="5px" className={styles.infoIcon} />
+                                                        <p className={styles.birthdayContent}>No Anniversary for this week</p>
+                                                    </div>
+                                                )}
+                                                {anniversary.length !== 0 && anniversary.map((m) => (
+                                                    <div className={styles.anniversaryContent}>
+                                                        <p className={styles.birthdayContent}><WarningIcon color="#78719c" ml="5px" className={styles.warningIcon} />{m.anniversary}</p>
+                                                        <p className={styles.birthdayContent}>{moment(m.dob).format("DD MMMM YYYY")}</p>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </Box>
+                            </div>
+                        </div>
                     </GlobalWrapper>
                 </Form>
             </Formik>
