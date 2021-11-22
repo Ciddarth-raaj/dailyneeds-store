@@ -133,8 +133,8 @@ class product extends React.Component {
     };
     getExportFile = () => {
         const TABLE_HEADER = {
-            s_no: "S.No",
-            product_id: "Product Id",
+            // s_no: "S.No",
+            product_id: "Item Id",
             gf_item_name: "Item Name",
             variant: "Variant",
             variant_of: "Variant Of",
@@ -166,9 +166,10 @@ class product extends React.Component {
         const formattedData = [];
         valuesNew.forEach((d, i) => {
             formattedData.push({
-                SNo: i + 1,
+                // SNo: i + 1,
                 product_id: d.product_id,
                 gf_item_name: d.gf_item_name,
+                de_name: d.de_name,
                 variant: d.variant,
                 variant_of: d.variant_of,
                 brand_name: d.brand_name,
@@ -176,6 +177,7 @@ class product extends React.Component {
                 category_name: d.category_name,
                 subcategory_name: d.subcategory_name,
                 de_distributor: d.de_distributor,
+                de_name: d.de_name,
                 keywords: d.keywords,
                 gf_manufacturer: d.gf_manufacturer,
                 gf_food_type: d.gf_food_type,
@@ -243,7 +245,7 @@ class product extends React.Component {
         let new_table_title = {};
         let new_table_value = {};
         let table_title = {
-            s_no: "S.No",
+            // s_no: "S.No",
             product_id: "Item Id",
             gf_item_name: "Item Name",
             de_distrubutor: "Distributor",
@@ -268,17 +270,17 @@ class product extends React.Component {
 
         if (filter_details.length === 0) {
             valuesNew = details.map((m, i) => ({
-                s_no: i + 1,
+                // s_no: i + 1,
                 product_id: m.product_id,
-                gf_item_name: onClick({ value: m.gf_item_name !== null ? m.gf_item_name : m.de_display_name, id: m.product_id }),
+                gf_item_name: onClick({ value: m.de_name, id: m.product_id }),
                 de_distrubutor: onClick({ value: m.de_distributor, id: m.product_id }),
                 gf_manufacturer: onClick({ value: m.gf_manufacturer, id: m.product_id }),
             }));
         } else {
             valuesNew = filter_details.map((m, i) => ({
-                s_no: i + 1,
+                // s_no: i + 1,
                 product_id: m.product_id,
-                gf_item_name: onClick({ value: m.gf_item_name !== null ? m.gf_item_name : m.de_display_name, id: m.product_id }),
+                gf_item_name: onClick({ value: m.de_name, id: m.product_id }),
                 de_distrubutor: onClick({ value: m.de_distributor, id: m.product_id }),
                 gf_manufacturer: onClick({ value: m.gf_manufacturer, id: m.product_id }),
             }));
