@@ -80,6 +80,11 @@ export default {
         selected: false,
         location: '/resignation'
       },
+      view_product_department: {
+        title: 'Product Department',
+        selected: false,
+        location: '/product-department'
+      },
     }
   },
   products: {
