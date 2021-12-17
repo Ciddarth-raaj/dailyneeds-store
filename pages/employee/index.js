@@ -3,6 +3,7 @@ import { Container, Flex, Button, ButtonGroup, Switch, Badge } from "@chakra-ui/
 import styles from "../../styles/admin.module.css";
 import EmployeeHelper from "../../helper/employee";
 import DesignationHelper from "../../helper/designation";
+import OutletsHelper from "../../helper/outlets";
 import StoreHelper from "../../helper/store";
 
 import React, { useState, useEffect } from "react";
@@ -30,7 +31,7 @@ function Registration() {
 	const table_title = {
 		employee_id: "Employee Id",
 		name: "Name",
-		store_name: "Store Name",
+		// store_name: "Store Name",
 		designation: "Designation",
 		status: "Status",
 		// action: "Action",
@@ -76,7 +77,7 @@ function Registration() {
 			.catch((err) => console.log(err));
 	}
 	function getStoreData() {
-		StoreHelper.getStore()
+		OutletsHelper.getOutlet()
 			.then((data) => {
 				setStoreData({ store: data });
 			})
@@ -126,17 +127,17 @@ function Registration() {
 	function storeName(n) {
 		var storeName = "";
 		storeData.store.map((m) => {
-			if (m.id == n.value) {
+			if (m.outlet_id == n.value) {
 				storeName = m.value;
 			}
 		})
-		return <Link href={`/employee/${n.id}`}>{storeName}</Link>;
+		return  <Link href={`/employee/${n.id}`}>{storeName}</Link> ;
 	}
 	const valuesNew = data.employee.map((m) => (
 		{
 			id: m.employee_id,
 			name: onClick({value: m.employee_name, id: m.employee_id}),
-			store_name: storeName({value: m.store_id, id: m.employee_id}),
+			// store_name: storeName({value: m.store_id, id: m.employee_id}),
 			designation: designationName({value: m.designation_id, id: m.employee_id}),
 			status: badge({value: m.status, id: m.employee_id}),
 			// action: image(m.employee_id),

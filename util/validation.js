@@ -2,10 +2,10 @@ import * as Yup from "yup";
 
 export const Validation = Yup.object({
 	employee_name: Yup.string().nullable().required("Fill Name"),
-	father_name: Yup.string().nullable().required("Fill Father Name"),
+	father_name: Yup.string().required("Fill Father Name"),
 	dob: Yup.string().nullable().max(new Date(), "Must be 15 characters or less").required("Fill Date of birth"),
 	permanent_address: Yup.string().nullable().required("Fill Address"),
-	residential_address: Yup.string().nullable().required("Fill Residential Address"),
+	// residential_address: Yup.string().nullable().required("Fill Residential Address"),
 	gender: Yup.string().nullable().required("Choose Gender"),
 	// blood_group: Yup.string().nullable().required("Choose BloodGroup"),
 	designation_id: Yup.string().nullable().required("Choose Designation"),
@@ -60,6 +60,7 @@ export const DesignationValidation = Yup.object({
 	// designationName: Yup.string().required("Fill department Name"),
 	// status: Yup.string().required("Choose status"),
 	online_portal: Yup.string().nullable().required("Choose Access"),
+	login_access: Yup.string().nullable().required("Require Login Access")
 });
 
 export const ShiftValidation = Yup.object({

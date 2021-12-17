@@ -12,6 +12,7 @@ import styles from "../../styles/registration.module.css";
 
 //Helpers
 import DocumentHelper from "../../helper/document";
+import BranchHelper from "../../helper/outlets";
 import ResignedUser from "../../components/resignedUser/resignedUser";
 import { BloodGroup, PaymentType, IdCardType } from "../../constants/values";
 import EmployeeHelper from "../../helper/employee";
@@ -52,6 +53,7 @@ class Create extends React.Component {
 			shift: [],
 			uploadImage: [],
 			uploadId: [],
+			permanent_trigger: false,
 			subUploadId: [],
 			licenseHolder: [],
 			panHolder: [],
@@ -69,6 +71,7 @@ class Create extends React.Component {
 			adhaarChecker: [],
 			employeeCards: false,
 			subIdHolder2: [],
+			branch: [],
 			pfToggle: false,
 			esiToggle: false,
 			adhaarAlert: false,
@@ -99,6 +102,7 @@ class Create extends React.Component {
 		this.getDesignation();
 		this.getDepartment();
 		this.getShift();
+		this.getBranchData();
 		this.getAdhaar();
 	}
 	componentDidUpdate() {
@@ -112,7 +116,13 @@ class Create extends React.Component {
 			this.setState({handlingSubmit: true})
 		}
 	}
-
+	getBranchData() {
+        BranchHelper.getOutlet()
+            .then((data) => {
+                this.setState({ branch: data });
+            })
+            .catch((err) => console.log(err));
+    }
 	getResignation() {
 		const { employee_name } = this.state;
 		ResignationHelper.getResignationByName(employee_name)
@@ -154,8 +164,9 @@ class Create extends React.Component {
 	}
 	
 	createEmployee = async (values) => {
+			const { permanent_trigger } = this.state;
 			const { router } = this.props;
-			if (this.state.licenseHolder !== "") {
+			if (this.state.licenseHolder.length !== 0) {
 			const Idarray = [];
 			Idarray.push(await FilesHelper.upload(
 				this.state.licenseHolder,
@@ -182,7 +193,7 @@ class Create extends React.Component {
 			}
 		}
 
-			if (this.state.voterHolder !== "") {
+			if (this.state.voterHolder.length !== 0) {
 				const Subarray = [];
 				Subarray.push(await FilesHelper.upload(
 					this.state.voterHolder,
@@ -196,7 +207,7 @@ class Create extends React.Component {
 				}
 			}
 
-			if (this.state.panHolder !== "") {
+			if (this.state.panHolder.length !== 0) {
 				const Panarray = [];
 				Panarray.push(await FilesHelper.upload(
 					this.state.panHolder,
@@ -223,8 +234,12 @@ class Create extends React.Component {
 		values.designation_name = values.designation_id;
 		values.date_of_joining = moment(values.date_of_joining).format("YYYY-MM-DD");
 		values.dob = moment(values.dob).format("YYYY-MM-DD");
+		values.dob = moment(values.marriage_date).format("YYYY-MM-DD");
 		values.store_name = values.store_id;
 		values.shift_name = values.shift_id;
+		if(permanent_trigger === true) {
+			values.residential_address = values.permanent_address;
+		}
 		delete values.department_name;
 		delete values.designation_name;
 		delete values.store_name;
@@ -527,8 +542,10 @@ class Create extends React.Component {
 			loading,
 			designation,
 			department,
+			branch,
 			employee_image,
 			shift,
+			permanent_trigger,
 			employeeCards,
 			employee_create,
 			branchModalVisibility,
@@ -594,7 +611,7 @@ class Create extends React.Component {
 				initialValues={{
 						employee_name: this.props.data[0]?.employee_name,
 						father_name: this.props.data[0]?.father_name,
-						dob: moment(this.props.data[0]?.dob).format("MM/DD/YYYY"),
+						dob: this.props.data[0]?.dob,
 						permanent_address: this.props.data[0]?.permanent_address,
 						residential_address: this.props.data[0]?.residential_address,
 						primary_contact_number: this.props.data[0]?.primary_contact_number,
@@ -606,7 +623,7 @@ class Create extends React.Component {
 						salary: this.props.data[0]?.salary,
 						uniform_qty: this.props.data[0]?.uniform_qty,
 						previous_experience: this.props.data[0]?.previous_experience,
-						date_of_joining: moment(this.props.data[0]?.date_of_joining).format("MM/DD/YYYY"),
+						date_of_joining: this.props.data[0]?.date_of_joining,
 						gender: this.props.data[0]?.gender,
 						blood_group: this.props.data[0]?.blood_group,
 						designation_id: this.props.data[0]?.designation_id,
@@ -673,7 +690,7 @@ class Create extends React.Component {
 							},
 						]
 					}}
-					// validationSchema={Validation}
+					validationSchema={Validation}
 					onSubmit={(values) => {
 						id !== null ? this.updateEmployee(values) : this.createEmployee(values);
 					}}
@@ -696,6 +713,8 @@ class Create extends React.Component {
 									handleSubmit();
 									break;
 								}
+								handleSubmit();
+								break;
 							}
 						}
 						
@@ -786,8 +805,8 @@ class Create extends React.Component {
 													<CustomInput label="Email ID" name="email_id" type="text" editable={id !== null ? editableEmpInfo : !editableEmpInfo} />
 												</div>
 												<div className={styles.inputHolder}>
-													<CustomInput label="Primary Mobile Number *" name="primary_contact_number" type="text" editable={id !== null ? editableEmpInfo : !editableEmpInfo} />
-													<CustomInput label="Alternate Mobile Number" name="alternate_contact_number" type="text" editable={id !== null ? editableEmpInfo : !editableEmpInfo} />
+													<CustomInput label="Primary Mobile Number *" name="primary_contact_number" type="number" editable={id !== null ? editableEmpInfo : !editableEmpInfo} />
+													<CustomInput label="Alternate Mobile Number" name="alternate_contact_number" type="number" editable={id !== null ? editableEmpInfo : !editableEmpInfo} />
 												</div>
 												<div className={styles.inputHolder}>
 													<CustomInput
@@ -861,6 +880,7 @@ class Create extends React.Component {
 															label="Marriage Date"
 															name="marriage_date"
 															type="text"
+															method="datepicker"
 															editable={id !== null ? editablePerInfo : !editablePerInfo}
 														/>
 													)}
@@ -868,8 +888,13 @@ class Create extends React.Component {
 												<div className={styles.personalInputHolder}>
 													<CustomInput label="Permanent Address *" name="permanent_address" type="text" method="TextArea" editable={id !== null ? editablePerInfo : !editablePerInfo} />
 												</div>
+												<div className={styles.inputHolder}>
+													<CustomInput label="Residential Address *" name={permanent_trigger !== true ? "residential_address" : "permanent_address"} type="text" method="TextArea" editable={id !== null ? editablePerInfo : !editablePerInfo} />
+												</div>
 												<div className={styles.personalInputHolder}>
-													<CustomInput label="Residential Address *" name="residential_address" type="text" method="TextArea" editable={id !== null ? editablePerInfo : !editablePerInfo} />
+													<Button mb={'40px'} colorScheme="purple" onClick={() => ( this.setState({ permanent_trigger: !permanent_trigger }) )}>
+														Same As Permanent Address
+													</Button>
 												</div>
 												<div className={styles.inputHolder}>
 													<CustomInput label="Father Name *" name="father_name" type="text" editable={id !== null ? editablePerInfo : !editablePerInfo} />
@@ -914,20 +939,10 @@ class Create extends React.Component {
 													{id !== null ? (
 														<CustomInput
 															label="Select Store *"
-															values={[
-																{
-																	id: 1,
-																	value: "Store1",
-																},
-																{
-																	id: 2,
-																	value: "Store2",
-																},
-																{
-																	id: 3,
-																	value: "Store3",
-																},
-															]}
+															values={branch.map((m) => ({
+																id: m.outlet_id,
+																value: m.outlet_name
+															}))}
 															name={editablePosiInfo ? "store_id" : "store_name"}
 															type="text"
 															method="switch"
@@ -936,20 +951,10 @@ class Create extends React.Component {
 													) : (
 														<CustomInput
 															label="Select Store *"
-															values={[
-																{
-																	id: 1,
-																	value: "Store1",
-																},
-																{
-																	id: 2,
-																	value: "Store2",
-																},
-																{
-																	id: 3,
-																	value: "Store3",
-																},
-															]}
+															values={branch.map((m) => ({
+																id: m.outlet_id,
+																value: m.outlet_name
+															}))}
 															name={"store_id"}
 															type="text"
 															method="switch"
@@ -1264,9 +1269,6 @@ class Create extends React.Component {
 
 											<div>
 												<div className={styles.personalInputHolder} >
-													<div className={styles.inputHolder}>
-														<CustomInput label="PAN No *" name="pan_no" type="text" editable={id !== null ? editablePFInfo : !editablePFInfo} />
-													</div>
 													{id !== null ?
 														<div className={styles.switchHolder}>
 															<label>PF Number & UAN Number</label>
@@ -1274,15 +1276,16 @@ class Create extends React.Component {
 														</div>
 														:
 														<div className={styles.switchHolder}>
-															<label>PF Number & UAN Number</label>
+															<label>PF Number & UAN Number  & Pan </label>
 															<Switch className={styles.switch} id="email-alerts" onChange={() => this.setState({ pfToggle: !pfToggle })} />
 														</div>
 													}
 												</div>
 												{pfToggle === true || id !== null ? (
 													<div className={styles.inputHolder}>
-														<CustomInput label="PF Number *" name="pf_number" type="text" editable={id !== null ? editablePFInfo : !editablePFInfo} />
-														<CustomInput label="UAN Number *" name="UAN" type="text" editable={id !== null ? editablePFInfo : !editablePFInfo} />
+														<CustomInput label="PAN No " name="pan_no" type="text" editable={id !== null ? editablePFInfo : !editablePFInfo} />
+														<CustomInput label="PF Number " name="pf_number" type="text" editable={id !== null ? editablePFInfo : !editablePFInfo} />
+														<CustomInput label="UAN Number " name="UAN" type="text" editable={id !== null ? editablePFInfo : !editablePFInfo} />
 													</div>
 												) : ""}
 
@@ -1299,12 +1302,12 @@ class Create extends React.Component {
 												}
 												{esiToggle === true || id !== null ? (
 													<div className={styles.inputHolder}>
-														<CustomInput label="ESI Number *" name="esi_number" type="text" editable={id !== null ? editablePFInfo : !editablePFInfo} />
+														<CustomInput label="ESI Number " name="esi_number" type="text" editable={id !== null ? editablePFInfo : !editablePFInfo} />
 													</div>
 												) : ""}
 											</div>
 										</Container>
-										<Container {...containerProps} pb={"20px"}>
+										<Container {...containerProps} pb={"30px"}>
 											<p className={styles.title}>
 												<div>Salary Details</div>
 												{id !== null &&

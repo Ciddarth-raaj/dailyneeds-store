@@ -119,5 +119,48 @@ export default {
         location: '/brands'
       },
     }
+  },
+  indents: {
+    title: 'Indents & Transportation',
+    selected: false,
+    openPage: false,
+    icon: 'fa-archive',
+    subMenu: {
+      new_indent: {
+        title: 'New Indent',
+        selected: false,
+        location: '/indent'
+      },
+      indents_sent: {
+        title: 'Indents Sent',
+        selected: false,
+        location: '/indent/sent'
+      },
+      indents_received: {
+        title: 'Indents Received',
+        selected: false,
+        location: '/indent/received'
+      },
+      create_despatch: {
+        title: 'Create Despatch',
+        selected: false,
+        location: '/indent/despatch'
+      },
+      accept_indents: {
+        title: 'Accept Indents',
+        selected: false,
+        location: '/indent/acceptIndent'
+      },
+      issue_received_indent: {
+        title: 'Issues In Received Indents',
+        selected: false,
+        location: '/indent/issueReceived'
+      },
+      issue_sent_indent: {
+        title: 'Issues In Sent Indents',
+        selected: false,
+        location: '/indent/issueSent'
+      },
+    }
   }
 }

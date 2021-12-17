@@ -93,8 +93,9 @@ class CreateDesignation extends React.Component {
 				<Formik
 					initialValues={{
 						designation_name: this.props.data[0]?.designation_name,
-						// status: this.props.data[0]?.status,
-						online_portal: this.props.data[0]?.online_portal
+						status: 1,
+						online_portal: this.props.data[0]?.online_portal,
+						login_access: this.props.data[0]?.login_access
 					}}
 					validationSchema={DesignationValidation}
 					onSubmit={(values) => {
@@ -135,6 +136,22 @@ class CreateDesignation extends React.Component {
 											<CustomInput
 												label="Online Access"
 												name="online_portal"
+												values={[
+													{
+														id: 1,
+														value: "Grant Access",
+													},
+													{
+														id: 0,
+														value: "Discard Access",
+													},
+												]}
+												type="text"
+												method="switch"
+											/>
+											<CustomInput
+												label="Login Access"
+												name="login_access"
 												values={[
 													{
 														id: 1,

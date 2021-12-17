@@ -66,7 +66,7 @@ function departmentView() {
         }
     const table_title = {
         sNo: "SNo",
-        employee_id: "Employee Id",
+        // employee_id: "Employee Id",
         name: "Name",
         status: "Status",
         // action: "Action",
@@ -91,7 +91,7 @@ function departmentView() {
     const valuesNew = data.department.map((m, i) => (
         {
             sNo: i + 1,
-            id: m.id,
+            // id: m.id,
             name: onClick({value: m.value, id: m.id}),
             status: badge({value: m.status, id: m.id}),
             // action: image(m.id),
