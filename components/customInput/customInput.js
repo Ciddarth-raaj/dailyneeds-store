@@ -1,6 +1,6 @@
 import React, { Fragment, forwardRef } from 'react'
 import { ErrorMessage, useField, useFormikContext } from 'formik'
-import { Input, Textarea, Select, InputGroup, InputLeftAddon } from '@chakra-ui/react'
+import { Input, Textarea, Select, InputGroup, InputLeftAddon,  NumberInput, NumberInputField } from '@chakra-ui/react'
 import DatePicker from 'react-datepicker'
 import Timekeeper from 'react-timekeeper'
 import styles from './customInput.module.css'
@@ -8,7 +8,7 @@ import moment from 'moment'
 
 const CustomDateTimeInput = forwardRef(({ value, onClick, onChange }, ref) => (
   <Input
-    value={value}
+    value={value ? moment(value).format('DD/MM/YYYY') : value}
     onChange={onChange}
     autoComplete='off'
     ref={ref}
@@ -51,9 +51,17 @@ const TextField = ({
             />
           )}
           {method === 'number' && (
-            <NumberInput size='sm' max={10}>
-            <NumberInputField focusBorderColor='blue.200' />
+            <NumberInput {...field} {...props}  size='sm' max={9000000000} keepWithinRange={false} clampValueOnBlur={false}>
+            <NumberInputField focusBorderColor='blue.200' borderRadius={'5px'} height={'40px'} />
+            {field.name > 9000000000 && (
+            <ErrorMessage
+                    component='div'
+                    name='three'
+                    className={styles.errorMessage}
+            />
+            )}
             </NumberInput>
+            
           )}
           {method === 'switch' && (
             <Select {...field} placeholder='Select Option'>
@@ -105,7 +113,7 @@ const TextField = ({
                 {...props}
                 selected={(field.value && new Date(field.value)) || null}
                 onChange={val => {
-                  setFieldValue(field.name, moment(val).format('DD/MM/YYYY'))
+                  setFieldValue(field.name, val)
                 }}
                 customInput={<CustomDateTimeInput />}
               />

@@ -11,44 +11,29 @@ export default {
         location: '/'
       },
       view: {
-        title: 'View Employee',
+        title: 'Employee',
         selected: false,
         location: '/employee'
       },
       view_departments: {
-        title: 'View Departments',
+        title: 'Department',
         selected: false,
         location: '/department'
       },
       view_designation: {
-        title: 'View Designations',
+        title: 'Designation',
         selected: false,
         location: '/designation'
       },
       view_shift: {
-        title: 'View Shift',
+        title: 'Shift',
         selected: false,
         location: '/shift'
       },
       view_family: {
-        title: 'View Family',
+        title: 'Family',
         selected: false,
         location: '/family'
-      },
-      view_brands: {
-        title: 'View Brands',
-        selected: false,
-        location: '/brands'
-      },
-      view_category: {
-        title: 'View Categories',
-        selected: false,
-        location: '/categories'
-      },
-      view_subcategory: {
-        title: 'View Sub Categories',
-        selected: false,
-        location: '/subcategories'
       },
       // view_adhaar: {
       //     title: "View Adhaar",
@@ -56,7 +41,7 @@ export default {
       //     location: "/adhaar",
       // },
       view_documents: {
-        title: 'View documents',
+        title: 'Document',
         selected: false,
         location: '/document'
       },
@@ -80,11 +65,6 @@ export default {
         selected: false,
         location: '/resignation'
       },
-      view_product_department: {
-        title: 'Product Department',
-        selected: false,
-        location: '/product-department'
-      },
     }
   },
   products: {
@@ -94,7 +74,7 @@ export default {
     icon: 'fa-archive',
     subMenu: {
       view_products: {
-        title: 'View Products',
+        title: 'Product',
         selected: false,
         location: '/products'
       },
@@ -104,19 +84,24 @@ export default {
       //   location: '/department'
       // },
       view_category: {
-        title: 'View Category',
+        title: 'Category',
         selected: false,
         location: '/categories'
       },
       view_subcategory: {
-        title: 'View Subcategory',
+        title: 'Subcategory',
         selected: false,
         location: '/subcategories'
       },
       view_brands: {
-        title: 'View Brand',
+        title: 'Brand',
         selected: false,
         location: '/brands'
+      },
+      view_product_department: {
+        title: 'Product Department',
+        selected: false,
+        location: '/product-department'
       },
     }
   },
@@ -160,6 +145,39 @@ export default {
         title: 'Issues In Sent Indents',
         selected: false,
         location: '/indent/issueSent'
+      },
+    },
+  },
+  maintenance: {
+    title: 'Maintenance',
+    selected: false,
+    openPage: false,
+    icon: 'fa-archive',
+    subMenu: {
+      open_issue: {
+        title: 'Open Issues',
+        selected: false,
+        location: '/open-issue'
+      },
+      all_issue: {
+        title: 'All Issues',
+        selected: false,
+        location: '/all-issue'
+      },
+      add_issue: {
+        title: 'Add Issues',
+        selected: false,
+        location: '/addissue'
+      },
+      service_provider: {
+        title: 'Service Provider',
+        selected: false,
+        location: '/serviceprovider-list'
+      },
+      add_service_provider: {
+        title: 'Add Service Provider',
+        selected: false,
+        location: '/addservice-provider'
       },
     }
   }

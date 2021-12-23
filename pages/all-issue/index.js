@@ -10,12 +10,12 @@ import CustomInput from "../../components/customInput/customInput";
 import StoreHelper from "../../helper/store";
 import IndentHelper from "../../helper/indent";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
-import { Validation } from "../../util/validation";
+import { allIssueValidation } from "../../util/validation";
 import Table from "../../components/table/table";
 import exportCSVFile from "../../util/exportCSVFile";
 import moment from "moment";
 
-class viewIndent extends React.Component {
+class openIssue extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
@@ -38,67 +38,8 @@ class viewIndent extends React.Component {
 
     componentDidMount() {
         this.getStore();
-        this.getIndent();
-        this.getIndentCount();
     }
-    componentDidUpdate() {
-        const { offsetToggle, indentToggle } = this.state;
-        if (offsetToggle !== false) {
-            this.getIndent();
-            this.setState({ offsetToggle: false })
-        }
 
-        if (indentToggle === true) {
-            this.getIndent()
-            this.setState({ indentToggle: false })
-        }
-    }
-    getExportFile = () => {
-        const TABLE_HEADER = {
-            sno: "SNo",
-            indent_no: "Indent No",
-            from: "From",
-            to: "To",
-            bags: "Bags",
-            boxes: "Boxes",
-            crates: "Crates",
-            taken_by: "Taken By",
-            checked_by: "Checked By",
-            status: "Delivery Status"
-        };
-        const formattedData = [];
-        valuesNew.forEach((d) => {
-            formattedData.push({
-                sno: d.id,
-                indent_no: d.indent_number,
-                from: d.from,
-                to: d.to,
-                bags: d.bags,
-                boxes: d.boxes,
-                crates: d.crates,
-                taken_by: d.taken_by,
-                checked_by: d.checked_by,
-                status: d.delivery_status
-            });
-        });
-        exportCSVFile(
-            TABLE_HEADER,
-            formattedData,
-            "indent_details" + moment().format("DD-MMY-YYYY")
-        );
-    };
-    getIndentCount() {
-        const tempArray = []
-        var count = 1;
-        IndentHelper.getIndentCount()
-            .then((data) => {
-                count = Math.ceil(parseInt(data[0].indentcount) / 10);
-                for (let i = 1; i <= count; i++) {
-                    tempArray.push(i);
-                }
-                this.setState({ pages: tempArray })
-            })
-    }
     getStore() {
         StoreHelper.getStore()
             .then((data) => {
@@ -106,37 +47,38 @@ class viewIndent extends React.Component {
             })
             .catch((err) => console.log(err))
     }
-    getIndent() {
-        const { offset, limit } = this.state;
-        IndentHelper.getIndent(offset, limit)
-            .then((data) => {
-                this.setState({ details: data })
-            })
-            .catch((err) => console.log(err))
-    }
-
-    handleOnChange = (e) => {
-        this.setState({
-            limit: e.target.value
-        })
-    }
-    createIndent = async (values) => {
-        IndentHelper.createIndent(values)
-            .then((data) => {
-            if (data === 200) {
-                toast.success("Successfully created Indent");
-                this.getIndent();
-            } else {
-                toast.error("Error creating Account");
-                throw `${data.msg}`;
-            }
-        })
-        .catch((err) => console.log(err))
-        .finally(() => this.setState({ loading: false }));
-    }
+  
+    getExportFile = () => {
+        const TABLE_HEADER = {
+            request_id: "Request Id",
+            issue_title: "Issue Title",
+            description: "Description",
+            request_date: "Request Date",
+            issued_store: "Issued Store",
+            payment_status: "Payment Status",
+        };
+        const formattedData = [];
+        valuesNew.forEach((d) => {
+            formattedData.push({
+            request_id: request_id,
+            issue_title: m.issue_title,
+            description: m.description,
+            request_date: m.request_date,
+            issued_store: m.issued_store,
+            payment_status: m.payment_status,
+            detail_update: m.detail_update,
+            status: m.status,
+        });
+        });
+        exportCSVFile(
+            TABLE_HEADER,
+            formattedData,
+            "all issue" + moment().format("DD-MMY-YYYY")
+        );
+    };
+   
     render() {
         const { details, pages, splice, paginate_filter, id, selectedFile, store_data, image_url, loading } = this.state;
-        console.log({ details: details })
         let valuesNew = [];
         const initialValue = {
             dob_1: "",
@@ -144,49 +86,43 @@ class viewIndent extends React.Component {
         };
 
         const table_title = {
-            sno: "SNo",
-            indent_no: "Indent No",
-            from: "From",
-            to: "To",
-            bags: "Bags",
-            boxes: "Boxes",
-            crates: "Crates",
-            taken_by: "Taken By",
-            checked_by: "Checked By",
-            status: "Delivery Status"
+            request_id: "Request Id",
+            issue_title: "Issue Title",
+            description: "Description",
+            request_date: "Request Date",
+            issued_store: "Issued Store",
+            payment_status: "Payment Status",
+            detail_update: "Detail Updates",
+            status: "Status"
         };
-        valuesNew = details.map((m, i) => ({
-            sno: i + 1,
-            indent_no: m.indent_number,
-            from: m.from,
-            to: m.to,
-            bags: m.bags,
-            boxes: m.boxes,
-            crates: m.crates,
-            taken_by: m.taken_by,
-            checked_by: m.checked_by,
-            status: m.delivery_status
-        }));
+
+        // after adding table detail unquote
+        // ----> 
+        // valuesNew = details.map((m, i) => ({
+        //     request_id: request_id,
+        //     issue_title: m.issue_title,
+        //     description: m.description,
+        //     request_date: m.request_date,
+        //     issued_store: m.issued_store,
+        //     payment_status: m.payment_status,
+        //     detail_update: m.detail_update,
+        //     status: m.status,
+        // }));
 
 
         return (
-            <GlobalWrapper title="Create Indent">
+            <GlobalWrapper title="Open Issue">
             <Head />
             <Formik
                 initialValues={{
-                    indent_number: '',
                     store_id: '',
-                    store_to: '',
-                    bags: '',
-                    boxes: '',
-                    crates: '',
-                    taken_by: '',
-                    checked_by: ''
+                    from_date: '',
+                    to_date: '',
                 }}
                 onSubmit={(values) => {
-                    this.createIndent(values);
+                    console.log(values);
                 }}
-                // validationSchema={Validation}
+                // validationSchema={OpenIssueValidation}
             >
                 {(formikProps) => {
                     const { handleSubmit, resetForm } = formikProps;
@@ -195,13 +131,12 @@ class viewIndent extends React.Component {
                                 <Flex templateColumns="repeat(3, 1fr)" flexDirection={"column"} gap={6} colSpan={2}>
                                     <Container className={styles.container} mb={5} boxShadow="lg">
                                         <p className={styles.buttoninputHolder}>
-                                            <div>New Indent</div>
+                                            <div>All Open Issues</div>
                                         </p>
                                         <div className={styles.generateIndent}>
                                             <div className={styles.indentHolder}>
-                                                <div className={styles.subInputHolder}>
                                                     <CustomInput
-                                                        label="From Store"
+                                                        label="Please Select Store"
                                                         values={store_data.map((m) => ({
                                                             id: m.id,
                                                             value: m.value
@@ -210,82 +145,23 @@ class viewIndent extends React.Component {
                                                         type="text"
                                                         method="switch"
                                                     />
-                                                </div>
-                                                <div className={styles.subInputHolder}>
-                                                <CustomInput
-                                                        label="To Store"
-                                                        values={store_data.map((m) => ({
-                                                            id: m.id,
-                                                            value: m.value
-                                                        }))}
-                                                        name="store_to"
-                                                        type="text"
-                                                        method="switch"
-                                                    />
-                                                </div>
                                             </div>
                                             <div className={styles.indentHolder}>
                                                 <div className={styles.subInputHolder}>
                                                 <CustomInput
-                                                        label="Taken By"
-                                                        values={store_data.map((m) => ({
-                                                            id: m.value,
-                                                            value: m.value
-                                                        }))}
-                                                        name="taken_by"
-                                                        type="text"
-                                                        method="switch"
-                                                    />
+														label="Date From"
+														name="from_date"
+														type="text"
+														method="datepicker"
+													/>
                                                 </div>
                                                 <div className={styles.subInputHolder}>
                                                 <CustomInput
-                                                        label="Checked By"
-                                                        values={store_data.map((m) => ({
-                                                            id: m.value,
-                                                            value: m.value
-                                                        }))}
-                                                        name="checked_by"
-                                                        type="text"
-                                                        method="switch"
-                                                    />
-                                                </div>
-                                            </div>
-                                            <div className={styles.indentSubHolder} >
-                                                <div style={{ width: "25%" }}> 
-                                                    <CustomInput
-                                                        placeholder="0"
-                                                        name="indent_number"
-                                                        type="tel"
-                                                        children="Ind. No."
-                                                        method="numberinput"
-                                                    />
-                                                </div>
-                                                <div className={styles.indentNumberHolder}>
-                                                <CustomInput
-                                                    placeholder="0"
-                                                    name="bags"
-                                                    type="tel"
-                                                    children="Bags"
-                                                    method="numberinput"
-                                                />
-                                                </div>
-                                                <div className={styles.indentNumberHolder}>
-                                                <CustomInput
-                                                    placeholder="0"
-                                                    name="boxes"
-                                                    type="tel"
-                                                    children="Boxes"
-                                                    method="numberinput"
-                                                />
-                                                </div>
-                                                <div className={styles.indentNumberHolder}>
-                                                <CustomInput
-                                                    placeholder="0"
-                                                    name="crates"
-                                                    type="tel"
-                                                    children="Crates"
-                                                    method="numberinput"
-                                                />
+														label="Date To"
+														name="to_date"
+														type="text"
+														method="datepicker"
+													/>
                                                 </div>
                                             </div>
                                             <div className={styles.indentButtonHolder}>
@@ -294,7 +170,7 @@ class viewIndent extends React.Component {
                                                     colorScheme="purple"
                                                     onClick={() => { handleSubmit() }}
                                                 >
-                                                    {"Add Indent"}
+                                                    {"Search"}
                                                 </Button>
                                                 <Button
                                                     ml={"2%"}
@@ -414,4 +290,4 @@ class viewIndent extends React.Component {
     }
 }
 
-export default viewIndent;
+export default allIssue;

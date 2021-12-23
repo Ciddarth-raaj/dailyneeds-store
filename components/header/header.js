@@ -1,6 +1,7 @@
 import React from "react";
-import styles from "./header.module.css"
+import styles from "./header.module.css";
 import Head from "../../util/head";
+import LogIn from "../../pages/login";
 import SideBarMobile from "../sideBarMobile/sideBarMobile";
 
 export default class Header extends React.Component {
@@ -8,6 +9,7 @@ export default class Header extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
+            loginVisibility: false,
             settings: {
                 company: {
                     title: "Company Details",
@@ -48,14 +50,26 @@ export default class Header extends React.Component {
                     title: "Employee Role",
                     icon: "fa fa-users"
                 },
+                login: {
+                    title: "Log In",
+                    icon: "fa fa-users"
+                },
             }
         };
     }
 
     render() {
-        const { settings } = this.state;
+        const { settings, loginVisibility } = this.state;
         return (
             <div className={styles.container}>
+                {loginVisibility && (
+                    <LogIn
+                        visibility={loginVisibility}
+                        setVisibility={(v) =>
+                            this.setState({ loginVisibility: v })
+                        }
+                    />
+                )}
                 <SideBarMobile />
                 <Head />
                 {/* <div className={styles.buttonHolder}>
@@ -81,10 +95,20 @@ export default class Header extends React.Component {
                         </div>
                         <div class="dropdown-content" style={{ right: 0 }}>
                             {Object.keys(settings).map((key) => (
-                                <a href={settings[key].link}>
-                                    <i className={`${settings[key].icon} ${styles.icon}`} aria-hidden="true" />
-                                    {settings[key].title}
-                                </a>
+                                <div>
+                                    {settings[key].title !== "Log In" ? (
+                                        <a href={settings[key].link}>
+                                            <i className={`${settings[key].icon} ${styles.icon}`} aria-hidden="true" />
+                                            {settings[key].title}
+                                        </a>
+                                    ) : (
+                                        <a  onClick={() => this.setState({ loginVisibility: true })}>
+                                            <i className={`fa fa-users ${styles.icon}`} aria-hidden="true" />
+                                            Log In
+                                        </a>
+                                    )}
+
+                                </div>
                             ))}
                             {/* <a href="">
                                 <i class={`fa fa-user-o ${styles.icon}`} aria-hidden="true" />

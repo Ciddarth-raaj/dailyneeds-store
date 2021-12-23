@@ -14,10 +14,7 @@ export const Validation = Yup.object({
 	store_id: Yup.string().nullable().required("Choose Store"),
 	department_id: Yup.string().nullable().required("Choose Department"),
 	primary_contact_number: Yup.number().nullable().typeError("Must be a number").min(123456789, "Must be 9 or More").max(12345678900, "Must be 10 characters or less").required("Fill Contact Number"),
-	// alternateNo: Yup.string()
-	// 	.min(123456789, "Must be 9 or More")
-	// 	.max(12345678900, "Must be 10 characters or less")
-	// 	.required("Fill Alternate Number"),
+	alternate_contact_number:  Yup.number().nullable().typeError("Must be a number").min(123456789, "Must be 9 or More").max(12345678900, "Must be 10 characters or less").required("Fill Contact Number"),
 	// email_id: Yup.string()
 	// 	.nullable()
 	// 	.email("Invalid email")
@@ -62,6 +59,33 @@ export const DesignationValidation = Yup.object({
 	online_portal: Yup.string().nullable().required("Choose Access"),
 	login_access: Yup.string().nullable().required("Require Login Access")
 });
+// export const OpenIssueValidation = Yup.object({
+// 	store_id: Yup.string().nullable().required("Choose Store"),
+	
+// 	// designationName: Yup.string().required("Fill department Name"),
+// 	// status: Yup.string().required("Choose status"),
+// 	online_portal: Yup.string().nullable().required("Choose Access"),
+// 	login_access: Yup.string().nullable().required("Require Login Access")
+// });
+export const IssueValidation = Yup.object({
+	name: Yup.string().required("Fill Name"),
+	email: Yup.string()
+	.nullable()
+	.email("Invalid email")
+	.required("Fill Email"),
+	primary_contact_no: Yup.number().nullable()
+	.typeError("Must be a number")
+	.min(123456789, "Must be 9 or More")
+	.max(12345678900, "Must be 10 characters or less")
+	.required("Fill Contact Number"),
+	secondary_contact_no: Yup.number().nullable()
+	.typeError("Must be a number")
+	.min(123456789, "Must be 9 or More")
+	.max(12345678900, "Must be 10 characters or less")
+	.required("Fill Contact Number"),
+	address: Yup.string().required("Fill Address"),
+	description: Yup.string().required("Fill Description"),
+})
 
 export const ShiftValidation = Yup.object({
 	shift_name: Yup.string().required("Fill Shift Name"),

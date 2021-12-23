@@ -1,0 +1,66 @@
+.mainWrapper {
+    display: flex;
+    position: fixed;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.5);
+    top: 0;
+    left: 0;
+    z-index: 99;
+    justify-content: center;
+    align-items: center;
+}
+.updateButton {
+    margin-top: 50px;
+    margin-left: 5px;
+}
+.wrapper {
+    position: relative;
+    background-color: white;
+    border-radius: 3px;
+    padding: 10px;
+    width: 400px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.title {
+    text-align: center;
+    margin-bottom: 20px;
+    font-weight: bold;
+    font-size: 18px;
+}
+
+.closeButton {
+    position: absolute;
+    width: 30px;
+    height: 30px;
+    top: 10px;
+    right: 10px;
+    cursor: pointer;
+}
+.switchHolder {
+    margin-bottom: 10px;
+    margin-top: 30px;
+    display: flex;
+    justify-content: center;
+}
+.switch {
+    display: flex;
+    justify-content: flex-end;
+    align-items: flex-end;
+    margin-left: 20px;
+}
+.inputHolder {
+    /* margin-bottom: -34px; */
+    height: 78px;
+}
+@media (max-width: 480px) {
+    .closeButton {
+        width: 20px;
+        height: 20px;
+        top: 10px;
+        right: 8px;
+    }
+}

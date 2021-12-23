@@ -5,6 +5,7 @@ import styles from "./sideBar.module.css";
 
 import Head from "../../util/head";
 import MENU_LIST from "../../constants/menus";
+import { background } from "@chakra-ui/react";
 
 export default class SideBar extends React.Component {
 	constructor(props) {
@@ -13,6 +14,7 @@ export default class SideBar extends React.Component {
 			showTitle: false,
 			subOptions: "",
 			menu: MENU_LIST,
+			login: '',
 		};
 	}
 
@@ -25,9 +27,8 @@ export default class SideBar extends React.Component {
 	render() {
 		const { showTitle, menu } = this.state;
 		return (
-			<div className={styles.container} onMouseEnter={() => this.setState({ showTitle: true })} onMouseLeave={() => this.setState({ showTitle: false })}>
+			<div className={styles.container}  onMouseEnter={() => this.setState({ showTitle: true })} onMouseLeave={() => this.setState({ showTitle: false })}>
 				<Head />
-
 				<div className={styles.sideBarOptions}>
 					{Object.keys(menu).map((key) => (
 						<div style={showTitle ? { width: "100%" } : {}} className={styles.menuWrapper}>
