@@ -15,7 +15,7 @@ import Table from "../../components/table/table";
 import exportCSVFile from "../../util/exportCSVFile";
 import moment from "moment";
 
-class openIssue extends React.Component {
+class allIssue extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
