@@ -106,7 +106,7 @@ export default {
     }
   },
   indents: {
-    title: 'Indents & Transportation',
+    title: 'Indents & Transportations',
     selected: false,
     openPage: false,
     icon: 'fa-archive',
@@ -148,8 +148,8 @@ export default {
       },
     },
   },
-  maintenance: {
-    title: 'Maintenance',
+  tickets: {
+    title: 'Tickets',
     selected: false,
     openPage: false,
     icon: 'fa-archive',
@@ -159,16 +159,24 @@ export default {
         selected: false,
         location: '/open-issue'
       },
-      all_issue: {
-        title: 'All Issues',
-        selected: false,
-        location: '/all-issue'
-      },
+      // all_issue: {
+      //   title: 'All Issues',
+      //   selected: false,
+      //   location: '/all-issue'
+      // },
       add_issue: {
         title: 'Add Issues',
         selected: false,
         location: '/addissue'
       },
+    }
+  },
+  contacts: {
+    title: 'Contacts',
+    selected: false,
+    openPage: false,
+    icon: 'fa-archive',
+    subMenu: {
       service_provider: {
         title: 'Service Provider',
         selected: false,
