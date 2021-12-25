@@ -1,12 +1,13 @@
 import { Formik, Form } from "formik";
 import { Container, Flex, Button, ButtonGroup, Badge, Select, InputGroup, Input, InputLeftAddon } from "@chakra-ui/react";
-import styles from "../../styles/indent.module.css";
+import styles from "../../styles/openIssue.module.css";
 import React from "react";
 import { toast } from "react-toastify";
 import { ChevronRightIcon, ChevronLeftIcon } from "@chakra-ui/icons";
 
 import Head from "../../util/head";
 import CustomInput from "../../components/customInput/customInput";
+import Link from "next/link";
 import StoreHelper from "../../helper/store";
 import IndentHelper from "../../helper/indent";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
@@ -134,6 +135,7 @@ class openIssue extends React.Component {
                                         </p>
                                         <div className={styles.generateIndent}>
                                             <div className={styles.indentHolder}>
+                                            <div className={styles.subInputHolder}>
                                                     <CustomInput
                                                         label="Please Select Store"
                                                         values={store_data.map((m) => ({
@@ -144,9 +146,8 @@ class openIssue extends React.Component {
                                                         type="text"
                                                         method="switch"
                                                     />
-                                            </div>
-                                            <div className={styles.indentHolder}>
-                                                <div className={styles.subInputHolder}>
+                                                    </div>
+                                                      <div className={styles.subInputHolder}>
                                                 <CustomInput
 														label="Date From"
 														name="from_date"
@@ -183,9 +184,16 @@ class openIssue extends React.Component {
                                         </div>
                                     </Container>
                                     <Container className={styles.container} boxShadow="lg">
-                                        <p className={styles.buttoninputHolder}>
-                                            <div>View Details</div>
-                                        </p>
+                                    <p className={styles.buttoninputHolder} >
+                                    <div>View Details</div>
+							            	<div style={{ paddingRight: 10 }}>
+							            		<Link href="/addissue">
+							            			<Button colorScheme="purple" mr={'25px'}>
+							            				{"Add"}
+							            			</Button>
+							            		</Link>
+							            	</div>
+							            </p>
                                         <div>
                                             <Table
                                                 heading={table_title}

@@ -13,6 +13,7 @@ import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import { allIssueValidation } from "../../util/validation";
 import Table from "../../components/table/table";
 import exportCSVFile from "../../util/exportCSVFile";
+import Link from "next/link";
 import moment from "moment";
 
 class serviceProvider extends React.Component {
@@ -124,9 +125,16 @@ class serviceProvider extends React.Component {
                         <Form onSubmit={formikProps.handleSubmit}>
                                 <Flex templateColumns="repeat(3, 1fr)" flexDirection={"column"} gap={6} colSpan={2}>
                                     <Container className={styles.container} boxShadow="lg">
-                                        <p className={styles.buttoninputHolder}>
-                                        <div>Service Provider List</div>
-                                        </p>
+                                         <p className={styles.buttoninputHolder} >
+                                         <div>Service Provider List</div>
+							            	<div style={{ paddingRight: 10 }}>
+							            		<Link href="/addservice-provider">
+							            			<Button colorScheme="purple">
+							            				{"Add"}
+							            			</Button>
+							            		</Link>
+							            	</div>
+							            </p>
                                         <div>
                                             <Table
                                                 heading={table_title}

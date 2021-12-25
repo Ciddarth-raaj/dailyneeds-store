@@ -164,11 +164,11 @@ export default {
       //   selected: false,
       //   location: '/all-issue'
       // },
-      add_issue: {
-        title: 'Add Issues',
-        selected: false,
-        location: '/addissue'
-      },
+      // add_issue: {
+      //   title: 'Add Issue',
+      //   selected: false,
+      //   location: '/addissue'
+      // },
     }
   },
   contacts: {
@@ -182,11 +182,11 @@ export default {
         selected: false,
         location: '/serviceprovider-list'
       },
-      add_service_provider: {
-        title: 'Add Service Provider',
-        selected: false,
-        location: '/addservice-provider'
-      },
+      // add_service_provider: {
+      //   title: 'Add Service Provider',
+      //   selected: false,
+      //   location: '/addservice-provider'
+      // },
     }
   }
 }

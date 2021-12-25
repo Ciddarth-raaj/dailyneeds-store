@@ -377,7 +377,7 @@ class product extends React.Component {
                                                     isLoading={loading}
                                                     loadingText="Loading"
                                                     colorScheme="purple"
-                                                    onClick={() => this.setState({ new_header: true })}
+                                                    onClick={() => this.state.optionSelected !== null ?  this.setState({ new_header: true }) : ''}
                                                 >
                                                     {"Done"}
                                                 </Button>
