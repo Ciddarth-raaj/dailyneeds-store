@@ -142,7 +142,7 @@ class viewFamily extends React.Component {
                                 <p className={styles.buttoninputHolder}>
                                     <div>View Details</div>
                                     <div className={styles.dropdown}>
-                                        <input placeholder="Employee Name" onChange={(e) => this.setState({ name: e.target.value })} type="text" value={name === "" ? "" : `${name}`} onMouseEnter={() => this.setState({ hoverElement: false })}
+                                        <input style={{padding: "10px"}} placeholder="Employee Name" onChange={(e) => this.setState({ name: e.target.value })} type="text" value={name === "" ? "" : `${name}`} onMouseEnter={() => this.setState({ hoverElement: false })}
                                             className={styles.dropbtn} />
                                         <div className={styles.dropdowncontent} style={hoverElement === false ? { color: "black" } : { display: "none" }}>
                                             {employeeDet.filter(({ employee_name }) => employee_name.indexOf(name.toLowerCase()) > -1).map((m) => (
