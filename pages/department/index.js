@@ -32,7 +32,7 @@ function departmentView() {
     // );
     const onClick = (m) => {
         return (
-        <Link href={`/department/${m.id}`}>{m.value}</Link>
+            <Link href={`/department/${m.id}`}>{m.value}</Link>
         )
     };
     const [
@@ -44,26 +44,26 @@ function departmentView() {
     })
     useEffect(() => updateStatus(), [status])
     const badge = (m) => (
-        <Switch className={styles.switch} id="email-alerts" defaultChecked={m.value === 1} onChange={() => { setStatus({ status: m.value === 1 ? 0 : 1, id: m.id})}} />
+        <Switch className={styles.switch} id="email-alerts" defaultChecked={m.value === 1} onChange={() => { setStatus({ status: m.value === 1 ? 0 : 1, id: m.id }) }} />
     )
     function updateStatus() {
-        if(status.status !== '' ) {
+        if (status.status !== '') {
             DepartmentHelper.updateStatus({
                 department_id: status.id,
                 status: status.status
             })
                 .then((data) => {
-                   if(data.code === 200) {
-                       toast.success("Successfully updated Status");
-                   } else {
-                       toast.error("Not Updated")
-                   }
+                    if (data.code === 200) {
+                        toast.success("Successfully updated Status");
+                    } else {
+                        toast.error("Not Updated")
+                    }
                 })
                 .catch((err) => console.log(err));
-            } else {
-                console.log('clear');
-            }
+        } else {
+            console.log('clear');
         }
+    }
     const table_title = {
         sNo: "SNo",
         // employee_id: "Employee Id",
@@ -92,8 +92,8 @@ function departmentView() {
         {
             sNo: i + 1,
             // id: m.id,
-            name: onClick({value: m.value, id: m.id}),
-            status: badge({value: m.status, id: m.id}),
+            name: onClick({ value: m.value, id: m.id }),
+            status: badge({ value: m.status, id: m.id }),
             // action: image(m.id),
         }
     ));
@@ -124,6 +124,13 @@ function departmentView() {
             "department_details" + moment().format("DD-MMY-YYYY")
         );
     };
+    const [
+        permission,
+        setPermission
+    ] = useState({
+        permission_array: [],
+    })
+    useEffect(() => { setPermission({ permission_array: global.config.data }) }, [global.config.data])
 
     return (
         <Formik
@@ -140,13 +147,28 @@ function departmentView() {
                         <Container className={styles.container} boxShadow="lg">
                             <p className={styles.buttoninputHolder}>
                                 <div>View Department</div>
-                                <div style={{ paddingRight: 10 }}>
-                                    <Link href="/department/create">
-                                        <Button colorScheme="purple">
-                                            {"Add"}
-                                        </Button>
-                                    </Link>
-                                </div>
+                                {permission.permission_array.length > 0 ?
+                                    permission.permission_array.map((m) => (
+                                        <>
+                                            {m.permission_key === 'add_department' && (
+                                                <div style={{ paddingRight: 10 }}>
+                                                    <Link href="/department/create">
+                                                        <Button colorScheme="purple">
+                                                            {"Add"}
+                                                        </Button>
+                                                    </Link>
+                                                </div>
+                                            )}
+                                        </>
+                                    )) : (
+                                        <div style={{ paddingRight: 10 }}>
+                                            <Link href="/department/create">
+                                                <Button colorScheme="purple">
+                                                    {"Add"}
+                                                </Button>
+                                            </Link>
+                                        </div>
+                                    )}
                             </p>
                             <div>
                                 <div className={styles.personalInputHolder}>

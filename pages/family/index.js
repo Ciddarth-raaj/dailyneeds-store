@@ -18,11 +18,11 @@ class viewFamily extends React.Component {
         super(props);
         this.state = {
             employeeDet: [],
-            hoverElement: false, 
+            hoverElement: false,
             employee_name: "",
             name: '',
             details: [],
-            updatedFamily : [],
+            updatedFamily: [],
         };
     }
 
@@ -31,25 +31,21 @@ class viewFamily extends React.Component {
         this.getFamilyData();
     }
     componentDidUpdate() {
-        if(this.state.employee_name !== '') {
+        if (this.state.employee_name !== '') {
             this.getFamilyOnEmployee();
         }
         this.state.name = this.state.employee_name;
         this.state.employee_name = '';
     }
-    // const image = (m) => (
-    //     <div style={{ display: "flex", justifyContent: "center" }}>
-    //         <img src={"/assets/edit.png"} onClick={() => window.location = `/family/${m}`} className={styles.icon} />
-    //     </div>
-    // );
+
     onClick = (m) => (
         <Link href={`/family/${m.id}`}>{m.value}</Link>
     );
-     
+
     getFamilyOnEmployee() {
         const { employee_name } = this.state;
         FamilyHelper.getFamilyOnEmployee(
-        employee_name
+            employee_name
         )
             .then((data) => {
                 this.setState({ updatedFamily: data })
@@ -83,7 +79,7 @@ class viewFamily extends React.Component {
             employee_name: "Employee Name",
             relation: "Relation",
         };
-        const formattedData = []; 
+        const formattedData = [];
         valuesNew.forEach((d, i) => {
             formattedData.push({
                 SNo: i + 1,
@@ -99,7 +95,8 @@ class viewFamily extends React.Component {
         );
     };
     render() {
-        const { employeeDet, name, updatedFamily ,hoverElement, details } = this.state;
+        const { employeeDet, name, updatedFamily, hoverElement, details } = this.state;
+        let permission_array = global.config.data;
         let valuesNew = [];
         const initialValue = {
             dob_1: "",
@@ -112,86 +109,101 @@ class viewFamily extends React.Component {
             relation: "Relation",
             // action: "Action"
         };
-        if(updatedFamily.length === 0) { 
-        valuesNew = details.map((m) => ({
-            id: m.family_id,
-            name: this.onClick({value: m.name, id: m.family_id}),
-            employee_name: m.employee_name,
-            relation: this.onClick({value: m.relation, id: m.family_id}),
-            // action: image(m.family_id),
-        }));
-    } else {
-        valuesNew = updatedFamily.map((m) => ({
-            id: m.family_id,
-            name: this.onClick({value: m.name, id: m.family_id}),
-            employee_name: m.employee_name,
-            relation: this.onClick({value: m.relation, id: m.family_id}),
-        }))
-    }
+        if (updatedFamily.length === 0) {
+            valuesNew = details.map((m) => ({
+                id: m.family_id,
+                name: this.onClick({ value: m.name, id: m.family_id }),
+                employee_name: m.employee_name,
+                relation: this.onClick({ value: m.relation, id: m.family_id }),
+                // action: image(m.family_id),
+            }));
+        } else {
+            valuesNew = updatedFamily.map((m) => ({
+                id: m.family_id,
+                name: this.onClick({ value: m.name, id: m.family_id }),
+                employee_name: m.employee_name,
+                relation: this.onClick({ value: m.relation, id: m.family_id }),
+            }))
+        }
 
-    return (
-        <Formik
-            initialValues={initialValue}
-            onSubmit={(values) => {
-                console.log(values);
-            }}
-            validationSchema={Validation}
-        >
-            <Form>
-                <GlobalWrapper title="Employee Family Details">
-                    <Head />
-                    <Flex templateColumns="repeat(3, 1fr)" gap={6} colSpan={2}>
-                        <Container className={styles.container} boxShadow="lg">
-                            <p className={styles.buttoninputHolder}>
-                                <div>View Details</div>
-                                <div className={styles.dropdown}>
-                                    <input placeholder="Employee Name" onChange={(e) => this.setState({ name: e.target.value  })} type="text" value={name === "" ? "" : `${name}`} onMouseEnter={() => this.setState({hoverElement: false})} 
-                                     className={styles.dropbtn} />
-                                    <div className={styles.dropdowncontent} style={hoverElement === false ? {color: "black"} : {display: "none"}}>
-                                        {employeeDet.filter(({employee_name}) => employee_name.indexOf(name.toLowerCase()) > -1).map((m) => (
-                                        <a onClick={() => (this.setState({ employee_name: m.employee_name, hoverElement: true}))}>
-                                            <img src={m.employee_image} width="30" height="25" className={styles.dropdownImg} />{m.employee_name}<br/>{`# ${m.employee_id}`}</a>
-                                        ))}
+        return (
+            <Formik
+                initialValues={initialValue}
+                onSubmit={(values) => {
+                    console.log(values);
+                }}
+                validationSchema={Validation}
+            >
+                <Form>
+                    <GlobalWrapper title="Employee Family Details">
+                        <Head />
+                        <Flex templateColumns="repeat(3, 1fr)" gap={6} colSpan={2}>
+                            <Container className={styles.container} boxShadow="lg">
+                                <p className={styles.buttoninputHolder}>
+                                    <div>View Details</div>
+                                    <div className={styles.dropdown}>
+                                        <input placeholder="Employee Name" onChange={(e) => this.setState({ name: e.target.value })} type="text" value={name === "" ? "" : `${name}`} onMouseEnter={() => this.setState({ hoverElement: false })}
+                                            className={styles.dropbtn} />
+                                        <div className={styles.dropdowncontent} style={hoverElement === false ? { color: "black" } : { display: "none" }}>
+                                            {employeeDet.filter(({ employee_name }) => employee_name.indexOf(name.toLowerCase()) > -1).map((m) => (
+                                                <a onClick={() => (this.setState({ employee_name: m.employee_name, hoverElement: true }))}>
+                                                    <img src={m.employee_image} width="30" height="25" className={styles.dropdownImg} />{m.employee_name}<br />{`# ${m.employee_id}`}</a>
+                                            ))}
+                                        </div>
                                     </div>
-                                </div>
-                                <div style={{ paddingRight: 10 }}>
-                                    <Link href="/family/create">
-                                        <Button colorScheme="purple">
-                                            {"Add"}
-                                        </Button>
-                                    </Link>
-                                </div>
-                            </p>
-                            <div>
-                                <Table
-                                    heading={table_title}
-                                    rows={valuesNew}
-                                    sortCallback={(key, type) =>
-                                        sortCallback(key, type)
-                                    }
-                                />
-                                <ButtonGroup
-                                    style={{
-                                        display: "flex",
-                                        justifyContent: "flex-end",
-                                        paddingBottom: 15,
-                                    }}
-                                >
-                                    <Button
-                                        colorScheme="purple"
-                                        onClick={() => getExportFile()}
+                                    {permission_array.length > 0 ?
+                                        permission_array.map((m) => (
+                                            <>
+                                                {m.permission_key === 'add_family' && (
+                                                    <div style={{ paddingRight: 10 }}>
+                                                        <Link href="/family/create">
+                                                            <Button colorScheme="purple">
+                                                                {"Add"}
+                                                            </Button>
+                                                        </Link>
+                                                    </div>
+                                                )}
+                                            </>
+                                        )) : (
+                                            <div style={{ paddingRight: 10 }}>
+                                                <Link href="/family/create">
+                                                    <Button colorScheme="purple">
+                                                        {"Add"}
+                                                    </Button>
+                                                </Link>
+                                            </div>
+                                        )}
+                                </p>
+                                <div>
+                                    <Table
+                                        heading={table_title}
+                                        rows={valuesNew}
+                                        sortCallback={(key, type) =>
+                                            sortCallback(key, type)
+                                        }
+                                    />
+                                    <ButtonGroup
+                                        style={{
+                                            display: "flex",
+                                            justifyContent: "flex-end",
+                                            paddingBottom: 15,
+                                        }}
                                     >
-                                        {"Export"}
-                                    </Button>
-                                </ButtonGroup>
-                            </div>
-                        </Container>
-                    </Flex>
-                </GlobalWrapper>
-            </Form>
-        </Formik>
-    );
-}
+                                        <Button
+                                            colorScheme="purple"
+                                            onClick={() => getExportFile()}
+                                        >
+                                            {"Export"}
+                                        </Button>
+                                    </ButtonGroup>
+                                </div>
+                            </Container>
+                        </Flex>
+                    </GlobalWrapper>
+                </Form>
+            </Formik>
+        );
+    }
 }
 
 export default viewFamily;

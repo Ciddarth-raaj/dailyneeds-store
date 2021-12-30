@@ -23,6 +23,20 @@ const designation = {
 
 		return formattedData;
 	},
+	getPermissionById: (designation_id) =>
+	new Promise(function (resolve, reject) {
+		API.get("/designation/permissions?designation_id= " + designation_id)
+			.then(async (res) => {
+				if (res.status === 200) {
+				resolve(res.data);
+				} else {
+					reject(res.data.msg);
+				}
+			})
+			.catch((err) => {
+				reject(err);
+			});
+	}),
 	updateStatus: (data) =>
 	new Promise(function (resolve, reject) {
 		API.post("/designation/update-status", data)

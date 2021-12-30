@@ -91,10 +91,10 @@
 	align-items: flex-start;
 }
 
-.subMenuWrapper p::before {
+/* .subMenuWrapper p::before {
 	content: "-";
 	margin-right: 5px;
-}
+} */
 
 .subMenuWrapper p {
 	margin-bottom: 15px;

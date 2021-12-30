@@ -69,6 +69,7 @@ function Registration() {
 			.catch((err) => console.log(err));
 	}
 
+
 	function getDesignationData() {
 		DesignationHelper.getDesignation()
 			.then((data) => {
@@ -84,37 +85,37 @@ function Registration() {
 			.catch((err) => console.log(err));
 	}
 	const onClick = (m) => (
-        <Link href={`/employee/${m.id}`}>{m.value}</Link>
+		<Link href={`/employee/${m.id}`}>{m.value}</Link>
 	)
 	const [
-        status,
-        setStatus
-    ] = useState({
-        id: 0,
-        status: ''
-    })
-    useEffect(() => updateStatus(), [status])
+		status,
+		setStatus
+	] = useState({
+		id: 0,
+		status: ''
+	})
+	useEffect(() => updateStatus(), [status])
 	const badge = (m) => (
-        <Switch className={styles.switch} id="email-alerts" defaultChecked={m.value === 1} onChange={() => { setStatus({ status: m.value === 1 ? 0 : 1, id: m.id})}} />
-    )
+		<Switch className={styles.switch} id="email-alerts" defaultChecked={m.value === 1} onChange={() => { setStatus({ status: m.value === 1 ? 0 : 1, id: m.id }) }} />
+	)
 	function updateStatus() {
-		if(status.status !== '' ) {
+		if (status.status !== '') {
 			EmployeeHelper.updateStatus({
 				employee_id: status.id,
 				status: status.status
 			})
 				.then((data) => {
-				   if(data.code === 200) {
-					   toast.success("Successfully updated Status");
-				   } else {
-					   toast.error("Not Updated")
-				   }
+					if (data.code === 200) {
+						toast.success("Successfully updated Status");
+					} else {
+						toast.error("Not Updated")
+					}
 				})
 				.catch((err) => console.log(err));
-			} else {
-				console.log('clear');
-			}
+		} else {
+			console.log('clear');
 		}
+	}
 	function designationName(n) {
 		var name = "";
 		designationData.designation.map((m) => {
@@ -131,15 +132,15 @@ function Registration() {
 				storeName = m.value;
 			}
 		})
-		return  <Link href={`/employee/${n.id}`}>{storeName}</Link> ;
+		return <Link href={`/employee/${n.id}`}>{storeName}</Link>;
 	}
 	const valuesNew = data.employee.map((m) => (
 		{
 			id: m.employee_id,
-			name: onClick({value: m.employee_name, id: m.employee_id}),
+			name: onClick({ value: m.employee_name, id: m.employee_id }),
 			// store_name: storeName({value: m.store_id, id: m.employee_id}),
-			designation: designationName({value: m.designation_id, id: m.employee_id}),
-			status: badge({value: m.status, id: m.employee_id}),
+			designation: designationName({ value: m.designation_id, id: m.employee_id }),
+			status: badge({ value: m.status, id: m.employee_id }),
 			// action: image(m.employee_id),
 		}
 	));
@@ -149,32 +150,38 @@ function Registration() {
 	};
 
 	const getExportFile = () => {
-        const TABLE_HEADER = {
-            SNo: "SNo",
+		const TABLE_HEADER = {
+			SNo: "SNo",
 			id: "Employee Id",
 			name: "Name",
 			store_name: "Store Name",
 			designation: "Designation",
 			status: "Status",
-        };
-        const formattedData = [];
-        valuesNew.forEach((d, i) => {
-            formattedData.push({
-                SNo: i + 1,
-                id: d.employee_id,
-                name: d.employee_name,
-                store_name: d.store_id,
+		};
+		const formattedData = [];
+		valuesNew.forEach((d, i) => {
+			formattedData.push({
+				SNo: i + 1,
+				id: d.employee_id,
+				name: d.employee_name,
+				store_name: d.store_id,
 				designation: d.designation_id,
 				status: d.status
-            });
-        });
-        exportCSVFile(
-            TABLE_HEADER,
-            formattedData,
-            "employee_details" + moment().format("DD-MMY-YYYY")
-        );
-    };
-
+			});
+		});
+		exportCSVFile(
+			TABLE_HEADER,
+			formattedData,
+			"employee_details" + moment().format("DD-MMY-YYYY")
+		);
+	};
+	const [
+		permission,
+		setPermission
+	] = useState({
+		permission_array: [],
+	})
+	useEffect(() => { setPermission({ permission_array: global.config.data }) }, [global.config.data])
 	return (
 		<Formik
 			initialValues={initialValue}
@@ -190,30 +197,45 @@ function Registration() {
 						<Container className={styles.container} boxShadow="lg">
 							<p className={styles.buttoninputHolder} >
 								<div>Employee</div>
-								<div style={{ paddingRight: 10 }}>
-									<Link href="/employee/create">
-										<Button colorScheme="purple">
-											{"Add"}
-										</Button>
-									</Link>
-								</div>
+								{permission.permission_array.length > 0 ?
+									permission.permission_array.map((m) => (
+										<>
+											{m.permission_key === 'add_employees' && (
+												<div style={{ paddingRight: 10 }}>
+													<Link href="/employee/create">
+														<Button colorScheme="purple">
+															{"Add"}
+														</Button>
+													</Link>
+												</div>
+											)}
+										</>
+									)) : (
+										<div style={{ paddingRight: 10 }}>
+											<Link href="/employee/create">
+												<Button colorScheme="purple">
+													{"Add"}
+												</Button>
+											</Link>
+										</div>
+									)}
 							</p>
 							<div>
 								<Table heading={table_title} rows={valuesNew} sortCallback={(key, type) => sortCallback(key, type)} />
 								<ButtonGroup
-                                    style={{
-                                        display: "flex",
-                                        justifyContent: "flex-end",
-                                        paddingBottom: 15,
-                                    }}
-                                >
-                                    <Button
-                                        colorScheme="purple"
-                                        onClick={() => getExportFile()}
-                                    >
-                                        {"Export"}
-                                    </Button>
-                                </ButtonGroup>
+									style={{
+										display: "flex",
+										justifyContent: "flex-end",
+										paddingBottom: 15,
+									}}
+								>
+									<Button
+										colorScheme="purple"
+										onClick={() => getExportFile()}
+									>
+										{"Export"}
+									</Button>
+								</ButtonGroup>
 							</div>
 						</Container>
 					</Flex>

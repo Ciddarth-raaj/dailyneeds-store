@@ -79,6 +79,7 @@ class openIssue extends React.Component {
    
     render() {
         const { details, pages, splice, paginate_filter, id, selectedFile, store_data, image_url, loading } = this.state;
+        let permission_array = global.config.data;
         let valuesNew = [];
         const initialValue = {
             dob_1: "",
@@ -186,6 +187,10 @@ class openIssue extends React.Component {
                                     <Container className={styles.container} boxShadow="lg">
                                     <p className={styles.buttoninputHolder} >
                                     <div>View Details</div>
+                                    {permission_array.length > 0 ?
+                                        permission_array.map((m) => (
+                                            <>
+                                                {m.permission_key === 'add_open_issues' && (
 							            	<div style={{ paddingRight: 10 }}>
 							            		<Link href="/addissue">
 							            			<Button colorScheme="purple" mr={'25px'}>
@@ -193,6 +198,17 @@ class openIssue extends React.Component {
 							            			</Button>
 							            		</Link>
 							            	</div>
+                                              )}
+                                              </>
+                                          )) : (
+                                            <div style={{ paddingRight: 10 }}>
+                                            <Link href="/addissue">
+                                                <Button colorScheme="purple" mr={'25px'}>
+                                                    {"Add"}
+                                                </Button>
+                                            </Link>
+                                        </div>
+                                        )}
 							            </p>
                                         <div>
                                             <Table

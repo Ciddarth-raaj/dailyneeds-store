@@ -4,6 +4,7 @@ import styles from "../styles/login.module.css";
 import { toast } from "react-toastify";
 
 import { CloseIcon } from "@chakra-ui/icons";
+import LoginHelper from "../helper/login";
 import { Container, Button, Switch } from "@chakra-ui/react";
 import { Formik, Form } from "formik";
 import CustomInput from "../components/customInput/customInput";
@@ -15,28 +16,37 @@ export default class LogIn extends React.Component {
         this.state = {
             toggle: false,
             isLoading: false,
+            show: true,
+            token: ''
         };
     }
+    login(values) {
+        LoginHelper.login(values.username, values.password)
+            .then((data) => {
+                localStorage.setItem('Token', data.data.token);
+                localStorage.setItem('Store_id', data.data.store_id);
+                localStorage.setItem('Designation_id', data.data.designation_id);
+                localStorage.setItem('Employee_id', data.data.employee_id);
 
+                window.location = '/';
+            })
+            .catch((err) => console.log(err))
+    }
     render() {
         const { setVisibility } = this.props;
-        const { toggle, isLoading } = this.state;
+        const { toggle, isLoading, show, token } = this.state;
         return (
             <Formik
                 initialValues={{
-                    outlet_name: this.props.data?.outlet_name,
-                    outlet_nickname: this.props.data?.outlet_nickname,
-                    outlet_phone: this.props.data?.outlet_phone,
-                    phone: this.props.data?.phone,
-                    outlet_address: this.props.data?.outlet_address,
-                }}
-                validationSchema={BranchValidation}
+                    username: '',
+                    password: '',
+                    }}
                 onSubmit={(values) => {
-                    this.updateOutlet(values);
+                    this.login(values);
                 }}
             >
                 {(formikProps) => {
-                    const { handleSubmit } = formikProps;
+                    const { handleSubmit, values } = formikProps;
                     return (
                         <Form onSubmit={formikProps.handleSubmit}>
                             <Container className={styles.mainWrapper}>
@@ -51,43 +61,23 @@ export default class LogIn extends React.Component {
                                     />
 
                                     <h3 className={styles.title}>
-                                        Edit Branch Details
+                                        LOGIN
                                     </h3>
 
                                     <div className={styles.inputHolder}>
                                         <CustomInput
-                                            label="Brand Name"
-                                            name="outlet_name"
+                                            label="User Name"
+                                            name="username"
                                             type="text"
                                         />
                                     </div>
                                     <div className={styles.inputHolder}>
                                         <CustomInput
-                                            label="Brand Nickname"
-                                            name="outlet_nickname"
-                                            type="text"
-                                        />
-                                    </div>
-                                    <div className={styles.inputHolder}>
-                                        <CustomInput
-                                            label="Contact Number"
-                                            name="outlet_phone"
-                                            type="text"
-                                        />
-                                    </div>
-                                    <div className={styles.inputHolder}>
-                                        <CustomInput
-                                            label="Phone Numbers (Separated by ,)"
-                                            name="phone"
-                                            type="text"
-                                        />
-                                    </div>
-                                    <div className={styles.inputHolder}>
-                                        <CustomInput
-                                            label="Address"
-                                            name="outlet_address"
-                                            type="text"
-                                            method="TextArea"
+                                            label="Password"
+                                            name="password"
+                                            type={show !== true ? 'text' : 'password'}
+                                            onClick={() => this.setState({ show: !show })}
+                                            method='password'
                                         />
                                     </div>
                                     <Button
@@ -98,7 +88,7 @@ export default class LogIn extends React.Component {
                                         loadingText="Updating"
                                         onClick={() => handleSubmit()}
                                     >
-                                        Update
+                                        Login
                                     </Button>
                                 </div>
                             </Container>

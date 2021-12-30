@@ -54,12 +54,22 @@ export default class Header extends React.Component {
                     title: "Log In",
                     icon: "fa fa-users"
                 },
-            }
+            },
+            token: '',
         };
     }
 
+    componentDidMount() {
+        const token = localStorage.getItem('Token');
+        this.setState({ token: token })
+    }
+
+    logout() {
+        localStorage.clear();
+        window.location = '/';
+    }
     render() {
-        const { settings, loginVisibility } = this.state;
+        const { settings, loginVisibility, token } = this.state;
         return (
             <div className={styles.container}>
                 {loginVisibility && (
@@ -102,10 +112,20 @@ export default class Header extends React.Component {
                                             {settings[key].title}
                                         </a>
                                     ) : (
-                                        <a  onClick={() => this.setState({ loginVisibility: true })}>
-                                            <i className={`fa fa-users ${styles.icon}`} aria-hidden="true" />
-                                            Log In
-                                        </a>
+                                        <div>
+                                            {token !== null ? (
+                                                <a onClick={() => this.logout()}>
+                                                    <i className={`fa fa-users ${styles.icon}`} aria-hidden="true" />
+                                                    Log Out
+                                                </a>
+
+                                            ) : (
+                                                <a onClick={() => this.setState({ loginVisibility: true })}>
+                                                    <i className={`fa fa-users ${styles.icon}`} aria-hidden="true" />
+                                                    Log In
+                                                </a>
+                                            )}
+                                        </div>
                                     )}
 
                                 </div>

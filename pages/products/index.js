@@ -60,6 +60,7 @@ class product extends React.Component {
         this.getProductData();
         this.getProductCount();
     }
+    
     componentDidUpdate() {
         const { offsetToggle, filterOffsetToggle, name, filter_click, productToggle } = this.state;
         if (offsetToggle !== false) {
@@ -247,7 +248,7 @@ class product extends React.Component {
         let table_title = {
             // s_no: "S.No",
             product_id: "Item Id",
-            gf_item_name: "Item Name",
+            de_name: "Item Name",
             de_distrubutor: "Distributor",
             gf_manufacturer: "Manufacturer",
         }
@@ -268,22 +269,24 @@ class product extends React.Component {
             ))
         }
 
-        if (filter_details.length === 0) {
-            valuesNew = details.map((m, i) => ({
-                // s_no: i + 1,
-                product_id: m.product_id,
-                gf_item_name: onClick({ value: m.de_name, id: m.product_id }),
-                de_distrubutor: onClick({ value: m.de_distributor, id: m.product_id }),
-                gf_manufacturer: onClick({ value: m.gf_manufacturer, id: m.product_id }),
-            }));
-        } else {
-            valuesNew = filter_details.map((m, i) => ({
-                // s_no: i + 1,
-                product_id: m.product_id,
-                gf_item_name: onClick({ value: m.de_name, id: m.product_id }),
-                de_distrubutor: onClick({ value: m.de_distributor, id: m.product_id }),
-                gf_manufacturer: onClick({ value: m.gf_manufacturer, id: m.product_id }),
-            }));
+        if (new_header !== true) {
+            if (filter_details.length === 0) {
+                valuesNew = details.map((m, i) => ({
+                    // s_no: i + 1,
+                    product_id: m.product_id,
+                    de_name: onClick({ value: m.de_name, id: m.product_id }),
+                    de_distrubutor: onClick({ value: m.de_distributor, id: m.product_id }),
+                    gf_manufacturer: onClick({ value: m.gf_manufacturer, id: m.product_id }),
+                }));
+            } else {
+                valuesNew = filter_details.map((m, i) => ({
+                    // s_no: i + 1,
+                    product_id: m.product_id,
+                    de_name: onClick({ value: m.de_name, id: m.product_id }),
+                    de_distrubutor: onClick({ value: m.de_distributor, id: m.product_id }),
+                    gf_manufacturer: onClick({ value: m.gf_manufacturer, id: m.product_id }),
+                }));
+            }
         }
 
         if (new_header === true) {
@@ -377,7 +380,7 @@ class product extends React.Component {
                                                     isLoading={loading}
                                                     loadingText="Loading"
                                                     colorScheme="purple"
-                                                    onClick={() => this.state.optionSelected !== null ?  this.setState({ new_header: true }) : ''}
+                                                    onClick={() => this.state.optionSelected !== null ? this.setState({ new_header: true }) : ''}
                                                 >
                                                     {"Done"}
                                                 </Button>

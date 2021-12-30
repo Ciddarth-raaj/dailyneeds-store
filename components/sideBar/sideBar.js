@@ -5,7 +5,9 @@ import styles from "./sideBar.module.css";
 
 import Head from "../../util/head";
 import MENU_LIST from "../../constants/menus";
+import "../../constants/variables";
 import { background } from "@chakra-ui/react";
+import DesignationHelper from "../../helper/designation";
 
 export default class SideBar extends React.Component {
 	constructor(props) {
@@ -15,7 +17,35 @@ export default class SideBar extends React.Component {
 			subOptions: "",
 			menu: MENU_LIST,
 			login: '',
+			designation_id: '',
+			filtered_data: [],
 		};
+	}
+
+	componentDidMount() {
+		const designation_id = localStorage.getItem('Designation_id');
+		this.setState({ designation_id: designation_id })
+	}
+
+	componentDidUpdate() {
+		const { designation_id } = this.state;
+		if (designation_id !== null) {
+			this.getPermissions();
+			this.setState({ designation_id: null })
+		}
+	}
+
+	getPermissions() {
+		const { designation_id } = this.state;
+		DesignationHelper.getPermissionById(designation_id)
+			.then((data) => {
+				this.setState({ filtered_data: data })
+				if (data) {
+					global.config.data = data
+				};
+			})
+			.catch((err) => console.log(err))
+
 	}
 
 	handleMenuClick = (key) => {
@@ -25,9 +55,9 @@ export default class SideBar extends React.Component {
 	};
 
 	render() {
-		const { showTitle, menu } = this.state;
+		const { showTitle, menu, filtered_data, designation_id } = this.state;
 		return (
-			<div className={styles.container}  onMouseEnter={() => this.setState({ showTitle: true })} onMouseLeave={() => this.setState({ showTitle: false })}>
+			<div className={styles.container} onMouseEnter={() => this.setState({ showTitle: true })} onMouseLeave={() => this.setState({ showTitle: false })}>
 				<Head />
 				<div className={styles.sideBarOptions}>
 					{Object.keys(menu).map((key) => (
@@ -39,13 +69,36 @@ export default class SideBar extends React.Component {
 								</div>
 							</Link>
 							{showTitle && menu[key].selected && menu[key].subMenu != undefined && Object.keys(menu[key].subMenu).length > 0 && (
-								<div className={styles.subMenuWrapper}>
-									{Object.keys(menu[key].subMenu).map((sKey) => (
-										<Link href={menu[key].subMenu[sKey].location == undefined ? "" : menu[key].subMenu[sKey].location}>
-											<p>{menu[key].subMenu[sKey].title}</p>
-										</Link>
-									))}
-								</div>
+								<>
+									{filtered_data.length !== 0 ? (
+										<div className={styles.subMenuWrapper}>
+											{Object.keys(menu[key].subMenu).map((sKey) => (
+												<div>
+													{Object.keys(filtered_data).map((fkey) => (
+														<Link href={menu[key].subMenu[sKey].location == undefined ? "" : menu[key].subMenu[sKey].location}>
+															<div>
+																{filtered_data[fkey].permission_key === menu[key].subMenu[sKey].permission && (
+																	<div style={{ display: "flex", justifyContent: "center", alignItems: "center" }}>
+																		<p style={{ marginTop: "15px", marginRight: "7px" }}>-</p>
+																		<p>{menu[key].subMenu[sKey].title}</p>
+																	</div>
+																)}
+															</div>
+														</Link>
+													))}
+												</div>
+											))}
+										</div>
+									) : (
+										<div className={styles.subMenuWrapper}>
+											{Object.keys(menu[key].subMenu).map((sKey) => (
+												<Link href={menu[key].subMenu[sKey].location == undefined ? "" : menu[key].subMenu[sKey].location}>
+													<p>{menu[key].subMenu[sKey].title}</p>
+												</Link>
+											))}
+										</div>
+									)}
+								</>
 							)}
 						</div>
 					))}

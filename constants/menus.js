@@ -7,31 +7,37 @@ export default {
     subMenu: {
       dashboard: {
         title: 'Dashboard',
+        permission: 'dashboard',
         selected: false,
         location: '/'
       },
       view: {
         title: 'Employee',
+        permission: 'view_employees',
         selected: false,
         location: '/employee'
       },
       view_departments: {
         title: 'Department',
+        permission: 'view_department',
         selected: false,
         location: '/department'
       },
       view_designation: {
         title: 'Designation',
+        permission: 'view_designation',
         selected: false,
         location: '/designation'
       },
       view_shift: {
         title: 'Shift',
+        permission: 'view_shift',
         selected: false,
         location: '/shift'
       },
       view_family: {
         title: 'Family',
+        permission: 'view_family',
         selected: false,
         location: '/family'
       },
@@ -42,26 +48,31 @@ export default {
       // },
       view_documents: {
         title: 'Document',
+        permission: 'view_documents',
         selected: false,
         location: '/document'
       },
       view_withoutAdhaar: {
         title: 'Without Adhaar',
+        permission: 'view_without_adhaar',
         selected: false,
         location: '/without-adhaar'
       },
       view_bank: {
         title: 'Without Bank Details',
+        permission: 'view_banks',
         selected: false,
         location: '/bank'
       },
       view_salary: {
         title: 'Salary Advance',
+        permission: 'view_salary_advance',
         selected: false,
         location: '/salary'
       },
       view_resignation: {
         title: 'Resignation',
+        permission: 'view_resignation',
         selected: false,
         location: '/resignation'
       },
@@ -75,6 +86,7 @@ export default {
     subMenu: {
       view_products: {
         title: 'Product',
+        permission: 'view_products',
         selected: false,
         location: '/products'
       },
@@ -85,21 +97,25 @@ export default {
       // },
       view_category: {
         title: 'Category',
+        permission: 'view_category',
         selected: false,
         location: '/categories'
       },
       view_subcategory: {
         title: 'Subcategory',
+        permission: 'view_subcategory',
         selected: false,
         location: '/subcategories'
       },
       view_brands: {
         title: 'Brand',
+        permission: 'view_brands',
         selected: false,
         location: '/brands'
       },
       view_product_department: {
         title: 'Product Department',
+        permission: 'view_product_department',
         selected: false,
         location: '/product-department'
       },
@@ -113,36 +129,43 @@ export default {
     subMenu: {
       new_indent: {
         title: 'New Indent',
+        permission: 'view_indents',
         selected: false,
         location: '/indent'
       },
       indents_sent: {
         title: 'Indents Sent',
+        permission: 'sent_indents',
         selected: false,
         location: '/indent/sent'
       },
       indents_received: {
         title: 'Indents Received',
+        permission: 'received_indents',
         selected: false,
         location: '/indent/received'
       },
       create_despatch: {
         title: 'Create Despatch',
+        permission: 'add_dispatch',
         selected: false,
         location: '/indent/despatch'
       },
       accept_indents: {
         title: 'Accept Indents',
+        permission: 'accept_indents',
         selected: false,
         location: '/indent/acceptIndent'
       },
       issue_received_indent: {
         title: 'Issues In Received Indents',
+        permission: 'view_issues_received_indents',
         selected: false,
         location: '/indent/issueReceived'
       },
       issue_sent_indent: {
         title: 'Issues In Sent Indents',
+        permission: 'view_issues_sent_indents',
         selected: false,
         location: '/indent/issueSent'
       },
@@ -156,6 +179,7 @@ export default {
     subMenu: {
       open_issue: {
         title: 'Open Issues',
+        permission: 'view_open_issues',
         selected: false,
         location: '/open-issue'
       },
@@ -179,6 +203,7 @@ export default {
     subMenu: {
       service_provider: {
         title: 'Service Provider',
+        permission: 'view_service_provider',
         selected: false,
         location: '/serviceprovider-list'
       },

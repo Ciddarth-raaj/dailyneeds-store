@@ -78,6 +78,7 @@ class serviceProvider extends React.Component {
    
     render() {
         const { details, pages, splice, paginate_filter, id, selectedFile, store_data, image_url, loading } = this.state;
+        let permission_array = global.config.data;
         let valuesNew = [];
         const initialValue = {
             dob_1: "",
@@ -127,6 +128,10 @@ class serviceProvider extends React.Component {
                                     <Container className={styles.container} boxShadow="lg">
                                          <p className={styles.buttoninputHolder} >
                                          <div>Service Provider List</div>
+                                         {permission_array.length > 0 ?
+                                        permission_array.map((m) => (
+                                            <>
+                                                {m.permission_key === 'add_service_provider' && (
 							            	<div style={{ paddingRight: 10 }}>
 							            		<Link href="/addservice-provider">
 							            			<Button colorScheme="purple">
@@ -134,6 +139,17 @@ class serviceProvider extends React.Component {
 							            			</Button>
 							            		</Link>
 							            	</div>
+                                             )}
+                                             </>
+                                         )) : (
+                                            <div style={{ paddingRight: 10 }}>
+                                            <Link href="/addservice-provider">
+                                                <Button colorScheme="purple">
+                                                    {"Add"}
+                                                </Button>
+                                            </Link>
+                                        </div>
+                                         )}
 							            </p>
                                         <div>
                                             <Table

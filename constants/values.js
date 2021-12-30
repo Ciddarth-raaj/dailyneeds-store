@@ -78,10 +78,10 @@ export const DropDownOption = [
         }
     },
     {
-        value: "gf_item_name",
+        value: "de_name",
         label: "Item Name",
         final: {
-            gf_item_name: "Item Name"
+            de_name: "Item Name"
         }
     },
     {

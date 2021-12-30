@@ -26,8 +26,8 @@ export default class viewResignation extends React.Component {
         this.getResignationData();
     }
 
-  
-    
+
+
     getResignationData() {
         ResignationHelper.getResignation()
             .then((data) => {
@@ -35,7 +35,7 @@ export default class viewResignation extends React.Component {
             })
             .catch((err) => console.log(err));
     }
-    
+
     getExportFile = () => {
         const TABLE_HEADER = {
             SNo: "SNo",
@@ -62,6 +62,7 @@ export default class viewResignation extends React.Component {
 
     render() {
         const { } = this.state;
+        let permission_array = global.config.data;
         const initialValue = {
             dob_1: "",
             dob_2: "",
@@ -107,13 +108,28 @@ export default class viewResignation extends React.Component {
                                         ))}
                                     </div>
                                 </div> */}
-                                    <div style={{ paddingRight: 10 }}>
-                                        <Link href="/resignation/create">
-                                            <Button colorScheme="purple">
-                                                {"Add"}
-                                            </Button>
-                                        </Link>
-                                    </div>
+                                    {permission_array.length > 0 ?
+                                        permission_array.map((m) => (
+                                            <>
+                                                {m.permission_key === 'add_resignation' && (
+                                                    <div style={{ paddingRight: 10 }}>
+                                                        <Link href="/resignation/create">
+                                                            <Button colorScheme="purple">
+                                                                {"Add"}
+                                                            </Button>
+                                                        </Link>
+                                                    </div>
+                                                )}
+                                            </>
+                                        )) : (
+                                            <div style={{ paddingRight: 10 }}>
+                                                <Link href="/resignation/create">
+                                                    <Button colorScheme="purple">
+                                                        {"Add"}
+                                                    </Button>
+                                                </Link>
+                                            </div>
+                                        )}
                                 </p>
                                 <div style={{ paddingTop: 30 }}>
                                     <Table

@@ -122,7 +122,13 @@ function shiftView() {
             "shift_details" + moment().format("DD-MMY-YYYY")
         );
     };
-
+    const [
+        permission,
+        setPermission
+    ] = useState({
+        permission_array: [],
+    })
+    useEffect(() => { setPermission({ permission_array: global.config.data }) }, [global.config.data])
     return (
         <Formik
             initialValues={initialValue}
@@ -138,6 +144,10 @@ function shiftView() {
                         <Container className={styles.container} boxShadow="lg">
                             <p className={styles.buttoninputHolder}>
                                 <div>View Shift</div>
+                                {permission.permission_array.length > 0 ?
+                                    permission.permission_array.map((m) => (
+                                        <>
+                                            {m.permission_key === 'add_shift' && (
                                 <div style={{ paddingRight: 10 }}>
                                     <Link href="/shift/create">
                                         <Button colorScheme="purple">
@@ -145,6 +155,17 @@ function shiftView() {
                                         </Button>
                                     </Link>
                                 </div>
+                                            )}
+                                            </>
+                                    )) : (
+                                        <div style={{ paddingRight: 10 }}>
+                                        <Link href="/shift/create">
+                                            <Button colorScheme="purple">
+                                                {"Add"}
+                                            </Button>
+                                        </Link>
+                                    </div>
+                                    )}
                             </p>
                             <div>
                                 <div className={styles.personalInputHolder}>
