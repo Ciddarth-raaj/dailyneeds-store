@@ -23,12 +23,16 @@ export default class LogIn extends React.Component {
     login(values) {
         LoginHelper.login(values.username, values.password)
             .then((data) => {
-                localStorage.setItem('Token', data.data.token);
-                localStorage.setItem('Store_id', data.data.store_id);
-                localStorage.setItem('Designation_id', data.data.designation_id);
-                localStorage.setItem('Employee_id', data.data.employee_id);
-
-                window.location = '/';
+                if(data.code === 400) {
+                    toast.error(`${data.msg}`)
+                }
+                if(data.data.code === 200) {
+                    localStorage.setItem('Token', data.data.token);
+                    localStorage.setItem('Store_id', data.data.store_id);
+                    localStorage.setItem('Designation_id', data.data.designation_id);
+                    localStorage.setItem('Employee_id', data.data.employee_id);
+                    this.props.setVisibility(true)
+                }
             })
             .catch((err) => console.log(err))
     }
@@ -54,14 +58,8 @@ export default class LogIn extends React.Component {
                                     className={styles.wrapper}
                                     onClick={(e) => e.stopPropagation()}
                                 >
-                                    <CloseIcon
-                                        className={styles.closeButton}
-                                        color="red"
-                                        onClick={() => setVisibility(false)}
-                                    />
-
                                     <h3 className={styles.title}>
-                                        LOGIN
+                                        <img src={"/assets/dnds-logo.png"} />
                                     </h3>
 
                                     <div className={styles.inputHolder}>
@@ -82,7 +80,7 @@ export default class LogIn extends React.Component {
                                     </div>
                                     <Button
                                         className={styles.updateButton}
-                                        style={{width: "97%"}}
+                                        style={{width: "97%", marginBottom: "25px"}}
                                         isLoading={isLoading}
                                         colorScheme="purple"
                                         loadingText="Updating"

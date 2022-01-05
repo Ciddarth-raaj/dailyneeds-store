@@ -46,6 +46,14 @@ export const SalaryValidation = Yup.object({
 	installment_duration: Yup.string().required("Select An Installment Duration")
 })
 
+// export const PackValidation = Yup.object({
+// 	material_type: Yup.string().required("please enter Material Type"),
+// 	material_size: Yup.string().required("please enter Material Size"),
+// 	weight: Yup.string().required("please enter Weight"),
+// 	cost: Yup.string().required("please enter Cost"),
+// 	description: Yup.string().required("please enter Description")
+// })
+
 export const DepartmentValidation = Yup.object({
 	department_name: Yup.string().required("Fill department Name"),
 	// designationName: Yup.string().required("Fill department Name"),

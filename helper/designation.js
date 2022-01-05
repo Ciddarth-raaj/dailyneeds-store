@@ -23,9 +23,14 @@ const designation = {
 
 		return formattedData;
 	},
-	getPermissionById: (designation_id) =>
+	getPermissionById: () =>
 	new Promise(function (resolve, reject) {
-		API.get("/designation/permissions?designation_id= " + designation_id)
+		const Token = localStorage.getItem('Token');
+		API.get("/designation/permissions", {
+			headers: {
+				"x-access-token": Token,
+			},
+		})
 			.then(async (res) => {
 				if (res.status === 200) {
 				resolve(res.data);

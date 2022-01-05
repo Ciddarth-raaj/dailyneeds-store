@@ -46,6 +46,16 @@ export default class Header extends React.Component {
                     icon: "fa fa-product-hunt",
                     link: "/items",
                 },
+                packing_material_type: {
+                    title: "Packing Material Type",
+                    icon: "fa fa-pencil",
+                    link: "/packing-material-type",
+                },
+                packing_material_size: {
+                    title: "Packing Material Size",
+                    icon: "fa fa-pencil",
+                    link: "/packing-material-size",
+                },
                 employee: {
                     title: "Employee Role",
                     icon: "fa fa-users"
@@ -72,14 +82,14 @@ export default class Header extends React.Component {
         const { settings, loginVisibility, token } = this.state;
         return (
             <div className={styles.container}>
-                {loginVisibility && (
+                {/* {loginVisibility && (
                     <LogIn
                         visibility={loginVisibility}
                         setVisibility={(v) =>
                             this.setState({ loginVisibility: v })
                         }
                     />
-                )}
+                )} */}
                 <SideBarMobile />
                 <Head />
                 {/* <div className={styles.buttonHolder}>

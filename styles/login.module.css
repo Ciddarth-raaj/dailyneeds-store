@@ -3,7 +3,9 @@
     position: fixed;
     width: 100vw;
     height: 100vh;
-    background-color: rgba(0, 0, 0, 0.5);
+    /* background-color: rgba(0, 0, 0, 0.5); */
+    background-image: url('/assets/background.jpg');
+    object-fit:fill;
     top: 0;
     left: 0;
     z-index: 99;
@@ -16,10 +18,13 @@
 }
 .wrapper {
     position: relative;
-    background-color: white;
-    border-radius: 3px;
+    background-color: #fafafa;
+    border-radius: 16px;
+    box-shadow:  2px 5px 10px #cecece,
+                 -5px -5px 10px #e4e4e4;
+    /* border-radius: 3px; */
     padding: 10px;
-    width: 400px;
+    width: 500px;
     display: flex;
     flex-direction: column;
     justify-content: center;

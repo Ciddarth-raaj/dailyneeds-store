@@ -23,25 +23,15 @@ export default class SideBar extends React.Component {
 	}
 
 	componentDidMount() {
-		const designation_id = localStorage.getItem('Designation_id');
-		this.setState({ designation_id: designation_id })
-	}
-
-	componentDidUpdate() {
-		const { designation_id } = this.state;
-		if (designation_id !== null) {
-			this.getPermissions();
-			this.setState({ designation_id: null })
-		}
+		this.getPermissions();
 	}
 
 	getPermissions() {
-		const { designation_id } = this.state;
-		DesignationHelper.getPermissionById(designation_id)
+		DesignationHelper.getPermissionById()
 			.then((data) => {
 				this.setState({ filtered_data: data })
 				if (data) {
-					global.config.data = data
+					global.config.data = data;
 				};
 			})
 			.catch((err) => console.log(err))

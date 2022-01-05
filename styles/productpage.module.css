@@ -443,17 +443,19 @@
 .imageSubHeader {
     width: 100%;
     height: 50px;
-    font-size: 2em;
-    font-weight: 600;
     margin-top: 10px;
     margin-bottom: 40px;
     display: flex;
     /* justify-content: center; */
+	flex-direction: column;
     align-items: center;
     margin-left: 10px;
 }
 .imageSubHeader p {
 	padding-right: 30px;
+	font-size: 2em;
+    font-weight: 600;
+
 }
 .subContentHeader {
     width: 100%;

@@ -288,14 +288,22 @@ class product extends React.Component {
                 }));
             }
         }
-
+let arr1 = [];
+let arr = {};
+let temp = {};
         if (new_header === true) {
             if (filter_details.length === 0) {
-                valuesNew = details.map((m, i) => (
-                    optionSelected.map((n) => (
-                        new_table_value[i] = m[n.value]
-                    ))
-                ))
+                details.map((detail, id) => {
+                    temp = {};
+                    arr[id] = optionSelected.map(option => {
+                        temp[option.value] = onClick({
+                            value: detail[option.value],
+                            id: detail["product_id"]
+                        })
+                        return temp
+                    });
+                    arr1.push(temp);
+                });               
             } else {
                 valuesNew = filter_details.map((m, i) => (
                     optionSelected.map((n) => (
@@ -304,7 +312,9 @@ class product extends React.Component {
                 ))
             }
         }
-
+        console.log({arr1: arr1.length})
+        console.log({values1: valuesNew});
+        console.log({valuesselected: optionSelected})
         const sortCallback = (key, type) => {
             console.log(key, type);
         };
@@ -417,7 +427,7 @@ class product extends React.Component {
                                     </div>
                                     <Table
                                         heading={new_header === false ? table_title : new_table_title}
-                                        rows={valuesNew}
+                                        rows={arr1.length === 0 ? valuesNew : arr1}
                                         sortCallback={(key, type) =>
                                             sortCallback(key, type)
                                         }

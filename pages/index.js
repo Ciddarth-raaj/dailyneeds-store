@@ -4,6 +4,7 @@ import { Grid, GridItem, Box, Button } from "@chakra-ui/react";
 import { ArrowForwardIcon, WarningIcon, InfoOutlineIcon } from '@chakra-ui/icons'
 import { Calendar, momentLocalizer } from 'react-big-calendar';
 import moment from 'moment';
+import LogIn from "../pages/login";
 import { Bar, Doughnut } from 'react-chartjs-2';
 import styles from "../styles/index.module.css";
 import EmployeeHelper from "../helper/employee";
@@ -20,6 +21,9 @@ export default class CreateShift extends React.Component {
             selectedData: undefined,
             hoverElement: false,
             employeeDet: [],
+            loginVisibility: false,
+            resp: false,
+            one: false,
             store_data: [],
             store_name: '',
             store: '',
@@ -256,11 +260,19 @@ export default class CreateShift extends React.Component {
     }
 
     render() {
-        const { newjoiner, birthdays, store_data, employeeDet, hoverElement, store, store_name, resigned_employee, store_count, head_count, anniversary } = this.state;
-
+        const { newjoiner, birthdays, store_data, resp, employeeDet, loginVisibility, hoverElement, store, store_name, resigned_employee, store_count, head_count, anniversary } = this.state;
         return (
             <Formik>
                 <Form>
+                {loginVisibility !== true && (
+                    <LogIn
+                        visibility={loginVisibility}
+                        setVisibility={(v) =>
+                            this.setState({ loginVisibility: v, resp: true })
+                        }
+                    />
+                )} 
+                {loginVisibility === true && (
                     <GlobalWrapper title="DashBoard">
                         <Head />
                         <div className={styles.mainWrapper}>
@@ -372,6 +384,7 @@ export default class CreateShift extends React.Component {
                             </div>
                         </div>
                     </GlobalWrapper>
+                )}
                 </Form>
             </Formik>
         );

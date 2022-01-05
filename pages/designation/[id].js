@@ -25,6 +25,7 @@ class CreateDesignation extends React.Component {
 		super(props);
 		this.state = {
 			loading: false,
+			checkedItems: false,
 			permissions: [],
 		};
 	}
@@ -168,6 +169,7 @@ class CreateDesignation extends React.Component {
 										</div>
 										{/* <CheckboxGroup defaultValue={["dashboard"]}> */}
 										<CheckboxGroup>
+											{/* <Checkbox></Checkbox> */}
 											<Grid templateColumns="repeat(3, 1fr)" gap={6}>
 												{Object.keys(PERMISSIONS).map((key) => (
 													<Checkbox value={key} onChange={(e) => this.handleCheckbox(key, e.target.checked)}>

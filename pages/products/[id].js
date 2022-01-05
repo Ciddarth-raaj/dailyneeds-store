@@ -13,6 +13,7 @@ import styles from "../../styles/productpage.module.css";
 //Internal Dependencies
 import { PackagingType } from "../../constants/values";  
 import ProductHelper from "../../helper/product";
+import MaterialHelper from "../../helper/material";
 import ImageHelper from "../../helper/image";
 import SortableList from "../../components/sort/sortableList";
 import CustomInput from "../../components/customInput/customInput";
@@ -167,6 +168,7 @@ class ProductItems extends React.Component {
             maxFiles: 1,
             accept: "image/*",
         };
+        const { pack_material_type, pack_material_size } = this.props;
         return (
             <GlobalWrapper title="Products">
                 <Head />
@@ -203,15 +205,15 @@ class ProductItems extends React.Component {
                         cover_type: this.props.data[0]?.cover_type,
                         cover_sizes: this.props.data[0]?.cover_sizes,
                         gf_tax_id: this.props.data[0]?.gf_tax_id,
-                        return: this.props.data[0]?.return,
-                        gf_status: this.props.data[0]?.gf_status === "1" ? "true" : "false",
+                        return_prod: this.props.data[0]?.return_prod,
+                        gf_status: this.props.data[0]?.gf_status === "R" ? "Regular" : "Inactive",
                         gf_applies_online: this.props.data[0]?.gf_applies_online === "1" ? "true" : "false",
                         packaging_name: this.props.data[0]?.de_packaging_type === 
                         "ref" ? "ref" : 
                         "jar" ? "jar" : 
                         "bags" ? "bags" :
                         "tin",
-                        cover_name: this.props.data[0]?.cover_type === "1" ? "one" : "two"
+                        cover_name: this.props.data[0]?.cover_type
                     }}
                     // validationSchema={ProductItemsValidation}
                     onSubmit={(values) => {
@@ -261,61 +263,13 @@ class ProductItems extends React.Component {
                                                 }
                                             </div>
                                         </div>
-                                        {/* <div style={{ width: "30%", display: "flex", alignItems: "center", justifyContent: "center", paddingRight: 10 }}>
-                                            <Button
-                                                isLoading={loadingItems}
-                                                variant="outline"
-                                                marginRight="20px"
-                                                leftIcon={
-                                                    editableProductInfo ? (
-                                                        <i
-                                                            class="fa fa-floppy-o"
-                                                            aria-hidden="true"
-                                                        />
-                                                    ) : (
-                                                        <i
-                                                            class="fa fa-pencil"
-                                                            aria-hidden="true"
-                                                        />
-                                                    )
-                                                }
-                                                width="180px"
-                                                colorScheme="purple"
-                                                onClick={() => {
-                                                    this.setState({
-                                                        editableProductInfo: !editableProductInfo,
-                                                    });
-                                                    // handleSubmit();
-                                                }}
-                                            >
-                                                {editableProductInfo ? "Save" : "Edit"}
-                                            </Button>
-                                            {editableCustomInfo && <Button
-                                                isLoading={loadingItems}
-                                                variant="outline"
-                                                width="180px"
-                                                colorScheme="red"
-                                                onClick={() => { editableCustomInfo === true && this.setState({ editableCustomInfo: !editableCustomInfo }) }}
-                                            >
-                                                {"Cancel"}
-                                            </Button>}
-                                        </div> */}
                                     </p>
-                                    <div className={styles.imageSubHeader}>
-                                        <p>Image</p>
-                                        <div style={{ display: "flex", alignItems: "center", marginTop: "8px" }}>
-                                            <Button
-                                                variant="outline"
-                                                colorScheme="purple"
-                                                onClick={() => this.setState({ documentUploader: !documentUploader })}
-                                            >
-                                                {documentUploader === true ? "-" : "+"}
-                                            </Button>
-                                            {documentUploader === true &&
+                                    <Container>
+                                        <p style={{fontSize: "30px", fontWeight: "600"}}>Image</p>
+                                        <div>
                                                 <Dropzone id="upload" getUploadParams={this.getImageUploadParams} onChangeStatus={this.imageChangeStatus} {...dropDownProps} />
-                                            }
                                         </div>
-                                    </div>
+                                        </Container>
                                     <Container>
                                         <SortableList items={image} />
                                     </Container>
@@ -377,31 +331,11 @@ class ProductItems extends React.Component {
                                         />
                                         <div className={styles.inputHolder}>
                                             <CustomInput
-                                                label="Packaging Type"
-                                                values={PackagingType.map((m) => ({
-                                                    id: m.id,
-                                                    value: m.value
+                                                label="Packing Type"
+                                                values={pack_material_type.map((m) => ({
+                                                    id: m.material_type,
+                                                    value: m.material_type
                                                 }))}
-                                                name={editableCustomInfo || id === null ? "de_packaging_type" : "packaging_name"}
-                                                type="text"
-                                                method="switch"
-                                                editable={id !== null ? editableCustomInfo : !editableCustomInfo}
-                                            />
-                                            {/* <CustomInput label="Variant Of" editable={id !== null ? editableCustomInfo : !editableCustomInfo} name="variant_of" type="text" /> */}
-                                        </div>
-                                        <div className={styles.inputHolder}>
-                                            <CustomInput
-                                                label="Cover Type"
-                                                values={[
-                                                    {
-                                                        id: 1,
-                                                        value: "One",
-                                                    },
-                                                    {
-                                                        id: 2,
-                                                        value: "Two",
-                                                    },
-                                                ]}
                                                 editable={id !== null ? editableCustomInfo : !editableCustomInfo}
                                                 name={editableCustomInfo || id === null ? "cover_type" : "cover_name"}
                                                 type="text"
@@ -409,18 +343,12 @@ class ProductItems extends React.Component {
                                             />
                                             <CustomInput
                                                 editable={id !== null ? editableCustomInfo : !editableCustomInfo}
-                                                label="Cover Sizes"
+                                                label="Packing Sizes"
                                                 name="cover_sizes"
-                                                values={[
-                                                    {
-                                                        id: 1,
-                                                        value: "One",
-                                                    },
-                                                    {
-                                                        id: 2,
-                                                        value: "Two",
-                                                    },
-                                                ]}
+                                                values={pack_material_size.map((m) => ({
+                                                    id: m.material_size,
+                                                    value: m.material_size
+                                                }))}
                                                 type="text"
                                                 method="switch"
                                             />
@@ -463,8 +391,8 @@ class ProductItems extends React.Component {
                                     <div className={styles.inputHolder}>
                                         <div className={styles.switchHolder}>
                                             <label>Return</label>
-                                            <Switch className={styles.switch} isChecked={values.return === 1 ? true : false}
-                                                onChange={() => values.return === 1 ? setFieldValue("return", 0) : setFieldValue("return", 1)} id="email-alerts" />
+                                            <Switch className={styles.switch} isChecked={values.return_prod === 1 ? true : false}
+                                                onChange={() => values.return_prod === 1 ? setFieldValue("return_prod", 0) : setFieldValue("return_prod", 1)} id="email-alerts" />
                                         </div>
                                         <div className={styles.switchHolder}>
                                             <label>Cleaning</label>
@@ -595,6 +523,20 @@ class ProductItems extends React.Component {
                                                 method="disabled" 
                                                 />
                                         </div>
+                                        <div className={styles.inputHolder}>
+                                            <CustomInput
+                                                label="Packaging Type"
+                                                values={PackagingType.map((m) => ({
+                                                    id: m.id,
+                                                    value: m.value
+                                                }))}
+                                                name={editableCustomInfo || id === null ? "de_packaging_type" : "packaging_name"}
+                                                type="text"
+                                                method="switch"
+                                                editable={id !== null ? editableCustomInfo : !editableCustomInfo}
+                                            />
+                                            {/* <CustomInput label="Variant Of" editable={id !== null ? editableCustomInfo : !editableCustomInfo} name="variant_of" type="text" /> */}
+                                        </div>
                                 </Container>
                             </Form>
                         );
@@ -608,13 +550,17 @@ class ProductItems extends React.Component {
 export async function getServerSideProps(context) {
     var data = [];
     var image = [];
+    var pack_material_type = [];
+    var pack_material_size = [];
 	if(context.query.id !== "create") {
 	data = await ProductHelper.getProductById(context.query.id);
 	image = await ImageHelper.getImageById(context.query.id);
+    pack_material_type = await MaterialHelper.getMaterialType();
+    pack_material_size = await MaterialHelper.getMaterialSize();
     }
 	const id = context.query.id != "create" ? data[0].product_id : null;
 	return {
-		props: { data, image, id }
+		props: { data, image, pack_material_type, pack_material_size, id }
 	};
 }
 
