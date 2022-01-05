@@ -312,9 +312,6 @@ let temp = {};
                 ))
             }
         }
-        console.log({arr1: arr1.length})
-        console.log({values1: valuesNew});
-        console.log({valuesselected: optionSelected})
         const sortCallback = (key, type) => {
             console.log(key, type);
         };
