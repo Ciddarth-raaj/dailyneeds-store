@@ -13,7 +13,8 @@ import styles from "../../styles/productpage.module.css";
 //Internal Dependencies
 import { PackagingType } from "../../constants/values";  
 import ProductHelper from "../../helper/product";
-import MaterialHelper from "../../helper/material";
+import MaterialSizeHelper from "../../helper/materialsize";
+import MaterialTypeHelper from "../../helper/materialtype";
 import ImageHelper from "../../helper/image";
 import SortableList from "../../components/sort/sortableList";
 import CustomInput from "../../components/customInput/customInput";
@@ -555,8 +556,8 @@ export async function getServerSideProps(context) {
 	if(context.query.id !== "create") {
 	data = await ProductHelper.getProductById(context.query.id);
 	image = await ImageHelper.getImageById(context.query.id);
-    pack_material_type = await MaterialHelper.getMaterialType();
-    pack_material_size = await MaterialHelper.getMaterialSize();
+    pack_material_type = await MaterialTypeHelper.getMaterialType();
+    pack_material_size = await MaterialSizeHelper.getMaterialSize();
     }
 	const id = context.query.id != "create" ? data[0].product_id : null;
 	return {
