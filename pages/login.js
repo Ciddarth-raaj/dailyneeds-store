@@ -21,6 +21,7 @@ export default class LogIn extends React.Component {
         };
     }
     login(values) {
+        values.password = (values.password).toLowerCase();
         LoginHelper.login(values.username, values.password)
             .then((data) => {
                 if(data.code === 400) {
