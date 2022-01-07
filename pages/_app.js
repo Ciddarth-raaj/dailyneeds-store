@@ -8,6 +8,7 @@ import React from "react";
 import { ToastContainer } from "react-toastify";
 
 import { ChakraProvider, extendTheme } from "@chakra-ui/react";
+import router from "next/router";
 
 const Container = {
 	baseStyle: {
@@ -20,7 +21,33 @@ const theme = extendTheme({
 		Container,
 	},
 });
-
+const protectedPath = {
+	"/employee": true,
+	"/department": true,
+	"/designation": true,
+	"/shift": true,
+	"/family": true,
+	"/document": true,
+	"/without-adhaar": true,
+	"/bank": true,
+	"/salary": true,
+	"/resignation": true,
+	"/products": true,
+	"/categories": true,
+	"/subcategories": true,
+	"/brands": true,
+	"/product-department": true,
+	"/indent": true,
+	"/indent/sentIndent": true,
+	"/indent/received": true,
+	"/addissue": true,
+	"/indent/despatch": true,
+	"/indent/acceptIndent": true,
+	"/indent/issueReceived": true,
+	"/indent/issueSent": true,
+	"/open-issue": true,
+	"/serviceprovider-list": true
+};
 class MyApp extends React.Component {
 	constructor(props) {
 		super(props);
@@ -29,7 +56,38 @@ class MyApp extends React.Component {
 
 	initUser() {
 		try {
-			const designation_id = localStorage.getItem('Designation_id');
+			// const token = localStorage.getItem('Token');
+			// if(token === null) {
+			// 	window.location = '/';
+			// }
+			const token = localStorage.getItem("token");
+			const designation_id = localStorage.getItem("designation_id");
+			const store_id = localStorage.getItem("store_id");
+			const user_type = localStorage.getItem("user_type");
+			if (
+				token !== undefined ||
+				designation_id !== null ||
+				store_id !== undefined ||
+				user_type == null
+			) {
+				global.config.Token = token;
+				global.config.designation_id = designation_id;
+				global.config.store_id = store_id;
+				global.config.user_type = user_type;
+			}
+			if (
+				protectedPath[router.pathname] == true &&
+				(token == undefined || token == null)
+			) {
+				alert("please login to view");
+				window.location = '/'
+			}
+			const path = router.pathname
+			if(path !== '/' && token === null) {
+					window.location = '/';
+			}
+			console.log({router: router.pathname})
+			// const designation_id = localStorage.getItem('Designation_id');
 			if (designation_id) {
 				global.config.designation_id = designation_id;
 			}

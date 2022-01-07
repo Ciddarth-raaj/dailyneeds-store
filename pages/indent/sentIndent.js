@@ -1,13 +1,12 @@
 import { Formik, Form } from "formik";
 import { Container, Flex, Button, ButtonGroup, Checkbox, Badge, Select, InputGroup, Input, InputLeftAddon } from "@chakra-ui/react";
-import styles from "../../styles/createdespatch.module.css";
+import styles from "../../styles/acceptindent.module.css";
 import React from "react";
 import { toast } from "react-toastify";
 import { ChevronRightIcon, ChevronLeftIcon } from "@chakra-ui/icons";
 
 import Head from "../../util/head";
 import CustomInput from "../../components/customInput/customInput";
-import VehicleHelper from "../../helper/vehicle";
 import StoreHelper from "../../helper/store";
 import IndentHelper from "../../helper/indent";
 import DespatchHelper from "../../helper/despatch";
@@ -17,7 +16,7 @@ import Table from "../../components/table/table";
 import exportCSVFile from "../../util/exportCSVFile";
 import moment from "moment";
 
-class viewDespatch extends React.Component {
+class sentIndent extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
@@ -28,22 +27,20 @@ class viewDespatch extends React.Component {
             pages: [],
             store_data: [],
             image_url: '',
-            vehicle_details: [],
             id: '',
             checkbox: [],
             selectedFile: null,
             category_id: '',
             limit: 10,
+            delivery_status: 5,
             splice: [0, 10],
             offsetToggle: false,
-            delivery_status: 0,
             offset: 0,
         };
     }
 
     componentDidMount() {
         this.getStore();
-        this.getVehicle();
         this.getDespatchIndent();
         this.getIndentCount();
     }
@@ -84,7 +81,7 @@ class viewDespatch extends React.Component {
                 crates: d.crates,
                 taken_by: d.taken_by,
                 checked_by: d.checked_by,
-                status: d.delivery_status
+                status: 'delivered'
             });
         });
         exportCSVFile(
@@ -112,13 +109,6 @@ class viewDespatch extends React.Component {
             })
             .catch((err) => console.log(err))
     }
-    getVehicle() {
-        VehicleHelper.getVehicle()
-            .then((data) => {
-                this.setState({ vehicle_details: data })
-            })
-            .catch((err) => console.log(err))
-    }
     getDespatchIndent() {
         const { offset, limit, delivery_status } = this.state;
         IndentHelper.getDespatchIndent(offset, limit, delivery_status)
@@ -133,38 +123,14 @@ class viewDespatch extends React.Component {
             limit: e.target.value
         })
     }
-    createDespatch = async (values) => {
-        const { checkbox } = this.state;
-        values.indent_id =  `${checkbox}`;
-        DespatchHelper.createDespatch(values)
-            .then((data) => {
-            if (data === 200) {
-                toast.success("Successfully Added Despatch");
-                this.getDespatchIndent();
-            } else {
-                toast.error("Error Adding Account");
-                throw `${data.msg}`;
-            }
-        })
-        .catch((err) => console.log(err))
-        .finally(() => this.setState({ loading: false }));
-    }
-   badge = (m) => <Checkbox onChange={() => { 
-        for(let i = 0; i <= this.state.checkbox.length; i++) {
-            if(this.state.checkbox[i] === m.id) {
-                this.state.checkbox.splice(this.state.checkbox.indexOf(this.state.checkbox[i]),1);
-                break;
-            }
-            if(this.state.checkbox[i] !== m.id) {
-            this.state.checkbox.push(m.id);
-            break;
-            }
-        }
-    }} 
-    />
-
+    action = (m) => (
+        <div>
+        <Button mb={'15px'} colorScheme="purple" w={'100%'}  onClick={() => this.acceptIndent()}>Accept</Button>
+        <Button  colorScheme="red" w={'100%'}  onClick={() => this.acceptIndent()}>Issue</Button>
+        </div>
+    )
     render() {
-        const { details, pages, splice, paginate_filter, checkbox, id, vehicle_details,selectedFile, store_data, image_url, loading } = this.state;
+        const { details, pages, splice, paginate_filter, checkbox, id, selectedFile, store_data, image_url, loading } = this.state;
         console.log({ details: checkbox })
         for(let i = 0; i < checkbox.length; i++) {
         console.log({ details2: i })
@@ -185,8 +151,7 @@ class viewDespatch extends React.Component {
             crates: "Crates",
             taken_by: "Taken By",
             checked_by: "Checked By",
-            status: "Delivery Status",
-            addespatch: "Add To Despatch"
+            delivery_status: "delivery Status"
         };
         valuesNew = details.map((m, i) => ({
             sno: i + 1,
@@ -198,21 +163,17 @@ class viewDespatch extends React.Component {
             crates: m.crates,
             taken_by: m.taken_by,
             checked_by: m.checked_by,
-            status: m.delivery_status,
-            addespatch: this.badge({ id: m.indent_id }),
+            delivery_status: 'Delivered'
         }));
 
 
         return (
-            <GlobalWrapper title="Create Despatch">
+            <GlobalWrapper title="Sent Indents">
             <Head />
             <Formik
                 initialValues={{
                     store_id: '',
-                    store_to: '',
-                    vehicle: '',
-                    driver: '',
-                    indent_id: ''
+                    despatch: ''
                 }}
                 onSubmit={(values) => {
                     this.createDespatch(values);
@@ -224,85 +185,9 @@ class viewDespatch extends React.Component {
                     return (
                         <Form onSubmit={formikProps.handleSubmit}>
                                 <Flex templateColumns="repeat(3, 1fr)" flexDirection={"column"} gap={6} colSpan={2}>
-                                    <Container className={styles.container} mb={5} boxShadow="lg">
-                                        <p className={styles.buttoninputHolder}>
-                                            <div>Vehicle {'&'} Driver Details</div>
-                                        </p>
-                                        <div className={styles.generateIndent}>
-                                            <div className={styles.indentHolder}>
-                                                <div className={styles.subInputHolder}>
-                                                    <CustomInput
-                                                        label="From Store"
-                                                        values={store_data.map((m) => ({
-                                                            id: m.id,
-                                                            value: m.value
-                                                        }))}
-                                                        name="store_id"
-                                                        type="text"
-                                                        method="switch"
-                                                    />
-                                                </div>
-                                                <div className={styles.subInputHolder}>
-                                                <CustomInput
-                                                        label="To Store"
-                                                        values={store_data.map((m) => ({
-                                                            id: m.id,
-                                                            value: m.value
-                                                        }))}
-                                                        name="store_to"
-                                                        type="text"
-                                                        method="switch"
-                                                    />
-                                                </div>
-                                            </div>
-                                            <div className={styles.indentHolder}>
-                                                <div className={styles.subInputHolder}>
-                                                <CustomInput
-                                                        label="Vehicle"
-                                                        values={vehicle_details.map((m) => ({
-                                                            id: m.vehicle_number,
-                                                            value: `${m.vehicle_number} / ${m.engine_number} / ${m.chasis_number} `
-                                                        }))}
-                                                        name="vehicle"
-                                                        type="text"
-                                                        method="switch"
-                                                    />
-                                                </div>
-                                                <div className={styles.subInputHolder}>
-                                                <CustomInput
-                                                        label="Driver"
-                                                        values={store_data.map((m) => ({
-                                                            id: m.value,
-                                                            value: m.value
-                                                        }))}
-                                                        name="driver"
-                                                        type="text"
-                                                        method="switch"
-                                                    />
-                                                </div>
-                                            </div>
-                                            <div className={styles.indentButtonHolder}>
-                                                <Button
-                                                    variant="outline"
-                                                    colorScheme="purple"
-                                                    onClick={() => { handleSubmit() }}
-                                                >
-                                                    {"Add To Despatch"}
-                                                </Button>
-                                                <Button
-                                                    ml={"2%"}
-                                                    variant="outline"
-                                                    colorScheme="red"
-                                                    onClick={() => resetForm()}
-                                                >
-                                                    {"Reset"}
-                                                </Button>
-                                            </div>
-                                        </div>
-                                    </Container>
                                     <Container className={styles.container} boxShadow="lg">
                                         <p className={styles.buttoninputHolder}>
-                                            <div>View Details</div>
+                                            <div>Sent Indents</div>
                                         </p>
                                         <div>
                                             <Table
@@ -407,4 +292,4 @@ class viewDespatch extends React.Component {
     }
 }
 
-export default viewDespatch;
+export default sentIndent;

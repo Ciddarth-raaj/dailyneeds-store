@@ -30,8 +30,11 @@ class acceptIndent extends React.Component {
             id: '',
             checkbox: [],
             selectedFile: null,
+            despatch_details: [],
+            store_id: null,
             category_id: '',
             limit: 10,
+            delivery_status: 1,
             splice: [0, 10],
             offsetToggle: false,
             offset: 0,
@@ -41,6 +44,7 @@ class acceptIndent extends React.Component {
     componentDidMount() {
         this.getStore();
         this.getDespatchIndent();
+        this.getDespatch();
         this.getIndentCount();
     }
     componentDidUpdate() {
@@ -109,10 +113,17 @@ class acceptIndent extends React.Component {
             .catch((err) => console.log(err))
     }
     getDespatchIndent() {
-        const { offset, limit } = this.state;
-        IndentHelper.getDespatchIndent(offset, limit)
+        const { offset, limit, delivery_status } = this.state;
+        IndentHelper.getDespatchIndent(offset, limit, delivery_status)
             .then((data) => {
                 this.setState({ details: data })
+            })
+            .catch((err) => console.log(err))
+    }
+    getDespatch() {
+        DespatchHelper.getDespatch()
+            .then((data) => {
+                this.setState({ despatch_details: data })
             })
             .catch((err) => console.log(err))
     }
@@ -153,17 +164,14 @@ class acceptIndent extends React.Component {
     }} 
     />
     action = (m) => (
-        <div>
-        <Button mb={'15px'} colorScheme="purple" w={'100%'}  onClick={() => this.acceptIndent()}>Accept</Button>
-        <Button  colorScheme="red" w={'100%'}  onClick={() => this.acceptIndent()}>Issue</Button>
+        <div style={{display: 'flex', flexDirection: 'column', justifyContent: 'space-between', height: "200px"}}>
+        <Button colorScheme="purple" w={'100%'}  onClick={() => this.acceptIndent()}>Accept</Button>
+        <Button  colorScheme="red" w={'100%'}  onClick={() => this.issueIndent()}>Sent Issue</Button>
+        <Button  colorScheme="red" w={'100%'} style={{paddingTop: '30px', paddingBottom: "30px"}} onClick={() => this.issueIndent()}>Received <br/> Issue</Button>
         </div>
     )
     render() {
-        const { details, pages, splice, paginate_filter, checkbox, id, selectedFile, store_data, image_url, loading } = this.state;
-        console.log({ details: checkbox })
-        for(let i = 0; i < checkbox.length; i++) {
-        console.log({ details2: i })
-        }
+        const { details, pages, splice, paginate_filter, despatch_details, store_data } = this.state;
         let valuesNew = [];
         const initialValue = {
             dob_1: "",
@@ -201,11 +209,10 @@ class acceptIndent extends React.Component {
             <Head />
             <Formik
                 initialValues={{
-                    store_id: '',
-                    despatch: ''
+                    despatch_id: ''
                 }}
                 onSubmit={(values) => {
-                    this.createDespatch(values);
+                    this.getIndentByDespatch(values);
                 }}
                 // validationSchema={Validation}
             >
@@ -216,7 +223,7 @@ class acceptIndent extends React.Component {
                                 <Flex templateColumns="repeat(3, 1fr)" flexDirection={"column"} gap={6} colSpan={2}>
                                     <Container className={styles.container} mb={5} boxShadow="lg">
                                         <p className={styles.buttoninputHolder}>
-                                            <div>Vehicle {'&'} Despatch Details</div>
+                                            <div>Accept Indent</div>
                                         </p>
                                         <div className={styles.generateIndent}>
                                             <div className={styles.indentHolder}>
@@ -235,15 +242,32 @@ class acceptIndent extends React.Component {
                                                 <div className={styles.subInputHolder}>
                                                 <CustomInput
                                                         label="Despatch Details"
-                                                        values={store_data.map((m) => ({
-                                                            id: m.id,
-                                                            value: m.value
+                                                        values={despatch_details.map((m) => ({
+                                                            id: m.despatch_id,
+                                                            value: ` ${m.despatch_id} / ${m.driver} /  ${m.vehicle} ` 
                                                         }))}
-                                                        name="despatch"
+                                                        name="despatch_id"
                                                         type="text"
                                                         method="switch"
                                                     />
                                                 </div>
+                                            </div>
+                                            <div className={styles.indentButtonHolder}>
+                                                <Button
+                                                    variant="outline"
+                                                    colorScheme="purple"
+                                                    onClick={() => { handleSubmit() }}
+                                                >
+                                                    {"Get Details"}
+                                                </Button>
+                                                <Button
+                                                    ml={"2%"}
+                                                    variant="outline"
+                                                    colorScheme="red"
+                                                    onClick={() => resetForm()}
+                                                >
+                                                    {"Reset"}
+                                                </Button>
                                             </div>
                                         </div>
                                     </Container>

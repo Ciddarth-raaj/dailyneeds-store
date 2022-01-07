@@ -137,7 +137,7 @@ export default {
         title: 'Indents Sent',
         permission: 'sent_indents',
         selected: false,
-        location: '/indent/sent'
+        location: '/indent/sentIndent'
       },
       indents_received: {
         title: 'Indents Received',

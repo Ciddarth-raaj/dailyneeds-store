@@ -11,9 +11,9 @@ const indent = {
 					reject(err);
 				});
 		}),
-		getDespatchIndent: (offset, limit) =>
+		getDespatchIndent: (offset, limit, delivery_status) =>
 		new Promise(function (resolve, reject) {
-			API.get(`/indent/despatch?offset=${offset}&limit=${limit}`)
+			API.get(`/indent/despatch?offset=${offset}&limit=${limit}&delivery_status=${delivery_status}`)
 				.then(async (res) => {
 					resolve(res.data);
 				})
