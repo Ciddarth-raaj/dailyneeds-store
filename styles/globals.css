@@ -186,6 +186,10 @@ a {
   color: var(--primaryColor);
 }
 
+form input[type='text'] {
+  text-transform: lowercase;
+}
+
 .dropdown:hover .dropdown-content {
   display: flex;
   flex-direction: column;
