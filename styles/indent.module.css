@@ -25,6 +25,11 @@
     color: 'green';
 }
 
+.infoLabel {
+	color: var(--chakra-colors-purple-500);
+	font-size: 14px;
+}
+
 .dropbtn {
 	border: 1px solid lightgray;
 	color: black;
@@ -194,6 +199,14 @@
 }
 .switch {
 	margin-left: 40px;
+}
+.personalInputStore {
+	display: flex;
+	flex-direction: column;
+	height: 90px;
+	margin-bottom: 20px;
+	position: relative;
+	padding: 0px 10px;
 }
 .personalInputs {
 	display: flex;

@@ -1,5 +1,5 @@
 import { Formik, Form } from "formik";
-import { Container, Flex, Button, ButtonGroup, Checkbox, Badge, Select, InputGroup, Input, InputLeftAddon } from "@chakra-ui/react";
+import { Container, Flex, Button, ButtonGroup, Stack, Radio, RadioGroup , Checkbox, Badge, Select, InputGroup, Input, InputLeftAddon } from "@chakra-ui/react";
 import styles from "../../styles/createdespatch.module.css";
 import React from "react";
 import { toast } from "react-toastify";
@@ -30,7 +30,10 @@ class viewDespatch extends React.Component {
             image_url: '',
             vehicle_details: [],
             id: '',
+            remove_value: false,
             checkbox: [],
+            store_name: '',
+            user_type: null,
             selectedFile: null,
             category_id: '',
             limit: 10,
@@ -42,6 +45,13 @@ class viewDespatch extends React.Component {
     }
 
     componentDidMount() {
+        const store = global.config.store_id;
+        const usertype = global.config.user_type;
+        this.setState({store_id: store.store_id});
+        this.setState({user_type: usertype});
+        if(store !== null) {
+            this.getStoreById(store);
+        }
         this.getStore();
         this.getVehicle();
         this.getDespatchIndent();
@@ -105,6 +115,13 @@ class viewDespatch extends React.Component {
                 this.setState({ pages: tempArray })
             })
     }
+    getStoreById(store_id) {
+        StoreHelper.getStoreById(store_id)
+        .then((data) => {
+            this.setState({ store_name: data })
+        })
+        .catch((err) => console.log(err))
+    }
     getStore() {
         StoreHelper.getStore()
             .then((data) => {
@@ -134,8 +151,11 @@ class viewDespatch extends React.Component {
         })
     }
     createDespatch = async (values) => {
-        const { checkbox } = this.state;
-        values.indent_id =  `${checkbox}`;
+        const { checkbox, store_name } = this.state;
+        values.indent_id = `${checkbox}`;
+        if(values.store_id === '') {
+        values.store_id = `${store_name[0].store_id}`;
+        }
         DespatchHelper.createDespatch(values)
             .then((data) => {
             if (data === 200) {
@@ -149,23 +169,25 @@ class viewDespatch extends React.Component {
         .catch((err) => console.log(err))
         .finally(() => this.setState({ loading: false }));
     }
-   badge = (m) => <Checkbox onChange={() => { 
-        for(let i = 0; i <= this.state.checkbox.length; i++) {
+   badge = (m) => 
+   <Checkbox onChange={() => {
+    let one = false;
+    for(let i = 0; i <= this.state.checkbox.length; i++) {
             if(this.state.checkbox[i] === m.id) {
                 this.state.checkbox.splice(this.state.checkbox.indexOf(this.state.checkbox[i]),1);
-                break;
+                one = true;
             }
-            if(this.state.checkbox[i] !== m.id) {
-            this.state.checkbox.push(m.id);
-            break;
-            }
+    
         }
-    }} 
+        if(one === false) {
+        this.state.checkbox.push(m.id);
+        }
+        one = false;
+    }}
     />
 
     render() {
-        const { details, pages, splice, paginate_filter, checkbox, id, vehicle_details,selectedFile, store_data, image_url, loading } = this.state;
-        console.log({ details: checkbox })
+        const { details, pages, splice, paginate_filter, checkbox, id, vehicle_details, store_name, selectedFile, store_data, image_url, loading } = this.state;
         for(let i = 0; i < checkbox.length; i++) {
         console.log({ details2: i })
         }
@@ -231,6 +253,7 @@ class viewDespatch extends React.Component {
                                         <div className={styles.generateIndent}>
                                             <div className={styles.indentHolder}>
                                                 <div className={styles.subInputHolder}>
+                                                {store_name.length === 0 && (
                                                     <CustomInput
                                                         label="From Store"
                                                         values={store_data.map((m) => ({
@@ -241,6 +264,22 @@ class viewDespatch extends React.Component {
                                                         type="text"
                                                         method="switch"
                                                     />
+                                                    )}
+                                                      {store_name.length !== 0 && (
+                                                    <>
+                                                    <div className={styles.personalInputStore}>
+                                                    <label
+                                                      htmlFor={"From Store"}
+                                                      className={styles.infoLabel}
+                                                    >From Store</label>
+                                                    <Input
+                                                        value={store_name[0].store_name} 
+                                                        isDisabled={true}
+                                                        isReadOnly={true}
+                                                    />
+                                                    </div>
+                                                    </>
+                                                    )}
                                                 </div>
                                                 <div className={styles.subInputHolder}>
                                                 <CustomInput

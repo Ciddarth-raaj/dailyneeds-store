@@ -90,6 +90,13 @@ class sentIndent extends React.Component {
             "indent_details" + moment().format("DD-MMY-YYYY")
         );
     };
+    getStoreById(store_id) {
+        StoreHelper.getStoreById(store_id)
+        .then((data) => {
+            this.setState({ store_name: data[0].store_name })
+        })
+        .catch((err) => console.log(err))
+    }
     getIndentCount() {
         const tempArray = []
         var count = 1;
@@ -131,10 +138,10 @@ class sentIndent extends React.Component {
     )
     render() {
         const { details, pages, splice, paginate_filter, checkbox, id, selectedFile, store_data, image_url, loading } = this.state;
-        console.log({ details: checkbox })
-        for(let i = 0; i < checkbox.length; i++) {
-        console.log({ details2: i })
-        }
+        // console.log({ details: checkbox })
+        // for(let i = 0; i < checkbox.length; i++) {
+        // console.log({ details2: i })
+        // }
         let valuesNew = [];
         const initialValue = {
             dob_1: "",

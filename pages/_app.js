@@ -57,11 +57,10 @@ class MyApp extends React.Component {
 
   initUser () {
     try {
-      const token = localStorage.getItem('token')
-      const designation_id = localStorage.getItem('designation_id')
-      const store_id = localStorage.getItem('store_id')
-      const user_type = localStorage.getItem('user_type')
-
+      const token = localStorage.getItem('Token')
+      const designation_id = localStorage.getItem('Designation_id')
+      const store_id = localStorage.getItem('Store_id')
+      const user_type = localStorage.getItem('User_type')
       console.log('Location : ', router.pathname)
 
       if (

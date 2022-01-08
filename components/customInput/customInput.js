@@ -1,5 +1,7 @@
 import React, { Fragment, forwardRef } from 'react'
 import { ErrorMessage, useField, useFormikContext } from 'formik'
+import "react-datetime/css/react-datetime.css";
+
 import {
   Input,
   Textarea,
@@ -11,10 +13,13 @@ import {
   NumberInput,
   NumberInputField
 } from '@chakra-ui/react'
-import DatePicker from 'react-datepicker'
+import { useState } from 'react';
+import DatePicker from 'react-datepicker';
+import Datetime from 'react-datetime';
 import Timekeeper from 'react-timekeeper'
 import styles from './customInput.module.css'
 import moment from 'moment'
+import { range } from 'react-big-calendar/lib/utils/dates';
 
 const CustomDateTimeInput = forwardRef(({ value, onClick, onChange }, ref) => (
   <Input
@@ -40,6 +45,29 @@ const TextField = ({
 }) => {
   const { setFieldValue } = useFormikContext()
   const [field, meta] = useField(props)
+  const [startDate, setStartDate] = useState(new Date());
+  let start = 1990;
+  let end = new Date().getFullYear();
+  let arr = [];
+  for(let i = start; i<=end; i++) {
+    arr.push(i);
+  }
+
+  const years = arr;
+  const months = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+  ];
   return (
     <div className={styles.personalInputs} style={containerStyle}>
       <label
@@ -133,10 +161,58 @@ const TextField = ({
                 {...field}
                 {...props}
                 selected={(field.value && new Date(field.value)) || null}
+                customInput={<CustomDateTimeInput />}
+                renderCustomHeader={({
+                  val,
+                  changeYear,
+                  changeMonth,
+                  decreaseMonth,
+                  increaseMonth,
+                  prevMonthButtonDisabled,
+                  nextMonthButtonDisabled,
+                }) => (
+                  <div
+                    style={{
+                      margin: 10,
+                      display: "flex",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <button onClick={decreaseMonth} disabled={prevMonthButtonDisabled}>
+                      {"<"}
+                    </button>
+                    <select
+                      value={val}
+                      onChange={({ target: { value } }) => changeYear(value)}
+                    >
+                      {years.map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
+          
+                    <select
+                      value={months[moment(val).month()]}
+                      onChange={({ target: { value } }) =>
+                        changeMonth(months.indexOf(value))
+                      }
+                    >
+                      {months.map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
+          
+                    <button onClick={increaseMonth} disabled={nextMonthButtonDisabled}>
+                      {">"}
+                    </button>
+                  </div>
+                )}
                 onChange={val => {
                   setFieldValue(field.name, val)
                 }}
-                customInput={<CustomDateTimeInput />}
               />
               {selected === '' && (
                 <ErrorMessage
@@ -145,6 +221,7 @@ const TextField = ({
                   className={styles.errorMessage}
                 />
               )}
+              
             </>
           )}
           {method === 'password' && (
@@ -170,7 +247,14 @@ const TextField = ({
             </InputGroup>
           )}
           {method === undefined && (
-            <Input {...field} {...props} autoComplete='off' />
+            <Input {...field} {...props} a autoComplete='off' />
+          )}
+          {method === 'singlevalue' && (
+              <Input 
+                value={props.selected}
+                isDisabled={true}
+                isReadOnly={true}
+              />
           )}
         </>
       )}

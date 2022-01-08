@@ -28,15 +28,23 @@ class viewIndent extends React.Component {
             image_url: '',
             id: '',
             selectedFile: null,
+            store_name: '',
             category_id: '',
             limit: 10,
             splice: [0, 10],
             offsetToggle: false,
+            store_id: null,
             offset: 0,
+            user_type: null,
         };
     }
 
     componentDidMount() {
+        const store = global.config.store_id;
+        this.setState({store_id: store.store_id});
+        if(store !== null) {
+            this.getStoreById(store);
+        }
         this.getStore();
         this.getIndent();
         this.getIndentCount();
@@ -87,6 +95,13 @@ class viewIndent extends React.Component {
             "indent_details" + moment().format("DD-MMY-YYYY")
         );
     };
+    getStoreById(store_id) {
+        StoreHelper.getStoreById(store_id)
+        .then((data) => {
+            this.setState({ store_name: data})
+        })
+        .catch((err) => console.log(err))
+    }
     getIndentCount() {
         const tempArray = []
         var count = 1;
@@ -121,6 +136,10 @@ class viewIndent extends React.Component {
         })
     }
     createIndent = async (values) => {
+        const { store_name } = this.state;
+        if(store_name === "") {
+            values.store_id = `${store_name[0].store_id}`
+        }
         IndentHelper.createIndent(values)
             .then((data) => {
             if (data === 200) {
@@ -135,8 +154,7 @@ class viewIndent extends React.Component {
         .finally(() => this.setState({ loading: false }));
     }
     render() {
-        const { details, pages, splice, paginate_filter, id, selectedFile, store_data, image_url, loading } = this.state;
-        console.log({ details: details })
+        const { details, pages, splice, paginate_filter, store_name, store_data } = this.state;
         let valuesNew = [];
         const initialValue = {
             dob_1: "",
@@ -165,7 +183,7 @@ class viewIndent extends React.Component {
             crates: m.crates,
             taken_by: m.taken_by,
             checked_by: m.checked_by,
-            status: m.delivery_status
+            status: m.delivery_status === 0 ? 'New Indent' : m.delivery_status === 1 ? 'Despatch Created' : m.delivery_status === 2 ? "Accepted Indent" : ''
         }));
 
 
@@ -188,8 +206,9 @@ class viewIndent extends React.Component {
                 }}
                 // validationSchema={Validation}
             >
+                
                 {(formikProps) => {
-                    const { handleSubmit, resetForm } = formikProps;
+                    const { handleSubmit, resetForm, values } = formikProps;
                     return (
                         <Form onSubmit={formikProps.handleSubmit}>
                                 <Flex templateColumns="repeat(3, 1fr)" flexDirection={"column"} gap={6} colSpan={2}>
@@ -200,6 +219,7 @@ class viewIndent extends React.Component {
                                         <div className={styles.generateIndent}>
                                             <div className={styles.indentHolder}>
                                                 <div className={styles.subInputHolder}>
+                                                    {store_name.length === 0 && (
                                                     <CustomInput
                                                         label="From Store"
                                                         values={store_data.map((m) => ({
@@ -210,12 +230,28 @@ class viewIndent extends React.Component {
                                                         type="text"
                                                         method="switch"
                                                     />
+                                                    )}
+                                                    {store_name.length !== 0 && (
+                                                    <>
+                                                    <div className={styles.personalInputStore}>
+                                                    <label
+                                                      htmlFor={"From Store"}
+                                                      className={styles.infoLabel}
+                                                    >From Store</label>
+                                                    <Input
+                                                        value={store_name[0].store_name} 
+                                                        isDisabled={true}
+                                                        isReadOnly={true}
+                                                    />
+                                                    </div>
+                                                    </>
+                                                    )}
                                                 </div>
                                                 <div className={styles.subInputHolder}>
                                                 <CustomInput
                                                         label="To Store"
                                                         values={store_data.map((m) => ({
-                                                            id: m.id,
+                                                            id:  m.id,
                                                             value: m.value
                                                         }))}
                                                         name="store_to"

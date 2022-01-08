@@ -30,30 +30,43 @@ class acceptIndent extends React.Component {
             id: '',
             checkbox: [],
             selectedFile: null,
+            store_trigger: false,
             despatch_details: [],
+            store_name: '',
+            final_data: [],
             store_id: null,
+            store_number: '',
             category_id: '',
             limit: 10,
             delivery_status: 1,
             splice: [0, 10],
             offsetToggle: false,
             offset: 0,
+            user_type: null,
         };
     }
 
     componentDidMount() {
+        const store = global.config.store_id;
+        this.setState({store_id: store.store_id !== null ? store.store_id : ''});
+        if(store !== null) {
+            this.getStoreById(store);
+        }
         this.getStore();
         this.getDespatchIndent();
         this.getDespatch();
         this.getIndentCount();
     }
     componentDidUpdate() {
-        const { offsetToggle, indentToggle } = this.state;
+        const { offsetToggle, indentToggle, store_trigger } = this.state;
         if (offsetToggle !== false) {
             this.getIndent();
             this.setState({ offsetToggle: false })
         }
-
+        if(store_trigger === true) {
+            this.getDespatchByStoreId();
+            this.setState({store_trigger: false})
+        }
         if (indentToggle === true) {
             this.getIndent()
             this.setState({ indentToggle: false })
@@ -93,6 +106,22 @@ class acceptIndent extends React.Component {
             "indent_details" + moment().format("DD-MMY-YYYY")
         );
     };
+    getDespatchByStoreId() {
+        const { store_number } = this.state;
+        const store_id = store_number;
+        DespatchHelper.getDespatchByStoreId(store_id)
+        .then((data) => {
+            this.setState({ despatch_details: data })
+        })
+        .catch((err) => console.log(err))
+    }
+    getStoreById(store_id) {
+        StoreHelper.getStoreById(store_id)
+        .then((data) => {
+            this.setState({ store_name: data })
+        })
+        .catch((err) => console.log(err))
+    }
     getIndentCount() {
         const tempArray = []
         var count = 1;
@@ -120,6 +149,14 @@ class acceptIndent extends React.Component {
             })
             .catch((err) => console.log(err))
     }
+    getIndentByDespatch(values) {
+        delete values.store_id;
+        DespatchHelper.getIndentByDespatch(values.despatch_id)
+        .then((data) => {
+            this.setState({ final_data: data })
+        })
+        .catch((err) => console.log(err))
+    }
     getDespatch() {
         DespatchHelper.getDespatch()
             .then((data) => {
@@ -136,7 +173,10 @@ class acceptIndent extends React.Component {
     createDespatch = async (values) => {
         const { checkbox } = this.state;
         values.indent_id =  `${checkbox}`;
-        console.log({ value: values });
+        if(values.store_id === '') {
+        values.store_id = `${store_name[0].store_id}`
+        }
+        // console.log({ value: values });
         DespatchHelper.createDespatch(values)
             .then((data) => {
             if (data === 200) {
@@ -171,7 +211,7 @@ class acceptIndent extends React.Component {
         </div>
     )
     render() {
-        const { details, pages, splice, paginate_filter, despatch_details, store_data } = this.state;
+        const { details, pages, splice, paginate_filter, despatch_details, final_data, store_number,store_name, store_data } = this.state;
         let valuesNew = [];
         const initialValue = {
             dob_1: "",
@@ -190,7 +230,7 @@ class acceptIndent extends React.Component {
             checked_by: "Checked By",
             action: "Action"
         };
-        valuesNew = details.map((m, i) => ({
+        valuesNew = final_data.map((m, i) => ({
             sno: i + 1,
             indent_no: m.indent_number,
             from: m.from,
@@ -209,6 +249,7 @@ class acceptIndent extends React.Component {
             <Head />
             <Formik
                 initialValues={{
+                    store_id: '',
                     despatch_id: ''
                 }}
                 onSubmit={(values) => {
@@ -217,7 +258,11 @@ class acceptIndent extends React.Component {
                 // validationSchema={Validation}
             >
                 {(formikProps) => {
-                    const { handleSubmit, resetForm } = formikProps;
+                    const { handleSubmit, resetForm, values } = formikProps;
+                    if(values.store_id !== this.state.store_number) {
+                        this.setState({ store_number: values.store_id })
+                        this.setState({ store_trigger: true })
+                    }
                     return (
                         <Form onSubmit={formikProps.handleSubmit}>
                                 <Flex templateColumns="repeat(3, 1fr)" flexDirection={"column"} gap={6} colSpan={2}>
@@ -228,6 +273,7 @@ class acceptIndent extends React.Component {
                                         <div className={styles.generateIndent}>
                                             <div className={styles.indentHolder}>
                                                 <div className={styles.subInputHolder}>
+                                                    {store_name.length === 0 && (
                                                     <CustomInput
                                                         label="From Store"
                                                         values={store_data.map((m) => ({
@@ -238,6 +284,22 @@ class acceptIndent extends React.Component {
                                                         type="text"
                                                         method="switch"
                                                     />
+                                                    )}
+                                                      {store_name.length !== 0 && (
+                                                    <>
+                                                    <div className={styles.personalInputStore}>
+                                                    <label
+                                                      htmlFor={"From Store"}
+                                                      className={styles.infoLabel}
+                                                    >From Store</label>
+                                                    <Input
+                                                        value={store_name[0].store_name} 
+                                                        isDisabled={true}
+                                                        isReadOnly={true}
+                                                    />
+                                                    </div>
+                                                    </>
+                                                    )}
                                                 </div>
                                                 <div className={styles.subInputHolder}>
                                                 <CustomInput

@@ -30,6 +30,7 @@ export default class LogIn extends React.Component {
           localStorage.setItem('Token', data.data.token)
           localStorage.setItem('Store_id', data.data.store_id)
           localStorage.setItem('Designation_id', data.data.designation_id)
+          localStorage.setItem('User_type', data.data.user_type)
           localStorage.setItem('Employee_id', data.data.employee_id)
           this.props.setVisibility(true)
         }

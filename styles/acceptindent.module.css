@@ -192,6 +192,14 @@
 	font-weight: bold;
 	font-size: 24px;
 }
+.personalInputStore {
+	display: flex;
+	flex-direction: column;
+	height: 90px;
+	margin-bottom: 27px;
+	position: relative;
+	padding: 0px 10px;
+}
 .switch {
 	margin-left: 40px;
 }

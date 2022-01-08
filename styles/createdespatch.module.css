@@ -10,7 +10,14 @@
 	width: 18px;
 	margin-left: 55px;
 }
-
+.personalInputStore {
+	display: flex;
+	flex-direction: column;
+	height: 90px;
+	margin-bottom: 25px;
+	position: relative;
+	padding: 0px 10px;
+}
 .chooseFile {
     display: 'flex';
     justify-content: 'flex-start';

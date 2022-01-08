@@ -13,6 +13,7 @@ import styles from "../../styles/registration.module.css";
 //Helpers
 import DocumentHelper from "../../helper/document";
 import BranchHelper from "../../helper/outlets";
+import Datetime from 'react-datetime';
 import ResignedUser from "../../components/resignedUser/resignedUser";
 import { BloodGroup, PaymentType, IdCardType } from "../../constants/values";
 import EmployeeHelper from "../../helper/employee";
@@ -816,6 +817,7 @@ class Create extends React.Component {
 														method="datepicker"
 														editable={id !== null ? editableEmpInfo : !editableEmpInfo}
 													/>
+													{/* <Datetime /> */}
 												</div>
 											</div>
 										</Container>

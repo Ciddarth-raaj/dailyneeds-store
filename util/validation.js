@@ -14,7 +14,7 @@ export const Validation = Yup.object({
 	store_id: Yup.string().nullable().required("Choose Store"),
 	department_id: Yup.string().nullable().required("Choose Department"),
 	primary_contact_number: Yup.number().nullable().typeError("Must be a number").min(123456789, "Must be 9 or More").max(12345678900, "Must be 10 characters or less").required("Fill Contact Number"),
-	alternate_contact_number:  Yup.number().nullable().typeError("Must be a number").min(123456789, "Must be 9 or More").max(12345678900, "Must be 10 characters or less").required("Fill Contact Number"),
+	// alternate_contact_number:  Yup.number().nullable().typeError("Must be a number").min(123456789, "Must be 9 or More").max(12345678900, "Must be 10 characters or less").required("Fill Contact Number"),
 	// email_id: Yup.string()
 	// 	.nullable()
 	// 	.email("Invalid email")
