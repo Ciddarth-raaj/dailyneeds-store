@@ -27,7 +27,6 @@ const department = {
 		new Promise(function (resolve, reject) {
 			API.get("/department/product-department")
 				.then(async (res) => {
-					console.log({res: res});
 					resolve(department.format(res.data));
 				})
 				.catch((err) => {

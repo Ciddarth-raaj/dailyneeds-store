@@ -183,7 +183,7 @@ class viewIndent extends React.Component {
             crates: m.crates,
             taken_by: m.taken_by,
             checked_by: m.checked_by,
-            status: m.delivery_status === 0 ? 'New Indent' : m.delivery_status === 1 ? 'Despatch Created' : m.delivery_status === 2 ? "Accepted Indent" : ''
+            status: m.delivery_status === 0 ? 'New Indent' : m.delivery_status === 1 ? 'Despatch Created' : m.delivery_status === 2 ? "Accepted Indent" : m.delivery_status === 5 ? "Issue" : ''
         }));
 
 

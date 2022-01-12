@@ -15,6 +15,16 @@ const product = {
 					reject(err);
 				});
 		}),
+	getAll: () =>
+		new Promise(function (resolve, reject) {
+			API.get(`/product/all`)
+				.then(async (res) => {
+					resolve(res.data);
+				})
+				.catch((err) => {
+					reject(err);
+				});
+	}),
 	getProduct: (offset, limit) =>
 		new Promise(function (resolve, reject) {
 			API.get(`/product?offset=${offset}&limit=${limit}`)

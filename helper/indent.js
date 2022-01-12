@@ -11,7 +11,7 @@ const indent = {
 					reject(err);
 				});
 		}),
-		getDespatchIndent: (offset, limit, delivery_status) =>
+	getDespatchIndent: (offset, limit, delivery_status) =>
 		new Promise(function (resolve, reject) {
 			API.get(`/indent/despatch?offset=${offset}&limit=${limit}&delivery_status=${delivery_status}`)
 				.then(async (res) => {
@@ -20,7 +20,35 @@ const indent = {
 				.catch((err) => {
 					reject(err);
 				});
-		}),
+	}),
+	getIndentByStoreId:  (store_id) =>
+    new Promise(function (resolve, reject) {
+        API.get("/indent/sent/store_id?store_id= " + store_id)
+            .then(async (res) => {
+                if (res.status === 200) {
+                    resolve(res.data);
+                } else {
+                    reject(res.data.msg);
+                }
+            })
+            .catch((err) => {
+                reject(err);
+            });
+    }), 
+	getIndentFromStoreId:  (store_id) =>
+    new Promise(function (resolve, reject) {
+        API.get("/indent/from/store_id?store_id= " + store_id)
+            .then(async (res) => {
+                if (res.status === 200) {
+                    resolve(res.data);
+                } else {
+                    reject(res.data.msg);
+                }
+            })
+            .catch((err) => {
+                reject(err);
+            });
+    }), 
 	getIndentCount: () =>
 		new Promise(function (resolve, reject) {
 			API.get("/indent/indentcount")
@@ -44,6 +72,6 @@ const indent = {
 			.catch((err) => {
 				reject(err);
 			});
-	}), 
+	}),
 };
 export default indent;

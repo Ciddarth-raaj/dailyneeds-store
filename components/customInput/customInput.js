@@ -11,7 +11,10 @@ import {
   Button,
   InputLeftAddon,
   NumberInput,
-  NumberInputField
+  NumberInputField,
+  NumberInputStepper,
+  NumberIncrementStepper,
+  NumberDecrementStepper,
 } from '@chakra-ui/react'
 import { useState } from 'react';
 import DatePicker from 'react-datepicker';

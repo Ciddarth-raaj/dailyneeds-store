@@ -8,6 +8,7 @@ import { ChevronRightIcon, ChevronLeftIcon } from "@chakra-ui/icons";
 import Head from "../../util/head";
 import CustomInput from "../../components/customInput/customInput";
 import StoreHelper from "../../helper/store";
+import IssueHelper from "../../helper/issue";
 import IndentHelper from "../../helper/indent";
 import DespatchHelper from "../../helper/despatch";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
@@ -15,8 +16,9 @@ import { Validation } from "../../util/validation";
 import Table from "../../components/table/table";
 import exportCSVFile from "../../util/exportCSVFile";
 import moment from "moment";
+import { store_id } from "../../constants/variables";
 
-class sentIndent extends React.Component {
+class issueSent extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
@@ -27,7 +29,9 @@ class sentIndent extends React.Component {
             pages: [],
             store_data: [],
             image_url: '',
+            issue_data: [],
             id: '',
+            store_id: null,
             checkbox: [],
             selectedFile: null,
             category_id: '',
@@ -36,52 +40,55 @@ class sentIndent extends React.Component {
             splice: [0, 10],
             offsetToggle: false,
             offset: 0,
+            update_value: false
         };
     }
 
     componentDidMount() {
-        this.getStore();
-        this.getDespatchIndent();
-        this.getIndentCount();
-    }
-    componentDidUpdate() {
-        const { offsetToggle, indentToggle } = this.state;
-        if (offsetToggle !== false) {
-            this.getIndent();
-            this.setState({ offsetToggle: false })
+        this.getIssue();
+        const store_id = localStorage.getItem('Store_id')
+        if(this.state.update_value === false) {
+            this.getIssueByStoreId(store_id)
+            this.setState({update_value: true})
         }
+    }
 
-        if (indentToggle === true) {
-            this.getIndent()
-            this.setState({ indentToggle: false })
-        }
-    }
+    // componentDidUpdate() {
+    //     const { offsetToggle, indentToggle } = this.state;
+    //     if (offsetToggle !== false) {
+    //         this.getIndent();
+    //         this.setState({ offsetToggle: false })
+    //     }
+
+    //     if (indentToggle === true) {
+    //         this.getIndent()
+    //         this.setState({ indentToggle: false })
+    //     }
+    // }
     getExportFile = () => {
         const TABLE_HEADER = {
             sno: "SNo",
-            indent_no: "Indent No",
-            from: "From",
-            to: "To",
-            bags: "Bags",
-            boxes: "Boxes",
-            crates: "Crates",
-            taken_by: "Taken By",
-            checked_by: "Checked By",
+            from: "From Store",
+            to: "To Store",
+            item_id: "Item id",
+            item_name: "Item Name",
+            sent: "Sent",
+            received: "Received",
+            difference: "Difference",
             status: "Delivery Status"
         };
         const formattedData = [];
-        valuesNew.forEach((d) => {
+        valuesNew.forEach((d, i) => {
             formattedData.push({
-                sno: d.id,
-                indent_no: d.indent_number,
+                sno: i + 1,
                 from: d.from,
                 to: d.to,
-                bags: d.bags,
-                boxes: d.boxes,
-                crates: d.crates,
-                taken_by: d.taken_by,
-                checked_by: d.checked_by,
-                status: 'delivered'
+                item_id: d.product_id,
+                item_name: d.de_name,
+                sent: d.sent,
+                received: d.received,
+                difference: d.difference,
+                status: d.delivery_status
             });
         });
         exportCSVFile(
@@ -90,6 +97,25 @@ class sentIndent extends React.Component {
             "indent_details" + moment().format("DD-MMY-YYYY")
         );
     };
+    getIssueByStoreId(store_id) {
+        if(store_id !== 'null') {
+        IssueHelper.getIssueFromStoreId(store_id)
+        .then((data) => {
+            this.setState({ issue_data: data })
+        })
+        .catch((err) => console.log(err))
+    }
+    }
+    getIssue() {
+        const id = localStorage.getItem('Store_id')
+        if(id === 'null') {
+        IssueHelper.getIssue()
+        .then((data) => {
+            this.setState({ issue_data: data })
+        })
+        .catch((err) => console.log(err))
+        }
+    }
     getStoreById(store_id) {
         StoreHelper.getStoreById(store_id)
         .then((data) => {
@@ -137,11 +163,8 @@ class sentIndent extends React.Component {
         </div>
     )
     render() {
-        const { details, pages, splice, paginate_filter, checkbox, id, selectedFile, store_data, image_url, loading } = this.state;
-        // console.log({ details: checkbox })
-        // for(let i = 0; i < checkbox.length; i++) {
-        // console.log({ details2: i })
-        // }
+        const { details, pages, splice, paginate_filter, issue_data,checkbox, id, selectedFile, store_data, image_url, loading } = this.state;
+        // console.log({issue: issue_data})
         let valuesNew = [];
         const initialValue = {
             dob_1: "",
@@ -150,32 +173,30 @@ class sentIndent extends React.Component {
 
         const table_title = {
             sno: "SNo",
-            indent_no: "Indent No",
-            from: "From",
-            to: "To",
-            bags: "Bags",
-            boxes: "Boxes",
-            crates: "Crates",
-            taken_by: "Taken By",
-            checked_by: "Checked By",
-            delivery_status: "delivery Status"
+            from: "From Store",
+            to: "To Store",
+            item_id: "Item id",
+            item_name: "Item Name",
+            sent: "Sent",
+            received: "Received",
+            difference: "Difference",
+            status: "Delivery Status"
         };
-        valuesNew = details.map((m, i) => ({
+      
+        valuesNew = issue_data.map((d, i) => ({
             sno: i + 1,
-            indent_no: m.indent_number,
-            from: m.from,
-            to: m.to,
-            bags: m.bags,
-            boxes: m.boxes,
-            crates: m.crates,
-            taken_by: m.taken_by,
-            checked_by: m.checked_by,
-            delivery_status: 'Delivered'
+            from: d.from,
+            to: d.to,
+            item_id: d.product_id,
+            item_name: d.de_name,
+            sent: d.sent,
+            received: d.received,
+            difference: d.difference,
+            status: d.delivery_status === 5 ? "Issue" : d.delivery_status
         }));
 
-
         return (
-            <GlobalWrapper title="Sent Indents">
+            <GlobalWrapper title="Indent issues List - Indent Sent">
             <Head />
             <Formik
                 initialValues={{
@@ -194,7 +215,7 @@ class sentIndent extends React.Component {
                                 <Flex templateColumns="repeat(3, 1fr)" flexDirection={"column"} gap={6} colSpan={2}>
                                     <Container className={styles.container} boxShadow="lg">
                                         <p className={styles.buttoninputHolder}>
-                                            <div>Sent Indents</div>
+                                            <div>Indent issues List - Indent Sent</div>
                                         </p>
                                         <div>
                                             <Table
@@ -299,4 +320,4 @@ class sentIndent extends React.Component {
     }
 }
 
-export default sentIndent;
+export default issueSent;

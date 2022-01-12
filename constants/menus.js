@@ -137,13 +137,13 @@ export default {
         title: 'Indents Sent',
         permission: 'sent_indents',
         selected: false,
-        location: '/indent/sentIndent'
+        location: '/indent/indent-sent'
       },
       indents_received: {
         title: 'Indents Received',
         permission: 'received_indents',
         selected: false,
-        location: '/indent/received'
+        location: '/indent/indent-received'
       },
       create_despatch: {
         title: 'Create Despatch',
@@ -161,13 +161,13 @@ export default {
         title: 'Issues In Received Indents',
         permission: 'view_issues_received_indents',
         selected: false,
-        location: '/indent/issueReceived'
+        location: '/indent/issue-received'
       },
       issue_sent_indent: {
         title: 'Issues In Sent Indents',
         permission: 'view_issues_sent_indents',
         selected: false,
-        location: '/indent/issueSent'
+        location: '/indent/issue-sent'
       },
     },
   },

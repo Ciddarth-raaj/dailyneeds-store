@@ -1,6 +1,6 @@
 import { Formik, Form } from "formik";
-import { Container, Flex, Button, ButtonGroup, Checkbox, Badge, Select, InputGroup, Input, InputLeftAddon } from "@chakra-ui/react";
-import styles from "../../styles/acceptindent.module.css";
+import { Container, Flex, Button, ButtonGroup, Badge, Select, InputGroup, Input, InputLeftAddon } from "@chakra-ui/react";
+import styles from "../../styles/indent.module.css";
 import React from "react";
 import { toast } from "react-toastify";
 import { ChevronRightIcon, ChevronLeftIcon } from "@chakra-ui/icons";
@@ -9,14 +9,13 @@ import Head from "../../util/head";
 import CustomInput from "../../components/customInput/customInput";
 import StoreHelper from "../../helper/store";
 import IndentHelper from "../../helper/indent";
-import DespatchHelper from "../../helper/despatch";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import { Validation } from "../../util/validation";
 import Table from "../../components/table/table";
 import exportCSVFile from "../../util/exportCSVFile";
 import moment from "moment";
 
-class sentIndent extends React.Component {
+class indentSent extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
@@ -28,21 +27,27 @@ class sentIndent extends React.Component {
             store_data: [],
             image_url: '',
             id: '',
-            checkbox: [],
             selectedFile: null,
+            store_name: '',
             category_id: '',
             limit: 10,
-            delivery_status: 4,
             splice: [0, 10],
             offsetToggle: false,
+            store_id: null,
             offset: 0,
+            update_value: false,
+            user_type: null,
         };
     }
 
     componentDidMount() {
-        this.getStore();
-        this.getDespatchIndent();
+        this.getIndent();
         this.getIndentCount();
+        const store_id = localStorage.getItem('Store_id')
+        if(this.state.update_value === false) {
+            this.getIndentByStoreId(store_id)
+            this.setState({update_value: true})
+        }
     }
     componentDidUpdate() {
         const { offsetToggle, indentToggle } = this.state;
@@ -81,7 +86,7 @@ class sentIndent extends React.Component {
                 crates: d.crates,
                 taken_by: d.taken_by,
                 checked_by: d.checked_by,
-                status: 'delivered'
+                status: d.delivery_status
             });
         });
         exportCSVFile(
@@ -90,10 +95,19 @@ class sentIndent extends React.Component {
             "indent_details" + moment().format("DD-MMY-YYYY")
         );
     };
+    getIndentByStoreId(store_id) {
+        if(store_id !== 'null') {
+        IndentHelper.getIndentByStoreId(store_id)
+        .then((data) => {
+            this.setState({ details: data})
+        })
+        .catch((err) => console.log(err))
+    }
+    }
     getStoreById(store_id) {
         StoreHelper.getStoreById(store_id)
         .then((data) => {
-            this.setState({ store_name: data[0].store_name })
+            this.setState({ store_name: data})
         })
         .catch((err) => console.log(err))
     }
@@ -116,13 +130,17 @@ class sentIndent extends React.Component {
             })
             .catch((err) => console.log(err))
     }
-    getDespatchIndent() {
-        const { offset, limit, delivery_status } = this.state;
-        IndentHelper.getDespatchIndent(offset, limit, delivery_status)
+    getIndent() {
+        const { offset, limit } = this.state;
+        const id = localStorage.getItem('store_id')
+
+        if(id === null) {
+        IndentHelper.getIndent(offset, limit)
             .then((data) => {
                 this.setState({ details: data })
             })
             .catch((err) => console.log(err))
+        }
     }
 
     handleOnChange = (e) => {
@@ -130,18 +148,26 @@ class sentIndent extends React.Component {
             limit: e.target.value
         })
     }
-    action = (m) => (
-        <div>
-        <Button colorScheme="purple" w={'100%'}  onClick={() => this.acceptIndent()}>Accept</Button>
-        <Button  colorScheme="red" w={'100%'}  onClick={() => this.acceptIndent()}>Issue</Button>
-        </div>
-    )
+    createIndent = async (values) => {
+        const { store_name } = this.state;
+        if(store_name === "") {
+            values.store_id = `${store_name[0].store_id}`
+        }
+        IndentHelper.createIndent(values)
+            .then((data) => {
+            if (data === 200) {
+                toast.success("Successfully created Indent");
+                this.getIndent();
+            } else {
+                toast.error("Error creating Account");
+                throw `${data.msg}`;
+            }
+        })
+        .catch((err) => console.log(err))
+        .finally(() => this.setState({ loading: false }));
+    }
     render() {
-        const { details, pages, splice, paginate_filter, checkbox, id, selectedFile, store_data, image_url, loading } = this.state;
-        // console.log({ details: checkbox })
-        // for(let i = 0; i < checkbox.length; i++) {
-        // console.log({ details2: i })
-        // }
+        const { details, pages, splice, paginate_filter, store_name, store_data } = this.state;
         let valuesNew = [];
         const initialValue = {
             dob_1: "",
@@ -158,7 +184,8 @@ class sentIndent extends React.Component {
             crates: "Crates",
             taken_by: "Taken By",
             checked_by: "Checked By",
-            delivery_status: "delivery Status"
+            issue: "Issue",
+            status: "Delivery Status"
         };
         valuesNew = details.map((m, i) => ({
             sno: i + 1,
@@ -170,31 +197,39 @@ class sentIndent extends React.Component {
             crates: m.crates,
             taken_by: m.taken_by,
             checked_by: m.checked_by,
-            delivery_status: 'Delivered'
+            issue: m.delivery_status === 5 ? 'Yes' : 'No',
+            status: m.delivery_status === 0 ? 'New Indent' : m.delivery_status === 1 ? 'Despatch Created' : m.delivery_status === 2 ? "Accepted Indent" : m.delivery_status === 5 ? "Issue" : ''
         }));
 
 
         return (
-            <GlobalWrapper title="Sent Indents">
+            <GlobalWrapper title="Indents Sent">
             <Head />
             <Formik
                 initialValues={{
+                    indent_number: '',
                     store_id: '',
-                    despatch: ''
+                    store_to: '',
+                    bags: '',
+                    boxes: '',
+                    crates: '',
+                    taken_by: '',
+                    checked_by: ''
                 }}
                 onSubmit={(values) => {
-                    this.createDespatch(values);
+                    this.createIndent(values);
                 }}
                 // validationSchema={Validation}
             >
+                
                 {(formikProps) => {
-                    const { handleSubmit, resetForm } = formikProps;
+                    const { handleSubmit, resetForm, values } = formikProps;
                     return (
                         <Form onSubmit={formikProps.handleSubmit}>
                                 <Flex templateColumns="repeat(3, 1fr)" flexDirection={"column"} gap={6} colSpan={2}>
                                     <Container className={styles.container} boxShadow="lg">
                                         <p className={styles.buttoninputHolder}>
-                                            <div>Sent Indents</div>
+                                            <div>View Details</div>
                                         </p>
                                         <div>
                                             <Table
@@ -299,4 +334,4 @@ class sentIndent extends React.Component {
     }
 }
 
-export default sentIndent;
+export default indentSent;

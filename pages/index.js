@@ -3,7 +3,7 @@ import { Formik, Form } from "formik";
 import { Grid, GridItem, Box, Button } from "@chakra-ui/react";
 import { ArrowForwardIcon, WarningIcon, InfoOutlineIcon } from '@chakra-ui/icons'
 import { Calendar, momentLocalizer } from 'react-big-calendar';
-import moment from 'moment';
+import moment from 'moment'; 
 import LogIn from "../pages/login";
 import { Bar, Doughnut } from 'react-chartjs-2';
 import styles from "../styles/index.module.css";

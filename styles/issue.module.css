@@ -1,0 +1,238 @@
+.mainWrapper {
+    display: flex;
+    position: fixed;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.5);
+    /* background-image: url('/assets/background.jpg'); */
+    object-fit:fill;
+    top: 0;
+    left: 0;
+    z-index: 99;
+    justify-content: center;
+    align-items: center;
+}
+.updateButton {
+    /* margin-top: 30px; */
+    margin-left: 5px;
+}
+.leftArrow {
+	padding-left: 50px;
+	/* background-color: black; */
+	display: flex;
+	justify-content: center;
+	align-items: center;
+
+}
+.paginate {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	margin-top: 50px;
+	/* margin-bottom: 50px; */
+	width: 100%;
+}
+.paginateContent {
+	display: flex;
+	justify-content: space-around;
+	align-items: center;
+	/* margin-top: 50px; */
+	margin-bottom: 50px;
+	width: 70%;
+}
+.paginateHolder {
+	font-size: 18px;
+	font-weight: 600;
+	cursor: pointer;
+}
+.arrow {
+	font-size: 15px;
+	/* background-color: black; */
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+}
+.dropbtn {
+	border: 1px solid lightgray;
+	color: black;
+	padding: 16px;
+	height: 40px;
+	width: 100%;
+	display: flex;
+	border-radius: 7px;
+	justify-content: center;
+	align-items: center;
+	font-size: 16px;
+	/* border: none; */
+	cursor: pointer;
+}
+
+.dropdown {
+	position: relative;
+	display: inline-block;
+	width: 100%;
+    margin-bottom: 40px;
+    padding-left: 9px;
+    padding-right: 9px;
+	margin-top: 50px;
+	/* margin-left: 10px; */
+	/* padding-bottom: 30px; */
+	/* height: 60%; */
+}
+
+.dropdowncontent {
+	width: 100%;
+	display: none;
+	position: absolute;
+	cursor: pointer;
+	background-color: white;
+	border-bottom-left-radius: 15px;
+	border-bottom-right-radius: 15px;
+	min-width: 160px;
+	height: 200px;
+	box-shadow: 0px 8px 16px 
+		0px rgba(0, 0, 0, 0.2);
+	z-index: 1;
+	overflow-y: scroll;
+	/* padding-top: 11px; */
+}
+.newDropdowncontent {
+	width: 100%;
+	display: none;
+	position: absolute;
+	cursor: pointer;
+	background-color: white;
+	border-bottom-left-radius: 15px;
+	border-bottom-right-radius: 15px;
+	min-width: 160px;
+	height: 200px;
+	box-shadow: 0px 8px 16px 
+		0px rgba(0, 0, 0, 0.2);
+	z-index: 1;
+	overflow-y: scroll;
+	/* padding-top: 11px; */
+}
+.dropdowncontent::-webkit-scrollbar {
+	display: none;
+}
+.newDropdowncontent::-webkit-scrollbar {
+	display: none;
+}
+.dropdownImg {
+	border-radius: 50%;
+	height: 30px;
+	margin-top: 10px;
+	margin-right: 30px;
+}
+.employeeNameLabel {
+	font-size: 14px;
+	margin-bottom: none;
+}
+.dropdowncontent a {
+	color: black;
+	padding: 9px 16px;
+	text-decoration: none;
+	margin: 0px 10px;
+	font-size: 15px;
+	margin-top: 10px;
+	font-weight: 400;
+	display: block;
+	display: flex;
+	width: 30%;
+	justify-content: space-between;
+}
+.newDropdowncontent a {
+	color: black;
+	padding: 9px 16px;
+	text-decoration: none;
+	margin: 0px 10px;
+	font-size: 15px;
+	margin-top: 10px;
+	font-weight: 400;
+	display: block;
+	display: flex;
+	width: 60%;
+	justify-content: space-between;
+}
+/* .dropdowncontent a:hover {
+	background-color: #f1f1f1;
+}
+*/
+.dropdown:hover .dropdowncontent {
+	display: block;
+} 
+.dropdown:hover .newDropdowncontent {
+	display: block;
+} 
+
+/* .dropdown:hover .dropbtn {
+	background-color: var(--secondaryColor);
+} */
+.closeButton {
+    position: absolute;
+    width: 30px;
+    height: 30px;
+    top: 10px;
+    /* padding-bottom: 20px; */
+    right: 10px;
+}
+
+.wrapper {
+    position: relative;
+    background-color: #fafafa;
+    /* border-radius: 16px;
+    box-shadow:  2px 5px 10px #cecece,
+                 -5px -5px 10px #e4e4e4; */
+    /* border-radius: 3px; */
+    padding: 10px;
+    width: 600px;
+    height: 300px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.title {
+    text-align: center;
+    margin-bottom: 20px;
+    margin-top: 20px;
+    font-weight: bold;
+    font-size: 18px;
+}
+
+.closeButton {
+    position: absolute;
+    width: 30px;
+    height: 30px;
+    top: 10px;
+    right: 10px;
+    cursor: pointer;
+}
+.switchHolder {
+    margin-bottom: 10px;
+    margin-top: 30px;
+    display: flex;
+    justify-content: center;
+}
+.switch {
+    display: flex;
+    justify-content: flex-end;
+    align-items: flex-end;
+    margin-left: 20px;
+}
+.inputHolder {
+    /* margin-bottom: 34px; */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 78px;
+}
+@media (max-width: 480px) {
+    .closeButton {
+        width: 20px;
+        height: 20px;
+        top: 10px;
+        right: 8px;
+    }
+}
