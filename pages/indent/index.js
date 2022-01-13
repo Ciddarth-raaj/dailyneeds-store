@@ -107,6 +107,7 @@ class viewIndent extends React.Component {
         var count = 1;
         IndentHelper.getIndentCount()
             .then((data) => {
+                console.log({data: data})
                 count = Math.ceil(parseInt(data[0].indentcount) / 10);
                 for (let i = 1; i <= count; i++) {
                     tempArray.push(i);

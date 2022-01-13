@@ -5,6 +5,7 @@ const indent = {
 		new Promise(function (resolve, reject) {
 			API.get(`/indent?offset=${offset}&limit=${limit}`)
 				.then(async (res) => {
+					console.log({indentDetails: res.data})
 					resolve(res.data);
 				})
 				.catch((err) => {
