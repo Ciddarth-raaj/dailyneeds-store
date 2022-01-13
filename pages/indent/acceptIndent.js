@@ -329,10 +329,10 @@ class acceptIndent extends React.Component {
                                                     <div className={styles.subInputHolder}>
                                                         <CustomInput
                                                             label="Despatch Details"
-                                                            values={despatch_details.length !== 0 ? despatch_details.map((m) => ({
+                                                            values={despatch_details.length !== 0 && despatch_details.map((m) => ({
                                                                 id: m.despatch_id,
                                                                 value: ` ${m.despatch_id} / ${m.driver} /  ${m.vehicle} `
-                                                            })) : ( <></> )}
+                                                            }))}
                                                             name="despatch_id"
                                                             type="text"
                                                             method="switch"
