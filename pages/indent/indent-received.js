@@ -133,7 +133,7 @@ class indentReceived extends React.Component {
     getIndent() {
         const { offset, limit } = this.state;
         const id = localStorage.getItem('store_id')
-        if(id === 'null') {
+        if(id === null) {
         IndentHelper.getIndent(offset, limit)
             .then((data) => {
                 this.setState({ details: data })
@@ -197,7 +197,7 @@ class indentReceived extends React.Component {
             taken_by: m.taken_by,
             checked_by: m.checked_by,
             issue: m.delivery_status === 5 ? 'Yes' : 'No',
-            status: m.delivery_status === 0 ? 'New Indent' : m.delivery_status === 1 ? 'Despatch Created' : m.delivery_status === 2 ? "Accepted Indent" : ''
+            status: m.delivery_status === 0 ? 'New Indent' : m.delivery_status === 1 ? 'Despatch Created' : m.delivery_status === 2 ? "Accepted Indent" : m.delivery_status === 5 ? "Issue" : ''
         }));
 
 
