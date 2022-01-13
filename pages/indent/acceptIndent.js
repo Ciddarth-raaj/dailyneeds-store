@@ -52,7 +52,6 @@ class acceptIndent extends React.Component {
 
     componentDidMount() {
         const store = global.config.store_id;
-        console.log({store: store});
         this.setState({ store_id: store.store_id !== null ? store.store_id : '' });
         if (store !== "null") {
             this.getStoreById(store);
@@ -229,7 +228,7 @@ class acceptIndent extends React.Component {
     )
     render() {
         const { details, pages, splice, paginate_filter, issue_data, issueVisibility, despatch_details, final_data, store_number, store_name, store_data } = this.state;
-        console.log({final_data: final_data});
+
         let valuesNew = [];
         const initialValue = {
             dob_1: "",
@@ -330,10 +329,10 @@ class acceptIndent extends React.Component {
                                                     <div className={styles.subInputHolder}>
                                                         <CustomInput
                                                             label="Despatch Details"
-                                                            values={despatch_details.map((m) => ({
+                                                            values={despatch_details.length !== 0 ? despatch_details.map((m) => ({
                                                                 id: m.despatch_id,
                                                                 value: ` ${m.despatch_id} / ${m.driver} /  ${m.vehicle} `
-                                                            }))}
+                                                            })) : ( <></> )}
                                                             name="despatch_id"
                                                             type="text"
                                                             method="switch"
