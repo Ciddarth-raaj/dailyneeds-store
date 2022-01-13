@@ -259,7 +259,6 @@ class acceptIndent extends React.Component {
             checked_by: m.checked_by,
             action: this.action({ id: m.indent_id })
         }));
-        console.log({ issueVisibility: issueVisibility })
         return (
             <GlobalWrapper title="Accept Indents">
                 <Head />
