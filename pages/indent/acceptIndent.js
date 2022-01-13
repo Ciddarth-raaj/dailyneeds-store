@@ -54,7 +54,7 @@ class acceptIndent extends React.Component {
         const store = global.config.store_id;
         console.log({store: store});
         this.setState({ store_id: store.store_id !== null ? store.store_id : '' });
-        if (store !== null) {
+        if (store !== "null") {
             this.getStoreById(store);
         }
         this.getStore();
