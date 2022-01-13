@@ -58,7 +58,7 @@ class acceptIndent extends React.Component {
             this.getStoreById(store);
         }
         this.getStore();
-        this.getDespatchIndent();
+        // this.getDespatchIndent();
         this.getDespatch();
         this.getIndentCount();
     }
@@ -146,14 +146,14 @@ class acceptIndent extends React.Component {
             })
             .catch((err) => console.log(err))
     }
-    getDespatchIndent() {
-        const { offset, limit, delivery_status } = this.state;
-        IndentHelper.getDespatchIndent(offset, limit, delivery_status)
-            .then((data) => {
-                this.setState({ details: data })
-            })
-            .catch((err) => console.log(err))
-    }
+    // getDespatchIndent() {
+    //     const { offset, limit, delivery_status } = this.state;
+    //     IndentHelper.getDespatchIndent(offset, limit, delivery_status)
+    //         .then((data) => {
+    //             this.setState({ details: data })
+    //         })
+    //         .catch((err) => console.log(err))
+    // }
     getIndentByDespatch(values) {
         delete values.store_id;
         DespatchHelper.getIndentByDespatch(values.despatch_id)
@@ -229,6 +229,7 @@ class acceptIndent extends React.Component {
     )
     render() {
         const { details, pages, splice, paginate_filter, issue_data, issueVisibility, despatch_details, final_data, store_number, store_name, store_data } = this.state;
+        console.log({final_data: final_data});
         let valuesNew = [];
         const initialValue = {
             dob_1: "",
