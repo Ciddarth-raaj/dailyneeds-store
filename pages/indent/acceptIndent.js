@@ -39,7 +39,7 @@ class acceptIndent extends React.Component {
             final_data: [],
             store_id: null,
             issueVisibility: false,
-            store_number: '',
+            store_number: null,
             category_id: '',
             limit: 10,
             delivery_status: 1,
@@ -52,14 +52,14 @@ class acceptIndent extends React.Component {
 
     componentDidMount() {
         const store = global.config.store_id;
-        console.log({store: store});
+        // console.log({store: store});
         this.setState({ store_id: store.store_id !== null ? store.store_id : '' });
         if (store !== "null") {
             this.getStoreById(store);
         }
         this.getStore();
         // this.getDespatchIndent();
-        this.getDespatch();
+        // this.getDespatch();
         this.getIndentCount();
     }
     componentDidUpdate() {
@@ -114,11 +114,15 @@ class acceptIndent extends React.Component {
     getDespatchByStoreId() {
         const { store_number } = this.state;
         const store_id = store_number;
+        console.log({store_id: store_id})
+        if(store_id !== "") {
         DespatchHelper.getDespatchByStoreId(store_id)
             .then((data) => {
+                console.log({despatch_details: data});
                 this.setState({ despatch_details: data })
             })
             .catch((err) => console.log(err))
+        }
     }
     getStoreById(store_id) {
         StoreHelper.getStoreById(store_id)
@@ -162,13 +166,13 @@ class acceptIndent extends React.Component {
             })
             .catch((err) => console.log(err))
     }
-    getDespatch() {
-        DespatchHelper.getDespatch()
-            .then((data) => {
-                this.setState({ despatch_details: data })
-            })
-            .catch((err) => console.log(err))
-    }
+    // getDespatch() {
+    //     DespatchHelper.getDespatch()
+    //         .then((data) => {
+    //             this.setState({ despatch_details: data })
+    //         })
+    //         .catch((err) => console.log(err))
+    // }
 
     handleOnChange = (e) => {
         this.setState({
@@ -184,7 +188,7 @@ class acceptIndent extends React.Component {
                 for (let i = 1; i <= count; i++) {
                     tempArray.push(i);
                 }
-                console.log({tempArray: tempArray});
+                // console.log({tempArray: tempArray});
                 this.setState({ pages: tempArray })
             })
     }
@@ -229,7 +233,7 @@ class acceptIndent extends React.Component {
     )
     render() {
         const { details, pages, splice, paginate_filter, issue_data, issueVisibility, despatch_details, final_data, store_number, store_name, store_data } = this.state;
-
+        console.log({insiderender: despatch_details})
         let valuesNew = [];
         const initialValue = {
             dob_1: "",
@@ -248,6 +252,7 @@ class acceptIndent extends React.Component {
             checked_by: "Checked By",
             action: "Action"
         };
+        if(final_data.length !== 0) {
         valuesNew = final_data.map((m, i) => ({
             sno: i + 1,
             indent_no: m.indent_number,
@@ -260,6 +265,11 @@ class acceptIndent extends React.Component {
             checked_by: m.checked_by,
             action: this.action({ id: m.indent_id })
         }));
+    }
+    if(final_data.length === 0) {
+        valuesNew = []
+    }
+    // console.log({state: this.state.store_number})
         return (
             <GlobalWrapper title="Accept Indents">
                 <Head />
@@ -275,6 +285,7 @@ class acceptIndent extends React.Component {
                 >
                     {(formikProps) => {
                         const { handleSubmit, resetForm, values } = formikProps;
+                        // console.log({values: values})
                         if (values.store_id !== this.state.store_number) {
                             this.setState({ store_number: values.store_id })
                             this.setState({ store_trigger: true })
@@ -328,6 +339,7 @@ class acceptIndent extends React.Component {
                                                         )}
                                                     </div>
                                                     <div className={styles.subInputHolder}>
+                                                        {despatch_details.length > 0 ? (
                                                         <CustomInput
                                                             label="Despatch Details"
                                                             values={despatch_details.map((m) => ({
@@ -338,6 +350,14 @@ class acceptIndent extends React.Component {
                                                             type="text"
                                                             method="switch"
                                                         />
+                                                        ) : (
+                                                            <CustomInput
+                                                            label="Despatch Details"
+                                                            name="despatch_id"
+                                                            type="text"
+                                                            method="switch"
+                                                        />
+                                                        )}
                                                     </div>
                                                 </div>
                                                 <div className={styles.indentButtonHolder}>
