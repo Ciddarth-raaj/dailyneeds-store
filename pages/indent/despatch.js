@@ -9,6 +9,7 @@ import Head from "../../util/head";
 import CustomInput from "../../components/customInput/customInput";
 import VehicleHelper from "../../helper/vehicle";
 import StoreHelper from "../../helper/store";
+import BranchHelper from "../../helper/outlets";
 import IndentHelper from "../../helper/indent";
 import DespatchHelper from "../../helper/despatch";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
@@ -26,6 +27,7 @@ class viewDespatch extends React.Component {
             details: [],
             paginate_filter: false,
             pages: [],
+            branch: [],
             store_data: [],
             image_url: '',
             vehicle_details: [],
@@ -47,12 +49,13 @@ class viewDespatch extends React.Component {
     componentDidMount() {
         const store = global.config.store_id;
         const usertype = global.config.user_type;
-        this.setState({store_id: store.store_id});
+        this.setState({store_id: store});
         this.setState({user_type: usertype});
-        if(store !== null) {
+        if(store !== "null") {
             this.getStoreById(store);
         }
-        this.getStore();
+        this.getBranchData();
+        // this.getStore();
         this.getVehicle();
         this.getDespatchIndent();
         this.getIndentCount();
@@ -68,6 +71,13 @@ class viewDespatch extends React.Component {
             this.getIndent()
             this.setState({ indentToggle: false })
         }
+    }
+    getBranchData() {
+        BranchHelper.getOutlet()
+            .then((data) => {
+                this.setState({ branch: data });
+            })
+            .catch((err) => console.log(err));
     }
     getExportFile = () => {
         const TABLE_HEADER = {
@@ -116,9 +126,9 @@ class viewDespatch extends React.Component {
             })
     }
     getStoreById(store_id) {
-        StoreHelper.getStoreById(store_id)
+        BranchHelper.getOutletById(store_id)
         .then((data) => {
-            this.setState({ store_name: data })
+            this.setState({ store_name: data})
         })
         .catch((err) => console.log(err))
     }
@@ -154,7 +164,7 @@ class viewDespatch extends React.Component {
         const { checkbox, store_name } = this.state;
         values.indent_id = `${checkbox}`;
         if(values.store_id === '') {
-        values.store_id = `${store_name[0].store_id}`;
+        values.store_id = `${store_name[0].outlet_id}`;
         }
         DespatchHelper.createDespatch(values)
             .then((data) => {
@@ -187,7 +197,7 @@ class viewDespatch extends React.Component {
     />
 
     render() {
-        const { details, pages, splice, paginate_filter, checkbox, id, vehicle_details, store_name, selectedFile, store_data, image_url, loading } = this.state;
+        const { details, pages, splice, paginate_filter, branch, checkbox, id, vehicle_details, store_name, selectedFile, store_data, image_url, loading } = this.state;
         for(let i = 0; i < checkbox.length; i++) {
         console.log({ details2: i })
         }
@@ -256,9 +266,9 @@ class viewDespatch extends React.Component {
                                                 {store_name.length === 0 && (
                                                     <CustomInput
                                                         label="From Store"
-                                                        values={store_data.map((m) => ({
-                                                            id: m.id,
-                                                            value: m.value
+                                                        values={branch.map((m) => ({
+                                                            id: m.outlet_id,
+                                                            value: m.outlet_name
                                                         }))}
                                                         name="store_id"
                                                         type="text"
@@ -273,7 +283,7 @@ class viewDespatch extends React.Component {
                                                       className={styles.infoLabel}
                                                     >From Store</label>
                                                     <Input
-                                                        value={store_name[0].store_name} 
+                                                        value={store_name[0].outlet_name} 
                                                         isDisabled={true}
                                                         isReadOnly={true}
                                                     />
@@ -284,9 +294,9 @@ class viewDespatch extends React.Component {
                                                 <div className={styles.subInputHolder}>
                                                 <CustomInput
                                                         label="To Store"
-                                                        values={store_data.map((m) => ({
-                                                            id: m.id,
-                                                            value: m.value
+                                                        values={branch.map((m) => ({
+                                                            id: m.outlet_id,
+                                                            value: m.outlet_name
                                                         }))}
                                                         name="store_to"
                                                         type="text"

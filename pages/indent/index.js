@@ -8,6 +8,7 @@ import { ChevronRightIcon, ChevronLeftIcon } from "@chakra-ui/icons";
 import Head from "../../util/head";
 import CustomInput from "../../components/customInput/customInput";
 import StoreHelper from "../../helper/store";
+import BranchHelper from "../../helper/outlets";
 import IndentHelper from "../../helper/indent";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import { Validation } from "../../util/validation";
@@ -31,6 +32,7 @@ class viewIndent extends React.Component {
             store_name: '',
             category_id: '',
             limit: 10,
+            branch: [],
             splice: [0, 10],
             offsetToggle: false,
             store_id: null,
@@ -41,11 +43,11 @@ class viewIndent extends React.Component {
 
     componentDidMount() {
         const store = global.config.store_id;
-        this.setState({store_id: store.store_id});
-        if(store !== null) {
+        this.setState({store_id: store});
+        if(store !== "null") {
             this.getStoreById(store);
         }
-        this.getStore();
+        this.getBranchData();
         this.getIndent();
         this.getIndentCount();
     }
@@ -96,7 +98,7 @@ class viewIndent extends React.Component {
         );
     };
     getStoreById(store_id) {
-        StoreHelper.getStoreById(store_id)
+        BranchHelper.getOutletById(store_id)
         .then((data) => {
             this.setState({ store_name: data})
         })
@@ -115,13 +117,20 @@ class viewIndent extends React.Component {
                 this.setState({ pages: tempArray })
             })
     }
-    getStore() {
-        StoreHelper.getStore()
+    getBranchData() {
+        BranchHelper.getOutlet()
             .then((data) => {
-                this.setState({ store_data: data })
+                this.setState({ branch: data });
             })
-            .catch((err) => console.log(err))
+            .catch((err) => console.log(err));
     }
+    // getStore() {
+    //     StoreHelper.getStore()
+    //         .then((data) => {
+    //             this.setState({ store_data: data })
+    //         })
+    //         .catch((err) => console.log(err))
+    // }
     getIndent() {
         const { offset, limit } = this.state;
         IndentHelper.getIndent(offset, limit)
@@ -139,7 +148,7 @@ class viewIndent extends React.Component {
     createIndent = async (values) => {
         const { store_name } = this.state;
         if(store_name === "") {
-            values.store_id = `${store_name[0].store_id}`
+            values.store_id = `${store_name[0].outlet_id}`
         }
         IndentHelper.createIndent(values)
             .then((data) => {
@@ -155,7 +164,7 @@ class viewIndent extends React.Component {
         .finally(() => this.setState({ loading: false }));
     }
     render() {
-        const { details, pages, splice, paginate_filter, store_name, store_data } = this.state;
+        const { details, pages, branch ,splice, paginate_filter, store_name, store_data } = this.state;
         let valuesNew = [];
         const initialValue = {
             dob_1: "",
@@ -223,9 +232,9 @@ class viewIndent extends React.Component {
                                                     {store_name.length === 0 && (
                                                     <CustomInput
                                                         label="From Store"
-                                                        values={store_data.map((m) => ({
-                                                            id: m.id,
-                                                            value: m.value
+                                                        values={branch.map((m) => ({
+                                                            id: m.outlet_id,
+                                                            value: m.outlet_name
                                                         }))}
                                                         name="store_id"
                                                         type="text"
@@ -240,7 +249,7 @@ class viewIndent extends React.Component {
                                                       className={styles.infoLabel}
                                                     >From Store</label>
                                                     <Input
-                                                        value={store_name[0].store_name} 
+                                                        value={store_name[0].outlet_name} 
                                                         isDisabled={true}
                                                         isReadOnly={true}
                                                     />
@@ -251,9 +260,9 @@ class viewIndent extends React.Component {
                                                 <div className={styles.subInputHolder}>
                                                 <CustomInput
                                                         label="To Store"
-                                                        values={store_data.map((m) => ({
-                                                            id:  m.id,
-                                                            value: m.value
+                                                        values={branch.map((m) => ({
+                                                            id:  m.outlet_id,
+                                                            value: m.outlet_name
                                                         }))}
                                                         name="store_to"
                                                         type="text"
@@ -265,9 +274,9 @@ class viewIndent extends React.Component {
                                                 <div className={styles.subInputHolder}>
                                                 <CustomInput
                                                         label="Taken By"
-                                                        values={store_data.map((m) => ({
-                                                            id: m.value,
-                                                            value: m.value
+                                                        values={branch.map((m) => ({
+                                                            id: m.outlet_id,
+                                                            value: m.outlet_name
                                                         }))}
                                                         name="taken_by"
                                                         type="text"
@@ -277,9 +286,9 @@ class viewIndent extends React.Component {
                                                 <div className={styles.subInputHolder}>
                                                 <CustomInput
                                                         label="Checked By"
-                                                        values={store_data.map((m) => ({
-                                                            id: m.value,
-                                                            value: m.value
+                                                        values={branch.map((m) => ({
+                                                            id: m.outlet_id,
+                                                            value: m.outlet_name
                                                         }))}
                                                         name="checked_by"
                                                         type="text"

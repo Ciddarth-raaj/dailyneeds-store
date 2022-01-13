@@ -9,6 +9,7 @@ import Head from "../../util/head";
 import CustomInput from "../../components/customInput/customInput";
 import StoreHelper from "../../helper/store";
 import ProductHelper from "../../helper/product";
+import BranchHelper from "../../helper/outlets";
 import IssuePage from "../../components/issuePage/issue-page";
 import IndentHelper from "../../helper/indent";
 import DespatchHelper from "../../helper/despatch";
@@ -41,6 +42,7 @@ class acceptIndent extends React.Component {
             issueVisibility: false,
             store_number: null,
             category_id: '',
+            branch: [],
             limit: 10,
             delivery_status: 1,
             splice: [0, 10],
@@ -53,11 +55,12 @@ class acceptIndent extends React.Component {
     componentDidMount() {
         const store = global.config.store_id;
         // console.log({store: store});
-        this.setState({ store_id: store.store_id !== null ? store.store_id : '' });
+        this.setState({ store_id: store !== "null" ? store : '' });
         if (store !== "null") {
             this.getStoreById(store);
         }
-        this.getStore();
+        this.getBranchData();
+        // this.getStore();
         // this.getDespatchIndent();
         // this.getDespatch();
         this.getIndentCount();
@@ -76,6 +79,13 @@ class acceptIndent extends React.Component {
             this.getIndent()
             this.setState({ indentToggle: false })
         }
+    }
+    getBranchData() {
+        BranchHelper.getOutlet()
+            .then((data) => {
+                this.setState({ branch: data });
+            })
+            .catch((err) => console.log(err));
     }
     getExportFile = () => {
         const TABLE_HEADER = {
@@ -114,22 +124,22 @@ class acceptIndent extends React.Component {
     getDespatchByStoreId() {
         const { store_number } = this.state;
         const store_id = store_number;
-        console.log({store_id: store_id})
+        // console.log({store_id: store_id})
         if(store_id !== "") {
         DespatchHelper.getDespatchByStoreId(store_id)
             .then((data) => {
-                console.log({despatch_details: data});
+                // console.log({despatch_details: data});
                 this.setState({ despatch_details: data })
             })
             .catch((err) => console.log(err))
         }
     }
     getStoreById(store_id) {
-        StoreHelper.getStoreById(store_id)
-            .then((data) => {
-                this.setState({ store_name: data })
-            })
-            .catch((err) => console.log(err))
+        BranchHelper.getOutletById(store_id)
+        .then((data) => {
+            this.setState({ store_name: data})
+        })
+        .catch((err) => console.log(err))
     }
     getIndentCount() {
         const tempArray = []
@@ -196,7 +206,7 @@ class acceptIndent extends React.Component {
         const { checkbox } = this.state;
         values.indent_id = `${checkbox}`;
         if (values.store_id === '') {
-            values.store_id = `${store_name[0].store_id}`
+            values.store_id = `${store_name[0].outlet_id}`
         }
         // console.log({ value: values });
         DespatchHelper.createDespatch(values)
@@ -232,8 +242,8 @@ class acceptIndent extends React.Component {
         </div>
     )
     render() {
-        const { details, pages, splice, paginate_filter, issue_data, issueVisibility, despatch_details, final_data, store_number, store_name, store_data } = this.state;
-        console.log({insiderender: despatch_details})
+        const { details, pages, splice, paginate_filter, branch, issue_data, issueVisibility, despatch_details, final_data, store_number, store_name, store_data } = this.state;
+        // console.log({insiderender: despatch_details})
         let valuesNew = [];
         const initialValue = {
             dob_1: "",
@@ -313,9 +323,9 @@ class acceptIndent extends React.Component {
                                                         {store_name.length === 0 && (
                                                             <CustomInput
                                                                 label="From Store"
-                                                                values={store_data.map((m) => ({
-                                                                    id: m.id,
-                                                                    value: m.value
+                                                                values={branch.map((m) => ({
+                                                                    id: m.outlet_id,
+                                                                    value: m.outlet_name
                                                                 }))}
                                                                 name="store_id"
                                                                 type="text"
@@ -330,7 +340,7 @@ class acceptIndent extends React.Component {
                                                                         className={styles.infoLabel}
                                                                     >From Store</label>
                                                                     <Input
-                                                                        value={store_name[0].store_name}
+                                                                        value={store_name[0].outlet_name}
                                                                         isDisabled={true}
                                                                         isReadOnly={true}
                                                                     />
