@@ -1116,7 +1116,7 @@ class Create extends React.Component {
 														</div>
 													</>
 												)}
-												{doc.length !== 0 && (
+												{doc !== null && doc.length !== 0 && (
 													<div>
 														{doc[0].card_name !== "" && (
 													<div>
