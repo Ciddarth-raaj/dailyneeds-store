@@ -49,7 +49,7 @@ const TextField = ({
   const { setFieldValue } = useFormikContext()
   const [field, meta] = useField(props)
   const [startDate, setStartDate] = useState(new Date());
-  let start = 1990;
+  let start = 1950;
   let end = new Date().getFullYear();
   let arr = [];
   for(let i = start; i<=end; i++) {
@@ -214,7 +214,7 @@ const TextField = ({
                   </div>
                 )}
                 onChange={val => {
-                  setFieldValue(field.name, val)
+                  setFieldValue(field.name, moment(val).format("YYYY-MM-DD"))
                 }}
               />
               {selected === '' && (
@@ -224,7 +224,6 @@ const TextField = ({
                   className={styles.errorMessage}
                 />
               )}
-              
             </>
           )}
           {method === 'password' && (

@@ -19,6 +19,9 @@ export const Validation = Yup.object({
 	// 	.nullable()
 	// 	.email("Invalid email")
 	// 	.required("Fill Email"),
+	// bank_name: Yup.string().nullable().required("Fill Bank Name"),
+	// ifsc: Yup.string().nullable().required("Fill IFSC"),
+	// account_no: Yup.string().nullable().required("Fill Account Number"),
 	qualification: Yup.string().nullable().required("Fill Educational Qualification"),
 	// introducerName: Yup.string().required("Fill Introducer Name"),
 	// introducerDetails: Yup.string()
@@ -28,7 +31,7 @@ export const Validation = Yup.object({
 	// 	.typeError("Must be a number")
 	// 	.nullable()
 	// 	.required("Fill Employee ID"),
-	salary: Yup.string().nullable().required("Fill Salary"),
+	salary: Yup.number().nullable().typeError("Must be a number").required("Fill Salary"),
 	// uniform_qty: Yup.string().required("Fill Unifrom"),
 	// experience: Yup.string().required("Fill Experience"),
 	// joiningDate: Yup.string().required("Fill Joining Date"),

@@ -235,7 +235,7 @@ class Create extends React.Component {
 		values.designation_name = values.designation_id;
 		values.date_of_joining = moment(values.date_of_joining).format("YYYY-MM-DD");
 		values.dob = moment(values.dob).format("YYYY-MM-DD");
-		values.dob = moment(values.marriage_date).format("YYYY-MM-DD");
+		values.marriage_date = moment(values.marriage_date).format("YYYY-MM-DD");
 		values.store_name = values.store_id;
 		values.shift_name = values.shift_id;
 		if(permanent_trigger === true) {
@@ -248,11 +248,14 @@ class Create extends React.Component {
 		delete values.modified_employee_image;
 		delete values.payment_name;
 		delete values.docupdate;
-		
 		EmployeeHelper.register(values)
 			.then((data) => {
 				if (data === 200) {
 					toast.success("Successfully created Account");
+					values.department_name = this.props.data[0].department_name; 
+					values.designation_name = this.props.data[0].designation_name;
+					values.store_name = this.props.data[0].outlet_name;
+					values.shift_name = this.props.data[0].shift_name;
 					router.push("/employee")
 				} else {
 					toast.error("Error creating Account");
@@ -280,8 +283,7 @@ class Create extends React.Component {
 					this.state.modifiedAdhaarHolder,
 					"modifiedAdhaarImage",
 					"dashboard_file"
-				));
-				
+				));	
 				values.docupdate[0].file = ModifiedAdhaararray.length > 0 ? ModifiedAdhaararray[0].remoteUrl : "";
 			}
 			if(this.state.modifiedLicenseHolder.length !== 0) {
@@ -312,7 +314,7 @@ class Create extends React.Component {
 				values.docupdate[3].file = ModifiedPanarray.length > 0 ? ModifiedPanarray[0].remoteUrl : "";
 			}
 
-			if (this.state.licenseHolder !== "") {
+			if (this.state.licenseHolder.length !== 0) {
 				const Idarray = [];
 				Idarray.push(await FilesHelper.upload(
 					this.state.licenseHolder,
@@ -325,7 +327,7 @@ class Create extends React.Component {
 					}
 				}
 			}
-			if (this.state.voterHolder !== "") {
+			if (this.state.voterHolder.length !== 0) {
 				const Subarray = [];
 				Subarray.push(await FilesHelper.upload(
 					this.state.voterHolder,
@@ -339,7 +341,7 @@ class Create extends React.Component {
 				}
 			}
 
-			if (this.state.adhaarHolder !== "") {
+			if (this.state.adhaarHolder.length !== 0) {
 				const Adhaararray = [];
 				Adhaararray.push(await FilesHelper.upload(
 					this.state.adhaarHolder,
@@ -355,9 +357,6 @@ class Create extends React.Component {
 		} catch (err) {
 			console.log(err);
 		}
-		
-		values.date_of_joining = moment(values.date_of_joining).format("YYYY-MM-DD");
-		values.dob = moment(values.dob).format("YYYY-MM-DD");
 		const { employee_id } = this.props.data[0];
 		const { router } = this.props;
 		delete values.department_name;
@@ -373,6 +372,7 @@ class Create extends React.Component {
 			.then((data) => {
 				if (data.code == 200) {
 					toast.success("Employee details Updated!");
+					values.payment_name = this.props.data[0]?.payment_type === "1" ? "Bank" : "Cash";
 					router.push("/employee")
 				} else {
 					throw "error";
@@ -456,6 +456,7 @@ class Create extends React.Component {
 	};
 	voterIdUploadParams = ({ meta }) => {
 		const { voterHolder } = this.state;
+		// console.log({voterHolder: voterHolder})
 		return { url: voterHolder };
 	};
 
@@ -630,7 +631,7 @@ class Create extends React.Component {
 						designation_id: this.props.data[0]?.designation_id,
 						designation_name: this.props.data[0]?.designation_name,
 						store_id: this.props.data[0]?.store_id,
-						store_name: this.props.data[0]?.store_name,
+						store_name: this.props.data[0]?.outlet_name,
 						shift_id: this.props.data[0]?.shift_id,
 						shift_name: this.props.data[0]?.shift_name,
 						department_id: this.props.data[0]?.department_id,
@@ -893,11 +894,13 @@ class Create extends React.Component {
 												<div className={styles.inputHolder}>
 													<CustomInput label="Residential Address *" name={permanent_trigger !== true ? "residential_address" : "permanent_address"} type="text" method="TextArea" editable={id !== null ? editablePerInfo : !editablePerInfo} />
 												</div>
+												{id === null && (
 												<div className={styles.personalInputHolder}>
 													<Button mb={'40px'} colorScheme="purple" onClick={() => ( this.setState({ permanent_trigger: !permanent_trigger }) )}>
 														Same As Permanent Address
 													</Button>
 												</div>
+												)}
 												<div className={styles.inputHolder}>
 													<CustomInput label="Father Name *" name="father_name" type="text" editable={id !== null ? editablePerInfo : !editablePerInfo} />
 													{values.marital_status === "Married" &&
@@ -1113,12 +1116,14 @@ class Create extends React.Component {
 														</div>
 													</>
 												)}
-												{doc !== null && (
+												{doc.length !== 0 && (
+													<div>
+														{doc[0].card_name !== "" && (
 													<div>
 														{doc.map((m, i) => (
 															<>	
 																<div className={styles.inputHolder} style={{ marginBottom: 0 }}>
-																	<CustomInput label="Card Type" name="card_type" value={m.card_type === '1' ? "Adhaar Card" : m.card_type === '2' ? "License" : m.card_type === '3' ? "Voter ID" : "pan card"} type="text" method="readonly" containerStyle={{ marginTop: 30, marginBottom: 30 }} />
+																	<CustomInput label="Card Type" name="card_type" value={m.card_type === '1' ? "Adhaar Card" : m.card_type === '2' ? "License" : m.card_type === '3' ? "Voter ID" : m.card_type === '4' ? "pan card" : ""} type="text" method="readonly" containerStyle={{ marginTop: 30, marginBottom: 30 }} />
 																</div>
 																<div className={styles.inputHolder} >
 																	<CustomInput label="Card Number" name={`docupdate[${i}].card_no`} type="text" editable={id !== null ? editableIdenInfo : !editableIdenInfo} containerStyle={{ marginBottom: 0 }} />
@@ -1128,20 +1133,22 @@ class Create extends React.Component {
 																<div>
 																{id !== null ?
 																<div className={styles.employeeImageModify}>
+																{m.file !== "" && (
 																<img src={m.file} className={styles.employee_image} />
+																)}
 																{idContainer === true && (
 																<Dropzone 
 																	getUploadParams={
 																		m.card_type === "1" ? this.getModifyAdhaarUploadParams : 
 																		m.card_type === "2" ? this.getModifyLicenseUploadParams : 
-																		m.card_type === '3' ? this.getModifyVoterUploadParams : 
-																		this.getModifyPanUploadParams
+																		m.card_type === "3" ? this.getModifyVoterUploadParams : 
+																		m.card_type === "4" ? this.getModifyPanUploadParams : ""
 																	} 
 																	onChangeStatus={
 																		m.card_type === "1" ? this.modifyAdhaarChangeStatus : 
 																		m.card_type === "2" ? this.modifyLicenseChangeStatus : 
-																		m.card_type === '3' ? this.modifyVoterChangeStatus : 
-																		this.modifyPanChangeStatus
+																		m.card_type === "3" ? this.modifyVoterChangeStatus : 
+																		m.card_type === "4" ? this.modifyPanChangeStatus : ""
 																	} 
 																	{...dropDownProps} 
 																	style={{marginTop: "60px"}}
@@ -1156,6 +1163,8 @@ class Create extends React.Component {
 															</>
 														))}
 													</div>
+														)}
+														</div>
 												)}
 												{id !== null && editableIdenInfo === true && <p className={styles.newDocumentSet}>To Upload New Documents</p>}
 												{editableIdenInfo === true || id === null ?
@@ -1271,17 +1280,13 @@ class Create extends React.Component {
 
 											<div>
 												<div className={styles.personalInputHolder} >
-													{id !== null ?
-														<div className={styles.switchHolder}>
-															<label>PF Number & UAN Number</label>
-															<Switch className={styles.switch} id="email-alerts" isChecked={true} isDisabled={true} onChange={() => this.setState({ pfToggle: true })} />
-														</div>
-														:
+
+													{id === null && (
 														<div className={styles.switchHolder}>
 															<label>PF Number & UAN Number  & Pan </label>
 															<Switch className={styles.switch} id="email-alerts" onChange={() => this.setState({ pfToggle: !pfToggle })} />
 														</div>
-													}
+													)}
 												</div>
 												{pfToggle === true || id !== null ? (
 													<div className={styles.inputHolder}>
@@ -1291,17 +1296,13 @@ class Create extends React.Component {
 													</div>
 												) : ""}
 
-												{id !== null ?
-													<div className={styles.switchHolder}>
-														<label>ESI Number</label>
-														<Switch className={styles.switch} id="email-alerts" isChecked={true} isDisabled={true} onChange={() => this.setState({ esiToggle: !esiToggle })} />
-													</div>
-													:
+											
+												{id === null && (
 													<div className={styles.switchHolder}>
 														<label>ESI Number</label>
 														<Switch className={styles.switch} id="email-alerts" onChange={() => this.setState({ esiToggle: !esiToggle })} />
 													</div>
-												}
+												)}
 												{esiToggle === true || id !== null ? (
 													<div className={styles.inputHolder}>
 														<CustomInput label="ESI Number " name="esi_number" type="text" editable={id !== null ? editablePFInfo : !editablePFInfo} />
@@ -1396,6 +1397,7 @@ export async function getServerSideProps(context) {
 	var data = [];
 	if(context.query.id !== "create") {
 	data = await EmployeeHelper.getEmployeeByID(context.query.id);
+	data[0].dob = moment(data[0].dob).format("YYYY-MM-DD")
 	}
 	const id = context.query.id != "create" ? data[0].employee_id : null;
 	let doc = [];
