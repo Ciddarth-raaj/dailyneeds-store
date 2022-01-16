@@ -6,14 +6,13 @@ import { Container, Flex, ButtonGroup, Button, Switch } from "@chakra-ui/react";
 import { toast } from "react-toastify";
 import FormikErrorFocus from "formik-error-focus";
 import { withRouter } from 'next/router';
-
+import * as Yup from "yup";
 //Styles
 import styles from "../../styles/registration.module.css";
 
 //Helpers
 import DocumentHelper from "../../helper/document";
 import BranchHelper from "../../helper/outlets";
-import Datetime from 'react-datetime';
 import ResignedUser from "../../components/resignedUser/resignedUser";
 import { BloodGroup, PaymentType, IdCardType } from "../../constants/values";
 import EmployeeHelper from "../../helper/employee";
@@ -55,12 +54,14 @@ class Create extends React.Component {
 			uploadImage: [],
 			uploadId: [],
 			permanent_trigger: false,
+			error: '',
 			subUploadId: [],
 			licenseHolder: [],
 			panHolder: [],
 			modifiedImageHolder: [],
 			modifiedAdhaarHolder: [],
 			modifiedLicenseHolder: [],
+			validationPayment: '',
 			modifiedVoterHolder: [],
 			modifiedPanHolder: [],
 			resignationData: [],
@@ -572,6 +573,7 @@ class Create extends React.Component {
 			loadingIdenInfo,
 			loadingPFInfo,
 			loadingSalInfo,
+			validationPayment,
 			employee_name,
 			loadingOtherInfo,
 			id,
@@ -605,7 +607,6 @@ class Create extends React.Component {
 			boxShadow: "lg",
 			// minW: "600px",
 		}; 
-
 		return (
 			<GlobalWrapper title="New Employee">
 				<Head />
@@ -654,7 +655,7 @@ class Create extends React.Component {
 						online_portal: this.props.data[0]?.online_portal,
 						pan_no: this.props.data[0]?.pan_no,
 						payment_type: this.props.data[0]?.payment_type,
-						payment_name: this.props.data[0]?.payment_type === "1" ? "Bank" : "Cash",
+						payment_name: this.props.data[0]?.payment_type === "1" ? "Bank" : this.props.data[0]?.payment_type === "2" ? "Cash" : "",
 						modified_employee_image: "",
 						files: [
 							{
@@ -692,6 +693,7 @@ class Create extends React.Component {
 							},
 						]
 					}}
+
 					validationSchema={Validation}
 					onSubmit={(values) => {
 						id !== null ? this.updateEmployee(values) : this.createEmployee(values);
@@ -1102,6 +1104,7 @@ class Create extends React.Component {
 														name={editableIdenInfo || id === null ? "payment_type" : "payment_name"}
 														type="text"
 														method="switch"
+														// onClick={() => { this.setState({ validationPayment: "payment_type" }) }}
 														editable={id !== null ? editableIdenInfo : !editableIdenInfo}
 													/>
 												</div>
@@ -1109,6 +1112,7 @@ class Create extends React.Component {
 													<>
 														<div className={styles.inputHolder}>
 															<CustomInput label="Bank Name *" name="bank_name" type="text" editable={id !== null ? editableIdenInfo : !editableIdenInfo} />
+															<div>{this.state.error}</div>
 															<CustomInput label="IFSC Code *" name="ifsc" type="text" editable={id !== null ? editableIdenInfo : !editableIdenInfo} />
 														</div>
 														<div className={styles.inputHolder}>
@@ -1200,7 +1204,7 @@ class Create extends React.Component {
 																				<div className={styles.inputHolder} key={index}>
 																					<CustomInput label="Driving license Number" name={`files[${index}].id_card_no`} type="text" containerStyle={{ marginBottom: 0 }} editable={id !== null ? editableIdenInfo : !editableIdenInfo} />
 																					<CustomInput label="Name in Driving License" name={`files[${index}].id_card_name`} type="text" containerStyle={{ marginBottom: 0 }} editable={id !== null ? editableIdenInfo : !editableIdenInfo} />
-																					<CustomInput label="Expiry Date" name={`files[${index}].expiry_date`} type="text" method="datepicker" containerStyle={{ marginBottom: 0 }} editable={id !== null ? editableIdenInfo : !editableIdenInfo} />
+																					<CustomInput label="Expiry Date" name={`files[${index}].expiry_date`} type="text" method="expiry-datepicker" containerStyle={{ marginBottom: 0 }} editable={id !== null ? editableIdenInfo : !editableIdenInfo} />
 																					<br />
 																				</div>
 																				<div className={styles.uploadHolder} style={{ marginTop: 30 }}>

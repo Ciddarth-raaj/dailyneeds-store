@@ -51,12 +51,18 @@ const TextField = ({
   const [startDate, setStartDate] = useState(new Date());
   let start = 1950;
   let end = new Date().getFullYear();
+  let endexpiry = 2050;
   let arr = [];
+  let expiryarr = [];
   for(let i = start; i<=end; i++) {
     arr.push(i);
   }
 
+  for(let i = start; i<=endexpiry; i++) {
+    expiryarr.push(i)
+  }
   const years = arr;
+  const expiryyear = expiryarr;
   const months = [
     "January",
     "February",
@@ -114,6 +120,74 @@ const TextField = ({
                 />
               )}
             </NumberInput>
+          )}
+          {method === 'expiry-datepicker' && (
+            <>
+            <DatePicker
+              {...field}
+              {...props}
+              selected={(field.value && new Date(field.value)) || null}
+              customInput={<CustomDateTimeInput />}
+              renderCustomHeader={({
+                val,
+                changeYear,
+                changeMonth,
+                decreaseMonth,
+                increaseMonth,
+                prevMonthButtonDisabled,
+                nextMonthButtonDisabled,
+              }) => (
+                <div
+                  style={{
+                    margin: 10,
+                    display: "flex",
+                    justifyContent: "center",
+                  }}
+                >
+                  <button onClick={decreaseMonth} disabled={prevMonthButtonDisabled}>
+                    {"<"}
+                  </button>
+                  <select
+                    value={val}
+                    onChange={({ target: { value } }) => changeYear(value)}
+                  >
+                    {expiryyear.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+        
+                  <select
+                    value={months[moment(val).month()]}
+                    onChange={({ target: { value } }) =>
+                      changeMonth(months.indexOf(value))
+                    }
+                  >
+                    {months.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+        
+                  <button onClick={increaseMonth} disabled={nextMonthButtonDisabled}>
+                    {">"}
+                  </button>
+                </div>
+              )}
+              onChange={val => {
+                setFieldValue(field.name, moment(val).format("YYYY-MM-DD"))
+              }}
+            />
+            {selected === '' && (
+              <ErrorMessage
+                component='div'
+                name={field.name}
+                className={styles.errorMessage}
+              />
+            )}
+          </>
           )}
           {method === 'switch' && (
             <Select {...field} placeholder='Select Option'>
@@ -249,7 +323,7 @@ const TextField = ({
             </InputGroup>
           )}
           {method === undefined && (
-            <Input {...field} {...props} a autoComplete='off' />
+            <Input {...field} {...props} autoComplete='off' />
           )}
           {method === 'singlevalue' && (
               <Input 

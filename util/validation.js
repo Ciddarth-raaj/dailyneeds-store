@@ -7,6 +7,19 @@ export const Validation = Yup.object({
 	permanent_address: Yup.string().nullable().required("Fill Address"),
 	// residential_address: Yup.string().nullable().required("Fill Residential Address"),
 	gender: Yup.string().nullable().required("Choose Gender"),
+	payment_type: Yup.string().required("Select Payment"),
+	bank_name: Yup.string().nullable().when('payment_type', { 
+		is: (val) => val === "1", 
+		then: Yup.string().nullable().required('Bank Name is required') 
+	}),
+	ifsc: Yup.string().nullable().when('payment_type', { 
+		is: (val) => val === "1", 
+		then: Yup.string().nullable().required('ifsc is required') 
+	}),
+	account_no: Yup.string().nullable().when('payment_type', { 
+		is: (val) => val === "1", 
+		then: Yup.string().nullable().required('account number is required') 
+	}),
 	// blood_group: Yup.string().nullable().required("Choose BloodGroup"),
 	designation_id: Yup.string().nullable().required("Choose Designation"),
 	marital_status: Yup.string().nullable().required("Choose Marital Status"),
@@ -38,6 +51,7 @@ export const Validation = Yup.object({
 	// resignationDate: Yup.string().required("Fill Resignation Date"),
 	// idNo: Yup.number().required("Fill ID Card No"),
 });
+
 export const ResignationValidation = Yup.object({
 	reason: Yup.string().required("Fill Reason"),
 	reason_type: Yup.string().required("choose Reason Type"),
