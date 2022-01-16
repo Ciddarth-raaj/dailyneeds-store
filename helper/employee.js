@@ -147,9 +147,9 @@ const employee = {
                 .then(async (res) => {
                     if (res.status === 200) {
                         resolve(res.data);
-                    } else {
-                        reject(res.data.msg);
-                    }
+                    } else if(res.data.code === 422) {
+                        resolve(res.data.msg)
+                    } 
                 })
                 .catch((err) => {
                     reject(err);
