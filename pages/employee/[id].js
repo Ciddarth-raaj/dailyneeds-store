@@ -66,6 +66,17 @@ class Create extends React.Component {
 			modifiedPanHolder: [],
 			resignationData: [],
 			adhaarHolder: [],
+			extension: [
+				{
+					one: "png",
+				},
+				{
+					one: "jpg",
+				},
+				{
+					three: "pdf",
+				},
+			],
 			voterHolder: [],
 			subIdHolder: [],
 			employee_name: '',
@@ -540,6 +551,31 @@ class Create extends React.Component {
 	resignedEmployee() {
 		this.handleSubmit();
 	}
+	// download = (href) => {
+	// 	console.log({href: href})
+	// 	fetch(href, {
+	// 		method: "GET",
+	// 		headers: {
+	// 			// 'Access-Control-Allow-Origin': "*",
+	// 			mode: 'no-cors'
+	// 		},
+	// 	})
+	// 		.then((response) => {
+	// 			response.arrayBuffer().then(function (buffer) {
+	// 				const url = window.URL.createObjectURL(new Blob([buffer]));
+	// 				const link = document.createElement("a");
+	// 				link.href = url;
+	// 				const extension =
+	// 					href.split(".")[href.split(".").length - 1];
+	// 				link.setAttribute("download", `card.${extension}`);
+	// 				document.body.appendChild(link);
+	// 				link.click();
+	// 			});
+	// 		})
+	// 		.catch((err) => {
+	// 			console.log(err);
+	// 		});
+	// };
 	render() {
 		const { 
 			loading,
@@ -721,7 +757,6 @@ class Create extends React.Component {
 								break;
 							}
 						}
-						
 						return (
 							<Form onSubmit={formikProps.handleSubmit}>
 								<FormikErrorFocus align={"middle"} ease={"linear"} duration={200} />
@@ -1138,7 +1173,19 @@ class Create extends React.Component {
 																{id !== null ?
 																<div className={styles.employeeImageModify}>
 																{m.file !== "" && (
-																<img src={m.file} className={styles.employee_image} />
+																	<div style={{width: "100%"}}>
+																	<div style={{width: "100%", display: editableIdenInfo === false ? "none" : ""}}>
+																	<Button w={"100%"} className={styles.downbutton} isLoading={loading} variant="outline" loadingText="Generating" colorScheme="blue">
+																	<a
+																	className={styles.downloadButton}
+																	href={m.file}
+																	target="_blank"
+																	>
+																		Click here to download card details
+																		</a>
+																	</Button>
+																	</div>
+																	</div>
 																)}
 																{idContainer === true && (
 																<Dropzone 

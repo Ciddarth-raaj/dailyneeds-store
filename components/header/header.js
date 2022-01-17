@@ -66,11 +66,14 @@ export default class Header extends React.Component {
                 },
             },
             token: '',
+            user_type: '',
         };
     }
 
     componentDidMount() {
         const token = localStorage.getItem('Token');
+        const user_type = localStorage.getItem('User_type')
+        this.setState({user_type: user_type})
         this.setState({ token: token })
     }
 
@@ -79,7 +82,7 @@ export default class Header extends React.Component {
         window.location = '/';
     }
     render() {
-        const { settings, loginVisibility, token } = this.state;
+        const { settings, loginVisibility, token, user_type } = this.state;
         return (
             <div className={styles.container}>
                 {/* {loginVisibility && (
@@ -108,7 +111,11 @@ export default class Header extends React.Component {
                             <img src="/assets/admin.png" />
                         </div>
                         <div className={styles.name}>
+                            {user_type === "2" ? 
+                            <p>{"Vinodh"}</p>
+                            : 
                             <p>{"Emma"}</p>
+                            }
                             <p className={styles.nameSize}>
                                 {"Admin"}&nbsp;<i class={`fa fa-angle-down`} aria-hidden="true" />
                             </p>
