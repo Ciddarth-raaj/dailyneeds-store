@@ -62,7 +62,14 @@ export const SalaryValidation = Yup.object({
 	loan_amount: Yup.string().required("Enter Loan Amount"),
 	installment_duration: Yup.string().required("Select An Installment Duration")
 })
-
+export const VehicleValidation = Yup.object({
+	vehicle_number: Yup.string().required("Enter Vehicle Number"),
+	vehicle_name: Yup.string().required("Enter Vehicle Name"),
+	chasis_number: Yup.string().required("Enter Chasis Number"),
+	engine_number: Yup.string().required("Enter Engine Number"),
+	fc_validity: Yup.string().required("Enter FC Validity"),
+	insurance_validity: Yup.string().required("Enter Insurance Validity"),
+})
 // export const PackValidation = Yup.object({
 // 	material_type: Yup.string().required("please enter Material Type"),
 // 	material_size: Yup.string().required("please enter Material Size"),

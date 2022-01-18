@@ -310,7 +310,7 @@ class viewDespatch extends React.Component {
                                                         label="Vehicle"
                                                         values={vehicle_details.map((m) => ({
                                                             id: m.vehicle_number,
-                                                            value: `${m.vehicle_number} / ${m.engine_number} / ${m.chasis_number} `
+                                                            value: `${m.vehicle_number} / ${m.vehicle_name} `
                                                         }))}
                                                         name="vehicle"
                                                         type="text"

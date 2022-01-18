@@ -169,6 +169,12 @@ export default {
         selected: false,
         location: '/indent/issue-sent'
       },
+      vehicle: {
+        title: 'Vehicle',
+        permission: 'view_vehicle',
+        selected: false,
+        location: '/vehicle'
+      },
     },
   },
   tickets: {

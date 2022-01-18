@@ -118,7 +118,7 @@ class viewMaterialSize extends React.Component {
         };
 
         const table_title = {
-            sno: "SNo",
+            // sno: "SNo",
             size_id: "Material Size No",
 			material_size: "Material Size",
 			weight: "Weight",
@@ -126,7 +126,7 @@ class viewMaterialSize extends React.Component {
 			// description: "Description"
         };
         valuesNew = details.map((m, i) => ({
-            sno: i + 1,
+            // sno: i + 1,
 			size_id: onClick({value: m.size_id, id: m.size_id}),
 			material_size: onClick({value: m.material_size, id: m.size_id}),
 			weight: onClick({value: m.weight, id: m.size_id}),
@@ -171,6 +171,7 @@ class viewMaterialSize extends React.Component {
                                             {paginate_filter !== true ? (
                                                 <div className={styles.paginate}>
                                                     <div className={styles.paginateContent}>
+                                                    {pages.length > 10 && (
                                                         <div
                                                             className={styles.arrow}
                                                             style={{ pointerEvents: this.state.splice[0] !== 0 ? "auto" : "none" }}
@@ -181,6 +182,7 @@ class viewMaterialSize extends React.Component {
                                                         >
                                                             <ChevronLeftIcon />
                                                         </div>
+                                                    )}
                                                         {pages.slice(splice[0], splice[1]).map((m) => (
                                                             <div
                                                                 className={styles.paginateHolder}
@@ -191,6 +193,7 @@ class viewMaterialSize extends React.Component {
                                                                 {m}
                                                             </div>
                                                         ))}
+                                                        {pages.length > 10 && (
                                                         <div
                                                             className={styles.arrow}
                                                             onClick={() =>
@@ -200,6 +203,7 @@ class viewMaterialSize extends React.Component {
                                                         >
                                                             <ChevronRightIcon />
                                                         </div>
+                                                        )}
                                                     </div>
                                                 </div>
                                             ) : (

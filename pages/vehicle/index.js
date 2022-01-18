@@ -6,19 +6,15 @@ import { toast } from "react-toastify";
 import { ChevronRightIcon, ChevronLeftIcon } from "@chakra-ui/icons";
 
 import Head from "../../util/head";
-import CustomInput from "../../components/customInput/customInput";
-import StoreHelper from "../../helper/store";
-import BranchHelper from "../../helper/outlets";
-import IndentHelper from "../../helper/indent";
+import VehicleHelper from "../../helper/vehicle";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import { Validation } from "../../util/validation";
 import Table from "../../components/table/table";
 import exportCSVFile from "../../util/exportCSVFile";
 import moment from "moment";
 import Link from "next/link";
-import MaterialHelper from "../../helper/materialtype";
 
-class viewMaterialType extends React.Component {
+class viewVehicle extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
@@ -44,54 +40,59 @@ class viewMaterialType extends React.Component {
     }
 
     componentDidMount() {
-        this.getMaterialType();
-		this.getMaterialTypeCount();
+        this.getVehicle();
+        this.getVehicleCount();
+		// this.getMaterialSizeCount();
     }
 	componentDidUpdate() {
         const { offsetToggle } = this.state;
         if (offsetToggle !== false) {
-            this.getMaterialType();
+            this.getVehicle();
             this.setState({ offsetToggle: false })
         }
 	}
     getExportFile = () => {
         const TABLE_HEADER = {
-			type_id: "Material Type No",
-            material_type: "Material Type",
-            description: "Description",
+			size_id: "Material Size No",
+			material_size: "Material Size",
+			weight: "Weight",
+			cost: "Cost",
+			description: "Description"
         };
         const formattedData = [];
         valuesNew.forEach((d, i) => {
             formattedData.push({
                 sno: i + 1,
-				type_id: m.type_id,
-            	material_type: m.material_type,
-            	description: m.description,
+				size_id: m.size_id,
+				material_size: m.material_size,
+				weight: m.weight,
+				cost: m.cost,
+				description: m.description
             });
         });
         exportCSVFile(
             TABLE_HEADER,
             formattedData,
-            "indent_details" + moment().format("DD-MMY-YYYY")
+            "materialSize_details" + moment().format("DD-MMY-YYYY")
         );
     };
 
-    getMaterialType() {
+    getVehicle() {
         const { offset, limit } = this.state;
-        MaterialHelper.getMaterialType(offset, limit)
+        VehicleHelper.getVehicleDet(offset, limit)
             .then((data) => {
+                // console.log({data: data});
                 this.setState({ details: data })
             })
             .catch((err) => console.log(err))
     }
 
-	getMaterialTypeCount() {
+	getVehicleCount() {
         const tempArray = []
         var count = 1;
-        MaterialHelper.getMaterialTypeCount()
+        VehicleHelper.getVehicleCount()
             .then((data) => {
-				// console.log({data: data});
-                count = Math.ceil(parseInt(data[0].typecount) / 10);
+                count = Math.ceil(parseInt(data[0].vehiclecount) / 10);
                 for (let i = 1; i <= count; i++) {
                     tempArray.push(i);
                 }
@@ -102,12 +103,11 @@ class viewMaterialType extends React.Component {
 	
     render() {
         const { details, pages, branch ,splice, paginate_filter, store_name, store_data } = this.state;
-        // console.log({pages: pages.length});
 		// const { data } = this.props;
         let valuesNew = [];
 		const onClick = (m) => {
 			return (
-				<Link href={`/packing-material-type/${m.id}`}><a>{m.value}</a></Link>
+				<Link href={`/vehicle/${m.id}`}><a>{m.value}</a></Link>
 			)
 		};
         const initialValue = {
@@ -117,20 +117,30 @@ class viewMaterialType extends React.Component {
 
         const table_title = {
             // sno: "SNo",
-            type_id: "Material Type No",
-            material_type: "Material Type",
-            // description: "Description",
+            vehicle_id: "Vehicle ID",
+            vehicle_name: "Vehicle Name",
+			vehicle_number: "Vehicle Number",
+			chasis_number: "Chasis Number",
+			engine_number: "Engine Number",
+            fc_validity: "FC Validity",
+            insurance_validity: "Insurance Validity"
+			// description: "Description"
         };
         valuesNew = details.map((m, i) => ({
             // sno: i + 1,
-			type_id: onClick({value: m.type_id, id: m.type_id}),
-            material_type: onClick({value: m.material_type, id: m.type_id}),
-            // description: m.description,
+			vehicle_id: onClick({value: m.vehicle_id, id: m.vehicle_id}),
+            vehicle_name: onClick({value: m.vehicle_name, id: m.vehicle_id}),
+			vehicle_number: onClick({value: m.vehicle_number, id: m.vehicle_id}),
+			chasis_number: onClick({value: m.chasis_number, id: m.vehicle_id}),
+			engine_number: onClick({value: m.engine_number, id: m.vehicle_id}),
+			fc_validity: onClick({value: m.fc_validity, id: m.vehicle_id}),
+			insurance_validity: onClick({value: m.insurance_validity, id: m.vehicle_id}),
+			// description: onClick({value: m.description, id: m.size_id})
         }));
 
 
         return (
-            <GlobalWrapper title="View Pack Material Type">
+            <GlobalWrapper title="View Vehicle Details">
             <Head />
             <Formik
                 initialValues={{}}
@@ -147,7 +157,7 @@ class viewMaterialType extends React.Component {
                                         <p className={styles.buttoninputHolder}>
                                             <div>View Details</div>
 											<div style={{ paddingRight: 10 }}>
-                                            <Link href="/packing-material-type/create">
+                                            <Link href="/vehicle/create">
                                                 <Button colorScheme="purple">
                                                     {"Add"}
                                                 </Button>
@@ -165,7 +175,7 @@ class viewMaterialType extends React.Component {
                                             {paginate_filter !== true ? (
                                                 <div className={styles.paginate}>
                                                     <div className={styles.paginateContent}>
-                                                        {pages.length > 10 && (
+                                                    {pages.length > 10 && (
                                                         <div
                                                             className={styles.arrow}
                                                             style={{ pointerEvents: this.state.splice[0] !== 0 ? "auto" : "none" }}
@@ -176,7 +186,7 @@ class viewMaterialType extends React.Component {
                                                         >
                                                             <ChevronLeftIcon />
                                                         </div>
-                                                        )}
+                                                    )}
                                                         {pages.slice(splice[0], splice[1]).map((m) => (
                                                             <div
                                                                 className={styles.paginateHolder}
@@ -261,4 +271,4 @@ class viewMaterialType extends React.Component {
     }
 }
 
-export default viewMaterialType;
+export default viewVehicle;

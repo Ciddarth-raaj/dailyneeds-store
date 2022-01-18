@@ -25,6 +25,7 @@ export const PERMISSIONS = {
 	view_shift: "View Shifts",
 	add_shifts: "Add Shifts",
 	view_store_budger: "View Store Budget",
+	view_vehicle: "View Vehicle",
 	add_store_budger: "Add Store Budget",
 	view_customers: "View Customers",
 	add_customers: "Add Customers",
