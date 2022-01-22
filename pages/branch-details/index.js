@@ -1,15 +1,15 @@
 import { Formik, Form } from "formik";
 import { Container, Flex, Switch, ButtonGroup, Button } from "@chakra-ui/react";
-import styles from "../styles/admin.module.css";
+import styles from "../../styles/admin.module.css";
 import React from "react";
 
 // import BranchModal from "../components/branchModal/branchModal";
-import BranchHelper from "../helper/outlets";
+import BranchHelper from "../../helper/outlets";
 import { toast } from "react-toastify";
-import Head from "../util/head";
-import GlobalWrapper from "../components/globalWrapper/globalWrapper";
-import Table from "../components/table/table";
-import exportCSVFile from "../util/exportCSVFile";
+import Head from "../../util/head";
+import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
+import Table from "../../components/table/table";
+import exportCSVFile from "../../util/exportCSVFile";
 import moment from "moment";
 import Link from "next/link";
 
@@ -21,7 +21,7 @@ const table_title = {
 };
 
 
-export default class CreateShift extends React.Component {
+export default class BranchDetail extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
@@ -73,7 +73,7 @@ export default class CreateShift extends React.Component {
     )
     onClick = (m) => {
         return (
-            <Link href={`/branchModal/${m.id}`}>{m.value}</Link>
+            <Link href={`/branch-details/${m.id}`}>{m.value}</Link>
         )}
     render() {
         const { branchModalVisibility, status, id, company, selectedData } = this.state;
@@ -161,7 +161,7 @@ export default class CreateShift extends React.Component {
                                 <p className={styles.buttoninputHolder}>
                                     <div>Branch Details</div>
                                     <div style={{ paddingRight: 10 }}>
-                                    <Link href="/branchModal/create">
+                                    <Link href="/branch-details/create">
                                         <Button colorScheme="purple">
                                             {"Add"}
                                         </Button>
