@@ -27,7 +27,7 @@ const outlet = {
 	}),
 	getOutletByOutletId: (outlet_id) => 
 	new Promise(function (resolve, reject) {
-	API.get("/outlet/id?outlet_id= " + outlet_id)
+API.get("/outlet/id?outlet_id="+outlet_id)
 		.then(async (res) => {
 			// console.log({res: res})
 			if (res.status === 200) {

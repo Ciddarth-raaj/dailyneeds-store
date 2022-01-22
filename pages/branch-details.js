@@ -93,8 +93,8 @@ export default class CreateShift extends React.Component {
         // );
         const valuesNew = company.map((m) => ({
             outlet_id: m.outlet_id,
-            outlet_name: this.onClick({ value: m.outlet_name, id: m.outlet_id, data: m }),
-            outlet_nickname: this.onClick({ value: m.outlet_nickname, id: m.outlet_id, data: m }),
+            outlet_name: this.onClick({ value: m.outlet_name, id: m.outlet_id }),
+            outlet_nickname: this.onClick({ value: m.outlet_nickname, id: m.outlet_id }),
             status: this.badge({ value: m.is_active, id: m.outlet_id }),
             action: (
                 <div style={{ display: "flex", justifyContent: "center" }}>
