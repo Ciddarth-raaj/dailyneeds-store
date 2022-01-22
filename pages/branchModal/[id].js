@@ -135,6 +135,7 @@ class BranchModal extends React.Component {
         // console.log({ididid: id});
         // console.log({thisthis: this.props})
         const { toggle, isLoading, store_data, designation_data, budgetVisibility, selectedData, store_id } = this.state;
+        console.log({ididid: store_data});
         // console.log({store_idasdasdsad: store_data})
         return (
             <GlobalWrapper title="Branch Modal">

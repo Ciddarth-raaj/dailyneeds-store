@@ -33,7 +33,7 @@ const budget = {
 		}),
 	getBudgetStoreId: (store_id) =>
 		new Promise(function (resolve, reject) {
-			API.get("/budget/storedet?store_id=" + store_id)
+			API.get("/budget/storedet?store_id="+store_id)
 				.then(async (res) => {
 					// console.log({res: res.data})
 					resolve(res.data);
