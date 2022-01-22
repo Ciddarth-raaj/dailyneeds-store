@@ -1,0 +1,130 @@
+//External Dependencies
+import React from "react";
+import { Formik, Form } from "formik";
+import { Container, ButtonGroup, Button } from "@chakra-ui/react";
+import { toast } from "react-toastify";
+import FormikErrorFocus from "formik-error-focus";
+import { withRouter } from 'next/router';
+
+//Style
+import styles from "../../styles/create.module.css";
+
+//Internal Dependencies
+import DepartmentHelper from "../../helper/department";
+import Head from "../../util/head";
+import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
+import { DepartmentValidation } from "../../util/validation";
+import CustomInput from "../../components/customInput/customInput";
+import BudgetHelper from "../../helper/budget";
+
+
+class UpdateBudget extends React.Component {
+	constructor(props) {
+		super(props);
+		this.state = {
+			loading: false,
+		};
+	}
+
+	createDepartment(values) {
+		this.setState({ loading: true });
+		const { router } = this.props;
+		DepartmentHelper.createDepartment(values)
+			.then((data) => {
+				if (data == 200) {
+					toast.success("Successfully Added Department!");
+					router.push("/department")
+				} else {
+					toast.error("Error creating Department!");
+					throw `${data.msg}`;
+				}
+			})
+			.catch((err) => console.log(err))
+			.finally(() => this.setState({ loading: false }));
+	}
+	updateDepartment(values) {
+        const { department_id } = this.props.data[0];
+		const { router } = this.props;
+		this.setState({ loading: true });
+		DepartmentHelper.updateDepartment({
+            department_id: department_id,
+            department_details: values
+        })
+			.then((data) => {
+				if (data.code === 200) {
+					toast.success("Successfully Updated Department!");
+					router.push("/department")
+				} else {
+					toast.error("Error Updating Department!");
+					throw `${data.msg}`;
+				}
+			})
+			.catch((err) => console.log(err))
+			.finally(() => this.setState({ loading: false }));
+	}
+	
+	render() {
+		const { loading } = this.state;
+		const { id } = this.props;
+		return (
+			<GlobalWrapper title="Update Budget">
+				<Head />
+				<Formik
+					initialValues={{
+						department_name: this.props.data[0]?.department_name
+					}}
+					validationSchema={DepartmentValidation}
+					onSubmit={(values) => {
+						id === null ? this.createDepartment(values) : this.updateDepartment(values);
+					}}
+				>
+					{(formikProps) => {
+						const { handleSubmit } = formikProps;
+						return (
+							<Form onSubmit={formikProps.handleSubmit}>
+								<FormikErrorFocus align={"middle"} ease={"linear"} duration={200} />
+								<Container maxW="container.xl" className={styles.container} pb={"20px"} boxShadow="lg">
+									{id !== null ? 
+									<p>Update Department</p> :
+									<p>Add New Department</p>}
+									<div className={styles.wrapper}>
+										<div className={styles.inputHolder}>
+											<CustomInput label="Department Name" name="department_name" type="text" />	
+										</div>
+										<ButtonGroup
+											spacing="6"
+											mt={10}
+											style={{
+												width: "100%",
+												justifyContent: "flex-end",
+											}}
+											type="submit"
+										>
+											<Button>Cancel</Button>
+											<Button isLoading={loading} loadingText="Submitting" colorScheme="purple" onClick={() => handleSubmit()}>
+												{id === null ? "Create" : "Update"}
+											</Button>
+										</ButtonGroup>
+									</div>
+								</Container>
+							</Form>
+						);
+					}}
+				</Formik>
+			</GlobalWrapper>
+		);
+	}
+}
+
+export async function getServerSideProps(context) {
+	var data = [];
+	if(context.query.id !== "create") {
+	data = await BudgetHelper.getBudgetById(context.query.id);
+	}
+	const id = context.query.id != "create" ? data[0].budget_id : null;
+	return {
+		props: { data, id }
+	};
+}
+
+export default withRouter(UpdateBudget);

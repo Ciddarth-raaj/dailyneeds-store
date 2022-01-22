@@ -38,6 +38,7 @@ const TextField = ({
   label,
   values,
   children,
+  defaultValue,
   method,
   onClick,
   selected,
@@ -319,7 +320,8 @@ const TextField = ({
           {method === 'numberinput' && (
             <InputGroup>
               <InputLeftAddon children={children} />
-              <Input {...field} {...props} />
+              {/* {console.log({prios: field})} */}
+              <Input defaultValue={defaultValue} {...field} {...props} />
             </InputGroup>
           )}
           {method === undefined && (

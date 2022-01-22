@@ -23,6 +23,26 @@ const designation = {
 
 		return formattedData;
 	},
+	getDesignationByBudget: () =>
+	new Promise(function (resolve, reject) {
+		API.get("/designation/budget")
+			.then(async (res) => {
+				resolve(res.data);
+			})
+			.catch((err) => {
+				reject(err);
+			});
+	}),
+	getDesignationCount: () =>
+	new Promise(function (resolve, reject) {
+		API.get("/designation/count")
+			.then(async (res) => {
+				resolve(res.data);
+			})
+			.catch((err) => {
+				reject(err);
+			});
+	}),
 	getPermissionById: () =>
 	new Promise(function (resolve, reject) {
 		const Token = localStorage.getItem('Token');

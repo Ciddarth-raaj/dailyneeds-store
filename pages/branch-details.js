@@ -1,9 +1,9 @@
 import { Formik, Form } from "formik";
-import { Container, Flex, Switch , ButtonGroup, Button } from "@chakra-ui/react";
+import { Container, Flex, Switch, ButtonGroup, Button } from "@chakra-ui/react";
 import styles from "../styles/admin.module.css";
 import React from "react";
 
-import BranchModal from "../components/branchModal/branchModal";
+// import BranchModal from "../components/branchModal/branchModal";
 import BranchHelper from "../helper/outlets";
 import { toast } from "react-toastify";
 import Head from "../util/head";
@@ -11,6 +11,7 @@ import GlobalWrapper from "../components/globalWrapper/globalWrapper";
 import Table from "../components/table/table";
 import exportCSVFile from "../util/exportCSVFile";
 import moment from "moment";
+import Link from "next/link";
 
 const table_title = {
     outlet_id: "Id",
@@ -33,27 +34,27 @@ export default class CreateShift extends React.Component {
     }
     updateStatus() {
         const { status, id } = this.state;
-        if(status !== '') {
+        if (status !== '') {
             BranchHelper.updateStatus({
                 outlet_id: id,
                 is_active: status
             })
                 .then((data) => {
-                   if(data.code === 200) {
-                       toast.success("Successfully updated Status");
-                       this.setState({ status: ''});
-                   } else {
-                       toast.error("Not Updated")
-                   }
+                    if (data.code === 200) {
+                        toast.success("Successfully updated Status");
+                        this.setState({ status: '' });
+                    } else {
+                        toast.error("Not Updated")
+                    }
                 })
                 .catch((err) => console.log(err));
         }
-}
+    }
     sortCallback = (key, type) => {
         console.log(key, type);
     };
     componentDidUpdate() {
-        if(this.state.status !== '') {
+        if (this.state.status !== '') {
             this.updateStatus();
         }
     }
@@ -68,16 +69,15 @@ export default class CreateShift extends React.Component {
             .catch((err) => console.log(err));
     }
     badge = (m) => (
-        <Switch className={styles.switch} id="email-alerts" defaultChecked={m.value === 1} onChange={() => { this.setState({ status: m.value === 1 ? 0 : 1, id: m.id})}} />
+        <Switch className={styles.switch} id="email-alerts" defaultChecked={m.value === 1} onChange={() => { this.setState({ status: m.value === 1 ? 0 : 1, id: m.id }) }} />
     )
-    onClick = (m) => (
-        <div onClick={() => this.setState({ branchModalVisibility: true, selectedData: m.data})} style={{ display: "flex", cursor: "pointer" ,justifyContent: "center" }}>
-                {m.value}
-        </div>
-	)
+    onClick = (m) => {
+        return (
+            <Link href={`/branchModal/${m.id}`}>{m.value}</Link>
+        )}
     render() {
         const { branchModalVisibility, status, id, company, selectedData } = this.state;
-        
+
         // const image = (
         //     <div style={{ display: "flex", justifyContent: "center" }}>
         //         <img
@@ -93,9 +93,9 @@ export default class CreateShift extends React.Component {
         // );
         const valuesNew = company.map((m) => ({
             outlet_id: m.outlet_id,
-            outlet_name: this.onClick({value: m.outlet_name, id: m.outlet_id, data: m}),
-            outlet_nickname: this.onClick({value: m.outlet_nickname, id: m.outlet_id, data: m}),
-            status: this.badge({value: m.is_active, id: m.outlet_id}),
+            outlet_name: this.onClick({ value: m.outlet_name, id: m.outlet_id, data: m }),
+            outlet_nickname: this.onClick({ value: m.outlet_nickname, id: m.outlet_id, data: m }),
+            status: this.badge({ value: m.is_active, id: m.outlet_id }),
             action: (
                 <div style={{ display: "flex", justifyContent: "center" }}>
                     <img
@@ -139,7 +139,7 @@ export default class CreateShift extends React.Component {
             <Formik>
                 <Form>
                     <GlobalWrapper title="Branch Details">
-                        {branchModalVisibility && (
+                        {/* {branchModalVisibility && (
                             <BranchModal
                                 data={selectedData}
                                 visibility={branchModalVisibility}
@@ -147,7 +147,7 @@ export default class CreateShift extends React.Component {
                                     this.setState({ branchModalVisibility: v })
                                 }
                             />
-                        )}
+                        )} */}
                         <Head />
                         <Flex
                             templateColumns="repeat(3, 1fr)"
@@ -160,6 +160,13 @@ export default class CreateShift extends React.Component {
                             >
                                 <p className={styles.buttoninputHolder}>
                                     <div>Branch Details</div>
+                                    <div style={{ paddingRight: 10 }}>
+                                    <Link href="/branchModal/create">
+                                        <Button colorScheme="purple">
+                                            {"Add"}
+                                        </Button>
+                                        </Link>
+                                    </div>
                                 </p>
                                 <div>
                                     <Table
@@ -170,19 +177,19 @@ export default class CreateShift extends React.Component {
                                         }
                                     />
                                     <ButtonGroup
-                                    style={{
-                                        display: "flex",
-                                        justifyContent: "flex-end",
-                                        paddingBottom: 15,
-                                    }}
-                                >
-                                    <Button
-                                        colorScheme="purple"
-                                        onClick={() => getExportFile()}
+                                        style={{
+                                            display: "flex",
+                                            justifyContent: "flex-end",
+                                            paddingBottom: 15,
+                                        }}
                                     >
-                                        {"Export"}
-                                    </Button>
-                                </ButtonGroup>
+                                        <Button
+                                            colorScheme="purple"
+                                            onClick={() => getExportFile()}
+                                        >
+                                            {"Export"}
+                                        </Button>
+                                    </ButtonGroup>
                                 </div>
                             </Container>
                         </Flex>

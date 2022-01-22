@@ -1,29 +1,47 @@
-.mainWrapper {
+.container {
+	background-color: white;
+	border-radius: 20px;
+	display: flex;
+	padding-top: 130px;
+	flex-direction: column;
+	width: 100%;
+	position: relative;
+}
+.container p {
+	border-bottom: 1px solid rgb(211, 211, 211);
+	position: absolute;
+	top: 30px;
+	width: 100%;
+	left: 0;
+	padding-left: 30px;
+	padding-bottom: 30px;
+	font-weight: bold;
+	font-size: 24px;
+}
+.titleHolder {
+    width: 100%;
+    margin-bottom: 20px;
     display: flex;
-    position: fixed;
-    width: 100vw;
-    height: 100vh;
-    background-color: rgba(0, 0, 0, 0.5);
-    top: 0;
-    left: 0;
-    z-index: 200;
-    justify-content: center;
+    justify-content: space-around;
+    /* padding-right: 320px;
+    padding-left: 350px; */
     align-items: center;
 }
 .updateButton {
+    margin-top: 40px;
+    margin-left: 5px;
+}
+.budgetButton {
     margin-top: 50px;
     margin-left: 5px;
 }
 .wrapper {
-    position: relative;
-    background-color: white;
-    border-radius: 3px;
-    padding: 10px;
-    width: 400px;
-    height: auto;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
+	display: flex;
+	flex-direction: column;
+	width: 100%;
+	padding: 0px 20px;
+	justify-content: center;
+	align-items: center;
 }
 
 .title {
@@ -55,7 +73,9 @@
 }
 .inputHolder {
     /* margin-bottom: -34px; */
-    height: 78px;
+    /* height: 78px; */
+    display: flex;
+	width: 100%;
 }
 @media (max-width: 480px) {
     .closeButton {

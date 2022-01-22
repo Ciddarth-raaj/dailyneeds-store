@@ -13,7 +13,7 @@ const outlet = {
 		}),
 	getOutletById: (outlet_id) => 
 		new Promise(function (resolve, reject) {
-		API.get("/outlet/outlet_id?outlet_id= " + outlet_id)
+		API.get("/outlet/outlet_id?outlet_id="+outlet_id)
 			.then(async (res) => {
 				if (res.status === 200) {
 				resolve(res.data);
@@ -25,6 +25,21 @@ const outlet = {
 				reject(err);
 			});
 	}),
+	getOutletByOutletId: (outlet_id) => 
+	new Promise(function (resolve, reject) {
+	API.get("/outlet/id?outlet_id= " + outlet_id)
+		.then(async (res) => {
+			// console.log({res: res})
+			if (res.status === 200) {
+			resolve(res.data);
+			} else {
+				reject(res.data.msg);
+			}
+		})
+		.catch((err) => {
+			reject(err);
+		});
+}),
     updateStatus: (data) =>
 	new Promise(function (resolve, reject) {
 		API.post("/outlet/update-status", data)

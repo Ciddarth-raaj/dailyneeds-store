@@ -76,6 +76,12 @@ export default {
         selected: false,
         location: '/resignation'
       },
+      view_storebudget: {
+        title: 'Store Budget',
+        permission: 'view_storebudget',
+        selected: false,
+        location: '/store-budget'
+      },
     }
   },
   products: {

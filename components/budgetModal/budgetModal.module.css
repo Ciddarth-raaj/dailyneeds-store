@@ -1,0 +1,92 @@
+.mainWrapper {
+    display: flex;
+    position: fixed;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.5);
+    top: 0;
+    left: 0;
+    z-index: 600;
+    justify-content: center;
+    align-items: center;
+}
+.updateButton {
+    margin-top: 10px;
+    margin-left: 5px;
+}
+.budgetButton {
+    margin-top: 50px;
+    margin-left: 5px;
+}
+.wrapper {
+    position: relative;
+    background-color: white;
+    border-radius: 3px;
+    padding: 10px;
+    width: 400px;
+    height: auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.title {
+    text-align: center;
+    margin-bottom: 20px;
+    padding-bottom: 20px;
+    font-weight: bold;
+    font-size: 18px;
+}
+
+.closeButton {
+    position: absolute;
+    width: 30px;
+    height: 30px;
+    top: 10px;
+    right: 10px;
+    cursor: pointer;
+}
+.switchHolder {
+    margin-bottom: 10px;
+    margin-top: 30px;
+    display: flex;
+    justify-content: center;
+}
+.switch {
+    display: flex;
+    justify-content: flex-end;
+    align-items: flex-end;
+    margin-left: 20px;
+}
+.titleHolder {
+    width: 100%;
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: space-between;
+    padding-right: 80px;
+    padding-left: 50px;
+    align-items: center;
+}
+.contentHolder {
+    height: 450px;
+    overflow: scroll;
+}
+.contentHolder::-webkit-scrollbar {
+	display: none;
+}
+.inputHolder {
+    width: 100%;
+    margin-bottom: 12px;
+    height: 78px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+@media (max-width: 480px) {
+    .closeButton {
+        width: 20px;
+        height: 20px;
+        top: 10px;
+        right: 8px;
+    }
+}
