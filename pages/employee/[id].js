@@ -385,6 +385,10 @@ class Create extends React.Component {
 				if (data.code == 200) {
 					toast.success("Employee details Updated!");
 					values.payment_name = this.props.data[0]?.payment_type === "1" ? "Bank" : "Cash";
+					values.department_name = this.props.data[0].department_name; 
+					values.designation_name = this.props.data[0].designation_name;
+					values.store_name = this.props.data[0].outlet_name;
+					values.shift_name = this.props.data[0].shift_name;
 					router.push("/employee")
 				} else if(data.code == 422) {
 					toast.error("Card Number Must Be a Number");
