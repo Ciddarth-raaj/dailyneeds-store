@@ -78,9 +78,15 @@ export default {
       },
       view_storebudget: {
         title: 'Store Budget',
-        permission: 'view_storebudget',
+        permission: 'view_store_budget',
         selected: false,
         location: '/store-budget'
+      },
+      view_whatsapporder: {
+        title: 'Whatsapp Orders',
+        permission: 'view_whatsapp_order',
+        selected: false,
+        location: '/whatsapp'
       },
     }
   },

@@ -24,7 +24,28 @@ export const BloodGroup = [
         value: "AB Negative"
     }
 ]
-
+export const Order = [
+    {
+        id: 1,
+        value: "New Order"
+    },
+    {
+        id: 2,
+        value: "All Order"
+    },
+    {
+        id: 3,
+        value: "Billed Order"
+    },
+    {
+        id: 4,
+        value: "Delivered Order"
+    },
+    {
+        id: 5,
+        value: "Cancelled/Deleted Orders"
+    }
+]
 export const ProductPerPage = [
     {
         id: 10,
@@ -375,7 +396,26 @@ export const MONTH = [
     'November',
     'December'
 
-] 
+]
+
+export const PaymentSetup = [
+    {
+        id: 1,
+        value: "Cash on Delivery"
+    },
+    {
+        id: 2,
+        value: "Credit / Debit Card"
+    },
+    {
+        id: 3,
+        value: "Paytm / Gpay / UPI"
+    },
+    {
+        id: 4,
+        value: "Sodexo"
+    }
+]
 export const PaymentType = [
     {
         id: 1,
