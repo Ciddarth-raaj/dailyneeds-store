@@ -18,7 +18,7 @@ import CustomInput from "../../components/customInput/customInput";
 import Head from "../../util/head";
 import { PaymentSetup } from "../../constants/values";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
-import { WhatsappValidation } from "../../util/validation";
+// import { WhatsappValidation } from "../../util/validation";
 import moment from "moment";
 
 class CreateWhatsapp extends React.Component {
@@ -164,7 +164,7 @@ class CreateWhatsapp extends React.Component {
                         order_text: this.props.data[0]?.order_text,
                         attached_image: this.props.data[0]?.attached_image
                     }}
-                    validationSchema={WhatsappValidation}
+                    // validationSchema={WhatsappValidation}
                     onSubmit={(values) => {
                         id === null ? this.createWhatsapp(values) : this.updateWhatsapp(values);
                     }}
