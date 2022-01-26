@@ -20,6 +20,24 @@
 	cursor: pointer;
 }
 
+.baseStyle {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 20px;
+	cursor: pointer;
+	color:rgb(211, 211, 211);
+	border-radius: 20px;
+	border-color: #000000;
+	background-color: #f0efef;
+	height: 180px;
+	color: #bdbdbd;
+};
+
+.fileName {
+	color: var(--primaryColor); 
+}
+
 .dropdown {
 	position: relative;
 	display: inline-block;
@@ -380,6 +398,7 @@
 
 .uploaderTitle {
 	font-size: 14px;
+	padding-top: 30px;
 }
 .title {
 	display: flex;

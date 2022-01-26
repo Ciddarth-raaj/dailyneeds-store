@@ -1,7 +1,7 @@
 //External Dependencies
 import React from "react";
 import { Formik, Form, FieldArray } from "formik";
-import Dropzone from "react-dropzone-uploader";
+import Dropzone from "react-dropzone";
 import { Container, Flex, ButtonGroup, Button, Switch } from "@chakra-ui/react";
 import { toast } from "react-toastify";
 import FormikErrorFocus from "formik-error-focus";
@@ -40,6 +40,36 @@ const selectedData = [{
 class Create extends React.Component {
 	constructor(props) {
 		super(props);
+		this.onDrop = (imageHolder) => {
+			this.setState({ imageHolder })
+		};
+		this.onAdhaarDrop = (adhaarHolder) => {
+			this.setState({ adhaarHolder })
+		}
+		this.onLicenseDrop = (licenseHolder) => {
+			this.setState({ licenseHolder })
+		}
+		this.onVoterDrop = (voterHolder) => {
+			this.setState({ voterHolder })
+		}
+		this.onPanDrop = (panHolder) => {
+			this.setState({ panHolder })
+		}
+		this.onImageModifyDrop = (modifiedImageHolder) => {
+			this.setState({ modifiedImageHolder })
+		}
+		this.onAdhaarModifyDrop = (modifiedAdhaarHolder) => {
+			this.setState({ modifiedAdhaarHolder })
+		}
+		this.onLicenseModifyDrop = (modifiedLicenseHolder) => {
+			this.setState({ modifiedLicenseHolder })
+		}
+		this.onVoterModifyDrop = (modifiedVoterHolder) => {
+			this.setState({modifiedVoterHolder})
+		}
+		this.onPanModifyDrop = (modifiedPanHolder) => {
+			this.setState({modifiedPanHolder})
+		}
 		this.state = {
 			card_name_change: false,
 			card_number_change: false,
@@ -120,27 +150,27 @@ class Create extends React.Component {
 	}
 	componentDidUpdate() {
 		const { employee_name, handlingSubmit } = this.state;
-		if(employee_name !== '') {
+		if (employee_name !== '') {
 			this.getResignation();
-			this.setState({employee_name: ''})
+			this.setState({ employee_name: '' })
 		}
-		if(handlingSubmit === false) {
+		if (handlingSubmit === false) {
 			this.handleSubmit();
-			this.setState({handlingSubmit: true})
+			this.setState({ handlingSubmit: true })
 		}
 	}
 	getBranchData() {
-        BranchHelper.getOutlet()
-            .then((data) => {
-                this.setState({ branch: data });
-            })
-            .catch((err) => console.log(err));
-    }
+		BranchHelper.getOutlet()
+			.then((data) => {
+				this.setState({ branch: data });
+			})
+			.catch((err) => console.log(err));
+	}
 	getResignation() {
 		const { employee_name } = this.state;
 		ResignationHelper.getResignationByName(employee_name)
-			.then((data) => {	
-				this.setState({resignationData: data, branchModalVisibility: true})
+			.then((data) => {
+				this.setState({ resignationData: data, branchModalVisibility: true })
 			})
 			.catch((err) => console.log(err));
 	}
@@ -175,27 +205,28 @@ class Create extends React.Component {
 			})
 			.catch((err) => console.log(err));
 	}
-	
+
 	createEmployee = async (values) => {
-			const { permanent_trigger } = this.state;
-			const { router } = this.props;
-			if (this.state.licenseHolder.length !== 0) {
+		const { permanent_trigger } = this.state;
+		const { router } = this.props;
+
+		if (this.state.licenseHolder.length !== 0) {
 			const Idarray = [];
 			Idarray.push(await FilesHelper.upload(
-				this.state.licenseHolder,
+				this.state.licenseHolder[0],
 				"licenseUpload",
 				"dashboard_file"
 			));
-			for (let i = 0; i < values.files.length - 1 ; i++) {
+			for (let i = 0; i < values.files.length - 1; i++) {
 				if (values.files[i].id_card === "2") {
 					values.files[i].file = Idarray.length > 0 ? Idarray[0].remoteUrl : "";
 				}
 			}
 		}
-			if (this.state.adhaarHolder.length !== 0) {
+		if (this.state.adhaarHolder.length !== 0) {
 			const Adhaararray = [];
 			Adhaararray.push(await FilesHelper.upload(
-				this.state.adhaarHolder,
+				this.state.adhaarHolder[0],
 				"adhaarUpload",
 				"dashboard_file"
 			));
@@ -206,43 +237,43 @@ class Create extends React.Component {
 			}
 		}
 
-			if (this.state.voterHolder.length !== 0) {
-				const Subarray = [];
-				Subarray.push(await FilesHelper.upload(
-					this.state.voterHolder,
-					"voterIdUpload",
-					"dashboard_file"
-				));
-				for (let i = 0; i < values.files.length - 1; i++) {
-					if (values.files[i].id_card === "3") {
-						values.files[i].file = Subarray.length > 0 ? Subarray[0].remoteUrl : "";
-					}
-				}
-			}
-
-			if (this.state.panHolder.length !== 0) {
-				const Panarray = [];
-				Panarray.push(await FilesHelper.upload(
-					this.state.panHolder,
-					"panUpload",
-					"dashboard_file"
-				));
-				for (let i = 0; i <= values.files.length - 1; i++) {
-					if (values.files[i].id_card === "4") {
-						values.files[i].file = Panarray.length > 0 ? Panarray[0].remoteUrl : "";
-					}
-				}
-			}
-
-			const Imagearray = [];
-			Imagearray.push(await FilesHelper.upload(
-				this.state.imageHolder,
-				"uploadImage",
+		if (this.state.voterHolder.length !== 0) {
+			const Subarray = [];
+			Subarray.push(await FilesHelper.upload(
+				this.state.voterHolder[0],
+				"voterIdUpload",
 				"dashboard_file"
 			));
-			values.employee_image = Imagearray.length > 0 ? Imagearray[0].remoteUrl : "";
-			
-		
+			for (let i = 0; i < values.files.length - 1; i++) {
+				if (values.files[i].id_card === "3") {
+					values.files[i].file = Subarray.length > 0 ? Subarray[0].remoteUrl : "";
+				}
+			}
+		}
+
+		if (this.state.panHolder.length !== 0) {
+			const Panarray = [];
+			Panarray.push(await FilesHelper.upload(
+				this.state.panHolder[0],
+				"panUpload",
+				"dashboard_file"
+			));
+			for (let i = 0; i <= values.files.length - 1; i++) {
+				if (values.files[i].id_card === "4") {
+					values.files[i].file = Panarray.length > 0 ? Panarray[0].remoteUrl : "";
+				}
+			}
+		}
+
+		const Imagearray = [];
+		Imagearray.push(await FilesHelper.upload(
+			this.state.imageHolder[0],
+			"uploadImage",
+			"dashboard_file"
+		));
+		values.employee_image = Imagearray.length > 0 ? Imagearray[0].remoteUrl : "";
+
+
 		values.department_name = values.department_id;
 		values.designation_name = values.designation_id;
 		values.date_of_joining = moment(values.date_of_joining).format("YYYY-MM-DD");
@@ -250,7 +281,7 @@ class Create extends React.Component {
 		values.marriage_date = moment(values.marriage_date).format("YYYY-MM-DD");
 		values.store_name = values.store_id;
 		values.shift_name = values.shift_id;
-		if(permanent_trigger === true) {
+		if (permanent_trigger === true) {
 			values.residential_address = values.permanent_address;
 		}
 		delete values.department_name;
@@ -264,7 +295,7 @@ class Create extends React.Component {
 			.then((data) => {
 				if (data === 200) {
 					toast.success("Successfully created Account");
-					values.department_name = this.props.data[0].department_name; 
+					values.department_name = this.props.data[0].department_name;
 					values.designation_name = this.props.data[0].designation_name;
 					values.store_name = this.props.data[0].outlet_name;
 					values.shift_name = this.props.data[0].shift_name;
@@ -280,46 +311,46 @@ class Create extends React.Component {
 
 	updateEmployee = async (values) => {
 		try {
-			if(this.state.modifiedImageHolder.length !== 0) {
+			if (this.state.modifiedImageHolder.length !== 0) {
 				const Modifiedarray = [];
 				Modifiedarray.push(await FilesHelper.upload(
-					this.state.modifiedImageHolder,
+					this.state.modifiedImageHolder[0],
 					"modifiedUploadImage",
 					"dashboard_file"
 				));
 				values.modified_employee_image = Modifiedarray.length > 0 ? Modifiedarray[0].remoteUrl : "";
 			}
-			if(this.state.modifiedAdhaarHolder.length !== 0) {
+			if (this.state.modifiedAdhaarHolder.length !== 0) {
 				const ModifiedAdhaararray = [];
 				ModifiedAdhaararray.push(await FilesHelper.upload(
-					this.state.modifiedAdhaarHolder,
+					this.state.modifiedAdhaarHolder[0],
 					"modifiedAdhaarImage",
 					"dashboard_file"
-				));	
+				));
 				values.docupdate[0].file = ModifiedAdhaararray.length > 0 ? ModifiedAdhaararray[0].remoteUrl : "";
 			}
-			if(this.state.modifiedLicenseHolder.length !== 0) {
+			if (this.state.modifiedLicenseHolder.length !== 0) {
 				const ModifiedLicensearray = [];
 				ModifiedLicensearray.push(await FilesHelper.upload(
-					this.state.modifiedLicenseHolder,
+					this.state.modifiedLicenseHolder[0],
 					"modifiedLicenseImage",
 					"dashboard_file"
 				));
 				values.docupdate[1].file = ModifiedLicensearray.length > 0 ? ModifiedLicensearray[0].remoteUrl : "";
 			}
-			if(this.state.modifiedVoterHolder.length !== 0) {
+			if (this.state.modifiedVoterHolder.length !== 0) {
 				const ModifiedVoterarray = [];
 				ModifiedVoterarray.push(await FilesHelper.upload(
-					this.state.modifiedVoterHolder,
+					this.state.modifiedVoterHolder[0],
 					"modifiedVoterImage",
 					"dashboard_file"
 				));
 				values.docupdate[2].file = ModifiedVoterarray.length > 0 ? ModifiedVoterarray[0].remoteUrl : "";
 			}
-			if(this.state.modifiedPanHolder.length !== 0) {
+			if (this.state.modifiedPanHolder.length !== 0) {
 				const ModifiedPanarray = [];
 				ModifiedPanarray.push(await FilesHelper.upload(
-					this.state.modifiedPanHolder,
+					this.state.modifiedPanHolder[0],
 					"modifiedPanImage",
 					"dashboard_file"
 				));
@@ -329,7 +360,7 @@ class Create extends React.Component {
 			if (this.state.licenseHolder.length !== 0) {
 				const Idarray = [];
 				Idarray.push(await FilesHelper.upload(
-					this.state.licenseHolder,
+					this.state.licenseHolder[0],
 					"licenseUpload",
 					"dashboard_file"
 				));
@@ -342,7 +373,7 @@ class Create extends React.Component {
 			if (this.state.voterHolder.length !== 0) {
 				const Subarray = [];
 				Subarray.push(await FilesHelper.upload(
-					this.state.voterHolder,
+					this.state.voterHolder[0],
 					"voterIdUpload",
 					"dashboard_file"
 				));
@@ -356,7 +387,7 @@ class Create extends React.Component {
 			if (this.state.adhaarHolder.length !== 0) {
 				const Adhaararray = [];
 				Adhaararray.push(await FilesHelper.upload(
-					this.state.adhaarHolder,
+					this.state.adhaarHolder[0],
 					"adhaarUpload",
 					"dashboard_file"
 				));
@@ -385,12 +416,12 @@ class Create extends React.Component {
 				if (data.code == 200) {
 					toast.success("Employee details Updated!");
 					values.payment_name = this.props.data[0]?.payment_type === "1" ? "Bank" : "Cash";
-					values.department_name = this.props.data[0].department_name; 
+					values.department_name = this.props.data[0].department_name;
 					values.designation_name = this.props.data[0].designation_name;
 					values.store_name = this.props.data[0].outlet_name;
 					values.shift_name = this.props.data[0].shift_name;
 					router.push("/employee")
-				} else if(data.code == 422) {
+				} else if (data.code == 422) {
 					toast.error("Card Number Must Be a Number");
 				}
 			})
@@ -405,10 +436,13 @@ class Create extends React.Component {
 		const { imageHolder } = this.state;
 		return { url: imageHolder };
 	};
-	
-	
+
+
 	getModifyImageUploadParams = ({ meta }) => {
+
+		console.log({ meta: meta })
 		const { modifiedImageHolder } = this.state;
+
 		return { url: modifiedImageHolder };
 	};
 	getModifyAdhaarUploadParams = ({ meta }) => {
@@ -581,13 +615,21 @@ class Create extends React.Component {
 	// 		});
 	// };
 	render() {
-		const { 
+		const {
 			loading,
 			designation,
 			department,
 			branch,
+			modifiedPanHolder,
 			employee_image,
 			shift,
+			voterHolder,
+			adhaarHolder,
+			modifiedLicenseHolder,
+			modifiedImageHolder,
+			licenseHolder,
+			imageHolder,
+			panHolder,
 			permanent_trigger,
 			employeeCards,
 			employee_create,
@@ -605,6 +647,7 @@ class Create extends React.Component {
 			editableIdenInfo,
 			editablePFInfo,
 			editableSalInfo,
+			modifiedVoterHolder,
 			editableOtherInfo,
 			loadingEmpInfo,
 			loadingPerInfo,
@@ -613,6 +656,7 @@ class Create extends React.Component {
 			loadingIdenInfo,
 			loadingPFInfo,
 			loadingSalInfo,
+			modifiedAdhaarHolder,
 			validationPayment,
 			employee_name,
 			loadingOtherInfo,
@@ -620,6 +664,57 @@ class Create extends React.Component {
 			imageContainer,
 			idContainer,
 		} = this.state;
+		console.log({ modifiedImageHolder: employee_image.slice(-3) });
+		const imagehold = imageHolder.map(file => (
+			<p key={file.name}>
+				{file.name}
+			</p>
+		));
+		const adhaarhold = adhaarHolder.map(file => (
+			<p key={file.name}>
+				{file.name}
+			</p>
+		));
+		const licensehold = licenseHolder.map(file => (
+			<p key={file.name}>
+				{file.name}
+			</p>
+		));
+		const voterhold = voterHolder.map(file => (
+			<p key={file.name}>
+				{file.name}
+			</p>
+		));
+		const panhold = panHolder.map(file => (
+			<p key={file.name}>
+				{file.name}
+			</p>
+		));
+		const imageModifyhold = modifiedImageHolder.map(file => (
+			<p key={file.name}>
+				{file.name}
+			</p>
+		));
+		const adhaarModifyhold = modifiedAdhaarHolder.map(file => (
+			<p key={file.name}>
+				{file.name}
+			</p>
+		));
+		const licenseModifyhold = modifiedLicenseHolder.map(file => (
+			<p key={file.name}>
+				{file.name}
+			</p>
+		));
+		const voterModifyhold = modifiedVoterHolder.map(file => {
+			<p key={file.name}>
+				{file.name}
+			</p>
+		});
+		const panModifyhold = modifiedPanHolder.map(file => {
+			<p key={file.name}>
+				{file.name}
+			</p>
+		}) 
 		const { doc } = this.props;
 		const dropDownProps = {
 			styles: {
@@ -640,18 +735,18 @@ class Create extends React.Component {
 			},
 			multiple: false,
 			maxFiles: 1,
-			accept: "image/*",
+			accept: "image/*, pdf/*, video/*",
 		};
 		const containerProps = {
 			className: styles.container,
 			boxShadow: "lg",
 			// minW: "600px",
-		}; 
+		};
 		return (
 			<GlobalWrapper title="New Employee">
 				<Head />
 				<Formik
-				initialValues={{
+					initialValues={{
 						employee_name: this.props.data[0]?.employee_name,
 						father_name: this.props.data[0]?.father_name,
 						dob: this.props.data[0]?.dob,
@@ -709,7 +804,7 @@ class Create extends React.Component {
 						docupdate: [
 							{
 								card_type: "1",
-								card_name:this.props.doc ? this.props.doc[0]?.card_name : "",
+								card_name: this.props.doc ? this.props.doc[0]?.card_name : "",
 								card_no: this.props.doc ? this.props.doc[0]?.card_number : "",
 								file: "",
 							},
@@ -746,14 +841,14 @@ class Create extends React.Component {
 						}
 						const AlertChecker = () => {
 							const { handlingSubmit, resignationData } = this.state;
-							for(let i = 0; i < values.files.length; i++) {
-								for(let j = 0; j < adhaarChecker.length - 1; j++) {
-									if(values.files[i].id_card_no === adhaarChecker[j].card_number) {
-										this.setState({employee_name: adhaarChecker[j].employee_name, handlingSubmit: true});
+							for (let i = 0; i < values.files.length; i++) {
+								for (let j = 0; j < adhaarChecker.length - 1; j++) {
+									if (values.files[i].id_card_no === adhaarChecker[j].card_number) {
+										this.setState({ employee_name: adhaarChecker[j].employee_name, handlingSubmit: true });
 										break;
 									}
 								}
-								if(resignationData.length > 0) {
+								if (resignationData.length > 0) {
 									handleSubmit();
 									break;
 								}
@@ -766,22 +861,22 @@ class Create extends React.Component {
 								<FormikErrorFocus align={"middle"} ease={"linear"} duration={200} />
 								<Flex className={styles.responsive}>
 									<Container p={"0px"}>
-									{branchModalVisibility && (
-                        			    <ResignedUser
-                        			        data={resignationData}
-                        			        visibility={branchModalVisibility}
-                        			        setVisibility={(v) =>
-                        			            this.setState({ branchModalVisibility: v, handlingSubmit: v })
-                        			        }
-                        			    />
-                        			)}
+										{branchModalVisibility && (
+											<ResignedUser
+												data={resignationData}
+												visibility={branchModalVisibility}
+												setVisibility={(v) =>
+													this.setState({ branchModalVisibility: v, handlingSubmit: v })
+												}
+											/>
+										)}
 										<Container {...containerProps} mb="20px">
 											<p className={styles.title}>
 												<div>Employee Information</div>
 												{id !== null &&
 													<Button isLoading={loadingEmpInfo} variant="outline"
 														leftIcon={editableEmpInfo ? <i class="fa fa-floppy-o" aria-hidden="true" /> : <i class="fa fa-pencil" aria-hidden="true" />}
-														colorScheme="purple" 
+														colorScheme="purple"
 														onClick={() => { editableEmpInfo === true && handleSubmit(), this.setState({ editableEmpInfo: !editableEmpInfo }) }}
 													>
 														{editableEmpInfo ? "Save" : "Edit"}
@@ -797,26 +892,74 @@ class Create extends React.Component {
 														</label>
 														{id !== null ?
 															<div className={styles.employeeImageModify}>
+																{employee_image.slice(-3) === "pdf" ? (
+																	<div className={styles.pdfholder}>
+																	<div className={styles.pdfholdermain}>
+																		<embed
+																			className={styles.pdfcontent}
+																			src={employee_image}
+																		/>
+																		<div className={styles.subpdfholder}>
+																			<img
+																				className={styles.viewpdf}
+																				onClick={() => window.open(employee_image)}
+																				src={"/assets/open.png"}
+																			/>
+																		</div>
+																	</div>
+																</div>
+																) : (
 																<img src={employee_image} className={styles.employee_image} />
-																{editableEmpInfo === true && (
-																<>
-																<Button variant="outline"
-																	leftIcon={imageContainer ? <i class="fa fa-trash-o" aria-hidden="true" /> : <i class="fa fa-pencil" aria-hidden="true" />}
-																	colorScheme={imageContainer ? "red" : "purple"}
-																	className={styles.modifyButton}
-																	onClick={() => this.setState({ imageContainer: !imageContainer })}
-																>
-																	{imageContainer ? "Remove" : "Add New Image"}
-																</Button>
-																{imageContainer === true && (
-																	<Dropzone getUploadParams={this.getModifyImageUploadParams} onChangeStatus={this.modifyImageChangeStatus} {...dropDownProps} />
 																)}
-																</>
+																{editableEmpInfo === true && (
+																	<>
+																		<Button variant="outline"
+																			leftIcon={imageContainer ? <i class="fa fa-trash-o" aria-hidden="true" /> : <i class="fa fa-pencil" aria-hidden="true" />}
+																			colorScheme={imageContainer ? "red" : "purple"}
+																			className={styles.modifyButton}
+																			onClick={() => this.setState({ imageContainer: !imageContainer })}
+																		>
+																			{imageContainer ? "Remove" : "Add New Image"}
+																		</Button>
+																		{imageContainer === true && (
+																			// <Dropzone getUploadParams={this.getModifyImageUploadParams} onChangeStatus={this.modifyImageChangeStatus} {...dropDownProps} />
+																			<Dropzone onDrop={this.onImageModifyDrop}>
+																				{({ getRootProps, getInputProps }) => (
+																					<section>
+																						<div {...getRootProps({ className: styles.baseStyle })}>
+																							<input {...getInputProps()} />
+																							{modifiedImageHolder.length === 0 && (
+																								<p>Drag and drop some files here, or click to select files</p>
+																							)}
+																							{modifiedImageHolder.length !== 0 && (
+																								<p style={{ color: "black" }}>{imageModifyhold}</p>
+																							)}
+																						</div>
+																					</section>
+																				)}
+																			</Dropzone>
+																		)}
+																	</>
 																)}
 															</div>
 															: ""}
 														{id === null ?
-															<Dropzone getUploadParams={this.getImageUploadParams} onChangeStatus={this.imageChangeStatus} {...dropDownProps} />
+															// <Dropzone getUploadParams={this.getImageUploadParams} onChangeStatus={this.imageChangeStatus} {...dropDownProps} />
+															<Dropzone onDrop={this.onDrop}>
+																{({ getRootProps, getInputProps }) => (
+																	<section>
+																		<div {...getRootProps({ className: styles.baseStyle })}>
+																			<input {...getInputProps()} />
+																			{imageHolder.length === 0 && (
+																				<p>Drag and drop some files here, or click to select files</p>
+																			)}
+																			{imageHolder.length !== 0 && (
+																				<p style={{ color: "black" }}>{imagehold}</p>
+																			)}
+																		</div>
+																	</section>
+																)}
+															</Dropzone>
 															: ""}
 													</div>
 													<div className={styles.inputHolder}>
@@ -852,13 +995,7 @@ class Create extends React.Component {
 													<CustomInput label="Alternate Mobile Number" name="alternate_contact_number" type="number" editable={id !== null ? editableEmpInfo : !editableEmpInfo} />
 												</div>
 												<div className={styles.inputHolder}>
-													<CustomInput
-														label="Date of Joining"
-														name="date_of_joining"
-														type="text"
-														method="datepicker"
-														editable={id !== null ? editableEmpInfo : !editableEmpInfo}
-													/>
+													\
 													{/* <Datetime /> */}
 												</div>
 											</div>
@@ -936,11 +1073,11 @@ class Create extends React.Component {
 													<CustomInput label="Residential Address *" name={permanent_trigger !== true ? "residential_address" : "permanent_address"} type="text" method="TextArea" editable={id !== null ? editablePerInfo : !editablePerInfo} />
 												</div>
 												{id === null && (
-												<div className={styles.personalInputHolder}>
-													<Button mb={'40px'} colorScheme="purple" onClick={() => ( this.setState({ permanent_trigger: !permanent_trigger }) )}>
-														Same As Permanent Address
-													</Button>
-												</div>
+													<div className={styles.personalInputHolder}>
+														<Button mb={'40px'} colorScheme="purple" onClick={() => (this.setState({ permanent_trigger: !permanent_trigger }))}>
+															Same As Permanent Address
+														</Button>
+													</div>
 												)}
 												<div className={styles.inputHolder}>
 													<CustomInput label="Father Name *" name="father_name" type="text" editable={id !== null ? editablePerInfo : !editablePerInfo} />
@@ -971,8 +1108,8 @@ class Create extends React.Component {
 												{id !== null &&
 													<Button isLoading={loadingPosiInfo} variant="outline"
 														leftIcon={editablePosiInfo ? <i class="fa fa-floppy-o" aria-hidden="true" /> : <i class="fa fa-pencil" aria-hidden="true" />}
-														colorScheme="purple" 
-														onClick={() => {editablePosiInfo === true && handleSubmit(), this.setState({ editablePosiInfo: !editablePosiInfo }) }}
+														colorScheme="purple"
+														onClick={() => { editablePosiInfo === true && handleSubmit(), this.setState({ editablePosiInfo: !editablePosiInfo }) }}
 													>
 														{editablePosiInfo ? "Save" : "Edit"}
 													</Button>
@@ -982,112 +1119,112 @@ class Create extends React.Component {
 											<div>
 												<div className={styles.personalInputHolder}>
 													<div className={styles.inputHolder}>
-													{id !== null ? (
-														<CustomInput
-															label="Select Store *"
-															values={branch.map((m) => ({
-																id: m.outlet_id,
-																value: m.outlet_name
-															}))}
-															name={editablePosiInfo ? "store_id" : "store_name"}
-															type="text"
-															method="switch"
-															editable={id !== null ? editablePosiInfo : !editablePosiInfo}
-														/>
-													) : (
-														<CustomInput
-															label="Select Store *"
-															values={branch.map((m) => ({
-																id: m.outlet_id,
-																value: m.outlet_name
-															}))}
-															name={"store_id"}
-															type="text"
-															method="switch"
-															editable={id !== null ? editablePosiInfo : !editablePosiInfo}
-														/>
-													)}
 														{id !== null ? (
-														<CustomInput
-															label="Select Department *"
-															values={department.map((m) => ({
-																id: m.id,
-																value: m.value,
-															}))}
-															name={editablePosiInfo ? "department_id" : "department_name"}
-															type="text"
-															method="switch"
-															editable={id !== null ? editablePosiInfo : !editablePosiInfo}
-														/>
+															<CustomInput
+																label="Select Store *"
+																values={branch.map((m) => ({
+																	id: m.outlet_id,
+																	value: m.outlet_name
+																}))}
+																name={editablePosiInfo ? "store_id" : "store_name"}
+																type="text"
+																method="switch"
+																editable={id !== null ? editablePosiInfo : !editablePosiInfo}
+															/>
 														) : (
 															<CustomInput
-															label="Select Department *"
-															values={department.map((m) => ({
-																id: m.id,
-																value: m.value,
-															}))}
-															name={"department_id"}
-															type="text"
-															method="switch"
-															editable={id !== null ? editablePosiInfo : !editablePosiInfo}
-														/>
+																label="Select Store *"
+																values={branch.map((m) => ({
+																	id: m.outlet_id,
+																	value: m.outlet_name
+																}))}
+																name={"store_id"}
+																type="text"
+																method="switch"
+																editable={id !== null ? editablePosiInfo : !editablePosiInfo}
+															/>
+														)}
+														{id !== null ? (
+															<CustomInput
+																label="Select Department *"
+																values={department.map((m) => ({
+																	id: m.id,
+																	value: m.value,
+																}))}
+																name={editablePosiInfo ? "department_id" : "department_name"}
+																type="text"
+																method="switch"
+																editable={id !== null ? editablePosiInfo : !editablePosiInfo}
+															/>
+														) : (
+															<CustomInput
+																label="Select Department *"
+																values={department.map((m) => ({
+																	id: m.id,
+																	value: m.value,
+																}))}
+																name={"department_id"}
+																type="text"
+																method="switch"
+																editable={id !== null ? editablePosiInfo : !editablePosiInfo}
+															/>
 														)}
 													</div>
 													<div className={styles.inputHolder}>
-													{id !== null ? (
-														<CustomInput
-															label="Select Designation *"
-															values={designation.map((m) => ({
-																id: m.id,
-																value: m.value,
-															}))}
-															name={editablePosiInfo ? "designation_id" : "designation_name"}
-															type="text"
-															method="switch"
-															editable={id !== null ? editablePosiInfo : !editablePosiInfo}
-														/>
-													) : (
-														<CustomInput
-															label="Select Designation *"
-															values={designation.map((m) => ({
-																id: m.id,
-																value: m.value,
-															}))}
-															name={"designation_id"}
-															type="text"
-															method="switch"
-															editable={id !== null ? editablePosiInfo : !editablePosiInfo}
-														/>
-													)}
+														{id !== null ? (
+															<CustomInput
+																label="Select Designation *"
+																values={designation.map((m) => ({
+																	id: m.id,
+																	value: m.value,
+																}))}
+																name={editablePosiInfo ? "designation_id" : "designation_name"}
+																type="text"
+																method="switch"
+																editable={id !== null ? editablePosiInfo : !editablePosiInfo}
+															/>
+														) : (
+															<CustomInput
+																label="Select Designation *"
+																values={designation.map((m) => ({
+																	id: m.id,
+																	value: m.value,
+																}))}
+																name={"designation_id"}
+																type="text"
+																method="switch"
+																editable={id !== null ? editablePosiInfo : !editablePosiInfo}
+															/>
+														)}
 													</div>
 													<div className={styles.inputHolder}>
-													{id !== null ? (
-														<CustomInput
-															label="Shift Details"
-															values={shift.map((m) => ({
-																id: m.id,
-																value: m.value,
-															}))}
-															name="shift_id"
-															name={editablePosiInfo ? "shift_id" : "shift_name"}
-															type="text"
-															method="switch"
-															editable={id !== null ? editablePosiInfo : !editablePosiInfo}
-														/>
-													) : ( 
-														<CustomInput
-															label="Shift Details"
-															values={shift.map((m) => ({
-																id: m.id,
-																value: m.value,
-															}))}
-															name="shift_id"
-															name={"shift_id"}
-															type="text"
-															method="switch"
-															editable={id !== null ? editablePosiInfo : !editablePosiInfo}
-														/>
-													)}
+														{id !== null ? (
+															<CustomInput
+																label="Shift Details"
+																values={shift.map((m) => ({
+																	id: m.id,
+																	value: m.value,
+																}))}
+																name="shift_id"
+																name={editablePosiInfo ? "shift_id" : "shift_name"}
+																type="text"
+																method="switch"
+																editable={id !== null ? editablePosiInfo : !editablePosiInfo}
+															/>
+														) : (
+															<CustomInput
+																label="Shift Details"
+																values={shift.map((m) => ({
+																	id: m.id,
+																	value: m.value,
+																}))}
+																name="shift_id"
+																name={"shift_id"}
+																type="text"
+																method="switch"
+																editable={id !== null ? editablePosiInfo : !editablePosiInfo}
+															/>
+														)}
 													</div>
 												</div>
 											</div>
@@ -1162,64 +1299,130 @@ class Create extends React.Component {
 												{doc !== null && doc.length !== 0 && (
 													<div>
 														{doc[0].card_name !== "" && (
-													<div>
-														{doc.map((m, i) => (
-															<>	
-																<div className={styles.inputHolder} style={{ marginBottom: 0 }}>
-																	<CustomInput label="Card Type" name="card_type" value={m.card_type === '1' ? "Adhaar Card" : m.card_type === '2' ? "License" : m.card_type === '3' ? "Voter ID" : m.card_type === '4' ? "pan card" : ""} type="text" method="readonly" containerStyle={{ marginTop: 30, marginBottom: 30 }} />
-																</div>
-																<div className={styles.inputHolder} >
-																	<CustomInput label="Card Number" name={`docupdate[${i}].card_no`} type="text" editable={id !== null ? editableIdenInfo : !editableIdenInfo} containerStyle={{ marginBottom: 0 }} />
-																	<CustomInput label="Name in Card" name={`docupdate[${i}].card_name`}  type="text" editable={id !== null ? editableIdenInfo : !editableIdenInfo} containerStyle={{ marginBottom: 0 }} />
-																	<br />
-																</div>
-																<div>
-																{id !== null ?
-																<div className={styles.employeeImageModify}>
-																{m.file !== "" && (
-																	<div style={{width: "100%"}}>
-																	<div style={{width: "100%", display: editableIdenInfo === false ? "none" : ""}}>
-																	<Button w={"100%"} className={styles.downbutton} isLoading={loading} variant="outline" loadingText="Generating" colorScheme="blue">
-																	<a
-																	className={styles.downloadButton}
-																	href={m.file}
-																	target="_blank"
-																	>
-																		Click here to download card details
-																		</a>
-																	</Button>
-																	</div>
-																	</div>
-																)}
-																{idContainer === true && (
-																<Dropzone 
-																	getUploadParams={
-																		m.card_type === "1" ? this.getModifyAdhaarUploadParams : 
-																		m.card_type === "2" ? this.getModifyLicenseUploadParams : 
-																		m.card_type === "3" ? this.getModifyVoterUploadParams : 
-																		m.card_type === "4" ? this.getModifyPanUploadParams : ""
-																	} 
-																	onChangeStatus={
-																		m.card_type === "1" ? this.modifyAdhaarChangeStatus : 
-																		m.card_type === "2" ? this.modifyLicenseChangeStatus : 
-																		m.card_type === "3" ? this.modifyVoterChangeStatus : 
-																		m.card_type === "4" ? this.modifyPanChangeStatus : ""
-																	} 
-																	{...dropDownProps} 
-																	style={{marginTop: "60px"}}
-																/>
-																)}
+															<div>
+																{doc.map((m, i) => (
+																	<>
+																		<div className={styles.inputHolder} style={{ marginBottom: 0 }}>
+																			<CustomInput label="Card Type" name="card_type" value={m.card_type === '1' ? "Adhaar Card" : m.card_type === '2' ? "License" : m.card_type === '3' ? "Voter ID" : m.card_type === '4' ? "pan card" : ""} type="text" method="readonly" containerStyle={{ marginTop: 30, marginBottom: 30 }} />
+																		</div>
+																		<div className={styles.inputHolder} >
+																			<CustomInput label="Card Number" name={`docupdate[${i}].card_no`} type="text" editable={id !== null ? editableIdenInfo : !editableIdenInfo} containerStyle={{ marginBottom: 0 }} />
+																			<CustomInput label="Name in Card" name={`docupdate[${i}].card_name`} type="text" editable={id !== null ? editableIdenInfo : !editableIdenInfo} containerStyle={{ marginBottom: 0 }} />
+																			<br />
+																		</div>
+																		<div>
+																			{id !== null ?
+																				<div className={styles.employeeImageModify}>
+																					{m.file !== "" && (
+																						<div style={{ width: "100%" }}>
+																							<div style={{ width: "100%", display: editableIdenInfo === false ? "none" : "" }}>
+																								<Button w={"100%"} className={styles.downbutton} isLoading={loading} variant="outline" loadingText="Generating" colorScheme="blue">
+																									<a
+																										className={styles.downloadButton}
+																										href={m.file}
+																										target="_blank"
+																									>
+																										Click here to download card details
+																									</a>
+																								</Button>
+																							</div>
+																						</div>
+																					)}
+																					{idContainer === true && (
+																						<>
+																							{m.card_type === "1" ? ( 
+																								<Dropzone onDrop={this.onAdhaarModifyDrop}>
+																								{({ getRootProps, getInputProps }) => (
+																									<section>
+																										<div {...getRootProps({ className: styles.baseStyle })}>
+																											<input {...getInputProps()} />
+																											{modifiedAdhaarHolder.length === 0 && (
+																												<p>Drag and drop some files here, or click to select files</p>
+																											)}
+																											{modifiedAdhaarHolder.length !== 0 && (
+																												<p style={{ color: "black" }}>{adhaarModifyhold}</p>
+																											)}
+																										</div>
+																									</section>
+																								)}
+																							</Dropzone>
+																							) : m.card_type === "2" ? (
+																								<Dropzone onDrop={this.onLicenseModifyDrop}>
+																								{({ getRootProps, getInputProps }) => (
+																									<section>
+																										<div {...getRootProps({ className: styles.baseStyle })}>
+																											<input {...getInputProps()} />
+																											{modifiedLicenseHolder.length === 0 && (
+																												<p>Drag and drop some files here, or click to select files</p>
+																											)}
+																											{modifiedLicenseHolder.length !== 0 && (
+																												<p style={{ color: "black" }}>{licenseModifyhold}</p>
+																											)}
+																										</div>
+																									</section>
+																								)}
+																							</Dropzone>
+																							) : m.card_type === "3" ? (
+																								<Dropzone onDrop={this.onVoterModifyDrop}>
+																								{({ getRootProps, getInputProps }) => (
+																									<section>
+																										<div {...getRootProps({ className: styles.baseStyle })}>
+																											<input {...getInputProps()} />
+																											{modifiedVoterHolder.length === 0 && (
+																												<p>Drag and drop some files here, or click to select files</p>
+																											)}
+																											{modifiedVoterHolder.length !== 0 && (
+																												<p style={{ color: "black" }}>{voterModifyhold}</p>
+																											)}
+																										</div>
+																									</section>
+																								)}
+																							</Dropzone>
+																							) : m.card_type === "3" ? (
+																								<Dropzone onDrop={this.onPanModifyDrop}>
+																								{({ getRootProps, getInputProps }) => (
+																									<section>
+																										<div {...getRootProps({ className: styles.baseStyle })}>
+																											<input {...getInputProps()} />
+																											{modifiedPanHolder.length === 0 && (
+																												<p>Drag and drop some files here, or click to select files</p>
+																											)}
+																											{modifiedPanHolder.length !== 0 && (
+																												<p style={{ color: "black" }}>{panModifyhold}</p>
+																											)}
+																										</div>
+																									</section>
+																								)}
+																							</Dropzone>
+																							) : ""}
+																						</>
+																					)}
+																				</div>
+																				: ""}
+																			{id === null ?
+																			<Dropzone onDrop={this.onImageModifyDrop}>
+																				{({ getRootProps, getInputProps }) => (
+																					<section>
+																						<div {...getRootProps({ className: styles.baseStyle })}>
+																							<input {...getInputProps()} />
+																							{modifiedImageHolder.length === 0 && (
+																								<p>Drag and drop some files here, or click to select files</p>
+																							)}
+																							{modifiedImageHolder.length !== 0 && (
+																								<p style={{ color: "black" }}>{imageModifyhold}</p>
+																							)}
+																						</div>
+																					</section>
+																				)}
+																			</Dropzone>
+																				// <Dropzone getUploadParams={this.getImageUploadParams} onChangeStatus={this.imageChangeStatus} {...dropDownProps} />
+																				: ""}
+																		</div>
+																	</>
+																))}
 															</div>
-															: ""}
-															{id === null ?
-															<Dropzone getUploadParams={this.getImageUploadParams} onChangeStatus={this.imageChangeStatus} {...dropDownProps} />
-															: ""}
-																</div>
-															</>
-														))}
-													</div>
 														)}
-														</div>
+													</div>
 												)}
 												{id !== null && editableIdenInfo === true && <p className={styles.newDocumentSet}>To Upload New Documents</p>}
 												{editableIdenInfo === true || id === null ?
@@ -1234,7 +1437,7 @@ class Create extends React.Component {
 																		<div className={styles.inputHolder} key={index} style={{ marginBottom: 0 }}>
 																			<CustomInput label="New ID Card Type" values={IdCardType.map((d) => ({ id: d.id, value: d.value }))} name={`files[${index}].id_card`} type="text" method="switch" containerStyle={{ marginTop: 30, marginBottom: 30 }} editable={id !== null ? editableIdenInfo : !editableIdenInfo} />
 																		</div>
-																		
+
 																		{files[0].id_card && files[index].id_card === "1" && (
 																			<>
 																				<div className={styles.inputHolder} key={index}>
@@ -1246,7 +1449,22 @@ class Create extends React.Component {
 																					<label className={styles.uploaderTitle} for="subUploadID">
 																						Upload ID *
 																					</label>
-																					<Dropzone getUploadParams={this.adhaarUploadParams} onChangeStatus={this.adhaarChangeStatus} {...dropDownProps} />
+																					<Dropzone onDrop={this.onAdhaarDrop}>
+																						{({ getRootProps, getInputProps }) => (
+																							<section>
+																								<div {...getRootProps({ className: styles.baseStyle })}>
+																									<input {...getInputProps()} />
+																									{adhaarHolder.length === 0 && (
+																										<p>Drag and drop some files here, or click to select files</p>
+																									)}
+																									{adhaarHolder.length !== 0 && (
+																										<p style={{ color: "black" }}>{adhaarhold}</p>
+																									)}
+																								</div>
+																							</section>
+																						)}
+																					</Dropzone>
+																					{/* <Dropzone getUploadParams={this.adhaarUploadParams} onChangeStatus={this.adhaarChangeStatus} {...dropDownProps} /> */}
 																				</div>
 																			</>
 																		)}
@@ -1262,7 +1480,22 @@ class Create extends React.Component {
 																					<label className={styles.uploaderTitle} for="subUploadID">
 																						Upload ID *
 																					</label>
-																					<Dropzone getUploadParams={this.licenseUploadParams} onChangeStatus={this.licenseChangeStatus} {...dropDownProps} />
+																					<Dropzone onDrop={this.onLicenseDrop}>
+																						{({ getRootProps, getInputProps }) => (
+																							<section>
+																								<div {...getRootProps({ className: styles.baseStyle })}>
+																									<input {...getInputProps()} />
+																									{licenseHolder.length === 0 && (
+																										<p>Drag and drop some files here, or click to select files</p>
+																									)}
+																									{licenseHolder.length !== 0 && (
+																										<p style={{ color: "black" }}>{licensehold}</p>
+																									)}
+																								</div>
+																							</section>
+																						)}
+																					</Dropzone>
+																					{/* <Dropzone getUploadParams={this.licenseUploadParams} onChangeStatus={this.licenseChangeStatus} {...dropDownProps} /> */}
 																				</div>
 																			</>
 																		)}
@@ -1277,7 +1510,22 @@ class Create extends React.Component {
 																					<label className={styles.uploaderTitle} for="subUploadID">
 																						Upload ID *
 																					</label>
-																					<Dropzone getUploadParams={this.voterIdUploadParams} onChangeStatus={this.voterIdChangeStatus} {...dropDownProps} />
+																					<Dropzone onDrop={this.onVoterDrop}>
+																						{({ getRootProps, getInputProps }) => (
+																							<section>
+																								<div {...getRootProps({ className: styles.baseStyle })}>
+																									<input {...getInputProps()} />
+																									{voterHolder.length === 0 && (
+																										<p>Drag and drop some files here, or click to select files</p>
+																									)}
+																									{voterHolder.length !== 0 && (
+																										<p style={{ color: "black" }}>{voterhold}</p>
+																									)}
+																								</div>
+																							</section>
+																						)}
+																					</Dropzone>
+																					{/* <Dropzone getUploadParams={this.voterIdUploadParams} onChangeStatus={this.voterIdChangeStatus} {...dropDownProps} /> */}
 																				</div>
 																			</>
 																		)}
@@ -1292,7 +1540,22 @@ class Create extends React.Component {
 																					<label className={styles.uploaderTitle} for="subUploadID">
 																						Upload ID *
 																					</label>
-																					<Dropzone getUploadParams={this.panUploadParams} onChangeStatus={this.panChangeStatus} {...dropDownProps} />
+																					<Dropzone onDrop={this.onPanDrop}>
+																						{({ getRootProps, getInputProps }) => (
+																							<section>
+																								<div {...getRootProps({ className: styles.baseStyle })}>
+																									<input {...getInputProps()} />
+																									{panHolder.length === 0 && (
+																										<p>Drag and drop some files here, or click to select files</p>
+																									)}
+																									{panHolder.length !== 0 && (
+																										<p style={{ color: "black" }}>{panhold}</p>
+																									)}
+																								</div>
+																							</section>
+																						)}
+																					</Dropzone>
+																					{/* <Dropzone getUploadParams={this.panUploadParams} onChangeStatus={this.panChangeStatus} {...dropDownProps} /> */}
 																				</div>
 																			</>
 																		)}
@@ -1351,7 +1614,7 @@ class Create extends React.Component {
 													</div>
 												) : ""}
 
-											
+
 												{id === null && (
 													<div className={styles.switchHolder}>
 														<label>ESI Number</label>
@@ -1450,9 +1713,9 @@ class Create extends React.Component {
 
 export async function getServerSideProps(context) {
 	var data = [];
-	if(context.query.id !== "create") {
-	data = await EmployeeHelper.getEmployeeByID(context.query.id);
-	data[0].dob = moment(data[0].dob).format("YYYY-MM-DD")
+	if (context.query.id !== "create") {
+		data = await EmployeeHelper.getEmployeeByID(context.query.id);
+		data[0].dob = moment(data[0].dob).format("YYYY-MM-DD")
 	}
 	const id = context.query.id != "create" ? data[0].employee_id : null;
 	let doc = [];

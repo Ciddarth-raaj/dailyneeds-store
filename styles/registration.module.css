@@ -20,6 +20,84 @@
 	cursor: pointer;
 }
 
+.pdfholder {
+	width: 260px;
+	height: 240px;
+	margin-top: 40px;
+	overflow-x: hidden;
+	overflow-y: hidden;
+}
+.pdfholdermain {
+	width: 100%;
+	height: 100%;
+	position: relative;
+}
+.pdfholdermain object {
+	scroll-behavior: none;
+	overflow: hidden;
+	overflow-x: hidden;
+	overflow-y: hidden;
+}
+
+
+.pdfcontent {
+	width: 100%;
+	height: 240px;
+	border: 1px solid #c9c9c9;
+	/* padding: 10px; */
+	overflow: "unset";
+	
+	overflow-y: hidden;
+	object-fit: cover;
+}
+.pdfcontent::-webkit-scrollbar {
+	display: none;
+}
+.subpdfholder {
+	position: absolute;
+	width: 100%;
+	height: 40%;
+	bottom: 0%;
+	right: 0%;
+	background-image: linear-gradient(rgba(0, 0, 0, 0), black);
+	transition: all 200ms ease-in-out;
+	opacity: 0;
+}
+.pdfholder:hover .subpdfholder {
+	opacity: 1;
+	transform: translateY(2%, 20%);
+}
+.viewpdf {
+	height: 30px;
+	width: 35px;
+	position: absolute;
+	right: 10px;
+	bottom: 10px;
+	cursor: pointer;
+	color: white;
+	transition: 100ms ease-in-out;
+}
+
+
+.baseStyle {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 20px;
+	margin-top: 20px;
+	cursor: pointer;
+	color:rgb(211, 211, 211);
+	border-radius: 20px;
+	border-color: #000000;
+	background-color: #f0efef;
+	height: 180px;
+	color: #bdbdbd;
+};
+
+.fileName {
+	color: var(--primaryColor); 
+}
+
 .dropdown {
 	position: relative;
 	display: inline-block;
@@ -101,6 +179,7 @@
 	margin-top: 20px;
 	width: 50%;
 	margin-bottom: 20px;
+
 }
 .newDocumentSet {
 	margin-top: 20px;
@@ -220,7 +299,6 @@
 }
 .uploadHolder {
 	width: 100%;
-	/* margin-top: 60px; */
 	padding-bottom: 25px;
 }
 .logoUploadHolder {

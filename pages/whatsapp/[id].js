@@ -1,13 +1,13 @@
 //External Dependencies
-import React from "react";
+import React, { Component } from "react";
 import { Formik, Form } from "formik";
 import { Container, Button, ButtonGroup } from "@chakra-ui/react";
 import { toast } from "react-toastify";
-import Dropzone from "react-dropzone-uploader";
+// import Dropzone from "react-dropzone-uploader";
 
 import FormikErrorFocus from "formik-error-focus";
 import { withRouter } from "next/router";
-
+import Dropzone from 'react-dropzone';
 //Styles
 import styles from "../../styles/whatsapp.module.css";
 
@@ -24,12 +24,17 @@ import moment from "moment";
 class CreateWhatsapp extends React.Component {
     constructor(props) {
         super(props);
+        this.onDrop = (files) => {
+            this.setState({files})
+        };
+        
         this.state = {
             loadingSubmit: false,
             loadingReset: false,
             loadingItem: false,
             editItems: false,
             toggleReset: false,
+            files: [],
             imageHolder: [],
         };
     }
@@ -87,7 +92,40 @@ class CreateWhatsapp extends React.Component {
 		}
 	};
     render() {
-        const { loadingItem, loadingSubmit, loadingReset, toggleReset, editItems } = this.state;
+        const { loadingItem, loadingSubmit, loadingReset, toggleReset, editItems, files } = this.state;
+        const file = this.state.files.map(file => (
+            <p key={file.name}>
+              {file.name}
+            </p>
+          ));
+        //   console.log({files: files})
+          const baseStyle = {
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            padding: '20px',
+            borderWidth: 2,
+            borderRadius: 2,
+            borderColor: '#eeeeee',
+            borderStyle: 'dashed',
+            backgroundColor: '#fafafa',
+            color: '#bdbdbd',
+            outline: 'none',
+            transition: 'border .24s ease-in-out'
+          };
+          
+          const focusedStyle = {
+            borderColor: '#2196f3'
+          };
+          
+          const acceptStyle = {
+            borderColor: '#00e676'
+          };
+          
+          const rejectStyle = {
+            borderColor: '#ff1744'
+          };
         const dropDownProps = {
 			styles: {
 				dropzone: {
@@ -115,7 +153,7 @@ class CreateWhatsapp extends React.Component {
                 <Head />
                 <Formik
                     initialValues={{
-                        order_id: this.props.data[0]?.order_id,
+                        // order_id: this.props.data[0]?.order_id,
                         first_name: this.props.data[0]?.first_name,
                         last_name: this.props.data[0]?.last_name,
                         primary_address: this.props.data[0]?.primary_address,
@@ -214,10 +252,25 @@ class CreateWhatsapp extends React.Component {
                                         </div>
                                         <div className={styles.inputHolder}>
                                         <div className={styles.uploadHolder} style={{ marginTop: 30 }}>
-										    <label className={styles.uploaderTitle} for="subUploadID">
+										    <label className={styles.uploaderTitle} >
 										    	Upload ID *
 										    </label>
-											<Dropzone getUploadParams={this.getImageUploadParams} onChangeStatus={this.imageChangeStatus} {...dropDownProps} />
+											{/* <Dropzone getUploadParams={this.getImageUploadParams} onChangeStatus={this.imageChangeStatus} {...dropDownProps} /> */}
+                                            <Dropzone onDrop={this.onDrop}>
+                                              {({getRootProps, getInputProps}) => (
+                                                <section>
+                                                  <div {...getRootProps({className: styles.baseStyle })}>
+                                                    <input {...getInputProps()} />
+                                                    {files.length === 0 && (
+                                                    <p>Drag and drop some files here, or click to select files</p>
+                                                    )}
+                                                    {files.length !== 0 && (
+                                                    <p style={{marginLeft: "50px", color: "black"}}>{file}</p>
+                                                    )}
+                                                  </div>
+                                                </section>
+                                              )}
+                                            </Dropzone>
                                             </div>
                                         </div>
                                         <ButtonGroup

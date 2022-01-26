@@ -198,7 +198,9 @@ class whatsappOrder extends React.Component {
                 <Formik
                     initialValues={{
                         store_id: '',
-                        order: ''
+                        order: '',
+                        from_date: '',
+                        to_date: '',
                     }}
                     onSubmit={(values) => {
                         this.getIndentByDespatch(values);
@@ -207,6 +209,7 @@ class whatsappOrder extends React.Component {
                 >
                     {(formikProps) => {
                         const { handleSubmit, resetForm, values } = formikProps;
+                        // console.log({values: values})
                         return (
                             <Form onSubmit={formikProps.handleSubmit}>
                                 <Flex templateColumns="repeat(3, 1fr)" flexDirection={"column"} gap={6} colSpan={2}>
