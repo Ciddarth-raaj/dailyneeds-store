@@ -664,7 +664,6 @@ class Create extends React.Component {
 			imageContainer,
 			idContainer,
 		} = this.state;
-		console.log({ modifiedImageHolder: employee_image.slice(-3) });
 		const imagehold = imageHolder.map(file => (
 			<p key={file.name}>
 				{file.name}
