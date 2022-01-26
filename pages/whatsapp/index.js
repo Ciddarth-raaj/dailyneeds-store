@@ -1,6 +1,6 @@
 import { Formik, Form } from "formik";
 import { Container, Flex, Button, ButtonGroup, Checkbox, Badge, Select, InputGroup, Input, InputLeftAddon } from "@chakra-ui/react";
-import styles from "../../styles/acceptindent.module.css";
+import styles from "../../styles/whatsapporder.module.css";
 import React from "react";
 import { toast } from "react-toastify";
 import { ChevronRightIcon, ChevronLeftIcon } from "@chakra-ui/icons";
