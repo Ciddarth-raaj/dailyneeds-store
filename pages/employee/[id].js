@@ -892,7 +892,7 @@ class Create extends React.Component {
 														</label>
 														{id !== null ?
 															<div className={styles.employeeImageModify}>
-																{employee_image.slice(-3) === "pdf" ? (
+																{id !== null && employee_image.slice(-3) === "pdf" ? (
 																	<div className={styles.pdfholder}>
 																	<div className={styles.pdfholdermain}>
 																		<embed
