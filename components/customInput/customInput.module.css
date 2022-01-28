@@ -21,9 +21,6 @@
 	outline: #3f8ad1;
 	border: 1.7px solid #3f8ad1;
 }
-.label {
-	font-size: 14px;
-}
 
 .errorMessage {
 	color: #d83131;
@@ -38,4 +35,7 @@
 
 .infoLabel {
 	color: var(--chakra-colors-purple-500);
+}
+.label {
+	font-size: 14px;
 }

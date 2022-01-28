@@ -304,10 +304,8 @@ const TextField = ({
           {method === 'password' && (
             <InputGroup size='md'>
               <Input pr='4.5rem' {...field} {...props} />
-              <InputRightElement width='4.5rem'>
-                <Button h='1.75rem' size='sm' onClick={onClick}>
-                  Show
-                </Button>
+              <InputRightElement width='3.5rem'>
+                <img src='/assets/password.png' onClick={onClick} style={{height: "35px", width: "35px", cursor: "pointer"}} />
               </InputRightElement>
             </InputGroup>
           )}

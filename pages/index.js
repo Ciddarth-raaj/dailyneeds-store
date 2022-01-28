@@ -8,10 +8,11 @@ import LogIn from "../pages/login";
 import { Bar, Doughnut } from 'react-chartjs-2';
 import styles from "../styles/index.module.css";
 import EmployeeHelper from "../helper/employee";
-import StoreHelper from "../helper/store";
+import OutletHelper from "../helper/outlets";
 import Head from "../util/head";
 import { MONTH } from "../constants/values";
 import GlobalWrapper from "../components/globalWrapper/globalWrapper";
+import outlet from "../helper/outlets";
 
 export default class CreateShift extends React.Component {
     constructor(props) {
@@ -106,7 +107,7 @@ export default class CreateShift extends React.Component {
         };
     };
     componentDidMount() {
-        this.getStore();
+        this.getOutlet();
         this.getHeadCount();
         this.getNewJoiner();
         this.getResignedEmp();
@@ -165,8 +166,8 @@ export default class CreateShift extends React.Component {
             })
             .catch((err) => console.log(err))
     }
-    getStore() {
-        StoreHelper.getStore()
+    getOutlet() {
+        OutletHelper.getOutlet()
             .then((data) => {
                 this.setState({ store_data: data })
             })
@@ -282,9 +283,9 @@ export default class CreateShift extends React.Component {
                                         <input placeholder="Store Name" onChange={(e) => this.setState({ store: e.target.value })} type="text" value={store === "" ? store : `${store}`} onMouseEnter={() => this.setState({ hoverElement: false })}
                                             className={styles.dropbtn} />
                                         <div className={styles.newDropdowncontent} style={hoverElement === false ? { color: "black" } : { display: "none" }}>
-                                            {store_data.filter(({ value }) => value.indexOf(store.toLowerCase()) > -1).map((m) => (
-                                                <a onClick={() => (this.setState({ store_name: m.value, store_id: m.id, hoverElement: true }))}>
-                                                    {m.value}<br />{`# ${m.id}`}</a>
+                                            {store_data.filter(({ outlet_name }) => outlet_name.indexOf(store.toLowerCase()) > -1).map((m) => (
+                                                <a onClick={() => (this.setState({ store_name: m.outlet_name, store_id: m.outlet_id, hoverElement: true }))}>
+                                                    {m.outlet_name}<br />{`# ${m.outlet_id}`}</a>
                                             ))}
                                         </div>
                                     </div>
@@ -374,7 +375,7 @@ export default class CreateShift extends React.Component {
                                                 {anniversary.length !== 0 && anniversary.map((m) => (
                                                     <div className={styles.anniversaryContent}>
                                                         <p className={styles.birthdayContent}><WarningIcon color="#78719c" ml="5px" className={styles.warningIcon} />{m.anniversary}</p>
-                                                        <p className={styles.birthdayContent}>{moment(m.dob).format("DD MMMM YYYY")}</p>
+                                                        <p className={styles.birthdayContent}>{moment(m.date_of_joining).format("DD MMMM YYYY")}</p>
                                                     </div>
                                                 ))}
                                             </div>

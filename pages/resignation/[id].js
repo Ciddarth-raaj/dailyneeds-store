@@ -26,6 +26,7 @@ class CreateResignation extends React.Component {
             loading: false,
             employeeDet: [],
             employee_name: "",
+            // value: "",
             name: '',
             hoverElement: false,
         };
@@ -40,6 +41,26 @@ class CreateResignation extends React.Component {
             })
             .catch((err) => console.log(err))
     }
+    updateResignation(values) {
+        this.setState({ loading: true });
+        const { router } = this.props;
+        ResignationHelper.updateResignation({
+            resignation_id: this.props.data[0].resignation_id,
+            resignation_details: values
+        })
+            .then((data) => {
+                if (data.code === 200) {
+                    toast.success("Successfully Updated Resignation Details!");
+                    router.push("/resignation")
+                } else {
+                    toast.error("Error Updating Resignation Details!");
+                    throw `${data.msg}`;
+                }
+            })
+            .catch((err) => console.log(err))
+            .finally(() => this.setState({ loading: false }));
+    }
+
     createResignation(values) {
         this.setState({ loading: true });
         const { router } = this.props;
@@ -56,28 +77,27 @@ class CreateResignation extends React.Component {
             .catch((err) => console.log(err))
             .finally(() => this.setState({ loading: false }));
     }
-
     render() {
         const { loading, employeeDet, employee_name, hoverElement, name } = this.state;
-        const { id } = this.props;
+        const { id, data, value } = this.props;
         return (
             <GlobalWrapper title="Resignation">
                 <Head />
                 <Formik
                     initialValues={{
-                        employee_name: "",
-                        reason_type: "",
-                        reason: "",
-                        resignation_date: ""
+                        employee_name: this.props.data[0]?.employee_name,
+                        reason_type: this.props.data[0]?.reason_type,
+                        reason: this.props.data[0]?.reason,
+                        resignation_date: this.props.data[0]?.resignation_date
                     }}
                     validationSchema={ResignationValidation}
                     onSubmit={(values) => {
-                        this.createResignation(values);
+                        id === null ? this.createResignation(values) : this.updateResignation(values);
                     }}
                 >
                     {(formikProps) => {
-                        const { handleSubmit, setFieldValue ,values } = formikProps;
-                        console.log(values);
+                        const { handleSubmit, setFieldValue, values } = formikProps;
+                        // console.log({state: value});
                         return (
                             <Form onSubmit={formikProps.handleSubmit}>
                                 <FormikErrorFocus align={"middle"} ease={"linear"} duration={200} />
@@ -87,7 +107,7 @@ class CreateResignation extends React.Component {
                                         <div className={styles.inputHolder}>
                                             <div className={styles.dropdown}>
                                                 <label htmlFor="id" className={styles.employeeNameLabel}>Employee Name *</label>
-                                                <input type="text" onChange={(e) => this.setState({ name: e.target.value })} value={employee_name === "" ? "" : employee_name} onMouseEnter={() => this.setState({ hoverElement: false })}
+                                                <input type="text" onChange={(e) => this.setState({ name: e.target.value })} value={employee_name === "" ? value : employee_name} onMouseEnter={() => this.setState({ hoverElement: false })}
                                                     className={styles.dropbtn} />
                                                 <div className={styles.dropdowncontent} style={hoverElement === false ? { color: "black" } : { display: "none" }}>
                                                     {employeeDet.filter(({ employee_name }) => employee_name.indexOf(name.toLowerCase()) > -1).map((m) => (
@@ -135,7 +155,7 @@ class CreateResignation extends React.Component {
                                         >
                                             <Button>Cancel</Button>
                                             <Button isLoading={loading} loadingText="Submitting" colorScheme="purple" onClick={() => handleSubmit()}>
-                                                {"Create"}
+                                                {id === null ? "Create" : "Update"}
                                             </Button>
                                         </ButtonGroup>
                                     </div>
@@ -147,6 +167,18 @@ class CreateResignation extends React.Component {
             </GlobalWrapper>
         );
     }
+}
+export async function getServerSideProps(context) {
+    var data = [];
+    var value = "",
+    data = await ResignationHelper.getResignationById(context.query.id);
+	const id = context.query.id != "create" ? data[0].resignation_id : null;
+    if(id !== null) {
+        value = data[0].employee_name
+    }
+	return {
+		props: { data, id, value }
+	};
 }
 
 export default withRouter(CreateResignation);

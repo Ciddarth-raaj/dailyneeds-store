@@ -61,7 +61,7 @@ class MyApp extends React.Component {
       const designation_id = localStorage.getItem('Designation_id')
       const store_id = localStorage.getItem('Store_id')
       const user_type = localStorage.getItem('User_type')
-      console.log('Location : ', router.pathname)
+      console.log('Location: ', router.pathname)
 
       if (
         unprotectedPath[router.pathname] == undefined &&

@@ -10,6 +10,7 @@ import ResignationHelper from "../../helper/resignation";
 import Link from "next/link";
 import exportCSVFile from "../../util/exportCSVFile";
 import moment from "moment";
+import { toast } from "react-toastify";
 
 
 let valuesNew = [];
@@ -35,7 +36,18 @@ export default class viewResignation extends React.Component {
             })
             .catch((err) => console.log(err));
     }
-
+    deleteResignation(m) {
+        ResignationHelper.deleteResignation(m.id)
+        .then((data) => {
+            if(data === 200) {
+                toast.success("Successfully Removed")
+                this.getResignationData();
+            } else {
+                toast.error("Error Removing Resignation Value")
+            }
+        })
+        .catch((err) => console.log(err))
+    }
     getExportFile = () => {
         const TABLE_HEADER = {
             SNo: "SNo",
@@ -49,7 +61,7 @@ export default class viewResignation extends React.Component {
                 SNo: i + 1,
                 employee_name: d.employee_name,
                 reason: d.reason,
-                resignation_date: d.resignation_date
+                resignation_date: moment(d.resignation_date).format("DD/MM/YYYY")
             });
         });
 
@@ -71,15 +83,26 @@ export default class viewResignation extends React.Component {
             id: "SNo",
             employee_name: "Employee Name",
             reason_type: "Reason",
-            resignation_date: "Resignation Date"
+            resignation_date: "Resignation Date",
+            delete: "Delete"
         };
-
+        const onClick = (m) => {
+			return (
+				<Link href={`/resignation/${m.id}`}><a>{m.value}</a></Link>
+			)
+		};
+        const remove = (m) => {
+			return (
+                <Button colorScheme={"red"} onClick={() => this.deleteResignation(m)}>Remove</Button>
+			)
+		};
         valuesNew = this.state.resignation.map((m) => (
             {
-                id: m.id,
-                employee_name: m.employee_name,
-                reason_type: m.reason_type,
-                resignation_date: m.resignation_date
+                id: onClick({id: m.id, value: m.id}),
+                employee_name: onClick({id: m.id, value: m.employee_name}),
+                reason_type: onClick({id: m.id, value: m.reason_type}),
+                resignation_date: onClick({id: m.id, value: moment(m.resignation_date).format("DD/MM/YYYY")}),
+                delete: remove({id: m.id})
             }
         ));
 

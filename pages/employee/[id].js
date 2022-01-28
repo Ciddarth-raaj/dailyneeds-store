@@ -65,10 +65,10 @@ class Create extends React.Component {
 			this.setState({ modifiedLicenseHolder })
 		}
 		this.onVoterModifyDrop = (modifiedVoterHolder) => {
-			this.setState({modifiedVoterHolder})
+			this.setState({ modifiedVoterHolder })
 		}
 		this.onPanModifyDrop = (modifiedPanHolder) => {
-			this.setState({modifiedPanHolder})
+			this.setState({ modifiedPanHolder })
 		}
 		this.state = {
 			card_name_change: false,
@@ -217,7 +217,8 @@ class Create extends React.Component {
 				"licenseUpload",
 				"dashboard_file"
 			));
-			for (let i = 0; i < values.files.length - 1; i++) {
+			// console.log({idarr: Idarray})
+			for (let i = 0; i <= values.files.length - 1; i++) {
 				if (values.files[i].id_card === "2") {
 					values.files[i].file = Idarray.length > 0 ? Idarray[0].remoteUrl : "";
 				}
@@ -273,7 +274,7 @@ class Create extends React.Component {
 		));
 		values.employee_image = Imagearray.length > 0 ? Imagearray[0].remoteUrl : "";
 
-
+		// console.log({ valuesssssssssssssssssss: values })
 		values.department_name = values.department_id;
 		values.designation_name = values.designation_id;
 		values.date_of_joining = moment(values.date_of_joining).format("YYYY-MM-DD");
@@ -281,6 +282,7 @@ class Create extends React.Component {
 		values.marriage_date = moment(values.marriage_date).format("YYYY-MM-DD");
 		values.store_name = values.store_id;
 		values.shift_name = values.shift_id;
+		// console.log({ valuesssssssssssssss: values });
 		if (permanent_trigger === true) {
 			values.residential_address = values.permanent_address;
 		}
@@ -299,7 +301,7 @@ class Create extends React.Component {
 					values.designation_name = this.props.data[0].designation_name;
 					values.store_name = this.props.data[0].outlet_name;
 					values.shift_name = this.props.data[0].shift_name;
-					router.push("/employee")
+					// router.push("/employee")
 				} else {
 					toast.error("Error creating Account");
 					throw `${data.msg}`;
@@ -402,6 +404,10 @@ class Create extends React.Component {
 		}
 		const { employee_id } = this.props.data[0];
 		const { router } = this.props;
+		values.dob = moment(values.dob).format("YYYY-MM-DD")
+		values.date_of_joining = moment(values.date_of_joining).format("YYYY-MM-DD")
+		// values.expiry_date = moment(values.expiry_date).format("YYYY-MM-DD")
+		values.marriage_date = moment(values.marriage_date).format("YYYY-MM-DD")
 		delete values.department_name;
 		delete values.designation_name;
 		delete values.store_name;
@@ -439,8 +445,7 @@ class Create extends React.Component {
 
 
 	getModifyImageUploadParams = ({ meta }) => {
-
-		console.log({ meta: meta })
+		// console.log({ meta: meta })
 		const { modifiedImageHolder } = this.state;
 
 		return { url: modifiedImageHolder };
@@ -713,7 +718,7 @@ class Create extends React.Component {
 			<p key={file.name}>
 				{file.name}
 			</p>
-		}) 
+		})
 		const { doc } = this.props;
 		const dropDownProps = {
 			styles: {
@@ -892,23 +897,23 @@ class Create extends React.Component {
 														{id !== null ?
 															<div className={styles.employeeImageModify}>
 																{id !== null && employee_image.slice(-3) === "pdf" ? (
-																	<div className={styles.pdfholder}>
-																	<div className={styles.pdfholdermain}>
-																		<embed
-																			className={styles.pdfcontent}
-																			src={employee_image}
-																		/>
-																		<div className={styles.subpdfholder}>
-																			<img
-																				className={styles.viewpdf}
-																				onClick={() => window.open(employee_image)}
-																				src={"/assets/open.png"}
+																	<div className={styles.pdfholderNew}>
+																		<div className={styles.pdfholdermain}>
+																			<embed
+																				className={styles.pdfcontent}
+																				src={employee_image}
 																			/>
+																			<div className={styles.subpdfholder}>
+																				<img
+																					className={styles.viewpdf}
+																					onClick={() => window.open(employee_image)}
+																					src={"/assets/open.png"}
+																				/>
+																			</div>
 																		</div>
 																	</div>
-																</div>
 																) : (
-																<img src={employee_image} className={styles.employee_image} />
+																	<img src={employee_image} className={styles.employee_image} />
 																)}
 																{editableEmpInfo === true && (
 																	<>
@@ -994,8 +999,13 @@ class Create extends React.Component {
 													<CustomInput label="Alternate Mobile Number" name="alternate_contact_number" type="number" editable={id !== null ? editableEmpInfo : !editableEmpInfo} />
 												</div>
 												<div className={styles.inputHolder}>
-													\
-													{/* <Datetime /> */}
+													<CustomInput
+														label="Date of Joining *"
+														name="date_of_joining"
+														type="text"
+														method="datepicker"
+														editable={id !== null ? editableEmpInfo : !editableEmpInfo}
+													/>
 												</div>
 											</div>
 										</Container>
@@ -1307,113 +1317,117 @@ class Create extends React.Component {
 																		<div className={styles.inputHolder} >
 																			<CustomInput label="Card Number" name={`docupdate[${i}].card_no`} type="text" editable={id !== null ? editableIdenInfo : !editableIdenInfo} containerStyle={{ marginBottom: 0 }} />
 																			<CustomInput label="Name in Card" name={`docupdate[${i}].card_name`} type="text" editable={id !== null ? editableIdenInfo : !editableIdenInfo} containerStyle={{ marginBottom: 0 }} />
+																			<div className={styles.personalInputsNew}>
+																				{editableIdenInfo === true && (
+																					<label
+																						htmlFor="download"
+																						className={styles.infoLabel}
+																					>
+																						View
+																					</label>
+																				)}
+																				<Button w={"100%"} id="download" colorScheme="blue" mt={editableIdenInfo === true ? "" : "7px"}>
+																				<a
+																					className={styles.downloadButton}
+																					href={m.file}
+																					target="_blank"
+																				>
+																					Download
+																				</a>
+																				</Button>
+																			</div>
 																			<br />
 																		</div>
 																		<div>
 																			{id !== null ?
-																				<div className={styles.employeeImageModify}>
-																					{m.file !== "" && (
-																						<div style={{ width: "100%" }}>
-																							<div style={{ width: "100%", display: editableIdenInfo === false ? "none" : "" }}>
-																								<Button w={"100%"} className={styles.downbutton} isLoading={loading} variant="outline" loadingText="Generating" colorScheme="blue">
-																									<a
-																										className={styles.downloadButton}
-																										href={m.file}
-																										target="_blank"
-																									>
-																										Click here to download card details
-																									</a>
-																								</Button>
-																							</div>
-																						</div>
-																					)}
+																				<div>
 																					{idContainer === true && (
 																						<>
-																							{m.card_type === "1" ? ( 
+																							{m.card_type === "1" ? (
 																								<Dropzone onDrop={this.onAdhaarModifyDrop}>
-																								{({ getRootProps, getInputProps }) => (
-																									<section>
-																										<div {...getRootProps({ className: styles.baseStyle })}>
-																											<input {...getInputProps()} />
-																											{modifiedAdhaarHolder.length === 0 && (
-																												<p>Drag and drop some files here, or click to select files</p>
-																											)}
-																											{modifiedAdhaarHolder.length !== 0 && (
-																												<p style={{ color: "black" }}>{adhaarModifyhold}</p>
-																											)}
-																										</div>
-																									</section>
-																								)}
-																							</Dropzone>
+																									{({ getRootProps, getInputProps }) => (
+																										<section>
+																											<div {...getRootProps({ className: styles.baseStyle })}>
+																												<input {...getInputProps()} />
+																												{modifiedAdhaarHolder.length === 0 && (
+																													<p>Drag and drop some files here, or click to select files</p>
+																												)}
+																												{modifiedAdhaarHolder.length !== 0 && (
+																													<p style={{ color: "black" }}>{adhaarModifyhold}</p>
+																												)}
+																											</div>
+																										</section>
+																									)}
+																								</Dropzone>
 																							) : m.card_type === "2" ? (
 																								<Dropzone onDrop={this.onLicenseModifyDrop}>
-																								{({ getRootProps, getInputProps }) => (
-																									<section>
-																										<div {...getRootProps({ className: styles.baseStyle })}>
-																											<input {...getInputProps()} />
-																											{modifiedLicenseHolder.length === 0 && (
-																												<p>Drag and drop some files here, or click to select files</p>
-																											)}
-																											{modifiedLicenseHolder.length !== 0 && (
-																												<p style={{ color: "black" }}>{licenseModifyhold}</p>
-																											)}
-																										</div>
-																									</section>
-																								)}
-																							</Dropzone>
+																									{({ getRootProps, getInputProps }) => (
+																										<section>
+																											<div {...getRootProps({ className: styles.baseStyle })}>
+																												<input {...getInputProps()} />
+																												{modifiedLicenseHolder.length === 0 && (
+																													<p>Drag and drop some files here, or click to select files</p>
+																												)}
+																												{modifiedLicenseHolder.length !== 0 && (
+																													<p style={{ color: "black" }}>{licenseModifyhold}</p>
+																												)}
+																											</div>
+																										</section>
+																									)}
+																								</Dropzone>
 																							) : m.card_type === "3" ? (
 																								<Dropzone onDrop={this.onVoterModifyDrop}>
-																								{({ getRootProps, getInputProps }) => (
-																									<section>
-																										<div {...getRootProps({ className: styles.baseStyle })}>
-																											<input {...getInputProps()} />
-																											{modifiedVoterHolder.length === 0 && (
-																												<p>Drag and drop some files here, or click to select files</p>
-																											)}
-																											{modifiedVoterHolder.length !== 0 && (
-																												<p style={{ color: "black" }}>{voterModifyhold}</p>
-																											)}
-																										</div>
-																									</section>
-																								)}
-																							</Dropzone>
+																									{({ getRootProps, getInputProps }) => (
+																										<section>
+																											<div {...getRootProps({ className: styles.baseStyle })}>
+																												<input {...getInputProps()} />
+																												{modifiedVoterHolder.length === 0 && (
+																													<p>Drag and drop some files here, or click to select files</p>
+																												)}
+																												{modifiedVoterHolder.length !== 0 && (
+																													<p style={{ color: "black" }}>{voterModifyhold}</p>
+																												)}
+																											</div>
+																										</section>
+																									)}
+																								</Dropzone>
 																							) : m.card_type === "3" ? (
 																								<Dropzone onDrop={this.onPanModifyDrop}>
-																								{({ getRootProps, getInputProps }) => (
-																									<section>
-																										<div {...getRootProps({ className: styles.baseStyle })}>
-																											<input {...getInputProps()} />
-																											{modifiedPanHolder.length === 0 && (
-																												<p>Drag and drop some files here, or click to select files</p>
-																											)}
-																											{modifiedPanHolder.length !== 0 && (
-																												<p style={{ color: "black" }}>{panModifyhold}</p>
-																											)}
-																										</div>
-																									</section>
-																								)}
-																							</Dropzone>
+																									{({ getRootProps, getInputProps }) => (
+																										<section>
+																											<div {...getRootProps({ className: styles.baseStyle })}>
+																												<input {...getInputProps()} />
+																												{modifiedPanHolder.length === 0 && (
+																													<p>Drag and drop some files here, or click to select files</p>
+																												)}
+																												{modifiedPanHolder.length !== 0 && (
+																													<p style={{ color: "black" }}>{panModifyhold}</p>
+																												)}
+																											</div>
+																										</section>
+																									)}
+																								</Dropzone>
 																							) : ""}
 																						</>
 																					)}
 																				</div>
 																				: ""}
 																			{id === null ?
-																			<Dropzone onDrop={this.onImageModifyDrop}>
-																				{({ getRootProps, getInputProps }) => (
-																					<section>
-																						<div {...getRootProps({ className: styles.baseStyle })}>
-																							<input {...getInputProps()} />
-																							{modifiedImageHolder.length === 0 && (
-																								<p>Drag and drop some files here, or click to select files</p>
-																							)}
-																							{modifiedImageHolder.length !== 0 && (
-																								<p style={{ color: "black" }}>{imageModifyhold}</p>
-																							)}
-																						</div>
-																					</section>
-																				)}
-																			</Dropzone>
+																				<Dropzone onDrop={this.onImageModifyDrop}>
+																					{({ getRootProps, getInputProps }) => (
+																						<section>
+																							<div {...getRootProps({ className: styles.baseStyle })}>
+																								<input {...getInputProps()} />
+																								{modifiedImageHolder.length === 0 && (
+																									<p>Drag and drop some files here, or click to select files</p>
+																								)}
+																								{modifiedImageHolder.length !== 0 && (
+																									<p style={{ color: "black" }}>{imageModifyhold}</p>
+																								)}
+																							</div>
+																						</section>
+																					)}
+																				</Dropzone>
 																				// <Dropzone getUploadParams={this.getImageUploadParams} onChangeStatus={this.imageChangeStatus} {...dropDownProps} />
 																				: ""}
 																		</div>
@@ -1714,7 +1728,9 @@ export async function getServerSideProps(context) {
 	var data = [];
 	if (context.query.id !== "create") {
 		data = await EmployeeHelper.getEmployeeByID(context.query.id);
-		data[0].dob = moment(data[0].dob).format("YYYY-MM-DD")
+		// data[0].dob = moment(data[0].dob).format("DD/MM/YYYY")
+		// data[0].date_of_joining = moment(data[0].date_of_joining).format("DD/MM/YYYY")
+		// data[0].marriage_date = moment(data[0].marriage_date).format("DD/MM/YYYY")
 	}
 	const id = context.query.id != "create" ? data[0].employee_id : null;
 	let doc = [];
