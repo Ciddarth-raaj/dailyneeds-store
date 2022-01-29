@@ -8,13 +8,14 @@ import LogIn from "../pages/login";
 import { Bar, Doughnut } from 'react-chartjs-2';
 import styles from "../styles/index.module.css";
 import EmployeeHelper from "../helper/employee";
+import Link from "next/link";
 import OutletHelper from "../helper/outlets";
 import Head from "../util/head";
 import { MONTH } from "../constants/values";
 import GlobalWrapper from "../components/globalWrapper/globalWrapper";
 import outlet from "../helper/outlets";
 
-export default class CreateShift extends React.Component {
+export default class NewJoiner extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
@@ -325,10 +326,12 @@ export default class CreateShift extends React.Component {
                                                         isTruncated
                                                         className={styles.actionHolder}
                                                     >
+                                                         <Link href="/newjoiner">
                                                         <Button className={styles.button} borderRadius="lg" fontSize="1.1em" fontWeight="medium" className={styles.badges} px="7" color="gray.600" background="#dec6f8" >
                                                             View Details
-                                                            <ArrowForwardIcon ml="20px" className={styles.icon} />
+                                                        <ArrowForwardIcon ml="20px" className={styles.icon} />
                                                         </Button>
+                                                        </Link>
                                                     </Box>
                                                 </Box>
                                             </Box>

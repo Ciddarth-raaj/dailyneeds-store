@@ -86,6 +86,16 @@ const employee = {
                     reject(err);
                 });
         }),
+    getNewJoinee: (offset, limit) =>
+        new Promise(function (resolve, reject) {
+            API.get(`/employee/newjoinee?offset=${offset}&limit=${limit}`)
+                .then(async (res) => {
+                    resolve(res.data);
+                })
+                .catch((err) => {
+                reject(err);
+                });
+        }),
     getNewJoiner: () =>
         new Promise(function (resolve, reject) {
             API.get("/employee/newjoiner")
