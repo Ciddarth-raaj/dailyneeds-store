@@ -60,6 +60,11 @@ export default class Header extends React.Component {
                     title: "Employee Role",
                     icon: "fa fa-users"
                 },
+                vehicle: {
+                    title: "Vehicle Details",
+                    link: "/vehicle",
+                    icon: "fa fa-users"
+                },
                 login: {
                     title: "Log In",
                     icon: "fa fa-users"
