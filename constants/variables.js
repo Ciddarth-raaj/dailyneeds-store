@@ -4,5 +4,8 @@ module.exports = global.config = {
 	employee_id: "",
 	designation_id: "",
 	user_type: "",
+	name: "",
+	designation: "",
+	employee_image: "",
 	data: []
 };

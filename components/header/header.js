@@ -108,17 +108,27 @@ export default class Header extends React.Component {
                     <i className={`fa fa-expand ${styles.icon}`} aria-hidden="true"></i> */}
                     <div className={`dropdown ${styles.wrapper}`}>
                         <div className={styles.image}>
+                            {user_type === "2" ? 
                             <img src="/assets/admin.png" />
+                            :
+                            <img src={`${global.config.employee_image}`} />
+                        }
                         </div>
                         <div className={styles.name}>
                             {user_type === "2" ? 
                             <p>{"Vinodh"}</p>
                             : 
-                            <p>{"Emma"}</p>
+                            <p>{`${global.config.name}`}</p>
                             }
+                            {user_type === "2" ? 
                             <p className={styles.nameSize}>
                                 {"Admin"}&nbsp;<i class={`fa fa-angle-down`} aria-hidden="true" />
                             </p>
+                            :
+                            <p className={styles.nameSize}>
+                                {`${global.config.designation}`}&nbsp;<i class={`fa fa-angle-down`} aria-hidden="true" />
+                            </p>
+                            }
                         </div>
                         <div class="dropdown-content" style={{ right: 0 }}>
                             {Object.keys(settings).map((key) => (

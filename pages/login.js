@@ -27,11 +27,15 @@ export default class LogIn extends React.Component {
           toast.error(`${data.msg}`)
         }
         if (data.data.code === 200) {
+          console.log({data: data})
           localStorage.setItem('Token', data.data.token)
           localStorage.setItem('Store_id', data.data.store_id)
           localStorage.setItem('Designation_id', data.data.designation_id)
           localStorage.setItem('User_type', data.data.user_type)
           localStorage.setItem('Employee_id', data.data.employee_id)
+          global.config.name = data.data.name
+          global.config.designation = data.data.designation
+          global.config.employee_image = data.data.employee_image
           this.props.setVisibility(true)
         }
       })
