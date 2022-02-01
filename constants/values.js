@@ -90,6 +90,239 @@ export const PackagingType = [
         value: "bar",
     }
 ]
+export const DropDownOptionEmployee = [
+    {
+        value: "employee_id",
+        label: "Employee Id",
+        final: {
+            employee_id: "Employee Id"
+        }
+    },
+    {
+        value: "employee_name",
+        label: "Employee Name",
+        final: {
+            employee_name: "Employee Name"
+        }
+    },
+    // {
+    //     value: "status",
+    //     label: "Status",
+    //     final: {
+    //         status: "Status"
+    //     }
+    // },
+    {
+        value: "dob",
+        label: "Date of Birth",
+        final: {
+            dob: "Date of Birth"
+        }
+    },
+    {
+        value: "gender",
+        label: "Gender",
+        final: {
+            gender: "Gender"
+        }
+    },
+    {
+        value: "marital_status",
+        label: "Marriage Status",
+        final: {
+            marital_status: "Marital Status"
+        }
+    },
+    {
+        value: "marriage_date",
+        label: "Marriage Date",
+        final: {
+            marriage_date: "Marriage Date"
+        }
+    },
+    {
+        value: "spouse_name",
+        label: "Spouse Name",
+        final: {
+            spouse_name: "Spouse Name"
+        }
+    },
+    {
+        value: "permanent_address",
+        label: "Permanent Address",
+        final: {
+            permanent_address: "Permanent Address"
+        }
+    },
+    {
+        value: "residential_address",
+        label: "Residential Address",
+        final: {
+            residential_address: "Residential Address"
+        }
+    },
+    {
+        value: "primary_contact_number",
+        label: "Primary Contact No",
+        final: {
+            primary_contact_number: "Primary Contact No"
+        }
+    },
+    {
+        value: "alternate_contact_number",
+        label: "Alternate Contact No",
+        final: {
+            alternate_contact_number: "Alternate Contact No"
+        }
+    },
+    {
+        value: "email_id",
+        label: "Email",
+        final: {
+            email_id: "Email"
+        }
+    },
+    {
+        value: "blood_group",
+        label: "blood_group",
+        final: {
+            blood_group: "Blood Group"
+        }
+    },
+    {
+        value: "qualification",
+        label: "Qualification",
+        final: {
+            qualification: "Qualification"
+        }
+    },
+    {
+        value: "Designation Name",
+        label: "Designation_name",
+        final: {
+            designation_name: "Designation Name"
+        }
+    },
+    {
+        value: "introducer_name",
+        label: "Introducer Name",
+        final: {
+            introducer_name: "Introducer Name"
+        }
+    },
+    {
+        value: "introducer_details",
+        label: "Introducer Details",
+        final: {
+            introducer_details: "Introducer Details"
+        }
+    },
+    {
+        value: "salary",
+        label: "Salary",
+        final: {
+            salary: "Salary"
+        }
+    },
+    {
+        value: "bank_name",
+        label: "Bank Name",
+        final: {
+            bank_name: "Bank Name"
+        }
+    },
+    {
+        value: "ifsc",
+        label: "ifsc",
+        final: {
+            ifsc: "ifsc"
+        }
+    },
+    {
+        value: "account_no",
+        label: "Account Number",
+        final: {
+            account_no: "Account Number"
+        }
+    },
+    {
+        value: "esi_number",
+        label: "ESI Number",
+        final: {
+            esi_number: "ESI Number"
+        }
+    },
+    {
+        value: "pf_number",
+        label: "PF Number",
+        final: {
+            pf_number: "PF Number"
+        }
+    },
+    {
+        value: "uan",
+        label: "UAN",
+        final: {
+            uan: "UAN"
+        }
+    },
+    {
+        value: "store_name",
+        label: "Store Name",
+        final: {
+            store_name: "Store Name"
+        }
+    },
+    {
+        value: "department_name",
+        label: "Department Name",
+        final: {
+            department_name: "Department Name"
+        }
+    },
+    {
+        value: "uniform_qty",
+        label: "Uniform Quantity",
+        final: {
+            uniform_qty: "Uniform Quantity"
+        }
+    },
+    {
+        value: "Designation Name",
+        label: "Designation_name",
+        final: {
+            designation_name: "Designation Name"
+        }
+    },
+    {
+        value: "shift_name",
+        label: "Shift",
+        final: {
+            shift_name: "Shift"
+        }
+    },
+    {
+        value: "date_of_joining",
+        label: "Date of Joining",
+        final: {
+            date_of_joining: "Date of Joining"
+        }
+    },
+    {
+        value: "pan_no",
+        label: "Pan No",
+        final: {
+            pan_no: "Pan No"
+        }
+    },
+    {
+        value: "payment_type",
+        label: "Payment Type",
+        final: {
+            payment_type: "Payment Type"
+        }
+    }
+]
 export const DropDownOption = [
     {
         value: "product_id",

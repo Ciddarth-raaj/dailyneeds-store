@@ -1,5 +1,5 @@
 import { Formik, Form } from "formik";
-import { Container, Flex, Button, ButtonGroup, Switch, Badge } from "@chakra-ui/react";
+import { Container, Flex, Button, ButtonGroup, Switch, Input } from "@chakra-ui/react";
 import styles from "../../styles/admin.module.css";
 import EmployeeHelper from "../../helper/employee";
 import DesignationHelper from "../../helper/designation";
@@ -7,6 +7,8 @@ import OutletsHelper from "../../helper/outlets";
 import StoreHelper from "../../helper/store";
 
 import React, { useState, useEffect } from "react";
+import { DropDownOptionEmployee } from "../../constants/values";
+import { default as ReactSelect } from "react-select";
 
 import CustomInput from "../../components/customInput/customInput";
 import Head from "../../util/head";
@@ -17,92 +19,90 @@ import Table from "../../components/table/table";
 import Link from "next/link";
 import exportCSVFile from "../../util/exportCSVFile";
 import moment from "moment";
+let valuesNew = [];
 
-function Registration() {
-	const initialValue = {
-		dob_1: "",
-		dob_2: "",
-	};
-	// const image = (m) => (
-	// 	<div style={{ display: "flex", justifyContent: "center" }}>
-	// 		<img src={"/assets/edit.png"} onClick={() => window.location = `/employee/${m}`} className={styles.icon} />
-	// 	</div>
-	// );
-	const table_title = {
-		employee_id: "Employee Id",
-		name: "Name",
-		// store_name: "Store Name",
-		designation: "Designation",
-		status: "Status",
-		// action: "Action",
-	};
-	const [
-		data,
-		setData
-	] = useState({
-		employee: []
-	})
-	const [
-		designationData,
-		setDesignationData
-	] = useState({
-		designation: []
-	})
-	const [
-		storeData,
-		setStoreData
-	] = useState({
-		store: []
-	})
-	// useEffect(() => getEmployeeData(), getDesignationData(), [])
-	useEffect(() => {
-		getEmployeeData();
-		getDesignationData();
-		getStoreData();
-	}, [])
-
-	function getEmployeeData() {
+class Registration extends React.Component {
+	constructor(props) {
+		super(props);
+		this.state = {
+			employee: [],
+			designation: [],
+			store: [],
+			name: '',
+			hoverElement: false,
+			filter_click: false,
+			paginate_filter: false,
+			id: 0,
+            optionSelected: null,
+			filter_details: [],
+            new_header: false,
+			status: '',
+			permission_array: [],
+		}
+	}
+	componentDidMount() {
+		let arr = global.config.data;
+		if (arr.length > 0) {
+			this.setState({ permission_array: global.config.data })
+			arr = null;
+		}
+		this.getEmployeeData();
+		this.getDesignationData();
+		this.getStoreData();
+	}
+	componentDidUpdate() {
+		const { filter_click, name } = this.state;
+		if (filter_click === true) {
+            if (name !== '') {
+                this.filterData();
+                this.setState({ filter_click: false })
+            }
+        }
+	}
+	filterData() {
+        const { name, offset, limit } = this.state;
+        EmployeeHelper.getFilteredEmployee(name)
+            .then((data) => {
+				for(let i = 0; i <= data.length - 1; i++) {
+					data[i].dob = moment(data[i].dob).format("DD/MM/YYYY")
+				}
+                this.setState({ filter_details: data });
+            })
+            .catch((err) => console.log(err));
+    }
+	getEmployeeData() {
 		EmployeeHelper.getEmployee()
 			.then((data) => {
-				setData({ employee: data });
+				for(let i = 0; i <= data.length - 1; i++) {
+					data[i].dob = moment(data[i].dob).format("DD/MM/YYYY")
+				}
+				this.setState({ employee: data });
 			})
 			.catch((err) => console.log(err));
 	}
 
 
-	function getDesignationData() {
+	getDesignationData() {
 		DesignationHelper.getDesignation()
 			.then((data) => {
-				setDesignationData({ designation: data });
+				this.setState({ designation: data });
 			})
 			.catch((err) => console.log(err));
 	}
-	function getStoreData() {
+	getStoreData() {
 		OutletsHelper.getOutlet()
 			.then((data) => {
-				setStoreData({ store: data });
+				this.setState({ store: data });
 			})
 			.catch((err) => console.log(err));
 	}
-	const onClick = (m) => (
-		<Link href={`/employee/${m.id}`}>{m.value}</Link>
-	)
-	const [
-		status,
-		setStatus
-	] = useState({
-		id: 0,
-		status: ''
-	})
-	useEffect(() => updateStatus(), [status])
-	const badge = (m) => (
-		<Switch className={styles.switch} id="email-alerts" defaultChecked={m.value === 1} onChange={() => { setStatus({ status: m.value === 1 ? 0 : 1, id: m.id }) }} />
-	)
-	function updateStatus() {
-		if (status.status !== '') {
+
+	updateStatus() {
+		const { status, id} = this.state;
+		if (status !== '') {
 			EmployeeHelper.updateStatus({
-				employee_id: status.id,
-				status: status.status
+				employee_id: id,
+				status: status
 			})
 				.then((data) => {
 					if (data.code === 200) {
@@ -116,40 +116,26 @@ function Registration() {
 			console.log('clear');
 		}
 	}
-	function designationName(n) {
-		var name = "";
-		designationData.designation.map((m) => {
-			if (m.id == n.value) {
-				name = m.value;
-			}
-		})
-		return <Link href={`/employee/${n.id}`}>{name}</Link>;
-	}
-	function storeName(n) {
-		var storeName = "";
-		storeData.store.map((m) => {
-			if (m.outlet_id == n.value) {
-				storeName = m.value;
-			}
-		})
-		return <Link href={`/employee/${n.id}`}>{storeName}</Link>;
-	}
-	const valuesNew = data.employee.map((m) => (
-		{
-			id: m.employee_id,
-			name: onClick({ value: m.employee_name, id: m.employee_id }),
-			// store_name: storeName({value: m.store_id, id: m.employee_id}),
-			designation: designationName({ value: m.designation_id, id: m.employee_id }),
-			status: badge({ value: m.status, id: m.employee_id }),
-			// action: image(m.employee_id),
-		}
-	));
-
-	const sortCallback = (key, type) => {
-		console.log(key, type);
-	};
-
-	const getExportFile = () => {
+	Option = (props) => {
+        return (
+            <div>
+                <components.Option {...props}>
+                    <input
+                        type="checkbox"
+                        checked={props.isSelected}
+                        onChange={() => null}
+                    />{" "}
+                    <label>{props.label}</label>
+                </components.Option>
+            </div>
+        );
+    };
+	handleChange = (selected) => {
+        this.setState({
+            optionSelected: selected
+        });
+    };
+	getExportFile = () => {
 		const TABLE_HEADER = {
 			SNo: "SNo",
 			id: "Employee Id",
@@ -175,74 +161,270 @@ function Registration() {
 			"employee_details" + moment().format("DD-MMY-YYYY")
 		);
 	};
-	const [
-		permission,
-		setPermission
-	] = useState({
-		permission_array: [],
-	})
-	useEffect(() => { setPermission({ permission_array: global.config.data }) }, [global.config.data])
-	return (
-		<Formik
-			initialValues={initialValue}
-			onSubmit={(values) => {
-				console.log(values);
-			}}
-			validationSchema={Validation}
-		>
-			<Form>
-				<GlobalWrapper title="Employee Details">
-					<Head />
-					<Flex templateColumns="repeat(3, 1fr)" gap={6} colSpan={2}>
-						<Container className={styles.container} boxShadow="lg">
-							<p className={styles.buttoninputHolder} >
-								<div>Employee</div>
-								{permission.permission_array.length > 0 ?
-									permission.permission_array.map((m) => (
-										<>
-											{m.permission_key === 'add_employees' && (
-												<div style={{ paddingRight: 10 }}>
-													<Link href="/employee/create">
-														<Button colorScheme="purple">
-															{"Add"}
-														</Button>
-													</Link>
-												</div>
-											)}
-										</>
-									)) : (
-										<div style={{ paddingRight: 10 }}>
-											<Link href="/employee/create">
-												<Button colorScheme="purple">
-													{"Add"}
-												</Button>
-											</Link>
+
+	render() {
+		const { 
+			employee,
+			designation,
+			optionSelected,
+            filter_details,
+			new_header,
+			name,
+			store,
+			id,
+			status,
+			permission_array, 
+		} = this.state;
+		let new_table_title = {};
+        let new_table_value = {};
+		const onClick = (m) => (
+			<Link href={`/employee/${m.id}`}><a>{m.value}</a></Link>
+		)
+
+		const badge = (m) => (
+			<Switch className={styles.switch} id="email-alerts" defaultChecked={m.value === 1} onChange={() => { this.setState({ status: m.value === 1 ? 0 : 1, id: m.id }) }} />
+		)
+		const designationName = (n) => {
+			var name = "";
+			designation.map((m) => {
+				if (m.id == n.value) {
+					name = m.value;
+				}
+			})
+			return <Link href={`/employee/${n.id}`}>{name}</Link>;
+		}
+		const storeName = (n) => {
+			var storeName = "";
+			store.map((m) => {
+				if (m.outlet_id == n.value) {
+					storeName = m.value;
+				}
+			})
+			return <Link href={`/employee/${n.id}`}>{storeName}</Link>;
+		}
+		const initialValue = {
+			dob_1: "",
+			dob_2: "",
+		};
+		// const image = (m) => (
+		// 	<div style={{ display: "flex", justifyContent: "center" }}>
+		// 		<img src={"/assets/edit.png"} onClick={() => window.location = `/employee/${m}`} className={styles.icon} />
+		// 	</div>
+		// );
+		let table_title = {
+			employee_id: "Employee Id",
+			name: "Employee Name",
+			// store_name: "Store Name",
+			// designation: "Designation",
+			dob: "Date of Birth",
+			gender: "Gender"
+			// status: "Status",
+			// action: "Action",
+		};
+		if (new_header === true) {
+            optionSelected.map((m, index) => (
+                new_table_title[m.value] = m.label,
+                new_table_value[index] = m.value
+            ))
+        }
+
+		if (new_header !== true) {
+            if (filter_details.length === 0) {
+                valuesNew = employee.map((m, i) => ({
+                    // s_no: i + 1,
+					id: m.employee_id,
+					name: onClick({ value: m.employee_name, id: m.employee_id }),
+					// store_name: storeName({value: m.store_id, id: m.employee_id}),
+					dob: onClick({ value: m.dob, id: m.employee_id }),
+					gender: onClick({value: m.gender, id: m.employee_id}),
+					// status: badge({ value: m.status, id: m.employee_id }),
+                }));
+            } else {
+                valuesNew = filter_details.map((m, i) => ({
+					id: m.employee_id,
+					name: onClick({ value: m.employee_name, id: m.employee_id }),
+					// store_name: storeName({value: m.store_id, id: m.employee_id}),
+					// designation: onClick({ value: m.designation_name, id: m.employee_id }),
+					dob: onClick({ value: m.dob, id: m.employee_id }),
+					gender: onClick({value: m.gender, id: m.employee_id}),
+
+					// status: badge({ value: m.status, id: m.employee_id }),
+                }));
+            }
+        }
+let arr1 = []
+let arr = {};
+let temp = {};
+        if (new_header === true) {
+            if (filter_details.length === 0) {
+                employee.map((detail, id) => {
+                    temp = {};
+                    arr[id] = optionSelected.map(option => {
+                        temp[option.value] = onClick({
+                            value: detail[option.value],
+                            id: detail["employee_id"]
+                        })
+                        return temp
+                    });
+                    arr1.push(temp);
+                });               
+            } else {
+                valuesNew = filter_details.map((m, i) => (
+                    optionSelected.map((n) => (
+                        new_table_value[i] = m[n.value]
+                    ))
+                ))
+            }
+        }
+		// const valuesNew = employee.map((m) => (
+		// 	{
+		// 		id: m.employee_id,
+		// 		name: onClick({ value: m.employee_name, id: m.employee_id }),
+		// 		// store_name: storeName({value: m.store_id, id: m.employee_id}),
+		// 		designation: designationName({ value: m.designation_id, id: m.employee_id }),
+		// 		status: badge({ value: m.status, id: m.employee_id }),
+		// 		// action: image(m.employee_id),
+		// 	}
+		// ));
+
+		const sortCallback = (key, type) => {
+			console.log(key, type);
+		};
+
+		return (
+			<Formik
+				initialValues={initialValue}
+				onSubmit={(values) => {
+					console.log(values);
+				}}
+				validationSchema={Validation}
+			>
+				<Form>
+					<GlobalWrapper title="Employee Details">
+						<Head />
+						<Flex templateColumns="repeat(3, 1fr)" gap={6} colSpan={2}>
+							<Container className={styles.container} boxShadow="lg">
+								<p className={styles.buttoninputHolder} >
+									<div>Employee</div>
+									{permission_array.length > 0 ?
+										permission_array.map((m) => (
+											<>
+												{m.permission_key === 'add_employees' && (
+													<div style={{ paddingRight: 10 }}>
+														<Link href="/employee/create">
+															<Button colorScheme="purple">
+																{"Add"}
+															</Button>
+														</Link>
+													</div>
+												)}
+											</>
+										)) : (
+											<div style={{ paddingRight: 10 }}>
+												<Link href="/employee/create">
+													<Button colorScheme="purple">
+														{"Add"}
+													</Button>
+												</Link>
+											</div>
+										)}
+								</p>
+								<div style={{ marginBottom: "60px", display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+                                        <div className={styles.subInputHolder}>
+                                            <label htmlFor="searchbar"
+                                                className={styles.infoLabel}>
+                                                Search
+                                            </label>
+                                            <Input id="searchbar" onChange={(e) => this.setState({ name: e.target.value })} type="text" defaultValue={name === "" ? "" : `${name}`} onMouseEnter={() => this.setState({ hoverElement: false })}
+                                                className={styles.dropbtn} />
+                                        </div>
+                                        <div className={styles.subButtonHolder}>
+                                            <ButtonGroup
+                                                type="submit"
+                                            >
+                                                <Button
+                                                    loadingText="Searching"
+                                                    colorScheme="purple"
+                                                    onClick={() => this.setState({ filter_click: true, paginate_filter: true })}
+                                                >
+                                                    {"Search"}
+                                                </Button>
+                                            </ButtonGroup> 
+                                        </div>
+                                    </div>
+								<div style={{ marginBottom: "60px", display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+									<div className={styles.subInputHolder}>
+										<label className={styles.infoLabel}>Choose Table Filter</label>
+										<div>
+											<ReactSelect
+												options={
+													DropDownOptionEmployee
+												}
+												isMulti
+												theme={this.customTheme}
+												defaultValue=
+												{[
+													DropDownOptionEmployee[0],
+													DropDownOptionEmployee[1],
+													DropDownOptionEmployee[2],
+													DropDownOptionEmployee[3]
+
+												]}
+												closeMenuOnSelect={false}
+												hideSelectedOptions={false}
+												isSearchable
+												components={this.Option}
+												onChange={this.handleChange}
+												allowSelectAll={true}
+												className="basic-multi-select"
+												classNamePrefix="select"
+											/>
 										</div>
-									)}
-							</p>
-							<div>
-								<Table heading={table_title} rows={valuesNew} sortCallback={(key, type) => sortCallback(key, type)} />
-								<ButtonGroup
-									style={{
-										display: "flex",
-										justifyContent: "flex-end",
-										paddingBottom: 15,
-									}}
-								>
-									<Button
-										colorScheme="purple"
-										onClick={() => getExportFile()}
+									</div>
+									<div className={styles.subButtonHolder}>
+										<ButtonGroup
+											type="submit"
+										>
+											<Button
+												loadingText="Loading"
+												colorScheme="purple"
+												onClick={() => this.state.optionSelected !== null ? this.setState({ new_header: true }) : ''}
+											>
+												{"Done"}
+											</Button>
+										</ButtonGroup>
+									</div>
+								</div>
+								<div>
+									<Table 
+										heading={new_header === false ? table_title : new_table_title} 
+										rows={arr1.length === 0 ? valuesNew : arr1}
+										sortCallback={(key, type) => 
+											sortCallback(key, type)
+										} 
+										/>
+									<ButtonGroup
+										style={{
+											display: "flex",
+											justifyContent: "flex-end",
+											paddingBottom: 15,
+										}}
 									>
-										{"Export"}
-									</Button>
-								</ButtonGroup>
-							</div>
-						</Container>
-					</Flex>
-				</GlobalWrapper>
-			</Form>
-		</Formik>
-	);
+										<Button
+											colorScheme="purple"
+											onClick={() => getExportFile()}
+										>
+											{"Export"}
+										</Button>
+									</ButtonGroup>
+								</div>
+							</Container>
+						</Flex>
+					</GlobalWrapper>
+				</Form>
+			</Formik>
+		);
+	}
 }
 
 export default Registration;
