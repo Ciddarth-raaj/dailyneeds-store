@@ -75,6 +75,8 @@ class Registration extends React.Component {
 			.then((data) => {
 				for(let i = 0; i <= data.length - 1; i++) {
 					data[i].dob = moment(data[i].dob).format("DD/MM/YYYY")
+					data[i].date_of_joining = moment(data[i].date_of_joining).format("DD/MM/YYYY")
+					data[i].marriage_date = moment(data[i].marriage_date).format("DD/MM/YYYY")
 				}
 				this.setState({ employee: data });
 			})
@@ -214,10 +216,9 @@ class Registration extends React.Component {
 		let table_title = {
 			employee_id: "Employee Id",
 			name: "Employee Name",
-			// store_name: "Store Name",
-			// designation: "Designation",
-			dob: "Date of Birth",
-			gender: "Gender"
+			store_name: "Store Name",
+			designation: "Designation",
+		
 			// status: "Status",
 			// action: "Action",
 		};
@@ -234,19 +235,20 @@ class Registration extends React.Component {
                     // s_no: i + 1,
 					id: m.employee_id,
 					name: onClick({ value: m.employee_name, id: m.employee_id }),
-					// store_name: storeName({value: m.store_id, id: m.employee_id}),
-					dob: onClick({ value: m.dob, id: m.employee_id }),
-					gender: onClick({value: m.gender, id: m.employee_id}),
+					store_name: onClick({value: m.store_name, id: m.employee_id}),
+					designation: onClick({ value: m.designation_name, id: m.employee_id }),
+					// dob: onClick({ value: m.dob, id: m.employee_id }),
+					// gender: onClick({value: m.gender, id: m.employee_id}),
 					// status: badge({ value: m.status, id: m.employee_id }),
                 }));
             } else {
                 valuesNew = filter_details.map((m, i) => ({
 					id: m.employee_id,
 					name: onClick({ value: m.employee_name, id: m.employee_id }),
-					// store_name: storeName({value: m.store_id, id: m.employee_id}),
-					// designation: onClick({ value: m.designation_name, id: m.employee_id }),
-					dob: onClick({ value: m.dob, id: m.employee_id }),
-					gender: onClick({value: m.gender, id: m.employee_id}),
+					store_name: onClick({value: m.store_name, id: m.employee_id}),
+					designation: onClick({ value: m.designation_name, id: m.employee_id }),
+					// dob: onClick({ value: m.dob, id: m.employee_id }),
+					// gender: onClick({value: m.gender, id: m.employee_id}),
 
 					// status: badge({ value: m.status, id: m.employee_id }),
                 }));

@@ -105,6 +105,20 @@ export const DropDownOptionEmployee = [
             employee_name: "Employee Name"
         }
     },
+    {
+        value: "store_name",
+        label: "Store Name",
+        final: {
+            store_name: "Store Name"
+        }
+    },
+    {
+        value: "designation_name",
+        label: "Designation Name",
+        final: {
+            designation_name: "Designation Name"
+        }
+    },
     // {
     //     value: "status",
     //     label: "Status",
@@ -184,7 +198,7 @@ export const DropDownOptionEmployee = [
     },
     {
         value: "blood_group",
-        label: "blood_group",
+        label: "Blood Group",
         final: {
             blood_group: "Blood Group"
         }
@@ -194,13 +208,6 @@ export const DropDownOptionEmployee = [
         label: "Qualification",
         final: {
             qualification: "Qualification"
-        }
-    },
-    {
-        value: "Designation Name",
-        label: "Designation_name",
-        final: {
-            designation_name: "Designation Name"
         }
     },
     {
@@ -267,13 +274,6 @@ export const DropDownOptionEmployee = [
         }
     },
     {
-        value: "store_name",
-        label: "Store Name",
-        final: {
-            store_name: "Store Name"
-        }
-    },
-    {
         value: "department_name",
         label: "Department Name",
         final: {
@@ -285,13 +285,6 @@ export const DropDownOptionEmployee = [
         label: "Uniform Quantity",
         final: {
             uniform_qty: "Uniform Quantity"
-        }
-    },
-    {
-        value: "Designation Name",
-        label: "Designation_name",
-        final: {
-            designation_name: "Designation Name"
         }
     },
     {

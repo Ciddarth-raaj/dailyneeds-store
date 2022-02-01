@@ -43,6 +43,7 @@ function withoutAdhaarView() {
                             container.push(data[i])
                         }
                 }
+                console.log({container: container});
                 setData({ adhaar: container})
             })
             .catch((err) => console.log(err));
