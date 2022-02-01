@@ -52,7 +52,6 @@ const document = {
 	new Promise(function (resolve, reject) {
 		API.get("/document/withoutadhaar", data)
 			.then(async (res) => {
-				console.log({res: res})
 				if (res.status === 200) {
 					resolve(document.formatAdhaar(res.data));
 				} else {

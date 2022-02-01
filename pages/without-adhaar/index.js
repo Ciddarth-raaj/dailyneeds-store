@@ -38,12 +38,11 @@ function withoutAdhaarView() {
         let container = [];
         DocumentHelper.userWithoutAdhaar()
             .then((data) => {
-                // for (let i = 0; i <= data.length - 1 ; i++) {
-                //         if (data[i].files[0].card_type !== "1") {
-                //             container.push(data[i])
-                //         }
-                // }
-                console.log({container: data});
+                for (let i = 0; i <= data.length - 1 ; i++) {
+                        if (data[i].files[0].card_type !== "1") {
+                            container.push(data[i])
+                        }
+                }
                 setData({ adhaar: container})
             })
             .catch((err) => console.log(err));
