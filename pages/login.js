@@ -27,7 +27,6 @@ export default class LogIn extends React.Component {
           toast.error(`${data.msg}`)
         }
         if (data.data.code === 200) {
-          console.log({data: data})
           localStorage.setItem('Token', data.data.token)
           localStorage.setItem('Store_id', data.data.store_id)
           localStorage.setItem('Designation_id', data.data.designation_id)

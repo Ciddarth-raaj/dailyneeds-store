@@ -1,6 +1,6 @@
 import React from "react";
 import { Formik, Form } from "formik";
-import { Grid, GridItem, Box, Button } from "@chakra-ui/react";
+import { Grid, GridItem, Box, Button, Input } from "@chakra-ui/react";
 import { ArrowForwardIcon, WarningIcon, InfoOutlineIcon } from '@chakra-ui/icons'
 import { Calendar, momentLocalizer } from 'react-big-calendar';
 import moment from 'moment'; 
@@ -27,6 +27,7 @@ export default class NewJoiner extends React.Component {
             resp: false,
             one: false,
             store_data: [],
+            store_value: "",
             store_name: '',
             store: '',
             final_store: [],
@@ -90,6 +91,7 @@ export default class NewJoiner extends React.Component {
             resignedEmp: "",
             birthdays: [],
             anniversary: [],
+            check_store: "",
         };
     }
 
@@ -117,6 +119,17 @@ export default class NewJoiner extends React.Component {
         this.getEmployeeDet();
     }
     componentDidUpdate() {
+        const { resp } = this.state;
+        if(resp === true) {
+            let store_id = localStorage.getItem("Store_id");
+            // console.log({storeeeeeeeeeee: store_id})
+            if(store_id !== "null") {
+                this.getEmployeeByFinalStore(store_id);
+                this.getOutletById(store_id);
+                store_id = null;
+            }
+            this.setState({resp: false})
+        }
         if (this.state.store_name !== '') {
             this.getEmployeeByStore();
         }
@@ -124,6 +137,56 @@ export default class NewJoiner extends React.Component {
         this.state.store_name = '';
         this.state.store_id = 0;
     }
+    getOutletById(store_id) {
+        OutletHelper.getOutletById(store_id)
+            .then((data) => {
+                this.setState({check_store: data[0].outlet_name})
+            })
+            .catch((err) => console.log(err))
+    }
+    getEmployeeByFinalStore(store_id) {
+        EmployeeHelper.getStoreById(
+            store_id
+        )
+            .then((data) => {
+                let date = []
+                let count = []
+                let detailsMapper = {}
+                let updatedCountArr = []
+                data.map((detail) => {
+                    detailsMapper[moment(detail.created_at).format("MMMM")] = detail.store_count;
+                })
+                MONTH.map((el1) => {
+                    var temp = {}
+                    if (el1 in detailsMapper) {
+                        temp.date = el1;
+                        temp.count = parseInt(detailsMapper[el1]);
+                    } else {
+                        temp.date = el1;
+                        temp.count = 0;
+                    }
+                    updatedCountArr.push(temp);
+                })
+                for (const val of updatedCountArr) {
+                    date.push(val.date);
+                    count.push(val.count);
+                    this.setState({
+                        store_count: {
+                            labels: date,
+                            datasets: [
+                                {
+                                    label: "Store Head Count",
+                                    data: count,
+                                    backgroundColor: "#8b74ff"
+                                },
+                            ],
+                        },
+                    })
+                }
+            })
+            .catch((err) => console.log(err))
+    }
+
     getEmployeeByStore() {
         const { store_id } = this.state;
         EmployeeHelper.getStoreById(
@@ -262,7 +325,7 @@ export default class NewJoiner extends React.Component {
     }
 
     render() {
-        const { newjoiner, birthdays, store_data, resp, employeeDet, loginVisibility, hoverElement, store, store_name, resigned_employee, store_count, head_count, anniversary } = this.state;
+        const { newjoiner, birthdays, store_data, check_store, resp, employeeDet, loginVisibility, hoverElement, store, store_name, resigned_employee, store_count, head_count, anniversary } = this.state;
         return (
             <Formik>
                 <Form>
@@ -280,6 +343,7 @@ export default class NewJoiner extends React.Component {
                         <div className={styles.mainWrapper}>
                             <div className={styles.leftHolder}>
                                 <Box boxShadow="lg" bg="white" padding="10px" borderRadius="20px" overflow="hidden">
+                                    {check_store === "" ? (
                                     <div className={styles.dropdown}>
                                         <input placeholder="Store Name" onChange={(e) => this.setState({ store: e.target.value })} type="text" value={store === "" ? store : `${store}`} onMouseEnter={() => this.setState({ hoverElement: false })}
                                             className={styles.dropbtn} />
@@ -290,6 +354,9 @@ export default class NewJoiner extends React.Component {
                                             ))}
                                         </div>
                                     </div>
+                                    ) : (
+                                        <Input value={check_store} isDisabled={true} />
+                                    )}
                                     <div style={{ width: "97%" }}>
                                         <Bar
                                             data={store_count.labels.length === 0 ? head_count : store_count}
