@@ -110,6 +110,10 @@ export default class NewJoiner extends React.Component {
         };
     };
     componentDidMount() {
+        const token = localStorage.getItem("Token");
+        if(token !== null) {
+            this.setState({ loginVisibility: true })
+        }
         this.getOutlet();
         this.getHeadCount();
         this.getNewJoiner();

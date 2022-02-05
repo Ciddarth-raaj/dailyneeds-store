@@ -42,7 +42,7 @@ class viewIndent extends React.Component {
     }
 
     componentDidMount() {
-        const store = global.config.store_id;
+        const store = localStorage.getItem("Store_id");
         this.setState({store_id: store});
         if(store !== "null") {
             this.getStoreById(store);

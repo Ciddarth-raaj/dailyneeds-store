@@ -53,10 +53,10 @@ class acceptIndent extends React.Component {
     }
 
     componentDidMount() {
-        const store = global.config.store_id;
+        const store = localStorage.getItem("Store_id");
         // console.log({store: store});
-        this.setState({ store_id: store !== "null" ? store : '' });
-        if (store !== "null") {
+        this.setState({ store_id: store !== null ? store : '' });
+        if (store !== null) {
             this.getStoreById(store);
         }
         this.getBranchData();

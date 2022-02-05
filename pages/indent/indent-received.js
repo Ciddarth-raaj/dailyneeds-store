@@ -41,9 +41,9 @@ class indentReceived extends React.Component {
     }
 
     componentDidMount() {
+        const store_id = localStorage.getItem('Store_id')
         this.getIndent();
         this.getIndentCount();
-        const store_id = localStorage.getItem('Store_id')
         if(this.state.update_value === false) {
             this.getIndentFromStoreId(store_id)
             this.setState({update_value: true})
@@ -96,7 +96,7 @@ class indentReceived extends React.Component {
         );
     };
     getIndentFromStoreId(store_id) {
-        if(store_id !== 'null') {
+        if(store_id !== null) {
         IndentHelper.getIndentFromStoreId(store_id)
         .then((data) => {
             this.setState({ details: data})

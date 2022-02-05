@@ -47,11 +47,11 @@ class viewDespatch extends React.Component {
     }
 
     componentDidMount() {
-        const store = global.config.store_id;
-        const usertype = global.config.user_type;
+        const store = localStorage.getItem("Store_id");
+        const usertype = localStorage.getItem("User_type");
         this.setState({store_id: store});
         this.setState({user_type: usertype});
-        if(store !== "null") {
+        if(store !== null) {
             this.getStoreById(store);
         }
         this.getBranchData();
