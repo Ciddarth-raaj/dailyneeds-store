@@ -219,6 +219,13 @@ class viewIndent extends React.Component {
                 
                 {(formikProps) => {
                     const { handleSubmit, resetForm, values } = formikProps;
+                    if(store_name.length > 0) {
+                        for(let i = 0; i <= branch.length - 1; i++) {
+                            if(branch[i].outlet_name === store_name[0].outlet_name) {
+                                branch.splice(i,1)
+                            }
+                        }
+                    }
                     return (
                         <Form onSubmit={formikProps.handleSubmit}>
                                 <Flex templateColumns="repeat(3, 1fr)" flexDirection={"column"} gap={6} colSpan={2}>
