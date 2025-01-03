@@ -1,99 +1,196 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
-
+import { useRouter } from "next/router";
+import { Box, Text, Tooltip } from "@chakra-ui/react";
+import { motion } from "framer-motion";
 import styles from "./sideBar.module.css";
-
 import Head from "../../util/head";
 import MENU_LIST from "../../constants/menus";
 import "../../constants/variables";
-import { background } from "@chakra-ui/react";
 import DesignationHelper from "../../helper/designation";
 
-export default class SideBar extends React.Component {
-	constructor(props) {
-		super(props);
-		this.state = {
-			showTitle: false,
-			subOptions: "",
-			menu: MENU_LIST,
-			login: '',
-			designation_id: '',
-			filtered_data: [],
-		};
-	}
+export default function Sidebar() {
+  const [showTitle, setShowTitle] = useState(false);
+  const [menu, setMenu] = useState(() => {
+    // Initialize menu with both selected and isOpen states
+    const initialMenu = { ...MENU_LIST };
+    Object.keys(initialMenu).forEach((key) => {
+      initialMenu[key] = {
+        ...initialMenu[key],
+        selected: false,
+        isOpen: false,
+      };
+    });
+    return initialMenu;
+  });
+  const [filteredData, setFilteredData] = useState([]);
+  const router = useRouter();
 
-	componentDidMount() {
-		this.getPermissions();
-	}
+  useEffect(() => {
+    getPermissions();
+    checkActiveRoute();
+  }, [router.pathname]);
 
-	getPermissions() {
-		DesignationHelper.getPermissionById()
-			.then((data) => {
-				this.setState({ filtered_data: data })
-				if (data) {
-					global.config.data = data;
-				};
-			})
-			.catch((err) => console.log(err))
+  const checkActiveRoute = () => {
+    const updatedMenu = { ...menu };
 
-	}
+    // Reset all selections first
+    Object.keys(updatedMenu).forEach((key) => {
+      updatedMenu[key].selected = false;
+    });
 
-	handleMenuClick = (key) => {
-		const { menu } = this.state;
-		menu[key].selected = true;
-		this.setState({ menu: menu });
-	};
+    // Check which section should be selected based on current route
+    Object.keys(updatedMenu).forEach((key) => {
+      // Check main menu route
+      if (updatedMenu[key].location === router.pathname) {
+        updatedMenu[key].selected = true;
+        return;
+      }
 
-	render() {
-		const { showTitle, menu, filtered_data, designation_id } = this.state;
-		return (
-			<div className={styles.container} onMouseEnter={() => this.setState({ showTitle: true })} onMouseLeave={() => this.setState({ showTitle: false })}>
-				<Head />
-				<div className={styles.sideBarOptions}>
-					{Object.keys(menu).map((key) => (
-						<div style={showTitle ? { width: "100%" } : {}} className={styles.menuWrapper}>
-							<Link href={menu[key].location == undefined ? "" : menu[key].location}>
-								<div className={styles.optionHolder} onClick={() => this.handleMenuClick(key)}>
-									<i className={`fa ${menu[key].icon} ${menu[key].openPage ? styles["icons-selected"] : ""}`} />
-									{showTitle && <span>{menu[key].title}</span>}
-								</div>
-							</Link>
-							{showTitle && menu[key].selected && menu[key].subMenu != undefined && Object.keys(menu[key].subMenu).length > 0 && (
-								<>
-									{filtered_data.length !== 0 ? (
-										<div className={styles.subMenuWrapper}>
-											{Object.keys(menu[key].subMenu).map((sKey) => (
-												<div>
-													{Object.keys(filtered_data).map((fkey) => (
-														<Link href={menu[key].subMenu[sKey].location == undefined ? "" : menu[key].subMenu[sKey].location}>
-															<div>
-																{filtered_data[fkey].permission_key === menu[key].subMenu[sKey].permission && (
-																	<div style={{ display: "flex", justifyContent: "center", alignItems: "center" }}>
-																		<p style={{ marginTop: "15px", marginRight: "7px" }}>-</p>
-																		<p>{menu[key].subMenu[sKey].title}</p>
-																	</div>
-																)}
-															</div>
-														</Link>
-													))}
-												</div>
-											))}
-										</div>
-									) : (
-										<div className={styles.subMenuWrapper}>
-											{Object.keys(menu[key].subMenu).map((sKey) => (
-												<Link href={menu[key].subMenu[sKey].location == undefined ? "" : menu[key].subMenu[sKey].location}>
-													<p>{menu[key].subMenu[sKey].title}</p>
-												</Link>
-											))}
-										</div>
-									)}
-								</>
-							)}
-						</div>
-					))}
-				</div>
-			</div>
-		);
-	}
+      // Check submenu routes
+      if (updatedMenu[key].subMenu) {
+        Object.keys(updatedMenu[key].subMenu).forEach((sKey) => {
+          if (updatedMenu[key].subMenu[sKey].location === router.pathname) {
+            updatedMenu[key].selected = true;
+          }
+        });
+      }
+    });
+
+    setMenu(updatedMenu);
+  };
+
+  const getPermissions = () => {
+    DesignationHelper.getPermissionById()
+      .then((data) => {
+        try {
+          if (!data) return;
+          setFilteredData(data);
+          global.config.data = data;
+        } catch (error) {
+          console.error("Error processing permissions:", error);
+        }
+      })
+      .catch((err) => console.log(err));
+  };
+
+  const handleMenuClick = (key) => {
+    const updatedMenu = { ...menu };
+
+    // Toggle isOpen state for clicked menu
+    updatedMenu[key].isOpen = !updatedMenu[key].isOpen;
+
+    // Close other menus
+    Object.keys(updatedMenu).forEach((k) => {
+      if (k !== key) {
+        updatedMenu[k].isOpen = false;
+      }
+    });
+
+    setMenu(updatedMenu);
+  };
+
+  return (
+    <motion.div
+      className={styles.container}
+      animate={{ width: showTitle ? "320px" : "75px" }}
+      transition={{ duration: 0.3 }}
+      onMouseEnter={() => setShowTitle(true)}
+      onMouseLeave={() => setShowTitle(false)}
+    >
+      <Head />
+      <Box className={styles.sideBarOptions}>
+        {Object.keys(menu).map((key) => (
+          <Box key={key} className={styles.menuWrapper}>
+            <Link href={menu[key].location || ""} passHref>
+              <Box
+                as="a"
+                className={`${styles.optionHolder} ${
+                  menu[key].selected ? styles.selectedMenu : ""
+                } ${menu[key].isOpen ? styles.openMenu : ""}`}
+                onClick={() => handleMenuClick(key)}
+              >
+                <Tooltip
+                  label={menu[key].title}
+                  placement="right"
+                  isDisabled={showTitle}
+                >
+                  <Box className={styles.iconWrapper}>
+                    <i
+                      className={`fa ${menu[key].icon} ${
+                        menu[key].selected ? styles["icons-selected"] : ""
+                      }`}
+                    />
+                  </Box>
+                </Tooltip>
+                {showTitle && (
+                  <motion.span
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    {menu[key].title}
+                  </motion.span>
+                )}
+              </Box>
+            </Link>
+
+            {showTitle &&
+              menu[key].isOpen &&
+              menu[key].subMenu &&
+              Object.keys(menu[key].subMenu).length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className={styles.subMenuWrapper}
+                >
+                  {filteredData.length > 0
+                    ? Object.keys(menu[key].subMenu).map((sKey) => (
+                        <div key={sKey} className={styles.subMenuGroup}>
+                          {filteredData.map((permission, fkey) => {
+                            if (
+                              permission.permission_key ===
+                              menu[key].subMenu[sKey].permission
+                            ) {
+                              return (
+                                <Link
+                                  key={fkey}
+                                  href={menu[key].subMenu[sKey].location || ""}
+                                  passHref
+                                >
+                                  <Box as="a" className={styles.subMenuItem}>
+                                    <Box className={styles.bulletPoint} />
+                                    <Text className={styles.menuText}>
+                                      {menu[key].subMenu[sKey].title}
+                                    </Text>
+                                  </Box>
+                                </Link>
+                              );
+                            }
+                            return null;
+                          })}
+                        </div>
+                      ))
+                    : Object.keys(menu[key].subMenu).map((sKey) => (
+                        <Link
+                          key={sKey}
+                          href={menu[key].subMenu[sKey].location || ""}
+                          passHref
+                        >
+                          <Box as="a" className={styles.subMenuItem}>
+                            <Box className={styles.bulletPoint} />
+                            <Text className={styles.menuText}>
+                              {menu[key].subMenu[sKey].title}
+                            </Text>
+                          </Box>
+                        </Link>
+                      ))}
+                </motion.div>
+              )}
+          </Box>
+        ))}
+      </Box>
+    </motion.div>
+  );
 }
