@@ -80,16 +80,18 @@ class Registration extends React.Component {
   getEmployeeData() {
     EmployeeHelper.getEmployee()
       .then((data) => {
-        for (let i = 0; i <= data.length - 1; i++) {
-          data[i].dob = moment(data[i].dob).format("DD/MM/YYYY");
-          data[i].date_of_joining = moment(data[i].date_of_joining).format(
-            "DD/MM/YYYY"
-          );
-          data[i].marriage_date = moment(data[i].marriage_date).format(
-            "DD/MM/YYYY"
-          );
+        if (data.code != 500) {
+          for (let i = 0; i <= data.length - 1; i++) {
+            data[i].dob = moment(data[i].dob).format("DD/MM/YYYY");
+            data[i].date_of_joining = moment(data[i].date_of_joining).format(
+              "DD/MM/YYYY"
+            );
+            data[i].marriage_date = moment(data[i].marriage_date).format(
+              "DD/MM/YYYY"
+            );
+          }
+          this.setState({ employee: data });
         }
-        this.setState({ employee: data });
       })
       .catch((err) => console.log(err));
   }
