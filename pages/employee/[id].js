@@ -318,7 +318,7 @@ class Create extends React.Component {
           values.designation_name = this.props.data[0].designation_name;
           values.store_name = this.props.data[0].outlet_name;
           values.shift_name = this.props.data[0].shift_name;
-          // router.push("/employee")
+          router.push("/employee");
         } else {
           toast.error("Error creating Account");
           throw `${data.msg}`;
@@ -771,11 +771,16 @@ class Create extends React.Component {
       boxShadow: "lg",
       // minW: "600px",
     };
+
+    console.log("CIDD", this.props.data);
+
     return (
       <GlobalWrapper title="New Employee">
         <Head />
         <Formik
           initialValues={{
+            employee_id: this.props.data[0]?.employee_id,
+            telegram_username: this.props.data[0]?.telegram_username,
             employee_name: this.props.data[0]?.employee_name,
             father_name: this.props.data[0]?.father_name,
             dob: this.props.data[0]?.dob,
@@ -896,7 +901,7 @@ class Create extends React.Component {
                   handleSubmit();
                   break;
                 }
-				
+
                 handleSubmit();
                 break;
               }
@@ -1083,6 +1088,14 @@ class Create extends React.Component {
                           </div>
                           <div className={styles.inputHolder}>
                             <CustomInput
+                              label="Employee ID *"
+                              name="employee_id"
+                              type="number"
+                              editable={
+                                id !== null ? editableEmpInfo : !editableEmpInfo
+                              }
+                            />
+                            <CustomInput
                               label="Name *"
                               name="employee_name"
                               type="text"
@@ -1149,6 +1162,14 @@ class Create extends React.Component {
                             name="date_of_joining"
                             type="text"
                             method="datepicker"
+                            editable={
+                              id !== null ? editableEmpInfo : !editableEmpInfo
+                            }
+                          />
+                          <CustomInput
+                            label="Telegram Username"
+                            name="telegram_username"
+                            type="text"
                             editable={
                               id !== null ? editableEmpInfo : !editableEmpInfo
                             }
