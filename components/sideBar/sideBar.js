@@ -37,6 +37,7 @@ export default function Sidebar() {
     // Reset all selections first
     Object.keys(updatedMenu).forEach((key) => {
       updatedMenu[key].selected = false;
+      // Don't reset isOpen here
     });
 
     // Check which section should be selected based on current route
@@ -44,6 +45,7 @@ export default function Sidebar() {
       // Check main menu route
       if (updatedMenu[key].location === router.pathname) {
         updatedMenu[key].selected = true;
+        updatedMenu[key].isOpen = true; // Open the menu if main route matches
         return;
       }
 
@@ -52,6 +54,7 @@ export default function Sidebar() {
         Object.keys(updatedMenu[key].subMenu).forEach((sKey) => {
           if (updatedMenu[key].subMenu[sKey].location === router.pathname) {
             updatedMenu[key].selected = true;
+            updatedMenu[key].isOpen = true; // Open the menu if submenu route matches
           }
         });
       }
@@ -155,14 +158,22 @@ export default function Sidebar() {
                               permission.permission_key ===
                               menu[key].subMenu[sKey].permission
                             ) {
+                              const isActive =
+                                router.pathname ===
+                                menu[key].subMenu[sKey].location;
                               return (
                                 <Link
                                   key={fkey}
                                   href={menu[key].subMenu[sKey].location || ""}
                                   passHref
                                 >
-                                  <Box as="a" className={styles.subMenuItem}>
-                                    <Box className={styles.bulletPoint} />
+                                  <Box
+                                    as="a"
+                                    className={`${styles.subMenuItem} ${
+                                      isActive ? styles.active : ""
+                                    }`}
+                                  >
+                                    {/* <Box className={styles.bulletPoint} /> */}
                                     <Text className={styles.menuText}>
                                       {menu[key].subMenu[sKey].title}
                                     </Text>
@@ -174,20 +185,29 @@ export default function Sidebar() {
                           })}
                         </div>
                       ))
-                    : Object.keys(menu[key].subMenu).map((sKey) => (
-                        <Link
-                          key={sKey}
-                          href={menu[key].subMenu[sKey].location || ""}
-                          passHref
-                        >
-                          <Box as="a" className={styles.subMenuItem}>
-                            <Box className={styles.bulletPoint} />
-                            <Text className={styles.menuText}>
-                              {menu[key].subMenu[sKey].title}
-                            </Text>
-                          </Box>
-                        </Link>
-                      ))}
+                    : Object.keys(menu[key].subMenu).map((sKey) => {
+                        const isActive =
+                          router.pathname === menu[key].subMenu[sKey].location;
+                        return (
+                          <Link
+                            key={sKey}
+                            href={menu[key].subMenu[sKey].location || ""}
+                            passHref
+                          >
+                            <Box
+                              as="a"
+                              className={`${styles.subMenuItem} ${
+                                isActive ? styles.active : ""
+                              }`}
+                            >
+                              {/* <Box className={styles.bulletPoint} /> */}
+                              <Text className={styles.menuText}>
+                                {menu[key].subMenu[sKey].title}
+                              </Text>
+                            </Box>
+                          </Link>
+                        );
+                      })}
                 </motion.div>
               )}
           </Box>

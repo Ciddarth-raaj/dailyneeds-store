@@ -122,52 +122,116 @@
 
 .subMenuWrapper {
   width: 100%;
-  padding-left: 56px;
-  margin-top: 8px;
+  padding-left: 48px;
+  margin-top: 4px;
+  margin-bottom: 4px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
+  position: relative;
+}
+
+.subMenuWrapper::before {
+  content: "";
+  position: absolute;
+  left: 28px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    rgba(106, 0, 148, 0.15) 10%,
+    rgba(106, 0, 148, 0.15) 90%,
+    transparent
+  );
 }
 
 .subMenuGroup {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
+  position: relative;
 }
 
 .subMenuItem {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 16px;
+  padding: 8px 16px;
   color: rgb(87, 87, 87);
   font-weight: 500;
   transition: all 0.3s ease;
   border-radius: 8px;
   position: relative;
+  font-size: 13px;
+}
+
+.subMenuItem::before {
+  content: "";
+  position: absolute;
+  left: -20px;
+  top: 50%;
+  width: 12px;
+  height: 2px;
+  background-color: rgba(106, 0, 148, 0.15);
+  transform: translateY(-50%);
+  transition: all 0.3s ease;
 }
 
 .bulletPoint {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
-  background-color: rgb(87, 87, 87);
+  background-color: rgba(87, 87, 87, 0.6);
   transition: all 0.3s ease;
+  position: relative;
 }
 
 .menuText {
-  font-size: 14px;
+  font-size: 13px;
   transition: all 0.3s ease;
+  color: rgba(87, 87, 87, 0.9);
 }
 
 .subMenuItem:hover {
   color: rgb(106, 0, 148);
-  background-color: rgba(226, 153, 255, 0.1);
+  background-color: rgba(226, 153, 255, 0.08);
+}
+
+.subMenuItem:hover::before {
+  background-color: rgba(106, 0, 148, 0.3);
+  width: 16px;
 }
 
 .subMenuItem:hover .bulletPoint {
   background-color: rgb(106, 0, 148);
   transform: scale(1.2);
+}
+
+.subMenuItem:hover .menuText {
+  color: rgb(106, 0, 148);
+  transform: translateX(2px);
+}
+
+/* Add active state for submenu items */
+.subMenuItem.active {
+  background-color: rgba(226, 153, 255, 0.12);
+}
+
+.subMenuItem.active .bulletPoint {
+  background-color: rgb(106, 0, 148);
+  transform: scale(1.2);
+}
+
+.subMenuItem.active .menuText {
+  color: rgb(106, 0, 148);
+  font-weight: 600;
+}
+
+.subMenuItem.active::before {
+  background-color: rgba(106, 0, 148, 0.3);
+  width: 16px;
 }
 
 /* .openMenu {
