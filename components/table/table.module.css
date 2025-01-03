@@ -19,7 +19,6 @@
   border-bottom: 1px solid #eee;
   position: sticky;
   top: 0;
-  z-index: 1;
   background-color: var(--chakra-colors-purple-500);
   white-space: nowrap;
 }
