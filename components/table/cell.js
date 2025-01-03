@@ -1,23 +1,48 @@
-import * as React from 'react';
-
+import React from "react";
 import styles from "./table.module.css";
 
-import Icon from "./iconButton.js";
+export default class Cell extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      sortDirection: null, // null, 'asc', or 'desc'
+    };
+  }
 
-export default function Cell({ content, header, sortCallback, headingKey }) {
+  handleSort = () => {
+    const { header, headingKey, sortCallback } = this.props;
+    if (!header || !sortCallback) return;
 
-  const cellMarkup = header ? (
-    <th className={styles.table}>
-      <div>
-        <span>{content} </span>
-        <Icon sortCallback={sortCallback} headingKey={headingKey} />
-      </div>
-    </th>
-  ) : (
-    <td className={styles.table}>
-      {content}
-    </td>
-  );
+    let nextDirection;
+    // Cycle through: null -> asc -> desc -> null
+    if (this.state.sortDirection === null) {
+      nextDirection = "asc";
+    } else if (this.state.sortDirection === "asc") {
+      nextDirection = "desc";
+    } else {
+      nextDirection = null;
+    }
 
-  return (cellMarkup);
+    this.setState({ sortDirection: nextDirection });
+    sortCallback(headingKey, nextDirection);
+  };
+
+  render() {
+    const { content, header } = this.props;
+    const { sortDirection } = this.state;
+
+    if (header) {
+      return (
+        <th
+          onClick={this.handleSort}
+          data-sort={sortDirection}
+          className={styles.headerCell}
+        >
+          <div>{content}</div>
+        </th>
+      );
+    }
+
+    return <td>{content}</td>;
+  }
 }

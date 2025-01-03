@@ -174,6 +174,54 @@ class Registration extends React.Component {
     );
   };
 
+  sortCallback = (key, type) => {
+    const { employee, filter_details } = this.state;
+    const dataToSort = filter_details.length === 0 ? employee : filter_details;
+
+    let sortedData;
+    if (type === null) {
+      // Reset to original order
+      sortedData = [...dataToSort];
+    } else {
+      sortedData = [...dataToSort].sort((a, b) => {
+        let aValue = a[key];
+        let bValue = b[key];
+
+        // Handle special cases for nested values
+        if (key === "store_name") {
+          aValue = a.store_name || "";
+          bValue = b.store_name || "";
+        } else if (key === "designation") {
+          aValue = a.designation_name || "";
+          bValue = b.designation_name || "";
+        } else if (key === "name") {
+          aValue = a.employee_name || "";
+          bValue = b.employee_name || "";
+        } else if (key === "employee_id") {
+          aValue = parseInt(a.employee_id) || "";
+          bValue = parseInt(b.employee_id) || "";
+        }
+
+        // Convert to strings for comparison
+        aValue = String(aValue).toLowerCase();
+        bValue = String(bValue).toLowerCase();
+
+        if (type === "asc") {
+          return aValue.localeCompare(bValue);
+        } else {
+          return bValue.localeCompare(aValue);
+        }
+      });
+    }
+
+    // Update the appropriate state based on whether we're filtering or not
+    if (filter_details.length === 0) {
+      this.setState({ employee: sortedData });
+    } else {
+      this.setState({ filter_details: sortedData });
+    }
+  };
+
   render() {
     const {
       employee,
@@ -314,10 +362,6 @@ class Registration extends React.Component {
     // 	}
     // ));
 
-    const sortCallback = (key, type) => {
-      console.log(key, type);
-    };
-
     return (
       <Formik
         initialValues={initialValue}
@@ -451,7 +495,7 @@ class Registration extends React.Component {
                       new_header === false ? table_title : new_table_title
                     }
                     rows={arr1.length === 0 ? valuesNew : arr1}
-                    sortCallback={(key, type) => sortCallback(key, type)}
+                    sortCallback={this.sortCallback}
                   />
                 </div>
 
