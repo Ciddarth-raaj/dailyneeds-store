@@ -253,6 +253,7 @@
 
 .tableContainer {
   flex-direction: column !important;
+  margin-top: 20px;
 }
 
 @media (max-width: 600px) {

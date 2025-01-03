@@ -467,7 +467,7 @@ class Registration extends React.Component {
                       colorScheme="purple"
                       onClick={() => getExportFile()}
                     >
-                      {"Export1"}
+                      {"Export"}
                     </Button>
                   </ButtonGroup>
                 </div>
