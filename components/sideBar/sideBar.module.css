@@ -67,6 +67,7 @@
 
 .selectedMenu {
   color: rgb(106, 0, 148);
+  background-color: rgba(226, 153, 255, 0.1);
 }
 
 .selectedMenu::before {
@@ -113,6 +114,10 @@
 
 .icons-selected {
   color: rgb(106, 0, 148);
+}
+
+.iconsUnselected {
+  color: rgba(106, 0, 148, 0.38863);
 }
 
 .subMenuWrapper {
@@ -165,13 +170,13 @@
   transform: scale(1.2);
 }
 
-.openMenu {
+/* .openMenu {
   background-color: rgba(226, 153, 255, 0.1);
-}
+} */
 
-.openMenu .iconWrapper {
+/* .openMenu .iconWrapper {
   background-color: rgba(226, 153, 255, 0.2);
-}
+} */
 
 @media (max-width: 480px) {
   .container {

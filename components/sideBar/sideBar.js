@@ -118,7 +118,9 @@ export default function Sidebar() {
                   <Box className={styles.iconWrapper}>
                     <i
                       className={`fa ${menu[key].icon} ${
-                        menu[key].selected ? styles["icons-selected"] : ""
+                        menu[key].selected
+                          ? styles["icons-selected"]
+                          : styles.iconsUnselected
                       }`}
                     />
                   </Box>

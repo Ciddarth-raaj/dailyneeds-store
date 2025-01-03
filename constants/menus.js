@@ -1,45 +1,46 @@
+/* eslint-disable import/no-anonymous-default-export */
 export default {
   employee: {
-    title: 'Employees',
+    title: "Employees",
     selected: true,
     openPage: true,
-    icon: 'fa-users',
+    icon: "fa-users",
     subMenu: {
       dashboard: {
-        title: 'Dashboard',
-        permission: 'dashboard',
+        title: "Dashboard",
+        permission: "dashboard",
         selected: false,
-        location: '/'
+        location: "/",
       },
       view: {
-        title: 'Employee',
-        permission: 'view_employees',
+        title: "Employee",
+        permission: "view_employees",
         selected: false,
-        location: '/employee'
+        location: "/employee",
       },
       view_departments: {
-        title: 'Department',
-        permission: 'view_department',
+        title: "Department",
+        permission: "view_department",
         selected: false,
-        location: '/department'
+        location: "/department",
       },
       view_designation: {
-        title: 'Designation',
-        permission: 'view_designation',
+        title: "Designation",
+        permission: "view_designation",
         selected: false,
-        location: '/designation'
+        location: "/designation",
       },
       view_shift: {
-        title: 'Shift',
-        permission: 'view_shift',
+        title: "Shift",
+        permission: "view_shift",
         selected: false,
-        location: '/shift'
+        location: "/shift",
       },
       view_family: {
-        title: 'Family',
-        permission: 'view_family',
+        title: "Family",
+        permission: "view_family",
         selected: false,
-        location: '/family'
+        location: "/family",
       },
       // view_adhaar: {
       //     title: "View Adhaar",
@@ -47,60 +48,60 @@ export default {
       //     location: "/adhaar",
       // },
       view_documents: {
-        title: 'Document',
-        permission: 'view_documents',
+        title: "Document",
+        permission: "view_documents",
         selected: false,
-        location: '/document'
+        location: "/document",
       },
       view_withoutAdhaar: {
-        title: 'Without Adhaar',
-        permission: 'view_without_adhaar',
+        title: "Without Adhaar",
+        permission: "view_without_adhaar",
         selected: false,
-        location: '/without-adhaar'
+        location: "/without-adhaar",
       },
       view_bank: {
-        title: 'Without Bank Details',
-        permission: 'view_banks',
+        title: "Without Bank Details",
+        permission: "view_banks",
         selected: false,
-        location: '/bank'
+        location: "/bank",
       },
       view_salary: {
-        title: 'Salary Advance',
-        permission: 'view_salary_advance',
+        title: "Salary Advance",
+        permission: "view_salary_advance",
         selected: false,
-        location: '/salary'
+        location: "/salary",
       },
       view_resignation: {
-        title: 'Resignation',
-        permission: 'view_resignation',
+        title: "Resignation",
+        permission: "view_resignation",
         selected: false,
-        location: '/resignation'
+        location: "/resignation",
       },
       view_storebudget: {
-        title: 'Store Budget',
-        permission: 'view_store_budget',
+        title: "Store Budget",
+        permission: "view_store_budget",
         selected: false,
-        location: '/store-budget'
+        location: "/store-budget",
       },
       view_whatsapporder: {
-        title: 'Whatsapp Orders',
-        permission: 'view_whatsapp_order',
+        title: "Whatsapp Orders",
+        permission: "view_whatsapp_order",
         selected: false,
-        location: '/whatsapp'
+        location: "/whatsapp",
       },
-    }
+    },
   },
   products: {
-    title: 'Products',
+    title: "Products",
     selected: false,
     openPage: false,
-    icon: 'fa-archive',
+    icon: "fa-archive",
     subMenu: {
       view_products: {
-        title: 'Product',
-        permission: 'view_products',
+        title: "Product",
+        permission: "view_products",
         selected: false,
-        location: '/products'
+        location: "/products",
       },
       // view_departments: {
       //   title: 'View Deapartments',
@@ -108,98 +109,98 @@ export default {
       //   location: '/department'
       // },
       view_category: {
-        title: 'Category',
-        permission: 'view_category',
+        title: "Category",
+        permission: "view_category",
         selected: false,
-        location: '/categories'
+        location: "/categories",
       },
       view_subcategory: {
-        title: 'Subcategory',
-        permission: 'view_subcategory',
+        title: "Subcategory",
+        permission: "view_subcategory",
         selected: false,
-        location: '/subcategories'
+        location: "/subcategories",
       },
       view_brands: {
-        title: 'Brand',
-        permission: 'view_brands',
+        title: "Brand",
+        permission: "view_brands",
         selected: false,
-        location: '/brands'
+        location: "/brands",
       },
       view_product_department: {
-        title: 'Product Department',
-        permission: 'view_product_department',
+        title: "Product Department",
+        permission: "view_product_department",
         selected: false,
-        location: '/product-department'
+        location: "/product-department",
       },
-    }
+    },
   },
   indents: {
-    title: 'Indents & Transportations',
+    title: "Indents & Transportations",
     selected: false,
     openPage: false,
-    icon: 'fa-archive',
+    icon: "fa-truck",
     subMenu: {
       new_indent: {
-        title: 'New Indent',
-        permission: 'view_indents',
+        title: "New Indent",
+        permission: "view_indents",
         selected: false,
-        location: '/indent'
+        location: "/indent",
       },
       indents_sent: {
-        title: 'Indents Sent',
-        permission: 'sent_indents',
+        title: "Indents Sent",
+        permission: "sent_indents",
         selected: false,
-        location: '/indent/indent-sent'
+        location: "/indent/indent-sent",
       },
       indents_received: {
-        title: 'Indents Received',
-        permission: 'received_indents',
+        title: "Indents Received",
+        permission: "received_indents",
         selected: false,
-        location: '/indent/indent-received'
+        location: "/indent/indent-received",
       },
       create_despatch: {
-        title: 'Create Despatch',
-        permission: 'add_dispatch',
+        title: "Create Despatch",
+        permission: "add_dispatch",
         selected: false,
-        location: '/indent/despatch'
+        location: "/indent/despatch",
       },
       accept_indents: {
-        title: 'Accept Indents',
-        permission: 'accept_indents',
+        title: "Accept Indents",
+        permission: "accept_indents",
         selected: false,
-        location: '/indent/acceptIndent'
+        location: "/indent/acceptIndent",
       },
       issue_received_indent: {
-        title: 'Issues In Received Indents',
-        permission: 'view_issues_received_indents',
+        title: "Issues In Received Indents",
+        permission: "view_issues_received_indents",
         selected: false,
-        location: '/indent/issue-received'
+        location: "/indent/issue-received",
       },
       issue_sent_indent: {
-        title: 'Issues In Sent Indents',
-        permission: 'view_issues_sent_indents',
+        title: "Issues In Sent Indents",
+        permission: "view_issues_sent_indents",
         selected: false,
-        location: '/indent/issue-sent'
+        location: "/indent/issue-sent",
       },
       vehicle: {
-        title: 'Vehicle',
-        permission: 'view_vehicle',
+        title: "Vehicle",
+        permission: "view_vehicle",
         selected: false,
-        location: '/vehicle'
+        location: "/vehicle",
       },
     },
   },
   tickets: {
-    title: 'Tickets',
+    title: "Tickets",
     selected: false,
     openPage: false,
-    icon: 'fa-archive',
+    icon: "fa-ticket",
     subMenu: {
       open_issue: {
-        title: 'Open Issues',
-        permission: 'view_open_issues',
+        title: "Open Issues",
+        permission: "view_open_issues",
         selected: false,
-        location: '/open-issue'
+        location: "/open-issue",
       },
       // all_issue: {
       //   title: 'All Issues',
@@ -211,25 +212,25 @@ export default {
       //   selected: false,
       //   location: '/addissue'
       // },
-    }
+    },
   },
   contacts: {
-    title: 'Contacts',
+    title: "Contacts",
     selected: false,
     openPage: false,
-    icon: 'fa-archive',
+    icon: "fa-address-book",
     subMenu: {
       service_provider: {
-        title: 'Service Provider',
-        permission: 'view_service_provider',
+        title: "Service Provider",
+        permission: "view_service_provider",
         selected: false,
-        location: '/serviceprovider-list'
+        location: "/serviceprovider-list",
       },
       // add_service_provider: {
       //   title: 'Add Service Provider',
       //   selected: false,
       //   location: '/addservice-provider'
       // },
-    }
-  }
-}
+    },
+  },
+};
