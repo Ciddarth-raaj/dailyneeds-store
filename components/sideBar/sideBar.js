@@ -105,40 +105,38 @@ export default function Sidebar() {
       <Box className={styles.sideBarOptions}>
         {Object.keys(menu).map((key) => (
           <Box key={key} className={styles.menuWrapper}>
-            <Link href={menu[key].location || ""} passHref>
-              <Box
-                as="a"
-                className={`${styles.optionHolder} ${
-                  menu[key].selected ? styles.selectedMenu : ""
-                } ${menu[key].isOpen ? styles.openMenu : ""}`}
-                onClick={() => handleMenuClick(key)}
+            <Box
+              as="a"
+              className={`${styles.optionHolder} ${
+                menu[key].selected ? styles.selectedMenu : ""
+              } ${menu[key].isOpen ? styles.openMenu : ""}`}
+              onClick={() => handleMenuClick(key)}
+            >
+              <Tooltip
+                label={menu[key].title}
+                placement="right"
+                isDisabled={showTitle}
               >
-                <Tooltip
-                  label={menu[key].title}
-                  placement="right"
-                  isDisabled={showTitle}
+                <Box className={styles.iconWrapper}>
+                  <i
+                    className={`fa ${menu[key].icon} ${
+                      menu[key].selected
+                        ? styles["icons-selected"]
+                        : styles.iconsUnselected
+                    }`}
+                  />
+                </Box>
+              </Tooltip>
+              {showTitle && (
+                <motion.span
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.2 }}
                 >
-                  <Box className={styles.iconWrapper}>
-                    <i
-                      className={`fa ${menu[key].icon} ${
-                        menu[key].selected
-                          ? styles["icons-selected"]
-                          : styles.iconsUnselected
-                      }`}
-                    />
-                  </Box>
-                </Tooltip>
-                {showTitle && (
-                  <motion.span
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    {menu[key].title}
-                  </motion.span>
-                )}
-              </Box>
-            </Link>
+                  {menu[key].title}
+                </motion.span>
+              )}
+            </Box>
 
             {showTitle &&
               menu[key].isOpen &&
