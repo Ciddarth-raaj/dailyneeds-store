@@ -44,13 +44,14 @@
 }
 
 .table > tbody td a {
-  color: var(--chakra-colors-purple-500);
+  /* color: var(--chakra-colors-purple-500); */
   text-decoration: none;
 }
 
-/* .table > tbody td a:hover {
-  text-decoration: underline;
-} */
+.table > tbody td a:hover {
+  /* text-decoration: underline; */
+  color: var(--chakra-colors-purple-500);
+}
 
 .table > tbody tr:last-child td {
   border-bottom: none;
