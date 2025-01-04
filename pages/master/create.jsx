@@ -143,7 +143,7 @@ function CreateMaster() {
                         variant="ghost"
                         colorScheme="purple"
                       >
-                        Add Outlet
+                        Add Store
                       </Button>
                     </div>
                   )}
