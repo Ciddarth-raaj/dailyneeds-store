@@ -13,8 +13,19 @@ import toast from "react-hot-toast";
 import { Badge, Flex } from "@chakra-ui/react";
 import currencyFormatter from "../../util/currencyFormatter";
 
+const EMPTY_ACCOUNT_OBJECT = {
+  person_type: null,
+  payment_type: null,
+  person_id: null,
+  description: "",
+  amount: null,
+};
+
 const validation = Yup.object({
   date: Yup.date().required("Fill Date"),
+  cashier_id: Yup.number()
+    .typeError("Select a Cashier")
+    .required("Select a Cashier"),
   total_sales: Yup.number()
     .typeError("Must be a number")
     .required("Fill Total Sales"),
@@ -30,11 +41,21 @@ const validation = Yup.object({
     .required("Fill Sales Return"),
   accounts: Yup.array(
     Yup.object({
-      person_type: Yup.number().required("Select a Type"),
-      payment_type: Yup.number().required("Select a Type"),
-      person_id: Yup.number().required("Select a Person"),
-      description: Yup.string().required("Fill the description"),
-      amount: Yup.number().required("Fill the amount"),
+      person_type: Yup.number()
+        .typeError("Select a Type")
+        .required("Select a Type"),
+      payment_type: Yup.number()
+        .typeError("Select a Type")
+        .required("Select a Type"),
+      person_id: Yup.number()
+        .typeError("Select a Person")
+        .required("Select a Person"),
+      description: Yup.string()
+        .typeError("Fill the description")
+        .required("Fill the description"),
+      amount: Yup.number()
+        .typeError("Fill the amount")
+        .required("Fill the amount"),
     }).required("Fill Accounts")
   ),
 });
@@ -140,7 +161,8 @@ function Create() {
             card_sales: null,
             loyalty: null,
             sales_return: null,
-            accounts: [{}],
+            accounts: [EMPTY_ACCOUNT_OBJECT],
+            cashier_id: null,
           }}
           validationSchema={validation}
           onSubmit={validateAccountEntries}
@@ -158,6 +180,13 @@ function Create() {
                       name="date"
                       type="text"
                       method="datepicker"
+                    />
+                    <CustomInput
+                      label="Cashier *"
+                      name={`cashier_id`}
+                      type="number"
+                      values={[]}
+                      method="switch"
                     />
                     <CustomInput
                       label="Total Sales *"
@@ -312,7 +341,7 @@ function Create() {
                       ))}
 
                       <Button
-                        onClick={() => arrayHelpers.push({})}
+                        onClick={() => arrayHelpers.push(EMPTY_ACCOUNT_OBJECT)}
                         variant="ghost"
                         colorScheme="purple"
                       >
