@@ -1,0 +1,15 @@
+.inputContainer {
+  display: flex;
+  flex-direction: column;
+}
+
+.inputSubContainer {
+  display: flex;
+  gap: 12px;
+}
+
+.buttonContainer {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}

@@ -1,41 +1,45 @@
 .personalInputs {
-	width: 100%;
-	display: flex;
-	flex-direction: column;
-	/* align-items: flex-start; */
-	/* justify-content: flex-start; */
-	/* height: 120px; */
-	padding: 0px 7px;
-	position: relative;
-	margin-bottom: 50px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  /* align-items: flex-start; */
+  /* justify-content: flex-start; */
+  /* height: 120px; */
+  padding: 0px 7px;
+  position: relative;
+  margin-bottom: 50px;
 }
 .datePicker {
-	border: 2px solid rgb(243, 235, 235);
-	width: 100%;
-	height: 1px;
-	border-radius: 5px;
-	transition: 300ms ease-in-out;
-	padding: 20px;
+  border: 2px solid rgb(243, 235, 235);
+  width: 100%;
+  height: 1px;
+  border-radius: 5px;
+  transition: 300ms ease-in-out;
+  padding: 20px;
 }
 .datePicker:focus {
-	outline: #3f8ad1;
-	border: 1.7px solid #3f8ad1;
+  outline: #3f8ad1;
+  border: 1.7px solid #3f8ad1;
 }
 
 .errorMessage {
-	color: #d83131;
-	position: absolute;
-	bottom: -25px;
-	font-size: 14px;
+  color: #d83131;
+  position: absolute;
+  bottom: -25px;
+  font-size: 14px;
 }
 
 .infoText {
-	font-weight: 600;
+  font-weight: 600;
 }
 
 .infoLabel {
-	color: var(--chakra-colors-purple-500);
+  color: var(--chakra-colors-purple-500);
 }
+
 .label {
-	font-size: 14px;
+  font-size: 14px;
+  color: gray;
+  font-weight: 600;
+  margin-bottom: 6px;
 }
