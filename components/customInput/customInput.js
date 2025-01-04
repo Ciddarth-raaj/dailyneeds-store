@@ -1,4 +1,4 @@
-import React, { Fragment, forwardRef } from "react";
+import React, { Fragment, forwardRef, useCallback } from "react";
 import { ErrorMessage, useField, useFormikContext } from "formik";
 import "react-datetime/css/react-datetime.css";
 
@@ -23,6 +23,7 @@ import Timekeeper from "react-timekeeper";
 import styles from "./customInput.module.css";
 import moment from "moment";
 import { range } from "react-big-calendar/lib/utils/dates";
+import { useDropzone } from "react-dropzone";
 
 const CustomDateTimeInput = forwardRef(({ value, onClick, onChange }, ref) => (
   <Input
@@ -45,6 +46,8 @@ const TextField = ({
   onChange,
   containerStyle,
   editable,
+  accept,
+  maxSize = 5242880, // 5MB default
   ...props
 }) => {
   const { setFieldValue } = useFormikContext();
@@ -78,6 +81,22 @@ const TextField = ({
     "November",
     "December",
   ];
+
+  // Add file upload handling
+  const onDrop = useCallback(
+    (acceptedFiles) => {
+      setFieldValue(field.name, acceptedFiles[0]);
+    },
+    [field.name, setFieldValue]
+  );
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept,
+    maxSize,
+    multiple: false,
+  });
+
   return (
     <div className={styles.personalInputs} style={containerStyle}>
       <label
@@ -333,7 +352,7 @@ const TextField = ({
           )}
           {method === "numberinput" && (
             <InputGroup>
-              <InputLeftAddon children={children} />
+              <InputLeftAddon>{children}</InputLeftAddon>
               {/* {console.log({prios: field})} */}
               <Input defaultValue={defaultValue} {...field} {...props} />
             </InputGroup>
@@ -343,6 +362,48 @@ const TextField = ({
           )}
           {method === "singlevalue" && (
             <Input value={props.selected} isDisabled={true} isReadOnly={true} />
+          )}
+          {method === "file" && (
+            <div className={styles.fileUpload}>
+              <div
+                {...getRootProps()}
+                className={`${styles.dropzone} ${
+                  isDragActive ? styles.dragActive : ""
+                }`}
+              >
+                <input {...getInputProps()} />
+                {field.value ? (
+                  <div className={styles.fileInfo}>
+                    <i className="fa fa-file" />
+                    <span className={styles.fileNameStyle}>
+                      {field.value.name}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setFieldValue(field.name, null);
+                      }}
+                      className={styles.removeFile}
+                    >
+                      <i className="fa fa-times" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className={styles.placeholder}>
+                    <i className="fa fa-cloud-upload" />
+                    <p
+                      className={styles.fileNameStyle}
+                      style={{ textAlign: "center" }}
+                    >
+                      {isDragActive
+                        ? "Drop the file here"
+                        : "Drag & drop a file here, or click to select"}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
           )}
         </>
       )}

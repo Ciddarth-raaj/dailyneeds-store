@@ -145,7 +145,8 @@ function Create() {
           onSubmit={validateAccountEntries}
         >
           {(formikProps) => {
-            const { handleSubmit, resetForm, values } = formikProps;
+            const { handleSubmit, resetForm, values, setFieldValue } =
+              formikProps;
 
             return (
               <div className={styles.inputContainer}>
@@ -266,6 +267,13 @@ function Create() {
                             name={`accounts.${index}.amount`}
                             type="number"
                           />
+
+                          <CustomInput
+                            label="Receipt"
+                            name={`accounts.${index}.receipt`}
+                            method="file"
+                          />
+
                           <IconButton
                             mb="24px"
                             variant="outline"
