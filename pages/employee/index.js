@@ -224,6 +224,57 @@ class Registration extends React.Component {
     }
   };
 
+  // Add custom theme for ReactSelect
+  customSelectStyles = {
+    control: (base, state) => ({
+      ...base,
+      borderColor: state.isFocused ? "rgb(106, 0, 148)" : "#e2e8f0",
+      boxShadow: state.isFocused ? "0 0 0 1px rgb(106, 0, 148)" : "none",
+      "&:hover": {
+        borderColor: "rgb(106, 0, 148)",
+      },
+      borderRadius: "8px",
+      padding: "2px",
+    }),
+    option: (base, state) => ({
+      ...base,
+      backgroundColor: state.isSelected
+        ? "rgba(106, 0, 148, 0.1)"
+        : state.isFocused
+        ? "rgba(106, 0, 148, 0.05)"
+        : "transparent",
+      color: state.isSelected ? "rgb(106, 0, 148)" : "#333",
+      "&:hover": {
+        backgroundColor: "rgba(106, 0, 148, 0.05)",
+      },
+      padding: "8px 12px",
+    }),
+    multiValue: (base) => ({
+      ...base,
+      backgroundColor: "rgba(106, 0, 148, 0.1)",
+      borderRadius: "4px",
+    }),
+    multiValueLabel: (base) => ({
+      ...base,
+      color: "rgb(106, 0, 148)",
+      fontWeight: 500,
+      padding: "2px 6px",
+    }),
+    multiValueRemove: (base) => ({
+      ...base,
+      color: "rgb(106, 0, 148)",
+      "&:hover": {
+        backgroundColor: "rgba(106, 0, 148, 0.2)",
+        color: "rgb(106, 0, 148)",
+      },
+    }),
+    menu: (base) => ({
+      ...base,
+      borderRadius: "8px",
+      boxShadow: "0 4px 20px rgba(0, 0, 0, 0.1)",
+    }),
+  };
+
   render() {
     const {
       employee,
@@ -455,7 +506,7 @@ class Registration extends React.Component {
                       <ReactSelect
                         options={DropDownOptionEmployee}
                         isMulti
-                        theme={this.customTheme}
+                        styles={this.customSelectStyles}
                         defaultValue={[
                           DropDownOptionEmployee[0],
                           DropDownOptionEmployee[1],
@@ -470,6 +521,7 @@ class Registration extends React.Component {
                         allowSelectAll={true}
                         className="basic-multi-select"
                         classNamePrefix="select"
+                        placeholder="Select filters..."
                       />
                     </div>
                   </div>
