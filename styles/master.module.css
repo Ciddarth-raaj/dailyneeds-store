@@ -14,3 +14,17 @@
   gap: 12px;
   justify-content: flex-end;
 }
+
+.label {
+  font-size: 14px;
+  color: gray;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.badgeStyle {
+  padding: 10px 20px;
+  min-width: 160px;
+  text-align: center;
+  margin-bottom: 24px;
+}

@@ -10,15 +10,17 @@ import { Button, IconButton } from "@chakra-ui/button";
 import { PAYMENT_TYPES_ACCOUNTS, PEOPLE_TYPES } from "../../constants/values";
 import usePeople from "../../customHooks/usePeople";
 import toast from "react-hot-toast";
+import { Badge } from "@chakra-ui/react";
+import currencyFormatter from "../../util/currencyFormatter";
 
 const validation = Yup.object({
   date: Yup.date().required("Fill Date"),
   total_sales: Yup.number()
     .typeError("Must be a number")
     .required("Fill Total Sales"),
-  cash_handover: Yup.number()
-    .typeError("Must be a number")
-    .required("Fill Cash Handover"),
+  // cash_handover: Yup.number()
+  //   .typeError("Must be a number")
+  //   .required("Fill Cash Handover"),
   card_sales: Yup.number()
     .typeError("Must be a number")
     .required("Fill Card Sales"),
@@ -69,7 +71,10 @@ function Create() {
         accounts,
       } = values;
       let calculated_sales =
-        cash_handover + card_sales + loyalty + sales_return;
+        getTotalCashHandover({ cash_handover }, true) +
+        card_sales +
+        loyalty +
+        sales_return;
 
       accounts.forEach((item) => {
         if (item.payment_type == 1) {
@@ -83,17 +88,32 @@ function Create() {
 
       if (calculated_sales != total_sales) {
         toast.error(
-          `There is a different of Rs.${
+          `There is a different of ${currencyFormatter(
             calculated_sales > total_sales
               ? calculated_sales - total_sales
               : total_sales - calculated_sales
-          }`
+          )}`
         );
         return;
       }
     } catch (err) {
       console.log(err);
     }
+  };
+
+  const getTotalCashHandover = (values, noFormat = false) => {
+    const { cash_handover } = values;
+    let totalCashHandover = 0;
+
+    Object.keys(cash_handover).map((denomination) => {
+      totalCashHandover += denomination * cash_handover[denomination];
+    });
+
+    if (noFormat) {
+      return totalCashHandover;
+    }
+
+    return currencyFormatter(totalCashHandover);
   };
 
   return (
@@ -105,7 +125,17 @@ function Create() {
           initialValues={{
             date: new Date(),
             total_sales: null,
-            cash_handover: null,
+            cash_handover: {
+              1: 0,
+              2: 0,
+              5: 0,
+              10: 0,
+              20: 0,
+              50: 0,
+              100: 0,
+              200: 0,
+              500: 0,
+            },
             card_sales: null,
             loyalty: null,
             sales_return: null,
@@ -132,11 +162,6 @@ function Create() {
                     type="number"
                   />
                   <CustomInput
-                    label="Cash Handover *"
-                    name="cash_handover"
-                    type="number"
-                  />
-                  <CustomInput
                     label="Card Sales *"
                     name="card_sales"
                     type="number"
@@ -147,6 +172,59 @@ function Create() {
                     name="sales_return"
                     type="number"
                   />
+                </div>
+
+                <label className={styles.label}>Cash Handover</label>
+                <div className={styles.inputSubContainer}>
+                  <CustomInput
+                    label="₹1"
+                    name="cash_handover.1"
+                    type="number"
+                  />
+                  <CustomInput
+                    label="₹2"
+                    name="cash_handover.2"
+                    type="number"
+                  />
+                  <CustomInput
+                    label="₹5"
+                    name="cash_handover.5"
+                    type="number"
+                  />
+                  <CustomInput
+                    label="₹10"
+                    name="cash_handover.10"
+                    type="number"
+                  />
+                  <CustomInput
+                    label="₹20"
+                    name="cash_handover.20"
+                    type="number"
+                  />
+                  <CustomInput
+                    label="₹50"
+                    name="cash_handover.50"
+                    type="number"
+                  />
+                  <CustomInput
+                    label="₹100"
+                    name="cash_handover.100"
+                    type="number"
+                  />
+                  <CustomInput
+                    label="₹200"
+                    name="cash_handover.200"
+                    type="number"
+                  />
+                  <CustomInput
+                    label="₹500"
+                    name="cash_handover.500"
+                    type="number"
+                  />
+
+                  <Badge
+                    className={styles.badgeStyle}
+                  >{`Total ₹${getTotalCashHandover(values)}`}</Badge>
                 </div>
 
                 <div className="line" />
