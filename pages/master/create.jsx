@@ -15,7 +15,9 @@ import useOutlets from "../../customHooks/useOutlets";
 
 const validation = Yup.object({
   name: Yup.string().required("Fill Name"),
-  person_type: Yup.number().required("Select a Type"),
+  person_type: Yup.number()
+    .typeError("Select a Type")
+    .required("Select a Type"),
   store_ids: Yup.array(
     Yup.number()
       .nullable()
@@ -79,6 +81,7 @@ function CreateMaster() {
             secondary_phone: "",
             name: "",
             store_ids: [global?.config?.store_id],
+            person_type: null,
           }}
           validationSchema={validation}
           onSubmit={handleCreate}
