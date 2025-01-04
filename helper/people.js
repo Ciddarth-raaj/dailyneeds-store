@@ -10,3 +10,14 @@ export const getAllPeople = () => {
     }
   });
 };
+
+export const createPerson = (params) => {
+  return new Promise(async function (resolve, reject) {
+    try {
+      const data = await API.post("/people", params);
+      resolve(data.data);
+    } catch (err) {
+      reject(err);
+    }
+  });
+};

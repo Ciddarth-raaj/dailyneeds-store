@@ -13,6 +13,7 @@ import { ToastContainer } from "react-toastify";
 import { ChakraProvider, extendTheme } from "@chakra-ui/react";
 import router from "next/router";
 import axiosInstance from "../util/api";
+import { Toaster } from "react-hot-toast";
 
 const Container = {
   baseStyle: {
@@ -96,6 +97,7 @@ class MyApp extends React.Component {
     const { Component, pageProps } = this.props;
     return (
       <ChakraProvider theme={theme}>
+        <Toaster />
         <ToastContainer />
         <Component {...pageProps} />
       </ChakraProvider>

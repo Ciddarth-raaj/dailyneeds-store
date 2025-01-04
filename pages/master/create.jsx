@@ -8,6 +8,9 @@ import CustomInput from "../../components/customInput/customInput";
 import styles from "../../styles/master.module.css";
 import { Button } from "@chakra-ui/button";
 import { PEOPLE_TYPES } from "../../constants/values";
+import toast from "react-hot-toast";
+import { createPerson } from "../../helper/people";
+import { useRouter } from "next/router";
 
 const validation = Yup.object({
   name: Yup.string().required("Fill Name"),
@@ -15,17 +18,43 @@ const validation = Yup.object({
   primary_phone: Yup.number()
     .nullable()
     .typeError("Must be a number")
-    .min(123456789, "Must be 9 or More")
+    .min(123456789, "Must be 9 characters or More")
     .max(12345678900, "Must be 10 characters or less")
     .required("Fill Primary Phone Number"),
   secondary_phone: Yup.number()
     .nullable()
     .typeError("Must be a number")
-    .min(123456789, "Must be 9 or More")
+    .min(123456789, "Must be 9 characters or More")
     .max(12345678900, "Must be 10 characters or less"),
 });
 
 function CreateMaster() {
+  const router = useRouter();
+
+  const handleCreate = (data) => {
+    data = {
+      ...data,
+      primary_phone: data.primary_phone + "",
+      secondary_phone: data.secondary_phone + "",
+    };
+
+    toast.promise(createPerson(data), {
+      loading: "Adding new record!",
+      success: (response) => {
+        if (response.code === 200) {
+          router.push("/master");
+          return "Record Added!";
+        } else {
+          throw err;
+        }
+      },
+      error: (err) => {
+        console.log(err);
+        return "Error adding record!";
+      },
+    });
+  };
+
   return (
     <GlobalWrapper title="Create Master">
       <Head />
@@ -39,9 +68,7 @@ function CreateMaster() {
             name: "",
           }}
           validationSchema={validation}
-          onSubmit={(values) => {
-            console.log("CIDD", values);
-          }}
+          onSubmit={handleCreate}
         >
           {(formikProps) => {
             const { handleSubmit, resetForm } = formikProps;
