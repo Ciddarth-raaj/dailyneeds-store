@@ -33,7 +33,7 @@
 }
 
 .table > thead th > div:hover {
-  color: rgba(255, 255, 255, 0.8);
+  /* color: rgba(255, 255, 255, 0.8); */
   cursor: pointer;
 }
 
@@ -156,4 +156,36 @@
   .table td .actions {
     opacity: 1;
   }
+}
+
+/* Plain variant styles */
+.plainTable thead {
+  background-color: transparent;
+}
+
+.plainTable .plainHeader {
+  color: #333;
+  font-weight: 600;
+  background-color: var(--chakra-colors-purple-50);
+}
+
+.plainTable .plainHeader:hover {
+  color: var(--chakra-colors-purple-500);
+}
+
+.plainTable .plainHeader[data-sort]:after {
+  color: #666;
+}
+
+.plainTable .plainHeader[data-sort="asc"]:after,
+.plainTable .plainHeader[data-sort="desc"]:after {
+  color: var(--chakra-colors-purple-500);
+}
+
+.plainTable .plainCell {
+  color: #444;
+}
+
+.plainTable tbody tr:hover {
+  background-color: rgba(106, 0, 148, 0.02);
 }

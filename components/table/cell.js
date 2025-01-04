@@ -5,7 +5,7 @@ export default class Cell extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
-      sortDirection: null, // null, 'asc', or 'desc'
+      sortDirection: null,
     };
   }
 
@@ -14,7 +14,6 @@ export default class Cell extends React.Component {
     if (!header || !sortCallback) return;
 
     let nextDirection;
-    // Cycle through: null -> asc -> desc -> null
     if (this.state.sortDirection === null) {
       nextDirection = "asc";
     } else if (this.state.sortDirection === "asc") {
@@ -28,7 +27,7 @@ export default class Cell extends React.Component {
   };
 
   render() {
-    const { content, header } = this.props;
+    const { content, header, variant = "default" } = this.props;
     const { sortDirection } = this.state;
 
     if (header) {
@@ -36,13 +35,17 @@ export default class Cell extends React.Component {
         <th
           onClick={this.handleSort}
           data-sort={sortDirection}
-          className={styles.headerCell}
+          className={`${styles.headerCell} ${
+            variant === "plain" ? styles.plainHeader : ""
+          }`}
         >
           <div>{content}</div>
         </th>
       );
     }
 
-    return <td>{content}</td>;
+    return (
+      <td className={variant === "plain" ? styles.plainCell : ""}>{content}</td>
+    );
   }
 }

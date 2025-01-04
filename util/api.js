@@ -1,7 +1,7 @@
 import constants from "../constants/api.js";
 import axios from "axios";
 
-const custom = axios.create({
+const axiosInstance = axios.create({
   baseURL: constants.BASE_URL,
   validateStatus: function (status) {
     return status >= 200 && status < 429;
@@ -23,9 +23,9 @@ const custom = axios.create({
   ],
 });
 
-custom.updateToken = (token) => {
-  custom.defaults.headers.common["x-access-token"] = token;
+axiosInstance.updateToken = (token) => {
+  axiosInstance.defaults.headers.common["x-access-token"] = token;
   // localStorage.setItem("accessToken", token);
 };
 
-export default custom;
+export default axiosInstance;
