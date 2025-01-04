@@ -239,22 +239,26 @@ export default {
     openPage: false,
     icon: "fa-ticket",
     subMenu: {
-      open_issue: {
+      add_account_sheet: {
         title: "Add Account Sheet",
         permission: "add_account_sheet",
         selected: false,
         location: "/accounts/create",
       },
-      // all_issue: {
-      //   title: 'All Issues',
-      //   selected: false,
-      //   location: '/all-issue'
-      // },
-      // add_issue: {
-      //   title: 'Add Issue',
-      //   selected: false,
-      //   location: '/addissue'
-      // },
+    },
+  },
+  master: {
+    title: "Master",
+    selected: false,
+    openPage: false,
+    icon: "fa-ticket",
+    subMenu: {
+      view_master_list: {
+        title: "Master List",
+        permission: "view_master_list",
+        selected: false,
+        location: "/master",
+      },
     },
   },
 };
