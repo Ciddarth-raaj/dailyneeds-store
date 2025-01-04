@@ -148,64 +148,38 @@ export default function Sidebar() {
                   transition={{ duration: 0.2 }}
                   className={styles.subMenuWrapper}
                 >
-                  {filteredData.length > 0
-                    ? Object.keys(menu[key].subMenu).map((sKey) => (
-                        <div key={sKey} className={styles.subMenuGroup}>
-                          {filteredData.map((permission, fkey) => {
-                            if (
-                              permission.permission_key ===
-                              menu[key].subMenu[sKey].permission
-                            ) {
-                              const isActive =
-                                router.pathname ===
-                                menu[key].subMenu[sKey].location;
-                              return (
-                                <Link
-                                  key={fkey}
-                                  href={menu[key].subMenu[sKey].location || ""}
-                                  passHref
-                                >
-                                  <Box
-                                    as="a"
-                                    className={`${styles.subMenuItem} ${
-                                      isActive ? styles.active : ""
-                                    }`}
-                                  >
-                                    {/* <Box className={styles.bulletPoint} /> */}
-                                    <Text className={styles.menuText}>
-                                      {menu[key].subMenu[sKey].title}
-                                    </Text>
-                                  </Box>
-                                </Link>
-                              );
-                            }
-                            return null;
-                          })}
-                        </div>
-                      ))
-                    : Object.keys(menu[key].subMenu).map((sKey) => {
-                        const isActive =
-                          router.pathname === menu[key].subMenu[sKey].location;
-                        return (
-                          <Link
-                            key={sKey}
-                            href={menu[key].subMenu[sKey].location || ""}
-                            passHref
-                          >
-                            <Box
-                              as="a"
-                              className={`${styles.subMenuItem} ${
-                                isActive ? styles.active : ""
-                              }`}
-                            >
-                              {/* <Box className={styles.bulletPoint} /> */}
-                              <Text className={styles.menuText}>
-                                {menu[key].subMenu[sKey].title}
-                              </Text>
-                            </Box>
-                          </Link>
-                        );
-                      })}
+                  {Object.keys(menu[key].subMenu).map((sKey) => {
+                    if (
+                      filteredData.find(
+                        (item) =>
+                          item.permission_key ==
+                          menu[key].subMenu[sKey].permission
+                      ) === undefined
+                    ) {
+                      return null;
+                    }
+
+                    const isActive =
+                      router.pathname === menu[key].subMenu[sKey].location;
+                    return (
+                      <Link
+                        key={sKey}
+                        href={menu[key].subMenu[sKey].location || ""}
+                        passHref
+                      >
+                        <Box
+                          as="a"
+                          className={`${styles.subMenuItem} ${
+                            isActive ? styles.active : ""
+                          }`}
+                        >
+                          <Text className={styles.menuText}>
+                            {menu[key].subMenu[sKey].title}
+                          </Text>
+                        </Box>
+                      </Link>
+                    );
+                  })}
                 </motion.div>
               )}
           </Box>

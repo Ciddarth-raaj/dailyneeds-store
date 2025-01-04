@@ -233,4 +233,28 @@ export default {
       // },
     },
   },
+  accounts: {
+    title: "Accounts",
+    selected: false,
+    openPage: false,
+    icon: "fa-ticket",
+    subMenu: {
+      open_issue: {
+        title: "Add Account Sheet",
+        permission: "add_account_sheet",
+        selected: false,
+        location: "/accounts/create",
+      },
+      // all_issue: {
+      //   title: 'All Issues',
+      //   selected: false,
+      //   location: '/all-issue'
+      // },
+      // add_issue: {
+      //   title: 'Add Issue',
+      //   selected: false,
+      //   location: '/addissue'
+      // },
+    },
+  },
 };
