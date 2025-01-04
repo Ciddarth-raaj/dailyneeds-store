@@ -2,11 +2,11 @@ import React, { useEffect } from "react";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import Head from "../../util/head";
 import CustomContainer from "../../components/CustomContainer";
-import { Formik } from "formik";
+import { FieldArray, Formik } from "formik";
 import * as Yup from "yup";
 import CustomInput from "../../components/customInput/customInput";
 import styles from "../../styles/master.module.css";
-import { Button } from "@chakra-ui/button";
+import { Button, IconButton } from "@chakra-ui/button";
 import { PEOPLE_TYPES } from "../../constants/values";
 import toast from "react-hot-toast";
 import { createPerson } from "../../helper/people";
@@ -16,10 +16,12 @@ import useOutlets from "../../customHooks/useOutlets";
 const validation = Yup.object({
   name: Yup.string().required("Fill Name"),
   person_type: Yup.number().required("Select a Type"),
-  store_id: Yup.number()
-    .nullable()
-    .typeError("Select a Store")
-    .required("Select a Store"),
+  store_ids: Yup.array(
+    Yup.number()
+      .nullable()
+      .typeError("Select a Store")
+      .required("Select a Store")
+  ).required("Fill Accounts"),
   primary_phone: Yup.number()
     .nullable()
     .typeError("Must be a number")
@@ -76,13 +78,13 @@ function CreateMaster() {
             primary_phone: "",
             secondary_phone: "",
             name: "",
-            store_id: global?.config?.store_id ?? null,
+            store_ids: [global?.config?.store_id],
           }}
           validationSchema={validation}
           onSubmit={handleCreate}
         >
           {(formikProps) => {
-            const { handleSubmit, resetForm } = formikProps;
+            const { handleSubmit, resetForm, values } = formikProps;
 
             return (
               <div className={styles.inputContainer}>
@@ -109,12 +111,42 @@ function CreateMaster() {
                   />
                 </div>
 
-                <CustomInput
-                  label="Outlet *"
-                  values={outletsMenu}
-                  name="store_id"
-                  type="text"
-                  method="switch"
+                <FieldArray
+                  name="store_ids"
+                  render={(arrayHelpers) => (
+                    <div>
+                      {values.store_ids.map((account, index) => (
+                        <div key={index} className={styles.inputSubContainer}>
+                          <CustomInput
+                            label="Store *"
+                            values={outletsMenu}
+                            name={`store_ids.${index}`}
+                            type="text"
+                            method="switch"
+                          />
+
+                          {values.store_ids.length > 1 && (
+                            <IconButton
+                              mb="24px"
+                              variant="outline"
+                              colorScheme="red"
+                              onClick={() => arrayHelpers.remove(index)}
+                            >
+                              <i className="fa fa-trash-o" aria-hidden="true" />
+                            </IconButton>
+                          )}
+                        </div>
+                      ))}
+
+                      <Button
+                        onClick={() => arrayHelpers.push({})}
+                        variant="ghost"
+                        colorScheme="purple"
+                      >
+                        Add Outlet
+                      </Button>
+                    </div>
+                  )}
                 />
 
                 <div className={styles.buttonContainer}>
