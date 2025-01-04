@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import Head from "../../util/head";
 import CustomContainer from "../../components/CustomContainer";
@@ -10,7 +10,7 @@ import { Button, IconButton } from "@chakra-ui/button";
 import { PAYMENT_TYPES_ACCOUNTS, PEOPLE_TYPES } from "../../constants/values";
 import usePeople from "../../customHooks/usePeople";
 import toast from "react-hot-toast";
-import { Badge } from "@chakra-ui/react";
+import { Badge, Flex } from "@chakra-ui/react";
 import currencyFormatter from "../../util/currencyFormatter";
 
 const validation = Yup.object({
@@ -33,9 +33,9 @@ const validation = Yup.object({
       person_type: Yup.number().required("Select a Type"),
       payment_type: Yup.number().required("Select a Type"),
       person_id: Yup.number().required("Select a Person"),
-      description: Yup.string().optional(),
+      description: Yup.string().required("Fill the description"),
       amount: Yup.number().required("Fill the amount"),
-    })
+    }).required("Fill Accounts")
   ),
 });
 
@@ -49,6 +49,7 @@ const MODIFIED_PEOPLE_TYPES = [
 
 function Create() {
   const { peopleList } = usePeople();
+  const [isDenominationOpen, setIsDenominationOpen] = useState(false);
 
   const getPeopleList = (personType) => {
     if (personType === undefined || personType == 4) {
@@ -150,82 +151,107 @@ function Create() {
 
             return (
               <div className={styles.inputContainer}>
-                <div className={styles.inputSubContainer}>
-                  <CustomInput
-                    label="Date *"
-                    name="date"
-                    type="text"
-                    method="datepicker"
-                  />
-                  <CustomInput
-                    label="Total Sales *"
-                    name="total_sales"
-                    type="number"
-                  />
-                  <CustomInput
-                    label="Card Sales *"
-                    name="card_sales"
-                    type="number"
-                  />
-                  <CustomInput label="Loyalty *" name="loyalty" type="number" />
-                  <CustomInput
-                    label="Sales Return *"
-                    name="sales_return"
-                    type="number"
-                  />
-                </div>
+                <div className={styles.leftRightContainer}>
+                  <div className={styles.leftContainer}>
+                    <CustomInput
+                      label="Date *"
+                      name="date"
+                      type="text"
+                      method="datepicker"
+                    />
+                    <CustomInput
+                      label="Total Sales *"
+                      name="total_sales"
+                      type="number"
+                    />
+                    <CustomInput
+                      label="Card Sales *"
+                      name="card_sales"
+                      type="number"
+                    />
+                    <CustomInput
+                      label="Loyalty *"
+                      name="loyalty"
+                      type="number"
+                    />
+                    <CustomInput
+                      label="Sales Return *"
+                      name="sales_return"
+                      type="number"
+                    />
+                  </div>
 
-                <label className={styles.label}>Cash Handover</label>
-                <div className={styles.inputSubContainer}>
-                  <CustomInput
-                    label="₹1"
-                    name="cash_handover.1"
-                    type="number"
-                  />
-                  <CustomInput
-                    label="₹2"
-                    name="cash_handover.2"
-                    type="number"
-                  />
-                  <CustomInput
-                    label="₹5"
-                    name="cash_handover.5"
-                    type="number"
-                  />
-                  <CustomInput
-                    label="₹10"
-                    name="cash_handover.10"
-                    type="number"
-                  />
-                  <CustomInput
-                    label="₹20"
-                    name="cash_handover.20"
-                    type="number"
-                  />
-                  <CustomInput
-                    label="₹50"
-                    name="cash_handover.50"
-                    type="number"
-                  />
-                  <CustomInput
-                    label="₹100"
-                    name="cash_handover.100"
-                    type="number"
-                  />
-                  <CustomInput
-                    label="₹200"
-                    name="cash_handover.200"
-                    type="number"
-                  />
-                  <CustomInput
-                    label="₹500"
-                    name="cash_handover.500"
-                    type="number"
-                  />
+                  <div>
+                    <label className={styles.label}>Cash Handover</label>
+                    <div className={styles.cashHandoverContainer}>
+                      <Flex justifyContent="center">
+                        <Button
+                          variant="ghost"
+                          colorScheme="purple"
+                          size="sm"
+                          onClick={() =>
+                            setIsDenominationOpen(!isDenominationOpen)
+                          }
+                        >
+                          {isDenominationOpen ? "Close" : "Expand"}
+                        </Button>
+                      </Flex>
 
-                  <Badge
-                    className={styles.badgeStyle}
-                  >{`Total ₹${getTotalCashHandover(values)}`}</Badge>
+                      {isDenominationOpen && (
+                        <>
+                          <CustomInput
+                            label="₹500"
+                            name="cash_handover.500"
+                            type="number"
+                          />
+                          <CustomInput
+                            label="₹200"
+                            name="cash_handover.200"
+                            type="number"
+                          />
+                          <CustomInput
+                            label="₹100"
+                            name="cash_handover.100"
+                            type="number"
+                          />
+                          <CustomInput
+                            label="₹50"
+                            name="cash_handover.50"
+                            type="number"
+                          />
+                          <CustomInput
+                            label="₹20"
+                            name="cash_handover.20"
+                            type="number"
+                          />
+                          <CustomInput
+                            label="₹10"
+                            name="cash_handover.10"
+                            type="number"
+                          />
+                          <CustomInput
+                            label="₹5"
+                            name="cash_handover.5"
+                            type="number"
+                          />
+                          <CustomInput
+                            label="₹2"
+                            name="cash_handover.2"
+                            type="number"
+                          />
+                          <CustomInput
+                            label="₹1"
+                            name="cash_handover.1"
+                            type="number"
+                          />
+                        </>
+                      )}
+
+                      <Badge
+                        className={styles.badgeStyle}
+                      >{`Total ${getTotalCashHandover(values)}`}</Badge>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="line" />
@@ -258,7 +284,7 @@ function Create() {
                             method="switch"
                           />
                           <CustomInput
-                            label="Description"
+                            label="Description *"
                             name={`accounts.${index}.description`}
                             type="text"
                           />
