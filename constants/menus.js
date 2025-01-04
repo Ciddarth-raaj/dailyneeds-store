@@ -214,25 +214,25 @@ export default {
       // },
     },
   },
-  contacts: {
-    title: "Contacts",
-    selected: false,
-    openPage: false,
-    icon: "fa-address-book",
-    subMenu: {
-      service_provider: {
-        title: "Service Provider",
-        permission: "view_service_provider",
-        selected: false,
-        location: "/serviceprovider-list",
-      },
-      // add_service_provider: {
-      //   title: 'Add Service Provider',
-      //   selected: false,
-      //   location: '/addservice-provider'
-      // },
-    },
-  },
+  // contacts: {
+  //   title: "Contacts",
+  //   selected: false,
+  //   openPage: false,
+  //   icon: "fa-address-book",
+  //   subMenu: {
+  //     service_provider: {
+  //       title: "Service Provider",
+  //       permission: "view_service_provider",
+  //       selected: false,
+  //       location: "/serviceprovider-list",
+  //     },
+  //     // add_service_provider: {
+  //     //   title: 'Add Service Provider',
+  //     //   selected: false,
+  //     //   location: '/addservice-provider'
+  //     // },
+  //   },
+  // },
   accounts: {
     title: "Accounts",
     selected: false,
@@ -251,7 +251,7 @@ export default {
     title: "Master",
     selected: false,
     openPage: false,
-    icon: "fa-ticket",
+    icon: "fa-users",
     subMenu: {
       view_master_list: {
         title: "Master List",

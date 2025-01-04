@@ -11,8 +11,9 @@
   align-items: center;
   overflow-y: auto;
   overflow-x: hidden;
-  box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+  /* box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1); */
   transition: all 0.3s ease;
+  border-right: 1px solid #eee;
 }
 
 .container::-webkit-scrollbar {
