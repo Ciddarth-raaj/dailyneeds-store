@@ -199,3 +199,10 @@ a {
     transform: translateY(30px);
   }
 }
+
+.line {
+  height: 1px;
+  width: 100%;
+  background-color: #eee;
+  margin-bottom: 34px;
+}

@@ -1,5 +1,5 @@
-import React, { Fragment, forwardRef } from 'react'
-import { ErrorMessage, useField, useFormikContext } from 'formik'
+import React, { Fragment, forwardRef } from "react";
+import { ErrorMessage, useField, useFormikContext } from "formik";
 import "react-datetime/css/react-datetime.css";
 
 import {
@@ -15,24 +15,24 @@ import {
   NumberInputStepper,
   NumberIncrementStepper,
   NumberDecrementStepper,
-} from '@chakra-ui/react'
-import { useState } from 'react';
-import DatePicker from 'react-datepicker';
-import Datetime from 'react-datetime';
-import Timekeeper from 'react-timekeeper'
-import styles from './customInput.module.css'
-import moment from 'moment'
-import { range } from 'react-big-calendar/lib/utils/dates';
+} from "@chakra-ui/react";
+import { useState } from "react";
+import DatePicker from "react-datepicker";
+import Datetime from "react-datetime";
+import Timekeeper from "react-timekeeper";
+import styles from "./customInput.module.css";
+import moment from "moment";
+import { range } from "react-big-calendar/lib/utils/dates";
 
 const CustomDateTimeInput = forwardRef(({ value, onClick, onChange }, ref) => (
   <Input
-    value={value ? moment(value).format('DD/MM/YYYY') : value}
+    value={value ? moment(value).format("DD/MM/YYYY") : value}
     onChange={onChange}
-    autoComplete='off'
+    autoComplete="off"
     ref={ref}
     onClick={onClick}
   />
-))
+));
 
 const TextField = ({
   label,
@@ -47,20 +47,20 @@ const TextField = ({
   editable,
   ...props
 }) => {
-  const { setFieldValue } = useFormikContext()
-  const [field, meta] = useField(props)
+  const { setFieldValue } = useFormikContext();
+  const [field, meta] = useField(props);
   const [startDate, setStartDate] = useState(new Date());
   let start = 1950;
   let end = new Date().getFullYear();
   let endexpiry = 2050;
   let arr = [];
   let expiryarr = [];
-  for(let i = start; i<=end; i++) {
+  for (let i = start; i <= end; i++) {
     arr.push(i);
   }
 
-  for(let i = start; i<=endexpiry; i++) {
-    expiryarr.push(i)
+  for (let i = start; i <= endexpiry; i++) {
+    expiryarr.push(i);
   }
   const years = arr;
   const expiryyear = expiryarr;
@@ -82,7 +82,7 @@ const TextField = ({
     <div className={styles.personalInputs} style={containerStyle}>
       <label
         htmlFor={field.name}
-        className={`${styles.label} ${!editable ? styles.infoLabel : ''}`}
+        className={`${styles.label} ${!editable ? styles.infoLabel : ""}`}
       >
         {label}
       </label>
@@ -90,150 +90,39 @@ const TextField = ({
         <p className={styles.infoText}>{field.value}</p>
       ) : (
         <>
-          {method === 'TextArea' && (
+          {method === "TextArea" && (
             <Textarea
               {...field}
               {...props}
-              width='100%'
+              width="100%"
               // height="73%"
-              size='lg'
+              size="lg"
             />
           )}
-          {method === 'number' && (
+          {method === "number" && (
             <NumberInput
               {...field}
               {...props}
-              size='sm'
+              size="sm"
               max={9000000000}
               keepWithinRange={false}
               clampValueOnBlur={false}
             >
               <NumberInputField
-                focusBorderColor='blue.200'
-                borderRadius={'5px'}
-                height={'40px'}
+                focusBorderColor="blue.200"
+                borderRadius={"5px"}
+                height={"40px"}
               />
               {field.name > 9000000000 && (
                 <ErrorMessage
-                  component='div'
-                  name='three'
+                  component="div"
+                  name="three"
                   className={styles.errorMessage}
                 />
               )}
             </NumberInput>
           )}
-          {method === 'expiry-datepicker' && (
-            <>
-            <DatePicker
-              {...field}
-              {...props}
-              selected={(field.value && new Date(field.value)) || null}
-              customInput={<CustomDateTimeInput />}
-              renderCustomHeader={({
-                val,
-                changeYear,
-                changeMonth,
-                decreaseMonth,
-                increaseMonth,
-                prevMonthButtonDisabled,
-                nextMonthButtonDisabled,
-              }) => (
-                <div
-                  style={{
-                    margin: 10,
-                    display: "flex",
-                    justifyContent: "center",
-                  }}
-                >
-                  <button onClick={decreaseMonth} disabled={prevMonthButtonDisabled}>
-                    {"<"}
-                  </button>
-                  <select
-                    value={val}
-                    onChange={({ target: { value } }) => changeYear(value)}
-                  >
-                    {expiryyear.map((option) => (
-                      <option key={option} value={option}>
-                        {option}
-                      </option>
-                    ))}
-                  </select>
-        
-                  <select
-                    value={months[moment(val).month()]}
-                    onChange={({ target: { value } }) =>
-                      changeMonth(months.indexOf(value))
-                    }
-                  >
-                    {months.map((option) => (
-                      <option key={option} value={option}>
-                        {option}
-                      </option>
-                    ))}
-                  </select>
-        
-                  <button onClick={increaseMonth} disabled={nextMonthButtonDisabled}>
-                    {">"}
-                  </button>
-                </div>
-              )}
-              onChange={val => {
-                setFieldValue(field.name, moment(val).format("YYYY-MM-DD"))
-              }}
-            />
-            {selected === '' && (
-              <ErrorMessage
-                component='div'
-                name={field.name}
-                className={styles.errorMessage}
-              />
-            )}
-          </>
-          )}
-          {method === 'switch' && (
-            <Select {...field} placeholder='Select Option'>
-              {values?.map(m => (
-                <Fragment>
-                  <option value={m.id}>{m.value}</option>
-                  <ErrorMessage
-                    component='div'
-                    name={field.name}
-                    className={styles.errorMessage}
-                  />
-                </Fragment>
-              ))}
-            </Select>
-          )}
-          {method === 'timepicker' && (
-            <>
-              <Timekeeper
-                {...field}
-                showTimeSelect
-                showTimeSelectOnly
-                timeCaption='Time'
-                dateFormat='hh:mm:ss'
-                {...props}
-                switchToMinuteOnHourSelect={true}
-                selected={
-                  (moment(field.value).toISOString() &&
-                    new Date(field.value)) ||
-                  null
-                }
-                onChange={val => {
-                  setFieldValue(field.name, val.formattedSimple)
-                }}
-                customInput={<CustomDateTimeInput />}
-              />
-              {selected === '' && (
-                <ErrorMessage
-                  component='div'
-                  name={field.name}
-                  className={styles.errorMessage}
-                />
-              )}
-            </>
-          )}
-          {method === 'datepicker' && (
+          {method === "expiry-datepicker" && (
             <>
               <DatePicker
                 {...field}
@@ -256,20 +145,23 @@ const TextField = ({
                       justifyContent: "center",
                     }}
                   >
-                    <button onClick={decreaseMonth} disabled={prevMonthButtonDisabled}>
+                    <button
+                      onClick={decreaseMonth}
+                      disabled={prevMonthButtonDisabled}
+                    >
                       {"<"}
                     </button>
                     <select
                       value={val}
                       onChange={({ target: { value } }) => changeYear(value)}
                     >
-                      {years.map((option) => (
+                      {expiryyear.map((option) => (
                         <option key={option} value={option}>
                           {option}
                         </option>
                       ))}
                     </select>
-          
+
                     <select
                       value={months[moment(val).month()]}
                       onChange={({ target: { value } }) =>
@@ -282,40 +174,164 @@ const TextField = ({
                         </option>
                       ))}
                     </select>
-          
-                    <button onClick={increaseMonth} disabled={nextMonthButtonDisabled}>
+
+                    <button
+                      onClick={increaseMonth}
+                      disabled={nextMonthButtonDisabled}
+                    >
                       {">"}
                     </button>
                   </div>
                 )}
-                onChange={val => {
-                  setFieldValue(field.name, moment(val).format("YYYY-MM-DD"))
+                onChange={(val) => {
+                  setFieldValue(field.name, moment(val).format("YYYY-MM-DD"));
                 }}
               />
-              {selected === '' && (
+              {selected === "" && (
                 <ErrorMessage
-                  component='div'
+                  component="div"
                   name={field.name}
                   className={styles.errorMessage}
                 />
               )}
             </>
           )}
-          {method === 'password' && (
-            <InputGroup size='md'>
-              <Input pr='4.5rem' {...field} {...props} />
-              <InputRightElement width='3.5rem'>
-                <img src='/assets/password.png' onClick={onClick} style={{height: "35px", width: "35px", cursor: "pointer"}} />
+          {method === "switch" && (
+            <Select {...field} placeholder="Select Option">
+              {values?.map((m) => (
+                <Fragment>
+                  <option value={m.id}>{m.value}</option>
+                  <ErrorMessage
+                    component="div"
+                    name={field.name}
+                    className={styles.errorMessage}
+                  />
+                </Fragment>
+              ))}
+            </Select>
+          )}
+          {method === "timepicker" && (
+            <>
+              <Timekeeper
+                {...field}
+                showTimeSelect
+                showTimeSelectOnly
+                timeCaption="Time"
+                dateFormat="hh:mm:ss"
+                {...props}
+                switchToMinuteOnHourSelect={true}
+                selected={
+                  (moment(field.value).toISOString() &&
+                    new Date(field.value)) ||
+                  null
+                }
+                onChange={(val) => {
+                  setFieldValue(field.name, val.formattedSimple);
+                }}
+                customInput={<CustomDateTimeInput />}
+              />
+              {selected === "" && (
+                <ErrorMessage
+                  component="div"
+                  name={field.name}
+                  className={styles.errorMessage}
+                />
+              )}
+            </>
+          )}
+          {method === "datepicker" && (
+            <>
+              <DatePicker
+                {...field}
+                {...props}
+                selected={(field.value && new Date(field.value)) || null}
+                customInput={<CustomDateTimeInput />}
+                renderCustomHeader={({
+                  val,
+                  changeYear,
+                  changeMonth,
+                  decreaseMonth,
+                  increaseMonth,
+                  prevMonthButtonDisabled,
+                  nextMonthButtonDisabled,
+                }) => (
+                  <div
+                    style={{
+                      margin: 10,
+                      display: "flex",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <button
+                      onClick={decreaseMonth}
+                      disabled={prevMonthButtonDisabled}
+                    >
+                      {"<"}
+                    </button>
+                    <select
+                      value={val}
+                      onChange={({ target: { value } }) => changeYear(value)}
+                    >
+                      {years.map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
+
+                    <select
+                      value={months[moment(val).month()]}
+                      onChange={({ target: { value } }) =>
+                        changeMonth(months.indexOf(value))
+                      }
+                    >
+                      {months.map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
+
+                    <button
+                      onClick={increaseMonth}
+                      disabled={nextMonthButtonDisabled}
+                    >
+                      {">"}
+                    </button>
+                  </div>
+                )}
+                onChange={(val) => {
+                  setFieldValue(field.name, moment(val).format("YYYY-MM-DD"));
+                }}
+              />
+              {selected === "" && (
+                <ErrorMessage
+                  component="div"
+                  name={field.name}
+                  className={styles.errorMessage}
+                />
+              )}
+            </>
+          )}
+          {method === "password" && (
+            <InputGroup size="md">
+              <Input pr="4.5rem" {...field} {...props} />
+              <InputRightElement width="3.5rem">
+                <img
+                  src="/assets/password.png"
+                  onClick={onClick}
+                  style={{ height: "35px", width: "35px", cursor: "pointer" }}
+                />
               </InputRightElement>
             </InputGroup>
           )}
-          {method === 'readonly' && (
-            <Input {...field} {...props} isDisabled={true} autoComplete='off' />
+          {method === "readonly" && (
+            <Input {...field} {...props} isDisabled={true} autoComplete="off" />
           )}
-          {method === 'disabled' && (
-            <Input {...field} {...props} isReadOnly={true} autoComplete='off' />
+          {method === "disabled" && (
+            <Input {...field} {...props} isReadOnly={true} autoComplete="off" />
           )}
-          {method === 'numberinput' && (
+          {method === "numberinput" && (
             <InputGroup>
               <InputLeftAddon children={children} />
               {/* {console.log({prios: field})} */}
@@ -323,23 +339,19 @@ const TextField = ({
             </InputGroup>
           )}
           {method === undefined && (
-            <Input {...field} {...props} autoComplete='off' />
+            <Input {...field} {...props} autoComplete="off" />
           )}
-          {method === 'singlevalue' && (
-              <Input 
-                value={props.selected}
-                isDisabled={true}
-                isReadOnly={true}
-              />
+          {method === "singlevalue" && (
+            <Input value={props.selected} isDisabled={true} isReadOnly={true} />
           )}
         </>
       )}
       <ErrorMessage
-        component='div'
+        component="div"
         name={field.name}
         className={styles.errorMessage}
       />
     </div>
-  )
-}
-export default TextField
+  );
+};
+export default TextField;

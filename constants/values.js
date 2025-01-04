@@ -690,3 +690,14 @@ export const getPersonType = (typeId) => {
 
   return item?.value ?? "Error";
 };
+
+export const PAYMENT_TYPES_ACCOUNTS = [
+  {
+    id: 1,
+    value: "Payment",
+  },
+  {
+    id: 2,
+    value: "Receipt",
+  },
+];
