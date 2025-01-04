@@ -684,3 +684,9 @@ export const PEOPLE_TYPES = [
     value: "Vendor",
   },
 ];
+
+export const getPersonType = (typeId) => {
+  const item = PEOPLE_TYPES.find((item) => item.id === typeId);
+
+  return item?.value ?? "Error";
+};
