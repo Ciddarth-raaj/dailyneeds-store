@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import Head from "../../util/head";
 import CustomContainer from "../../components/CustomContainer";
@@ -11,10 +11,15 @@ import { PEOPLE_TYPES } from "../../constants/values";
 import toast from "react-hot-toast";
 import { createPerson } from "../../helper/people";
 import { useRouter } from "next/router";
+import useOutlets from "../../customHooks/useOutlets";
 
 const validation = Yup.object({
   name: Yup.string().required("Fill Name"),
-  person_type: Yup.number().required("Fill Type"),
+  person_type: Yup.number().required("Select a Type"),
+  store_id: Yup.number()
+    .nullable()
+    .typeError("Select a Store")
+    .required("Select a Store"),
   primary_phone: Yup.number()
     .nullable()
     .typeError("Must be a number")
@@ -30,6 +35,11 @@ const validation = Yup.object({
 
 function CreateMaster() {
   const router = useRouter();
+  const { outlets } = useOutlets();
+  const outletsMenu = outlets.map((item) => ({
+    id: item.outlet_id,
+    value: item.outlet_name,
+  }));
 
   const handleCreate = (data) => {
     data = {
@@ -66,6 +76,7 @@ function CreateMaster() {
             primary_phone: "",
             secondary_phone: "",
             name: "",
+            store_id: global?.config?.store_id ?? null,
           }}
           validationSchema={validation}
           onSubmit={handleCreate}
@@ -97,6 +108,14 @@ function CreateMaster() {
                     type="number"
                   />
                 </div>
+
+                <CustomInput
+                  label="Outlet *"
+                  values={outletsMenu}
+                  name="store_id"
+                  type="text"
+                  method="switch"
+                />
 
                 <div className={styles.buttonContainer}>
                   <Button
