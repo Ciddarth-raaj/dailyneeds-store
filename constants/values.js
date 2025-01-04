@@ -669,3 +669,18 @@ export const IdCardType = [
   //     value: "Pan"
   // }
 ];
+
+export const PEOPLE_TYPES = [
+  {
+    id: 1,
+    value: "Customer",
+  },
+  {
+    id: 2,
+    value: "Supplier",
+  },
+  {
+    id: 3,
+    value: "Vendor",
+  },
+];

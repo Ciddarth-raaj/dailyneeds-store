@@ -3,14 +3,15 @@ import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import Head from "../../util/head";
 import CustomContainer from "../../components/CustomContainer";
 import { Formik } from "formik";
-import { IssueValidation } from "../../util/validation";
 import * as Yup from "yup";
 import CustomInput from "../../components/customInput/customInput";
 import styles from "../../styles/master.module.css";
 import { Button } from "@chakra-ui/button";
+import { PEOPLE_TYPES } from "../../constants/values";
 
 const validation = Yup.object({
   name: Yup.string().required("Fill Name"),
+  person_type: Yup.number().required("Fill Type"),
   primary_phone: Yup.number()
     .nullable()
     .typeError("Must be a number")
@@ -33,11 +34,9 @@ function CreateMaster() {
         <Formik
           initialValues={{
             name: "",
-            email: "",
-            primary_contact_no: "",
-            secondary_contact_no: "",
-            description: "",
-            address: "",
+            primary_phone: "",
+            secondary_phone: "",
+            name: "",
           }}
           validationSchema={validation}
           onSubmit={(values) => {
@@ -49,7 +48,16 @@ function CreateMaster() {
 
             return (
               <div className={styles.inputContainer}>
-                <CustomInput label="Name *" name="name" type="text" />
+                <div className={styles.inputSubContainer}>
+                  <CustomInput label="Name *" name="name" type="text" />
+                  <CustomInput
+                    label="Type *"
+                    values={PEOPLE_TYPES}
+                    name="person_type"
+                    type="text"
+                    method="switch"
+                  />
+                </div>
                 <div className={styles.inputSubContainer}>
                   <CustomInput
                     label="Primary Phone Number *"
