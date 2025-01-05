@@ -239,6 +239,12 @@ export default {
     openPage: false,
     icon: "fa-ticket",
     subMenu: {
+      view_account_sheet: {
+        title: "Account Sheet",
+        permission: "view_account_sheet",
+        selected: false,
+        location: "/accounts",
+      },
       add_account_sheet: {
         title: "Add Account Sheet",
         permission: "add_account_sheet",
