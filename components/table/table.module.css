@@ -166,7 +166,8 @@
 .plainTable .plainHeader {
   color: #333;
   font-weight: 600;
-  background-color: var(--chakra-colors-purple-50);
+  /* background-color: var(--chakra-colors-purple-50); */
+  background-color: transparent;
 }
 
 .plainTable .plainHeader:hover {
