@@ -16,7 +16,12 @@ import styles from "../../styles/accounts.module.css";
 import Table from "../../components/table/table";
 import { useAccounts } from "../../customHooks/useAccounts";
 import currencyFormatter from "../../util/currencyFormatter";
-import { getCashSales, getTotals, getDenominations } from "../../util/account";
+import {
+  getCashSales,
+  getTotals,
+  getDenominations,
+  getCashBook,
+} from "../../util/account";
 import { Menu, MenuItem } from "@szhsin/react-menu";
 
 const HEADINGS = {
@@ -33,6 +38,13 @@ const HEADINGS_DENOMINATION = {
   denomination: "Denomination",
   count: "Count",
   total: "Total Value",
+};
+
+const HEADINGS_CASHBOOK = {
+  particulars: "Particulars",
+  narration: "Narration",
+  debit: "Debit",
+  credit: "Credit",
 };
 
 function Index() {
@@ -96,6 +108,10 @@ function Index() {
     return getDenominations(accounts);
   }, [accounts]);
 
+  const modifiedCashBook = useMemo(() => {
+    return getCashBook(accounts);
+  }, [accounts]);
+
   const { outlets } = useOutlets();
   const OUTLETS_LIST = outlets.map((item) => ({
     id: item.outlet_id,
@@ -153,6 +169,14 @@ function Index() {
             <Table
               heading={HEADINGS_DENOMINATION}
               rows={modifiedDenominations}
+              variant="plain"
+            />
+          </CustomContainer>
+
+          <CustomContainer title="Cash Book" filledHeader smallHeader>
+            <Table
+              heading={HEADINGS_CASHBOOK}
+              rows={modifiedCashBook}
               variant="plain"
             />
           </CustomContainer>

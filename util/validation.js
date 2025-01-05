@@ -2,7 +2,7 @@ import * as Yup from "yup";
 
 export const Validation = Yup.object({
   employee_name: Yup.string().nullable().required("Fill Name"),
-  telegram_username: Yup.string().nullable().required("Fill Telegram Username"),
+  telegram_username: Yup.string().nullable().optional("Fill Telegram Username"),
   employee_id: Yup.number().nullable().required("Fill Employee ID"),
   //   father_name: Yup.string().required("Fill Father Name"),
   // dob: Yup.string().nullable().max(new Date(), "Must be 15 characters or less").required("Fill Date of birth"),
