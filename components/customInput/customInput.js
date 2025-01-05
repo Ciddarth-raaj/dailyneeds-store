@@ -54,8 +54,10 @@ const TextField = ({
   containerStyle,
   editable,
   accept,
-  maxSize = 5242880, // 5MB default
+  maxSize = 5242880,
   floatingLabel = false,
+  position = "top",
+  labelWidth = "min-width",
   ...props
 }) => {
   const { setFieldValue } = useFormikContext();
@@ -105,61 +107,115 @@ const TextField = ({
     multiple: false,
   });
 
+  const getStaticLabelStyles = () => {
+    const positions = {
+      top: { display: "block", marginBottom: "4px", width: labelWidth },
+      bottom: { display: "block", marginTop: "4px", width: labelWidth },
+      left: { display: "inline-block", marginRight: "8px", width: labelWidth },
+      right: { display: "inline-block", marginLeft: "8px", width: labelWidth },
+    };
+    return positions[position] || positions.top;
+  };
+
   return (
     <div className={styles.personalInputs} style={containerStyle}>
       {editable != undefined && !editable ? (
         <p className={styles.infoText}>{field.value}</p>
       ) : (
         <>
-          {method === "TextArea" && (
+          {[
+            "TextArea",
+            "number",
+            "expiry-datepicker",
+            "switch",
+            "timepicker",
+            "datepicker",
+            "password",
+            "readonly",
+            "disabled",
+            "numberinput",
+            undefined,
+          ].includes(method) && (
             <FormControl variant={floatingLabel ? "floating" : "default"}>
-              <Textarea
-                {...field}
-                {...props}
-                width="100%"
-                size="lg"
-                placeholder={floatingLabel ? " " : props.placeholder}
-              />
-              {floatingLabel ? (
-                <FormLabel>{label}</FormLabel>
-              ) : (
-                <label className={styles.label}>{label}</label>
-              )}
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection:
+                    position === "left" || position === "right"
+                      ? "row"
+                      : "column",
+                  alignItems:
+                    position === "left" || position === "right"
+                      ? "center"
+                      : "flex-start",
+                }}
+              >
+                {!floatingLabel && (
+                  <label
+                    className={styles.label}
+                    style={getStaticLabelStyles()}
+                  >
+                    {label}
+                  </label>
+                )}
+                {method === "TextArea" && (
+                  <Textarea
+                    {...field}
+                    {...props}
+                    width="100%"
+                    size="lg"
+                    placeholder={floatingLabel ? " " : props.placeholder}
+                  />
+                )}
+                {method === "number" && (
+                  <NumberInput
+                    {...field}
+                    {...props}
+                    size="sm"
+                    max={9000000000}
+                    keepWithinRange={false}
+                    clampValueOnBlur={false}
+                  >
+                    <NumberInputField
+                      focusBorderColor="blue.200"
+                      borderRadius={"5px"}
+                      height={"40px"}
+                      placeholder={floatingLabel ? " " : props.placeholder}
+                    />
+                    <NumberInputStepper>
+                      <NumberIncrementStepper />
+                      <NumberDecrementStepper />
+                    </NumberInputStepper>
+                  </NumberInput>
+                )}
+                {method === "switch" && (
+                  <Select {...field} placeholder="Select Option">
+                    {values?.map((m) => (
+                      <Fragment key={m.id}>
+                        <option value={m.id}>{m.value}</option>
+                        <ErrorMessage
+                          component="div"
+                          name={field.name}
+                          className={styles.errorMessage}
+                        />
+                      </Fragment>
+                    ))}
+                  </Select>
+                )}
+
+                {method === undefined && (
+                  <Input
+                    {...field}
+                    {...props}
+                    autoComplete="off"
+                    placeholder={floatingLabel ? " " : props.placeholder}
+                  />
+                )}
+                {floatingLabel && <FormLabel>{label}</FormLabel>}
+              </div>
               <FormErrorMessage>
                 <ErrorMessage name={field.name} />
               </FormErrorMessage>
-            </FormControl>
-          )}
-          {method === "number" && (
-            <FormControl variant={floatingLabel ? "floating" : "default"}>
-              {!floatingLabel && (
-                <label className={styles.label}>{label}</label>
-              )}
-              <NumberInput
-                {...field}
-                {...props}
-                size="sm"
-                max={9000000000}
-                keepWithinRange={false}
-                clampValueOnBlur={false}
-              >
-                <NumberInputField
-                  focusBorderColor="blue.200"
-                  borderRadius={"5px"}
-                  height={"40px"}
-                  placeholder={floatingLabel ? " " : props.placeholder}
-                />
-                <NumberInputStepper>
-                  <NumberIncrementStepper />
-                  <NumberDecrementStepper />
-                </NumberInputStepper>
-              </NumberInput>
-              {floatingLabel && <FormLabel>{label}</FormLabel>}
-              {field.name > 9000000000 && (
-                <FormErrorMessage>
-                  <ErrorMessage component="div" name="three" />
-                </FormErrorMessage>
-              )}
             </FormControl>
           )}
           {method === "expiry-datepicker" && (
@@ -236,26 +292,6 @@ const TextField = ({
               )}
             </>
           )}
-          {method === "switch" && (
-            <>
-              {!floatingLabel && (
-                <label className={styles.label}>{label}</label>
-              )}
-              <Select {...field} placeholder="Select Option">
-                {values?.map((m) => (
-                  <Fragment>
-                    <option value={m.id}>{m.value}</option>
-                    <ErrorMessage
-                      component="div"
-                      name={field.name}
-                      className={styles.errorMessage}
-                    />
-                  </Fragment>
-                ))}
-              </Select>
-              {floatingLabel && <FormLabel>{label}</FormLabel>}
-            </>
-          )}
           {method === "timepicker" && (
             <>
               <Timekeeper
@@ -328,23 +364,6 @@ const TextField = ({
               <InputLeftAddon>{children}</InputLeftAddon>
               <Input defaultValue={defaultValue} {...field} {...props} />
             </InputGroup>
-          )}
-          {method === undefined && (
-            <FormControl variant={floatingLabel ? "floating" : "default"}>
-              {!floatingLabel && (
-                <label className={styles.label}>{label}</label>
-              )}
-              <Input
-                {...field}
-                {...props}
-                autoComplete="off"
-                placeholder={floatingLabel ? " " : props.placeholder}
-              />
-              {floatingLabel && <FormLabel>{label}</FormLabel>}
-              <FormErrorMessage>
-                <ErrorMessage name={field.name} />
-              </FormErrorMessage>
-            </FormControl>
           )}
           {method === "singlevalue" && (
             <Input value={props.selected} isDisabled={true} isReadOnly={true} />

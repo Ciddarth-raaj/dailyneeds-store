@@ -323,58 +323,67 @@ function Create() {
                       {isDenominationOpen && (
                         <>
                           <CustomInput
-                            floatingLabel
                             label="₹500"
                             name="cash_handover_500"
                             type="number"
+                            position="left"
+                            labelWidth="50px"
                           />
                           <CustomInput
-                            floatingLabel
                             label="₹200"
                             name="cash_handover_200"
                             type="number"
+                            position="left"
+                            labelWidth="50px"
                           />
                           <CustomInput
-                            floatingLabel
                             label="₹100"
                             name="cash_handover_100"
                             type="number"
+                            position="left"
+                            labelWidth="50px"
                           />
                           <CustomInput
-                            floatingLabel
                             label="₹50"
                             name="cash_handover_50"
                             type="number"
+                            position="left"
+                            labelWidth="50px"
                           />
                           <CustomInput
-                            floatingLabel
                             label="₹20"
                             name="cash_handover_20"
                             type="number"
+                            position="left"
+                            labelWidth="50px"
                           />
                           <CustomInput
-                            floatingLabel
                             label="₹10"
                             name="cash_handover_10"
                             type="number"
+                            position="left"
+                            labelWidth="50px"
                           />
                           <CustomInput
-                            floatingLabel
                             label="₹5"
                             name="cash_handover_5"
                             type="number"
+                            position="left"
+                            labelWidth="50px"
                           />
                           <CustomInput
-                            floatingLabel
                             label="₹2"
                             name="cash_handover_2"
                             type="number"
+                            position="left"
+                            labelWidth="50px"
                           />
                           <CustomInput
-                            floatingLabel
                             label="₹1"
                             name="cash_handover_1"
                             type="number"
+                            position="left"
+                            labelWidth="50px"
                           />
                         </>
                       )}
