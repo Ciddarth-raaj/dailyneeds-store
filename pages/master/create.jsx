@@ -73,7 +73,7 @@ function CreateMaster() {
     <GlobalWrapper title="Create Master">
       <Head />
 
-      <CustomContainer title="Add New Master">
+      <CustomContainer title="Add New Master" filledHeader>
         <Formik
           initialValues={{
             name: "",

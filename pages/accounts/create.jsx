@@ -166,7 +166,7 @@ function Create() {
     <GlobalWrapper title="Add Account Sheet">
       <Head />
 
-      <CustomContainer title="Add New Account Sheet">
+      <CustomContainer title="Add New Account Sheet" filledHeader>
         <Formik
           initialValues={{
             date: new Date(),
