@@ -16,17 +16,17 @@ import styles from "../../styles/accounts.module.css";
 import Table from "../../components/table/table";
 import { useAccounts } from "../../customHooks/useAccounts";
 import currencyFormatter from "../../util/currencyFormatter";
-import { getCashSales } from "../../util/account";
+import { getCashSales, getTotals } from "../../util/account";
 import { Menu, MenuItem } from "@szhsin/react-menu";
 
 const HEADINGS = {
   accounts_id: "Cashier Name",
   cashier_name: "Cashier Name",
-  total_sales: "Total Sales",
   card_sales: "Card Sales",
   cash_sales: "Cash Sales",
   sales_return: "Sales Return",
   loyalty: "Loyalty",
+  total_sales: "Total Sales",
   actions: "Actions",
 };
 
@@ -53,36 +53,41 @@ function Index() {
   // Pass memoized filters to useAccounts
   const { accounts } = useAccounts(filters);
 
-  const modifiedAccounts = useMemo(
-    () =>
-      accounts.map((item) => ({
-        ...item,
-        total_sales: currencyFormatter(item.total_sales),
-        card_sales: currencyFormatter(item.card_sales),
-        sales_return: currencyFormatter(item.sales_return),
-        loyalty: currencyFormatter(item.loyalty),
-        cash_sales: currencyFormatter(getCashSales(item)),
-        actions: (
-          <Menu
-            align="end"
-            gap={5}
-            menuButton={
-              <IconButton
-                variant="ghost"
-                colorScheme="purple"
-                icon={<i className={`fa fa-ellipsis-v`} />}
-              />
-            }
-            transition
-          >
-            <MenuItem>View</MenuItem>
-            <MenuItem>Edit</MenuItem>
-            <MenuItem>Delete</MenuItem>
-          </Menu>
-        ),
-      })),
-    [accounts]
-  );
+  const modifiedAccounts = useMemo(() => {
+    const modified = accounts.map((item) => ({
+      ...item,
+      total_sales: currencyFormatter(item.total_sales),
+      card_sales: currencyFormatter(item.card_sales),
+      sales_return: currencyFormatter(item.sales_return),
+      loyalty: currencyFormatter(item.loyalty),
+      cash_sales: currencyFormatter(getCashSales(item)),
+      actions: (
+        <Menu
+          align="end"
+          gap={5}
+          menuButton={
+            <IconButton
+              variant="ghost"
+              colorScheme="purple"
+              icon={<i className={`fa fa-ellipsis-v`} />}
+            />
+          }
+          transition
+        >
+          <MenuItem>View</MenuItem>
+          <MenuItem>Edit</MenuItem>
+          <MenuItem>Delete</MenuItem>
+        </Menu>
+      ),
+    }));
+
+    modified.push({
+      cashier_name: <b>Total</b>,
+      ...getTotals(accounts),
+    });
+
+    return modified;
+  }, [accounts]);
 
   const { outlets } = useOutlets();
   const OUTLETS_LIST = outlets.map((item) => ({
