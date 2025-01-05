@@ -14,6 +14,9 @@ import { Badge, Flex } from "@chakra-ui/react";
 import currencyFormatter from "../../util/currencyFormatter";
 import useEmployees from "../../customHooks/useEmployees";
 import { CASHIER_DESIGNATION } from "../../constants/designations";
+import { createAccount } from "../../helper/accounts";
+import { useRouter } from "next/router";
+import FilesHelper from "../../helper/asset";
 
 const EMPTY_ACCOUNT_OBJECT = {
   person_type: null,
@@ -71,6 +74,7 @@ const MODIFIED_PEOPLE_TYPES = [
 ];
 
 function Create() {
+  const router = useRouter();
   const { peopleList } = usePeople();
 
   const loggedInUserStoreID = global.config.store_id;
@@ -116,8 +120,9 @@ function Create() {
         sales_return,
         accounts,
       } = values;
+
       let calculated_sales =
-        getTotalCashHandover({ cash_handover }, true) +
+        getTotalCashHandover(values, true) +
         card_sales +
         loyalty +
         sales_return;
@@ -125,35 +130,115 @@ function Create() {
       accounts.forEach((item) => {
         if (item.payment_type == 1) {
           // Payment
-          calculated_sales += item.amount;
+          calculated_sales += parseFloat(item.amount);
         } else {
           // Receipt
-          calculated_sales -= item.amount;
+          calculated_sales -= parseFloat(item.amount);
         }
       });
 
       if (calculated_sales != total_sales) {
-        toast.error(
+        toast(
           `There is a different of ${currencyFormatter(
             calculated_sales > total_sales
               ? calculated_sales - total_sales
               : total_sales - calculated_sales
           )}`
         );
-        return;
       }
+
+      addAccountHandler(values);
     } catch (err) {
       console.log(err);
     }
   };
 
+  const addAccountHandler = (values) => {
+    toast.promise(addAccount(values), {
+      loading: "Adding new Account Record!",
+      success: (response) => {
+        if (response.code === 200) {
+          router.push("/accounts");
+          return "Acount Record Added!";
+        } else {
+          throw err;
+        }
+      },
+      error: (err) => {
+        console.log(err);
+        return "Error adding Account Record!";
+      },
+    });
+  };
+
+  const addAccount = (values) => {
+    return new Promise(async (resolve, reject) => {
+      try {
+        const sales = [];
+        for (const item of values.accounts) {
+          const tmpItem = structuredClone(item);
+          let receiptPath = null;
+          if (tmpItem.receipt) {
+            try {
+              const res = await FilesHelper.upload(
+                tmpItem.receipt,
+                tmpItem.receipt.name,
+                "receipts"
+              );
+
+              if (res.code === 200) {
+                receiptPath = res.remoteUrl;
+              }
+            } catch (err) {
+              console.log(err);
+            }
+          }
+
+          delete tmpItem.receipt;
+          sales.push({
+            ...tmpItem,
+            receipt_path: receiptPath,
+          });
+        }
+
+        const param = {
+          ...values,
+          sales,
+          date: values.date.toISOString().slice(0, 19).replace("T", " "),
+        };
+
+        delete param.accounts;
+
+        resolve(await createAccount(param));
+      } catch (err) {
+        reject(err);
+      }
+    });
+  };
+
   const getTotalCashHandover = (values, noFormat = false) => {
-    const { cash_handover } = values;
+    const {
+      cash_handover_1,
+      cash_handover_2,
+      cash_handover_5,
+      cash_handover_10,
+      cash_handover_20,
+      cash_handover_50,
+      cash_handover_100,
+      cash_handover_200,
+      cash_handover_500,
+    } = values;
     let totalCashHandover = 0;
 
-    Object.keys(cash_handover).map((denomination) => {
-      totalCashHandover += denomination * cash_handover[denomination];
-    });
+    totalCashHandover += parseInt(cash_handover_1) * 1;
+    totalCashHandover += parseInt(cash_handover_2) * 2;
+    totalCashHandover += parseInt(cash_handover_5) * 5;
+    totalCashHandover += parseInt(cash_handover_10) * 10;
+    totalCashHandover += parseInt(cash_handover_20) * 20;
+    totalCashHandover += parseInt(cash_handover_50) * 50;
+    totalCashHandover += parseInt(cash_handover_100) * 100;
+    totalCashHandover += parseInt(cash_handover_200) * 200;
+    totalCashHandover += parseInt(cash_handover_500) * 500;
 
     if (noFormat) {
       return totalCashHandover;
@@ -171,17 +256,15 @@ function Create() {
           initialValues={{
             date: new Date(),
             total_sales: null,
-            cash_handover: {
-              1: 0,
-              2: 0,
-              5: 0,
-              10: 0,
-              20: 0,
-              50: 0,
-              100: 0,
-              200: 0,
-              500: 0,
-            },
+            cash_handover_1: 0,
+            cash_handover_2: 0,
+            cash_handover_5: 0,
+            cash_handover_10: 0,
+            cash_handover_20: 0,
+            cash_handover_50: 0,
+            cash_handover_100: 0,
+            cash_handover_200: 0,
+            cash_handover_500: 0,
             card_sales: null,
             loyalty: null,
             sales_return: null,
@@ -254,47 +337,47 @@ function Create() {
                         <>
                           <CustomInput
                             label="₹500"
-                            name="cash_handover.500"
+                            name="cash_handover_500"
                             type="number"
                           />
                           <CustomInput
                             label="₹200"
-                            name="cash_handover.200"
+                            name="cash_handover_200"
                             type="number"
                           />
                           <CustomInput
                             label="₹100"
-                            name="cash_handover.100"
+                            name="cash_handover_100"
                             type="number"
                           />
                           <CustomInput
                             label="₹50"
-                            name="cash_handover.50"
+                            name="cash_handover_50"
                             type="number"
                           />
                           <CustomInput
                             label="₹20"
-                            name="cash_handover.20"
+                            name="cash_handover_20"
                             type="number"
                           />
                           <CustomInput
                             label="₹10"
-                            name="cash_handover.10"
+                            name="cash_handover_10"
                             type="number"
                           />
                           <CustomInput
                             label="₹5"
-                            name="cash_handover.5"
+                            name="cash_handover_5"
                             type="number"
                           />
                           <CustomInput
                             label="₹2"
-                            name="cash_handover.2"
+                            name="cash_handover_2"
                             type="number"
                           />
                           <CustomInput
                             label="₹1"
-                            name="cash_handover.1"
+                            name="cash_handover_1"
                             type="number"
                           />
                         </>

@@ -85,6 +85,7 @@ const TextField = ({
   // Add file upload handling
   const onDrop = useCallback(
     (acceptedFiles) => {
+      console.log("CIDD", acceptedFiles[0]);
       setFieldValue(field.name, acceptedFiles[0]);
     },
     [field.name, setFieldValue]
