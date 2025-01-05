@@ -14,6 +14,9 @@ import {
   NumberInputStepper,
   NumberIncrementStepper,
   NumberDecrementStepper,
+  FormControl,
+  FormLabel,
+  FormErrorMessage,
 } from "@chakra-ui/react";
 import { useState } from "react";
 import DatePicker from "react-datepicker";
@@ -52,6 +55,7 @@ const TextField = ({
   editable,
   accept,
   maxSize = 5242880, // 5MB default
+  floatingLabel = false,
   ...props
 }) => {
   const { setFieldValue } = useFormikContext();
@@ -103,47 +107,60 @@ const TextField = ({
 
   return (
     <div className={styles.personalInputs} style={containerStyle}>
-      <label
-        htmlFor={field.name}
-        className={`${styles.label} ${!editable ? styles.infoLabel : ""}`}
-      >
-        {label}
-      </label>
       {editable != undefined && !editable ? (
         <p className={styles.infoText}>{field.value}</p>
       ) : (
         <>
           {method === "TextArea" && (
-            <Textarea
-              {...field}
-              {...props}
-              width="100%"
-              // height="73%"
-              size="lg"
-            />
+            <FormControl variant={floatingLabel ? "floating" : "default"}>
+              <Textarea
+                {...field}
+                {...props}
+                width="100%"
+                size="lg"
+                placeholder={floatingLabel ? " " : props.placeholder}
+              />
+              {floatingLabel ? (
+                <FormLabel>{label}</FormLabel>
+              ) : (
+                <label className={styles.label}>{label}</label>
+              )}
+              <FormErrorMessage>
+                <ErrorMessage name={field.name} />
+              </FormErrorMessage>
+            </FormControl>
           )}
           {method === "number" && (
-            <NumberInput
-              {...field}
-              {...props}
-              size="sm"
-              max={9000000000}
-              keepWithinRange={false}
-              clampValueOnBlur={false}
-            >
-              <NumberInputField
-                focusBorderColor="blue.200"
-                borderRadius={"5px"}
-                height={"40px"}
-              />
-              {field.name > 9000000000 && (
-                <ErrorMessage
-                  component="div"
-                  name="three"
-                  className={styles.errorMessage}
-                />
+            <FormControl variant={floatingLabel ? "floating" : "default"}>
+              {!floatingLabel && (
+                <label className={styles.label}>{label}</label>
               )}
-            </NumberInput>
+              <NumberInput
+                {...field}
+                {...props}
+                size="sm"
+                max={9000000000}
+                keepWithinRange={false}
+                clampValueOnBlur={false}
+              >
+                <NumberInputField
+                  focusBorderColor="blue.200"
+                  borderRadius={"5px"}
+                  height={"40px"}
+                  placeholder={floatingLabel ? " " : props.placeholder}
+                />
+                <NumberInputStepper>
+                  <NumberIncrementStepper />
+                  <NumberDecrementStepper />
+                </NumberInputStepper>
+              </NumberInput>
+              {floatingLabel && <FormLabel>{label}</FormLabel>}
+              {field.name > 9000000000 && (
+                <FormErrorMessage>
+                  <ErrorMessage component="div" name="three" />
+                </FormErrorMessage>
+              )}
+            </FormControl>
           )}
           {method === "expiry-datepicker" && (
             <>
@@ -220,18 +237,24 @@ const TextField = ({
             </>
           )}
           {method === "switch" && (
-            <Select {...field} placeholder="Select Option">
-              {values?.map((m) => (
-                <Fragment>
-                  <option value={m.id}>{m.value}</option>
-                  <ErrorMessage
-                    component="div"
-                    name={field.name}
-                    className={styles.errorMessage}
-                  />
-                </Fragment>
-              ))}
-            </Select>
+            <>
+              {!floatingLabel && (
+                <label className={styles.label}>{label}</label>
+              )}
+              <Select {...field} placeholder="Select Option">
+                {values?.map((m) => (
+                  <Fragment>
+                    <option value={m.id}>{m.value}</option>
+                    <ErrorMessage
+                      component="div"
+                      name={field.name}
+                      className={styles.errorMessage}
+                    />
+                  </Fragment>
+                ))}
+              </Select>
+              {floatingLabel && <FormLabel>{label}</FormLabel>}
+            </>
           )}
           {method === "timepicker" && (
             <>
@@ -269,60 +292,6 @@ const TextField = ({
                 {...props}
                 selected={(field.value && new Date(field.value)) || null}
                 customInput={<CustomDateTimeInput />}
-                // renderCustomHeader={({
-                //   val,
-                //   changeYear,
-                //   changeMonth,
-                //   decreaseMonth,
-                //   increaseMonth,
-                //   prevMonthButtonDisabled,
-                //   nextMonthButtonDisabled,
-                // }) => (
-                //   <div
-                //     style={{
-                //       margin: 10,
-                //       display: "flex",
-                //       justifyContent: "center",
-                //     }}
-                //   >
-                //     <button
-                //       onClick={decreaseMonth}
-                //       disabled={prevMonthButtonDisabled}
-                //     >
-                //       {"<"}
-                //     </button>
-                //     <select
-                //       value={val}
-                //       onChange={({ target: { value } }) => changeYear(value)}
-                //     >
-                //       {years.map((option) => (
-                //         <option key={option} value={option}>
-                //           {option}
-                //         </option>
-                //       ))}
-                //     </select>
-
-                //     <select
-                //       value={months[moment(val).month()]}
-                //       onChange={({ target: { value } }) =>
-                //         changeMonth(months.indexOf(value))
-                //       }
-                //     >
-                //       {months.map((option) => (
-                //         <option key={option} value={option}>
-                //           {option}
-                //         </option>
-                //       ))}
-                //     </select>
-
-                //     <button
-                //       onClick={increaseMonth}
-                //       disabled={nextMonthButtonDisabled}
-                //     >
-                //       {">"}
-                //     </button>
-                //   </div>
-                // )}
                 onChange={(val) => {
                   setFieldValue(field.name, moment(val).format("YYYY-MM-DD"));
                 }}
@@ -357,12 +326,25 @@ const TextField = ({
           {method === "numberinput" && (
             <InputGroup>
               <InputLeftAddon>{children}</InputLeftAddon>
-              {/* {console.log({prios: field})} */}
               <Input defaultValue={defaultValue} {...field} {...props} />
             </InputGroup>
           )}
           {method === undefined && (
-            <Input {...field} {...props} autoComplete="off" />
+            <FormControl variant={floatingLabel ? "floating" : "default"}>
+              {!floatingLabel && (
+                <label className={styles.label}>{label}</label>
+              )}
+              <Input
+                {...field}
+                {...props}
+                autoComplete="off"
+                placeholder={floatingLabel ? " " : props.placeholder}
+              />
+              {floatingLabel && <FormLabel>{label}</FormLabel>}
+              <FormErrorMessage>
+                <ErrorMessage name={field.name} />
+              </FormErrorMessage>
+            </FormControl>
           )}
           {method === "singlevalue" && (
             <Input value={props.selected} isDisabled={true} isReadOnly={true} />

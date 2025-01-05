@@ -110,46 +110,31 @@ function Create() {
     value: item.employee_name,
   }));
 
-  const validateAccountEntries = (values) => {
+  const getAmmountDifference = (values) => {
     try {
-      const {
-        total_sales,
-        cash_handover,
-        card_sales,
-        loyalty,
-        sales_return,
-        accounts,
-      } = values;
+      const { total_sales, card_sales, loyalty, sales_return, accounts } =
+        values;
 
       let calculated_sales =
         getTotalCashHandover(values, true) +
-        card_sales +
-        loyalty +
-        sales_return;
+        (card_sales ? parseFloat(card_sales) : 0) +
+        (loyalty ? parseFloat(loyalty) : 0) +
+        (sales_return ? parseFloat(sales_return) : 0);
 
       accounts.forEach((item) => {
         if (item.payment_type == 1) {
           // Payment
-          calculated_sales += parseFloat(item.amount);
+          calculated_sales += item.amount ? parseFloat(item.amount) : 0;
         } else {
           // Receipt
-          calculated_sales -= parseFloat(item.amount);
+          calculated_sales -= item.amount ? parseFloat(item.amount) : 0;
         }
       });
 
-      if (calculated_sales != total_sales) {
-        toast(
-          `There is a different of ${currencyFormatter(
-            calculated_sales > total_sales
-              ? calculated_sales - total_sales
-              : total_sales - calculated_sales
-          )}`
-        );
-      }
-
-      addAccountHandler(values);
+      return total_sales - calculated_sales;
     } catch (err) {
       console.log(err);
+      return "Invalid!";
     }
   };
 
@@ -272,11 +257,13 @@ function Create() {
             cashier_id: null,
           }}
           validationSchema={validation}
-          onSubmit={validateAccountEntries}
+          onSubmit={addAccountHandler}
         >
           {(formikProps) => {
             const { handleSubmit, resetForm, values, setFieldValue } =
               formikProps;
+
+            const differenceAmount = getAmmountDifference(values);
 
             return (
               <div className={styles.inputContainer}>
@@ -336,46 +323,55 @@ function Create() {
                       {isDenominationOpen && (
                         <>
                           <CustomInput
+                            floatingLabel
                             label="₹500"
                             name="cash_handover_500"
                             type="number"
                           />
                           <CustomInput
+                            floatingLabel
                             label="₹200"
                             name="cash_handover_200"
                             type="number"
                           />
                           <CustomInput
+                            floatingLabel
                             label="₹100"
                             name="cash_handover_100"
                             type="number"
                           />
                           <CustomInput
+                            floatingLabel
                             label="₹50"
                             name="cash_handover_50"
                             type="number"
                           />
                           <CustomInput
+                            floatingLabel
                             label="₹20"
                             name="cash_handover_20"
                             type="number"
                           />
                           <CustomInput
+                            floatingLabel
                             label="₹10"
                             name="cash_handover_10"
                             type="number"
                           />
                           <CustomInput
+                            floatingLabel
                             label="₹5"
                             name="cash_handover_5"
                             type="number"
                           />
                           <CustomInput
+                            floatingLabel
                             label="₹2"
                             name="cash_handover_2"
                             type="number"
                           />
                           <CustomInput
+                            floatingLabel
                             label="₹1"
                             name="cash_handover_1"
                             type="number"
@@ -420,7 +416,7 @@ function Create() {
                             method="switch"
                           />
                           <CustomInput
-                            label="Description *"
+                            label="Narration *"
                             name={`accounts.${index}.description`}
                             type="text"
                           />
@@ -459,6 +455,15 @@ function Create() {
                 />
 
                 <div className={styles.buttonContainer}>
+                  <Badge className={styles.badgeStyle} style={{ marginTop: 0 }}>
+                    Total Difference
+                    <p
+                      style={{ color: differenceAmount >= 0 ? "green" : "red" }}
+                    >
+                      {` ${currencyFormatter(differenceAmount)}`}
+                    </p>
+                  </Badge>
+
                   <Button
                     variant="outline"
                     colorScheme="red"

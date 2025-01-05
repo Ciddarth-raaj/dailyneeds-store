@@ -13,6 +13,7 @@
   display: flex;
   gap: 12px;
   justify-content: flex-end;
+  align-items: center;
 }
 
 .label {
@@ -23,7 +24,7 @@
 }
 
 .badgeStyle {
-  padding: 10px 20px;
+  padding: 10px 30px !important;
   min-width: 160px;
   text-align: center;
   margin-top: 12px;
@@ -32,7 +33,7 @@
 .cashHandoverContainer {
   display: flex;
   flex-direction: column;
-  width: 400px;
+  width: 300px;
   margin-top: 10px;
   background-color: rgba(244, 244, 244, 0.275);
   padding: 20px;
@@ -40,7 +41,7 @@
 }
 
 .cashHandoverContainer > div {
-  margin-bottom: 12px;
+  margin-bottom: 26px;
 }
 
 .leftRightContainer {
@@ -52,4 +53,5 @@
   flex-direction: column;
   flex: 1;
   padding-right: 60px;
+  max-width: 600px;
 }

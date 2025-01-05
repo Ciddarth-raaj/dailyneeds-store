@@ -21,8 +21,8 @@ import { Menu, MenuItem } from "@szhsin/react-menu";
 
 const HEADINGS = {
   cashier_name: "Cashier Name",
-  card_sales: "Card Sales",
   cash_sales: "Cash Sales",
+  card_sales: "Card Sales",
   sales_return: "Sales Return",
   loyalty: "Loyalty",
   total_sales: "Total Sales",
