@@ -12,6 +12,8 @@ import usePeople from "../../customHooks/usePeople";
 import toast from "react-hot-toast";
 import { Badge, Flex } from "@chakra-ui/react";
 import currencyFormatter from "../../util/currencyFormatter";
+import useEmployees from "../../customHooks/useEmployees";
+import { CASHIER_DESIGNATION } from "../../constants/designations";
 
 const EMPTY_ACCOUNT_OBJECT = {
   person_type: null,
@@ -70,6 +72,10 @@ const MODIFIED_PEOPLE_TYPES = [
 
 function Create() {
   const { peopleList } = usePeople();
+  const { employees } = useEmployees({
+    store_ids: global.config.store_id == "null" ? [] : [global.config.store_id],
+    designation_ids: [CASHIER_DESIGNATION],
+  });
   const [isDenominationOpen, setIsDenominationOpen] = useState(false);
 
   const getPeopleList = (personType) => {
@@ -81,6 +87,11 @@ function Create() {
       .filter((item) => item.person_type == personType)
       .map((item) => ({ id: item.person_id, value: item.name }));
   };
+
+  const EMPLOYEES_MENU = employees.map((item) => ({
+    id: item.employee_id,
+    value: item.employee_name,
+  }));
 
   const validateAccountEntries = (values) => {
     try {
@@ -185,7 +196,7 @@ function Create() {
                       label="Cashier *"
                       name={`cashier_id`}
                       type="number"
-                      values={[]}
+                      values={EMPLOYEES_MENU}
                       method="switch"
                     />
                     <CustomInput
