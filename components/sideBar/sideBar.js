@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/router";
-import { Box, Text, Tooltip } from "@chakra-ui/react";
-import { motion } from "framer-motion";
+import { Box, Text } from "@chakra-ui/react";
 import styles from "./sideBar.module.css";
 import Head from "../../util/head";
 import MENU_LIST from "../../constants/menus";
@@ -10,9 +9,7 @@ import "../../constants/variables";
 import DesignationHelper from "../../helper/designation";
 
 export default function Sidebar() {
-  const [showTitle, setShowTitle] = useState(false);
   const [menu, setMenu] = useState(() => {
-    // Initialize menu with both selected and isOpen states
     const initialMenu = { ...MENU_LIST };
     Object.keys(initialMenu).forEach((key) => {
       initialMenu[key] = {
@@ -94,13 +91,7 @@ export default function Sidebar() {
   };
 
   return (
-    <motion.div
-      className={styles.container}
-      animate={{ width: showTitle ? "320px" : "75px" }}
-      transition={{ duration: 0.3 }}
-      onMouseEnter={() => setShowTitle(true)}
-      onMouseLeave={() => setShowTitle(false)}
-    >
+    <div className={styles.container}>
       <Head />
       <Box className={styles.sideBarOptions}>
         {Object.keys(menu).map((key) => (
@@ -112,42 +103,22 @@ export default function Sidebar() {
               } ${menu[key].isOpen ? styles.openMenu : ""}`}
               onClick={() => handleMenuClick(key)}
             >
-              <Tooltip
-                label={menu[key].title}
-                placement="right"
-                isDisabled={showTitle}
-              >
-                <Box className={styles.iconWrapper}>
-                  <i
-                    className={`fa ${menu[key].icon} ${
-                      menu[key].selected
-                        ? styles["icons-selected"]
-                        : styles.iconsUnselected
-                    }`}
-                  />
-                </Box>
-              </Tooltip>
-              {showTitle && (
-                <motion.span
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  {menu[key].title}
-                </motion.span>
-              )}
+              <Box className={styles.iconWrapper}>
+                <i
+                  className={`fa ${menu[key].icon} ${
+                    menu[key].selected
+                      ? styles["icons-selected"]
+                      : styles.iconsUnselected
+                  }`}
+                />
+              </Box>
+              <span>{menu[key].title}</span>
             </Box>
 
-            {showTitle &&
-              menu[key].isOpen &&
+            {menu[key].isOpen &&
               menu[key].subMenu &&
               Object.keys(menu[key].subMenu).length > 0 && (
-                <motion.div
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className={styles.subMenuWrapper}
-                >
+                <div className={styles.subMenuWrapper}>
                   {Object.keys(menu[key].subMenu).map((sKey) => {
                     if (
                       filteredData.find(
@@ -180,11 +151,11 @@ export default function Sidebar() {
                       </Link>
                     );
                   })}
-                </motion.div>
+                </div>
               )}
           </Box>
         ))}
       </Box>
-    </motion.div>
+    </div>
   );
 }

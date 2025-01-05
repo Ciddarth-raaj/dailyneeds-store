@@ -1,8 +1,9 @@
 .container {
   height: 100vh;
-  min-width: 75px;
+  width: 260px;
+  min-width: 260px;
   z-index: 200;
-  padding: 20px 7px;
+  padding: 12px 5px;
   display: flex;
   background-color: #ffffff;
   position: fixed;
@@ -11,8 +12,6 @@
   align-items: center;
   overflow-y: auto;
   overflow-x: hidden;
-  /* box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1); */
-  transition: all 0.3s ease;
   border-right: 1px solid #eee;
 }
 
@@ -25,7 +24,7 @@
 }
 
 .container::-webkit-scrollbar-thumb {
-  background: rgba(106, 0, 148, 0.2);
+  background: var(--chakra-colors-purple-200);
   border-radius: 10px;
 }
 
@@ -34,7 +33,7 @@
   flex-direction: column;
   width: 100%;
   gap: 8px;
-  padding: 0 4px;
+  padding: 0 3px;
   align-items: center;
 }
 
@@ -49,26 +48,26 @@
 .optionHolder {
   display: flex;
   align-items: center;
-  padding: 12px;
+  padding: 8px;
   width: 100%;
   min-width: 60px;
-  border-radius: 12px;
+  border-radius: 10px;
   transition: all 0.3s ease;
   cursor: pointer;
-  gap: 16px;
+  gap: 10px;
   position: relative;
   overflow: hidden;
   white-space: nowrap;
 }
 
 .optionHolder:hover {
-  background-color: rgba(226, 153, 255, 0.15);
-  color: rgb(106, 0, 148);
+  background-color: var(--chakra-colors-purple-50);
+  color: var(--chakra-colors-purple-600);
 }
 
 .selectedMenu {
-  color: rgb(106, 0, 148);
-  background-color: rgba(226, 153, 255, 0.1);
+  color: var(--chakra-colors-purple-600);
+  background-color: var(--chakra-colors-purple-50);
 }
 
 .selectedMenu::before {
@@ -79,7 +78,7 @@
   transform: translateY(-50%);
   width: 4px;
   height: 60%;
-  background-color: rgb(106, 0, 148);
+  background-color: var(--chakra-colors-purple-500);
   border-radius: 0 4px 4px 0;
 }
 
@@ -87,63 +86,63 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 40px;
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
+  min-width: 36px;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
   transition: all 0.3s ease;
-  background-color: rgba(226, 153, 255, 0.1);
+  background-color: var(--chakra-colors-purple-50);
   flex-shrink: 0;
 }
 
 .optionHolder:hover .iconWrapper {
-  background-color: rgba(226, 153, 255, 0.2);
+  background-color: var(--chakra-colors-purple-100);
 }
 
 .optionHolder i {
-  font-size: 18px;
+  font-size: 16px;
   transition: all 0.3s ease;
-  width: 18px;
+  width: 16px;
   text-align: center;
 }
 
 .optionHolder span {
+  font-size: 13px;
   font-weight: 500;
-  white-space: nowrap;
-  letter-spacing: 0.2px;
+  letter-spacing: 0.1px;
 }
 
 .icons-selected {
-  color: rgb(106, 0, 148);
+  color: var(--chakra-colors-purple-600);
 }
 
 .iconsUnselected {
-  color: rgba(106, 0, 148, 0.38863);
+  color: var(--chakra-colors-purple-300);
 }
 
 .subMenuWrapper {
   width: 100%;
-  padding-left: 48px;
-  margin-top: 4px;
-  margin-bottom: 4px;
+  padding-left: 40px;
+  margin-top: 6px;
+  margin-bottom: 6px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 6px;
   position: relative;
 }
 
 .subMenuWrapper::before {
   content: "";
   position: absolute;
-  left: 28px;
+  left: 24px;
   top: 0;
   bottom: 0;
   width: 2px;
   background: linear-gradient(
     to bottom,
     transparent,
-    rgba(106, 0, 148, 0.15) 10%,
-    rgba(106, 0, 148, 0.15) 90%,
+    var(--chakra-colors-purple-100) 10%,
+    var(--chakra-colors-purple-100) 90%,
     transparent
   );
 }
@@ -151,7 +150,7 @@
 .subMenuGroup {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
   position: relative;
 }
 
@@ -159,19 +158,19 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 8px 16px;
+  padding: 5px 12px;
   color: rgb(87, 87, 87);
   font-weight: 500;
   transition: all 0.3s ease;
   border-radius: 8px;
   position: relative;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .subMenuItem::before {
   content: "";
   position: absolute;
-  left: -20px;
+  left: -16px;
   top: 50%;
   width: 12px;
   height: 2px;
@@ -190,49 +189,44 @@
 }
 
 .menuText {
-  font-size: 13px;
+  font-size: 12px;
   transition: all 0.3s ease;
   color: rgba(87, 87, 87, 0.9);
 }
 
 .subMenuItem:hover {
-  color: rgb(106, 0, 148);
-  background-color: rgba(226, 153, 255, 0.08);
+  color: var(--chakra-colors-purple-600);
+  background-color: var(--chakra-colors-purple-50);
 }
 
 .subMenuItem:hover::before {
-  background-color: rgba(106, 0, 148, 0.3);
-  width: 16px;
+  background-color: var(--chakra-colors-purple-200);
 }
 
 .subMenuItem:hover .bulletPoint {
-  background-color: rgb(106, 0, 148);
-  transform: scale(1.2);
+  background-color: var(--chakra-colors-purple-500);
 }
 
 .subMenuItem:hover .menuText {
-  color: rgb(106, 0, 148);
-  transform: translateX(2px);
+  color: var(--chakra-colors-purple-600);
 }
 
 /* Add active state for submenu items */
 .subMenuItem.active {
-  background-color: rgba(226, 153, 255, 0.12);
+  background-color: var(--chakra-colors-purple-50);
 }
 
 .subMenuItem.active .bulletPoint {
-  background-color: rgb(106, 0, 148);
-  transform: scale(1.2);
+  background-color: var(--chakra-colors-purple-500);
 }
 
 .subMenuItem.active .menuText {
-  color: rgb(106, 0, 148);
+  color: var(--chakra-colors-purple-600);
   font-weight: 600;
 }
 
 .subMenuItem.active::before {
-  background-color: rgba(106, 0, 148, 0.3);
-  width: 16px;
+  background-color: var(--chakra-colors-purple-200);
 }
 
 /* .openMenu {
