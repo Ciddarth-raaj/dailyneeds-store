@@ -21,10 +21,17 @@ const Container = {
   },
 };
 
+// Add fonts configuration
+const fonts = {
+  heading: `"Poppins", serif`,
+  body: `"Poppins", serif`,
+};
+
 const theme = extendTheme({
   components: {
     Container,
   },
+  fonts,
 });
 const unprotectedPath = {
   //   '/employee': true,
