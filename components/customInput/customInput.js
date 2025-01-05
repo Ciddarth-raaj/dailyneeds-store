@@ -1,6 +1,5 @@
 import React, { Fragment, forwardRef, useCallback } from "react";
 import { ErrorMessage, useField, useFormikContext } from "formik";
-import "react-datetime/css/react-datetime.css";
 
 import {
   Input,
@@ -25,15 +24,20 @@ import moment from "moment";
 import { range } from "react-big-calendar/lib/utils/dates";
 import { useDropzone } from "react-dropzone";
 
-const CustomDateTimeInput = forwardRef(({ value, onClick, onChange }, ref) => (
-  <Input
-    value={value ? moment(value).format("DD/MM/YYYY") : value}
-    onChange={onChange}
-    autoComplete="off"
-    ref={ref}
-    onClick={onClick}
-  />
-));
+export const CustomDateTimeInput = forwardRef(
+  ({ value, onClick, onChange, variant = "outline", style }, ref) => (
+    <Input
+      value={value ? moment(value).format("DD/MM/YYYY") : value}
+      onChange={onChange}
+      autoComplete="off"
+      ref={ref}
+      onClick={onClick}
+      variant={variant}
+      style={style}
+    />
+  )
+);
+CustomDateTimeInput.displayName = "CustomDateTimeInput";
 
 const TextField = ({
   label,
@@ -265,60 +269,60 @@ const TextField = ({
                 {...props}
                 selected={(field.value && new Date(field.value)) || null}
                 customInput={<CustomDateTimeInput />}
-                renderCustomHeader={({
-                  val,
-                  changeYear,
-                  changeMonth,
-                  decreaseMonth,
-                  increaseMonth,
-                  prevMonthButtonDisabled,
-                  nextMonthButtonDisabled,
-                }) => (
-                  <div
-                    style={{
-                      margin: 10,
-                      display: "flex",
-                      justifyContent: "center",
-                    }}
-                  >
-                    <button
-                      onClick={decreaseMonth}
-                      disabled={prevMonthButtonDisabled}
-                    >
-                      {"<"}
-                    </button>
-                    <select
-                      value={val}
-                      onChange={({ target: { value } }) => changeYear(value)}
-                    >
-                      {years.map((option) => (
-                        <option key={option} value={option}>
-                          {option}
-                        </option>
-                      ))}
-                    </select>
+                // renderCustomHeader={({
+                //   val,
+                //   changeYear,
+                //   changeMonth,
+                //   decreaseMonth,
+                //   increaseMonth,
+                //   prevMonthButtonDisabled,
+                //   nextMonthButtonDisabled,
+                // }) => (
+                //   <div
+                //     style={{
+                //       margin: 10,
+                //       display: "flex",
+                //       justifyContent: "center",
+                //     }}
+                //   >
+                //     <button
+                //       onClick={decreaseMonth}
+                //       disabled={prevMonthButtonDisabled}
+                //     >
+                //       {"<"}
+                //     </button>
+                //     <select
+                //       value={val}
+                //       onChange={({ target: { value } }) => changeYear(value)}
+                //     >
+                //       {years.map((option) => (
+                //         <option key={option} value={option}>
+                //           {option}
+                //         </option>
+                //       ))}
+                //     </select>
 
-                    <select
-                      value={months[moment(val).month()]}
-                      onChange={({ target: { value } }) =>
-                        changeMonth(months.indexOf(value))
-                      }
-                    >
-                      {months.map((option) => (
-                        <option key={option} value={option}>
-                          {option}
-                        </option>
-                      ))}
-                    </select>
+                //     <select
+                //       value={months[moment(val).month()]}
+                //       onChange={({ target: { value } }) =>
+                //         changeMonth(months.indexOf(value))
+                //       }
+                //     >
+                //       {months.map((option) => (
+                //         <option key={option} value={option}>
+                //           {option}
+                //         </option>
+                //       ))}
+                //     </select>
 
-                    <button
-                      onClick={increaseMonth}
-                      disabled={nextMonthButtonDisabled}
-                    >
-                      {">"}
-                    </button>
-                  </div>
-                )}
+                //     <button
+                //       onClick={increaseMonth}
+                //       disabled={nextMonthButtonDisabled}
+                //     >
+                //       {">"}
+                //     </button>
+                //   </div>
+                // )}
                 onChange={(val) => {
                   setFieldValue(field.name, moment(val).format("YYYY-MM-DD"));
                 }}

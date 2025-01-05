@@ -5,6 +5,7 @@ import "react-datepicker/dist/react-datepicker.css";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import "@szhsin/react-menu/dist/index.css";
 import "@szhsin/react-menu/dist/transitions/zoom.css";
+import "react-datetime/css/react-datetime.css";
 
 import "../constants/variables";
 import React from "react";

@@ -1,13 +1,30 @@
-import React from "react";
+import React, { useState } from "react";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../components/CustomContainer";
 import Head from "../../util/head";
 import Link from "next/link";
 import { Button } from "@chakra-ui/button";
 import usePermissions from "../../customHooks/usePermissions";
+import CustomInput, {
+  CustomDateTimeInput,
+} from "../../components/customInput/customInput";
+import DatePicker from "react-datepicker";
+import useOutlets from "../../customHooks/useOutlets";
+import { Select } from "@chakra-ui/react";
+import { useUser } from "../../contexts/UserContext";
+import styles from "../../styles/accounts.module.css";
 
 function Index() {
-  usePermissions();
+  const { storeId } = useUser().userConfig;
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [selectedOutlet, setSelectedOutlet] = useState(storeId);
+
+  const { outlets } = useOutlets();
+  const OUTLETS_LIST = outlets.map((item) => ({
+    id: item.outlet_id,
+    value: item.outlet_name,
+  }));
+
   return (
     <GlobalWrapper title="Account Sheet">
       <Head />
@@ -16,11 +33,36 @@ function Index() {
         rightSection={
           usePermissions(["add_account_sheet"]) ? (
             <Link href="/accounts/create" passHref>
-              <Button colorScheme="purple">Add</Button>
+              <Button colorScheme="purple">Add New Sheet</Button>
             </Link>
           ) : null
         }
-      ></CustomContainer>
+      >
+        <div className={styles.selectorContainer}>
+          <DatePicker
+            selected={selectedDate}
+            customInput={
+              <CustomDateTimeInput style={{ backgroundColor: "white" }} />
+            }
+            onChange={(val) => {
+              setSelectedDate(val);
+            }}
+          />
+
+          <Select
+            placeholder="Select Outlet"
+            value={selectedOutlet}
+            onChange={(val) => setSelectedOutlet(val.target.value)}
+            style={{ backgroundColor: "white" }}
+          >
+            {OUTLETS_LIST?.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.value}
+              </option>
+            ))}
+          </Select>
+        </div>
+      </CustomContainer>
     </GlobalWrapper>
   );
 }
