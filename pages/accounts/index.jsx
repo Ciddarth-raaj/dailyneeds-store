@@ -20,7 +20,6 @@ import { getCashSales, getTotals } from "../../util/account";
 import { Menu, MenuItem } from "@szhsin/react-menu";
 
 const HEADINGS = {
-  accounts_id: "Cashier Name",
   cashier_name: "Cashier Name",
   card_sales: "Card Sales",
   cash_sales: "Cash Sales",
