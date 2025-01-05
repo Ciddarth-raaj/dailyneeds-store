@@ -4,21 +4,25 @@ import CustomContainer from "../../components/CustomContainer";
 import Head from "../../util/head";
 import Link from "next/link";
 import { Button } from "@chakra-ui/button";
+import usePermissions from "../../customHooks/usePermissions";
 
-function index() {
+function Index() {
+  usePermissions();
   return (
     <GlobalWrapper title="Account Sheet">
       <Head />
       <CustomContainer
         title="Account Sheet"
         rightSection={
-          <Link href="/accounts/create" passHref>
-            <Button colorScheme="purple">Add</Button>
-          </Link>
+          usePermissions(["add_account_sheet"]) ? (
+            <Link href="/accounts/create" passHref>
+              <Button colorScheme="purple">Add</Button>
+            </Link>
+          ) : null
         }
       ></CustomContainer>
     </GlobalWrapper>
   );
 }
 
-export default index;
+export default Index;

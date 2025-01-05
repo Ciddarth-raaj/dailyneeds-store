@@ -7,7 +7,6 @@ function useEmployees(filter) {
   const init = async () => {
     try {
       const data = await EmployeeHelper.getEmployee(filter);
-      console.log("CIDD", data);
       if (!data.code) {
         setEmployees(data);
       }

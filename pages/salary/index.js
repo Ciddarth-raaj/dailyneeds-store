@@ -1,8 +1,15 @@
 import { Formik, Form } from "formik";
-import { Container, Flex, Button, ButtonGroup, Badge, Switch } from "@chakra-ui/react";
+import {
+  Container,
+  Flex,
+  Button,
+  ButtonGroup,
+  Badge,
+  Switch,
+} from "@chakra-ui/react";
 import styles from "../../styles/admin.module.css";
 import React, { useState, useEffect } from "react";
-import { CheckIcon, CloseIcon, LockIcon } from '@chakra-ui/icons'
+import { CheckIcon, CloseIcon, LockIcon } from "@chakra-ui/icons";
 import { toast } from "react-toastify";
 import Head from "../../util/head";
 import FamilyHelper from "../../helper/family";
@@ -19,241 +26,243 @@ import StoreHelper from "../../helper/store";
 var storeName = "";
 let valuesNew = [];
 export default class viewSalary extends React.Component {
-    constructor(props) {
-        super(props);
-        this.state = {
-            employeeDet: [],
-            hoverElement: false,
-            store_name: "",
-            name: '',
-            salary: [],
-            status: '',
-            id: 0,
-            store: [],
-            paid_status: '',
-            newId: 0,
-        };
+  constructor(props) {
+    super(props);
+    this.state = {
+      employeeDet: [],
+      hoverElement: false,
+      store_name: "",
+      name: "",
+      salary: [],
+      status: "",
+      id: 0,
+      store: [],
+      paid_status: "",
+      newId: 0,
+    };
+  }
+  componentDidMount() {
+    this.getSalaryData();
+    this.getStoreData();
+  }
+  componentDidUpdate() {
+    const { status, paid_status, store_name } = this.state;
+    if (status !== "") {
+      this.updateStatus();
     }
-    componentDidMount() {
-        this.getSalaryData();
-        this.getStoreData();
+    this.state.status = "";
+    this.state.id = 0;
+    if (paid_status !== "") {
+      this.updatePaidStatus();
     }
-    componentDidUpdate() {
-        const { status, paid_status, store_name } = this.state;
-        if (status !== '') {
-            this.updateStatus();
-        }
-        this.state.status = '';
-        this.state.id = 0;
-        if (paid_status !== '') {
-            this.updatePaidStatus();
-        }
-        this.state.paid_status = '';
-        this.state.newId = 0;
-        // if(store_name !== '') {
-        //     this.getSalaryOnStore();
-        // }
-        // this.state.name = this.state.store_name;
-        // this.state.store_name = '';
-    }
-    // getSalaryOnStore() {
-    //     const { store_name } = this.state;
-    //     FamilyHelper.getSalaryOnStore(
-    //     store_name
-    //     )
-    //         .then((data) => {
-    //             this.setState({ updatedSalary: data })
-    //         })
-    //         .catch((err) => console.log(err))
+    this.state.paid_status = "";
+    this.state.newId = 0;
+    // if(store_name !== '') {
+    //     this.getSalaryOnStore();
     // }
-    updatePaidStatus() {
-        const { newId, paid_status } = this.state;
-        SalaryHelper.updatePaidStatus({
-            payment_id: newId,
-            paid_status: paid_status
-        })
-            .then((data) => {
-                if (data.code === 200) {
-                    toast.success("Successfully Updated Salary Advance status!");
-                    router.push("/salary")
-                } else {
-                    toast.error("Error Updating Salary Advance status!");
-                    throw `${data.msg}`;
-                }
-            })
-            .catch((err) => console.log({ err: err }))
-            .finally(() => this.setState({ loading: false }));
-    }
-    updateStatus() {
-        const { id, status } = this.state;
-        SalaryHelper.updateStatus({
-            payment_id: id,
-            status: status
-        })
-            .then((data) => {
-                if (data.code === 200) {
-                    toast.success("Successfully Updated Salary Advance status!");
-                    router.push("/salary")
-                } else {
-                    toast.error("Error Updating Salary Advance status!");
-                    throw `${data.msg}`;
-                }
-            })
-            .catch((err) => console.log({ err: err }))
-            .finally(() => this.setState({ loading: false }));
-    }
-    getSalaryData() {
-        SalaryHelper.getSalary()
-            .then((data) => {
-                this.setState({ salary: data });
-            })
-            .catch((err) => console.log(err));
-    }
-    getStoreData() {
-        StoreHelper.getStore()
-            .then((data) => {
-                this.setState({ store: data });
-            })
-            .catch((err) => console.log(err));
-    }
-    getExportFile = () => {
-        const TABLE_HEADER = {
-            SNo: "SNo",
-            employee_name: "Employee Name",
-            payment_date: "Payment Date",
-            payment_amount: "Payment Amount",
-            installments: "installment duration",
-            approval_status: "Approval Status",
-            paid_status: "Paid Status",
-            action: "Action",
-        };
-        const formattedData = [];
-        valuesNew.forEach((d, i) => {
-            formattedData.push({
-                SNo: i + 1,
-                employee_name: d.employee_name,
-                payment_date: moment(d.created_at).format("YYYY-MM-DD"),
-                payment_amount: d.loan_amount,
-                installments: d.installment_duration,
-                approval_status:
-                    d.status === 0
-                        ? 'new'
-                        : d.status === 1
-                            ? 'verified'
-                            : 'denied',
-                paid_status: d.paid_status === 0
-                    ? 'Not Paid'
-                    : 'Paid'
-            });
-        });
+    // this.state.name = this.state.store_name;
+    // this.state.store_name = '';
+  }
+  // getSalaryOnStore() {
+  //     const { store_name } = this.state;
+  //     FamilyHelper.getSalaryOnStore(
+  //     store_name
+  //     )
+  //         .then((data) => {
+  //             this.setState({ updatedSalary: data })
+  //         })
+  //         .catch((err) => console.log(err))
+  // }
+  updatePaidStatus() {
+    const { newId, paid_status } = this.state;
+    SalaryHelper.updatePaidStatus({
+      payment_id: newId,
+      paid_status: paid_status,
+    })
+      .then((data) => {
+        if (data.code === 200) {
+          toast.success("Successfully Updated Salary Advance status!");
+          router.push("/salary");
+        } else {
+          toast.error("Error Updating Salary Advance status!");
+          throw `${data.msg}`;
+        }
+      })
+      .catch((err) => console.log({ err: err }))
+      .finally(() => this.setState({ loading: false }));
+  }
+  updateStatus() {
+    const { id, status } = this.state;
+    SalaryHelper.updateStatus({
+      payment_id: id,
+      status: status,
+    })
+      .then((data) => {
+        if (data.code === 200) {
+          toast.success("Successfully Updated Salary Advance status!");
+          router.push("/salary");
+        } else {
+          toast.error("Error Updating Salary Advance status!");
+          throw `${data.msg}`;
+        }
+      })
+      .catch((err) => console.log({ err: err }))
+      .finally(() => this.setState({ loading: false }));
+  }
+  getSalaryData() {
+    SalaryHelper.getSalary()
+      .then((data) => {
+        this.setState({ salary: data });
+      })
+      .catch((err) => console.log(err));
+  }
+  getStoreData() {
+    StoreHelper.getStore()
+      .then((data) => {
+        this.setState({ store: data });
+      })
+      .catch((err) => console.log(err));
+  }
+  getExportFile = () => {
+    const TABLE_HEADER = {
+      SNo: "SNo",
+      employee_name: "Employee Name",
+      payment_date: "Payment Date",
+      payment_amount: "Payment Amount",
+      installments: "installment duration",
+      approval_status: "Approval Status",
+      paid_status: "Paid Status",
+      action: "Action",
+    };
+    const formattedData = [];
+    valuesNew.forEach((d, i) => {
+      formattedData.push({
+        SNo: i + 1,
+        employee_name: d.employee_name,
+        payment_date: moment(d.created_at).format("YYYY-MM-DD"),
+        payment_amount: d.loan_amount,
+        installments: d.installment_duration,
+        approval_status:
+          d.status === 0 ? "new" : d.status === 1 ? "verified" : "denied",
+        paid_status: d.paid_status === 0 ? "Not Paid" : "Paid",
+      });
+    });
 
-        exportCSVFile(
-            TABLE_HEADER,
-            formattedData,
-            "salary_details" + moment().format("DD-MMY-YYYY")
-        );
+    exportCSVFile(
+      TABLE_HEADER,
+      formattedData,
+      "salary_details" + moment().format("DD-MMY-YYYY")
+    );
+  };
+
+  badge = (m) => (
+    <>
+      <CheckIcon
+        style={{ color: "green" }}
+        id="email-alerts"
+        onClick={() => {
+          this.setState({ id: m.id, status: "1" });
+        }}
+      />
+      <CloseIcon
+        style={{ color: "red" }}
+        className={styles.switch}
+        id="email-alerts"
+        onClick={() => {
+          this.setState({ id: m.id, status: "-1" });
+        }}
+      />
+    </>
+  );
+  verify = (m) => (
+    <Link href={`/salary/${m.id}`}>
+      <Badge
+        colorScheme={
+          m.value === "new" ? "" : m.value === "verified" ? "green" : "red"
+        }
+      >
+        {m.value}
+      </Badge>
+    </Link>
+  );
+
+  storeName(n) {
+    this.state.store.map((m) => {
+      if (m.id == n.value) {
+        storeName = m.value;
+      }
+    });
+    return <Link href={`/salary/${n.id}`}>{storeName}</Link>;
+  }
+
+  paid_status = (m) => (
+    <Switch
+      className={styles.switchSalary}
+      id="email-alerts"
+      defaultChecked={m.value === 1}
+      onChange={() => {
+        this.setState({ paid_status: m.value === 1 ? 0 : 1, newId: m.id });
+      }}
+    />
+  );
+  render() {
+    const {
+      employeeDet,
+      name,
+      store,
+      updatedFamily,
+      salary,
+      hoverElement,
+      details,
+    } = this.state;
+    let permission_array = global.config.permissions;
+    const initialValue = {
+      dob_1: "",
+      dob_2: "",
+    };
+    const table_title = {
+      SNo: "SNo",
+      store_name: "Store Name",
+      employee_name: "Employee Name",
+      payment_date: "Payment Date",
+      payment_amount: "Payment Amount",
+      installments: "Installments",
+      approval_status: "Approval Status",
+      paid_status: "Paid Status",
+      action: "Action",
     };
 
-    badge = m => (
-        <>
-            <CheckIcon
-                style={{ color: 'green' }}
-                id='email-alerts'
-                onClick={() => {
-                    this.setState({ id: m.id, status: '1' })
-                }}
-            />
-            <CloseIcon
-                style={{ color: 'red' }}
-                className={styles.switch}
-                id='email-alerts'
-                onClick={() => {
-                    this.setState({ id: m.id, status: '-1' })
-                }}
-            />
-        </>
-    )
-    verify = m => (
-        <Link href={`/salary/${m.id}`}>
-            <Badge
-                colorScheme={
-                    m.value === 'new' ? '' : m.value === 'verified' ? 'green' : 'red'
-                }
-            >
-                {m.value}
-            </Badge>
-        </Link>
-    )
+    valuesNew = salary.map((m) => ({
+      id: m.payment_id,
+      store_name: this.storeName({ value: m.store_id, id: m.payment_id }),
+      employee_name: m.employee,
+      payment_date: moment(m.created_at).format("YYYY-MM-DD"),
+      payment_amount: m.loan_amount,
+      installments: m.installment_duration,
+      approval_status: this.verify({
+        value: m.status === 0 ? "new" : m.status === 1 ? "verified" : "denied",
+        id: m.payment_id,
+      }),
+      paid_status: this.paid_status({ value: m.paid_status, id: m.payment_id }),
+      action: this.badge({ value: m.status, id: m.payment_id }),
+    }));
 
-    storeName(n) {
-        this.state.store.map((m) => {
-            if (m.id == n.value) {
-                storeName = m.value;
-            }
-        })
-        return <Link href={`/salary/${n.id}`}>{storeName}</Link>;
-    }
-
-    paid_status = (m) => (
-        <Switch className={styles.switchSalary} id="email-alerts" defaultChecked={m.value === 1} onChange={() => { this.setState({ paid_status: m.value === 1 ? 0 : 1, newId: m.id }) }} />
-    )
-    render() {
-        const { employeeDet, name, store, updatedFamily, salary, hoverElement, details } = this.state;
-        let permission_array = global.config.data;
-        const initialValue = {
-            dob_1: "",
-            dob_2: "",
-        };
-        const table_title = {
-            SNo: "SNo",
-            store_name: "Store Name",
-            employee_name: "Employee Name",
-            payment_date: "Payment Date",
-            payment_amount: "Payment Amount",
-            installments: "Installments",
-            approval_status: "Approval Status",
-            paid_status: "Paid Status",
-            action: "Action",
-        };
-
-        valuesNew = salary.map((m) => (
-            {
-                id: m.payment_id,
-                store_name: this.storeName({ value: m.store_id, id: m.payment_id }),
-                employee_name: m.employee,
-                payment_date: moment(m.created_at).format("YYYY-MM-DD"),
-                payment_amount: m.loan_amount,
-                installments: m.installment_duration,
-                approval_status: this.verify({
-                    value:
-                        m.status === 0
-                            ? 'new'
-                            : m.status === 1
-                                ? 'verified'
-                                : 'denied',
-                    id: m.payment_id
-                }),
-                paid_status: this.paid_status({ value: m.paid_status, id: m.payment_id }),
-                action: this.badge({ value: m.status, id: m.payment_id }),
-            }
-        ));
-
-        return (
-            <Formik
-                initialValues={initialValue}
-                onSubmit={(values) => {
-                    console.log(values);
-                }}
-                validationSchema={Validation}
-            >
-                <Form>
-                    <GlobalWrapper title="All Employee Salary Advance">
-                        <Head />
-                        <Flex templateColumns="repeat(3, 1fr)" gap={6} colSpan={2}>
-                            <Container className={styles.container} boxShadow="lg">
-                                <p className={styles.salaryButtoninputHolder}>
-                                    <div>View Details</div>
-                                    {/* <div className={styles.dropdown}>
+    return (
+      <Formik
+        initialValues={initialValue}
+        onSubmit={(values) => {
+          console.log(values);
+        }}
+        validationSchema={Validation}
+      >
+        <Form>
+          <GlobalWrapper title="All Employee Salary Advance">
+            <Head />
+            <Flex templateColumns="repeat(3, 1fr)" gap={6} colSpan={2}>
+              <Container className={styles.container} boxShadow="lg">
+                <p className={styles.salaryButtoninputHolder}>
+                  <div>View Details</div>
+                  {/* <div className={styles.dropdown}>
                                     <input placeholder="All Store" onChange={(e) => this.setState({ name: e.target.value  })} type="text" value={name === "" ? "" : `${name}`} onMouseEnter={() => this.setState({hoverElement: false})} 
                                      className={styles.dropbtn} />
                                     <div className={styles.dropdowncontent} style={hoverElement === false ? {color: "black"} : {display: "none"}}>
@@ -263,59 +272,54 @@ export default class viewSalary extends React.Component {
                                         ))}
                                     </div>
                                 </div> */}
-                                    {permission_array.length > 0 ?
-                                        permission_array.map((m) => (
-                                            <>
-                                                {m.permission_key === 'add_salary_advance' && (
-                                                    <div style={{ paddingRight: 10 }}>
-                                                        <Link href="/salary/create">
-                                                            <Button colorScheme="purple">
-                                                                {"Add"}
-                                                            </Button>
-                                                        </Link>
-                                                    </div>
-                                                )}
-                                            </>
-                                        )) : (
-                                            <div style={{ paddingRight: 10 }}>
-                                                <Link href="/salary/create">
-                                                    <Button colorScheme="purple">
-                                                        {"Add"}
-                                                    </Button>
-                                                </Link>
-                                            </div>
-                                        )}
-                                </p>
-                                <div style={{ paddingTop: 30 }}>
-                                    <Table
-                                        heading={table_title}
-                                        rows={valuesNew}
-                                        sortCallback={(key, type) =>
-                                            sortCallback(key, type)
-                                        }
-                                    />
-                                    <ButtonGroup
-                                        style={{
-                                            display: "flex",
-                                            justifyContent: "flex-end",
-                                            paddingBottom: 15,
-                                        }}
-                                    >
-                                        <Button
-                                            colorScheme="purple"
-                                            onClick={() => this.getExportFile()}
-                                        >
-                                            {"Export"}
-                                        </Button>
-                                    </ButtonGroup>
-                                </div>
-                            </Container>
-                        </Flex>
-                    </GlobalWrapper>
-                </Form>
-            </Formik>
-        );
-    }
+                  {permission_array.length > 0 ? (
+                    permission_array.map((m) => (
+                      <>
+                        {m.permission_key === "add_salary_advance" && (
+                          <div style={{ paddingRight: 10 }}>
+                            <Link href="/salary/create">
+                              <Button colorScheme="purple">{"Add"}</Button>
+                            </Link>
+                          </div>
+                        )}
+                      </>
+                    ))
+                  ) : (
+                    <div style={{ paddingRight: 10 }}>
+                      <Link href="/salary/create">
+                        <Button colorScheme="purple">{"Add"}</Button>
+                      </Link>
+                    </div>
+                  )}
+                </p>
+                <div style={{ paddingTop: 30 }}>
+                  <Table
+                    heading={table_title}
+                    rows={valuesNew}
+                    sortCallback={(key, type) => sortCallback(key, type)}
+                  />
+                  <ButtonGroup
+                    style={{
+                      display: "flex",
+                      justifyContent: "flex-end",
+                      paddingBottom: 15,
+                    }}
+                  >
+                    <Button
+                      colorScheme="purple"
+                      onClick={() => this.getExportFile()}
+                    >
+                      {"Export"}
+                    </Button>
+                  </ButtonGroup>
+                </div>
+              </Container>
+            </Flex>
+          </GlobalWrapper>
+        </Form>
+      </Formik>
+    );
+  }
 }
 
 // export default viewSalary;

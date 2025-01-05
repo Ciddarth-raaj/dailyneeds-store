@@ -772,8 +772,6 @@ class Create extends React.Component {
       // minW: "600px",
     };
 
-    console.log("CIDD", this.props.data);
-
     return (
       <GlobalWrapper title="New Employee">
         <Head />

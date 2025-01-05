@@ -66,7 +66,7 @@ export default function Sidebar() {
         try {
           if (!data) return;
           setFilteredData(data);
-          global.config.data = data;
+          global.config.permissions = data;
         } catch (error) {
           console.error("Error processing permissions:", error);
         }

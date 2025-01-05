@@ -48,9 +48,9 @@ class Registration extends React.Component {
     };
   }
   componentDidMount() {
-    let arr = global.config.data;
+    let arr = global.config.permissions;
     if (arr.length > 0) {
-      this.setState({ permission_array: global.config.data });
+      this.setState({ permission_array: global.config.permissions });
       arr = null;
     }
     this.getEmployeeData();
