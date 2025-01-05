@@ -16,7 +16,7 @@ import styles from "../../styles/accounts.module.css";
 import Table from "../../components/table/table";
 import { useAccounts } from "../../customHooks/useAccounts";
 import currencyFormatter from "../../util/currencyFormatter";
-import { getCashSales, getTotals } from "../../util/account";
+import { getCashSales, getTotals, getDenominations } from "../../util/account";
 import { Menu, MenuItem } from "@szhsin/react-menu";
 
 const HEADINGS = {
@@ -29,12 +29,17 @@ const HEADINGS = {
   actions: "Actions",
 };
 
+const HEADINGS_DENOMINATION = {
+  denomination: "Denomination",
+  count: "Count",
+  total: "Total Value",
+};
+
 function Index() {
   const { storeId } = useUser().userConfig;
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedOutlet, setSelectedOutlet] = useState(storeId);
 
-  // Memoize filters with start and end of day
   const filters = useMemo(() => {
     const startOfDay = new Date(selectedDate);
     startOfDay.setHours(0, 0, 0, 0);
@@ -49,7 +54,6 @@ function Index() {
     };
   }, [selectedOutlet, selectedDate]);
 
-  // Pass memoized filters to useAccounts
   const { accounts } = useAccounts(filters);
 
   const modifiedAccounts = useMemo(() => {
@@ -86,6 +90,10 @@ function Index() {
     });
 
     return modified;
+  }, [accounts]);
+
+  const modifiedDenominations = useMemo(() => {
+    return getDenominations(accounts);
   }, [accounts]);
 
   const { outlets } = useOutlets();
@@ -135,6 +143,18 @@ function Index() {
 
           <CustomContainer title="Store Account" filledHeader smallHeader>
             <Table heading={HEADINGS} rows={modifiedAccounts} variant="plain" />
+          </CustomContainer>
+
+          <CustomContainer
+            title="Cash Denomination Summary"
+            filledHeader
+            smallHeader
+          >
+            <Table
+              heading={HEADINGS_DENOMINATION}
+              rows={modifiedDenominations}
+              variant="plain"
+            />
           </CustomContainer>
         </div>
       </CustomContainer>

@@ -42,3 +42,41 @@ export function getTotals(accounts) {
     cash_sales: <b>{currencyFormatter(totals.cash_sales)}</b>,
   };
 }
+
+export function getDenominations(accounts) {
+  // Define all possible denominations
+  const denominations = [500, 200, 100, 50, 20, 10, 5, 2, 1];
+
+  // Calculate totals for each denomination
+  const denominationRows = denominations.map((denom) => {
+    const count = accounts.reduce((sum, account) => {
+      const handoverKey = `cash_handover_${denom}`;
+      return sum + (parseInt(account[handoverKey]) || 0);
+    }, 0);
+
+    return {
+      denomination: currencyFormatter(denom, { minimumFractionDigits: 0 }),
+      count: count,
+      total: currencyFormatter(denom * count),
+      rawTotal: denom * count, // Add raw value for sum calculation
+    };
+  });
+
+  // Calculate grand total
+  const grandTotal = denominationRows.reduce(
+    (sum, row) => sum + row.rawTotal,
+    0
+  );
+
+  // Add total row
+  denominationRows.push({
+    count: <b>Total</b>,
+    total: (
+      <b style={{ color: "var(--chakra-colors-purple-500)" }}>
+        {currencyFormatter(grandTotal)}
+      </b>
+    ),
+  });
+
+  return denominationRows;
+}
