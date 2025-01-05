@@ -12,6 +12,10 @@
   /* color: white; */
 }
 
+.smallHeading {
+  font-size: 16px;
+}
+
 .headingContainer {
   display: flex;
   align-items: center;

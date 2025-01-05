@@ -6,3 +6,9 @@
   border-radius: 12px;
   border: 1px solid #eee;
 }
+
+.mainContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}

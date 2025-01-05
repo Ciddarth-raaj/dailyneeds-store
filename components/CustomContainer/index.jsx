@@ -2,7 +2,13 @@ import React from "react";
 
 import styles from "./styles.module.css";
 
-function CustomContainer({ title, rightSection, children, filledHeader }) {
+function CustomContainer({
+  title,
+  rightSection,
+  children,
+  filledHeader,
+  smallHeader,
+}) {
   return (
     <div className={styles.mainContainer}>
       <div
@@ -10,7 +16,13 @@ function CustomContainer({ title, rightSection, children, filledHeader }) {
           filledHeader ? styles.filledHeader : ""
         }`}
       >
-        <p className={styles.heading}>{title}</p>
+        <p
+          className={`${styles.heading} ${
+            smallHeader ? styles.smallHeading : ""
+          }`}
+        >
+          {title}
+        </p>
         {rightSection}
       </div>
 

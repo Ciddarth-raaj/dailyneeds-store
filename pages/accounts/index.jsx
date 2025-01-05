@@ -13,6 +13,18 @@ import useOutlets from "../../customHooks/useOutlets";
 import { Select } from "@chakra-ui/react";
 import { useUser } from "../../contexts/UserContext";
 import styles from "../../styles/accounts.module.css";
+import Table from "../../components/table/table";
+
+const HEADINGS = {
+  si_number: "SI No",
+  cashier_name: "Cashier Name",
+  total_sales: "Total Sales",
+  card_sales: "Card Sales",
+  cash_sales: "Cash Sales",
+  sales_return: "Sales Return",
+  loyalty: "Loyalty",
+  actions: "Actions",
+};
 
 function Index() {
   const { storeId } = useUser().userConfig;
@@ -38,29 +50,35 @@ function Index() {
           ) : null
         }
       >
-        <div className={styles.selectorContainer}>
-          <DatePicker
-            selected={selectedDate}
-            customInput={
-              <CustomDateTimeInput style={{ backgroundColor: "white" }} />
-            }
-            onChange={(val) => {
-              setSelectedDate(val);
-            }}
-          />
+        <div className={styles.mainContainer}>
+          <div className={styles.selectorContainer}>
+            <DatePicker
+              selected={selectedDate}
+              customInput={
+                <CustomDateTimeInput style={{ backgroundColor: "white" }} />
+              }
+              onChange={(val) => {
+                setSelectedDate(val);
+              }}
+            />
 
-          <Select
-            placeholder="Select Outlet"
-            value={selectedOutlet}
-            onChange={(val) => setSelectedOutlet(val.target.value)}
-            style={{ backgroundColor: "white" }}
-          >
-            {OUTLETS_LIST?.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.value}
-              </option>
-            ))}
-          </Select>
+            <Select
+              placeholder="Select Outlet"
+              value={selectedOutlet}
+              onChange={(val) => setSelectedOutlet(val.target.value)}
+              style={{ backgroundColor: "white" }}
+            >
+              {OUTLETS_LIST?.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.value}
+                </option>
+              ))}
+            </Select>
+          </div>
+
+          <CustomContainer title="Store Account" filledHeader smallHeader>
+            <Table heading={HEADINGS} rows={[]} variant="plain" />
+          </CustomContainer>
         </div>
       </CustomContainer>
     </GlobalWrapper>
