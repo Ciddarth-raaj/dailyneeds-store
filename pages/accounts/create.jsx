@@ -72,8 +72,10 @@ const MODIFIED_PEOPLE_TYPES = [
 
 function Create() {
   const { peopleList } = usePeople();
+
+  const loggedInUserStoreID = global.config.store_id;
   const { employees } = useEmployees({
-    store_ids: global.config.store_id == "null" ? [] : [global.config.store_id],
+    store_ids: loggedInUserStoreID == "null" ? [] : [loggedInUserStoreID],
     designation_ids: [CASHIER_DESIGNATION],
   });
   const [isDenominationOpen, setIsDenominationOpen] = useState(false);
@@ -84,7 +86,18 @@ function Create() {
     }
 
     return peopleList
-      .filter((item) => item.person_type == personType)
+      .filter((item) => {
+        if (
+          item.person_type == personType &&
+          (loggedInUserStoreID == "null" ||
+            item.store_ids == null ||
+            item.store_ids.includes(loggedInUserStoreID))
+        ) {
+          return true;
+        }
+
+        return false;
+      })
       .map((item) => ({ id: item.person_id, value: item.name }));
   };
 
