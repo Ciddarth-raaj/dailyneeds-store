@@ -62,3 +62,16 @@ export const deleteAccount = (id) => {
     }
   });
 };
+
+export const saveAccountSheet = async (params) => {
+  try {
+    const response = await API.post("/accounts/save", {
+      sheet_date: params.sheet_date,
+      store_id: params.store_id,
+    });
+    return response.data;
+  } catch (err) {
+    console.error("Error saving account sheet:", err);
+    throw err;
+  }
+};

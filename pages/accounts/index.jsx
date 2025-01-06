@@ -25,6 +25,7 @@ import {
 import { Menu, MenuItem } from "@szhsin/react-menu";
 import EmptyData from "../../components/EmptyData";
 import { TableSkeleton } from "../../components/Skeleton";
+import toast from "react-hot-toast";
 
 const HEADINGS = {
   cashier_name: "Cashier Name",
@@ -68,7 +69,7 @@ function Index() {
     };
   }, [selectedOutlet, selectedDate]);
 
-  const { accounts, loading } = useAccounts(filters);
+  const { accounts, loading, isSaved, saveSheet } = useAccounts(filters);
 
   const modifiedAccounts = useMemo(() => {
     const modified = accounts.map((item) => ({
@@ -84,6 +85,7 @@ function Index() {
           gap={5}
           menuButton={
             <IconButton
+              disabled={isSaved}
               variant="ghost"
               colorScheme="purple"
               icon={<i className={`fa fa-ellipsis-v`} />}
@@ -119,6 +121,18 @@ function Index() {
     id: item.outlet_id,
     value: item.outlet_name,
   }));
+
+  const handleSaveSheet = async () => {
+    try {
+      toast.promise(saveSheet(), {
+        loading: "Saving account sheet",
+        success: "Account sheet saved successfully!",
+        error: "Failed to save account sheet",
+      });
+    } catch (error) {
+      console.error("Error saving sheet:", error);
+    }
+  };
 
   return (
     <GlobalWrapper title="Account Sheet">
@@ -212,7 +226,15 @@ function Index() {
                   <Button colorScheme="purple" variant="outline">
                     Print
                   </Button>
-                  <Button colorScheme="purple">Submit Sheet</Button>
+                  {selectedOutlet && (
+                    <Button
+                      colorScheme="purple"
+                      disabled={isSaved}
+                      onClick={handleSaveSheet}
+                    >
+                      Submit Sheet
+                    </Button>
+                  )}
                 </div>
               </CustomContainer>
             </div>
