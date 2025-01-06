@@ -30,20 +30,25 @@
 }
 
 .infoText {
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .infoLabel {
   color: var(--chakra-colors-purple-500);
 }
 
-.label {
+.label,
+.uneditableLabel {
   font-size: 14px;
   color: gray;
   font-weight: 600;
   margin-bottom: 6px;
 }
 
+.uneditableLabel {
+  color: var(--chakra-colors-purple-500);
+  font-weight: 400;
+}
 .fileUpload {
   width: 100%;
 }

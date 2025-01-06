@@ -211,7 +211,7 @@ function AccountForm({ formikProps, EMPLOYEES_MENU }) {
                   colorScheme="red"
                   onClick={() => arrayHelpers.remove(index)}
                 >
-                  <i className="fa fa-trash-o" aria-hidden="true" />
+                  <i className="fa fa-trash" aria-hidden="true" />
                 </IconButton>
               </div>
             ))}

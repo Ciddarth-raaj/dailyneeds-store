@@ -117,10 +117,34 @@ const TextField = ({
     return positions[position] || positions.top;
   };
 
+  const getDisplayValue = (value) => {
+    if (value === null) {
+      return "N/A";
+    }
+
+    if (method === "datepicker") {
+      return moment(value).format("DD/MM/YYYY");
+    }
+
+    if (method === "switch") {
+      return values.find((item) => item.id === value)?.value;
+    }
+
+    return value;
+  };
+
   return (
     <div className={styles.personalInputs} style={containerStyle}>
       {editable != undefined && !editable ? (
-        <p className={styles.infoText}>{field.value}</p>
+        <>
+          <label
+            className={styles.uneditableLabel}
+            style={getStaticLabelStyles()}
+          >
+            {label.replace("*", "")}
+          </label>
+          <p className={styles.infoText}>{getDisplayValue(field.value)}</p>
+        </>
       ) : (
         <>
           {[
