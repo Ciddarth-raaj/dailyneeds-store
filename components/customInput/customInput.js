@@ -127,15 +127,11 @@ const TextField = ({
     }
 
     if (method === "switch") {
-      return values.find((item) => item.id === value)?.value;
+      return values.find((item) => item.id === value)?.value ?? "N/A";
     }
 
     return value;
   };
-
-  if (method === "switch") {
-    console.log("CIDD", label, field);
-  }
 
   return (
     <div className={styles.personalInputs} style={containerStyle}>
