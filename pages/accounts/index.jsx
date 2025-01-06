@@ -94,8 +94,14 @@ function Index() {
           }
           transition
         >
-          <MenuItem>View</MenuItem>
-          <MenuItem>Edit</MenuItem>
+          <Link href={`/accounts/view?id=${item.accounts_id}`} passHref>
+            <a target="_blank" rel="noopener noreferrer">
+              <MenuItem>View</MenuItem>
+            </a>
+          </Link>
+          <Link href={`/accounts/edit?id=${item.accounts_id}`} passHref>
+            <MenuItem>Edit</MenuItem>
+          </Link>
           <MenuItem>Delete</MenuItem>
         </Menu>
       ),
