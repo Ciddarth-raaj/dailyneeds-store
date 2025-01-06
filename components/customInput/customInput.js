@@ -118,7 +118,7 @@ const TextField = ({
   };
 
   const getDisplayValue = (value) => {
-    if (value === null) {
+    if (!value && value !== 0 && value !== "0") {
       return "N/A";
     }
 
@@ -133,10 +133,24 @@ const TextField = ({
     return value;
   };
 
+  if (method === "switch") {
+    console.log("CIDD", label, field);
+  }
+
   return (
     <div className={styles.personalInputs} style={containerStyle}>
       {editable != undefined && !editable ? (
-        <>
+        <div
+          style={{
+            display: "flex",
+            flexDirection:
+              position === "left" || position === "right" ? "row" : "column",
+            alignItems:
+              position === "left" || position === "right"
+                ? "center"
+                : "flex-start",
+          }}
+        >
           <label
             className={styles.uneditableLabel}
             style={getStaticLabelStyles()}
@@ -144,7 +158,7 @@ const TextField = ({
             {label.replace("*", "")}
           </label>
           <p className={styles.infoText}>{getDisplayValue(field.value)}</p>
-        </>
+        </div>
       ) : (
         <>
           {[

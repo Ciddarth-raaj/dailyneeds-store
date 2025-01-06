@@ -15,8 +15,9 @@ import { useUser } from "../../contexts/UserContext";
 import useEmployees from "../../customHooks/useEmployees";
 import { CASHIER_DESIGNATION } from "../../constants/designations";
 
-function AccountForm({ formikProps }) {
+function AccountForm({ formikProps, isViewMode }) {
   const { handleSubmit, resetForm, values } = formikProps;
+  const editable = !isViewMode;
 
   // custom hooks
   const { peopleList } = usePeople();
@@ -65,6 +66,7 @@ function AccountForm({ formikProps }) {
             name="date"
             type="text"
             method="datepicker"
+            editable={editable}
           />
           <CustomInput
             label="Cashier *"
@@ -72,14 +74,31 @@ function AccountForm({ formikProps }) {
             type="number"
             values={EMPLOYEES_MENU}
             method="switch"
+            editable={editable}
           />
-          <CustomInput label="Total Sales *" name="total_sales" type="number" />
-          <CustomInput label="Card Sales *" name="card_sales" type="number" />
-          <CustomInput label="Loyalty *" name="loyalty" type="number" />
+          <CustomInput
+            label="Total Sales *"
+            name="total_sales"
+            type="number"
+            editable={editable}
+          />
+          <CustomInput
+            label="Card Sales *"
+            name="card_sales"
+            type="number"
+            editable={editable}
+          />
+          <CustomInput
+            label="Loyalty *"
+            name="loyalty"
+            type="number"
+            editable={editable}
+          />
           <CustomInput
             label="Sales Return *"
             name="sales_return"
             type="number"
+            editable={editable}
           />
         </div>
 
@@ -105,6 +124,7 @@ function AccountForm({ formikProps }) {
                   type="number"
                   position="left"
                   labelWidth="50px"
+                  editable={editable}
                 />
                 <CustomInput
                   label="₹200"
@@ -112,6 +132,7 @@ function AccountForm({ formikProps }) {
                   type="number"
                   position="left"
                   labelWidth="50px"
+                  editable={editable}
                 />
                 <CustomInput
                   label="₹100"
@@ -119,6 +140,7 @@ function AccountForm({ formikProps }) {
                   type="number"
                   position="left"
                   labelWidth="50px"
+                  editable={editable}
                 />
                 <CustomInput
                   label="₹50"
@@ -126,6 +148,7 @@ function AccountForm({ formikProps }) {
                   type="number"
                   position="left"
                   labelWidth="50px"
+                  editable={editable}
                 />
                 <CustomInput
                   label="₹20"
@@ -133,6 +156,7 @@ function AccountForm({ formikProps }) {
                   type="number"
                   position="left"
                   labelWidth="50px"
+                  editable={editable}
                 />
                 <CustomInput
                   label="₹10"
@@ -140,6 +164,7 @@ function AccountForm({ formikProps }) {
                   type="number"
                   position="left"
                   labelWidth="50px"
+                  editable={editable}
                 />
                 <CustomInput
                   label="₹5"
@@ -147,6 +172,7 @@ function AccountForm({ formikProps }) {
                   type="number"
                   position="left"
                   labelWidth="50px"
+                  editable={editable}
                 />
                 <CustomInput
                   label="₹2"
@@ -154,6 +180,7 @@ function AccountForm({ formikProps }) {
                   type="number"
                   position="left"
                   labelWidth="50px"
+                  editable={editable}
                 />
                 <CustomInput
                   label="₹1"
@@ -161,6 +188,7 @@ function AccountForm({ formikProps }) {
                   type="number"
                   position="left"
                   labelWidth="50px"
+                  editable={editable}
                 />
               </>
             )}
@@ -186,6 +214,7 @@ function AccountForm({ formikProps }) {
                   type="number"
                   values={MODIFIED_PEOPLE_TYPES}
                   method="switch"
+                  editable={editable}
                 />
                 <CustomInput
                   label="Payment Type *"
@@ -193,6 +222,7 @@ function AccountForm({ formikProps }) {
                   type="number"
                   values={PAYMENT_TYPES_ACCOUNTS}
                   method="switch"
+                  editable={editable}
                 />
                 <CustomInput
                   label="Name *"
@@ -200,42 +230,50 @@ function AccountForm({ formikProps }) {
                   type="number"
                   values={getPeopleList(account.person_type)}
                   method="switch"
+                  editable={editable}
                 />
                 <CustomInput
                   label="Narration *"
                   name={`accounts.${index}.description`}
                   type="text"
+                  editable={editable}
                 />
                 <CustomInput
                   label="Amount *"
                   name={`accounts.${index}.amount`}
                   type="number"
+                  editable={editable}
                 />
 
                 <CustomInput
                   label="Receipt"
                   name={`accounts.${index}.receipt`}
                   method="file"
+                  editable={editable}
                 />
 
-                <IconButton
-                  mb="24px"
-                  variant="outline"
-                  colorScheme="red"
-                  onClick={() => arrayHelpers.remove(index)}
-                >
-                  <i className="fa fa-trash" aria-hidden="true" />
-                </IconButton>
+                {editable && (
+                  <IconButton
+                    mb="24px"
+                    variant="outline"
+                    colorScheme="red"
+                    onClick={() => arrayHelpers.remove(index)}
+                  >
+                    <i className="fa fa-trash" aria-hidden="true" />
+                  </IconButton>
+                )}
               </div>
             ))}
 
-            <Button
-              onClick={() => arrayHelpers.push(EMPTY_ACCOUNT_OBJECT)}
-              variant="ghost"
-              colorScheme="purple"
-            >
-              Add Row
-            </Button>
+            {editable && (
+              <Button
+                onClick={() => arrayHelpers.push(EMPTY_ACCOUNT_OBJECT)}
+                variant="ghost"
+                colorScheme="purple"
+              >
+                Add Row
+              </Button>
+            )}
           </div>
         )}
       />
@@ -248,18 +286,26 @@ function AccountForm({ formikProps }) {
           </p>
         </Badge>
 
-        <Button variant="outline" colorScheme="red" onClick={() => resetForm()}>
-          Reset
-        </Button>
+        {editable && (
+          <>
+            <Button
+              variant="outline"
+              colorScheme="red"
+              onClick={() => resetForm()}
+            >
+              Reset
+            </Button>
 
-        <Button
-          colorScheme="purple"
-          onClick={() => {
-            handleSubmit();
-          }}
-        >
-          Create
-        </Button>
+            <Button
+              colorScheme="purple"
+              onClick={() => {
+                handleSubmit();
+              }}
+            >
+              Create
+            </Button>
+          </>
+        )}
       </div>
     </div>
   );
