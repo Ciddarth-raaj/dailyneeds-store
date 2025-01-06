@@ -16,6 +16,7 @@ function Create() {
   const { mode, id: paramId } = router.query;
   const viewMode = mode === "view";
 
+  const [isSaved, setIsSaved] = useState(false);
   const [initialValues, setInitialValues] = useState({
     date: new Date(),
     total_sales: null,
@@ -107,6 +108,7 @@ function Create() {
           const data = response.data;
           data.accounts = data.sales;
 
+          setIsSaved(response.is_saved);
           setInitialValues(data);
         }
       }
@@ -126,7 +128,11 @@ function Create() {
           onSubmit={addAccountHandler}
         >
           {(formikProps) => (
-            <AccountForm formikProps={formikProps} isViewMode={viewMode} />
+            <AccountForm
+              formikProps={formikProps}
+              isViewMode={viewMode}
+              isSaved={isSaved}
+            />
           )}
         </Formik>
       </CustomContainer>

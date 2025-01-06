@@ -15,7 +15,7 @@ import { useUser } from "../../contexts/UserContext";
 import useEmployees from "../../customHooks/useEmployees";
 import { CASHIER_DESIGNATION } from "../../constants/designations";
 
-function AccountForm({ formikProps, isViewMode }) {
+function AccountForm({ formikProps, isViewMode, isSaved }) {
   const { handleSubmit, resetForm, values } = formikProps;
   const editable = !isViewMode;
 
@@ -67,6 +67,7 @@ function AccountForm({ formikProps, isViewMode }) {
             type="text"
             method="datepicker"
             editable={editable}
+            disabled={isSaved}
           />
           <CustomInput
             label="Cashier *"
@@ -75,30 +76,35 @@ function AccountForm({ formikProps, isViewMode }) {
             values={EMPLOYEES_MENU}
             method="switch"
             editable={editable}
+            disabled={isSaved}
           />
           <CustomInput
             label="Total Sales *"
             name="total_sales"
             type="number"
             editable={editable}
+            disabled={isSaved}
           />
           <CustomInput
             label="Card Sales *"
             name="card_sales"
             type="number"
             editable={editable}
+            disabled={isSaved}
           />
           <CustomInput
             label="Loyalty *"
             name="loyalty"
             type="number"
             editable={editable}
+            disabled={isSaved}
           />
           <CustomInput
             label="Sales Return *"
             name="sales_return"
             type="number"
             editable={editable}
+            disabled={isSaved}
           />
         </div>
 
@@ -125,6 +131,7 @@ function AccountForm({ formikProps, isViewMode }) {
                   position="left"
                   labelWidth="50px"
                   editable={editable}
+                  disabled={isSaved}
                 />
                 <CustomInput
                   label="₹200"
@@ -133,6 +140,7 @@ function AccountForm({ formikProps, isViewMode }) {
                   position="left"
                   labelWidth="50px"
                   editable={editable}
+                  disabled={isSaved}
                 />
                 <CustomInput
                   label="₹100"
@@ -141,6 +149,7 @@ function AccountForm({ formikProps, isViewMode }) {
                   position="left"
                   labelWidth="50px"
                   editable={editable}
+                  disabled={isSaved}
                 />
                 <CustomInput
                   label="₹50"
@@ -149,6 +158,7 @@ function AccountForm({ formikProps, isViewMode }) {
                   position="left"
                   labelWidth="50px"
                   editable={editable}
+                  disabled={isSaved}
                 />
                 <CustomInput
                   label="₹20"
@@ -157,6 +167,7 @@ function AccountForm({ formikProps, isViewMode }) {
                   position="left"
                   labelWidth="50px"
                   editable={editable}
+                  disabled={isSaved}
                 />
                 <CustomInput
                   label="₹10"
@@ -165,6 +176,7 @@ function AccountForm({ formikProps, isViewMode }) {
                   position="left"
                   labelWidth="50px"
                   editable={editable}
+                  disabled={isSaved}
                 />
                 <CustomInput
                   label="₹5"
@@ -173,6 +185,7 @@ function AccountForm({ formikProps, isViewMode }) {
                   position="left"
                   labelWidth="50px"
                   editable={editable}
+                  disabled={isSaved}
                 />
                 <CustomInput
                   label="₹2"
@@ -181,6 +194,7 @@ function AccountForm({ formikProps, isViewMode }) {
                   position="left"
                   labelWidth="50px"
                   editable={editable}
+                  disabled={isSaved}
                 />
                 <CustomInput
                   label="₹1"
@@ -189,6 +203,7 @@ function AccountForm({ formikProps, isViewMode }) {
                   position="left"
                   labelWidth="50px"
                   editable={editable}
+                  disabled={isSaved}
                 />
               </>
             )}
@@ -215,6 +230,7 @@ function AccountForm({ formikProps, isViewMode }) {
                   values={MODIFIED_PEOPLE_TYPES}
                   method="switch"
                   editable={editable}
+                  disabled={isSaved}
                 />
                 <CustomInput
                   label="Payment Type *"
@@ -223,6 +239,7 @@ function AccountForm({ formikProps, isViewMode }) {
                   values={PAYMENT_TYPES_ACCOUNTS}
                   method="switch"
                   editable={editable}
+                  disabled={isSaved}
                 />
                 <CustomInput
                   label="Name *"
@@ -231,18 +248,21 @@ function AccountForm({ formikProps, isViewMode }) {
                   values={getPeopleList(account.person_type)}
                   method="switch"
                   editable={editable}
+                  disabled={isSaved}
                 />
                 <CustomInput
                   label="Narration *"
                   name={`accounts.${index}.description`}
                   type="text"
                   editable={editable}
+                  disabled={isSaved}
                 />
                 <CustomInput
                   label="Amount *"
                   name={`accounts.${index}.amount`}
                   type="number"
                   editable={editable}
+                  disabled={isSaved}
                 />
 
                 <CustomInput
@@ -250,6 +270,7 @@ function AccountForm({ formikProps, isViewMode }) {
                   name={`accounts.${index}.receipt`}
                   method="file"
                   editable={editable}
+                  disabled={isSaved}
                 />
 
                 {editable && (
@@ -258,6 +279,7 @@ function AccountForm({ formikProps, isViewMode }) {
                     variant="outline"
                     colorScheme="red"
                     onClick={() => arrayHelpers.remove(index)}
+                    disabled={isSaved}
                   >
                     <i className="fa fa-trash" aria-hidden="true" />
                   </IconButton>
@@ -270,6 +292,7 @@ function AccountForm({ formikProps, isViewMode }) {
                 onClick={() => arrayHelpers.push(EMPTY_ACCOUNT_OBJECT)}
                 variant="ghost"
                 colorScheme="purple"
+                disabled={isSaved}
               >
                 Add Row
               </Button>
@@ -292,6 +315,7 @@ function AccountForm({ formikProps, isViewMode }) {
               variant="outline"
               colorScheme="red"
               onClick={() => resetForm()}
+              disabled={isSaved}
             >
               Reset
             </Button>
@@ -301,6 +325,7 @@ function AccountForm({ formikProps, isViewMode }) {
               onClick={() => {
                 handleSubmit();
               }}
+              disabled={isSaved}
             >
               Create
             </Button>

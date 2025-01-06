@@ -28,7 +28,7 @@ import { range } from "react-big-calendar/lib/utils/dates";
 import { useDropzone } from "react-dropzone";
 
 export const CustomDateTimeInput = forwardRef(
-  ({ value, onClick, onChange, variant = "outline", style }, ref) => (
+  ({ value, onClick, onChange, variant = "outline", style, disabled }, ref) => (
     <Input
       value={value ? moment(value).format("DD/MM/YYYY") : value}
       onChange={onChange}
@@ -37,6 +37,7 @@ export const CustomDateTimeInput = forwardRef(
       onClick={onClick}
       variant={variant}
       style={style}
+      disabled={disabled}
     />
   )
 );
@@ -223,7 +224,7 @@ const TextField = ({
                   </NumberInput>
                 )}
                 {method === "switch" && (
-                  <Select {...field} placeholder="Select Option">
+                  <Select {...field} {...props} placeholder="Select Option">
                     {values?.map((m) => (
                       <Fragment key={m.id}>
                         <option value={m.id}>{m.value}</option>
@@ -361,7 +362,7 @@ const TextField = ({
                 {...field}
                 {...props}
                 selected={(field.value && new Date(field.value)) || null}
-                customInput={<CustomDateTimeInput />}
+                customInput={<CustomDateTimeInput disabled={props.disabled} />}
                 onChange={(val) => {
                   setFieldValue(field.name, moment(val).format("YYYY-MM-DD"));
                 }}
