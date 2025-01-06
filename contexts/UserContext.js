@@ -47,17 +47,28 @@ export function UserProvider({ children }) {
   };
 
   const updateUserConfig = (newConfig) => {
-    setUserConfig((prev) => ({ ...prev, ...newConfig }));
+    const updatedConfig = {
+      ...newConfig,
+      token: newConfig.token === "null" ? null : newConfig.token,
+      storeId: newConfig.storeId === "null" ? null : newConfig.storeId,
+      designationId:
+        newConfig.designationId === "null" ? null : newConfig.designationId,
+      userType: newConfig.userType === "null" ? null : newConfig.userType,
+      employeeId: newConfig.employeeId === "null" ? null : newConfig.employeeId,
+    };
+
+    setUserConfig((prev) => ({ ...prev, ...updatedConfig }));
 
     // Update localStorage
-    if (newConfig.token) localStorage.setItem("Token", newConfig.token);
-    if (newConfig.storeId) localStorage.setItem("Store_id", newConfig.storeId);
-    if (newConfig.designationId)
-      localStorage.setItem("Designation_id", newConfig.designationId);
-    if (newConfig.userType)
-      localStorage.setItem("User_type", newConfig.userType);
-    if (newConfig.employeeId)
-      localStorage.setItem("Employee_id", newConfig.employeeId);
+    if (updatedConfig.token) localStorage.setItem("Token", updatedConfig.token);
+    if (updatedConfig.storeId)
+      localStorage.setItem("Store_id", updatedConfig.storeId);
+    if (updatedConfig.designationId)
+      localStorage.setItem("Designation_id", updatedConfig.designationId);
+    if (updatedConfig.userType)
+      localStorage.setItem("User_type", updatedConfig.userType);
+    if (updatedConfig.employeeId)
+      localStorage.setItem("Employee_id", updatedConfig.employeeId);
 
     // Update global config
     if (newConfig.permissions)
