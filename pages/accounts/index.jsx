@@ -69,7 +69,8 @@ function Index() {
     };
   }, [selectedOutlet, selectedDate]);
 
-  const { accounts, loading, isSaved, saveSheet } = useAccounts(filters);
+  const { accounts, loading, isSaved, saveSheet, unsaveSheet } =
+    useAccounts(filters);
 
   const modifiedAccounts = useMemo(() => {
     const modified = accounts.map((item) => ({
@@ -106,7 +107,7 @@ function Index() {
     });
 
     return modified;
-  }, [accounts]);
+  }, [accounts, isSaved]);
 
   const modifiedDenominations = useMemo(() => {
     return getDenominations(accounts);
@@ -134,13 +135,29 @@ function Index() {
     }
   };
 
+  const handleUnsaveSheet = async () => {
+    try {
+      toast.promise(unsaveSheet(), {
+        loading: "Unlocking account sheet",
+        success: "Account sheet unlocked successfully!",
+        error: "Failed to unlock account sheet",
+      });
+    } catch (error) {
+      console.error("Error unsaving sheet:", error);
+    }
+  };
+
+  const canAddSheet = usePermissions(["add_account_sheet"]);
+  const canSaveSheet = usePermissions(["save_account_sheet"]);
+  const canUnsaveSheet = usePermissions(["unsave_account_sheet"]);
+
   return (
     <GlobalWrapper title="Account Sheet">
       <Head />
       <CustomContainer
         title="Account Sheet"
         rightSection={
-          usePermissions(["add_account_sheet"]) ? (
+          canAddSheet ? (
             <Link href="/accounts/create" passHref>
               <Button colorScheme="purple">Add New Sheet</Button>
             </Link>
@@ -226,13 +243,23 @@ function Index() {
                   <Button colorScheme="purple" variant="outline">
                     Print
                   </Button>
-                  {selectedOutlet && (
+                  {canSaveSheet && selectedOutlet && (
                     <Button
                       colorScheme="purple"
                       disabled={isSaved}
                       onClick={handleSaveSheet}
                     >
                       Submit Sheet
+                    </Button>
+                  )}
+
+                  {canUnsaveSheet && selectedOutlet && (
+                    <Button
+                      colorScheme="purple"
+                      disabled={!isSaved}
+                      onClick={handleUnsaveSheet}
+                    >
+                      Unlock Sheet
                     </Button>
                   )}
                 </div>

@@ -40,6 +40,24 @@ export function useAccounts(filters) {
     }
   };
 
+  const unsaveSheet = async () => {
+    try {
+      const response = await AccountsHelper.unsaveAccountSheet({
+        sheet_date: filters.to_date.split("T")[0],
+        store_id: filters.store_id,
+      });
+
+      if (response.code === 200) {
+        setIsSaved(false);
+        return response;
+      }
+      throw new Error(response.message || "Failed to unsave sheet");
+    } catch (err) {
+      console.error("Error unsaving sheet:", err);
+      throw err;
+    }
+  };
+
   useEffect(() => {
     fetchAccounts();
   }, [fetchAccounts]);
@@ -51,5 +69,6 @@ export function useAccounts(filters) {
     refetch: fetchAccounts,
     isSaved,
     saveSheet,
+    unsaveSheet,
   };
 }

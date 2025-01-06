@@ -75,3 +75,20 @@ export const saveAccountSheet = async (params) => {
     throw err;
   }
 };
+
+export const unsaveAccountSheet = async (params) => {
+  try {
+    const queryParams = new URLSearchParams({
+      sheet_date: params.sheet_date,
+      store_id: params.store_id,
+    });
+
+    const response = await API.delete(
+      `/accounts/save?${queryParams.toString()}`
+    );
+    return response.data;
+  } catch (err) {
+    console.error("Error unsaving account sheet:", err);
+    throw err;
+  }
+};

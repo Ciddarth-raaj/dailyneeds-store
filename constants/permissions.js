@@ -79,5 +79,7 @@ export const PERMISSIONS = {
   view_issues_sent_indents: "View Sent in Received Indents",
   view_account_sheet: "View Account Sheet",
   add_account_sheet: "Add Account Sheet",
+  save_account_sheet: "Save Account Sheet",
+  unsave_account_sheet: "Unsave Account Sheet",
   view_master_list: "View Master List",
 };
