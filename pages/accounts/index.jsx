@@ -24,6 +24,7 @@ import {
 } from "../../util/account";
 import { Menu, MenuItem } from "@szhsin/react-menu";
 import EmptyData from "../../components/EmptyData";
+import { TableSkeleton } from "../../components/Skeleton";
 
 const HEADINGS = {
   cashier_name: "Cashier Name",
@@ -158,7 +159,27 @@ function Index() {
             </Select>
           </div>
 
-          {!loading && accounts.length > 0 ? (
+          {loading && (
+            <div className={styles.childDiv}>
+              <CustomContainer title="Store Account" filledHeader smallHeader>
+                <TableSkeleton rows={3} columns={7} />
+              </CustomContainer>
+
+              <CustomContainer
+                title="Cash Denomination Summary"
+                filledHeader
+                smallHeader
+              >
+                <TableSkeleton rows={3} columns={3} />
+              </CustomContainer>
+
+              <CustomContainer title="Cash Book" filledHeader smallHeader>
+                <TableSkeleton rows={3} columns={4} />
+              </CustomContainer>
+            </div>
+          )}
+
+          {!loading && accounts.length > 0 && (
             <div className={styles.childDiv}>
               <CustomContainer title="Store Account" filledHeader smallHeader>
                 <Table
@@ -195,7 +216,9 @@ function Index() {
                 </div>
               </CustomContainer>
             </div>
-          ) : (
+          )}
+
+          {!loading && accounts.length === 0 && (
             <EmptyData
               message="No account sheets found for the selected date"
               size="lg"
