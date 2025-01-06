@@ -23,6 +23,7 @@ import {
   getCashBook,
 } from "../../util/account";
 import { Menu, MenuItem } from "@szhsin/react-menu";
+import EmptyData from "../../components/EmptyData";
 
 const HEADINGS = {
   cashier_name: "Cashier Name",
@@ -66,7 +67,7 @@ function Index() {
     };
   }, [selectedOutlet, selectedDate]);
 
-  const { accounts } = useAccounts(filters);
+  const { accounts, loading } = useAccounts(filters);
 
   const modifiedAccounts = useMemo(() => {
     const modified = accounts.map((item) => ({
@@ -157,29 +158,49 @@ function Index() {
             </Select>
           </div>
 
-          <CustomContainer title="Store Account" filledHeader smallHeader>
-            <Table heading={HEADINGS} rows={modifiedAccounts} variant="plain" />
-          </CustomContainer>
+          {!loading && accounts.length > 0 ? (
+            <div className={styles.childDiv}>
+              <CustomContainer title="Store Account" filledHeader smallHeader>
+                <Table
+                  heading={HEADINGS}
+                  rows={modifiedAccounts}
+                  variant="plain"
+                />
+              </CustomContainer>
 
-          <CustomContainer
-            title="Cash Denomination Summary"
-            filledHeader
-            smallHeader
-          >
-            <Table
-              heading={HEADINGS_DENOMINATION}
-              rows={modifiedDenominations}
-              variant="plain"
-            />
-          </CustomContainer>
+              <CustomContainer
+                title="Cash Denomination Summary"
+                filledHeader
+                smallHeader
+              >
+                <Table
+                  heading={HEADINGS_DENOMINATION}
+                  rows={modifiedDenominations}
+                  variant="plain"
+                />
+              </CustomContainer>
 
-          <CustomContainer title="Cash Book" filledHeader smallHeader>
-            <Table
-              heading={HEADINGS_CASHBOOK}
-              rows={modifiedCashBook}
-              variant="plain"
+              <CustomContainer title="Cash Book" filledHeader smallHeader>
+                <Table
+                  heading={HEADINGS_CASHBOOK}
+                  rows={modifiedCashBook}
+                  variant="plain"
+                />
+
+                <div className={styles.buttonContainer}>
+                  <Button colorScheme="purple" variant="outline">
+                    Print
+                  </Button>
+                  <Button colorScheme="purple">Submit Sheet</Button>
+                </div>
+              </CustomContainer>
+            </div>
+          ) : (
+            <EmptyData
+              message="No account sheets found for the selected date"
+              size="lg"
             />
-          </CustomContainer>
+          )}
         </div>
       </CustomContainer>
     </GlobalWrapper>

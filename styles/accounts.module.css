@@ -7,8 +7,15 @@
   border: 1px solid #eee;
 }
 
-.mainContainer {
+.mainContainer,
+.mainContainer > .childDiv {
   display: flex;
   flex-direction: column;
   gap: 22px;
+}
+
+.buttonContainer {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
 }
