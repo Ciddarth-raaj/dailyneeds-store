@@ -1,110 +1,27 @@
-import React, { useState } from "react";
+import React from "react";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import Head from "../../util/head";
 import CustomContainer from "../../components/CustomContainer";
-import { Field, FieldArray, Formik } from "formik";
-import CustomInput from "../../components/customInput/customInput";
-import styles from "../../styles/master.module.css";
-import * as Yup from "yup";
-import { Button, IconButton } from "@chakra-ui/button";
-import { PAYMENT_TYPES_ACCOUNTS, PEOPLE_TYPES } from "../../constants/values";
-import usePeople from "../../customHooks/usePeople";
+import { Formik } from "formik";
 import toast from "react-hot-toast";
-import { Badge, Flex } from "@chakra-ui/react";
-import currencyFormatter from "../../util/currencyFormatter";
 import useEmployees from "../../customHooks/useEmployees";
 import { CASHIER_DESIGNATION } from "../../constants/designations";
 import { createAccount } from "../../helper/accounts";
 import { useRouter } from "next/router";
 import FilesHelper from "../../helper/asset";
-import { getAmmountDifference, getTotalCashHandover } from "../../util/account";
-
-const EMPTY_ACCOUNT_OBJECT = {
-  person_type: null,
-  payment_type: null,
-  person_id: null,
-  description: "",
-  amount: null,
-};
-
-const validation = Yup.object({
-  date: Yup.date().required("Fill Date"),
-  cashier_id: Yup.number()
-    .typeError("Select a Cashier")
-    .required("Select a Cashier"),
-  total_sales: Yup.number()
-    .typeError("Must be a number")
-    .required("Fill Total Sales"),
-  // cash_handover: Yup.number()
-  //   .typeError("Must be a number")
-  //   .required("Fill Cash Handover"),
-  card_sales: Yup.number()
-    .typeError("Must be a number")
-    .required("Fill Card Sales"),
-  loyalty: Yup.number().typeError("Must be a number").required("Fill Loyalty"),
-  sales_return: Yup.number()
-    .typeError("Must be a number")
-    .required("Fill Sales Return"),
-  accounts: Yup.array(
-    Yup.object({
-      person_type: Yup.number()
-        .typeError("Select a Type")
-        .required("Select a Type"),
-      payment_type: Yup.number()
-        .typeError("Select a Type")
-        .required("Select a Type"),
-      person_id: Yup.number()
-        .typeError("Select a Person")
-        .required("Select a Person"),
-      description: Yup.string()
-        .typeError("Fill the description")
-        .required("Fill the description"),
-      amount: Yup.number()
-        .typeError("Fill the amount")
-        .required("Fill the amount"),
-    }).required("Fill Accounts")
-  ),
-});
-
-const MODIFIED_PEOPLE_TYPES = [
-  {
-    id: 4,
-    value: "Employee",
-  },
-  ...PEOPLE_TYPES,
-];
+import { ACCOUNT_VALIDATION_SCHEMA } from "../../validations/accounts";
+import { EMPTY_ACCOUNT_OBJECT } from "../../constants/accounts";
+import AccountForm from "../../components/accounts/AccountForm";
+import { useUser } from "../../contexts/UserContext";
 
 function Create() {
   const router = useRouter();
-  const { peopleList } = usePeople();
 
-  const loggedInUserStoreID = global.config.store_id;
+  const { storeId } = useUser().userConfig;
   const { employees } = useEmployees({
-    store_ids: loggedInUserStoreID == "null" ? [] : [loggedInUserStoreID],
+    store_ids: storeId === null ? [] : [storeId],
     designation_ids: [CASHIER_DESIGNATION],
   });
-  const [isDenominationOpen, setIsDenominationOpen] = useState(false);
-
-  const getPeopleList = (personType) => {
-    if (personType === undefined || personType == 4) {
-      return [];
-    }
-
-    return peopleList
-      .filter((item) => {
-        if (
-          item.person_type == personType &&
-          (loggedInUserStoreID == "null" ||
-            item.store_ids == null ||
-            item.store_ids.includes(loggedInUserStoreID))
-        ) {
-          return true;
-        }
-
-        return false;
-      })
-      .map((item) => ({ id: item.person_id, value: item.name }));
-  };
 
   const EMPLOYEES_MENU = employees.map((item) => ({
     id: item.employee_id,
@@ -198,243 +115,15 @@ function Create() {
             accounts: [EMPTY_ACCOUNT_OBJECT],
             cashier_id: null,
           }}
-          validationSchema={validation}
+          validationSchema={ACCOUNT_VALIDATION_SCHEMA}
           onSubmit={addAccountHandler}
         >
-          {(formikProps) => {
-            const { handleSubmit, resetForm, values, setFieldValue } =
-              formikProps;
-
-            const differenceAmount = getAmmountDifference(values);
-
-            return (
-              <div className={styles.inputContainer}>
-                <div className={styles.leftRightContainer}>
-                  <div className={styles.leftContainer}>
-                    <CustomInput
-                      label="Date *"
-                      name="date"
-                      type="text"
-                      method="datepicker"
-                    />
-                    <CustomInput
-                      label="Cashier *"
-                      name={`cashier_id`}
-                      type="number"
-                      values={EMPLOYEES_MENU}
-                      method="switch"
-                    />
-                    <CustomInput
-                      label="Total Sales *"
-                      name="total_sales"
-                      type="number"
-                    />
-                    <CustomInput
-                      label="Card Sales *"
-                      name="card_sales"
-                      type="number"
-                    />
-                    <CustomInput
-                      label="Loyalty *"
-                      name="loyalty"
-                      type="number"
-                    />
-                    <CustomInput
-                      label="Sales Return *"
-                      name="sales_return"
-                      type="number"
-                    />
-                  </div>
-
-                  <div>
-                    <label className={styles.label}>Cash Handover</label>
-                    <div className={styles.cashHandoverContainer}>
-                      <Flex justifyContent="center">
-                        <Button
-                          variant="ghost"
-                          colorScheme="purple"
-                          size="sm"
-                          onClick={() =>
-                            setIsDenominationOpen(!isDenominationOpen)
-                          }
-                        >
-                          {isDenominationOpen ? "Close" : "Expand"}
-                        </Button>
-                      </Flex>
-
-                      {isDenominationOpen && (
-                        <>
-                          <CustomInput
-                            label="₹500"
-                            name="cash_handover_500"
-                            type="number"
-                            position="left"
-                            labelWidth="50px"
-                          />
-                          <CustomInput
-                            label="₹200"
-                            name="cash_handover_200"
-                            type="number"
-                            position="left"
-                            labelWidth="50px"
-                          />
-                          <CustomInput
-                            label="₹100"
-                            name="cash_handover_100"
-                            type="number"
-                            position="left"
-                            labelWidth="50px"
-                          />
-                          <CustomInput
-                            label="₹50"
-                            name="cash_handover_50"
-                            type="number"
-                            position="left"
-                            labelWidth="50px"
-                          />
-                          <CustomInput
-                            label="₹20"
-                            name="cash_handover_20"
-                            type="number"
-                            position="left"
-                            labelWidth="50px"
-                          />
-                          <CustomInput
-                            label="₹10"
-                            name="cash_handover_10"
-                            type="number"
-                            position="left"
-                            labelWidth="50px"
-                          />
-                          <CustomInput
-                            label="₹5"
-                            name="cash_handover_5"
-                            type="number"
-                            position="left"
-                            labelWidth="50px"
-                          />
-                          <CustomInput
-                            label="₹2"
-                            name="cash_handover_2"
-                            type="number"
-                            position="left"
-                            labelWidth="50px"
-                          />
-                          <CustomInput
-                            label="₹1"
-                            name="cash_handover_1"
-                            type="number"
-                            position="left"
-                            labelWidth="50px"
-                          />
-                        </>
-                      )}
-
-                      <Badge
-                        className={styles.badgeStyle}
-                      >{`Total ${getTotalCashHandover(values)}`}</Badge>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="line" />
-
-                <FieldArray
-                  name="accounts"
-                  render={(arrayHelpers) => (
-                    <div>
-                      {values.accounts.map((account, index) => (
-                        <div key={index} className={styles.inputSubContainer}>
-                          <CustomInput
-                            label="Type *"
-                            name={`accounts.${index}.person_type`}
-                            type="number"
-                            values={MODIFIED_PEOPLE_TYPES}
-                            method="switch"
-                          />
-                          <CustomInput
-                            label="Payment Type *"
-                            name={`accounts.${index}.payment_type`}
-                            type="number"
-                            values={PAYMENT_TYPES_ACCOUNTS}
-                            method="switch"
-                          />
-                          <CustomInput
-                            label="Name *"
-                            name={`accounts.${index}.person_id`}
-                            type="number"
-                            values={getPeopleList(account.person_type)}
-                            method="switch"
-                          />
-                          <CustomInput
-                            label="Narration *"
-                            name={`accounts.${index}.description`}
-                            type="text"
-                          />
-                          <CustomInput
-                            label="Amount *"
-                            name={`accounts.${index}.amount`}
-                            type="number"
-                          />
-
-                          <CustomInput
-                            label="Receipt"
-                            name={`accounts.${index}.receipt`}
-                            method="file"
-                          />
-
-                          <IconButton
-                            mb="24px"
-                            variant="outline"
-                            colorScheme="red"
-                            onClick={() => arrayHelpers.remove(index)}
-                          >
-                            <i className="fa fa-trash-o" aria-hidden="true" />
-                          </IconButton>
-                        </div>
-                      ))}
-
-                      <Button
-                        onClick={() => arrayHelpers.push(EMPTY_ACCOUNT_OBJECT)}
-                        variant="ghost"
-                        colorScheme="purple"
-                      >
-                        Add Row
-                      </Button>
-                    </div>
-                  )}
-                />
-
-                <div className={styles.buttonContainer}>
-                  <Badge className={styles.badgeStyle} style={{ marginTop: 0 }}>
-                    Total Difference
-                    <p
-                      style={{ color: differenceAmount >= 0 ? "green" : "red" }}
-                    >
-                      {` ${currencyFormatter(differenceAmount)}`}
-                    </p>
-                  </Badge>
-
-                  <Button
-                    variant="outline"
-                    colorScheme="red"
-                    onClick={() => resetForm()}
-                  >
-                    Reset
-                  </Button>
-
-                  <Button
-                    colorScheme="purple"
-                    onClick={() => {
-                      handleSubmit();
-                    }}
-                  >
-                    Create
-                  </Button>
-                </div>
-              </div>
-            );
-          }}
+          {(formikProps) => (
+            <AccountForm
+              formikProps={formikProps}
+              EMPLOYEES_MENU={EMPLOYEES_MENU}
+            />
+          )}
         </Formik>
       </CustomContainer>
     </GlobalWrapper>
