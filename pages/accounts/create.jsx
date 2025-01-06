@@ -4,8 +4,6 @@ import Head from "../../util/head";
 import CustomContainer from "../../components/CustomContainer";
 import { Formik } from "formik";
 import toast from "react-hot-toast";
-import useEmployees from "../../customHooks/useEmployees";
-import { CASHIER_DESIGNATION } from "../../constants/designations";
 import { createAccount } from "../../helper/accounts";
 import { useRouter } from "next/router";
 import FilesHelper from "../../helper/asset";
@@ -16,17 +14,6 @@ import { useUser } from "../../contexts/UserContext";
 
 function Create() {
   const router = useRouter();
-
-  const { storeId } = useUser().userConfig;
-  const { employees } = useEmployees({
-    store_ids: storeId === null ? [] : [storeId],
-    designation_ids: [CASHIER_DESIGNATION],
-  });
-
-  const EMPLOYEES_MENU = employees.map((item) => ({
-    id: item.employee_id,
-    value: item.employee_name,
-  }));
 
   const addAccountHandler = (values) => {
     toast.promise(addAccount(values), {
@@ -118,12 +105,7 @@ function Create() {
           validationSchema={ACCOUNT_VALIDATION_SCHEMA}
           onSubmit={addAccountHandler}
         >
-          {(formikProps) => (
-            <AccountForm
-              formikProps={formikProps}
-              EMPLOYEES_MENU={EMPLOYEES_MENU}
-            />
-          )}
+          {(formikProps) => <AccountForm formikProps={formikProps} />}
         </Formik>
       </CustomContainer>
     </GlobalWrapper>
@@ -131,3 +113,28 @@ function Create() {
 }
 
 export default Create;
+
+// export async function getServerSideProps(context) {
+//   const { mode, id } = context.query;
+
+//   if (mode === "view" && id) {
+//     try {
+//       const response = await getAccount(id);
+//       if (response.code === 200) {
+//         return {
+//           props: {
+//             accountData: response.data,
+//           },
+//         };
+//       }
+//     } catch (error) {
+//       console.error("Error fetching account:", error);
+//     }
+//   }
+
+//   return {
+//     props: {
+//       accountData: null,
+//     },
+//   };
+// }

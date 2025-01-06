@@ -12,15 +12,28 @@ import styles from "../../styles/master.module.css";
 import { PAYMENT_TYPES_ACCOUNTS } from "../../constants/values";
 import usePeople from "../../customHooks/usePeople";
 import { useUser } from "../../contexts/UserContext";
+import useEmployees from "../../customHooks/useEmployees";
+import { CASHIER_DESIGNATION } from "../../constants/designations";
 
-function AccountForm({ formikProps, EMPLOYEES_MENU }) {
+function AccountForm({ formikProps }) {
+  const { handleSubmit, resetForm, values } = formikProps;
+
+  // custom hooks
   const { peopleList } = usePeople();
   const { storeId } = useUser().userConfig;
+  const { employees } = useEmployees({
+    store_ids: storeId === null ? [] : [storeId],
+    designation_ids: [CASHIER_DESIGNATION],
+  });
 
-  const { handleSubmit, resetForm, values } = formikProps;
   const [isDenominationOpen, setIsDenominationOpen] = useState(false);
 
   const differenceAmount = getAmmountDifference(values);
+
+  const EMPLOYEES_MENU = employees.map((item) => ({
+    id: item.employee_id,
+    value: item.employee_name,
+  }));
 
   const getPeopleList = (personType) => {
     if (personType === undefined || personType == 4) {
