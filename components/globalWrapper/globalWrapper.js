@@ -17,7 +17,7 @@ export default class GlobalWrapper extends React.Component {
     const { children } = this.props;
     const { title } = this.state;
     return (
-      <div>
+      <div className={styles.mainContainer}>
         <SideBar />
         <Header />
         <div className={styles.childContainer}>{children}</div>

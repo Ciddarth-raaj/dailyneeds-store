@@ -78,7 +78,7 @@ export default {
         location: "/resignation",
       },
       view_storebudget: {
-        title: "Store Budget",
+        title: "Employee Count",
         permission: "view_store_budget",
         selected: false,
         location: "/store-budget",
