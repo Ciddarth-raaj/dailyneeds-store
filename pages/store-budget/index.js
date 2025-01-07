@@ -148,11 +148,30 @@ class viewBudget extends React.Component {
       sno: "SNo",
       designation_name: "Designation",
       budget: "Allowed Employee Count",
+      employee_count: "Total Employee Count",
+      status: "Status",
     };
+
+    const getStatus = (employee_count, budget) => {
+      const intEmployeeCount = parseInt(employee_count, 10);
+      const intBudget = parseInt(budget, 10);
+      if (isNaN(intEmployeeCount) || isNaN(intBudget)) {
+        return "";
+      }
+
+      if (intEmployeeCount > intBudget) {
+        return <Badge colorScheme="red">Exceeded</Badge>;
+      } else {
+        return <Badge colorScheme="green">Within Count</Badge>;
+      }
+    };
+
     const valuesNew = details.map((m, i) => ({
       sno: i + 1,
       designation_name: m.designation_name,
       budget: m.budget,
+      employee_count: m.employee_count,
+      status: getStatus(m.employee_count, m.budget),
     }));
 
     return (
