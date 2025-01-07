@@ -33,7 +33,7 @@ function BranchEditor() {
   const { designations } = useDesignations();
 
   useEffect(() => {
-    if (designations) {
+    if (designations && !paramId) {
       const updatedBudget = designations.map((item) => ({
         count: null,
         designation: item.value,
@@ -46,9 +46,29 @@ function BranchEditor() {
     }
   }, [designations]);
 
+  const getMergedBudgetArray = (existingBudget, designations) => {
+    const mergedBudget = [...existingBudget];
+
+    designations.forEach((designation) => {
+      const exists = existingBudget.some(
+        (budget) => budget.designation_id === designation.id
+      );
+
+      if (!exists) {
+        mergedBudget.push({
+          count: null,
+          designation: designation.value,
+          designation_id: designation.id,
+        });
+      }
+    });
+
+    return mergedBudget;
+  };
+
   useEffect(() => {
     async function fetchOoutlet() {
-      if (paramId) {
+      if (paramId && designations) {
         const response = await OutletHelper.getOutletByOutletId(paramId);
 
         if (!response.code) {
@@ -59,12 +79,19 @@ function BranchEditor() {
             designation_id: item.designation_id,
             budget_id: item.budget_id,
           }));
+
+          // Merge with missing designations
+          modifiedResponse.budget = getMergedBudgetArray(
+            modifiedResponse.budget,
+            designations
+          );
+
           setInitialValues(modifiedResponse);
         }
       }
     }
     fetchOoutlet();
-  }, [paramId]);
+  }, [paramId, designations]);
 
   const handleCreate = (values) => {
     const params = {
