@@ -198,7 +198,6 @@ const TextField = ({
                     {...field}
                     {...props}
                     width="100%"
-                    size="lg"
                     placeholder={floatingLabel ? " " : props.placeholder}
                   />
                 )}
