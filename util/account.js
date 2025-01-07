@@ -244,7 +244,7 @@ export function getCashBook(accounts) {
   rows.push({
     particulars: "",
     debit: calculated.debit,
-    credit: calculated.credit,
+    credit: calculated.credit + calculated.total,
     rank: 7,
   });
 
