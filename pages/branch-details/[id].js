@@ -18,7 +18,8 @@ function BranchEditor() {
   const [initialValues, setInitialValues] = useState({
     outlet_name: null,
     outlet_nickname: null,
-    // outlet_phone: null,
+    outlet_phone: null,
+    telegram_username: null,
     phone: null,
     outlet_address: null,
     store_id: null,
@@ -49,6 +50,7 @@ function BranchEditor() {
         outlet_phone: values.outlet_phone,
         phone: values.phone,
         outlet_address: values.outlet_address,
+        telegram_username: values.telegram_username,
       },
       budget: values.budget,
     };
@@ -101,15 +103,15 @@ function BranchEditor() {
 
                 <div className={styles.inputHolder}>
                   <CustomInput
-                    label="Contact Number"
+                    label="Primary Phone Number"
                     name="outlet_phone"
+                    type="number"
+                  />
+                  <CustomInput
+                    label="Telegram Username"
+                    name="telegram_username"
                     type="text"
                   />
-                  {/* <CustomInput
-                  label="Phone Numbers (Separated by ,)"
-                  name="phone"
-                  type="text"
-                /> */}
                 </div>
 
                 <div className={styles.inputHolder}>
