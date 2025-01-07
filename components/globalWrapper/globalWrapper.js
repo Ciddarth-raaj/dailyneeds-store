@@ -20,14 +20,7 @@ export default class GlobalWrapper extends React.Component {
       <div>
         <SideBar />
         <Header />
-        <div className={styles.childContainer}>
-          {title != "" && (
-            <div className={styles.headingWrapper}>
-              <h1>{title}</h1>
-            </div>
-          )}
-          {children}
-        </div>
+        <div className={styles.childContainer}>{children}</div>
       </div>
     );
   }
