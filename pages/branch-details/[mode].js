@@ -66,7 +66,7 @@ function BranchEditor() {
     fetchOoutlet();
   }, [paramId]);
 
-  const handleSubmit = (values) => {
+  const handleCreate = (values) => {
     const params = {
       outlet_details: {
         outlet_name: values.outlet_name,
@@ -95,6 +95,46 @@ function BranchEditor() {
         return "Error creating Outlet!";
       },
     });
+  };
+
+  const handleEdit = (values) => {
+    const params = {
+      outlet_id: paramId,
+      outlet_details: {
+        outlet_name: values.outlet_name,
+        outlet_nickname: values.outlet_nickname,
+        outlet_phone: values.outlet_phone,
+        phone: values.phone,
+        outlet_address: values.outlet_address,
+        telegram_username: values.telegram_username,
+        opening_cash: values.opening_cash,
+      },
+      budget: values.budget,
+    };
+
+    toast.promise(OutletHelper.updateOutlet(params), {
+      loading: "Updating outlet",
+      success: (response) => {
+        if (response.code === 200) {
+          router.push("/branch-details");
+          return "Outlet Updated!";
+        } else {
+          throw err;
+        }
+      },
+      error: (err) => {
+        console.log(err);
+        return "Error updating Outlet!";
+      },
+    });
+  };
+
+  const handleSubmit = (values) => {
+    if (mode === "edit") {
+      handleEdit(values);
+    } else {
+      handleCreate(values);
+    }
   };
 
   return (
@@ -190,7 +230,7 @@ function BranchEditor() {
                       Reset
                     </Button>
                     <Button colorScheme="purple" onClick={handleSubmit}>
-                      Create
+                      {mode === "edit" ? "Update" : "Create"}
                     </Button>
                   </div>
                 )}

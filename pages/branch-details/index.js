@@ -114,7 +114,7 @@ export default class BranchDetail extends React.Component {
               <MenuItem>View</MenuItem>
             </a>
           </Link>
-          <Link href={``} passHref>
+          <Link href={`/branch-details/edit?id=${m.outlet_id}`} passHref>
             <MenuItem>Edit</MenuItem>
           </Link>
           <MenuItem>Delete</MenuItem>
