@@ -89,19 +89,12 @@ export default class BranchDetail extends React.Component {
     />
   );
 
-  onClick = (m) => {
-    return <Link href={`/branch-details/${m.id}`}>{m.value}</Link>;
-  };
-
   render() {
     const { company } = this.state;
     const valuesNew = company.map((m) => ({
       outlet_id: m.outlet_id,
-      outlet_name: this.onClick({ value: m.outlet_name, id: m.outlet_id }),
-      outlet_nickname: this.onClick({
-        value: m.outlet_nickname,
-        id: m.outlet_id,
-      }),
+      outlet_name: m.outlet_name,
+      outlet_nickname: m.outlet_nickname,
       status: this.badge({ value: m.is_active, id: m.outlet_id }),
       action: (
         <Menu
@@ -116,7 +109,7 @@ export default class BranchDetail extends React.Component {
           }
           transition
         >
-          <Link href={``} passHref>
+          <Link href={`/branch-details/view?id=${m.outlet_id}`} passHref>
             <a target="_blank" rel="noopener noreferrer">
               <MenuItem>View</MenuItem>
             </a>

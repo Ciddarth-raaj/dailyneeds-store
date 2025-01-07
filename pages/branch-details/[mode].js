@@ -15,6 +15,10 @@ import { useRouter } from "next/router";
 
 function BranchEditor() {
   const router = useRouter();
+  const { mode, id: paramId } = router.query;
+  const viewMode = mode === "view";
+  const editable = !viewMode;
+
   const [initialValues, setInitialValues] = useState({
     outlet_name: null,
     outlet_nickname: null,
@@ -41,6 +45,19 @@ function BranchEditor() {
       }));
     }
   }, [designations]);
+
+  useEffect(() => {
+    async function fetchOoutlet() {
+      if (paramId) {
+        const response = await OutletHelper.getOutletByOutletId(paramId);
+
+        if (!response.code) {
+          setInitialValues(response[0]);
+        }
+      }
+    }
+    fetchOoutlet();
+  }, [paramId]);
 
   const handleSubmit = (values) => {
     const params = {
@@ -94,47 +111,51 @@ function BranchEditor() {
                     label="Branch Name"
                     name="outlet_name"
                     type="text"
+                    editable={editable}
                   />
                   <CustomInput
                     label="Branch Nickname"
                     name="outlet_nickname"
                     type="text"
+                    editable={editable}
+                  />
+                  <CustomInput
+                    label="Primary Phone Number"
+                    name="outlet_phone"
+                    type="number"
+                    editable={editable}
                   />
                 </div>
 
                 <div className={styles.inputHolder}>
                   <CustomInput
-                    label="Primary Phone Number"
-                    name="outlet_phone"
-                    type="number"
-                  />
-                  <CustomInput
                     label="Telegram Username"
                     name="telegram_username"
                     type="text"
+                    editable={editable}
                   />
                   <CustomInput
                     label="Opening Cash"
                     name="opening_cash"
                     type="number"
+                    editable={editable}
                   />
-                </div>
 
-                <div className={styles.inputHolder}>
                   <CustomInput
                     label="Phone Numbers (Separated by ,)"
                     name="phone"
                     type="text"
-                    method="TextArea"
-                  />
-
-                  <CustomInput
-                    label="Address"
-                    name="outlet_address"
-                    type="text"
-                    method="TextArea"
+                    editable={editable}
                   />
                 </div>
+
+                <CustomInput
+                  label="Address"
+                  name="outlet_address"
+                  type="text"
+                  method="TextArea"
+                  editable={editable}
+                />
 
                 <CustomContainer title="Employee Count" smallHeader>
                   <div className={styles.contentHolder}>
@@ -145,24 +166,27 @@ function BranchEditor() {
                           name={`budget[${i}].count`}
                           type="number"
                           label={`${m.value} Count`}
+                          editable={editable}
                         />
                       </div>
                     ))}
                   </div>
                 </CustomContainer>
 
-                <div className={styles.buttonContainer}>
-                  <Button
-                    colorScheme="red"
-                    variant="outline"
-                    onClick={handleReset}
-                  >
-                    Reset
-                  </Button>
-                  <Button colorScheme="purple" onClick={handleSubmit}>
-                    Create
-                  </Button>
-                </div>
+                {!viewMode && (
+                  <div className={styles.buttonContainer}>
+                    <Button
+                      colorScheme="red"
+                      variant="outline"
+                      onClick={handleReset}
+                    >
+                      Reset
+                    </Button>
+                    <Button colorScheme="purple" onClick={handleSubmit}>
+                      Create
+                    </Button>
+                  </div>
+                )}
               </div>
             );
           }}
