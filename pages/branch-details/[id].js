@@ -51,6 +51,7 @@ function BranchEditor() {
         phone: values.phone,
         outlet_address: values.outlet_address,
         telegram_username: values.telegram_username,
+        opening_cash: values.opening_cash,
       },
       budget: values.budget,
     };
@@ -111,6 +112,11 @@ function BranchEditor() {
                     label="Telegram Username"
                     name="telegram_username"
                     type="text"
+                  />
+                  <CustomInput
+                    label="Opening Cash"
+                    name="opening_cash"
+                    type="number"
                   />
                 </div>
 
