@@ -129,20 +129,7 @@ class viewBudget extends React.Component {
       this.setState({ pages: tempArray });
     });
   }
-  getBranchData() {
-    BranchHelper.getOutlet()
-      .then((data) => {
-        this.setState({ branch: data });
-      })
-      .catch((err) => console.log(err));
-  }
-  // getStore() {
-  //     StoreHelper.getStore()
-  //         .then((data) => {
-  //             this.setState({ store_data: data })
-  //         })
-  //         .catch((err) => console.log(err))
-  // }
+
   getBudget(values) {
     const { offset, limit } = this.state;
     this.setState({ store_id: values.store_id });
