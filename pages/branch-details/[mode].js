@@ -52,7 +52,14 @@ function BranchEditor() {
         const response = await OutletHelper.getOutletByOutletId(paramId);
 
         if (!response.code) {
-          setInitialValues(response[0]);
+          const modifiedResponse = response[0];
+          modifiedResponse.budget = modifiedResponse.budget.map((item) => ({
+            count: parseInt(item.budget),
+            designation: item.designation_name,
+            designation_id: item.designation_id,
+            budget_id: item.budget_id,
+          }));
+          setInitialValues(modifiedResponse);
         }
       }
     }
