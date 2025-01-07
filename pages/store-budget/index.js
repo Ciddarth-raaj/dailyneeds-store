@@ -145,6 +145,7 @@ class viewBudget extends React.Component {
   // }
   getBudget(values) {
     const { offset, limit } = this.state;
+    this.setState({ store_id: values.store_id });
     BudgetHelper.getBudget(offset, limit, values.store_id)
       .then((data) => {
         this.setState({ details: data });
@@ -153,19 +154,8 @@ class viewBudget extends React.Component {
   }
 
   render() {
-    const {
-      details,
-      pages,
-      branch,
-      splice,
-      paginate_filter,
-      store_name,
-      store_data,
-    } = this.state;
-    const initialValue = {
-      dob_1: "",
-      dob_2: "",
-    };
+    const { details, pages, branch, splice, paginate_filter, store_id } =
+      this.state;
 
     const table_title = {
       sno: "SNo",
@@ -232,8 +222,12 @@ class viewBudget extends React.Component {
                         </Button>
                       </div>
 
-                      {details.length === 0 && (
+                      {details.length === 0 && !store_id && (
                         <EmptyData message="Select a store to view data" />
+                      )}
+
+                      {details.length === 0 && store_id && (
+                        <EmptyData message="No data found" />
                       )}
 
                       {details.length > 0 && (
