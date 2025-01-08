@@ -15,6 +15,7 @@ import {
   handleFileImport,
 } from "../../../util/importFile";
 import toast from "react-hot-toast";
+import { EBOOK_VALIDATION_SCHEMA } from "../../../validations/ebook";
 
 const EMPTY_POS_OBJECT = {
   paytm_tid: null,
@@ -26,7 +27,6 @@ const EMPTY_POS_OBJECT = {
 };
 
 function Create() {
-  const [initialValues, setInitialValues] = useState({ pos_list: [] });
   const [isImported, setIsImported] = useState(false);
   const fileInputRef = useRef(null);
 
@@ -97,51 +97,61 @@ function Create() {
   };
 
   const handleImportedList = (list, setValues) => {
-    if (list) {
-      const data = {};
+    try {
+      if (list) {
+        const data = {};
 
-      list.forEach((item) => {
-        const PAYTM_TID = item.Paytm_Tid.replaceAll("'", "");
-        if (!data[PAYTM_TID]) {
-          data[PAYTM_TID] = {};
-        }
+        list.forEach((item) => {
+          const PAYTM_TID = item.Paytm_Tid.replaceAll("'", "");
+          if (!data[PAYTM_TID]) {
+            data[PAYTM_TID] = {};
+          }
 
-        const ITEM_KEY = item["Bank/Gateway"].replaceAll("'", "");
+          const ITEM_KEY = item["Bank/Gateway"].replaceAll("'", "");
 
-        if (data[PAYTM_TID][ITEM_KEY]) {
-          data[PAYTM_TID][ITEM_KEY] += item.Settled_Amount;
-        } else {
-          data[PAYTM_TID][ITEM_KEY] = item.Settled_Amount;
-        }
-      });
-
-      const posList = [];
-
-      Object.keys(data).forEach((paytm_tid) => {
-        posList.push({
-          paytm_tid: paytm_tid,
-          hdur: data[paytm_tid].HDUR ?? 0,
-          hfpp: data[paytm_tid].HFPP ?? 0,
-          sedc: data[paytm_tid].SEDC ?? 0,
-          ppbl: data[paytm_tid].PPBL ?? 0,
-          is_imported: true,
+          if (data[PAYTM_TID][ITEM_KEY]) {
+            data[PAYTM_TID][ITEM_KEY] += item.Settled_Amount;
+          } else {
+            data[PAYTM_TID][ITEM_KEY] = item.Settled_Amount;
+          }
         });
-      });
 
-      setValues({ pos_list: posList });
-      setIsImported(true);
-    } else {
+        const posList = [];
+
+        Object.keys(data).forEach((paytm_tid) => {
+          posList.push({
+            paytm_tid: paytm_tid,
+            hdur: data[paytm_tid].HDUR ?? 0,
+            hfpp: data[paytm_tid].HFPP ?? 0,
+            sedc: data[paytm_tid].SEDC ?? 0,
+            ppbl: data[paytm_tid].PPBL ?? 0,
+            is_imported: true,
+          });
+        });
+
+        setValues({ pos_list: posList });
+        setIsImported(true);
+      } else {
+        throw "Error parsing file";
+      }
+    } catch (err) {
+      console.log(err);
       toast.error("Error parsing file");
     }
+  };
+
+  const onSubmitHandler = (values) => {
+    const { pos_list } = values;
+
+    console.log("CIDD", pos_list);
   };
 
   return (
     <GlobalWrapper>
       <Formik
-        enableReinitialize
-        initialValues={initialValues}
-        //   validationSchema={ACCOUNT_VALIDATION_SCHEMA}
-        //   onSubmit={addAccountHandler}
+        initialValues={{ pos_list: [] }}
+        validationSchema={EBOOK_VALIDATION_SCHEMA}
+        onSubmit={onSubmitHandler}
         onReset={() => setIsImported(false)}
       >
         {(formikProps) => {
