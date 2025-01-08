@@ -23,7 +23,7 @@ export function UserProvider({ children }) {
     const employeeId = localStorage.getItem("Employee_id");
     const permissions = global.config.permissions || [];
 
-    setUserConfig({
+    updateUserConfig({
       token,
       storeId,
       designationId,
@@ -47,32 +47,37 @@ export function UserProvider({ children }) {
   };
 
   const updateUserConfig = (newConfig) => {
-    const updatedConfig = {
-      ...newConfig,
-      token: newConfig.token === "null" ? null : newConfig.token,
-      storeId: newConfig.storeId === "null" ? null : newConfig.storeId,
-      designationId:
-        newConfig.designationId === "null" ? null : newConfig.designationId,
-      userType: newConfig.userType === "null" ? null : newConfig.userType,
-      employeeId: newConfig.employeeId === "null" ? null : newConfig.employeeId,
-    };
+    // First, create a clean config by filtering out "null" strings
+    const cleanConfig = Object.keys(newConfig).reduce((acc, key) => {
+      acc[key] = newConfig[key] == "null" ? null : newConfig[key];
+      return acc;
+    }, {});
 
-    setUserConfig((prev) => ({ ...prev, ...updatedConfig }));
+    // Update state while preserving existing values if new ones aren't provided
+    setUserConfig((prev) => ({
+      ...prev,
+      ...Object.keys(cleanConfig).reduce((acc, key) => {
+        if (cleanConfig[key] !== undefined) {
+          acc[key] = cleanConfig[key];
+        }
+        return acc;
+      }, {}),
+    }));
 
-    // Update localStorage
-    if (updatedConfig.token) localStorage.setItem("Token", updatedConfig.token);
-    if (updatedConfig.storeId)
-      localStorage.setItem("Store_id", updatedConfig.storeId);
-    if (updatedConfig.designationId)
-      localStorage.setItem("Designation_id", updatedConfig.designationId);
-    if (updatedConfig.userType)
-      localStorage.setItem("User_type", updatedConfig.userType);
-    if (updatedConfig.employeeId)
-      localStorage.setItem("Employee_id", updatedConfig.employeeId);
+    // Update localStorage for all provided values
+    Object.keys(cleanConfig).forEach((key) => {
+      if (cleanConfig[key] !== undefined) {
+        localStorage.setItem(
+          key.charAt(0).toUpperCase() + key.slice(1), // Convert to Title_Case
+          cleanConfig[key]
+        );
+      }
+    });
 
-    // Update global config
-    if (newConfig.permissions)
-      global.config.permissions = newConfig.permissions;
+    // Update global config permissions if provided
+    if (cleanConfig.permissions !== undefined) {
+      global.config.permissions = cleanConfig.permissions;
+    }
   };
 
   const clearUserConfig = () => {

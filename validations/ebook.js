@@ -1,6 +1,8 @@
 import * as Yup from "yup";
 
 export const EBOOK_VALIDATION_SCHEMA = Yup.object({
+  store_id: Yup.number().typeError("Fill Store ID").required("Fill Store ID"),
+  date: Yup.date().required("Fill Date"),
   pos_list: Yup.array(
     Yup.object({
       paytm_tid: Yup.string().nullable().required("Fill TID"),

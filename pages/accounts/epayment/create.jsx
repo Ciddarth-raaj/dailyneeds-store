@@ -17,6 +17,10 @@ import {
 import toast from "react-hot-toast";
 import { EBOOK_VALIDATION_SCHEMA } from "../../../validations/ebook";
 import EbookHelper from "../../../helper/ebook";
+import DatePicker from "react-modern-calendar-datepicker";
+import { useUser } from "../../../contexts/UserContext";
+import useOutlets from "../../../customHooks/useOutlets";
+import { useRouter } from "next/router";
 
 const EMPTY_POS_OBJECT = {
   paytm_tid: null,
@@ -28,8 +32,16 @@ const EMPTY_POS_OBJECT = {
 };
 
 function Create() {
+  const router = useRouter();
   const [isImported, setIsImported] = useState(false);
   const fileInputRef = useRef(null);
+  const { storeId: userStoreId } = useUser().userConfig;
+
+  const { outlets } = useOutlets();
+  const OUTLETS_LIST = outlets.map((item) => ({
+    id: item.outlet_id,
+    value: item.outlet_name,
+  }));
 
   const getTotal = (item) => {
     return (
@@ -99,7 +111,13 @@ function Create() {
 
   const handleImportedList = (list, setValues) => {
     try {
-      if (list) {
+      if (list || list.length === 0) {
+        let date = new Date();
+        if (list.length > 0) {
+          const dateStr = list[0].Transaction_Date;
+          date = new Date(dateStr.split(" ")[0]);
+        }
+
         const data = {};
 
         list.forEach((item) => {
@@ -130,7 +148,7 @@ function Create() {
           });
         });
 
-        setValues({ pos_list: posList });
+        setValues({ pos_list: posList, date, store_id: userStoreId });
         setIsImported(true);
       } else {
         throw "Error parsing file";
@@ -142,7 +160,7 @@ function Create() {
   };
 
   const onSubmitHandler = async (values) => {
-    const { pos_list } = values;
+    const { pos_list, date, store_id } = values;
     const modifedPosList = pos_list.map((item) => {
       const tmp = structuredClone(item);
       delete tmp.is_imported;
@@ -151,14 +169,20 @@ function Create() {
 
     toast.promise(
       EbookHelper.bulkCreateEbook({
-        store_id: 1,
-        date: new Date().toISOString().split("T")[0],
+        store_id: parseInt(store_id),
+        date: date.toISOString().split("T")[0],
         ebooks: modifedPosList,
       }),
       {
-        loading: "Creating ebooks...",
+        loading: "Creating Ebook",
         success: (res) => {
           if (res.code === 200) {
+            if (res.updated > 0) {
+              router.push("/accounts");
+              return `Ebooks updated successfully!`;
+            }
+
+            router.push("/accounts");
             return `Ebooks created successfully!`;
           } else {
             throw res.message;
@@ -166,7 +190,7 @@ function Create() {
         },
         error: (err) => {
           console.log(err);
-          return `Failed to create ebooks`;
+          return "Error creating Outlet!";
         },
       }
     );
@@ -175,7 +199,11 @@ function Create() {
   return (
     <GlobalWrapper>
       <Formik
-        initialValues={{ pos_list: [] }}
+        initialValues={{
+          pos_list: [],
+          date: new Date(),
+          store_id: null,
+        }}
         validationSchema={EBOOK_VALIDATION_SCHEMA}
         onSubmit={onSubmitHandler}
         onReset={() => setIsImported(false)}
@@ -204,6 +232,26 @@ function Create() {
               }
             >
               {!isImported && <EmptyData message="Import Data to Continue" />}
+
+              {isImported && (
+                <div>
+                  <CustomInput
+                    label="Date"
+                    name="date"
+                    type="text"
+                    method="datepicker"
+                    disabled={true}
+                  />
+                  <CustomInput
+                    label="Store"
+                    name="store_id"
+                    values={OUTLETS_LIST}
+                    type="text"
+                    method="switch"
+                    disabled={userStoreId !== null}
+                  />
+                </div>
+              )}
 
               <FieldArray
                 name="pos_list"
