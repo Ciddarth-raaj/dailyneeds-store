@@ -119,6 +119,10 @@ const TextField = ({
   };
 
   const getDisplayValue = (value) => {
+    if (props.value || props.value == 0) {
+      return props.value;
+    }
+
     if (!value && value !== 0 && value !== "0") {
       return "N/A";
     }

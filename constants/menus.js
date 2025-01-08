@@ -251,6 +251,12 @@ export default {
         selected: false,
         location: "/accounts/create",
       },
+      add_e_payment: {
+        title: "Add E-Payment",
+        permission: "add_account_sheet",
+        selected: false,
+        location: "/accounts/epayment/create",
+      },
     },
   },
   master: {
