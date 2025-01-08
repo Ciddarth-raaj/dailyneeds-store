@@ -16,6 +16,7 @@ import {
 } from "../../../util/importFile";
 import toast from "react-hot-toast";
 import { EBOOK_VALIDATION_SCHEMA } from "../../../validations/ebook";
+import EbookHelper from "../../../helper/ebook";
 
 const EMPTY_POS_OBJECT = {
   paytm_tid: null,
@@ -140,10 +141,35 @@ function Create() {
     }
   };
 
-  const onSubmitHandler = (values) => {
+  const onSubmitHandler = async (values) => {
     const { pos_list } = values;
+    const modifedPosList = pos_list.map((item) => {
+      const tmp = structuredClone(item);
+      delete tmp.is_imported;
+      return tmp;
+    });
 
-    console.log("CIDD", pos_list);
+    toast.promise(
+      EbookHelper.bulkCreateEbook({
+        store_id: 1,
+        date: new Date().toISOString().split("T")[0],
+        ebooks: modifedPosList,
+      }),
+      {
+        loading: "Creating ebooks...",
+        success: (res) => {
+          if (res.code === 200) {
+            return `Ebooks created successfully!`;
+          } else {
+            throw res.message;
+          }
+        },
+        error: (err) => {
+          console.log(err);
+          return `Failed to create ebooks`;
+        },
+      }
+    );
   };
 
   return (
