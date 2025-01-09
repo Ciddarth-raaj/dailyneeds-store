@@ -3,6 +3,7 @@ import styles from "./header.module.css";
 import Head from "../../util/head";
 import LogIn from "../../pages/login";
 import SideBarMobile from "../sideBarMobile/sideBarMobile";
+import { useUser } from "../../contexts/UserContext";
 
 export default function Header() {
   const [settings] = React.useState({
@@ -18,23 +19,23 @@ export default function Header() {
     },
     sms: {
       title: "SMS Config",
-      icon: "fa fa-commenting-o"
+      icon: "fa fa-commenting-o",
     },
     email: {
       title: "Email Config",
-      icon: "fa fa-envelope-o"
+      icon: "fa fa-envelope-o",
     },
     push: {
       title: "Push Notifications",
-      icon: "fa fa-bell-o"
+      icon: "fa fa-bell-o",
     },
     cash: {
       title: "Cash Denomination",
-      icon: "fa fa-money"
+      icon: "fa fa-money",
     },
     letter: {
       title: "Letter Template",
-      icon: "fa fa-file-text-o"
+      icon: "fa fa-file-text-o",
     },
     product: {
       title: "Product Master",
@@ -53,33 +54,31 @@ export default function Header() {
     },
     employee: {
       title: "Employee Role",
-      icon: "fa fa-users"
+      icon: "fa fa-users",
     },
     vehicle: {
       title: "Vehicle Details",
       link: "/vehicle",
-      icon: "fa fa-users"
+      icon: "fa fa-users",
     },
     login: {
       title: "Log In",
-      icon: "fa fa-users"
+      icon: "fa fa-users",
     },
   });
 
   const [token, setToken] = React.useState(null);
-  const [userType, setUserType] = React.useState(null);
   const [loginVisibility, setLoginVisibility] = React.useState(false);
+  const { userType } = useUser().userConfig;
 
   React.useEffect(() => {
-    const storedToken = localStorage.getItem('Token');
-    const storedUserType = localStorage.getItem('User_type');
+    const storedToken = localStorage.getItem("Token");
     setToken(storedToken);
-    setUserType(storedUserType);
   }, []);
 
   const logout = () => {
     localStorage.clear();
-    window.location = '/';
+    window.location = "/";
   };
 
   return (
@@ -92,9 +91,9 @@ export default function Header() {
             {userType === "2" ? (
               <img src="/assets/admin.png" alt="Admin" />
             ) : (
-              <img 
-                src={`${global.config.employee_image}`} 
-                alt={global.config.name} 
+              <img
+                src={`${global.config.employee_image}`}
+                alt={global.config.name}
               />
             )}
           </div>
@@ -122,7 +121,10 @@ export default function Header() {
                         Log Out
                       </a>
                     ) : (
-                      <a onClick={() => setLoginVisibility(true)} className={styles.menuItem}>
+                      <a
+                        onClick={() => setLoginVisibility(true)}
+                        className={styles.menuItem}
+                      >
                         <i className="fa fa-sign-in" aria-hidden="true" />
                         Log In
                       </a>

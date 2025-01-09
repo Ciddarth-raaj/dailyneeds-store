@@ -49,11 +49,24 @@ export function UserProvider({ children }) {
   const updateUserConfig = (newConfig) => {
     // First, create a clean config by filtering out "null" strings
     const cleanConfig = Object.keys(newConfig).reduce((acc, key) => {
-      acc[key] = newConfig[key] == "null" ? null : newConfig[key];
+      // Handle special case for localStorage keys
+      const storageKey = getStorageKey(key);
+      const value = newConfig[key] == "null" ? null : newConfig[key];
+
+      // Update localStorage for each value
+      if (value !== undefined) {
+        if (value === null) {
+          localStorage.removeItem(storageKey);
+        } else {
+          localStorage.setItem(storageKey, value);
+        }
+      }
+
+      acc[key] = value;
       return acc;
     }, {});
 
-    // Update state while preserving existing values if new ones aren't provided
+    // Update state while preserving existing values
     setUserConfig((prev) => ({
       ...prev,
       ...Object.keys(cleanConfig).reduce((acc, key) => {
@@ -64,19 +77,27 @@ export function UserProvider({ children }) {
       }, {}),
     }));
 
-    // Update localStorage for all provided values
-    Object.keys(cleanConfig).forEach((key) => {
-      if (cleanConfig[key] !== undefined) {
-        localStorage.setItem(
-          key.charAt(0).toUpperCase() + key.slice(1), // Convert to Title_Case
-          cleanConfig[key]
-        );
-      }
-    });
-
     // Update global config permissions if provided
     if (cleanConfig.permissions !== undefined) {
       global.config.permissions = cleanConfig.permissions;
+    }
+  };
+
+  // Helper function to convert camelCase to Title_Case for localStorage keys
+  const getStorageKey = (key) => {
+    switch (key) {
+      case "token":
+        return "Token";
+      case "storeId":
+        return "Store_id";
+      case "designationId":
+        return "Designation_id";
+      case "userType":
+        return "User_type";
+      case "employeeId":
+        return "Employee_id";
+      default:
+        return key.charAt(0).toUpperCase() + key.slice(1);
     }
   };
 
