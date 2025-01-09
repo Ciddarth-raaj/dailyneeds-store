@@ -225,6 +225,7 @@ export function getCashBook(accounts) {
         acc.debit += item.debit;
         acc.total += item.debit;
       }
+
       if (item.credit) {
         acc.credit += item.credit;
         acc.total -= item.credit;
@@ -253,4 +254,91 @@ export function getCashBook(accounts) {
     debit: item.debit ? currencyFormatter(item.debit) : "",
     credit: item.credit ? currencyFormatter(item.credit) : "",
   }));
+}
+
+function getDisplayNameFromKey(key) {
+  if (key === "hdur") return "HDFC UPI";
+  if (key === "hfpp") return "Card";
+  if (key === "sedc") return "Sodexo";
+  if (key === "ppbl") return "Paytm";
+  return key;
+}
+
+export function getEbook(accounts, totals) {
+  const modified = [
+    {
+      particulars: "Card Sales",
+      narration: "",
+      debit: totals.card_sales,
+      credit: "",
+      ranking: 1,
+    },
+  ];
+
+  accounts.forEach((item) => {
+    if (item.hdur) {
+      modified.push({
+        particulars: getDisplayNameFromKey("hdur"),
+        narration: item.paytm_tid,
+        debit: "",
+        credit: item.hdur,
+        ranking: 2,
+      });
+    }
+
+    if (item.hfpp) {
+      modified.push({
+        particulars: getDisplayNameFromKey("hfpp"),
+        narration: item.paytm_tid,
+        debit: "",
+        credit: item.hfpp,
+        ranking: 3,
+      });
+    }
+
+    if (item.sedc) {
+      modified.push({
+        particulars: getDisplayNameFromKey("sedc"),
+        narration: item.paytm_tid,
+        debit: "",
+        credit: item.sedc,
+        ranking: 4,
+      });
+    }
+
+    if (item.ppbl) {
+      modified.push({
+        particulars: getDisplayNameFromKey("ppbl"),
+        narration: item.paytm_tid,
+        debit: "",
+        credit: item.ppbl,
+        ranking: 5,
+      });
+    }
+  });
+
+  const calculated = modified.reduce(
+    (acc, item) => {
+      if (item.debit) {
+        acc.debit += item.debit;
+        acc.total += item.debit;
+      }
+      if (item.credit) {
+        acc.credit += item.credit;
+        acc.total -= item.credit;
+      }
+      return acc;
+    },
+    { debit: 0, credit: 0, total: 0 }
+  );
+
+  modified.push({
+    particulars: "",
+    debit: calculated.debit,
+    credit: calculated.credit,
+    rank: 6,
+  });
+
+  modified.sort((a, b) => a.ranking - b.ranking);
+  return modified;
 }

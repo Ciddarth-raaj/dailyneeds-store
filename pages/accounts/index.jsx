@@ -21,6 +21,7 @@ import {
   getTotals,
   getDenominations,
   getCashBook,
+  getEbook,
 } from "../../util/account";
 import { Menu, MenuItem } from "@szhsin/react-menu";
 import EmptyData from "../../components/EmptyData";
@@ -50,6 +51,8 @@ const HEADINGS_CASHBOOK = {
   credit: "Credit",
 };
 
+// get card sales and populate it in the first row of the table
+
 function Index() {
   const { storeId } = useUser().userConfig;
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -69,7 +72,7 @@ function Index() {
     };
   }, [selectedOutlet, selectedDate]);
 
-  const { accounts, loading, isSaved, saveSheet, unsaveSheet } =
+  const { accounts, loading, isSaved, saveSheet, unsaveSheet, epayments } =
     useAccounts(filters);
 
   const modifiedAccounts = useMemo(() => {
@@ -122,6 +125,10 @@ function Index() {
   const modifiedCashBook = useMemo(() => {
     return getCashBook(accounts);
   }, [accounts]);
+
+  const modifiedEbook = useMemo(() => {
+    return getEbook(epayments, getTotals(accounts, true));
+  }, [epayments, accounts]);
 
   const { outlets } = useOutlets();
   const OUTLETS_LIST = outlets.map((item) => ({
@@ -244,32 +251,42 @@ function Index() {
                   rows={modifiedCashBook}
                   variant="plain"
                 />
-
-                <div className={styles.buttonContainer}>
-                  <Button colorScheme="purple" variant="outline">
-                    Print
-                  </Button>
-                  {canSaveSheet && selectedOutlet && (
-                    <Button
-                      colorScheme="purple"
-                      disabled={isSaved}
-                      onClick={handleSaveSheet}
-                    >
-                      Submit Sheet
-                    </Button>
-                  )}
-
-                  {canUnsaveSheet && selectedOutlet && (
-                    <Button
-                      colorScheme="purple"
-                      disabled={!isSaved}
-                      onClick={handleUnsaveSheet}
-                    >
-                      Unlock Sheet
-                    </Button>
-                  )}
-                </div>
               </CustomContainer>
+
+              <CustomContainer title="E-Book" filledHeader smallHeader>
+                <Table
+                  heading={HEADINGS_CASHBOOK}
+                  rows={modifiedEbook}
+                  variant="plain"
+                />
+              </CustomContainer>
+            </div>
+          )}
+
+          {!loading && accounts.length > 0 && (
+            <div className={styles.buttonContainer}>
+              <Button colorScheme="purple" variant="outline">
+                Print
+              </Button>
+              {canSaveSheet && selectedOutlet && (
+                <Button
+                  colorScheme="purple"
+                  disabled={isSaved}
+                  onClick={handleSaveSheet}
+                >
+                  Submit Sheet
+                </Button>
+              )}
+
+              {canUnsaveSheet && selectedOutlet && (
+                <Button
+                  colorScheme="purple"
+                  disabled={!isSaved}
+                  onClick={handleUnsaveSheet}
+                >
+                  Unlock Sheet
+                </Button>
+              )}
             </div>
           )}
 

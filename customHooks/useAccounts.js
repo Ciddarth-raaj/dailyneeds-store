@@ -3,6 +3,7 @@ import * as AccountsHelper from "../helper/accounts";
 
 export function useAccounts(filters) {
   const [accounts, setAccounts] = useState([]);
+  const [epayments, setEpayments] = useState([]);
   const [isSaved, setIsSaved] = useState(true);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -12,7 +13,8 @@ export function useAccounts(filters) {
       setLoading(true);
       const data = await AccountsHelper.getAllAccounts(filters);
       if (data.code === 200) {
-        setAccounts(data.data);
+        setAccounts(data.data.account);
+        setEpayments(data.data.ebook);
         setIsSaved(data.is_saved);
       }
     } catch (err) {
@@ -70,5 +72,6 @@ export function useAccounts(filters) {
     isSaved,
     saveSheet,
     unsaveSheet,
+    epayments,
   };
 }

@@ -115,8 +115,6 @@ class BranchModal extends React.Component {
     delete values.store_id;
     delete values.budget_id;
 
-    console.log("CIDD", values);
-
     const { router } = this.props;
     OutletHelper.createOutlet({
       outlet_details: {
