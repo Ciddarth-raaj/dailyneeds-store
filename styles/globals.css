@@ -208,3 +208,17 @@ a {
   margin-bottom: 34px;
   margin-top: 34px;
 }
+
+.only-print {
+  display: none;
+}
+
+@media print {
+  .only-print {
+    display: block;
+  }
+
+  .print-container {
+    padding: 1cm;
+  }
+}

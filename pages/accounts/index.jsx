@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef } from "react";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../components/CustomContainer";
 import Head from "../../util/head";
@@ -27,6 +27,8 @@ import { Menu, MenuItem } from "@szhsin/react-menu";
 import EmptyData from "../../components/EmptyData";
 import { TableSkeleton } from "../../components/Skeleton";
 import toast from "react-hot-toast";
+import { useReactToPrint } from "react-to-print";
+import moment from "moment";
 
 const HEADINGS = {
   cashier_name: "Cashier Name",
@@ -54,9 +56,14 @@ const HEADINGS_CASHBOOK = {
 // get card sales and populate it in the first row of the table
 
 function Index() {
+  const cashDenominationRef = useRef(null);
   const { storeId } = useUser().userConfig;
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedOutlet, setSelectedOutlet] = useState(storeId);
+
+  const printCashDenomination = useReactToPrint({
+    contentRef: cashDenominationRef,
+  });
 
   const filters = useMemo(() => {
     const startOfDay = new Date(selectedDate);
@@ -171,6 +178,14 @@ function Index() {
   const canSaveSheet = usePermissions(["save_account_sheet"]);
   const canUnsaveSheet = usePermissions(["unsave_account_sheet"]);
 
+  const getSelectedOutlet = () => {
+    const selectedOutletValue = OUTLETS_LIST.find(
+      (item) => item.id == selectedOutlet
+    );
+
+    return selectedOutletValue?.value ?? "All Outlets";
+  };
+
   return (
     <GlobalWrapper title="Account Sheet">
       <Head />
@@ -240,17 +255,30 @@ function Index() {
                 />
               </CustomContainer>
 
-              <CustomContainer
-                title="Cash Denomination Summary"
-                filledHeader
-                smallHeader
-              >
-                <Table
-                  heading={HEADINGS_DENOMINATION}
-                  rows={modifiedDenominations}
-                  variant="plain"
-                />
-              </CustomContainer>
+              <div ref={cashDenominationRef} className="print-container">
+                <CustomContainer
+                  title={
+                    <p>
+                      <span className="only-print" style={{ fontWeight: 600 }}>
+                        {getSelectedOutlet()}
+                      </span>
+                      Cash Denomination Summary
+                    </p>
+                  }
+                  filledHeader
+                  smallHeader
+                >
+                  <Table
+                    heading={HEADINGS_DENOMINATION}
+                    rows={modifiedDenominations}
+                    variant="plain"
+                  />
+
+                  <span className="only-print" style={{ textAlign: "right" }}>
+                    {moment(selectedDate).format("DD-MM-YYYY")}
+                  </span>
+                </CustomContainer>
+              </div>
 
               <CustomContainer title="Cash Book" filledHeader smallHeader>
                 <Table
@@ -272,7 +300,11 @@ function Index() {
 
           {!loading && accounts.length > 0 && (
             <div className={styles.buttonContainer}>
-              <Button colorScheme="purple" variant="outline">
+              <Button
+                colorScheme="purple"
+                variant="outline"
+                onClick={printCashDenomination}
+              >
                 Print
               </Button>
               {canSaveSheet && selectedOutlet && (
