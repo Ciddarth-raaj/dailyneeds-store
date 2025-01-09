@@ -225,7 +225,7 @@ function AccountForm({ formikProps, isViewMode, isSaved, onDateChange, mode }) {
         name="accounts"
         render={(arrayHelpers) => (
           <div>
-            {values.accounts.map((account, index) => (
+            {values.accounts?.map((account, index) => (
               <div key={index} className={styles.inputSubContainer}>
                 <CustomInput
                   label="Type *"
