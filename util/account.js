@@ -191,17 +191,19 @@ export function getCashBook(accounts, outletData) {
   let difference = 0;
   let totalCashHandover = 0;
   accounts.forEach((item) => {
-    difference += getAmmountDifference(item);
+    // difference += getAmmountDifference(item);
     totalCashHandover += getTotalCashHandover(item, true);
 
     const individualDifference = getAmmountDifference(item);
 
     if (individualDifference < 0) {
+      difference += Math.abs(individualDifference);
+    } else if (individualDifference > 0) {
       rows.push({
         particulars: item.cashier_name,
         narration: "",
         debit: "",
-        credit: Math.abs(individualDifference),
+        credit: individualDifference,
         rank: 5,
       });
     }
