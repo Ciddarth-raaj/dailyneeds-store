@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from "react";
+import React, { useState, useMemo, useRef, useEffect } from "react";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../components/CustomContainer";
 import Head from "../../util/head";
@@ -59,7 +59,7 @@ function Index() {
   const cashDenominationRef = useRef(null);
   const { storeId } = useUser().userConfig;
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [selectedOutlet, setSelectedOutlet] = useState(storeId);
+  const [selectedOutlet, setSelectedOutlet] = useState(null);
 
   const printCashDenomination = useReactToPrint({
     contentRef: cashDenominationRef,
@@ -88,6 +88,12 @@ function Index() {
     epayments,
     outletData,
   } = useAccounts(filters);
+
+  useEffect(() => {
+    if (storeId) {
+      setSelectedOutlet(storeId);
+    }
+  }, [storeId]);
 
   const modifiedAccounts = useMemo(() => {
     const modified = accounts.map((item) => ({
