@@ -21,6 +21,7 @@ import DatePicker from "react-modern-calendar-datepicker";
 import { useUser } from "../../../contexts/UserContext";
 import useOutlets from "../../../customHooks/useOutlets";
 import { useRouter } from "next/router";
+import moment from "moment";
 
 const EMPTY_POS_OBJECT = {
   paytm_tid: null,
@@ -121,6 +122,8 @@ function Create() {
         const data = {};
 
         list.forEach((item) => {
+          if (!item.Paytm_Tid) return;
+
           const PAYTM_TID = item.Paytm_Tid.replaceAll("'", "");
           if (!data[PAYTM_TID]) {
             data[PAYTM_TID] = {};
@@ -129,9 +132,13 @@ function Create() {
           const ITEM_KEY = item["Bank/Gateway"].replaceAll("'", "");
 
           if (data[PAYTM_TID][ITEM_KEY]) {
-            data[PAYTM_TID][ITEM_KEY] += item.Settled_Amount;
+            data[PAYTM_TID][ITEM_KEY] += parseFloat(
+              item.Settled_Amount.replaceAll("'", "")
+            );
           } else {
-            data[PAYTM_TID][ITEM_KEY] = item.Settled_Amount;
+            data[PAYTM_TID][ITEM_KEY] = parseFloat(
+              item.Settled_Amount.replaceAll("'", "")
+            );
           }
         });
 
@@ -170,7 +177,7 @@ function Create() {
     toast.promise(
       EbookHelper.bulkCreateEbook({
         store_id: parseInt(store_id),
-        date: date.toISOString().split("T")[0],
+        date: moment(date).format("YYYY-MM-DD"),
         ebooks: modifedPosList,
       }),
       {
