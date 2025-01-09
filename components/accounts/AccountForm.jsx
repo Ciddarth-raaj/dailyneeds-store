@@ -47,7 +47,7 @@ function AccountForm({ formikProps, isViewMode, isSaved, onDateChange, mode }) {
           item.person_type == personType &&
           (storeId === null ||
             item.store_ids == null ||
-            item.store_ids.includes(storeId))
+            item.store_ids.includes(parseInt(storeId)))
         ) {
           return true;
         }
