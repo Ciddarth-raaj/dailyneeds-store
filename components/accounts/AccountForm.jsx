@@ -37,7 +37,7 @@ function AccountForm({ formikProps, isViewMode, isSaved, onDateChange, mode }) {
   }));
 
   const getPeopleList = (personType) => {
-    if (personType === undefined || personType == 4) {
+    if (personType === undefined || personType == 5) {
       return [];
     }
 

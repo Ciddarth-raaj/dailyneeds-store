@@ -10,7 +10,7 @@ export const EMPTY_ACCOUNT_OBJECT = {
 
 export const MODIFIED_PEOPLE_TYPES = [
   {
-    id: 4,
+    id: 5,
     value: "Employee",
   },
   ...PEOPLE_TYPES,

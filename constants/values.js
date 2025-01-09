@@ -683,6 +683,10 @@ export const PEOPLE_TYPES = [
     id: 3,
     value: "Vendor",
   },
+  {
+    id: 4,
+    value: "Expense",
+  },
 ];
 
 export const getPersonType = (typeId) => {
