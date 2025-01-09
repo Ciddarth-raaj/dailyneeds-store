@@ -72,8 +72,15 @@ function Index() {
     };
   }, [selectedOutlet, selectedDate]);
 
-  const { accounts, loading, isSaved, saveSheet, unsaveSheet, epayments } =
-    useAccounts(filters);
+  const {
+    accounts,
+    loading,
+    isSaved,
+    saveSheet,
+    unsaveSheet,
+    epayments,
+    outletData,
+  } = useAccounts(filters);
 
   const modifiedAccounts = useMemo(() => {
     const modified = accounts.map((item) => ({
@@ -123,8 +130,8 @@ function Index() {
   }, [accounts]);
 
   const modifiedCashBook = useMemo(() => {
-    return getCashBook(accounts);
-  }, [accounts]);
+    return getCashBook(accounts, outletData);
+  }, [accounts, outletData]);
 
   const modifiedEbook = useMemo(() => {
     return getEbook(epayments, getTotals(accounts, true));

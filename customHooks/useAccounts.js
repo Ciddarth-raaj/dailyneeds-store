@@ -4,6 +4,7 @@ import * as AccountsHelper from "../helper/accounts";
 export function useAccounts(filters) {
   const [accounts, setAccounts] = useState([]);
   const [epayments, setEpayments] = useState([]);
+  const [outletData, setOutletData] = useState(null);
   const [isSaved, setIsSaved] = useState(true);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -15,6 +16,7 @@ export function useAccounts(filters) {
       if (data.code === 200) {
         setAccounts(data.data.account);
         setEpayments(data.data.ebook);
+        setOutletData(data.data.outlet);
         setIsSaved(data.is_saved);
       }
     } catch (err) {
@@ -73,5 +75,6 @@ export function useAccounts(filters) {
     saveSheet,
     unsaveSheet,
     epayments,
+    outletData,
   };
 }

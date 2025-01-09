@@ -146,9 +146,17 @@ export const getAmmountDifference = (values) => {
   }
 };
 
-export function getCashBook(accounts) {
+export function getCashBook(accounts, outletData) {
   const totals = getTotals(accounts, true);
   const rows = [];
+
+  rows.push({
+    particulars: "Opening Cash",
+    narration: "",
+    debit: outletData?.opening_cash || 0,
+    credit: "",
+    rank: 0,
+  });
 
   rows.push({
     particulars: "Cash Sales",
@@ -251,8 +259,9 @@ export function getCashBook(accounts) {
 
   return rows.map((item) => ({
     ...item,
-    debit: item.debit ? currencyFormatter(item.debit) : "",
-    credit: item.credit ? currencyFormatter(item.credit) : "",
+    debit: item.debit || item.debit === 0 ? currencyFormatter(item.debit) : "",
+    credit:
+      item.credit || item.debit === 0 ? currencyFormatter(item.credit) : "",
   }));
 }
 
