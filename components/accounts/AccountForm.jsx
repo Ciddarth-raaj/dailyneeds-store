@@ -331,7 +331,7 @@ function AccountForm({ formikProps, isViewMode, isSaved, onDateChange, mode }) {
               }}
               disabled={isSaved}
             >
-              Create
+              {mode === "create" ? "Create" : "Update"}
             </Button>
           </>
         )}

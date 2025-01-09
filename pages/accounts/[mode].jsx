@@ -8,6 +8,7 @@ import {
   checkSheetSaved,
   createAccount,
   getAccountById,
+  updateAccount,
 } from "../../helper/accounts";
 import { useRouter } from "next/router";
 import FilesHelper from "../../helper/asset";
@@ -45,21 +46,24 @@ function Create() {
   });
 
   const addAccountHandler = (values) => {
-    toast.promise(addAccount(values), {
-      loading: "Adding new Account Record!",
-      success: (response) => {
-        if (response.code === 200) {
-          router.push("/accounts");
-          return "Acount Record Added!";
-        } else {
-          throw err;
-        }
-      },
-      error: (err) => {
-        console.log(err);
-        return "Error adding Account Record!";
-      },
-    });
+    toast.promise(
+      mode === "edit" ? updateAccountHandler(values) : addAccount(values),
+      {
+        loading: "Adding new Account Record!",
+        success: (response) => {
+          if (response.code === 200) {
+            router.push("/accounts");
+            return "Acount Record Added!";
+          } else {
+            throw err;
+          }
+        },
+        error: (err) => {
+          console.log(err);
+          return "Error adding Account Record!";
+        },
+      }
+    );
   };
 
   const addAccount = (values) => {
@@ -95,12 +99,47 @@ function Create() {
         const param = {
           ...values,
           sales,
-          date: values.date.toISOString().slice(0, 19).replace("T", " "),
+          date:
+            typeof values.date === "string"
+              ? values.date
+              : values.date.toISOString().slice(0, 19).replace("T", " "),
         };
 
         delete param.accounts;
 
         resolve(await createAccount(param));
+      } catch (err) {
+        reject(err);
+      }
+    });
+  };
+
+  const updateAccountHandler = (values) => {
+    return new Promise(async (resolve, reject) => {
+      try {
+        const sales = [];
+
+        for (const item of values.accounts) {
+          const tmpItem = structuredClone(item);
+          delete tmpItem.person_name;
+          sales.push(tmpItem);
+        }
+
+        const param = {
+          ...values,
+          sales,
+          date:
+            typeof values.date === "string"
+              ? values.date.slice(0, 19).replace("T", " ")
+              : values.date.toISOString().slice(0, 19).replace("T", " "),
+        };
+
+        delete param.accounts;
+        delete param.created_at;
+        delete param.cashier_name;
+        delete param.store_id;
+
+        resolve(await updateAccount(paramId, param));
       } catch (err) {
         reject(err);
       }
