@@ -964,7 +964,7 @@ class Create extends React.Component {
                             {id !== null ? (
                               <div className={styles.employeeImageModify}>
                                 {id !== null &&
-                                employee_image.slice(-3) === "pdf" ? (
+                                employee_image?.slice(-3) === "pdf" ? (
                                   <div className={styles.pdfholderNew}>
                                     <div className={styles.pdfholdermain}>
                                       <embed
