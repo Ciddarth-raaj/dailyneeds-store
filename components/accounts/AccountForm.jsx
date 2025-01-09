@@ -15,8 +15,8 @@ import { useUser } from "../../contexts/UserContext";
 import useEmployees from "../../customHooks/useEmployees";
 import { CASHIER_DESIGNATION } from "../../constants/designations";
 
-function AccountForm({ formikProps, isViewMode, isSaved }) {
-  const { handleSubmit, resetForm, values } = formikProps;
+function AccountForm({ formikProps, isViewMode, isSaved, onDateChange, mode }) {
+  const { handleSubmit, resetForm, values, setFieldValue } = formikProps;
   const editable = !isViewMode;
 
   // custom hooks
@@ -67,7 +67,11 @@ function AccountForm({ formikProps, isViewMode, isSaved }) {
             type="text"
             method="datepicker"
             editable={editable}
-            disabled={isSaved}
+            disabled={mode === "create" ? false : isSaved}
+            onChange={(date) => {
+              setFieldValue("date", date);
+              onDateChange?.(date);
+            }}
           />
           <CustomInput
             label="Cashier *"

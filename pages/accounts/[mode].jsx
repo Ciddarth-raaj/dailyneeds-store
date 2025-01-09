@@ -4,15 +4,23 @@ import Head from "../../util/head";
 import CustomContainer from "../../components/CustomContainer";
 import { Formik } from "formik";
 import toast from "react-hot-toast";
-import { createAccount, getAccountById } from "../../helper/accounts";
+import {
+  checkSheetSaved,
+  createAccount,
+  getAccountById,
+} from "../../helper/accounts";
 import { useRouter } from "next/router";
 import FilesHelper from "../../helper/asset";
 import { ACCOUNT_VALIDATION_SCHEMA } from "../../validations/accounts";
 import { EMPTY_ACCOUNT_OBJECT } from "../../constants/accounts";
 import AccountForm from "../../components/accounts/AccountForm";
+import { useUser } from "../../contexts/UserContext";
+import { Alert, AlertIcon } from "@chakra-ui/react";
 
 function Create() {
   const router = useRouter();
+
+  const { storeId } = useUser().userConfig;
   const { mode, id: paramId } = router.query;
   const viewMode = mode === "view";
 
@@ -116,11 +124,39 @@ function Create() {
     fetchAccount();
   }, [paramId]);
 
+  const handleDateChange = async (date) => {
+    if (!date) return;
+
+    try {
+      const response = await checkSheetSaved({
+        date: date.toISOString().split("T")[0],
+        store_id: storeId ?? 3,
+      });
+
+      if (response.code === 200) {
+        setIsSaved(response.is_saved);
+      }
+    } catch (err) {
+      console.error("Error checking sheet status:", err);
+    }
+  };
+
+  useEffect(() => {
+    handleDateChange(initialValues.date);
+  }, [initialValues.date]);
+
   return (
     <GlobalWrapper title="Add Account Sheet">
       <Head />
 
       <CustomContainer title="Add New Account Sheet" filledHeader>
+        {(mode === "create" || mode === "edit") && isSaved && (
+          <Alert status="warning" mb="22px" borderRadius="10px">
+            <AlertIcon />
+            Data was already saved for this date
+          </Alert>
+        )}
+
         <Formik
           enableReinitialize
           initialValues={initialValues}
@@ -132,6 +168,8 @@ function Create() {
               formikProps={formikProps}
               isViewMode={viewMode}
               isSaved={isSaved}
+              mode={mode}
+              onDateChange={handleDateChange}
             />
           )}
         </Formik>

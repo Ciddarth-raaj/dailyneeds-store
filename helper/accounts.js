@@ -92,3 +92,15 @@ export const unsaveAccountSheet = async (params) => {
     throw err;
   }
 };
+
+export const checkSheetSaved = async (params) => {
+  try {
+    const response = await API.get(
+      `/accounts/check-saved?date=${params.date}&store_id=${params.store_id}`
+    );
+    return response.data;
+  } catch (err) {
+    console.error("Error checking account sheet:", err);
+    throw err;
+  }
+};

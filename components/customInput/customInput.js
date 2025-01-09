@@ -367,6 +367,7 @@ const TextField = ({
                 selected={(field.value && new Date(field.value)) || null}
                 customInput={<CustomDateTimeInput disabled={props.disabled} />}
                 onChange={(val) => {
+                  onChange?.(val);
                   setFieldValue(field.name, moment(val).format("YYYY-MM-DD"));
                 }}
               />
