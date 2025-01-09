@@ -43,7 +43,7 @@ class LogIn extends React.Component {
           global.config.designation = data.data.designation;
           global.config.employee_image = data.data.employee_image;
 
-          this.props.setVisibility(true);
+          window.location.href = "/employee";
         }
       })
       .catch((err) => console.log(err));
