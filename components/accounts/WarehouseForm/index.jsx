@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import CustomContainer from "../../CustomContainer";
 import { FieldArray, Formik } from "formik";
 import CustomInput from "../../customInput/customInput";
@@ -16,6 +16,7 @@ import { Menu, MenuItem } from "@szhsin/react-menu";
 import Link from "next/link";
 import { createWarehouseSale } from "../../../helper/accounts";
 import toast from "react-hot-toast";
+import useWarehouseSales from "../../../customHooks/useWarehouseSales";
 
 const HEADING = {
   person_type: "Type",
@@ -35,14 +36,29 @@ const EMPTY_WAREHOUSE_OBJECT = {
 function WarehouseForm() {
   const { storeId } = useUser().userConfig;
   const { peopleList } = usePeople();
+  const [selectedDate, setSelectedDate] = useState(new Date());
+
+  const filters = useMemo(() => {
+    const startOfDay = new Date(selectedDate);
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date(selectedDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    return {
+      from_date: startOfDay.toISOString(),
+      to_date: endOfDay.toISOString(),
+    };
+  }, [selectedDate]);
+
+  const { sales, refetch } = useWarehouseSales(filters);
 
   const [initialValues, setInitialValues] = useState(EMPTY_WAREHOUSE_OBJECT);
-  const [salesList, setSalesList] = useState([]);
 
   const editable = true;
   const isSaved = false;
 
-  const SALES_ROWS = salesList.map((item) => ({
+  const SALES_ROWS = sales.map((item) => ({
     ...item,
     actions: (
       <Menu
@@ -102,15 +118,17 @@ function WarehouseForm() {
         loading: "Saving...",
         success: (response) => {
           if (response.code == 200) {
-            setSalesList([...salesList, values]);
+            refetch();
             resetForm();
+          } else {
+            throw "error";
           }
 
           return "Saved successfully";
         },
         error: (err) => {
           console.error(err);
-          return "Error saving";
+          return "Error saving sales";
         },
       });
     } catch (error) {
@@ -139,6 +157,7 @@ function WarehouseForm() {
                     method="datepicker"
                     editable={editable}
                     disabled={isSaved}
+                    onChange={(val) => setSelectedDate(val)}
                   />
                   <CustomInput
                     label="Type *"
