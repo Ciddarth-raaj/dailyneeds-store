@@ -14,6 +14,8 @@ import { useUser } from "../../../contexts/UserContext";
 import Table from "../../table/table";
 import { Menu, MenuItem } from "@szhsin/react-menu";
 import Link from "next/link";
+import { createWarehouseSale } from "../../../helper/accounts";
+import toast from "react-hot-toast";
 
 const HEADING = {
   person_type: "Type",
@@ -84,9 +86,36 @@ function WarehouseForm() {
   };
 
   const onSubmit = (values, resetForm) => {
-    setSalesList([...salesList, values]);
+    handleSave(values, resetForm);
+  };
 
-    resetForm();
+  const handleSave = async (values, resetForm) => {
+    try {
+      const params = {
+        ...values,
+        receipt_path: null,
+      };
+
+      delete params.receipt;
+
+      toast.promise(createWarehouseSale(params), {
+        loading: "Saving...",
+        success: (response) => {
+          if (response.code == 200) {
+            setSalesList([...salesList, values]);
+            resetForm();
+          }
+
+          return "Saved successfully";
+        },
+        error: (err) => {
+          console.error(err);
+          return "Error saving";
+        },
+      });
+    } catch (error) {
+      console.error(error);
+    }
   };
 
   return (
@@ -96,7 +125,7 @@ function WarehouseForm() {
           enableReinitialize
           initialValues={initialValues}
           // validationSchema={ACCOUNT_VALIDATION_SCHEMA}
-          onSubmit={onSubmit}
+          onSubmit={(values, { resetForm }) => onSubmit(values, resetForm)}
         >
           {(formikProps) => {
             const { values, handleSubmit, resetForm } = formikProps;
@@ -179,9 +208,8 @@ function WarehouseForm() {
                     Reset
                   </Button>
                   <Button
-                    onClick={(values) => {
-                      handleSubmit(values);
-                      resetForm();
+                    onClick={() => {
+                      handleSubmit(values, resetForm);
                     }}
                     colorScheme="purple"
                   >

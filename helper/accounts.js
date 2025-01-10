@@ -104,3 +104,105 @@ export const checkSheetSaved = async (params) => {
     throw err;
   }
 };
+
+export const createWarehouseSale = (params) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      // Format date if it's a Date object
+      const formattedParams = {
+        ...params,
+        date:
+          typeof params.date === "string"
+            ? params.date
+            : params.date.toISOString().slice(0, 10),
+      };
+
+      const response = await API.post(
+        "/accounts/warehouse-sales",
+        formattedParams
+      );
+      resolve(response.data);
+    } catch (err) {
+      reject(err);
+    }
+  });
+};
+
+export const updateWarehouseSale = (id, params) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      // Format date if it's a Date object
+      const formattedParams = {
+        ...params,
+        date:
+          typeof params.date === "string"
+            ? params.date
+            : params.date.toISOString().slice(0, 10),
+      };
+
+      const response = await API.put(
+        `/accounts/warehouse-sales/${id}`,
+        formattedParams
+      );
+      resolve(response.data);
+    } catch (err) {
+      reject(err);
+    }
+  });
+};
+
+export const deleteWarehouseSale = (id) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const response = await API.delete(`/accounts/warehouse-sales/${id}`);
+      resolve(response.data);
+    } catch (err) {
+      reject(err);
+    }
+  });
+};
+
+export const getAllWarehouseSales = (filters = {}) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const queryParams = new URLSearchParams();
+
+      // Add date filters if provided
+      if (filters.from_date) {
+        const fromDate =
+          typeof filters.from_date === "string"
+            ? filters.from_date
+            : filters.from_date.toISOString().slice(0, 10);
+        queryParams.append("from_date", fromDate);
+      }
+
+      if (filters.to_date) {
+        const toDate =
+          typeof filters.to_date === "string"
+            ? filters.to_date
+            : filters.to_date.toISOString().slice(0, 10);
+        queryParams.append("to_date", toDate);
+      }
+
+      const url = `/accounts/warehouse-sales${
+        queryParams.toString() ? `?${queryParams.toString()}` : ""
+      }`;
+
+      const response = await API.get(url);
+      resolve(response.data);
+    } catch (err) {
+      reject(err);
+    }
+  });
+};
+
+export const getWarehouseSaleById = (id) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const response = await API.get(`/accounts/warehouse-sales/${id}`);
+      resolve(response.data);
+    } catch (err) {
+      reject(err);
+    }
+  });
+};
