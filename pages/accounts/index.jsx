@@ -29,6 +29,8 @@ import { TableSkeleton } from "../../components/Skeleton";
 import toast from "react-hot-toast";
 import { useReactToPrint } from "react-to-print";
 import moment from "moment";
+import { useConfirmation } from "../../hooks/useConfirmation";
+import { deleteAccount } from "../../helper/accounts";
 
 const HEADINGS = {
   cashier_name: "Cashier Name",
@@ -60,6 +62,7 @@ function Index() {
   const { storeId } = useUser().userConfig;
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedOutlet, setSelectedOutlet] = useState(null);
+  const { confirm } = useConfirmation();
 
   const printCashDenomination = useReactToPrint({
     contentRef: cashDenominationRef,
@@ -87,6 +90,7 @@ function Index() {
     unsaveSheet,
     epayments,
     outletData,
+    refetch,
   } = useAccounts(filters);
 
   useEffect(() => {
@@ -125,7 +129,9 @@ function Index() {
           <Link href={`/accounts/edit?id=${item.accounts_id}`} passHref>
             <MenuItem>Edit</MenuItem>
           </Link>
-          <MenuItem>Delete</MenuItem>
+          <MenuItem onClick={() => handleDelete(item.accounts_id)}>
+            Delete
+          </MenuItem>
         </Menu>
       ),
     }));
@@ -192,9 +198,36 @@ function Index() {
     return selectedOutletValue?.value ?? "All Outlets";
   };
 
+  const handleDelete = async (id) => {
+    const shouldDelete = await confirm(
+      "Are you sure? You can't undo this action afterwards.",
+      {
+        title: "Delete Account",
+        type: "error",
+        confirmText: "Delete",
+      }
+    );
+
+    if (shouldDelete) {
+      toast.promise(deleteAccount(id), {
+        loading: "Deleting account",
+        success: (response) => {
+          if (response.code === 200) {
+            refetch();
+            return "Account deleted successfully";
+          } else {
+            throw err;
+          }
+        },
+        error: "Failed to delete account",
+      });
+    }
+  };
+
   return (
     <GlobalWrapper title="Account Sheet">
       <Head />
+
       <CustomContainer
         title="Account Sheet"
         rightSection={
