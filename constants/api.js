@@ -1,4 +1,7 @@
-export default {
-  BASE_URL: "http://3.109.76.230/",
-  // BASE_URL: "http://127.0.0.1:8080",
+const constants = {
+  BASE_URL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/",
 };
+
+// http://3.109.76.230/
+
+export default constants;
