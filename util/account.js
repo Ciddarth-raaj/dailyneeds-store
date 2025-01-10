@@ -353,3 +353,51 @@ export function getEbook(accounts, totals) {
   modified.sort((a, b) => a.ranking - b.ranking);
   return modified;
 }
+
+export function getWarehouseCashbook(sales) {
+  const modified = [];
+
+  modified.push({
+    particulars: <b>Payments / Receipts</b>,
+    narration: "",
+    debit: "",
+    credit: "",
+    rank: 1,
+  });
+
+  sales.forEach((item) => {
+    modified.push({
+      particulars: item.person_name,
+      narration: item.description,
+      debit: item.payment_type === 2 ? item.amount : "",
+      credit: item.payment_type === 1 ? item.amount : "",
+      rank: 2,
+    });
+  });
+
+  const calculated = modified.reduce(
+    (acc, item) => {
+      if (item.debit) {
+        acc.debit += parseFloat(item.debit);
+        acc.total += parseFloat(item.debit);
+      }
+      if (item.credit) {
+        acc.credit += parseFloat(item.credit);
+        acc.total -= parseFloat(item.credit);
+      }
+      return acc;
+    },
+    { debit: 0, credit: 0, total: 0 }
+  );
+
+  modified.push({
+    narration: "Total",
+    debit: calculated.debit,
+    credit: calculated.credit,
+    rank: 6,
+  });
+
+  modified.sort((a, b) => a.ranking - b.ranking);
+
+  return modified;
+}

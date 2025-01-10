@@ -12,6 +12,8 @@ import usePermissions from "../../customHooks/usePermissions";
 import NormalOutletView from "../../components/accounts/NormalOutletView";
 import { useUser } from "../../contexts/UserContext";
 import useOutlets from "../../customHooks/useOutlets";
+import WarehouseView from "../../components/accounts/WarehouseView";
+import { WAREHHOUSE_ID } from "../../constants";
 
 function Index() {
   const { storeId } = useUser().userConfig;
@@ -24,6 +26,8 @@ function Index() {
     id: item.outlet_id,
     value: item.outlet_name,
   }));
+
+  console.log("CIDD", WAREHHOUSE_ID === storeId, storeId, WAREHHOUSE_ID);
 
   const canAddSheet = usePermissions(["add_account_sheet"]);
 
@@ -68,13 +72,17 @@ function Index() {
             </Select>
           </div>
 
-          <NormalOutletView
-            selectedDate={selectedDate}
-            setSelectedDate={setSelectedDate}
-            selectedOutlet={selectedOutlet}
-            setSelectedOutlet={setSelectedOutlet}
-            OUTLETS_LIST={OUTLETS_LIST}
-          />
+          {selectedOutlet == WAREHHOUSE_ID ? (
+            <WarehouseView selectedDate={selectedDate} />
+          ) : (
+            <NormalOutletView
+              selectedDate={selectedDate}
+              setSelectedDate={setSelectedDate}
+              selectedOutlet={selectedOutlet}
+              setSelectedOutlet={setSelectedOutlet}
+              OUTLETS_LIST={OUTLETS_LIST}
+            />
+          )}
         </div>
       </CustomContainer>
     </GlobalWrapper>
