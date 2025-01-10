@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import CustomContainer from "../../CustomContainer";
-import { FieldArray, Formik } from "formik";
+import { Formik } from "formik";
 import CustomInput from "../../customInput/customInput";
 import {
   EMPTY_ACCOUNT_OBJECT,
@@ -13,7 +13,6 @@ import usePeople from "../../../customHooks/usePeople";
 import { useUser } from "../../../contexts/UserContext";
 import Table from "../../table/table";
 import { Menu, MenuItem } from "@szhsin/react-menu";
-import Link from "next/link";
 import {
   createWarehouseSale,
   deleteWarehouseSale,
@@ -22,8 +21,8 @@ import {
 import toast from "react-hot-toast";
 import useWarehouseSales from "../../../customHooks/useWarehouseSales";
 import currencyFormatter from "../../../util/currencyFormatter";
-import moment from "moment";
 import { useConfirmation } from "../../../hooks/useConfirmation";
+import CashDenominationForm from "./CashDenominationForm";
 
 const HEADING = {
   person_type: "Type",
@@ -243,112 +242,120 @@ function WarehouseForm() {
 
   return (
     <>
-      <CustomContainer title="Add New Account Sheet" filledHeader>
-        <Formik
-          enableReinitialize
-          initialValues={initialValues}
-          // validationSchema={ACCOUNT_VALIDATION_SCHEMA}
-          onSubmit={(values, { resetForm }) => onSubmit(values, resetForm)}
+      <div className={styles.formContainer}>
+        <CustomContainer
+          title="Add New Account Sheet"
+          filledHeader
+          style={{ flex: 2 }}
         >
-          {(formikProps) => {
-            const { values, handleSubmit, resetForm } = formikProps;
-            return (
-              <div>
-                <div className={styles.inputSubContainer}>
+          <Formik
+            enableReinitialize
+            initialValues={initialValues}
+            // validationSchema={ACCOUNT_VALIDATION_SCHEMA}
+            onSubmit={(values, { resetForm }) => onSubmit(values, resetForm)}
+          >
+            {(formikProps) => {
+              const { values, handleSubmit, resetForm } = formikProps;
+              return (
+                <div>
+                  <div className={styles.inputSubContainer}>
+                    <CustomInput
+                      label="Date *"
+                      name="date"
+                      type="date"
+                      method="datepicker"
+                      editable={editable}
+                      disabled={isSaved}
+                      onChange={(val) => setSelectedDate(val)}
+                    />
+                    <CustomInput
+                      label="Type *"
+                      name={`person_type`}
+                      type="number"
+                      values={MODIFIED_PEOPLE_TYPES}
+                      method="switch"
+                      editable={editable}
+                      disabled={isSaved}
+                    />
+                  </div>
+
+                  <div className={styles.inputSubContainer}>
+                    <CustomInput
+                      label="Payment Type *"
+                      name={`payment_type`}
+                      type="number"
+                      values={PAYMENT_TYPES_ACCOUNTS}
+                      method="switch"
+                      editable={editable}
+                      disabled={isSaved}
+                    />
+
+                    <CustomInput
+                      label="Name *"
+                      name={`person_id`}
+                      type="number"
+                      values={getPeopleList(values.person_type)}
+                      method="switch"
+                      editable={editable}
+                      disabled={isSaved}
+                    />
+                  </div>
+
+                  <div className={styles.inputSubContainer}>
+                    <CustomInput
+                      label="Narration *"
+                      name={`description`}
+                      type="text"
+                      editable={editable}
+                      disabled={isSaved}
+                    />
+
+                    <CustomInput
+                      label="Amount *"
+                      name={`amount`}
+                      type="number"
+                      editable={editable}
+                      disabled={isSaved}
+                    />
+                  </div>
+
                   <CustomInput
-                    label="Date *"
-                    name="date"
-                    type="date"
-                    method="datepicker"
+                    label="Receipt"
+                    name={`receipt`}
+                    method="file"
                     editable={editable}
                     disabled={isSaved}
-                    onChange={(val) => setSelectedDate(val)}
                   />
-                  <CustomInput
-                    label="Type *"
-                    name={`person_type`}
-                    type="number"
-                    values={MODIFIED_PEOPLE_TYPES}
-                    method="switch"
-                    editable={editable}
-                    disabled={isSaved}
-                  />
+
+                  <div className={styles.buttonContainer}>
+                    <Button
+                      onClick={() => {
+                        setInitialValues(EMPTY_WAREHOUSE_OBJECT);
+                        resetForm();
+                        setIsEditing(false);
+                      }}
+                      colorScheme="purple"
+                      variant="outline"
+                    >
+                      Reset
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        handleSubmit(values, resetForm);
+                      }}
+                      colorScheme="purple"
+                    >
+                      {isEditing ? "Update" : "Save"}
+                    </Button>
+                  </div>
                 </div>
+              );
+            }}
+          </Formik>
+        </CustomContainer>
 
-                <div className={styles.inputSubContainer}>
-                  <CustomInput
-                    label="Payment Type *"
-                    name={`payment_type`}
-                    type="number"
-                    values={PAYMENT_TYPES_ACCOUNTS}
-                    method="switch"
-                    editable={editable}
-                    disabled={isSaved}
-                  />
-
-                  <CustomInput
-                    label="Name *"
-                    name={`person_id`}
-                    type="number"
-                    values={getPeopleList(values.person_type)}
-                    method="switch"
-                    editable={editable}
-                    disabled={isSaved}
-                  />
-                </div>
-
-                <div className={styles.inputSubContainer}>
-                  <CustomInput
-                    label="Narration *"
-                    name={`description`}
-                    type="text"
-                    editable={editable}
-                    disabled={isSaved}
-                  />
-
-                  <CustomInput
-                    label="Amount *"
-                    name={`amount`}
-                    type="number"
-                    editable={editable}
-                    disabled={isSaved}
-                  />
-                </div>
-
-                <CustomInput
-                  label="Receipt"
-                  name={`receipt`}
-                  method="file"
-                  editable={editable}
-                  disabled={isSaved}
-                />
-
-                <div className={styles.buttonContainer}>
-                  <Button
-                    onClick={() => {
-                      setInitialValues(EMPTY_WAREHOUSE_OBJECT);
-                      resetForm();
-                      setIsEditing(false);
-                    }}
-                    colorScheme="purple"
-                    variant="outline"
-                  >
-                    Reset
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      handleSubmit(values, resetForm);
-                    }}
-                    colorScheme="purple"
-                  >
-                    {isEditing ? "Update" : "Save"}
-                  </Button>
-                </div>
-              </div>
-            );
-          }}
-        </Formik>
-      </CustomContainer>
+        <CashDenominationForm isSaved={isSaved} editable={editable} />
+      </div>
 
       <div style={{ marginTop: "22px" }}>
         <CustomContainer title="List of Payment and Receipts" smallHeader>

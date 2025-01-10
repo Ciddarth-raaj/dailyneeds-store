@@ -55,3 +55,18 @@
   padding-right: 60px;
   max-width: 600px;
 }
+
+.formContainer {
+  display: flex;
+  flex-direction: row;
+  gap: 32px;
+}
+
+.cashHandoverContainerWarehouse {
+  display: flex;
+  flex-direction: column;
+}
+
+.cashHandoverContainerWarehouse > div {
+  margin-bottom: 12px;
+}

@@ -8,9 +8,10 @@ function CustomContainer({
   children,
   filledHeader,
   smallHeader,
+  style,
 }) {
   return (
-    <div className={styles.mainContainer}>
+    <div className={styles.mainContainer} style={style}>
       <div
         className={`${styles.headingContainer} ${
           filledHeader ? styles.filledHeader : ""
