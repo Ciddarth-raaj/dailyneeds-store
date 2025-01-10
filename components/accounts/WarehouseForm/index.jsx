@@ -17,6 +17,7 @@ import Link from "next/link";
 import { createWarehouseSale } from "../../../helper/accounts";
 import toast from "react-hot-toast";
 import useWarehouseSales from "../../../customHooks/useWarehouseSales";
+import currencyFormatter from "../../../util/currencyFormatter";
 
 const HEADING = {
   person_type: "Type",
@@ -58,27 +59,45 @@ function WarehouseForm() {
   const editable = true;
   const isSaved = false;
 
-  const SALES_ROWS = sales.map((item) => ({
-    ...item,
-    actions: (
-      <Menu
-        align="end"
-        gap={5}
-        menuButton={
-          <IconButton
-            disabled={isSaved}
-            variant="ghost"
-            colorScheme="purple"
-            icon={<i className={`fa fa-ellipsis-v`} />}
-          />
-        }
-        transition
-      >
-        <MenuItem>Edit</MenuItem>
-        <MenuItem>Delete</MenuItem>
-      </Menu>
-    ),
-  }));
+  const SALES_ROWS = sales.map((item) => {
+    const person_type = MODIFIED_PEOPLE_TYPES.find(
+      (type) => type.id == item.person_type
+    );
+
+    const payment_type = PAYMENT_TYPES_ACCOUNTS.find(
+      (type) => type.id == item.payment_type
+    );
+
+    const person_name = peopleList.find(
+      (person) => person.person_id == item.person_id
+    );
+
+    return {
+      ...item,
+      person_type: person_type?.value ?? "N/A",
+      payment_type: payment_type?.value ?? "N/A",
+      person_id: person_name?.name ?? "N/A",
+      amount: currencyFormatter(item.amount),
+      actions: (
+        <Menu
+          align="end"
+          gap={5}
+          menuButton={
+            <IconButton
+              disabled={isSaved}
+              variant="ghost"
+              colorScheme="purple"
+              icon={<i className={`fa fa-ellipsis-v`} />}
+            />
+          }
+          transition
+        >
+          <MenuItem>Edit</MenuItem>
+          <MenuItem>Delete</MenuItem>
+        </Menu>
+      ),
+    };
+  });
 
   const getPeopleList = (personType) => {
     if (personType === undefined || personType == 5) {
