@@ -354,7 +354,11 @@ function WarehouseForm() {
           </Formik>
         </CustomContainer>
 
-        <CashDenominationForm isSaved={isSaved} editable={editable} />
+        <CashDenominationForm
+          isSaved={isSaved}
+          editable={editable}
+          selectedDate={selectedDate}
+        />
       </div>
 
       <div style={{ marginTop: "22px" }}>

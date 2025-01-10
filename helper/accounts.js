@@ -203,3 +203,106 @@ export const getWarehouseSaleById = (id) => {
     }
   });
 };
+
+export const createWarehouseCashDenomination = (params) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const formattedParams = {
+        ...params,
+        date:
+          typeof params.date === "string"
+            ? params.date
+            : params.date.toISOString().slice(0, 10),
+      };
+
+      const response = await API.post(
+        "/accounts/warehouse-cash-denomination",
+        formattedParams
+      );
+      resolve(response.data);
+    } catch (err) {
+      reject(err);
+    }
+  });
+};
+
+export const updateWarehouseCashDenomination = (id, params) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const formattedParams = {
+        ...params,
+        date:
+          typeof params.date === "string"
+            ? params.date
+            : params.date.toISOString().slice(0, 10),
+      };
+
+      const response = await API.put(
+        `/accounts/warehouse-cash-denomination/${id}`,
+        formattedParams
+      );
+      resolve(response.data);
+    } catch (err) {
+      reject(err);
+    }
+  });
+};
+
+export const deleteWarehouseCashDenomination = (id) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const response = await API.delete(
+        `/accounts/warehouse-cash-denomination/${id}`
+      );
+      resolve(response.data);
+    } catch (err) {
+      reject(err);
+    }
+  });
+};
+
+export const getAllWarehouseCashDenominations = (filters = {}) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const queryParams = new URLSearchParams();
+
+      if (filters.from_date) {
+        const fromDate =
+          typeof filters.from_date === "string"
+            ? filters.from_date
+            : filters.from_date.toISOString().slice(0, 10);
+        queryParams.append("from_date", fromDate);
+      }
+
+      if (filters.to_date) {
+        const toDate =
+          typeof filters.to_date === "string"
+            ? filters.to_date
+            : filters.to_date.toISOString().slice(0, 10);
+        queryParams.append("to_date", toDate);
+      }
+
+      const url = `/accounts/warehouse-cash-denomination${
+        queryParams.toString() ? `?${queryParams.toString()}` : ""
+      }`;
+
+      const response = await API.get(url);
+      resolve(response.data);
+    } catch (err) {
+      reject(err);
+    }
+  });
+};
+
+export const getWarehouseCashDenominationById = (id) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const response = await API.get(
+        `/accounts/warehouse-cash-denomination/${id}`
+      );
+      resolve(response.data);
+    } catch (err) {
+      reject(err);
+    }
+  });
+};

@@ -7,6 +7,8 @@ import { ChevronDownIcon, ChevronUpIcon } from "@chakra-ui/icons";
 import styles from "../../../styles/master.module.css";
 import { Badge } from "@chakra-ui/react";
 import { getTotalCashHandover } from "../../../util/account";
+import toast from "react-hot-toast";
+import { createWarehouseCashDenomination } from "../../../helper/accounts";
 
 const EMPPTY_CASH_DENOMINATION_OBJECT = {
   cash_handover_1: 0,
@@ -20,11 +22,38 @@ const EMPPTY_CASH_DENOMINATION_OBJECT = {
   cash_handover_500: 0,
 };
 
-function CashDenominationForm({ editable, isSaved }) {
+function CashDenominationForm({ editable, isSaved, selectedDate }) {
   const [initialValues, setInitialValues] = useState(
     EMPPTY_CASH_DENOMINATION_OBJECT
   );
   const [isDenominationOpen, setIsDenominationOpen] = useState(false);
+
+  const handleSubmit = (values) => {
+    try {
+      const param = {
+        ...values,
+        date: selectedDate,
+      };
+
+      toast.promise(createWarehouseCashDenomination(param), {
+        loading: "Saving...",
+        success: (response) => {
+          if (response.code == 200) {
+            setIsDenominationOpen(false);
+            return "Saved successfully";
+          }
+
+          throw "error";
+        },
+        error: (err) => {
+          console.error(err);
+          return "Error saving sales";
+        },
+      });
+    } catch (error) {
+      console.error(error);
+    }
+  };
 
   return (
     <div style={{ marginBottom: "22px", flex: 1 }}>
@@ -44,7 +73,7 @@ function CashDenominationForm({ editable, isSaved }) {
           enableReinitialize
           initialValues={initialValues}
           // validationSchema={ACCOUNT_VALIDATION_SCHEMA}
-          onSubmit={() => {}}
+          onSubmit={handleSubmit}
         >
           {(formikProps) => {
             const { values, resetForm, handleSubmit } = formikProps;
