@@ -1,5 +1,5 @@
 import { Formik } from "formik";
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import CustomInput from "../../customInput/customInput";
 import CustomContainer from "../../CustomContainer";
 import { Button, IconButton } from "@chakra-ui/button";
@@ -8,7 +8,11 @@ import styles from "../../../styles/master.module.css";
 import { Badge } from "@chakra-ui/react";
 import { getTotalCashHandover } from "../../../util/account";
 import toast from "react-hot-toast";
-import { createWarehouseCashDenomination } from "../../../helper/accounts";
+import {
+  createWarehouseCashDenomination,
+  updateWarehouseCashDenomination,
+} from "../../../helper/accounts";
+import useWarehouseDenomination from "../../../customHooks/useWarehouseDenomination";
 
 const EMPPTY_CASH_DENOMINATION_OBJECT = {
   cash_handover_1: 0,
@@ -28,7 +32,70 @@ function CashDenominationForm({ editable, isSaved, selectedDate }) {
   );
   const [isDenominationOpen, setIsDenominationOpen] = useState(false);
 
+  const filters = useMemo(() => {
+    const startOfDay = new Date(selectedDate);
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date(selectedDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    return {
+      from_date: startOfDay.toISOString(),
+      to_date: endOfDay.toISOString(),
+    };
+  }, [selectedDate]);
+
+  const { denomination, isSaved: isCashDenominationSaved } =
+    useWarehouseDenomination(filters);
+
+  useEffect(() => {
+    setInitialValues(denomination ?? EMPPTY_CASH_DENOMINATION_OBJECT);
+  }, [denomination]);
+
   const handleSubmit = (values) => {
+    if (isCashDenominationSaved) {
+      handleUpdate(values);
+    } else {
+      handleSave(values);
+    }
+  };
+
+  const handleUpdate = (values) => {
+    try {
+      const param = {
+        ...values,
+        date: selectedDate,
+      };
+
+      delete param.cash_denomination_id;
+
+      toast.promise(
+        updateWarehouseCashDenomination(
+          denomination.cash_denomination_id,
+          param
+        ),
+        {
+          loading: "Updating...",
+          success: (response) => {
+            if (response.code == 200) {
+              setIsDenominationOpen(false);
+              return "Updated successfully";
+            }
+
+            throw "error";
+          },
+          error: (err) => {
+            console.error(err);
+            return "Error updating cash denomination";
+          },
+        }
+      );
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const handleSave = (values) => {
     try {
       const param = {
         ...values,
@@ -187,7 +254,7 @@ function CashDenominationForm({ editable, isSaved, selectedDate }) {
                       colorScheme="purple"
                       onClick={handleSubmit}
                     >
-                      Save
+                      {isCashDenominationSaved ? "Update" : "Save"}
                     </Button>
                   </div>
                 )}
