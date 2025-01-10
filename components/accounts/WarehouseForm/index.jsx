@@ -16,12 +16,14 @@ import { Menu, MenuItem } from "@szhsin/react-menu";
 import Link from "next/link";
 import {
   createWarehouseSale,
+  deleteWarehouseSale,
   updateWarehouseSale,
 } from "../../../helper/accounts";
 import toast from "react-hot-toast";
 import useWarehouseSales from "../../../customHooks/useWarehouseSales";
 import currencyFormatter from "../../../util/currencyFormatter";
 import moment from "moment";
+import { useConfirmation } from "../../../hooks/useConfirmation";
 
 const HEADING = {
   person_type: "Type",
@@ -39,6 +41,7 @@ const EMPTY_WAREHOUSE_OBJECT = {
 };
 
 function WarehouseForm() {
+  const { confirm } = useConfirmation();
   const { storeId } = useUser().userConfig;
   const { peopleList } = usePeople();
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -103,7 +106,9 @@ function WarehouseForm() {
           transition
         >
           <MenuItem onClick={() => handleStartEdit(item)}>Edit</MenuItem>
-          <MenuItem>Delete</MenuItem>
+          <MenuItem onClick={() => handleDelete(item.sales_id)}>
+            Delete
+          </MenuItem>
         </Menu>
       ),
     };
@@ -136,6 +141,37 @@ function WarehouseForm() {
     } else {
       handleSave(values, resetForm);
     }
+  };
+
+  const handleDelete = async (id) => {
+    const shouldDelete = await confirm(
+      "Are you sure? You can't undo this action afterwards.",
+      {
+        title: "Delete",
+        type: "error",
+        confirmText: "Delete",
+      }
+    );
+
+    if (!shouldDelete) {
+      return;
+    }
+
+    toast.promise(deleteWarehouseSale(id), {
+      loading: "Deleting...",
+      success: (response) => {
+        if (response.code == 200) {
+          refetch();
+          return "Deleted successfully";
+        } else {
+          throw "error";
+        }
+      },
+      error: (err) => {
+        console.error(err);
+        return "Error deleting sales";
+      },
+    });
   };
 
   const handleUpdate = (values, resetForm) => {
