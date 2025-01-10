@@ -255,6 +255,7 @@ function Index() {
               value={selectedOutlet}
               onChange={(val) => setSelectedOutlet(val.target.value)}
               style={{ backgroundColor: "white" }}
+              disabled={storeId !== null}
             >
               {OUTLETS_LIST?.map((item) => (
                 <option key={item.id} value={item.id}>
