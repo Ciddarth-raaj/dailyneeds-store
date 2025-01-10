@@ -14,10 +14,14 @@ import { useUser } from "../../../contexts/UserContext";
 import Table from "../../table/table";
 import { Menu, MenuItem } from "@szhsin/react-menu";
 import Link from "next/link";
-import { createWarehouseSale } from "../../../helper/accounts";
+import {
+  createWarehouseSale,
+  updateWarehouseSale,
+} from "../../../helper/accounts";
 import toast from "react-hot-toast";
 import useWarehouseSales from "../../../customHooks/useWarehouseSales";
 import currencyFormatter from "../../../util/currencyFormatter";
+import moment from "moment";
 
 const HEADING = {
   person_type: "Type",
@@ -55,6 +59,7 @@ function WarehouseForm() {
   const { sales, refetch } = useWarehouseSales(filters);
 
   const [initialValues, setInitialValues] = useState(EMPTY_WAREHOUSE_OBJECT);
+  const [isEditing, setIsEditing] = useState(false);
 
   const editable = true;
   const isSaved = false;
@@ -71,6 +76,11 @@ function WarehouseForm() {
     const person_name = peopleList.find(
       (person) => person.person_id == item.person_id
     );
+
+    const handleStartEdit = (item) => {
+      setIsEditing(true);
+      setInitialValues(item);
+    };
 
     return {
       ...item,
@@ -92,7 +102,7 @@ function WarehouseForm() {
           }
           transition
         >
-          <MenuItem>Edit</MenuItem>
+          <MenuItem onClick={() => handleStartEdit(item)}>Edit</MenuItem>
           <MenuItem>Delete</MenuItem>
         </Menu>
       ),
@@ -121,7 +131,47 @@ function WarehouseForm() {
   };
 
   const onSubmit = (values, resetForm) => {
-    handleSave(values, resetForm);
+    if (isEditing) {
+      handleUpdate(values, resetForm);
+    } else {
+      handleSave(values, resetForm);
+    }
+  };
+
+  const handleUpdate = (values, resetForm) => {
+    try {
+      const params = {
+        ...values,
+        receipt_path: null,
+      };
+
+      const salesId = params.sales_id;
+      delete params.receipt;
+      delete params.sales_id;
+      delete params.person_name;
+
+      toast.promise(updateWarehouseSale(salesId, params), {
+        loading: "Updating...",
+        success: (response) => {
+          if (response.code == 200) {
+            setInitialValues(EMPTY_WAREHOUSE_OBJECT);
+            setIsEditing(false);
+            refetch();
+            resetForm();
+          } else {
+            throw "error";
+          }
+
+          return "Updated successfully";
+        },
+        error: (err) => {
+          console.error("CIDD", err);
+          return "Error updating sales";
+        },
+      });
+    } catch (error) {
+      console.error(error);
+    }
   };
 
   const handleSave = async (values, resetForm) => {
@@ -239,7 +289,11 @@ function WarehouseForm() {
 
                 <div className={styles.buttonContainer}>
                   <Button
-                    onClick={resetForm}
+                    onClick={() => {
+                      setInitialValues(EMPTY_WAREHOUSE_OBJECT);
+                      resetForm();
+                      setIsEditing(false);
+                    }}
                     colorScheme="purple"
                     variant="outline"
                   >
@@ -251,7 +305,7 @@ function WarehouseForm() {
                     }}
                     colorScheme="purple"
                   >
-                    Save
+                    {isEditing ? "Update" : "Save"}
                   </Button>
                 </div>
               </div>

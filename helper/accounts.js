@@ -1,3 +1,4 @@
+import moment from "moment";
 import API from "../util/api";
 
 export const getAllAccounts = (filters = {}) => {
@@ -131,13 +132,9 @@ export const createWarehouseSale = (params) => {
 export const updateWarehouseSale = (id, params) => {
   return new Promise(async (resolve, reject) => {
     try {
-      // Format date if it's a Date object
       const formattedParams = {
         ...params,
-        date:
-          typeof params.date === "string"
-            ? params.date
-            : params.date.toISOString().slice(0, 10),
+        date: moment(params.date).format("YYYY-MM-DD"),
       };
 
       const response = await API.put(
