@@ -64,6 +64,18 @@ export const deleteAccount = (id) => {
   });
 };
 
+export const checkIfSaved = async (params) => {
+  try {
+    const response = await API.get(
+      `/accounts/saved-account?date=${params.date}&store_id=${params.store_id}`
+    );
+    return response.data;
+  } catch (err) {
+    console.error("Error saving account sheet:", err);
+    throw err;
+  }
+};
+
 export const saveAccountSheet = async (params) => {
   try {
     const response = await API.post("/accounts/save", {
@@ -346,6 +358,19 @@ export const getStartingCash = (date) => {
       const url = `/accounts/warehouse-starting-cash?date=${date}`;
 
       const response = await API.get(url);
+      resolve(response.data);
+    } catch (err) {
+      reject(err);
+    }
+  });
+};
+
+export const addStartingCash = (params) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const url = `/accounts/warehouse-starting-cash`;
+
+      const response = await API.post(url, params);
       resolve(response.data);
     } catch (err) {
       reject(err);

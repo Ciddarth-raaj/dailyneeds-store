@@ -491,23 +491,6 @@ export function getWarehouseCashbook(
   }));
 }
 
-const getWarehouseDenominationsTotal = (denomination) => {
-  if (!denomination || denomination.length === 0) {
-    return 0;
-  }
-  return (
-    denomination.cash_handover_500 * 500 +
-    denomination.cash_handover_200 * 200 +
-    denomination.cash_handover_100 * 100 +
-    denomination.cash_handover_50 * 50 +
-    denomination.cash_handover_20 * 20 +
-    denomination.cash_handover_10 * 10 +
-    denomination.cash_handover_5 * 5 +
-    denomination.cash_handover_2 * 2 +
-    denomination.cash_handover_1 * 1
-  );
-};
-
 export function getWarehouseDenominations(denomination) {
   if (!denomination) {
     return [];

@@ -3,11 +3,17 @@ import useWarehouseSales from "../../customHooks/useWarehouseSales";
 import CustomContainer from "../CustomContainer";
 import Table from "../table/table";
 import {
+  getTotalCashHandover,
   getWarehouseCashbook,
   getWarehouseDenominations,
 } from "../../util/account";
 import useWarehouseDenomination from "../../customHooks/useWarehouseDenomination";
 import EmptyData from "../EmptyData";
+import { Button } from "@chakra-ui/button";
+import styles from "./styles.module.css";
+import { addStartingCash } from "../../helper/accounts";
+import toast from "react-hot-toast";
+import usePermissions from "../../customHooks/usePermissions";
 
 const HEADINGS_CASHBOOK = {
   particulars: "Particulars",
@@ -23,6 +29,9 @@ const HEADINGS_DENOMINATION = {
 };
 
 function WarehouseView({ selectedDate }) {
+  const canSaveSheet = usePermissions(["save_account_sheet"]);
+  const canUnsaveSheet = usePermissions(["unsave_account_sheet"]);
+
   const filters = useMemo(() => {
     const startOfDay = new Date(selectedDate);
     startOfDay.setHours(0, 0, 0, 0);
@@ -41,6 +50,11 @@ function WarehouseView({ selectedDate }) {
     denominations: allDenominations,
     startingCash,
     presetOpeningCash,
+    saveSheet,
+    unsaveSheet,
+    isSaved,
+    isCarriedForward,
+    setIsCarriedForward,
   } = useWarehouseSales(filters);
   const { denomination } = useWarehouseDenomination(filters);
 
@@ -57,6 +71,42 @@ function WarehouseView({ selectedDate }) {
       presetOpeningCash
     );
   }, [sales, denomination, allDenominations, startingCash, presetOpeningCash]);
+
+  const handleSubmitPress = async () => {
+    saveSheet();
+    handleSubmit(false);
+  };
+
+  const handleSubmit = async (carryForward) => {
+    const totalCashHandover = getTotalCashHandover(denomination, true);
+
+    toast.promise(
+      addStartingCash({
+        date: selectedDate,
+        starting_cash: totalCashHandover,
+        can_carry_forward: carryForward,
+      }),
+      {
+        loading: carryForward ? "Carrying forward!" : "Submitting sheet!",
+        success: (response) => {
+          if (response.code === 200) {
+            setIsCarriedForward(carryForward);
+            return carryForward
+              ? "Carried forward successfully!"
+              : "Sheet submitted successfully!";
+          } else {
+            throw err;
+          }
+        },
+        error: (err) => {
+          console.log(err);
+          return carryForward
+            ? "Error carrying forward!"
+            : "Error submitting sheet!";
+        },
+      }
+    );
+  };
 
   return (
     <div>
@@ -90,6 +140,38 @@ function WarehouseView({ selectedDate }) {
           />
         )}
       </CustomContainer>
+
+      <div className={styles.buttonContainer}>
+        {isSaved && (
+          <Button
+            variant="outline"
+            colorScheme="purple"
+            onClick={() => handleSubmit(!isCarriedForward)}
+          >
+            {isCarriedForward ? "Uncarry Forward" : "Carry Forward"}
+          </Button>
+        )}
+
+        {canSaveSheet && (
+          <Button
+            colorScheme="purple"
+            onClick={() => handleSubmitPress(true)}
+            isDisabled={isSaved}
+          >
+            Submit Sheet
+          </Button>
+        )}
+
+        {canUnsaveSheet && (
+          <Button
+            colorScheme="purple"
+            onClick={unsaveSheet}
+            isDisabled={!isSaved}
+          >
+            Unlock Sheet
+          </Button>
+        )}
+      </div>
     </div>
   );
 }
