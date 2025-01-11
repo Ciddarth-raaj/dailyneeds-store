@@ -406,23 +406,25 @@ export function getWarehouseCashbook(sales, denomination, allDenominations) {
     });
   });
 
-  modified.push({
-    particulars: <b>Payments / Receipts</b>,
-    narration: "",
-    debit: "",
-    credit: "",
-    rank: 1,
-  });
-
-  sales.forEach((item) => {
+  if (sales?.length > 0) {
     modified.push({
-      particulars: item.person_name,
-      narration: item.description,
-      debit: item.payment_type === 2 ? item.amount : "",
-      credit: item.payment_type === 1 ? item.amount : "",
-      rank: 2,
+      particulars: <b>Payments / Receipts</b>,
+      narration: "",
+      debit: "",
+      credit: "",
+      rank: 1,
     });
-  });
+
+    sales.forEach((item) => {
+      modified.push({
+        particulars: item.person_name,
+        narration: item.description,
+        debit: item.payment_type === 2 ? item.amount : "",
+        credit: item.payment_type === 1 ? item.amount : "",
+        rank: 2,
+      });
+    });
+  }
 
   const calculated = modified.reduce(
     (acc, item) => {
@@ -439,7 +441,7 @@ export function getWarehouseCashbook(sales, denomination, allDenominations) {
     { debit: 0, credit: 0, total: 0 }
   );
 
-  if (denomination) {
+  if (denomination.length > 0) {
     const totalCashHandover = getTotalCashHandover(denomination, true);
 
     modified.push({

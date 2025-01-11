@@ -7,6 +7,7 @@ import {
   getWarehouseDenominations,
 } from "../../util/account";
 import useWarehouseDenomination from "../../customHooks/useWarehouseDenomination";
+import EmptyData from "../EmptyData";
 
 const HEADINGS_CASHBOOK = {
   particulars: "Particulars",
@@ -52,20 +53,31 @@ function WarehouseView({ selectedDate }) {
         title="Cash Denomination Summary"
         filledHeader
         smallHeader
+        style={{ marginBottom: "22px" }}
       >
-        <Table
-          heading={HEADINGS_DENOMINATION}
-          rows={modifiedDenominations}
-          variant="plain"
-        />
+        {denomination?.length === 0 ? (
+          <EmptyData />
+        ) : (
+          <Table
+            heading={HEADINGS_DENOMINATION}
+            rows={modifiedDenominations}
+            variant="plain"
+          />
+        )}
       </CustomContainer>
 
-      <CustomContainer title="Cash Book">
-        <Table
-          heading={HEADINGS_CASHBOOK}
-          rows={modifiedCashBook}
-          variant="plain"
-        />
+      <CustomContainer title="Cash Book" filledHeader>
+        {sales?.length === 0 &&
+        denomination?.length === 0 &&
+        allDenominations?.length === 0 ? (
+          <EmptyData />
+        ) : (
+          <Table
+            heading={HEADINGS_CASHBOOK}
+            rows={modifiedCashBook}
+            variant="plain"
+          />
+        )}
       </CustomContainer>
     </div>
   );

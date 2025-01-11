@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { getAllWarehouseCashDenominations } from "../helper/accounts";
 
 function useWarehouseDenomination(filter) {
-  const [denomination, setDenomination] = useState(null);
+  const [denomination, setDenomination] = useState([]);
   const [isSaved, setIsSaved] = useState(false);
 
   const getDenomination = async (filter) => {
@@ -14,7 +14,7 @@ function useWarehouseDenomination(filter) {
         setDenomination(response.data[0]);
       } else {
         setIsSaved(false);
-        setDenomination(null);
+        setDenomination([]);
       }
     }
   };
