@@ -27,8 +27,6 @@ function Index() {
     value: item.outlet_name,
   }));
 
-  console.log("CIDD", WAREHHOUSE_ID === storeId, storeId, WAREHHOUSE_ID);
-
   const canAddSheet = usePermissions(["add_account_sheet"]);
 
   return (

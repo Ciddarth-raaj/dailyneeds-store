@@ -200,7 +200,7 @@ function WarehouseForm() {
           return "Updated successfully";
         },
         error: (err) => {
-          console.error("CIDD", err);
+          console.error(err);
           return "Error updating sales";
         },
       });

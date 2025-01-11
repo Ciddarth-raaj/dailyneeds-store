@@ -1,10 +1,14 @@
 import React, { useEffect, useState, useMemo, useCallback } from "react";
-import { getAllWarehouseSales } from "../helper/accounts";
+import {
+  getAllWarehouseSales,
+  getOutletsCashHandover,
+} from "../helper/accounts";
 
 function useWarehouseSales(filters) {
   const [sales, setSales] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [allDenominations, setAllDenominations] = useState([]);
 
   const fetchSales = useCallback(async () => {
     try {
@@ -22,15 +26,26 @@ function useWarehouseSales(filters) {
     }
   }, [filters]);
 
+  const fetchDenominations = useCallback(async () => {
+    const response = await getOutletsCashHandover(filters);
+    setAllDenominations(response.data);
+  }, [filters]);
+
+  const init = useCallback(async () => {
+    await fetchSales();
+    await fetchDenominations();
+  }, [filters]);
+
   useEffect(() => {
-    fetchSales();
-  }, [fetchSales]);
+    init();
+  }, [init]);
 
   return {
     sales,
     loading,
     error,
-    refetch: fetchSales,
+    refetch: init,
+    denominations: allDenominations,
   };
 }
 

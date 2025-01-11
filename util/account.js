@@ -1,3 +1,4 @@
+import { WAREHHOUSE_ID } from "../constants";
 import currencyFormatter from "./currencyFormatter";
 
 export function getCashSales(accountData) {
@@ -362,8 +363,48 @@ const boldWrapper = (shouldBold, value) => {
   return value;
 };
 
-export function getWarehouseCashbook(sales, denomination) {
+const getTotalDenomination = (denomination) => {
+  return (
+    denomination.cash_handover_500 * 500 +
+    denomination.cash_handover_200 * 200 +
+    denomination.cash_handover_100 * 100 +
+    denomination.cash_handover_50 * 50 +
+    denomination.cash_handover_20 * 20 +
+    denomination.cash_handover_10 * 10 +
+    denomination.cash_handover_5 * 5 +
+    denomination.cash_handover_2 * 2 +
+    denomination.cash_handover_1 * 1
+  );
+};
+
+const getGroupedDenominations = (allDenominations) => {
+  return allDenominations.reduce((acc, item) => {
+    if (item.store_id == WAREHHOUSE_ID) {
+      return acc;
+    }
+
+    if (!acc[item.outlet_name]) {
+      acc[item.outlet_name] = 0;
+    }
+
+    acc[item.outlet_name] += getTotalDenomination(item);
+    return acc;
+  }, {});
+};
+
+export function getWarehouseCashbook(sales, denomination, allDenominations) {
   const modified = [];
+  const groupedDenominations = getGroupedDenominations(allDenominations);
+
+  Object.keys(groupedDenominations).forEach((outlet) => {
+    modified.push({
+      particulars: outlet,
+      narration: "",
+      debit: groupedDenominations[outlet],
+      credit: "",
+      rank: 1,
+    });
+  });
 
   modified.push({
     particulars: <b>Payments / Receipts</b>,
