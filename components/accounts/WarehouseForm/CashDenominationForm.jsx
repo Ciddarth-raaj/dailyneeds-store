@@ -49,7 +49,7 @@ function CashDenominationForm({ editable, isSaved, selectedDate }) {
     useWarehouseDenomination(filters);
 
   useEffect(() => {
-    if (denomination.length > 0) {
+    if (denomination.cash_denomination_id) {
       setInitialValues(denomination);
     } else {
       setInitialValues(EMPPTY_CASH_DENOMINATION_OBJECT);

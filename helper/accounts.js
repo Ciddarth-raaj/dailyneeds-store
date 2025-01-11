@@ -339,3 +339,16 @@ export const getOutletsCashHandover = (filters = {}) => {
     }
   });
 };
+
+export const getStartingCash = (date) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const url = `/accounts/warehouse-starting-cash?date=${date}`;
+
+      const response = await API.get(url);
+      resolve(response.data);
+    } catch (err) {
+      reject(err);
+    }
+  });
+};

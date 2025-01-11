@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo, useCallback } from "react";
 import {
   getAllWarehouseSales,
   getOutletsCashHandover,
+  getStartingCash,
 } from "../helper/accounts";
 
 function useWarehouseSales(filters) {
@@ -9,6 +10,7 @@ function useWarehouseSales(filters) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [allDenominations, setAllDenominations] = useState([]);
+  const [startingCash, setStartingCash] = useState(0);
 
   const fetchSales = useCallback(async () => {
     try {
@@ -31,6 +33,18 @@ function useWarehouseSales(filters) {
     setAllDenominations(response.data);
   }, [filters]);
 
+  const fetchStartingCash = async () => {
+    const response = await getStartingCash(filters.from_date);
+
+    if (response.code === 200) {
+      if (response.data) {
+        setStartingCash(parseFloat(response.data.starting_cash));
+      } else {
+        setStartingCash(0);
+      }
+    }
+  };
+
   const init = useCallback(async () => {
     await fetchSales();
     await fetchDenominations();
@@ -40,12 +54,17 @@ function useWarehouseSales(filters) {
     init();
   }, [init]);
 
+  useEffect(() => {
+    fetchStartingCash();
+  }, []);
+
   return {
     sales,
     loading,
     error,
     refetch: init,
     denominations: allDenominations,
+    startingCash,
   };
 }
 

@@ -392,9 +392,22 @@ const getGroupedDenominations = (allDenominations) => {
   }, {});
 };
 
-export function getWarehouseCashbook(sales, denomination, allDenominations) {
+export function getWarehouseCashbook(
+  sales,
+  denomination,
+  allDenominations,
+  startingCash
+) {
   const modified = [];
   const groupedDenominations = getGroupedDenominations(allDenominations);
+
+  modified.push({
+    particulars: "Opening Cash",
+    narration: "",
+    debit: startingCash,
+    credit: "",
+    rank: 1,
+  });
 
   Object.keys(groupedDenominations).forEach((outlet) => {
     modified.push({
@@ -441,7 +454,7 @@ export function getWarehouseCashbook(sales, denomination, allDenominations) {
     { debit: 0, credit: 0, total: 0 }
   );
 
-  if (denomination.length > 0) {
+  if (denomination.cash_denomination_id) {
     const totalCashHandover = getTotalCashHandover(denomination, true);
 
     modified.push({
@@ -465,6 +478,7 @@ export function getWarehouseCashbook(sales, denomination, allDenominations) {
 
   return modified.map((item) => ({
     ...item,
+    particulars: item.particulars,
     debit:
       item.debit || item.debit === 0
         ? boldWrapper(item.shouldBold, currencyFormatter(item.debit))
@@ -475,6 +489,23 @@ export function getWarehouseCashbook(sales, denomination, allDenominations) {
         : "",
   }));
 }
+
+const getWarehouseDenominationsTotal = (denomination) => {
+  if (!denomination || denomination.length === 0) {
+    return 0;
+  }
+  return (
+    denomination.cash_handover_500 * 500 +
+    denomination.cash_handover_200 * 200 +
+    denomination.cash_handover_100 * 100 +
+    denomination.cash_handover_50 * 50 +
+    denomination.cash_handover_20 * 20 +
+    denomination.cash_handover_10 * 10 +
+    denomination.cash_handover_5 * 5 +
+    denomination.cash_handover_2 * 2 +
+    denomination.cash_handover_1 * 1
+  );
+};
 
 export function getWarehouseDenominations(denomination) {
   if (!denomination) {

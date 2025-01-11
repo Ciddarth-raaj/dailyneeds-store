@@ -36,7 +36,11 @@ function WarehouseView({ selectedDate }) {
     };
   }, [selectedDate]);
 
-  const { sales, denominations: allDenominations } = useWarehouseSales(filters);
+  const {
+    sales,
+    denominations: allDenominations,
+    startingCash,
+  } = useWarehouseSales(filters);
   const { denomination } = useWarehouseDenomination(filters);
 
   const modifiedDenominations = useMemo(() => {
@@ -44,8 +48,13 @@ function WarehouseView({ selectedDate }) {
   }, [denomination]);
 
   const modifiedCashBook = useMemo(() => {
-    return getWarehouseCashbook(sales, denomination, allDenominations);
-  }, [sales, denomination, allDenominations]);
+    return getWarehouseCashbook(
+      sales,
+      denomination,
+      allDenominations,
+      startingCash
+    );
+  }, [sales, denomination, allDenominations, startingCash]);
 
   return (
     <div>
