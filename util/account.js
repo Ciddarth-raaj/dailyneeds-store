@@ -392,6 +392,23 @@ const getGroupedDenominations = (allDenominations) => {
   }, {});
 };
 
+function getWarehouseDifference(denomination, sales, groupedDenominations) {
+  const totalDenomination = getTotalDenomination(denomination);
+  const salesTotal = getSalesTotal(sales);
+  console.log("CIDD", totalDenomination, salesTotal, groupedDenominations);
+}
+
+function getSalesTotal(sales) {
+  return sales.reduce((acc, item) => {
+    return (
+      acc +
+      (item.payment_type === 1
+        ? parseFloat(item.amount ?? 0)
+        : parseFloat(item.amount ?? 0) * -1)
+    );
+  }, 0);
+}
+
 export function getWarehouseCashbook(
   sales,
   denomination,
@@ -440,6 +457,19 @@ export function getWarehouseCashbook(
     });
   }
 
+  if (denomination.cash_denomination_id) {
+    const totalCashHandover = getTotalCashHandover(denomination, true);
+
+    modified.push({
+      particulars: <b>Closing Cash</b>,
+      narration: "",
+      debit: "",
+      credit: totalCashHandover,
+      rank: 6,
+      shouldBold: true,
+    });
+  }
+
   const calculated = modified.reduce(
     (acc, item) => {
       if (item.debit) {
@@ -455,24 +485,24 @@ export function getWarehouseCashbook(
     { debit: 0, credit: 0, total: 0 }
   );
 
-  if (denomination.cash_denomination_id) {
-    const totalCashHandover = getTotalCashHandover(denomination, true);
+  modified.push({
+    particulars: "Cash Excess / Short",
+    debit: calculated.total < 0 ? calculated.total : "",
+    credit: calculated.total > 0 ? calculated.total : "",
+    rank: 7,
+  });
 
-    modified.push({
-      particulars: <b>Closing Cash</b>,
-      narration: "",
-      debit: "",
-      credit: totalCashHandover,
-      rank: 6,
-      shouldBold: true,
-    });
+  if (calculated.total < 0) {
+    calculated.debit += calculated.total;
+  } else {
+    calculated.credit += calculated.total;
   }
 
   modified.push({
     narration: "Total",
     debit: calculated.debit,
     credit: calculated.credit,
-    rank: 6,
+    rank: 8,
   });
 
   modified.sort((a, b) => a.ranking - b.ranking);
