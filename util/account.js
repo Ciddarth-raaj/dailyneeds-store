@@ -396,7 +396,8 @@ export function getWarehouseCashbook(
   sales,
   denomination,
   allDenominations,
-  startingCash
+  startingCash,
+  presetOpeningCash
 ) {
   const modified = [];
   const groupedDenominations = getGroupedDenominations(allDenominations);
@@ -404,7 +405,7 @@ export function getWarehouseCashbook(
   modified.push({
     particulars: "Opening Cash",
     narration: "",
-    debit: startingCash,
+    debit: startingCash ?? presetOpeningCash,
     credit: "",
     rank: 1,
   });

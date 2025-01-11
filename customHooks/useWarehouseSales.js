@@ -4,13 +4,16 @@ import {
   getOutletsCashHandover,
   getStartingCash,
 } from "../helper/accounts";
+import useOutletById from "./useOutletById";
+import { WAREHHOUSE_ID } from "../constants";
 
 function useWarehouseSales(filters) {
   const [sales, setSales] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [allDenominations, setAllDenominations] = useState([]);
-  const [startingCash, setStartingCash] = useState(0);
+  const [startingCash, setStartingCash] = useState(null);
+  const { outlet } = useOutletById(WAREHHOUSE_ID);
 
   const fetchSales = useCallback(async () => {
     try {
@@ -40,7 +43,7 @@ function useWarehouseSales(filters) {
       if (response.data) {
         setStartingCash(parseFloat(response.data.starting_cash));
       } else {
-        setStartingCash(0);
+        setStartingCash(null);
       }
     }
   };
@@ -65,6 +68,7 @@ function useWarehouseSales(filters) {
     refetch: init,
     denominations: allDenominations,
     startingCash,
+    presetOpeningCash: outlet?.opening_cash,
   };
 }
 

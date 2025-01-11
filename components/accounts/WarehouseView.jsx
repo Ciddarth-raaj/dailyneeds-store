@@ -40,6 +40,7 @@ function WarehouseView({ selectedDate }) {
     sales,
     denominations: allDenominations,
     startingCash,
+    presetOpeningCash,
   } = useWarehouseSales(filters);
   const { denomination } = useWarehouseDenomination(filters);
 
@@ -52,9 +53,10 @@ function WarehouseView({ selectedDate }) {
       sales,
       denomination,
       allDenominations,
-      startingCash
+      startingCash,
+      presetOpeningCash
     );
-  }, [sales, denomination, allDenominations, startingCash]);
+  }, [sales, denomination, allDenominations, startingCash, presetOpeningCash]);
 
   return (
     <div>
