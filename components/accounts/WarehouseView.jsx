@@ -2,13 +2,23 @@ import React, { useMemo } from "react";
 import useWarehouseSales from "../../customHooks/useWarehouseSales";
 import CustomContainer from "../CustomContainer";
 import Table from "../table/table";
-import { getWarehouseCashbook } from "../../util/account";
+import {
+  getWarehouseCashbook,
+  getWarehouseDenominations,
+} from "../../util/account";
+import useWarehouseDenomination from "../../customHooks/useWarehouseDenomination";
 
 const HEADINGS_CASHBOOK = {
   particulars: "Particulars",
   narration: "Narration",
   debit: "Debit",
   credit: "Credit",
+};
+
+const HEADINGS_DENOMINATION = {
+  denomination: "Denomination",
+  count: "Count",
+  total: "Total Value",
 };
 
 function WarehouseView({ selectedDate }) {
@@ -26,13 +36,30 @@ function WarehouseView({ selectedDate }) {
   }, [selectedDate]);
 
   const { sales } = useWarehouseSales(filters);
+  const { denomination } = useWarehouseDenomination(filters);
+
+  const modifiedDenominations = useMemo(() => {
+    return getWarehouseDenominations(denomination);
+  }, [denomination]);
 
   const modifiedCashBook = useMemo(() => {
-    return getWarehouseCashbook(sales);
-  }, [sales]);
+    return getWarehouseCashbook(sales, denomination);
+  }, [sales, denomination]);
 
   return (
     <div>
+      <CustomContainer
+        title="Cash Denomination Summary"
+        filledHeader
+        smallHeader
+      >
+        <Table
+          heading={HEADINGS_DENOMINATION}
+          rows={modifiedDenominations}
+          variant="plain"
+        />
+      </CustomContainer>
+
       <CustomContainer title="Cash Book">
         <Table
           heading={HEADINGS_CASHBOOK}

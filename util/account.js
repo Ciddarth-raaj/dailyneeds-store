@@ -354,7 +354,15 @@ export function getEbook(accounts, totals) {
   return modified;
 }
 
-export function getWarehouseCashbook(sales) {
+const boldWrapper = (shouldBold, value) => {
+  if (shouldBold) {
+    return <b>{value}</b>;
+  }
+
+  return value;
+};
+
+export function getWarehouseCashbook(sales, denomination) {
   const modified = [];
 
   modified.push({
@@ -390,6 +398,19 @@ export function getWarehouseCashbook(sales) {
     { debit: 0, credit: 0, total: 0 }
   );
 
+  if (denomination) {
+    const totalCashHandover = getTotalCashHandover(denomination, true);
+
+    modified.push({
+      particulars: <b>Closing Cash</b>,
+      narration: "",
+      debit: "",
+      credit: totalCashHandover,
+      rank: 6,
+      shouldBold: true,
+    });
+  }
+
   modified.push({
     narration: "Total",
     debit: calculated.debit,
@@ -398,6 +419,49 @@ export function getWarehouseCashbook(sales) {
   });
 
   modified.sort((a, b) => a.ranking - b.ranking);
+
+  return modified.map((item) => ({
+    ...item,
+    debit:
+      item.debit || item.debit === 0
+        ? boldWrapper(item.shouldBold, currencyFormatter(item.debit))
+        : "",
+    credit:
+      item.credit || item.credit === 0
+        ? boldWrapper(item.shouldBold, currencyFormatter(item.credit))
+        : "",
+  }));
+}
+
+export function getWarehouseDenominations(denomination) {
+  if (!denomination) {
+    return [];
+  }
+
+  const modified = [];
+  let total = 0;
+
+  const denominations = [500, 200, 100, 50, 20, 10, 5, 2, 1];
+  denominations.forEach((denom) => {
+    const handoverKey = `cash_handover_${denom}`;
+    modified.push({
+      denomination: denom.toString(),
+      count: denomination[handoverKey] || 0,
+      total: currencyFormatter(denomination[handoverKey] * denom),
+    });
+
+    total += denomination[handoverKey] * denom;
+  });
+
+  modified.push({
+    denomination: "",
+    count: <b>Total</b>,
+    total: (
+      <b style={{ color: "var(--chakra-colors-purple-500)" }}>
+        {currencyFormatter(total)}
+      </b>
+    ),
+  });
 
   return modified;
 }
