@@ -549,15 +549,15 @@ export function getWarehouseCashbook(
 
   modified.push({
     particulars: "Cash Excess / Short",
-    debit: calculated.total < 0 ? calculated.total : "",
-    credit: calculated.total > 0 ? calculated.total : "",
+    debit: calculated.total < 0 ? Math.abs(calculated.total) : "",
+    credit: calculated.total > 0 ? Math.abs(calculated.total) : "",
     rank: 7,
   });
 
   if (calculated.total < 0) {
-    calculated.debit += calculated.total;
+    calculated.debit += Math.abs(calculated.total);
   } else {
-    calculated.credit += calculated.total;
+    calculated.credit += Math.abs(calculated.total);
   }
 
   modified.push({
