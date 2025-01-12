@@ -311,7 +311,7 @@ function AccountForm({ formikProps, isViewMode, isSaved, onDateChange, mode }) {
       <div className={styles.buttonContainer}>
         <Badge className={styles.badgeStyle} style={{ marginTop: 0 }}>
           Total Difference
-          <p style={{ color: differenceAmount >= 0 ? "green" : "red" }}>
+          <p style={{ color: differenceAmount >= 0 ? "red" : "green" }}>
             {` ${currencyFormatter(differenceAmount)}`}
           </p>
         </Badge>

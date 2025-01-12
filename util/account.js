@@ -253,19 +253,53 @@ export function getCashBook(accounts, outletData) {
     rank: 7,
   });
 
-  rows.push({
-    particulars: "",
-    debit: calculated.debit,
-    credit: calculated.credit + calculated.total,
-    rank: 7,
-  });
+  if (calculated.debit !== calculated.credit + calculated.total) {
+    rows.push({
+      particulars: "",
+      debit: calculated.debit,
+      credit: calculated.credit + calculated.total,
+      rank: 7,
+      isRed: true,
+    });
+  } else {
+    rows.push({
+      particulars: "",
+      debit: calculated.debit,
+      credit: calculated.credit + calculated.total,
+      rank: 7,
+    });
+  }
 
-  return rows.map((item) => ({
-    ...item,
-    debit: item.debit || item.debit === 0 ? currencyFormatter(item.debit) : "",
-    credit:
-      item.credit || item.debit === 0 ? currencyFormatter(item.credit) : "",
-  }));
+  return rows.map((item) => {
+    if (item.isRed) {
+      return {
+        ...item,
+        debit:
+          item.debit || item.debit === 0 ? (
+            <span style={{ color: "red", fontWeight: "600" }}>
+              {currencyFormatter(item.debit)}
+            </span>
+          ) : (
+            ""
+          ),
+        credit:
+          item.credit || item.debit === 0 ? (
+            <span style={{ color: "red", fontWeight: "600" }}>
+              {currencyFormatter(item.credit)}
+            </span>
+          ) : (
+            ""
+          ),
+      };
+    }
+    return {
+      ...item,
+      debit:
+        item.debit || item.debit === 0 ? currencyFormatter(item.debit) : "",
+      credit:
+        item.credit || item.debit === 0 ? currencyFormatter(item.credit) : "",
+    };
+  });
 }
 
 function getDisplayNameFromKey(key) {
@@ -277,7 +311,7 @@ function getDisplayNameFromKey(key) {
 }
 
 export function getEbook(accounts, totals) {
-  const modified = [
+  let modified = [
     {
       particulars: "Card Sales",
       narration: "",
@@ -344,20 +378,48 @@ export function getEbook(accounts, totals) {
     { debit: 0, credit: 0, total: 0 }
   );
 
-  modified.push({
-    particulars: "",
-    debit: calculated.debit,
-    credit: calculated.credit,
-    rank: 6,
-  });
+  modified = modified.map((item) => ({
+    ...item,
+    debit: item.debit || item.debit === 0 ? currencyFormatter(item.debit) : "",
+    credit:
+      item.credit || item.credit === 0 ? currencyFormatter(item.credit) : "",
+  }));
+
+  if (calculated.debit !== calculated.credit) {
+    modified.push({
+      particulars: "",
+      debit: (
+        <span style={{ color: "red", fontWeight: "600" }}>
+          {currencyFormatter(calculated.debit)}
+        </span>
+      ),
+      credit: (
+        <span style={{ color: "red", fontWeight: "600" }}>
+          {currencyFormatter(calculated.credit)}
+        </span>
+      ),
+      rank: 6,
+    });
+  } else {
+    modified.push({
+      particulars: "",
+      debit: currencyFormatter(calculated.debit),
+      credit: currencyFormatter(calculated.credit),
+      rank: 6,
+    });
+  }
 
   modified.sort((a, b) => a.ranking - b.ranking);
   return modified;
 }
 
-const boldWrapper = (shouldBold, value) => {
+const boldWrapper = (shouldBold, isRed, value) => {
   if (shouldBold) {
     return <b>{value}</b>;
+  }
+
+  if (isRed) {
+    return <span style={{ color: "red", fontWeight: "600" }}>{value}</span>;
   }
 
   return value;
@@ -503,6 +565,7 @@ export function getWarehouseCashbook(
     debit: calculated.debit,
     credit: calculated.credit,
     rank: 8,
+    isRed: calculated.debit !== calculated.credit,
   });
 
   modified.sort((a, b) => a.ranking - b.ranking);
@@ -512,11 +575,19 @@ export function getWarehouseCashbook(
     particulars: item.particulars,
     debit:
       item.debit || item.debit === 0
-        ? boldWrapper(item.shouldBold, currencyFormatter(item.debit))
+        ? boldWrapper(
+            item.shouldBold,
+            item.isRed,
+            currencyFormatter(item.debit)
+          )
         : "",
     credit:
       item.credit || item.credit === 0
-        ? boldWrapper(item.shouldBold, currencyFormatter(item.credit))
+        ? boldWrapper(
+            item.shouldBold,
+            item.isRed,
+            currencyFormatter(item.credit)
+          )
         : "",
   }));
 }
