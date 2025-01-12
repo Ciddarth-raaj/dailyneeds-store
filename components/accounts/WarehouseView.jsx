@@ -63,6 +63,7 @@ function WarehouseView({ selectedDate }) {
   }, [denomination]);
 
   const modifiedCashBook = useMemo(() => {
+    console.log("CIDD", { startingCash, presetOpeningCash });
     return getWarehouseCashbook(
       sales,
       denomination,

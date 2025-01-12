@@ -44,8 +44,8 @@ function useWarehouseSales(filters) {
     setAllDenominations(response.data);
   }, [filters]);
 
-  const fetchStartingCash = async () => {
-    const response = await getStartingCash(filters.from_date);
+  const fetchStartingCash = useCallback(async () => {
+    const response = await getStartingCash(filters.to_date);
 
     if (response.code === 200) {
       if (response.data) {
@@ -56,14 +56,12 @@ function useWarehouseSales(filters) {
         setStartingCash(null);
       }
     }
-  };
+  }, [filters.from_date]);
 
-  const checkIfCarriedForward = async () => {
+  const checkIfCarriedForward = useCallback(async () => {
     const response = await getStartingCash(
       moment(filters.from_date).add(1, "day")
     );
-
-    console.log("CIDD", response);
 
     if (response.code === 200) {
       if (response.data) {
@@ -72,7 +70,7 @@ function useWarehouseSales(filters) {
         setIsCarriedForward(false);
       }
     }
-  };
+  }, [filters.from_date]);
 
   const init = useCallback(async () => {
     await checkSaved();
@@ -100,7 +98,7 @@ function useWarehouseSales(filters) {
   useEffect(() => {
     fetchStartingCash();
     checkIfCarriedForward();
-  }, []);
+  }, [fetchStartingCash, checkIfCarriedForward]);
 
   const saveSheet = async () => {
     try {
