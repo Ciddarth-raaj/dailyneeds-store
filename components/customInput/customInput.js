@@ -203,6 +203,7 @@ const TextField = ({
                     {...props}
                     width="100%"
                     placeholder={floatingLabel ? " " : props.placeholder}
+                    onWheel={(e) => e.target.blur()}
                   />
                 )}
                 {method === "number" && (
@@ -213,6 +214,7 @@ const TextField = ({
                     max={9000000000}
                     keepWithinRange={false}
                     clampValueOnBlur={false}
+                    onWheel={(e) => e.target.blur()}
                   >
                     <NumberInputField
                       focusBorderColor="blue.200"
@@ -247,6 +249,7 @@ const TextField = ({
                     {...props}
                     autoComplete="off"
                     placeholder={floatingLabel ? " " : props.placeholder}
+                    onWheel={(e) => e.target.blur()}
                   />
                 )}
                 {floatingLabel && <FormLabel>{label}</FormLabel>}
@@ -382,7 +385,12 @@ const TextField = ({
           )}
           {method === "password" && (
             <InputGroup size="md">
-              <Input pr="4.5rem" {...field} {...props} />
+              <Input
+                pr="4.5rem"
+                {...field}
+                {...props}
+                onWheel={(e) => e.target.blur()}
+              />
               <InputRightElement width="3.5rem">
                 <i
                   className="fa fa-eye"
@@ -396,19 +404,41 @@ const TextField = ({
             </InputGroup>
           )}
           {method === "readonly" && (
-            <Input {...field} {...props} isDisabled={true} autoComplete="off" />
+            <Input
+              {...field}
+              {...props}
+              isDisabled={true}
+              autoComplete="off"
+              onWheel={(e) => e.target.blur()}
+            />
           )}
           {method === "disabled" && (
-            <Input {...field} {...props} isReadOnly={true} autoComplete="off" />
+            <Input
+              {...field}
+              {...props}
+              isReadOnly={true}
+              autoComplete="off"
+              onWheel={(e) => e.target.blur()}
+            />
           )}
           {method === "numberinput" && (
             <InputGroup>
               <InputLeftAddon>{children}</InputLeftAddon>
-              <Input defaultValue={defaultValue} {...field} {...props} />
+              <Input
+                defaultValue={defaultValue}
+                {...field}
+                {...props}
+                onWheel={(e) => e.target.blur()}
+              />
             </InputGroup>
           )}
           {method === "singlevalue" && (
-            <Input value={props.selected} isDisabled={true} isReadOnly={true} />
+            <Input
+              value={props.selected}
+              isDisabled={true}
+              isReadOnly={true}
+              onWheel={(e) => e.target.blur()}
+            />
           )}
           {method === "file" && (
             <div className={styles.fileUpload}>
