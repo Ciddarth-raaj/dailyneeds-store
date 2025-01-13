@@ -62,7 +62,8 @@ class MyApp extends React.Component {
 
       if (
         unprotectedPath[router.pathname] == undefined &&
-        (token == undefined || token == null)
+        (token == undefined || token == null) &&
+        window.location.pathname !== "/login"
       ) {
         window.location = "/";
       }

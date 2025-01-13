@@ -1,72 +1,79 @@
 .mainWrapper {
-    display: flex;
-    position: fixed;
-    width: 100vw;
-    height: 100vh;
-    /* background-color: rgba(0, 0, 0, 0.5); */
-    background-image: url('/assets/background.jpg');
-    object-fit:fill;
-    top: 0;
-    left: 0;
-    z-index: 99;
-    justify-content: center;
-    align-items: center;
+  display: flex;
+  position: fixed;
+  width: 100vw;
+  height: 100vh;
+  /* background-color: rgba(0, 0, 0, 0.5); */
+  /* background-image: url("/assets/background.jpg"); */
+  background-color: #6247aa;
+  background-image: linear-gradient(316deg, #6247aa 0%, #a594f9 74%);
+  object-fit: fill;
+  top: 0;
+  left: 0;
+  z-index: 99;
+  justify-content: center;
+  align-items: center;
 }
 .updateButton {
-    margin-top: 50px;
-    margin-left: 5px;
+  margin-top: 12px;
+  margin-inline: 5px;
+  margin-bottom: 12px;
 }
 .wrapper {
-    position: relative;
-    background-color: #fafafa;
-    border-radius: 16px;
-    box-shadow:  2px 5px 10px #cecece,
-                 -5px -5px 10px #e4e4e4;
-    /* border-radius: 3px; */
-    padding: 10px;
-    width: 500px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
+  position: relative;
+  border-radius: 16px;
+  padding: 22px;
+  width: 500px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  background-color: white;
 }
 
 .title {
-    text-align: center;
-    margin-bottom: 20px;
-    margin-top: 20px;
-    font-weight: bold;
-    font-size: 18px;
+  text-align: center;
+  margin-bottom: 20px;
+  margin-top: 20px;
+  font-weight: bold;
+  font-size: 18px;
+}
+
+.title img {
+  width: 100%;
+  object-fit: contain;
+  height: 50px;
+  margin-bottom: 22px;
 }
 
 .closeButton {
-    position: absolute;
-    width: 30px;
-    height: 30px;
-    top: 10px;
-    right: 10px;
-    cursor: pointer;
+  position: absolute;
+  width: 30px;
+  height: 30px;
+  top: 10px;
+  right: 10px;
+  cursor: pointer;
 }
 .switchHolder {
-    margin-bottom: 10px;
-    margin-top: 30px;
-    display: flex;
-    justify-content: center;
+  margin-bottom: 10px;
+  margin-top: 30px;
+  display: flex;
+  justify-content: center;
 }
 .switch {
-    display: flex;
-    justify-content: flex-end;
-    align-items: flex-end;
-    margin-left: 20px;
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-end;
+  margin-left: 20px;
 }
 .inputHolder {
-    /* margin-bottom: -34px; */
-    height: 78px;
+  /* margin-bottom: -34px; */
+  height: 78px;
 }
 @media (max-width: 480px) {
-    .closeButton {
-        width: 20px;
-        height: 20px;
-        top: 10px;
-        right: 8px;
-    }
+  .closeButton {
+    width: 20px;
+    height: 20px;
+    top: 10px;
+    right: 8px;
+  }
 }

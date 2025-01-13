@@ -14,6 +14,11 @@ const axiosInstance = axios.create({
         }
         if (res === "") return res;
         res = JSON.parse(res);
+
+        if (res.code === 403 && window.location.pathname !== "/login") {
+          window.location.href = "/login";
+        }
+
         return res;
       } catch (err) {
         console.log(err);

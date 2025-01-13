@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 import React from "react";
 
 import styles from "../styles/login.module.css";
@@ -5,7 +6,7 @@ import { toast } from "react-toastify";
 
 import { CloseIcon } from "@chakra-ui/icons";
 import LoginHelper from "../helper/login";
-import { Container, Button, Switch } from "@chakra-ui/react";
+import { Container, Button, Switch, Flex } from "@chakra-ui/react";
 import { Formik, Form } from "formik";
 import CustomInput from "../components/customInput/customInput";
 import { BranchValidation } from "../util/validation";
@@ -21,6 +22,7 @@ class LogIn extends React.Component {
       token: "",
     };
   }
+
   login(values) {
     const { userContext } = this.props;
 
@@ -43,11 +45,12 @@ class LogIn extends React.Component {
           global.config.designation = data.data.designation;
           global.config.employee_image = data.data.employee_image;
 
-          window.location.href = "/employee";
+          window.location.href = "/";
         }
       })
       .catch((err) => console.log(err));
   }
+
   render() {
     const { setVisibility } = this.props;
     const { toggle, isLoading, show, token } = this.state;
@@ -71,7 +74,7 @@ class LogIn extends React.Component {
                   onClick={(e) => e.stopPropagation()}
                 >
                   <h3 className={styles.title}>
-                    <img src={"/assets/dnds-logo.png"} />
+                    <img src={"/assets/dnds-logo.png"} alt="logo" />
                   </h3>
 
                   <div className={styles.inputHolder}>
@@ -91,16 +94,18 @@ class LogIn extends React.Component {
                       autocapitalize="none"
                     />
                   </div>
-                  <Button
-                    className={styles.updateButton}
-                    style={{ width: "97%", marginBottom: "25px" }}
-                    isLoading={isLoading}
-                    colorScheme="purple"
-                    loadingText="Updating"
-                    onClick={() => handleSubmit()}
-                  >
-                    Login
-                  </Button>
+
+                  <Flex justifyContent="center">
+                    <Button
+                      className={styles.updateButton}
+                      isLoading={isLoading}
+                      colorScheme="purple"
+                      loadingText="Updating"
+                      onClick={() => handleSubmit()}
+                    >
+                      Login
+                    </Button>
+                  </Flex>
                 </div>
               </Container>
             </Form>

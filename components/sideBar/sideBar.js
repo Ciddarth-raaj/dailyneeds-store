@@ -64,7 +64,8 @@ export default function Sidebar() {
     DesignationHelper.getPermissionById()
       .then((data) => {
         try {
-          if (!data) return;
+          if (!data || data.code === 403) return;
+
           setFilteredData(data);
           global.config.permissions = data;
         } catch (error) {
@@ -121,7 +122,7 @@ export default function Sidebar() {
                 <div className={styles.subMenuWrapper}>
                   {Object.keys(menu[key].subMenu).map((sKey) => {
                     if (
-                      filteredData.find(
+                      filteredData?.find(
                         (item) =>
                           item.permission_key ==
                           menu[key].subMenu[sKey].permission

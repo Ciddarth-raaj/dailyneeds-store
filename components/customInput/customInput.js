@@ -367,7 +367,7 @@ const TextField = ({
                 selected={(field.value && new Date(field.value)) || null}
                 customInput={<CustomDateTimeInput disabled={props.disabled} />}
                 onChange={(val) => {
-                  onChange?.(val);
+                  onChange;
                   setFieldValue(field.name, moment(val).format("YYYY-MM-DD"));
                 }}
               />
@@ -384,10 +384,13 @@ const TextField = ({
             <InputGroup size="md">
               <Input pr="4.5rem" {...field} {...props} />
               <InputRightElement width="3.5rem">
-                <img
-                  src="/assets/password.png"
+                <i
+                  className="fa fa-eye"
                   onClick={onClick}
-                  style={{ height: "35px", width: "35px", cursor: "pointer" }}
+                  style={{
+                    cursor: "pointer",
+                    color: "var(--chakra-colors-purple-500)",
+                  }}
                 />
               </InputRightElement>
             </InputGroup>

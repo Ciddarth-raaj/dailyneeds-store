@@ -73,7 +73,7 @@ export default function Header() {
   const [loginVisibility, setLoginVisibility] = React.useState(false);
   const { userConfig } = useUser();
   const { userType, fetched } = userConfig;
-  const { employee_name, designation_name, employee_image } = fetched;
+  const { employee_name, designation_name } = fetched ?? {};
 
   useEffect(() => {
     const storedToken = localStorage.getItem("Token");
