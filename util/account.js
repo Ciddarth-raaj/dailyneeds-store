@@ -253,22 +253,14 @@ export function getCashBook(accounts, outletData) {
     rank: 7,
   });
 
-  if (calculated.debit !== calculated.credit + calculated.total) {
-    rows.push({
-      particulars: "",
-      debit: calculated.debit,
-      credit: calculated.credit + calculated.total,
-      rank: 7,
-      isRed: true,
-    });
-  } else {
-    rows.push({
-      particulars: "",
-      debit: calculated.debit,
-      credit: calculated.credit + calculated.total,
-      rank: 7,
-    });
-  }
+  rows.push({
+    particulars: "",
+    debit: calculated.debit,
+    credit: calculated.credit + calculated.total,
+    rank: 7,
+    isRed: calculated.debit !== calculated.credit + calculated.total,
+    isNotEqual: calculated.debit !== calculated.credit + calculated.total,
+  });
 
   return rows.map((item) => {
     if (item.isRed) {
@@ -399,6 +391,7 @@ export function getEbook(accounts, totals) {
         </span>
       ),
       rank: 6,
+      isNotEqual: true,
     });
   } else {
     modified.push({
@@ -567,6 +560,7 @@ export function getWarehouseCashbook(
     credit: calculated.credit,
     rank: 8,
     isRed: calculated.debit !== calculated.credit,
+    isNotEqual: calculated.debit !== calculated.credit,
   });
 
   modified.sort((a, b) => a.ranking - b.ranking);

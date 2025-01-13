@@ -72,6 +72,10 @@ function WarehouseView({ selectedDate }) {
     );
   }, [sales, denomination, allDenominations, startingCash, presetOpeningCash]);
 
+  const isCashBookNotEqual = useMemo(() => {
+    return modifiedCashBook.some((item) => item.isNotEqual);
+  }, [modifiedCashBook]);
+
   const handleSubmitPress = async () => {
     saveSheet();
     handleSubmit(false);
@@ -168,7 +172,7 @@ function WarehouseView({ selectedDate }) {
           <Button
             colorScheme="purple"
             onClick={() => handleSubmitPress(true)}
-            isDisabled={isSaved}
+            isDisabled={isSaved || isCashBookNotEqual}
           >
             Submit Sheet
           </Button>

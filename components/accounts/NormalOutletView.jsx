@@ -158,6 +158,14 @@ function NormalOutletView({
     return getEbook(epayments, getTotals(accounts, true));
   }, [epayments, accounts]);
 
+  const isEbookNotEqual = useMemo(() => {
+    return modifiedEbook.some((item) => item.isNotEqual);
+  }, [modifiedEbook]);
+
+  const isCashBookNotEqual = useMemo(() => {
+    return modifiedCashBook.some((item) => item.isNotEqual);
+  }, [modifiedCashBook]);
+
   const handleSaveSheet = async () => {
     try {
       toast.promise(saveSheet(), {
@@ -302,7 +310,7 @@ function NormalOutletView({
           {canSaveSheet && selectedOutlet && (
             <Button
               colorScheme="purple"
-              disabled={isSaved}
+              disabled={isSaved || isEbookNotEqual || isCashBookNotEqual}
               onClick={handleSaveSheet}
             >
               Submit Sheet
