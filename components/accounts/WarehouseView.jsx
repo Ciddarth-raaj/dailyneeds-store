@@ -63,7 +63,6 @@ function WarehouseView({ selectedDate }) {
   }, [denomination]);
 
   const modifiedCashBook = useMemo(() => {
-    console.log("CIDD", { startingCash, presetOpeningCash });
     return getWarehouseCashbook(
       sales,
       denomination,
@@ -79,7 +78,19 @@ function WarehouseView({ selectedDate }) {
   };
 
   const handleSubmit = async (carryForward) => {
-    const totalCashHandover = getTotalCashHandover(denomination, true);
+    let totalCashHandover = getTotalCashHandover(denomination, true);
+
+    if (carryForward) {
+      for (let item of modifiedCashBook) {
+        if (item.isClosingCash) {
+          totalCashHandover =
+            item.debit === ""
+              ? item.credit.props.children.replaceAll("₹", "")
+              : item.debit.props.children.replaceAll("₹", "");
+          break;
+        }
+      }
+    }
 
     toast.promise(
       addStartingCash({
