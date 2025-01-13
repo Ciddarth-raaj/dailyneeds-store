@@ -251,7 +251,6 @@ export function getCashBook(accounts, outletData) {
     debit: "",
     credit: calculated.total,
     rank: 7,
-    isClosingCash: true,
   });
 
   if (calculated.debit !== calculated.credit + calculated.total) {
@@ -530,7 +529,6 @@ export function getWarehouseCashbook(
       credit: totalCashHandover,
       rank: 6,
       shouldBold: true,
-      isClosingCash: true,
     });
   }
 
@@ -554,6 +552,7 @@ export function getWarehouseCashbook(
     debit: calculated.total < 0 ? Math.abs(calculated.total) : "",
     credit: calculated.total > 0 ? Math.abs(calculated.total) : "",
     rank: 7,
+    isClosingCash: true,
   });
 
   if (calculated.total < 0) {
