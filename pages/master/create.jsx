@@ -1,29 +1,28 @@
-import React, { useEffect } from "react";
+import React from "react";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import Head from "../../util/head";
 import CustomContainer from "../../components/CustomContainer";
-import { FieldArray, Formik } from "formik";
+import { Formik } from "formik";
 import * as Yup from "yup";
 import CustomInput from "../../components/customInput/customInput";
 import styles from "../../styles/master.module.css";
-import { Button, IconButton } from "@chakra-ui/button";
+import { Button } from "@chakra-ui/button";
 import { PEOPLE_TYPES } from "../../constants/values";
 import toast from "react-hot-toast";
 import { createPerson } from "../../helper/people";
 import { useRouter } from "next/router";
-import useOutlets from "../../customHooks/useOutlets";
 
 const validation = Yup.object({
   name: Yup.string().required("Fill Name"),
   person_type: Yup.number()
     .typeError("Select a Type")
     .required("Select a Type"),
-  store_ids: Yup.array(
-    Yup.number()
-      .nullable()
-      .typeError("Select a Store")
-      .required("Select a Store")
-  ).required("Fill Accounts"),
+  // store_ids: Yup.array(
+  //   Yup.number()
+  //     .nullable()
+  //     .typeError("Select a Store")
+  //     .required("Select a Store")
+  // ).required("Fill Accounts"),
   primary_phone: Yup.number()
     .nullable()
     .typeError("Must be a number")
@@ -39,17 +38,13 @@ const validation = Yup.object({
 
 function CreateMaster() {
   const router = useRouter();
-  const { outlets } = useOutlets();
-  const outletsMenu = outlets.map((item) => ({
-    id: item.outlet_id,
-    value: item.outlet_name,
-  }));
 
   const handleCreate = (data) => {
     data = {
       ...data,
       primary_phone: data.primary_phone + "",
       secondary_phone: data.secondary_phone + "",
+      store_ids: [],
     };
 
     toast.promise(createPerson(data), {
@@ -114,7 +109,7 @@ function CreateMaster() {
                   />
                 </div>
 
-                <FieldArray
+                {/* <FieldArray
                   name="store_ids"
                   render={(arrayHelpers) => (
                     <div>
@@ -150,7 +145,7 @@ function CreateMaster() {
                       </Button>
                     </div>
                   )}
-                />
+                /> */}
 
                 <div className={styles.buttonContainer}>
                   <Button

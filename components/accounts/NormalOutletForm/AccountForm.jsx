@@ -48,20 +48,7 @@ function AccountForm({ formikProps, isViewMode, isSaved, onDateChange, mode }) {
       return EMPLOYEES_MENU;
     }
 
-    return peopleList
-      .filter((item) => {
-        if (
-          item.person_type == personType &&
-          (storeId === null ||
-            item.store_ids == null ||
-            item.store_ids.includes(parseInt(storeId)))
-        ) {
-          return true;
-        }
-
-        return false;
-      })
-      .map((item) => ({ id: item.person_id, value: item.name }));
+    return peopleList.map((item) => ({ id: item.person_id, value: item.name }));
   };
 
   return (
