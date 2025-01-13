@@ -154,6 +154,12 @@ function NormalOutletView({
     return getCashBook(accounts, outletData);
   }, [accounts, outletData]);
 
+  const isOpeningClosingNotEqual = () => {
+    const openingCash = modifiedCashBook[0].debit;
+    const closingCash = modifiedCashBook[modifiedCashBook.length - 1].credit;
+    return openingCash !== closingCash;
+  };
+
   const modifiedEbook = useMemo(() => {
     return getEbook(epayments, getTotals(accounts, true));
   }, [epayments, accounts]);
@@ -310,7 +316,12 @@ function NormalOutletView({
           {canSaveSheet && selectedOutlet && (
             <Button
               colorScheme="purple"
-              disabled={isSaved || isEbookNotEqual || isCashBookNotEqual}
+              disabled={
+                isSaved ||
+                isEbookNotEqual ||
+                isCashBookNotEqual ||
+                isOpeningClosingNotEqual()
+              }
               onClick={handleSaveSheet}
             >
               Submit Sheet

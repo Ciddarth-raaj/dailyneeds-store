@@ -157,6 +157,7 @@ export function getCashBook(accounts, outletData) {
     debit: outletData?.opening_cash || 0,
     credit: "",
     rank: 0,
+    isOpeningCash: true,
   });
 
   rows.push({
@@ -251,6 +252,7 @@ export function getCashBook(accounts, outletData) {
     debit: "",
     credit: calculated.total,
     rank: 7,
+    isClosingCash: true,
   });
 
   rows.push({
@@ -474,10 +476,11 @@ export function getWarehouseCashbook(
   const modified = [];
   const groupedDenominations = getGroupedDenominations(allDenominations);
 
+  const openingCash = startingCash ?? presetOpeningCash;
   modified.push({
     particulars: "Opening Cash",
     narration: "",
-    debit: startingCash ?? presetOpeningCash,
+    debit: openingCash,
     credit: "",
     rank: 1,
   });
@@ -512,9 +515,9 @@ export function getWarehouseCashbook(
     });
   }
 
-  if (denomination.cash_denomination_id) {
-    const totalCashHandover = getTotalCashHandover(denomination, true);
+  const totalCashHandover = getTotalCashHandover(denomination, true) ?? 0;
 
+  if (denomination.cash_denomination_id) {
     modified.push({
       particulars: <b>Closing Cash</b>,
       narration: "",
@@ -522,6 +525,7 @@ export function getWarehouseCashbook(
       credit: totalCashHandover,
       rank: 6,
       shouldBold: true,
+      isOpeningClosingNotEqual: openingCash !== totalCashHandover,
     });
   }
 
