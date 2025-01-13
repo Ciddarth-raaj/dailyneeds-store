@@ -1,9 +1,11 @@
-import React from "react";
+/* eslint-disable @next/next/no-img-element */
+import React, { useEffect } from "react";
 import styles from "./header.module.css";
 import Head from "../../util/head";
 import LogIn from "../../pages/login";
 import SideBarMobile from "../sideBarMobile/sideBarMobile";
 import { useUser } from "../../contexts/UserContext";
+import EmployeeHelper from "../../helper/employee";
 
 export default function Header() {
   const [settings] = React.useState({
@@ -69,9 +71,11 @@ export default function Header() {
 
   const [token, setToken] = React.useState(null);
   const [loginVisibility, setLoginVisibility] = React.useState(false);
-  const { userType } = useUser().userConfig;
+  const { userConfig } = useUser();
+  const { userType, fetched } = userConfig;
+  const { employee_name, designation_name, employee_image } = fetched;
 
-  React.useEffect(() => {
+  useEffect(() => {
     const storedToken = localStorage.getItem("Token");
     setToken(storedToken);
   }, []);
@@ -81,26 +85,22 @@ export default function Header() {
     window.location = "/";
   };
 
+  const firstLetter = (name) => {
+    return employee_name.charAt(0);
+  };
+
   return (
     <div className={styles.container}>
       <SideBarMobile />
       <Head />
       <div className={styles.navigationBar}>
         <div className={styles.wrapper}>
-          <div className={styles.image}>
-            {userType === "2" ? (
-              <img src="/assets/admin.png" alt="Admin" />
-            ) : (
-              <img
-                src={`${global.config.employee_image}`}
-                alt={global.config.name}
-              />
-            )}
-          </div>
+          {/* <div className={styles.image}>{getAvatar()}</div> */}
+          <div className={styles.avatarWrapper}>{firstLetter()}</div>
           <div className={styles.name}>
-            <p>{userType === "2" ? "Vinodh" : global.config.name}</p>
+            <p>{userType === "2" ? "Vinodh" : employee_name}</p>
             <p className={styles.nameSize}>
-              {userType === "2" ? "Admin" : global.config.designation}
+              {userType === "2" ? "Admin" : designation_name}
               <i className="fa fa-angle-down" aria-hidden="true" />
             </p>
           </div>
@@ -115,20 +115,10 @@ export default function Header() {
                 ) : (
                   <>
                     <div className={styles.divider} />
-                    {token ? (
-                      <a onClick={logout} className={styles.menuItem}>
-                        <i className="fa fa-sign-out" aria-hidden="true" />
-                        Log Out
-                      </a>
-                    ) : (
-                      <a
-                        onClick={() => setLoginVisibility(true)}
-                        className={styles.menuItem}
-                      >
-                        <i className="fa fa-sign-in" aria-hidden="true" />
-                        Log In
-                      </a>
-                    )}
+                    <a onClick={logout} className={styles.menuItem}>
+                      <i className="fa fa-sign-out" aria-hidden="true" />
+                      Log Out
+                    </a>
                   </>
                 )}
               </React.Fragment>

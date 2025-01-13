@@ -161,6 +161,16 @@ const EmployeeHelper = {
           reject(err);
         });
     }),
+  getCurrentUserDetails: () =>
+    new Promise(function (resolve, reject) {
+      API.get("/employee/get-details")
+        .then(async (res) => {
+          resolve(res.data);
+        })
+        .catch((err) => {
+          reject(err);
+        });
+    }),
   register: (data) =>
     new Promise(function (resolve, reject) {
       API.post("/employee", data)

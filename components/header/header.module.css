@@ -48,7 +48,6 @@
   height: 40px;
   object-fit: cover;
   border-radius: 10px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .name {
@@ -126,6 +125,20 @@
   height: 1px;
   background: rgba(0, 0, 0, 0.1);
   margin: 8px 0;
+}
+
+.avatarWrapper {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background-color: #eee;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 12px;
+  background-color: var(--chakra-colors-purple-100);
+  color: var(--chakra-colors-purple-500);
+  font-weight: bolder;
 }
 
 @media (max-width: 480px) {

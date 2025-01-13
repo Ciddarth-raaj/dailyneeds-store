@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import DesignationHelper from "../helper/designation";
+import EmployeeHelper from "../helper/employee";
 
 const UserContext = createContext();
 
@@ -11,9 +12,11 @@ export function UserProvider({ children }) {
     userType: null,
     employeeId: null,
     permissions: [],
+    fetched: {},
   });
 
   useEffect(() => {
+    fetchUser();
     getPermissions();
     // Initialize from localStorage
     const token = localStorage.getItem("Token");
@@ -111,6 +114,20 @@ export function UserProvider({ children }) {
       permissions: [],
     });
     localStorage.clear();
+  };
+
+  const fetchUser = async () => {
+    try {
+      const response = await EmployeeHelper.getCurrentUserDetails();
+
+      if (response) {
+        setUserConfig((value) => ({ ...value, fetched: response[0] }));
+      } else {
+        setUserConfig((value) => ({ ...value, fetched: {} }));
+      }
+    } catch (error) {
+      console.error("Error fetching user details:", error);
+    }
   };
 
   return (
