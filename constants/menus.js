@@ -91,6 +91,32 @@ export default {
       },
     },
   },
+  accounts: {
+    title: "Accounts",
+    selected: false,
+    openPage: false,
+    icon: "fa-ticket",
+    subMenu: {
+      view_account_sheet: {
+        title: "Account Sheet",
+        permission: "view_account_sheet",
+        selected: false,
+        location: "/accounts",
+      },
+      add_account_sheet: {
+        title: "Add Account Sheet",
+        permission: "add_account_sheet",
+        selected: false,
+        location: "/accounts/create",
+      },
+      add_e_payment: {
+        title: "Add E-Payment",
+        permission: "add_account_sheet",
+        selected: false,
+        location: "/accounts/epayment/create",
+      },
+    },
+  },
   products: {
     title: "Products",
     selected: false,
@@ -233,32 +259,6 @@ export default {
   //     // },
   //   },
   // },
-  accounts: {
-    title: "Accounts",
-    selected: false,
-    openPage: false,
-    icon: "fa-ticket",
-    subMenu: {
-      view_account_sheet: {
-        title: "Account Sheet",
-        permission: "view_account_sheet",
-        selected: false,
-        location: "/accounts",
-      },
-      add_account_sheet: {
-        title: "Add Account Sheet",
-        permission: "add_account_sheet",
-        selected: false,
-        location: "/accounts/create",
-      },
-      add_e_payment: {
-        title: "Add E-Payment",
-        permission: "add_account_sheet",
-        selected: false,
-        location: "/accounts/epayment/create",
-      },
-    },
-  },
   master: {
     title: "Master",
     selected: false,

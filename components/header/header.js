@@ -86,7 +86,7 @@ export default function Header() {
   };
 
   const firstLetter = (name) => {
-    return employee_name.charAt(0);
+    return employee_name?.charAt(0) ?? "?";
   };
 
   return (
