@@ -23,6 +23,8 @@ import useWarehouseSales from "../../../customHooks/useWarehouseSales";
 import currencyFormatter from "../../../util/currencyFormatter";
 import { useConfirmation } from "../../../hooks/useConfirmation";
 import CashDenominationForm from "./CashDenominationForm";
+import useEmployees from "../../../customHooks/useEmployees";
+import { CASHIER_DESIGNATION } from "../../../constants/designations";
 
 const HEADING = {
   person_type: "Type",
@@ -44,6 +46,15 @@ function WarehouseForm() {
   const { storeId } = useUser().userConfig;
   const { peopleList } = usePeople();
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const { employees } = useEmployees({
+    store_ids: storeId === null ? [] : [storeId],
+    designation_ids: [CASHIER_DESIGNATION],
+  });
+
+  const EMPLOYEES_MENU = employees.map((item) => ({
+    id: item.employee_id,
+    value: item.employee_name,
+  }));
 
   const filters = useMemo(() => {
     const startOfDay = new Date(selectedDate);
@@ -114,8 +125,12 @@ function WarehouseForm() {
   });
 
   const getPeopleList = (personType) => {
-    if (personType === undefined || personType == 5) {
+    if (personType === undefined) {
       return [];
+    }
+
+    if (personType == 5) {
+      return EMPLOYEES_MENU;
     }
 
     return peopleList

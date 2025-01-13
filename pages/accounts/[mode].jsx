@@ -13,7 +13,8 @@ function Create() {
     <GlobalWrapper title="Add Account Sheet">
       <Head />
 
-      {storeId == WAREHHOUSE_ID ? <WarehouseForm /> : <NormalOutletForm />}
+      {/* {storeId == WAREHHOUSE_ID ? <WarehouseForm /> : <NormalOutletForm />} */}
+      <WarehouseForm />
     </GlobalWrapper>
   );
 }

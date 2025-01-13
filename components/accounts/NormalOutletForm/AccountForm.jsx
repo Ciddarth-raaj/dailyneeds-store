@@ -40,8 +40,12 @@ function AccountForm({ formikProps, isViewMode, isSaved, onDateChange, mode }) {
   }));
 
   const getPeopleList = (personType) => {
-    if (personType === undefined || personType == 5) {
+    if (personType === undefined) {
       return [];
+    }
+
+    if (personType == 5) {
+      return EMPLOYEES_MENU;
     }
 
     return peopleList
