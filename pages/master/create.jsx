@@ -27,8 +27,8 @@ const validation = Yup.object({
     .nullable()
     .typeError("Must be a number")
     .min(123456789, "Must be 9 characters or More")
-    .max(12345678900, "Must be 10 characters or less")
-    .required("Fill Primary Phone Number"),
+    .max(12345678900, "Must be 10 characters or less"),
+  // .required("Fill Primary Phone Number"),
   secondary_phone: Yup.number()
     .nullable()
     .typeError("Must be a number")
@@ -98,7 +98,7 @@ function CreateMaster() {
                 </div>
                 <div className={styles.inputSubContainer}>
                   <CustomInput
-                    label="Primary Phone Number *"
+                    label="Primary Phone Number"
                     name="primary_phone"
                     type="number"
                   />
