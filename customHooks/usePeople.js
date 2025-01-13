@@ -22,7 +22,7 @@ function usePeople() {
     init();
   }, []);
 
-  return { peopleList };
+  return { peopleList, refetch: init };
 }
 
 export default usePeople;

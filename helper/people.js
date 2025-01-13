@@ -21,3 +21,14 @@ export const createPerson = (params) => {
     }
   });
 };
+
+export const deletePerson = (id) => {
+  return new Promise(async function (resolve, reject) {
+    try {
+      const data = await API.delete(`/people/${id}`);
+      resolve(data.data);
+    } catch (err) {
+      reject(err);
+    }
+  });
+};
