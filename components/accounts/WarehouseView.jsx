@@ -85,8 +85,8 @@ function WarehouseView({ selectedDate }) {
         if (item.isClosingCash) {
           totalCashHandover =
             item.debit === ""
-              ? item.credit.replaceAll("₹", "").replaceAll(",", "")
-              : item.debit.replaceAll("₹", "").replaceAll(",", "");
+              ? parseFloat(item.credit.replaceAll("₹", "").replaceAll(",", ""))
+              : parseFloat(item.debit.replaceAll("₹", "").replaceAll(",", ""));
           break;
         }
       }
