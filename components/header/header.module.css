@@ -37,6 +37,16 @@
   background-color: rgba(226, 153, 255, 0.1);
 }
 
+/* Add padding to create hoverable area */
+.wrapper::after {
+  content: "";
+  position: absolute;
+  bottom: -8px;
+  left: 0;
+  right: 0;
+  height: 8px;
+}
+
 .image {
   display: flex;
   justify-content: center;
@@ -84,7 +94,7 @@
 /* Dropdown styles */
 .dropdownContent {
   position: absolute;
-  top: calc(100% + 8px);
+  top: calc(100% + 8px); /* Keep the gap but make it part of the dropdown */
   right: 0;
   min-width: 220px;
   background: white;
@@ -93,6 +103,17 @@
   padding: 8px;
   display: none;
   z-index: 1000;
+}
+
+/* Create invisible extension of dropdown to bridge the gap */
+.dropdownContent::before {
+  content: "";
+  position: absolute;
+  top: -8px;
+  left: 0;
+  right: 0;
+  height: 8px;
+  background: transparent;
 }
 
 .wrapper:hover .dropdownContent {
@@ -107,16 +128,16 @@
   border-radius: 8px;
   color: #666;
   transition: all 0.3s ease;
-  font-size: 14px;
+  font-size: 12px;
 }
 
 .menuItem:hover {
-  background-color: rgba(226, 153, 255, 0.1);
-  color: rgb(106, 0, 148);
+  background-color: var(--chakra-colors-purple-50);
+  color: var(--chakra-colors-purple-500);
 }
 
 .menuItem i {
-  font-size: 16px;
+  font-size: 14px;
   width: 20px;
   text-align: center;
 }

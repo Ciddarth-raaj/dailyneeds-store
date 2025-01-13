@@ -11,61 +11,61 @@ export default function Header() {
   const [settings] = React.useState({
     company: {
       title: "Company Details",
-      icon: "fa fa-building-o",
+      icon: "fa-regular fa-building",
       link: "/company-details",
     },
     branch: {
       title: "Branch Details",
-      icon: "fa fa-sitemap",
+      icon: "fa-solid fa-sitemap",
       link: "/branch-details",
     },
     sms: {
       title: "SMS Config",
-      icon: "fa fa-commenting-o",
+      icon: "fa-regular fa-comment",
     },
     email: {
       title: "Email Config",
-      icon: "fa fa-envelope-o",
+      icon: "fa-regular fa-envelope",
     },
     push: {
       title: "Push Notifications",
-      icon: "fa fa-bell-o",
+      icon: "fa-regular fa-bell",
     },
     cash: {
       title: "Cash Denomination",
-      icon: "fa fa-money",
+      icon: "fa-solid fa-money-bill",
     },
     letter: {
       title: "Letter Template",
-      icon: "fa fa-file-text-o",
+      icon: "fa-regular fa-file-lines",
     },
     product: {
       title: "Product Master",
-      icon: "fa fa-product-hunt",
+      icon: "fa-solid fa-box",
       link: "/items",
     },
     packing_material_type: {
       title: "Packing Material Type",
-      icon: "fa fa-pencil",
+      icon: "fa-solid fa-pen",
       link: "/packing-material-type",
     },
     packing_material_size: {
       title: "Packing Material Size",
-      icon: "fa fa-pencil",
+      icon: "fa-solid fa-pen",
       link: "/packing-material-size",
     },
     employee: {
       title: "Employee Role",
-      icon: "fa fa-users",
+      icon: "fa-solid fa-users",
     },
     vehicle: {
       title: "Vehicle Details",
       link: "/vehicle",
-      icon: "fa fa-users",
+      icon: "fa-solid fa-truck",
     },
     login: {
       title: "Log In",
-      icon: "fa fa-users",
+      icon: "fa-solid fa-users",
     },
   });
 
@@ -95,13 +95,12 @@ export default function Header() {
       <Head />
       <div className={styles.navigationBar}>
         <div className={styles.wrapper}>
-          {/* <div className={styles.image}>{getAvatar()}</div> */}
           <div className={styles.avatarWrapper}>{firstLetter()}</div>
           <div className={styles.name}>
             <p>{userType === "2" ? "Vinodh" : employee_name}</p>
             <p className={styles.nameSize}>
               {userType === "2" ? "Admin" : designation_name}
-              <i className="fa fa-angle-down" aria-hidden="true" />
+              <i className="fa-solid fa-angle-down" aria-hidden="true" />
             </p>
           </div>
           <div className={styles.dropdownContent}>
@@ -116,7 +115,10 @@ export default function Header() {
                   <>
                     <div className={styles.divider} />
                     <a onClick={logout} className={styles.menuItem}>
-                      <i className="fa fa-sign-out" aria-hidden="true" />
+                      <i
+                        className="fa-solid fa-right-from-bracket"
+                        aria-hidden="true"
+                      />
                       Log Out
                     </a>
                   </>
