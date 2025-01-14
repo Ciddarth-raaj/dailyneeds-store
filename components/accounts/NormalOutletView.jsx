@@ -1,16 +1,9 @@
 import React, { useState, useMemo, useRef, useEffect } from "react";
-import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../components/CustomContainer";
-import Head from "../../util/head";
 import Link from "next/link";
 import { Button, IconButton } from "@chakra-ui/button";
 import usePermissions from "../../customHooks/usePermissions";
-import CustomInput, {
-  CustomDateTimeInput,
-} from "../../components/customInput/customInput";
-import DatePicker from "react-datepicker";
-import useOutlets from "../../customHooks/useOutlets";
-import { Select } from "@chakra-ui/react";
+import { Badge } from "@chakra-ui/react";
 import { useUser } from "../../contexts/UserContext";
 import styles from "../../styles/accounts.module.css";
 import Table from "../../components/table/table";
@@ -157,9 +150,12 @@ function NormalOutletView({
   const isOpeningClosingNotEqual = () => {
     try {
       const openingCash = modifiedCashBook[0].debit;
-      const closingCash = modifiedCashBook[modifiedCashBook.length - 2].credit;
+      const closingCash =
+        modifiedCashBook[modifiedCashBook.length - 2].credit === ""
+          ? 0
+          : modifiedCashBook[modifiedCashBook.length - 2].credit;
 
-      return openingCash !== closingCash;
+      return openingCash != closingCash;
     } catch (err) {
       return false;
     }
@@ -310,38 +306,52 @@ function NormalOutletView({
       )}
 
       {!loading && accounts.length > 0 && (
-        <div className={styles.buttonContainer}>
-          <Button
-            colorScheme="purple"
-            variant="outline"
-            onClick={printCashDenomination}
-          >
-            Print
-          </Button>
-          {canSaveSheet && selectedOutlet && (
+        <div className={styles.bottomContainer}>
+          <div className={styles.badgeContainer}>
+            {isSaved && <Badge colorScheme="green">Saved</Badge>}
+            {isCashBookNotEqual && (
+              <Badge colorScheme="red">Cashbook Not Equal</Badge>
+            )}
+            {isEbookNotEqual && (
+              <Badge colorScheme="red">EBook Not Equal</Badge>
+            )}
+            {isOpeningClosingNotEqual() && (
+              <Badge colorScheme="red">Opening Closing Not Equal</Badge>
+            )}
+          </div>
+          <div className={styles.buttonContainer}>
             <Button
               colorScheme="purple"
-              disabled={
-                isSaved ||
-                isEbookNotEqual ||
-                isCashBookNotEqual ||
-                isOpeningClosingNotEqual()
-              }
-              onClick={handleSaveSheet}
+              variant="outline"
+              onClick={printCashDenomination}
             >
-              Submit Sheet
+              Print
             </Button>
-          )}
+            {canSaveSheet && selectedOutlet && (
+              <Button
+                colorScheme="purple"
+                disabled={
+                  isSaved ||
+                  isEbookNotEqual ||
+                  isCashBookNotEqual ||
+                  isOpeningClosingNotEqual()
+                }
+                onClick={handleSaveSheet}
+              >
+                Submit Sheet
+              </Button>
+            )}
 
-          {canUnsaveSheet && selectedOutlet && (
-            <Button
-              colorScheme="purple"
-              disabled={!isSaved}
-              onClick={handleUnsaveSheet}
-            >
-              Unlock Sheet
-            </Button>
-          )}
+            {canUnsaveSheet && selectedOutlet && (
+              <Button
+                colorScheme="purple"
+                disabled={!isSaved}
+                onClick={handleUnsaveSheet}
+              >
+                Unlock Sheet
+              </Button>
+            )}
+          </div>
         </div>
       )}
 

@@ -19,3 +19,15 @@
   gap: 12px;
   justify-content: flex-end;
 }
+
+.badgeContainer {
+  display: flex;
+  gap: 12px;
+}
+
+.bottomContainer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 22px;
+}
