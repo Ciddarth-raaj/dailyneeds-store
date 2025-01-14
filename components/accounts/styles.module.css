@@ -1,6 +1,17 @@
 .buttonContainer {
   display: flex;
   justify-content: flex-end;
-  margin-top: 22px;
   gap: 12px;
+}
+
+.badgeContainer {
+  display: flex;
+  gap: 12px;
+}
+
+.bottomContainer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 22px;
 }

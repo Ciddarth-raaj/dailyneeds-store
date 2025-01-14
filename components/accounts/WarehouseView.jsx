@@ -14,6 +14,7 @@ import styles from "./styles.module.css";
 import { addStartingCash } from "../../helper/accounts";
 import toast from "react-hot-toast";
 import usePermissions from "../../customHooks/usePermissions";
+import { Badge } from "@chakra-ui/react";
 
 const HEADINGS_CASHBOOK = {
   particulars: "Particulars",
@@ -74,10 +75,6 @@ function WarehouseView({ selectedDate }) {
 
   const isCashBookNotEqual = useMemo(() => {
     return modifiedCashBook.some((item) => item.isNotEqual);
-  }, [modifiedCashBook]);
-
-  const isOpeningClosingNotEqual = useMemo(() => {
-    return modifiedCashBook.some((item) => item.isOpeningClosingNotEqual);
   }, [modifiedCashBook]);
 
   const handleSubmitPress = async () => {
@@ -161,38 +158,44 @@ function WarehouseView({ selectedDate }) {
         )}
       </CustomContainer>
 
-      <div className={styles.buttonContainer}>
-        {isSaved && (
-          <Button
-            variant="outline"
-            colorScheme="purple"
-            onClick={() => handleSubmit(!isCarriedForward)}
-          >
-            {isCarriedForward ? "Uncarry Forward" : "Carry Forward"}
-          </Button>
-        )}
+      <div className={styles.bottomContainer}>
+        <div className={styles.badgeContainer}>
+          {isSaved && <Badge colorScheme="green">Saved</Badge>}
+          {isCashBookNotEqual && (
+            <Badge colorScheme="red">Cashbook Not Equal</Badge>
+          )}
+        </div>
+        <div className={styles.buttonContainer}>
+          {isSaved && (
+            <Button
+              variant="outline"
+              colorScheme="purple"
+              onClick={() => handleSubmit(!isCarriedForward)}
+            >
+              {isCarriedForward ? "Uncarry Forward" : "Carry Forward"}
+            </Button>
+          )}
 
-        {canSaveSheet && (
-          <Button
-            colorScheme="purple"
-            onClick={() => handleSubmitPress(true)}
-            isDisabled={
-              isSaved || isCashBookNotEqual || isOpeningClosingNotEqual
-            }
-          >
-            Submit Sheet
-          </Button>
-        )}
+          {canSaveSheet && (
+            <Button
+              colorScheme="purple"
+              onClick={() => handleSubmitPress(true)}
+              isDisabled={isSaved || isCashBookNotEqual}
+            >
+              Submit Sheet
+            </Button>
+          )}
 
-        {canUnsaveSheet && (
-          <Button
-            colorScheme="purple"
-            onClick={unsaveSheet}
-            isDisabled={!isSaved}
-          >
-            Unlock Sheet
-          </Button>
-        )}
+          {canUnsaveSheet && (
+            <Button
+              colorScheme="purple"
+              onClick={unsaveSheet}
+              isDisabled={!isSaved}
+            >
+              Unlock Sheet
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   );
