@@ -48,7 +48,7 @@ function WarehouseForm() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const { employees } = useEmployees({
     store_ids: storeId === null ? [] : [storeId],
-    designation_ids: [CASHIER_DESIGNATION],
+    designation_ids: [],
   });
 
   const EMPLOYEES_MENU = employees.map((item) => ({

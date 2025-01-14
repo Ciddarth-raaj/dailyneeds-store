@@ -29,6 +29,10 @@ function AccountForm({ formikProps, isViewMode, isSaved, onDateChange, mode }) {
     store_ids: storeId === null ? [] : [storeId],
     designation_ids: [CASHIER_DESIGNATION],
   });
+  const { employees: allEmployees } = useEmployees({
+    store_ids: storeId === null ? [] : [storeId],
+    designation_ids: [],
+  });
 
   const [isDenominationOpen, setIsDenominationOpen] = useState(false);
 
@@ -45,7 +49,10 @@ function AccountForm({ formikProps, isViewMode, isSaved, onDateChange, mode }) {
     }
 
     if (personType == 5) {
-      return EMPLOYEES_MENU;
+      return allEmployees.map((item) => ({
+        id: item.employee_id,
+        value: item.employee_name,
+      }));
     }
 
     return peopleList.map((item) => ({ id: item.person_id, value: item.name }));
