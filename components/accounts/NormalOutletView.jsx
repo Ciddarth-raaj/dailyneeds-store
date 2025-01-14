@@ -155,9 +155,14 @@ function NormalOutletView({
   }, [accounts, outletData]);
 
   const isOpeningClosingNotEqual = () => {
-    const openingCash = modifiedCashBook[0].debit;
-    const closingCash = modifiedCashBook[modifiedCashBook.length - 1].credit;
-    return openingCash !== closingCash;
+    try {
+      const openingCash = modifiedCashBook[0].debit;
+      const closingCash = modifiedCashBook[modifiedCashBook.length - 2].credit;
+
+      return openingCash !== closingCash;
+    } catch (err) {
+      return false;
+    }
   };
 
   const modifiedEbook = useMemo(() => {
