@@ -122,9 +122,9 @@ function Create() {
         const data = {};
 
         list.forEach((item) => {
-          if (!item.Paytm_Tid) return;
+          if (!item.POS_ID) return;
 
-          const PAYTM_TID = item.Paytm_Tid.replaceAll("'", "");
+          const PAYTM_TID = item.POS_ID.replaceAll("'", "");
           if (!data[PAYTM_TID]) {
             data[PAYTM_TID] = {};
           }
@@ -133,11 +133,11 @@ function Create() {
 
           if (data[PAYTM_TID][ITEM_KEY]) {
             data[PAYTM_TID][ITEM_KEY] += parseFloat(
-              item.Settled_Amount.replaceAll("'", "")
+              item.Amount.replaceAll("'", "")
             );
           } else {
             data[PAYTM_TID][ITEM_KEY] = parseFloat(
-              item.Settled_Amount.replaceAll("'", "")
+              item.Amount.replaceAll("'", "")
             );
           }
         });
@@ -270,7 +270,7 @@ function Create() {
                           <CustomInput
                             label="Paytm TID *"
                             name={`pos_list.${index}.paytm_tid`}
-                            type="number"
+                            // type="number"
                             disabled={item.is_imported}
                           />
                           <CustomInput
