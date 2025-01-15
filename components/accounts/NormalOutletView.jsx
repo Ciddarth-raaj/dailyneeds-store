@@ -24,6 +24,7 @@ import { useReactToPrint } from "react-to-print";
 import moment from "moment";
 import { useConfirmation } from "../../hooks/useConfirmation";
 import { deleteAccount } from "../../helper/accounts";
+import useEmployees from "../../customHooks/useEmployees";
 
 const HEADINGS = {
   cashier_name: "Cashier Name",
@@ -58,6 +59,10 @@ function NormalOutletView({
   const cashDenominationRef = useRef(null);
   const { storeId } = useUser().userConfig;
   const { confirm } = useConfirmation();
+  const { employees: allEmployees } = useEmployees({
+    store_ids: storeId === null ? [] : [storeId],
+    designation_ids: [],
+  });
 
   const printCashDenomination = useReactToPrint({
     contentRef: cashDenominationRef,
@@ -144,8 +149,8 @@ function NormalOutletView({
   }, [accounts]);
 
   const modifiedCashBook = useMemo(() => {
-    return getCashBook(accounts, outletData);
-  }, [accounts, outletData]);
+    return getCashBook(accounts, outletData, allEmployees);
+  }, [accounts, outletData, allEmployees]);
 
   const isOpeningClosingNotEqual = () => {
     try {

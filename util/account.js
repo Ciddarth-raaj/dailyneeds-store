@@ -147,7 +147,7 @@ export const getAmmountDifference = (values) => {
   }
 };
 
-export function getCashBook(accounts, outletData) {
+export function getCashBook(accounts, outletData, allEmployees) {
   const totals = getTotals(accounts, true);
   const rows = [];
 
@@ -179,13 +179,27 @@ export function getCashBook(accounts, outletData) {
   accounts.forEach((item) => {
     if (item.sales) {
       item.sales.forEach((item) => {
-        rows.push({
-          particulars: item.person_name,
-          narration: item.description,
-          debit: item.payment_type === 2 ? item.amount : "",
-          credit: item.payment_type === 1 ? item.amount : "",
-          rank: item.payment_type + 2,
-        });
+        if (item.person_type == 5) {
+          const employee = allEmployees.find(
+            (employee) => employee.employee_id === item.person_id
+          );
+
+          rows.push({
+            particulars: employee.employee_name,
+            narration: item.description,
+            debit: item.payment_type === 2 ? item.amount : "",
+            credit: item.payment_type === 1 ? item.amount : "",
+            rank: item.payment_type + 2,
+          });
+        } else {
+          rows.push({
+            particulars: item.person_name,
+            narration: item.description,
+            debit: item.payment_type === 2 ? item.amount : "",
+            credit: item.payment_type === 1 ? item.amount : "",
+            rank: item.payment_type + 2,
+          });
+        }
       });
     }
   });
