@@ -82,4 +82,5 @@ export const PERMISSIONS = {
   save_account_sheet: "Save Account Sheet",
   unsave_account_sheet: "Unsave Account Sheet",
   view_master_list: "View Master List",
+  view_sales_reconciliation: "View Sales Reconciliation",
 };

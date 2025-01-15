@@ -1,0 +1,74 @@
+.fileUpload {
+  width: 100%;
+}
+
+.dropzone {
+  border: 2px dashed #e2e8f0;
+  border-radius: 8px;
+  padding: 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.dropzone:hover:not(.disabled) {
+  border-color: var(--chakra-colors-purple-500);
+  background-color: var(--chakra-colors-purple-50);
+}
+
+.dragActive {
+  border-color: var(--chakra-colors-purple-500);
+  background-color: var(--chakra-colors-purple-50);
+}
+
+.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.fileInfo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: center;
+}
+
+.fileInfo i {
+  font-size: 20px;
+  color: var(--chakra-colors-purple-500);
+}
+
+.fileName {
+  font-size: 14px;
+  color: #4a5568;
+}
+
+.removeFile {
+  background: none;
+  border: none;
+  color: #718096;
+  cursor: pointer;
+  padding: 4px;
+  transition: color 0.2s ease;
+}
+
+.removeFile:hover {
+  color: #e53e3e;
+}
+
+.placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.placeholder i {
+  font-size: 24px;
+  color: #718096;
+}
+
+.placeholderText {
+  font-size: 14px;
+  color: #718096;
+}

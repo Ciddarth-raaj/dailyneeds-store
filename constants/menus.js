@@ -117,6 +117,20 @@ export default {
       },
     },
   },
+  reconcilation: {
+    title: "Reconciliation",
+    selected: false,
+    openPage: false,
+    icon: "fa-calculator",
+    subMenu: {
+      view_sales_reconciliation: {
+        title: "Sales",
+        permission: "view_sales_reconciliation",
+        selected: false,
+        location: "/reconciliation/sales",
+      },
+    },
+  },
   products: {
     title: "Products",
     selected: false,
