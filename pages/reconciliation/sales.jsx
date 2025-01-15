@@ -28,10 +28,11 @@ function Sales() {
     };
   }, [selectedDate]);
 
-  const { loading: salesLoading, getStoreSummary } = useSalesByStore(
-    filters,
-    setSelectedDate
-  );
+  const {
+    loading: salesLoading,
+    getStoreSummary,
+    reset,
+  } = useSalesByStore(filters, setSelectedDate);
   const storeSummary = getStoreSummary();
 
   const HEADERS = {
@@ -95,7 +96,7 @@ function Sales() {
           ),
         };
       });
-  }, [JSON.stringify(parsedData), storeSummary]);
+  }, [parsedData, storeSummary]);
 
   useEffect(() => {
     const readZipFile = async () => {
@@ -152,12 +153,18 @@ function Sales() {
     toast.success(`Successfully imported ${result.totalRows} rows`);
   };
 
+  const onFileChange = (file) => {
+    setFile(file);
+    setParsedData(null);
+    reset();
+  };
+
   return (
     <GlobalWrapper>
       <CustomContainer title="Sales Reconciliation" filledHeader>
         <FileUpload
           value={file}
-          onChange={setFile}
+          onChange={onFileChange}
           accept="zip,application/octet-stream,application/zip,application/x-zip,application/x-zip-compressed"
           maxSize={5242880}
           disabled={loading}
@@ -169,7 +176,7 @@ function Sales() {
           smallHeader
           rightSection={<Button colorScheme="purple">Save</Button>}
         >
-          {parsedData?.data ? (
+          {file && parsedData?.data ? (
             <Table heading={HEADERS} rows={rows ?? []} />
           ) : (
             <EmptyData />

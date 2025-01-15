@@ -109,6 +109,12 @@ function useSalesByStore(filters) {
     );
   }, [data]);
 
+  const reset = () => {
+    setData([]);
+    setLoading(false);
+    setError(null);
+  };
+
   return {
     data,
     loading,
@@ -120,6 +126,7 @@ function useSalesByStore(filters) {
     getTotalCashSales,
     getStoreSummary,
     getAllSales,
+    reset,
   };
 }
 
