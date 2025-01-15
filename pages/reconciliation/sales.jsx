@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../components/CustomContainer";
 import FileUpload from "../../components/FileUpload";
@@ -9,29 +9,81 @@ import Table from "../../components/table/table";
 import EmptyData from "../../components/EmptyData";
 import currencyFormatter from "../../util/currencyFormatter";
 import moment from "moment";
+import useSalesByStore from "../../customHooks/useSalesByStore";
 
 function Sales() {
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [parsedData, setParsedData] = useState(null);
+  const [selectedDate, setSelectedDate] = useState(new Date("2025-01-13"));
+
+  const filters = useMemo(() => {
+    const endOfDay = new Date(selectedDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    return {
+      from_date: endOfDay,
+      to_date: endOfDay,
+    };
+  }, [selectedDate]);
+
+  const { loading: salesLoading, getStoreSummary } = useSalesByStore(filters);
+  const storeSummary = getStoreSummary();
 
   const HEADERS = {
     "Bill Date": "Bill Date",
     "Outlet Name": "Outlet Name",
-    "Cash Sales": "Cash Sales",
+    "Total Sales": "Total Sales",
     Loyalty: "Loyalty",
+    "Loyalty Difference": "Loyalty Difference",
+    "Total Sales Difference": "Total Sales Difference",
   };
 
-  const rows = parsedData?.data
-    .filter((item) => item["Bill Date"] && item["Outlet Name"])
-    .map((item) => {
-      return {
-        "Bill Date": moment(item["Bill Date"]).format("DD-MM-YYYY"),
-        "Outlet Name": item["Outlet Name"],
-        "Cash Sales": currencyFormatter(item["Cash Sales"] || 0),
-        Loyalty: currencyFormatter(item["Loyalty"] || 0),
-      };
-    });
+  const rows = useMemo(() => {
+    return parsedData?.data
+      .filter((item) => item["Bill Date"] && item["Outlet Name"])
+      .map((item) => {
+        const salesDifference =
+          parseFloat(item["Bill Amt"] || 0) -
+          storeSummary[item["Outlet Name"]]?.total_sales;
+        const loyaltyDifference =
+          parseFloat(item["Loyalty"] || 0) -
+          storeSummary[item["Outlet Name"]]?.loyalty;
+
+        return {
+          "Bill Date": moment(item["Bill Date"]).format("DD-MM-YYYY"),
+          "Outlet Name": item["Outlet Name"]
+            .replace("DailyNeeds-", "")
+            .replace("Dailyneeds-", ""),
+          "Total Sales": currencyFormatter(item["Bill Amt"] || 0),
+          Loyalty: currencyFormatter(item["Loyalty"] || 0),
+          "Total Sales Difference": salesDifference ? (
+            <span
+              style={{
+                color: salesDifference > 0 ? "green" : "red",
+                fontWeight: "bold",
+              }}
+            >
+              {currencyFormatter(salesDifference)}
+            </span>
+          ) : (
+            "-"
+          ),
+          "Loyalty Difference": loyaltyDifference ? (
+            <span
+              style={{
+                color: loyaltyDifference > 0 ? "green" : "red",
+                fontWeight: "bold",
+              }}
+            >
+              {currencyFormatter(loyaltyDifference)}
+            </span>
+          ) : (
+            "-"
+          ),
+        };
+      });
+  }, [parsedData?.data, storeSummary]);
 
   useEffect(() => {
     const readZipFile = async () => {
