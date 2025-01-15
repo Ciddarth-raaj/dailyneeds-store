@@ -185,7 +185,7 @@ export function getCashBook(accounts, outletData, allEmployees) {
           );
 
           rows.push({
-            particulars: employee.employee_name,
+            particulars: employee?.employee_name ?? "N/A",
             narration: item.description,
             debit: item.payment_type === 2 ? item.amount : "",
             credit: item.payment_type === 1 ? item.amount : "",
