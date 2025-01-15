@@ -8,6 +8,7 @@ const FileUpload = ({
   maxSize = 5242880, // 5MB default
   accept,
   disabled = false,
+  placeholderText = "Drag & drop a file here, or click to select",
 }) => {
   const onDrop = useCallback(
     (acceptedFiles) => {
@@ -58,9 +59,7 @@ const FileUpload = ({
           <div className={styles.placeholder}>
             <i className="fa-solid fa-cloud-arrow-up" />
             <p className={styles.placeholderText}>
-              {isDragActive
-                ? "Drop the file here"
-                : "Drag & drop a file here, or click to select"}
+              {isDragActive ? "Drop the file here" : placeholderText}
             </p>
           </div>
         )}
