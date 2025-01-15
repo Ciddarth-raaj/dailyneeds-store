@@ -10,12 +10,13 @@ import EmptyData from "../../components/EmptyData";
 import currencyFormatter from "../../util/currencyFormatter";
 import moment from "moment";
 import useSalesByStore from "../../customHooks/useSalesByStore";
+import { Button } from "@chakra-ui/button";
 
 function Sales() {
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [parsedData, setParsedData] = useState(null);
-  const [selectedDate, setSelectedDate] = useState(new Date("2025-01-13"));
+  const [selectedDate, setSelectedDate] = useState(new Date());
 
   const filters = useMemo(() => {
     const endOfDay = new Date(selectedDate);
@@ -27,7 +28,10 @@ function Sales() {
     };
   }, [selectedDate]);
 
-  const { loading: salesLoading, getStoreSummary } = useSalesByStore(filters);
+  const { loading: salesLoading, getStoreSummary } = useSalesByStore(
+    filters,
+    setSelectedDate
+  );
   const storeSummary = getStoreSummary();
 
   const HEADERS = {
@@ -39,7 +43,15 @@ function Sales() {
     "Total Sales Difference": "Total Sales Difference",
   };
 
+  useEffect(() => {
+    if (parsedData?.data?.length > 0) {
+      setSelectedDate(new Date(parsedData?.data[0]["Bill Date"]));
+    }
+  }, [parsedData]);
+
   const rows = useMemo(() => {
+    if (!parsedData?.data) return [];
+
     return parsedData?.data
       .filter((item) => item["Bill Date"] && item["Outlet Name"])
       .map((item) => {
@@ -83,7 +95,7 @@ function Sales() {
           ),
         };
       });
-  }, [parsedData?.data, storeSummary]);
+  }, [JSON.stringify(parsedData), storeSummary]);
 
   useEffect(() => {
     const readZipFile = async () => {
@@ -151,7 +163,12 @@ function Sales() {
           disabled={loading}
         />
 
-        <CustomContainer title="Imported Data" style={{ marginTop: "22px" }}>
+        <CustomContainer
+          title="Imported Data"
+          style={{ marginTop: "22px" }}
+          smallHeader
+          rightSection={<Button colorScheme="purple">Save</Button>}
+        >
           {parsedData?.data ? (
             <Table heading={HEADERS} rows={rows ?? []} />
           ) : (

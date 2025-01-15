@@ -64,7 +64,6 @@ function Master() {
             refetch();
             return "Person deleted successfully";
           } else {
-            console.log("CIDD", refetch);
             throw err;
           }
         },

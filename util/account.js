@@ -449,23 +449,6 @@ const getGroupedDenominations = (allDenominations) => {
   }, {});
 };
 
-function getWarehouseDifference(denomination, sales, groupedDenominations) {
-  const totalDenomination = getTotalDenomination(denomination);
-  const salesTotal = getSalesTotal(sales);
-  console.log("CIDD", totalDenomination, salesTotal, groupedDenominations);
-}
-
-function getSalesTotal(sales) {
-  return sales.reduce((acc, item) => {
-    return (
-      acc +
-      (item.payment_type === 1
-        ? parseFloat(item.amount ?? 0)
-        : parseFloat(item.amount ?? 0) * -1)
-    );
-  }, 0);
-}
-
 export function getWarehouseCashbook(
   sales,
   denomination,
