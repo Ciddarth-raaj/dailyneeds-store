@@ -6,8 +6,13 @@ import Cell from "./cell.js";
 
 export default class Table extends React.Component {
   render() {
-    const { heading, rows, sortCallback, variant = "default" } = this.props;
-    const headingKeys = Object.keys(heading);
+    const {
+      heading,
+      rows = [],
+      sortCallback,
+      variant = "default",
+    } = this.props;
+    const headingKeys = heading ? Object.keys(heading) : [];
 
     return (
       <table
