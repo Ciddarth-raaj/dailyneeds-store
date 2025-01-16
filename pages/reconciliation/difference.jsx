@@ -8,12 +8,22 @@ import { useAccounts } from "../../customHooks/useAccounts";
 import useEmployees from "../../customHooks/useEmployees";
 import currencyFormatter from "../../util/currencyFormatter";
 import Table from "../../components/table/table";
+import useSalesReconciliation from "../../customHooks/useSalesReconciliation";
+import moment from "moment";
 
 const HEADINGS_CASHBOOK = {
   particulars: "Particulars",
   narration: "Narration",
   debit: "Debit",
   credit: "Credit",
+};
+
+const HEADINGS_SALES_DIFF = {
+  bill_date: "Bill Date",
+  outlet_name: "Outlet Name",
+  loyalty_diff: "Loyalty",
+  sales_diff: "Total Sales",
+  return_diff: "Sales Return",
 };
 
 function Difference() {
@@ -35,11 +45,33 @@ function Difference() {
     };
   }, [storeId, fromDate, toDate]);
 
+  const { sales } = useSalesReconciliation(filters);
   const { accounts, refetch } = useAccounts(filters);
   const { employees: allEmployees } = useEmployees({
     store_ids: [],
     designation_ids: [],
   });
+
+  const DifferenceWrapper = (value) => {
+    return <span style={{ color: value >= 0 ? "green" : "red" }}>{value}</span>;
+  };
+
+  const salesList = useMemo(() => {
+    return sales
+      .filter(
+        (item) =>
+          item.return_diff != 0 ||
+          item.sales_diff != 0 ||
+          item.loyalty_diff != 0
+      )
+      .map((item) => ({
+        ...item,
+        bill_date: moment(item.bill_date).format("DD-MM-YYYY"),
+        loyalty_diff: DifferenceWrapper(item.loyalty_diff),
+        sales_diff: DifferenceWrapper(item.sales_diff),
+        return_diff: DifferenceWrapper(item.return_diff),
+      }));
+  }, [sales]);
 
   const accountList = useMemo(() => {
     const rows = [];
@@ -93,10 +125,13 @@ function Difference() {
             selectedOutlet={storeId}
             setSelectedOutlet={setStoreId}
           />
-          <CustomContainer
-            title="Sales Difference"
-            smallHeader
-          ></CustomContainer>
+          <CustomContainer title="Sales Difference" smallHeader>
+            <Table
+              heading={HEADINGS_SALES_DIFF}
+              rows={salesList}
+              variant="plain"
+            />
+          </CustomContainer>
           <CustomContainer title="Unchecked Payments / Receipts" smallHeader>
             <Table
               heading={HEADINGS_CASHBOOK}
