@@ -1,0 +1,33 @@
+.selectorContainer {
+  display: flex;
+  gap: 12px;
+  padding: 20px;
+  background-color: #f7f7f7;
+  border-radius: 12px;
+  border: 1px solid #eee;
+}
+
+.mainContainer,
+.mainContainer > .childDiv {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.buttonContainer {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.badgeContainer {
+  display: flex;
+  gap: 12px;
+}
+
+.bottomContainer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 22px;
+}

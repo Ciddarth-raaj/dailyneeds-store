@@ -1,11 +1,13 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../components/CustomContainer";
 import { useAccounts } from "../../customHooks/useAccounts";
 import useEmployees from "../../customHooks/useEmployees";
 import Table from "../../components/table/table";
 import currencyFormatter from "../../util/currencyFormatter";
-import { Checkbox } from "@chakra-ui/react";
+import { Box, Checkbox, Container } from "@chakra-ui/react";
+import DateOutletPicker from "../../components/DateOutletPicker";
+import { useUser } from "../../contexts/UserContext";
 
 const HEADINGS_CASHBOOK = {
   checkbox: "",
@@ -16,7 +18,9 @@ const HEADINGS_CASHBOOK = {
 };
 
 function PaymentReceipts() {
+  const { storeId } = useUser().userConfig;
   const [selectedDate, setSelectedDate] = useState(new Date("2025-01-11"));
+  const [selectedOutlet, setSelectedOutlet] = useState(null);
 
   const filters = useMemo(() => {
     const startOfDay = new Date(selectedDate);
@@ -26,16 +30,23 @@ function PaymentReceipts() {
     endOfDay.setHours(23, 59, 59, 999);
 
     return {
+      store_id: selectedOutlet,
       from_date: startOfDay.toISOString(),
       to_date: endOfDay.toISOString(),
     };
-  }, [selectedDate]);
+  }, [selectedOutlet, selectedDate]);
 
   const { accounts } = useAccounts(filters);
   const { employees: allEmployees } = useEmployees({
     store_ids: [],
     designation_ids: [],
   });
+
+  useEffect(() => {
+    if (storeId) {
+      setSelectedOutlet(storeId);
+    }
+  }, [storeId]);
 
   const onCheckBoxChange = (salesId, value) => {
     console.log("CIDD", { salesId, value });
@@ -94,7 +105,21 @@ function PaymentReceipts() {
   return (
     <GlobalWrapper>
       <CustomContainer title="Payment / Receipts Reconciliation" filledHeader>
-        <Table heading={HEADINGS_CASHBOOK} rows={accountList} variant="plain" />
+        <DateOutletPicker
+          selectedDate={selectedDate}
+          setSelectedDate={setSelectedDate}
+          selectedOutlet={selectedOutlet}
+          setSelectedOutlet={setSelectedOutlet}
+          disabled={storeId !== null}
+        />
+
+        <Box mt="22px">
+          <Table
+            heading={HEADINGS_CASHBOOK}
+            rows={accountList}
+            variant="plain"
+          />
+        </Box>
       </CustomContainer>
     </GlobalWrapper>
   );
