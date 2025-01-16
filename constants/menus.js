@@ -129,6 +129,12 @@ export default {
         selected: false,
         location: "/reconciliation/sales",
       },
+      view_payment_receipts_reconciliation: {
+        title: "Payment / Receipts",
+        permission: "view_payment_receipts_reconciliation",
+        selected: false,
+        location: "/reconciliation/payment-receipts",
+      },
     },
   },
   products: {
