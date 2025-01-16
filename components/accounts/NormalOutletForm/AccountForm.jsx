@@ -55,7 +55,9 @@ function AccountForm({ formikProps, isViewMode, isSaved, onDateChange, mode }) {
       }));
     }
 
-    return peopleList.map((item) => ({ id: item.person_id, value: item.name }));
+    return peopleList
+      .filter((item) => item.person_type == personType)
+      .map((item) => ({ id: item.person_id, value: item.name }));
   };
 
   return (

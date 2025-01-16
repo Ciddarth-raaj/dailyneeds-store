@@ -20,7 +20,7 @@ const HEADINGS_CASHBOOK = {
 
 function PaymentReceipts() {
   const { storeId } = useUser().userConfig;
-  const [selectedDate, setSelectedDate] = useState(new Date("2025-01-11"));
+  const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedOutlet, setSelectedOutlet] = useState(null);
 
   const filters = useMemo(() => {

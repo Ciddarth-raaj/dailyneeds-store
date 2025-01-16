@@ -133,7 +133,9 @@ function WarehouseForm() {
       return EMPLOYEES_MENU;
     }
 
-    return peopleList.map((item) => ({ id: item.person_id, value: item.name }));
+    return peopleList
+      .filter((item) => item.person_type == personType)
+      .map((item) => ({ id: item.person_id, value: item.name }));
   };
 
   const onSubmit = (values, resetForm) => {
