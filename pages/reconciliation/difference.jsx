@@ -10,6 +10,9 @@ import currencyFormatter from "../../util/currencyFormatter";
 import Table from "../../components/table/table";
 import useSalesReconciliation from "../../customHooks/useSalesReconciliation";
 import moment from "moment";
+import EmptyData from "../../components/EmptyData";
+import useAccountsGrouped from "../../customHooks/useAccountsGrouped";
+import useOutlets from "../../customHooks/useOutlets";
 
 const HEADINGS_CASHBOOK = {
   particulars: "Particulars",
@@ -45,19 +48,35 @@ function Difference() {
     };
   }, [storeId, fromDate, toDate]);
 
+  const { outlets } = useOutlets();
   const { sales } = useSalesReconciliation(filters);
   const { accounts, refetch } = useAccounts(filters);
+  const { groupedAccounts } = useAccountsGrouped(accounts, sales);
   const { employees: allEmployees } = useEmployees({
     store_ids: [],
     designation_ids: [],
   });
 
   const DifferenceWrapper = (value) => {
-    return <span style={{ color: value >= 0 ? "green" : "red" }}>{value}</span>;
+    return (
+      <span style={{ color: value >= 0 ? "green" : "red" }}>
+        {currencyFormatter(value)}
+      </span>
+    );
   };
 
+  const OUTLET_MAP = useMemo(() => {
+    const outletMap = {};
+
+    outlets.forEach((item) => {
+      outletMap[item.outlet_id] = item;
+    });
+
+    return outletMap;
+  }, [outlets]);
+
   const salesList = useMemo(() => {
-    return sales
+    const salesList = sales
       .filter(
         (item) =>
           item.return_diff != 0 ||
@@ -71,7 +90,23 @@ function Difference() {
         sales_diff: DifferenceWrapper(item.sales_diff),
         return_diff: DifferenceWrapper(item.return_diff),
       }));
-  }, [sales]);
+
+    const unsavedAccounts =
+      Object.keys(groupedAccounts)?.map((key) => {
+        const item = groupedAccounts[key];
+
+        return {
+          bill_date: moment(item.date).format("DD-MM-YYYY"),
+          outlet_name: OUTLET_MAP[item.store_id]?.outlet_name ?? "N/A",
+          loyalty_diff: DifferenceWrapper(item.totals.loyalty),
+          sales_diff: DifferenceWrapper(item.totals.total_sales),
+          return_diff: DifferenceWrapper(item.totals.sales_return),
+        };
+      }) ?? [];
+
+    const combinedList = [...salesList, ...unsavedAccounts];
+    return combinedList;
+  }, [accounts, sales, groupedAccounts, OUTLET_MAP]);
 
   const accountList = useMemo(() => {
     const rows = [];
@@ -126,18 +161,18 @@ function Difference() {
             setSelectedOutlet={setStoreId}
           />
           <CustomContainer title="Sales Difference" smallHeader>
-            <Table
-              heading={HEADINGS_SALES_DIFF}
-              rows={salesList}
-              variant="plain"
-            />
+            {salesList.length === 0 ? (
+              <EmptyData />
+            ) : (
+              <Table heading={HEADINGS_SALES_DIFF} rows={salesList} />
+            )}
           </CustomContainer>
           <CustomContainer title="Unchecked Payments / Receipts" smallHeader>
-            <Table
-              heading={HEADINGS_CASHBOOK}
-              rows={accountList}
-              variant="plain"
-            />
+            {accountList.length === 0 ? (
+              <EmptyData />
+            ) : (
+              <Table heading={HEADINGS_CASHBOOK} rows={accountList} />
+            )}
           </CustomContainer>
         </Flex>
       </CustomContainer>
