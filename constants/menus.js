@@ -135,6 +135,12 @@ export default {
         selected: false,
         location: "/reconciliation/payment-receipts",
       },
+      view_reconciliation_difference: {
+        title: "Difference",
+        permission: "view_reconciliation_difference",
+        selected: false,
+        location: "/reconciliation/difference",
+      },
     },
   },
   products: {
