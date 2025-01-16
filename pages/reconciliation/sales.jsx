@@ -12,6 +12,7 @@ import moment from "moment";
 import useSalesByStore from "../../customHooks/useSalesByStore";
 import { Button } from "@chakra-ui/button";
 import { Flex } from "@chakra-ui/react";
+import { saveReconciliation } from "../../helper/reconciliation";
 
 const REQUIRED_LOYALTY_HEADERS = [
   "Bill Date",
@@ -32,8 +33,6 @@ function Sales() {
   const [parsedData, setParsedData] = useState(null);
   const [parsedSalesReturnData, setParsedSalesReturnData] = useState(null);
   const [selectedDate, setSelectedDate] = useState(new Date());
-
-  console.log("CIDD", parsedSalesReturnData);
 
   const filters = useMemo(() => {
     const endOfDay = new Date(selectedDate);
@@ -83,19 +82,19 @@ function Sales() {
     }
   }, [parsedData]);
 
-  // console.log("CIDD SUM", storeSummary);
-
   const mapData = (item, noFormat = false) => {
-    const itemBillAmt = parseFloat(item["Bill Amt"] || 0);
-    const itemLoyalty = parseFloat(item["Loyalty"] || 0);
+    const itemBillAmt = parseInt(item["Bill Amt"] || 0);
+    const itemLoyalty = parseInt(item["Loyalty"] || 0);
     const actualBillAmt = storeSummary[item["Outlet Name"]]?.total_sales ?? 0;
     const actualItemLoyalty = storeSummary[item["Outlet Name"]]?.loyalty ?? 0;
     const storeId = storeSummary[item["Outlet Name"]]?.store_id;
 
-    const salesReturn =
-      parsedSalesReturnData?.data?.find(
-        (salesReturn) => salesReturn["Outlet Name"] === item["Outlet Name"]
-      )?.["Sales Return Amt"] ?? null;
+    const salesObject = parsedSalesReturnData?.data?.find(
+      (salesReturn) => salesReturn["Outlet Name"] === item["Outlet Name"]
+    );
+    const salesReturn = salesObject
+      ? parseInt(salesObject["Sales Return Amt"])
+      : null;
     const actualSalesReturn =
       storeSummary[item["Outlet Name"]]?.sales_return ?? 0;
 
@@ -217,7 +216,6 @@ function Sales() {
     }
 
     const result = await importFileToJSON(file, validateHeaders);
-    console.log("CIDD", result);
     setParsedData(result);
     toast.success(`Successfully imported ${result.totalRows} rows`);
   };
@@ -237,9 +235,24 @@ function Sales() {
 
     const data = parsedData?.data
       .filter((item) => item["Bill Date"] && item["Outlet Name"])
-      .map((item) => mapData(item, true));
+      .map((item) => mapData(item, true))
+      .filter((item) => item["storeId"])
+      .map((item) => ({
+        store_id: item.storeId,
+        sales_diff: item["Total Sales Difference"],
+        loyalty_diff: item["Loyalty Difference"],
+        return_diff: item["Sales Return Difference"],
+        bill_date: new Date(item["Bill Date"].split("-").reverse().join("-")),
+      }));
 
-    console.log("CIDD", data);
+    toast.promise(Promise.all(data.map((item) => saveReconciliation(item))), {
+      loading: "Saving Differences",
+      success: () => "Differences saved successfully",
+      error: (err) => {
+        console.log(err);
+        return "Failed to save differences";
+      },
+    });
   };
 
   return (

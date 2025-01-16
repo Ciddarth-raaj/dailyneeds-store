@@ -76,7 +76,6 @@ function useSalesByStore(filters) {
 
   const getStoreSummary = useCallback(() => {
     return data.reduce((acc, store) => {
-      console.log("CIDD TEST", store);
       const storeTotals = store.accounts.reduce(
         (totals, account) => {
           totals.total_sales += parseFloat(account.total_sales || 0);
