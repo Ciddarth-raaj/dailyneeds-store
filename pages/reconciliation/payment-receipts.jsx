@@ -8,6 +8,7 @@ import currencyFormatter from "../../util/currencyFormatter";
 import { Box, Checkbox, Container } from "@chakra-ui/react";
 import DateOutletPicker from "../../components/DateOutletPicker";
 import { useUser } from "../../contexts/UserContext";
+import { updateSales } from "../../helper/accounts";
 
 const HEADINGS_CASHBOOK = {
   checkbox: "",
@@ -36,7 +37,7 @@ function PaymentReceipts() {
     };
   }, [selectedOutlet, selectedDate]);
 
-  const { accounts } = useAccounts(filters);
+  const { accounts, refetch } = useAccounts(filters);
   const { employees: allEmployees } = useEmployees({
     store_ids: [],
     designation_ids: [],
@@ -48,8 +49,13 @@ function PaymentReceipts() {
     }
   }, [storeId]);
 
-  const onCheckBoxChange = (salesId, value) => {
-    console.log("CIDD", { salesId, value });
+  const onCheckBoxChange = async (salesId, value) => {
+    try {
+      await updateSales(salesId, { is_checked: value });
+      await refetch();
+    } catch (err) {
+      console.log(err);
+    }
   };
 
   const CustomCheckbox = (item) => {

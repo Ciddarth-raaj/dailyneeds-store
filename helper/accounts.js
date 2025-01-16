@@ -410,3 +410,24 @@ export const getSalesByOutlet = (filters = {}) => {
     }
   });
 };
+
+export const updateSales = (id, params) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const formattedParams = {
+        ...params,
+        amount: params.amount ? parseFloat(params.amount) : undefined,
+      };
+
+      // Remove amount if undefined to make it optional
+      if (formattedParams.amount === undefined) {
+        delete formattedParams.amount;
+      }
+
+      const response = await API.put(`/accounts/sales/${id}`, formattedParams);
+      resolve(response.data);
+    } catch (err) {
+      reject(err);
+    }
+  });
+};
