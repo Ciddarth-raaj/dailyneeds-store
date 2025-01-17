@@ -141,6 +141,12 @@ export default {
         selected: false,
         location: "/reconciliation/difference",
       },
+      view_digital_payments: {
+        title: "Digital Payments",
+        permission: "view_digital_payments",
+        selected: false,
+        location: "/reconciliation/digital-payments",
+      },
     },
   },
   products: {

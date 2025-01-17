@@ -35,3 +35,17 @@ export const ACCOUNT_VALIDATION_SCHEMA = Yup.object({
     }).required("Fill Accounts")
   ),
 });
+
+export const DIGIAL_PAYMENT_VALIDATION_SCHEMA = Yup.object({
+  s_no: Yup.number().optional(),
+  store_id: Yup.number()
+    .typeError("Select a Outlet")
+    .required("Select a Outlet"),
+  payment_mid: Yup.string().optional(),
+  paytm_aggregator_id: Yup.string().optional(),
+  payment_tid: Yup.number().optional(),
+  bank_mid: Yup.string().optional(),
+  bank_tid: Yup.string().optional(),
+  key: Yup.string().optional(),
+  pluxe_outlet_id: Yup.string().optional(),
+});
