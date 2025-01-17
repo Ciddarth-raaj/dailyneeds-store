@@ -6,6 +6,7 @@ import Link from "next/link";
 import Table from "../../../components/table/table";
 import useDigitalPayments from "../../../customHooks/useDigitalPayments";
 import { Menu, MenuItem } from "@szhsin/react-menu";
+import { Flex } from "@chakra-ui/react";
 
 const HEADINGS = {
   s_no: "Serial No.",
@@ -14,7 +15,7 @@ const HEADINGS = {
 };
 
 function DigitalPayments() {
-  const { data } = useDigitalPayments();
+  const { data, handleExportData } = useDigitalPayments();
 
   const rows = data.map((item) => ({
     ...item,
@@ -44,9 +45,15 @@ function DigitalPayments() {
         title="Digital Payments"
         filledHeader
         rightSection={
-          <Link href={`/reconciliation/digital-payments/create`} passHref>
-            <Button colorScheme="whiteAlpha">Add</Button>
-          </Link>
+          <Flex gap="12px">
+            <Button colorScheme="whiteAlpha" onClick={handleExportData}>
+              Export
+            </Button>
+
+            <Link href={`/reconciliation/digital-payments/create`} passHref>
+              <Button colorScheme="whiteAlpha">Add</Button>
+            </Link>
+          </Flex>
         }
       >
         <Table heading={HEADINGS} rows={rows} variant="plain" />
