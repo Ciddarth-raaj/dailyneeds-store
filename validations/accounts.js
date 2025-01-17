@@ -37,13 +37,13 @@ export const ACCOUNT_VALIDATION_SCHEMA = Yup.object({
 });
 
 export const DIGIAL_PAYMENT_VALIDATION_SCHEMA = Yup.object({
-  s_no: Yup.number().optional(),
+  s_no: Yup.string().optional(),
   store_id: Yup.number()
     .typeError("Select a Outlet")
     .required("Select a Outlet"),
   payment_mid: Yup.string().optional(),
   paytm_aggregator_id: Yup.string().optional(),
-  payment_tid: Yup.number().optional(),
+  payment_tid: Yup.string().optional(),
   bank_mid: Yup.string().optional(),
   bank_tid: Yup.string().optional(),
   key: Yup.string().optional(),

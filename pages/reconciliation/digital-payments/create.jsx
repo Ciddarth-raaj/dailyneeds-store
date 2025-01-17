@@ -69,7 +69,7 @@ function Create() {
                   <CustomInput
                     label="Serial Number"
                     name="s_no"
-                    type="number"
+                    type="string"
                   />
                   <CustomInput
                     label="Outlet *"
@@ -93,7 +93,7 @@ function Create() {
                   <CustomInput
                     label="Paytm TID"
                     name="payment_tid"
-                    type="number"
+                    type="string"
                   />
                   <CustomInput label="Bank MID" name="bank_mid" type="string" />
                 </div>
