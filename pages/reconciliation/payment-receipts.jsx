@@ -9,6 +9,7 @@ import { Box, Checkbox, Container } from "@chakra-ui/react";
 import DateOutletPicker from "../../components/DateOutletPicker";
 import { useUser } from "../../contexts/UserContext";
 import { updateSales } from "../../helper/accounts";
+import EmptyData from "../../components/EmptyData";
 
 const HEADINGS_CASHBOOK = {
   checkbox: "",
@@ -119,13 +120,17 @@ function PaymentReceipts() {
           disabled={storeId !== null}
         />
 
-        <Box mt="22px">
-          <Table
-            heading={HEADINGS_CASHBOOK}
-            rows={accountList}
-            variant="plain"
-          />
-        </Box>
+        {accountList.length === 0 ? (
+          <EmptyData />
+        ) : (
+          <Box mt="22px">
+            <Table
+              heading={HEADINGS_CASHBOOK}
+              rows={accountList}
+              variant="plain"
+            />
+          </Box>
+        )}
       </CustomContainer>
     </GlobalWrapper>
   );

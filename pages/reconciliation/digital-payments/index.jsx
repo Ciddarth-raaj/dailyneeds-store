@@ -7,6 +7,7 @@ import Table from "../../../components/table/table";
 import useDigitalPayments from "../../../customHooks/useDigitalPayments";
 import { Menu, MenuItem } from "@szhsin/react-menu";
 import { Flex } from "@chakra-ui/react";
+import EmptyData from "../../../components/EmptyData";
 
 const HEADINGS = {
   s_no: "Serial No.",
@@ -46,7 +47,11 @@ function DigitalPayments() {
         filledHeader
         rightSection={
           <Flex gap="12px">
-            <Button colorScheme="whiteAlpha" onClick={handleExportData}>
+            <Button
+              colorScheme="whiteAlpha"
+              onClick={handleExportData}
+              disabled={rows.length === 0}
+            >
               Export
             </Button>
 
@@ -56,7 +61,11 @@ function DigitalPayments() {
           </Flex>
         }
       >
-        <Table heading={HEADINGS} rows={rows} variant="plain" />
+        {rows.length === 0 ? (
+          <EmptyData />
+        ) : (
+          <Table heading={HEADINGS} rows={rows} variant="plain" />
+        )}
       </CustomContainer>
     </GlobalWrapper>
   );
