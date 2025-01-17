@@ -34,7 +34,6 @@ function Create() {
   };
 
   const handleSubmit = (values) => {
-    console.log("CIDD", values);
     toast.promise(createDigitalPayment(values), {
       loading: "Creating new Digital Payment",
       success: (response) => {

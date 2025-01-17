@@ -21,3 +21,14 @@ export const createDigitalPayment = (params) => {
     }
   });
 };
+
+export const getDigitalPayments = () => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const response = await API.get("/digital-payments");
+      resolve(response.data);
+    } catch (err) {
+      reject(err);
+    }
+  });
+};
