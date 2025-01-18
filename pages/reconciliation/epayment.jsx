@@ -1,16 +1,60 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../components/CustomContainer";
 import FileUpload from "../../components/FileUpload";
 import { Flex } from "@chakra-ui/react";
 import { importFileToJSON, isValidFileType } from "../../util/fileImport";
 import toast from "react-hot-toast";
+import moment from "moment";
 
 function Epayment() {
   const [upiFile, setUpiFile] = useState(null);
   const [cardFile, setCardFile] = useState(null);
   const [upiParsedData, setUpiParsedData] = useState(null);
   const [cardParsedData, setCardParsedData] = useState(null);
+
+  const rows = useMemo(() => {
+    const combinedRows = [
+      ...(upiParsedData?.data ?? []),
+      ...(cardParsedData?.data ?? []),
+    ];
+
+    return (
+      combinedRows.reduce((acc, item) => {
+        const date = moment(
+          item["Transaction Req Date"] || item["CHG_DATE"]
+        ).format("YYYY-MM-DD");
+        const bank_mid = item["EXTERNAL MID"] || item["MECODE"];
+        const existingRow = acc.find(
+          (row) => row.date === date && row.bank_mid === bank_mid
+        );
+
+        if (existingRow) {
+          if (item["Transaction Amount"]) {
+            existingRow.amount += parseFloat(item["Transaction Amount"] ?? 0);
+            existingRow.totalUPI += parseFloat(item["Transaction Amount"] ?? 0);
+          } else if (item["PYMT_NETAMNT"]) {
+            existingRow.amount += parseFloat(item["PYMT_NETAMNT"] ?? 0);
+            existingRow.totalCard += parseFloat(item["PYMT_NETAMNT"] ?? 0);
+          }
+        } else {
+          acc.push({
+            bank_mid: bank_mid,
+            bank_tid: item["EXTERNAL TID"],
+            date: date,
+            amount: parseFloat(
+              item["Transaction Amount"] || item["PYMT_NETAMNT"] || 0
+            ),
+            totalUPI: parseFloat(item["Transaction Amount"] || 0),
+            totalCard: parseFloat(item["PYMT_NETAMNT"] || 0),
+          });
+        }
+        return acc;
+      }, []) ?? []
+    );
+  }, [upiParsedData, cardParsedData]);
+
+  console.log("CIDD", rows);
 
   const onUpiFileChange = (file) => {
     if (file) {

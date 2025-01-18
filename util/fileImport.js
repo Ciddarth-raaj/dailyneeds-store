@@ -34,7 +34,7 @@ export const importFileToJSON = (
           complete: (results) => {
             try {
               // Skip rows based on skipHeadings parameter and get headers
-              const [, ...remainingRows] = results.data;
+              const remainingRows = results.data;
               const headers = remainingRows[skipHeadings - 1];
               const data = remainingRows.slice(skipHeadings);
 
