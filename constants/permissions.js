@@ -86,4 +86,5 @@ export const PERMISSIONS = {
   view_payment_receipts_reconciliation: "View Payment Receipts Reconciliation",
   view_reconciliation_difference: "View Reconciliation Difference",
   view_digital_payments: "View Digital Payments",
+  view_epayment_reconciliation: "View E-Payment Reconciliation",
 };

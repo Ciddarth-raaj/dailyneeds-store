@@ -135,6 +135,12 @@ export default {
         selected: false,
         location: "/reconciliation/payment-receipts",
       },
+      view_epayment_reconciliation: {
+        title: "E-Payment",
+        permission: "view_epayment_reconciliation",
+        selected: false,
+        location: "/reconciliation/epayment",
+      },
       view_reconciliation_difference: {
         title: "Difference",
         permission: "view_reconciliation_difference",

@@ -17,7 +17,11 @@ const validateHeaders = (headers, requiredHeaders) => {
   }
 };
 
-export const importFileToJSON = (file, requiredHeaders = REQUIRED_HEADERS) => {
+export const importFileToJSON = (
+  file,
+  requiredHeaders = REQUIRED_HEADERS,
+  skipHeadings = 3
+) => {
   return new Promise((resolve, reject) => {
     try {
       const fileType = file.name.split(".").pop().toLowerCase();
@@ -29,8 +33,10 @@ export const importFileToJSON = (file, requiredHeaders = REQUIRED_HEADERS) => {
           skipEmptyLines: true,
           complete: (results) => {
             try {
-              // Skip first two rows and get headers from third row
-              const [, , headers, ...data] = results.data;
+              // Skip rows based on skipHeadings parameter and get headers
+              const [, ...remainingRows] = results.data;
+              const headers = remainingRows[skipHeadings - 1];
+              const data = remainingRows.slice(skipHeadings);
 
               // Validate required headers
               validateHeaders(headers, requiredHeaders);
@@ -75,11 +81,12 @@ export const importFileToJSON = (file, requiredHeaders = REQUIRED_HEADERS) => {
               raw: false,
             });
 
-            // Skip first two rows and get headers from third row
-            const [, , headers, ...rows] = jsonData;
+            // Skip rows based on skipHeadings parameter and get headers
+            const headers = jsonData[skipHeadings - 1];
+            const rows = jsonData.slice(skipHeadings);
 
             // Validate required headers
-            validateHeaders(headers);
+            validateHeaders(headers, requiredHeaders);
 
             const formattedData = rows.map((row) =>
               headers.reduce((obj, header, index) => {
