@@ -4,6 +4,7 @@ import * as AccountsHelper from "../helper/accounts";
 export function useAccounts(filters) {
   const [accounts, setAccounts] = useState([]);
   const [epayments, setEpayments] = useState([]);
+  const [mappedEbooks, setMappedEbooks] = useState({});
   const [outletData, setOutletData] = useState(null);
   const [isSaved, setIsSaved] = useState(true);
   const [loading, setLoading] = useState(true);
@@ -18,9 +19,21 @@ export function useAccounts(filters) {
         setEpayments(data.data.ebook);
         setOutletData(data.data.outlet);
         setIsSaved(data.is_saved);
+
+        // Create mapped ebooks with paytm_tid as key
+        const mappedEbooksData = (data.data.ebook || []).reduce((acc, item) => {
+          if (item.paytm_tid) {
+            acc[item.paytm_tid] = item;
+          }
+          return acc;
+        }, {});
+        setMappedEbooks(mappedEbooksData);
       }
     } catch (err) {
       setError(err);
+      setAccounts([]);
+      setEpayments([]);
+      setMappedEbooks({});
     } finally {
       setLoading(false);
     }
@@ -75,6 +88,7 @@ export function useAccounts(filters) {
     saveSheet,
     unsaveSheet,
     epayments,
+    mappedEbooks,
     outletData,
   };
 }

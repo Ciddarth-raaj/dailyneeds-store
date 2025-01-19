@@ -15,40 +15,41 @@ export default class Table extends React.Component {
     const headingKeys = heading ? Object.keys(heading) : [];
 
     return (
-      <table
-        className={`${styles.table} ${
-          variant === "plain" ? styles.plainTable : ""
-        }`}
-        style={{ tableLayout: "fixed" }}
-      >
-        <thead>
-          <tr>
-            {headingKeys.map((key, index) => (
-              <Cell
-                key={`heading-${index}`}
-                content={heading[key]}
-                header={true}
-                headingKey={key}
-                sortCallback={sortCallback}
-                variant={variant}
-              />
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row, rowIndex) => (
-            <tr key={`row-${rowIndex}`}>
-              {headingKeys.map((key, cellIndex) => (
+      <div className={styles.tableWrapper}>
+        <table
+          className={`${styles.table} ${
+            variant === "plain" ? styles.plainTable : ""
+          }`}
+        >
+          <thead>
+            <tr>
+              {headingKeys.map((key, index) => (
                 <Cell
-                  key={`${key}-${cellIndex}`}
-                  content={row[key]}
+                  key={`heading-${index}`}
+                  content={heading[key]}
+                  header={true}
+                  headingKey={key}
+                  sortCallback={sortCallback}
                   variant={variant}
                 />
               ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {rows.map((row, rowIndex) => (
+              <tr key={`row-${rowIndex}`}>
+                {headingKeys.map((key, cellIndex) => (
+                  <Cell
+                    key={`${key}-${cellIndex}`}
+                    content={row[key]}
+                    variant={variant}
+                  />
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     );
   }
 }

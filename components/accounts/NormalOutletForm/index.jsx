@@ -120,6 +120,7 @@ function NormalOutletForm() {
         for (const item of values.accounts) {
           const tmpItem = structuredClone(item);
           delete tmpItem.person_name;
+          delete tmpItem.is_checked;
           sales.push(tmpItem);
         }
 

@@ -3,6 +3,7 @@ import { getDigitalPayments } from "../helper/digital-payments";
 
 function useDigitalPayments() {
   const [data, setData] = useState([]);
+  const [mappedData, setMappedData] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -14,6 +15,16 @@ function useDigitalPayments() {
 
       if (response.code === 200) {
         setData(response.data || []);
+
+        // Create mapped data with bank_mid as key
+        const mapped = (response.data || []).reduce((acc, item) => {
+          if (item.bank_mid) {
+            acc[item.bank_mid] = item;
+          }
+          return acc;
+        }, {});
+
+        setMappedData(mapped);
       } else {
         throw new Error(response.message || "Failed to fetch digital payments");
       }
@@ -21,6 +32,7 @@ function useDigitalPayments() {
       console.error("Error fetching digital payments:", err);
       setError(err.message);
       setData([]);
+      setMappedData({});
     } finally {
       setLoading(false);
     }
@@ -32,6 +44,7 @@ function useDigitalPayments() {
 
   const reset = useCallback(() => {
     setData([]);
+    setMappedData({});
     setLoading(false);
     setError(null);
   }, []);
@@ -92,6 +105,7 @@ function useDigitalPayments() {
 
   return {
     data,
+    mappedData,
     loading,
     error,
     refetch: fetchData,

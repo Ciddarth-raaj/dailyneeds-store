@@ -317,7 +317,7 @@ function Sales() {
           {file && parsedData?.data ? (
             <Table heading={HEADERS} rows={rows ?? []} />
           ) : (
-            <EmptyData />
+            <EmptyData message="Import data to continue" />
           )}
         </CustomContainer>
       </CustomContainer>
