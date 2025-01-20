@@ -9,6 +9,7 @@ const FileUpload = ({
   accept,
   disabled = false,
   placeholderText = "Drag & drop a file here, or click to select",
+  width = "100%",
 }) => {
   const onDrop = useCallback(
     (acceptedFiles) => {
@@ -33,7 +34,7 @@ const FileUpload = ({
   };
 
   return (
-    <div className={styles.fileUpload}>
+    <div className={styles.fileUpload} style={{ width }}>
       <div
         {...getRootProps()}
         className={`${styles.dropzone} ${

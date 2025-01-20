@@ -200,6 +200,7 @@ function Epayment() {
       <CustomContainer title="E-Payment Reconciliation" filledHeader>
         <Flex gap="22px">
           <FileUpload
+            width="25%"
             value={upiFile}
             onChange={onUpiFileChange}
             accept=".xlsx,.xls,.csv"
@@ -221,6 +222,51 @@ function Epayment() {
           />
 
           <FileUpload
+            width="25%"
+            value={cardFile}
+            onChange={onCardFileChange}
+            accept=".xlsx,.xls,.csv"
+            maxSize={5242880}
+            placeholderText={
+              <span>
+                Drag & drop a{" "}
+                <span
+                  style={{
+                    color: "var(--chakra-colors-purple-500)",
+                    fontWeight: "600",
+                  }}
+                >
+                  Card Payment
+                </span>{" "}
+                file here, or click to select
+              </span>
+            }
+          />
+
+          <FileUpload
+            width="25%"
+            value={cardFile}
+            onChange={onCardFileChange}
+            accept=".xlsx,.xls,.csv"
+            maxSize={5242880}
+            placeholderText={
+              <span>
+                Drag & drop a{" "}
+                <span
+                  style={{
+                    color: "var(--chakra-colors-purple-500)",
+                    fontWeight: "600",
+                  }}
+                >
+                  Card Payment
+                </span>{" "}
+                file here, or click to select
+              </span>
+            }
+          />
+
+          <FileUpload
+            width="25%"
             value={cardFile}
             onChange={onCardFileChange}
             accept=".xlsx,.xls,.csv"

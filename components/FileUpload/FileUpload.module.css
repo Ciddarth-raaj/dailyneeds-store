@@ -1,5 +1,6 @@
 .fileUpload {
   width: 100%;
+  display: inline-block;
 }
 
 .dropzone {
@@ -13,6 +14,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  min-width: 0;
 }
 
 .dropzone:hover:not(.disabled) {
@@ -35,16 +37,24 @@
   align-items: center;
   gap: 12px;
   justify-content: center;
+  min-width: 0;
+  flex: 1;
 }
 
 .fileInfo i {
   font-size: 20px;
   color: var(--chakra-colors-purple-500);
+  flex-shrink: 0;
 }
 
 .fileName {
   font-size: 14px;
   color: #4a5568;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
 }
 
 .removeFile {
@@ -54,6 +64,7 @@
   cursor: pointer;
   padding: 4px;
   transition: color 0.2s ease;
+  flex-shrink: 0;
 }
 
 .removeFile:hover {
@@ -65,14 +76,19 @@
   flex-direction: column;
   align-items: center;
   gap: 8px;
+  min-width: 0;
+  flex: 1;
 }
 
 .placeholder i {
   font-size: 24px;
   color: #718096;
+  flex-shrink: 0;
 }
 
 .placeholderText {
   font-size: 14px;
   color: #718096;
+  text-align: center;
+  min-width: 0;
 }
