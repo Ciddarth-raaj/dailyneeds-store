@@ -22,6 +22,7 @@ const HEADINGS = {
   outlet_name: "Outlet",
   totalUPI: "Total UPI",
   totalCard: "Total Card",
+  totalSodexo: "Total Sodexo",
   upiDifference: (
     <span>
       Total UPI <i className="fa fa-plus-minus" style={{ fontSize: "10px" }} />
@@ -32,13 +33,24 @@ const HEADINGS = {
       Total Card <i className="fa fa-plus-minus" style={{ fontSize: "10px" }} />
     </span>
   ),
+  sodexoDifference: (
+    <span>
+      Total Sodexo{" "}
+      <i className="fa fa-plus-minus" style={{ fontSize: "10px" }} />
+    </span>
+  ),
 };
 
 function Epayment() {
   const [upiFile, setUpiFile] = useState(null);
   const [cardFile, setCardFile] = useState(null);
+  const [sudexoFile, setSudexoFile] = useState(null);
+  const [paytmFile, setPaytmFile] = useState(null);
   const [upiParsedData, setUpiParsedData] = useState(null);
   const [cardParsedData, setCardParsedData] = useState(null);
+  const [sudexoParsedData, setSudexoParsedData] = useState(null);
+  const [paytmParsedData, setPaytmParsedData] = useState(null);
+
   const [selectedDate, setSelectedDate] = useState(null);
 
   const filters = useMemo(() => {
@@ -65,9 +77,16 @@ function Epayment() {
         upiParsedData,
         cardParsedData,
         digitalPayments,
-        mappedEbooks
+        mappedEbooks,
+        sudexoParsedData
       ),
-    [upiParsedData?.data, cardParsedData?.data, digitalPayments, mappedEbooks]
+    [
+      upiParsedData?.data,
+      cardParsedData?.data,
+      sudexoParsedData?.data,
+      digitalPayments,
+      mappedEbooks,
+    ]
   );
 
   const onUpiFileChange = (file) => {
@@ -86,6 +105,30 @@ function Epayment() {
     if (file) {
       setCardFile(file);
       parseReconciliationFile(file, setCardParsedData, setSelectedDate, [
+        "MECODE",
+        "CHG_DATE",
+        "PYMT_NETAMNT",
+        "TERMINAL_NO",
+      ]);
+    }
+  };
+
+  const onSudexoFileChange = (file) => {
+    if (file) {
+      setSudexoFile(file);
+      parseReconciliationFile(file, setSudexoParsedData, setSelectedDate, [
+        "Outlet Name",
+        "Transaction Date",
+        "Debit Amount",
+        "MID",
+      ]);
+    }
+  };
+
+  const onPaytmFileChange = (file) => {
+    if (file) {
+      setPaytmFile(file);
+      parseReconciliationFile(file, setPaytmParsedData, setSelectedDate, [
         "MECODE",
         "CHG_DATE",
         "PYMT_NETAMNT",
@@ -144,8 +187,8 @@ function Epayment() {
 
           <FileUpload
             width="25%"
-            value={cardFile}
-            onChange={onCardFileChange}
+            value={sudexoParsedData}
+            onChange={onSudexoFileChange}
             accept=".xlsx,.xls,.csv"
             maxSize={5242880}
             placeholderText={
@@ -157,7 +200,7 @@ function Epayment() {
                     fontWeight: "600",
                   }}
                 >
-                  Card Payment
+                  Sudexo Payment
                 </span>{" "}
                 file here, or click to select
               </span>
@@ -166,8 +209,8 @@ function Epayment() {
 
           <FileUpload
             width="25%"
-            value={cardFile}
-            onChange={onCardFileChange}
+            value={paytmParsedData}
+            onChange={onPaytmFileChange}
             accept=".xlsx,.xls,.csv"
             maxSize={5242880}
             placeholderText={
@@ -179,7 +222,7 @@ function Epayment() {
                     fontWeight: "600",
                   }}
                 >
-                  Card Payment
+                  Paytm Payment
                 </span>{" "}
                 file here, or click to select
               </span>

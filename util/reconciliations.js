@@ -8,6 +8,7 @@ export const modifyEpaymentData = (
   cardParsedData,
   digitalPayments,
   mappedEbooks,
+  sudexoParsedData,
   noFormat = false
 ) => {
   const getWrappedValue = (value) => {
@@ -40,17 +41,28 @@ export const modifyEpaymentData = (
   const combinedRows = [
     ...(upiParsedData?.data ?? []),
     ...(cardParsedData?.data ?? []),
+    ...(sudexoParsedData?.data ?? []),
   ];
 
   let acc = [];
   combinedRows.forEach((item) => {
-    const date = moment(item["Transaction Req Date"] || item["CHG_DATE"]);
+    // Handle different date formats
+    const date = moment(
+      item["Transaction Req Date"] ||
+        item["CHG_DATE"] ||
+        item["Transaction Date"]
+    );
+
     // Check if date is valid before proceeding
     if (!date.isValid()) return;
     const formattedDate = date.format("DD-MM-YYYY");
-    const bank_mid = item["EXTERNAL MID"] || item["MECODE"];
+
+    // Handle different MID formats
+    const bank_mid = item["EXTERNAL MID"] || item["MECODE"] || item["MID"];
+
     // Check if MID exists and ignore if it doesn't
     if (!bank_mid) return;
+
     let existingRow = acc.find(
       (row) => row.date === formattedDate && row.bank_mid === bank_mid
     );
@@ -58,24 +70,29 @@ export const modifyEpaymentData = (
     if (!existingRow) {
       existingRow = {
         bank_mid: bank_mid,
-        bank_tid: item["EXTERNAL TID"] || item["TERMINAL_NO"],
+        bank_tid: item["EXTERNAL TID"] || item["TERMINAL_NO"] || item["TID"],
         date: formattedDate,
         amount: 0,
         totalUPI: 0,
         totalCard: 0,
+        totalSodexo: 0,
         paytm_tid: digitalPayments[bank_mid]?.payment_tid ?? null,
         store_id: digitalPayments[bank_mid]?.store_id ?? null,
-        outlet_name: digitalPayments[bank_mid]?.outlet_name ?? null,
+        outlet_name: item["Outlet Name"] ?? null,
       };
       acc.push(existingRow);
     }
 
+    // Handle different amount fields
     if (item["Transaction Amount"]) {
       existingRow.amount += parseInt(item["Transaction Amount"] ?? 0);
       existingRow.totalUPI += parseInt(item["Transaction Amount"] ?? 0);
     } else if (item["PYMT_NETAMNT"]) {
       existingRow.amount += parseInt(item["PYMT_NETAMNT"] ?? 0);
       existingRow.totalCard += parseInt(item["PYMT_NETAMNT"] ?? 0);
+    } else if (item["Debit Amount"]) {
+      existingRow.amount += parseInt(item["Debit Amount"] ?? 0);
+      existingRow.totalSodexo += parseInt(item["Debit Amount"] ?? 0);
     }
   });
 
@@ -84,14 +101,18 @@ export const modifyEpaymentData = (
       (mappedEbooks[item.paytm_tid]?.hdur || 0) - item.totalUPI;
     const cardDifference =
       (mappedEbooks[item.paytm_tid]?.hfpp || 0) - item.totalCard;
+    const sodexoDifference =
+      (mappedEbooks[item.paytm_tid]?.sedc || 0) - item.totalSodexo;
 
     return {
       ...item,
       totalCard: wrappedCurrencyFormatter(parseInt(item.totalCard)),
       totalUPI: wrappedCurrencyFormatter(parseInt(item.totalUPI)),
+      totalSodexo: wrappedCurrencyFormatter(parseInt(item.totalSodexo)),
       amount: wrappedCurrencyFormatter(parseInt(item.amount)),
       upiDifference: getWrappedValue(upiDifference),
       cardDifference: getWrappedValue(cardDifference),
+      sodexoDifference: getWrappedValue(sodexoDifference),
     };
   });
 };
@@ -116,6 +137,8 @@ export const parseReconciliationFile = async (
         )
       );
     }
+
+    console.log(result);
 
     setParsedData(result);
     toast.success(`Successfully imported ${result.totalRows} rows`);
