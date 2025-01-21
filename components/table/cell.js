@@ -27,7 +27,7 @@ export default class Cell extends React.Component {
   };
 
   render() {
-    const { content, header, variant = "default" } = this.props;
+    const { content, header, variant, size = "md" } = this.props;
     const { sortDirection } = this.state;
 
     if (header) {
@@ -37,7 +37,7 @@ export default class Cell extends React.Component {
           data-sort={sortDirection}
           className={`${styles.headerCell} ${
             variant === "plain" ? styles.plainHeader : ""
-          }`}
+          } ${styles[size]}`}
         >
           <div>{content}</div>
         </th>
@@ -45,7 +45,13 @@ export default class Cell extends React.Component {
     }
 
     return (
-      <td className={variant === "plain" ? styles.plainCell : ""}>{content}</td>
+      <td
+        className={`${variant === "plain" ? styles.plainCell : ""} ${
+          styles[size]
+        }`}
+      >
+        {content}
+      </td>
     );
   }
 }

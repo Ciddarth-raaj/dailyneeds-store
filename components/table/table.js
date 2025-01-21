@@ -11,6 +11,7 @@ export default class Table extends React.Component {
       rows = [],
       sortCallback,
       variant = "default",
+      size = "md",
     } = this.props;
     const headingKeys = heading ? Object.keys(heading) : [];
 
@@ -19,18 +20,19 @@ export default class Table extends React.Component {
         <table
           className={`${styles.table} ${
             variant === "plain" ? styles.plainTable : ""
-          }`}
+          } ${styles[size]}`}
         >
           <thead>
             <tr>
               {headingKeys.map((key, index) => (
                 <Cell
-                  key={`heading-${index}`}
+                  key={`heading-${key}-${index}`}
                   content={heading[key]}
                   header={true}
                   headingKey={key}
                   sortCallback={sortCallback}
                   variant={variant}
+                  size={size}
                 />
               ))}
             </tr>
@@ -43,6 +45,7 @@ export default class Table extends React.Component {
                     key={`${key}-${cellIndex}`}
                     content={row[key]}
                     variant={variant}
+                    size={size}
                   />
                 ))}
               </tr>
