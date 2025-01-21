@@ -58,26 +58,32 @@ export const modifyEpaymentData = (
     const formattedDate = date.format("DD-MM-YYYY");
 
     // Handle different MID formats
-    const bank_mid = item["EXTERNAL MID"] || item["MECODE"] || item["MID"];
+    const bank_mid = item["EXTERNAL MID"] || item["MECODE"];
+    const pluxe_outlet_id = item["Outlet Id"];
 
     // Check if MID exists and ignore if it doesn't
-    if (!bank_mid) return;
+    if (!bank_mid && !pluxe_outlet_id) return;
+
+    const bank_tid = digitalPayments[bank_mid || pluxe_outlet_id]?.bank_mid;
 
     let existingRow = acc.find(
-      (row) => row.date === formattedDate && row.bank_mid === bank_mid
+      (row) => row.date === formattedDate && row.bank_tid === bank_tid
     );
 
     if (!existingRow) {
       existingRow = {
-        bank_mid: bank_mid,
-        bank_tid: item["EXTERNAL TID"] || item["TERMINAL_NO"] || item["TID"],
+        bank_mid: digitalPayments[bank_mid || pluxe_outlet_id]?.bank_mid,
+        bank_tid: bank_tid,
+        pluxe_outlet_id,
         date: formattedDate,
         amount: 0,
         totalUPI: 0,
         totalCard: 0,
         totalSodexo: 0,
-        paytm_tid: digitalPayments[bank_mid]?.payment_tid ?? null,
-        store_id: digitalPayments[bank_mid]?.store_id ?? null,
+        paytm_tid:
+          digitalPayments[bank_mid || pluxe_outlet_id]?.payment_tid ?? null,
+        store_id:
+          digitalPayments[bank_mid || pluxe_outlet_id]?.store_id ?? null,
         outlet_name: item["Outlet Name"] ?? null,
       };
       acc.push(existingRow);
@@ -97,12 +103,21 @@ export const modifyEpaymentData = (
   });
 
   return acc.map((item) => {
-    const upiDifference =
-      (mappedEbooks[item.paytm_tid]?.hdur || 0) - item.totalUPI;
-    const cardDifference =
-      (mappedEbooks[item.paytm_tid]?.hfpp || 0) - item.totalCard;
-    const sodexoDifference =
-      (mappedEbooks[item.paytm_tid]?.sedc || 0) - item.totalSodexo;
+    const actualUpiVal = mappedEbooks[item.paytm_tid]?.reduce(
+      (acc, item) => acc + item.hdur,
+      0
+    );
+    const actualCardVal = mappedEbooks[item.paytm_tid]?.reduce(
+      (acc, item) => acc + item.hfpp,
+      0
+    );
+    const actualSodexoVal = mappedEbooks[item.paytm_tid]?.reduce(
+      (acc, item) => acc + item.sedc,
+      0
+    );
+    const upiDifference = actualUpiVal - item.totalUPI;
+    const cardDifference = actualCardVal - item.totalCard;
+    const sodexoDifference = actualSodexoVal - item.totalSodexo;
 
     return {
       ...item,
@@ -133,12 +148,12 @@ export const parseReconciliationFile = async (
     if (result.totalRows > 0) {
       setSelectedDate(
         moment(
-          result.data[0]["Transaction Req Date"] || result.data[0]["CHG_DATE"]
+          result.data[0]["Transaction Req Date"] ||
+            result.data[0]["CHG_DATE"] ||
+            result.data[0]["Transaction Date"]
         )
       );
     }
-
-    console.log(result);
 
     setParsedData(result);
     toast.success(`Successfully imported ${result.totalRows} rows`);

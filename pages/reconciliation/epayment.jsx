@@ -187,7 +187,7 @@ function Epayment() {
 
           <FileUpload
             width="25%"
-            value={sudexoParsedData}
+            value={sudexoFile}
             onChange={onSudexoFileChange}
             accept=".xlsx,.xls,.csv"
             maxSize={5242880}
@@ -209,7 +209,7 @@ function Epayment() {
 
           <FileUpload
             width="25%"
-            value={paytmParsedData}
+            value={paytmFile}
             onChange={onPaytmFileChange}
             accept=".xlsx,.xls,.csv"
             maxSize={5242880}

@@ -311,7 +311,6 @@ export default class NewJoiner extends React.Component {
   //   getNewJoiner() {
   //     EmployeeHelper.getNewJoiner()
   //       .then((data) => {
-  //         console.log("CIDD", data);
   //         this.setState({ newjoiner: data[0].new_joiners });
   //       })
   //       .catch((err) => console.log(err));
