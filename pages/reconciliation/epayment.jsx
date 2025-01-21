@@ -2,12 +2,10 @@ import React, { useMemo, useState } from "react";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../components/CustomContainer";
 import FileUpload from "../../components/FileUpload";
-import { Box, Button, Flex } from "@chakra-ui/react";
-import { importFileToJSON, isValidFileType } from "../../util/fileImport";
+import { Button, Flex } from "@chakra-ui/react";
+import { isValidFileType } from "../../util/fileImport";
 import toast from "react-hot-toast";
-import moment from "moment";
 import Table from "../../components/table/table";
-import currencyFormatter from "../../util/currencyFormatter";
 import { useAccounts } from "../../customHooks/useAccounts";
 import useDigitalPayments from "../../customHooks/useDigitalPayments";
 import EmptyData from "../../components/EmptyData";
@@ -15,6 +13,7 @@ import {
   modifyEpaymentData,
   parseReconciliationFile,
 } from "../../util/reconciliations";
+import JSZip from "jszip";
 
 const HEADINGS = {
   bank_mid: "Bank MID",
@@ -23,6 +22,7 @@ const HEADINGS = {
   totalUPI: "Total UPI",
   totalCard: "Total Card",
   totalSodexo: "Total Sodexo",
+  totalPaytm: "Total Paytm",
   upiDifference: (
     <span>
       Total UPI <i className="fa fa-plus-minus" style={{ fontSize: "10px" }} />
@@ -36,6 +36,12 @@ const HEADINGS = {
   sodexoDifference: (
     <span>
       Total Sodexo{" "}
+      <i className="fa fa-plus-minus" style={{ fontSize: "10px" }} />
+    </span>
+  ),
+  paytmDifference: (
+    <span>
+      Total Paytm{" "}
       <i className="fa fa-plus-minus" style={{ fontSize: "10px" }} />
     </span>
   ),
@@ -71,23 +77,23 @@ function Epayment() {
   const { mappedEbooks } = useAccounts(filters);
   const { mappedData: digitalPayments } = useDigitalPayments();
 
-  const rows = useMemo(
-    () =>
-      modifyEpaymentData(
-        upiParsedData,
-        cardParsedData,
-        digitalPayments,
-        mappedEbooks,
-        sudexoParsedData
-      ),
-    [
-      upiParsedData?.data,
-      cardParsedData?.data,
-      sudexoParsedData?.data,
+  const rows = useMemo(() => {
+    return modifyEpaymentData(
+      upiParsedData,
+      cardParsedData,
       digitalPayments,
       mappedEbooks,
-    ]
-  );
+      sudexoParsedData,
+      paytmParsedData
+    );
+  }, [
+    upiParsedData?.data,
+    cardParsedData?.data,
+    sudexoParsedData?.data,
+    paytmParsedData?.data,
+    digitalPayments,
+    mappedEbooks,
+  ]);
 
   const onUpiFileChange = (file) => {
     if (file) {
@@ -125,15 +131,60 @@ function Epayment() {
     }
   };
 
-  const onPaytmFileChange = (file) => {
+  const onPaytmFileChange = async (file) => {
     if (file) {
       setPaytmFile(file);
-      parseReconciliationFile(file, setPaytmParsedData, setSelectedDate, [
-        "MECODE",
-        "CHG_DATE",
-        "PYMT_NETAMNT",
-        "TERMINAL_NO",
-      ]);
+      const unzipedFile = await readZipFile(file);
+
+      unzipedFile.forEach((item) => {
+        if (!isValidFileType(item)) {
+          return;
+        }
+
+        parseReconciliationFile(
+          item.content,
+          setPaytmParsedData,
+          setSelectedDate,
+          ["original_mid", "transaction_date", "amount"]
+        );
+      });
+    }
+  };
+
+  const readZipFile = async (file) => {
+    if (!file) return;
+
+    try {
+      const zip = new JSZip();
+      const contents = await zip.loadAsync(file);
+
+      // Process each file in the zip
+      const filePromises = [];
+      contents.forEach((relativePath, zipEntry) => {
+        if (!zipEntry.dir) {
+          const promise = zipEntry
+            .async("blob")
+            .then((blob) => {
+              // Convert blob to File object
+              return new File([blob], relativePath, {
+                type: blob.type || "application/octet-stream",
+              });
+            })
+            .then((fileContent) => ({
+              name: relativePath,
+              content: fileContent,
+            }));
+          filePromises.push(promise);
+        }
+      });
+
+      const files = await Promise.all(filePromises);
+
+      return files;
+    } catch (error) {
+      toast.error(error.message);
+      console.error("Error reading zip file:", error);
+      return [];
     }
   };
 
@@ -211,7 +262,7 @@ function Epayment() {
             width="25%"
             value={paytmFile}
             onChange={onPaytmFileChange}
-            accept=".xlsx,.xls,.csv"
+            accept="zip,application/octet-stream,application/zip,application/x-zip,application/x-zip-compressed"
             maxSize={5242880}
             placeholderText={
               <span>

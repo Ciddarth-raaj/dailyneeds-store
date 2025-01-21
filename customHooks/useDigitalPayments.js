@@ -24,6 +24,9 @@ function useDigitalPayments() {
           if (item.pluxe_outlet_id) {
             acc[item.pluxe_outlet_id] = item;
           }
+          if (item.payment_mid) {
+            acc[item.payment_mid] = item;
+          }
           return acc;
         }, {});
 
