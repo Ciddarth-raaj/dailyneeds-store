@@ -20,7 +20,7 @@ function useEpaymentReconciliation(filters) {
     fetchData();
   }, [fetchData]);
 
-  return { epayments };
+  return { epayments, refetch: fetchData };
 }
 
 export default useEpaymentReconciliation;

@@ -22,6 +22,14 @@ export const saveReconciliation = (params) => {
   });
 };
 
+const diffFormatter = (value) => {
+  if (!value) {
+    return undefined;
+  }
+
+  return value || value == 0 ? parseFloat(value) : null;
+};
+
 export const saveReconciliationEpayment = (params) => {
   return new Promise(async (resolve, reject) => {
     try {
@@ -31,22 +39,10 @@ export const saveReconciliationEpayment = (params) => {
           typeof params.bill_date === "string"
             ? params.bill_date
             : params.bill_date.toISOString().slice(0, 19).replace("T", " "),
-        card_diff:
-          params.card_diff || params.card_diff == 0
-            ? parseFloat(params.loyalty_diff)
-            : null,
-        upi_diff:
-          params.upi_diff || params.upi_diff == 0
-            ? parseFloat(params.upi_diff)
-            : null,
-        sodexo_diff:
-          params.sodexo_diff || params.sodexo_diff == 0
-            ? parseFloat(params.sodexo_diff)
-            : null,
-        paytm_diff:
-          params.paytm_diff || params.paytm_diff == 0
-            ? parseFloat(params.paytm_diff)
-            : null,
+        card_diff: diffFormatter(params.card_diff),
+        upi_diff: diffFormatter(params.upi_diff),
+        sodexo_diff: diffFormatter(params.sodexo_diff),
+        paytm_diff: diffFormatter(params.paytm_diff),
       };
 
       const response = await API.post(
