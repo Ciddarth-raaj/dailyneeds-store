@@ -23,14 +23,14 @@ export function useAccounts(filters) {
         // Create mapped ebooks with paytm_tid as key
         const mappedEbooksData = (data.data.ebook || []).reduce((acc, item) => {
           if (item.paytm_tid) {
-            if (acc[item.paytm_tid]) {
+            if (!acc[item.paytm_tid]) {
               acc[item.paytm_tid] = [];
             }
             acc[item.paytm_tid].push(item);
           }
 
           if (item.pluxe_outlet_id) {
-            if (acc[item.pluxe_outlet_id]) {
+            if (!acc[item.pluxe_outlet_id]) {
               acc[item.pluxe_outlet_id] = [];
             }
             acc[item.pluxe_outlet_id].push(item);
@@ -40,6 +40,7 @@ export function useAccounts(filters) {
         setMappedEbooks(mappedEbooksData);
       }
     } catch (err) {
+      console.log(err);
       setError(err);
       setAccounts([]);
       setEpayments([]);

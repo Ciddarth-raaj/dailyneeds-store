@@ -106,9 +106,9 @@ export const modifyEpaymentData = (
     if (item["Transaction Amount"]) {
       existingRow.amount += parseInt(item["Transaction Amount"] ?? 0);
       existingRow.totalUPI += parseInt(item["Transaction Amount"] ?? 0);
-    } else if (item["PYMT_NETAMNT"]) {
-      existingRow.amount += parseInt(item["PYMT_NETAMNT"] ?? 0);
-      existingRow.totalCard += parseInt(item["PYMT_NETAMNT"] ?? 0);
+    } else if (item["PYMT_CHGAMNT"]) {
+      existingRow.amount += parseInt(item["PYMT_CHGAMNT"] ?? 0);
+      existingRow.totalCard += parseInt(item["PYMT_CHGAMNT"] ?? 0);
     } else if (item["Debit Amount"]) {
       existingRow.amount += parseInt(item["Debit Amount"] ?? 0);
       existingRow.totalSodexo += parseInt(item["Debit Amount"] ?? 0);
@@ -137,10 +137,10 @@ export const modifyEpaymentData = (
       (acc, item) => acc + item.ppbl,
       0
     );
-    const upiDifference = actualUpiVal - item.totalUPI;
-    const cardDifference = actualCardVal - item.totalCard;
-    const sodexoDifference = actualSodexoVal - item.totalSodexo;
-    const paytmDifference = actualPaytmVal - item.totalPaytm;
+    const upiDifference = item.totalUPI - actualUpiVal;
+    const cardDifference = item.totalCard - actualCardVal;
+    const sodexoDifference = item.totalSodexo - actualSodexoVal;
+    const paytmDifference = item.totalPaytm - actualPaytmVal;
 
     return {
       ...item,

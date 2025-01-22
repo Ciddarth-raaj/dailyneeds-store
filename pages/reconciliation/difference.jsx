@@ -13,6 +13,7 @@ import moment from "moment";
 import EmptyData from "../../components/EmptyData";
 import useAccountsGrouped from "../../customHooks/useAccountsGrouped";
 import useOutlets from "../../customHooks/useOutlets";
+import useEpaymentReconciliation from "../../customHooks/useEpaymentReconciliation";
 
 const HEADINGS_CASHBOOK = {
   particulars: "Particulars",
@@ -27,6 +28,16 @@ const HEADINGS_SALES_DIFF = {
   loyalty_diff: "Loyalty",
   sales_diff: "Total Sales",
   return_diff: "Sales Return",
+};
+
+const HEADINGS_EPAYMENT_DIFF = {
+  bill_date: "Bill Date",
+  outlet_name: "Outlet Name",
+  paytm_tid: "Paytm TID",
+  card_diff: "Card",
+  upi_diff: "UPI",
+  paytm_diff: "Paytm",
+  sodexo_diff: "Sodexo",
 };
 
 function Difference() {
@@ -50,6 +61,7 @@ function Difference() {
 
   const { outlets } = useOutlets();
   const { sales } = useSalesReconciliation(filters);
+  const { epayments } = useEpaymentReconciliation(filters);
   const { accounts, refetch } = useAccounts(filters);
   const { groupedAccounts } = useAccountsGrouped(accounts, sales);
   const { employees: allEmployees } = useEmployees({
@@ -148,6 +160,21 @@ function Difference() {
     }));
   }, [accounts, allEmployees]);
 
+  const epaymentsList = useMemo(() => {
+    console.log("CIDD", epayments);
+    return epayments.map((item) => ({
+      ...item,
+      card_diff:
+        item.card_diff === null ? "-" : DifferenceWrapper(item.card_diff),
+      paytm_diff:
+        item.paytm_diff === null ? "-" : DifferenceWrapper(item.paytm_diff),
+      sodexo_diff:
+        item.sodexo_diff === null ? "-" : DifferenceWrapper(item.sodexo_diff),
+      upi_diff: item.upi_diff === null ? "-" : DifferenceWrapper(item.upi_diff),
+      bill_date: moment(item.bill_date).format("DD-MM-YYYY"),
+    }));
+  }, [epayments]);
+
   return (
     <GlobalWrapper>
       <CustomContainer title="Difference" filledHeader>
@@ -165,6 +192,13 @@ function Difference() {
               <EmptyData />
             ) : (
               <Table heading={HEADINGS_SALES_DIFF} rows={salesList} />
+            )}
+          </CustomContainer>
+          <CustomContainer title="Epayment Difference" smallHeader>
+            {epaymentsList.length === 0 ? (
+              <EmptyData />
+            ) : (
+              <Table heading={HEADINGS_EPAYMENT_DIFF} rows={epaymentsList} />
             )}
           </CustomContainer>
           <CustomContainer title="Unchecked Payments / Receipts" smallHeader>

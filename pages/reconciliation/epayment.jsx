@@ -14,6 +14,8 @@ import {
   parseReconciliationFile,
 } from "../../util/reconciliations";
 import JSZip from "jszip";
+import { saveReconciliationEpayment } from "../../helper/reconciliation";
+import moment from "moment";
 
 const HEADINGS = {
   bank_mid: "Bank MID",
@@ -188,6 +190,68 @@ function Epayment() {
     }
   };
 
+  const handleSave = () => {
+    // console.log(
+    //   "CIDD",
+    //   modifyEpaymentData(
+    //     upiParsedData,
+    //     cardParsedData,
+    //     digitalPayments,
+    //     mappedEbooks,
+    //     sudexoParsedData,
+    //     paytmParsedData,
+    //     true
+    //   )
+    // );
+    const data = modifyEpaymentData(
+      upiParsedData,
+      cardParsedData,
+      digitalPayments,
+      mappedEbooks,
+      sudexoParsedData,
+      paytmParsedData,
+      true
+    ).map((item) => {
+      return {
+        bill_date: moment(item.date, "DD-MM-YYYY").format("YYYY-MM-DD"),
+        card_diff: cardFile ? item.cardDifference : null,
+        upi_diff: upiFile ? item.upiDifference : null,
+        sodexo_diff: sudexoFile ? item.sodexoDifference : null,
+        paytm_diff: paytmFile ? item.paytmDifference : null,
+        store_id: item.store_id,
+        paytm_tid: item.paytm_tid,
+      };
+    });
+
+    console.log("CIDD", data);
+
+    toast.promise(
+      Promise.all(data.map((item) => saveReconciliationEpayment(item))),
+      {
+        loading: "Saving Differences",
+        success: (response) => {
+          let success = 0;
+          let fail = 0;
+
+          response.forEach((item) => {
+            if (item.code === 200) {
+              success += 1;
+            } else {
+              fail += 1;
+            }
+          });
+          return ` ${success} Differences saved successfully${
+            fail > 0 ? `, ${fail} Difference failed to save` : ""
+          }`;
+        },
+        error: (err) => {
+          console.log(err);
+          return "Failed to save differences";
+        },
+      }
+    );
+  };
+
   return (
     <GlobalWrapper>
       <CustomContainer title="E-Payment Reconciliation" filledHeader>
@@ -251,7 +315,7 @@ function Epayment() {
                     fontWeight: "600",
                   }}
                 >
-                  Sudexo Payment
+                  Sodexo Payment
                 </span>{" "}
                 file here, or click to select
               </span>
@@ -285,7 +349,11 @@ function Epayment() {
           title="Imported Data"
           style={{ marginTop: "22px" }}
           smallHeader
-          rightSection={<Button colorScheme="purple">Save</Button>}
+          rightSection={
+            <Button colorScheme="purple" onClick={handleSave}>
+              Save
+            </Button>
+          }
         >
           {rows.length > 0 ? (
             <Table variant="plain" heading={HEADINGS} rows={rows} />
