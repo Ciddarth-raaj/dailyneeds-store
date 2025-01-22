@@ -161,7 +161,6 @@ function Difference() {
   }, [accounts, allEmployees]);
 
   const epaymentsList = useMemo(() => {
-    console.log("CIDD", epayments);
     return epayments.map((item) => ({
       ...item,
       card_diff:

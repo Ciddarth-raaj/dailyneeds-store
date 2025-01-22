@@ -98,11 +98,27 @@ function Sales() {
     const actualSalesReturn =
       storeSummary[item["Outlet Name"]]?.sales_return ?? 0;
 
-    const salesDifference = itemBillAmt - actualBillAmt;
-    const loyaltyDifference = itemLoyalty - actualItemLoyalty;
-    const salesReturnDifference = salesReturn
+    let salesDifference = itemBillAmt - actualBillAmt;
+    let loyaltyDifference = itemLoyalty - actualItemLoyalty;
+    let salesReturnDifference = salesReturn
       ? salesReturn - actualSalesReturn
       : "-";
+
+    if (salesDifference >= -5 && salesDifference <= 5) {
+      salesDifference = 0;
+    }
+
+    if (loyaltyDifference >= -5 && loyaltyDifference <= 5) {
+      loyaltyDifference = 0;
+    }
+
+    if (
+      salesReturn &&
+      salesReturnDifference >= -5 &&
+      salesReturnDifference <= 5
+    ) {
+      salesReturnDifference = 0;
+    }
 
     const getWrappedValue = (value) => {
       if (noFormat) {
@@ -112,7 +128,7 @@ function Sales() {
       return value ? (
         <span
           style={{
-            color: value > 0 ? "green" : "red",
+            color: value >= 0 ? "green" : "red",
             fontWeight: "bold",
           }}
         >
