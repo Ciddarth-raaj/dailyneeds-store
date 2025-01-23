@@ -109,49 +109,70 @@ function NormalOutletView({
 
   const exportAccountSheet = () => {
     const list = [];
+    const cash_list = [];
 
     Object.keys(mappedAccounts).forEach((key) => {
       const outlet = getOutletById(key);
+      const account = mappedAccounts[key];
+      const accountName = `Cash (${OUTLET_CASH_ID_MAP[key] ?? "N/A"})`;
+      const date = moment(selectedDate).format("DD/MM/YYYY");
+
       list.push({
-        Date: moment(selectedDate).format("DD/MM/YYYY"),
-        Particulars: `Cash (${OUTLET_CASH_ID_MAP[key] ?? "N/A"})`,
+        Date: date,
+        Particulars: accountName,
         "Cost Center": outlet.outlet_name,
         Narration: "",
         Debit:
-          parseInt(mappedAccounts[key].cash_sales) +
-          parseInt(mappedAccounts[key].loyalty) -
-          parseInt(mappedAccounts[key].sales_return),
+          parseInt(account.cash_sales) +
+          parseInt(account.loyalty) -
+          parseInt(account.sales_return),
         Credit: "",
       });
 
       list.push({
-        Date: moment(selectedDate).format("DD/MM/YYYY"),
+        Date: date,
         Particulars: "Card Sales",
         "Cost Center": outlet.outlet_name,
         Narration: "",
-        Debit: mappedAccounts[key].card_sales,
+        Debit: account.card_sales,
         Credit: "",
       });
 
       list.push({
-        Date: moment(selectedDate).format("DD/MM/YYYY"),
+        Date: date,
         Particulars: "Sales Return",
         "Cost Center": outlet.outlet_name,
         Narration: "",
         Debit: "",
         Credit:
-          parseInt(mappedAccounts[key].card_sales) +
-          (parseInt(mappedAccounts[key].cash_sales) +
-            parseInt(mappedAccounts[key].loyalty) -
-            parseInt(mappedAccounts[key].sales_return)),
+          parseInt(account.card_sales) +
+          (parseInt(account.cash_sales) +
+            parseInt(account.loyalty) -
+            parseInt(account.sales_return)),
       });
+
+      let cashBook = getCashBook(
+        account.accountsList,
+        outlet,
+        allEmployees,
+        account
+      ).map((item) => ({
+        Date: date,
+        Particulars: item.particulars,
+        "Cost Centre": outlet.outlet_name,
+        Narrations: item.narration,
+        Debit: item.debit,
+        Credit: item.credit,
+        Account: accountName,
+      }));
+
+      cashBook = cashBook.slice(2, -2);
+      cash_list.push(...cashBook);
     });
 
-    console.log("CIDD", list);
-
     exportToExcel(
-      [list],
-      ["Journal"],
+      [list, cash_list],
+      ["Journal", "Cash"],
       `account_sheet-${moment(selectedDate).format("DD/MM/YYYY")}.xlsx`
     );
   };

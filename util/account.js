@@ -19,6 +19,16 @@ export function getTotalsByStore(accounts) {
         sales_return: 0,
         loyalty: 0,
         cash_sales: 0,
+        cash_handover_1: 0,
+        cash_handover_2: 0,
+        cash_handover_5: 0,
+        cash_handover_10: 0,
+        cash_handover_20: 0,
+        cash_handover_50: 0,
+        cash_handover_100: 0,
+        cash_handover_200: 0,
+        cash_handover_500: 0,
+        accountsList: [],
       };
     }
 
@@ -27,6 +37,22 @@ export function getTotalsByStore(accounts) {
     acc[item.store_id].sales_return += parseFloat(item.sales_return || 0);
     acc[item.store_id].loyalty += parseFloat(item.loyalty || 0);
     acc[item.store_id].cash_sales += getCashSales(item);
+
+    acc[item.store_id].cash_handover_1 += item.cash_handover_1;
+    acc[item.store_id].cash_handover_2 += item.cash_handover_2;
+    acc[item.store_id].cash_handover_5 += item.cash_handover_5;
+    acc[item.store_id].cash_handover_10 += item.cash_handover_10;
+    acc[item.store_id].cash_handover_20 += item.cash_handover_20;
+    acc[item.store_id].cash_handover_50 += item.cash_handover_50;
+    acc[item.store_id].cash_handover_100 += item.cash_handover_100;
+    acc[item.store_id].cash_handover_200 += item.cash_handover_200;
+    acc[item.store_id].cash_handover_500 += item.cash_handover_500;
+
+    acc[item.store_id].accountsList.push(item);
+
+    if (!acc[item.store_id].sales) acc[item.store_id].sales = [];
+
+    if (item.sales) acc[item.store_id].sales.push(...item.sales);
 
     return acc;
   }, {});
@@ -164,7 +190,7 @@ export const getAmmountDifference = (values) => {
       });
     }
 
-    return total_sales - calculated_sales;
+    return parseInt(total_sales) - calculated_sales;
   } catch (err) {
     console.log(err);
     return "Invalid!";
