@@ -191,18 +191,6 @@ function Epayment() {
   };
 
   const handleSave = () => {
-    // console.log(
-    //   "CIDD",
-    //   modifyEpaymentData(
-    //     upiParsedData,
-    //     cardParsedData,
-    //     digitalPayments,
-    //     mappedEbooks,
-    //     sudexoParsedData,
-    //     paytmParsedData,
-    //     true
-    //   )
-    // );
     const data = modifyEpaymentData(
       upiParsedData,
       cardParsedData,
@@ -222,8 +210,6 @@ function Epayment() {
         paytm_tid: item.paytm_tid,
       };
     });
-
-    console.log("CIDD", data);
 
     toast.promise(
       Promise.all(data.map((item) => saveReconciliationEpayment(item))),

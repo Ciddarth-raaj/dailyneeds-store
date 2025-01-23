@@ -89,7 +89,7 @@ function Difference() {
 
   const DifferenceWrapper = (value) => {
     return (
-      <span style={{ color: value >= 0 ? "green" : "red" }}>
+      <span style={{ color: value <= 0 ? "green" : "red" }}>
         {currencyFormatter(value)}
       </span>
     );
