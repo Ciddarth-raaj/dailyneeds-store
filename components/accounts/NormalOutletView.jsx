@@ -26,7 +26,7 @@ import { useConfirmation } from "../../hooks/useConfirmation";
 import { deleteAccount } from "../../helper/accounts";
 import useEmployees from "../../customHooks/useEmployees";
 import useOutlets from "../../customHooks/useOutlets";
-import { downloadCsv } from "../../util/exportCSVFile";
+import { downloadCsv, exportToExcel } from "../../util/exportCSVFile";
 
 const OUTLET_CASH_ID_MAP = {
   4: "Dn1",
@@ -149,9 +149,10 @@ function NormalOutletView({
 
     console.log("CIDD", list);
 
-    downloadCsv(
-      list,
-      `account_sheet-${moment(selectedDate).format("DD/MM/YYYY")}.csv`
+    exportToExcel(
+      [list],
+      ["Journal"],
+      `account_sheet-${moment(selectedDate).format("DD/MM/YYYY")}.xlsx`
     );
   };
 

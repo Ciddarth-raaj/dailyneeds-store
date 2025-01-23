@@ -1,3 +1,5 @@
+import * as XLSX from "xlsx";
+
 export default function exportCSVFile(headers, items, fileTitle) {
   if (headers) {
     items.unshift(headers);
@@ -91,4 +93,29 @@ export function downloadCsv(jsonArray, fileName = "data.csv", delimiter = ",") {
   // Clean up
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+}
+
+export function exportToExcel(lists, sheetNames, fileName = "data.xlsx") {
+  if (
+    !Array.isArray(lists) ||
+    !Array.isArray(sheetNames) ||
+    lists.length !== sheetNames.length
+  ) {
+    console.error("Invalid lists or sheet names.");
+    return;
+  }
+
+  // Create a new workbook
+  const workbook = XLSX.utils.book_new();
+
+  // Add each list as a separate sheet
+  lists.forEach((list, index) => {
+    if (Array.isArray(list) && list.length > 0) {
+      const worksheet = XLSX.utils.json_to_sheet(list);
+      XLSX.utils.book_append_sheet(workbook, worksheet, sheetNames[index]);
+    }
+  });
+
+  // Export the workbook to a file
+  XLSX.writeFile(workbook, fileName);
 }
