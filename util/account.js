@@ -368,18 +368,18 @@ function getDisplayNameFromKey(key) {
   return key;
 }
 
-export function getEbook(accounts, totals) {
+export function getEbook(accounts, totals, lastCard = false) {
   let modified = [
     {
       particulars: "Card Sales",
       narration: "",
       debit: totals.card_sales,
       credit: "",
-      ranking: 1,
+      ranking: lastCard ? 6 : 1,
     },
   ];
 
-  accounts.forEach((item) => {
+  accounts?.forEach((item) => {
     if (item.hdur) {
       modified.push({
         particulars: getDisplayNameFromKey("hdur"),
@@ -456,7 +456,7 @@ export function getEbook(accounts, totals) {
           {currencyFormatter(calculated.credit)}
         </span>
       ),
-      rank: 6,
+      rank: 7,
       isNotEqual: true,
     });
   } else {
@@ -464,7 +464,7 @@ export function getEbook(accounts, totals) {
       particulars: "",
       debit: currencyFormatter(calculated.debit),
       credit: currencyFormatter(calculated.credit),
-      rank: 6,
+      rank: 7,
     });
   }
 

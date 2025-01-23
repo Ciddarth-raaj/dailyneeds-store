@@ -107,15 +107,36 @@ function NormalOutletView({
   const getOutletById = (store_id) =>
     outlets.find((item) => item.outlet_id == store_id);
 
+  const getEbookParticular = (item) => {
+    if (item === "HDFC UPI") return "HDFC - UPI";
+    if (item === "Card") return "HDFC (Card)";
+
+    return item;
+  };
+
+  const getEpaymentByStoreId = (storeId) => {
+    const list = [];
+
+    epayments.forEach((item) => {
+      if (item.store_id == storeId) {
+        list.push(item);
+      }
+    });
+
+    return list;
+  };
+
   const exportAccountSheet = () => {
     const list = [];
     const cash_list = [];
+    const bank_list = [];
 
     Object.keys(mappedAccounts).forEach((key) => {
       const outlet = getOutletById(key);
       const account = mappedAccounts[key];
       const accountName = `Cash (${OUTLET_CASH_ID_MAP[key] ?? "N/A"})`;
       const date = moment(selectedDate).format("DD/MM/YYYY");
+      const epaymentList = getEpaymentByStoreId(key);
 
       list.push({
         Date: date,
@@ -168,11 +189,27 @@ function NormalOutletView({
 
       cashBook = cashBook.slice(2, -2);
       cash_list.push(...cashBook);
+
+      let epayments = getEbook(
+        epaymentList,
+        getTotals(account.accountsList, true),
+        true
+      ).map((item) => ({
+        Date: date,
+        Particulars: getEbookParticular(item.particulars),
+        "Cost Centre": outlet.outlet_name,
+        Narrations: item.narration,
+        Debit: item.credit,
+        Credit: item.debit,
+      }));
+
+      epayments = epayments.slice(0, -1);
+      bank_list.push(...epayments);
     });
 
     exportToExcel(
-      [list, cash_list],
-      ["Journal", "Cash"],
+      [list, cash_list, bank_list],
+      ["Journal", "Cash", "Bank"],
       `account_sheet-${moment(selectedDate).format("DD/MM/YYYY")}.xlsx`
     );
   };
