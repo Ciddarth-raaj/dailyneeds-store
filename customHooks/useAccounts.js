@@ -1,8 +1,10 @@
 import { useEffect, useState, useCallback } from "react";
 import * as AccountsHelper from "../helper/accounts";
+import { getTotals, getTotalsByStore } from "../util/account";
 
 export function useAccounts(filters) {
   const [accounts, setAccounts] = useState([]);
+  const [mappedAccounts, setMappedAccounts] = useState([]);
   const [epayments, setEpayments] = useState([]);
   const [mappedEbooks, setMappedEbooks] = useState({});
   const [outletData, setOutletData] = useState(null);
@@ -19,6 +21,9 @@ export function useAccounts(filters) {
         setEpayments(data.data.ebook);
         setOutletData(data.data.outlet);
         setIsSaved(data.is_saved);
+
+        const totals = getTotalsByStore(data.data.account, true);
+        setMappedAccounts(totals);
 
         // Create mapped ebooks with paytm_tid as key
         const mappedEbooksData = (data.data.ebook || []).reduce((acc, item) => {
@@ -101,5 +106,6 @@ export function useAccounts(filters) {
     epayments,
     mappedEbooks,
     outletData,
+    mappedAccounts,
   };
 }

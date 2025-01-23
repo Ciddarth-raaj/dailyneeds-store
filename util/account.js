@@ -10,6 +10,30 @@ export function getCashSales(accountData) {
   return totalSales - cardSales - parsedLoyalty;
 }
 
+export function getTotalsByStore(accounts) {
+  const totals = accounts.reduce((acc, item) => {
+    if (!acc[item.store_id]) {
+      acc[item.store_id] = {
+        total_sales: 0,
+        card_sales: 0,
+        sales_return: 0,
+        loyalty: 0,
+        cash_sales: 0,
+      };
+    }
+
+    acc[item.store_id].total_sales += parseFloat(item.total_sales || 0);
+    acc[item.store_id].card_sales += parseFloat(item.card_sales || 0);
+    acc[item.store_id].sales_return += parseFloat(item.sales_return || 0);
+    acc[item.store_id].loyalty += parseFloat(item.loyalty || 0);
+    acc[item.store_id].cash_sales += getCashSales(item);
+
+    return acc;
+  }, {});
+
+  return totals;
+}
+
 export function getTotals(accounts, noFormat = false) {
   const totals = accounts.reduce(
     (acc, item) => {

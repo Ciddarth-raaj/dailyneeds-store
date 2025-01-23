@@ -25,6 +25,15 @@ import moment from "moment";
 import { useConfirmation } from "../../hooks/useConfirmation";
 import { deleteAccount } from "../../helper/accounts";
 import useEmployees from "../../customHooks/useEmployees";
+import useOutlets from "../../customHooks/useOutlets";
+import { downloadCsv } from "../../util/exportCSVFile";
+
+const OUTLET_CASH_ID_MAP = {
+  4: "Dn1",
+  3: "Dn2",
+  5: "Dn3",
+  6: "Dn4",
+};
 
 const HEADINGS = {
   cashier_name: "Cashier Name",
@@ -56,6 +65,7 @@ function NormalOutletView({
   setSelectedOutlet,
   OUTLETS_LIST,
 }) {
+  const { outlets } = useOutlets();
   const cashDenominationRef = useRef(null);
   const { storeId } = useUser().userConfig;
   const { confirm } = useConfirmation();
@@ -91,7 +101,59 @@ function NormalOutletView({
     epayments,
     outletData,
     refetch,
+    mappedAccounts,
   } = useAccounts(filters);
+
+  const getOutletById = (store_id) =>
+    outlets.find((item) => item.outlet_id == store_id);
+
+  const exportAccountSheet = () => {
+    const list = [];
+
+    Object.keys(mappedAccounts).forEach((key) => {
+      const outlet = getOutletById(key);
+      list.push({
+        Date: moment(selectedDate).format("DD/MM/YYYY"),
+        Particulars: `Cash (${OUTLET_CASH_ID_MAP[key] ?? "N/A"})`,
+        "Cost Center": outlet.outlet_name,
+        Narration: "",
+        Debit:
+          parseInt(mappedAccounts[key].cash_sales) +
+          parseInt(mappedAccounts[key].loyalty) -
+          parseInt(mappedAccounts[key].sales_return),
+        Credit: "",
+      });
+
+      list.push({
+        Date: moment(selectedDate).format("DD/MM/YYYY"),
+        Particulars: "Card Sales",
+        "Cost Center": outlet.outlet_name,
+        Narration: "",
+        Debit: mappedAccounts[key].card_sales,
+        Credit: "",
+      });
+
+      list.push({
+        Date: moment(selectedDate).format("DD/MM/YYYY"),
+        Particulars: "Sales Return",
+        "Cost Center": outlet.outlet_name,
+        Narration: "",
+        Debit: "",
+        Credit:
+          parseInt(mappedAccounts[key].card_sales) +
+          (parseInt(mappedAccounts[key].cash_sales) +
+            parseInt(mappedAccounts[key].loyalty) -
+            parseInt(mappedAccounts[key].sales_return)),
+      });
+    });
+
+    console.log("CIDD", list);
+
+    downloadCsv(
+      list,
+      `account_sheet-${moment(selectedDate).format("DD/MM/YYYY")}.csv`
+    );
+  };
 
   useEffect(() => {
     if (storeId) {
@@ -325,6 +387,13 @@ function NormalOutletView({
             )}
           </div>
           <div className={styles.buttonContainer}>
+            <Button
+              colorScheme="purple"
+              variant="outline"
+              onClick={exportAccountSheet}
+            >
+              Export Account Sheet
+            </Button>
             <Button
               colorScheme="purple"
               variant="outline"
