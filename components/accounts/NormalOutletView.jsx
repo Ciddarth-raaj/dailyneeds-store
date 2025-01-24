@@ -15,6 +15,7 @@ import {
   getDenominations,
   getCashBook,
   getEbook,
+  getWarehouseCashbook,
 } from "../../util/account";
 import { Menu, MenuItem } from "@szhsin/react-menu";
 import EmptyData from "../../components/EmptyData";
@@ -27,6 +28,8 @@ import { deleteAccount } from "../../helper/accounts";
 import useEmployees from "../../customHooks/useEmployees";
 import useOutlets from "../../customHooks/useOutlets";
 import { downloadCsv, exportToExcel } from "../../util/exportCSVFile";
+import useWarehouseSales from "../../customHooks/useWarehouseSales";
+import useWarehouseDenomination from "../../customHooks/useWarehouseDenomination";
 
 const OUTLET_CASH_ID_MAP = {
   4: "Dn1",
@@ -93,6 +96,14 @@ function NormalOutletView({
   }, [selectedOutlet, selectedDate]);
 
   const {
+    sales,
+    denominations: allDenominations,
+    startingCash,
+    presetOpeningCash,
+  } = useWarehouseSales(filters);
+  const { denomination } = useWarehouseDenomination(filters);
+
+  const {
     accounts,
     loading,
     isSaved,
@@ -103,6 +114,17 @@ function NormalOutletView({
     refetch,
     mappedAccounts,
   } = useAccounts(filters);
+
+  const modifiedWarehouseCashBook = useMemo(() => {
+    return getWarehouseCashbook(
+      sales,
+      denomination,
+      allDenominations,
+      startingCash,
+      presetOpeningCash,
+      true
+    );
+  }, [sales, denomination, allDenominations, startingCash, presetOpeningCash]);
 
   const getOutletById = (store_id) =>
     outlets.find((item) => item.outlet_id == store_id);
@@ -130,12 +152,12 @@ function NormalOutletView({
     const list = [];
     const cash_list = [];
     const bank_list = [];
+    const date = moment(selectedDate).format("DD/MM/YYYY");
 
     Object.keys(mappedAccounts).forEach((key) => {
       const outlet = getOutletById(key);
       const account = mappedAccounts[key];
       const accountName = `Cash (${OUTLET_CASH_ID_MAP[key] ?? "N/A"})`;
-      const date = moment(selectedDate).format("DD/MM/YYYY");
       const epaymentList = getEpaymentByStoreId(key);
 
       list.push({
@@ -205,6 +227,51 @@ function NormalOutletView({
 
       epayments = epayments.slice(0, -1);
       bank_list.push(...epayments);
+    });
+
+    const warehouseCashbook = modifiedWarehouseCashBook;
+    let startAdding = false;
+
+    warehouseCashbook.forEach((item) => {
+      console.log("CIDD", item.particulars);
+      if (
+        item.particulars === "Closing Cash" ||
+        item.particulars === undefined
+      ) {
+        startAdding = false;
+      }
+
+      if (
+        item.particulars === "Cash Excess / Short" &&
+        warehouseCashbook.some((item) => item.particulars === "Closing Cash") &&
+        (item.debit !== "" || item.credit !== "")
+      ) {
+        cash_list.push({
+          Date: date,
+          Particulars: item.particulars,
+          "Cost Centre": "Warehouse",
+          Narrations: item.narration,
+          Debit: item.debit,
+          Credit: item.credit,
+          Account: "Cash",
+        });
+      }
+
+      if (startAdding) {
+        cash_list.push({
+          Date: date,
+          Particulars: item.particulars,
+          "Cost Centre": "Warehouse",
+          Narrations: item.narration,
+          Debit: item.debit,
+          Credit: item.credit,
+          Account: "Cash",
+        });
+      }
+
+      if (item.particulars === "Payments / Receipts") {
+        startAdding = true;
+      }
     });
 
     exportToExcel(

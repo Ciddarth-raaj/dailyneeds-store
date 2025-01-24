@@ -518,7 +518,8 @@ export function getWarehouseCashbook(
   denomination,
   allDenominations,
   startingCash,
-  presetOpeningCash
+  presetOpeningCash,
+  noFormat = false
 ) {
   const modified = [];
   const groupedDenominations = getGroupedDenominations(allDenominations);
@@ -544,7 +545,11 @@ export function getWarehouseCashbook(
 
   if (sales?.length > 0) {
     modified.push({
-      particulars: <b>Payments / Receipts</b>,
+      particulars: noFormat ? (
+        "Payments / Receipts"
+      ) : (
+        <b>Payments / Receipts</b>
+      ),
       narration: "",
       debit: "",
       credit: "",
@@ -566,7 +571,7 @@ export function getWarehouseCashbook(
 
   if (denomination.cash_denomination_id) {
     modified.push({
-      particulars: <b>Closing Cash</b>,
+      particulars: noFormat ? "Closing Cash" : <b>Closing Cash</b>,
       narration: "",
       debit: "",
       credit: totalCashHandover,

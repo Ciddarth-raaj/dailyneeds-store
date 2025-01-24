@@ -218,18 +218,38 @@ function Epayment() {
     );
 
     const modifiedList = list.map((item) => {
-      const sodexItem = getSodexoByMID(sodexoList, item.bank_mid);
       return {
         bill_date: moment(item.date, "DD-MM-YYYY").format("YYYY-MM-DD"),
         card_diff: cardFile ? item.cardDifference : null,
         upi_diff: upiFile ? item.upiDifference : null,
-        sodexo_diff:
-          sudexoFile && sodexItem ? sodexItem.sodexoDifference : null,
+        sodexo_diff: sudexoFile ? item.sodexoDifference : null,
         paytm_diff: paytmFile ? item.paytmDifference : null,
         store_id: item.store_id,
         paytm_tid: item.paytm_tid,
       };
     });
+
+    sodexoList.forEach((item) => {
+      const insertedRow = modifiedList.find(
+        (listItem) => listItem.paytm_tid === item.paytm_tid
+      );
+
+      if (insertedRow) {
+        insertedRow.sodexo_diff = item.sodexoDifference;
+      } else {
+        modifiedList.push({
+          bill_date: moment(item.date, "DD-MM-YYYY").format("YYYY-MM-DD"),
+          card_diff: null,
+          upi_diff: null,
+          sodexo_diff: sudexoFile ? item.sodexoDifference : null,
+          paytm_diff: null,
+          store_id: item.store_id,
+          paytm_tid: item.paytm_tid,
+        });
+      }
+    });
+
+    console.log("CIDD", modifiedList);
 
     toast.promise(
       Promise.all(modifiedList.map((item) => saveReconciliationEpayment(item))),

@@ -87,6 +87,8 @@ function Difference() {
     designation_ids: [],
   });
 
+  console.log("CIDD", epayments);
+
   const DifferenceWrapper = (value) => {
     return (
       <span style={{ color: value <= 0 ? "green" : "red" }}>
