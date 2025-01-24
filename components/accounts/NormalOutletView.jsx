@@ -273,8 +273,44 @@ function NormalOutletView({
       }
     });
 
+    const unformattedList = list.map((item) => ({
+      ...item,
+      Debit:
+        typeof item.Debit === "string"
+          ? item.Debit.replaceAll(",", "")
+          : item.Debit,
+      Credit:
+        typeof item.Credit === "string"
+          ? item.Credit?.replaceAll(",", "")
+          : item.Credit,
+    }));
+
+    const unformattedCashList = cash_list.map((item) => ({
+      ...item,
+      Debit:
+        typeof item.Debit === "string"
+          ? item.Debit.replaceAll(",", "")
+          : item.Debit,
+      Credit:
+        typeof item.Credit === "string"
+          ? item.Credit?.replaceAll(",", "")
+          : item.Credit,
+    }));
+
+    const unformattedBankList = bank_list.map((item) => ({
+      ...item,
+      Debit:
+        typeof item.Debit === "string"
+          ? item.Debit.replaceAll(",", "")
+          : item.Debit,
+      Credit:
+        typeof item.Credit === "string"
+          ? item.Credit?.replaceAll(",", "")
+          : item.Credit,
+    }));
+
     exportToExcel(
-      [list, cash_list, bank_list],
+      [unformattedList, unformattedCashList, unformattedBankList],
       ["Journal", "Cash", "Bank"],
       `account_sheet-${moment(selectedDate).format("DD/MM/YYYY")}.xlsx`
     );
