@@ -183,7 +183,7 @@ function NormalOutletView({
 
       list.push({
         Date: date,
-        Particulars: "Sales Return",
+        Particulars: "sales",
         "Cost Center": outlet.outlet_name,
         Narration: "",
         Debit: "",
@@ -233,7 +233,6 @@ function NormalOutletView({
     let startAdding = false;
 
     warehouseCashbook.forEach((item) => {
-      console.log("CIDD", item.particulars);
       if (
         item.particulars === "Closing Cash" ||
         item.particulars === undefined
