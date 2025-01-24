@@ -23,7 +23,7 @@ const HEADINGS = {
   outlet_name: "Outlet",
   totalUPI: "Total UPI",
   totalCard: "Total Card",
-  totalSodexo: "Total Sodexo",
+  // totalSodexo: "Total Sodexo",
   totalPaytm: "Total Paytm",
   upiDifference: (
     <span>
@@ -35,12 +35,12 @@ const HEADINGS = {
       Total Card <i className="fa fa-plus-minus" style={{ fontSize: "10px" }} />
     </span>
   ),
-  sodexoDifference: (
-    <span>
-      Total Sodexo{" "}
-      <i className="fa fa-plus-minus" style={{ fontSize: "10px" }} />
-    </span>
-  ),
+  // sodexoDifference: (
+  //   <span>
+  //     Total Sodexo{" "}
+  //     <i className="fa fa-plus-minus" style={{ fontSize: "10px" }} />
+  //   </span>
+  // ),
   paytmDifference: (
     <span>
       Total Paytm{" "}
@@ -202,8 +202,12 @@ function Epayment() {
     }
   };
 
+  const getSodexoByMID = (sodexoList, bank_mid) => {
+    return sodexoList.find((item) => item.bank_mid == bank_mid);
+  };
+
   const handleSave = () => {
-    const data = modifyEpaymentData(
+    const { list, sodexoList } = modifyEpaymentData(
       upiParsedData,
       cardParsedData,
       digitalPayments,
@@ -211,12 +215,16 @@ function Epayment() {
       sudexoParsedData,
       paytmParsedData,
       true
-    ).map((item) => {
+    );
+
+    const modifiedList = list.map((item) => {
+      const sodexItem = getSodexoByMID(sodexoList, item.bank_mid);
       return {
         bill_date: moment(item.date, "DD-MM-YYYY").format("YYYY-MM-DD"),
         card_diff: cardFile ? item.cardDifference : null,
         upi_diff: upiFile ? item.upiDifference : null,
-        sodexo_diff: sudexoFile ? item.sodexoDifference : null,
+        sodexo_diff:
+          sudexoFile && sodexItem ? sodexItem.sodexoDifference : null,
         paytm_diff: paytmFile ? item.paytmDifference : null,
         store_id: item.store_id,
         paytm_tid: item.paytm_tid,
@@ -224,7 +232,7 @@ function Epayment() {
     });
 
     toast.promise(
-      Promise.all(data.map((item) => saveReconciliationEpayment(item))),
+      Promise.all(modifiedList.map((item) => saveReconciliationEpayment(item))),
       {
         loading: "Saving Differences",
         success: (response) => {

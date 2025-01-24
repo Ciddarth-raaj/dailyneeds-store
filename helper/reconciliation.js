@@ -43,6 +43,10 @@ export const saveReconciliationEpayment = (params) => {
         upi_diff: diffFormatter(params.upi_diff),
         sodexo_diff: diffFormatter(params.sodexo_diff),
         paytm_diff: diffFormatter(params.paytm_diff),
+        card_settled: false,
+        upi_settled: false,
+        sodexo_settled: false,
+        paytm_settled: false,
       };
 
       const response = await API.post(
