@@ -47,6 +47,7 @@ export const modifyEpaymentData = (
   ];
 
   let acc = [];
+  let sodexoList = [];
   combinedRows.forEach((item) => {
     // Handle different date formats
     let date;
@@ -76,7 +77,51 @@ export const modifyEpaymentData = (
     // Check if MID exists and ignore if it doesn't
     if (!bank_mid && !pluxe_outlet_id && !paytm_mid) return;
 
-    const digitalPaymentKey = bank_mid || pluxe_outlet_id || paytm_mid;
+    if (pluxe_outlet_id) {
+      let existingRow = sodexoList.find(
+        (row) =>
+          row.date === formattedDate && row.pluxe_outlet_id === pluxe_outlet_id
+      );
+
+      if (!existingRow) {
+        existingRow = {
+          bank_mid: digitalPayments[pluxe_outlet_id]?.bank_mid,
+          bank_tid: digitalPayments[pluxe_outlet_id]?.bank_tid,
+          pluxe_outlet_id,
+          date: formattedDate,
+          amount: 0,
+          totalUPI: 0,
+          totalCard: 0,
+          totalSodexo: 0,
+          totalPaytm: 0,
+          paytm_tid: digitalPayments[pluxe_outlet_id]?.payment_tid ?? null,
+          store_id: digitalPayments[pluxe_outlet_id]?.store_id ?? null,
+          outlet_name:
+            digitalPayments[pluxe_outlet_id]?.outlet_name ?? "Not Found",
+        };
+        sodexoList.push(existingRow);
+      }
+
+      // Handle different amount fields
+      if (item["Transaction Amount"]) {
+        existingRow.amount += parseInt(item["Transaction Amount"] ?? 0);
+        existingRow.totalUPI += parseInt(item["Transaction Amount"] ?? 0);
+      } else if (item["PYMT_CHGAMNT"]) {
+        existingRow.amount += parseInt(item["PYMT_CHGAMNT"] ?? 0);
+        existingRow.totalCard += parseInt(item["PYMT_CHGAMNT"] ?? 0);
+      } else if (item["Debit Amount"]) {
+        existingRow.amount += parseInt(item["Debit Amount"] ?? 0);
+        existingRow.totalSodexo += parseInt(item["Debit Amount"] ?? 0);
+      } else if (item["amount"]) {
+        existingRow.amount += parseInt(item["amount"].replaceAll("'", "") ?? 0);
+        existingRow.totalPaytm += parseInt(
+          item["amount"].replaceAll("'", "") ?? 0
+        );
+      }
+      return;
+    }
+
+    const digitalPaymentKey = bank_mid || paytm_mid;
 
     const bank_tid = digitalPayments[digitalPaymentKey]?.bank_mid;
 
@@ -97,7 +142,8 @@ export const modifyEpaymentData = (
         totalPaytm: 0,
         paytm_tid: digitalPayments[digitalPaymentKey]?.payment_tid ?? null,
         store_id: digitalPayments[digitalPaymentKey]?.store_id ?? null,
-        outlet_name: item["Outlet Name"] ?? null,
+        outlet_name:
+          digitalPayments[digitalPaymentKey]?.outlet_name ?? "Not Found",
       };
       acc.push(existingRow);
     }
@@ -120,7 +166,7 @@ export const modifyEpaymentData = (
     }
   });
 
-  return acc.map((item) => {
+  const accModifed = acc.map((item) => {
     const actualUpiVal = mappedEbooks[item.paytm_tid]?.reduce(
       (acc, item) => acc + item.hdur,
       0
@@ -129,17 +175,12 @@ export const modifyEpaymentData = (
       (acc, item) => acc + item.hfpp,
       0
     );
-    const actualSodexoVal = mappedEbooks[item.paytm_tid]?.reduce(
-      (acc, item) => acc + item.sedc,
-      0
-    );
     const actualPaytmVal = mappedEbooks[item.paytm_tid]?.reduce(
       (acc, item) => acc + item.ppbl,
       0
     );
     const upiDifference = item.totalUPI - actualUpiVal;
     const cardDifference = item.totalCard - actualCardVal;
-    const sodexoDifference = item.totalSodexo - actualSodexoVal;
     const paytmDifference = item.totalPaytm - actualPaytmVal;
 
     return {
@@ -151,10 +192,30 @@ export const modifyEpaymentData = (
       amount: wrappedCurrencyFormatter(parseInt(item.amount)),
       upiDifference: getWrappedValue(upiDifference),
       cardDifference: getWrappedValue(cardDifference),
-      sodexoDifference: getWrappedValue(sodexoDifference),
       paytmDifference: getWrappedValue(paytmDifference),
     };
   });
+
+  const sodexoListModified = sodexoList.map((item) => {
+    const actualSodexoVal = mappedEbooks[item.pluxe_outlet_id]?.reduce(
+      (acc, item) => acc + item.sedc,
+      0
+    );
+    const sodexoDifference = item.totalSodexo - actualSodexoVal;
+
+    return {
+      ...item,
+      totalCard: wrappedCurrencyFormatter(parseInt(item.totalCard)),
+      totalUPI: wrappedCurrencyFormatter(parseInt(item.totalUPI)),
+      totalSodexo: wrappedCurrencyFormatter(parseInt(item.totalSodexo)),
+      totalPaytm: wrappedCurrencyFormatter(item.totalPaytm),
+      amount: wrappedCurrencyFormatter(parseInt(item.amount)),
+      sodexoDifference: getWrappedValue(sodexoDifference),
+      actualSodexoVal,
+    };
+  });
+
+  return { list: accModifed, sodexoList: sodexoListModified };
 };
 
 export const parseReconciliationFile = async (
@@ -171,13 +232,22 @@ export const parseReconciliationFile = async (
     const result = await importFileToJSON(file, requiredHeaders, 1);
 
     if (result.totalRows > 0) {
-      setSelectedDate(
-        moment(
+      let date;
+
+      if (result.data[0]["transaction_date"]) {
+        date = moment(
+          result.data[0]["transaction_date"].replaceAll("'", ""),
+          "DD-MM-YYYY hh:mm:ss"
+        );
+      } else {
+        date = moment(
           result.data[0]["Transaction Req Date"] ||
             result.data[0]["CHG_DATE"] ||
             result.data[0]["Transaction Date"]
-        )
-      );
+        );
+      }
+
+      setSelectedDate(date);
     }
 
     setParsedData(result);

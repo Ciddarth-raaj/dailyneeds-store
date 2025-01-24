@@ -49,6 +49,18 @@ const HEADINGS = {
   ),
 };
 
+const SODEXO_HEADINGS = {
+  date: "Date",
+  outlet_name: "Outlet",
+  totalSodexo: "Total Sodexo",
+  sodexoDifference: (
+    <span>
+      Total Sodexo{" "}
+      <i className="fa fa-plus-minus" style={{ fontSize: "10px" }} />
+    </span>
+  ),
+};
+
 function Epayment() {
   const [upiFile, setUpiFile] = useState(null);
   const [cardFile, setCardFile] = useState(null);
@@ -341,11 +353,29 @@ function Epayment() {
             </Button>
           }
         >
-          {rows.length > 0 ? (
-            <Table variant="plain" heading={HEADINGS} rows={rows} />
-          ) : (
-            <EmptyData message="Import data to continue" />
-          )}
+          <CustomContainer title="EPayments" filledHeader smallHeader>
+            {rows?.list?.length > 0 ? (
+              <Table
+                variant="plain"
+                heading={HEADINGS}
+                rows={rows?.list ?? []}
+              />
+            ) : (
+              <EmptyData message="Import data to continue" />
+            )}
+          </CustomContainer>
+
+          <CustomContainer title="Sodexo" filledHeader smallHeader>
+            {rows?.sodexoList?.length > 0 ? (
+              <Table
+                variant="plain"
+                heading={SODEXO_HEADINGS}
+                rows={rows?.sodexoList ?? []}
+              />
+            ) : (
+              <EmptyData message="Import data to continue" />
+            )}
+          </CustomContainer>
         </CustomContainer>
       </CustomContainer>
     </GlobalWrapper>
