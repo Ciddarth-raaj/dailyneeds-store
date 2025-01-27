@@ -20,7 +20,7 @@ export function useAccounts(filters) {
         setAccounts(data.data.account);
         setEpayments(data.data.ebook);
         setOutletData(data.data.outlet);
-        setIsSaved(data.is_saved);
+        setIsSaved(data.data.is_saved);
 
         const totals = getTotalsByStore(data.data.account, true);
         setMappedAccounts(totals);
