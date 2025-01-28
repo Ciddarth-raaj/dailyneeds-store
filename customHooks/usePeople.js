@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { getAllPeople } from "../helper/people";
+import { getAllPeople, updatePerson } from "../helper/people";
 
 function usePeople() {
   const [peopleList, setPeopleList] = useState([]);
@@ -22,7 +22,18 @@ function usePeople() {
     init();
   }, []);
 
-  return { peopleList, refetch: init };
+  const updatePersonHandler = async (person) => {
+    const data = await updatePerson(person.person_id, {
+      name: person.name,
+      primary_phone: person.primary_phone,
+      secondary_phone: person.secondary_phone,
+      person_type: person.person_type,
+      status: person.status == 1 ? false : true,
+    });
+    return data;
+  };
+
+  return { peopleList, refetch: init, updatePerson: updatePersonHandler };
 }
 
 export default usePeople;

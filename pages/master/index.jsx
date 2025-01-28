@@ -11,22 +11,44 @@ import { getPersonType } from "../../constants/values";
 import { useConfirmation } from "../../hooks/useConfirmation";
 import toast from "react-hot-toast";
 import { deletePerson } from "../../helper/people";
+import { Badge } from "@chakra-ui/react";
 
 const HEADINGS = {
   person_id: "ID",
   name: "Name",
   primary_phone: "Primary Contact",
   type: "Type",
+  status: "Status",
   actions: "Actions",
 };
 
 function Master() {
-  const { peopleList, refetch } = usePeople();
+  const { peopleList, refetch, updatePerson } = usePeople();
   const { confirm } = useConfirmation();
+
+  const handleMakeInactive = (person) => {
+    toast.promise(updatePerson(person), {
+      loading: "Updating person",
+      success: (res) => {
+        if (res.code == 200) {
+          refetch();
+          return "Person updated successfully";
+        } else {
+          throw res;
+        }
+      },
+      error: "Failed to update person",
+    });
+  };
 
   const modifiedPeopleList = peopleList.map((item) => ({
     ...item,
     type: <p>{getPersonType(item.person_type)}</p>,
+    status: (
+      <Badge colorScheme={item.status == 1 ? "green" : "red"}>
+        {item.status == 1 ? "Active" : "Inactive"}
+      </Badge>
+    ),
     actions: (
       <Menu
         align="end"
@@ -41,7 +63,10 @@ function Master() {
         transition
       >
         <MenuItem>Edit</MenuItem>
-        <MenuItem onClick={() => handleDelete(item.person_id)}>Delete</MenuItem>
+        <MenuItem onClick={() => handleMakeInactive(item)}>
+          {item.status == 1 ? "Make Inactive" : "Make Active"}
+        </MenuItem>
+        {/* <MenuItem onClick={() => handleDelete(item.person_id)}>Delete</MenuItem> */}
       </Menu>
     ),
   }));

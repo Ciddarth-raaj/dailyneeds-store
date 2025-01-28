@@ -32,3 +32,14 @@ export const deletePerson = (id) => {
     }
   });
 };
+
+export const updatePerson = (id, params) => {
+  return new Promise(async function (resolve, reject) {
+    try {
+      const data = await API.put(`/people/${id}`, params);
+      resolve(data.data);
+    } catch (err) {
+      reject(err);
+    }
+  });
+};
