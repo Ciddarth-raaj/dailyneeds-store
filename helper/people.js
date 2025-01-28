@@ -43,3 +43,14 @@ export const updatePerson = (id, params) => {
     }
   });
 };
+
+export const getPersonById = (id) => {
+  return new Promise(async function (resolve, reject) {
+    try {
+      const data = await API.get(`/people/${id}`);
+      resolve(data.data);
+    } catch (err) {
+      reject(err);
+    }
+  });
+};

@@ -12,6 +12,7 @@ import { useConfirmation } from "../../hooks/useConfirmation";
 import toast from "react-hot-toast";
 import { deletePerson } from "../../helper/people";
 import { Badge } from "@chakra-ui/react";
+import { useRouter } from "next/router";
 
 const HEADINGS = {
   person_id: "ID",
@@ -25,6 +26,7 @@ const HEADINGS = {
 function Master() {
   const { peopleList, refetch, updatePerson } = usePeople();
   const { confirm } = useConfirmation();
+  const router = useRouter();
 
   const handleMakeInactive = (person) => {
     toast.promise(updatePerson(person), {
@@ -62,9 +64,18 @@ function Master() {
         }
         transition
       >
-        <MenuItem>Edit</MenuItem>
+        <MenuItem
+          onClick={() => router.push(`/master/view?id=${item.person_id}`)}
+        >
+          View
+        </MenuItem>
+        <MenuItem
+          onClick={() => router.push(`/master/edit?id=${item.person_id}`)}
+        >
+          Edit
+        </MenuItem>
         <MenuItem onClick={() => handleMakeInactive(item)}>
-          {item.status == 1 ? "Make Inactive" : "Make Active"}
+          {item.status == 1 ? "Make Inactive" : "Make Active"}{" "}
         </MenuItem>
         {/* <MenuItem onClick={() => handleDelete(item.person_id)}>Delete</MenuItem> */}
       </Menu>
