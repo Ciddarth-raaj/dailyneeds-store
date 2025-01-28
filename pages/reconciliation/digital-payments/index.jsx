@@ -33,9 +33,19 @@ function DigitalPayments() {
         }
         transition
       >
-        <MenuItem>View</MenuItem>
-        <MenuItem>Edit</MenuItem>
-        <MenuItem>Delete</MenuItem>
+        <Link
+          href={`/reconciliation/digital-payments/view?id=${item.digital_payment_id}`}
+          passHref
+        >
+          <MenuItem>View</MenuItem>
+        </Link>
+        <Link
+          href={`/reconciliation/digital-payments/edit?id=${item.digital_payment_id}`}
+          passHref
+        >
+          <MenuItem>Edit</MenuItem>
+        </Link>
+        {/* <MenuItem>Delete</MenuItem> */}
       </Menu>
     ),
   }));
