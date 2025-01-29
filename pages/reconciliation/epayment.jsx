@@ -15,8 +15,8 @@ import {
 } from "../../util/reconciliations";
 import JSZip from "jszip";
 import {
-  saveReconciliationEpayment,
   deleteReconciliationEpayment,
+  saveReconciliationEpayment,
 } from "../../helper/reconciliation";
 import moment from "moment";
 
@@ -209,54 +209,81 @@ function Epayment() {
     return sodexoList.find((item) => item.bank_mid == bank_mid);
   };
 
-  const handleSave = async () => {
-    if (!rows?.list?.length && !rows?.sodexoList?.length) {
-      toast.error("No data to save");
-      return;
-    }
+  const handleSave = () => {
+    const dateStr = moment(selectedDate).format("YYYY-MM-DD");
 
-    try {
-      // Delete existing records for the date first
-      const dateStr = moment(selectedDate).format("YYYY-MM-DD");
-      await deleteReconciliationEpayment(dateStr);
+    const { list, sodexoList } = modifyEpaymentData(
+      upiParsedData,
+      cardParsedData,
+      digitalPayments,
+      mappedEbooks,
+      sudexoParsedData,
+      paytmParsedData,
+      true
+    );
 
-      // Then save the new records
-      const promises = [];
+    const modifiedList = list.map((item) => {
+      return {
+        bill_date: moment(item.date, "DD-MM-YYYY").format("YYYY-MM-DD"),
+        card_diff: cardFile ? item.cardDifference : null,
+        upi_diff: upiFile ? item.upiDifference : null,
+        sodexo_diff: sudexoFile ? item.sodexoDifference : null,
+        paytm_diff: paytmFile ? item.paytmDifference : null,
+        store_id: item.store_id,
+        paytm_tid: item.paytm_tid,
+      };
+    });
 
-      if (rows.list?.length) {
-        rows.list.forEach((item) => {
-          promises.push(
-            saveReconciliationEpayment({
-              bill_date: selectedDate,
-              store_id: item.store_id,
-              bank_mid: item.bank_mid,
-              card_diff: item.cardDifference,
-              upi_diff: item.upiDifference,
-              paytm_diff: item.paytmDifference,
-            })
-          );
+    sodexoList.forEach((item) => {
+      const insertedRow = modifiedList.find(
+        (listItem) => listItem.paytm_tid === item.paytm_tid
+      );
+
+      if (insertedRow) {
+        insertedRow.sodexo_diff = item.sodexoDifference;
+      } else {
+        modifiedList.push({
+          bill_date: moment(item.date, "DD-MM-YYYY").format("YYYY-MM-DD"),
+          card_diff: null,
+          upi_diff: null,
+          sodexo_diff: sudexoFile ? item.sodexoDifference : null,
+          paytm_diff: null,
+          store_id: item.store_id,
+          paytm_tid: item.paytm_tid,
         });
       }
+    });
 
-      if (rows.sodexoList?.length) {
-        rows.sodexoList.forEach((item) => {
-          promises.push(
-            saveReconciliationEpayment({
-              bill_date: selectedDate,
-              store_id: item.store_id,
-              bank_mid: item.bank_mid,
-              sodexo_diff: item.sodexoDifference,
-            })
-          );
-        });
+    console.log("CIDD", modifiedList);
+
+    toast.promise(
+      Promise.all([
+        deleteReconciliationEpayment(dateStr),
+        modifiedList.map((item) => saveReconciliationEpayment(item)),
+      ]),
+      {
+        loading: "Saving Differences",
+        success: (response) => {
+          let success = 0;
+          let fail = 0;
+
+          response.forEach((item) => {
+            if (item.code === 200) {
+              success += 1;
+            } else {
+              fail += 1;
+            }
+          });
+          return ` ${success} Differences saved successfully${
+            fail > 0 ? `, ${fail} Difference failed to save` : ""
+          }`;
+        },
+        error: (err) => {
+          console.log(err);
+          return "Failed to save differences";
+        },
       }
-
-      await Promise.all(promises);
-      toast.success("Differences saved successfully");
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to save differences");
-    }
+    );
   };
 
   return (
