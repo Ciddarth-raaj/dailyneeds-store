@@ -149,7 +149,7 @@ export const modifyEpaymentData = (
     }
 
     // Handle different amount fields
-    if (item["Transaction Amount"]) {
+    if (item["Transaction Amount"] && item["CRDR"] === "CR") {
       existingRow.amount += parseInt(item["Transaction Amount"] ?? 0);
       existingRow.totalUPI += parseInt(item["Transaction Amount"] ?? 0);
     } else if (item["PYMT_CHGAMNT"]) {
@@ -250,6 +250,7 @@ export const parseReconciliationFile = async (
       setSelectedDate(date);
     }
 
+    console.log("CIDD", result);
     setParsedData(result);
     toast.success(`Successfully imported ${result.totalRows} rows`);
   } catch (error) {
