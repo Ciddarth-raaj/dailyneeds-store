@@ -133,3 +133,14 @@ export const getReconciliationEpaymentData = (filters = {}) => {
     }
   });
 };
+
+export const deleteReconciliationEpayment = (date) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const response = await API.delete(`/reconciliation/epayment/${date}`);
+      resolve(response.data);
+    } catch (err) {
+      reject(err);
+    }
+  });
+};

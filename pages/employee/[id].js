@@ -1204,7 +1204,7 @@ class Create extends React.Component {
                       </p>
                       <div>
                         <div className={styles.inputHolder}>
-                          <CustomInput
+                          <CustomInput - show
                             label="Marital Status *"
                             values={[
                               {
@@ -1236,7 +1236,7 @@ class Create extends React.Component {
                             }
                           />
                           <div className={styles.inputHolder}>
-                            <CustomInput
+                            <CustomInput - show
                               label="Date of Birth *"
                               name="dob"
                               type="text"
@@ -1249,7 +1249,7 @@ class Create extends React.Component {
                         </div>
                         <div className={styles.personalInputHolder}>
                           {values.marital_status === "Married" && (
-                            <CustomInput
+                            <CustomInput - show
                               label="Marriage Date"
                               name="marriage_date"
                               type="text"
@@ -1261,7 +1261,7 @@ class Create extends React.Component {
                           )}
                         </div>
                         <div className={styles.personalInputHolder}>
-                          <CustomInput
+                          <CustomInput - show
                             label="Permanent Address *"
                             name="permanent_address"
                             type="text"
@@ -1272,7 +1272,7 @@ class Create extends React.Component {
                           />
                         </div>
                         <div className={styles.inputHolder}>
-                          <CustomInput
+                          <CustomInput - show
                             label="Residential Address *"
                             name={
                               permanent_trigger !== true
@@ -1302,7 +1302,7 @@ class Create extends React.Component {
                           </div>
                         )}
                         <div className={styles.inputHolder}>
-                          <CustomInput
+                          <CustomInput - show
                             label="Father Name *"
                             name="father_name"
                             type="text"
@@ -1311,7 +1311,7 @@ class Create extends React.Component {
                             }
                           />
                           {values.marital_status === "Married" && (
-                            <CustomInput
+                            <CustomInput - show
                               label="Spouse Name"
                               name="spouse_name"
                               type="text"
@@ -1322,7 +1322,7 @@ class Create extends React.Component {
                           )}
                         </div>
                         <div className={styles.personalInputHolder}>
-                          <CustomInput
+                          <CustomInput - show
                             label="Blood Group"
                             values={BloodGroup.map((m) => ({
                               id: m.id,
@@ -1552,7 +1552,7 @@ class Create extends React.Component {
                       </p>
                       <div>
                         <div className={styles.inputHolder}>
-                          <CustomInput
+                          <CustomInput - show (optional)
                             label="Educational Qualification *"
                             name="qualification"
                             type="text"
@@ -1562,7 +1562,7 @@ class Create extends React.Component {
                                 : !editableEducaInfo
                             }
                           />
-                          <CustomInput
+                          <CustomInput  - show (optional)
                             label="Previous Experience"
                             name="previous_experience"
                             type="text"
@@ -1574,7 +1574,7 @@ class Create extends React.Component {
                           />
                         </div>
                         <div className={styles.personalInputHolder}>
-                          <CustomInput
+                          <CustomInput - show (optional)
                             label="Additional Courses"
                             name="additional_course"
                             type="text"
@@ -2438,7 +2438,7 @@ class Create extends React.Component {
 
                     {/* <Container {...containerProps} mb={"20px"}>
                       <p className={styles.title}>
-                        <div>PF & ESI</div>
+                        <div>PF & ESI</div> 
                         {id !== null && (
                           <Button
                             isLoading={loadingPFInfo}
@@ -2480,7 +2480,7 @@ class Create extends React.Component {
                         </div>
                         {pfToggle === true || id !== null ? (
                           <div className={styles.inputHolder}>
-                            <CustomInput
+                            <CustomInput - show (optional)
                               label="PAN No "
                               name="pan_no"
                               type="text"
@@ -2488,7 +2488,7 @@ class Create extends React.Component {
                                 id !== null ? editablePFInfo : !editablePFInfo
                               }
                             />
-                            <CustomInput
+                            <CustomInput - show
                               label="PF Number "
                               name="pf_number"
                               type="text"
@@ -2496,7 +2496,7 @@ class Create extends React.Component {
                                 id !== null ? editablePFInfo : !editablePFInfo
                               }
                             />
-                            <CustomInput
+                            <CustomInput - show
                               label="UAN Number "
                               name="UAN"
                               type="text"
@@ -2523,7 +2523,7 @@ class Create extends React.Component {
                         )}
                         {esiToggle === true || id !== null ? (
                           <div className={styles.inputHolder}>
-                            <CustomInput
+                            <CustomInput - show
                               label="ESI Number "
                               name="esi_number"
                               type="text"
@@ -2631,7 +2631,7 @@ class Create extends React.Component {
                         style={{ marginTop: 20, marginBottom: 0 }}
                       >
                         <CustomInput
-                          label="Unifrom"
+                          label="Uniform"
                           name="uniform_qty"
                           type="text"
                           containerStyle={{ marginBottom: 30 }}
