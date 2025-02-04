@@ -1,474 +1,465 @@
 .container {
-	background-color: white;
-	border-radius: 20px;
-	padding-top: 120px;
-	position: relative;
+  background-color: white;
+  border-radius: 20px;
+  padding-top: 120px;
+  position: relative;
 }
 
 .dropbtn {
-	border: 1px solid lightgray;
-	color: black;
-	padding: 16px;
-	height: 40px;
-	width: 100%;
-	display: flex;
-	border-radius: 7px;
-	justify-content: center;
-	align-items: center;
-	font-size: 16px;
-	/* border: none; */
-	cursor: pointer;
+  border: 1px solid lightgray;
+  color: black;
+  padding: 16px;
+  height: 40px;
+  width: 100%;
+  display: flex;
+  border-radius: 7px;
+  justify-content: center;
+  align-items: center;
+  font-size: 16px;
+  /* border: none; */
+  cursor: pointer;
 }
 
 .pdfholder {
-	width: 260px;
-	height: 240px;
-	margin-top: 40px;
-	overflow-x: hidden;
-	overflow-y: hidden;
+  width: 260px;
+  height: 240px;
+  margin-top: 40px;
+  overflow-x: hidden;
+  overflow-y: hidden;
 }
 .pdfholderNew {
-	width: 260px;
-	height: 240px;
-	margin-left: 200px;
-	margin-top: 40px;
-	overflow-x: hidden;
-	overflow-y: hidden;
+  width: 260px;
+  height: 240px;
+  margin-left: 200px;
+  margin-top: 40px;
+  overflow-x: hidden;
+  overflow-y: hidden;
 }
 .pdfholderNew:hover .subpdfholder {
-	opacity: 1;
-	transform: translateY(2%, 20%);
+  opacity: 1;
+  transform: translateY(2%, 20%);
 }
 .pdfholdermain {
-	width: 100%;
-	height: 100%;
-	position: relative;
+  width: 100%;
+  height: 100%;
+  position: relative;
 }
 .pdfholdermain object {
-	scroll-behavior: none;
-	overflow: hidden;
-	overflow-x: hidden;
-	overflow-y: hidden;
+  scroll-behavior: none;
+  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: hidden;
 }
-
 
 .pdfcontent {
-	width: 100%;
-	height: 240px;
-	border: 1px solid #c9c9c9;
-	/* padding: 10px; */
-	overflow: "unset";
-	
-	overflow-y: hidden;
-	object-fit: cover;
+  width: 100%;
+  height: 240px;
+  border: 1px solid #c9c9c9;
+  /* padding: 10px; */
+  overflow: "unset";
+
+  overflow-y: hidden;
+  object-fit: cover;
 }
 .pdfcontent::-webkit-scrollbar {
-	display: none;
+  display: none;
 }
 .personalInputsNew {
-	width: 100%;
-	display: flex;
-	flex-direction: column;
-	padding: none;
-	/* margin-bottom: 40px; */
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: none;
+  /* margin-bottom: 40px; */
 }
 .subpdfholder {
-	position: absolute;
-	width: 100%;
-	height: 40%;
-	bottom: 0%;
-	right: 0%;
-	background-image: linear-gradient(rgba(0, 0, 0, 0), black);
-	transition: all 200ms ease-in-out;
-	opacity: 0;
+  position: absolute;
+  width: 100%;
+  height: 40%;
+  bottom: 0%;
+  right: 0%;
+  background-image: linear-gradient(rgba(0, 0, 0, 0), black);
+  transition: all 200ms ease-in-out;
+  opacity: 0;
 }
 .infoLabel {
-	font-size: 14px;
+  font-size: 14px;
 }
 
 .pdfholder:hover .subpdfholder {
-	opacity: 1;
-	transform: translateY(2%, 20%);
+  opacity: 1;
+  transform: translateY(2%, 20%);
 }
 .viewpdf {
-	height: 30px;
-	width: 35px;
-	position: absolute;
-	right: 10px;
-	bottom: 10px;
-	cursor: pointer;
-	color: white;
-	transition: 100ms ease-in-out;
+  height: 30px;
+  width: 35px;
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  cursor: pointer;
+  color: white;
+  transition: 100ms ease-in-out;
 }
 
-
 .baseStyle {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	padding: 20px;
-	margin-top: 20px;
-	cursor: pointer;
-	color:rgb(211, 211, 211);
-	border-radius: 20px;
-	border-color: #000000;
-	background-color: #f0efef;
-	height: 180px;
-	color: #bdbdbd;
-};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  margin-top: 20px;
+  cursor: pointer;
+  color: rgb(211, 211, 211);
+  border-radius: 20px;
+  border-color: #000000;
+  background-color: #f0efef;
+  height: 180px;
+  color: #bdbdbd;
+}
 
 .fileName {
-	color: var(--primaryColor); 
+  color: var(--primaryColor);
 }
 
 .dropdown {
-	position: relative;
-	display: inline-block;
-	width: 30%;
-	padding-bottom: 5px;
-	height: 60%;
+  position: relative;
+  display: inline-block;
+  width: 30%;
+  padding-bottom: 5px;
+  height: 60%;
 }
 
 .dropdowncontent {
-	width: 100%;
-	display: none;
-	position: absolute;
-	cursor: pointer;
-	background-color: white;
-	border-bottom-left-radius: 15px;
-	border-bottom-right-radius: 15px;
-	min-width: 160px;
-	height: 200px;
-	box-shadow: 0px 8px 16px 
-		0px rgba(0, 0, 0, 0.2);
-	z-index: 1;
-	overflow-y: scroll;
-	/* padding-top: 11px; */
+  width: 100%;
+  display: none;
+  position: absolute;
+  cursor: pointer;
+  background-color: white;
+  border-bottom-left-radius: 15px;
+  border-bottom-right-radius: 15px;
+  min-width: 160px;
+  height: 200px;
+  box-shadow: 0px 8px 16px 0px rgba(0, 0, 0, 0.2);
+  z-index: 1;
+  overflow-y: scroll;
+  /* padding-top: 11px; */
 }
 .dropdowncontent::-webkit-scrollbar {
-	display: none;
+  display: none;
 }
 .dropdownImg {
-	border-radius: 50%;
-	height: 30px;
-	margin-top: 10px;
-	margin-right: 30px;
+  border-radius: 50%;
+  height: 30px;
+  margin-top: 10px;
+  margin-right: 30px;
 }
 .employeeNameLabel {
-	font-size: 14px;
-	margin-bottom: none;
+  font-size: 14px;
+  margin-bottom: none;
 }
 .dropdowncontent a {
-	color: black;
-	padding: 9px 16px;
-	text-decoration: none;
-	margin: 0px 10px;
-	display: block;
-	display: flex;
-	width: 30%;
-	justify-content: space-between;
+  color: black;
+  padding: 9px 16px;
+  text-decoration: none;
+  margin: 0px 10px;
+  display: block;
+  display: flex;
+  width: 30%;
+  justify-content: space-between;
 }
 /* .dropdowncontent a:hover {
 	background-color: #f1f1f1;
 }
 */
 .dropdown:hover .dropdowncontent {
-	display: block;
-} 
+  display: block;
+}
 
 /* .dropdown:hover .dropbtn {
 	background-color: var(--secondaryColor);
 } */
 
-
-
-
 .container > p {
-	border-bottom: 1px solid rgb(211, 211, 211);
-	position: absolute;
-	top: 30px;
-	width: 100%;
-	left: 0;
-	padding-left: 30px;
-	padding-bottom: 30px;
-	font-weight: bold;
-	font-size: 24px;
+  border-bottom: 1px solid rgb(211, 211, 211);
+  position: absolute;
+  top: 30px;
+  width: 100%;
+  left: 0;
+  padding-left: 30px;
+  padding-bottom: 30px;
+  font-weight: bold;
+  font-size: 24px;
 }
 .employeeImageModify {
-	display: flex;
-	flex-direction: column;
+  display: flex;
+  flex-direction: column;
 }
 .employeeImageModifyNew {
-	display: flex;
-	width: 100%;
-	justify-content: center;
-	align-items: center;
+  display: flex;
+  width: 100%;
+  justify-content: center;
+  align-items: center;
 }
 .modifyButton {
-	margin-top: 20px;
-	width: 50%;
-	margin-bottom: 20px;
+  margin-top: 20px;
+  width: 50%;
+  margin-bottom: 20px;
 }
 .modifyButtonNew {
-	margin-top: 20px;
-	width: 100%;
-	margin-bottom: 20px;
+  margin-top: 20px;
+  width: 100%;
+  margin-bottom: 20px;
 }
 .newDocumentSet {
-	margin-top: 20px;
-	/* font-weight: 500; */
-	font-size: 1.2em;
-	color: var(--primaryColor); 
-	margin-bottom: 5px;
+  /* font-weight: 500; */
+  color: var(--primaryColor);
 }
 .downloadButton {
-	width: 100%;
-	display: flex;
-	/* background-color: khaki; */
-	justify-content: center;
-	align-items: center;
-	align-self: center;
-	/* margin-top: 30px; */
+  width: 100%;
+  display: flex;
+  /* background-color: khaki; */
+  justify-content: center;
+  align-items: center;
+  align-self: center;
+  /* margin-top: 30px; */
 }
 .employee_image {
-	margin-top: 20px;
-	width: 30%;
-	display: flex;
-	justify-content: center;
-	align-items: center;
-	align-self: center;
-	height: 180px;
-	object-fit:inherit;
-	border-radius: 100%;
-	/* border: 0.5px solid lightgray; */
+  margin-top: 20px;
+  width: 30%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  align-self: center;
+  height: 180px;
+  object-fit: inherit;
+  border-radius: 100%;
+  /* border: 0.5px solid lightgray; */
 }
 .mainWrapper {
-	display: flex;
-	flex-direction: column;
-	margin-left: 100px;
-	align-items: center;
-	margin-top: 20px;
-	margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  margin-left: 100px;
+  align-items: center;
+  margin-top: 20px;
+  margin-bottom: 20px;
 }
 .mainContent {
-	padding: 0px 10px;
+  padding: 0px 10px;
 }
 .grid {
-	margin-left: 200px;
+  margin-left: 200px;
 }
 .heading {
-	font-size: 2em;
-	font-weight: 600;
-	text-align: center;
-	width: 100%;
+  font-size: 2em;
+  font-weight: 600;
+  text-align: center;
+  width: 100%;
 }
 .header {
-	min-height: 10vh;
-	display: flex;
-	justify-content: center;
-	align-items: center;
+  min-height: 10vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 .employeeHeader {
-	min-height: 10vh;
-	padding: 20px;
-	display: flex;
-	justify-content: center;
-	align-items: center;
+  min-height: 10vh;
+  padding: 20px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 .employeeInputs {
-	display: flex;
-	flex-direction: column;
+  display: flex;
+  flex-direction: column;
 }
 .employeeHeading {
-	font-size: 1.5em;
-	font-weight: 600;
-	display: flex;
-	text-align: flex-start;
-	width: 100%;
+  font-size: 1.5em;
+  font-weight: 600;
+  display: flex;
+  text-align: flex-start;
+  width: 100%;
 }
 .subGrid {
-	margin-top: 50px;
-	border: 1px solid lightgray;
-	border-radius: 12px;
-	padding: 5px;
-	background: #ffffff;
-	box-shadow: 5px 5px 10px #e6e6e6, -5px -5px 10px #ffffff;
+  margin-top: 50px;
+  border: 1px solid lightgray;
+  border-radius: 12px;
+  padding: 5px;
+  background: #ffffff;
+  box-shadow: 5px 5px 10px #e6e6e6, -5px -5px 10px #ffffff;
 }
 .employeeDetails {
-	margin-top: 50px;
-	padding: 10px;
-	margin-left: 60px;
-	border-radius: 10px;
-	border: 1px solid lightgray;
-	border-radius: 15px;
-	background: #ffffff;
-	box-shadow: 5px 5px 10px #e6e6e6, -5px -5px 10px #ffffff;
+  margin-top: 50px;
+  padding: 10px;
+  margin-left: 60px;
+  border-radius: 10px;
+  border: 1px solid lightgray;
+  border-radius: 15px;
+  background: #ffffff;
+  box-shadow: 5px 5px 10px #e6e6e6, -5px -5px 10px #ffffff;
 }
 .switchHolder {
-	width: 100%;
-	height: 30px;
-	/* background-color: rgb(32, 56, 48); */
-	margin-bottom: 20px;
-	padding-bottom: 40px;
-	display: flex;
-	justify-content: flex-start;
-	align-items: center;
-	font-weight: 500;
+  width: 100%;
+  height: 30px;
+  /* background-color: rgb(32, 56, 48); */
+  margin-bottom: 20px;
+  padding-bottom: 40px;
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  font-weight: 500;
 }
 .switchHolder label {
-	margin-left: 5px;
-	display: flex;
-	justify-content: center;
-	height: 40px;
-	margin-bottom: 4px;
-	/* background-color: black; */
-	align-items: center;
+  margin-left: 5px;
+  display: flex;
+  justify-content: center;
+  height: 40px;
+  margin-bottom: 4px;
+  /* background-color: black; */
+  align-items: center;
 }
 .switch {
-	display: flex;
-	justify-content: flex-end;
-	align-items: flex-end;
-	margin-left: 20px;
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-end;
+  margin-left: 20px;
 }
 .uploadHolder {
-	width: 100%;
-	padding-bottom: 25px;
+  width: 100%;
+  padding-bottom: 25px;
 }
 .logoUploadHolder {
-	width: 99%;
-	margin-left: 5px;
-	color: #8b74ff;
-	padding-bottom: 25px;
+  width: 99%;
+  margin-left: 5px;
+  color: #8b74ff;
+  padding-bottom: 25px;
 }
 .uploadDetails {
-	margin-top: 50px;
-	padding: 20px;
-	margin-left: 60px;
-	border-radius: 10px;
-	border: 1px solid lightgray;
-	border-radius: 15px;
-	display: flex;
-	flex-direction: column;
-	justify-content: space-evenly;
-	align-items: center;
-	background: #ffffff;
-	box-shadow: 5px 5px 10px #e6e6e6, -5px -5px 10px #ffffff;
+  margin-top: 50px;
+  padding: 20px;
+  margin-left: 60px;
+  border-radius: 10px;
+  border: 1px solid lightgray;
+  border-radius: 15px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-evenly;
+  align-items: center;
+  background: #ffffff;
+  box-shadow: 5px 5px 10px #e6e6e6, -5px -5px 10px #ffffff;
 }
 
 .personalDetails {
-	min-height: 8vh;
-	font-size: 1.4em;
-	padding-left: 10px;
-	font-weight: 500;
-	margin-bottom: 30px;
-	display: flex;
-	flex-direction: column;
-	justify-content: flex-end;
+  min-height: 8vh;
+  font-size: 1.4em;
+  padding-left: 10px;
+  font-weight: 500;
+  margin-bottom: 30px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
 }
 .errorMessage {
-	position: absolute;
-	top: 0%;
-	left: 0;
+  position: absolute;
+  top: 0%;
+  left: 0;
 }
 
 .inputField {
-	transition: 500ms ease-in-out;
-	border: 1px solid lightgray;
-	border-radius: 5px;
-	padding: 3px;
-	outline-color: var(--primaryColor);
-	margin-top: 5px;
+  transition: 500ms ease-in-out;
+  border: 1px solid lightgray;
+  border-radius: 5px;
+  padding: 3px;
+  outline-color: var(--primaryColor);
+  margin-top: 5px;
 }
 .textField {
-	border: 1px solid black;
-	margin-top: 5px;
-	width: 100%;
+  border: 1px solid black;
+  margin-top: 5px;
+  width: 100%;
 }
 
 .personalInputHolder {
-	display: flex;
-	flex-direction: column;
-	justify-content: space-between;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
 }
 .inputHolder {
-	display: flex;
-	width: 100%;
+  display: flex;
+  width: 100%;
 }
 .textAreaHolder {
-	width: 100%;
-	margin-top: 20px;
-	margin-bottom: 30px;
-	padding-bottom: 25px;
-	padding-top: 10px;
+  width: 100%;
+  margin-top: 20px;
+  margin-bottom: 30px;
+  padding-bottom: 25px;
+  padding-top: 10px;
 }
 .employeeHolder {
-	display: flex;
-	flex-direction: column;
-	justify-content: space-around;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
 }
 .employeeInputHolder {
-	display: flex;
-	justify-content: space-between;
+  display: flex;
+  justify-content: space-between;
 }
 .wrapper {
-	display: flex;
-	justify-content: space-between;
-	align-items: flex-start;
-	width: 80%;
-	margin: 0px auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  width: 80%;
+  margin: 0px auto;
 }
 .imageThumbnail {
-	width: 50%;
-	margin-left: 10px;
+  width: 50%;
+  margin-left: 10px;
 }
 .logo {
-	display: flex;
-	height: 40px;
-	width: 40px;
-	margin-top: 100px;
-	justify-content: center;
-	align-self: center;
-	align-items: center;
+  display: flex;
+  height: 40px;
+  width: 40px;
+  margin-top: 100px;
+  justify-content: center;
+  align-self: center;
+  align-items: center;
 }
 .fileInputDiv {
-	margin: 10px;
-	flex: 1;
-	display: flex;
+  margin: 10px;
+  flex: 1;
+  display: flex;
 }
 
 .fileInputDiv > * {
-	flex: 3;
+  flex: 3;
 }
 
 .fileInputDiv label {
-	font-size: 13px;
-	margin-right: 20px;
-	flex: 1;
+  font-size: 13px;
+  margin-right: 20px;
+  flex: 1;
 }
 .inputGroup1 {
-	flex: 1;
-	margin: 10px;
+  flex: 1;
+  margin: 10px;
 }
 
 .inputGroup1 select {
-	width: 100%;
+  width: 100%;
 }
 .buttonHolder {
-	width: 100%;
-	display: flex;
-	justify-content: center;
-	align-items: center;
-	margin-top: 50px;
-	margin-bottom: 30px;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 50px;
+  margin-bottom: 30px;
 }
 .button {
-	margin-right: 20px;
+  margin-right: 20px;
 }
 .downbutton {
-	margin-top: 25px;
-	/* margin-right: 20px; */
-	/* background-color: khaki; */
-	width: 100%;
+  margin-top: 25px;
+  /* margin-right: 20px; */
+  /* background-color: khaki; */
+  width: 100%;
 }
 /* .button:hover {
 	color: var(--primaryColor);
@@ -476,74 +467,74 @@
 	border: 1px solid black;
 } */
 .inputGroup1 textarea {
-	width: 100%;
+  width: 100%;
 }
 .inputDiv {
-	display: flex;
-	max-width: 300px;
-	flex-direction: column;
-	flex: 1;
+  display: flex;
+  max-width: 300px;
+  flex-direction: column;
+  flex: 1;
 }
 
 .inputText {
-	flex: 1;
+  flex: 1;
 }
 
 .uploaderTitle {
-	font-size: 14px;
-	color: var(--primaryColor)
+  font-size: 14px;
+  color: var(--primaryColor);
 }
 .title {
-	display: flex;
-	justify-content: space-between;
-	padding-right: 10px;
+  display: flex;
+  justify-content: space-between;
+  padding-right: 10px;
 }
 .buttoninputHolder {
-	display: flex;
-	justify-content: space-between;
-	width: 100%;
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
 }
 
 .hidden {
-	visibility: hidden;
+  visibility: hidden;
 }
 
 @media (max-width: 600px) {
-	.responsive{
-		display: flex;
-		flex-direction: column;
-	}
-	.grid {
-		padding: none;
-		margin: 0%;
-		min-height: 100vh;
-		display: flex;
-		flex-direction: column;
-		align-self: center;
-		align-items: center;
-	}
-	.personalInputHolder {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-	}
-	.inputField {
-		width: 300px;
-	}
-	.inputHolder {
-		width: 100%;
-	}
-	.subGrid {
-		margin-top: 100px;
-		width: 360px;
-		margin: auto;
-		padding: none;
-	}
-	.employeeDetails {
-		display: none;
-	}
-	.uploadDetails {
-		display: none;
-	}
+  .responsive {
+    display: flex;
+    flex-direction: column;
+  }
+  .grid {
+    padding: none;
+    margin: 0%;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-self: center;
+    align-items: center;
+  }
+  .personalInputHolder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  .inputField {
+    width: 300px;
+  }
+  .inputHolder {
+    width: 100%;
+  }
+  .subGrid {
+    margin-top: 100px;
+    width: 360px;
+    margin: auto;
+    padding: none;
+  }
+  .employeeDetails {
+    display: none;
+  }
+  .uploadDetails {
+    display: none;
+  }
 }

@@ -40,6 +40,7 @@ const selectedData = [
   },
 ];
 class Create extends React.Component {
+  editViewMode = false;
   constructor(props) {
     super(props);
     this.onDrop = (imageHolder) => {
@@ -72,6 +73,7 @@ class Create extends React.Component {
     this.onPanModifyDrop = (modifiedPanHolder) => {
       this.setState({ modifiedPanHolder });
     };
+    this.editViewMode = props.id !== null;
     this.state = {
       card_name_change: false,
       card_number_change: false,
@@ -446,7 +448,7 @@ class Create extends React.Component {
         }
       }
     } catch (err) {
-      console.log(err);
+      console.log("CIDD", err);
     }
     const { employee_id } = this.props.data[0];
     const { router } = this.props;
@@ -481,7 +483,7 @@ class Create extends React.Component {
         }
       })
       .catch((err) => {
-        console.log(err);
+        console.log("CIDD", err);
         toast.error("Error Updating Employee details!");
       })
       .finally(() => this.setState({ loading: false }));
@@ -868,14 +870,11 @@ class Create extends React.Component {
             ],
           }}
           validationSchema={Validation}
-          onSubmit={(values) => {
-            id !== null
-              ? this.updateEmployee(values)
-              : this.createEmployee(values);
-          }}
+          onSubmit={this.createEmployee}
         >
           {(formikProps) => {
             const { handleSubmit, values } = formikProps;
+
             const handleEvent = () => {
               this.setState([
                 ...values.files,
@@ -931,7 +930,7 @@ class Create extends React.Component {
                       title="Employee Information"
                       smallHeader
                       rightSection={
-                        id !== null && (
+                        this.editViewMode && (
                           <Button
                             isLoading={loadingEmpInfo}
                             variant="outline"
@@ -944,10 +943,12 @@ class Create extends React.Component {
                             }
                             colorScheme="purple"
                             onClick={() => {
-                              editableEmpInfo === true && handleSubmit(),
-                                this.setState({
-                                  editableEmpInfo: !editableEmpInfo,
-                                });
+                              if (editableEmpInfo) {
+                                handleSubmit();
+                              }
+                              this.setState({
+                                editableEmpInfo: !editableEmpInfo,
+                              });
                             }}
                           >
                             {editableEmpInfo ? "Save" : "Edit"}
@@ -964,9 +965,9 @@ class Create extends React.Component {
                             >
                               Upload Employee Image *
                             </label>
-                            {id !== null ? (
+                            {this.editViewMode ? (
                               <div className={styles.employeeImageModify}>
-                                {id !== null &&
+                                {this.editViewMode &&
                                 employee_image?.slice(-3) === "pdf" ? (
                                   <div className={styles.pdfholderNew}>
                                     <div className={styles.pdfholdermain}>
@@ -1093,7 +1094,9 @@ class Create extends React.Component {
                               name="employee_id"
                               type="number"
                               editable={
-                                id !== null ? editableEmpInfo : !editableEmpInfo
+                                this.editViewMode
+                                  ? editableEmpInfo
+                                  : !editableEmpInfo
                               }
                             />
                             <CustomInput
@@ -1101,7 +1104,9 @@ class Create extends React.Component {
                               name="employee_name"
                               type="text"
                               editable={
-                                id !== null ? editableEmpInfo : !editableEmpInfo
+                                this.editViewMode
+                                  ? editableEmpInfo
+                                  : !editableEmpInfo
                               }
                             />
                           </div>
@@ -1127,7 +1132,9 @@ class Create extends React.Component {
                             type="text"
                             method="switch"
                             editable={
-                              id !== null ? editableEmpInfo : !editableEmpInfo
+                              this.editViewMode
+                                ? editableEmpInfo
+                                : !editableEmpInfo
                             }
                           />
                           <CustomInput
@@ -1135,7 +1142,9 @@ class Create extends React.Component {
                             name="email_id"
                             type="text"
                             editable={
-                              id !== null ? editableEmpInfo : !editableEmpInfo
+                              this.editViewMode
+                                ? editableEmpInfo
+                                : !editableEmpInfo
                             }
                           />
                         </div>
@@ -1145,7 +1154,9 @@ class Create extends React.Component {
                             name="primary_contact_number"
                             type="number"
                             editable={
-                              id !== null ? editableEmpInfo : !editableEmpInfo
+                              this.editViewMode
+                                ? editableEmpInfo
+                                : !editableEmpInfo
                             }
                           />
                           <CustomInput
@@ -1153,7 +1164,9 @@ class Create extends React.Component {
                             name="alternate_contact_number"
                             type="number"
                             editable={
-                              id !== null ? editableEmpInfo : !editableEmpInfo
+                              this.editViewMode
+                                ? editableEmpInfo
+                                : !editableEmpInfo
                             }
                           />
                         </div>
@@ -1164,7 +1177,9 @@ class Create extends React.Component {
                             type="text"
                             method="datepicker"
                             editable={
-                              id !== null ? editableEmpInfo : !editableEmpInfo
+                              this.editViewMode
+                                ? editableEmpInfo
+                                : !editableEmpInfo
                             }
                           />
                           <CustomInput
@@ -1172,7 +1187,9 @@ class Create extends React.Component {
                             name="telegram_username"
                             type="text"
                             editable={
-                              id !== null ? editableEmpInfo : !editableEmpInfo
+                              this.editViewMode
+                                ? editableEmpInfo
+                                : !editableEmpInfo
                             }
                           />
                         </div>
@@ -1183,7 +1200,7 @@ class Create extends React.Component {
                       title="Personal Details"
                       smallHeader
                       rightSection={
-                        id !== null && (
+                        this.editViewMode && (
                           <Button
                             isLoading={loadingPerInfo}
                             variant="outline"
@@ -1243,7 +1260,9 @@ class Create extends React.Component {
                             type="text"
                             method="switch"
                             editable={
-                              id !== null ? editablePerInfo : !editablePerInfo
+                              this.editViewMode
+                                ? editablePerInfo
+                                : !editablePerInfo
                             }
                           />
                           <div className={styles.inputHolder}>
@@ -1253,7 +1272,9 @@ class Create extends React.Component {
                               type="text"
                               method="datepicker"
                               editable={
-                                id !== null ? editablePerInfo : !editablePerInfo
+                                this.editViewMode
+                                  ? editablePerInfo
+                                  : !editablePerInfo
                               }
                             />
                           </div>
@@ -1266,7 +1287,9 @@ class Create extends React.Component {
                               type="text"
                               method="datepicker"
                               editable={
-                                id !== null ? editablePerInfo : !editablePerInfo
+                                this.editViewMode
+                                  ? editablePerInfo
+                                  : !editablePerInfo
                               }
                             />
                           )}
@@ -1278,7 +1301,9 @@ class Create extends React.Component {
                             type="text"
                             method="TextArea"
                             editable={
-                              id !== null ? editablePerInfo : !editablePerInfo
+                              this.editViewMode
+                                ? editablePerInfo
+                                : !editablePerInfo
                             }
                           />
                         </div>
@@ -1293,7 +1318,9 @@ class Create extends React.Component {
                             type="text"
                             method="TextArea"
                             editable={
-                              id !== null ? editablePerInfo : !editablePerInfo
+                              this.editViewMode
+                                ? editablePerInfo
+                                : !editablePerInfo
                             }
                           />
                         </div>
@@ -1318,7 +1345,9 @@ class Create extends React.Component {
                             name="father_name"
                             type="text"
                             editable={
-                              id !== null ? editablePerInfo : !editablePerInfo
+                              this.editViewMode
+                                ? editablePerInfo
+                                : !editablePerInfo
                             }
                           />
                           {values.marital_status === "Married" && (
@@ -1327,7 +1356,9 @@ class Create extends React.Component {
                               name="spouse_name"
                               type="text"
                               editable={
-                                id !== null ? editablePerInfo : !editablePerInfo
+                                this.editViewMode
+                                  ? editablePerInfo
+                                  : !editablePerInfo
                               }
                             />
                           )}
@@ -1343,7 +1374,9 @@ class Create extends React.Component {
                             type="text"
                             method="switch"
                             editable={
-                              id !== null ? editablePerInfo : !editablePerInfo
+                              this.editViewMode
+                                ? editablePerInfo
+                                : !editablePerInfo
                             }
                           />
                         </div>
@@ -1354,7 +1387,7 @@ class Create extends React.Component {
                       title="Current Position"
                       smallHeader
                       rightSection={
-                        id !== null && (
+                        this.editViewMode && (
                           <Button
                             isLoading={loadingPosiInfo}
                             variant="outline"
@@ -1387,156 +1420,71 @@ class Create extends React.Component {
                       <div>
                         <div className={styles.personalInputHolder}>
                           <div className={styles.inputHolder}>
-                            {id !== null ? (
-                              <CustomInput
-                                label="Select Store *"
-                                values={branch.map((m) => ({
-                                  id: m.outlet_id,
-                                  value: m.outlet_name,
-                                }))}
-                                name={
-                                  editablePosiInfo ? "store_id" : "store_name"
-                                }
-                                type="text"
-                                method="switch"
-                                editable={
-                                  id !== null
-                                    ? editablePosiInfo
-                                    : !editablePosiInfo
-                                }
-                              />
-                            ) : (
-                              <CustomInput
-                                label="Select Store *"
-                                values={branch.map((m) => ({
-                                  id: m.outlet_id,
-                                  value: m.outlet_name,
-                                }))}
-                                name={"store_id"}
-                                type="text"
-                                method="switch"
-                                editable={
-                                  id !== null
-                                    ? editablePosiInfo
-                                    : !editablePosiInfo
-                                }
-                              />
-                            )}
-                            {id !== null ? (
-                              <CustomInput
-                                label="Select Department *"
-                                values={department.map((m) => ({
-                                  id: m.id,
-                                  value: m.value,
-                                }))}
-                                name={
-                                  editablePosiInfo
-                                    ? "department_id"
-                                    : "department_name"
-                                }
-                                type="text"
-                                method="switch"
-                                editable={
-                                  id !== null
-                                    ? editablePosiInfo
-                                    : !editablePosiInfo
-                                }
-                              />
-                            ) : (
-                              <CustomInput
-                                label="Select Department *"
-                                values={department.map((m) => ({
-                                  id: m.id,
-                                  value: m.value,
-                                }))}
-                                name={"department_id"}
-                                type="text"
-                                method="switch"
-                                editable={
-                                  id !== null
-                                    ? editablePosiInfo
-                                    : !editablePosiInfo
-                                }
-                              />
-                            )}
+                            <CustomInput
+                              label="Select Store *"
+                              values={branch.map((m) => ({
+                                id: m.outlet_id,
+                                value: m.outlet_name,
+                              }))}
+                              name={"store_id"}
+                              type="text"
+                              method="switch"
+                              editable={
+                                this.editViewMode
+                                  ? editablePosiInfo
+                                  : !editablePosiInfo
+                              }
+                            />
+
+                            <CustomInput
+                              label="Select Department *"
+                              values={department.map((m) => ({
+                                id: m.id,
+                                value: m.value,
+                              }))}
+                              name={"department_id"}
+                              type="text"
+                              method="switch"
+                              editable={
+                                this.editViewMode
+                                  ? editablePosiInfo
+                                  : !editablePosiInfo
+                              }
+                            />
                           </div>
                           <div className={styles.inputHolder}>
-                            {id !== null ? (
-                              <CustomInput
-                                label="Select Designation *"
-                                values={designation.map((m) => ({
-                                  id: m.id,
-                                  value: m.value,
-                                }))}
-                                name={
-                                  editablePosiInfo
-                                    ? "designation_id"
-                                    : "designation_name"
-                                }
-                                type="text"
-                                method="switch"
-                                editable={
-                                  id !== null
-                                    ? editablePosiInfo
-                                    : !editablePosiInfo
-                                }
-                              />
-                            ) : (
-                              <CustomInput
-                                label="Select Designation *"
-                                values={designation.map((m) => ({
-                                  id: m.id,
-                                  value: m.value,
-                                }))}
-                                name={"designation_id"}
-                                type="text"
-                                method="switch"
-                                editable={
-                                  id !== null
-                                    ? editablePosiInfo
-                                    : !editablePosiInfo
-                                }
-                              />
-                            )}
+                            <CustomInput
+                              label="Select Designation *"
+                              values={designation.map((m) => ({
+                                id: m.id,
+                                value: m.value,
+                              }))}
+                              name={"designation_id"}
+                              type="text"
+                              method="switch"
+                              editable={
+                                this.editViewMode
+                                  ? editablePosiInfo
+                                  : !editablePosiInfo
+                              }
+                            />
                           </div>
                           <div className={styles.inputHolder}>
-                            {id !== null ? (
-                              <CustomInput
-                                label="Shift Details"
-                                values={shift.map((m) => ({
-                                  id: m.id,
-                                  value: m.value,
-                                }))}
-                                name="shift_id"
-                                name={
-                                  editablePosiInfo ? "shift_id" : "shift_name"
-                                }
-                                type="text"
-                                method="switch"
-                                editable={
-                                  id !== null
-                                    ? editablePosiInfo
-                                    : !editablePosiInfo
-                                }
-                              />
-                            ) : (
-                              <CustomInput
-                                label="Shift Details"
-                                values={shift.map((m) => ({
-                                  id: m.id,
-                                  value: m.value,
-                                }))}
-                                name="shift_id"
-                                name={"shift_id"}
-                                type="text"
-                                method="switch"
-                                editable={
-                                  id !== null
-                                    ? editablePosiInfo
-                                    : !editablePosiInfo
-                                }
-                              />
-                            )}
+                            <CustomInput
+                              label="Shift Details"
+                              values={shift.map((m) => ({
+                                id: m.id,
+                                value: m.value,
+                              }))}
+                              name="shift_id"
+                              type="text"
+                              method="switch"
+                              editable={
+                                this.editViewMode
+                                  ? editablePosiInfo
+                                  : !editablePosiInfo
+                              }
+                            />
                           </div>
                         </div>
                       </div>
@@ -1546,7 +1494,7 @@ class Create extends React.Component {
                       title="Education Details"
                       smallHeader
                       rightSection={
-                        id !== null && (
+                        this.editViewMode && (
                           <Button
                             isLoading={loadingEducaInfo}
                             variant="outline"
@@ -1583,7 +1531,7 @@ class Create extends React.Component {
                             name="qualification"
                             type="text"
                             editable={
-                              id !== null
+                              this.editViewMode
                                 ? editableEducaInfo
                                 : !editableEducaInfo
                             }
@@ -1593,7 +1541,7 @@ class Create extends React.Component {
                             name="previous_experience"
                             type="text"
                             editable={
-                              id !== null
+                              this.editViewMode
                                 ? editableEducaInfo
                                 : !editableEducaInfo
                             }
@@ -1606,7 +1554,7 @@ class Create extends React.Component {
                             type="text"
                             method="TextArea"
                             editable={
-                              id !== null
+                              this.editViewMode
                                 ? editableEducaInfo
                                 : !editableEducaInfo
                             }
@@ -1621,7 +1569,7 @@ class Create extends React.Component {
                       title="Employee Identity"
                       smallHeader
                       rightSection={
-                        id !== null && (
+                        this.editViewMode && (
                           <Button
                             isLoading={loadingIdenInfo}
                             variant="outline"
@@ -1656,23 +1604,18 @@ class Create extends React.Component {
                         <div className={styles.inputHolder}>
                           <CustomInput
                             label="Payment Type *"
-                            values={PaymentType.map((m) => ({
-                              id: m.id,
-                              value: m.value,
-                            }))}
-                            name={
-                              editableIdenInfo || id === null
-                                ? "payment_type"
-                                : "payment_name"
-                            }
+                            values={PaymentType}
+                            name="payment_type"
                             type="text"
                             method="switch"
-                            // onClick={() => { this.setState({ validationPayment: "payment_type" }) }}
                             editable={
-                              id !== null ? editableIdenInfo : !editableIdenInfo
+                              this.editViewMode
+                                ? editableIdenInfo
+                                : !editableIdenInfo
                             }
                           />
                         </div>
+
                         {values.payment_type === "1" && (
                           <>
                             <div className={styles.inputHolder}>
@@ -1681,7 +1624,7 @@ class Create extends React.Component {
                                 name="bank_name"
                                 type="text"
                                 editable={
-                                  id !== null
+                                  this.editViewMode
                                     ? editableIdenInfo
                                     : !editableIdenInfo
                                 }
@@ -1692,7 +1635,7 @@ class Create extends React.Component {
                                 name="ifsc"
                                 type="text"
                                 editable={
-                                  id !== null
+                                  this.editViewMode
                                     ? editableIdenInfo
                                     : !editableIdenInfo
                                 }
@@ -1704,7 +1647,7 @@ class Create extends React.Component {
                                 name="account_no"
                                 type="text"
                                 editable={
-                                  id !== null
+                                  this.editViewMode
                                     ? editableIdenInfo
                                     : !editableIdenInfo
                                 }
@@ -1712,6 +1655,7 @@ class Create extends React.Component {
                             </div>
                           </>
                         )}
+
                         {doc !== null && doc.length !== 0 && (
                           <div>
                             {doc[0].card_name !== "" && (
@@ -1750,7 +1694,7 @@ class Create extends React.Component {
                                         name={`docupdate[${i}].card_no`}
                                         type="text"
                                         editable={
-                                          id !== null
+                                          this.editViewMode
                                             ? editableIdenInfo
                                             : !editableIdenInfo
                                         }
@@ -1761,7 +1705,7 @@ class Create extends React.Component {
                                         name={`docupdate[${i}].card_name`}
                                         type="text"
                                         editable={
-                                          id !== null
+                                          this.editViewMode
                                             ? editableIdenInfo
                                             : !editableIdenInfo
                                         }
@@ -1798,7 +1742,7 @@ class Create extends React.Component {
                                       <br />
                                     </div>
                                     <div>
-                                      {id !== null ? (
+                                      {this.editViewMode ? (
                                         <div>
                                           {idContainer === true && (
                                             <>
@@ -2021,7 +1965,7 @@ class Create extends React.Component {
                             )}
                           </div>
                         )}
-                        {id !== null && editableIdenInfo === true && (
+                        {this.editViewMode && editableIdenInfo === true && (
                           <p className={styles.newDocumentSet}>
                             To Upload New Documents
                           </p>
@@ -2055,7 +1999,7 @@ class Create extends React.Component {
                                             marginBottom: 30,
                                           }}
                                           editable={
-                                            id !== null
+                                            this.editViewMode
                                               ? editableIdenInfo
                                               : !editableIdenInfo
                                           }
@@ -2077,7 +2021,7 @@ class Create extends React.Component {
                                                   marginBottom: 0,
                                                 }}
                                                 editable={
-                                                  id !== null
+                                                  this.editViewMode
                                                     ? editableIdenInfo
                                                     : !editableIdenInfo
                                                 }
@@ -2090,7 +2034,7 @@ class Create extends React.Component {
                                                   marginBottom: 0,
                                                 }}
                                                 editable={
-                                                  id !== null
+                                                  this.editViewMode
                                                     ? editableIdenInfo
                                                     : !editableIdenInfo
                                                 }
@@ -2165,7 +2109,7 @@ class Create extends React.Component {
                                                   marginBottom: 0,
                                                 }}
                                                 editable={
-                                                  id !== null
+                                                  this.editViewMode
                                                     ? editableIdenInfo
                                                     : !editableIdenInfo
                                                 }
@@ -2178,7 +2122,7 @@ class Create extends React.Component {
                                                   marginBottom: 0,
                                                 }}
                                                 editable={
-                                                  id !== null
+                                                  this.editViewMode
                                                     ? editableIdenInfo
                                                     : !editableIdenInfo
                                                 }
@@ -2192,7 +2136,7 @@ class Create extends React.Component {
                                                   marginBottom: 0,
                                                 }}
                                                 editable={
-                                                  id !== null
+                                                  this.editViewMode
                                                     ? editableIdenInfo
                                                     : !editableIdenInfo
                                                 }
@@ -2267,7 +2211,7 @@ class Create extends React.Component {
                                                   marginBottom: 0,
                                                 }}
                                                 editable={
-                                                  id !== null
+                                                  this.editViewMode
                                                     ? editableIdenInfo
                                                     : !editableIdenInfo
                                                 }
@@ -2280,7 +2224,7 @@ class Create extends React.Component {
                                                   marginBottom: 0,
                                                 }}
                                                 editable={
-                                                  id !== null
+                                                  this.editViewMode
                                                     ? editableIdenInfo
                                                     : !editableIdenInfo
                                                 }
@@ -2355,7 +2299,7 @@ class Create extends React.Component {
                                                   marginBottom: 0,
                                                 }}
                                                 editable={
-                                                  id !== null
+                                                  this.editViewMode
                                                     ? editableIdenInfo
                                                     : !editableIdenInfo
                                                 }
@@ -2368,7 +2312,7 @@ class Create extends React.Component {
                                                   marginBottom: 0,
                                                 }}
                                                 editable={
-                                                  id !== null
+                                                  this.editViewMode
                                                     ? editableIdenInfo
                                                     : !editableIdenInfo
                                                 }
@@ -2474,7 +2418,7 @@ class Create extends React.Component {
                       title="PF & ESI"
                       smallHeader
                       rightSection={
-                        id !== null && (
+                        this.editViewMode && (
                           <Button
                             isLoading={loadingPFInfo}
                             variant="outline"
@@ -2519,14 +2463,16 @@ class Create extends React.Component {
                             </div>
                           )}
                         </div>
-                        {pfToggle === true || id !== null ? (
+                        {pfToggle === true || this.editViewMode ? (
                           <div className={styles.inputHolder}>
                             <CustomInput
                               label="PAN No "
                               name="pan_no"
                               type="text"
                               editable={
-                                id !== null ? editablePFInfo : !editablePFInfo
+                                this.editViewMode
+                                  ? editablePFInfo
+                                  : !editablePFInfo
                               }
                             />
                             <CustomInput
@@ -2534,7 +2480,9 @@ class Create extends React.Component {
                               name="pf_number"
                               type="text"
                               editable={
-                                id !== null ? editablePFInfo : !editablePFInfo
+                                this.editViewMode
+                                  ? editablePFInfo
+                                  : !editablePFInfo
                               }
                             />
                             <CustomInput
@@ -2542,7 +2490,9 @@ class Create extends React.Component {
                               name="UAN"
                               type="text"
                               editable={
-                                id !== null ? editablePFInfo : !editablePFInfo
+                                this.editViewMode
+                                  ? editablePFInfo
+                                  : !editablePFInfo
                               }
                             />
                           </div>
@@ -2562,14 +2512,16 @@ class Create extends React.Component {
                             />
                           </div>
                         )}
-                        {esiToggle === true || id !== null ? (
+                        {esiToggle === true || this.editViewMode ? (
                           <div className={styles.inputHolder}>
                             <CustomInput
                               label="ESI Number "
                               name="esi_number"
                               type="text"
                               editable={
-                                id !== null ? editablePFInfo : !editablePFInfo
+                                this.editViewMode
+                                  ? editablePFInfo
+                                  : !editablePFInfo
                               }
                             />
                           </div>
@@ -2578,11 +2530,12 @@ class Create extends React.Component {
                         )}
                       </div>
                     </CustomContainer>
+
                     <CustomContainer
                       title="Salary Details"
                       smallHeader
                       rightSection={
-                        id !== null && (
+                        this.editViewMode && (
                           <Button
                             isLoading={loadingSalInfo}
                             variant="outline"
@@ -2619,31 +2572,35 @@ class Create extends React.Component {
                           type="text"
                           containerStyle={{ marginBottom: 0 }}
                           editable={
-                            id !== null ? editableSalInfo : !editableSalInfo
+                            this.editViewMode
+                              ? editableSalInfo
+                              : !editableSalInfo
                           }
                         />
                       </div>
                     </CustomContainer>
 
-                    <CustomContainer>
-                      <ButtonGroup
-                        spacing="12px"
-                        style={{
-                          display: "flex",
-                          justifyContent: "flex-end",
-                        }}
-                      >
-                        <Button>Cancel</Button>
-                        <Button
-                          isLoading={loading}
-                          loadingText="Submitting"
-                          colorScheme="purple"
-                          onClick={() => AlertChecker()}
+                    {!this.editViewMode && (
+                      <CustomContainer>
+                        <ButtonGroup
+                          spacing="12px"
+                          style={{
+                            display: "flex",
+                            justifyContent: "flex-end",
+                          }}
                         >
-                          Create
-                        </Button>
-                      </ButtonGroup>
-                    </CustomContainer>
+                          <Button>Cancel</Button>
+                          <Button
+                            isLoading={loading}
+                            loadingText="Submitting"
+                            colorScheme="purple"
+                            onClick={() => AlertChecker()}
+                          >
+                            Create
+                          </Button>
+                        </ButtonGroup>
+                      </CustomContainer>
+                    )}
                   </Flex>
                 </Flex>
               </Form>
