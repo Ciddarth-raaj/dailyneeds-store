@@ -28,6 +28,7 @@ import Head from "../../util/head";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import { Validation } from "../../util/validation";
 import moment from "moment";
+import CustomContainer from "../../components/CustomContainer";
 
 const selectedData = [
   {
@@ -911,8 +912,8 @@ class Create extends React.Component {
                   ease={"linear"}
                   duration={200}
                 />
-                <Flex className={styles.responsive}>
-                  <Container p={"0px"}>
+                <Flex className={styles.responsive} gap="12px">
+                  <Flex p={"0px"} flexDirection={"column"} gap="12px" flex={1}>
                     {branchModalVisibility && (
                       <ResignedUser
                         data={resignationData}
@@ -925,10 +926,12 @@ class Create extends React.Component {
                         }
                       />
                     )}
-                    <Container {...containerProps} mb="20px">
-                      <p className={styles.title}>
-                        <div>Employee Information</div>
-                        {id !== null && (
+
+                    <CustomContainer
+                      title="Employee Information"
+                      smallHeader
+                      rightSection={
+                        id !== null && (
                           <Button
                             isLoading={loadingEmpInfo}
                             variant="outline"
@@ -949,9 +952,9 @@ class Create extends React.Component {
                           >
                             {editableEmpInfo ? "Save" : "Edit"}
                           </Button>
-                        )}
-                      </p>
-
+                        )
+                      }
+                    >
                       <div>
                         <div className={styles.personalInputHolder}>
                           <div className={styles.uploadHolder}>
@@ -1174,20 +1177,27 @@ class Create extends React.Component {
                           />
                         </div>
                       </div>
-                    </Container>
+                    </CustomContainer>
 
-                    {/* <Container {...containerProps} mb={"20px"}>
-                      <p className={styles.title}>
-                        <div>Personal Details</div>
-                        {id !== null && (
+                    <CustomContainer
+                      title="Personal Details"
+                      smallHeader
+                      rightSection={
+                        id !== null && (
                           <Button
                             isLoading={loadingPerInfo}
                             variant="outline"
                             leftIcon={
                               editablePerInfo ? (
-                                <i class="fa fa-floppy-o" aria-hidden="true" />
+                                <i
+                                  className="fa fa-floppy-o"
+                                  aria-hidden="true"
+                                />
                               ) : (
-                                <i class="fa fa-pencil" aria-hidden="true" />
+                                <i
+                                  className="fa fa-pencil"
+                                  aria-hidden="true"
+                                />
                               )
                             }
                             colorScheme="purple"
@@ -1200,11 +1210,12 @@ class Create extends React.Component {
                           >
                             {editablePerInfo ? "Save" : "Edit"}
                           </Button>
-                        )}
-                      </p>
+                        )
+                      }
+                    >
                       <div>
                         <div className={styles.inputHolder}>
-                          <CustomInput - show
+                          <CustomInput
                             label="Marital Status *"
                             values={[
                               {
@@ -1236,7 +1247,7 @@ class Create extends React.Component {
                             }
                           />
                           <div className={styles.inputHolder}>
-                            <CustomInput - show
+                            <CustomInput
                               label="Date of Birth *"
                               name="dob"
                               type="text"
@@ -1249,7 +1260,7 @@ class Create extends React.Component {
                         </div>
                         <div className={styles.personalInputHolder}>
                           {values.marital_status === "Married" && (
-                            <CustomInput - show
+                            <CustomInput
                               label="Marriage Date"
                               name="marriage_date"
                               type="text"
@@ -1261,7 +1272,7 @@ class Create extends React.Component {
                           )}
                         </div>
                         <div className={styles.personalInputHolder}>
-                          <CustomInput - show
+                          <CustomInput
                             label="Permanent Address *"
                             name="permanent_address"
                             type="text"
@@ -1272,7 +1283,7 @@ class Create extends React.Component {
                           />
                         </div>
                         <div className={styles.inputHolder}>
-                          <CustomInput - show
+                          <CustomInput
                             label="Residential Address *"
                             name={
                               permanent_trigger !== true
@@ -1302,7 +1313,7 @@ class Create extends React.Component {
                           </div>
                         )}
                         <div className={styles.inputHolder}>
-                          <CustomInput - show
+                          <CustomInput
                             label="Father Name *"
                             name="father_name"
                             type="text"
@@ -1311,7 +1322,7 @@ class Create extends React.Component {
                             }
                           />
                           {values.marital_status === "Married" && (
-                            <CustomInput - show
+                            <CustomInput
                               label="Spouse Name"
                               name="spouse_name"
                               type="text"
@@ -1322,7 +1333,7 @@ class Create extends React.Component {
                           )}
                         </div>
                         <div className={styles.personalInputHolder}>
-                          <CustomInput - show
+                          <CustomInput
                             label="Blood Group"
                             values={BloodGroup.map((m) => ({
                               id: m.id,
@@ -1337,20 +1348,27 @@ class Create extends React.Component {
                           />
                         </div>
                       </div>
-                    </Container> */}
+                    </CustomContainer>
 
-                    <Container {...containerProps} mb="20px">
-                      <p className={styles.title}>
-                        <div>Current Position</div>
-                        {id !== null && (
+                    <CustomContainer
+                      title="Current Position"
+                      smallHeader
+                      rightSection={
+                        id !== null && (
                           <Button
                             isLoading={loadingPosiInfo}
                             variant="outline"
                             leftIcon={
                               editablePosiInfo ? (
-                                <i class="fa fa-floppy-o" aria-hidden="true" />
+                                <i
+                                  className="fa fa-floppy-o"
+                                  aria-hidden="true"
+                                />
                               ) : (
-                                <i class="fa fa-pencil" aria-hidden="true" />
+                                <i
+                                  className="fa fa-pencil"
+                                  aria-hidden="true"
+                                />
                               )
                             }
                             colorScheme="purple"
@@ -1363,9 +1381,9 @@ class Create extends React.Component {
                           >
                             {editablePosiInfo ? "Save" : "Edit"}
                           </Button>
-                        )}
-                      </p>
-
+                        )
+                      }
+                    >
                       <div>
                         <div className={styles.personalInputHolder}>
                           <div className={styles.inputHolder}>
@@ -1522,20 +1540,27 @@ class Create extends React.Component {
                           </div>
                         </div>
                       </div>
-                    </Container>
+                    </CustomContainer>
 
-                    {/* <Container {...containerProps} mb={"20px"}>
-                      <p className={styles.title}>
-                        <div>Education Details</div>
-                        {id != null && (
+                    <CustomContainer
+                      title="Education Details"
+                      smallHeader
+                      rightSection={
+                        id !== null && (
                           <Button
                             isLoading={loadingEducaInfo}
                             variant="outline"
                             leftIcon={
                               editableEducaInfo ? (
-                                <i class="fa fa-floppy-o" aria-hidden="true" />
+                                <i
+                                  className="fa fa-floppy-o"
+                                  aria-hidden="true"
+                                />
                               ) : (
-                                <i class="fa fa-pencil" aria-hidden="true" />
+                                <i
+                                  className="fa fa-pencil"
+                                  aria-hidden="true"
+                                />
                               )
                             }
                             colorScheme="purple"
@@ -1548,12 +1573,13 @@ class Create extends React.Component {
                           >
                             {editableEducaInfo ? "Save" : "Edit"}
                           </Button>
-                        )}
-                      </p>
+                        )
+                      }
+                    >
                       <div>
                         <div className={styles.inputHolder}>
-                          <CustomInput - show (optional)
-                            label="Educational Qualification *"
+                          <CustomInput
+                            label="Educational Qualification"
                             name="qualification"
                             type="text"
                             editable={
@@ -1562,7 +1588,7 @@ class Create extends React.Component {
                                 : !editableEducaInfo
                             }
                           />
-                          <CustomInput  - show (optional)
+                          <CustomInput
                             label="Previous Experience"
                             name="previous_experience"
                             type="text"
@@ -1574,7 +1600,7 @@ class Create extends React.Component {
                           />
                         </div>
                         <div className={styles.personalInputHolder}>
-                          <CustomInput - show (optional)
+                          <CustomInput
                             label="Additional Courses"
                             name="additional_course"
                             type="text"
@@ -1587,21 +1613,29 @@ class Create extends React.Component {
                           />
                         </div>
                       </div>
-                    </Container> */}
-                  </Container>
-                  <Container>
-                    <Container {...containerProps} pb={"20px"} mb={"20px"}>
-                      <p className={styles.title}>
-                        <div>Employee Identity</div>
-                        {id !== null && (
+                    </CustomContainer>
+                  </Flex>
+
+                  <Flex flexDirection={"column"} gap="12px" flex={1}>
+                    <CustomContainer
+                      title="Employee Identity"
+                      smallHeader
+                      rightSection={
+                        id !== null && (
                           <Button
                             isLoading={loadingIdenInfo}
                             variant="outline"
                             leftIcon={
                               editableIdenInfo ? (
-                                <i class="fa fa-floppy-o" aria-hidden="true" />
+                                <i
+                                  className="fa fa-floppy-o"
+                                  aria-hidden="true"
+                                />
                               ) : (
-                                <i class="fa fa-pencil" aria-hidden="true" />
+                                <i
+                                  className="fa fa-pencil"
+                                  aria-hidden="true"
+                                />
                               )
                             }
                             colorScheme="purple"
@@ -1615,9 +1649,9 @@ class Create extends React.Component {
                           >
                             {editableIdenInfo ? "Save" : "Edit"}
                           </Button>
-                        )}
-                      </p>
-
+                        )
+                      }
+                    >
                       <div>
                         <div className={styles.inputHolder}>
                           <CustomInput
@@ -2434,20 +2468,27 @@ class Create extends React.Component {
                           ""
                         )}
                       </div>
-                    </Container>
+                    </CustomContainer>
 
-                    {/* <Container {...containerProps} mb={"20px"}>
-                      <p className={styles.title}>
-                        <div>PF & ESI</div> 
-                        {id !== null && (
+                    <CustomContainer
+                      title="PF & ESI"
+                      smallHeader
+                      rightSection={
+                        id !== null && (
                           <Button
                             isLoading={loadingPFInfo}
                             variant="outline"
                             leftIcon={
                               editablePFInfo ? (
-                                <i class="fa fa-floppy-o" aria-hidden="true" />
+                                <i
+                                  className="fa fa-floppy-o"
+                                  aria-hidden="true"
+                                />
                               ) : (
-                                <i class="fa fa-pencil" aria-hidden="true" />
+                                <i
+                                  className="fa fa-pencil"
+                                  aria-hidden="true"
+                                />
                               )
                             }
                             colorScheme="purple"
@@ -2460,9 +2501,9 @@ class Create extends React.Component {
                           >
                             {editablePFInfo ? "Save" : "Edit"}
                           </Button>
-                        )}
-                      </p>
-
+                        )
+                      }
+                    >
                       <div>
                         <div className={styles.personalInputHolder}>
                           {id === null && (
@@ -2480,7 +2521,7 @@ class Create extends React.Component {
                         </div>
                         {pfToggle === true || id !== null ? (
                           <div className={styles.inputHolder}>
-                            <CustomInput - show (optional)
+                            <CustomInput
                               label="PAN No "
                               name="pan_no"
                               type="text"
@@ -2488,7 +2529,7 @@ class Create extends React.Component {
                                 id !== null ? editablePFInfo : !editablePFInfo
                               }
                             />
-                            <CustomInput - show
+                            <CustomInput
                               label="PF Number "
                               name="pf_number"
                               type="text"
@@ -2496,7 +2537,7 @@ class Create extends React.Component {
                                 id !== null ? editablePFInfo : !editablePFInfo
                               }
                             />
-                            <CustomInput - show
+                            <CustomInput
                               label="UAN Number "
                               name="UAN"
                               type="text"
@@ -2523,7 +2564,7 @@ class Create extends React.Component {
                         )}
                         {esiToggle === true || id !== null ? (
                           <div className={styles.inputHolder}>
-                            <CustomInput - show
+                            <CustomInput
                               label="ESI Number "
                               name="esi_number"
                               type="text"
@@ -2536,19 +2577,26 @@ class Create extends React.Component {
                           ""
                         )}
                       </div>
-                    </Container> */}
-                    <Container {...containerProps} pb={"30px"}>
-                      <p className={styles.title}>
-                        <div>Salary Details</div>
-                        {id !== null && (
+                    </CustomContainer>
+                    <CustomContainer
+                      title="Salary Details"
+                      smallHeader
+                      rightSection={
+                        id !== null && (
                           <Button
                             isLoading={loadingSalInfo}
                             variant="outline"
                             leftIcon={
                               editableSalInfo ? (
-                                <i class="fa fa-floppy-o" aria-hidden="true" />
+                                <i
+                                  className="fa fa-floppy-o"
+                                  aria-hidden="true"
+                                />
                               ) : (
-                                <i class="fa fa-pencil" aria-hidden="true" />
+                                <i
+                                  className="fa fa-pencil"
+                                  aria-hidden="true"
+                                />
                               )
                             }
                             colorScheme="purple"
@@ -2561,9 +2609,9 @@ class Create extends React.Component {
                           >
                             {editableSalInfo ? "Save" : "Edit"}
                           </Button>
-                        )}
-                      </p>
-
+                        )
+                      }
+                    >
                       <div className={styles.inputHolder}>
                         <CustomInput
                           label="Salary / Month *"
@@ -2575,117 +2623,28 @@ class Create extends React.Component {
                           }
                         />
                       </div>
+                    </CustomContainer>
 
-                      {id === null && (
-                        <ButtonGroup
-                          spacing="6"
-                          mt={10}
-                          style={{
-                            display: "flex",
-                            // width: "100%",
-                            justifyContent: "flex-end",
-                          }}
-                        >
-                          <Button>Cancel</Button>
-                          <Button
-                            isLoading={loading}
-                            loadingText="Submitting"
-                            colorScheme="purple"
-                            onClick={() => AlertChecker()}
-                          >
-                            {"Create"}
-                          </Button>
-                        </ButtonGroup>
-                      )}
-                    </Container>
-                    <br />
-                    {/* <Container {...containerProps} pb={"20px"}>
-                      <p className={styles.title}>
-                        <div>Others</div>
-                        {id !== null && (
-                          <Button
-                            isLoading={loadingOtherInfo}
-                            variant="outline"
-                            leftIcon={
-                              editableOtherInfo ? (
-                                <i class="fa fa-floppy-o" aria-hidden="true" />
-                              ) : (
-                                <i class="fa fa-pencil" aria-hidden="true" />
-                              )
-                            }
-                            colorScheme="purple"
-                            onClick={() => {
-                              editableOtherInfo === true && handleSubmit(),
-                                this.setState({
-                                  editableOtherInfo: !editableOtherInfo,
-                                });
-                            }}
-                          >
-                            {editableOtherInfo ? "Save" : "Edit"}
-                          </Button>
-                        )}
-                      </p>
-
-                      <div
-                        className={styles.inputHolder}
-                        style={{ marginTop: 20, marginBottom: 0 }}
+                    <CustomContainer>
+                      <ButtonGroup
+                        spacing="12px"
+                        style={{
+                          display: "flex",
+                          justifyContent: "flex-end",
+                        }}
                       >
-                        <CustomInput
-                          label="Uniform"
-                          name="uniform_qty"
-                          type="text"
-                          containerStyle={{ marginBottom: 30 }}
-                          editable={
-                            id !== null ? editableOtherInfo : !editableOtherInfo
-                          }
-                        />
-                      </div>
-
-                      <div className={styles.personalInputHolder}>
-                        <CustomInput
-                          label="Introducer's Name"
-                          name="introducer_name"
-                          type="text"
-                          editable={
-                            id !== null ? editableOtherInfo : !editableOtherInfo
-                          }
-                        />
-                      </div>
-                      <div className={styles.personalInputHolder}>
-                        <CustomInput
-                          label="Introducer Details"
-                          name="introducer_details"
-                          type="text"
-                          method="TextArea"
-                          containerStyle={{ marginBottom: 10 }}
-                          editable={
-                            id !== null ? editableOtherInfo : !editableOtherInfo
-                          }
-                        />
-                      </div>
-                      {id === null && (
-                        <ButtonGroup
-                          spacing="6"
-                          mt={10}
-                          style={{
-                            display: "flex",
-                            // width: "100%",
-                            justifyContent: "flex-end",
-                          }}
+                        <Button>Cancel</Button>
+                        <Button
+                          isLoading={loading}
+                          loadingText="Submitting"
+                          colorScheme="purple"
+                          onClick={() => AlertChecker()}
                         >
-                          <Button>Cancel</Button>
-                          <Button
-                            isLoading={loading}
-                            loadingText="Submitting"
-                            colorScheme="purple"
-                            onClick={() => AlertChecker()}
-                          >
-                            {"Create"}
-                          </Button>
-                        </ButtonGroup>
-                      )}
-                    </Container> */}
-                  </Container>
+                          Create
+                        </Button>
+                      </ButtonGroup>
+                    </CustomContainer>
+                  </Flex>
                 </Flex>
               </Form>
             );
