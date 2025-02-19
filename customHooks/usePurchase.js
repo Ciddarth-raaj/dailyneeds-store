@@ -1,15 +1,16 @@
 import { useEffect, useState } from "react";
 import { getAllPurchases } from "../helper/purchase";
 
-export function usePurchase() {
-  const [purchase, setPurchase] = useState(null);
+export function usePurchase(filters) {
+  const [purchase, setPurchase] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   const fetchPurchase = async () => {
     try {
       setLoading(true);
-      const data = await getAllPurchases();
+      setPurchase([]);
+      const data = await getAllPurchases(filters);
       if (data.code === 200) {
         setPurchase(data.data);
       }
@@ -22,7 +23,7 @@ export function usePurchase() {
 
   useEffect(() => {
     fetchPurchase();
-  }, []);
+  }, [filters]);
 
   return { purchase, loading, error, refetch: fetchPurchase };
 }
