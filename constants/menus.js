@@ -155,6 +155,20 @@ export default {
       },
     },
   },
+  purchase: {
+    title: "Purchase",
+    selected: false,
+    openPage: false,
+    icon: "fa-users",
+    subMenu: {
+      view_purchase_order: {
+        title: "All Purchases",
+        permission: "view_purchases",
+        selected: false,
+        location: "/purchase",
+      },
+    },
+  },
   products: {
     title: "Products",
     selected: false,
