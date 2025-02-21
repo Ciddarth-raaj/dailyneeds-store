@@ -7,11 +7,13 @@ import moment from "moment";
 import currencyFormatter from "../../util/currencyFormatter";
 import { Menu, MenuItem } from "@szhsin/react-menu";
 import { IconButton } from "@chakra-ui/button";
-import { Select } from "@chakra-ui/react";
+import { Badge, Flex, Select } from "@chakra-ui/react";
 import useOutlets from "../../customHooks/useOutlets";
 
 import styles from "../../styles/purchase.module.css";
 import PurchaseModal from "../../components/Purchase/PurchaseModal";
+import Moment from "react-moment";
+import toast from "react-hot-toast";
 
 const HEADINGS = {
   mmh_mrc_refno: "MRC Ref No",
@@ -20,6 +22,7 @@ const HEADINGS = {
   mmh_mrc_dt: "MRC Date",
   mmh_dist_bill_dt: "Dist Bill Date",
   mmh_mrc_amt: "MRC Amount",
+  status: "Status",
   actions: "Actions",
 };
 
@@ -39,13 +42,54 @@ function Purchase() {
     return {};
   }, [selectedOutlet]);
 
-  const { purchase, updatePurchase } = usePurchase(filters);
+  const { purchase, updatePurchase, updatePurchaseFlags } =
+    usePurchase(filters);
 
   const { outlets } = useOutlets();
   const OUTLETS_LIST = outlets.map((item) => ({
     id: item.outlet_id,
     value: item.outlet_name,
   }));
+
+  const getStatus = (item) => {
+    if (item.has_updated) {
+      return <Badge colorScheme="yellow">Updated</Badge>;
+    }
+
+    if (item.is_approved) {
+      return <Badge colorScheme="purple">Approved</Badge>;
+    }
+
+    return <Badge colorScheme="blue">Pending</Badge>;
+  };
+
+  const approvePurchase = (item) => {
+    toast.promise(
+      updatePurchaseFlags(item.purchase_id, {
+        is_approved: true,
+        has_updated: false,
+      }),
+      {
+        loading: "Approving purchase...",
+        success: "Purchase approved successfully",
+        error: "Failed to approve purchase",
+      }
+    );
+  };
+
+  const unapprovePurchase = (item) => {
+    toast.promise(
+      updatePurchaseFlags(item.purchase_id, {
+        is_approved: false,
+        has_updated: false,
+      }),
+      {
+        loading: "Unapproving purchase...",
+        success: "Purchase unapproved successfully",
+        error: "Failed to unapprove purchase",
+      }
+    );
+  };
 
   const rows = useMemo(() => {
     const sortedPurchase = purchase.sort((a, b) => {
@@ -57,6 +101,7 @@ function Purchase() {
       mmh_mrc_dt: moment(item.mmh_mrc_dt).format("DD-MM-YYYY"),
       mmh_dist_bill_dt: moment(item.mmh_dist_bill_dt).format("DD-MM-YYYY"),
       mmh_mrc_amt: currencyFormatter(item.mmh_mrc_amt),
+      status: getStatus(item),
       actions: (
         <Menu
           align="end"
@@ -71,6 +116,15 @@ function Purchase() {
           transition
         >
           <MenuItem onClick={() => setSelectedPurchase(item)}>Edit</MenuItem>
+          {item.has_updated || !item.is_approved ? (
+            <MenuItem onClick={() => approvePurchase(item)}>
+              Mark as Approved
+            </MenuItem>
+          ) : (
+            <MenuItem onClick={() => unapprovePurchase(item)}>
+              Mark as Unapproved
+            </MenuItem>
+          )}
         </Menu>
       ),
     }));

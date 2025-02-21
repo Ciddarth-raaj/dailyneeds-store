@@ -19,3 +19,13 @@ export const updatePurchase = async (purchase_id, data) => {
     throw err;
   }
 };
+
+export const updatePurchaseFlags = async (purchaseId, flags) => {
+  try {
+    const response = await API.patch(`/purchase/${purchaseId}/flags`, flags);
+    return response.data;
+  } catch (err) {
+    console.log(err);
+    throw err;
+  }
+};

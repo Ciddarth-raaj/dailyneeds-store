@@ -1,5 +1,9 @@
 import { useEffect, useState } from "react";
-import { getAllPurchases, updatePurchase } from "../helper/purchase";
+import {
+  getAllPurchases,
+  updatePurchase,
+  updatePurchaseFlags,
+} from "../helper/purchase";
 
 export function usePurchase(filters) {
   const [purchase, setPurchase] = useState([]);
@@ -28,7 +32,20 @@ export function usePurchase(filters) {
     try {
       const response = await updatePurchase(purchase_id, data);
       if (response.code === 200) {
-        fetchPurchase(true);
+        await fetchPurchase(true);
+      }
+
+      return response;
+    } catch (err) {
+      setError(err);
+    }
+  };
+
+  const updatePurchaseFlagsHandler = async (purchaseId, flags) => {
+    try {
+      const response = await updatePurchaseFlags(purchaseId, flags);
+      if (response.code === 200) {
+        await fetchPurchase(true);
       }
 
       return response;
@@ -47,5 +64,6 @@ export function usePurchase(filters) {
     error,
     refetch: fetchPurchase,
     updatePurchase: updatePurchaseHandler,
+    updatePurchaseFlags: updatePurchaseFlagsHandler,
   };
 }
