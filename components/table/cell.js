@@ -2,33 +2,34 @@ import React from "react";
 import styles from "./table.module.css";
 
 export default class Cell extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = {
-      sortDirection: null,
-    };
-  }
-
   handleSort = () => {
-    const { header, headingKey, sortCallback } = this.props;
+    const { header, headingKey, sortCallback, currentSort } = this.props;
     if (!header || !sortCallback) return;
 
     let nextDirection;
-    if (this.state.sortDirection === null) {
+    if (currentSort.key !== headingKey || currentSort.direction === null) {
+      // Start with ascending if it's a new column OR the current column was disabled
       nextDirection = "asc";
-    } else if (this.state.sortDirection === "asc") {
+    } else if (currentSort.direction === "asc") {
       nextDirection = "desc";
     } else {
       nextDirection = null;
     }
 
-    this.setState({ sortDirection: nextDirection });
     sortCallback(headingKey, nextDirection);
   };
 
   render() {
-    const { content, header, variant, size = "md" } = this.props;
-    const { sortDirection } = this.state;
+    const {
+      content,
+      header,
+      variant,
+      size = "md",
+      headingKey,
+      currentSort,
+    } = this.props;
+    const showSortIcon = header && currentSort.key === headingKey;
+    const sortDirection = showSortIcon ? currentSort.direction : null;
 
     if (header) {
       return (

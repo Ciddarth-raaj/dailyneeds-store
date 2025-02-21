@@ -60,6 +60,7 @@ export function usePurchase(filters) {
 
   return {
     purchase,
+    setPurchase,
     loading,
     error,
     refetch: fetchPurchase,

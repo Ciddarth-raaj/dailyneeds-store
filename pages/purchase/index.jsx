@@ -65,7 +65,7 @@ function Purchase() {
     };
   }, [selectedOutlet, fromDate, toDate]);
 
-  const { purchase, updatePurchase, updatePurchaseFlags } =
+  const { purchase, updatePurchase, updatePurchaseFlags, setPurchase } =
     usePurchase(filters);
 
   const getStatus = (item) => {
@@ -108,12 +108,55 @@ function Purchase() {
     );
   };
 
-  const rows = useMemo(() => {
-    const sortedPurchase = purchase.sort((a, b) => {
-      return b.mmh_mrc_refno - a.mmh_mrc_refno;
+  const handleSort = (key, direction) => {
+    const sortedPurchase = [...purchase].sort((a, b) => {
+      if (direction === null) {
+        return b.mmh_mrc_refno - a.mmh_mrc_refno; // Default sort
+      }
+
+      const multiplier = direction === "asc" ? 1 : -1;
+
+      switch (key) {
+        case "mmh_mrc_dt":
+        case "mmh_dist_bill_dt":
+          // Sort using original date values
+          const dateA = new Date(a[key]).getTime();
+          const dateB = new Date(b[key]).getTime();
+          return multiplier * (dateA - dateB);
+
+        case "mmh_mrc_refno":
+          // Sort MRC ref no as strings to handle leading zeros
+          return (
+            multiplier *
+            String(a[key]).localeCompare(String(b[key]), undefined, {
+              numeric: true,
+            })
+          );
+
+        case "mmh_mrc_amt":
+          // Sort using numeric values
+          const amtA = parseFloat(a[key]);
+          const amtB = parseFloat(b[key]);
+          return multiplier * (amtA - amtB);
+
+        case "supplier_name":
+        case "supplier_gstn":
+          // Case-insensitive string comparison
+          return (
+            multiplier *
+            a[key].toLowerCase().localeCompare(b[key].toLowerCase())
+          );
+
+        default:
+          return 0;
+      }
     });
 
-    return sortedPurchase?.map((item) => ({
+    setPurchase(sortedPurchase);
+  };
+
+  const rows = useMemo(() => {
+    return purchase?.map((item) => ({
       ...item,
       mmh_mrc_dt: moment(item.mmh_mrc_dt).format("DD-MM-YYYY"),
       mmh_dist_bill_dt: moment(item.mmh_dist_bill_dt).format("DD-MM-YYYY"),
@@ -166,7 +209,12 @@ function Purchase() {
           style={{ marginBottom: "22px" }}
         />
 
-        <Table variant="plain" heading={HEADINGS} rows={rows} />
+        <Table
+          variant="plain"
+          heading={HEADINGS}
+          rows={rows}
+          sortCallback={handleSort}
+        />
       </CustomContainer>
     </GlobalWrapper>
   );
