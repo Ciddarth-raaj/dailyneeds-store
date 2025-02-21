@@ -7,13 +7,11 @@ import moment from "moment";
 import currencyFormatter from "../../util/currencyFormatter";
 import { Menu, MenuItem } from "@szhsin/react-menu";
 import { IconButton } from "@chakra-ui/button";
-import { Badge, Flex, Select } from "@chakra-ui/react";
-import useOutlets from "../../customHooks/useOutlets";
+import { Badge } from "@chakra-ui/react";
 
-import styles from "../../styles/purchase.module.css";
 import PurchaseModal from "../../components/Purchase/PurchaseModal";
-import Moment from "react-moment";
 import toast from "react-hot-toast";
+import FromToDateOutletPicker from "../../components/DateOutletPicker/FromToDateOutletPicker";
 
 const HEADINGS = {
   mmh_mrc_refno: "MRC Ref No",
@@ -27,40 +25,59 @@ const HEADINGS = {
 };
 
 function Purchase() {
+  const [fromDate, setFromDate] = useState(new Date(new Date().setDate(1)));
+  const [toDate, setToDate] = useState(
+    new Date(
+      new Date().setDate(
+        new Date().getDate() +
+          (new Date(
+            new Date().getFullYear(),
+            new Date().getMonth() + 1,
+            0
+          ).getDate() -
+            new Date().getDate())
+      )
+    )
+  );
   const [selectedOutlet, setSelectedOutlet] = useState(null);
   const [selectedPurchase, setSelectedPurchase] = useState(null);
   const isOpen = selectedPurchase !== null;
   const onClose = () => setSelectedPurchase(null);
 
   const filters = useMemo(() => {
+    const startOfDay = new Date(fromDate);
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date(toDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
     if (selectedOutlet) {
       return {
         retail_outlet_id: selectedOutlet,
+        from_date: startOfDay.toISOString(),
+        to_date: endOfDay.toISOString(),
       };
     }
 
-    return {};
-  }, [selectedOutlet]);
+    return {
+      from_date: startOfDay.toISOString(),
+      to_date: endOfDay.toISOString(),
+    };
+  }, [selectedOutlet, fromDate, toDate]);
 
   const { purchase, updatePurchase, updatePurchaseFlags } =
     usePurchase(filters);
 
-  const { outlets } = useOutlets();
-  const OUTLETS_LIST = outlets.map((item) => ({
-    id: item.outlet_id,
-    value: item.outlet_name,
-  }));
-
   const getStatus = (item) => {
     if (item.has_updated) {
-      return <Badge colorScheme="yellow">Updated</Badge>;
+      return <Badge colorScheme="red">Updated</Badge>;
     }
 
     if (item.is_approved) {
       return <Badge colorScheme="purple">Approved</Badge>;
     }
 
-    return <Badge colorScheme="blue">Pending</Badge>;
+    return <Badge colorScheme="yellow">Pending</Badge>;
   };
 
   const approvePurchase = (item) => {
@@ -93,7 +110,7 @@ function Purchase() {
 
   const rows = useMemo(() => {
     const sortedPurchase = purchase.sort((a, b) => {
-      return new Date(b.mmh_mrc_refno) - new Date(a.mmh_mrc_refno);
+      return b.mmh_mrc_refno - a.mmh_mrc_refno;
     });
 
     return sortedPurchase?.map((item) => ({
@@ -139,20 +156,15 @@ function Purchase() {
         updatePurchase={updatePurchase}
       />
       <CustomContainer title="All Purchases" filledHeader>
-        <div className={styles.selectorContainer}>
-          <Select
-            placeholder="Select Outlet"
-            value={selectedOutlet}
-            onChange={(val) => setSelectedOutlet(val.target.value)}
-            style={{ backgroundColor: "white" }}
-          >
-            {OUTLETS_LIST?.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.value}
-              </option>
-            ))}
-          </Select>
-        </div>
+        <FromToDateOutletPicker
+          fromDate={fromDate}
+          toDate={toDate}
+          setFromDate={setFromDate}
+          setToDate={setToDate}
+          selectedOutlet={selectedOutlet}
+          setSelectedOutlet={setSelectedOutlet}
+          style={{ marginBottom: "22px" }}
+        />
 
         <Table variant="plain" heading={HEADINGS} rows={rows} />
       </CustomContainer>

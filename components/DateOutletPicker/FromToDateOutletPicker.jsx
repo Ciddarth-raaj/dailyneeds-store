@@ -14,6 +14,7 @@ function FromToDateOutletPicker({
   selectedOutlet,
   setSelectedOutlet,
   disabled = false,
+  style = {},
 }) {
   const { outlets } = useOutlets();
   const OUTLETS_LIST = outlets.map((item) => ({
@@ -22,7 +23,7 @@ function FromToDateOutletPicker({
   }));
 
   return (
-    <div className={styles.selectorContainer}>
+    <div className={styles.selectorContainer} style={style}>
       <DatePicker
         selected={fromDate}
         customInput={
