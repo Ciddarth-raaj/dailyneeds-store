@@ -1,0 +1,18 @@
+.purchaseForm {
+  display: flex;
+  flex-direction: column;
+}
+
+.topContainer {
+  display: flex;
+  flex-direction: row;
+  gap: 12px;
+  border-bottom: 0.5px solid rgb(225, 225, 225);
+  margin-bottom: 12px;
+}
+
+.inputContainer {
+  display: flex;
+  flex-direction: row;
+  gap: 12px;
+}

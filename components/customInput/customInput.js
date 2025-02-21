@@ -55,7 +55,7 @@ const TextField = ({
   maxSize = 5242880,
   floatingLabel = false,
   position = "top",
-  labelWidth = "min-width",
+  labelWidth = "unset",
   ...props
 }) => {
   const { setFieldValue } = useFormikContext();

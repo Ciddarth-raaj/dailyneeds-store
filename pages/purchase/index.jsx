@@ -11,6 +11,7 @@ import { Select } from "@chakra-ui/react";
 import useOutlets from "../../customHooks/useOutlets";
 
 import styles from "../../styles/purchase.module.css";
+import PurchaseModal from "../../components/Purchase/PurchaseModal";
 
 const HEADINGS = {
   mmh_mrc_refno: "MRC Ref No",
@@ -24,6 +25,9 @@ const HEADINGS = {
 
 function Purchase() {
   const [selectedOutlet, setSelectedOutlet] = useState(null);
+  const [selectedPurchase, setSelectedPurchase] = useState(null);
+  const isOpen = selectedPurchase !== null;
+  const onClose = () => setSelectedPurchase(null);
 
   const filters = useMemo(() => {
     if (selectedOutlet) {
@@ -66,7 +70,7 @@ function Purchase() {
           }
           transition
         >
-          <MenuItem>Edit</MenuItem>
+          <MenuItem onClick={() => setSelectedPurchase(item)}>Edit</MenuItem>
         </Menu>
       ),
     }));
@@ -74,6 +78,11 @@ function Purchase() {
 
   return (
     <GlobalWrapper>
+      <PurchaseModal
+        isOpen={isOpen}
+        onClose={onClose}
+        item={selectedPurchase}
+      />
       <CustomContainer title="All Purchases" filledHeader>
         <div className={styles.selectorContainer}>
           <Select
