@@ -39,7 +39,7 @@ function Purchase() {
     return {};
   }, [selectedOutlet]);
 
-  const { purchase } = usePurchase(filters);
+  const { purchase, updatePurchase } = usePurchase(filters);
 
   const { outlets } = useOutlets();
   const OUTLETS_LIST = outlets.map((item) => ({
@@ -82,6 +82,7 @@ function Purchase() {
         isOpen={isOpen}
         onClose={onClose}
         item={selectedPurchase}
+        updatePurchase={updatePurchase}
       />
       <CustomContainer title="All Purchases" filledHeader>
         <div className={styles.selectorContainer}>

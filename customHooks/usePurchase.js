@@ -1,15 +1,18 @@
 import { useEffect, useState } from "react";
-import { getAllPurchases } from "../helper/purchase";
+import { getAllPurchases, updatePurchase } from "../helper/purchase";
 
 export function usePurchase(filters) {
   const [purchase, setPurchase] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const fetchPurchase = async () => {
+  const fetchPurchase = async (noRefresh = false) => {
     try {
-      setLoading(true);
-      setPurchase([]);
+      if (!noRefresh) {
+        setLoading(true);
+        setPurchase([]);
+      }
+
       const data = await getAllPurchases(filters);
       if (data.code === 200) {
         setPurchase(data.data);
@@ -21,9 +24,28 @@ export function usePurchase(filters) {
     }
   };
 
+  const updatePurchaseHandler = async (purchase_id, data) => {
+    try {
+      const response = await updatePurchase(purchase_id, data);
+      if (response.code === 200) {
+        fetchPurchase(true);
+      }
+
+      return response;
+    } catch (err) {
+      setError(err);
+    }
+  };
+
   useEffect(() => {
     fetchPurchase();
   }, [filters]);
 
-  return { purchase, loading, error, refetch: fetchPurchase };
+  return {
+    purchase,
+    loading,
+    error,
+    refetch: fetchPurchase,
+    updatePurchase: updatePurchaseHandler,
+  };
 }

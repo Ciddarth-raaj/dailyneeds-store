@@ -14,6 +14,7 @@ import CustomInput from "../../customInput/customInput";
 
 import styles from "./styles.module.css";
 import moment from "moment";
+import toast from "react-hot-toast";
 
 const INITIAL_VALUES = {
   mmh_mrc_refno: "",
@@ -56,7 +57,7 @@ const INITIAL_VALUES = {
   narration: "",
 };
 
-function PurchaseModal({ isOpen, onClose, item }) {
+function PurchaseModal({ isOpen, onClose, item, updatePurchase }) {
   const [initialValues, setInitialValues] = useState(INITIAL_VALUES);
 
   useEffect(() => {
@@ -92,7 +93,6 @@ function PurchaseModal({ isOpen, onClose, item }) {
 
   const onSubmitHandler = (values) => {
     const internalValues = {
-      purchase_id: values.purchase_id,
       cash_discount: values.cash_discount,
       scheme_difference: values.scheme_difference,
       cost_difference: values.cost_difference,
@@ -112,7 +112,6 @@ function PurchaseModal({ isOpen, onClose, item }) {
       }));
 
     const externalValues = {
-      purchase_id: values.purchase_id,
       mmh_mrc_refno: values.mmh_mrc_refno,
       supplier_name: values.supplier_name,
       supplier_gstn: values.supplier_gstn,
@@ -124,7 +123,6 @@ function PurchaseModal({ isOpen, onClose, item }) {
       tot_gst_cess_amt: values.tot_gst_cess_amt,
       mmh_manual_disc: values.mmh_manual_disc,
       mmd_goods_tcs_amt: values.mmd_goods_tcs_amt,
-      purchase_id: values.purchase_id,
       retail_outlet_id: values.retail_outlet_id,
       supplier_id: values.supplier_id,
       mmh_mrc_no: values.mmh_mrc_no,
@@ -137,7 +135,27 @@ function PurchaseModal({ isOpen, onClose, item }) {
       cess: values.cess,
     };
 
-    console.log("CIDD", values, internalValues, externalValues);
+    toast.promise(
+      updatePurchase(values.purchase_id, {
+        purchase: externalValues,
+        purchase_internal: internalValues,
+      }),
+      {
+        loading: "Updating Purchase Record!",
+        success: (response) => {
+          if (response.code === 200) {
+            onClose();
+            return "Purchase Record Updated!";
+          } else {
+            throw err;
+          }
+        },
+        error: (err) => {
+          console.log(err);
+          return "Error updating Purchase Record!";
+        },
+      }
+    );
   };
 
   return (
