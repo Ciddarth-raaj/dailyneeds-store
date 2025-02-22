@@ -66,11 +66,24 @@ const INITIAL_VALUES = {
   supplier_credit_note: 0.0,
 };
 
-function PurchaseModal({ isOpen, onClose, item, updatePurchase }) {
+function PurchaseModal({
+  isOpen,
+  onClose,
+  item,
+  updatePurchase,
+  unapprovePurchase,
+}) {
   const [initialValues, setInitialValues] = useState(INITIAL_VALUES);
+  const [editable, setEditable] = useState(true);
 
   useEffect(() => {
     if (item) {
+      if (item?.is_approved) {
+        setEditable(false);
+      } else {
+        setEditable(true);
+      }
+
       // Get existing PERC values
       const existingPercs = item.sgst.map((item) => parseFloat(item.PERC));
 
@@ -259,6 +272,11 @@ function PurchaseModal({ isOpen, onClose, item, updatePurchase }) {
     );
   };
 
+  const unapproveHandler = async (purchase_id) => {
+    await unapprovePurchase(purchase_id);
+    setEditable(true);
+  };
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="6xl" scrollBehavior="inside">
       <ModalOverlay />
@@ -320,6 +338,7 @@ function PurchaseModal({ isOpen, onClose, item, updatePurchase }) {
                         label={`Local Purchase ${item.PERC}%`}
                         name={`gst.${index}.TAXABLE`}
                         type="number"
+                        disabled={!editable}
                       />
                       <CustomInput
                         label={`CGST ${item.PERC / 2}% Input`}
@@ -354,6 +373,7 @@ function PurchaseModal({ isOpen, onClose, item, updatePurchase }) {
                     label="CESS 12% Input"
                     name="tot_gst_cess_amt"
                     type="number"
+                    disabled={!editable}
                   />
 
                   <div className={styles.inputContainer}>
@@ -361,16 +381,19 @@ function PurchaseModal({ isOpen, onClose, item, updatePurchase }) {
                       label="Cash Discount"
                       name="cash_discount"
                       type="number"
+                      disabled={!editable}
                     />
                     <CustomInput
                       label="Scheme Difference"
                       name="scheme_difference"
                       type="number"
+                      disabled={!editable}
                     />
                     <CustomInput
                       label="Discount on Purchase"
                       name="mmh_manual_disc"
                       type="number"
+                      disabled={!editable}
                     />
                   </div>
 
@@ -379,12 +402,14 @@ function PurchaseModal({ isOpen, onClose, item, updatePurchase }) {
                       label="Cost Difference"
                       name="cost_difference"
                       type="number"
+                      disabled={!editable}
                     />
                     <CustomInput label="Due" name="due" type="number" />
                     <CustomInput
                       label="Freight Charges"
                       name="freight_charges"
                       type="number"
+                      disabled={!editable}
                     />
                   </div>
 
@@ -393,16 +418,19 @@ function PurchaseModal({ isOpen, onClose, item, updatePurchase }) {
                       label="TCS @0.1%"
                       name="mmd_goods_tcs_amt"
                       type="number"
+                      disabled={!editable}
                     />
                     <CustomInput
                       label="Round Off"
                       name="round_off"
                       type="number"
+                      disabled={!editable}
                     />
                     <CustomInput
                       label="Supplier Credit Note"
                       name="supplier_credit_note"
                       type="number"
+                      disabled={!editable}
                     />
                   </div>
 
@@ -412,9 +440,14 @@ function PurchaseModal({ isOpen, onClose, item, updatePurchase }) {
                       name="jv_ledger"
                       values={JV_LEDGER_LIST}
                       method="switch"
+                      disabled={!editable}
                     />
 
-                    <CustomInput label="Narration" name="narration" />
+                    <CustomInput
+                      label="Narration"
+                      name="narration"
+                      disabled={!editable}
+                    />
                   </div>
                 </div>
               </ModalBody>
@@ -432,9 +465,18 @@ function PurchaseModal({ isOpen, onClose, item, updatePurchase }) {
                 >
                   Close
                 </Button>
-                <Button colorScheme="purple" onClick={handleSubmit}>
-                  Save
-                </Button>
+                {editable ? (
+                  <Button colorScheme="purple" onClick={handleSubmit}>
+                    Save & Approve
+                  </Button>
+                ) : (
+                  <Button
+                    colorScheme="purple"
+                    onClick={() => unapproveHandler(item.purchase_id)}
+                  >
+                    Unlock
+                  </Button>
+                )}
               </ModalFooter>
             </>
           )}

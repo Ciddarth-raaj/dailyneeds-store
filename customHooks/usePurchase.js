@@ -31,6 +31,7 @@ export function usePurchase(filters) {
   const updatePurchaseHandler = async (purchase_id, data) => {
     try {
       const response = await updatePurchase(purchase_id, data);
+      await approvePurchase(purchase_id);
       if (response.code === 200) {
         await fetchPurchase(true);
       }
@@ -54,6 +55,21 @@ export function usePurchase(filters) {
     }
   };
 
+  const approvePurchase = async (purchase_id) => {
+    await updatePurchaseFlags(purchase_id, {
+      is_approved: true,
+      has_updated: false,
+    });
+  };
+
+  const unapprovePurchase = async (purchase_id) => {
+    await updatePurchaseFlags(purchase_id, {
+      is_approved: false,
+      has_updated: false,
+    });
+    await fetchPurchase(true);
+  };
+
   useEffect(() => {
     fetchPurchase();
   }, [filters]);
@@ -66,5 +82,6 @@ export function usePurchase(filters) {
     refetch: fetchPurchase,
     updatePurchase: updatePurchaseHandler,
     updatePurchaseFlags: updatePurchaseFlagsHandler,
+    unapprovePurchase: unapprovePurchase,
   };
 }

@@ -10,7 +10,6 @@ import { IconButton } from "@chakra-ui/button";
 import { Badge } from "@chakra-ui/react";
 
 import PurchaseModal from "../../components/Purchase/PurchaseModal";
-import toast from "react-hot-toast";
 import FromToDateOutletPicker from "../../components/DateOutletPicker/FromToDateOutletPicker";
 
 const HEADINGS = {
@@ -65,7 +64,7 @@ function Purchase() {
     };
   }, [selectedOutlet, fromDate, toDate]);
 
-  const { purchase, updatePurchase, updatePurchaseFlags, setPurchase } =
+  const { purchase, updatePurchase, setPurchase, unapprovePurchase } =
     usePurchase(filters);
 
   const getStatus = (item) => {
@@ -78,34 +77,6 @@ function Purchase() {
     }
 
     return <Badge colorScheme="yellow">Pending</Badge>;
-  };
-
-  const approvePurchase = (item) => {
-    toast.promise(
-      updatePurchaseFlags(item.purchase_id, {
-        is_approved: true,
-        has_updated: false,
-      }),
-      {
-        loading: "Approving purchase...",
-        success: "Purchase approved successfully",
-        error: "Failed to approve purchase",
-      }
-    );
-  };
-
-  const unapprovePurchase = (item) => {
-    toast.promise(
-      updatePurchaseFlags(item.purchase_id, {
-        is_approved: false,
-        has_updated: false,
-      }),
-      {
-        loading: "Unapproving purchase...",
-        success: "Purchase unapproved successfully",
-        error: "Failed to unapprove purchase",
-      }
-    );
   };
 
   const handleSort = (key, direction) => {
@@ -176,15 +147,6 @@ function Purchase() {
           transition
         >
           <MenuItem onClick={() => setSelectedPurchase(item)}>Edit</MenuItem>
-          {item.has_updated || !item.is_approved ? (
-            <MenuItem onClick={() => approvePurchase(item)}>
-              Mark as Approved
-            </MenuItem>
-          ) : (
-            <MenuItem onClick={() => unapprovePurchase(item)}>
-              Mark as Unapproved
-            </MenuItem>
-          )}
         </Menu>
       ),
     }));
@@ -197,6 +159,7 @@ function Purchase() {
         onClose={onClose}
         item={selectedPurchase}
         updatePurchase={updatePurchase}
+        unapprovePurchase={unapprovePurchase}
       />
       <CustomContainer title="All Purchases" filledHeader>
         <FromToDateOutletPicker
