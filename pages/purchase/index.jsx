@@ -214,6 +214,7 @@ function Purchase() {
           heading={HEADINGS}
           rows={rows}
           sortCallback={handleSort}
+          size="sm"
         />
       </CustomContainer>
     </GlobalWrapper>

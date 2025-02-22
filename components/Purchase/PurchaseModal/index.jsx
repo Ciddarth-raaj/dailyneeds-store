@@ -1,4 +1,5 @@
 import {
+  Badge,
   Button,
   Modal,
   ModalBody,
@@ -15,6 +16,13 @@ import CustomInput from "../../customInput/customInput";
 import styles from "./styles.module.css";
 import moment from "moment";
 import toast from "react-hot-toast";
+import currencyFormatter from "../../../util/currencyFormatter";
+
+const JV_LEDGER_LIST = [
+  { id: 1, value: "Ready to Pay" },
+  { id: 2, value: "Due Payment Pending" },
+  { id: 3, value: "Payment Hold" },
+];
 
 const INITIAL_VALUES = {
   mmh_mrc_refno: "",
@@ -55,6 +63,7 @@ const INITIAL_VALUES = {
   round_off: 0.0,
   jv_ledger: 0.0,
   narration: "",
+  supplier_credit_note: 0.0,
 };
 
 function PurchaseModal({ isOpen, onClose, item, updatePurchase }) {
@@ -91,7 +100,97 @@ function PurchaseModal({ isOpen, onClose, item, updatePurchase }) {
     }
   }, [item]);
 
+  const calculateTotalAmount = (values) => {
+    let {
+      cash_discount,
+      scheme_difference,
+      cost_difference,
+      due,
+      freight_charges,
+      supplier_credit_note,
+      round_off,
+      mmd_goods_tcs_amt,
+      gst,
+    } = values;
+
+    let total_gst = 0;
+    let total_cgst = 0;
+    let total_sgst = 0;
+
+    gst.forEach((item) => {
+      total_gst += item.TAXABLE;
+
+      const taxedValue = (item.TAXABLE * item.PERC) / 100;
+
+      total_cgst += taxedValue;
+      total_sgst += taxedValue;
+    });
+
+    if (isNaN(cash_discount)) {
+      cash_discount = 0;
+    } else {
+      cash_discount = -1 * cash_discount;
+    }
+
+    if (isNaN(scheme_difference)) {
+      scheme_difference = 0;
+    } else {
+      scheme_difference = -1 * scheme_difference;
+    }
+
+    if (isNaN(cost_difference)) {
+      cost_difference = 0;
+    } else {
+      cost_difference = -1 * cost_difference;
+    }
+
+    if (isNaN(freight_charges)) {
+      freight_charges = 0;
+    } else {
+      freight_charges = freight_charges;
+    }
+
+    if (isNaN(supplier_credit_note)) {
+      supplier_credit_note = 0;
+    } else {
+      supplier_credit_note = -1 * supplier_credit_note;
+    }
+
+    if (isNaN(round_off)) {
+      round_off = 0;
+    }
+
+    if (isNaN(mmd_goods_tcs_amt)) {
+      mmd_goods_tcs_amt = 0;
+    }
+
+    const total_amount =
+      parseFloat(cash_discount) -
+      parseFloat(scheme_difference) -
+      parseFloat(cost_difference) -
+      parseFloat(due) +
+      parseFloat(freight_charges) -
+      parseFloat(supplier_credit_note) +
+      parseFloat(round_off) +
+      parseFloat(mmd_goods_tcs_amt) +
+      total_sgst +
+      total_cgst +
+      total_gst;
+
+    return {
+      total_amount: isNaN(total_amount)
+        ? "-"
+        : parseFloat(total_amount)?.toFixed(2),
+      total_sgst: total_sgst?.toFixed(2),
+      total_cgst: total_cgst?.toFixed(2),
+      total_gst: total_gst?.toFixed(2),
+    };
+  };
+
   const onSubmitHandler = (values) => {
+    const { total_amount, total_sgst, total_cgst } =
+      calculateTotalAmount(values);
+
     const internalValues = {
       cash_discount: values.cash_discount,
       scheme_difference: values.scheme_difference,
@@ -101,6 +200,8 @@ function PurchaseModal({ isOpen, onClose, item, updatePurchase }) {
       round_off: values.round_off,
       jv_ledger: values.jv_ledger,
       narration: values.narration,
+      supplier_credit_note: values.supplier_credit_note,
+      total_amount,
     };
 
     const convertedGst = values.gst
@@ -127,8 +228,8 @@ function PurchaseModal({ isOpen, onClose, item, updatePurchase }) {
       supplier_id: values.supplier_id,
       mmh_mrc_no: values.mmh_mrc_no,
       mmh_dist_bill_no: values.mmh_dist_bill_no,
-      tot_sgst_amt: values.tot_sgst_amt,
-      tot_cgst_amt: values.tot_cgst_amt,
+      tot_sgst_amt: total_sgst,
+      tot_cgst_amt: total_cgst,
       tot_igst_amt: values.tot_igst_amt,
       ts: values.ts,
       igst: values.igst,
@@ -299,19 +400,30 @@ function PurchaseModal({ isOpen, onClose, item, updatePurchase }) {
                       type="number"
                     />
                     <CustomInput
-                      label="JV Ledger"
-                      name="jv_ledger"
+                      label="Supplier Credit Note"
+                      name="supplier_credit_note"
                       type="number"
                     />
                   </div>
 
                   <div className={styles.inputContainer}>
+                    <CustomInput
+                      label="JV Ledger"
+                      name="jv_ledger"
+                      values={JV_LEDGER_LIST}
+                      method="switch"
+                    />
+
                     <CustomInput label="Narration" name="narration" />
                   </div>
                 </div>
               </ModalBody>
 
               <ModalFooter>
+                <Badge>
+                  Total Amount :{" "}
+                  {currencyFormatter(calculateTotalAmount(values).total_amount)}
+                </Badge>
                 <Button
                   variant="ghost"
                   colorScheme="red"
