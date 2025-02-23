@@ -1,6 +1,7 @@
 import {
   Badge,
   Button,
+  Flex,
   Modal,
   ModalBody,
   ModalCloseButton,
@@ -124,6 +125,7 @@ function PurchaseModal({
       round_off,
       mmd_goods_tcs_amt,
       gst,
+      mmh_manual_disc,
     } = values;
 
     let total_gst = 0;
@@ -131,9 +133,11 @@ function PurchaseModal({
     let total_sgst = 0;
 
     gst.forEach((item) => {
-      total_gst += item.TAXABLE;
+      const TAXABLE = item.TAXABLE === "" ? 0 : item.TAXABLE;
 
-      const taxedValue = (item.TAXABLE * item.PERC) / 100;
+      total_gst += TAXABLE;
+
+      const taxedValue = (TAXABLE * (item.PERC / 2)) / 100;
 
       total_cgst += taxedValue;
       total_sgst += taxedValue;
@@ -169,6 +173,12 @@ function PurchaseModal({
       supplier_credit_note = -1 * supplier_credit_note;
     }
 
+    if (isNaN(mmh_manual_disc)) {
+      mmh_manual_disc = 0;
+    } else {
+      mmh_manual_disc = -1 * mmh_manual_disc;
+    }
+
     if (isNaN(round_off)) {
       round_off = 0;
     }
@@ -178,14 +188,15 @@ function PurchaseModal({
     }
 
     const total_amount =
-      parseFloat(cash_discount) -
-      parseFloat(scheme_difference) -
-      parseFloat(cost_difference) -
+      parseFloat(cash_discount) +
+      parseFloat(scheme_difference) +
+      parseFloat(cost_difference) +
       parseFloat(due) +
-      parseFloat(freight_charges) -
+      parseFloat(freight_charges) +
       parseFloat(supplier_credit_note) +
       parseFloat(round_off) +
       parseFloat(mmd_goods_tcs_amt) +
+      parseFloat(mmh_manual_disc) +
       total_sgst +
       total_cgst +
       total_gst;
@@ -404,7 +415,12 @@ function PurchaseModal({
                       type="number"
                       disabled={!editable}
                     />
-                    <CustomInput label="Due" name="due" type="number" />
+                    <CustomInput
+                      label="Due"
+                      name="due"
+                      type="number"
+                      disabled={!editable}
+                    />
                     <CustomInput
                       label="Freight Charges"
                       name="freight_charges"
@@ -452,31 +468,49 @@ function PurchaseModal({
                 </div>
               </ModalBody>
 
-              <ModalFooter>
-                <Badge>
-                  Total Amount :{" "}
-                  {currencyFormatter(calculateTotalAmount(values).total_amount)}
-                </Badge>
-                <Button
-                  variant="ghost"
+              <ModalFooter justifyContent="space-between">
+                <Badge
                   colorScheme="red"
-                  mr={3}
-                  onClick={onClose}
+                  style={{
+                    visibility:
+                      calculateTotalAmount(values).total_amount !=
+                      item.mmh_mrc_amt
+                        ? "visible"
+                        : "hidden",
+                  }}
                 >
-                  Close
-                </Button>
-                {editable ? (
-                  <Button colorScheme="purple" onClick={handleSubmit}>
-                    Save & Approve
-                  </Button>
-                ) : (
+                  MRC Amount and Total Amount does not match
+                </Badge>
+
+                <Flex alignItems="center">
+                  <Badge>
+                    Total Amount :{" "}
+                    {currencyFormatter(
+                      calculateTotalAmount(values).total_amount
+                    )}
+                  </Badge>
+
                   <Button
-                    colorScheme="purple"
-                    onClick={() => unapproveHandler(item.purchase_id)}
+                    variant="ghost"
+                    colorScheme="red"
+                    mr={3}
+                    onClick={onClose}
                   >
-                    Unlock
+                    Close
                   </Button>
-                )}
+                  {editable ? (
+                    <Button colorScheme="purple" onClick={handleSubmit}>
+                      Save & Approve
+                    </Button>
+                  ) : (
+                    <Button
+                      colorScheme="purple"
+                      onClick={() => unapproveHandler(item.purchase_id)}
+                    >
+                      Unlock
+                    </Button>
+                  )}
+                </Flex>
               </ModalFooter>
             </>
           )}
