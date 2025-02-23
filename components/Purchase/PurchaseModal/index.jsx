@@ -473,8 +473,8 @@ function PurchaseModal({
                   colorScheme="red"
                   style={{
                     visibility:
-                      calculateTotalAmount(values).total_amount !=
-                      item.mmh_mrc_amt
+                      Math.floor(calculateTotalAmount(values).total_amount) !=
+                      Math.floor(item.mmh_mrc_amt)
                         ? "visible"
                         : "hidden",
                   }}
