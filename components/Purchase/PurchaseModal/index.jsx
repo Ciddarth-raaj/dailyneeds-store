@@ -116,6 +116,10 @@ function PurchaseModal({
   }, [item]);
 
   const onSubmitHandler = (values) => {
+    const isTotalAmountMismatch =
+      Math.floor(calculateTotalAmount(values).total_amount) !=
+      Math.floor(item.mmh_mrc_amt);
+
     const { total_amount, total_sgst, total_cgst } =
       calculateTotalAmount(values);
 
@@ -168,6 +172,7 @@ function PurchaseModal({
       updatePurchase(values.purchase_id, {
         purchase: externalValues,
         purchase_internal: internalValues,
+        send_not_matched_notification: isTotalAmountMismatch,
       }),
       {
         loading: "Updating Purchase Record!",
