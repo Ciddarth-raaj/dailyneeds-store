@@ -10,6 +10,7 @@ export const calculateTotalAmount = (values) => {
     mmd_goods_tcs_amt,
     gst,
     mmh_manual_disc,
+    tot_gst_cess_amt,
   } = values;
 
   let total_gst = 0;
@@ -71,6 +72,10 @@ export const calculateTotalAmount = (values) => {
     mmd_goods_tcs_amt = 0;
   }
 
+  if (isNaN(tot_gst_cess_amt)) {
+    tot_gst_cess_amt = 0;
+  }
+
   const total_amount =
     parseFloat(cash_discount) +
     parseFloat(scheme_difference) +
@@ -81,6 +86,7 @@ export const calculateTotalAmount = (values) => {
     parseFloat(round_off) +
     parseFloat(mmd_goods_tcs_amt) +
     parseFloat(mmh_manual_disc) +
+    parseFloat(tot_gst_cess_amt) +
     total_sgst +
     total_cgst +
     total_gst;

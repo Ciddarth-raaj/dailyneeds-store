@@ -7,7 +7,7 @@ import moment from "moment";
 import currencyFormatter from "../../util/currencyFormatter";
 import { Menu, MenuItem } from "@szhsin/react-menu";
 import { IconButton } from "@chakra-ui/button";
-import { Badge, Checkbox, Flex } from "@chakra-ui/react";
+import { Badge, Checkbox, Flex, Input } from "@chakra-ui/react";
 
 import PurchaseModal from "../../components/Purchase/PurchaseModal";
 import FromToDateOutletPicker from "../../components/DateOutletPicker/FromToDateOutletPicker";
@@ -25,6 +25,7 @@ const HEADINGS = {
 };
 
 function Purchase() {
+  const [search, setSearch] = useState("");
   const [fromDate, setFromDate] = useState(new Date(new Date().setDate(1)));
   const [toDate, setToDate] = useState(
     new Date(
@@ -144,7 +145,7 @@ function Purchase() {
   };
 
   const rows = useMemo(() => {
-    return purchase?.map((item) => ({
+    const formattedRows = purchase?.map((item) => ({
       ...item,
       mmh_mrc_dt: moment(item.mmh_mrc_dt).format("DD-MM-YYYY"),
       mmh_dist_bill_dt: moment(item.mmh_dist_bill_dt).format("DD-MM-YYYY"),
@@ -170,7 +171,21 @@ function Purchase() {
         </Menu>
       ),
     }));
-  }, [purchase]);
+
+    if (!search) return formattedRows;
+
+    const searchLower = search.toLowerCase();
+    return formattedRows?.filter((row) => {
+      // Search in all columns except actions
+      return Object.entries(row)
+        .filter(([key]) => key !== "actions")
+        .some(([_, value]) => {
+          if (value === null || value === undefined) return false;
+          if (React.isValidElement(value)) return false; // Skip React components (like Badge)
+          return String(value).toLowerCase().includes(searchLower);
+        });
+    });
+  }, [purchase, search]);
 
   const handleCheckedFilters = (key, value) => {
     setCheckedFilters({
@@ -191,6 +206,13 @@ function Purchase() {
         unapprovePurchase={unapprovePurchase}
       />
       <CustomContainer title="All Purchases" filledHeader>
+        <Input
+          placeholder="Search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          mb="22px"
+        />
+
         <FromToDateOutletPicker
           fromDate={fromDate}
           toDate={toDate}
