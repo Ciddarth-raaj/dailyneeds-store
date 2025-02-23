@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../components/CustomContainer";
 import { usePurchase } from "../../customHooks/usePurchase";
@@ -7,7 +7,7 @@ import moment from "moment";
 import currencyFormatter from "../../util/currencyFormatter";
 import { Menu, MenuItem } from "@szhsin/react-menu";
 import { IconButton } from "@chakra-ui/button";
-import { Badge } from "@chakra-ui/react";
+import { Badge, Checkbox, Flex } from "@chakra-ui/react";
 
 import PurchaseModal from "../../components/Purchase/PurchaseModal";
 import FromToDateOutletPicker from "../../components/DateOutletPicker/FromToDateOutletPicker";
@@ -41,29 +41,45 @@ function Purchase() {
   );
   const [selectedOutlet, setSelectedOutlet] = useState(null);
   const [selectedPurchase, setSelectedPurchase] = useState(null);
+  const [checkedFilters, setCheckedFilters] = useState({
+    isApproved: false,
+    isUpdated: false,
+    isPending: false,
+  });
+
   const isOpen = selectedPurchase !== null;
   const onClose = () => setSelectedPurchase(null);
 
   const filters = useMemo(() => {
+    const filterItem = {};
+
     const startOfDay = new Date(fromDate);
     startOfDay.setHours(0, 0, 0, 0);
 
     const endOfDay = new Date(toDate);
     endOfDay.setHours(23, 59, 59, 999);
 
+    filterItem["from_date"] = startOfDay.toISOString();
+    filterItem["to_date"] = endOfDay.toISOString();
+
     if (selectedOutlet) {
-      return {
-        retail_outlet_id: selectedOutlet,
-        from_date: startOfDay.toISOString(),
-        to_date: endOfDay.toISOString(),
-      };
+      filterItem["retail_outlet_id"] = selectedOutlet;
     }
 
-    return {
-      from_date: startOfDay.toISOString(),
-      to_date: endOfDay.toISOString(),
-    };
-  }, [selectedOutlet, fromDate, toDate]);
+    if (checkedFilters.isApproved) {
+      filterItem["is_approved"] = true;
+    }
+
+    if (checkedFilters.isUpdated) {
+      filterItem["has_updated"] = true;
+    }
+
+    if (checkedFilters.isPending) {
+      filterItem["is_approved"] = false;
+    }
+
+    return filterItem;
+  }, [selectedOutlet, fromDate, toDate, checkedFilters]);
 
   const { purchase, updatePurchase, setPurchase, unapprovePurchase } =
     usePurchase(filters);
@@ -156,6 +172,15 @@ function Purchase() {
     }));
   }, [purchase]);
 
+  const handleCheckedFilters = (key, value) => {
+    setCheckedFilters({
+      isApproved: false,
+      isUpdated: false,
+      isPending: false,
+      [key]: value,
+    });
+  };
+
   return (
     <GlobalWrapper>
       <PurchaseModal
@@ -175,6 +200,36 @@ function Purchase() {
           setSelectedOutlet={setSelectedOutlet}
           style={{ marginBottom: "22px" }}
         />
+
+        <Flex style={{ marginBottom: "22px" }} gap="22px">
+          <Checkbox
+            isChecked={checkedFilters.isApproved}
+            colorScheme="purple"
+            onChange={(e) =>
+              handleCheckedFilters("isApproved", e.target.checked)
+            }
+          >
+            Approved
+          </Checkbox>
+          <Checkbox
+            isChecked={checkedFilters.isPending}
+            colorScheme="purple"
+            onChange={(e) =>
+              handleCheckedFilters("isPending", e.target.checked)
+            }
+          >
+            Pending
+          </Checkbox>
+          <Checkbox
+            isChecked={checkedFilters.isUpdated}
+            colorScheme="purple"
+            onChange={(e) =>
+              handleCheckedFilters("isUpdated", e.target.checked)
+            }
+          >
+            Updated
+          </Checkbox>
+        </Flex>
 
         <Table
           variant="plain"
