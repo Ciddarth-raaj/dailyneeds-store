@@ -19,6 +19,7 @@ const HEADINGS = {
   mmh_mrc_dt: "MRC Date",
   mmh_dist_bill_dt: "Dist Bill Date",
   mmh_mrc_amt: "MRC Amount",
+  total_amount: "Total Amount",
   status: "Status",
   actions: "Actions",
 };
@@ -133,6 +134,9 @@ function Purchase() {
       mmh_dist_bill_dt: moment(item.mmh_dist_bill_dt).format("DD-MM-YYYY"),
       mmh_mrc_amt: currencyFormatter(item.mmh_mrc_amt),
       status: getStatus(item),
+      total_amount: item.total_amount
+        ? currencyFormatter(item.total_amount)
+        : "-",
       actions: (
         <Menu
           align="end"
