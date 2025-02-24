@@ -254,7 +254,7 @@ function Epayment() {
       }
     });
 
-    console.log("CIDD", modifiedList);
+    console.log(modifiedList);
 
     toast.promise(
       Promise.all([

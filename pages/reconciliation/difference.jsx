@@ -87,7 +87,7 @@ function Difference() {
     designation_ids: [],
   });
 
-  console.log("CIDD", epayments);
+  console.log(epayments);
 
   const DifferenceWrapper = (value) => {
     return (

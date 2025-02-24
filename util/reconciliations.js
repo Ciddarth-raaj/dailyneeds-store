@@ -250,7 +250,6 @@ export const parseReconciliationFile = async (
       setSelectedDate(date);
     }
 
-    console.log("CIDD", result);
     setParsedData(result);
     toast.success(`Successfully imported ${result.totalRows} rows`);
   } catch (error) {

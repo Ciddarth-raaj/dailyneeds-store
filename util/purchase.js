@@ -1,5 +1,4 @@
 export const shouldShowIGST = (values) => {
-  console.log("CIDD", values?.supplier_gstn);
   if (
     !values?.supplier_gstn ||
     values?.supplier_gstn == "" ||

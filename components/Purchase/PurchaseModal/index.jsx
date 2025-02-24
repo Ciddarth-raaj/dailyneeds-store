@@ -89,12 +89,12 @@ function PurchaseModal({
       const taxList = shouldShowIGST(item) ? item.igst : item.sgst;
 
       // Get existing PERC values
-      const existingPercs = taxList.map((item) => parseFloat(item.PERC));
+      const existingPercs = taxList.map((item) =>
+        shouldShowIGST(item) ? parseFloat(item.PERC) / 2 : parseFloat(item.PERC)
+      );
 
       // Required PERC values
-      const requiredPercs = shouldShowIGST(item)
-        ? [0, 5, 12, 18, 28]
-        : [0, 2.5, 6, 9, 14];
+      const requiredPercs = [0, 2.5, 6, 9, 14];
 
       // Add missing PERC values with 0 VALUE
       const missingGstItems = requiredPercs
@@ -140,21 +140,13 @@ function PurchaseModal({
       total_amount,
     };
 
-    const convertedGst = shouldShowIGST(values)
-      ? values.gst
-          .filter((item) => item.TAXABLE)
-          .map((item) => ({
-            PERC: item.PERC,
-            VALUE: item.TAXABLE ? (item.TAXABLE * item.PERC) / 100 : null,
-            TAXABLE: item.TAXABLE,
-          }))
-      : values.gst
-          .filter((item) => item.TAXABLE)
-          .map((item) => ({
-            PERC: item.PERC / 2,
-            VALUE: item.TAXABLE ? (item.TAXABLE * (item.PERC / 2)) / 100 : null,
-            TAXABLE: item.TAXABLE,
-          }));
+    const convertedGst = values.gst
+      .filter((item) => item.TAXABLE)
+      .map((item) => ({
+        PERC: item.PERC / 2,
+        VALUE: item.TAXABLE ? (item.TAXABLE * (item.PERC / 2)) / 100 : null,
+        TAXABLE: item.TAXABLE,
+      }));
 
     const externalValues = {
       mmh_mrc_refno: values.mmh_mrc_refno,

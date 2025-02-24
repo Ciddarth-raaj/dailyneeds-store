@@ -448,7 +448,7 @@ class Create extends React.Component {
         }
       }
     } catch (err) {
-      console.log("CIDD", err);
+      console.log(err);
     }
     const { employee_id } = this.props.data[0];
     const { router } = this.props;
@@ -483,7 +483,7 @@ class Create extends React.Component {
         }
       })
       .catch((err) => {
-        console.log("CIDD", err);
+        console.log(err);
         toast.error("Error Updating Employee details!");
       })
       .finally(() => this.setState({ loading: false }));
