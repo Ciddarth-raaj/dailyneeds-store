@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../components/CustomContainer";
 import { usePurchase } from "../../customHooks/usePurchase";
@@ -47,6 +47,10 @@ function Purchase() {
     isUpdated: false,
     isPending: false,
   });
+  const [sortConfig, setSortConfig] = useState({
+    key: "mmh_mrc_refno",
+    direction: "desc",
+  });
 
   const isOpen = selectedPurchase !== null;
   const onClose = () => setSelectedPurchase(null);
@@ -85,6 +89,10 @@ function Purchase() {
   const { purchase, updatePurchase, setPurchase, unapprovePurchase } =
     usePurchase(filters);
 
+  const handleSort = useCallback((key, direction) => {
+    setSortConfig({ key, direction });
+  }, []);
+
   const getStatus = (item) => {
     if (item.has_updated) {
       return <Badge colorScheme="red">Updated</Badge>;
@@ -97,43 +105,45 @@ function Purchase() {
     return <Badge colorScheme="yellow">Pending</Badge>;
   };
 
-  const handleSort = (key, direction) => {
+  const rows = useMemo(() => {
     const sortedPurchase = [...purchase].sort((a, b) => {
-      if (direction === null) {
+      if (sortConfig.direction === null) {
         return b.mmh_mrc_refno - a.mmh_mrc_refno; // Default sort
       }
 
-      const multiplier = direction === "asc" ? 1 : -1;
+      const multiplier = sortConfig.direction === "asc" ? 1 : -1;
 
-      switch (key) {
+      switch (sortConfig.key) {
         case "mmh_mrc_dt":
         case "mmh_dist_bill_dt":
-          // Sort using original date values
-          const dateA = new Date(a[key]).getTime();
-          const dateB = new Date(b[key]).getTime();
+          const dateA = new Date(a[sortConfig.key]).getTime();
+          const dateB = new Date(b[sortConfig.key]).getTime();
           return multiplier * (dateA - dateB);
 
         case "mmh_mrc_refno":
-          // Sort MRC ref no as strings to handle leading zeros
           return (
             multiplier *
-            String(a[key]).localeCompare(String(b[key]), undefined, {
-              numeric: true,
-            })
+            String(a[sortConfig.key]).localeCompare(
+              String(b[sortConfig.key]),
+              undefined,
+              {
+                numeric: true,
+              }
+            )
           );
 
         case "mmh_mrc_amt":
-          // Sort using numeric values
-          const amtA = parseFloat(a[key]);
-          const amtB = parseFloat(b[key]);
+          const amtA = parseFloat(a[sortConfig.key]);
+          const amtB = parseFloat(b[sortConfig.key]);
           return multiplier * (amtA - amtB);
 
         case "supplier_name":
         case "supplier_gstn":
-          // Case-insensitive string comparison
           return (
             multiplier *
-            a[key].toLowerCase().localeCompare(b[key].toLowerCase())
+            a[sortConfig.key]
+              .toLowerCase()
+              .localeCompare(b[sortConfig.key].toLowerCase())
           );
 
         default:
@@ -141,11 +151,7 @@ function Purchase() {
       }
     });
 
-    setPurchase(sortedPurchase);
-  };
-
-  const rows = useMemo(() => {
-    const formattedRows = purchase?.map((item) => ({
+    const formattedRows = sortedPurchase?.map((item) => ({
       ...item,
       mmh_mrc_dt: moment(item.mmh_mrc_dt).format("DD-MM-YYYY"),
       mmh_dist_bill_dt: moment(item.mmh_dist_bill_dt).format("DD-MM-YYYY"),
@@ -185,7 +191,7 @@ function Purchase() {
           return String(value).toLowerCase().includes(searchLower);
         });
     });
-  }, [purchase, search]);
+  }, [purchase, search, sortConfig]);
 
   const handleCheckedFilters = (key, value) => {
     setCheckedFilters({

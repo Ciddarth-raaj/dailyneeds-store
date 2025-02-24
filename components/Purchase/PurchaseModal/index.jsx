@@ -18,7 +18,7 @@ import styles from "./styles.module.css";
 import moment from "moment";
 import toast from "react-hot-toast";
 import currencyFormatter from "../../../util/currencyFormatter";
-import { calculateTotalAmount } from "../../../util/purchase";
+import { calculateTotalAmount, shouldShowIGST } from "../../../util/purchase";
 
 const JV_LEDGER_LIST = [
   { id: 1, value: "Ready to Pay" },
@@ -86,8 +86,10 @@ function PurchaseModal({
         setEditable(true);
       }
 
+      const taxList = shouldShowIGST(item) ? item.igst : item.sgst;
+
       // Get existing PERC values
-      const existingPercs = item.sgst.map((item) => parseFloat(item.PERC));
+      const existingPercs = taxList.map((item) => parseFloat(item.PERC));
 
       // Required PERC values
       const requiredPercs = [0, 2.5, 6, 9, 14];
@@ -103,7 +105,7 @@ function PurchaseModal({
 
       // Combine existing and missing items and sort by PERC
       item.gst = [
-        ...item.sgst.map((item) => ({
+        ...taxList.map((item) => ({
           VALUE: parseFloat(item.VALUE),
           PERC: parseFloat(item.PERC * 2),
           TAXABLE: parseFloat(item.TAXABLE),
@@ -120,7 +122,7 @@ function PurchaseModal({
       Math.floor(calculateTotalAmount(values).total_amount) !=
       Math.floor(item.mmh_mrc_amt);
 
-    const { total_amount, total_sgst, total_cgst } =
+    const { total_amount, total_sgst, total_cgst, total_igst } =
       calculateTotalAmount(values);
 
     const internalValues = {
@@ -151,8 +153,9 @@ function PurchaseModal({
       mmh_mrc_dt: values.mmh_mrc_dt,
       mmh_dist_bill_dt: values.mmh_dist_bill_dt,
       mmh_mrc_amt: values.mmh_mrc_amt,
-      cgst: convertedGst,
-      sgst: convertedGst,
+      cgst: item.cgst,
+      sgst: item.sgst,
+      igst: item.igst,
       tot_gst_cess_amt: values.tot_gst_cess_amt,
       mmh_manual_disc: values.mmh_manual_disc,
       mmd_goods_tcs_amt: values.mmd_goods_tcs_amt,
@@ -160,13 +163,22 @@ function PurchaseModal({
       supplier_id: values.supplier_id,
       mmh_mrc_no: values.mmh_mrc_no,
       mmh_dist_bill_no: values.mmh_dist_bill_no,
-      tot_sgst_amt: total_sgst,
-      tot_cgst_amt: total_cgst,
-      tot_igst_amt: values.tot_igst_amt,
+      tot_sgst_amt: item.tot_sgst_amt,
+      tot_cgst_amt: item.tot_cgst_amt,
+      tot_igst_amt: item.tot_igst_amt,
       ts: values.ts,
-      igst: values.igst,
       cess: values.cess,
     };
+
+    if (shouldShowIGST(values)) {
+      externalValues.igst = convertedGst;
+      externalValues.tot_igst_amt = total_igst;
+    } else {
+      externalValues.cgst = convertedGst;
+      externalValues.sgst = convertedGst;
+      externalValues.tot_sgst_amt = total_sgst;
+      externalValues.tot_cgst_amt = total_cgst;
+    }
 
     toast.promise(
       updatePurchase(values.purchase_id, {
@@ -260,32 +272,54 @@ function PurchaseModal({
                         type="number"
                         disabled={!editable}
                       />
-                      <CustomInput
-                        label={`CGST ${item.PERC / 2}% Input`}
-                        name={`cgst.${index}.VALUE`}
-                        disabled={true}
-                        value={
-                          values.gst[index].TAXABLE
-                            ? parseFloat(
-                                (values.gst[index].TAXABLE * (item.PERC / 2)) /
-                                  100
-                              ).toFixed(2)
-                            : ""
-                        }
-                      />
-                      <CustomInput
-                        label={`SGST ${item.PERC / 2}% Input`}
-                        name={`sgst.${index}.VALUE`}
-                        disabled={true}
-                        value={
-                          values.gst[index].TAXABLE
-                            ? parseFloat(
-                                (values.gst[index].TAXABLE * (item.PERC / 2)) /
-                                  100
-                              ).toFixed(2)
-                            : ""
-                        }
-                      />
+
+                      {shouldShowIGST(values) ? (
+                        <CustomInput
+                          label={`IGST ${item.PERC / 2}% Input`}
+                          name={`igst.${index}.VALUE`}
+                          disabled={true}
+                          value={
+                            values.gst[index].TAXABLE
+                              ? parseFloat(
+                                  (values.gst[index].TAXABLE *
+                                    (item.PERC / 2)) /
+                                    100
+                                ).toFixed(2)
+                              : ""
+                          }
+                        />
+                      ) : (
+                        <>
+                          <CustomInput
+                            label={`CGST ${item.PERC / 2}% Input`}
+                            name={`cgst.${index}.VALUE`}
+                            disabled={true}
+                            value={
+                              values.gst[index].TAXABLE
+                                ? parseFloat(
+                                    (values.gst[index].TAXABLE *
+                                      (item.PERC / 2)) /
+                                      100
+                                  ).toFixed(2)
+                                : ""
+                            }
+                          />
+                          <CustomInput
+                            label={`SGST ${item.PERC / 2}% Input`}
+                            name={`sgst.${index}.VALUE`}
+                            disabled={true}
+                            value={
+                              values.gst[index].TAXABLE
+                                ? parseFloat(
+                                    (values.gst[index].TAXABLE *
+                                      (item.PERC / 2)) /
+                                      100
+                                  ).toFixed(2)
+                                : ""
+                            }
+                          />
+                        </>
+                      )}
                     </div>
                   ))}
 

@@ -1,3 +1,11 @@
+export const shouldShowIGST = (values) => {
+  if (values.supplier_gstn.startsWith("34")) {
+    return false;
+  }
+
+  return true;
+};
+
 export const calculateTotalAmount = (values) => {
   let {
     cash_discount,
@@ -16,6 +24,7 @@ export const calculateTotalAmount = (values) => {
   let total_gst = 0;
   let total_cgst = 0;
   let total_sgst = 0;
+  let total_igst = 0;
 
   gst.forEach((item) => {
     const TAXABLE = item.TAXABLE === "" ? 0 : item.TAXABLE;
@@ -26,6 +35,7 @@ export const calculateTotalAmount = (values) => {
 
     total_cgst += taxedValue;
     total_sgst += taxedValue;
+    total_igst += taxedValue;
   });
 
   if (isNaN(cash_discount)) {
@@ -76,6 +86,14 @@ export const calculateTotalAmount = (values) => {
     tot_gst_cess_amt = 0;
   }
 
+  let total_tax = 0;
+
+  if (shouldShowIGST(values)) {
+    total_tax = total_igst;
+  } else {
+    total_tax = total_sgst + total_cgst;
+  }
+
   const total_amount =
     parseFloat(cash_discount) +
     parseFloat(scheme_difference) +
@@ -87,8 +105,7 @@ export const calculateTotalAmount = (values) => {
     parseFloat(mmd_goods_tcs_amt) +
     parseFloat(mmh_manual_disc) +
     parseFloat(tot_gst_cess_amt) +
-    total_sgst +
-    total_cgst +
+    total_tax +
     total_gst;
 
   return {
@@ -98,5 +115,6 @@ export const calculateTotalAmount = (values) => {
     total_sgst: total_sgst?.toFixed(2),
     total_cgst: total_cgst?.toFixed(2),
     total_gst: total_gst?.toFixed(2),
+    total_igst: total_igst?.toFixed(2),
   };
 };
