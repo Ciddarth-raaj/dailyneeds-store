@@ -27,6 +27,7 @@ const JV_LEDGER_LIST = [
 ];
 
 const INITIAL_VALUES = {
+  invoice_amount: 0.0,
   mmh_mrc_refno: "",
   supplier_name: "",
   supplier_gstn: "",
@@ -138,6 +139,7 @@ function PurchaseModal({
       narration: values.narration,
       supplier_credit_note: values.supplier_credit_note,
       total_amount,
+      invoice_amount: values.invoice_amount,
     };
 
     const convertedGst = values.gst
@@ -265,6 +267,13 @@ function PurchaseModal({
                       editable={false}
                     />
                   </div>
+
+                  <CustomInput
+                    label="Invoice Amount"
+                    name={`invoice_amount`}
+                    type="number"
+                    disabled={!editable}
+                  />
 
                   {values.gst.map((item, index) => (
                     <div key={index} className={styles.inputContainer}>
