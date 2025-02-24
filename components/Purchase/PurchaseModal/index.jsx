@@ -92,7 +92,9 @@ function PurchaseModal({
       const existingPercs = taxList.map((item) => parseFloat(item.PERC));
 
       // Required PERC values
-      const requiredPercs = [0, 2.5, 6, 9, 14];
+      const requiredPercs = shouldShowIGST(item)
+        ? [0, 5, 12, 18, 28]
+        : [0, 2.5, 6, 9, 14];
 
       // Add missing PERC values with 0 VALUE
       const missingGstItems = requiredPercs
@@ -138,13 +140,21 @@ function PurchaseModal({
       total_amount,
     };
 
-    const convertedGst = values.gst
-      .filter((item) => item.TAXABLE)
-      .map((item) => ({
-        PERC: item.PERC / 2,
-        VALUE: item.TAXABLE ? (item.TAXABLE * (item.PERC / 2)) / 100 : null,
-        TAXABLE: item.TAXABLE,
-      }));
+    const convertedGst = shouldShowIGST(values)
+      ? values.gst
+          .filter((item) => item.TAXABLE)
+          .map((item) => ({
+            PERC: item.PERC,
+            VALUE: item.TAXABLE ? (item.TAXABLE * item.PERC) / 100 : null,
+            TAXABLE: item.TAXABLE,
+          }))
+      : values.gst
+          .filter((item) => item.TAXABLE)
+          .map((item) => ({
+            PERC: item.PERC / 2,
+            VALUE: item.TAXABLE ? (item.TAXABLE * (item.PERC / 2)) / 100 : null,
+            TAXABLE: item.TAXABLE,
+          }));
 
     const externalValues = {
       mmh_mrc_refno: values.mmh_mrc_refno,
@@ -267,7 +277,9 @@ function PurchaseModal({
                   {values.gst.map((item, index) => (
                     <div key={index} className={styles.inputContainer}>
                       <CustomInput
-                        label={`Local Purchase ${item.PERC}%`}
+                        label={`${
+                          shouldShowIGST(values) ? "IGST" : "Local"
+                        } Purchase ${item.PERC}%`}
                         name={`gst.${index}.TAXABLE`}
                         type="number"
                         disabled={!editable}
@@ -275,15 +287,13 @@ function PurchaseModal({
 
                       {shouldShowIGST(values) ? (
                         <CustomInput
-                          label={`IGST ${item.PERC / 2}% Input`}
+                          label={`IGST ${item.PERC}% Input`}
                           name={`igst.${index}.VALUE`}
                           disabled={true}
                           value={
                             values.gst[index].TAXABLE
                               ? parseFloat(
-                                  (values.gst[index].TAXABLE *
-                                    (item.PERC / 2)) /
-                                    100
+                                  (values.gst[index].TAXABLE * item.PERC) / 100
                                 ).toFixed(2)
                               : ""
                           }

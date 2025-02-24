@@ -1,5 +1,11 @@
 export const shouldShowIGST = (values) => {
-  if (values.supplier_gstn.startsWith("34")) {
+  console.log("CIDD", values?.supplier_gstn);
+  if (
+    !values?.supplier_gstn ||
+    values?.supplier_gstn == "" ||
+    values?.supplier_gstn == 0 ||
+    values?.supplier_gstn?.startsWith("34")
+  ) {
     return false;
   }
 
@@ -32,10 +38,11 @@ export const calculateTotalAmount = (values) => {
     total_gst += TAXABLE;
 
     const taxedValue = (TAXABLE * (item.PERC / 2)) / 100;
+    const taxedValueIGST = (TAXABLE * item.PERC) / 100;
 
     total_cgst += taxedValue;
     total_sgst += taxedValue;
-    total_igst += taxedValue;
+    total_igst += taxedValueIGST;
   });
 
   if (isNaN(cash_discount)) {
