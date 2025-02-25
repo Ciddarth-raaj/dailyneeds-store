@@ -265,6 +265,7 @@ function Purchase() {
           rows={rows}
           sortCallback={handleSort}
           size="sm"
+          showPagination
         />
       </CustomContainer>
     </GlobalWrapper>
