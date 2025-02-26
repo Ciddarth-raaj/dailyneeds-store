@@ -92,6 +92,12 @@ export const calculateTotalAmount = (values) => {
     tot_gst_cess_amt = 0;
   }
 
+  if (isNaN(due)) {
+    due = 0;
+  } else {
+    due = -1 * due;
+  }
+
   let total_tax = 0;
 
   if (shouldShowIGST(values)) {
