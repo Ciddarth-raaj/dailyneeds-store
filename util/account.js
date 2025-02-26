@@ -519,6 +519,7 @@ export function getWarehouseCashbook(
   allDenominations,
   startingCash,
   presetOpeningCash,
+  allEmployees,
   noFormat = false
 ) {
   const modified = [];
@@ -557,8 +558,15 @@ export function getWarehouseCashbook(
     });
 
     sales.forEach((item) => {
+      let person_name = item.person_name;
+      if (item.person_type === 5) {
+        person_name = allEmployees.find(
+          (employee) => employee.employee_id === item.person_id
+        )?.employee_name;
+      }
+
       modified.push({
-        particulars: item.person_name,
+        particulars: person_name,
         narration: item.description,
         debit: item.payment_type === 2 ? item.amount : "",
         credit: item.payment_type === 1 ? item.amount : "",

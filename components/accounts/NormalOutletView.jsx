@@ -122,9 +122,17 @@ function NormalOutletView({
       allDenominations,
       startingCash,
       presetOpeningCash,
+      allEmployees,
       true
     );
-  }, [sales, denomination, allDenominations, startingCash, presetOpeningCash]);
+  }, [
+    sales,
+    denomination,
+    allDenominations,
+    startingCash,
+    presetOpeningCash,
+    allEmployees,
+  ]);
 
   const getOutletById = (store_id) =>
     outlets.find((item) => item.outlet_id == store_id);

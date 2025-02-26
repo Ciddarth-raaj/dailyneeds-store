@@ -15,6 +15,7 @@ import { addStartingCash } from "../../helper/accounts";
 import toast from "react-hot-toast";
 import usePermissions from "../../customHooks/usePermissions";
 import { Badge } from "@chakra-ui/react";
+import useEmployees from "../../customHooks/useEmployees";
 
 const HEADINGS_CASHBOOK = {
   particulars: "Particulars",
@@ -58,6 +59,7 @@ function WarehouseView({ selectedDate }) {
     setIsCarriedForward,
   } = useWarehouseSales(filters);
   const { denomination } = useWarehouseDenomination(filters);
+  const { employees } = useEmployees();
 
   const modifiedDenominations = useMemo(() => {
     return getWarehouseDenominations(denomination);
@@ -69,9 +71,17 @@ function WarehouseView({ selectedDate }) {
       denomination,
       allDenominations,
       startingCash,
-      presetOpeningCash
+      presetOpeningCash,
+      employees
     );
-  }, [sales, denomination, allDenominations, startingCash, presetOpeningCash]);
+  }, [
+    sales,
+    denomination,
+    allDenominations,
+    startingCash,
+    presetOpeningCash,
+    employees,
+  ]);
 
   const isCashBookNotEqual = useMemo(() => {
     return modifiedCashBook.some((item) => item.isNotEqual);

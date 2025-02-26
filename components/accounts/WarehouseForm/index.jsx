@@ -86,9 +86,15 @@ function WarehouseForm() {
       (type) => type.id == item.payment_type
     );
 
-    const person_name = peopleList.find(
+    let person_name = peopleList.find(
       (person) => person.person_id == item.person_id
-    );
+    )?.name;
+
+    if (person_type.id == 5) {
+      person_name = employees.find(
+        (employee) => employee.employee_id == item.person_id
+      )?.employee_name;
+    }
 
     const handleStartEdit = (item) => {
       setIsEditing(true);
@@ -99,7 +105,7 @@ function WarehouseForm() {
       ...item,
       person_type: person_type?.value ?? "N/A",
       payment_type: payment_type?.value ?? "N/A",
-      person_id: person_name?.name ?? "N/A",
+      person_id: person_name ?? "N/A",
       amount: currencyFormatter(item.amount),
       actions: (
         <Menu
