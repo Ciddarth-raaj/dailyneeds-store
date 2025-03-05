@@ -46,6 +46,7 @@ function Purchase() {
     isApproved: false,
     isUpdated: false,
     isPending: false,
+    isPushed: false,
   });
   const [sortConfig, setSortConfig] = useState({
     key: "mmh_mrc_refno",
@@ -83,11 +84,14 @@ function Purchase() {
       filterItem["is_approved"] = false;
     }
 
+    if (checkedFilters.isPushed) {
+      filterItem["is_pushed"] = true;
+    }
+
     return filterItem;
   }, [selectedOutlet, fromDate, toDate, checkedFilters]);
 
-  const { purchase, updatePurchase, setPurchase, unapprovePurchase } =
-    usePurchase(filters);
+  const { purchase, updatePurchase, unapprovePurchase } = usePurchase(filters);
 
   const handleSort = useCallback((key, direction) => {
     setSortConfig({ key, direction });
@@ -96,6 +100,10 @@ function Purchase() {
   const getStatus = (item) => {
     if (item.has_updated) {
       return <Badge colorScheme="red">Updated</Badge>;
+    }
+
+    if (item.tally_response.voucher_no) {
+      return <Badge colorScheme="blue">Pushed to Tally</Badge>;
     }
 
     if (item.is_approved) {
@@ -198,6 +206,7 @@ function Purchase() {
       isApproved: false,
       isUpdated: false,
       isPending: false,
+      isPushed: false,
       [key]: value,
     });
   };
@@ -256,6 +265,13 @@ function Purchase() {
             }
           >
             Updated
+          </Checkbox>
+          <Checkbox
+            isChecked={checkedFilters.isPushed}
+            colorScheme="purple"
+            onChange={(e) => handleCheckedFilters("isPushed", e.target.checked)}
+          >
+            Pushed to Tally
           </Checkbox>
         </Flex>
 
