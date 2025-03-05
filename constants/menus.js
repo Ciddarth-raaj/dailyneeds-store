@@ -167,6 +167,12 @@ export default {
         selected: false,
         location: "/purchase",
       },
+      view_purchases_difference: {
+        title: "Difference",
+        permission: "view_purchases_difference",
+        selected: false,
+        location: "/purchase/difference",
+      },
     },
   },
   products: {

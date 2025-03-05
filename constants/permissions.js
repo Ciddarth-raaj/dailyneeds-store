@@ -88,4 +88,5 @@ export const PERMISSIONS = {
   view_digital_payments: "View Digital Payments",
   view_epayment_reconciliation: "View E-Payment Reconciliation",
   view_purchases: "View Purchases",
+  view_purchases_difference: "View Purchases Difference",
 };

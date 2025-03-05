@@ -29,3 +29,13 @@ export const updatePurchaseFlags = async (purchaseId, flags) => {
     throw err;
   }
 };
+
+export const getAllPurchasesFromTally = async (filters) => {
+  try {
+    const response = await API.get(`/purchase-tally`, { params: filters });
+    return response.data;
+  } catch (err) {
+    console.log(err);
+    throw err;
+  }
+};
