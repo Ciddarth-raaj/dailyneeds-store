@@ -90,8 +90,10 @@ function PurchaseModal({
       const taxList = shouldShowIGST(item) ? item.igst : item.sgst;
 
       // Get existing PERC values
-      const existingPercs = taxList.map((item) =>
-        shouldShowIGST(item) ? parseFloat(item.PERC) / 2 : parseFloat(item.PERC)
+      const existingPercs = taxList.map((taxItem) =>
+        shouldShowIGST(item)
+          ? parseFloat(taxItem.PERC) / 2
+          : parseFloat(taxItem.PERC)
       );
 
       // Required PERC values
@@ -108,10 +110,10 @@ function PurchaseModal({
 
       // Combine existing and missing items and sort by PERC
       item.gst = [
-        ...taxList.map((item) => ({
-          VALUE: parseFloat(item.VALUE),
-          PERC: parseFloat(item.PERC * 2),
-          TAXABLE: parseFloat(item.TAXABLE),
+        ...taxList.map((taxItem) => ({
+          VALUE: parseFloat(taxItem.VALUE),
+          PERC: parseFloat(taxItem.PERC * (shouldShowIGST(item) ? 1 : 2)),
+          TAXABLE: parseFloat(taxItem.TAXABLE),
         })),
         ...missingGstItems,
       ].sort((a, b) => a.PERC - b.PERC);
