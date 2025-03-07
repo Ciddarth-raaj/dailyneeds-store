@@ -101,9 +101,10 @@ export const calculateTotalAmount = (values) => {
   let total_tax = 0;
 
   if (shouldShowIGST(values)) {
-    total_tax = total_igst;
+    total_tax = parseFloat(total_igst.toFixed(2));
   } else {
-    total_tax = total_sgst + total_cgst;
+    total_tax =
+      parseFloat(total_sgst.toFixed(2)) + parseFloat(total_cgst.toFixed(2));
   }
 
   const total_amount =
