@@ -56,64 +56,70 @@ function Difference() {
   const { purchase } = usePurchaseFromTally(filters);
 
   const rows = useMemo(() => {
-    return purchase.map((item) => {
-      let difference = (item.total_amount - item.InvoiceValue).toFixed(2);
+    return purchase
+      .map((item) => {
+        let difference = (item.total_amount - item.InvoiceValue).toFixed(2);
 
-      if (difference == 0) {
-        difference = "-";
-      } else {
-        difference = <p style={{ color: "red" }}>{difference}</p>;
-      }
+        if (difference == 0) {
+          difference = "-";
+        } else {
+          difference = <p style={{ color: "red" }}>{difference}</p>;
+        }
 
-      const highlightDifferences = (string1, string2) => {
-        const diff = diffWords(string1, string2);
+        const highlightDifferences = (string1, string2) => {
+          const diff = diffWords(string1, string2);
 
-        return diff.map((part, index) => {
-          if (part.added) {
-            return (
-              <span
-                key={index}
-                style={{
-                  backgroundColor: "#b2d8b2",
-                  marginInline: "2.5px",
-                  paddingInline: "2.5px",
-                  borderRadius: "3px",
-                }}
-              >
-                {part.value}
-              </span>
-            );
-          } else if (part.removed) {
-            return (
-              <span
-                key={index}
-                style={{
-                  backgroundColor: "#ff9999",
-                  textDecoration: "line-through",
-                  marginInline: "2.5px",
-                  paddingInline: "2.5px",
-                  borderRadius: "3px",
-                }}
-              >
-                {part.value}
-              </span>
-            );
-          } else {
-            return <span key={index}>{part.value}</span>;
-          }
-        });
-      };
+          return diff.map((part, index) => {
+            if (part.added) {
+              return (
+                <span
+                  key={index}
+                  style={{
+                    backgroundColor: "#b2d8b2",
+                    marginInline: "2.5px",
+                    paddingInline: "2.5px",
+                    borderRadius: "3px",
+                  }}
+                >
+                  {part.value}
+                </span>
+              );
+            } else if (part.removed) {
+              return (
+                <span
+                  key={index}
+                  style={{
+                    backgroundColor: "#ff9999",
+                    textDecoration: "line-through",
+                    marginInline: "2.5px",
+                    paddingInline: "2.5px",
+                    borderRadius: "3px",
+                  }}
+                >
+                  {part.value}
+                </span>
+              );
+            } else {
+              return <span key={index}>{part.value}</span>;
+            }
+          });
+        };
 
-      return {
-        ...item,
-        mmh_mrc_dt: moment(item.mmh_mrc_dt).format("DD-MM-YYYY"),
-        difference_amount: difference,
-        difference_name: highlightDifferences(
-          item.supplier_name,
-          item.SupplierName
-        ),
-      };
-    });
+        if (difference === "-") {
+          return null;
+        }
+
+        return {
+          ...item,
+          mmh_mrc_dt: moment(item.mmh_mrc_dt).format("DD-MM-YYYY"),
+          difference_amount: difference,
+          difference_name: highlightDifferences(
+            item.supplier_name,
+            item.SupplierName
+          ),
+        };
+      })
+      .filter((item) => item !== null);
   }, [purchase]);
 
   return (

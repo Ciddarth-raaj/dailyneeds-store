@@ -13,7 +13,6 @@ export function usePurchaseFromTally(filters) {
         setPurchase([]);
       }
 
-      console.log("CIDD", filters);
       const data = await getAllPurchasesFromTally(filters);
       if (data.code === 200) {
         setPurchase(data.data);
