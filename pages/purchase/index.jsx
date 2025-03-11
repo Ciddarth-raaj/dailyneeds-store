@@ -82,6 +82,7 @@ function Purchase() {
 
     if (checkedFilters.isPending) {
       filterItem["is_approved"] = false;
+      filterItem["is_pushed"] = false;
     }
 
     if (checkedFilters.isPushed) {
