@@ -1,6 +1,7 @@
-export default function currencyFormatter(value, minFractionDigits = 0) {
+export default function currencyFormatter(value) {
   let formatter = new Intl.NumberFormat("en-IN", {
-    minimumFractionDigits: 0,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   });
 
   return formatter.format(value);
