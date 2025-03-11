@@ -442,10 +442,10 @@ function PurchaseModal({
                   <Badge>
                     Total Amount :{" "}
                     {currencyFormatter(
-                      calculateTotalAmount(values).total_amount
+                      calculateTotalAmount(values).total_amount,
+                      2
                     )}
                   </Badge>
-
                   <Button
                     variant="ghost"
                     colorScheme="red"

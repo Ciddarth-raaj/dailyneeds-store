@@ -39,9 +39,11 @@ export const calculateTotalAmount = (values) => {
     const taxedValue = (TAXABLE * (item.PERC / 2)) / 100;
     const taxedValueIGST = (TAXABLE * item.PERC) / 100;
 
-    total_cgst += taxedValue;
-    total_sgst += taxedValue;
-    total_igst += taxedValueIGST;
+    console.log("CIDD", taxedValue, taxedValueIGST);
+
+    total_cgst += parseFloat(taxedValue.toFixed(2));
+    total_sgst += parseFloat(taxedValue.toFixed(2));
+    total_igst += parseFloat(taxedValueIGST.toFixed(2));
   });
 
   if (isNaN(cash_discount)) {
