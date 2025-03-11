@@ -111,9 +111,11 @@ function PurchaseModal({
       // Combine existing and missing items and sort by PERC
       item.gst = [
         ...taxList.map((taxItem) => ({
-          VALUE: parseFloat(taxItem.VALUE),
+          // VALUE: taxItem.VALUE ? parseFloat(taxItem.VALUE).toFixed(2) : null,
+          VALUE: taxItem.VALUE,
           PERC: parseFloat(taxItem.PERC * (shouldShowIGST(item) ? 1 : 2)),
-          TAXABLE: parseFloat(taxItem.TAXABLE),
+          // TAXABLE: parseFloat(taxItem.TAXABLE).toFixed(2),
+          TAXABLE: taxItem.TAXABLE,
         })),
         ...missingGstItems,
       ].sort((a, b) => a.PERC - b.PERC);
@@ -145,12 +147,17 @@ function PurchaseModal({
     };
 
     const convertedGst = values.gst
-      .filter((item) => item.TAXABLE)
-      .map((item) => ({
-        PERC: item.PERC / 2,
-        VALUE: item.TAXABLE ? (item.TAXABLE * (item.PERC / 2)) / 100 : null,
-        TAXABLE: item.TAXABLE,
-      }));
+      .filter((taxItem) => taxItem.TAXABLE)
+      .map((taxItem) => {
+        const PERC = shouldShowIGST(item) ? taxItem.PERC : taxItem.PERC / 2;
+        return {
+          PERC: PERC,
+          VALUE: taxItem.TAXABLE
+            ? parseFloat((taxItem.TAXABLE * PERC) / 100).toFixed(2)
+            : null,
+          TAXABLE: taxItem.TAXABLE,
+        };
+      });
 
     const externalValues = {
       mmh_mrc_refno: values.mmh_mrc_refno,
@@ -179,11 +186,19 @@ function PurchaseModal({
     if (shouldShowIGST(values)) {
       externalValues.igst = convertedGst;
       externalValues.tot_igst_amt = total_igst;
+
+      externalValues.cgst = [];
+      externalValues.sgst = [];
+      externalValues.tot_sgst_amt = 0;
+      externalValues.tot_cgst_amt = 0;
     } else {
       externalValues.cgst = convertedGst;
       externalValues.sgst = convertedGst;
       externalValues.tot_sgst_amt = total_sgst;
       externalValues.tot_cgst_amt = total_cgst;
+
+      externalValues.igst = [];
+      externalValues.tot_igst_amt = 0;
     }
 
     toast.promise(

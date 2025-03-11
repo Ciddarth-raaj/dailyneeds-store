@@ -22,7 +22,6 @@ export const updatePurchase = async (purchase_id, data) => {
 
 export const updatePurchaseFlags = async (purchaseId, flags) => {
   try {
-    console.log("CIDD", { purchaseId, flags });
     const response = await API.put(`/purchase/${purchaseId}/flags`, flags);
     return response.data;
   } catch (err) {
