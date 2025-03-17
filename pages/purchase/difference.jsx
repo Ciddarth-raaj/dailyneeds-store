@@ -141,7 +141,8 @@ function Difference() {
           });
         };
 
-        if (difference === "-" && mrcDifference === "-") {
+        // if (difference === "-" && mrcDifference === "-") {
+        if (mrcDifference === "-") {
           return null;
         }
 
