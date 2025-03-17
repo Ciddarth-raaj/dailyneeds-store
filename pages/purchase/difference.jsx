@@ -80,7 +80,7 @@ function Difference() {
         let difference = (item.total_amount - item.InvoiceValue).toFixed(2);
         let mrcDifference = (item.mmh_mrc_amt - item.InvoiceValue).toFixed(2);
 
-        if (difference == 0) {
+        if (difference <= 1 && difference >= -1) {
           difference = "-";
         } else {
           difference = (
@@ -88,7 +88,7 @@ function Difference() {
           );
         }
 
-        if (mrcDifference == 0) {
+        if (mrcDifference <= 1 && mrcDifference >= -1) {
           mrcDifference = "-";
         } else {
           mrcDifference = (
