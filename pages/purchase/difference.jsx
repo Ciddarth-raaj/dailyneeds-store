@@ -15,15 +15,15 @@ const HEADINGS = {
   CostCentre: "Outlet Name",
   total_amount: "Total Amount",
   mmh_mrc_amt: "MRC Amount",
-  difference_amount: (
-    <p>
-      Difference Amount
-      <br />
-      <span style={{ fontSize: "10px", color: "gray" }}>
-        (Total Amount - Invoice Amount)
-      </span>
-    </p>
-  ),
+  // difference_amount: (
+  //   <p>
+  //     Difference Amount
+  //     <br />
+  //     <span style={{ fontSize: "10px", color: "gray" }}>
+  //       (Total Amount - Invoice Amount)
+  //     </span>
+  //   </p>
+  // ),
   mrc_difference: (
     <p>
       MRC Difference Amount
