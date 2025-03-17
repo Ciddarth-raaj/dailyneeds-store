@@ -6,6 +6,7 @@ import { usePurchaseFromTally } from "../../customHooks/usePurchaseFromTally";
 import Table from "../../components/table/table";
 import moment from "moment";
 import { diffWords } from "diff";
+import currencyFormatter from "../../util/currencyFormatter";
 
 const HEADINGS = {
   VoucherNo: "MRC Ref No",
@@ -13,7 +14,25 @@ const HEADINGS = {
   mmh_mrc_dt: "MRC Date",
   CostCentre: "Outlet Name",
   total_amount: "Total Amount",
-  difference_amount: "Difference Amount",
+  mmh_mrc_amt: "MRC Amount",
+  difference_amount: (
+    <p>
+      Difference Amount
+      <br />
+      <span style={{ fontSize: "10px", color: "gray" }}>
+        (Total Amount - Invoice Amount)
+      </span>
+    </p>
+  ),
+  mrc_difference: (
+    <p>
+      MRC Difference Amount
+      <br />
+      <span style={{ fontSize: "10px", color: "gray" }}>
+        (MRC Amount - Invoice Amount)
+      </span>
+    </p>
+  ),
   difference_name: "Difference Name",
 };
 
@@ -59,11 +78,22 @@ function Difference() {
     return purchase
       .map((item) => {
         let difference = (item.total_amount - item.InvoiceValue).toFixed(2);
+        let mrcDifference = (item.mmh_mrc_amt - item.InvoiceValue).toFixed(2);
 
         if (difference == 0) {
           difference = "-";
         } else {
-          difference = <p style={{ color: "red" }}>{difference}</p>;
+          difference = (
+            <p style={{ color: "red" }}>{currencyFormatter(difference)}</p>
+          );
+        }
+
+        if (mrcDifference == 0) {
+          mrcDifference = "-";
+        } else {
+          mrcDifference = (
+            <p style={{ color: "red" }}>{currencyFormatter(mrcDifference)}</p>
+          );
         }
 
         const highlightDifferences = (string1, string2) => {
@@ -79,6 +109,7 @@ function Difference() {
                     marginInline: "2.5px",
                     paddingInline: "2.5px",
                     borderRadius: "3px",
+                    textTransform: "capitalize",
                   }}
                 >
                   {part.value}
@@ -94,18 +125,23 @@ function Difference() {
                     marginInline: "2.5px",
                     paddingInline: "2.5px",
                     borderRadius: "3px",
+                    textTransform: "capitalize",
                   }}
                 >
                   {part.value}
                 </span>
               );
             } else {
-              return <span key={index}>{part.value}</span>;
+              return (
+                <span style={{ textTransform: "capitalize" }} key={index}>
+                  {part.value}
+                </span>
+              );
             }
           });
         };
 
-        if (difference === "-") {
+        if (difference === "-" && mrcDifference === "-") {
           return null;
         }
 
@@ -113,9 +149,12 @@ function Difference() {
           ...item,
           mmh_mrc_dt: moment(item.mmh_mrc_dt).format("DD-MM-YYYY"),
           difference_amount: difference,
+          mrc_difference: mrcDifference,
+          total_amount: currencyFormatter(item.total_amount),
+          mmh_mrc_amt: currencyFormatter(item.mmh_mrc_amt),
           difference_name: highlightDifferences(
-            item.supplier_name,
-            item.SupplierName
+            item.supplier_name.toLowerCase(),
+            item.SupplierName.toLowerCase()
           ),
         };
       })
