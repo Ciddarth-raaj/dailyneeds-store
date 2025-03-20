@@ -148,6 +148,9 @@ function DebitNoteModal({
       ].sort((a, b) => a.PERC - b.PERC);
 
       setPurchaseRefNo(item.mmh_mrc_refno);
+
+      item.mmh_mrc_refno = item.mmh_mrc_refno ?? "";
+
       setInitialValues(structuredClone({ ...INITIAL_VALUES, ...item }));
     }
   }, [item]);
@@ -166,6 +169,7 @@ function DebitNoteModal({
       total_amount,
       tcs_value: values.tcs_value,
       mmh_mrc_refno: values.mmh_mrc_refno,
+      round_off: values.round_off,
     };
 
     const convertedGst = values.gst
