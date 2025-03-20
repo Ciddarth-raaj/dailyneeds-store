@@ -92,7 +92,12 @@ function Purchase() {
     return filterItem;
   }, [selectedOutlet, fromDate, toDate, checkedFilters]);
 
-  const { purchase, updatePurchase, unapprovePurchase } = usePurchase(filters);
+  const {
+    purchase,
+    updatePurchase,
+    unapprovePurchase,
+    deletePurchaseTallyResponse,
+  } = usePurchase(filters);
 
   const handleSort = useCallback((key, direction) => {
     setSortConfig({ key, direction });
@@ -182,6 +187,13 @@ function Purchase() {
           }
           transition
         >
+          {item.VoucherNo && (
+            <MenuItem
+              onClick={() => deletePurchaseTallyResponse(item.VoucherNo)}
+            >
+              Delete Tally Response
+            </MenuItem>
+          )}
           <MenuItem onClick={() => setSelectedPurchase(item)}>Edit</MenuItem>
         </Menu>
       ),

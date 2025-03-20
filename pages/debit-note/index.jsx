@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../components/CustomContainer";
-import { usePurchase } from "../../customHooks/usePurchase";
 import Table from "../../components/table/table";
 import moment from "moment";
 import currencyFormatter from "../../util/currencyFormatter";

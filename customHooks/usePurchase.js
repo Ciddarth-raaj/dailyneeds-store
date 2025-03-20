@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import {
+  deletePurchaseTallyResponse,
   getAllPurchases,
   updatePurchase,
   updatePurchaseFlags,
@@ -32,6 +33,20 @@ export function usePurchase(filters) {
     try {
       const response = await updatePurchase(purchase_id, data);
       await approvePurchase(purchase_id);
+      if (response.code === 200) {
+        await fetchPurchase(true);
+      }
+
+      return response;
+    } catch (err) {
+      setError(err);
+    }
+  };
+
+  const deletePurchaseTallyResponseHandler = async (VoucherNo) => {
+    try {
+      const response = await deletePurchaseTallyResponse(VoucherNo);
+
       if (response.code === 200) {
         await fetchPurchase(true);
       }
@@ -83,5 +98,6 @@ export function usePurchase(filters) {
     updatePurchase: updatePurchaseHandler,
     updatePurchaseFlags: updatePurchaseFlagsHandler,
     unapprovePurchase: unapprovePurchase,
+    deletePurchaseTallyResponse: deletePurchaseTallyResponseHandler,
   };
 }

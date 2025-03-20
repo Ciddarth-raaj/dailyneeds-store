@@ -49,3 +49,13 @@ export const getAllPurchasesFromTally = async (filters) => {
     throw err;
   }
 };
+
+export const deletePurchaseTallyResponse = async (VoucherNo) => {
+  try {
+    const response = await API.delete(`/purchase/delete-tally/${VoucherNo}`);
+    return response.data;
+  } catch (err) {
+    console.log(err);
+    throw err;
+  }
+};
