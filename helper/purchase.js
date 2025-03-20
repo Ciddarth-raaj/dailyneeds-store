@@ -10,6 +10,16 @@ export const getAllPurchases = async (filters) => {
   }
 };
 
+export const getPurchaseByRefNo = async (mmh_mrc_refno) => {
+  try {
+    const response = await API.get(`/purchase/${mmh_mrc_refno}`);
+    return response.data;
+  } catch (err) {
+    console.log(err);
+    throw err;
+  }
+};
+
 export const updatePurchase = async (purchase_id, data) => {
   try {
     const response = await API.put(`/purchase/${purchase_id}`, data);

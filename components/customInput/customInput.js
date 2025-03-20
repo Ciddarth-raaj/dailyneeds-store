@@ -247,6 +247,10 @@ const TextField = ({
                     autoComplete="off"
                     placeholder={floatingLabel ? " " : props.placeholder}
                     onWheel={(e) => e.target.blur()}
+                    onChange={(val) => {
+                      setFieldValue(field.name, val.target.value);
+                      onChange && onChange(val.target.value);
+                    }}
                   />
                 )}
                 {floatingLabel && <FormLabel>{label}</FormLabel>}

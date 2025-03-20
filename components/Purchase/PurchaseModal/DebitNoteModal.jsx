@@ -19,6 +19,8 @@ import moment from "moment";
 import toast from "react-hot-toast";
 import currencyFormatter from "../../../util/currencyFormatter";
 import { calculateTotalAmount, shouldShowIGST } from "../../../util/debit-note";
+import { getPurchaseByRefNo } from "../../../helper/purchase";
+import useDebounce from "../../../customHooks/useDebounce";
 
 const JV_LEDGER_LIST = [
   { id: 1, value: "Ready to Pay" },
@@ -78,6 +80,31 @@ function DebitNoteModal({
 }) {
   const [initialValues, setInitialValues] = useState(INITIAL_VALUES);
   const [editable, setEditable] = useState(true);
+  const [purchaseRefNo, setPurchaseRefNo] = useState(null);
+  const [selectedPurchase, setSelectedPurchase] = useState(null);
+  const debouncedPurchaseRefNo = useDebounce(purchaseRefNo, 1000);
+
+  const isSameSupplier =
+    selectedPurchase === null
+      ? null
+      : selectedPurchase?.supplier_gstn === initialValues.supplier_gstn;
+
+  const fetchPurchaseFromRefNo = async () => {
+    const res = await getPurchaseByRefNo(purchaseRefNo);
+
+    if (res.code === 200) {
+      setSelectedPurchase(res.data);
+    } else {
+      toast.error("Purchase not found!");
+    }
+  };
+
+  useEffect(() => {
+    setSelectedPurchase(null);
+    if (debouncedPurchaseRefNo) {
+      fetchPurchaseFromRefNo();
+    }
+  }, [debouncedPurchaseRefNo]);
 
   useEffect(() => {
     if (item) {
@@ -120,6 +147,7 @@ function DebitNoteModal({
         ...missingGstItems,
       ].sort((a, b) => a.PERC - b.PERC);
 
+      setPurchaseRefNo(item.mmh_mrc_refno);
       setInitialValues(structuredClone({ ...INITIAL_VALUES, ...item }));
     }
   }, [item]);
@@ -197,8 +225,7 @@ function DebitNoteModal({
       updatePurchase(values.debit_note_id, {
         purchase: externalValues,
         purchase_internal: internalValues,
-        // send_not_matched_notification: isTotalAmountMismatch,
-        send_not_matched_notification: false,
+        send_not_matched_notification: isTotalAmountMismatch,
       }),
       {
         loading: "Updating Purchase Record!",
@@ -272,11 +299,26 @@ function DebitNoteModal({
                     />
                   </div>
 
-                  <CustomInput
-                    label="MRC Ref No"
-                    name="mmh_mrc_refno"
-                    disabled={!editable}
-                  />
+                  <div style={{ display: "flex", alignItems: "center" }}>
+                    <CustomInput
+                      label="MRC Ref No"
+                      name="mmh_mrc_refno"
+                      disabled={!editable}
+                      onChange={(val) => {
+                        setPurchaseRefNo(val);
+                      }}
+                    />
+
+                    {isSameSupplier !== null && isSameSupplier ? (
+                      <Badge style={{ marginBottom: "10px" }} color={"green"}>
+                        Match
+                      </Badge>
+                    ) : (
+                      <Badge style={{ marginBottom: "10px" }} color={"red"}>
+                        Different GSTN
+                      </Badge>
+                    )}
+                  </div>
 
                   {values.gst.map((item, index) => (
                     <div key={index} className={styles.inputContainer}>
