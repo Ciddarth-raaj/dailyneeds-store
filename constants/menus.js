@@ -159,7 +159,7 @@ export default {
     title: "Purchase",
     selected: false,
     openPage: false,
-    icon: "fa-users",
+    icon: "fa-dollar-sign",
     subMenu: {
       view_purchase_order: {
         title: "All Purchases",
@@ -172,6 +172,20 @@ export default {
         permission: "view_purchases_difference",
         selected: false,
         location: "/purchase/difference",
+      },
+    },
+  },
+  debit_note: {
+    title: "Debit Note",
+    selected: false,
+    openPage: false,
+    icon: "fa-money-bill-alt",
+    subMenu: {
+      view_purchase_order: {
+        title: "All Debit Notes",
+        permission: "view_debit_note",
+        selected: false,
+        location: "/debit-note",
       },
     },
   },

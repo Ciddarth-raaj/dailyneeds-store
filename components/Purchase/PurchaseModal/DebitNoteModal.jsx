@@ -309,15 +309,16 @@ function DebitNoteModal({
                       }}
                     />
 
-                    {isSameSupplier !== null && isSameSupplier ? (
-                      <Badge style={{ marginBottom: "10px" }} color={"green"}>
-                        Match
-                      </Badge>
-                    ) : (
-                      <Badge style={{ marginBottom: "10px" }} color={"red"}>
-                        Different GSTN
-                      </Badge>
-                    )}
+                    {isSameSupplier !== null &&
+                      (isSameSupplier ? (
+                        <Badge style={{ marginBottom: "10px" }} color={"green"}>
+                          Match
+                        </Badge>
+                      ) : (
+                        <Badge style={{ marginBottom: "10px" }} color={"red"}>
+                          Different GSTN
+                        </Badge>
+                      ))}
                   </div>
 
                   {values.gst.map((item, index) => (
