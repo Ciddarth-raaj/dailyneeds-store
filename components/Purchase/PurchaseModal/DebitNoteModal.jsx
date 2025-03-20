@@ -137,6 +137,7 @@ function DebitNoteModal({
       narration: values.narration,
       total_amount,
       tcs_value: values.tcs_value,
+      mmh_mrc_refno: values.mmh_mrc_refno,
     };
 
     const convertedGst = values.gst
@@ -270,6 +271,12 @@ function DebitNoteModal({
                       editable={false}
                     />
                   </div>
+
+                  <CustomInput
+                    label="MRC Ref No"
+                    name="mmh_mrc_refno"
+                    disabled={!editable}
+                  />
 
                   {values.gst.map((item, index) => (
                     <div key={index} className={styles.inputContainer}>
