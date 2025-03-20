@@ -12,7 +12,7 @@ export const shouldShowIGST = (values) => {
 };
 
 export const calculateTotalAmount = (values) => {
-  let { scheme_difference, tcs_value, gst } = values;
+  let { scheme_difference, tcs_value, gst, round_off } = values;
 
   let total_gst = 0;
   let total_cgst = 0;
@@ -20,7 +20,11 @@ export const calculateTotalAmount = (values) => {
   let total_igst = 0;
 
   gst?.forEach((item) => {
-    const TAXABLE = item.TAXABLE === "" ? 0 : item.TAXABLE;
+    console.log("CIDD", item.TAXABLE);
+    const TAXABLE =
+      item.TAXABLE === "" || item.TAXABLE === null
+        ? 0
+        : parseFloat(item.TAXABLE);
 
     total_gst += TAXABLE;
 
@@ -42,6 +46,10 @@ export const calculateTotalAmount = (values) => {
     tcs_value = 0;
   }
 
+  if (isNaN(round_off)) {
+    round_off = 0;
+  }
+
   let total_tax = 0;
 
   if (shouldShowIGST(values)) {
@@ -54,6 +62,7 @@ export const calculateTotalAmount = (values) => {
   const total_amount =
     parseFloat(scheme_difference) +
     parseFloat(tcs_value) +
+    parseFloat(round_off) +
     total_tax +
     total_gst;
 

@@ -50,7 +50,7 @@ function Purchase() {
     isPushed: false,
   });
   const [sortConfig, setSortConfig] = useState({
-    key: "mmh_mrc_refno",
+    key: "mprh_pr_refno",
     direction: "desc",
   });
 
@@ -70,7 +70,7 @@ function Purchase() {
     filterItem["to_date"] = endOfDay.toISOString();
 
     if (selectedOutlet) {
-      filterItem["retail_outlet_id"] = selectedOutlet;
+      filterItem["store_id"] = selectedOutlet;
     }
 
     if (checkedFilters.isApproved) {
@@ -124,13 +124,12 @@ function Purchase() {
       const multiplier = sortConfig.direction === "asc" ? 1 : -1;
 
       switch (sortConfig.key) {
-        case "mmh_mrc_dt":
-        case "mmh_dist_bill_dt":
+        case "mprh_pr_dt":
           const dateA = new Date(a[sortConfig.key]).getTime();
           const dateB = new Date(b[sortConfig.key]).getTime();
           return multiplier * (dateA - dateB);
 
-        case "mmh_mrc_refno":
+        case "mprh_pr_refno":
           return (
             multiplier *
             String(a[sortConfig.key]).localeCompare(
@@ -142,7 +141,8 @@ function Purchase() {
             )
           );
 
-        case "mmh_mrc_amt":
+        case "tot_item_value":
+        case "total_amount":
           const amtA = parseFloat(a[sortConfig.key]);
           const amtB = parseFloat(b[sortConfig.key]);
           return multiplier * (amtA - amtB);

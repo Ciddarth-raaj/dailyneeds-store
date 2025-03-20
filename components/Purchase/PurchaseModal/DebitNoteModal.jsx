@@ -401,6 +401,13 @@ function DebitNoteModal({
                       type="number"
                       disabled={!editable}
                     />
+
+                    <CustomInput
+                      label="Round Off"
+                      name="round_off"
+                      type="number"
+                      disabled={!editable}
+                    />
                   </div>
 
                   <div className={styles.inputContainer}>
