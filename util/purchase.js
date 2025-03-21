@@ -32,7 +32,10 @@ export const calculateTotalAmount = (values) => {
   let total_igst = 0;
 
   gst.forEach((item) => {
-    const TAXABLE = item.TAXABLE === "" ? 0 : item.TAXABLE;
+    const TAXABLE =
+      item.TAXABLE === "" || item.TAXABLE === null
+        ? 0
+        : parseFloat(item.TAXABLE);
 
     total_gst += TAXABLE;
 
