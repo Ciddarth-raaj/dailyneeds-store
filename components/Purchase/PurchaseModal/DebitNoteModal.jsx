@@ -95,7 +95,7 @@ function DebitNoteModal({
     if (res.code === 200) {
       setSelectedPurchase(res.data);
     } else {
-      toast.error("Purchase not found!");
+      toast.error("Debit Note not found!");
     }
   };
 
@@ -232,18 +232,18 @@ function DebitNoteModal({
         send_not_matched_notification: isTotalAmountMismatch,
       }),
       {
-        loading: "Updating Purchase Record!",
+        loading: "Updating Debit Note Record!",
         success: (response) => {
           if (response.code === 200) {
             onClose();
-            return "Purchase Record Updated!";
+            return "Debit Note Record Updated!";
           } else {
             throw err;
           }
         },
         error: (err) => {
           console.log(err);
-          return "Error updating Purchase Record!";
+          return "Error updating Debit Note Record!";
         },
       }
     );
@@ -258,7 +258,7 @@ function DebitNoteModal({
     <Modal isOpen={isOpen} onClose={onClose} size="6xl" scrollBehavior="inside">
       <ModalOverlay />
       <ModalContent>
-        <ModalHeader>Edit Purchase</ModalHeader>
+        <ModalHeader>Edit Debit Note</ModalHeader>
         <ModalCloseButton />
         <Formik
           enableReinitialize

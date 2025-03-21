@@ -7,8 +7,6 @@ import currencyFormatter from "../../util/currencyFormatter";
 import { Menu, MenuItem } from "@szhsin/react-menu";
 import { IconButton } from "@chakra-ui/button";
 import { Badge, Checkbox, Flex, Input } from "@chakra-ui/react";
-
-import PurchaseModal from "../../components/Purchase/PurchaseModal";
 import FromToDateOutletPicker from "../../components/DateOutletPicker/FromToDateOutletPicker";
 import { useDebitNote } from "../../customHooks/useDebitNote";
 import DebitNoteModal from "../../components/Purchase/PurchaseModal/DebitNoteModal";
