@@ -90,7 +90,12 @@ function Purchase() {
     return filterItem;
   }, [selectedOutlet, fromDate, toDate, checkedFilters]);
 
-  const { purchase, updatePurchase, unapprovePurchase } = useDebitNote(filters);
+  const {
+    purchase,
+    updatePurchase,
+    unapprovePurchase,
+    deleteDebitNoteTallyResponse,
+  } = useDebitNote(filters);
 
   const handleSort = useCallback((key, direction) => {
     setSortConfig({ key, direction });
@@ -179,6 +184,14 @@ function Purchase() {
           }
           transition
         >
+          {item.VoucherNo && (
+            <MenuItem
+              onClick={() => deleteDebitNoteTallyResponse(item.VoucherNo)}
+            >
+              Delete Tally Response
+            </MenuItem>
+          )}
+
           <MenuItem onClick={() => setSelectedPurchase(item)}>Edit</MenuItem>
         </Menu>
       ),

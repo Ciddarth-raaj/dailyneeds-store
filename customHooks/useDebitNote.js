@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import {
+  deleteDebitNoteTallyResponse,
   getAllDebitNote,
   updateDebitNote,
   updateDebitNoteFlags,
@@ -70,6 +71,20 @@ export function useDebitNote(filters) {
     await fetchPurchase(true);
   };
 
+  const deleteDebitNoteTallyResponseHandler = async (VoucherNo) => {
+    try {
+      const response = await deleteDebitNoteTallyResponse(VoucherNo);
+
+      if (response.code === 200) {
+        await fetchPurchase(true);
+      }
+
+      return response;
+    } catch (err) {
+      setError(err);
+    }
+  };
+
   useEffect(() => {
     fetchPurchase();
   }, [filters]);
@@ -83,5 +98,6 @@ export function useDebitNote(filters) {
     updatePurchase: updatePurchaseHandler,
     updatePurchaseFlags: updatePurchaseFlagsHandler,
     unapprovePurchase: unapprovePurchase,
+    deleteDebitNoteTallyResponse: deleteDebitNoteTallyResponseHandler,
   };
 }

@@ -40,7 +40,7 @@ export const getAllDebitNoteFromTally = async (filters) => {
   }
 };
 
-export const deletePurchaseTallyResponse = async (VoucherNo) => {
+export const deleteDebitNoteTallyResponse = async (VoucherNo) => {
   try {
     const response = await API.delete(`/debit-note/delete-tally/${VoucherNo}`);
     return response.data;
