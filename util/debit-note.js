@@ -20,7 +20,6 @@ export const calculateTotalAmount = (values) => {
   let total_igst = 0;
 
   gst?.forEach((item) => {
-    console.log("CIDD", item.TAXABLE);
     const TAXABLE =
       item.TAXABLE === "" || item.TAXABLE === null
         ? 0

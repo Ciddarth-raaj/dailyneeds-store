@@ -10,7 +10,7 @@ import currencyFormatter from "../../util/currencyFormatter";
 
 const HEADINGS = {
   VoucherNo: "MRC Ref No",
-  supplier_name: "Supplier Name",
+  GSTIN: "GSTIN",
   mmh_mrc_dt: "MRC Date",
   CostCentre: "Outlet Name",
   total_amount: "Total Amount",
@@ -33,7 +33,7 @@ const HEADINGS = {
       </span>
     </p>
   ),
-  difference_name: "Difference Name",
+  difference_name: "GSTIN Difference",
 };
 
 function Difference() {
@@ -154,8 +154,8 @@ function Difference() {
           total_amount: currencyFormatter(item.total_amount),
           mmh_mrc_amt: currencyFormatter(item.mmh_mrc_amt),
           difference_name: highlightDifferences(
-            item.supplier_name.toLowerCase(),
-            item.SupplierName.toLowerCase()
+            item.supplier_gstn ?? "",
+            item.GSTIN ?? ""
           ),
         };
       })

@@ -32,7 +32,17 @@ export const updateDebitNoteFlags = async (purchaseId, flags) => {
 
 export const getAllDebitNoteFromTally = async (filters) => {
   try {
-    const response = await API.get(`/purchase-tally`, { params: filters });
+    const response = await API.get(`/debit-note-tally`, { params: filters });
+    return response.data;
+  } catch (err) {
+    console.log(err);
+    throw err;
+  }
+};
+
+export const deletePurchaseTallyResponse = async (VoucherNo) => {
+  try {
+    const response = await API.delete(`/debit-note/delete-tally/${VoucherNo}`);
     return response.data;
   } catch (err) {
     console.log(err);
