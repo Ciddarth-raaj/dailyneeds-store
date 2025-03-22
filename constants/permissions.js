@@ -90,4 +90,5 @@ export const PERMISSIONS = {
   view_purchases: "View Purchases",
   view_purchases_difference: "View Purchases Difference",
   view_debit_note: "View Debit Notes",
+  view_debit_note_difference: "View Debit Notes Difference",
 };

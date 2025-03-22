@@ -187,6 +187,12 @@ export default {
         selected: false,
         location: "/debit-note",
       },
+      view_debit_note_difference: {
+        title: "Difference",
+        permission: "view_debit_note_difference",
+        selected: false,
+        location: "/debit-note/difference",
+      },
     },
   },
   products: {
