@@ -6,11 +6,12 @@ import Table from "../../components/table/table";
 import moment from "moment";
 import currencyFormatter from "../../util/currencyFormatter";
 import { Menu, MenuItem } from "@szhsin/react-menu";
-import { IconButton } from "@chakra-ui/button";
+import { Button, IconButton } from "@chakra-ui/button";
 import { Badge, Checkbox, Flex, Input } from "@chakra-ui/react";
 
 import PurchaseModal from "../../components/Purchase/PurchaseModal";
 import FromToDateOutletPicker from "../../components/DateOutletPicker/FromToDateOutletPicker";
+import { exportToExcel } from "../../util/exportCSVFile";
 
 const HEADINGS = {
   mmh_mrc_refno: "MRC Ref No",
@@ -119,6 +120,22 @@ function Purchase() {
     return <Badge colorScheme="yellow">Pending</Badge>;
   };
 
+  const getStatusUnformmated = (item) => {
+    if (item.has_updated) {
+      return "Updated";
+    }
+
+    if (item.tally_response.voucher_no) {
+      return "Pushed to Tally";
+    }
+
+    if (item.is_approved) {
+      return "Approved";
+    }
+
+    return "Pending";
+  };
+
   const rows = useMemo(() => {
     const sortedPurchase = [...purchase].sort((a, b) => {
       if (sortConfig.direction === null) {
@@ -224,6 +241,27 @@ function Purchase() {
     });
   };
 
+  const exportData = () => {
+    const data = rows.map((item) => ({
+      "MRC Ref No": item.mmh_mrc_refno,
+      "Supplier Name": item.supplier_name,
+      GSTN: item.supplier_gstn,
+      "MRC Date": item.mmh_mrc_dt,
+      "Dist Bill Date": item.mmh_dist_bill_dt,
+      "MRC Amount": item.mmh_mrc_amt,
+      "Total Amount": item.total_amount,
+      Status: getStatusUnformmated(item),
+    }));
+
+    exportToExcel(
+      [data],
+      ["Purchase"],
+      `purchase-${moment(fromDate).format("DD/MM/YYYY")}-${moment(
+        toDate
+      ).format("DD/MM/YYYY")}.xlsx`
+    );
+  };
+
   return (
     <GlobalWrapper>
       <PurchaseModal
@@ -233,7 +271,15 @@ function Purchase() {
         updatePurchase={updatePurchase}
         unapprovePurchase={unapprovePurchase}
       />
-      <CustomContainer title="All Purchases" filledHeader>
+      <CustomContainer
+        title="All Purchases"
+        filledHeader
+        rightSection={
+          <Button colorScheme="whiteAlpha" onClick={exportData}>
+            Export
+          </Button>
+        }
+      >
         <Input
           placeholder="Search"
           value={search}

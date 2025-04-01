@@ -5,11 +5,12 @@ import Table from "../../components/table/table";
 import moment from "moment";
 import currencyFormatter from "../../util/currencyFormatter";
 import { Menu, MenuItem } from "@szhsin/react-menu";
-import { IconButton } from "@chakra-ui/button";
+import { Button, IconButton } from "@chakra-ui/button";
 import { Badge, Checkbox, Flex, Input } from "@chakra-ui/react";
 import FromToDateOutletPicker from "../../components/DateOutletPicker/FromToDateOutletPicker";
 import { useDebitNote } from "../../customHooks/useDebitNote";
 import DebitNoteModal from "../../components/Purchase/PurchaseModal/DebitNoteModal";
+import { exportToExcel } from "../../util/exportCSVFile";
 
 const HEADINGS = {
   mprh_pr_refno: "MPRH Ref No",
@@ -117,6 +118,22 @@ function Purchase() {
     return <Badge colorScheme="yellow">Pending</Badge>;
   };
 
+  const getStatusUnformmated = (item) => {
+    if (item.has_updated) {
+      return "Updated";
+    }
+
+    if (item.tally_response.voucher_no) {
+      return "Pushed to Tally";
+    }
+
+    if (item.is_approved) {
+      return "Approved";
+    }
+
+    return "Pending";
+  };
+
   const rows = useMemo(() => {
     const sortedPurchase = [...purchase].sort((a, b) => {
       if (sortConfig.direction === null) {
@@ -222,6 +239,26 @@ function Purchase() {
     });
   };
 
+  const exportData = () => {
+    const data = rows.map((item) => ({
+      "MPRH Ref No": item.mprh_pr_refno,
+      "Supplier Name": item.supplier_name,
+      GSTN: item.supplier_gstn,
+      "MPRH Date": item.mprh_pr_dt,
+      "MPRH Amount": item.tot_item_value,
+      "Total Amount": item.total_amount,
+      Status: getStatusUnformmated(item),
+    }));
+
+    exportToExcel(
+      [data],
+      ["Debit Note"],
+      `debit-note-${moment(fromDate).format("DD/MM/YYYY")}-${moment(
+        toDate
+      ).format("DD/MM/YYYY")}.xlsx`
+    );
+  };
+
   return (
     <GlobalWrapper>
       <DebitNoteModal
@@ -231,7 +268,15 @@ function Purchase() {
         updatePurchase={updatePurchase}
         unapprovePurchase={unapprovePurchase}
       />
-      <CustomContainer title="All Purchases" filledHeader>
+      <CustomContainer
+        title="All Debit Note"
+        filledHeader
+        rightSection={
+          <Button colorScheme="whiteAlpha" onClick={exportData}>
+            Export
+          </Button>
+        }
+      >
         <Input
           placeholder="Search"
           value={search}
