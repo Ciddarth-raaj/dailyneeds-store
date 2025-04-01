@@ -195,6 +195,20 @@ export default {
       },
     },
   },
+  miscellaneous: {
+    title: "Miscellaneous",
+    selected: false,
+    openPage: false,
+    icon: "fa-book",
+    subMenu: {
+      qr_generator: {
+        title: "QR Generator",
+        permission: "view_qr_generator",
+        selected: false,
+        location: "/qr-generator",
+      },
+    },
+  },
   products: {
     title: "Products",
     selected: false,
