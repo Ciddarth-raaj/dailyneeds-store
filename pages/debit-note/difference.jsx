@@ -144,8 +144,10 @@ function Difference() {
           });
         };
 
-        // if (difference === "-" && mrcDifference === "-") {
-        if (mprh_difference === "-") {
+        if (
+          mprh_difference === "-" &&
+          (item.GSTIN == "" || item.supplier_gstn === item.GSTIN)
+        ) {
           return null;
         }
 
