@@ -5,6 +5,7 @@ import styles from "./styles.module.css";
 const EmptyData = ({
   message = "No data found",
   size = "lg", // sm, md, lg
+  button = null,
 }) => {
   const containerSizes = {
     sm: { height: "100px", iconSize: "30px" },
@@ -36,6 +37,8 @@ const EmptyData = ({
         >
           {message}
         </Text>
+
+        {button && button}
       </div>
     </Box>
   );

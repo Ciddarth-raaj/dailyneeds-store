@@ -33,6 +33,7 @@ export const importFileToJSON = (
           skipEmptyLines: true,
           complete: (results) => {
             try {
+              console.log("CIDD", results);
               // Skip rows based on skipHeadings parameter and get headers
               const remainingRows = results.data;
               const headers = remainingRows[skipHeadings - 1];
