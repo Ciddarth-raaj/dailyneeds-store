@@ -3,7 +3,7 @@ import React from "react";
 import { Formik, Form, FieldArray } from "formik";
 import Dropzone from "react-dropzone";
 import { Container, Flex, ButtonGroup, Button, Switch } from "@chakra-ui/react";
-import { toast } from "react-toastify";
+import { toast } from "react-hot-toast";
 import FormikErrorFocus from "formik-error-focus";
 import { withRouter } from "next/router";
 import * as Yup from "yup";
@@ -29,6 +29,7 @@ import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import { Validation } from "../../util/validation";
 import moment from "moment";
 import CustomContainer from "../../components/CustomContainer";
+import PersonalDetails from "../../components/Employee/PersonalDetails";
 
 const selectedData = [
   {
@@ -487,6 +488,29 @@ class Create extends React.Component {
         toast.error("Error Updating Employee details!");
       })
       .finally(() => this.setState({ loading: false }));
+  };
+
+  updateEmployeeLatest = async (values, setLoading) => {
+    try {
+      const { employee_id } = this.props.data[0];
+
+      setLoading && setLoading(true);
+      const res = await EmployeeHelper.updateEmployeeDetails({
+        employee_id: employee_id,
+        employee_details: values,
+      });
+
+      if (res.code === 200) {
+        toast.success("Data updated!");
+      } else {
+        throw res;
+      }
+    } catch (err) {
+      toast.error("Error Updating Data");
+      console.log("CIDD", err);
+    } finally {
+      setLoading && setLoading(false);
+    }
   };
 
   getImageUploadParams = ({ meta }) => {
@@ -1195,6 +1219,24 @@ class Create extends React.Component {
                         </div>
                       </div>
                     </CustomContainer>
+
+                    <PersonalDetails
+                      editViewMode={this.editViewMode}
+                      updateEmployee={this.updateEmployeeLatest}
+                      setState={this.setState}
+                      initialValues={{
+                        marital_status: values.marital_status,
+                        dob: values.dob,
+                        marriage_date: values.marriage_date,
+                        permanent_address: values.permanent_address,
+                        residential_address: values.residential_address,
+                        father_name: values.father_name,
+                        spouse_name: values.spouse_name,
+                        blood_group: values.blood_group,
+                      }}
+                      permanent_trigger={permanent_trigger}
+                      id={id}
+                    />
 
                     <CustomContainer
                       title="Personal Details"
