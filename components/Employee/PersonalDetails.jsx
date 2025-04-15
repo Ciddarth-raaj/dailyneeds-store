@@ -2,11 +2,62 @@ import React, { useState } from "react";
 import CustomContainer from "../CustomContainer";
 import { Button } from "@chakra-ui/button";
 import CustomInput from "../../components/customInput/customInput";
+import * as Yup from "yup";
 
 import styles from "../../styles/registration.module.css";
 import { BloodGroup } from "../../constants/values";
 import { Formik } from "formik";
 import moment from "moment";
+
+// Add validation schema
+const validationSchema = Yup.object().shape({
+  marital_status: Yup.string()
+    .required("Marital status is required")
+    .oneOf(["Married", "Un Married", "Widowed", "Divorced", "Separated"]),
+
+  dob: Yup.date()
+    .required("Date of birth is required")
+    .max(new Date(), "Date of birth cannot be in the future"),
+
+  marriage_date: Yup.date()
+    .nullable()
+    .when("marital_status", {
+      is: "Married",
+      then: Yup.date()
+        .nullable()
+        .max(new Date(), "Marriage date cannot be in the future")
+        .min(Yup.ref("dob"), "Marriage date must be after date of birth"),
+    }),
+
+  permanent_address: Yup.string()
+    .required("Permanent address is required")
+    .min(10, "Address must be at least 10 characters")
+    .max(200, "Address cannot exceed 200 characters"),
+
+  residential_address: Yup.string()
+    .required("Residential address is required")
+    .min(10, "Address must be at least 10 characters")
+    .max(200, "Address cannot exceed 200 characters"),
+
+  father_name: Yup.string()
+    .required("Father's name is required")
+    .min(3, "Name must be at least 3 characters")
+    .matches(/^[a-zA-Z\s]*$/, "Name can only contain letters"),
+
+  spouse_name: Yup.string()
+    .nullable()
+    .when("marital_status", {
+      is: "Married",
+      then: Yup.string()
+        .nullable()
+        .min(3, "Name must be at least 3 characters")
+        .matches(/^[a-zA-Z\s]*$/, "Name can only contain letters"),
+    }),
+
+  blood_group: Yup.string()
+    .nullable()
+    .oneOf([...BloodGroup.map((bg) => bg.id), null], "Invalid blood group"),
+});
 
 function PersonalDetails({
   editViewMode,
@@ -22,8 +73,9 @@ function PersonalDetails({
   return (
     <Formik
       initialValues={initialValues}
-      //   validationSchema={validationSchema}
+      validationSchema={validationSchema}
       onSubmit={(values) => {
+        setEditMode(false);
         updateEmployee(
           {
             ...values,
@@ -57,8 +109,9 @@ function PersonalDetails({
                   onClick={() => {
                     if (editMode) {
                       handleSubmit();
+                    } else {
+                      setEditMode(true);
                     }
-                    setEditMode(!editMode);
                   }}
                 >
                   {editMode ? "Save" : "Edit"}
