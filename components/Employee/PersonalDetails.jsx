@@ -59,14 +59,7 @@ const validationSchema = Yup.object().shape({
     .oneOf([...BloodGroup.map((bg) => bg.id), null], "Invalid blood group"),
 });
 
-function PersonalDetails({
-  editViewMode,
-  updateEmployee,
-  setState,
-  permanent_trigger,
-  id,
-  initialValues,
-}) {
+function PersonalDetails({ editViewMode, updateEmployee, id, initialValues }) {
   const [editMode, setEditMode] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -88,7 +81,7 @@ function PersonalDetails({
         );
       }}
     >
-      {({ handleSubmit, values }) => {
+      {({ handleSubmit, values, setFieldValue }) => {
         return (
           <CustomContainer
             title="Personal Details"
@@ -183,11 +176,7 @@ function PersonalDetails({
               <div className={styles.inputHolder}>
                 <CustomInput
                   label="Residential Address *"
-                  name={
-                    permanent_trigger !== true
-                      ? "residential_address"
-                      : "permanent_address"
-                  }
+                  name="residential_address"
                   type="text"
                   method="TextArea"
                   editable={editViewMode ? editMode : !editMode}
@@ -199,9 +188,10 @@ function PersonalDetails({
                     mb={"40px"}
                     colorScheme="purple"
                     onClick={() =>
-                      setState({
-                        permanent_trigger: !permanent_trigger,
-                      })
+                      setFieldValue(
+                        "residential_address",
+                        values.permanent_address
+                      )
                     }
                   >
                     Same As Permanent Address

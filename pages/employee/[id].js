@@ -30,6 +30,10 @@ import { Validation } from "../../util/validation";
 import moment from "moment";
 import CustomContainer from "../../components/CustomContainer";
 import PersonalDetails from "../../components/Employee/PersonalDetails";
+import EducationDetails from "../../components/Employee/EducationDetails";
+import CurrentPosition from "../../components/Employee/CurrentPosition";
+import PFAndESI from "../../components/Employee/PFAndESI";
+import SalaryDetails from "../../components/Employee/SalaryDetails";
 
 const selectedData = [
   {
@@ -1223,7 +1227,6 @@ class Create extends React.Component {
                     <PersonalDetails
                       editViewMode={this.editViewMode}
                       updateEmployee={this.updateEmployeeLatest}
-                      setState={this.setState}
                       initialValues={{
                         marital_status: values.marital_status,
                         dob: values.dob,
@@ -1234,189 +1237,33 @@ class Create extends React.Component {
                         spouse_name: values.spouse_name,
                         blood_group: values.blood_group,
                       }}
-                      permanent_trigger={permanent_trigger}
                       id={id}
                     />
 
-                    <CustomContainer
-                      title="Current Position"
-                      smallHeader
-                      rightSection={
-                        this.editViewMode && (
-                          <Button
-                            isLoading={loadingPosiInfo}
-                            variant="outline"
-                            leftIcon={
-                              editablePosiInfo ? (
-                                <i
-                                  className="fa fa-floppy-o"
-                                  aria-hidden="true"
-                                />
-                              ) : (
-                                <i
-                                  className="fa fa-pencil"
-                                  aria-hidden="true"
-                                />
-                              )
-                            }
-                            colorScheme="purple"
-                            onClick={() => {
-                              editablePosiInfo === true && handleSubmit(),
-                                this.setState({
-                                  editablePosiInfo: !editablePosiInfo,
-                                });
-                            }}
-                          >
-                            {editablePosiInfo ? "Save" : "Edit"}
-                          </Button>
-                        )
-                      }
-                    >
-                      <div>
-                        <div className={styles.personalInputHolder}>
-                          <div className={styles.inputHolder}>
-                            <CustomInput
-                              label="Select Store *"
-                              values={branch.map((m) => ({
-                                id: m.outlet_id,
-                                value: m.outlet_name,
-                              }))}
-                              name={"store_id"}
-                              type="text"
-                              method="switch"
-                              editable={
-                                this.editViewMode
-                                  ? editablePosiInfo
-                                  : !editablePosiInfo
-                              }
-                            />
+                    <CurrentPosition
+                      editViewMode={this.editViewMode}
+                      updateEmployee={this.updateEmployeeLatest}
+                      initialValues={{
+                        store_id: values.store_id,
+                        department_id: values.department_id,
+                        designation_id: values.designation_id,
+                        shift_id: values.shift_id,
+                      }}
+                      department={department}
+                      designation={designation}
+                      branch={branch}
+                      shift={shift}
+                    />
 
-                            <CustomInput
-                              label="Select Department *"
-                              values={department.map((m) => ({
-                                id: m.id,
-                                value: m.value,
-                              }))}
-                              name={"department_id"}
-                              type="text"
-                              method="switch"
-                              editable={
-                                this.editViewMode
-                                  ? editablePosiInfo
-                                  : !editablePosiInfo
-                              }
-                            />
-                          </div>
-                          <div className={styles.inputHolder}>
-                            <CustomInput
-                              label="Select Designation *"
-                              values={designation.map((m) => ({
-                                id: m.id,
-                                value: m.value,
-                              }))}
-                              name={"designation_id"}
-                              type="text"
-                              method="switch"
-                              editable={
-                                this.editViewMode
-                                  ? editablePosiInfo
-                                  : !editablePosiInfo
-                              }
-                            />
-                          </div>
-                          <div className={styles.inputHolder}>
-                            <CustomInput
-                              label="Shift Details"
-                              values={shift.map((m) => ({
-                                id: m.id,
-                                value: m.value,
-                              }))}
-                              name="shift_id"
-                              type="text"
-                              method="switch"
-                              editable={
-                                this.editViewMode
-                                  ? editablePosiInfo
-                                  : !editablePosiInfo
-                              }
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </CustomContainer>
-
-                    <CustomContainer
-                      title="Education Details"
-                      smallHeader
-                      rightSection={
-                        this.editViewMode && (
-                          <Button
-                            isLoading={loadingEducaInfo}
-                            variant="outline"
-                            leftIcon={
-                              editableEducaInfo ? (
-                                <i
-                                  className="fa fa-floppy-o"
-                                  aria-hidden="true"
-                                />
-                              ) : (
-                                <i
-                                  className="fa fa-pencil"
-                                  aria-hidden="true"
-                                />
-                              )
-                            }
-                            colorScheme="purple"
-                            onClick={() => {
-                              editableEducaInfo === true && handleSubmit(),
-                                this.setState({
-                                  editableEducaInfo: !editableEducaInfo,
-                                });
-                            }}
-                          >
-                            {editableEducaInfo ? "Save" : "Edit"}
-                          </Button>
-                        )
-                      }
-                    >
-                      <div>
-                        <div className={styles.inputHolder}>
-                          <CustomInput
-                            label="Educational Qualification"
-                            name="qualification"
-                            type="text"
-                            editable={
-                              this.editViewMode
-                                ? editableEducaInfo
-                                : !editableEducaInfo
-                            }
-                          />
-                          <CustomInput
-                            label="Previous Experience"
-                            name="previous_experience"
-                            type="text"
-                            editable={
-                              this.editViewMode
-                                ? editableEducaInfo
-                                : !editableEducaInfo
-                            }
-                          />
-                        </div>
-                        <div className={styles.personalInputHolder}>
-                          <CustomInput
-                            label="Additional Courses"
-                            name="additional_course"
-                            type="text"
-                            method="TextArea"
-                            editable={
-                              this.editViewMode
-                                ? editableEducaInfo
-                                : !editableEducaInfo
-                            }
-                          />
-                        </div>
-                      </div>
-                    </CustomContainer>
+                    <EducationDetails
+                      editViewMode={this.editViewMode}
+                      updateEmployee={this.updateEmployeeLatest}
+                      initialValues={{
+                        qualification: values.qualification,
+                        previous_experience: values.previous_experience,
+                        additional_course: values.additional_course,
+                      }}
+                    />
                   </Flex>
 
                   <Flex flexDirection={"column"} gap="12px" flex={1}>
@@ -2269,171 +2116,25 @@ class Create extends React.Component {
                       </div>
                     </CustomContainer>
 
-                    <CustomContainer
-                      title="PF & ESI"
-                      smallHeader
-                      rightSection={
-                        this.editViewMode && (
-                          <Button
-                            isLoading={loadingPFInfo}
-                            variant="outline"
-                            leftIcon={
-                              editablePFInfo ? (
-                                <i
-                                  className="fa fa-floppy-o"
-                                  aria-hidden="true"
-                                />
-                              ) : (
-                                <i
-                                  className="fa fa-pencil"
-                                  aria-hidden="true"
-                                />
-                              )
-                            }
-                            colorScheme="purple"
-                            onClick={() => {
-                              editablePFInfo === true && handleSubmit(),
-                                this.setState({
-                                  editablePFInfo: !editablePFInfo,
-                                });
-                            }}
-                          >
-                            {editablePFInfo ? "Save" : "Edit"}
-                          </Button>
-                        )
-                      }
-                    >
-                      <div>
-                        <div className={styles.personalInputHolder}>
-                          {id === null && (
-                            <div className={styles.switchHolder}>
-                              <label>PF Number & UAN Number & Pan </label>
-                              <Switch
-                                className={styles.switch}
-                                id="email-alerts"
-                                onChange={() =>
-                                  this.setState({ pfToggle: !pfToggle })
-                                }
-                              />
-                            </div>
-                          )}
-                        </div>
-                        {pfToggle === true || this.editViewMode ? (
-                          <div className={styles.inputHolder}>
-                            <CustomInput
-                              label="PAN No "
-                              name="pan_no"
-                              type="text"
-                              editable={
-                                this.editViewMode
-                                  ? editablePFInfo
-                                  : !editablePFInfo
-                              }
-                            />
-                            <CustomInput
-                              label="PF Number "
-                              name="pf_number"
-                              type="text"
-                              editable={
-                                this.editViewMode
-                                  ? editablePFInfo
-                                  : !editablePFInfo
-                              }
-                            />
-                            <CustomInput
-                              label="UAN Number "
-                              name="UAN"
-                              type="text"
-                              editable={
-                                this.editViewMode
-                                  ? editablePFInfo
-                                  : !editablePFInfo
-                              }
-                            />
-                          </div>
-                        ) : (
-                          ""
-                        )}
+                    <PFAndESI
+                      editViewMode={this.editViewMode}
+                      updateEmployee={this.updateEmployeeLatest}
+                      initialValues={{
+                        pan_no: values.pan_no,
+                        pf_number: values.pf_number,
+                        UAN: values.UAN,
+                        esi_number: values.esi_number,
+                      }}
+                      id={id}
+                    />
 
-                        {id === null && (
-                          <div className={styles.switchHolder}>
-                            <label>ESI Number</label>
-                            <Switch
-                              className={styles.switch}
-                              id="email-alerts"
-                              onChange={() =>
-                                this.setState({ esiToggle: !esiToggle })
-                              }
-                            />
-                          </div>
-                        )}
-                        {esiToggle === true || this.editViewMode ? (
-                          <div className={styles.inputHolder}>
-                            <CustomInput
-                              label="ESI Number "
-                              name="esi_number"
-                              type="text"
-                              editable={
-                                this.editViewMode
-                                  ? editablePFInfo
-                                  : !editablePFInfo
-                              }
-                            />
-                          </div>
-                        ) : (
-                          ""
-                        )}
-                      </div>
-                    </CustomContainer>
-
-                    <CustomContainer
-                      title="Salary Details"
-                      smallHeader
-                      rightSection={
-                        this.editViewMode && (
-                          <Button
-                            isLoading={loadingSalInfo}
-                            variant="outline"
-                            leftIcon={
-                              editableSalInfo ? (
-                                <i
-                                  className="fa fa-floppy-o"
-                                  aria-hidden="true"
-                                />
-                              ) : (
-                                <i
-                                  className="fa fa-pencil"
-                                  aria-hidden="true"
-                                />
-                              )
-                            }
-                            colorScheme="purple"
-                            onClick={() => {
-                              editableSalInfo === true && handleSubmit(),
-                                this.setState({
-                                  editableSalInfo: !editableSalInfo,
-                                });
-                            }}
-                          >
-                            {editableSalInfo ? "Save" : "Edit"}
-                          </Button>
-                        )
-                      }
-                    >
-                      <div className={styles.inputHolder}>
-                        <CustomInput
-                          label="Salary / Month *"
-                          name="salary"
-                          type="text"
-                          containerStyle={{ marginBottom: 0 }}
-                          editable={
-                            this.editViewMode
-                              ? editableSalInfo
-                              : !editableSalInfo
-                          }
-                        />
-                      </div>
-                    </CustomContainer>
+                    <SalaryDetails
+                      editViewMode={this.editViewMode}
+                      updateEmployee={this.updateEmployeeLatest}
+                      initialValues={{
+                        salary: values.salary,
+                      }}
+                    />
 
                     {!this.editViewMode && (
                       <CustomContainer>
