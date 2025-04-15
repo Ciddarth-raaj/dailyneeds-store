@@ -6,6 +6,7 @@ const EmptyData = ({
   message = "No data found",
   size = "lg", // sm, md, lg
   button = null,
+  customIcon = null,
 }) => {
   const containerSizes = {
     sm: { height: "100px", iconSize: "30px" },
@@ -20,15 +21,19 @@ const EmptyData = ({
       data-testid="empty-data"
     >
       <div className={styles.content}>
-        <div
-          className={styles.icon}
-          style={{
-            fontSize: containerSizes[size].iconSize,
-            color: "var(--chakra-colors-purple-100)",
-          }}
-        >
-          <i className="fa fa-box-open" />
-        </div>
+        {customIcon ? (
+          customIcon
+        ) : (
+          <div
+            className={styles.icon}
+            style={{
+              fontSize: containerSizes[size].iconSize,
+              color: "var(--chakra-colors-purple-100)",
+            }}
+          >
+            <i className="fa fa-box-open" />
+          </div>
+        )}
         <Text
           color="gray.500"
           fontSize={size === "sm" ? "sm" : "md"}

@@ -8,10 +8,12 @@ function Index() {
   const [generatorVisiblity, setGeneratorVisiblity] = useState(false);
   return (
     <GlobalWrapper>
-      <GeneratorModal
-        isOpen={generatorVisiblity}
-        onClose={() => setGeneratorVisiblity(false)}
-      />
+      {generatorVisiblity && (
+        <GeneratorModal
+          isOpen={generatorVisiblity}
+          onClose={() => setGeneratorVisiblity(false)}
+        />
+      )}
 
       <CustomContainer
         title="QR Generator"
