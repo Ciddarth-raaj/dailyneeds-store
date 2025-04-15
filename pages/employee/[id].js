@@ -970,7 +970,7 @@ class Create extends React.Component {
                           values.alternate_contact_number,
                         date_of_joining: values.date_of_joining,
                         telegram_username: values.telegram_username,
-                        employee_image: this.state.employee_image,
+                        employee_image: values.employee_image,
                       }}
                     />
 

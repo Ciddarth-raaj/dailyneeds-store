@@ -33,7 +33,9 @@ function EmployeeInformation({ editViewMode, updateEmployee, initialValues }) {
   const [loading, setLoading] = useState(false);
 
   const handleUpdate = async (values) => {
+    setLoading(true);
     let employeeImage = null;
+
     if (values.employee_image && typeof values.employee_image === "object") {
       employeeImage = await FilesHelper.upload(
         values.employee_image,
