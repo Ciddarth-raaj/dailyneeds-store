@@ -34,6 +34,7 @@ import EducationDetails from "../../components/Employee/EducationDetails";
 import CurrentPosition from "../../components/Employee/CurrentPosition";
 import PFAndESI from "../../components/Employee/PFAndESI";
 import SalaryDetails from "../../components/Employee/SalaryDetails";
+import EmployeeInformation from "../../components/Employee/EmployeeInformation";
 
 const selectedData = [
   {
@@ -79,6 +80,7 @@ class Create extends React.Component {
       this.setState({ modifiedPanHolder });
     };
     this.editViewMode = props.id !== null;
+
     this.state = {
       card_name_change: false,
       card_number_change: false,
@@ -157,6 +159,7 @@ class Create extends React.Component {
     this.getBranchData();
     this.getAdhaar();
   }
+
   componentDidUpdate() {
     const { employee_name, handlingSubmit } = this.state;
     if (employee_name !== "") {
@@ -954,275 +957,22 @@ class Create extends React.Component {
                       />
                     )}
 
-                    <CustomContainer
-                      title="Employee Information"
-                      smallHeader
-                      rightSection={
-                        this.editViewMode && (
-                          <Button
-                            isLoading={loadingEmpInfo}
-                            variant="outline"
-                            leftIcon={
-                              editableEmpInfo ? (
-                                <i class="fa fa-floppy-o" aria-hidden="true" />
-                              ) : (
-                                <i class="fa fa-pencil" aria-hidden="true" />
-                              )
-                            }
-                            colorScheme="purple"
-                            onClick={() => {
-                              if (editableEmpInfo) {
-                                handleSubmit();
-                              }
-                              this.setState({
-                                editableEmpInfo: !editableEmpInfo,
-                              });
-                            }}
-                          >
-                            {editableEmpInfo ? "Save" : "Edit"}
-                          </Button>
-                        )
-                      }
-                    >
-                      <div>
-                        <div className={styles.personalInputHolder}>
-                          <div className={styles.uploadHolder}>
-                            <label
-                              className={styles.uploaderTitle}
-                              for="uploadImage"
-                            >
-                              Upload Employee Image *
-                            </label>
-                            {this.editViewMode ? (
-                              <div className={styles.employeeImageModify}>
-                                {this.editViewMode &&
-                                employee_image?.slice(-3) === "pdf" ? (
-                                  <div className={styles.pdfholderNew}>
-                                    <div className={styles.pdfholdermain}>
-                                      <embed
-                                        className={styles.pdfcontent}
-                                        src={employee_image}
-                                      />
-                                      <div className={styles.subpdfholder}>
-                                        <img
-                                          className={styles.viewpdf}
-                                          onClick={() =>
-                                            window.open(employee_image)
-                                          }
-                                          src={"/assets/open.png"}
-                                        />
-                                      </div>
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <img
-                                    src={employee_image}
-                                    className={styles.employee_image}
-                                  />
-                                )}
-                                {editableEmpInfo === true && (
-                                  <>
-                                    <Button
-                                      variant="outline"
-                                      leftIcon={
-                                        imageContainer ? (
-                                          <i
-                                            class="fa fa-trash-o"
-                                            aria-hidden="true"
-                                          />
-                                        ) : (
-                                          <i
-                                            class="fa fa-pencil"
-                                            aria-hidden="true"
-                                          />
-                                        )
-                                      }
-                                      colorScheme={
-                                        imageContainer ? "red" : "purple"
-                                      }
-                                      className={styles.modifyButton}
-                                      onClick={() =>
-                                        this.setState({
-                                          imageContainer: !imageContainer,
-                                        })
-                                      }
-                                    >
-                                      {imageContainer
-                                        ? "Remove"
-                                        : "Add New Image"}
-                                    </Button>
-                                    {imageContainer === true && (
-                                      // <Dropzone getUploadParams={this.getModifyImageUploadParams} onChangeStatus={this.modifyImageChangeStatus} {...dropDownProps} />
-                                      <Dropzone onDrop={this.onImageModifyDrop}>
-                                        {({ getRootProps, getInputProps }) => (
-                                          <section>
-                                            <div
-                                              {...getRootProps({
-                                                className: styles.baseStyle,
-                                              })}
-                                            >
-                                              <input {...getInputProps()} />
-                                              {modifiedImageHolder.length ===
-                                                0 && (
-                                                <p>
-                                                  Drag and drop some files here,
-                                                  or click to select files
-                                                </p>
-                                              )}
-                                              {modifiedImageHolder.length !==
-                                                0 && (
-                                                <p style={{ color: "black" }}>
-                                                  {imageModifyhold}
-                                                </p>
-                                              )}
-                                            </div>
-                                          </section>
-                                        )}
-                                      </Dropzone>
-                                    )}
-                                  </>
-                                )}
-                              </div>
-                            ) : (
-                              ""
-                            )}
-                            {id === null ? (
-                              // <Dropzone getUploadParams={this.getImageUploadParams} onChangeStatus={this.imageChangeStatus} {...dropDownProps} />
-                              <Dropzone onDrop={this.onDrop}>
-                                {({ getRootProps, getInputProps }) => (
-                                  <section>
-                                    <div
-                                      {...getRootProps({
-                                        className: styles.baseStyle,
-                                      })}
-                                    >
-                                      <input {...getInputProps()} />
-                                      {imageHolder.length === 0 && (
-                                        <p>
-                                          Drag and drop some files here, or
-                                          click to select files
-                                        </p>
-                                      )}
-                                      {imageHolder.length !== 0 && (
-                                        <p style={{ color: "black" }}>
-                                          {imagehold}
-                                        </p>
-                                      )}
-                                    </div>
-                                  </section>
-                                )}
-                              </Dropzone>
-                            ) : (
-                              ""
-                            )}
-                          </div>
-                          <div className={styles.inputHolder}>
-                            <CustomInput
-                              label="Employee ID *"
-                              name="employee_id"
-                              type="number"
-                              editable={
-                                this.editViewMode
-                                  ? editableEmpInfo
-                                  : !editableEmpInfo
-                              }
-                            />
-                            <CustomInput
-                              label="Name *"
-                              name="employee_name"
-                              type="text"
-                              editable={
-                                this.editViewMode
-                                  ? editableEmpInfo
-                                  : !editableEmpInfo
-                              }
-                            />
-                          </div>
-                        </div>
-                        <div className={styles.inputHolder}>
-                          <CustomInput
-                            label="Gender *"
-                            values={[
-                              {
-                                id: "Male",
-                                value: "Male",
-                              },
-                              {
-                                id: "Female",
-                                value: "Female",
-                              },
-                              {
-                                id: "Transgendar",
-                                value: "Transgendar",
-                              },
-                            ]}
-                            name="gender"
-                            type="text"
-                            method="switch"
-                            editable={
-                              this.editViewMode
-                                ? editableEmpInfo
-                                : !editableEmpInfo
-                            }
-                          />
-                          <CustomInput
-                            label="Email ID"
-                            name="email_id"
-                            type="text"
-                            editable={
-                              this.editViewMode
-                                ? editableEmpInfo
-                                : !editableEmpInfo
-                            }
-                          />
-                        </div>
-                        <div className={styles.inputHolder}>
-                          <CustomInput
-                            label="Primary Mobile Number *"
-                            name="primary_contact_number"
-                            type="number"
-                            editable={
-                              this.editViewMode
-                                ? editableEmpInfo
-                                : !editableEmpInfo
-                            }
-                          />
-                          <CustomInput
-                            label="Alternate Mobile Number"
-                            name="alternate_contact_number"
-                            type="number"
-                            editable={
-                              this.editViewMode
-                                ? editableEmpInfo
-                                : !editableEmpInfo
-                            }
-                          />
-                        </div>
-                        <div className={styles.inputHolder}>
-                          <CustomInput
-                            label="Date of Joining *"
-                            name="date_of_joining"
-                            type="text"
-                            method="datepicker"
-                            editable={
-                              this.editViewMode
-                                ? editableEmpInfo
-                                : !editableEmpInfo
-                            }
-                          />
-                          <CustomInput
-                            label="Telegram Username"
-                            name="telegram_username"
-                            type="text"
-                            editable={
-                              this.editViewMode
-                                ? editableEmpInfo
-                                : !editableEmpInfo
-                            }
-                          />
-                        </div>
-                      </div>
-                    </CustomContainer>
+                    <EmployeeInformation
+                      editViewMode={this.editViewMode}
+                      updateEmployee={this.updateEmployeeLatest}
+                      initialValues={{
+                        employee_id: values.employee_id,
+                        employee_name: values.employee_name,
+                        gender: values.gender,
+                        email_id: values.email_id,
+                        primary_contact_number: values.primary_contact_number,
+                        alternate_contact_number:
+                          values.alternate_contact_number,
+                        date_of_joining: values.date_of_joining,
+                        telegram_username: values.telegram_username,
+                        employee_image: this.state.employee_image,
+                      }}
+                    />
 
                     <PersonalDetails
                       editViewMode={this.editViewMode}

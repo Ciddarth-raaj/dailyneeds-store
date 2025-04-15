@@ -20,6 +20,26 @@
   cursor: pointer;
 }
 
+.employeeImage {
+  width: 100%;
+  border-radius: 10px;
+  height: 200px;
+  object-fit: contain;
+}
+
+.employeeImageHolder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 22px;
+  gap: 10px;
+  width: 100%;
+  flex-direction: column;
+  background-color: rgb(250, 250, 250);
+  padding: 20px;
+  border-radius: 10px;
+}
+
 .pdfholder {
   width: 260px;
   height: 240px;
