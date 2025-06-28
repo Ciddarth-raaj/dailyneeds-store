@@ -147,11 +147,17 @@ function EmployeeInformation({ editViewMode, updateEmployee, initialValues }) {
                       </div>
                     ) : (
                       <div className={styles.employeeImageHolder}>
-                        <img
-                          src={URL.createObjectURL(values.employee_image)}
-                          alt="Employee Image"
-                          className={styles.employeeImage}
-                        />
+                        {values.employee_image ? (
+                          <img
+                            src={values.employee_image}
+                            alt="Employee Image"
+                            className={styles.employeeImage}
+                          />
+                        ) : (
+                          <p style={{ color: "gray", fontSize: "14px" }}>
+                            No Image
+                          </p>
+                        )}
                       </div>
                     ))}
                 </div>

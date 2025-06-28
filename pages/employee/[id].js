@@ -1,12 +1,11 @@
 //External Dependencies
 import React from "react";
-import { Formik, Form, FieldArray } from "formik";
-import Dropzone from "react-dropzone";
-import { Container, Flex, ButtonGroup, Button, Switch } from "@chakra-ui/react";
+import { Formik, Form } from "formik";
+import { Flex, ButtonGroup, Button } from "@chakra-ui/react";
 import { toast } from "react-hot-toast";
 import FormikErrorFocus from "formik-error-focus";
 import { withRouter } from "next/router";
-import * as Yup from "yup";
+
 //Styles
 import styles from "../../styles/registration.module.css";
 
@@ -14,7 +13,6 @@ import styles from "../../styles/registration.module.css";
 import DocumentHelper from "../../helper/document";
 import BranchHelper from "../../helper/outlets";
 import ResignedUser from "../../components/resignedUser/resignedUser";
-import { BloodGroup, PaymentType, IdCardType } from "../../constants/values";
 import EmployeeHelper from "../../helper/employee";
 import ResignationHelper from "../../helper/resignation";
 import DesignationHelper from "../../helper/designation";
@@ -23,7 +21,6 @@ import DepartmentHelper from "../../helper/department";
 import FilesHelper from "../../helper/asset";
 
 //Internal Dependencies
-import CustomInput from "../../components/customInput/customInput";
 import Head from "../../util/head";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import { Validation } from "../../util/validation";
@@ -35,16 +32,8 @@ import CurrentPosition from "../../components/Employee/CurrentPosition";
 import PFAndESI from "../../components/Employee/PFAndESI";
 import SalaryDetails from "../../components/Employee/SalaryDetails";
 import EmployeeInformation from "../../components/Employee/EmployeeInformation";
+import EmployeeIdentification from "../../components/Employee/EmployeeIdentification";
 
-const selectedData = [
-  {
-    outlet_name: "three",
-    outlet_nickname: "three",
-    outlet_phone: "9898989898",
-    phone: "9898989898",
-    outlet_address: "9898989898",
-  },
-];
 class Create extends React.Component {
   editViewMode = false;
   constructor(props) {
@@ -514,7 +503,6 @@ class Create extends React.Component {
       }
     } catch (err) {
       toast.error("Error Updating Data");
-      console.log("CIDD", err);
     } finally {
       setLoading && setLoading(false);
     }
@@ -664,147 +652,22 @@ class Create extends React.Component {
     console.log(files);
   };
 
-  // AlertChecker(values) {
-  // 	for(let i = 0; i < values.files.length; i++) {
-  // 			if(values.files[i].id_card === "1") {
-  // 				this.setState({adhaarAlert: true })
-  // 			}
-  // 			break;
-  // 	}
-  // }
   resignedEmployee() {
     this.handleSubmit();
   }
-  // download = (href) => {
-  // 	console.log({href: href})
-  // 	fetch(href, {
-  // 		method: "GET",
-  // 		headers: {
-  // 			// 'Access-Control-Allow-Origin': "*",
-  // 			mode: 'no-cors'
-  // 		},
-  // 	})
-  // 		.then((response) => {
-  // 			response.arrayBuffer().then(function (buffer) {
-  // 				const url = window.URL.createObjectURL(new Blob([buffer]));
-  // 				const link = document.createElement("a");
-  // 				link.href = url;
-  // 				const extension =
-  // 					href.split(".")[href.split(".").length - 1];
-  // 				link.setAttribute("download", `card.${extension}`);
-  // 				document.body.appendChild(link);
-  // 				link.click();
-  // 			});
-  // 		})
-  // 		.catch((err) => {
-  // 			console.log(err);
-  // 		});
-  // };
+
   render() {
     const {
       loading,
       designation,
       department,
       branch,
-      modifiedPanHolder,
-      employee_image,
       shift,
-      voterHolder,
-      adhaarHolder,
-      modifiedLicenseHolder,
-      modifiedImageHolder,
-      licenseHolder,
-      imageHolder,
-      panHolder,
-      permanent_trigger,
-      employeeCards,
-      employee_create,
       branchModalVisibility,
-      pfToggle,
-      handlingSubmit,
       resignationData,
       adhaarChecker,
-      esiToggle,
-      adhaarAlert,
-      editableEmpInfo,
-      editablePerInfo,
-      editablePosiInfo,
-      editableEducaInfo,
-      editableIdenInfo,
-      editablePFInfo,
-      editableSalInfo,
-      modifiedVoterHolder,
-      editableOtherInfo,
-      loadingEmpInfo,
-      loadingPerInfo,
-      loadingPosiInfo,
-      loadingEducaInfo,
-      loadingIdenInfo,
-      loadingPFInfo,
-      loadingSalInfo,
-      modifiedAdhaarHolder,
-      validationPayment,
-      employee_name,
-      loadingOtherInfo,
       id,
-      imageContainer,
-      idContainer,
     } = this.state;
-    const imagehold = imageHolder.map((file) => (
-      <p key={file.name}>{file.name}</p>
-    ));
-    const adhaarhold = adhaarHolder.map((file) => (
-      <p key={file.name}>{file.name}</p>
-    ));
-    const licensehold = licenseHolder.map((file) => (
-      <p key={file.name}>{file.name}</p>
-    ));
-    const voterhold = voterHolder.map((file) => (
-      <p key={file.name}>{file.name}</p>
-    ));
-    const panhold = panHolder.map((file) => <p key={file.name}>{file.name}</p>);
-    const imageModifyhold = modifiedImageHolder.map((file) => (
-      <p key={file.name}>{file.name}</p>
-    ));
-    const adhaarModifyhold = modifiedAdhaarHolder.map((file) => (
-      <p key={file.name}>{file.name}</p>
-    ));
-    const licenseModifyhold = modifiedLicenseHolder.map((file) => (
-      <p key={file.name}>{file.name}</p>
-    ));
-    const voterModifyhold = modifiedVoterHolder.map((file) => {
-      <p key={file.name}>{file.name}</p>;
-    });
-    const panModifyhold = modifiedPanHolder.map((file) => {
-      <p key={file.name}>{file.name}</p>;
-    });
-    const { doc } = this.props;
-    const dropDownProps = {
-      styles: {
-        dropzone: {
-          overflow: "auto",
-          border: "none",
-          borderRadius: "10px",
-          background: "#EEEEEE",
-          marginTop: "10px",
-        },
-        inputLabelWithFiles: {
-          margin: "20px 3%",
-        },
-        inputLabel: {
-          color: "black",
-          fontSize: "14px",
-        },
-      },
-      multiple: false,
-      maxFiles: 1,
-      accept: "image/*, pdf/*, video/*",
-    };
-    const containerProps = {
-      className: styles.container,
-      boxShadow: "lg",
-      // minW: "600px",
-    };
 
     return (
       <GlobalWrapper title="New Employee">
@@ -813,6 +676,9 @@ class Create extends React.Component {
           initialValues={{
             employee_id: this.props.data[0]?.employee_id,
             telegram_username: this.props.data[0]?.telegram_username,
+            aadhaar_card_no: this.props.data[0]?.aadhaar_card_no,
+            aadhaar_card_name: this.props.data[0]?.aadhaar_card_name,
+            aadhaar_card_image: this.props.data[0]?.aadhaar_card_image,
             employee_name: this.props.data[0]?.employee_name,
             father_name: this.props.data[0]?.father_name,
             dob: this.props.data[0]?.dob,
@@ -905,36 +771,6 @@ class Create extends React.Component {
         >
           {(formikProps) => {
             const { handleSubmit, values } = formikProps;
-
-            const handleEvent = () => {
-              this.setState([
-                ...values.files,
-                { id_card: "", id_card_no: "", file: "" },
-              ]);
-            };
-            const AlertChecker = () => {
-              const { handlingSubmit, resignationData } = this.state;
-              for (let i = 0; i < values.files.length; i++) {
-                for (let j = 0; j < adhaarChecker.length - 1; j++) {
-                  if (
-                    values.files[i].id_card_no === adhaarChecker[j].card_number
-                  ) {
-                    this.setState({
-                      employee_name: adhaarChecker[j].employee_name,
-                      handlingSubmit: true,
-                    });
-                    break;
-                  }
-                }
-                if (resignationData.length > 0) {
-                  handleSubmit();
-                  break;
-                }
-
-                handleSubmit();
-                break;
-              }
-            };
             return (
               <Form onSubmit={formikProps.handleSubmit}>
                 <FormikErrorFocus
@@ -1017,854 +853,20 @@ class Create extends React.Component {
                   </Flex>
 
                   <Flex flexDirection={"column"} gap="12px" flex={1}>
-                    <CustomContainer
-                      title="Employee Identity"
-                      smallHeader
-                      rightSection={
-                        this.editViewMode && (
-                          <Button
-                            isLoading={loadingIdenInfo}
-                            variant="outline"
-                            leftIcon={
-                              editableIdenInfo ? (
-                                <i
-                                  className="fa fa-floppy-o"
-                                  aria-hidden="true"
-                                />
-                              ) : (
-                                <i
-                                  className="fa fa-pencil"
-                                  aria-hidden="true"
-                                />
-                              )
-                            }
-                            colorScheme="purple"
-                            onClick={() => {
-                              editableIdenInfo === true && handleSubmit(),
-                                this.setState({
-                                  editableIdenInfo: !editableIdenInfo,
-                                  idContainer: !idContainer,
-                                });
-                            }}
-                          >
-                            {editableIdenInfo ? "Save" : "Edit"}
-                          </Button>
-                        )
-                      }
-                    >
-                      <div>
-                        <div className={styles.inputHolder}>
-                          <CustomInput
-                            label="Payment Type *"
-                            values={PaymentType}
-                            name="payment_type"
-                            type="text"
-                            method="switch"
-                            editable={
-                              this.editViewMode
-                                ? editableIdenInfo
-                                : !editableIdenInfo
-                            }
-                          />
-                        </div>
-
-                        {values.payment_type === "1" && (
-                          <>
-                            <div className={styles.inputHolder}>
-                              <CustomInput
-                                label="Bank Name *"
-                                name="bank_name"
-                                type="text"
-                                editable={
-                                  this.editViewMode
-                                    ? editableIdenInfo
-                                    : !editableIdenInfo
-                                }
-                              />
-                              <div>{this.state.error}</div>
-                              <CustomInput
-                                label="IFSC Code *"
-                                name="ifsc"
-                                type="text"
-                                editable={
-                                  this.editViewMode
-                                    ? editableIdenInfo
-                                    : !editableIdenInfo
-                                }
-                              />
-                            </div>
-                            <div className={styles.inputHolder}>
-                              <CustomInput
-                                label="Account Number *"
-                                name="account_no"
-                                type="text"
-                                editable={
-                                  this.editViewMode
-                                    ? editableIdenInfo
-                                    : !editableIdenInfo
-                                }
-                              />
-                            </div>
-                          </>
-                        )}
-
-                        {doc !== null && doc.length !== 0 && (
-                          <div>
-                            {doc[0].card_name !== "" && (
-                              <div>
-                                {doc.map((m, i) => (
-                                  <>
-                                    <div
-                                      className={styles.inputHolder}
-                                      style={{ marginBottom: 0 }}
-                                    >
-                                      <CustomInput
-                                        label="Card Type"
-                                        name="card_type"
-                                        value={
-                                          m.card_type === "1"
-                                            ? "Adhaar Card"
-                                            : m.card_type === "2"
-                                            ? "License"
-                                            : m.card_type === "3"
-                                            ? "Voter ID"
-                                            : m.card_type === "4"
-                                            ? "pan card"
-                                            : ""
-                                        }
-                                        type="text"
-                                        method="readonly"
-                                        containerStyle={{
-                                          marginTop: 30,
-                                          marginBottom: 30,
-                                        }}
-                                      />
-                                    </div>
-                                    <div className={styles.inputHolder}>
-                                      <CustomInput
-                                        label="Card Number"
-                                        name={`docupdate[${i}].card_no`}
-                                        type="text"
-                                        editable={
-                                          this.editViewMode
-                                            ? editableIdenInfo
-                                            : !editableIdenInfo
-                                        }
-                                        containerStyle={{ marginBottom: 0 }}
-                                      />
-                                      <CustomInput
-                                        label="Name in Card"
-                                        name={`docupdate[${i}].card_name`}
-                                        type="text"
-                                        editable={
-                                          this.editViewMode
-                                            ? editableIdenInfo
-                                            : !editableIdenInfo
-                                        }
-                                        containerStyle={{ marginBottom: 0 }}
-                                      />
-                                      <div className={styles.personalInputsNew}>
-                                        {editableIdenInfo === true && (
-                                          <label
-                                            htmlFor="download"
-                                            className={styles.infoLabel}
-                                          >
-                                            View
-                                          </label>
-                                        )}
-                                        <Button
-                                          w={"100%"}
-                                          id="download"
-                                          colorScheme="blue"
-                                          mt={
-                                            editableIdenInfo === true
-                                              ? ""
-                                              : "7px"
-                                          }
-                                        >
-                                          <a
-                                            className={styles.downloadButton}
-                                            href={m.file}
-                                            target="_blank"
-                                          >
-                                            Download
-                                          </a>
-                                        </Button>
-                                      </div>
-                                      <br />
-                                    </div>
-                                    <div>
-                                      {this.editViewMode ? (
-                                        <div>
-                                          {idContainer === true && (
-                                            <>
-                                              {m.card_type === "1" ? (
-                                                <Dropzone
-                                                  onDrop={
-                                                    this.onAdhaarModifyDrop
-                                                  }
-                                                >
-                                                  {({
-                                                    getRootProps,
-                                                    getInputProps,
-                                                  }) => (
-                                                    <section>
-                                                      <div
-                                                        {...getRootProps({
-                                                          className:
-                                                            styles.baseStyle,
-                                                        })}
-                                                      >
-                                                        <input
-                                                          {...getInputProps()}
-                                                        />
-                                                        {modifiedAdhaarHolder.length ===
-                                                          0 && (
-                                                          <p>
-                                                            Drag and drop some
-                                                            files here, or click
-                                                            to select files
-                                                          </p>
-                                                        )}
-                                                        {modifiedAdhaarHolder.length !==
-                                                          0 && (
-                                                          <p
-                                                            style={{
-                                                              color: "black",
-                                                            }}
-                                                          >
-                                                            {adhaarModifyhold}
-                                                          </p>
-                                                        )}
-                                                      </div>
-                                                    </section>
-                                                  )}
-                                                </Dropzone>
-                                              ) : m.card_type === "2" ? (
-                                                <Dropzone
-                                                  onDrop={
-                                                    this.onLicenseModifyDrop
-                                                  }
-                                                >
-                                                  {({
-                                                    getRootProps,
-                                                    getInputProps,
-                                                  }) => (
-                                                    <section>
-                                                      <div
-                                                        {...getRootProps({
-                                                          className:
-                                                            styles.baseStyle,
-                                                        })}
-                                                      >
-                                                        <input
-                                                          {...getInputProps()}
-                                                        />
-                                                        {modifiedLicenseHolder.length ===
-                                                          0 && (
-                                                          <p>
-                                                            Drag and drop some
-                                                            files here, or click
-                                                            to select files
-                                                          </p>
-                                                        )}
-                                                        {modifiedLicenseHolder.length !==
-                                                          0 && (
-                                                          <p
-                                                            style={{
-                                                              color: "black",
-                                                            }}
-                                                          >
-                                                            {licenseModifyhold}
-                                                          </p>
-                                                        )}
-                                                      </div>
-                                                    </section>
-                                                  )}
-                                                </Dropzone>
-                                              ) : m.card_type === "3" ? (
-                                                <Dropzone
-                                                  onDrop={
-                                                    this.onVoterModifyDrop
-                                                  }
-                                                >
-                                                  {({
-                                                    getRootProps,
-                                                    getInputProps,
-                                                  }) => (
-                                                    <section>
-                                                      <div
-                                                        {...getRootProps({
-                                                          className:
-                                                            styles.baseStyle,
-                                                        })}
-                                                      >
-                                                        <input
-                                                          {...getInputProps()}
-                                                        />
-                                                        {modifiedVoterHolder.length ===
-                                                          0 && (
-                                                          <p>
-                                                            Drag and drop some
-                                                            files here, or click
-                                                            to select files
-                                                          </p>
-                                                        )}
-                                                        {modifiedVoterHolder.length !==
-                                                          0 && (
-                                                          <p
-                                                            style={{
-                                                              color: "black",
-                                                            }}
-                                                          >
-                                                            {voterModifyhold}
-                                                          </p>
-                                                        )}
-                                                      </div>
-                                                    </section>
-                                                  )}
-                                                </Dropzone>
-                                              ) : m.card_type === "3" ? (
-                                                <Dropzone
-                                                  onDrop={this.onPanModifyDrop}
-                                                >
-                                                  {({
-                                                    getRootProps,
-                                                    getInputProps,
-                                                  }) => (
-                                                    <section>
-                                                      <div
-                                                        {...getRootProps({
-                                                          className:
-                                                            styles.baseStyle,
-                                                        })}
-                                                      >
-                                                        <input
-                                                          {...getInputProps()}
-                                                        />
-                                                        {modifiedPanHolder.length ===
-                                                          0 && (
-                                                          <p>
-                                                            Drag and drop some
-                                                            files here, or click
-                                                            to select files
-                                                          </p>
-                                                        )}
-                                                        {modifiedPanHolder.length !==
-                                                          0 && (
-                                                          <p
-                                                            style={{
-                                                              color: "black",
-                                                            }}
-                                                          >
-                                                            {panModifyhold}
-                                                          </p>
-                                                        )}
-                                                      </div>
-                                                    </section>
-                                                  )}
-                                                </Dropzone>
-                                              ) : (
-                                                ""
-                                              )}
-                                            </>
-                                          )}
-                                        </div>
-                                      ) : (
-                                        ""
-                                      )}
-                                      {id === null ? (
-                                        <Dropzone
-                                          onDrop={this.onImageModifyDrop}
-                                        >
-                                          {({
-                                            getRootProps,
-                                            getInputProps,
-                                          }) => (
-                                            <section>
-                                              <div
-                                                {...getRootProps({
-                                                  className: styles.baseStyle,
-                                                })}
-                                              >
-                                                <input {...getInputProps()} />
-                                                {modifiedImageHolder.length ===
-                                                  0 && (
-                                                  <p>
-                                                    Drag and drop some files
-                                                    here, or click to select
-                                                    files
-                                                  </p>
-                                                )}
-                                                {modifiedImageHolder.length !==
-                                                  0 && (
-                                                  <p style={{ color: "black" }}>
-                                                    {imageModifyhold}
-                                                  </p>
-                                                )}
-                                              </div>
-                                            </section>
-                                          )}
-                                        </Dropzone>
-                                      ) : (
-                                        // <Dropzone getUploadParams={this.getImageUploadParams} onChangeStatus={this.imageChangeStatus} {...dropDownProps} />
-                                        ""
-                                      )}
-                                    </div>
-                                  </>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        )}
-                        {this.editViewMode && editableIdenInfo === true && (
-                          <p className={styles.newDocumentSet}>
-                            To Upload New Documents
-                          </p>
-                        )}
-                        {editableIdenInfo === true || id === null ? (
-                          <FieldArray name="files">
-                            {(fieldArrayProps) => {
-                              const { push, remove, form } = fieldArrayProps;
-                              const { values } = form;
-                              const { files } = values;
-                              return (
-                                <div>
-                                  {files.map((file, index) => (
-                                    <>
-                                      <div
-                                        className={styles.inputHolder}
-                                        key={index}
-                                        style={{ marginBottom: 0 }}
-                                      >
-                                        <CustomInput
-                                          label="New ID Card Type"
-                                          values={IdCardType.map((d) => ({
-                                            id: d.id,
-                                            value: d.value,
-                                          }))}
-                                          name={`files[${index}].id_card`}
-                                          type="text"
-                                          method="switch"
-                                          containerStyle={{
-                                            marginTop: 30,
-                                            marginBottom: 30,
-                                          }}
-                                          editable={
-                                            this.editViewMode
-                                              ? editableIdenInfo
-                                              : !editableIdenInfo
-                                          }
-                                        />
-                                      </div>
-
-                                      {files[0].id_card &&
-                                        files[index].id_card === "1" && (
-                                          <>
-                                            <div
-                                              className={styles.inputHolder}
-                                              key={index}
-                                            >
-                                              <CustomInput
-                                                label="Adhaar Card Number"
-                                                name={`files[${index}].id_card_no`}
-                                                type="text"
-                                                containerStyle={{
-                                                  marginBottom: 0,
-                                                }}
-                                                editable={
-                                                  this.editViewMode
-                                                    ? editableIdenInfo
-                                                    : !editableIdenInfo
-                                                }
-                                              />
-                                              <CustomInput
-                                                label="Name in Adhaar Card"
-                                                name={`files[${index}].id_card_name`}
-                                                type="text"
-                                                containerStyle={{
-                                                  marginBottom: 0,
-                                                }}
-                                                editable={
-                                                  this.editViewMode
-                                                    ? editableIdenInfo
-                                                    : !editableIdenInfo
-                                                }
-                                              />
-                                              <br />
-                                            </div>
-                                            <div
-                                              className={styles.uploadHolder}
-                                              style={{ marginTop: 30 }}
-                                            >
-                                              <label
-                                                className={styles.uploaderTitle}
-                                                for="subUploadID"
-                                              >
-                                                Upload ID *
-                                              </label>
-                                              <Dropzone
-                                                onDrop={this.onAdhaarDrop}
-                                              >
-                                                {({
-                                                  getRootProps,
-                                                  getInputProps,
-                                                }) => (
-                                                  <section>
-                                                    <div
-                                                      {...getRootProps({
-                                                        className:
-                                                          styles.baseStyle,
-                                                      })}
-                                                    >
-                                                      <input
-                                                        {...getInputProps()}
-                                                      />
-                                                      {adhaarHolder.length ===
-                                                        0 && (
-                                                        <p>
-                                                          Drag and drop some
-                                                          files here, or click
-                                                          to select files
-                                                        </p>
-                                                      )}
-                                                      {adhaarHolder.length !==
-                                                        0 && (
-                                                        <p
-                                                          style={{
-                                                            color: "black",
-                                                          }}
-                                                        >
-                                                          {adhaarhold}
-                                                        </p>
-                                                      )}
-                                                    </div>
-                                                  </section>
-                                                )}
-                                              </Dropzone>
-                                              {/* <Dropzone getUploadParams={this.adhaarUploadParams} onChangeStatus={this.adhaarChangeStatus} {...dropDownProps} /> */}
-                                            </div>
-                                          </>
-                                        )}
-                                      {files[0].id_card &&
-                                        files[index].id_card === "2" && (
-                                          <>
-                                            <div
-                                              className={styles.inputHolder}
-                                              key={index}
-                                            >
-                                              <CustomInput
-                                                label="Driving license Number"
-                                                name={`files[${index}].id_card_no`}
-                                                type="text"
-                                                containerStyle={{
-                                                  marginBottom: 0,
-                                                }}
-                                                editable={
-                                                  this.editViewMode
-                                                    ? editableIdenInfo
-                                                    : !editableIdenInfo
-                                                }
-                                              />
-                                              <CustomInput
-                                                label="Name in Driving License"
-                                                name={`files[${index}].id_card_name`}
-                                                type="text"
-                                                containerStyle={{
-                                                  marginBottom: 0,
-                                                }}
-                                                editable={
-                                                  this.editViewMode
-                                                    ? editableIdenInfo
-                                                    : !editableIdenInfo
-                                                }
-                                              />
-                                              <CustomInput
-                                                label="Expiry Date"
-                                                name={`files[${index}].expiry_date`}
-                                                type="text"
-                                                method="expiry-datepicker"
-                                                containerStyle={{
-                                                  marginBottom: 0,
-                                                }}
-                                                editable={
-                                                  this.editViewMode
-                                                    ? editableIdenInfo
-                                                    : !editableIdenInfo
-                                                }
-                                              />
-                                              <br />
-                                            </div>
-                                            <div
-                                              className={styles.uploadHolder}
-                                              style={{ marginTop: 30 }}
-                                            >
-                                              <label
-                                                className={styles.uploaderTitle}
-                                                for="subUploadID"
-                                              >
-                                                Upload ID *
-                                              </label>
-                                              <Dropzone
-                                                onDrop={this.onLicenseDrop}
-                                              >
-                                                {({
-                                                  getRootProps,
-                                                  getInputProps,
-                                                }) => (
-                                                  <section>
-                                                    <div
-                                                      {...getRootProps({
-                                                        className:
-                                                          styles.baseStyle,
-                                                      })}
-                                                    >
-                                                      <input
-                                                        {...getInputProps()}
-                                                      />
-                                                      {licenseHolder.length ===
-                                                        0 && (
-                                                        <p>
-                                                          Drag and drop some
-                                                          files here, or click
-                                                          to select files
-                                                        </p>
-                                                      )}
-                                                      {licenseHolder.length !==
-                                                        0 && (
-                                                        <p
-                                                          style={{
-                                                            color: "black",
-                                                          }}
-                                                        >
-                                                          {licensehold}
-                                                        </p>
-                                                      )}
-                                                    </div>
-                                                  </section>
-                                                )}
-                                              </Dropzone>
-                                              {/* <Dropzone getUploadParams={this.licenseUploadParams} onChangeStatus={this.licenseChangeStatus} {...dropDownProps} /> */}
-                                            </div>
-                                          </>
-                                        )}
-                                      {files[0].id_card &&
-                                        files[index].id_card === "3" && (
-                                          <>
-                                            <div
-                                              className={styles.inputHolder}
-                                              key={index}
-                                            >
-                                              <CustomInput
-                                                label="Voter Id Number"
-                                                name={`files[${index}].id_card_no`}
-                                                type="text"
-                                                containerStyle={{
-                                                  marginBottom: 0,
-                                                }}
-                                                editable={
-                                                  this.editViewMode
-                                                    ? editableIdenInfo
-                                                    : !editableIdenInfo
-                                                }
-                                              />
-                                              <CustomInput
-                                                label="Name in Voter Id"
-                                                name={`files[${index}].id_card_name`}
-                                                type="text"
-                                                containerStyle={{
-                                                  marginBottom: 0,
-                                                }}
-                                                editable={
-                                                  this.editViewMode
-                                                    ? editableIdenInfo
-                                                    : !editableIdenInfo
-                                                }
-                                              />
-                                              <br />
-                                            </div>
-                                            <div
-                                              className={styles.uploadHolder}
-                                              style={{ marginTop: 30 }}
-                                            >
-                                              <label
-                                                className={styles.uploaderTitle}
-                                                for="subUploadID"
-                                              >
-                                                Upload ID *
-                                              </label>
-                                              <Dropzone
-                                                onDrop={this.onVoterDrop}
-                                              >
-                                                {({
-                                                  getRootProps,
-                                                  getInputProps,
-                                                }) => (
-                                                  <section>
-                                                    <div
-                                                      {...getRootProps({
-                                                        className:
-                                                          styles.baseStyle,
-                                                      })}
-                                                    >
-                                                      <input
-                                                        {...getInputProps()}
-                                                      />
-                                                      {voterHolder.length ===
-                                                        0 && (
-                                                        <p>
-                                                          Drag and drop some
-                                                          files here, or click
-                                                          to select files
-                                                        </p>
-                                                      )}
-                                                      {voterHolder.length !==
-                                                        0 && (
-                                                        <p
-                                                          style={{
-                                                            color: "black",
-                                                          }}
-                                                        >
-                                                          {voterhold}
-                                                        </p>
-                                                      )}
-                                                    </div>
-                                                  </section>
-                                                )}
-                                              </Dropzone>
-                                              {/* <Dropzone getUploadParams={this.voterIdUploadParams} onChangeStatus={this.voterIdChangeStatus} {...dropDownProps} /> */}
-                                            </div>
-                                          </>
-                                        )}
-                                      {files[0].id_card &&
-                                        files[index].id_card === "4" && (
-                                          <>
-                                            <div
-                                              className={styles.inputHolder}
-                                              key={index}
-                                            >
-                                              <CustomInput
-                                                label="Pan Number"
-                                                name={`files[${index}].id_card_no`}
-                                                type="text"
-                                                containerStyle={{
-                                                  marginBottom: 0,
-                                                }}
-                                                editable={
-                                                  this.editViewMode
-                                                    ? editableIdenInfo
-                                                    : !editableIdenInfo
-                                                }
-                                              />
-                                              <CustomInput
-                                                label="Name in Pan"
-                                                name={`files[${index}].id_card_name`}
-                                                type="text"
-                                                containerStyle={{
-                                                  marginBottom: 0,
-                                                }}
-                                                editable={
-                                                  this.editViewMode
-                                                    ? editableIdenInfo
-                                                    : !editableIdenInfo
-                                                }
-                                              />
-                                              <br />
-                                            </div>
-                                            <div
-                                              className={styles.uploadHolder}
-                                              style={{ marginTop: 30 }}
-                                            >
-                                              <label
-                                                className={styles.uploaderTitle}
-                                                for="subUploadID"
-                                              >
-                                                Upload ID *
-                                              </label>
-                                              <Dropzone onDrop={this.onPanDrop}>
-                                                {({
-                                                  getRootProps,
-                                                  getInputProps,
-                                                }) => (
-                                                  <section>
-                                                    <div
-                                                      {...getRootProps({
-                                                        className:
-                                                          styles.baseStyle,
-                                                      })}
-                                                    >
-                                                      <input
-                                                        {...getInputProps()}
-                                                      />
-                                                      {panHolder.length ===
-                                                        0 && (
-                                                        <p>
-                                                          Drag and drop some
-                                                          files here, or click
-                                                          to select files
-                                                        </p>
-                                                      )}
-                                                      {panHolder.length !==
-                                                        0 && (
-                                                        <p
-                                                          style={{
-                                                            color: "black",
-                                                          }}
-                                                        >
-                                                          {panhold}
-                                                        </p>
-                                                      )}
-                                                    </div>
-                                                  </section>
-                                                )}
-                                              </Dropzone>
-                                              {/* <Dropzone getUploadParams={this.panUploadParams} onChangeStatus={this.panChangeStatus} {...dropDownProps} /> */}
-                                            </div>
-                                          </>
-                                        )}
-                                      <br />
-                                      {/* {index > 0 && (
-                                        <Button
-                                          className={styles.button}
-                                          isLoading={loading}
-                                          loadingText="Generating"
-                                          colorScheme="red"
-                                          onClick={() => remove(index)}
-                                        >
-                                          {"Remove"}
-                                        </Button>
-                                      )}
-                                      {index <= 0 && (
-                                        <Button
-                                          className={styles.button}
-                                          isLoading={loading}
-                                          loadingText="Generating"
-                                          isDisabled={true}
-                                          colorScheme="red"
-                                          onClick={() => remove(index)}
-                                        >
-                                          {"Remove"}
-                                        </Button>
-                                      )}
-                                      <Button
-                                        isLoading={loading}
-                                        loadingText="Generating"
-                                        colorScheme="purple"
-                                        onClick={() => push("")}
-                                      >
-                                        {"Add"}
-                                      </Button> */}
-                                    </>
-                                  ))}
-                                </div>
-                              );
-                            }}
-                          </FieldArray>
-                        ) : (
-                          ""
-                        )}
-                      </div>
-                    </CustomContainer>
+                    <EmployeeIdentification
+                      editViewMode={this.editViewMode}
+                      updateEmployee={this.updateEmployeeLatest}
+                      id={id}
+                      initialValues={{
+                        payment_type: values.payment_type,
+                        bank_name: values.bank_name,
+                        ifsc: values.ifsc,
+                        account_no: values.account_no,
+                        aadhaar_card_no: values.aadhaar_card_no,
+                        aadhaar_card_name: values.aadhaar_card_name,
+                        aadhaar_card_image: values.aadhaar_card_image,
+                      }}
+                    />
 
                     <PFAndESI
                       editViewMode={this.editViewMode}
@@ -1900,7 +902,6 @@ class Create extends React.Component {
                             isLoading={loading}
                             loadingText="Submitting"
                             colorScheme="purple"
-                            onClick={() => AlertChecker()}
                           >
                             Create
                           </Button>
@@ -1922,9 +923,6 @@ export async function getServerSideProps(context) {
   var data = [];
   if (context.query.id !== "create") {
     data = await EmployeeHelper.getEmployeeByID(context.query.id);
-    // data[0].dob = moment(data[0].dob).format("DD/MM/YYYY")
-    // data[0].date_of_joining = moment(data[0].date_of_joining).format("DD/MM/YYYY")
-    // data[0].marriage_date = moment(data[0].marriage_date).format("DD/MM/YYYY")
   }
   const id = context.query.id != "create" ? data[0].employee_id : null;
   let doc = [];
