@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 import React, { useState } from "react";
 import CustomContainer from "../CustomContainer";
 import { Button } from "@chakra-ui/button";
@@ -172,7 +173,7 @@ function EmployeeIdentification({
                           variant="outline"
                           colorScheme="red"
                           onClick={() => {
-                            setValues({ ...values, aadhaar_card_image: null });
+                            setFieldValue("aadhaar_card_image", null);
                           }}
                         >
                           Remove

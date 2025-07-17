@@ -665,7 +665,6 @@ class Create extends React.Component {
       shift,
       branchModalVisibility,
       resignationData,
-      adhaarChecker,
       id,
     } = this.state;
 
@@ -902,6 +901,7 @@ class Create extends React.Component {
                             isLoading={loading}
                             loadingText="Submitting"
                             colorScheme="purple"
+                            onClick={handleSubmit}
                           >
                             Create
                           </Button>
