@@ -112,24 +112,23 @@ function CategoryForm() {
 
             return (
               <div className={styles.inputContainer}>
-                <div className={styles.inputSubContainer}>
-                  <CustomInput
-                    label="Category Name *"
-                    name="category_name"
-                    type="text"
-                    editable={!viewMode}
-                  />
-                </div>
-                <CustomInput
-                  label="Status"
-                  name="is_active"
-                  method="switch_toggle"
-                  value={values.is_active}
-                  onChange={() => setFieldValue("is_active", !values.is_active)}
-                  isDisabled={viewMode}
-                />
+                <CustomContainer>
+                  <div className={styles.inputSubContainer}>
+                    <CustomInput
+                      label="Category Name *"
+                      name="category_name"
+                      type="text"
+                      editable={!viewMode}
+                    />
+                  </div>
+                </CustomContainer>
+
                 {!viewMode && (
-                  <div className={styles.buttonContainer}>
+                  <Flex
+                    className={styles.buttonContainer}
+                    mt={8}
+                    justify="flex-end"
+                  >
                     <Button
                       variant="outline"
                       colorScheme="red"
@@ -141,7 +140,7 @@ function CategoryForm() {
                     <Button colorScheme="purple" onClick={handleSubmit}>
                       {editMode ? "Update" : "Create"}
                     </Button>
-                  </div>
+                  </Flex>
                 )}
               </div>
             );

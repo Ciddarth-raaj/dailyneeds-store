@@ -195,17 +195,51 @@ export default {
       },
     },
   },
-  miscellaneous: {
-    title: "Miscellaneous",
+  // miscellaneous: {
+  //   title: "Miscellaneous",
+  //   selected: false,
+  //   openPage: false,
+  //   icon: "fa-book",
+  //   subMenu: {
+  //     qr_generator: {
+  //       title: "QR Generator",
+  //       permission: "view_qr_generator",
+  //       selected: false,
+  //       location: "/qr-generator",
+  //     },
+  //   },
+  // },
+  master: {
+    title: "Master",
     selected: false,
     openPage: false,
-    icon: "fa-book",
+    icon: "fa-users",
     subMenu: {
-      qr_generator: {
-        title: "QR Generator",
-        permission: "view_qr_generator",
+      view_master_list: {
+        title: "Master List",
+        permission: "view_master_list",
         selected: false,
-        location: "/qr-generator",
+        location: "/master",
+      },
+    },
+  },
+  materials: {
+    title: "Materials",
+    selected: false,
+    openPage: false,
+    icon: "fa-boxes", // Changed to a more relevant icon for materials
+    subMenu: {
+      view_materials: {
+        title: "All Materials",
+        permission: "view_materials",
+        selected: false,
+        location: "/materials",
+      },
+      view_materials_category: {
+        title: "Materials Category",
+        permission: "view_materials_category",
+        selected: false,
+        location: "/materials/category",
       },
     },
   },
@@ -351,38 +385,4 @@ export default {
   //     // },
   //   },
   // },
-  master: {
-    title: "Master",
-    selected: false,
-    openPage: false,
-    icon: "fa-users",
-    subMenu: {
-      view_master_list: {
-        title: "Master List",
-        permission: "view_master_list",
-        selected: false,
-        location: "/master",
-      },
-    },
-  },
-  materials: {
-    title: "Materials",
-    selected: false,
-    openPage: false,
-    icon: "fa-dollar-sign",
-    subMenu: {
-      view_materials: {
-        title: "All Materials",
-        permission: "view_materials",
-        selected: false,
-        location: "/materials",
-      },
-      view_materials_category: {
-        title: "Materials Category",
-        permission: "view_materials_category",
-        selected: false,
-        location: "/materials/category",
-      },
-    },
-  },
 };

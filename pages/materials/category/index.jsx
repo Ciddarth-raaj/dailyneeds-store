@@ -11,6 +11,7 @@ import { useRouter } from "next/router";
 import toast from "react-hot-toast";
 import ConfirmDeleteModal from "../../../components/ConfirmDeleteModal";
 import EmptyData from "../../../components/EmptyData";
+import usePermissions from "../../../customHooks/usePermissions";
 
 const HEADINGS = {
   material_category_id: "ID",
@@ -25,6 +26,8 @@ function MaterialsCategory() {
   const [deleteItem, setDeleteItem] = useState(null);
   const { isOpen, onOpen, onClose } = useDisclosure();
   const router = useRouter();
+
+  const canAddCategory = usePermissions(["add_materials_category"]);
 
   useEffect(() => {
     fetchCategories();
@@ -136,9 +139,11 @@ function MaterialsCategory() {
         title="Materials Category"
         filledHeader
         rightSection={
-          <Link href="/materials/category/create" passHref>
-            <Button colorScheme="whiteAlpha">Add</Button>
-          </Link>
+          canAddCategory ? (
+            <Link href="/materials/category/create" passHref>
+              <Button colorScheme="whiteAlpha">Add</Button>
+            </Link>
+          ) : null
         }
       >
         {rows.length === 0 && !loading && (
