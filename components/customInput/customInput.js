@@ -16,6 +16,9 @@ import {
   FormControl,
   FormLabel,
   FormErrorMessage,
+  Switch,
+  Flex,
+  Text,
 } from "@chakra-ui/react";
 import { useState } from "react";
 import DatePicker from "react-datepicker";
@@ -170,6 +173,7 @@ const TextField = ({
             "readonly",
             "disabled",
             "numberinput",
+            "switch_toggle",
             undefined,
           ].includes(method) && (
             <FormControl variant={floatingLabel ? "floating" : "default"}>
@@ -202,6 +206,24 @@ const TextField = ({
                     placeholder={floatingLabel ? " " : props.placeholder}
                     onWheel={(e) => e.target.blur()}
                   />
+                )}
+                {method === "switch_toggle" && (
+                  <Flex align="center" gap={2}>
+                    <Switch
+                      id={field.name}
+                      isChecked={!!field.value}
+                      onChange={onChange}
+                      isDisabled={props.isDisabled || !editable}
+                      colorScheme="purple"
+                      {...props}
+                    />
+                    <Text
+                      fontSize="sm"
+                      color={field.value ? "green.500" : "gray.400"}
+                    >
+                      {field.value ? "Active" : "Inactive"}
+                    </Text>
+                  </Flex>
                 )}
                 {method === "number" && (
                   <NumberInput

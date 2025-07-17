@@ -365,4 +365,24 @@ export default {
       },
     },
   },
+  materials: {
+    title: "Materials",
+    selected: false,
+    openPage: false,
+    icon: "fa-dollar-sign",
+    subMenu: {
+      view_materials: {
+        title: "All Materials",
+        permission: "view_materials",
+        selected: false,
+        location: "/materials",
+      },
+      view_materials_category: {
+        title: "Materials Category",
+        permission: "view_materials_category",
+        selected: false,
+        location: "/materials/category",
+      },
+    },
+  },
 };
