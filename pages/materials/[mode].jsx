@@ -13,9 +13,9 @@ import { useRouter } from "next/router";
 
 const validation = Yup.object({
   name: Yup.string().required("Material name is required"),
-  sku_code: Yup.string(),
-  unit_id: Yup.string().required("Unit is required"),
-  material_category_id: Yup.string(),
+  description: Yup.string().nullable(),
+  unit_id: Yup.string().nullable(),
+  material_category_id: Yup.string().nullable(),
 });
 
 const UNITS = [
@@ -31,8 +31,8 @@ const UNITS = [
 
 const EMPTY_MATERIAL = {
   name: "",
-  sku_code: "",
-  unit_id: "",
+  description: "",
+  unit_id: null,
   material_category_id: "",
   is_active: true,
 };
@@ -59,8 +59,8 @@ function MaterialForm() {
             if (found) {
               setInitialValues({
                 name: found.name || "",
-                sku_code: found.sku_code || null,
-                unit_id: found.unit_id || "",
+                description: found.description || null,
+                unit_id: found.unit_id || null,
                 material_category_id: found.material_category_id || null,
                 is_active:
                   typeof found.is_active === "number"
@@ -96,7 +96,8 @@ function MaterialForm() {
     const data = {
       ...values,
       is_active: values.is_active ? values.is_active : true,
-      sku_code: values.sku_code ? values.sku_code : null,
+      description: values.description ? values.description : null,
+      unit_id: values.unit_id ? values.unit_id : null,
       material_category_id: values.material_category_id
         ? values.material_category_id
         : null,
@@ -159,13 +160,13 @@ function MaterialForm() {
                       editable={!viewMode}
                     />
                     <CustomInput
-                      label="SKU Code"
-                      name="sku_code"
+                      label="Description"
+                      name="description"
                       type="text"
                       editable={!viewMode}
                     />
                     <CustomInput
-                      label="Unit *"
+                      label="Unit"
                       name="unit_id"
                       method="switch"
                       values={UNITS}

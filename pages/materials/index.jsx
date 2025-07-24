@@ -17,7 +17,6 @@ import usePermissions from "../../customHooks/usePermissions";
 const HEADINGS = {
   material_id: "ID",
   name: "Name",
-  sku_code: "SKU Code",
   category: "Category",
   is_active: "Status",
   actions: "Actions",
@@ -52,8 +51,8 @@ function Materials() {
     try {
       const data = await material.updateMaterial(item.material_id, {
         name: item.name,
-        sku_code: item.sku_code,
         unit_id: item.unit_id,
+        description: item.description,
         material_category_id: item.material_category_id,
         is_active: isActive ? true : false,
       });
@@ -108,6 +107,13 @@ function Materials() {
           }
           transition
         >
+          <MenuItem
+            onClick={() =>
+              router.push(`/materials/view?id=${item.material_id}`)
+            }
+          >
+            View
+          </MenuItem>
           <MenuItem
             onClick={() =>
               router.push(`/materials/edit?id=${item.material_id}`)
