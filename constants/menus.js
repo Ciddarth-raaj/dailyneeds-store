@@ -241,6 +241,12 @@ export default {
         selected: false,
         location: "/materials/category",
       },
+      view_materials_request: {
+        title: "Materials Request",
+        permission: "view_materials_request",
+        selected: false,
+        location: "/materials/request",
+      },
     },
   },
   products: {

@@ -156,7 +156,7 @@ const TextField = ({
             className={styles.uneditableLabel}
             style={getStaticLabelStyles()}
           >
-            {label.replace("*", "")}
+            {label?.replace("*", "")}
           </label>
           <p className={styles.infoText}>{getDisplayValue(field.value)}</p>
         </div>
@@ -272,6 +272,9 @@ const TextField = ({
                     onChange={(val) => {
                       setFieldValue(field.name, val.target.value);
                       onChange && onChange(val.target.value);
+                    }}
+                    style={{
+                      backgroundColor: "white",
                     }}
                   />
                 )}
@@ -413,6 +416,9 @@ const TextField = ({
                 {...field}
                 {...props}
                 onWheel={(e) => e.target.blur()}
+                style={{
+                  backgroundColor: "white",
+                }}
               />
               <InputRightElement width="3.5rem">
                 <i
@@ -442,6 +448,9 @@ const TextField = ({
               isReadOnly={true}
               autoComplete="off"
               onWheel={(e) => e.target.blur()}
+              style={{
+                backgroundColor: "white",
+              }}
             />
           )}
           {method === "numberinput" && (
@@ -452,6 +461,9 @@ const TextField = ({
                 {...field}
                 {...props}
                 onWheel={(e) => e.target.blur()}
+                style={{
+                  backgroundColor: "white",
+                }}
               />
             </InputGroup>
           )}
@@ -461,6 +473,9 @@ const TextField = ({
               isDisabled={true}
               isReadOnly={true}
               onWheel={(e) => e.target.blur()}
+              style={{
+                backgroundColor: "white",
+              }}
             />
           )}
           {method === "file" && (

@@ -41,6 +41,26 @@ const material = {
           reject(err);
         });
     }),
+  getAllMaterialRequests: () =>
+    new Promise(function (resolve, reject) {
+      API.get(`/material_request`)
+        .then(async (res) => {
+          resolve(res);
+        })
+        .catch((err) => {
+          reject(err);
+        });
+    }),
+  createMaterialRequest: (body) =>
+    new Promise(function (resolve, reject) {
+      API.post(`/material_request`, body)
+        .then(async (res) => {
+          resolve(res.data);
+        })
+        .catch((err) => {
+          reject(err);
+        });
+    }),
 };
 
 export default material;

@@ -1,7 +1,6 @@
-import React, { useState } from "react";
+import React from "react";
 
 import styles from "./styles.module.css";
-import Login from "../../pages/login";
 
 function CustomContainer({
   title,
@@ -10,6 +9,7 @@ function CustomContainer({
   filledHeader,
   smallHeader,
   style,
+  noPadding,
 }) {
   return (
     <div className={styles.mainContainer} style={style}>
@@ -30,7 +30,13 @@ function CustomContainer({
         </div>
       )}
 
-      <div className={styles.contentContainer}>{children}</div>
+      <div
+        className={`${styles.contentContainer} ${
+          noPadding ? styles.noPadding : ""
+        }`}
+      >
+        {children}
+      </div>
     </div>
   );
 }
