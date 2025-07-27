@@ -132,6 +132,7 @@ const TextField = ({
     }
 
     if (method === "switch") {
+      console.log("CIDD", values.find((item) => item.id === value)?.value);
       return values.find((item) => item.id === value)?.value ?? "N/A";
     }
 

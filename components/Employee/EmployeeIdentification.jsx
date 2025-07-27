@@ -61,7 +61,6 @@ function EmployeeIdentification({
       //   validationSchema={validationSchema}
       onSubmit={(values) => {
         setEditMode(false);
-        console.log("CIDD", values);
         handleUpdate(values);
       }}
     >

@@ -25,6 +25,7 @@ import { useRouter } from "next/router";
 import EmptyData from "../../../components/EmptyData";
 import OutletDropdown from "../../../components/MaterialsRequest/OutletDropdown";
 import { useUser } from "../../../contexts/UserContext";
+import API from "../../../util/api";
 
 const validation = Yup.object({
   items: Yup.array()
@@ -40,11 +41,18 @@ const validation = Yup.object({
 
 function MaterialRequestForm() {
   const router = useRouter();
+  const { mode, id } = router.query;
   const [categories, setCategories] = useState([]);
   const [allMaterials, setAllMaterials] = useState([]);
   const [outletId, setOutletId] = useState("");
-
+  const [initialValues, setInitialValues] = useState({
+    category_id: "",
+    items: [],
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const { storeId } = useUser().userConfig;
+  const [isApproved, setIsApproved] = useState(false);
 
   useEffect(() => {
     async function fetchCategories() {
@@ -70,10 +78,49 @@ function MaterialRequestForm() {
     fetchMaterials();
   }, []);
 
-  const initialValues = {
-    category_id: "",
-    items: [],
+  const fetchData = () => {
+    setError(null);
+    material
+      .getMaterialRequest(id)
+      .then((res) => {
+        if (!res || !res.data)
+          throw new Error("Failed to fetch material request");
+        const data = res.data || res;
+        const firstCategoryId =
+          data.items &&
+          data.items.length > 0 &&
+          data.items[0].material &&
+          data.items[0].material.material_category_id
+            ? data.items[0].material.material_category_id
+            : "";
+        setInitialValues({
+          category_id: firstCategoryId,
+          items: (data.items || []).map((item) => ({
+            material_id: item.material_id,
+            quantity: item.quantity,
+            remark: item.remark,
+            name: item.material?.name || "",
+          })),
+        });
+
+        setIsApproved(data.is_approved);
+        setOutletId(data.outlet_id || "");
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.log(err);
+        setError(err.message);
+        setLoading(false);
+      });
   };
+
+  // Fetch material request data for view/edit
+  useEffect(() => {
+    if (!id) return;
+
+    setLoading(true);
+    fetchData();
+  }, [id]);
 
   const handleSubmit = async (values, { setSubmitting }) => {
     const filteredItems = values.items
@@ -145,138 +192,198 @@ function MaterialRequestForm() {
     return null;
   }
 
+  const handleApproveUnapprove = async () => {
+    try {
+      const response = await material.updateMaterialRequest(id, {
+        is_approved: isApproved ? 0 : 1,
+      });
+      if (response.success) {
+        fetchData();
+        toast.success(`Marked as ${isApproved ? "pending" : "approved"}`);
+      } else {
+        throw response;
+      }
+    } catch (err) {
+      console.log(err);
+      toast.error("Error updating");
+    }
+  };
+
   return (
     <GlobalWrapper>
       <Head />
-      <CustomContainer title="Create Material Request" filledHeader>
-        {!storeId && (
-          <CustomContainer
-            style={{ marginBottom: 32, backgroundColor: "#f7f7f7" }}
-          >
-            <OutletDropdown
-              selectedOutlet={outletId}
-              setSelectedOutlet={(val) => setOutletId(val)}
-              disabled={false}
-              showLabel
-            />
-          </CustomContainer>
-        )}
-
-        <Formik
-          enableReinitialize
-          initialValues={initialValues}
-          validationSchema={validation}
-          onSubmit={handleSubmit}
-        >
-          {({
-            handleSubmit,
-            values,
-            setFieldValue,
-            isSubmitting,
-            errors,
-            touched,
-          }) => (
-            <form onSubmit={handleSubmit}>
-              <SyncItemsWithCategory allMaterials={allMaterials} />
-
-              <Grid templateColumns={{ base: "1fr", md: "1fr 1fr" }} gap={4}>
-                <div>
-                  <CustomInput
-                    label="Category"
-                    name="category_id"
-                    method="switch"
-                    values={(Array.isArray(categories) ? categories : []).map(
-                      (cat) => ({
-                        id: cat.material_category_id,
-                        value: cat.category_name,
-                      })
-                    )}
-                    value={values.category_id}
-                    onChange={(e) =>
-                      setFieldValue("category_id", e.target.value)
-                    }
-                    placeholder="No category (show uncategorized)"
-                  />
-                  {errors.category_id && touched.category_id && (
-                    <div style={{ color: "red" }}>{errors.category_id}</div>
-                  )}
-                </div>
-              </Grid>
-
-              <CustomContainer style={{ marginTop: 32, padding: 0 }} noPadding>
-                {values.items && values.items.length > 0 ? (
-                  <FieldArray name="items">
-                    {() => (
-                      <div>
-                        <Table
-                          variant="striped"
-                          mt="22px"
-                          sx={{
-                            "tbody tr:nth-of-type(odd) td": {
-                              background: "#f7f7f7", // your custom stripe color
-                            },
-                          }}
-                        >
-                          <Thead>
-                            <Tr>
-                              <Th>Material Name</Th>
-                              <Th>Quantity</Th>
-                              <Th>Remark</Th>
-                            </Tr>
-                          </Thead>
-                          <Tbody>
-                            {values.items.map((item, idx) => (
-                              <Tr key={item.material_id}>
-                                <Td>
-                                  <CustomInput
-                                    name={`items[${idx}].name`}
-                                    value={item.name}
-                                    editable={false}
-                                  />
-                                </Td>
-                                <Td>
-                                  <CustomInput
-                                    name={`items[${idx}].quantity`}
-                                    type="number"
-                                    min={1}
-                                    value={item.quantity}
-                                    placeholder="Quantity"
-                                  />
-                                </Td>
-                                <Td>
-                                  <CustomInput
-                                    name={`items[${idx}].remark`}
-                                    value={item.remark}
-                                    placeholder="Remark"
-                                  />
-                                </Td>
-                              </Tr>
-                            ))}
-                          </Tbody>
-                        </Table>
-
-                        {errors.items && typeof errors.items === "string" && (
-                          <div style={{ color: "red" }}>{errors.items}</div>
-                        )}
-                      </div>
-                    )}
-                  </FieldArray>
-                ) : (
-                  <EmptyData />
-                )}
+      <CustomContainer
+        title={
+          mode === "view"
+            ? "View Material Request"
+            : mode === "edit"
+            ? "Edit Material Request"
+            : "Create Material Request"
+        }
+        filledHeader
+      >
+        {loading ? (
+          <div>Loading...</div>
+        ) : error ? (
+          <div style={{ color: "red" }}>{error}</div>
+        ) : (
+          <>
+            {!storeId && (
+              <CustomContainer
+                style={{ marginBottom: 32, backgroundColor: "#f7f7f7" }}
+              >
+                <OutletDropdown
+                  selectedOutlet={outletId}
+                  setSelectedOutlet={(val) => setOutletId(val)}
+                  disabled={mode === "view"}
+                  showLabel
+                />
               </CustomContainer>
-              <Flex gap={3} mt={8} justify="flex-end">
-                <Button
-                  colorScheme="purple"
-                  type="submit"
-                  isLoading={isSubmitting}
-                >
-                  Submit Request
-                </Button>
-              </Flex>
-            </form>
-          )}
-        </Formik>
+            )}
+
+            <Formik
+              enableReinitialize
+              initialValues={initialValues}
+              validationSchema={validation}
+              onSubmit={handleSubmit}
+            >
+              {({
+                handleSubmit,
+                values,
+                setFieldValue,
+                isSubmitting,
+                errors,
+              }) => (
+                <form onSubmit={handleSubmit}>
+                  {mode !== "view" && (
+                    <SyncItemsWithCategory allMaterials={allMaterials} />
+                  )}
+
+                  <CustomContainer>
+                    <Grid
+                      templateColumns={{ base: "1fr", md: "1fr 1fr" }}
+                      height="62px"
+                    >
+                      <div>
+                        <CustomInput
+                          label="Category"
+                          name="category_id"
+                          method="switch"
+                          values={(Array.isArray(categories)
+                            ? categories
+                            : []
+                          ).map((cat) => ({
+                            id: cat.material_category_id,
+                            value: cat.category_name,
+                          }))}
+                          value={
+                            values.category_id ? undefined : "Uncategorized"
+                          }
+                          onChange={(e) =>
+                            setFieldValue("category_id", e.target.value)
+                          }
+                          placeholder="Uncategorized"
+                          editable={mode !== "view"}
+                        />
+                      </div>
+
+                      {mode === "view" && (
+                        <Flex justifyContent="flex-end">
+                          <Button onClick={handleApproveUnapprove}>{`Mark as ${
+                            isApproved ? "Pending" : "Approved"
+                          }`}</Button>
+                        </Flex>
+                      )}
+                    </Grid>
+
+                    <CustomContainer
+                      style={{ marginTop: 32, padding: 0 }}
+                      noPadding
+                    >
+                      {values.items && values.items.length > 0 ? (
+                        <FieldArray name="items">
+                          {() => (
+                            <div>
+                              <Table
+                                variant="striped"
+                                mt="22px"
+                                sx={{
+                                  "tbody tr:nth-of-type(odd) td": {
+                                    background: "#f7f7f7", // your custom stripe color
+                                  },
+                                }}
+                              >
+                                <Thead>
+                                  <Tr>
+                                    <Th>Material Name</Th>
+                                    <Th>Quantity</Th>
+                                    <Th>Remark</Th>
+                                  </Tr>
+                                </Thead>
+                                <Tbody>
+                                  {values.items.map((item, idx) => (
+                                    <Tr key={item.material_id}>
+                                      <Td>
+                                        <CustomInput
+                                          name={`items[${idx}].name`}
+                                          value={item.name}
+                                          editable={false}
+                                        />
+                                      </Td>
+                                      <Td>
+                                        <CustomInput
+                                          name={`items[${idx}].quantity`}
+                                          type="number"
+                                          min={1}
+                                          value={item.quantity}
+                                          placeholder="Quantity"
+                                          editable={mode !== "view"}
+                                        />
+                                      </Td>
+                                      <Td>
+                                        <CustomInput
+                                          name={`items[${idx}].remark`}
+                                          value={item.remark}
+                                          placeholder="Remark"
+                                          editable={mode !== "view"}
+                                        />
+                                      </Td>
+                                    </Tr>
+                                  ))}
+                                </Tbody>
+                              </Table>
+
+                              {errors.items &&
+                                typeof errors.items === "string" && (
+                                  <div style={{ color: "red" }}>
+                                    {errors.items}
+                                  </div>
+                                )}
+                            </div>
+                          )}
+                        </FieldArray>
+                      ) : (
+                        <EmptyData />
+                      )}
+                    </CustomContainer>
+                  </CustomContainer>
+
+                  {mode !== "view" && (
+                    <Flex gap={3} mt={8} justify="flex-end">
+                      <Button
+                        colorScheme="purple"
+                        type="submit"
+                        isLoading={isSubmitting}
+                      >
+                        {mode === "edit" ? "Update Request" : "Submit Request"}
+                      </Button>
+                    </Flex>
+                  )}
+                </form>
+              )}
+            </Formik>
+          </>
+        )}
       </CustomContainer>
     </GlobalWrapper>
   );

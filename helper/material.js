@@ -61,6 +61,26 @@ const material = {
           reject(err);
         });
     }),
+  getMaterialRequest: (id) =>
+    new Promise(function (resolve, reject) {
+      API.get(`/material_request/${id}`)
+        .then(async (res) => {
+          resolve(res);
+        })
+        .catch((err) => {
+          reject(err);
+        });
+    }),
+  updateMaterialRequest: (id, body) =>
+    new Promise(function (resolve, reject) {
+      API.put(`/material_request/${id}`, body)
+        .then(async (res) => {
+          resolve(res.data);
+        })
+        .catch((err) => {
+          reject(err);
+        });
+    }),
 };
 
 export default material;

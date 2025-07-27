@@ -2,18 +2,23 @@ import React from "react";
 import GlobalWrapper from "../../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../../components/CustomContainer";
 import Link from "next/link";
-import { Button } from "@chakra-ui/button";
+import { Button, IconButton } from "@chakra-ui/button";
+import { Menu, MenuItem } from "@szhsin/react-menu";
 import Table from "../../../components/table/table";
 import useMaterialRequests from "../../../customHooks/useMaterialRequests";
+import EmptyData from "../../../components/EmptyData";
+import { Badge } from "@chakra-ui/react";
 
 function MaterialsRequestPage() {
-  const { requests, loading, error } = useMaterialRequests();
+  const { loading, error, requests } = useMaterialRequests();
 
   const heading = {
     material_request_id: "ID",
     creator_name: "Creator Name",
     outlet_name: "Outlet Name",
     items_count: "Items Count",
+    approved: "Approval Status",
+    actions: "Actions",
   };
 
   // Prepare rows for the table
@@ -28,6 +33,32 @@ function MaterialsRequestPage() {
       ? new Date(req.updated_at).toLocaleString()
       : "-",
     items_count: req.items.length,
+    approved: req.is_approved ? (
+      <Badge colorScheme="green">Approved</Badge>
+    ) : (
+      <Badge>Pending</Badge>
+    ),
+    actions: (
+      <Menu
+        align="end"
+        gap={5}
+        menuButton={
+          <IconButton
+            variant="ghost"
+            colorScheme="purple"
+            icon={<i className={`fa fa-ellipsis-v`} />}
+          />
+        }
+        transition
+      >
+        <Link
+          href={`/materials/request/view?id=${req.material_request_id}`}
+          passHref
+        >
+          <MenuItem>View</MenuItem>
+        </Link>
+      </Menu>
+    ),
   }));
 
   return (
@@ -45,8 +76,10 @@ function MaterialsRequestPage() {
           <div>Loading...</div>
         ) : error ? (
           <div style={{ color: "red" }}>{error}</div>
-        ) : (
+        ) : rows.length > 0 ? (
           <Table variant="plain" heading={heading} rows={rows} />
+        ) : (
+          <EmptyData />
         )}
       </CustomContainer>
     </GlobalWrapper>
