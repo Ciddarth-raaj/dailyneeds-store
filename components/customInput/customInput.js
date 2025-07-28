@@ -28,7 +28,18 @@ import moment from "moment";
 import { useDropzone } from "react-dropzone";
 
 export const CustomDateTimeInput = forwardRef(
-  ({ value, onClick, onChange, variant = "outline", style, disabled }, ref) => (
+  (
+    {
+      value,
+      onClick,
+      onChange,
+      variant = "outline",
+      style,
+      disabled,
+      placeholder,
+    },
+    ref
+  ) => (
     <Input
       value={value ? moment(value).format("DD/MM/YYYY") : value}
       onChange={onChange}
@@ -38,6 +49,7 @@ export const CustomDateTimeInput = forwardRef(
       variant={variant}
       style={style}
       disabled={disabled}
+      placeholder={placeholder}
     />
   )
 );
@@ -132,7 +144,6 @@ const TextField = ({
     }
 
     if (method === "switch") {
-      console.log("CIDD", values.find((item) => item.id === value)?.value);
       return values.find((item) => item.id === value)?.value ?? "N/A";
     }
 
@@ -395,7 +406,12 @@ const TextField = ({
                 {...field}
                 {...props}
                 selected={(field.value && new Date(field.value)) || null}
-                customInput={<CustomDateTimeInput disabled={props.disabled} />}
+                customInput={
+                  <CustomDateTimeInput
+                    disabled={props.disabled}
+                    placeholder={props.placeholder}
+                  />
+                }
                 onChange={(val) => {
                   onChange && onChange(val);
                   setFieldValue(field.name, moment(val).format("YYYY-MM-DD"));

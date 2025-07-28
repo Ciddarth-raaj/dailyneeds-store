@@ -249,6 +249,26 @@ export default {
       },
     },
   },
+  purchase_order: {
+    title: "Purchase Order",
+    selected: false,
+    openPage: false,
+    icon: "fa-boxes", // Changed to a more relevant icon for materials
+    subMenu: {
+      view_purchase: {
+        title: "View Purchase Order",
+        permission: "view_purchase_order",
+        selected: false,
+        location: "/purchase-order",
+      },
+      add_purchase: {
+        title: "Add Purchase Order",
+        permission: "add_purchase_order",
+        selected: false,
+        location: "/purchase-order/create",
+      },
+    },
+  },
   products: {
     title: "Products",
     selected: false,

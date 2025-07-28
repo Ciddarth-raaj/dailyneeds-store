@@ -1,0 +1,61 @@
+.transparentInput {
+  background: transparent !important;
+  box-shadow: none !important;
+  outline: none !important;
+  color: inherit;
+  width: 100%;
+  height: 36px;
+  padding: 0 8px;
+  border: 1px solid rgb(72, 72, 72);
+}
+
+.transparentSelect__control {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  min-height: 36px !important;
+  height: 36px !important;
+  min-width: 120px;
+}
+
+.transparentSelect__value-container {
+  padding: 0 !important;
+}
+
+.transparentSelect__input-container {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.transparentSelect__indicators {
+  height: 36px !important;
+}
+
+.transparentSelect__menu {
+  z-index: 99999 !important;
+  position: absolute !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  min-width: 100%;
+}
+
+.transparentSelect__option {
+  background: transparent !important;
+  border: none !important;
+  color: inherit !important;
+  box-shadow: none !important;
+}
+
+.transparentSelect__option--is-focused {
+  background: rgba(0, 0, 0, 0.04) !important;
+}
+
+.transparentSelect__option--is-selected {
+  background: rgba(0, 0, 0, 0.08) !important;
+}
+
+.noPaddingCell {
+  padding: 12px !important;
+  margin: 0 !important;
+}
