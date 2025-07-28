@@ -25,11 +25,19 @@ import { useUser } from "../../contexts/UserContext";
 import ReactSelect from "react-select";
 import toast from "react-hot-toast";
 import Link from "next/link";
+import {
+  createPurchaseOrder,
+  getPurchaseOrderById,
+  updatePurchaseOrder,
+} from "../../helper/purchase";
 
 const EMPTY_ITEM = {
   material_id: null,
   quantity: null,
   rate: null,
+  purchase_order_item_id: null,
+  material_name: null,
+  material_description: null,
 };
 
 // Manual validation function that returns the first error found
@@ -155,6 +163,37 @@ function PurchaseOrder() {
 
   const viewMode = mode === "view";
   const editMode = mode === "edit";
+  const createMode = mode === "create";
+
+  // State for loading and purchase order data
+  const [loading, setLoading] = useState(false);
+  const [purchaseOrderData, setPurchaseOrderData] = useState(null);
+
+  // Fetch purchase order data for view/edit modes
+  useEffect(() => {
+    if ((viewMode || editMode) && paramId) {
+      fetchPurchaseOrderData();
+    }
+  }, [viewMode, editMode, paramId]);
+
+  const fetchPurchaseOrderData = async () => {
+    try {
+      setLoading(true);
+      const response = await getPurchaseOrderById(paramId);
+      if (response.code === 200) {
+        setPurchaseOrderData(response.data);
+      } else {
+        toast.error("Failed to fetch purchase order");
+        router.push("/purchase-order");
+      }
+    } catch (error) {
+      console.error("Error fetching purchase order:", error);
+      toast.error("Error fetching purchase order");
+      router.push("/purchase-order");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Fetch materials for dropdown
   const [materialOptions, setMaterialOptions] = useState([]);
@@ -178,26 +217,126 @@ function PurchaseOrder() {
 
   const handleSubmit = (values) => {
     const error = validateForm(values);
-    if (!error) {
-      toast.success("Purchase order saved successfully!");
-      // Handle form submission here
-    } else {
+    if (error) {
       toast.error(error);
+      return;
+    }
+
+    // Prepare data for API
+    const purchaseOrderData = {
+      vendor_id: values.vendor_id,
+      purchase_order_ref: values.purchase_order_id,
+      purchase_reference_id: values.purchase_reference_id || null,
+      date: values.date ?? null,
+      delivery_date: values.delivery_date ?? null,
+      discount: parseFloat(values.discount || 0),
+      adjustment: parseFloat(values.adjustment || 0),
+      status: "active",
+      items: values.items
+        .filter((item) => item.material_id && item.quantity && item.rate)
+        .map((item) => ({
+          material_id: parseInt(item.material_id),
+          quantity: parseInt(item.quantity),
+          rate: parseFloat(item.rate),
+          ...(item.purchase_order_item_id && {
+            purchase_order_item_id: item.purchase_order_item_id,
+          }),
+        })),
+    };
+
+    if (createMode) {
+      toast.promise(createPurchaseOrder(purchaseOrderData), {
+        loading: "Creating purchase order...",
+        success: (response) => {
+          if (response.code === 200) {
+            router.push("/purchase-order");
+            return "Purchase order created successfully!";
+          } else {
+            throw new Error(
+              response.message || "Failed to create purchase order"
+            );
+          }
+        },
+        error: (err) => {
+          console.log(err);
+          return err.message || "Error creating purchase order!";
+        },
+      });
+    } else if (editMode) {
+      toast.promise(updatePurchaseOrder(paramId, purchaseOrderData), {
+        loading: "Updating purchase order...",
+        success: (response) => {
+          if (response.code === 200) {
+            router.push("/purchase-order");
+            return "Purchase order updated successfully!";
+          } else {
+            throw new Error(
+              response.message || "Failed to update purchase order"
+            );
+          }
+        },
+        error: (err) => {
+          console.log(err);
+          return err.message || "Error updating purchase order!";
+        },
+      });
     }
   };
 
+  if (loading) {
+    return (
+      <GlobalWrapper>
+        <CustomContainer title="Purchase Order" filledHeader>
+          <div style={{ textAlign: "center", padding: "40px" }}>Loading...</div>
+        </CustomContainer>
+      </GlobalWrapper>
+    );
+  }
+
   return (
     <GlobalWrapper>
-      <CustomContainer title="Purchase Order" filledHeader>
+      <CustomContainer
+        title={`Purchase Order ${
+          viewMode ? "View" : editMode ? "Edit" : "Create"
+        }`}
+        filledHeader
+      >
         <Formik
           enableReinitialize
-          initialValues={{
-            date: null,
-            delivery_date: null,
-            items: [EMPTY_ITEM],
-            discount: 0,
-            adjustment: 0,
-          }}
+          initialValues={
+            purchaseOrderData
+              ? {
+                  vendor_id: purchaseOrderData.vendor_id,
+                  purchase_order_id: purchaseOrderData.purchase_order_ref || "",
+                  purchase_reference_id:
+                    purchaseOrderData.purchase_reference_id || "",
+                  date: purchaseOrderData.date,
+                  delivery_date: purchaseOrderData.delivery_date,
+                  items:
+                    purchaseOrderData.items?.length > 0
+                      ? purchaseOrderData.items.map((item) => ({
+                          material_id: item.material_id,
+                          quantity: item.quantity,
+                          rate: item.rate,
+                          purchase_order_item_id: item.purchase_order_item_id,
+                          material_name: item.material_name,
+                          material_description: item.material_description,
+                        }))
+                      : [EMPTY_ITEM],
+                  discount: purchaseOrderData.discount || 0,
+                  adjustment: purchaseOrderData.adjustment || 0,
+                }
+              : {
+                  vendor_id: null,
+                  purchase_order_id: "",
+                  purchase_reference_id: "",
+                  date: null,
+                  delivery_date: null,
+                  items: [EMPTY_ITEM],
+                  discount: 0,
+                  adjustment: 0,
+                }
+          }
           onSubmit={handleSubmit}
         >
           {({ handleSubmit, values, setFieldValue }) => {
@@ -237,7 +376,7 @@ function PurchaseOrder() {
                     method="switch"
                     values={filtersPeopleList}
                     placeholder="Select Vendor"
-                    editable={mode !== "view"}
+                    editable={!viewMode}
                   />
                 </div>
 
@@ -249,13 +388,13 @@ function PurchaseOrder() {
                       label="Purchase Order #"
                       name="purchase_order_id"
                       placeholder="12B6G"
-                      editable={mode !== "view"}
+                      editable={!viewMode}
                     />
                     <CustomInput
                       label="Purchase Reference #"
                       name="purchase_reference_id"
                       placeholder="12B6G"
-                      editable={mode !== "view"}
+                      editable={!viewMode}
                     />
                   </Grid>
                   <Grid templateColumns="repeat(2, 1fr)">
@@ -263,14 +402,14 @@ function PurchaseOrder() {
                       label="Date"
                       name="date"
                       placeholder="DD/MM/YYYY"
-                      editable={mode !== "view"}
+                      editable={!viewMode}
                       method="datepicker"
                     />
                     <CustomInput
                       label="Delivery Date"
                       name="delivery_date"
                       placeholder="DD/MM/YYYY"
-                      editable={mode !== "view"}
+                      editable={!viewMode}
                       method="datepicker"
                     />
                   </Grid>
@@ -323,7 +462,7 @@ function PurchaseOrder() {
                                           selected ? selected.value : null
                                         )
                                       }
-                                      isDisabled={mode === "view"}
+                                      isDisabled={viewMode}
                                       isSearchable
                                       placeholder="Select Item"
                                       classNamePrefix="transparentSelect"
@@ -343,7 +482,7 @@ function PurchaseOrder() {
                                           e.target.value
                                         )
                                       }
-                                      isDisabled={mode === "view"}
+                                      isDisabled={viewMode}
                                       min={0}
                                       className={styles.transparentInput}
                                     />
@@ -362,7 +501,7 @@ function PurchaseOrder() {
                                           e.target.value
                                         )
                                       }
-                                      isDisabled={mode === "view"}
+                                      isDisabled={viewMode}
                                       min={0}
                                       className={styles.transparentInput}
                                     />
@@ -396,7 +535,7 @@ function PurchaseOrder() {
                                       textAlign: "center",
                                     }}
                                   >
-                                    {mode !== "view" && (
+                                    {!viewMode && (
                                       <Button
                                         colorScheme="red"
                                         size="sm"
@@ -414,19 +553,21 @@ function PurchaseOrder() {
                             </Tbody>
                           </Table>
 
-                          <Flex justifyContent="flex-end">
-                            <Button
-                              onClick={() =>
-                                arrayHelpers.insert(
-                                  values.items.length,
-                                  EMPTY_ITEM
-                                )
-                              }
-                              mt="22px"
-                            >
-                              Add Row
-                            </Button>
-                          </Flex>
+                          {!viewMode && (
+                            <Flex justifyContent="flex-end">
+                              <Button
+                                onClick={() =>
+                                  arrayHelpers.insert(
+                                    values.items.length,
+                                    EMPTY_ITEM
+                                  )
+                                }
+                                mt="22px"
+                              >
+                                Add Row
+                              </Button>
+                            </Flex>
+                          )}
                         </div>
                       )}
                     ></FieldArray>
@@ -469,6 +610,7 @@ function PurchaseOrder() {
                           onChange={(e) =>
                             setFieldValue("discount", e.target.value)
                           }
+                          isDisabled={viewMode}
                         />
                         <InputRightAddon borderRadius="8px">%</InputRightAddon>
                       </InputGroup>
@@ -493,6 +635,7 @@ function PurchaseOrder() {
                         onChange={(e) =>
                           setFieldValue("adjustment", e.target.value)
                         }
+                        isDisabled={viewMode}
                       />
                       <span style={{ textAlign: "right", minWidth: "60px" }}>
                         {getAdjustment().toFixed(2)}
@@ -511,12 +654,14 @@ function PurchaseOrder() {
                 <Flex justifyContent="flex-end" mt="32px" gap="16px">
                   <Link href="/purchase-order" passHref>
                     <Button colorScheme="red" variant="outline">
-                      Cancel
+                      {viewMode ? "Back" : "Cancel"}
                     </Button>
                   </Link>
-                  <Button colorScheme="purple" onClick={handleSubmit}>
-                    Save
-                  </Button>
+                  {!viewMode && (
+                    <Button colorScheme="purple" onClick={handleSubmit}>
+                      {editMode ? "Update" : "Save"}
+                    </Button>
+                  )}
                 </Flex>
               </div>
             );

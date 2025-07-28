@@ -59,3 +59,43 @@ export const deletePurchaseTallyResponse = async (VoucherNo) => {
     throw err;
   }
 };
+
+export const createPurchaseOrder = async (data) => {
+  try {
+    const response = await API.post(`/purchase-order/with-items`, data);
+    return response.data;
+  } catch (err) {
+    console.log(err);
+    throw err;
+  }
+};
+
+export const getPurchaseOrders = async () => {
+  try {
+    const response = await API.get(`/purchase-order`);
+    return response.data;
+  } catch (err) {
+    console.log(err);
+    throw err;
+  }
+};
+
+export const getPurchaseOrderById = async (id) => {
+  try {
+    const response = await API.get(`/purchase-order/${id}/with-items`);
+    return response.data;
+  } catch (err) {
+    console.log(err);
+    throw err;
+  }
+};
+
+export const updatePurchaseOrder = async (id, data) => {
+  try {
+    const response = await API.put(`/purchase-order/${id}`, data);
+    return response.data;
+  } catch (err) {
+    console.log(err);
+    throw err;
+  }
+};
