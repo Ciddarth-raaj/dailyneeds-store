@@ -1,11 +1,9 @@
 /* eslint-disable @next/next/no-img-element */
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import styles from "./header.module.css";
 import Head from "../../util/head";
-import LogIn from "../../pages/login";
-import SideBarMobile from "../sideBarMobile/sideBarMobile";
 import { useUser } from "../../contexts/UserContext";
-import EmployeeHelper from "../../helper/employee";
+import { useBreakpointValue } from "@chakra-ui/react";
 
 export default function Header() {
   const [settings] = React.useState({
@@ -71,14 +69,28 @@ export default function Header() {
 
   const [token, setToken] = React.useState(null);
   const [loginVisibility, setLoginVisibility] = React.useState(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const isMobile = useBreakpointValue({ base: true, md: false });
   const { userConfig } = useUser();
   const { userType, fetched } = userConfig;
   const { employee_name, designation_name } = fetched ?? {};
 
+  // Handle click outside to close dropdown on mobile
   useEffect(() => {
-    const storedToken = localStorage.getItem("Token");
-    setToken(storedToken);
-  }, []);
+    const handleClickOutside = (event) => {
+      if (isMobile && isDropdownOpen) {
+        const wrapper = event.target.closest(`.${styles.wrapper}`);
+        if (!wrapper) {
+          setIsDropdownOpen(false);
+        }
+      }
+    };
+
+    if (isMobile) {
+      document.addEventListener("click", handleClickOutside);
+      return () => document.removeEventListener("click", handleClickOutside);
+    }
+  }, [isMobile, isDropdownOpen]);
 
   const logout = () => {
     localStorage.clear();
@@ -89,12 +101,51 @@ export default function Header() {
     return employee_name?.charAt(0) ?? "?";
   };
 
+  const handleDropdownToggle = () => {
+    setIsDropdownOpen(!isDropdownOpen);
+  };
+
+  const handleDropdownClose = () => {
+    setIsDropdownOpen(false);
+  };
+
+  const handleMenuItemClick = (link) => {
+    if (link) {
+      window.location.href = link;
+    }
+    setIsDropdownOpen(false);
+  };
+
+  const handleKeyDown = (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      if (isMobile) {
+        handleDropdownToggle();
+      } else {
+        setIsDropdownOpen(!isDropdownOpen);
+      }
+    } else if (event.key === "Escape") {
+      setIsDropdownOpen(false);
+    }
+  };
+
   return (
     <div className={styles.container}>
-      <SideBarMobile />
       <Head />
       <div className={styles.navigationBar}>
-        <div className={styles.wrapper}>
+        <div
+          className={`${styles.wrapper} ${isDropdownOpen ? styles.show : ""}`}
+          onClick={isMobile ? handleDropdownToggle : undefined}
+          onMouseEnter={!isMobile ? () => setIsDropdownOpen(true) : undefined}
+          onMouseLeave={!isMobile ? () => setIsDropdownOpen(false) : undefined}
+          onBlur={handleDropdownClose}
+          onKeyDown={handleKeyDown}
+          tabIndex={0}
+          role="button"
+          aria-haspopup="true"
+          aria-expanded={isDropdownOpen}
+          aria-label="User menu"
+        >
           <div className={styles.avatarWrapper}>{firstLetter()}</div>
           <div className={styles.name}>
             <p>{userType === "2" ? "Vinodh" : employee_name}</p>
@@ -103,18 +154,34 @@ export default function Header() {
               <i className="fa-solid fa-angle-down" aria-hidden="true" />
             </p>
           </div>
-          <div className={styles.dropdownContent}>
+          <div
+            className={`${styles.dropdownContent} ${
+              isDropdownOpen ? styles.show : ""
+            }`}
+            style={{ display: isDropdownOpen ? "block" : "none" }}
+          >
             {Object.keys(settings).map((key) => (
               <React.Fragment key={key}>
                 {settings[key].title !== "Log In" ? (
-                  <a href={settings[key].link} className={styles.menuItem}>
+                  <a
+                    href={settings[key].link}
+                    className={styles.menuItem}
+                    onClick={() => handleMenuItemClick(settings[key].link)}
+                    onTouchStart={() => handleMenuItemClick(settings[key].link)}
+                  >
                     <i className={settings[key].icon} aria-hidden="true" />
                     {settings[key].title}
                   </a>
                 ) : (
                   <>
                     <div className={styles.divider} />
-                    <a onClick={logout} className={styles.menuItem}>
+                    <a
+                      onClick={logout}
+                      className={styles.menuItem}
+                      onTouchStart={logout}
+                      role="button"
+                      tabIndex={0}
+                    >
                       <i
                         className="fa-solid fa-right-from-bracket"
                         aria-hidden="true"

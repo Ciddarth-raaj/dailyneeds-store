@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/router";
-import { Box, Text } from "@chakra-ui/react";
+import { Box, Text, useBreakpointValue } from "@chakra-ui/react";
 import styles from "./sideBar.module.css";
 import Head from "../../util/head";
 import MENU_LIST from "../../constants/menus";
@@ -22,6 +22,9 @@ export default function Sidebar() {
   });
   const [filteredData, setFilteredData] = useState([]);
   const router = useRouter();
+  const isMobile = useBreakpointValue({ base: true, md: false });
+
+  const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
     getPermissions();
@@ -90,73 +93,86 @@ export default function Sidebar() {
 
     setMenu(updatedMenu);
   };
-
   return (
-    <div className={styles.container}>
-      <Head />
-      <Box className={styles.sideBarOptions}>
-        {Object.keys(menu).map((key) => (
-          <Box key={key} className={styles.menuWrapper}>
-            <Box
-              as="a"
-              className={`${styles.optionHolder} ${
-                menu[key].selected ? styles.selectedMenu : ""
-              } ${menu[key].isOpen ? styles.openMenu : ""}`}
-              onClick={() => handleMenuClick(key)}
-            >
-              <Box className={styles.iconWrapper}>
-                <i
-                  className={`fa ${menu[key].icon} ${
-                    menu[key].selected
-                      ? styles["icons-selected"]
-                      : styles.iconsUnselected
-                  }`}
-                />
+    <>
+      <div
+        className={`${styles.menuContainer} ${isOpen ? styles.change : ""}`}
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <div className={styles.bar1}></div>
+        <div className={styles.bar2}></div>
+        <div className={styles.bar3}></div>
+      </div>
+
+      <div
+        className={styles.container}
+        style={{ display: isMobile ? (isOpen ? "block" : "none") : "block" }}
+      >
+        <Head />
+        <Box className={styles.sideBarOptions}>
+          {Object.keys(menu).map((key) => (
+            <Box key={key} className={styles.menuWrapper}>
+              <Box
+                as="a"
+                className={`${styles.optionHolder} ${
+                  menu[key].selected ? styles.selectedMenu : ""
+                } ${menu[key].isOpen ? styles.openMenu : ""}`}
+                onClick={() => handleMenuClick(key)}
+              >
+                <Box className={styles.iconWrapper}>
+                  <i
+                    className={`fa ${menu[key].icon} ${
+                      menu[key].selected
+                        ? styles["icons-selected"]
+                        : styles.iconsUnselected
+                    }`}
+                  />
+                </Box>
+                <span>{menu[key].title}</span>
               </Box>
-              <span>{menu[key].title}</span>
-            </Box>
 
-            {menu[key].isOpen &&
-              menu[key].subMenu &&
-              Object.keys(menu[key].subMenu).length > 0 && (
-                <div className={styles.subMenuWrapper}>
-                  {Object.keys(menu[key].subMenu).map((sKey) => {
-                    if (
-                      filteredData?.find(
-                        (item) =>
-                          item.permission_key ==
-                          menu[key].subMenu[sKey].permission
-                      ) === undefined
-                    ) {
-                      return null;
-                    }
+              {menu[key].isOpen &&
+                menu[key].subMenu &&
+                Object.keys(menu[key].subMenu).length > 0 && (
+                  <div className={styles.subMenuWrapper}>
+                    {Object.keys(menu[key].subMenu).map((sKey) => {
+                      if (
+                        filteredData?.find(
+                          (item) =>
+                            item.permission_key ==
+                            menu[key].subMenu[sKey].permission
+                        ) === undefined
+                      ) {
+                        return null;
+                      }
 
-                    const isActive =
-                      router.pathname === menu[key].subMenu[sKey].location;
-                    return (
-                      <Link
-                        key={sKey}
-                        href={menu[key].subMenu[sKey].location || ""}
-                        passHref
-                      >
-                        <Box
-                          as="a"
-                          className={`${styles.subMenuItem} ${
-                            isActive ? styles.active : ""
-                          }`}
+                      const isActive =
+                        router.pathname === menu[key].subMenu[sKey].location;
+                      return (
+                        <Link
+                          key={sKey}
+                          href={menu[key].subMenu[sKey].location || ""}
+                          passHref
                         >
-                          <Text className={styles.menuText}>
-                            {menu[key].subMenu[sKey].title}
-                          </Text>
-                        </Box>
-                      </Link>
-                    );
-                  })}
-                </div>
-              )}
-          </Box>
-        ))}
-      </Box>
-    </div>
+                          <Box
+                            as="a"
+                            className={`${styles.subMenuItem} ${
+                              isActive ? styles.active : ""
+                            }`}
+                          >
+                            <Text className={styles.menuText}>
+                              {menu[key].subMenu[sKey].title}
+                            </Text>
+                          </Box>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+            </Box>
+          ))}
+        </Box>
+      </div>
+    </>
   );
 }

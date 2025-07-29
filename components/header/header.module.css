@@ -162,12 +162,271 @@
   font-weight: bolder;
 }
 
-@media (max-width: 480px) {
+/* Mobile responsive styles */
+@media (max-width: 768px) {
   .container {
-    padding: 0 16px;
+    padding: 0 16px 0 80px;
+    height: 60px;
   }
 
+  .navigationBar {
+    gap: 16px;
+  }
+
+  .wrapper {
+    padding: 6px;
+  }
+
+  .name p {
+    font-size: 13px;
+  }
+
+  .nameSize {
+    font-size: 12px !important;
+  }
+
+  .dropdownContent {
+    min-width: 200px;
+    right: -10px;
+  }
+
+  .menuItem {
+    padding: 12px 16px;
+    font-size: 13px;
+  }
+
+  .menuItem i {
+    font-size: 15px;
+    width: 22px;
+  }
+}
+
+@media (max-width: 480px) {
+  .container {
+    padding: 0 12px 0 70px;
+    height: 56px;
+  }
+
+  .navigationBar {
+    gap: 12px;
+  }
+
+  .wrapper {
+    padding: 4px;
+  }
+
+  .avatarWrapper {
+    width: 36px;
+    height: 36px;
+    margin-right: 8px;
+    font-size: 14px;
+  }
+
+  .name {
+    gap: 1px;
+  }
+
+  .name p {
+    font-size: 12px;
+  }
+
+  .nameSize {
+    font-size: 11px !important;
+  }
+
+  .nameSize i {
+    font-size: 10px;
+  }
+
+  .dropdownContent {
+    min-width: 180px;
+    right: -15px;
+    padding: 6px;
+  }
+
+  .menuItem {
+    padding: 10px 12px;
+    font-size: 12px;
+    gap: 10px;
+  }
+
+  .menuItem i {
+    font-size: 14px;
+    width: 20px;
+  }
+
+  /* Hide full name on very small screens */
   .name p:first-child {
     display: none;
+  }
+}
+
+@media (max-width: 360px) {
+  .container {
+    padding: 0 8px 0 60px;
+    height: 52px;
+  }
+
+  .avatarWrapper {
+    width: 32px;
+    height: 32px;
+    margin-right: 6px;
+    font-size: 12px;
+  }
+
+  .name p {
+    font-size: 11px;
+  }
+
+  .nameSize {
+    font-size: 10px !important;
+  }
+
+  .dropdownContent {
+    min-width: 160px;
+    right: -20px;
+  }
+
+  .menuItem {
+    padding: 8px 10px;
+    font-size: 11px;
+  }
+}
+
+/* Touch-friendly improvements for mobile */
+@media (hover: none) and (pointer: coarse) {
+  .wrapper:hover .dropdownContent {
+    display: none;
+  }
+
+  .wrapper:active .dropdownContent {
+    display: block;
+  }
+
+  .menuItem {
+    min-height: 44px; /* Minimum touch target size */
+  }
+
+  .wrapper {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* Ensure dropdown stays open on mobile when needed */
+@media (max-width: 768px) {
+  .wrapper:focus-within .dropdownContent {
+    display: block;
+  }
+
+  /* Mobile-specific dropdown behavior */
+  .dropdownContent.show {
+    display: block !important;
+  }
+
+  /* Improve touch targets on mobile */
+  .wrapper {
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .menuItem {
+    cursor: pointer;
+    -webkit-tap-highlight-color: rgba(226, 153, 255, 0.2);
+  }
+
+  /* Prevent text selection on mobile */
+  .wrapper,
+  .menuItem {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+  }
+}
+
+/* Additional mobile improvements */
+@media (max-width: 480px) {
+  /* Ensure dropdown doesn't go off-screen */
+  .dropdownContent {
+    max-width: calc(100vw - 32px);
+    right: 0;
+    left: auto;
+  }
+
+  /* Better touch feedback */
+  .wrapper:active {
+    background-color: rgba(226, 153, 255, 0.2);
+  }
+
+  .menuItem:active {
+    background-color: var(--chakra-colors-purple-100);
+    color: var(--chakra-colors-purple-600);
+  }
+
+  /* Add visual indicator for mobile dropdown */
+  .wrapper::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: 12px;
+    background: transparent;
+    transition: background-color 0.2s ease;
+  }
+
+  .wrapper:active::before {
+    background-color: rgba(226, 153, 255, 0.1);
+  }
+
+  /* Smooth dropdown animation */
+  .dropdownContent {
+    transform: translateY(-10px);
+    opacity: 0;
+    transition: all 0.2s ease;
+  }
+
+  .dropdownContent.show {
+    transform: translateY(0);
+    opacity: 1;
+  }
+
+  /* Improve dropdown positioning */
+  .dropdownContent {
+    position: fixed;
+    top: 60px;
+    right: 12px;
+    left: auto;
+    width: auto;
+    min-width: 200px;
+    max-width: calc(100vw - 24px);
+  }
+}
+
+/* Add subtle animation for dropdown arrow on mobile */
+@media (max-width: 768px) {
+  .nameSize i {
+    transition: transform 0.2s ease;
+  }
+
+  .wrapper:active .nameSize i {
+    transform: rotate(180deg);
+  }
+
+  .wrapper.show .nameSize i {
+    transform: rotate(180deg);
+  }
+
+  /* Better focus states for accessibility */
+  .wrapper:focus {
+    outline: 2px solid var(--chakra-colors-purple-500);
+    outline-offset: 2px;
+  }
+
+  .menuItem:focus {
+    outline: 2px solid var(--chakra-colors-purple-500);
+    outline-offset: -2px;
   }
 }
