@@ -17,6 +17,12 @@ import {
   Tr,
   InputGroup,
   InputRightAddon,
+  Box,
+  VStack,
+  HStack,
+  Text,
+  useBreakpointValue,
+  TableContainer,
 } from "@chakra-ui/react";
 import material from "../../helper/material";
 import styles from "../../styles/purchaseOrderTable.module.css";
@@ -150,6 +156,10 @@ function PurchaseOrder() {
   const { peopleList } = usePeople();
   const { getLatestPurchaseOrderId } = usePurchaseOrder();
   const { storeId } = useUser().userConfig;
+
+  // Responsive breakpoints
+  const isMobile = useBreakpointValue({ base: true, md: false });
+  const isTablet = useBreakpointValue({ base: false, md: true, lg: false });
 
   const filtersPeopleList = useMemo(
     () =>
@@ -416,8 +426,8 @@ function PurchaseOrder() {
             };
 
             return (
-              <div>
-                <div>
+              <Box>
+                <Box>
                   <CustomInput
                     label="Vendor Name"
                     name="vendor_id"
@@ -426,200 +436,385 @@ function PurchaseOrder() {
                     placeholder="Select Vendor"
                     editable={!viewMode}
                   />
-                </div>
+                </Box>
 
                 <hr />
 
-                <div style={{ marginTop: "32px" }}>
-                  <Grid templateColumns="repeat(2, 1fr)">
-                    <CustomInput
-                      label="Purchase Order #"
-                      name="purchase_order_id"
-                      placeholder="12B6G"
-                      editable={!viewMode && !editMode}
-                    />
-                    <CustomInput
-                      label="Purchase Reference #"
-                      name="purchase_reference_id"
-                      placeholder="12B6G"
-                      editable={!viewMode}
-                    />
-                  </Grid>
-                  <Grid templateColumns="repeat(2, 1fr)">
-                    <CustomInput
-                      label="Date"
-                      name="date"
-                      placeholder="DD/MM/YYYY"
-                      editable={!viewMode}
-                      method="datepicker"
-                    />
-                    <CustomInput
-                      label="Delivery Date"
-                      name="delivery_date"
-                      placeholder="DD/MM/YYYY"
-                      editable={!viewMode}
-                      method="datepicker"
-                    />
-                  </Grid>
+                <Box mt="32px">
+                  {/* Desktop Layout */}
+                  <Box display={{ base: "none", md: "block" }}>
+                    <Grid templateColumns="repeat(2, 1fr)" gap={4}>
+                      <CustomInput
+                        label="Purchase Order #"
+                        name="purchase_order_id"
+                        placeholder="12B6G"
+                        editable={!viewMode && !editMode}
+                      />
+                      <CustomInput
+                        label="Purchase Reference #"
+                        name="purchase_reference_id"
+                        placeholder="12B6G"
+                        editable={!viewMode}
+                      />
+                    </Grid>
+                    <Grid templateColumns="repeat(2, 1fr)" gap={4} mt={4}>
+                      <CustomInput
+                        label="Date"
+                        name="date"
+                        placeholder="DD/MM/YYYY"
+                        editable={!viewMode}
+                        method="datepicker"
+                      />
+                      <CustomInput
+                        label="Delivery Date"
+                        name="delivery_date"
+                        placeholder="DD/MM/YYYY"
+                        editable={!viewMode}
+                        method="datepicker"
+                      />
+                    </Grid>
+                  </Box>
 
-                  <div>
+                  {/* Mobile Layout */}
+                  <Box display={{ base: "block", md: "none" }}>
+                    <VStack spacing={4}>
+                      <CustomInput
+                        label="Purchase Order #"
+                        name="purchase_order_id"
+                        placeholder="12B6G"
+                        editable={!viewMode && !editMode}
+                      />
+                      <CustomInput
+                        label="Purchase Reference #"
+                        name="purchase_reference_id"
+                        placeholder="12B6G"
+                        editable={!viewMode}
+                      />
+                      <CustomInput
+                        label="Date"
+                        name="date"
+                        placeholder="DD/MM/YYYY"
+                        editable={!viewMode}
+                        method="datepicker"
+                      />
+                      <CustomInput
+                        label="Delivery Date"
+                        name="delivery_date"
+                        placeholder="DD/MM/YYYY"
+                        editable={!viewMode}
+                        method="datepicker"
+                      />
+                    </VStack>
+                  </Box>
+
+                  <Box mt="22px">
                     <FieldArray
                       name="items"
                       render={(arrayHelpers) => (
-                        <div>
-                          <Table
-                            variant="striped"
-                            mt="22px"
-                            sx={{
-                              "tbody tr:nth-of-type(odd) td": {
-                                background: "#f7f7f7", // your custom stripe color
-                              },
-                            }}
-                          >
-                            <Thead>
-                              <Tr>
-                                <Th>Item</Th>
-                                <Th>Quantity</Th>
-                                <Th>Stock</Th>
-                                <Th>Rate</Th>
-                                <Th>Amount</Th>
-                                <Th>Action</Th>
-                              </Tr>
-                            </Thead>
-                            <Tbody>
-                              {values.items.map((item, idx) => (
-                                <Tr key={idx}>
-                                  {/* Item Selector */}
-                                  <Td
-                                    className={styles.noPaddingCell}
-                                    style={{ minWidth: 220, maxWidth: 300 }}
-                                  >
-                                    <ReactSelect
-                                      //   menuPortalTarget={
-                                      //     document && document?.body
-                                      //   }
-                                      options={materialOptions}
-                                      value={
-                                        materialOptions.find(
-                                          (opt) =>
-                                            opt.value === item.material_id
-                                        ) || null
-                                      }
-                                      onChange={(selected) =>
-                                        setFieldValue(
-                                          `items[${idx}].material_id`,
-                                          selected ? selected.value : null
-                                        )
-                                      }
-                                      isDisabled={viewMode}
-                                      isSearchable
-                                      placeholder="Select Item"
-                                      classNamePrefix="transparentSelect"
-                                    />
-                                  </Td>
-                                  {/* Quantity */}
-                                  <Td
-                                    className={styles.noPaddingCell}
-                                    style={{ minWidth: 100 }}
-                                  >
-                                    <Input
-                                      type="number"
-                                      value={item.quantity || ""}
-                                      onChange={(e) =>
-                                        setFieldValue(
-                                          `items[${idx}].quantity`,
-                                          e.target.value
-                                        )
-                                      }
-                                      isDisabled={viewMode}
-                                      min={0}
-                                      className={styles.transparentInput}
-                                    />
-                                  </Td>
-                                  {/* Stock */}
-                                  <Td
-                                    className={styles.noPaddingCell}
-                                    style={{ minWidth: 100 }}
-                                  >
-                                    <Input
-                                      type="number"
-                                      value={item.stock || ""}
-                                      onChange={(e) =>
-                                        setFieldValue(
-                                          `items[${idx}].stock`,
-                                          e.target.value
-                                        )
-                                      }
-                                      isDisabled={viewMode}
-                                      min={0}
-                                      className={styles.transparentInput}
-                                    />
-                                  </Td>
-                                  {/* Rate */}
-                                  <Td
-                                    className={styles.noPaddingCell}
-                                    style={{ minWidth: 100 }}
-                                  >
-                                    <Input
-                                      type="number"
-                                      value={item.rate || ""}
-                                      onChange={(e) =>
-                                        setFieldValue(
-                                          `items[${idx}].rate`,
-                                          e.target.value
-                                        )
-                                      }
-                                      isDisabled={viewMode}
-                                      min={0}
-                                      className={styles.transparentInput}
-                                    />
-                                  </Td>
-                                  {/* Amount (auto-calc) */}
-                                  <Td
-                                    className={styles.noPaddingCell}
-                                    style={{
-                                      minWidth: 120,
-                                      textAlign: "right",
-                                    }}
-                                  >
-                                    <Input
-                                      value={
-                                        item.quantity && item.rate
-                                          ? (
-                                              parseFloat(item.quantity) *
-                                              parseFloat(item.rate)
-                                            ).toFixed(2)
-                                          : ""
-                                      }
-                                      isReadOnly
-                                      className={styles.transparentInput}
-                                    />
-                                  </Td>
-                                  {/* Action */}
-                                  <Td
-                                    className={styles.noPaddingCell}
-                                    style={{
-                                      minWidth: 60,
-                                      textAlign: "center",
-                                    }}
-                                  >
-                                    {!viewMode && (
-                                      <Button
-                                        colorScheme="red"
-                                        size="sm"
-                                        onClick={() => arrayHelpers.remove(idx)}
-                                        style={{
-                                          height: "32px",
-                                        }}
-                                      >
-                                        Delete
-                                      </Button>
-                                    )}
-                                  </Td>
+                        <Box>
+                          {/* Desktop Table */}
+                          <Box display={{ base: "none", md: "block" }}>
+                            <Table
+                              variant="striped"
+                              sx={{
+                                "tbody tr:nth-of-type(odd) td": {
+                                  background: "#f7f7f7",
+                                },
+                              }}
+                            >
+                              <Thead>
+                                <Tr>
+                                  <Th>Item</Th>
+                                  <Th>Quantity</Th>
+                                  <Th>Stock</Th>
+                                  <Th>Rate</Th>
+                                  <Th>Amount</Th>
+                                  <Th>Action</Th>
                                 </Tr>
+                              </Thead>
+                              <Tbody>
+                                {values.items.map((item, idx) => (
+                                  <Tr key={idx}>
+                                    <Td
+                                      className={styles.noPaddingCell}
+                                      style={{ minWidth: 220, maxWidth: 300 }}
+                                    >
+                                      <ReactSelect
+                                        options={materialOptions}
+                                        value={
+                                          materialOptions.find(
+                                            (opt) =>
+                                              opt.value === item.material_id
+                                          ) || null
+                                        }
+                                        onChange={(selected) =>
+                                          setFieldValue(
+                                            `items[${idx}].material_id`,
+                                            selected ? selected.value : null
+                                          )
+                                        }
+                                        isDisabled={viewMode}
+                                        isSearchable
+                                        placeholder="Select Item"
+                                        classNamePrefix="transparentSelect"
+                                      />
+                                    </Td>
+                                    <Td
+                                      className={styles.noPaddingCell}
+                                      style={{ minWidth: 100 }}
+                                    >
+                                      <Input
+                                        type="number"
+                                        value={item.quantity || ""}
+                                        onChange={(e) =>
+                                          setFieldValue(
+                                            `items[${idx}].quantity`,
+                                            e.target.value
+                                          )
+                                        }
+                                        isDisabled={viewMode}
+                                        min={0}
+                                        className={styles.transparentInput}
+                                      />
+                                    </Td>
+                                    <Td
+                                      className={styles.noPaddingCell}
+                                      style={{ minWidth: 100 }}
+                                    >
+                                      <Input
+                                        type="number"
+                                        value={item.stock || ""}
+                                        onChange={(e) =>
+                                          setFieldValue(
+                                            `items[${idx}].stock`,
+                                            e.target.value
+                                          )
+                                        }
+                                        isDisabled={viewMode}
+                                        min={0}
+                                        className={styles.transparentInput}
+                                      />
+                                    </Td>
+                                    <Td
+                                      className={styles.noPaddingCell}
+                                      style={{ minWidth: 100 }}
+                                    >
+                                      <Input
+                                        type="number"
+                                        value={item.rate || ""}
+                                        onChange={(e) =>
+                                          setFieldValue(
+                                            `items[${idx}].rate`,
+                                            e.target.value
+                                          )
+                                        }
+                                        isDisabled={viewMode}
+                                        min={0}
+                                        className={styles.transparentInput}
+                                      />
+                                    </Td>
+                                    <Td
+                                      className={styles.noPaddingCell}
+                                      style={{
+                                        minWidth: 120,
+                                        textAlign: "right",
+                                      }}
+                                    >
+                                      <Input
+                                        value={
+                                          item.quantity && item.rate
+                                            ? (
+                                                parseFloat(item.quantity) *
+                                                parseFloat(item.rate)
+                                              ).toFixed(2)
+                                            : ""
+                                        }
+                                        isReadOnly
+                                        className={styles.transparentInput}
+                                      />
+                                    </Td>
+                                    <Td
+                                      className={styles.noPaddingCell}
+                                      style={{
+                                        minWidth: 60,
+                                        textAlign: "center",
+                                      }}
+                                    >
+                                      {!viewMode && (
+                                        <Button
+                                          colorScheme="red"
+                                          size="sm"
+                                          onClick={() =>
+                                            arrayHelpers.remove(idx)
+                                          }
+                                          style={{
+                                            height: "32px",
+                                          }}
+                                        >
+                                          Delete
+                                        </Button>
+                                      )}
+                                    </Td>
+                                  </Tr>
+                                ))}
+                              </Tbody>
+                            </Table>
+                          </Box>
+
+                          {/* Mobile Cards */}
+                          <Box display={{ base: "block", md: "none" }}>
+                            <VStack spacing={4} align="stretch">
+                              {values.items.map((item, idx) => (
+                                <Box
+                                  key={idx}
+                                  border="1px solid"
+                                  borderColor="gray.200"
+                                  borderRadius="md"
+                                  p={4}
+                                  bg="white"
+                                >
+                                  <VStack spacing={3} align="stretch">
+                                    <Box>
+                                      <Text
+                                        fontSize="sm"
+                                        fontWeight="medium"
+                                        mb={2}
+                                      >
+                                        Item
+                                      </Text>
+                                      <ReactSelect
+                                        options={materialOptions}
+                                        value={
+                                          materialOptions.find(
+                                            (opt) =>
+                                              opt.value === item.material_id
+                                          ) || null
+                                        }
+                                        onChange={(selected) =>
+                                          setFieldValue(
+                                            `items[${idx}].material_id`,
+                                            selected ? selected.value : null
+                                          )
+                                        }
+                                        isDisabled={viewMode}
+                                        isSearchable
+                                        placeholder="Select Item"
+                                        classNamePrefix="transparentSelect"
+                                      />
+                                    </Box>
+
+                                    <HStack spacing={3}>
+                                      <Box flex={1}>
+                                        <Text
+                                          fontSize="sm"
+                                          fontWeight="medium"
+                                          mb={2}
+                                        >
+                                          Quantity
+                                        </Text>
+                                        <Input
+                                          type="number"
+                                          value={item.quantity || ""}
+                                          onChange={(e) =>
+                                            setFieldValue(
+                                              `items[${idx}].quantity`,
+                                              e.target.value
+                                            )
+                                          }
+                                          isDisabled={viewMode}
+                                          min={0}
+                                          size="sm"
+                                        />
+                                      </Box>
+                                      <Box flex={1}>
+                                        <Text
+                                          fontSize="sm"
+                                          fontWeight="medium"
+                                          mb={2}
+                                        >
+                                          Stock
+                                        </Text>
+                                        <Input
+                                          type="number"
+                                          value={item.stock || ""}
+                                          onChange={(e) =>
+                                            setFieldValue(
+                                              `items[${idx}].stock`,
+                                              e.target.value
+                                            )
+                                          }
+                                          isDisabled={viewMode}
+                                          min={0}
+                                          size="sm"
+                                        />
+                                      </Box>
+                                    </HStack>
+
+                                    <HStack spacing={3}>
+                                      <Box flex={1}>
+                                        <Text
+                                          fontSize="sm"
+                                          fontWeight="medium"
+                                          mb={2}
+                                        >
+                                          Rate
+                                        </Text>
+                                        <Input
+                                          type="number"
+                                          value={item.rate || ""}
+                                          onChange={(e) =>
+                                            setFieldValue(
+                                              `items[${idx}].rate`,
+                                              e.target.value
+                                            )
+                                          }
+                                          isDisabled={viewMode}
+                                          min={0}
+                                          size="sm"
+                                        />
+                                      </Box>
+                                      <Box flex={1}>
+                                        <Text
+                                          fontSize="sm"
+                                          fontWeight="medium"
+                                          mb={2}
+                                        >
+                                          Amount
+                                        </Text>
+                                        <Input
+                                          value={
+                                            item.quantity && item.rate
+                                              ? (
+                                                  parseFloat(item.quantity) *
+                                                  parseFloat(item.rate)
+                                                ).toFixed(2)
+                                              : ""
+                                          }
+                                          isReadOnly
+                                          size="sm"
+                                          bg="gray.50"
+                                        />
+                                      </Box>
+                                    </HStack>
+
+                                    {!viewMode && (
+                                      <Flex justifyContent="flex-end">
+                                        <Button
+                                          colorScheme="red"
+                                          size="sm"
+                                          onClick={() =>
+                                            arrayHelpers.remove(idx)
+                                          }
+                                        >
+                                          Delete
+                                        </Button>
+                                      </Flex>
+                                    )}
+                                  </VStack>
+                                </Box>
                               ))}
-                            </Tbody>
-                          </Table>
+                            </VStack>
+                          </Box>
 
                           {!viewMode && (
                             <Flex justifyContent="flex-end">
@@ -636,128 +831,357 @@ function PurchaseOrder() {
                               </Button>
                             </Flex>
                           )}
-                        </div>
+                        </Box>
                       )}
                     ></FieldArray>
-                  </div>
+                  </Box>
+
                   {/* Summary Section */}
-                  <div
-                    style={{
-                      background: "#fafbfc",
-                      borderRadius: "16px",
-                      padding: "32px 24px",
-                      marginTop: "40px",
-                      maxWidth: 480,
-                      marginLeft: "auto",
-                      marginRight: 0,
-                    }}
+                  <Box
+                    bg="#fafbfc"
+                    borderRadius="16px"
+                    p={{ base: "24px 16px", md: "32px 24px" }}
+                    mt="40px"
+                    maxW={{ base: "100%", md: "480px" }}
+                    ml={{ base: "0", md: "auto" }}
+                    mr="0"
                   >
-                    <Grid templateColumns="1fr auto" alignItems="center" mb={4}>
-                      <b>Sub Total</b>
-                      <span style={{ fontWeight: 600, fontSize: 18 }}>
-                        {getSubTotal().toFixed(2)}
-                      </span>
-                    </Grid>
-                    <Grid
-                      templateColumns="1fr 160px auto"
-                      alignItems="center"
-                      mb={4}
-                      gap={4}
-                    >
-                      <span>Discount</span>
-                      <InputGroup>
+                    {/* Desktop Summary Layout */}
+                    <Box display={{ base: "none", md: "block" }}>
+                      <Grid
+                        templateColumns="1fr auto"
+                        alignItems="center"
+                        mb={4}
+                      >
+                        <Text fontWeight="bold">Sub Total</Text>
+                        <Text fontWeight="600" fontSize="18">
+                          {getSubTotal().toFixed(2)}
+                        </Text>
+                      </Grid>
+
+                      <Grid
+                        templateColumns="1fr 160px auto"
+                        alignItems="center"
+                        mb={4}
+                        gap={4}
+                      >
+                        <Text>Discount</Text>
+                        <InputGroup>
+                          <Input
+                            type="number"
+                            min={0}
+                            max={100}
+                            placeholder="0"
+                            size="md"
+                            borderRadius="8px"
+                            bg="white"
+                            value={values.discount}
+                            onChange={(e) =>
+                              setFieldValue("discount", e.target.value)
+                            }
+                            isDisabled={viewMode}
+                          />
+                          <InputRightAddon borderRadius="8px">
+                            %
+                          </InputRightAddon>
+                        </InputGroup>
+                        <Text textAlign="right" minW="60px">
+                          {getDiscountAmount().toFixed(2)}
+                        </Text>
+                      </Grid>
+
+                      <Grid
+                        templateColumns="1fr 160px auto"
+                        alignItems="center"
+                        mb={4}
+                        gap={4}
+                      >
+                        <Text>Tax</Text>
+                        <InputGroup>
+                          <Input
+                            type="number"
+                            min={0}
+                            max={100}
+                            placeholder="0"
+                            size="md"
+                            borderRadius="8px"
+                            bg="white"
+                            value={values.tax}
+                            onChange={(e) =>
+                              setFieldValue("tax", e.target.value)
+                            }
+                            isDisabled={viewMode}
+                          />
+                          <InputRightAddon borderRadius="8px">
+                            %
+                          </InputRightAddon>
+                        </InputGroup>
+                        <Text textAlign="right" minW="60px">
+                          {getTaxAmount().toFixed(2)}
+                        </Text>
+                      </Grid>
+
+                      <Grid
+                        templateColumns="1fr 160px auto"
+                        alignItems="center"
+                        mb={4}
+                        gap={4}
+                      >
+                        <Text>Adjustment</Text>
                         <Input
                           type="number"
-                          min={0}
-                          max={100}
-                          placeholder="0"
+                          placeholder=""
                           size="md"
                           borderRadius="8px"
                           bg="white"
-                          value={values.discount}
+                          value={values.adjustment}
                           onChange={(e) =>
-                            setFieldValue("discount", e.target.value)
+                            setFieldValue("adjustment", e.target.value)
                           }
                           isDisabled={viewMode}
                         />
-                        <InputRightAddon borderRadius="8px">%</InputRightAddon>
-                      </InputGroup>
-                      <span style={{ textAlign: "right", minWidth: "60px" }}>
-                        {getDiscountAmount().toFixed(2)}
-                      </span>
-                    </Grid>
-                    <Grid
-                      templateColumns="1fr 160px auto"
-                      alignItems="center"
-                      mb={4}
-                      gap={4}
-                    >
-                      <span>Tax</span>
-                      <InputGroup>
-                        <Input
-                          type="number"
-                          min={0}
-                          max={100}
-                          placeholder="0"
-                          size="md"
-                          borderRadius="8px"
-                          bg="white"
-                          value={values.tax}
-                          onChange={(e) => setFieldValue("tax", e.target.value)}
-                          isDisabled={viewMode}
-                        />
-                        <InputRightAddon borderRadius="8px">%</InputRightAddon>
-                      </InputGroup>
-                      <span style={{ textAlign: "right", minWidth: "60px" }}>
-                        {getTaxAmount().toFixed(2)}
-                      </span>
-                    </Grid>
-                    <Grid
-                      templateColumns="1fr 160px auto"
-                      alignItems="center"
-                      mb={4}
-                      gap={4}
-                    >
-                      <span>Adjustment</span>
-                      <Input
-                        type="number"
-                        placeholder=""
-                        size="md"
-                        borderRadius="8px"
-                        bg="white"
-                        value={values.adjustment}
-                        onChange={(e) =>
-                          setFieldValue("adjustment", e.target.value)
-                        }
-                        isDisabled={viewMode}
-                      />
-                      <span style={{ textAlign: "right", minWidth: "60px" }}>
-                        {getAdjustment().toFixed(2)}
-                      </span>
-                    </Grid>
-                    <hr style={{ margin: "32px 0 16px 0" }} />
-                    <Grid templateColumns="1fr auto" alignItems="center">
-                      <b style={{ fontSize: 20 }}>Total</b>
-                      <span style={{ fontWeight: 700, fontSize: 22 }}>
-                        {getTotal().toFixed(2)}
-                      </span>
-                    </Grid>
-                  </div>
-                </div>
+                        <Text textAlign="right" minW="60px">
+                          {getAdjustment().toFixed(2)}
+                        </Text>
+                      </Grid>
 
-                <Flex justifyContent="flex-end" mt="32px" gap="16px">
+                      <hr style={{ margin: "32px 0 16px 0" }} />
+                      <Grid templateColumns="1fr auto" alignItems="center">
+                        <Text fontWeight="bold" fontSize="20">
+                          Total
+                        </Text>
+                        <Text fontWeight="700" fontSize="22">
+                          {getTotal().toFixed(2)}
+                        </Text>
+                      </Grid>
+                    </Box>
+
+                    {/* Mobile Summary Layout */}
+                    <Box display={{ base: "block", md: "none" }}>
+                      <VStack spacing={6} align="stretch">
+                        {/* Sub Total */}
+                        <Box
+                          bg="white"
+                          p={4}
+                          borderRadius="12px"
+                          border="1px solid"
+                          borderColor="gray.200"
+                          boxShadow="sm"
+                        >
+                          <Flex
+                            justifyContent="space-between"
+                            alignItems="center"
+                          >
+                            <Text fontWeight="600" fontSize="16">
+                              Sub Total
+                            </Text>
+                            <Text
+                              fontWeight="700"
+                              fontSize="18"
+                              color="blue.600"
+                            >
+                              ₹{getSubTotal().toFixed(2)}
+                            </Text>
+                          </Flex>
+                        </Box>
+
+                        {/* Discount */}
+                        <Box
+                          bg="white"
+                          p={4}
+                          borderRadius="12px"
+                          border="1px solid"
+                          borderColor="gray.200"
+                          boxShadow="sm"
+                        >
+                          <VStack spacing={3} align="stretch">
+                            <Flex
+                              justifyContent="space-between"
+                              alignItems="center"
+                            >
+                              <Text fontWeight="500" fontSize="15">
+                                Discount
+                              </Text>
+                              <Text
+                                fontWeight="600"
+                                fontSize="16"
+                                color="red.500"
+                              >
+                                -₹{getDiscountAmount().toFixed(2)}
+                              </Text>
+                            </Flex>
+                            <InputGroup>
+                              <Input
+                                type="number"
+                                min={0}
+                                max={100}
+                                placeholder="0"
+                                size="md"
+                                borderRadius="8px"
+                                bg="gray.50"
+                                value={values.discount}
+                                onChange={(e) =>
+                                  setFieldValue("discount", e.target.value)
+                                }
+                                isDisabled={viewMode}
+                              />
+                              <InputRightAddon borderRadius="8px" bg="gray.100">
+                                %
+                              </InputRightAddon>
+                            </InputGroup>
+                          </VStack>
+                        </Box>
+
+                        {/* Tax */}
+                        <Box
+                          bg="white"
+                          p={4}
+                          borderRadius="12px"
+                          border="1px solid"
+                          borderColor="gray.200"
+                          boxShadow="sm"
+                        >
+                          <VStack spacing={3} align="stretch">
+                            <Flex
+                              justifyContent="space-between"
+                              alignItems="center"
+                            >
+                              <Text fontWeight="500" fontSize="15">
+                                Tax
+                              </Text>
+                              <Text
+                                fontWeight="600"
+                                fontSize="16"
+                                color="green.500"
+                              >
+                                +₹{getTaxAmount().toFixed(2)}
+                              </Text>
+                            </Flex>
+                            <InputGroup>
+                              <Input
+                                type="number"
+                                min={0}
+                                max={100}
+                                placeholder="0"
+                                size="md"
+                                borderRadius="8px"
+                                bg="gray.50"
+                                value={values.tax}
+                                onChange={(e) =>
+                                  setFieldValue("tax", e.target.value)
+                                }
+                                isDisabled={viewMode}
+                              />
+                              <InputRightAddon borderRadius="8px" bg="gray.100">
+                                %
+                              </InputRightAddon>
+                            </InputGroup>
+                          </VStack>
+                        </Box>
+
+                        {/* Adjustment */}
+                        <Box
+                          bg="white"
+                          p={4}
+                          borderRadius="12px"
+                          border="1px solid"
+                          borderColor="gray.200"
+                          boxShadow="sm"
+                        >
+                          <VStack spacing={3} align="stretch">
+                            <Flex
+                              justifyContent="space-between"
+                              alignItems="center"
+                            >
+                              <Text fontWeight="500" fontSize="15">
+                                Adjustment
+                              </Text>
+                              <Text
+                                fontWeight="600"
+                                fontSize="16"
+                                color={
+                                  getAdjustment() >= 0 ? "green.500" : "red.500"
+                                }
+                              >
+                                {getAdjustment() >= 0 ? "+" : ""}₹
+                                {getAdjustment().toFixed(2)}
+                              </Text>
+                            </Flex>
+                            <Input
+                              type="number"
+                              placeholder="0"
+                              size="md"
+                              borderRadius="8px"
+                              bg="gray.50"
+                              value={values.adjustment}
+                              onChange={(e) =>
+                                setFieldValue("adjustment", e.target.value)
+                              }
+                              isDisabled={viewMode}
+                            />
+                          </VStack>
+                        </Box>
+
+                        {/* Total */}
+                        <Box
+                          bg="blue.50"
+                          p={5}
+                          borderRadius="16px"
+                          border="2px solid"
+                          borderColor="blue.200"
+                          boxShadow="md"
+                        >
+                          <Flex
+                            justifyContent="space-between"
+                            alignItems="center"
+                          >
+                            <Text
+                              fontWeight="700"
+                              fontSize="18"
+                              color="blue.700"
+                            >
+                              Total
+                            </Text>
+                            <Text
+                              fontWeight="800"
+                              fontSize="22"
+                              color="blue.700"
+                            >
+                              ₹{getTotal().toFixed(2)}
+                            </Text>
+                          </Flex>
+                        </Box>
+                      </VStack>
+                    </Box>
+                  </Box>
+                </Box>
+
+                <Flex
+                  justifyContent="flex-end"
+                  mt="32px"
+                  gap="16px"
+                  direction={{ base: "column", md: "row" }}
+                >
                   <Link href="/purchase-order" passHref>
-                    <Button colorScheme="red" variant="outline">
+                    <Button
+                      colorScheme="red"
+                      variant="outline"
+                      w={{ base: "100%", md: "auto" }}
+                    >
                       {viewMode ? "Back" : "Cancel"}
                     </Button>
                   </Link>
                   {!viewMode && (
-                    <Button colorScheme="purple" onClick={handleSubmit}>
+                    <Button
+                      colorScheme="purple"
+                      onClick={handleSubmit}
+                      w={{ base: "100%", md: "auto" }}
+                    >
                       {editMode ? "Update" : "Save"}
                     </Button>
                   )}
                 </Flex>
-              </div>
+              </Box>
             );
           }}
         </Formik>

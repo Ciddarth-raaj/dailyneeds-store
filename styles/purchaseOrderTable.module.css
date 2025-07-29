@@ -59,3 +59,37 @@
   padding: 12px !important;
   margin: 0 !important;
 }
+
+/* Mobile responsive styles */
+@media (max-width: 768px) {
+  .transparentSelect__control {
+    min-height: 40px !important;
+    height: 40px !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 8px !important;
+    background: white !important;
+  }
+
+  .transparentSelect__indicators {
+    height: 40px !important;
+  }
+
+  .transparentInput {
+    height: 40px;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    background: white !important;
+  }
+
+  .noPaddingCell {
+    padding: 8px !important;
+  }
+}
+
+/* Ensure table is scrollable on mobile */
+@media (max-width: 768px) {
+  .tableContainer {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
