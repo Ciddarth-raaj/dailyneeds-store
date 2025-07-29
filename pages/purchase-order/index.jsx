@@ -87,6 +87,16 @@ function PurchaseOrder() {
         }
         transition
       >
+        {order.pdf_url && (
+          <MenuItem
+            as="a"
+            href={order.pdf_url}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            View PDF
+          </MenuItem>
+        )}
         <MenuItem
           onClick={() =>
             router.push(`/purchase-order/view?id=${order.purchase_order_id}`)

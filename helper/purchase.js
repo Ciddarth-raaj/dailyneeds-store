@@ -62,7 +62,10 @@ export const deletePurchaseTallyResponse = async (VoucherNo) => {
 
 export const createPurchaseOrder = async (data) => {
   try {
-    const response = await API.post(`/purchase-order/with-items`, data);
+    const response = await API.post(`/purchase-order/with-pdf`, {
+      ...data,
+      should_generate_pdf: true,
+    });
     return response.data;
   } catch (err) {
     console.log(err);
@@ -92,7 +95,10 @@ export const getPurchaseOrderById = async (id) => {
 
 export const updatePurchaseOrder = async (id, data) => {
   try {
-    const response = await API.put(`/purchase-order/${id}/with-items`, data);
+    const response = await API.put(`/purchase-order/${id}/with-pdf`, {
+      ...data,
+      should_generate_pdf: true,
+    });
     return response.data;
   } catch (err) {
     console.log(err);
