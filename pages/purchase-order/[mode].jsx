@@ -1124,11 +1124,11 @@ function PurchaseOrder() {
 
                         {/* Total */}
                         <Box
-                          bg="blue.50"
+                          bg="purple.50"
                           p={5}
                           borderRadius="16px"
                           border="2px solid"
-                          borderColor="blue.200"
+                          borderColor="purple.200"
                           boxShadow="md"
                         >
                           <Flex
@@ -1138,14 +1138,14 @@ function PurchaseOrder() {
                             <Text
                               fontWeight="700"
                               fontSize="18"
-                              color="blue.700"
+                              color="purple.700"
                             >
                               Total
                             </Text>
                             <Text
                               fontWeight="800"
                               fontSize="22"
-                              color="blue.700"
+                              color="purple.700"
                             >
                               ₹{getTotal().toFixed(2)}
                             </Text>
