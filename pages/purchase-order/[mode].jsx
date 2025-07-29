@@ -21,6 +21,7 @@ import {
 import material from "../../helper/material";
 import styles from "../../styles/purchaseOrderTable.module.css";
 import usePeople from "../../customHooks/usePeople";
+import { usePurchaseOrder } from "../../customHooks/usePurchaseOrder";
 import { useUser } from "../../contexts/UserContext";
 import ReactSelect from "react-select";
 import toast from "react-hot-toast";
@@ -34,6 +35,7 @@ import {
 const EMPTY_ITEM = {
   material_id: null,
   quantity: null,
+  stock: null,
   rate: null,
   purchase_order_item_id: null,
   material_name: null,
@@ -98,6 +100,12 @@ const validateForm = (values) => {
         return `Item ${i + 1}: Quantity must be greater than 0`;
       }
 
+      if (!item.stock) {
+        return `Item ${i + 1}: Stock is required`;
+      } else if (isNaN(item.stock) || parseFloat(item.stock) < 0) {
+        return `Item ${i + 1}: Stock must be 0 or greater`;
+      }
+
       if (!item.rate) {
         return `Item ${i + 1}: Rate is required`;
       } else if (isNaN(item.rate) || parseFloat(item.rate) <= 0) {
@@ -140,6 +148,7 @@ function PurchaseOrder() {
   const { mode, id: paramId } = router.query;
 
   const { peopleList } = usePeople();
+  const { getLatestPurchaseOrderId } = usePurchaseOrder();
   const { storeId } = useUser().userConfig;
 
   const filtersPeopleList = useMemo(
@@ -227,13 +236,18 @@ function PurchaseOrder() {
           date: values.date ?? null,
           delivery_date: values.delivery_date ?? null,
           discount: parseFloat(values.discount || 0),
+          tax: parseFloat(values.tax || 0),
           adjustment: parseFloat(values.adjustment || 0),
           status: "active",
           items: values.items
-            .filter((item) => item.material_id && item.quantity && item.rate)
+            .filter(
+              (item) =>
+                item.material_id && item.quantity && item.stock && item.rate
+            )
             .map((item) => ({
               material_id: parseInt(item.material_id),
               quantity: parseInt(item.quantity),
+              stock: parseInt(item.stock),
               rate: parseFloat(item.rate),
             })),
         }
@@ -243,13 +257,18 @@ function PurchaseOrder() {
           date: values.date ?? null,
           delivery_date: values.delivery_date ?? null,
           discount: parseFloat(values.discount || 0),
+          tax: parseFloat(values.tax || 0),
           adjustment: parseFloat(values.adjustment || 0),
           status: "active",
           items: values.items
-            .filter((item) => item.material_id && item.quantity && item.rate)
+            .filter(
+              (item) =>
+                item.material_id && item.quantity && item.stock && item.rate
+            )
             .map((item) => ({
               material_id: parseInt(item.material_id),
               quantity: parseInt(item.quantity),
+              stock: parseInt(item.stock),
               rate: parseFloat(item.rate),
             })),
         };
@@ -331,6 +350,7 @@ function PurchaseOrder() {
                       ? purchaseOrderData.items.map((item) => ({
                           material_id: item.material_id,
                           quantity: item.quantity,
+                          stock: item.stock || 0,
                           rate: item.rate,
                           purchase_order_item_id: item.purchase_order_item_id,
                           material_name: item.material_name,
@@ -338,16 +358,23 @@ function PurchaseOrder() {
                         }))
                       : [EMPTY_ITEM],
                   discount: purchaseOrderData.discount || 0,
+                  tax: purchaseOrderData.tax || 0,
                   adjustment: purchaseOrderData.adjustment || 0,
                 }
               : {
                   vendor_id: null,
-                  purchase_order_id: "",
+                  purchase_order_id:
+                    parseInt(getLatestPurchaseOrderId() ?? 0) + 1 || "",
                   purchase_reference_id: "",
-                  date: null,
-                  delivery_date: null,
+                  date: new Date(),
+                  delivery_date: (() => {
+                    const tomorrow = new Date();
+                    tomorrow.setDate(tomorrow.getDate() + 1);
+                    return tomorrow;
+                  })(),
                   items: [EMPTY_ITEM],
                   discount: 0,
+                  tax: 0,
                   adjustment: 0,
                 }
           }
@@ -370,6 +397,12 @@ function PurchaseOrder() {
               return subTotal * (discountPercent / 100);
             };
 
+            const getTaxAmount = () => {
+              const subTotal = getSubTotal();
+              const taxPercent = parseFloat(values.tax || 0);
+              return subTotal * (taxPercent / 100);
+            };
+
             const getAdjustment = () => {
               return parseFloat(values.adjustment || 0);
             };
@@ -377,8 +410,9 @@ function PurchaseOrder() {
             const getTotal = () => {
               const subTotal = getSubTotal();
               const discount = getDiscountAmount();
+              const tax = getTaxAmount();
               const adjustment = getAdjustment();
-              return subTotal - discount + adjustment;
+              return subTotal - discount + tax + adjustment;
             };
 
             return (
@@ -446,6 +480,7 @@ function PurchaseOrder() {
                               <Tr>
                                 <Th>Item</Th>
                                 <Th>Quantity</Th>
+                                <Th>Stock</Th>
                                 <Th>Rate</Th>
                                 <Th>Amount</Th>
                                 <Th>Action</Th>
@@ -493,6 +528,25 @@ function PurchaseOrder() {
                                       onChange={(e) =>
                                         setFieldValue(
                                           `items[${idx}].quantity`,
+                                          e.target.value
+                                        )
+                                      }
+                                      isDisabled={viewMode}
+                                      min={0}
+                                      className={styles.transparentInput}
+                                    />
+                                  </Td>
+                                  {/* Stock */}
+                                  <Td
+                                    className={styles.noPaddingCell}
+                                    style={{ minWidth: 100 }}
+                                  >
+                                    <Input
+                                      type="number"
+                                      value={item.stock || ""}
+                                      onChange={(e) =>
+                                        setFieldValue(
+                                          `items[${idx}].stock`,
                                           e.target.value
                                         )
                                       }
@@ -630,6 +684,32 @@ function PurchaseOrder() {
                       </InputGroup>
                       <span style={{ textAlign: "right", minWidth: "60px" }}>
                         {getDiscountAmount().toFixed(2)}
+                      </span>
+                    </Grid>
+                    <Grid
+                      templateColumns="1fr 160px auto"
+                      alignItems="center"
+                      mb={4}
+                      gap={4}
+                    >
+                      <span>Tax</span>
+                      <InputGroup>
+                        <Input
+                          type="number"
+                          min={0}
+                          max={100}
+                          placeholder="0"
+                          size="md"
+                          borderRadius="8px"
+                          bg="white"
+                          value={values.tax}
+                          onChange={(e) => setFieldValue("tax", e.target.value)}
+                          isDisabled={viewMode}
+                        />
+                        <InputRightAddon borderRadius="8px">%</InputRightAddon>
+                      </InputGroup>
+                      <span style={{ textAlign: "right", minWidth: "60px" }}>
+                        {getTaxAmount().toFixed(2)}
                       </span>
                     </Grid>
                     <Grid

@@ -1,15 +1,14 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../components/CustomContainer";
 import { Button, IconButton } from "@chakra-ui/button";
 import { Badge, Text } from "@chakra-ui/react";
-import { getPurchaseOrders } from "../../helper/purchase";
-import toast from "react-hot-toast";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import Table from "../../components/table/table";
 import { Menu, MenuItem } from "@szhsin/react-menu";
 import EmptyData from "../../components/EmptyData";
+import { usePurchaseOrder } from "../../customHooks/usePurchaseOrder";
 
 const HEADINGS = {
   purchase_order_ref: "Purchase Order #",
@@ -22,30 +21,8 @@ const HEADINGS = {
 };
 
 function PurchaseOrder() {
-  const [purchaseOrders, setPurchaseOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { purchaseOrders, loading } = usePurchaseOrder();
   const router = useRouter();
-
-  useEffect(() => {
-    fetchPurchaseOrders();
-  }, []);
-
-  const fetchPurchaseOrders = async () => {
-    try {
-      setLoading(true);
-      const response = await getPurchaseOrders();
-      if (response.code === 200) {
-        setPurchaseOrders(response.data || []);
-      } else {
-        toast.error("Failed to fetch purchase orders");
-      }
-    } catch (error) {
-      console.error("Error fetching purchase orders:", error);
-      toast.error("Error fetching purchase orders");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const formatDate = (dateString) => {
     if (!dateString) return "-";
@@ -90,6 +67,7 @@ function PurchaseOrder() {
       </Text>
     ),
     discount: <Text color="red.600">₹{formatCurrency(order.discount)}</Text>,
+    tax: <Text color="orange.600">₹{formatCurrency(order.tax)}</Text>,
     adjustment: (
       <Text color={parseFloat(order.adjustment) >= 0 ? "green.600" : "red.600"}>
         ₹{formatCurrency(order.adjustment)}
