@@ -112,7 +112,7 @@ function PurchaseOrder() {
         filledHeader
         rightSection={
           <Link href="/purchase-order/create" passHref>
-            <Button colorScheme="purple">Add Purchase Order</Button>
+            <Button colorScheme="whiteAlpha">Add</Button>
           </Link>
         }
       >
