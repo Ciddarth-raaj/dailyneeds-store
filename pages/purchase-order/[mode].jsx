@@ -50,17 +50,13 @@ const validateForm = (values) => {
   // Validate purchase_order_id
   if (!values.purchase_order_id) {
     return "Purchase Order # is required";
-  } else if (values.purchase_order_id.length < 3) {
-    return "Purchase Order # must be at least 3 characters";
   } else if (values.purchase_order_id.length > 50) {
     return "Purchase Order # cannot exceed 50 characters";
   }
 
   // Validate purchase_reference_id (optional)
   if (values.purchase_reference_id) {
-    if (values.purchase_reference_id.length < 3) {
-      return "Purchase Reference # must be at least 3 characters";
-    } else if (values.purchase_reference_id.length > 50) {
+    if (values.purchase_reference_id.length > 50) {
       return "Purchase Reference # cannot exceed 50 characters";
     }
   }
@@ -223,26 +219,40 @@ function PurchaseOrder() {
     }
 
     // Prepare data for API
-    const purchaseOrderData = {
-      vendor_id: values.vendor_id,
-      purchase_order_ref: values.purchase_order_id,
-      purchase_reference_id: values.purchase_reference_id || null,
-      date: values.date ?? null,
-      delivery_date: values.delivery_date ?? null,
-      discount: parseFloat(values.discount || 0),
-      adjustment: parseFloat(values.adjustment || 0),
-      status: "active",
-      items: values.items
-        .filter((item) => item.material_id && item.quantity && item.rate)
-        .map((item) => ({
-          material_id: parseInt(item.material_id),
-          quantity: parseInt(item.quantity),
-          rate: parseFloat(item.rate),
-          ...(item.purchase_order_item_id && {
-            purchase_order_item_id: item.purchase_order_item_id,
-          }),
-        })),
-    };
+    const purchaseOrderData = createMode
+      ? {
+          vendor_id: values.vendor_id,
+          purchase_order_ref: values.purchase_order_ref,
+          purchase_order_id: values.purchase_order_id || null,
+          date: values.date ?? null,
+          delivery_date: values.delivery_date ?? null,
+          discount: parseFloat(values.discount || 0),
+          adjustment: parseFloat(values.adjustment || 0),
+          status: "active",
+          items: values.items
+            .filter((item) => item.material_id && item.quantity && item.rate)
+            .map((item) => ({
+              material_id: parseInt(item.material_id),
+              quantity: parseInt(item.quantity),
+              rate: parseFloat(item.rate),
+            })),
+        }
+      : {
+          vendor_id: values.vendor_id,
+          purchase_order_ref: values.purchase_order_ref,
+          date: values.date ?? null,
+          delivery_date: values.delivery_date ?? null,
+          discount: parseFloat(values.discount || 0),
+          adjustment: parseFloat(values.adjustment || 0),
+          status: "active",
+          items: values.items
+            .filter((item) => item.material_id && item.quantity && item.rate)
+            .map((item) => ({
+              material_id: parseInt(item.material_id),
+              quantity: parseInt(item.quantity),
+              rate: parseFloat(item.rate),
+            })),
+        };
 
     if (createMode) {
       toast.promise(createPurchaseOrder(purchaseOrderData), {
@@ -252,6 +262,10 @@ function PurchaseOrder() {
             router.push("/purchase-order");
             return "Purchase order created successfully!";
           } else {
+            if (response.msg.includes("ER_DUP_ENTRY")) {
+              throw new Error("Purchase Order ID exists");
+            }
+
             throw new Error(
               response.message || "Failed to create purchase order"
             );
@@ -307,7 +321,7 @@ function PurchaseOrder() {
             purchaseOrderData
               ? {
                   vendor_id: purchaseOrderData.vendor_id,
-                  purchase_order_id: purchaseOrderData.purchase_order_ref || "",
+                  purchase_order_id: purchaseOrderData.purchase_order_id || "",
                   purchase_reference_id:
                     purchaseOrderData.purchase_reference_id || "",
                   date: purchaseOrderData.date,
@@ -388,7 +402,7 @@ function PurchaseOrder() {
                       label="Purchase Order #"
                       name="purchase_order_id"
                       placeholder="12B6G"
-                      editable={!viewMode}
+                      editable={!viewMode && !editMode}
                     />
                     <CustomInput
                       label="Purchase Reference #"

@@ -92,7 +92,7 @@ export const getPurchaseOrderById = async (id) => {
 
 export const updatePurchaseOrder = async (id, data) => {
   try {
-    const response = await API.put(`/purchase-order/${id}`, data);
+    const response = await API.put(`/purchase-order/${id}/with-items`, data);
     return response.data;
   } catch (err) {
     console.log(err);
