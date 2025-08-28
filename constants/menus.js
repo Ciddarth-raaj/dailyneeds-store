@@ -269,6 +269,26 @@ export default {
       },
     },
   },
+  invoice: {
+    title: "Invoice",
+    selected: false,
+    openPage: false,
+    icon: "fa-file-invoice", // Changed to a more relevant icon for materials
+    subMenu: {
+      view_invoice: {
+        title: "View Invoice",
+        permission: "view_invoice",
+        selected: false,
+        location: "/invoice",
+      },
+      add_invoice: {
+        title: "Add Invoice",
+        permission: "add_invoice",
+        selected: false,
+        location: "/invoice/create",
+      },
+    },
+  },
   products: {
     title: "Products",
     selected: false,
