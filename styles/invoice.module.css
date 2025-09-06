@@ -1,0 +1,173 @@
+/* Invoice Table Styles */
+.invoiceTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.invoiceTable th {
+  height: 32px;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #f7fafc;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.invoiceTableContainer {
+  overflow-x: auto;
+  position: relative;
+}
+
+/* Sticky Product Column */
+.stickyProductColumn {
+  position: sticky;
+  left: 0;
+  background: white;
+  z-index: 1;
+  border-right: 2px solid #e2e8f0;
+  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.1);
+}
+
+.stickyProductHeader {
+  position: sticky;
+  left: 0;
+  background: #f7fafc;
+  z-index: 11;
+  border-right: 2px solid #e2e8f0;
+  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.1);
+  height: 32px;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* Input Styles */
+.compactInput {
+  width: 100%;
+  min-width: 80px;
+  max-width: 120px;
+  height: 32px;
+  font-size: 12px;
+  padding: 4px 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  background: transparent;
+}
+
+.compactInput:focus {
+  border-color: #3182ce;
+  box-shadow: 0 0 0 1px #3182ce;
+  outline: none;
+}
+
+.compactInput:disabled {
+  background-color: #f7fafc;
+  color: #718096;
+  cursor: not-allowed;
+}
+
+/* Product Select Styling */
+.productSelect {
+  min-width: 200px;
+  max-width: 250px;
+}
+
+.productSelect .transparentSelect__control {
+  background: transparent;
+  border: 1px solid #e2e8f0;
+  min-height: 32px;
+  font-size: 12px;
+}
+
+.productSelect .transparentSelect__control:hover {
+  border-color: #cbd5e0;
+}
+
+.productSelect .transparentSelect__control--is-focused {
+  border-color: #3182ce;
+  box-shadow: 0 0 0 1px #3182ce;
+}
+
+.productSelect .transparentSelect__value-container {
+  padding: 2px 8px;
+}
+
+.productSelect .transparentSelect__input {
+  font-size: 12px;
+}
+
+.productSelect .transparentSelect__placeholder {
+  font-size: 12px;
+  color: #a0aec0;
+}
+
+.productSelect .transparentSelect__single-value {
+  font-size: 12px;
+}
+
+/* Table Cell Styling */
+.noPaddingCell {
+  padding: 4px !important;
+  vertical-align: middle;
+}
+
+/* Action Button Styling */
+.actionButton {
+  height: 28px;
+  font-size: 11px;
+  padding: 0 12px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .compactInput {
+    min-width: 60px;
+    max-width: 100px;
+    height: 28px;
+    font-size: 11px;
+  }
+  
+  .productSelect {
+    min-width: 150px;
+    max-width: 200px;
+  }
+  
+  .productSelect .transparentSelect__control {
+    min-height: 28px;
+    font-size: 11px;
+  }
+}
+
+/* Table row hover effect */
+.invoiceTable tbody tr:hover {
+  background-color: #f7fafc;
+}
+
+.invoiceTable tbody tr:hover .stickyProductColumn {
+  background-color: #f7fafc;
+}
+
+/* Ensure proper spacing for sticky column */
+.invoiceTable thead th:first-child,
+.invoiceTable tbody td:first-child {
+  padding-left: 8px;
+}
+
+/* Scrollbar styling */
+.invoiceTableContainer::-webkit-scrollbar {
+  height: 8px;
+}
+
+.invoiceTableContainer::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.invoiceTableContainer::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+.invoiceTableContainer::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}

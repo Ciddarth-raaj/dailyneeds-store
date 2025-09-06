@@ -16,6 +16,7 @@
   min-height: 36px !important;
   height: 36px !important;
   min-width: 120px;
+  z-index: 1;
 }
 
 .transparentSelect__value-container {

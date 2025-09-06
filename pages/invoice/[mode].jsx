@@ -25,7 +25,9 @@ import {
   TableContainer,
 } from "@chakra-ui/react";
 import product from "../../helper/product";
+import invoice from "../../helper/invoice";
 import styles from "../../styles/purchaseOrderTable.module.css";
+import invoiceStyles from "../../styles/invoice.module.css";
 import { useUser } from "../../contexts/UserContext";
 import ReactSelect from "react-select";
 import toast from "react-hot-toast";
@@ -122,12 +124,6 @@ function InvoiceEditor() {
   const router = useRouter();
   const { mode, id: paramId } = router.query;
 
-  const { storeId } = useUser().userConfig;
-
-  // Responsive breakpoints
-  const isMobile = useBreakpointValue({ base: true, md: false });
-  const isTablet = useBreakpointValue({ base: false, md: true, lg: false });
-
   const viewMode = mode === "view";
   const editMode = mode === "edit";
   const createMode = mode === "create";
@@ -145,7 +141,7 @@ function InvoiceEditor() {
         setProductOptions(
           (data || []).map((prod) => ({
             value: prod.product_id,
-            label: `${prod.product_id} - ${prod.name}`,
+            label: `${prod.product_id} - ${prod.de_name}`,
             ...prod,
           }))
         );
@@ -155,6 +151,31 @@ function InvoiceEditor() {
     }
     fetchProducts();
   }, []);
+
+  // Fetch invoice data for view and edit modes
+  useEffect(() => {
+    async function fetchInvoiceData() {
+      if ((viewMode || editMode) && paramId) {
+        setLoading(true);
+        try {
+          const response = await invoice.getInvoiceById(paramId);
+          if (response.code === 200) {
+            setInvoiceData(response.data);
+          } else {
+            toast.error(response.message || "Failed to fetch invoice");
+            router.push("/invoice");
+          }
+        } catch (err) {
+          console.error("Error fetching invoice:", err);
+          toast.error("Failed to fetch invoice details");
+          router.push("/invoice");
+        } finally {
+          setLoading(false);
+        }
+      }
+    }
+    fetchInvoiceData();
+  }, [viewMode, editMode, paramId, router]);
 
   const handleSubmit = (values) => {
     const error = validateForm(values);
@@ -166,7 +187,7 @@ function InvoiceEditor() {
     // Prepare data for API
     const invoiceData = {
       invoice_id: values.invoice_id,
-      items: values.items
+      invoice_items: values.items
         .filter((item) => item.product_id && item.quantity && item.cost)
         .map((item) => ({
           product_id: parseInt(item.product_id),
@@ -183,53 +204,37 @@ function InvoiceEditor() {
     };
 
     if (createMode) {
-      toast.promise(
-        // TODO: Replace with actual API call
-        new Promise((resolve) => {
-          setTimeout(() => {
-            resolve({ code: 200, message: "Invoice created successfully" });
-          }, 1000);
-        }),
-        {
-          loading: "Creating invoice...",
-          success: (response) => {
-            if (response.code === 200) {
-              router.push("/invoice");
-              return "Invoice created successfully!";
-            } else {
-              throw new Error(response.message || "Failed to create invoice");
-            }
-          },
-          error: (err) => {
-            console.log(err);
-            return err.message || "Error creating invoice!";
-          },
-        }
-      );
+      toast.promise(invoice.createInvoice(invoiceData), {
+        loading: "Creating invoice...",
+        success: (response) => {
+          if (response.code === 200) {
+            router.push("/invoice");
+            return "Invoice created successfully!";
+          } else {
+            throw new Error(response.message || "Failed to create invoice");
+          }
+        },
+        error: (err) => {
+          console.log(err);
+          return err.message || "Error creating invoice!";
+        },
+      });
     } else if (editMode) {
-      toast.promise(
-        // TODO: Replace with actual API call
-        new Promise((resolve) => {
-          setTimeout(() => {
-            resolve({ code: 200, message: "Invoice updated successfully" });
-          }, 1000);
-        }),
-        {
-          loading: "Updating invoice...",
-          success: (response) => {
-            if (response.code === 200) {
-              router.push("/invoice");
-              return "Invoice updated successfully!";
-            } else {
-              throw new Error(response.message || "Failed to update invoice");
-            }
-          },
-          error: (err) => {
-            console.log(err);
-            return err.message || "Error updating invoice!";
-          },
-        }
-      );
+      toast.promise(invoice.updateInvoice(paramId, invoiceData), {
+        loading: "Updating invoice...",
+        success: (response) => {
+          if (response.code === 200) {
+            router.push("/invoice");
+            return "Invoice updated successfully!";
+          } else {
+            throw new Error(response.message || "Failed to update invoice");
+          }
+        },
+        error: (err) => {
+          console.log(err);
+          return err.message || "Error updating invoice!";
+        },
+      });
     }
   };
 
@@ -256,8 +261,8 @@ function InvoiceEditor() {
               ? {
                   invoice_id: invoiceData.invoice_id || "",
                   items:
-                    invoiceData.items?.length > 0
-                      ? invoiceData.items.map((item) => ({
+                    invoiceData.invoice_items?.length > 0
+                      ? invoiceData.invoice_items.map((item) => ({
                           product_id: item.product_id,
                           quantity: item.quantity,
                           cost: item.cost,
@@ -365,7 +370,7 @@ function InvoiceEditor() {
             };
 
             return (
-              <Box>
+              <Box id="invoice-editor">
                 <Box>
                   <CustomInput
                     label="Invoice #"
@@ -379,643 +384,368 @@ function InvoiceEditor() {
 
                 <Box mt="32px">
                   {/* Desktop Layout */}
-                  <Box display={{ base: "none", md: "block" }}>
+                  <Box>
                     <FieldArray
                       name="items"
                       render={(arrayHelpers) => (
                         <Box>
-                          <Table
-                            variant="striped"
-                            sx={{
-                              "tbody tr:nth-of-type(odd) td": {
-                                background: "#f7f7f7",
-                              },
-                            }}
-                          >
-                            <Thead>
-                              <Tr>
-                                <Th>Product</Th>
-                                <Th>Quantity</Th>
-                                <Th>Cost</Th>
-                                <Th>Discount (%)</Th>
-                                <Th>Tax (%)</Th>
-                                <Th>Tax Amount</Th>
-                                <Th>Markup (%)</Th>
-                                <Th>Net Cost</Th>
-                                <Th>Net Amount</Th>
-                                <Th>Selling Price</Th>
-                                <Th>Final Price</Th>
-                                <Th>Margin</Th>
-                                <Th>Box</Th>
-                                <Th>PUOM</Th>
-                                <Th>SUOM</Th>
-                                <Th>Action</Th>
-                              </Tr>
-                            </Thead>
-                            <Tbody>
-                              {values.items.map((item, idx) => {
-                                return (
-                                  <Tr key={idx}>
-                                    <Td
-                                      className={styles.noPaddingCell}
-                                      style={{ minWidth: 200, maxWidth: 250 }}
-                                    >
-                                      <ReactSelect
-                                        options={productOptions}
-                                        value={
-                                          productOptions.find(
-                                            (opt) =>
-                                              opt.value === item.product_id
-                                          ) || null
-                                        }
-                                        onChange={(selected) => {
-                                          setFieldValue(
-                                            `items[${idx}].product_id`,
-                                            selected ? selected.value : null
-                                          );
-                                          if (selected) {
-                                            setFieldValue(
-                                              `items[${idx}].product_name`,
-                                              selected.name
-                                            );
-                                            setFieldValue(
-                                              `items[${idx}].product_description`,
-                                              selected.description
-                                            );
+                          <Box className={invoiceStyles.invoiceTableContainer}>
+                            <Table
+                              className={invoiceStyles.invoiceTable}
+                              variant="striped"
+                              sx={{
+                                "tbody tr:nth-of-type(odd) td": {
+                                  background: "#f7f7f7",
+                                },
+                              }}
+                            >
+                              <Thead>
+                                <Tr>
+                                  <Th
+                                    className={
+                                      invoiceStyles.stickyProductHeader
+                                    }
+                                  >
+                                    Product
+                                  </Th>
+                                  <Th>Quantity</Th>
+                                  <Th>Cost</Th>
+                                  <Th>Discount (%)</Th>
+                                  <Th>Tax (%)</Th>
+                                  <Th>Tax Amount</Th>
+                                  <Th>Markup (%)</Th>
+                                  <Th>Net Cost</Th>
+                                  <Th>Net Amount</Th>
+                                  <Th>Selling Price</Th>
+                                  <Th>Final Price</Th>
+                                  <Th>Margin</Th>
+                                  <Th>Box</Th>
+                                  <Th>PUOM</Th>
+                                  <Th>SUOM</Th>
+                                  <Th>Action</Th>
+                                </Tr>
+                              </Thead>
+                              <Tbody>
+                                {values.items.map((item, idx) => {
+                                  return (
+                                    <Tr key={idx}>
+                                      <Td
+                                        className={`${styles.noPaddingCell} ${invoiceStyles.stickyProductColumn}`}
+                                        style={{ minWidth: 200, maxWidth: 250 }}
+                                      >
+                                        <div
+                                          className={
+                                            invoiceStyles.productSelect
                                           }
-                                        }}
-                                        isDisabled={viewMode}
-                                        isSearchable
-                                        placeholder="Select Product"
-                                        classNamePrefix="transparentSelect"
-                                      />
-                                    </Td>
-                                    <Td
-                                      className={styles.noPaddingCell}
-                                      style={{ minWidth: 80 }}
-                                    >
-                                      <Input
-                                        type="number"
-                                        value={item.quantity || ""}
-                                        onChange={(e) =>
-                                          setFieldValue(
-                                            `items[${idx}].quantity`,
-                                            e.target.value
-                                          )
-                                        }
-                                        isDisabled={viewMode}
-                                        min={0}
-                                        step="0.01"
-                                        className={styles.transparentInput}
-                                      />
-                                    </Td>
-                                    <Td
-                                      className={styles.noPaddingCell}
-                                      style={{ minWidth: 80 }}
-                                    >
-                                      <Input
-                                        type="number"
-                                        value={item.cost || ""}
-                                        onChange={(e) =>
-                                          setFieldValue(
-                                            `items[${idx}].cost`,
-                                            e.target.value
-                                          )
-                                        }
-                                        isDisabled={viewMode}
-                                        min={0}
-                                        step="0.01"
-                                        className={styles.transparentInput}
-                                      />
-                                    </Td>
-                                    <Td
-                                      className={styles.noPaddingCell}
-                                      style={{ minWidth: 80 }}
-                                    >
-                                      <Input
-                                        type="number"
-                                        value={item.discount || ""}
-                                        onChange={(e) =>
-                                          setFieldValue(
-                                            `items[${idx}].discount`,
-                                            e.target.value
-                                          )
-                                        }
-                                        isDisabled={viewMode}
-                                        min={0}
-                                        max={100}
-                                        step="0.01"
-                                        className={styles.transparentInput}
-                                      />
-                                    </Td>
-                                    <Td
-                                      className={styles.noPaddingCell}
-                                      style={{ minWidth: 80 }}
-                                    >
-                                      <Input
-                                        type="number"
-                                        value={item.tax || ""}
-                                        onChange={(e) =>
-                                          setFieldValue(
-                                            `items[${idx}].tax`,
-                                            e.target.value
-                                          )
-                                        }
-                                        isDisabled={viewMode}
-                                        min={0}
-                                        max={100}
-                                        step="0.01"
-                                        className={styles.transparentInput}
-                                      />
-                                    </Td>
-                                    <Td
-                                      className={styles.noPaddingCell}
-                                      style={{ minWidth: 100 }}
-                                    >
-                                      <Input
-                                        value={
-                                          calculateItemFields(item).tax_amount
-                                        }
-                                        isReadOnly
-                                        className={styles.transparentInput}
-                                        bg="gray.50"
-                                      />
-                                    </Td>
-                                    <Td
-                                      className={styles.noPaddingCell}
-                                      style={{ minWidth: 80 }}
-                                    >
-                                      <Input
-                                        type="number"
-                                        value={item.markup_percentage || ""}
-                                        onChange={(e) =>
-                                          setFieldValue(
-                                            `items[${idx}].markup_percentage`,
-                                            e.target.value
-                                          )
-                                        }
-                                        isDisabled={viewMode}
-                                        min={0}
-                                        max={100}
-                                        step="0.01"
-                                        className={styles.transparentInput}
-                                      />
-                                    </Td>
-                                    <Td
-                                      className={styles.noPaddingCell}
-                                      style={{ minWidth: 100 }}
-                                    >
-                                      <Input
-                                        value={
-                                          calculateItemFields(item).netcost
-                                        }
-                                        isReadOnly
-                                        className={styles.transparentInput}
-                                        bg="gray.50"
-                                      />
-                                    </Td>
-                                    <Td
-                                      className={styles.noPaddingCell}
-                                      style={{ minWidth: 100 }}
-                                    >
-                                      <Input
-                                        value={
-                                          calculateItemFields(item).netamount
-                                        }
-                                        isReadOnly
-                                        className={styles.transparentInput}
-                                        bg="gray.50"
-                                      />
-                                    </Td>
-                                    <Td
-                                      className={styles.noPaddingCell}
-                                      style={{ minWidth: 100 }}
-                                    >
-                                      <Input
-                                        value={
-                                          calculateItemFields(item)
-                                            .selling_price
-                                        }
-                                        isReadOnly
-                                        className={styles.transparentInput}
-                                        bg="gray.50"
-                                      />
-                                    </Td>
-                                    <Td
-                                      className={styles.noPaddingCell}
-                                      style={{ minWidth: 100 }}
-                                    >
-                                      <Input
-                                        type="number"
-                                        value={item.final_selling_price || ""}
-                                        onChange={(e) =>
-                                          setFieldValue(
-                                            `items[${idx}].final_selling_price`,
-                                            e.target.value
-                                          )
-                                        }
-                                        isDisabled={viewMode}
-                                        min={0}
-                                        step="0.01"
-                                        className={styles.transparentInput}
-                                      />
-                                    </Td>
-                                    <Td
-                                      className={styles.noPaddingCell}
-                                      style={{ minWidth: 100 }}
-                                    >
-                                      <Input
-                                        value={calculateItemFields(item).margin}
-                                        isReadOnly
-                                        className={styles.transparentInput}
-                                        bg="gray.50"
-                                      />
-                                    </Td>
-                                    <Td
-                                      className={styles.noPaddingCell}
-                                      style={{ minWidth: 80 }}
-                                    >
-                                      <Input
-                                        value={calculateItemFields(item).box}
-                                        isReadOnly
-                                        className={styles.transparentInput}
-                                        bg="gray.50"
-                                      />
-                                    </Td>
-                                    <Td
-                                      className={styles.noPaddingCell}
-                                      style={{ minWidth: 80 }}
-                                    >
-                                      <Input
-                                        value={item.puom || ""}
-                                        className={styles.transparentInput}
-                                        bg="gray.50"
-                                        onChange={(e) =>
-                                          setFieldValue(
-                                            `items[${idx}].puom`,
-                                            e.target.value
-                                          )
-                                        }
-                                      />
-                                    </Td>
-                                    <Td
-                                      className={styles.noPaddingCell}
-                                      style={{ minWidth: 80 }}
-                                    >
-                                      <Input
-                                        value={item.suom || ""}
-                                        className={styles.transparentInput}
-                                        bg="gray.50"
-                                        onChange={(e) =>
-                                          setFieldValue(
-                                            `items[${idx}].suom`,
-                                            e.target.value
-                                          )
-                                        }
-                                      />
-                                    </Td>
-                                    <Td
-                                      className={styles.noPaddingCell}
-                                      style={{
-                                        minWidth: 60,
-                                        textAlign: "center",
-                                      }}
-                                    >
-                                      {!viewMode && (
-                                        <Button
-                                          colorScheme="red"
-                                          size="sm"
-                                          onClick={() =>
-                                            arrayHelpers.remove(idx)
-                                          }
-                                          style={{
-                                            height: "32px",
-                                          }}
                                         >
-                                          Delete
-                                        </Button>
-                                      )}
-                                    </Td>
-                                  </Tr>
-                                );
-                              })}
-                            </Tbody>
-                          </Table>
+                                          <ReactSelect
+                                            options={productOptions}
+                                            value={
+                                              productOptions.find(
+                                                (opt) =>
+                                                  opt.value === item.product_id
+                                              ) || null
+                                            }
+                                            onChange={(selected) => {
+                                              setFieldValue(
+                                                `items[${idx}].product_id`,
+                                                selected ? selected.value : null
+                                              );
+                                              if (selected) {
+                                                setFieldValue(
+                                                  `items[${idx}].product_name`,
+                                                  selected.name
+                                                );
+                                                setFieldValue(
+                                                  `items[${idx}].product_description`,
+                                                  selected.description
+                                                );
+                                              }
+                                            }}
+                                            isDisabled={viewMode}
+                                            isSearchable
+                                            placeholder="Select Product"
+                                            classNamePrefix="transparentSelect"
+                                            // menuPortalTarget={document.getElementById(
+                                            //   "invoice-editor"
+                                            // )}
+                                          />
+                                        </div>
+                                      </Td>
+                                      <Td
+                                        className={styles.noPaddingCell}
+                                        style={{ minWidth: 120 }}
+                                      >
+                                        <Input
+                                          type="number"
+                                          value={item.quantity || ""}
+                                          onChange={(e) =>
+                                            setFieldValue(
+                                              `items[${idx}].quantity`,
+                                              e.target.value
+                                            )
+                                          }
+                                          isDisabled={viewMode}
+                                          min={0}
+                                          step="0.01"
+                                          className={invoiceStyles.compactInput}
+                                        />
+                                      </Td>
+                                      <Td
+                                        className={styles.noPaddingCell}
+                                        style={{ minWidth: 120 }}
+                                      >
+                                        <Input
+                                          type="number"
+                                          value={item.cost || ""}
+                                          onChange={(e) =>
+                                            setFieldValue(
+                                              `items[${idx}].cost`,
+                                              e.target.value
+                                            )
+                                          }
+                                          isDisabled={viewMode}
+                                          min={0}
+                                          step="0.01"
+                                          className={invoiceStyles.compactInput}
+                                        />
+                                      </Td>
+                                      <Td
+                                        className={styles.noPaddingCell}
+                                        style={{ minWidth: 120 }}
+                                      >
+                                        <Input
+                                          type="number"
+                                          value={item.discount || ""}
+                                          onChange={(e) =>
+                                            setFieldValue(
+                                              `items[${idx}].discount`,
+                                              e.target.value
+                                            )
+                                          }
+                                          isDisabled={viewMode}
+                                          min={0}
+                                          max={100}
+                                          step="0.01"
+                                          className={invoiceStyles.compactInput}
+                                        />
+                                      </Td>
+                                      <Td
+                                        className={styles.noPaddingCell}
+                                        style={{ minWidth: 120 }}
+                                      >
+                                        <Input
+                                          type="number"
+                                          value={item.tax || ""}
+                                          onChange={(e) =>
+                                            setFieldValue(
+                                              `items[${idx}].tax`,
+                                              e.target.value
+                                            )
+                                          }
+                                          isDisabled={viewMode}
+                                          min={0}
+                                          max={100}
+                                          step="0.01"
+                                          className={invoiceStyles.compactInput}
+                                        />
+                                      </Td>
+                                      <Td
+                                        className={styles.noPaddingCell}
+                                        style={{ minWidth: 120 }}
+                                      >
+                                        <Input
+                                          value={
+                                            calculateItemFields(item).tax_amount
+                                          }
+                                          isReadOnly
+                                          className={invoiceStyles.compactInput}
+                                          bg="gray.50"
+                                        />
+                                      </Td>
+                                      <Td
+                                        className={styles.noPaddingCell}
+                                        style={{ minWidth: 120 }}
+                                      >
+                                        <Input
+                                          type="number"
+                                          value={item.markup_percentage || ""}
+                                          onChange={(e) =>
+                                            setFieldValue(
+                                              `items[${idx}].markup_percentage`,
+                                              e.target.value
+                                            )
+                                          }
+                                          isDisabled={viewMode}
+                                          min={0}
+                                          max={100}
+                                          step="0.01"
+                                          className={invoiceStyles.compactInput}
+                                        />
+                                      </Td>
+                                      <Td
+                                        className={styles.noPaddingCell}
+                                        style={{ minWidth: 120 }}
+                                      >
+                                        <Input
+                                          value={
+                                            calculateItemFields(item).netcost
+                                          }
+                                          isReadOnly
+                                          className={invoiceStyles.compactInput}
+                                          bg="gray.50"
+                                        />
+                                      </Td>
+                                      <Td
+                                        className={styles.noPaddingCell}
+                                        style={{ minWidth: 120 }}
+                                      >
+                                        <Input
+                                          value={
+                                            calculateItemFields(item).netamount
+                                          }
+                                          isReadOnly
+                                          className={invoiceStyles.compactInput}
+                                          bg="gray.50"
+                                        />
+                                      </Td>
+                                      <Td
+                                        className={styles.noPaddingCell}
+                                        style={{ minWidth: 120 }}
+                                      >
+                                        <Input
+                                          value={
+                                            calculateItemFields(item)
+                                              .selling_price
+                                          }
+                                          isReadOnly
+                                          className={invoiceStyles.compactInput}
+                                          bg="gray.50"
+                                        />
+                                      </Td>
+                                      <Td
+                                        className={styles.noPaddingCell}
+                                        style={{ minWidth: 120 }}
+                                      >
+                                        <Input
+                                          type="number"
+                                          value={item.final_selling_price || ""}
+                                          onChange={(e) =>
+                                            setFieldValue(
+                                              `items[${idx}].final_selling_price`,
+                                              e.target.value
+                                            )
+                                          }
+                                          isDisabled={viewMode}
+                                          min={0}
+                                          step="0.01"
+                                          className={invoiceStyles.compactInput}
+                                        />
+                                      </Td>
+                                      <Td
+                                        className={styles.noPaddingCell}
+                                        style={{ minWidth: 120 }}
+                                      >
+                                        <Input
+                                          value={
+                                            calculateItemFields(item).margin
+                                          }
+                                          isReadOnly
+                                          className={invoiceStyles.compactInput}
+                                          bg="gray.50"
+                                        />
+                                      </Td>
+                                      <Td
+                                        className={styles.noPaddingCell}
+                                        style={{ minWidth: 120 }}
+                                      >
+                                        <Input
+                                          value={calculateItemFields(item).box}
+                                          isReadOnly
+                                          className={invoiceStyles.compactInput}
+                                          bg="gray.50"
+                                        />
+                                      </Td>
+                                      <Td
+                                        className={styles.noPaddingCell}
+                                        style={{ minWidth: 120 }}
+                                      >
+                                        <Input
+                                          value={item.puom || ""}
+                                          className={invoiceStyles.compactInput}
+                                          bg="gray.50"
+                                          onChange={(e) =>
+                                            setFieldValue(
+                                              `items[${idx}].puom`,
+                                              e.target.value
+                                            )
+                                          }
+                                        />
+                                      </Td>
+                                      <Td
+                                        className={styles.noPaddingCell}
+                                        style={{ minWidth: 120 }}
+                                      >
+                                        <Input
+                                          value={item.suom || ""}
+                                          className={invoiceStyles.compactInput}
+                                          bg="gray.50"
+                                          onChange={(e) =>
+                                            setFieldValue(
+                                              `items[${idx}].suom`,
+                                              e.target.value
+                                            )
+                                          }
+                                        />
+                                      </Td>
+                                      <Td
+                                        className={styles.noPaddingCell}
+                                        style={{
+                                          minWidth: 60,
+                                          textAlign: "center",
+                                        }}
+                                      >
+                                        {!viewMode && (
+                                          <Button
+                                            colorScheme="red"
+                                            size="sm"
+                                            onClick={() =>
+                                              arrayHelpers.remove(idx)
+                                            }
+                                            className={
+                                              invoiceStyles.actionButton
+                                            }
+                                          >
+                                            Delete
+                                          </Button>
+                                        )}
+                                      </Td>
+                                    </Tr>
+                                  );
+                                })}
+                              </Tbody>
+                            </Table>
+                          </Box>
+
+                          {!viewMode && (
+                            <Flex justifyContent="flex-end" flex={1}>
+                              <Button
+                                onClick={() =>
+                                  arrayHelpers.insert(
+                                    values.items.length,
+                                    EMPTY_ITEM
+                                  )
+                                }
+                                mt="22px"
+                              >
+                                Add Row
+                              </Button>
+                            </Flex>
+                          )}
                         </Box>
                       )}
                     ></FieldArray>
                   </Box>
-
-                  {/* Mobile Cards */}
-                  <Box display={{ base: "block", md: "none" }}>
-                    <FieldArray
-                      name="items"
-                      render={(arrayHelpers) => (
-                        <VStack spacing={4} align="stretch">
-                          {values.items.map((item, idx) => {
-                            return (
-                              <Box
-                                key={idx}
-                                border="1px solid"
-                                borderColor="gray.200"
-                                borderRadius="md"
-                                p={4}
-                                bg="white"
-                              >
-                                <VStack spacing={3} align="stretch">
-                                  <Box>
-                                    <Text
-                                      fontSize="sm"
-                                      fontWeight="medium"
-                                      mb={2}
-                                    >
-                                      Product
-                                    </Text>
-                                    <ReactSelect
-                                      options={productOptions}
-                                      value={
-                                        productOptions.find(
-                                          (opt) => opt.value === item.product_id
-                                        ) || null
-                                      }
-                                      onChange={(selected) => {
-                                        setFieldValue(
-                                          `items[${idx}].product_id`,
-                                          selected ? selected.value : null
-                                        );
-                                        if (selected) {
-                                          setFieldValue(
-                                            `items[${idx}].product_name`,
-                                            selected.name
-                                          );
-                                          setFieldValue(
-                                            `items[${idx}].product_description`,
-                                            selected.description
-                                          );
-                                          setFieldValue(
-                                            `items[${idx}].puom`,
-                                            selected.puom || null
-                                          );
-                                          setFieldValue(
-                                            `items[${idx}].suom`,
-                                            selected.suom || 1
-                                          );
-                                        }
-                                      }}
-                                      isDisabled={viewMode}
-                                      isSearchable
-                                      placeholder="Select Product"
-                                      classNamePrefix="transparentSelect"
-                                    />
-                                  </Box>
-
-                                  <HStack spacing={3}>
-                                    <Box flex={1}>
-                                      <Text
-                                        fontSize="sm"
-                                        fontWeight="medium"
-                                        mb={2}
-                                      >
-                                        Quantity
-                                      </Text>
-                                      <Input
-                                        type="number"
-                                        value={item.quantity || ""}
-                                        onChange={(e) =>
-                                          setFieldValue(
-                                            `items[${idx}].quantity`,
-                                            e.target.value
-                                          )
-                                        }
-                                        isDisabled={viewMode}
-                                        min={0}
-                                        step="0.01"
-                                        size="sm"
-                                      />
-                                    </Box>
-                                    <Box flex={1}>
-                                      <Text
-                                        fontSize="sm"
-                                        fontWeight="medium"
-                                        mb={2}
-                                      >
-                                        Cost
-                                      </Text>
-                                      <Input
-                                        type="number"
-                                        value={item.cost || ""}
-                                        onChange={(e) =>
-                                          setFieldValue(
-                                            `items[${idx}].cost`,
-                                            e.target.value
-                                          )
-                                        }
-                                        isDisabled={viewMode}
-                                        min={0}
-                                        step="0.01"
-                                        size="sm"
-                                      />
-                                    </Box>
-                                  </HStack>
-
-                                  <HStack spacing={3}>
-                                    <Box flex={1}>
-                                      <Text
-                                        fontSize="sm"
-                                        fontWeight="medium"
-                                        mb={2}
-                                      >
-                                        Discount (%)
-                                      </Text>
-                                      <Input
-                                        type="number"
-                                        value={item.discount || ""}
-                                        onChange={(e) =>
-                                          setFieldValue(
-                                            `items[${idx}].discount`,
-                                            e.target.value
-                                          )
-                                        }
-                                        isDisabled={viewMode}
-                                        min={0}
-                                        max={100}
-                                        step="0.01"
-                                        size="sm"
-                                      />
-                                    </Box>
-                                    <Box flex={1}>
-                                      <Text
-                                        fontSize="sm"
-                                        fontWeight="medium"
-                                        mb={2}
-                                      >
-                                        Tax (%)
-                                      </Text>
-                                      <Input
-                                        type="number"
-                                        value={item.tax || ""}
-                                        onChange={(e) =>
-                                          setFieldValue(
-                                            `items[${idx}].tax`,
-                                            e.target.value
-                                          )
-                                        }
-                                        isDisabled={viewMode}
-                                        min={0}
-                                        max={100}
-                                        step="0.01"
-                                        size="sm"
-                                      />
-                                    </Box>
-                                  </HStack>
-
-                                  <HStack spacing={3}>
-                                    <Box flex={1}>
-                                      <Text
-                                        fontSize="sm"
-                                        fontWeight="medium"
-                                        mb={2}
-                                      >
-                                        Markup (%)
-                                      </Text>
-                                      <Input
-                                        type="number"
-                                        value={item.markup_percentage || ""}
-                                        onChange={(e) =>
-                                          setFieldValue(
-                                            `items[${idx}].markup_percentage`,
-                                            e.target.value
-                                          )
-                                        }
-                                        isDisabled={viewMode}
-                                        min={0}
-                                        max={100}
-                                        step="0.01"
-                                        size="sm"
-                                      />
-                                    </Box>
-                                    <Box flex={1}>
-                                      <Text
-                                        fontSize="sm"
-                                        fontWeight="medium"
-                                        mb={2}
-                                      >
-                                        Final Price
-                                      </Text>
-                                      <Input
-                                        type="number"
-                                        value={item.final_selling_price || ""}
-                                        onChange={(e) =>
-                                          setFieldValue(
-                                            `items[${idx}].final_selling_price`,
-                                            e.target.value
-                                          )
-                                        }
-                                        isDisabled={viewMode}
-                                        min={0}
-                                        step="0.01"
-                                        size="sm"
-                                      />
-                                    </Box>
-                                  </HStack>
-
-                                  {/* Calculated Fields */}
-                                  <Box
-                                    bg="gray.50"
-                                    p={3}
-                                    borderRadius="md"
-                                    border="1px solid"
-                                    borderColor="gray.200"
-                                  >
-                                    <VStack spacing={2} align="stretch">
-                                      <HStack justify="space-between">
-                                        <Text fontSize="sm" fontWeight="medium">
-                                          Net Cost:
-                                        </Text>
-                                        <Text fontSize="sm" fontWeight="600">
-                                          ₹{calculateItemFields(item).netcost}
-                                        </Text>
-                                      </HStack>
-                                      <HStack justify="space-between">
-                                        <Text fontSize="sm" fontWeight="medium">
-                                          Net Amount:
-                                        </Text>
-                                        <Text fontSize="sm" fontWeight="600">
-                                          ₹{calculateItemFields(item).netamount}
-                                        </Text>
-                                      </HStack>
-                                      <HStack justify="space-between">
-                                        <Text fontSize="sm" fontWeight="medium">
-                                          Tax Amount:
-                                        </Text>
-                                        <Text fontSize="sm" fontWeight="600">
-                                          ₹
-                                          {calculateItemFields(item).tax_amount}
-                                        </Text>
-                                      </HStack>
-                                      <HStack justify="space-between">
-                                        <Text fontSize="sm" fontWeight="medium">
-                                          Selling Price:
-                                        </Text>
-                                        <Text fontSize="sm" fontWeight="600">
-                                          ₹
-                                          {
-                                            calculateItemFields(item)
-                                              .selling_price
-                                          }
-                                        </Text>
-                                      </HStack>
-                                      <HStack justify="space-between">
-                                        <Text fontSize="sm" fontWeight="medium">
-                                          Margin:
-                                        </Text>
-                                        <Text fontSize="sm" fontWeight="600">
-                                          ₹{calculateItemFields(item).margin}
-                                        </Text>
-                                      </HStack>
-                                      <HStack justify="space-between">
-                                        <Text fontSize="sm" fontWeight="medium">
-                                          Box:
-                                        </Text>
-                                        <Text fontSize="sm" fontWeight="600">
-                                          {calculateItemFields(item).box}
-                                        </Text>
-                                      </HStack>
-                                    </VStack>
-                                  </Box>
-
-                                  {!viewMode && (
-                                    <Flex justifyContent="flex-end">
-                                      <Button
-                                        colorScheme="red"
-                                        size="sm"
-                                        onClick={() => arrayHelpers.remove(idx)}
-                                      >
-                                        Delete
-                                      </Button>
-                                    </Flex>
-                                  )}
-                                </VStack>
-                              </Box>
-                            );
-                          })}
-                        </VStack>
-                      )}
-                    ></FieldArray>
-                  </Box>
-
-                  {!viewMode && (
-                    <Flex justifyContent="flex-end">
-                      <Button
-                        onClick={() =>
-                          arrayHelpers.insert(values.items.length, EMPTY_ITEM)
-                        }
-                        mt="22px"
-                      >
-                        Add Row
-                      </Button>
-                    </Flex>
-                  )}
                 </Box>
 
                 {/* Summary Section */}
@@ -1060,115 +790,6 @@ function InvoiceEditor() {
                         ₹{getTotalMargin().toFixed(2)}
                       </Text>
                     </Grid>
-                  </Box>
-
-                  {/* Mobile Summary Layout */}
-                  <Box display={{ base: "block", md: "none" }}>
-                    <VStack spacing={6} align="stretch">
-                      {/* Total Net Amount */}
-                      <Box
-                        bg="white"
-                        p={4}
-                        borderRadius="12px"
-                        border="1px solid"
-                        borderColor="gray.200"
-                        boxShadow="sm"
-                      >
-                        <Flex
-                          justifyContent="space-between"
-                          alignItems="center"
-                        >
-                          <Text fontWeight="600" fontSize="16">
-                            Total Net Amount
-                          </Text>
-                          <Text fontWeight="700" fontSize="18" color="blue.600">
-                            ₹{getTotalNetAmount().toFixed(2)}
-                          </Text>
-                        </Flex>
-                      </Box>
-
-                      {/* Total Tax Amount */}
-                      <Box
-                        bg="white"
-                        p={4}
-                        borderRadius="12px"
-                        border="1px solid"
-                        borderColor="gray.200"
-                        boxShadow="sm"
-                      >
-                        <Flex
-                          justifyContent="space-between"
-                          alignItems="center"
-                        >
-                          <Text fontWeight="500" fontSize="15">
-                            Total Tax Amount
-                          </Text>
-                          <Text
-                            fontWeight="600"
-                            fontSize="16"
-                            color="green.500"
-                          >
-                            ₹{getTotalTaxAmount().toFixed(2)}
-                          </Text>
-                        </Flex>
-                      </Box>
-
-                      {/* Total Final Price */}
-                      <Box
-                        bg="white"
-                        p={4}
-                        borderRadius="12px"
-                        border="1px solid"
-                        borderColor="gray.200"
-                        boxShadow="sm"
-                      >
-                        <Flex
-                          justifyContent="space-between"
-                          alignItems="center"
-                        >
-                          <Text fontWeight="500" fontSize="15">
-                            Total Final Price
-                          </Text>
-                          <Text
-                            fontWeight="600"
-                            fontSize="16"
-                            color="purple.500"
-                          >
-                            ₹{getTotalFinalPrice().toFixed(2)}
-                          </Text>
-                        </Flex>
-                      </Box>
-
-                      {/* Total Margin */}
-                      <Box
-                        bg="purple.50"
-                        p={5}
-                        borderRadius="16px"
-                        border="2px solid"
-                        borderColor="purple.200"
-                        boxShadow="md"
-                      >
-                        <Flex
-                          justifyContent="space-between"
-                          alignItems="center"
-                        >
-                          <Text
-                            fontWeight="700"
-                            fontSize="18"
-                            color="purple.700"
-                          >
-                            Total Margin
-                          </Text>
-                          <Text
-                            fontWeight="800"
-                            fontSize="22"
-                            color="purple.700"
-                          >
-                            ₹{getTotalMargin().toFixed(2)}
-                          </Text>
-                        </Flex>
-                      </Box>
-                    </VStack>
                   </Box>
                 </Box>
 
