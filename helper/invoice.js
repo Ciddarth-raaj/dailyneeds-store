@@ -69,9 +69,6 @@ const invoice = {
   getAllInvoices: (filters = {}) =>
     new Promise(function (resolve, reject) {
       const queryParams = new URLSearchParams();
-      if (filters.store_id) queryParams.append("store_id", filters.store_id);
-      if (filters.from_date) queryParams.append("from_date", filters.from_date);
-      if (filters.to_date) queryParams.append("to_date", filters.to_date);
       if (filters.offset) queryParams.append("offset", filters.offset);
       if (filters.limit) queryParams.append("limit", filters.limit);
 
