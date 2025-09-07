@@ -15,23 +15,17 @@ import {
   Th,
   Thead,
   Tr,
-  InputGroup,
-  InputRightAddon,
   Box,
-  VStack,
-  HStack,
   Text,
-  useBreakpointValue,
-  TableContainer,
 } from "@chakra-ui/react";
 import product from "../../helper/product";
 import invoice from "../../helper/invoice";
 import styles from "../../styles/purchaseOrderTable.module.css";
 import invoiceStyles from "../../styles/invoice.module.css";
-import { useUser } from "../../contexts/UserContext";
 import ReactSelect from "react-select";
 import toast from "react-hot-toast";
 import Link from "next/link";
+import ProductSearchDropdown from "../../components/ProductSearchDropdown/ProductSearchDropdown";
 
 const EMPTY_ITEM = {
   product_id: null,
@@ -131,26 +125,6 @@ function InvoiceEditor() {
   // State for loading and invoice data
   const [loading, setLoading] = useState(false);
   const [invoiceData, setInvoiceData] = useState(null);
-
-  // Fetch products for dropdown
-  const [productOptions, setProductOptions] = useState([]);
-  useEffect(() => {
-    async function fetchProducts() {
-      try {
-        const data = await product.getAll();
-        setProductOptions(
-          (data || []).map((prod) => ({
-            value: prod.product_id,
-            label: `${prod.product_id} - ${prod.de_name}`,
-            ...prod,
-          }))
-        );
-      } catch (err) {
-        setProductOptions([]);
-      }
-    }
-    fetchProducts();
-  }, []);
 
   // Fetch invoice data for view and edit modes
   useEffect(() => {
@@ -285,7 +259,7 @@ function InvoiceEditor() {
                       : [EMPTY_ITEM],
                 }
               : {
-                  invoice_id: `INV-${Date.now()}`,
+                  invoice_id: "",
                   items: [EMPTY_ITEM],
                 }
           }
@@ -438,14 +412,8 @@ function InvoiceEditor() {
                                             invoiceStyles.productSelect
                                           }
                                         >
-                                          <ReactSelect
-                                            options={productOptions}
-                                            value={
-                                              productOptions.find(
-                                                (opt) =>
-                                                  opt.value === item.product_id
-                                              ) || null
-                                            }
+                                          <ProductSearchDropdown
+                                            value={item.product_id}
                                             onChange={(selected) => {
                                               setFieldValue(
                                                 `items[${idx}].product_id`,
@@ -463,12 +431,8 @@ function InvoiceEditor() {
                                               }
                                             }}
                                             isDisabled={viewMode}
-                                            isSearchable
                                             placeholder="Select Product"
                                             classNamePrefix="transparentSelect"
-                                            // menuPortalTarget={document.getElementById(
-                                            //   "invoice-editor"
-                                            // )}
                                           />
                                         </div>
                                       </Td>

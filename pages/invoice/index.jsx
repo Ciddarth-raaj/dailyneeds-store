@@ -12,7 +12,7 @@ import moment from "moment";
 function Invoice() {
   const [search, setSearch] = useState("");
   const [sortConfig, setSortConfig] = useState({
-    key: "invoice_id",
+    key: "created_at",
     direction: "desc",
   });
 
@@ -58,14 +58,14 @@ function Invoice() {
       ...invoice,
       created_at: (
         <Tooltip
-          label={moment(invoice.created_at).format("HH:mm A, DD-MM-YYYY")}
+          label={moment(invoice.created_at).format("HH:mm A, DD/MM/YYYY")}
         >
           {moment(invoice.created_at).fromNow()}
         </Tooltip>
       ),
       updated_at: (
         <Tooltip
-          label={moment(invoice.updated_at).format("HH:mm A, DD-MM-YYYY")}
+          label={moment(invoice.updated_at).format("HH:mm A, DD/MM/YYYY")}
         >
           {moment(invoice.updated_at).fromNow()}
         </Tooltip>
