@@ -26,6 +26,7 @@ import ReactSelect from "react-select";
 import toast from "react-hot-toast";
 import Link from "next/link";
 import ProductSearchDropdown from "../../components/ProductSearchDropdown/ProductSearchDropdown";
+import usePeople from "../../customHooks/usePeople";
 
 const EMPTY_ITEM = {
   product_id: null,
@@ -55,6 +56,11 @@ const validateForm = (values) => {
     return "Invoice # is required";
   } else if (values.invoice_id.length > 100) {
     return "Invoice # cannot exceed 100 characters";
+  }
+
+  // Validate supplier_id
+  if (!values.supplier_id) {
+    return "Supplier is required";
   }
 
   // Validate items
@@ -126,6 +132,18 @@ function InvoiceEditor() {
   const [loading, setLoading] = useState(false);
   const [invoiceData, setInvoiceData] = useState(null);
 
+  const { peopleList } = usePeople();
+  const filtersPeopleList = useMemo(
+    () =>
+      peopleList
+        .filter((item) => item.person_type === 2)
+        .map((item) => ({
+          id: item.person_id,
+          value: item.name,
+        })),
+    [peopleList]
+  );
+
   // Fetch invoice data for view and edit modes
   useEffect(() => {
     async function fetchInvoiceData() {
@@ -161,6 +179,7 @@ function InvoiceEditor() {
     // Prepare data for API
     const invoiceData = {
       invoice_id: values.invoice_id,
+      supplier_id: values.supplier_id,
       invoice_items: values.items
         .filter((item) => item.product_id && item.quantity && item.cost)
         .map((item) => ({
@@ -234,6 +253,7 @@ function InvoiceEditor() {
             invoiceData
               ? {
                   invoice_id: invoiceData.invoice_id || "",
+                  supplier_id: invoiceData.supplier_id || null,
                   items:
                     invoiceData.invoice_items?.length > 0
                       ? invoiceData.invoice_items.map((item) => ({
@@ -259,7 +279,8 @@ function InvoiceEditor() {
                       : [EMPTY_ITEM],
                 }
               : {
-                  invoice_id: "",
+                  invoice_id: null,
+                  supplier_id: null,
                   items: [EMPTY_ITEM],
                 }
           }
@@ -351,6 +372,15 @@ function InvoiceEditor() {
                     name="invoice_id"
                     placeholder="INV-001"
                     editable={!viewMode && !editMode}
+                  />
+
+                  <CustomInput
+                    label="Supplier Name"
+                    name="supplier_id"
+                    method="switch"
+                    values={filtersPeopleList}
+                    placeholder="Select Supplier"
+                    editable={!viewMode}
                   />
                 </Box>
 
