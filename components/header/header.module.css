@@ -162,8 +162,21 @@
   font-weight: bolder;
 }
 
+.logo {
+  height: 40px;
+  margin-left: 175px;
+}
+
 /* Mobile responsive styles */
 @media (max-width: 768px) {
+  .logo {
+    position: absolute;
+    height: 26px;
+    left: -12px;
+    right: 0;
+    margin: auto;
+  }
+
   .container {
     padding: 0 16px 0 80px;
     height: 60px;

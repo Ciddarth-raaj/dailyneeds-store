@@ -29,7 +29,7 @@ export default function Sidebar() {
   useEffect(() => {
     getPermissions();
     checkActiveRoute();
-  }, [router.pathname]);
+  }, [router.asPath]);
 
   const checkActiveRoute = () => {
     const updatedMenu = { ...menu };
@@ -43,7 +43,7 @@ export default function Sidebar() {
     // Check which section should be selected based on current route
     Object.keys(updatedMenu).forEach((key) => {
       // Check main menu route
-      if (updatedMenu[key].location === router.pathname) {
+      if (updatedMenu[key].location === router.asPath) {
         updatedMenu[key].selected = true;
         updatedMenu[key].isOpen = true; // Open the menu if main route matches
         return;
@@ -52,8 +52,9 @@ export default function Sidebar() {
       // Check submenu routes
       if (updatedMenu[key].subMenu) {
         Object.keys(updatedMenu[key].subMenu).forEach((sKey) => {
-          if (updatedMenu[key].subMenu[sKey].location === router.pathname) {
+          if (updatedMenu[key].subMenu[sKey].location === router.asPath) {
             updatedMenu[key].selected = true;
+            updatedMenu[key].subMenu[sKey].selected = true;
             updatedMenu[key].isOpen = true; // Open the menu if submenu route matches
           }
         });
@@ -147,7 +148,7 @@ export default function Sidebar() {
                       }
 
                       const isActive =
-                        router.pathname === menu[key].subMenu[sKey].location;
+                        router.asPath === menu[key].subMenu[sKey].location;
                       return (
                         <Link
                           key={sKey}

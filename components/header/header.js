@@ -132,6 +132,7 @@ export default function Header() {
   return (
     <div className={styles.container}>
       <Head />
+      <img src={"/assets/dnds-logo.png"} alt="logo" className={styles.logo} />
       <div className={styles.navigationBar}>
         <div
           className={`${styles.wrapper} ${isDropdownOpen ? styles.show : ""}`}
