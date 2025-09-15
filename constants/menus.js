@@ -91,11 +91,106 @@ export default {
       },
     },
   },
+  master: {
+    title: "Master",
+    selected: false,
+    openPage: false,
+    icon: "fa-list-alt",
+    subMenu: {
+      view_master_list: {
+        title: "Master List",
+        permission: "view_master_list",
+        selected: false,
+        location: "/master",
+      },
+    },
+  },
+  materials: {
+    title: "Materials",
+    selected: false,
+    openPage: false,
+    icon: "fa-boxes", // Changed to a more relevant icon for materials
+    subMenu: {
+      view_materials: {
+        title: "All Materials",
+        permission: "view_materials",
+        selected: false,
+        location: "/materials",
+      },
+      view_materials_category: {
+        title: "Materials Category",
+        permission: "view_materials_category",
+        selected: false,
+        location: "/materials/category",
+      },
+      view_materials_request: {
+        title: "Materials Request",
+        permission: "view_materials_request",
+        selected: false,
+        location: "/materials/request",
+      },
+    },
+  },
+  purchase_order: {
+    title: "Purchase Order",
+    selected: false,
+    openPage: false,
+    icon: "fa-credit-card", // Changed to a more relevant icon for materials
+    subMenu: {
+      view_purchase: {
+        title: "View Purchase Order",
+        permission: "view_purchase_order",
+        selected: false,
+        location: "/purchase-order",
+      },
+      add_purchase: {
+        title: "Add Purchase Order",
+        permission: "add_purchase_order",
+        selected: false,
+        location: "/purchase-order/create",
+      },
+    },
+  },
+  invoice: {
+    title: "Invoice",
+    selected: false,
+    openPage: false,
+    icon: "fa-file-invoice", // Changed to a more relevant icon for materials
+    subMenu: {
+      view_invoice: {
+        title: "View Invoice",
+        permission: "view_invoice",
+        selected: false,
+        location: "/invoice",
+      },
+      add_invoice: {
+        title: "Add Invoice",
+        permission: "add_invoice",
+        selected: false,
+        location: "/invoice/create",
+      },
+    },
+  },
+  items: {
+    title: "Items",
+    selected: false,
+    openPage: false,
+    icon: "fa-shopping-basket", // Changed to a more relevant icon for materials
+    subMenu: {
+      view_items: {
+        title: "Repack Items Master",
+        permission: "view_items",
+        selected: false,
+        location: "/items",
+      },
+    },
+  },
   accounts: {
     title: "Accounts",
     selected: false,
     openPage: false,
     icon: "fa-ticket",
+    aboveLine: true,
     subMenu: {
       view_account_sheet: {
         title: "Account Sheet",
@@ -179,6 +274,7 @@ export default {
     title: "Debit Note",
     selected: false,
     openPage: false,
+    belowLine: true,
     icon: "fa-money-bill-alt",
     subMenu: {
       view_purchase_order: {
@@ -209,86 +305,6 @@ export default {
   //     },
   //   },
   // },
-  master: {
-    title: "Master",
-    selected: false,
-    openPage: false,
-    icon: "fa-users",
-    subMenu: {
-      view_master_list: {
-        title: "Master List",
-        permission: "view_master_list",
-        selected: false,
-        location: "/master",
-      },
-    },
-  },
-  materials: {
-    title: "Materials",
-    selected: false,
-    openPage: false,
-    icon: "fa-boxes", // Changed to a more relevant icon for materials
-    subMenu: {
-      view_materials: {
-        title: "All Materials",
-        permission: "view_materials",
-        selected: false,
-        location: "/materials",
-      },
-      view_materials_category: {
-        title: "Materials Category",
-        permission: "view_materials_category",
-        selected: false,
-        location: "/materials/category",
-      },
-      view_materials_request: {
-        title: "Materials Request",
-        permission: "view_materials_request",
-        selected: false,
-        location: "/materials/request",
-      },
-    },
-  },
-  purchase_order: {
-    title: "Purchase Order",
-    selected: false,
-    openPage: false,
-    icon: "fa-boxes", // Changed to a more relevant icon for materials
-    subMenu: {
-      view_purchase: {
-        title: "View Purchase Order",
-        permission: "view_purchase_order",
-        selected: false,
-        location: "/purchase-order",
-      },
-      add_purchase: {
-        title: "Add Purchase Order",
-        permission: "add_purchase_order",
-        selected: false,
-        location: "/purchase-order/create",
-      },
-    },
-  },
-  invoice: {
-    title: "Invoice",
-    selected: false,
-    openPage: false,
-    icon: "fa-file-invoice", // Changed to a more relevant icon for materials
-    subMenu: {
-      view_invoice: {
-        title: "View Invoice",
-        permission: "view_invoice",
-        selected: false,
-        location: "/invoice",
-      },
-      add_invoice: {
-        title: "Add Invoice",
-        permission: "add_invoice",
-        selected: false,
-        location: "/invoice/create",
-      },
-    },
-  },
   products: {
     title: "Products",
     selected: false,

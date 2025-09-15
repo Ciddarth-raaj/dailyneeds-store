@@ -111,26 +111,32 @@ export default function Sidebar() {
       >
         <Head />
         <Box className={styles.sideBarOptions}>
-          {Object.keys(menu).map((key) => (
-            <Box key={key} className={styles.menuWrapper}>
-              <Box
-                as="a"
-                className={`${styles.optionHolder} ${
-                  menu[key].selected ? styles.selectedMenu : ""
-                } ${menu[key].isOpen ? styles.openMenu : ""}`}
-                onClick={() => handleMenuClick(key)}
-              >
-                <Box className={styles.iconWrapper}>
-                  <i
-                    className={`fa ${menu[key].icon} ${
-                      menu[key].selected
-                        ? styles["icons-selected"]
-                        : styles.iconsUnselected
-                    }`}
-                  />
+          {Object.keys(menu).map((key, index) => (
+            <React.Fragment key={key}>
+              {/* Render above line divider if this menu item has aboveLine: true */}
+              {menu[key].aboveLine && (
+                <div className={styles.sectionDivider}></div>
+              )}
+              
+              <Box className={styles.menuWrapper}>
+                <Box
+                  as="a"
+                  className={`${styles.optionHolder} ${
+                    menu[key].selected ? styles.selectedMenu : ""
+                  } ${menu[key].isOpen ? styles.openMenu : ""}`}
+                  onClick={() => handleMenuClick(key)}
+                >
+                  <Box className={styles.iconWrapper}>
+                    <i
+                      className={`fa ${menu[key].icon} ${
+                        menu[key].selected
+                          ? styles["icons-selected"]
+                          : styles.iconsUnselected
+                      }`}
+                    />
+                  </Box>
+                  <span>{menu[key].title}</span>
                 </Box>
-                <span>{menu[key].title}</span>
-              </Box>
 
               {menu[key].isOpen &&
                 menu[key].subMenu &&
@@ -170,7 +176,13 @@ export default function Sidebar() {
                     })}
                   </div>
                 )}
-            </Box>
+              </Box>
+              
+              {/* Render below line divider if this menu item has belowLine: true */}
+              {menu[key].belowLine && (
+                <div className={styles.sectionDivider}></div>
+              )}
+            </React.Fragment>
           ))}
         </Box>
       </div>

@@ -394,15 +394,7 @@ function InvoiceEditor() {
                       render={(arrayHelpers) => (
                         <Box>
                           <Box className={invoiceStyles.invoiceTableContainer}>
-                            <Table
-                              className={invoiceStyles.invoiceTable}
-                              variant="striped"
-                              sx={{
-                                "tbody tr:nth-of-type(odd) td": {
-                                  background: "#f7f7f7",
-                                },
-                              }}
-                            >
+                            <Table className={invoiceStyles.invoiceTable}>
                               <Thead>
                                 <Tr>
                                   <Th
@@ -746,7 +738,7 @@ function InvoiceEditor() {
                 <Box
                   bg="#fafbfc"
                   borderRadius="16px"
-                  p={{ base: "24px 16px", md: "32px 24px" }}
+                  p={{ base: "16px", md: "24px" }}
                   mt="40px"
                   maxW={{ base: "100%", md: "480px" }}
                   ml={{ base: "0", md: "auto" }}
@@ -754,33 +746,38 @@ function InvoiceEditor() {
                 >
                   {/* Desktop Summary Layout */}
                   <Box display={{ base: "none", md: "block" }}>
-                    <Grid templateColumns="1fr auto" alignItems="center" mb={4}>
-                      <Text fontWeight="bold">Total Net Amount</Text>
-                      <Text fontWeight="600" fontSize="18">
+                    <Grid templateColumns="1fr auto" alignItems="center" mb={3}>
+                      <Text fontSize="14" color="gray.600">
+                        Total Net Amount
+                      </Text>
+                      <Text fontSize="14" textAlign="right">
                         ₹{getTotalNetAmount().toFixed(2)}
                       </Text>
                     </Grid>
 
-                    <Grid templateColumns="1fr auto" alignItems="center" mb={4}>
-                      <Text>Total Tax Amount</Text>
-                      <Text textAlign="right" minW="60px">
+                    <Grid templateColumns="1fr auto" alignItems="center" mb={3}>
+                      <Text fontSize="14" color="gray.600">
+                        Total Tax Amount
+                      </Text>
+                      <Text fontSize="14" textAlign="right">
                         ₹{getTotalTaxAmount().toFixed(2)}
                       </Text>
                     </Grid>
 
-                    <Grid templateColumns="1fr auto" alignItems="center" mb={4}>
-                      <Text>Total Final Price</Text>
-                      <Text textAlign="right" minW="60px">
+                    <Grid templateColumns="1fr auto" alignItems="center" mb={3}>
+                      <Text fontSize="14" color="gray.600">
+                        Total Final Price
+                      </Text>
+                      <Text fontSize="14" textAlign="right">
                         ₹{getTotalFinalPrice().toFixed(2)}
                       </Text>
                     </Grid>
 
-                    <hr style={{ margin: "32px 0 16px 0" }} />
                     <Grid templateColumns="1fr auto" alignItems="center">
-                      <Text fontWeight="bold" fontSize="20">
+                      <Text fontSize="14" color="gray.600">
                         Total Margin
                       </Text>
-                      <Text fontWeight="700" fontSize="22">
+                      <Text fontSize="14" textAlign="right">
                         ₹{getTotalMargin().toFixed(2)}
                       </Text>
                     </Grid>

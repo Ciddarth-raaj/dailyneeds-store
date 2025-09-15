@@ -229,6 +229,14 @@
   background-color: var(--chakra-colors-purple-200);
 }
 
+/* Section Divider Styles */
+.sectionDivider {
+  width: 100%;
+  height: 1px;
+  background: var(--chakra-colors-gray-200);
+  opacity: 0.8;
+}
+
 /* .openMenu {
   background-color: rgba(226, 153, 255, 0.1);
 } */

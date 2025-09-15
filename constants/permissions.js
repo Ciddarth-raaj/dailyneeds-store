@@ -97,4 +97,5 @@ export const PERMISSIONS = {
   add_materials_category: "Add Materials Category",
   view_invoice: "View Invoices",
   add_invoice: "Add Invoices",
+  view_items: "View Items",
 };
