@@ -179,7 +179,7 @@ function InvoiceEditor() {
     // Prepare data for API
     const invoiceData = {
       invoice_id: values.invoice_id,
-      supplier_id: values.supplier_id,
+      supplier_id: parseInt(values.supplier_id),
       invoice_items: values.items
         .filter((item) => item.product_id && item.quantity && item.cost)
         .map((item) => ({

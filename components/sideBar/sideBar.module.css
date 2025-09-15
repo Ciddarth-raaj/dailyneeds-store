@@ -48,10 +48,10 @@
 .optionHolder {
   display: flex;
   align-items: center;
-  padding: 8px;
+  padding: 6px;
   width: 100%;
   min-width: 60px;
-  border-radius: 10px;
+  border-radius: 6px;
   transition: all 0.3s ease;
   cursor: pointer;
   gap: 10px;
@@ -76,7 +76,7 @@
   left: 0;
   top: 50%;
   transform: translateY(-50%);
-  width: 4px;
+  width: 3px;
   height: 60%;
   background-color: var(--chakra-colors-purple-500);
   border-radius: 0 4px 4px 0;
@@ -86,10 +86,10 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 36px;
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
+  min-width: 22px;
+  width: 24px;
+  height: 24px;
+  border-radius: 3px;
   transition: all 0.3s ease;
   background-color: var(--chakra-colors-purple-50);
   flex-shrink: 0;
@@ -100,14 +100,14 @@
 }
 
 .optionHolder i {
-  font-size: 16px;
+  font-size: 12px;
   transition: all 0.3s ease;
   width: 16px;
   text-align: center;
 }
 
 .optionHolder span {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
   letter-spacing: 0.1px;
 }

@@ -7,6 +7,7 @@ import { Menu, MenuItem } from "@szhsin/react-menu";
 import Table from "../../components/table/table";
 import { useInvoice } from "../../customHooks/useInvoice";
 import EmptyData from "../../components/EmptyData";
+import ConfirmDeleteModal from "../../components/ConfirmDeleteModal";
 import moment from "moment";
 
 function Invoice() {
@@ -15,11 +16,39 @@ function Invoice() {
     key: "created_at",
     direction: "desc",
   });
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
-  const { invoices, loading, error } = useInvoice();
+  const { invoices, loading, error, deleteInvoice } = useInvoice();
 
   const handleSort = (key, direction) => {
     setSortConfig({ key, direction });
+  };
+
+  const handleDeleteClick = (invoice) => {
+    setSelectedInvoice(invoice);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!selectedInvoice) return;
+
+    setIsDeleting(true);
+    try {
+      await deleteInvoice(selectedInvoice.invoice_id);
+      setIsDeleteModalOpen(false);
+      setSelectedInvoice(null);
+    } catch (error) {
+      console.error("Error deleting invoice:", error);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setIsDeleteModalOpen(false);
+    setSelectedInvoice(null);
   };
 
   const heading = {
@@ -89,6 +118,7 @@ function Invoice() {
           <Link href={`/invoice/edit?id=${invoice.invoice_id}`} passHref>
             <MenuItem>Edit</MenuItem>
           </Link>
+          <MenuItem onClick={() => handleDeleteClick(invoice)}>Delete</MenuItem>
         </Menu>
       ),
     }));
@@ -141,6 +171,17 @@ function Invoice() {
           <EmptyData />
         )}
       </CustomContainer>
+
+      <ConfirmDeleteModal
+        isOpen={isDeleteModalOpen}
+        onClose={handleDeleteCancel}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Invoice"
+        body={`Are you sure you want to delete invoice ${selectedInvoice?.invoice_id}? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        isLoading={isDeleting}
+      />
     </GlobalWrapper>
   );
 }
