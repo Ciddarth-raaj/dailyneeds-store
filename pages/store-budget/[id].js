@@ -68,7 +68,7 @@ class UpdateBudget extends React.Component {
 		const { id } = this.props;
 		return (
 			<GlobalWrapper title="Update Budget">
-				<Head />
+				 
 				<Formik
 					initialValues={{
 						department_name: this.props.data[0]?.department_name

@@ -86,8 +86,6 @@ function EmployeeIndex() {
 
   return (
     <GlobalWrapper title="Employee">
-      <Head />
-
       <CustomContainer
         title="Employee"
         filledHeader

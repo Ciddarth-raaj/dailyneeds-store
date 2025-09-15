@@ -71,7 +71,7 @@ class CreatePackingMaterialType extends React.Component {
         const { id } = this.props;
 		return (
 			<GlobalWrapper title="Pack Material Type">
-				<Head />
+				 
 				<Formik
 					initialValues={{
                         material_type: this.props.data[0]?.material_type,

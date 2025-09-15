@@ -360,7 +360,7 @@ export default class NewJoiner extends React.Component {
           )}
           {loginVisibility === true && (
             <GlobalWrapper title="DashBoard">
-              <Head />
+               
               <div className={styles.mainWrapper}>
                 <div className={styles.leftHolder}>
                   <Box
@@ -610,7 +610,7 @@ export default class NewJoiner extends React.Component {
             </GlobalWrapper>
           )} */}
           <GlobalWrapper title="DashBoard">
-            <Head />
+             
             <div className={styles.mainWrapper}>
               <div className={styles.leftHolder}>
                 <Box

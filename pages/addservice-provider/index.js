@@ -35,7 +35,7 @@ class addService extends React.Component {
         let valuesNew = [];
         return (
             <GlobalWrapper title="Add Service Provider">
-                <Head />
+                 
                 <Formik
                     initialValues={{
                         name: '',

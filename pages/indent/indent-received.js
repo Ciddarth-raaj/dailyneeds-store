@@ -203,7 +203,7 @@ class indentReceived extends React.Component {
 
         return (
             <GlobalWrapper title="Indents Received">
-            <Head />
+             
             <Formik
                 initialValues={{
                     indent_number: '',

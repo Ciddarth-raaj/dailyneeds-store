@@ -93,7 +93,7 @@ class Family extends React.Component {
         const { id } = this.props;
         return (
             <GlobalWrapper title="Family">
-                <Head />
+                 
                 <Formik
                     initialValues={{
                         name: this.props.data[0]?.name,

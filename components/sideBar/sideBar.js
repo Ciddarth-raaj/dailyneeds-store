@@ -109,7 +109,7 @@ export default function Sidebar() {
         className={styles.container}
         style={{ display: isMobile ? (isOpen ? "block" : "none") : "block" }}
       >
-        <Head />
+         
         <Box className={styles.sideBarOptions}>
           {Object.keys(menu).map((key, index) => (
             <React.Fragment key={key}>

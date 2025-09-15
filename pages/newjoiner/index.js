@@ -124,7 +124,7 @@ class viewNewJoinee extends React.Component {
 
         return (
             <GlobalWrapper title="View New Joinee Details">
-            <Head />
+             
             <Formik
                 initialValues={{}}
                 onSubmit={(values) => {console.log(values)}}

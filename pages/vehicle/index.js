@@ -141,7 +141,7 @@ class viewVehicle extends React.Component {
 
         return (
             <GlobalWrapper title="View Vehicle Details">
-            <Head />
+             
             <Formik
                 initialValues={{}}
                 onSubmit={(values) => {console.log(values)}}

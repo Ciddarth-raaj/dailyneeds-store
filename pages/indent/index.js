@@ -199,7 +199,7 @@ class viewIndent extends React.Component {
 
         return (
             <GlobalWrapper title="Create Indent">
-            <Head />
+             
             <Formik
                 initialValues={{
                     indent_number: '',

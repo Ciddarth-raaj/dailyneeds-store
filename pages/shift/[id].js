@@ -81,7 +81,7 @@ class CreateShift extends React.Component {
 		const { id } = this.props;
 		return (
 			<GlobalWrapper title="Shift">
-				<Head />
+				 
 				<Formik
 					initialValues={{
 						shift_name: this.props.data[0]?.shift_name,

@@ -151,7 +151,7 @@ class BranchModal extends React.Component {
     } = this.state;
     return (
       <GlobalWrapper title="Branch">
-        <Head />
+         
         <Formik
           initialValues={{
             outlet_name: this.props.data[0]?.outlet_name,

@@ -257,7 +257,7 @@ export default class viewSalary extends React.Component {
       >
         <Form>
           <GlobalWrapper title="All Employee Salary Advance">
-            <Head />
+             
             <Flex templateColumns="repeat(3, 1fr)" gap={6} colSpan={2}>
               <Container className={styles.container} boxShadow="lg">
                 <p className={styles.salaryButtoninputHolder}>

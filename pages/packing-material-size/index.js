@@ -137,7 +137,7 @@ class viewMaterialSize extends React.Component {
 
         return (
             <GlobalWrapper title="View Pack Material Size">
-            <Head />
+             
             <Formik
                 initialValues={{}}
                 onSubmit={(values) => {console.log(values)}}

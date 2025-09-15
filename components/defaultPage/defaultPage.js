@@ -17,7 +17,7 @@ export default class DefaultPage extends React.Component {
         const date = new Date;
         return (
             <div className={styles.container}>
-                <Head />
+                 
                 <div className={styles.introContent}>
                     <h1 className={styles.heading}>Default</h1>
                     <div className={styles.cardHolder}>

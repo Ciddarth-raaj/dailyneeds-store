@@ -11,8 +11,6 @@ function Create() {
 
   return (
     <GlobalWrapper title="Add Account Sheet">
-      <Head />
-
       {storeId == WAREHHOUSE_ID ? <WarehouseForm /> : <NormalOutletForm />}
     </GlobalWrapper>
   );

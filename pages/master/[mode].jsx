@@ -105,7 +105,6 @@ function MasterForm() {
 
   return (
     <GlobalWrapper>
-      <Head />
       <CustomContainer
         title={
           viewMode ? "View Master" : editMode ? "Edit Master" : "Add New Master"

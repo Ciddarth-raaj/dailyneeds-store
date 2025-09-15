@@ -30,7 +30,7 @@ export default class SideBarMobile extends React.Component {
                 onMouseEnter={() => this.setState({ showTitle: true })}
                 onMouseLeave={() => this.setState({ showTitle: false })}
             >
-                <Head />
+                 
 
                 <div className={styles.sideBarOptions}>
                     {Object.keys(menu).map((key) => (

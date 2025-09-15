@@ -204,7 +204,7 @@ class indentSent extends React.Component {
 
         return (
             <GlobalWrapper title="Indents Sent">
-            <Head />
+             
             <Formik
                 initialValues={{
                     indent_number: '',

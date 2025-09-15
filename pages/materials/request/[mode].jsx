@@ -211,7 +211,6 @@ function MaterialRequestForm() {
 
   return (
     <GlobalWrapper>
-      <Head />
       <CustomContainer
         title={
           mode === "view"

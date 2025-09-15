@@ -149,7 +149,7 @@ export default class BranchDetail extends React.Component {
       <Formik>
         <Form>
           <GlobalWrapper title="Branch Details">
-            <Head />
+             
 
             <CustomContainer
               title="Branch Details"

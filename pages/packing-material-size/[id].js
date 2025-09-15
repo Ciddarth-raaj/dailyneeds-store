@@ -72,7 +72,7 @@ class CreatePackingMaterialSize extends React.Component {
         const { id } = this.props;
 		return (
 			<GlobalWrapper title="Pack Material Size">
-				<Head />
+				 
 				<Formik
 					initialValues={{
 						material_size: this.props.data[0]?.material_size,

@@ -31,8 +31,6 @@ function Index() {
 
   return (
     <GlobalWrapper title="Account Sheet">
-      <Head />
-
       <CustomContainer
         title="Account Sheet"
         rightSection={

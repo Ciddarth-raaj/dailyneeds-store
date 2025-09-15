@@ -82,7 +82,7 @@ class CreateResignation extends React.Component {
         const { id, data, value } = this.props;
         return (
             <GlobalWrapper title="Resignation">
-                <Head />
+                 
                 <Formik
                     initialValues={{
                         employee_name: this.props.data[0]?.employee_name,

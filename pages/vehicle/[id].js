@@ -78,7 +78,7 @@ class CreateVehicle extends React.Component {
         const { id } = this.props;
 		return (
 			<GlobalWrapper title="Vehicle">
-				<Head />
+				 
 				<Formik
 					initialValues={{
                         vehicle_id: this.props.data[0]?.vehicle_id,

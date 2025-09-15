@@ -9,12 +9,13 @@ const defaultOGURL = "https://dailyneeds.com";
 const defaultOGImage = "/assets/logo-icon.png";
 const defaultTitle = "Dailyneeds | Store Manager";
 
-const Head = (props) => (
+const Head = (props) => {
+	return (
 	<NextHead>
 		<meta charSet="UTF-8" />
 		<title>
 			{props.title !== undefined
-				? `${props.title} | Hospisource`
+				? `${props.title} - ${defaultTitle}`
 				: defaultTitle}
 		</title>
 		<meta
@@ -50,7 +51,7 @@ const Head = (props) => (
 			property="og:title"
 			content={
 				props.title !== undefined && props.title != ""
-					? `${props.title} | Hospisource`
+					? `${props.title} | ${defaultTitle}`
 					: defaultTitle
 			}
 		/>
@@ -75,9 +76,10 @@ const Head = (props) => (
 
 		<script defer src="/your-path-to-fontawesome/js/brands.js"></script>
 		<script defer src="/your-path-to-fontawesome/js/solid.js"></script>
-		<script defer src="/your-path-to-fontawesome/js/fontawesome.js"></script>
-	</NextHead>
-);
+			<script defer src="/your-path-to-fontawesome/js/fontawesome.js"></script>
+		</NextHead>
+	);
+};
 
 Head.propTypes = {
 	title: string,

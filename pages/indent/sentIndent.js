@@ -176,7 +176,7 @@ class sentIndent extends React.Component {
 
         return (
             <GlobalWrapper title="Sent Indents">
-            <Head />
+             
             <Formik
                 initialValues={{
                     store_id: '',

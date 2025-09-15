@@ -90,7 +90,7 @@ class CreateDesignation extends React.Component {
 		const { id } = this.props;
 		return (
 			<GlobalWrapper title="Designation">
-				<Head />
+				 
 				<Formik
 					initialValues={{
 						designation_name: this.props.data[0]?.designation_name,

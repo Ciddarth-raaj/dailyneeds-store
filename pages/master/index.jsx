@@ -110,8 +110,6 @@ function Master() {
 
   return (
     <GlobalWrapper title="Master List">
-      <Head />
-
       <CustomContainer
         title="Master List"
         filledHeader

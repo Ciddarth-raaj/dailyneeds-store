@@ -131,7 +131,7 @@ class viewMaterialType extends React.Component {
 
         return (
             <GlobalWrapper title="View Pack Material Type">
-            <Head />
+             
             <Formik
                 initialValues={{}}
                 onSubmit={(values) => {console.log(values)}}

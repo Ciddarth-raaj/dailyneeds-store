@@ -172,7 +172,7 @@ class ProductItems extends React.Component {
         const { pack_material_type, pack_material_size } = this.props;
         return (
             <GlobalWrapper title="Products">
-                <Head />
+                 
                 <Formik
                     initialValues={{
                         product_id: this.props.data[0]?.product_id,

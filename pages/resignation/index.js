@@ -125,7 +125,7 @@ export default class viewResignation extends React.Component {
       >
         <Form>
           <GlobalWrapper title="Resignation Details">
-            <Head />
+             
             <Flex templateColumns="repeat(3, 1fr)" gap={6} colSpan={2}>
               <Container className={styles.container} boxShadow="lg">
                 <p className={styles.salaryButtoninputHolder}>

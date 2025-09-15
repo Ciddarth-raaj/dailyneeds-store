@@ -319,7 +319,7 @@ let temp = {};
             <Formik>
                 <Form>
                     <GlobalWrapper title="Products">
-                        <Head />
+                         
                         <Flex templateColumns="repeat(3, 1fr)" gap={6} colSpan={2}>
                             <Container className={styles.container} boxShadow="lg">
                                 <p className={styles.buttoninputHolder}>

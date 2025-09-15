@@ -176,7 +176,7 @@ class viewBudget extends React.Component {
 
     return (
       <GlobalWrapper title="Employee Count">
-        <Head />
+         
         <Formik
           initialValues={{
             store_id: "",

@@ -237,7 +237,7 @@ class viewDespatch extends React.Component {
 
         return (
             <GlobalWrapper title="Create Despatch">
-            <Head />
+             
             <Formik
                 initialValues={{
                     store_id: '',

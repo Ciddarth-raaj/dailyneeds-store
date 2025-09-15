@@ -35,7 +35,7 @@ class addIssue extends React.Component {
         let valuesNew = [];
         return (
             <GlobalWrapper title="New Issue">
-                <Head />
+                 
                 <Formik
                     initialValues={{
                         name: '',

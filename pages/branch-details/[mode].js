@@ -166,7 +166,7 @@ function BranchEditor() {
 
   return (
     <GlobalWrapper title="Branch Details">
-      <Head />
+       
 
       <CustomContainer title="Branch Details" filledHeader>
         <Formik

@@ -194,7 +194,7 @@ class whatsappOrder extends React.Component {
         // console.log({state: this.state.store_number})
         return (
             <GlobalWrapper title="Whatsapp Orders">
-                <Head />
+                 
                 <Formik
                     initialValues={{
                         store_id: '',

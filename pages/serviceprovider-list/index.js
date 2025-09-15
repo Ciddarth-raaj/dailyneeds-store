@@ -127,7 +127,7 @@ class serviceProvider extends React.Component {
 
     return (
       <GlobalWrapper title="Service Provider List">
-        <Head />
+         
         <Formik
           initialValues={{
             store_id: "",

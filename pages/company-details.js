@@ -96,7 +96,7 @@ class CompanyDetails extends React.Component {
 
         return (
             <GlobalWrapper title="Company Details">
-                <Head />
+                 
                 <Formik
                     initialValues={{
                         company_name: "",

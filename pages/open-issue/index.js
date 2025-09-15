@@ -132,7 +132,7 @@ class openIssue extends React.Component {
 
     return (
       <GlobalWrapper title="Open Issue">
-        <Head />
+         
         <Formik
           initialValues={{
             store_id: "",

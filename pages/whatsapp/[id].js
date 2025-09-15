@@ -150,7 +150,7 @@ class CreateWhatsapp extends React.Component {
         const { id } = this.props;
         return (
             <GlobalWrapper title="Create Whatsapp">
-                <Head />
+                 
                 <Formik
                     initialValues={{
                         // order_id: this.props.data[0]?.order_id,

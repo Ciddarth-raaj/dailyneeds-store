@@ -89,7 +89,6 @@ function CategoryForm() {
 
   return (
     <GlobalWrapper>
-      <Head />
       <CustomContainer
         title={
           viewMode

@@ -92,7 +92,7 @@ function adhaarView() {
         >
             <Form>
                 <GlobalWrapper title="Adhaar Card Details">
-                    <Head />
+                     
                     <Flex templateColumns="repeat(3, 1fr)" gap={6} colSpan={2}>
                         <Container className={styles.container} boxShadow="lg">
                             <p className={styles.buttoninputHolder}>

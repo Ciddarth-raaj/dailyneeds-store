@@ -282,7 +282,7 @@ class acceptIndent extends React.Component {
     // console.log({state: this.state.store_number})
         return (
             <GlobalWrapper title="Accept Indents">
-                <Head />
+                 
                 <Formik
                     initialValues={{
                         store_id: '',

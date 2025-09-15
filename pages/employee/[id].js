@@ -670,7 +670,7 @@ class Create extends React.Component {
 
     return (
       <GlobalWrapper title="New Employee">
-        <Head />
+         
         <Formik
           initialValues={{
             employee_id: this.props.data[0]?.employee_id,

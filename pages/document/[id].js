@@ -56,7 +56,7 @@ class ApproveDocument extends React.Component {
 		const { id } = this.props;
 		return (
 			<GlobalWrapper title="Document">
-				<Head />
+				 
 				<Formik
 					initialValues={{
 						card_name: this.props.data[0]?.card_name,

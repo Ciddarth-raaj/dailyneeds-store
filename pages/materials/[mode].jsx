@@ -126,7 +126,6 @@ function MaterialForm() {
 
   return (
     <GlobalWrapper>
-      <Head />
       <CustomContainer
         title={
           viewMode

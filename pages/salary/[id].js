@@ -90,7 +90,7 @@ class CreateSalary extends React.Component {
 		const { id } = this.props;
 		return (
 			<GlobalWrapper title="Salary">
-				<Head />
+				 
 				<Formik
 					initialValues={{
 						employee: this.props.data[0]?.employee_name,

@@ -196,7 +196,7 @@ class issueReceived extends React.Component {
 
         return (
             <GlobalWrapper title="Indent issues List - Indent Received">
-            <Head />
+             
             <Formik
                 initialValues={{
                     store_id: '',
