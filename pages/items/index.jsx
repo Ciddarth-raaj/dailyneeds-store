@@ -2,14 +2,7 @@ import React, { useState, useMemo } from "react";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../components/CustomContainer";
 import Table from "../../components/table/table";
-import {
-  IconButton,
-  Select,
-  Input,
-  InputGroup,
-  InputLeftElement,
-  Box,
-} from "@chakra-ui/react";
+import { IconButton, Select, Input, Box, Button } from "@chakra-ui/react";
 import { Menu, MenuItem } from "@szhsin/react-menu";
 import toast from "react-hot-toast";
 import { useReturnItem } from "../../customHooks/useReturnItem";
@@ -21,6 +14,9 @@ import {
   PACKAGING_MATERIAL_SIZE_LIST,
   PACKAGING_TYPE_LIST,
 } from "../../constants/repackItems";
+import exportCSVFile from "../../util/exportCSVFile";
+import { capitalize } from "../../util/string";
+import moment from "moment";
 
 const CustomSelect = ({ value, onChange, options = [] }) => (
   <Select
@@ -263,7 +259,9 @@ function Items() {
       return {
         item_id: item.item_id,
         item_name: (
-          <p style={{ textTransform: "capitalize" }}>{item.de_display_name}</p>
+          <p style={{ textTransform: "capitalize" }}>
+            {item.gf_item_name.toLowerCase()}
+          </p>
         ),
         package_size: `${item.measure} gms`,
         cleaning: findItem(BOOLEAN_LIST, item.edited_cleaning ?? item.cleaning),
@@ -288,7 +286,9 @@ function Items() {
     return {
       item_id: item.item_id,
       item_name: (
-        <p style={{ textTransform: "capitalize" }}>{item.de_display_name}</p>
+        <p style={{ textTransform: "capitalize" }}>
+          {item.gf_item_name.toLowerCase()}
+        </p>
       ),
       package_size: `${item.measure} gms`,
       cleaning: (
@@ -343,9 +343,59 @@ function Items() {
     };
   });
 
+  const handleExport = () => {
+    const TABLE_HEADER = {
+      item_id: "Item Id",
+      item_name: "Name",
+      package_size: "Package Size",
+      cleaning: "Cleaning",
+      packing_type: "Packing Type",
+      packing_material: "Packing Material",
+      packing_material_size: "Packing Material Size",
+      sticker: "Sticker",
+    };
+
+    const formattedData = [];
+    itemsList.forEach((d, i) => {
+      formattedData.push({
+        item_id: d.item_id,
+        item_name: capitalize(d.gf_item_name.toLowerCase()),
+        package_size: `${d.measure} gms`,
+        cleaning: findItem(BOOLEAN_LIST, d.edited_cleaning ?? d.cleaning),
+        packing_type: findItem(
+          PACKAGING_TYPE_LIST,
+          d.edited_packing_type ?? d.packing_type
+        ),
+        packing_material: findItem(
+          PACKAGING_MATERIAL_LIST,
+          d.edited_packing_material ?? d.packing_material
+        ),
+        packing_material_size: findItem(
+          PACKAGING_MATERIAL_SIZE_LIST,
+          d.edited_packing_material_size ?? d.packing_material_size
+        ),
+        sticker: findItem(BOOLEAN_LIST, d.edited_sticker ?? d.sticker),
+      });
+    });
+
+    exportCSVFile(
+      TABLE_HEADER,
+      formattedData,
+      "Repack Items Master (" + moment().format("DD-MM-YYYY") + ")"
+    );
+  };
+
   return (
     <GlobalWrapper title="Repack Items">
-      <CustomContainer title="Repack Items" filledHeader>
+      <CustomContainer
+        title="Repack Items"
+        filledHeader
+        rightSection={
+          <Button colorScheme="whiteAlpha" onClick={handleExport}>
+            Export
+          </Button>
+        }
+      >
         {loading ? (
           <p>Loading</p>
         ) : (
