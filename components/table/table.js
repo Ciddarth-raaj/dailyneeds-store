@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Flex, Button, Text, Select } from "@chakra-ui/react";
 
 import styles from "./table.module.css";
 
 import Cell from "./cell.js";
+import useTableSort from "../../customHooks/useTableSort";
 
 export default function Table({
   heading,
@@ -15,6 +16,7 @@ export default function Table({
   renderedRows = null,
   dontAffectPagination = false,
   defaultRowsPerPage = 50,
+  multisort = false,
 }) {
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(defaultRowsPerPage);
@@ -26,10 +28,14 @@ export default function Table({
     }
   }, [rows, dontAffectPagination]);
 
-  const totalPages = Math.ceil(rows.length / rowsPerPage);
+  const { sortState, toggleSort, sortedRows } = useTableSort({ rows });
+
+  const totalPages = Math.ceil(sortedRows.length / rowsPerPage);
   const startIndex = (currentPage - 1) * rowsPerPage;
   const endIndex = startIndex + rowsPerPage;
-  const currentRows = showPagination ? rows.slice(startIndex, endIndex) : rows;
+  const currentRows = showPagination
+    ? sortedRows.slice(startIndex, endIndex)
+    : sortedRows;
 
   const handlePageChange = (newPage) => {
     setCurrentPage(newPage);
@@ -40,15 +46,41 @@ export default function Table({
     setCurrentPage(1);
   };
 
-  const [currentSort, setCurrentSort] = useState({
-    key: null,
-    direction: null,
-  });
+  const handleSort = useCallback(
+    (key) => {
+      const existingIndex = sortState.findIndex((s) => s.key === key);
+      const current = existingIndex !== -1 ? sortState[existingIndex] : null;
+      let nextDirection = "asc";
+      if (current) {
+        if (current.direction === "asc") nextDirection = "desc";
+        else if (current.direction === "desc") nextDirection = null;
+        else nextDirection = "asc";
+      }
 
-  const handleSort = (key, direction) => {
-    setCurrentSort({ key, direction });
-    sortCallback(key, direction);
-  };
+      toggleSort(key, { multi: multisort });
+
+      if (typeof sortCallback === "function") {
+        let nextSortState = [];
+        if (!multisort) {
+          nextSortState = nextDirection
+            ? [{ key, direction: nextDirection }]
+            : [];
+        } else {
+          nextSortState = [...sortState];
+          if (existingIndex === -1) {
+            if (nextDirection)
+              nextSortState.push({ key, direction: nextDirection });
+          } else if (nextDirection === null) {
+            nextSortState.splice(existingIndex, 1);
+          } else {
+            nextSortState[existingIndex] = { key, direction: nextDirection };
+          }
+        }
+        sortCallback(key, nextDirection, nextSortState);
+      }
+    },
+    [sortState, toggleSort, sortCallback, multisort]
+  );
 
   const headingKeys = heading ? Object.keys(heading) : [];
 
@@ -87,7 +119,7 @@ export default function Table({
                 sortCallback={handleSort}
                 variant={variant}
                 size={size}
-                currentSort={currentSort}
+                sortState={sortState}
               />
             ))}
           </tr>
@@ -117,7 +149,8 @@ export default function Table({
           className={styles.paginationContainer}
         >
           <Text fontSize="12px" flex={1} textAlign="center" ml="250px">
-            {startIndex + 1}-{Math.min(endIndex, rows.length)} of {rows.length}
+            {startIndex + 1}-{Math.min(endIndex, sortedRows.length)} of{" "}
+            {sortedRows.length}
           </Text>
 
           <Flex gap={2}>

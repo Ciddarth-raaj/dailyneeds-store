@@ -55,15 +55,6 @@ function Items() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
-  const [sortConfig, setSortConfig] = useState({
-    key: "item_id",
-    direction: "desc",
-  });
-
-  // Sort callback function
-  const sortCallback = (key, type) => {
-    setSortConfig({ key, direction: type });
-  };
 
   // Filter and sort items based on search query and sort configuration
   const filteredItems = useMemo(() => {
@@ -80,61 +71,8 @@ function Items() {
       });
     }
 
-    // Apply sorting
-    if (sortConfig.key && sortConfig.direction) {
-      filtered = [...filtered].sort((a, b) => {
-        let aValue, bValue;
-
-        switch (sortConfig.key) {
-          case "item_id":
-            aValue = a.item_id?.toString() || "";
-            bValue = b.item_id?.toString() || "";
-            break;
-          case "item_name":
-            aValue = a.de_display_name?.toLowerCase() || "";
-            bValue = b.de_display_name?.toLowerCase() || "";
-            break;
-          case "package_size":
-            aValue = parseFloat(a.measure) || 0;
-            bValue = parseFloat(b.measure) || 0;
-            break;
-          case "cleaning":
-          case "packing_type":
-          case "packing_material":
-          case "packing_material_size":
-          case "sticker":
-            // For these columns, we'll sort by the display value
-            aValue = a[sortConfig.key]?.toString().toLowerCase() || "";
-            bValue = b[sortConfig.key]?.toString().toLowerCase() || "";
-            break;
-          default:
-            return 0;
-        }
-
-        // Handle string comparison
-        if (typeof aValue === "string" && typeof bValue === "string") {
-          if (sortConfig.direction === "asc") {
-            return aValue.localeCompare(bValue);
-          } else {
-            return bValue.localeCompare(aValue);
-          }
-        }
-
-        // Handle numeric comparison
-        if (typeof aValue === "number" && typeof bValue === "number") {
-          if (sortConfig.direction === "asc") {
-            return aValue - bValue;
-          } else {
-            return bValue - aValue;
-          }
-        }
-
-        return 0;
-      });
-    }
-
     return filtered;
-  }, [itemsList, debouncedSearchQuery, sortConfig]);
+  }, [itemsList, debouncedSearchQuery]);
 
   const handleChange = (key, value, index) => {
     itemsList[index] = {
@@ -415,7 +353,6 @@ function Items() {
             <Table
               heading={HEADINGS}
               rows={rows}
-              sortCallback={sortCallback}
               variant="plain"
               showPagination
               dontAffectPagination

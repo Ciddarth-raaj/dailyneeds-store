@@ -185,6 +185,7 @@ function CleaningPacking() {
               size="sm"
               showPagination
               defaultRowsPerPage={10}
+              multisort
             />
           </CustomContainer>
 
@@ -212,6 +213,7 @@ function CleaningPacking() {
               size="sm"
               showPagination
               defaultRowsPerPage={10}
+              multisort
             />
           </CustomContainer>
         </Flex>

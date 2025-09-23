@@ -67,34 +67,16 @@
   background-color: rgba(106, 0, 148, 0.02);
 }
 
-/* Add sort icons */
-.table th[data-sort] {
-  position: relative;
+/* Sort icon container for header */
+.table > thead th > div {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
-.table th[data-sort]:after {
-  content: "↕";
-  display: inline-block;
-  margin-left: 4px;
-  opacity: 0.4;
-  color: white;
-  font-size: 14px;
-  vertical-align: middle;
-  transition: opacity 0.2s ease;
-}
-
-.table th[data-sort="asc"]:after {
-  content: "↑";
-  opacity: 1;
-}
-
-.table th[data-sort="desc"]:after {
-  content: "↓";
-  opacity: 1;
-}
-
-.table th[data-sort="null"]:after {
-  opacity: 0.4;
+.sortIcon {
+  display: inline-flex;
+  opacity: 0.85;
 }
 
 /* Remove duplicate styles */
@@ -178,14 +160,7 @@
   color: var(--chakra-colors-purple-500);
 }
 
-.plainTable .plainHeader[data-sort]:after {
-  color: #666;
-}
-
-.plainTable .plainHeader[data-sort="asc"]:after,
-.plainTable .plainHeader[data-sort="desc"]:after {
-  color: var(--chakra-colors-purple-500);
-}
+/* color tuning handled by text color */
 
 .plainTable .plainCell {
   color: #444;

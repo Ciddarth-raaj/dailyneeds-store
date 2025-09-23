@@ -80,6 +80,7 @@ function CleaningSection({ cleaningItems, nonCleaningItems }) {
           size="sm"
           showPagination
           defaultRowsPerPage={10}
+          multisort
         />
       </CustomContainer>
 
@@ -105,6 +106,7 @@ function CleaningSection({ cleaningItems, nonCleaningItems }) {
           size="sm"
           showPagination
           defaultRowsPerPage={10}
+          multisort
         />
       </CustomContainer>
     </>
