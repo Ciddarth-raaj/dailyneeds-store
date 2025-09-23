@@ -2,65 +2,15 @@ import React from "react";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../components/CustomContainer";
 import { Button } from "@chakra-ui/button";
-import Table from "../../components/table/table";
-import { Flex, Text } from "@chakra-ui/react";
+import { Flex } from "@chakra-ui/react";
 import { useCleaningPacking } from "../../customHooks/useCleaningPacking";
-import exportCSVFile, { exportToExcel } from "../../util/exportCSVFile";
+import { exportToExcel } from "../../util/exportCSVFile";
 import moment from "moment";
-
-const BULK_ITEMS_HEADINGS = {
-  sno: "S.No",
-  article_name: "Name",
-  parent_stock: "Current Stock",
-  repackage_conversion: "Repack Conversion",
-  bulk_weight: "Bulk Weight",
-  priority_score: "Bulk Priority",
-};
+import CleaningSection from "../../components/CleaningPacking/CleaningSection";
 
 function CleaningPacking() {
   const { items: cleaningItems } = useCleaningPacking({ cleaning: "true" });
   const { items: nonCleaningItems } = useCleaningPacking({ cleaning: "false" });
-
-  const handleExport = (list, name) => {
-    const TABLE_HEADER = {
-      sno: "S.No",
-      article_name: "Name",
-      parent_stock: "Current Stock",
-      repackage_conversion: "Repack Conversion",
-      bulk_weight: "Bulk Weight",
-      gross_weight: "Gross Weight",
-      bag_weight: "Bag Weight",
-      wastage: "Wastage",
-      net_weight: "Net Weight",
-      start_time: "Start Time",
-      end_time: "End Time",
-      no_of_persons: "No Of Persons",
-    };
-
-    const formattedData = [];
-    list.forEach((item) => {
-      formattedData.push({
-        sno: item.sno,
-        article_name: item.article_name,
-        parent_stock: item.parent_stock,
-        repackage_conversion: item.repackage_conversion,
-        bulk_weight: item.bulk_weight,
-        gross_weight: "",
-        bag_weight: "",
-        wastage: "",
-        net_weight: "",
-        start_time: "",
-        end_time: "",
-        no_of_persons: "",
-      });
-    });
-
-    exportCSVFile(
-      TABLE_HEADER,
-      formattedData,
-      `${name}-${moment().format("DD-MM-YYYY")}`
-    );
-  };
 
   const formatDataForExportAll = (list) => {
     return list.map((item) => ({
@@ -90,18 +40,6 @@ function CleaningPacking() {
     );
   };
 
-  const getLastSyncedComponent = (list) => {
-    if (!list || list.length === 0) {
-      return "";
-    }
-
-    return (
-      <Text fontSize="sm" color="gray.400">
-        Last Sync - {moment(list[0].created_at).fromNow()}
-      </Text>
-    );
-  };
-
   return (
     <GlobalWrapper title="Cleaning and Packing">
       <CustomContainer
@@ -114,63 +52,10 @@ function CleaningPacking() {
         }
       >
         <Flex gap={6} flexDirection="column">
-          <CustomContainer
-            title="Bulk Items for Cleaning"
-            smallHeader
-            toggleChildren
-            defaultOpen={false}
-            rightSection={
-              <Flex alignItems="center" gap={4}>
-                {getLastSyncedComponent(cleaningItems)}
-
-                <Button
-                  colorScheme="purple"
-                  onClick={() => handleExport(cleaningItems, "cleaning")}
-                >
-                  Export
-                </Button>
-              </Flex>
-            }
-          >
-            <Table
-              heading={BULK_ITEMS_HEADINGS}
-              rows={cleaningItems}
-              sortCallback={() => {}}
-              variant="plain"
-              size="sm"
-              showPagination
-              defaultRowsPerPage={10}
-            />
-          </CustomContainer>
-
-          <CustomContainer
-            title="Bulk Items for Without Cleaning"
-            smallHeader
-            toggleChildren
-            defaultOpen={false}
-            rightSection={
-              <Flex alignItems="center" gap={4}>
-                {getLastSyncedComponent(nonCleaningItems)}
-
-                <Button
-                  colorScheme="purple"
-                  onClick={() => handleExport(nonCleaningItems, "no-cleaning")}
-                >
-                  Export
-                </Button>
-              </Flex>
-            }
-          >
-            <Table
-              heading={BULK_ITEMS_HEADINGS}
-              rows={nonCleaningItems}
-              sortCallback={() => {}}
-              variant="plain"
-              size="sm"
-              showPagination
-              defaultRowsPerPage={10}
-            />
-          </CustomContainer>
+          <CleaningSection
+            cleaningItems={cleaningItems}
+            nonCleaningItems={nonCleaningItems}
+          />
         </Flex>
       </CustomContainer>
     </GlobalWrapper>
