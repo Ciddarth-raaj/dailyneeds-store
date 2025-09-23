@@ -14,6 +14,18 @@ const BULK_ITEMS_HEADINGS = {
   priority_score: "Bulk Priority",
 };
 
+export const getLastSyncedComponent = (list) => {
+  if (!list || list.length === 0) {
+    return "";
+  }
+
+  return (
+    <Text fontSize="sm" color="gray.400">
+      Last Sync - {moment(list[0].created_at).fromNow()}
+    </Text>
+  );
+};
+
 function CleaningSection({ cleaningItems, nonCleaningItems }) {
   const handleExport = (list, name) => {
     const TABLE_HEADER = {
@@ -53,18 +65,6 @@ function CleaningSection({ cleaningItems, nonCleaningItems }) {
       TABLE_HEADER,
       formattedData,
       `${name}-${moment().format("DD-MM-YYYY")}`
-    );
-  };
-
-  const getLastSyncedComponent = (list) => {
-    if (!list || list.length === 0) {
-      return "";
-    }
-
-    return (
-      <Text fontSize="sm" color="gray.400">
-        Last Sync - {moment(list[0].created_at).fromNow()}
-      </Text>
     );
   };
 

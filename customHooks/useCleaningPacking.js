@@ -1,6 +1,13 @@
 import { useEffect, useState } from "react";
 import CleaningPackingHelper from "../helper/cleaning-packing";
 import { capitalize } from "../util/string";
+import {
+  BOOLEAN_LIST,
+  findItem,
+  PACKAGING_MATERIAL_LIST,
+  PACKAGING_MATERIAL_SIZE_LIST,
+  PACKAGING_TYPE_LIST,
+} from "../constants/repackItems";
 
 export function useCleaningPacking(filters) {
   const [items, setItems] = useState([]);
@@ -18,6 +25,17 @@ export function useCleaningPacking(filters) {
           article_name: capitalize(item.article_name),
           bulk_weight:
             (item.repackage_conversion * item.repack_quantity) / 1000,
+          cleaning_val: findItem(BOOLEAN_LIST, item.cleaning),
+          packing_type_val: findItem(PACKAGING_TYPE_LIST, item.packing_type),
+          packing_material_val: findItem(
+            PACKAGING_MATERIAL_LIST,
+            item.packing_material
+          ),
+          packing_material_size_val: findItem(
+            PACKAGING_MATERIAL_SIZE_LIST,
+            item.packing_material_size
+          ),
+          sticker_val: findItem(BOOLEAN_LIST, item.sticker),
         }));
         setItems(formattedData);
       } else {

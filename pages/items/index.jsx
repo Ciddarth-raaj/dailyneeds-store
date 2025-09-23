@@ -26,7 +26,9 @@ const CustomSelect = ({ value, onChange, options = [] }) => (
     onChange={(value) => onChange(value.target.value)}
   >
     {options.map((option) => (
-      <option value={option.value}>{option.label}</option>
+      <option key={option.value} value={option.value}>
+        {option.label}
+      </option>
     ))}
   </Select>
 );
