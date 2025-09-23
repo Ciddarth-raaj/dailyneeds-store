@@ -13,14 +13,15 @@ export default function Table({
   size = "md",
   showPagination = false,
   renderedRows = null,
-  dontAffectPagination = false
+  dontAffectPagination = false,
+  defaultRowsPerPage = 50,
 }) {
   const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(50);
+  const [rowsPerPage, setRowsPerPage] = useState(defaultRowsPerPage);
 
   // Reset pagination when rows change
   useEffect(() => {
-    if(!dontAffectPagination) {
+    if (!dontAffectPagination) {
       setCurrentPage(1);
     }
   }, [rows, dontAffectPagination]);
@@ -92,18 +93,20 @@ export default function Table({
           </tr>
         </thead>
         <tbody>
-          {renderedRows ? renderedRows : currentRows.map((row, rowIndex) => (
-            <tr key={`row-${rowIndex}`}>
-              {headingKeys.map((key, cellIndex) => (
-                <Cell
-                  key={`${key}-${cellIndex}`}
-                  content={row[key]}
-                  variant={variant}
-                  size={size}
-                />
+          {renderedRows
+            ? renderedRows
+            : currentRows.map((row, rowIndex) => (
+                <tr key={`row-${rowIndex}`}>
+                  {headingKeys.map((key, cellIndex) => (
+                    <Cell
+                      key={`${key}-${cellIndex}`}
+                      content={row[key]}
+                      variant={variant}
+                      size={size}
+                    />
+                  ))}
+                </tr>
               ))}
-            </tr>
-          ))}
         </tbody>
       </table>
 

@@ -98,4 +98,5 @@ export const PERMISSIONS = {
   view_invoice: "View Invoices",
   add_invoice: "Add Invoices",
   view_items: "View Items",
+  view_cleaning_packing: "View Cleaning and Packing",
 };

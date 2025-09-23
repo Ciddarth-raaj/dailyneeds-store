@@ -185,6 +185,20 @@ export default {
       },
     },
   },
+  cleaning: {
+    title: "Cleaning and Packing",
+    selected: false,
+    openPage: false,
+    icon: "fa-boxes-packing", // Changed to a more relevant icon for materials
+    subMenu: {
+      view_cleaning: {
+        title: "View List",
+        permission: "view_cleaning_packing",
+        selected: false,
+        location: "/cleaning-packing",
+      },
+    },
+  },
   accounts: {
     title: "Accounts",
     selected: false,

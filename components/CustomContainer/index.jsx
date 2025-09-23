@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useState } from "react";
+import { IconButton } from "@chakra-ui/react";
 
 import styles from "./styles.module.css";
 
@@ -10,7 +11,17 @@ function CustomContainer({
   smallHeader,
   style,
   noPadding,
+  toggleChildren,
+  defaultOpen = true,
+  onToggle,
 }) {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
+
+  const handleToggle = () => {
+    const next = !isOpen;
+    setIsOpen(next);
+    if (onToggle) onToggle(next);
+  };
   return (
     <div className={styles.mainContainer} style={style}>
       {title && (
@@ -26,17 +37,39 @@ function CustomContainer({
           >
             {title}
           </p>
-          {rightSection}
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            {rightSection}
+
+            {toggleChildren && (
+              <IconButton
+                onClick={handleToggle}
+                aria-label="Toggle section visibility"
+                size="sm"
+                variant="ghost"
+                colorScheme="purple"
+                icon={
+                  <i
+                    className={`fa ${
+                      isOpen ? "fa-chevron-up" : "fa-chevron-down"
+                    }`}
+                  />
+                }
+                title={isOpen ? "Hide" : "Show"}
+              />
+            )}
+          </div>
         </div>
       )}
 
-      <div
-        className={`${styles.contentContainer} ${
-          noPadding ? styles.noPadding : ""
-        }`}
-      >
-        {children}
-      </div>
+      {(!toggleChildren || isOpen) && (
+        <div
+          className={`${styles.contentContainer} ${
+            noPadding ? styles.noPadding : ""
+          }`}
+        >
+          {children}
+        </div>
+      )}
     </div>
   );
 }
