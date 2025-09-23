@@ -2,13 +2,11 @@ import React from "react";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../components/CustomContainer";
 import { Button } from "@chakra-ui/button";
-import { Flex } from "@chakra-ui/react";
+import { Flex, Text } from "@chakra-ui/react";
 import { useCleaningPacking } from "../../customHooks/useCleaningPacking";
 import exportCSVFile, { exportToExcel } from "../../util/exportCSVFile";
 import moment from "moment";
-import CleaningSection, {
-  getLastSyncedComponent,
-} from "../../components/CleaningPacking/CleaningSection";
+import CleaningSection from "../../components/CleaningPacking/CleaningSection";
 import Table from "../../components/table/table";
 
 const HANDPACKED_ITEMS_HEADING = {
@@ -21,6 +19,18 @@ const HANDPACKED_ITEMS_HEADING = {
   packing_material_size_val: "Packing Material Size",
   sticker_val: "Sticker",
   store_uom: "Store UOM",
+};
+
+const getLastSyncedComponent = (list) => {
+  if (!list || list.length === 0) {
+    return "";
+  }
+
+  return (
+    <Text fontSize="sm" color="#FFFFFF">
+      Last Sync - {moment(list[0].created_at).fromNow()}
+    </Text>
+  );
 };
 
 function CleaningPacking() {
@@ -122,9 +132,13 @@ function CleaningPacking() {
         title="Cleaning and Packing"
         filledHeader
         rightSection={
-          <Button colorScheme="whiteAlpha" onClick={handleExportAll}>
-            Export All
-          </Button>
+          <Flex alignItems="center" gap={4}>
+            {getLastSyncedComponent(machinePackedItems)}
+
+            <Button colorScheme="whiteAlpha" onClick={handleExportAll}>
+              Export All
+            </Button>
+          </Flex>
         }
       >
         <Flex gap={6} flexDirection="column">
@@ -139,16 +153,12 @@ function CleaningPacking() {
             toggleChildren
             defaultOpen={false}
             rightSection={
-              <Flex alignItems="center" gap={4}>
-                {getLastSyncedComponent(handpackedItems)}
-
-                <Button
-                  colorScheme="purple"
-                  onClick={() => handleExport(handpackedItems, "hand-packed")}
-                >
-                  Export
-                </Button>
-              </Flex>
+              <Button
+                colorScheme="purple"
+                onClick={() => handleExport(handpackedItems, "hand-packed")}
+              >
+                Export
+              </Button>
             }
           >
             <Table
@@ -168,18 +178,14 @@ function CleaningPacking() {
             toggleChildren
             defaultOpen={false}
             rightSection={
-              <Flex alignItems="center" gap={4}>
-                {getLastSyncedComponent(machinePackedItems)}
-
-                <Button
-                  colorScheme="purple"
-                  onClick={() =>
-                    handleExport(machinePackedItems, "machine-bulk-packed")
-                  }
-                >
-                  Export
-                </Button>
-              </Flex>
+              <Button
+                colorScheme="purple"
+                onClick={() =>
+                  handleExport(machinePackedItems, "machine-bulk-packed")
+                }
+              >
+                Export
+              </Button>
             }
           >
             <Table

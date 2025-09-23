@@ -1,6 +1,6 @@
 import React from "react";
 import CustomContainer from "../CustomContainer";
-import { Button, Flex, Text } from "@chakra-ui/react";
+import { Button } from "@chakra-ui/react";
 import Table from "../table/table";
 import moment from "moment";
 import exportCSVFile from "../../util/exportCSVFile";
@@ -12,18 +12,6 @@ const BULK_ITEMS_HEADINGS = {
   repackage_conversion: "Repack Conversion",
   bulk_weight: "Bulk Weight",
   priority_score: "Bulk Priority",
-};
-
-export const getLastSyncedComponent = (list) => {
-  if (!list || list.length === 0) {
-    return "";
-  }
-
-  return (
-    <Text fontSize="sm" color="gray.400">
-      Last Sync - {moment(list[0].created_at).fromNow()}
-    </Text>
-  );
 };
 
 function CleaningSection({ cleaningItems, nonCleaningItems }) {
@@ -76,16 +64,12 @@ function CleaningSection({ cleaningItems, nonCleaningItems }) {
         toggleChildren
         defaultOpen={false}
         rightSection={
-          <Flex alignItems="center" gap={4}>
-            {getLastSyncedComponent(cleaningItems)}
-
-            <Button
-              colorScheme="purple"
-              onClick={() => handleExport(cleaningItems, "cleaning")}
-            >
-              Export
-            </Button>
-          </Flex>
+          <Button
+            colorScheme="purple"
+            onClick={() => handleExport(cleaningItems, "cleaning")}
+          >
+            Export
+          </Button>
         }
       >
         <Table
@@ -105,16 +89,12 @@ function CleaningSection({ cleaningItems, nonCleaningItems }) {
         toggleChildren
         defaultOpen={false}
         rightSection={
-          <Flex alignItems="center" gap={4}>
-            {getLastSyncedComponent(nonCleaningItems)}
-
-            <Button
-              colorScheme="purple"
-              onClick={() => handleExport(nonCleaningItems, "no-cleaning")}
-            >
-              Export
-            </Button>
-          </Flex>
+          <Button
+            colorScheme="purple"
+            onClick={() => handleExport(nonCleaningItems, "no-cleaning")}
+          >
+            Export
+          </Button>
         }
       >
         <Table
