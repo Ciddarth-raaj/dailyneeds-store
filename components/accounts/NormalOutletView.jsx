@@ -27,7 +27,7 @@ import { useConfirmation } from "../../hooks/useConfirmation";
 import { deleteAccount } from "../../helper/accounts";
 import useEmployees from "../../customHooks/useEmployees";
 import useOutlets from "../../customHooks/useOutlets";
-import { downloadCsv, exportToExcel } from "../../util/exportCSVFile";
+import { exportToExcel } from "../../util/exportCSVFile";
 import useWarehouseSales from "../../customHooks/useWarehouseSales";
 import useWarehouseDenomination from "../../customHooks/useWarehouseDenomination";
 
@@ -36,6 +36,7 @@ const OUTLET_CASH_ID_MAP = {
   3: "Dn2",
   5: "Dn3",
   6: "Dn4",
+  7: "Dn5",
 };
 
 const HEADINGS = {
