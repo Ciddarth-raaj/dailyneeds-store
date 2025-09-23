@@ -8,6 +8,7 @@ import {
   PACKAGING_MATERIAL_SIZE_LIST,
   PACKAGING_TYPE_LIST,
 } from "../constants/repackItems";
+import toast from "react-hot-toast";
 
 export function useCleaningPacking(filters) {
   const [items, setItems] = useState([]);
@@ -48,9 +49,25 @@ export function useCleaningPacking(filters) {
     }
   };
 
+  const sync = async () => {
+    try {
+      const data = await CleaningPackingHelper.sync();
+
+      if (data.code === 200) {
+        fetchList();
+        toast.success("Data successfully synced!");
+      } else {
+        throw err;
+      }
+    } catch (err) {
+      console.log(err);
+      toast.error(err?.message);
+    }
+  };
+
   useEffect(() => {
     fetchList();
   }, []);
 
-  return { items, loading, setItems, refetch: fetchList };
+  return { items, loading, setItems, refetch: fetchList, sync };
 }

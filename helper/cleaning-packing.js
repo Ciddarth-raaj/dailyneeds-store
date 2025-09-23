@@ -24,6 +24,22 @@ const cleaningPacking = {
           reject(err);
         });
     }),
+  sync: () =>
+    new Promise(function (resolve, reject) {
+      const url = `/cleaning-packing/sync`;
+
+      API.post(url)
+        .then(async (res) => {
+          if (res.status === 200) {
+            resolve(res.data);
+          } else {
+            reject(res.data.msg || "Failed to sync");
+          }
+        })
+        .catch((err) => {
+          reject(err);
+        });
+    }),
 };
 
 export default cleaningPacking;

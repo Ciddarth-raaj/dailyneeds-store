@@ -34,10 +34,15 @@ const getLastSyncedComponent = (list) => {
 };
 
 function CleaningPacking() {
-  const { items: cleaningItems } = useCleaningPacking({ cleaning: "true" });
-  const { items: nonCleaningItems } = useCleaningPacking({ cleaning: "false" });
-  const { items: handpackedItems } = useCleaningPacking({ packing_type: 1 });
-  const { items: machinePackedItems } = useCleaningPacking({ packing_type: 2 });
+  const { items: cleaningItems, sync } = useCleaningPacking({
+    cleaning: "true",
+  });
+  const { items: nonCleaningItems, refetch: refetchCleaningItems } =
+    useCleaningPacking({ cleaning: "false" });
+  const { items: handpackedItems, refetch: refetchHandPackedItems } =
+    useCleaningPacking({ packing_type: 1 });
+  const { items: machinePackedItems, refetch: refetchMachinePackedItems } =
+    useCleaningPacking({ packing_type: 2 });
 
   const formatDataForExportAll = (list) => {
     return list.map((item) => ({
@@ -69,6 +74,13 @@ function CleaningPacking() {
       "Bag Weight": item.bag_weight,
       Wastage: item.wastage,
     }));
+  };
+
+  const handleSync = async () => {
+    await sync();
+    await refetchCleaningItems();
+    await refetchHandPackedItems();
+    await refetchMachinePackedItems();
   };
 
   const handleExportAll = () => {
@@ -134,6 +146,10 @@ function CleaningPacking() {
         rightSection={
           <Flex alignItems="center" gap={4}>
             {getLastSyncedComponent(machinePackedItems)}
+
+            <Button colorScheme="whiteAlpha" onClick={handleSync}>
+              Sync Now
+            </Button>
 
             <Button colorScheme="whiteAlpha" onClick={handleExportAll}>
               Export All
