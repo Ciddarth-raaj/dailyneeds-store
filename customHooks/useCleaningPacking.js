@@ -14,6 +14,7 @@ export function useCleaningPacking(filters) {
         const formattedData = data.data.map((item, index) => ({
           ...item,
           sno: index + 1,
+          parent_stock: item.parent_stock.toFixed(2),
           article_name: capitalize(item.article_name),
           bulk_weight:
             (item.repackage_conversion * item.repack_quantity) / 1000,

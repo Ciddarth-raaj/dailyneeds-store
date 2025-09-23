@@ -28,7 +28,6 @@ function CleaningPacking() {
       parent_stock: "Current Stock",
       repackage_conversion: "Repack Conversion",
       bulk_weight: "Bulk Weight",
-      priority_score: "Bulk Priority",
       gross_weight: "Gross Weight",
       bag_weight: "Bag Weight",
       wastage: "Wastage",
@@ -46,7 +45,6 @@ function CleaningPacking() {
         parent_stock: item.parent_stock,
         repackage_conversion: item.repackage_conversion,
         bulk_weight: item.bulk_weight,
-        priority_score: item.priority_score,
         gross_weight: "",
         bag_weight: "",
         wastage: "",
@@ -60,7 +58,7 @@ function CleaningPacking() {
     exportCSVFile(
       TABLE_HEADER,
       formattedData,
-      `${name}-${moment(fromDate).format("DD-MM-YYYY")}`
+      `${name}-${moment().format("DD-MM-YYYY")}`
     );
   };
 
@@ -71,7 +69,6 @@ function CleaningPacking() {
       "Current Stock": item.parent_stock,
       "Repack Conversion": item.repackage_conversion,
       "Bulk Weight": item.bulk_weight,
-      "Bulk Priority": item.priority_score,
       "Gross Weight": item.gross_weight,
       "Bag Weight": item.bag_weight,
       Wastage: item.wastage,
