@@ -109,81 +109,86 @@ export default function Sidebar() {
         className={styles.container}
         style={{ display: isMobile ? (isOpen ? "block" : "none") : "block" }}
       >
-         
         <Box className={styles.sideBarOptions}>
-          {Object.keys(menu).map((key, index) => (
-            <React.Fragment key={key}>
-              {/* Render above line divider if this menu item has aboveLine: true */}
-              {menu[key].aboveLine && (
-                <div className={styles.sectionDivider}></div>
-              )}
-              
-              <Box className={styles.menuWrapper}>
-                <Box
-                  as="a"
-                  className={`${styles.optionHolder} ${
-                    menu[key].selected ? styles.selectedMenu : ""
-                  } ${menu[key].isOpen ? styles.openMenu : ""}`}
-                  onClick={() => handleMenuClick(key)}
-                >
-                  <Box className={styles.iconWrapper}>
-                    <i
-                      className={`fa ${menu[key].icon} ${
-                        menu[key].selected
-                          ? styles["icons-selected"]
-                          : styles.iconsUnselected
-                      }`}
-                    />
+          {Object.keys(menu).map((key, index) => {
+            // Compute permitted sub menu items for this main menu
+            const subMenu = menu[key].subMenu || {};
+            const permittedSubKeys = Object.keys(subMenu).filter(
+              (sKey) =>
+                filteredData?.find(
+                  (item) => item.permission_key == subMenu[sKey].permission
+                ) !== undefined
+            );
+
+            // Skip rendering this main menu if no permitted sub items
+            if (permittedSubKeys.length === 0) {
+              return null;
+            }
+
+            return (
+              <React.Fragment key={key}>
+                {/* Render above line divider if this menu item has aboveLine: true */}
+                {menu[key].aboveLine && (
+                  <div className={styles.sectionDivider}></div>
+                )}
+
+                <Box className={styles.menuWrapper}>
+                  <Box
+                    as="a"
+                    className={`${styles.optionHolder} ${
+                      menu[key].selected ? styles.selectedMenu : ""
+                    } ${menu[key].isOpen ? styles.openMenu : ""}`}
+                    onClick={() => handleMenuClick(key)}
+                  >
+                    <Box className={styles.iconWrapper}>
+                      <i
+                        className={`fa ${menu[key].icon} ${
+                          menu[key].selected
+                            ? styles["icons-selected"]
+                            : styles.iconsUnselected
+                        }`}
+                      />
+                    </Box>
+                    <span>{menu[key].title}</span>
                   </Box>
-                  <span>{menu[key].title}</span>
+
+                  {menu[key].isOpen &&
+                    menu[key].subMenu &&
+                    permittedSubKeys.length > 0 && (
+                      <div className={styles.subMenuWrapper}>
+                        {permittedSubKeys.map((sKey) => {
+                          const isActive =
+                            router.asPath === menu[key].subMenu[sKey].location;
+                          return (
+                            <Link
+                              key={sKey}
+                              href={menu[key].subMenu[sKey].location || ""}
+                              passHref
+                            >
+                              <Box
+                                as="a"
+                                className={`${styles.subMenuItem} ${
+                                  isActive ? styles.active : ""
+                                }`}
+                              >
+                                <Text className={styles.menuText}>
+                                  {menu[key].subMenu[sKey].title}
+                                </Text>
+                              </Box>
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    )}
                 </Box>
 
-              {menu[key].isOpen &&
-                menu[key].subMenu &&
-                Object.keys(menu[key].subMenu).length > 0 && (
-                  <div className={styles.subMenuWrapper}>
-                    {Object.keys(menu[key].subMenu).map((sKey) => {
-                      if (
-                        filteredData?.find(
-                          (item) =>
-                            item.permission_key ==
-                            menu[key].subMenu[sKey].permission
-                        ) === undefined
-                      ) {
-                        return null;
-                      }
-
-                      const isActive =
-                        router.asPath === menu[key].subMenu[sKey].location;
-                      return (
-                        <Link
-                          key={sKey}
-                          href={menu[key].subMenu[sKey].location || ""}
-                          passHref
-                        >
-                          <Box
-                            as="a"
-                            className={`${styles.subMenuItem} ${
-                              isActive ? styles.active : ""
-                            }`}
-                          >
-                            <Text className={styles.menuText}>
-                              {menu[key].subMenu[sKey].title}
-                            </Text>
-                          </Box>
-                        </Link>
-                      );
-                    })}
-                  </div>
+                {/* Render below line divider if this menu item has belowLine: true */}
+                {menu[key].belowLine && (
+                  <div className={styles.sectionDivider}></div>
                 )}
-              </Box>
-              
-              {/* Render below line divider if this menu item has belowLine: true */}
-              {menu[key].belowLine && (
-                <div className={styles.sectionDivider}></div>
-              )}
-            </React.Fragment>
-          ))}
+              </React.Fragment>
+            );
+          })}
         </Box>
       </div>
     </>
