@@ -21,9 +21,103 @@ function CurrentPosition({
   designation = [],
   branch = [],
   shift = [],
+  formikProps: formikPropsFromProps,
 }) {
   const [editMode, setEditMode] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  const getForm = ({ handleSubmit, values }) => {
+    return (
+      <CustomContainer
+        title="Current Position"
+        smallHeader
+        rightSection={
+          editViewMode && (
+            <Button
+              isLoading={loading}
+              variant="outline"
+              leftIcon={
+                editMode ? (
+                  <i className="fa fa-floppy-o" aria-hidden="true" />
+                ) : (
+                  <i className="fa fa-pencil" aria-hidden="true" />
+                )
+              }
+              colorScheme="purple"
+              onClick={() => {
+                if (editMode) {
+                  handleSubmit();
+                } else {
+                  setEditMode(true);
+                }
+              }}
+            >
+              {editMode ? "Save" : "Edit"}
+            </Button>
+          )
+        }
+      >
+        <div>
+          <div className={styles.personalInputHolder}>
+            <div className={styles.inputHolder}>
+              <CustomInput
+                label="Select Store *"
+                values={branch.map((m) => ({
+                  id: m.outlet_id,
+                  value: m.outlet_name,
+                }))}
+                name="store_id"
+                type="text"
+                method="switch"
+                editable={editViewMode ? editMode : !editMode}
+              />
+              <CustomInput
+                label="Select Department *"
+                values={department.map((m) => ({
+                  id: m.id,
+                  value: m.value,
+                }))}
+                name="department_id"
+                type="text"
+                method="switch"
+                editable={editViewMode ? editMode : !editMode}
+              />
+            </div>
+            <div className={styles.inputHolder}>
+              <CustomInput
+                label="Select Designation *"
+                values={designation.map((m) => ({
+                  id: m.id,
+                  value: m.value,
+                }))}
+                name="designation_id"
+                type="text"
+                method="switch"
+                editable={editViewMode ? editMode : !editMode}
+              />
+            </div>
+            <div className={styles.inputHolder}>
+              <CustomInput
+                label="Shift Details"
+                values={shift.map((m) => ({
+                  id: m.id,
+                  value: m.value,
+                }))}
+                name="shift_id"
+                type="text"
+                method="switch"
+                editable={editViewMode ? editMode : !editMode}
+              />
+            </div>
+          </div>
+        </div>
+      </CustomContainer>
+    );
+  };
+
+  if (!editViewMode) {
+    return getForm(formikPropsFromProps);
+  }
 
   return (
     <Formik
@@ -34,93 +128,8 @@ function CurrentPosition({
         updateEmployee(values, setLoading);
       }}
     >
-      {({ handleSubmit, values }) => {
-        return (
-          <CustomContainer
-            title="Current Position"
-            smallHeader
-            rightSection={
-              editViewMode && (
-                <Button
-                  isLoading={loading}
-                  variant="outline"
-                  leftIcon={
-                    editMode ? (
-                      <i className="fa fa-floppy-o" aria-hidden="true" />
-                    ) : (
-                      <i className="fa fa-pencil" aria-hidden="true" />
-                    )
-                  }
-                  colorScheme="purple"
-                  onClick={() => {
-                    if (editMode) {
-                      handleSubmit();
-                    } else {
-                      setEditMode(true);
-                    }
-                  }}
-                >
-                  {editMode ? "Save" : "Edit"}
-                </Button>
-              )
-            }
-          >
-            <div>
-              <div className={styles.personalInputHolder}>
-                <div className={styles.inputHolder}>
-                  <CustomInput
-                    label="Select Store *"
-                    values={branch.map((m) => ({
-                      id: m.outlet_id,
-                      value: m.outlet_name,
-                    }))}
-                    name="store_id"
-                    type="text"
-                    method="switch"
-                    editable={editViewMode ? editMode : !editMode}
-                  />
-                  <CustomInput
-                    label="Select Department *"
-                    values={department.map((m) => ({
-                      id: m.id,
-                      value: m.value,
-                    }))}
-                    name="department_id"
-                    type="text"
-                    method="switch"
-                    editable={editViewMode ? editMode : !editMode}
-                  />
-                </div>
-                <div className={styles.inputHolder}>
-                  <CustomInput
-                    label="Select Designation *"
-                    values={designation.map((m) => ({
-                      id: m.id,
-                      value: m.value,
-                    }))}
-                    name="designation_id"
-                    type="text"
-                    method="switch"
-                    editable={editViewMode ? editMode : !editMode}
-                  />
-                </div>
-                <div className={styles.inputHolder}>
-                  <CustomInput
-                    label="Shift Details"
-                    values={shift.map((m) => ({
-                      id: m.id,
-                      value: m.value,
-                    }))}
-                    name="shift_id"
-                    type="text"
-                    method="switch"
-                    editable={editViewMode ? editMode : !editMode}
-                  />
-                </div>
-              </div>
-            </div>
-          </CustomContainer>
-        );
+      {(formikProps) => {
+        return getForm(formikProps);
       }}
     </Formik>
   );

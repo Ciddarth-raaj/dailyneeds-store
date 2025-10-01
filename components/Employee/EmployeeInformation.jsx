@@ -28,7 +28,12 @@ const validationSchema = Yup.object().shape({
   telegram_username: Yup.string().nullable(),
 });
 
-function EmployeeInformation({ editViewMode, updateEmployee, initialValues }) {
+function EmployeeInformation({
+  editViewMode,
+  updateEmployee,
+  initialValues,
+  formikProps: formikPropsFromProps,
+}) {
   const [editMode, setEditMode] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -64,6 +69,166 @@ function EmployeeInformation({ editViewMode, updateEmployee, initialValues }) {
     }
   };
 
+  const getForm = ({ handleSubmit, values, setValues }) => {
+    return (
+      <CustomContainer
+        title="Employee Information"
+        smallHeader
+        rightSection={
+          editViewMode && (
+            <Button
+              isLoading={loading}
+              variant="outline"
+              leftIcon={
+                editMode ? (
+                  <i className="fa fa-floppy-o" aria-hidden="true" />
+                ) : (
+                  <i className="fa fa-pencil" aria-hidden="true" />
+                )
+              }
+              colorScheme="purple"
+              onClick={() => {
+                if (editMode) {
+                  handleSubmit();
+                } else {
+                  setEditMode(true);
+                }
+              }}
+            >
+              {editMode ? "Save" : "Edit"}
+            </Button>
+          )
+        }
+      >
+        <div>
+          <div className={styles.personalInputHolder}>
+            <div className={styles.inputHolder}>
+              {(editViewMode ? editMode : !editMode) &&
+                (values.employee_image &&
+                typeof values.employee_image === "string" ? (
+                  <div className={styles.employeeImageHolder}>
+                    <img
+                      src={values.employee_image}
+                      alt="Employee Image"
+                      className={styles.employeeImage}
+                    />
+
+                    <Button
+                      variant="outline"
+                      colorScheme="red"
+                      onClick={() => {
+                        setValues({ ...values, employee_image: null });
+                      }}
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                ) : (
+                  <CustomInput
+                    label="Upload Employee Image *"
+                    name="employee_image"
+                    method="file"
+                  />
+                ))}
+
+              {!(editViewMode ? editMode : !editMode) &&
+                (typeof values.employee_image === "string" ? (
+                  <div className={styles.employeeImageHolder}>
+                    <img
+                      src={values.employee_image}
+                      alt="Employee Image"
+                      className={styles.employeeImage}
+                    />
+                  </div>
+                ) : (
+                  <div className={styles.employeeImageHolder}>
+                    {values.employee_image ? (
+                      <img
+                        src={values.employee_image}
+                        alt="Employee Image"
+                        className={styles.employeeImage}
+                      />
+                    ) : (
+                      <p style={{ color: "gray", fontSize: "14px" }}>
+                        No Image
+                      </p>
+                    )}
+                  </div>
+                ))}
+            </div>
+            <div className={styles.inputHolder}>
+              <CustomInput
+                label="Employee ID *"
+                name="employee_id"
+                type="number"
+                editable={editViewMode ? editMode : !editMode}
+              />
+              <CustomInput
+                label="Name *"
+                name="employee_name"
+                type="text"
+                editable={editViewMode ? editMode : !editMode}
+              />
+            </div>
+          </div>
+          <div className={styles.inputHolder}>
+            <CustomInput
+              label="Gender *"
+              values={[
+                { id: "Male", value: "Male" },
+                { id: "Female", value: "Female" },
+                { id: "Transgendar", value: "Transgendar" },
+              ]}
+              name="gender"
+              type="text"
+              method="switch"
+              editable={editViewMode ? editMode : !editMode}
+            />
+            <CustomInput
+              label="Email ID"
+              name="email_id"
+              type="text"
+              editable={editViewMode ? editMode : !editMode}
+            />
+          </div>
+          <div className={styles.inputHolder}>
+            <CustomInput
+              label="Primary Mobile Number *"
+              name="primary_contact_number"
+              type="number"
+              editable={editViewMode ? editMode : !editMode}
+            />
+            <CustomInput
+              label="Alternate Mobile Number"
+              name="alternate_contact_number"
+              type="number"
+              editable={editViewMode ? editMode : !editMode}
+            />
+          </div>
+          <div className={styles.inputHolder}>
+            <CustomInput
+              label="Date of Joining *"
+              name="date_of_joining"
+              type="text"
+              method="datepicker"
+              editable={editViewMode ? editMode : !editMode}
+            />
+            <CustomInput
+              label="Telegram Username"
+              name="telegram_username"
+              type="text"
+              editable={editViewMode ? editMode : !editMode}
+            />
+          </div>
+        </div>
+      </CustomContainer>
+    );
+  };
+
+  if (!editViewMode) {
+    return getForm(formikPropsFromProps);
+  }
+
   return (
     <Formik
       initialValues={initialValues}
@@ -74,160 +239,8 @@ function EmployeeInformation({ editViewMode, updateEmployee, initialValues }) {
         handleUpdate(values);
       }}
     >
-      {({ handleSubmit, values, setValues }) => {
-        return (
-          <CustomContainer
-            title="Employee Information"
-            smallHeader
-            rightSection={
-              editViewMode && (
-                <Button
-                  isLoading={loading}
-                  variant="outline"
-                  leftIcon={
-                    editMode ? (
-                      <i className="fa fa-floppy-o" aria-hidden="true" />
-                    ) : (
-                      <i className="fa fa-pencil" aria-hidden="true" />
-                    )
-                  }
-                  colorScheme="purple"
-                  onClick={() => {
-                    if (editMode) {
-                      handleSubmit();
-                    } else {
-                      setEditMode(true);
-                    }
-                  }}
-                >
-                  {editMode ? "Save" : "Edit"}
-                </Button>
-              )
-            }
-          >
-            <div>
-              <div className={styles.personalInputHolder}>
-                <div className={styles.inputHolder}>
-                  {(editViewMode ? editMode : !editMode) &&
-                    (values.employee_image &&
-                    typeof values.employee_image === "string" ? (
-                      <div className={styles.employeeImageHolder}>
-                        <img
-                          src={values.employee_image}
-                          alt="Employee Image"
-                          className={styles.employeeImage}
-                        />
-
-                        <Button
-                          variant="outline"
-                          colorScheme="red"
-                          onClick={() => {
-                            setValues({ ...values, employee_image: null });
-                          }}
-                        >
-                          Remove
-                        </Button>
-                      </div>
-                    ) : (
-                      <CustomInput
-                        label="Upload Employee Image *"
-                        name="employee_image"
-                        method="file"
-                      />
-                    ))}
-
-                  {!(editViewMode ? editMode : !editMode) &&
-                    (typeof values.employee_image === "string" ? (
-                      <div className={styles.employeeImageHolder}>
-                        <img
-                          src={values.employee_image}
-                          alt="Employee Image"
-                          className={styles.employeeImage}
-                        />
-                      </div>
-                    ) : (
-                      <div className={styles.employeeImageHolder}>
-                        {values.employee_image ? (
-                          <img
-                            src={values.employee_image}
-                            alt="Employee Image"
-                            className={styles.employeeImage}
-                          />
-                        ) : (
-                          <p style={{ color: "gray", fontSize: "14px" }}>
-                            No Image
-                          </p>
-                        )}
-                      </div>
-                    ))}
-                </div>
-                <div className={styles.inputHolder}>
-                  <CustomInput
-                    label="Employee ID *"
-                    name="employee_id"
-                    type="number"
-                    editable={editViewMode ? editMode : !editMode}
-                  />
-                  <CustomInput
-                    label="Name *"
-                    name="employee_name"
-                    type="text"
-                    editable={editViewMode ? editMode : !editMode}
-                  />
-                </div>
-              </div>
-              <div className={styles.inputHolder}>
-                <CustomInput
-                  label="Gender *"
-                  values={[
-                    { id: "Male", value: "Male" },
-                    { id: "Female", value: "Female" },
-                    { id: "Transgendar", value: "Transgendar" },
-                  ]}
-                  name="gender"
-                  type="text"
-                  method="switch"
-                  editable={editViewMode ? editMode : !editMode}
-                />
-                <CustomInput
-                  label="Email ID"
-                  name="email_id"
-                  type="text"
-                  editable={editViewMode ? editMode : !editMode}
-                />
-              </div>
-              <div className={styles.inputHolder}>
-                <CustomInput
-                  label="Primary Mobile Number *"
-                  name="primary_contact_number"
-                  type="number"
-                  editable={editViewMode ? editMode : !editMode}
-                />
-                <CustomInput
-                  label="Alternate Mobile Number"
-                  name="alternate_contact_number"
-                  type="number"
-                  editable={editViewMode ? editMode : !editMode}
-                />
-              </div>
-              <div className={styles.inputHolder}>
-                <CustomInput
-                  label="Date of Joining *"
-                  name="date_of_joining"
-                  type="text"
-                  method="datepicker"
-                  editable={editViewMode ? editMode : !editMode}
-                />
-                <CustomInput
-                  label="Telegram Username"
-                  name="telegram_username"
-                  type="text"
-                  editable={editViewMode ? editMode : !editMode}
-                />
-              </div>
-            </div>
-          </CustomContainer>
-        );
+      {(formikProps) => {
+        return getForm(formikProps);
       }}
     </Formik>
   );

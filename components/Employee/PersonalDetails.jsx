@@ -59,9 +59,167 @@ const validationSchema = Yup.object().shape({
     .oneOf([...BloodGroup.map((bg) => bg.id), null], "Invalid blood group"),
 });
 
-function PersonalDetails({ editViewMode, updateEmployee, id, initialValues }) {
+function PersonalDetails({
+  editViewMode,
+  updateEmployee,
+  id,
+  initialValues,
+  formikProps: formikPropsFromProps,
+}) {
   const [editMode, setEditMode] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  const getForm = ({ handleSubmit, values, setFieldValue }) => {
+    return (
+      <CustomContainer
+        title="Personal Details"
+        smallHeader
+        rightSection={
+          editViewMode && (
+            <Button
+              isLoading={loading}
+              variant="outline"
+              leftIcon={
+                editMode ? (
+                  <i className="fa fa-floppy-o" aria-hidden="true" />
+                ) : (
+                  <i className="fa fa-pencil" aria-hidden="true" />
+                )
+              }
+              colorScheme="purple"
+              onClick={() => {
+                if (editMode) {
+                  handleSubmit();
+                } else {
+                  setEditMode(true);
+                }
+              }}
+            >
+              {editMode ? "Save" : "Edit"}
+            </Button>
+          )
+        }
+      >
+        <div>
+          <div className={styles.inputHolder}>
+            <CustomInput
+              label="Marital Status *"
+              values={[
+                {
+                  id: "Married",
+                  value: "Married",
+                },
+                {
+                  id: "Un Married",
+                  value: "Un Married",
+                },
+                {
+                  id: "Widowed",
+                  value: "Widowed",
+                },
+                {
+                  id: "Divorced",
+                  value: "Divorced",
+                },
+                {
+                  id: "Separated",
+                  value: "Separated",
+                },
+              ]}
+              name="marital_status"
+              type="text"
+              method="switch"
+              editable={editViewMode ? editMode : !editMode}
+            />
+            <div className={styles.inputHolder}>
+              <CustomInput
+                label="Date of Birth *"
+                name="dob"
+                type="text"
+                method="datepicker"
+                editable={editViewMode ? editMode : !editMode}
+              />
+            </div>
+          </div>
+          <div className={styles.personalInputHolder}>
+            {values?.marital_status === "Married" && (
+              <CustomInput
+                label="Marriage Date"
+                name="marriage_date"
+                type="text"
+                method="datepicker"
+                editable={editViewMode ? editMode : !editMode}
+              />
+            )}
+          </div>
+          <div className={styles.personalInputHolder}>
+            <CustomInput
+              label="Permanent Address *"
+              name="permanent_address"
+              type="text"
+              method="TextArea"
+              editable={editViewMode ? editMode : !editMode}
+            />
+          </div>
+          <div className={styles.inputHolder}>
+            <CustomInput
+              label="Residential Address *"
+              name="residential_address"
+              type="text"
+              method="TextArea"
+              editable={editViewMode ? editMode : !editMode}
+            />
+          </div>
+          {id === null && (
+            <div className={styles.personalInputHolder}>
+              <Button
+                mb={"40px"}
+                colorScheme="purple"
+                onClick={() =>
+                  setFieldValue("residential_address", values.permanent_address)
+                }
+              >
+                Same As Permanent Address
+              </Button>
+            </div>
+          )}
+          <div className={styles.inputHolder}>
+            <CustomInput
+              label="Father Name *"
+              name="father_name"
+              type="text"
+              editable={editViewMode ? editMode : !editMode}
+            />
+            {values?.marital_status === "Married" && (
+              <CustomInput
+                label="Spouse Name"
+                name="spouse_name"
+                type="text"
+                editable={editViewMode ? editMode : !editMode}
+              />
+            )}
+          </div>
+          <div className={styles.personalInputHolder}>
+            <CustomInput
+              label="Blood Group"
+              values={BloodGroup.map((m) => ({
+                id: m.id,
+                value: m.value,
+              }))}
+              name="blood_group"
+              type="text"
+              method="switch"
+              editable={editViewMode ? editMode : !editMode}
+            />
+          </div>
+        </div>
+      </CustomContainer>
+    );
+  };
+
+  if (!editViewMode) {
+    return getForm(formikPropsFromProps);
+  }
 
   return (
     <Formik
@@ -81,155 +239,8 @@ function PersonalDetails({ editViewMode, updateEmployee, id, initialValues }) {
         );
       }}
     >
-      {({ handleSubmit, values, setFieldValue }) => {
-        return (
-          <CustomContainer
-            title="Personal Details"
-            smallHeader
-            rightSection={
-              editViewMode && (
-                <Button
-                  isLoading={loading}
-                  variant="outline"
-                  leftIcon={
-                    editMode ? (
-                      <i className="fa fa-floppy-o" aria-hidden="true" />
-                    ) : (
-                      <i className="fa fa-pencil" aria-hidden="true" />
-                    )
-                  }
-                  colorScheme="purple"
-                  onClick={() => {
-                    if (editMode) {
-                      handleSubmit();
-                    } else {
-                      setEditMode(true);
-                    }
-                  }}
-                >
-                  {editMode ? "Save" : "Edit"}
-                </Button>
-              )
-            }
-          >
-            <div>
-              <div className={styles.inputHolder}>
-                <CustomInput
-                  label="Marital Status *"
-                  values={[
-                    {
-                      id: "Married",
-                      value: "Married",
-                    },
-                    {
-                      id: "Un Married",
-                      value: "Un Married",
-                    },
-                    {
-                      id: "Widowed",
-                      value: "Widowed",
-                    },
-                    {
-                      id: "Divorced",
-                      value: "Divorced",
-                    },
-                    {
-                      id: "Separated",
-                      value: "Separated",
-                    },
-                  ]}
-                  name="marital_status"
-                  type="text"
-                  method="switch"
-                  editable={editViewMode ? editMode : !editMode}
-                />
-                <div className={styles.inputHolder}>
-                  <CustomInput
-                    label="Date of Birth *"
-                    name="dob"
-                    type="text"
-                    method="datepicker"
-                    editable={editViewMode ? editMode : !editMode}
-                  />
-                </div>
-              </div>
-              <div className={styles.personalInputHolder}>
-                {values?.marital_status === "Married" && (
-                  <CustomInput
-                    label="Marriage Date"
-                    name="marriage_date"
-                    type="text"
-                    method="datepicker"
-                    editable={editViewMode ? editMode : !editMode}
-                  />
-                )}
-              </div>
-              <div className={styles.personalInputHolder}>
-                <CustomInput
-                  label="Permanent Address *"
-                  name="permanent_address"
-                  type="text"
-                  method="TextArea"
-                  editable={editViewMode ? editMode : !editMode}
-                />
-              </div>
-              <div className={styles.inputHolder}>
-                <CustomInput
-                  label="Residential Address *"
-                  name="residential_address"
-                  type="text"
-                  method="TextArea"
-                  editable={editViewMode ? editMode : !editMode}
-                />
-              </div>
-              {id === null && (
-                <div className={styles.personalInputHolder}>
-                  <Button
-                    mb={"40px"}
-                    colorScheme="purple"
-                    onClick={() =>
-                      setFieldValue(
-                        "residential_address",
-                        values.permanent_address
-                      )
-                    }
-                  >
-                    Same As Permanent Address
-                  </Button>
-                </div>
-              )}
-              <div className={styles.inputHolder}>
-                <CustomInput
-                  label="Father Name *"
-                  name="father_name"
-                  type="text"
-                  editable={editViewMode ? editMode : !editMode}
-                />
-                {values?.marital_status === "Married" && (
-                  <CustomInput
-                    label="Spouse Name"
-                    name="spouse_name"
-                    type="text"
-                    editable={editViewMode ? editMode : !editMode}
-                  />
-                )}
-              </div>
-              <div className={styles.personalInputHolder}>
-                <CustomInput
-                  label="Blood Group"
-                  values={BloodGroup.map((m) => ({
-                    id: m.id,
-                    value: m.value,
-                  }))}
-                  name="blood_group"
-                  type="text"
-                  method="switch"
-                  editable={editViewMode ? editMode : !editMode}
-                />
-              </div>
-            </div>
-          </CustomContainer>
-        );
+      {(formikProps) => {
+        return getForm(formikProps);
       }}
     </Formik>
   );

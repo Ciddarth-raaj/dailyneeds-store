@@ -10,9 +10,62 @@ const validationSchema = Yup.object().shape({
   salary: Yup.string().nullable().required("Salary is required"),
 });
 
-function SalaryDetails({ editViewMode, updateEmployee, initialValues }) {
+function SalaryDetails({
+  editViewMode,
+  updateEmployee,
+  initialValues,
+  formikProps: formikPropsFromProps,
+}) {
   const [editMode, setEditMode] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  const getForm = ({ handleSubmit, values }) => {
+    return (
+      <CustomContainer
+        title="Salary Details"
+        smallHeader
+        rightSection={
+          editViewMode && (
+            <Button
+              isLoading={loading}
+              variant="outline"
+              leftIcon={
+                editMode ? (
+                  <i className="fa fa-floppy-o" aria-hidden="true" />
+                ) : (
+                  <i className="fa fa-pencil" aria-hidden="true" />
+                )
+              }
+              colorScheme="purple"
+              onClick={() => {
+                if (editMode) {
+                  handleSubmit();
+                } else {
+                  setEditMode(true);
+                }
+              }}
+            >
+              {editMode ? "Save" : "Edit"}
+            </Button>
+          )
+        }
+      >
+        <div className={styles.inputHolder}>
+          <CustomInput
+            label="Salary / Month *"
+            name="salary"
+            type="text"
+            containerStyle={{ marginBottom: 0 }}
+            editable={editViewMode ? editMode : !editMode}
+          />
+        </div>
+      </CustomContainer>
+    );
+  };
+
+  if (!editViewMode) {
+    return getForm(formikPropsFromProps);
+  }
 
   return (
     <Formik
@@ -23,48 +76,8 @@ function SalaryDetails({ editViewMode, updateEmployee, initialValues }) {
         updateEmployee(values, setLoading);
       }}
     >
-      {({ handleSubmit, values }) => {
-        return (
-          <CustomContainer
-            title="Salary Details"
-            smallHeader
-            rightSection={
-              editViewMode && (
-                <Button
-                  isLoading={loading}
-                  variant="outline"
-                  leftIcon={
-                    editMode ? (
-                      <i className="fa fa-floppy-o" aria-hidden="true" />
-                    ) : (
-                      <i className="fa fa-pencil" aria-hidden="true" />
-                    )
-                  }
-                  colorScheme="purple"
-                  onClick={() => {
-                    if (editMode) {
-                      handleSubmit();
-                    } else {
-                      setEditMode(true);
-                    }
-                  }}
-                >
-                  {editMode ? "Save" : "Edit"}
-                </Button>
-              )
-            }
-          >
-            <div className={styles.inputHolder}>
-              <CustomInput
-                label="Salary / Month *"
-                name="salary"
-                type="text"
-                containerStyle={{ marginBottom: 0 }}
-                editable={editViewMode ? editMode : !editMode}
-              />
-            </div>
-          </CustomContainer>
-        );
+      {(formikProps) => {
+        return getForm(formikProps);
       }}
     </Formik>
   );
