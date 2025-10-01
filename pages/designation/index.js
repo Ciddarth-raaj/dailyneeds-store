@@ -19,6 +19,7 @@ import Table from "../../components/table/table";
 import Link from "next/link";
 import exportCSVFile from "../../util/exportCSVFile";
 import moment from "moment";
+import CustomContainer from "../../components/CustomContainer";
 
 function designationView() {
   const initialValue = {
@@ -134,58 +135,56 @@ function designationView() {
     >
       <Form>
         <GlobalWrapper title="Designation Details">
-           
-          <Flex templateColumns="repeat(3, 1fr)" gap={6} colSpan={2}>
-            <Container className={styles.container} boxShadow="lg">
-              <p className={styles.buttoninputHolder}>
-                <div>View Designation</div>
-                {permission.permission_array.length > 0 ? (
-                  permission.permission_array.map((m) => (
-                    <>
-                      {m.permission_key === "add_designation" && (
-                        <div style={{ paddingRight: 10 }}>
-                          <Link href="/designation/create">
-                            <Button colorScheme="purple">{"Add"}</Button>
-                          </Link>
-                        </div>
-                      )}
-                    </>
-                  ))
-                ) : (
-                  <div style={{ paddingRight: 10 }}>
-                    <Link href="/designation/create">
-                      <Button colorScheme="purple">{"Add"}</Button>
-                    </Link>
-                  </div>
-                )}
-              </p>
-              <div>
-                <div className={styles.personalInputHolder}>
-                  {/* <CustomInput label="Store" name="stores" type="text" method="switch" />
-									<CustomInput label="Designation" name="designation" type="text" method="switch" /> */}
-                  {/* <CustomInput label="Joining Date" name="dob_1" type="text" /> */}
-                  {/* <CustomInput label="Resignation Date" name="dob_2" type="text" /> */}
-                  {/* <CustomInput label="Current Employees" name="employee" type="text" method="switch" /> */}
+          <CustomContainer
+            title="Designations"
+            rightSection={
+              permission.permission_array.length > 0 ? (
+                permission.permission_array.map((m) => (
+                  <>
+                    {m.permission_key === "add_designation" && (
+                      <div style={{ paddingRight: 10 }}>
+                        <Link href="/designation/create">
+                          <Button colorScheme="purple">{"Add"}</Button>
+                        </Link>
+                      </div>
+                    )}
+                  </>
+                ))
+              ) : (
+                <div style={{ paddingRight: 10 }}>
+                  <Link href="/designation/create">
+                    <Button colorScheme="purple">{"Add"}</Button>
+                  </Link>
                 </div>
-                <Table
-                  heading={table_title}
-                  rows={valuesNew}
-                  sortCallback={(key, type) => sortCallback(key, type)}
-                />
-                <ButtonGroup
-                  style={{
-                    display: "flex",
-                    justifyContent: "flex-end",
-                    paddingBottom: 15,
-                  }}
-                >
-                  <Button colorScheme="purple" onClick={() => getExportFile()}>
-                    {"Export"}
-                  </Button>
-                </ButtonGroup>
+              )
+            }
+          >
+            <div>
+              <div className={styles.personalInputHolder}>
+                {/* <CustomInput label="Store" name="stores" type="text" method="switch" />
+									<CustomInput label="Designation" name="designation" type="text" method="switch" /> */}
+                {/* <CustomInput label="Joining Date" name="dob_1" type="text" /> */}
+                {/* <CustomInput label="Resignation Date" name="dob_2" type="text" /> */}
+                {/* <CustomInput label="Current Employees" name="employee" type="text" method="switch" /> */}
               </div>
-            </Container>
-          </Flex>
+              <Table
+                heading={table_title}
+                rows={valuesNew}
+                sortCallback={(key, type) => sortCallback(key, type)}
+              />
+              <ButtonGroup
+                style={{
+                  display: "flex",
+                  justifyContent: "flex-end",
+                  paddingBottom: 15,
+                }}
+              >
+                <Button colorScheme="purple" onClick={() => getExportFile()}>
+                  {"Export"}
+                </Button>
+              </ButtonGroup>
+            </div>
+          </CustomContainer>
         </GlobalWrapper>
       </Form>
     </Formik>
