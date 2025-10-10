@@ -1,17 +1,25 @@
 /* eslint-disable import/no-anonymous-default-export */
 export default {
+  dashboard: {
+    title: "Dashboard",
+    selected: true,
+    openPage: true,
+    icon: "fa-pie-chart ",
+    subMenu: {
+      dashboard: {
+        title: "Home",
+        permission: "dashboard",
+        selected: false,
+        location: "/",
+      },
+    },
+  },
   employee: {
     title: "Employees",
     selected: true,
     openPage: true,
     icon: "fa-users",
     subMenu: {
-      dashboard: {
-        title: "Dashboard",
-        permission: "dashboard",
-        selected: false,
-        location: "/",
-      },
       view: {
         title: "Employee",
         permission: "view_employees",
