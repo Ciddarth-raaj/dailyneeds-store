@@ -41,6 +41,7 @@ const OUTLET_CASH_ID_MAP = {
 
 const HEADINGS = {
   cashier_name: "Cashier Name",
+  no_of_bills: "No of Bills",
   cash_sales: "Cash Sales",
   card_sales: "Card Sales",
   sales_return: "Sales Return",
@@ -334,6 +335,7 @@ function NormalOutletView({
   const modifiedAccounts = useMemo(() => {
     const modified = accounts.map((item) => ({
       ...item,
+      no_of_bills: item.no_of_bills,
       total_sales: currencyFormatter(item.total_sales),
       card_sales: currencyFormatter(item.card_sales),
       sales_return: currencyFormatter(item.sales_return),

@@ -26,6 +26,7 @@ function NormalOutletForm() {
   const [isSaved, setIsSaved] = useState(false);
   const [initialValues, setInitialValues] = useState({
     date: new Date(),
+    no_of_bills: null,
     total_sales: null,
     cash_handover_1: 0,
     cash_handover_2: 0,

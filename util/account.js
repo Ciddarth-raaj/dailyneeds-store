@@ -32,6 +32,7 @@ export function getTotalsByStore(accounts) {
       };
     }
 
+    acc[item.store_id].no_of_bills += parseFloat(item.no_of_bills || 0);
     acc[item.store_id].total_sales += parseFloat(item.total_sales || 0);
     acc[item.store_id].card_sales += parseFloat(item.card_sales || 0);
     acc[item.store_id].sales_return += parseFloat(item.sales_return || 0);
@@ -64,6 +65,7 @@ export function getTotals(accounts, noFormat = false) {
   const totals = accounts.reduce(
     (acc, item) => {
       return {
+        no_of_bills: acc.no_of_bills + parseFloat(item.no_of_bills || 0),
         total_sales: acc.total_sales + parseFloat(item.total_sales || 0),
         card_sales: acc.card_sales + parseFloat(item.card_sales || 0),
         sales_return: acc.sales_return + parseFloat(item.sales_return || 0),
@@ -72,6 +74,7 @@ export function getTotals(accounts, noFormat = false) {
       };
     },
     {
+      no_of_bills: 0,
       total_sales: 0,
       card_sales: 0,
       sales_return: 0,
@@ -95,6 +98,7 @@ export function getTotals(accounts, noFormat = false) {
     sales_return: <b>{currencyFormatter(totals.sales_return)}</b>,
     loyalty: <b>{currencyFormatter(totals.loyalty)}</b>,
     cash_sales: <b>{currencyFormatter(totals.cash_sales)}</b>,
+    no_of_bills: <b>{totals.no_of_bills}</b>,
   };
 }
 

@@ -86,6 +86,13 @@ function AccountForm({ formikProps, isViewMode, isSaved, onDateChange, mode }) {
             disabled={isSaved}
           />
           <CustomInput
+            label="No of Bills *"
+            name="no_of_bills"
+            type="number"
+            editable={editable}
+            disabled={isSaved}
+          />
+          <CustomInput
             label="Total Sales *"
             name="total_sales"
             type="number"

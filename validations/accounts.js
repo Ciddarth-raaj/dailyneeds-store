@@ -5,6 +5,9 @@ export const ACCOUNT_VALIDATION_SCHEMA = Yup.object({
   cashier_id: Yup.number()
     .typeError("Select a Cashier")
     .required("Select a Cashier"),
+  no_of_bills: Yup.number()
+    .typeError("Must be a number")
+    .required("Fill No of Bills"),
   total_sales: Yup.number()
     .typeError("Must be a number")
     .required("Fill Total Sales"),
