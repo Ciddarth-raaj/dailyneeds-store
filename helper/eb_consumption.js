@@ -22,6 +22,17 @@ export const updateEBConsumption = (id, params) => {
   });
 };
 
+export const deleteEBConsumption = (id) => {
+  return new Promise(async function (resolve, reject) {
+    try {
+      const data = await API.delete(`/eb-consumption/${id}`);
+      resolve(data.data);
+    } catch (err) {
+      reject(err);
+    }
+  });
+};
+
 export const getAllEBConsumption = () => {
   return new Promise(async function (resolve, reject) {
     try {

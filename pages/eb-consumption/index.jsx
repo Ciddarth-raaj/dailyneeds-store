@@ -20,7 +20,7 @@ const HEADINGS = {
 };
 
 function EBConsumption() {
-  const { ebConsumptions } = useEBConsumptions();
+  const { ebConsumptions, handleDelete } = useEBConsumptions();
 
   const getLastEBConsumption = ({ date, branch_id }) => {
     if (date && branch_id) {
@@ -89,7 +89,9 @@ function EBConsumption() {
           >
             <MenuItem>Edit</MenuItem>
           </Link>
-          <MenuItem>Delete</MenuItem>
+          <MenuItem onClick={() => handleDelete(ebConsumption.consumption_id)}>
+            Delete
+          </MenuItem>
         </Menu>
       ),
     };
