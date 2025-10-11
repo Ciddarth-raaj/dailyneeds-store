@@ -207,6 +207,26 @@ export default {
       },
     },
   },
+  eb_consumption: {
+    title: "EB Consumption",
+    selected: false,
+    openPage: false,
+    icon: "fa-bolt", // Changed to a more relevant icon for materials
+    subMenu: {
+      view_cleaning: {
+        title: "View List",
+        permission: "view_eb_consumption",
+        selected: false,
+        location: "/eb-consumption",
+      },
+      add_eb_consumption: {
+        title: "Add EB Consumption",
+        permission: "add_eb_consumption",
+        selected: false,
+        location: "/eb-consumption/create",
+      },
+    },
+  },
   accounts: {
     title: "Accounts",
     selected: false,
