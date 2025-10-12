@@ -89,6 +89,21 @@ export const saveAccountSheet = async (params) => {
   }
 };
 
+export const saveAccountSheetMessage = async (params) => {
+  try {
+    const response = await API.post("/accounts/save-message", {
+      sheet_date: params.sheet_date,
+      store_id: params.store_id,
+      no_of_bills: params.no_of_bills,
+      total_sales: params.total_sales,
+    });
+    return response.data;
+  } catch (err) {
+    console.error("Error saving account sheet:", err);
+    throw err;
+  }
+};
+
 export const unsaveAccountSheet = async (params) => {
   try {
     const queryParams = new URLSearchParams({

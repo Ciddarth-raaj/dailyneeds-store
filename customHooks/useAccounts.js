@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import * as AccountsHelper from "../helper/accounts";
 import { getTotals, getTotalsByStore } from "../util/account";
+import toast from "react-hot-toast";
 
 export function useAccounts(filters) {
   const [accounts, setAccounts] = useState([]);
@@ -9,8 +10,10 @@ export function useAccounts(filters) {
   const [mappedEbooks, setMappedEbooks] = useState({});
   const [outletData, setOutletData] = useState(null);
   const [isSaved, setIsSaved] = useState(true);
+  const [isCounterClosed, setIsCounterClosed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [totalData, setTotalData] = useState(null);
 
   const fetchAccounts = useCallback(async () => {
     try {
@@ -21,8 +24,10 @@ export function useAccounts(filters) {
         setEpayments(data.data.ebook);
         setOutletData(data.data.outlet);
         setIsSaved(data.data.is_saved);
+        setIsCounterClosed(data.data.is_closed);
 
         const totals = getTotalsByStore(data.data.account, true);
+        setTotalData(totals);
         setMappedAccounts(totals);
 
         // Create mapped ebooks with paytm_tid as key
@@ -73,6 +78,33 @@ export function useAccounts(filters) {
     }
   };
 
+  const closeCounter = async () => {
+    try {
+      if (!totalData[filters.store_id]) {
+        return;
+      }
+
+      const response = await AccountsHelper.saveAccountSheetMessage({
+        sheet_date: filters.to_date.split("T")[0],
+        store_id: filters.store_id,
+        no_of_bills: isNaN(totalData[filters.store_id].no_of_bills)
+          ? 0
+          : totalData[filters.store_id].no_of_bills,
+        total_sales: totalData[filters.store_id].total_sales,
+      });
+
+      if (response.code === 200 || response.code === 400) {
+        setIsCounterClosed(true);
+        return response;
+      }
+
+      throw new Error(response.message || "Failed to close counter");
+    } catch (err) {
+      console.error("Error closing counter:", err);
+      throw err;
+    }
+  };
+
   const unsaveSheet = async () => {
     try {
       const response = await AccountsHelper.unsaveAccountSheet({
@@ -107,5 +139,7 @@ export function useAccounts(filters) {
     mappedEbooks,
     outletData,
     mappedAccounts,
+    closeCounter,
+    isCounterClosed,
   };
 }

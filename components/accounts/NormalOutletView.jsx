@@ -109,12 +109,14 @@ function NormalOutletView({
     accounts,
     loading,
     isSaved,
+    closeCounter,
     saveSheet,
     unsaveSheet,
     epayments,
     outletData,
     refetch,
     mappedAccounts,
+    isCounterClosed,
   } = useAccounts(filters);
 
   const modifiedWarehouseCashBook = useMemo(() => {
@@ -424,6 +426,27 @@ function NormalOutletView({
     }
   };
 
+  const handleCloseCounter = async () => {
+    try {
+      toast.promise(closeCounter(), {
+        loading: "Closing counter",
+        success: (response) => {
+          if (response.code === 200) {
+            return "Counter closed successfully!";
+          } else if (response.code === 400) {
+            return "Counter already closed!";
+          }
+        },
+        error: (err) => {
+          console.error("Error closing counter:", err);
+          return "Failed to close counter";
+        },
+      });
+    } catch (error) {
+      console.error("Error closing counter:", error);
+    }
+  };
+
   const handleUnsaveSheet = async () => {
     try {
       toast.promise(unsaveSheet(), {
@@ -573,6 +596,17 @@ function NormalOutletView({
             >
               Print
             </Button>
+
+            {canSaveSheet && selectedOutlet && (
+              <Button
+                colorScheme="purple"
+                disabled={isSaved || isCounterClosed}
+                onClick={handleCloseCounter}
+              >
+                {isCounterClosed ? "Counter Closed" : "Close Counter"}
+              </Button>
+            )}
+
             {canSaveSheet && selectedOutlet && (
               <Button
                 colorScheme="purple"
