@@ -27,7 +27,8 @@ export function useAccounts(filters) {
         setIsCounterClosed(data.data.is_closed);
 
         const totals = getTotalsByStore(data.data.account, true);
-        setTotalData(totals);
+        const totalsWithNoOfBills = getTotals(data.data.account, true);
+        setTotalData(totalsWithNoOfBills);
         setMappedAccounts(totals);
 
         // Create mapped ebooks with paytm_tid as key
@@ -80,17 +81,15 @@ export function useAccounts(filters) {
 
   const closeCounter = async () => {
     try {
-      if (!totalData[filters.store_id]) {
+      if (!totalData) {
         return;
       }
 
       const response = await AccountsHelper.saveAccountSheetMessage({
         sheet_date: filters.to_date.split("T")[0],
         store_id: filters.store_id,
-        no_of_bills: isNaN(totalData[filters.store_id].no_of_bills)
-          ? 0
-          : totalData[filters.store_id].no_of_bills,
-        total_sales: totalData[filters.store_id].total_sales,
+        no_of_bills: isNaN(totalData.no_of_bills) ? 0 : totalData.no_of_bills,
+        total_sales: totalData.total_sales,
       });
 
       if (response.code === 200 || response.code === 400) {
