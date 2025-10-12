@@ -66,10 +66,13 @@ export function useAccounts(filters) {
       const response = await AccountsHelper.saveAccountSheet({
         sheet_date: filters.to_date.split("T")[0],
         store_id: filters.store_id,
+        no_of_bills: isNaN(totalData.no_of_bills) ? 0 : totalData.no_of_bills,
+        total_sales: totalData.total_sales,
       });
 
       if (response.code === 200) {
         setIsSaved(true);
+        setIsCounterClosed(true);
         return response;
       }
       throw new Error(response.message || "Failed to save sheet");

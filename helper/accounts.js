@@ -81,6 +81,8 @@ export const saveAccountSheet = async (params) => {
     const response = await API.post("/accounts/save", {
       sheet_date: params.sheet_date,
       store_id: params.store_id,
+      no_of_bills: params.no_of_bills,
+      total_sales: params.total_sales,
     });
     return response.data;
   } catch (err) {
