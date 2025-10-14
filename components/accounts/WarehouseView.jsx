@@ -88,7 +88,7 @@ function WarehouseView({ selectedDate }) {
   }, [modifiedCashBook]);
 
   const handleSubmitPress = async () => {
-    saveSheet();
+    await saveSheet();
     handleSubmit(false);
   };
 
@@ -105,6 +105,10 @@ function WarehouseView({ selectedDate }) {
           break;
         }
       }
+    }
+
+    if (!totalCashHandover || isNaN(totalCashHandover)) {
+      totalCashHandover = 0;
     }
 
     toast.promise(

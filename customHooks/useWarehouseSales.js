@@ -49,7 +49,7 @@ function useWarehouseSales(filters) {
 
     if (response.code === 200) {
       if (response.data) {
-        setIsCarriedForward(response.data.can_carry_forward);
+        setIsCarriedForward(response.data.can_carry_forward == 1);
         setStartingCash(parseFloat(response.data.starting_cash));
       } else {
         setIsCarriedForward(false);
@@ -65,7 +65,7 @@ function useWarehouseSales(filters) {
 
     if (response.code === 200) {
       if (response.data) {
-        setIsCarriedForward(response.data.can_carry_forward);
+        setIsCarriedForward(response.data.can_carry_forward == 1);
       } else {
         setIsCarriedForward(false);
       }
@@ -95,9 +95,10 @@ function useWarehouseSales(filters) {
     }
   };
 
-  useEffect(() => {
-    fetchStartingCash();
-    checkIfCarriedForward();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(async () => {
+    await fetchStartingCash();
+    await checkIfCarriedForward();
   }, [fetchStartingCash, checkIfCarriedForward]);
 
   const saveSheet = async () => {
@@ -105,6 +106,8 @@ function useWarehouseSales(filters) {
       const response = await saveAccountSheet({
         sheet_date: filters.to_date.split("T")[0],
         store_id: WAREHHOUSE_ID,
+        no_of_bills: null,
+        total_sales: null,
       });
 
       if (response.code === 200) {
