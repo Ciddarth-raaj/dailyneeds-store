@@ -101,4 +101,5 @@ export const PERMISSIONS = {
   view_cleaning_packing: "View Cleaning and Packing",
   view_eb_consumption: "View EB Consumption",
   add_eb_consumption: "Add EB Consumption",
+  create_advance_request: "Create Advance Request",
 };

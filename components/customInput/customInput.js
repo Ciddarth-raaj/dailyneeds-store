@@ -186,6 +186,7 @@ const TextField = ({
             "disabled",
             "numberinput",
             "switch_toggle",
+            "file",
             undefined,
           ].includes(method) && (
             <FormControl variant={floatingLabel ? "floating" : "default"}>

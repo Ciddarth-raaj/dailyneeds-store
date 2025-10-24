@@ -211,7 +211,7 @@ export default {
     title: "EB Consumption",
     selected: false,
     openPage: false,
-    icon: "fa-bolt", // Changed to a more relevant icon for materials
+    icon: "fa-bolt",
     subMenu: {
       view_cleaning: {
         title: "View List",
@@ -224,6 +224,20 @@ export default {
         permission: "add_eb_consumption",
         selected: false,
         location: "/eb-consumption/create",
+      },
+    },
+  },
+  lr_workflow: {
+    title: "LR Workflow",
+    selected: false,
+    openPage: false,
+    icon: "fa-truck",
+    subMenu: {
+      create_advance_request: {
+        title: "Create Advance Request",
+        permission: "create_advance_request",
+        selected: false,
+        location: "/lr-workflow/advance-request/create",
       },
     },
   },
