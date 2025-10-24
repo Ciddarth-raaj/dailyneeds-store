@@ -233,6 +233,12 @@ export default {
     openPage: false,
     icon: "fa-truck",
     subMenu: {
+      view_advance_request: {
+        title: "Advance Requests",
+        permission: "view_advance_request",
+        selected: false,
+        location: "/lr-workflow/advance-request",
+      },
       create_advance_request: {
         title: "Create Advance Request",
         permission: "create_advance_request",
