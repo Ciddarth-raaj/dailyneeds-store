@@ -70,6 +70,8 @@ export default function Sidebar() {
         try {
           if (!data || data.code === 403) return;
 
+          console.log("CIDD RES", data);
+
           setFilteredData(data);
           global.config.permissions = data;
         } catch (error) {
@@ -119,6 +121,8 @@ export default function Sidebar() {
                   (item) => item.permission_key == subMenu[sKey].permission
                 ) !== undefined
             );
+
+            // console.log("CIDD", subMenu);
 
             // Skip rendering this main menu if no permitted sub items
             if (permittedSubKeys.length === 0) {

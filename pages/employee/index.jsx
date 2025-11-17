@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import Head from "../../util/head";
 import CustomContainer from "../../components/CustomContainer";
@@ -89,7 +89,9 @@ function EmployeeIndex() {
   ];
 
   const getLastSynced = () => {
-    const sorted = employees.sort((a, b) => a.updated_at - b.updated_at);
+    const sorted = employees.sort(
+      (a, b) => new Date(b.updated_at) - new Date(a.updated_at)
+    );
 
     if (sorted.length > 0) {
       return (
@@ -101,6 +103,20 @@ function EmployeeIndex() {
 
     return "";
   };
+
+  const gridRef = useRef(null);
+
+  useEffect(() => {
+    if (gridRef.current?.api && Array.isArray(employees)) {
+      const existing = gridRef.current.api.getFilterModel();
+      if (!existing || !existing.status) {
+        gridRef.current.api.setFilterModel({
+          status: { filterType: "number", type: "equals", filter: 1 },
+        });
+        gridRef.current.api.onFilterChanged();
+      }
+    }
+  }, [employees]);
 
   return (
     <GlobalWrapper title="Employee">
@@ -121,7 +137,7 @@ function EmployeeIndex() {
           </Flex>
         }
       >
-        <AgGrid rowData={employees} columnDefs={colDefs} />
+        <AgGrid ref={gridRef} rowData={employees} columnDefs={colDefs} />
       </CustomContainer>
     </GlobalWrapper>
   );

@@ -1,1 +1,1 @@
-export const CASHIER_DESIGNATION = 3;
+export const CASHIER_DESIGNATION = 4;
