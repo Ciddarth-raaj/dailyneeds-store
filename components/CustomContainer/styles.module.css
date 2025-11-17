@@ -32,6 +32,15 @@
   background-color: var(--chakra-colors-purple-500);
 }
 
+.subtleHeader {
+  background-color: var(--chakra-colors-purple-50);
+}
+
+.subtleHeader .heading {
+  font-weight: 600;
+  color: var(--chakra-colors-purple-700);
+}
+
 .filledHeader .heading {
   color: white;
 }

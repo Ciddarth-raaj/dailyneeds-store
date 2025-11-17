@@ -8,7 +8,8 @@ function CustomContainer({
   rightSection,
   children,
   filledHeader,
-  smallHeader,
+  smallHeader = false,
+  subtleHeader = false,
   style,
   noPadding,
   toggleChildren,
@@ -22,14 +23,21 @@ function CustomContainer({
     setIsOpen(next);
     if (onToggle) onToggle(next);
   };
+
+  const getHeaderStyle = () => {
+    if (subtleHeader) {
+      return styles.subtleHeader;
+    } else if (smallHeader) {
+      return styles.filledHeader;
+    }
+
+    return "";
+  };
+
   return (
     <div className={styles.mainContainer} style={style}>
       {title && (
-        <div
-          className={`${styles.headingContainer} ${
-            filledHeader ? styles.filledHeader : ""
-          }`}
-        >
+        <div className={`${styles.headingContainer} ${getHeaderStyle()}`}>
           <p
             className={`${styles.heading} ${
               smallHeader ? styles.smallHeading : ""

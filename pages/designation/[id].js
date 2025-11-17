@@ -8,6 +8,10 @@ import {
   CheckboxGroup,
   Grid,
   Checkbox,
+  Box,
+  Text,
+  VStack,
+  Divider,
 } from "@chakra-ui/react";
 import React from "react";
 import { toast } from "react-toastify";
@@ -27,6 +31,7 @@ import CustomContainer from "../../components/CustomContainer";
 
 //Constants
 import { PERMISSIONS } from "../../constants/permissions";
+import MENUS from "../../constants/menus";
 
 class CreateDesignation extends React.Component {
   constructor(props) {
@@ -196,22 +201,52 @@ class CreateDesignation extends React.Component {
                     {/* <CheckboxGroup defaultValue={["dashboard"]}> */}
                     <CheckboxGroup>
                       {/* <Checkbox></Checkbox> */}
-                      <Grid templateColumns="repeat(3, 1fr)" gap={6}>
-                        {Object.keys(PERMISSIONS).map((key) => (
-                          <Checkbox
-                            key={key}
-                            isChecked={this.state.permissions.includes(key)}
-                            onChange={(e) =>
-                              this.handleCheckbox(key, e.target.checked)
-                            }
-                          >
-                            {PERMISSIONS[key]}
-                          </Checkbox>
-                        ))}
-                      </Grid>
+                      <VStack align="stretch" spacing={10} w="100%">
+                        {Object.keys(PERMISSIONS).map((menuKey) => {
+                          const menuPermissions = PERMISSIONS[menuKey];
+                          const menuTitle = MENUS[menuKey]?.title || menuKey;
+                          const permissionKeys = Object.keys(
+                            menuPermissions
+                          ).filter(
+                            (key) => menuPermissions[key] // Filter out empty objects
+                          );
+
+                          if (permissionKeys.length === 0) return null;
+
+                          return (
+                            <CustomContainer
+                              key={menuKey}
+                              title={menuTitle}
+                              subtleHeader
+                              smallHeader
+                            >
+                              <Grid
+                                templateColumns="repeat(3, 1fr)"
+                                gap={6}
+                                pl={4}
+                              >
+                                {permissionKeys.map((key) => (
+                                  <Checkbox
+                                    key={key}
+                                    isChecked={this.state.permissions.includes(
+                                      key
+                                    )}
+                                    onChange={(e) =>
+                                      this.handleCheckbox(key, e.target.checked)
+                                    }
+                                  >
+                                    {menuPermissions[key]}
+                                  </Checkbox>
+                                ))}
+                              </Grid>
+                            </CustomContainer>
+                          );
+                        })}
+                      </VStack>
                     </CheckboxGroup>
 
                     <ButtonGroup
+                      mt={10}
                       spacing="6"
                       style={{
                         width: "100%",
