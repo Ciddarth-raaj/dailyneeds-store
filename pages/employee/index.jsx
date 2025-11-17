@@ -70,6 +70,12 @@ function EmployeeIndex() {
       cellRenderer: (props) => (props.value ? capitalize(props.value) : "-"),
     },
     {
+      field: "shift_code",
+      headerName: "Shift",
+      resizable: true,
+      cellRenderer: (props) => props.value ?? "-",
+    },
+    {
       field: "status",
       headerName: "Status",
       resizable: true,
