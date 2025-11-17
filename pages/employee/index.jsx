@@ -97,10 +97,6 @@ function EmployeeIndex() {
             <Button colorScheme="whiteAlpha" onClick={handleExport}>
               Export
             </Button>
-
-            <Link href="/employee/create" passHref>
-              <Button colorScheme="whiteAlpha">Add</Button>
-            </Link>
           </Flex>
         }
       >

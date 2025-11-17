@@ -7,11 +7,8 @@ export const PERMISSIONS = {
   // Employees
   employee: {
     view_employees: "View Employees",
-    add_employees: "Add Employees",
     view_department: "View Departments",
-    add_department: "Add Departments",
     view_designation: "View Designation",
-    add_designation: "Add Designation",
     // view_shift: "View Shifts",
     // add_shifts: "Add Shifts",
     // view_family: "View Family",

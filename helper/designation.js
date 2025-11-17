@@ -5,7 +5,7 @@ const designation = {
     new Promise(function (resolve, reject) {
       API.get("/designation")
         .then(async (res) => {
-          resolve(designation.formatBrand(res.data));
+          resolve(res.data);
         })
         .catch((err) => {
           reject(err);
