@@ -16,6 +16,7 @@ import { advanceSearch } from "../../util/array";
 import { downloadCsv } from "../../util/exportCSVFile";
 import AgGrid from "../../components/AgGrid";
 import { capitalize } from "../../util/string";
+import moment from "moment";
 
 const HEADINGS = {
   employee_id: "ID",
@@ -25,7 +26,7 @@ const HEADINGS = {
 };
 
 function EmployeeIndex() {
-  const { employees } = useEmployees();
+  const { employees, handleSync } = useEmployees();
 
   const handleExport = () => {
     downloadCsv(employees, "employee.csv");
@@ -87,15 +88,35 @@ function EmployeeIndex() {
     },
   ];
 
+  const getLastSynced = () => {
+    const sorted = employees.sort((a, b) => a.updated_at - b.updated_at);
+
+    if (sorted.length > 0) {
+      return (
+        <Text fontSize="sm" color="white">{`Last Sync - ${moment(
+          sorted[0].updated_at
+        ).fromNow()}`}</Text>
+      );
+    }
+
+    return "";
+  };
+
   return (
     <GlobalWrapper title="Employee">
       <CustomContainer
         title="Employee"
         filledHeader
         rightSection={
-          <Flex gap="12px">
-            <Button colorScheme="whiteAlpha" onClick={handleExport}>
+          <Flex gap="12px" alignItems="center">
+            {/* <Button colorScheme="whiteAlpha" onClick={handleExport}>
               Export
+            </Button> */}
+
+            {getLastSynced()}
+
+            <Button colorScheme="whiteAlpha" onClick={handleSync}>
+              Sync
             </Button>
           </Flex>
         }

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import EmployeeHelper from "../helper/employee";
+import toast from "react-hot-toast";
 
 function useEmployees(filterProps = {}) {
   const [employees, setEmployees] = useState([]);
@@ -52,11 +53,34 @@ function useEmployees(filterProps = {}) {
     fetchEmployees();
   }, [JSON.stringify(filters)]); // Deep comparison of filters
 
+  const handleSync = () => {
+    try {
+      toast.promise(EmployeeHelper.sync, {
+        loading: "Syncing employees",
+        success: (response) => {
+          if (response.code === 200) {
+            fetchEmployees();
+            return "Employees Synced!";
+          } else {
+            throw err;
+          }
+        },
+        error: (err) => {
+          console.log(err);
+          return "Error syncing!";
+        },
+      });
+    } catch (err) {
+      console.log(err);
+    }
+  };
+
   return {
     employees,
     loading,
     error,
     refetch: fetchEmployees,
+    handleSync,
   };
 }
 

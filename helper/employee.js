@@ -36,6 +36,16 @@ const EmployeeHelper = {
           reject(err);
         });
     }),
+  sync: () =>
+    new Promise(function (resolve, reject) {
+      API.post(`/employee/sync`)
+        .then(async (res) => {
+          resolve(res.data);
+        })
+        .catch((err) => {
+          reject(err);
+        });
+    }),
   getStoreById: (store_id) =>
     new Promise(function (resolve, reject) {
       API.get("/employee/store_id?store_id=" + store_id)
