@@ -1,0 +1,77 @@
+import { themeQuartz } from "ag-grid-community";
+import { AgGridReact } from "ag-grid-react";
+import React from "react";
+import { icons } from "./icons";
+
+const agGridTheme = themeQuartz.withParams({
+  accentColor: "var(--chakra-colors-purple-500)",
+  headerBackgroundColor: "var(--chakra-colors-purple-50)",
+  headerTextColor: "var(--chakra-colors-purple-700)",
+  fontFamily: "inherit",
+  borderColor: "var(--chakra-colors-purple-100)",
+  borderWidth: "0.5px",
+  textColor: "var(--chakra-colors-gray-600)",
+  fontSize: "13px",
+});
+
+const AgGrid = React.forwardRef(function AgGrid(
+  {
+    rowData,
+    colDefs,
+    columnDefs,
+    gridOptions,
+    defaultRows = 20,
+    className,
+    ...props
+  },
+  ref
+) {
+  const mergedGridOptions = React.useMemo(() => {
+    const defaultColDef = {
+      resizable: true,
+      sortable: true,
+      filter: true,
+      flex: 1,
+      // minWidth: 100,
+    };
+
+    const baseOptions = {
+      suppressColumnVirtualisation: false,
+      suppressRowVirtualisation: false,
+      animateRows: true,
+      pagination: true,
+      paginationPageSize: defaultRows,
+      icons,
+    };
+
+    return {
+      ...baseOptions,
+      ...(gridOptions || {}),
+      defaultColDef: {
+        ...defaultColDef,
+        ...(gridOptions?.defaultColDef || {}),
+      },
+    };
+  }, [defaultRows, gridOptions]);
+
+  const resolvedColumnDefs = React.useMemo(() => {
+    // Support both prop names for convenience
+    return columnDefs ?? colDefs ?? [];
+  }, [columnDefs, colDefs]);
+
+  return (
+    <AgGridReact
+      ref={ref}
+      rowData={rowData}
+      columnDefs={resolvedColumnDefs}
+      gridOptions={mergedGridOptions}
+      domLayout="autoHeight"
+      theme={agGridTheme}
+      className={className}
+      {...props}
+      sideBar
+    />
+  );
+});
+
+export default AgGrid;

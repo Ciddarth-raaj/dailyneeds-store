@@ -222,3 +222,7 @@ a {
     padding: 1cm;
   }
 }
+
+.ag-icon {
+  font-family: agGrid;
+}

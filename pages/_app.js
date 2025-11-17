@@ -17,6 +17,15 @@ import { Toaster } from "react-hot-toast";
 import { UserProvider } from "../contexts/UserContext";
 import theme from "../theme";
 
+import {
+  AllCommunityModule,
+  ModuleRegistry,
+  TextEditorModule,
+} from "ag-grid-community";
+
+// Register all Community features
+ModuleRegistry.registerModules([AllCommunityModule, TextEditorModule]);
+
 const unprotectedPath = {
   //   '/employee': true,
   //   '/department': true,
