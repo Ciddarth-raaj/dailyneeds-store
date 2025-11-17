@@ -27,7 +27,7 @@ function CustomContainer({
   const getHeaderStyle = () => {
     if (subtleHeader) {
       return styles.subtleHeader;
-    } else if (smallHeader) {
+    } else if (filledHeader) {
       return styles.filledHeader;
     }
 
