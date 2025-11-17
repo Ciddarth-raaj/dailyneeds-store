@@ -25,10 +25,6 @@ function AccountForm({ formikProps, isViewMode, isSaved, onDateChange, mode }) {
   // custom hooks
   const { peopleList } = usePeople();
   const { storeId } = useUser().userConfig;
-  const { employees } = useEmployees({
-    store_ids: storeId === null ? [] : [storeId],
-    designation_ids: [CASHIER_DESIGNATION],
-  });
   const { employees: allEmployees } = useEmployees({
     store_ids: storeId === null ? [] : [storeId],
     designation_ids: [],
@@ -38,10 +34,12 @@ function AccountForm({ formikProps, isViewMode, isSaved, onDateChange, mode }) {
 
   const differenceAmount = getAmmountDifference(values);
 
-  const EMPLOYEES_MENU = employees.map((item) => ({
-    id: item.employee_id,
-    value: item.employee_name,
-  }));
+  const EMPLOYEES_MENU = allEmployees
+    .sort((a, b) => ("" + a.employee_name).localeCompare(b.employee_name))
+    .map((item) => ({
+      id: item.employee_id,
+      value: item.employee_name,
+    }));
 
   const getPeopleList = (personType) => {
     if (personType === undefined) {
