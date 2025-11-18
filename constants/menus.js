@@ -5,14 +5,9 @@ export default {
     selected: true,
     openPage: true,
     icon: "fa-pie-chart ",
-    subMenu: {
-      dashboard: {
-        title: "Home",
-        permission: "dashboard",
-        selected: false,
-        location: "/",
-      },
-    },
+    location: "/",
+    permission: "dashboard",
+    isDirect: true,
   },
   employee: {
     title: "Employees",

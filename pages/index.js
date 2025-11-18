@@ -155,12 +155,6 @@ function Index() {
       >
         <Grid templateColumns="repeat(3, 1fr)" gap={6}>
           {StatsCardItem(
-            "Total Users",
-            isEmpty ? "-" : totalData?.accountsList.length,
-            colorScheme
-          )}
-
-          {StatsCardItem(
             "Total Sales",
             isEmpty ? "-" : currencyFormatter(totalData?.total_sales),
             colorScheme
@@ -168,15 +162,6 @@ function Index() {
           {StatsCardItem(
             "Total Bills",
             isEmpty ? "-" : totalData?.no_of_bills,
-            colorScheme
-          )}
-          {StatsCardItem(
-            "Avg Sales/User",
-            isEmpty
-              ? "-"
-              : currencyFormatter(
-                  totalData?.total_sales / totalData?.accountsList.length
-                ),
             colorScheme
           )}
           {StatsCardItem(

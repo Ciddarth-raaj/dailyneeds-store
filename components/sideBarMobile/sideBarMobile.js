@@ -60,7 +60,17 @@ export default class SideBarMobile extends React.Component {
                 ) !== undefined
             );
 
-            if (permittedSubKeys.length === 0) {
+            const isDirectMenu = Boolean(menu[key].isDirect);
+            const hasDirectPermission =
+              !menu[key].permission ||
+              filteredData?.some(
+                (item) => item.permission_key == menu[key].permission
+              );
+
+            if (
+              (!isDirectMenu && permittedSubKeys.length === 0) ||
+              (isDirectMenu && !hasDirectPermission)
+            ) {
               return null;
             }
 
@@ -78,7 +88,11 @@ export default class SideBarMobile extends React.Component {
                 >
                   <div
                     className={styles.optionHolder}
-                    onClick={() => this.handleMenuClick(key)}
+                    onClick={() => {
+                      if (!isDirectMenu) {
+                        this.handleMenuClick(key);
+                      }
+                    }}
                   >
                     <i
                       className={`${

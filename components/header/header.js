@@ -7,60 +7,60 @@ import { useBreakpointValue } from "@chakra-ui/react";
 
 export default function Header() {
   const [settings] = React.useState({
-    company: {
-      title: "Company Details",
-      icon: "fa-regular fa-building",
-      link: "/company-details",
-    },
+    // company: {
+    //   title: "Company Details",
+    //   icon: "fa-regular fa-building",
+    //   link: "/company-details",
+    // },
     branch: {
       title: "Branch Details",
       icon: "fa-solid fa-sitemap",
       link: "/branch-details",
     },
-    sms: {
-      title: "SMS Config",
-      icon: "fa-regular fa-comment",
-    },
-    email: {
-      title: "Email Config",
-      icon: "fa-regular fa-envelope",
-    },
-    push: {
-      title: "Push Notifications",
-      icon: "fa-regular fa-bell",
-    },
-    cash: {
-      title: "Cash Denomination",
-      icon: "fa-solid fa-money-bill",
-    },
-    letter: {
-      title: "Letter Template",
-      icon: "fa-regular fa-file-lines",
-    },
-    product: {
-      title: "Product Master",
-      icon: "fa-solid fa-box",
-      link: "/items",
-    },
-    packing_material_type: {
-      title: "Packing Material Type",
-      icon: "fa-solid fa-pen",
-      link: "/packing-material-type",
-    },
-    packing_material_size: {
-      title: "Packing Material Size",
-      icon: "fa-solid fa-pen",
-      link: "/packing-material-size",
-    },
-    employee: {
-      title: "Employee Role",
-      icon: "fa-solid fa-users",
-    },
-    vehicle: {
-      title: "Vehicle Details",
-      link: "/vehicle",
-      icon: "fa-solid fa-truck",
-    },
+    // sms: {
+    //   title: "SMS Config",
+    //   icon: "fa-regular fa-comment",
+    // },
+    // email: {
+    //   title: "Email Config",
+    //   icon: "fa-regular fa-envelope",
+    // },
+    // push: {
+    //   title: "Push Notifications",
+    //   icon: "fa-regular fa-bell",
+    // },
+    // cash: {
+    //   title: "Cash Denomination",
+    //   icon: "fa-solid fa-money-bill",
+    // },
+    // letter: {
+    //   title: "Letter Template",
+    //   icon: "fa-regular fa-file-lines",
+    // },
+    // product: {
+    //   title: "Product Master",
+    //   icon: "fa-solid fa-box",
+    //   link: "/items",
+    // },
+    // packing_material_type: {
+    //   title: "Packing Material Type",
+    //   icon: "fa-solid fa-pen",
+    //   link: "/packing-material-type",
+    // },
+    // packing_material_size: {
+    //   title: "Packing Material Size",
+    //   icon: "fa-solid fa-pen",
+    //   link: "/packing-material-size",
+    // },
+    // employee: {
+    //   title: "Employee Role",
+    //   icon: "fa-solid fa-users",
+    // },
+    // vehicle: {
+    //   title: "Vehicle Details",
+    //   link: "/vehicle",
+    //   icon: "fa-solid fa-truck",
+    // },
     login: {
       title: "Log In",
       icon: "fa-solid fa-users",

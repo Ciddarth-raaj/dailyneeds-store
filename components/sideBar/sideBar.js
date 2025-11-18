@@ -94,6 +94,19 @@ export default function Sidebar() {
 
     setMenu(updatedMenu);
   };
+
+  const handleMainMenuClick = (key, isDirectMenu) => {
+    if (isDirectMenu) {
+      const targetLocation = menu[key].location || "/";
+      router.push(targetLocation);
+      if (isMobile) {
+        setIsOpen(false);
+      }
+      return;
+    }
+
+    handleMenuClick(key);
+  };
   return (
     <>
       <div
@@ -120,8 +133,18 @@ export default function Sidebar() {
                 ) !== undefined
             );
 
-            // Skip rendering this main menu if no permitted sub items
-            if (permittedSubKeys.length === 0) {
+            const isDirectMenu = Boolean(menu[key].isDirect);
+            const hasDirectPermission =
+              !menu[key].permission ||
+              filteredData?.some(
+                (item) => item.permission_key == menu[key].permission
+              );
+
+            // Skip rendering this main menu if no permitted items/permissions
+            if (
+              (!isDirectMenu && permittedSubKeys.length === 0) ||
+              (isDirectMenu && !hasDirectPermission)
+            ) {
               return null;
             }
 
@@ -138,7 +161,7 @@ export default function Sidebar() {
                     className={`${styles.optionHolder} ${
                       menu[key].selected ? styles.selectedMenu : ""
                     } ${menu[key].isOpen ? styles.openMenu : ""}`}
-                    onClick={() => handleMenuClick(key)}
+                    onClick={() => handleMainMenuClick(key, isDirectMenu)}
                   >
                     <Box className={styles.iconWrapper}>
                       <i
