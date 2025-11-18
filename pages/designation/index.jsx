@@ -120,7 +120,7 @@ function DesignationView() {
 
   return (
     <GlobalWrapper title="Designation Details">
-      <CustomContainer title="Designations">
+      <CustomContainer title="Designations" filledHeader>
         <AgGrid rowData={designations} colDefs={colDefs} />
       </CustomContainer>
     </GlobalWrapper>

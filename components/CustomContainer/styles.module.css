@@ -3,13 +3,13 @@
   border-radius: 12px;
   overflow: hidden;
   /* box-shadow: rgba(99, 99, 99, 0.2) 0px 2px 8px 0px; */
-  border: 1px solid #eee;
+  border: 1px solid var(--chakra-colors-purple-100);
 }
 
 .heading {
-  font-size: 20px;
-  font-weight: 700;
-  /* color: white; */
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--chakra-colors-purple-700);
 }
 
 .smallHeading {
@@ -20,8 +20,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 24px;
-  border-bottom: 1px solid #eee;
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--chakra-colors-purple-100);
 }
 
 .contentContainer {
@@ -29,7 +29,7 @@
 }
 
 .filledHeader {
-  background-color: var(--chakra-colors-purple-500);
+  background-color: var(--chakra-colors-purple-50);
 }
 
 .subtleHeader {
@@ -38,11 +38,6 @@
 
 .subtleHeader .heading {
   font-weight: 600;
-  color: var(--chakra-colors-purple-700);
-}
-
-.filledHeader .heading {
-  color: white;
 }
 
 .noPadding {

@@ -101,7 +101,7 @@ function EmployeeIndex() {
 
     if (sorted.length > 0) {
       return (
-        <Text fontSize="sm" color="white">{`Last Sync - ${moment(
+        <Text fontSize="sm" color="purple.700">{`Last Sync - ${moment(
           sorted[0].updated_at
         ).fromNow()}`}</Text>
       );
@@ -137,7 +137,7 @@ function EmployeeIndex() {
 
             {getLastSynced()}
 
-            <Button colorScheme="whiteAlpha" onClick={handleSync}>
+            <Button colorScheme="purple" onClick={handleSync}>
               Sync
             </Button>
           </Flex>
