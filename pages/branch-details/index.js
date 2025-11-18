@@ -6,6 +6,7 @@ import {
   ButtonGroup,
   Button,
   IconButton,
+  Text,
 } from "@chakra-ui/react";
 import styles from "../../styles/admin.module.css";
 import React from "react";
@@ -21,6 +22,12 @@ import moment from "moment";
 import Link from "next/link";
 import { Menu, MenuItem } from "@szhsin/react-menu";
 import CustomContainer from "../../components/CustomContainer";
+import AgGrid from "../../components/AgGrid";
+import { capitalize } from "../../util/string";
+import Badge from "../../components/Badge";
+import currencyFormatter from "../../util/currencyFormatter";
+import CustomMenu from "../../components/CustomMenu";
+import { Router, withRouter } from "next/router";
 
 const HEADINGS = {
   outlet_id: "ID",
@@ -29,7 +36,7 @@ const HEADINGS = {
   action: "Action",
 };
 
-export default class BranchDetail extends React.Component {
+class BranchDetail extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
@@ -40,32 +47,7 @@ export default class BranchDetail extends React.Component {
       id: 0,
     };
   }
-  updateStatus() {
-    const { status, id } = this.state;
-    if (status !== "") {
-      BranchHelper.updateStatus({
-        outlet_id: id,
-        is_active: status,
-      })
-        .then((data) => {
-          if (data.code === 200) {
-            toast.success("Successfully updated Status");
-            this.setState({ status: "" });
-          } else {
-            toast.error("Not Updated");
-          }
-        })
-        .catch((err) => console.log(err));
-    }
-  }
-  sortCallback = (key, type) => {
-    console.log(key, type);
-  };
-  componentDidUpdate() {
-    if (this.state.status !== "") {
-      this.updateStatus();
-    }
-  }
+
   componentDidMount() {
     this.getBranchData();
   }
@@ -78,100 +60,73 @@ export default class BranchDetail extends React.Component {
       .catch((err) => console.log(err));
   }
 
-  badge = (m) => (
-    <Switch
-      className={styles.switch}
-      id="email-alerts"
-      defaultChecked={m.value === 1}
-      onChange={() => {
-        this.setState({ status: m.value === 1 ? 0 : 1, id: m.id });
-      }}
-    />
-  );
-
   render() {
     const { company } = this.state;
-    const valuesNew = company.map((m) => ({
-      outlet_id: m.outlet_id,
-      outlet_name: m.outlet_name,
-      outlet_nickname: m.outlet_nickname,
-      status: this.badge({ value: m.is_active, id: m.outlet_id }),
-      action: (
-        <Menu
-          align="end"
-          gap={5}
-          menuButton={
-            <IconButton
-              variant="ghost"
-              colorScheme="purple"
-              icon={<i className={`fa fa-ellipsis-v`} />}
-            />
-          }
-          transition
-        >
-          <Link href={`/branch-details/view?id=${m.outlet_id}`} passHref>
-            <a target="_blank" rel="noopener noreferrer">
-              <MenuItem>View</MenuItem>
-            </a>
-          </Link>
-          <Link href={`/branch-details/edit?id=${m.outlet_id}`} passHref>
-            <MenuItem>Edit</MenuItem>
-          </Link>
-          <MenuItem>Delete</MenuItem>
-        </Menu>
-      ),
-    }));
 
-    const getExportFile = () => {
-      const TABLE_HEADER = {
-        SNo: "SNo",
-        outlet_id: "Id",
-        outlet_name: "Name",
-        outlet_nickname: "Nickname",
-      };
-      const formattedData = [];
-      valuesNew.forEach((d, i) => {
-        formattedData.push({
-          SNo: i + 1,
-          outlet_id: d.outlet_id,
-          outlet_name: d.outlet_name,
-          outlet_nickname: d.outlet_nickname,
-        });
-      });
-      exportCSVFile(
-        TABLE_HEADER,
-        formattedData,
-        "branch_details" + moment().format("DD-MMY-YYYY")
-      );
-    };
+    const colDefs = [
+      {
+        field: "outlet_id",
+        headerName: "ID",
+        resizable: false,
+        maxWidth: 100,
+      },
+      {
+        field: "outlet_name",
+        headerName: "Branch",
+        resizable: true,
+      },
+      {
+        field: "outlet_nickname",
+        headerName: "Nickname",
+        resizable: true,
+      },
+      {
+        field: "outlet_id",
+        headerName: "Action",
+        resizable: false,
+        maxWidth: 100,
+        filter: false,
+        cellRenderer: (props) => {
+          return (
+            <Flex justifyContent="center" alignItems="center" height={"100%"}>
+              <CustomMenu
+                items={[
+                  {
+                    label: "View",
+                    onClick: () =>
+                      this.props.router.push(
+                        `/branch-details/view?id=${props.data.outlet_id}`
+                      ),
+                  },
+                  {
+                    label: "Edit",
+                    onClick: () =>
+                      this.props.router.push(
+                        `/branch-details/Edit?id=${props.data.outlet_id}`
+                      ),
+                  },
+                ]}
+              />
+            </Flex>
+          );
+        },
+      },
+    ];
 
     return (
       <Formik>
         <Form>
           <GlobalWrapper title="Branch Details">
-             
-
             <CustomContainer
               title="Branch Details"
+              filledHeader
               rightSection={
                 <Link href="/branch-details/create" passHref>
                   <Button colorScheme="purple">Add New Branch</Button>
                 </Link>
               }
             >
-              <div>
-                <Table heading={HEADINGS} rows={valuesNew} />
-                <ButtonGroup
-                  style={{
-                    display: "flex",
-                    justifyContent: "flex-end",
-                  }}
-                >
-                  <Button colorScheme="purple" onClick={() => getExportFile()}>
-                    {"Export"}
-                  </Button>
-                </ButtonGroup>
-              </div>
+              <AgGrid rowData={company} colDefs={colDefs} />
             </CustomContainer>
           </GlobalWrapper>
         </Form>
@@ -179,3 +134,5 @@ export default class BranchDetail extends React.Component {
     );
   }
 }
+
+export default withRouter(BranchDetail);

@@ -36,15 +36,15 @@ function BranchEditor() {
     if (designations && !paramId) {
       const updatedBudget = designations.map((item) => ({
         count: null,
-        designation: item.value,
-        designation_id: item.id,
+        designation: item.designation_name,
+        designation_id: item.designation_id,
       }));
       setInitialValues((prev) => ({
         ...prev,
         budget: updatedBudget,
       }));
     }
-  }, [designations]);
+  }, [designations, paramId]);
 
   const getMergedBudgetArray = (existingBudget, designations) => {
     const mergedBudget = [...existingBudget];
@@ -57,8 +57,8 @@ function BranchEditor() {
       if (!exists) {
         mergedBudget.push({
           count: null,
-          designation: designation.value,
-          designation_id: designation.id,
+          designation: designation.designation_name,
+          designation_id: designation.designation_id,
         });
       }
     });
@@ -142,11 +142,12 @@ function BranchEditor() {
     toast.promise(OutletHelper.updateOutlet(params), {
       loading: "Updating outlet",
       success: (response) => {
+        console.log(response);
         if (response.code === 200) {
           router.push("/branch-details");
           return "Outlet Updated!";
         } else {
-          throw err;
+          throw response;
         }
       },
       error: (err) => {
@@ -166,8 +167,6 @@ function BranchEditor() {
 
   return (
     <GlobalWrapper title="Branch Details">
-       
-
       <CustomContainer title="Branch Details" filledHeader>
         <Formik
           enableReinitialize
@@ -239,7 +238,7 @@ function BranchEditor() {
                           placeholder="0"
                           name={`budget[${i}].count`}
                           type="number"
-                          label={`${m.value} Count`}
+                          label={`${m.designation_name} Count`}
                           editable={editable}
                         />
                       </div>
