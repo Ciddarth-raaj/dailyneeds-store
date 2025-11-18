@@ -6,6 +6,10 @@ function usePermissions(permissions = []) {
   const { permissions: userPermissions } = userConfig;
 
   const checkPermissions = () => {
+    if (permissions.length === 0) {
+      return true;
+    }
+
     for (let permission of userPermissions) {
       if (permissions.includes(permission.permission_key)) {
         return true;

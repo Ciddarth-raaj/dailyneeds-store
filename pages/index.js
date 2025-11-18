@@ -10,6 +10,7 @@ import { useUser } from "../contexts/UserContext";
 import AgGrid from "../components/AgGrid";
 import { capitalize } from "../util/string";
 import Badge from "../components/Badge";
+import EmptyData from "../components/EmptyData";
 
 const StatsCardItem = (label, value, colorScheme) => {
   return (
@@ -238,7 +239,7 @@ function Index() {
   ];
 
   return (
-    <GlobalWrapper>
+    <GlobalWrapper permissionKey="dashboard">
       <Flex flexDirection="column" gap="22px">
         <FromToDateOutletPicker
           fromDate={fromDate}
@@ -252,11 +253,30 @@ function Index() {
         />
 
         {OverallStatsCard(mtdTotalData, getMTDTitle(), "blue")}
-        {OverallStatsCard(mappedTotalData, "Overall Statistics")}
 
-        <CustomContainer title="Cashiers" smallHeader>
-          <AgGrid rowData={cashiersList} colDefs={colDefs} />
-        </CustomContainer>
+        {cashiersList.length > 0 ? (
+          <>
+            {OverallStatsCard(mappedTotalData, "Overall Statistics")}
+
+            <CustomContainer title="Cashiers" smallHeader>
+              <AgGrid rowData={cashiersList} colDefs={colDefs} />
+            </CustomContainer>
+          </>
+        ) : (
+          <CustomContainer>
+            <EmptyData
+              message={
+                <Text>
+                  No data for selected date range
+                  <Text fontSize="sm" color="purple.300">
+                    ({moment(fromDate).format("DD/MM/YY")} -
+                    {moment(toDate).format("DD/MM/YY")})
+                  </Text>
+                </Text>
+              }
+            />
+          </CustomContainer>
+        )}
       </Flex>
     </GlobalWrapper>
   );

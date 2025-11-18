@@ -7,6 +7,7 @@ const EmptyData = ({
   size = "lg", // sm, md, lg
   button = null,
   customIcon = null,
+  faIcon = "fa-box-open",
 }) => {
   const containerSizes = {
     sm: { height: "100px", iconSize: "30px" },
@@ -31,7 +32,7 @@ const EmptyData = ({
               color: "var(--chakra-colors-purple-100)",
             }}
           >
-            <i className="fa fa-box-open" />
+            <i className={`fa ${faIcon}`} />
           </div>
         )}
         <Text
