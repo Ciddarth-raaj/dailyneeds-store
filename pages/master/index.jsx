@@ -115,7 +115,7 @@ function Master() {
         filledHeader
         rightSection={
           <Link href="/master/create" passHref>
-            <Button colorScheme="whiteAlpha">Add</Button>
+            <Button colorScheme="purple">Add</Button>
           </Link>
         }
       >

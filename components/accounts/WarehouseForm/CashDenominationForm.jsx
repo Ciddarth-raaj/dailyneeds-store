@@ -136,7 +136,7 @@ function CashDenominationForm({ editable, isSaved, selectedDate }) {
           <IconButton
             onClick={() => setIsDenominationOpen((val) => !val)}
             icon={isDenominationOpen ? <ChevronUpIcon /> : <ChevronDownIcon />}
-            colorScheme="whiteAlpha"
+            colorScheme="purple"
           />
         }
       >

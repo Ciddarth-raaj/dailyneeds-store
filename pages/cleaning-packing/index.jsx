@@ -147,11 +147,11 @@ function CleaningPacking() {
           <Flex alignItems="center" gap={4}>
             {getLastSyncedComponent(machinePackedItems)}
 
-            <Button colorScheme="whiteAlpha" onClick={handleSync}>
+            <Button colorScheme="purple" onClick={handleSync}>
               Sync Now
             </Button>
 
-            <Button colorScheme="whiteAlpha" onClick={handleExportAll}>
+            <Button colorScheme="purple" onClick={handleExportAll}>
               Export All
             </Button>
           </Flex>

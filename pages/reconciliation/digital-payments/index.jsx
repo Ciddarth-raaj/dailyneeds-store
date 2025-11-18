@@ -78,7 +78,7 @@ function DigitalPayments() {
         rightSection={
           <Flex gap="12px">
             <Button
-              colorScheme="whiteAlpha"
+              colorScheme="purple"
               onClick={handleExportData}
               disabled={rows.length === 0}
             >
@@ -86,7 +86,7 @@ function DigitalPayments() {
             </Button>
 
             <Link href={`/reconciliation/digital-payments/create`} passHref>
-              <Button colorScheme="whiteAlpha">Add</Button>
+              <Button colorScheme="purple">Add</Button>
             </Link>
           </Flex>
         }

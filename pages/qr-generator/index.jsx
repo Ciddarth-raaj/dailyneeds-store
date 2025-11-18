@@ -20,7 +20,7 @@ function Index() {
         filledHeader
         rightSection={
           <Button
-            colorScheme="whiteAlpha"
+            colorScheme="purple"
             onClick={() => setGeneratorVisiblity(true)}
           >
             Import

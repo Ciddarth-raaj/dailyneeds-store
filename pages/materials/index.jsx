@@ -146,12 +146,12 @@ function Materials() {
           <Flex>
             {canAddMaterial && (
               <Link href="/materials/create" passHref>
-                <Button colorScheme="whiteAlpha">Add</Button>
+                <Button colorScheme="purple">Add</Button>
               </Link>
             )}
             {canAddCategory && (
               <Link href="/materials/category/create" passHref>
-                <Button colorScheme="whiteAlpha" ml={2}>
+                <Button colorScheme="purple" ml={2}>
                   Add Category
                 </Button>
               </Link>

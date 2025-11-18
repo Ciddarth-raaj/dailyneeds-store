@@ -68,7 +68,7 @@ function MaterialsRequestPage() {
         filledHeader
         rightSection={
           <Link href="/materials/request/add" passHref>
-            <Button colorScheme="whiteAlpha">Add</Button>
+            <Button colorScheme="purple">Add</Button>
           </Link>
         }
       >

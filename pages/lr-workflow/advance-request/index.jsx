@@ -93,7 +93,7 @@ function AdvanceRequest() {
         rightSection={
           canCreateAdvanceRequest ? (
             <Link href="/lr-workflow/advance-request/create" passHref>
-              <Button colorScheme="whiteAlpha">Add</Button>
+              <Button colorScheme="purple">Add</Button>
             </Link>
           ) : null
         }
