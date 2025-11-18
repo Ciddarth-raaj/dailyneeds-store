@@ -29,6 +29,7 @@ export function getTotalsByStore(accounts) {
         cash_handover_200: 0,
         cash_handover_500: 0,
         accountsList: [],
+        no_of_bills: 0,
       };
     }
 

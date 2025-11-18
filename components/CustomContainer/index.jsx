@@ -15,6 +15,7 @@ function CustomContainer({
   toggleChildren,
   defaultOpen = true,
   onToggle,
+  colorScheme = "purple",
 }) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
 
@@ -34,14 +35,31 @@ function CustomContainer({
     return "";
   };
 
+  const getColorSchemeColor = (value) => {
+    return `var(--chakra-colors-${colorScheme}-${value})`;
+  };
+
   return (
-    <div className={styles.mainContainer} style={style}>
+    <div
+      className={styles.mainContainer}
+      style={{
+        borderColor: getColorSchemeColor(100),
+        ...style,
+      }}
+    >
       {title && (
-        <div className={`${styles.headingContainer} ${getHeaderStyle()}`}>
+        <div
+          className={`${styles.headingContainer} ${getHeaderStyle()}`}
+          style={{
+            borderColor: getColorSchemeColor(100),
+            backgroundColor: filledHeader ? getColorSchemeColor(50) : "unset",
+          }}
+        >
           <p
             className={`${styles.heading} ${
               smallHeader ? styles.smallHeading : ""
             }`}
+            style={{ color: getColorSchemeColor(700) }}
           >
             {title}
           </p>

@@ -143,5 +143,6 @@ export function useAccounts(filters) {
     mappedAccounts,
     closeCounter,
     isCounterClosed,
+    totalData,
   };
 }
