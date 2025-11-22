@@ -25,6 +25,13 @@ export default function Sidebar() {
   const isMobile = useBreakpointValue({ base: true, md: false });
 
   const [isOpen, setIsOpen] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("sidebarMinimized");
+      return saved === "true";
+    }
+    return false;
+  });
 
   useEffect(() => {
     getPermissions();
@@ -107,6 +114,21 @@ export default function Sidebar() {
 
     handleMenuClick(key);
   };
+
+  const toggleMinimize = () => {
+    if (isMobile) return; // Don't allow minimize on mobile
+    const newMinimized = !isMinimized;
+    setIsMinimized(newMinimized);
+    localStorage.setItem("sidebarMinimized", String(newMinimized));
+    // Dispatch custom event to notify globalWrapper
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent("sidebarMinimizeToggle", {
+          detail: { minimized: newMinimized },
+        })
+      );
+    }
+  };
   return (
     <>
       <div
@@ -119,7 +141,9 @@ export default function Sidebar() {
       </div>
 
       <div
-        className={styles.container}
+        className={`${styles.container} ${
+          !isMobile && isMinimized ? styles.minimized : ""
+        }`}
         style={{ display: isMobile ? (isOpen ? "block" : "none") : "block" }}
       >
         <Box className={styles.sideBarOptions}>
@@ -172,13 +196,23 @@ export default function Sidebar() {
                         }`}
                       />
                     </Box>
-                    <span>{menu[key].title}</span>
+                    <span
+                      className={`${styles.menuTitle} ${
+                        isMinimized && !isMobile ? styles.hoverTitle : ""
+                      }`}
+                    >
+                      {menu[key].title}
+                    </span>
                   </Box>
 
                   {menu[key].isOpen &&
                     menu[key].subMenu &&
                     permittedSubKeys.length > 0 && (
-                      <div className={styles.subMenuWrapper}>
+                      <div
+                        className={`${styles.subMenuWrapper} ${
+                          isMinimized && !isMobile ? styles.hoverSubMenu : ""
+                        }`}
+                      >
                         {permittedSubKeys.map((sKey) => {
                           const isActive =
                             router.asPath === menu[key].subMenu[sKey].location;
@@ -213,6 +247,19 @@ export default function Sidebar() {
             );
           })}
         </Box>
+        {!isMobile && (
+          <Box
+            className={styles.minimizeButton}
+            onClick={toggleMinimize}
+            title={isMinimized ? "Expand sidebar" : "Minimize sidebar"}
+          >
+            <i
+              className={`fa ${
+                isMinimized ? "fa-chevron-right" : "fa-chevron-left"
+              }`}
+            />
+          </Box>
+        )}
       </div>
     </>
   );

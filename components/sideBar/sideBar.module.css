@@ -13,6 +13,30 @@
   overflow-y: auto;
   overflow-x: hidden;
   border-right: 1px solid #eee;
+  transition: width 0.3s ease;
+}
+
+.container.minimized {
+  width: 80px;
+  min-width: 80px;
+}
+
+.container.minimized:hover {
+  width: 260px;
+  min-width: 260px;
+  box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+  z-index: 201;
+}
+
+@media (max-width: 480px) {
+  .container.minimized {
+    width: 260px;
+    min-width: 260px;
+  }
+
+  .minimizeButton {
+    display: none !important;
+  }
 }
 
 .container::-webkit-scrollbar {
@@ -58,6 +82,21 @@
   position: relative;
   overflow: hidden;
   white-space: nowrap;
+}
+
+.container.minimized:not(:hover) .optionHolder {
+  justify-content: center;
+  gap: 0;
+  padding: 6px;
+}
+
+.container.minimized:not(:hover) .selectedMenu::before {
+  display: none;
+}
+
+.container.minimized:hover .optionHolder {
+  justify-content: flex-start;
+  gap: 10px;
 }
 
 .optionHolder:hover {
@@ -110,6 +149,36 @@
   font-size: 12px;
   font-weight: 500;
   letter-spacing: 0.1px;
+}
+
+.menuTitle {
+  opacity: 1;
+  transition: opacity 0.2s ease;
+  white-space: nowrap;
+}
+
+.container.minimized .hoverTitle {
+  opacity: 0;
+  max-width: 0;
+  overflow: hidden;
+  transition: opacity 0.3s ease 0.1s, max-width 0.3s ease;
+}
+
+.container.minimized:hover .hoverTitle {
+  opacity: 1;
+  max-width: 200px;
+}
+
+.hoverSubMenu {
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 0.3s ease 0.1s, max-height 0.3s ease;
+}
+
+.container.minimized:hover .hoverSubMenu {
+  max-height: 500px;
+  opacity: 1;
 }
 
 .icons-selected {
@@ -287,4 +356,33 @@
     left: 270px;
     z-index: 1000;
   }
+}
+
+.minimizeButton {
+  position: absolute;
+  bottom: 20px;
+  right: 10px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-radius: 6px;
+  background-color: var(--chakra-colors-purple-50);
+  color: var(--chakra-colors-purple-600);
+  transition: all 0.3s ease;
+  z-index: 10;
+}
+
+.minimizeButton:hover {
+  background-color: var(--chakra-colors-purple-100);
+}
+
+.minimizeButton i {
+  font-size: 12px;
+}
+
+.container.minimized .minimizeButton {
+  right: 24px;
 }
