@@ -22,7 +22,6 @@ function DepartmentView() {
   function getDepartmentData() {
     DepartmentHelper.getDepartment()
       .then((data) => {
-        console.log("CIDD", data);
         setDepartment(data);
       })
       .catch((err) => console.log(err));

@@ -11,14 +11,82 @@ import AgGrid from "../components/AgGrid";
 import { capitalize } from "../util/string";
 import Badge from "../components/Badge";
 import EmptyData from "../components/EmptyData";
+import MTDStatistics from "../components/Dashboard/MTDStatistics";
+import EmployeeStats from "../components/Dashboard/EmployeeStats";
 
-const StatsCardItem = (label, value, colorScheme) => {
+export const OverallStatsCard = (
+  totalData,
+  title,
+  colorScheme = "purple",
+  size = "md"
+) => {
+  const isEmpty =
+    totalData?.accountsList == undefined ||
+    totalData?.accountsList?.length === 0;
+
+  return (
+    <CustomContainer
+      title={title}
+      filledHeader
+      smallHeader
+      colorScheme={colorScheme}
+      size={size}
+    >
+      <Grid templateColumns="repeat(3, 1fr)" gap={6}>
+        {StatsCardItem(
+          "Total Sales",
+          isEmpty ? "-" : currencyFormatter(totalData?.total_sales),
+          colorScheme,
+          size
+        )}
+        {StatsCardItem(
+          "Total Bills",
+          isEmpty ? "-" : totalData?.no_of_bills,
+          colorScheme,
+          size
+        )}
+        {StatsCardItem(
+          "Avg Bill Value",
+          isEmpty || totalData?.no_of_bills == 0
+            ? "-"
+            : currencyFormatter(
+                totalData?.total_sales / totalData?.no_of_bills
+              ),
+          colorScheme,
+          size
+        )}
+      </Grid>
+    </CustomContainer>
+  );
+};
+
+const StatsCardItem = (label, value, colorScheme, size) => {
+  const getFontSize = () => {
+    if (size === "xs") {
+      return {
+        label: "x-small",
+        value: "md",
+      };
+    }
+
+    return {
+      label: "xs",
+      value: "2xl",
+    };
+  };
+
+  const fontSize = getFontSize();
+
   return (
     <Box>
-      <Text fontSize="xs" color="gray.600" fontWeight="medium">
+      <Text fontSize={fontSize.label} color="gray.600" fontWeight="medium">
         {label}
       </Text>
-      <Text fontSize="2xl" fontWeight="bold" color={`${colorScheme}.800`}>
+      <Text
+        fontSize={fontSize.value}
+        fontWeight="bold"
+        color={`${colorScheme}.800`}
+      >
         {value}
       </Text>
     </Box>
@@ -50,25 +118,6 @@ function Index() {
     ? mappedAccounts[selectedOutlet] ?? {}
     : { ...totalData, accountsList: accounts };
 
-  const mtdFilter = useMemo(() => {
-    const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
-    startOfDay.setDate(1);
-
-    const endOfDay = new Date();
-    endOfDay.setHours(23, 59, 59, 999);
-
-    return {
-      from_date: startOfDay.toISOString(),
-      to_date: endOfDay.toISOString(),
-      store_id: selectedOutlet,
-    };
-  }, [selectedOutlet]);
-
-  const { totalData: mtdTotalDataP, accounts: mtdAccounts } =
-    useAccounts(mtdFilter);
-  const mtdTotalData = { ...mtdTotalDataP, accountsList: mtdAccounts };
-
   const groupedByCashier = (mappedTotalData?.accountsList ?? []).reduce(
     (acc, item) => {
       if (!acc[item.cashier_id]) {
@@ -77,11 +126,13 @@ function Index() {
           total_sales: 0,
           cashier_name: item.cashier_name,
           outlet_name: item.outlet_name,
+          accountsList: [],
         };
       }
 
       acc[item.cashier_id].no_of_bills += parseInt(item.no_of_bills || 0, 10);
       acc[item.cashier_id].total_sales += parseFloat(item.total_sales || 0);
+      acc[item.cashier_id].accountsList.push(item);
 
       return acc;
     },
@@ -143,49 +194,6 @@ function Index() {
     }
   }, [storeId]);
 
-  const OverallStatsCard = (totalData, title, colorScheme = "purple") => {
-    const isEmpty =
-      totalData?.accountsList == undefined ||
-      totalData?.accountsList?.length === 0;
-
-    return (
-      <CustomContainer
-        title={title}
-        filledHeader
-        smallHeader
-        colorScheme={colorScheme}
-      >
-        <Grid templateColumns="repeat(3, 1fr)" gap={6}>
-          {StatsCardItem(
-            "Total Sales",
-            isEmpty ? "-" : currencyFormatter(totalData?.total_sales),
-            colorScheme
-          )}
-          {StatsCardItem(
-            "Total Bills",
-            isEmpty ? "-" : totalData?.no_of_bills,
-            colorScheme
-          )}
-          {StatsCardItem(
-            "Avg Bill Value",
-            isEmpty || totalData?.no_of_bills == 0
-              ? "-"
-              : currencyFormatter(
-                  totalData?.total_sales / totalData?.no_of_bills
-                ),
-            colorScheme
-          )}
-        </Grid>
-      </CustomContainer>
-    );
-  };
-
-  const getMTDTitle = () => {
-    return `Month to Date Statistics (${moment(mtdFilter.from_date).format(
-      "DD/MM/YY"
-    )} - ${moment(mtdFilter.to_date).format("DD/MM/YY")})`;
-  };
-
   const colDefs = [
     {
       field: "cashier_name",
@@ -223,6 +231,13 @@ function Index() {
       resizable: true,
       cellRenderer: (props) => props.value,
     },
+    {
+      field: "cashier_name",
+      headerName: "",
+      resizable: false,
+      maxWidth: 120,
+      cellRenderer: (props) => <EmployeeStats data={props.data} />,
+    },
   ];
 
   return (
@@ -239,7 +254,7 @@ function Index() {
           disabled={storeId !== null}
         />
 
-        {OverallStatsCard(mtdTotalData, getMTDTitle(), "blue")}
+        <MTDStatistics selectedOutlet={selectedOutlet} />
 
         {cashiersList.length > 0 ? (
           <>

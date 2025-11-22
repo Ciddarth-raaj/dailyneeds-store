@@ -16,6 +16,7 @@ function CustomContainer({
   defaultOpen = true,
   onToggle,
   colorScheme = "purple",
+  size = "md",
 }) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
 
@@ -39,9 +40,15 @@ function CustomContainer({
     return `var(--chakra-colors-${colorScheme}-${value})`;
   };
 
+  const getSizeClass = () => {
+    if (size === "xs") return styles.sizeXs;
+    if (size === "lg") return styles.sizeLg;
+    return styles.sizeMd;
+  };
+
   return (
     <div
-      className={styles.mainContainer}
+      className={`${styles.mainContainer} ${getSizeClass()}`}
       style={{
         borderColor: getColorSchemeColor(100),
         ...style,
@@ -49,7 +56,9 @@ function CustomContainer({
     >
       {title && (
         <div
-          className={`${styles.headingContainer} ${getHeaderStyle()}`}
+          className={`${
+            styles.headingContainer
+          } ${getHeaderStyle()} ${getSizeClass()}`}
           style={{
             borderColor: getColorSchemeColor(100),
             backgroundColor: filledHeader ? getColorSchemeColor(50) : "unset",
@@ -89,7 +98,7 @@ function CustomContainer({
 
       {(!toggleChildren || isOpen) && (
         <div
-          className={`${styles.contentContainer} ${
+          className={`${styles.contentContainer} ${getSizeClass()} ${
             noPadding ? styles.noPadding : ""
           }`}
         >
