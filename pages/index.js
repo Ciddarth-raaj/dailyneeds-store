@@ -236,7 +236,9 @@ function Index() {
       headerName: "",
       resizable: false,
       maxWidth: 120,
-      cellRenderer: (props) => <EmployeeStats data={props.data} />,
+      cellRenderer: (props) => (
+        <EmployeeStats data={props.data} fromDate={fromDate} toDate={toDate} />
+      ),
     },
   ];
 

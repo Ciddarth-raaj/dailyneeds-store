@@ -20,8 +20,9 @@ import CustomContainer from "../CustomContainer";
 import AgGrid from "../AgGrid";
 import currencyFormatter from "../../util/currencyFormatter";
 import moment from "moment";
+import DailyRecordsCalendar from "./DailyRecordsCalendar";
 
-function EmployeeStats({ data }) {
+function EmployeeStats({ data, fromDate, toDate }) {
   const { isOpen, onOpen, onClose } = useDisclosure();
   const btnRef = useRef();
 
@@ -99,6 +100,12 @@ function EmployeeStats({ data }) {
           <DrawerBody>
             <Flex flexDirection="column" gap="22px">
               {OverallStatsCard(data, "Statistics", "purple", "xs")}
+
+              <DailyRecordsCalendar
+                accountsList={accountsList}
+                fromDate={fromDate}
+                toDate={toDate}
+              />
 
               <CustomContainer
                 title="All Records"
