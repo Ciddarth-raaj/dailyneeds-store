@@ -2,6 +2,7 @@ import { themeQuartz } from "ag-grid-community";
 import { AgGridReact } from "ag-grid-react";
 import React from "react";
 import { icons } from "./icons";
+import { capitalize } from "../../util/string";
 
 const agGridTheme = themeQuartz.withParams({
   accentColor: "var(--chakra-colors-purple-500)",
@@ -42,6 +43,20 @@ const AgGrid = React.forwardRef(function AgGrid(
       pagination: true,
       paginationPageSize: defaultRows,
       icons,
+      columnTypes: {
+        id: {
+          maxWidth: 100,
+          resizable: false,
+          filter: false,
+        },
+        capitalized: {
+          cellRenderer: (props) => {
+            return props.value !== null && props.value !== ""
+              ? capitalize(props.value)
+              : "-";
+          },
+        },
+      },
     };
 
     return {

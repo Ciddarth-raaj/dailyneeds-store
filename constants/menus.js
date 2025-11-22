@@ -461,30 +461,30 @@ export default {
   //     },
   //   },
   // },
-  // tickets: {
-  //   title: "Tickets",
-  //   selected: false,
-  //   openPage: false,
-  //   icon: "fa-ticket",
-  //   subMenu: {
-  //     open_issue: {
-  //       title: "Open Issues",
-  //       permission: "view_open_issues",
-  //       selected: false,
-  //       location: "/open-issue",
-  //     },
-  //     // all_issue: {
-  //     //   title: 'All Issues',
-  //     //   selected: false,
-  //     //   location: '/all-issue'
-  //     // },
-  //     // add_issue: {
-  //     //   title: 'Add Issue',
-  //     //   selected: false,
-  //     //   location: '/addissue'
-  //     // },
-  //   },
-  // },
+  tickets: {
+    title: "Tickets",
+    selected: false,
+    openPage: false,
+    icon: "fa-ticket",
+    subMenu: {
+      open_issue: {
+        title: "View All",
+        permission: "view_tickets",
+        selected: false,
+        location: "/tickets",
+      },
+      // all_issue: {
+      //   title: 'All Issues',
+      //   selected: false,
+      //   location: '/all-issue'
+      // },
+      // add_issue: {
+      //   title: 'Add Issue',
+      //   selected: false,
+      //   location: '/addissue'
+      // },
+    },
+  },
   // contacts: {
   //   title: "Contacts",
   //   selected: false,

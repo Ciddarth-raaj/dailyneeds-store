@@ -1,17 +1,31 @@
 import { Box, Text } from "@chakra-ui/react";
 import React from "react";
 
-function Badge({ children, colorScheme = "purple" }) {
+function Badge({ children, colorScheme = "purple", size = "md" }) {
+  const sizes = {
+    xs: {
+      p: "4px 8px",
+      fontSize: "xs",
+      fontWeight: "500",
+    },
+    md: {
+      p: "6px 10px",
+      fontSize: "12px",
+    },
+  };
+
   return (
     <Box
       bgColor={`${colorScheme}.50`}
       h="min-content"
-      p="4px 8px"
+      p={sizes[size].p}
       borderRadius="4px"
+      border={`0.01px solid red`}
+      borderColor={`${colorScheme}.100`}
     >
       <Text
-        fontSize="xs"
-        fontWeight="500"
+        fontSize={sizes[size].fontSize}
+        fontWeight={sizes[size].fontWeight}
         color={`${colorScheme}.700`}
         lineHeight={1}
       >

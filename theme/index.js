@@ -35,6 +35,7 @@ const activeLabelStyles = {
 };
 
 const theme = extendTheme({
+  shadows: { outline: "0 0 0 2px var(--chakra-colors-purple-500)" },
   components: {
     Container,
     Button, // Add Button component configuration

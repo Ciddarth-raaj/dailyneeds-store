@@ -213,6 +213,14 @@ a {
   display: none;
 }
 
+::selection {
+  background: var(--chakra-colors-purple-100);
+}
+
+::-moz-selection {
+  background: var(--chakra-colors-purple-100);
+}
+
 @media print {
   .only-print {
     display: block;

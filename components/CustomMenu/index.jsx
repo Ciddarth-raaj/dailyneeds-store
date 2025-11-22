@@ -1,4 +1,4 @@
-import { IconButton, Portal } from "@chakra-ui/react";
+import { IconButton, Portal, Text } from "@chakra-ui/react";
 import { Menu, MenuItem } from "@szhsin/react-menu";
 import React from "react";
 
@@ -12,6 +12,7 @@ function CustomMenu({ items }) {
         <IconButton
           variant="ghost"
           colorScheme="purple"
+          size="xs"
           icon={<i className={`fa fa-ellipsis-v`} />}
         />
       }
@@ -19,7 +20,7 @@ function CustomMenu({ items }) {
     >
       {items.map((item) => (
         <MenuItem key={item.label} onClick={item.onClick}>
-          {item.label}
+          <Text fontSize="xs">{item.label}</Text>
         </MenuItem>
       ))}
     </Menu>
