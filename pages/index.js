@@ -61,8 +61,10 @@ function Index() {
     return {
       from_date: startOfDay.toISOString(),
       to_date: endOfDay.toISOString(),
+      store_id: selectedOutlet,
     };
-  }, []);
+  }, [selectedOutlet]);
+
   const { totalData: mtdTotalDataP, accounts: mtdAccounts } =
     useAccounts(mtdFilter);
   const mtdTotalData = { ...mtdTotalDataP, accountsList: mtdAccounts };
