@@ -61,7 +61,7 @@ export const priorityRenderer = (value) => {
   );
 };
 
-export const colDefs = (router) => [
+export const colDefs = (router, type = "all") => [
   {
     field: "id",
     headerName: "ID",
@@ -111,11 +111,21 @@ export const colDefs = (router) => [
           items={[
             {
               label: "View",
-              onClick: () => router.push(`/tickets/view?id=${props.value}`),
+              onClick: () =>
+                router.push(
+                  `/tickets/view?id=${props.value}${
+                    type === "my-tickets" ? "&type=my-tickets" : ""
+                  }`
+                ),
             },
             {
               label: "Edit",
-              onClick: () => router.push(`/tickets/edit?id=${props.value}`),
+              onClick: () =>
+                router.push(
+                  `/tickets/edit?id=${props.value}${
+                    type === "my-tickets" ? "&type=my-tickets" : ""
+                  }`
+                ),
             },
           ]}
         />

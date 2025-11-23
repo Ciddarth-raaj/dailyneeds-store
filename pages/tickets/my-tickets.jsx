@@ -22,7 +22,7 @@ function Tickets() {
   return (
     <GlobalWrapper title="My Tickets" permissionKey={["view_my_tickets"]}>
       <CustomContainer title="My Tickets" filledHeader>
-        <AgGrid rowData={tickets} columnDefs={colDefs(router)} />
+        <AgGrid rowData={tickets} columnDefs={colDefs(router, "my-tickets")} />
       </CustomContainer>
     </GlobalWrapper>
   );

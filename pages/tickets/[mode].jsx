@@ -90,10 +90,11 @@ const STATUS_LIST = [
 
 function TicketForm() {
   const router = useRouter();
-  const { mode, id: paramId } = router.query;
+  const { mode, id: paramId, type = "all" } = router.query;
   const viewMode = mode === "view";
   const editMode = mode === "edit";
   const createMode = mode === "create";
+  const onlyStatus = type === "my-tickets";
 
   const { ticket } = useTicketById(paramId);
   const { outlets } = useOutlets();
@@ -143,7 +144,7 @@ function TicketForm() {
   }, [ticket, createMode]);
 
   const handleSubmit = async (values) => {
-    const data = {
+    let data = {
       title: values.title,
       description: values.description,
       status: values.status,
@@ -200,11 +201,19 @@ function TicketForm() {
       }
     }
 
+    if (onlyStatus) {
+      data = {
+        status: values.status,
+      };
+    }
+
     toast.promise(editMode ? updateTicket(paramId, data) : createTicket(data), {
       loading: editMode ? "Updating Ticket!" : "Creating Ticket!",
       success: (data) => {
         if (data.code === 200 || data.id) {
-          router.push("/tickets");
+          router.push(
+            type === "my-tickets" ? "/tickets/my-tickets" : "/tickets"
+          );
           return editMode
             ? "Successfully Updated Ticket!"
             : "Successfully Created Ticket!";
@@ -240,8 +249,6 @@ function TicketForm() {
           {(formikProps) => {
             const { handleSubmit, resetForm, values, errors } = formikProps;
 
-            console.log("CIDD", errors);
-
             return (
               <div className={styles.inputContainer}>
                 <Flex gap="22px">
@@ -251,7 +258,7 @@ function TicketForm() {
                     name="outlet_id"
                     method="switch"
                     values={OUTLETS_LIST}
-                    editable={!viewMode && canAddTickets}
+                    editable={!viewMode && canAddTickets && !onlyStatus}
                   />
 
                   <CustomInput
@@ -260,7 +267,7 @@ function TicketForm() {
                     name="department_id"
                     method="switch"
                     values={DEPARTMENTS_LSIT}
-                    editable={!viewMode && canAddTickets}
+                    editable={!viewMode && canAddTickets && !onlyStatus}
                   />
                 </Flex>
 
@@ -273,7 +280,7 @@ function TicketForm() {
                     placeholder="Enter ticket title"
                     name="title"
                     type="text"
-                    editable={!viewMode && canAddTickets}
+                    editable={!viewMode && canAddTickets && !onlyStatus}
                   />
 
                   <CustomInput
@@ -282,7 +289,7 @@ function TicketForm() {
                     name="priority"
                     method="switch"
                     values={PRIORITY_LIST}
-                    editable={!viewMode && canAddTickets}
+                    editable={!viewMode && canAddTickets && !onlyStatus}
                     renderer={priorityRenderer}
                   />
 
@@ -301,7 +308,7 @@ function TicketForm() {
                     name="assigned_to"
                     method="switch"
                     values={getEmployeeList(values.outlet_id)}
-                    editable={!viewMode && canAddTickets}
+                    editable={!viewMode && canAddTickets && !onlyStatus}
                   />
                 </Flex>
 
@@ -310,14 +317,14 @@ function TicketForm() {
                   placeholder="Describe the task"
                   name="description"
                   method="TextArea"
-                  editable={!viewMode && canAddTickets}
+                  editable={!viewMode && canAddTickets && !onlyStatus}
                 />
 
                 <CustomInput
                   label="Files"
                   name="files"
                   method="file"
-                  editable={!viewMode && canAddTickets}
+                  editable={!viewMode && canAddTickets && !onlyStatus}
                   multiple
                   accept="image/*"
                 />

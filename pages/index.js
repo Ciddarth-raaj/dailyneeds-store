@@ -199,6 +199,7 @@ function Index() {
       field: "cashier_name",
       headerName: "Name",
       resizable: true,
+      flex: 1.75,
       cellRenderer: (props) => {
         return (
           <Flex alignItems="center" gap="10px">
