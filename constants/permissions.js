@@ -131,6 +131,8 @@ export const PERMISSIONS = {
   // Tickets
   tickets: {
     view_tickets: "View All Tickets",
+    view_my_tickets: "View User's Tickets",
+    add_tickets: "Add Tickets",
     // add_open_issues: "Add Open Issues",
     // view_all_issues: "View All Issues",
     // add_issue: "Add Issue",

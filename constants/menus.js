@@ -473,6 +473,12 @@ export default {
         selected: false,
         location: "/tickets",
       },
+      my_tickets: {
+        title: "My Tickets",
+        permission: "view_my_tickets",
+        selected: false,
+        location: "/tickets/my-tickets",
+      },
       // all_issue: {
       //   title: 'All Issues',
       //   selected: false,

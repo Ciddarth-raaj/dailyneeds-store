@@ -20,6 +20,7 @@ import { priorityRenderer, statusRenderer } from ".";
 import { useTelegramDepartments } from "../../customHooks/useTelegramDepartments";
 import FilesHelper from "../../helper/asset";
 import { createTicket, updateTicket } from "../../helper/tickets";
+import useEmployees from "../../customHooks/useEmployees";
 
 const CONSUMPTION_VALIDATION_SCHEMA = Yup.object().shape({
   date: Yup.date().required("Required"),
@@ -86,6 +87,20 @@ function TicketForm() {
   const { storeId } = useUser().userConfig;
   const { outlets } = useOutlets();
   const { departments } = useTelegramDepartments();
+  const { employees } = useEmployees();
+
+  const getEmployeeList = (storeId) => {
+    return employees
+      .filter((item) =>
+        storeId === null || item.store_id === null
+          ? true
+          : item.store_id == storeId
+      )
+      .map((item) => ({
+        id: item.employee_id,
+        value: item.employee_name,
+      }));
+  };
 
   const OUTLETS_LIST = outlets.map((item) => ({
     id: item.outlet_id,
@@ -121,7 +136,7 @@ function TicketForm() {
       status: values.status,
       priority: values.priority,
       outlet_id: values.outlet_id ?? null,
-      assigned_to: ticket?.assigned_to ?? null,
+      assigned_to: values.assigned_to ?? null,
       department_id: values.department_id ?? null,
     };
 
@@ -183,8 +198,12 @@ function TicketForm() {
     });
   };
 
+  const globalWrapperPermissionKey = createMode
+    ? ["add_tickets"]
+    : ["view_tickets"];
+
   return (
-    <GlobalWrapper>
+    <GlobalWrapper permissionKey={globalWrapperPermissionKey}>
       <CustomContainer
         title={
           viewMode ? "View Ticket" : editMode ? "Edit Ticket" : "Add New Ticket"
@@ -255,6 +274,15 @@ function TicketForm() {
                     values={STATUS_LIST}
                     editable={!viewMode}
                     renderer={statusRenderer}
+                  />
+
+                  <CustomInput
+                    label="Assigned To"
+                    isRequired
+                    name="assigned_to"
+                    method="switch"
+                    values={getEmployeeList(values.outlet_id)}
+                    editable={!viewMode}
                   />
                 </Flex>
 

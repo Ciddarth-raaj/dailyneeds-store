@@ -130,7 +130,7 @@ function Tickets() {
   const { tickets } = useTickets(filters);
 
   return (
-    <GlobalWrapper title="Tickets">
+    <GlobalWrapper title="Tickets" permissionKey={["view_tickets"]}>
       <CustomContainer
         title="Tickets"
         filledHeader
