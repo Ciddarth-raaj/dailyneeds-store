@@ -4,16 +4,11 @@ import { Formik } from "formik";
 import * as Yup from "yup";
 import CustomInput from "../../components/customInput/customInput";
 import styles from "../../styles/master.module.css";
-import { Button, Divider, Flex } from "@chakra-ui/react";
+import { Button, Divider, Flex, Text } from "@chakra-ui/react";
 import toast from "react-hot-toast";
 import { useRouter } from "next/router";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import useOutlets from "../../customHooks/useOutlets";
-import moment from "moment";
-import {
-  createEBConsumption,
-  updateEBConsumption,
-} from "../../helper/eb_consumption";
 import { useUser } from "../../contexts/UserContext";
 import useTicketById from "../../customHooks/useTicketById";
 import { priorityRenderer, statusRenderer } from ".";
@@ -21,28 +16,45 @@ import { useTelegramDepartments } from "../../customHooks/useTelegramDepartments
 import FilesHelper from "../../helper/asset";
 import { createTicket, updateTicket } from "../../helper/tickets";
 import useEmployees from "../../customHooks/useEmployees";
+import usePermissions from "../../customHooks/usePermissions";
 
-const CONSUMPTION_VALIDATION_SCHEMA = Yup.object().shape({
-  date: Yup.date().required("Required"),
-  branch_id: Yup.string().required("Required"),
-  opening_units: Yup.number()
-    .typeError("Must be a number")
-    .min(0, "Must be ≥ 0")
-    .required("Required"),
-  closing_units: Yup.number()
-    .typeError("Must be a number")
-    .min(0, "Must be ≥ 0")
-    .required("Required"),
-});
+const TICKET_VALIDATION_SCHEMA = Yup.object()
+  .shape({
+    title: Yup.string().required("Title is required"),
+    priority: Yup.string().required("Priority is required"),
+    status: Yup.string().required("Status is required"),
+    outlet_id: Yup.string().nullable(),
+    department_id: Yup.string().nullable(),
+    description: Yup.string().nullable(),
+    assigned_to: Yup.string().nullable(),
+    files: Yup.array().nullable(),
+  })
+  .test(
+    "branch-or-department",
+    "At least one of Branch or Department must be selected",
+    function (values) {
+      const hasOutlet = !!values?.outlet_id;
+      const hasDepartment = !!values?.department_id;
+
+      if (!hasOutlet && !hasDepartment) {
+        return this.createError({
+          path: "outlet_id", // or '' to attach to form-level error
+          message: "At least one of Branch or Department must be selected",
+        });
+      }
+
+      return true;
+    }
+  );
 
 const INITIAL_VALUES = {
   title: "",
   description: "",
-  status: null,
-  priority: null,
-  outlet_id: null,
-  assigned_to: null,
-  department_id: null,
+  status: "open",
+  priority: "",
+  outlet_id: "",
+  assigned_to: "",
+  department_id: "",
   files: [],
 };
 
@@ -84,10 +96,11 @@ function TicketForm() {
   const createMode = mode === "create";
 
   const { ticket } = useTicketById(paramId);
-  const { storeId } = useUser().userConfig;
   const { outlets } = useOutlets();
   const { departments } = useTelegramDepartments();
   const { employees } = useEmployees();
+
+  const canAddTickets = usePermissions(["add_tickets"]);
 
   const getEmployeeList = (storeId) => {
     return employees
@@ -135,23 +148,31 @@ function TicketForm() {
       description: values.description,
       status: values.status,
       priority: values.priority,
-      outlet_id: values.outlet_id ?? null,
-      assigned_to: values.assigned_to ?? null,
-      department_id: values.department_id ?? null,
+      outlet_id: values.outlet_id === "" ? null : values.outlet_id,
+      assigned_to: values.assigned_to === "" ? null : values.assigned_to,
+      department_id: values.department_id === "" ? null : values.department_id,
     };
 
     if (!editMode) {
       data.images = [];
 
-      for (const item of values.files) {
-        try {
-          const res = await FilesHelper.upload(item, item.name, "tickets");
+      if (values.files && values.files.length > 0) {
+        for (const item of values.files) {
+          // If item is a string (URL), use it directly
+          if (typeof item === "string") {
+            data.images.push(item);
+          } else {
+            // If item is a File object, upload it
+            try {
+              const res = await FilesHelper.upload(item, item.name, "tickets");
 
-          if (res.code === 200) {
-            data.images.push(res.remoteUrl);
+              if (res.code === 200) {
+                data.images.push(res.remoteUrl);
+              }
+            } catch (err) {
+              console.log(err);
+            }
           }
-        } catch (err) {
-          console.log(err);
         }
       }
     } else {
@@ -213,34 +234,33 @@ function TicketForm() {
         <Formik
           enableReinitialize
           initialValues={initialValues}
-          //   validationSchema={CONSUMPTION_VALIDATION_SCHEMA}
+          validationSchema={TICKET_VALIDATION_SCHEMA}
           onSubmit={handleSubmit}
         >
           {(formikProps) => {
-            const { handleSubmit, resetForm, values, setFieldValue } =
-              formikProps;
+            const { handleSubmit, resetForm, values, errors } = formikProps;
+
+            console.log("CIDD", errors);
 
             return (
               <div className={styles.inputContainer}>
                 <Flex gap="22px">
                   <CustomInput
                     label="Branch"
-                    isRequired
                     placeholder="Click here to select branch..."
                     name="outlet_id"
                     method="switch"
                     values={OUTLETS_LIST}
-                    editable={!viewMode}
+                    editable={!viewMode && canAddTickets}
                   />
 
                   <CustomInput
                     label="Department"
-                    isRequired
                     placeholder="Click here to select department..."
-                    name="branch_id"
+                    name="department_id"
                     method="switch"
                     values={DEPARTMENTS_LSIT}
-                    editable={!viewMode}
+                    editable={!viewMode && canAddTickets}
                   />
                 </Flex>
 
@@ -253,7 +273,7 @@ function TicketForm() {
                     placeholder="Enter ticket title"
                     name="title"
                     type="text"
-                    editable={!viewMode}
+                    editable={!viewMode && canAddTickets}
                   />
 
                   <CustomInput
@@ -262,7 +282,7 @@ function TicketForm() {
                     name="priority"
                     method="switch"
                     values={PRIORITY_LIST}
-                    editable={!viewMode}
+                    editable={!viewMode && canAddTickets}
                     renderer={priorityRenderer}
                   />
 
@@ -278,31 +298,39 @@ function TicketForm() {
 
                   <CustomInput
                     label="Assigned To"
-                    isRequired
                     name="assigned_to"
                     method="switch"
                     values={getEmployeeList(values.outlet_id)}
-                    editable={!viewMode}
+                    editable={!viewMode && canAddTickets}
                   />
                 </Flex>
 
                 <CustomInput
-                  label="Decription"
+                  label="Description"
                   placeholder="Describe the task"
                   name="description"
-                  type="number"
                   method="TextArea"
-                  editable={!viewMode}
+                  editable={!viewMode && canAddTickets}
                 />
 
                 <CustomInput
                   label="Files"
                   name="files"
                   method="file"
-                  editable={!viewMode}
+                  editable={!viewMode && canAddTickets}
                   multiple
                   accept="image/*"
                 />
+
+                {!viewMode &&
+                  errors.items &&
+                  typeof errors.items === "string" && (
+                    <Flex justifyContent="flex-end">
+                      <Text color="red" fontSize="sm">
+                        {errors.items}
+                      </Text>
+                    </Flex>
+                  )}
 
                 {!viewMode && (
                   <Flex

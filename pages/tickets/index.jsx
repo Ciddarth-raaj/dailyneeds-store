@@ -78,6 +78,11 @@ export const colDefs = (router) => [
     type: "capitalized",
   },
   {
+    field: "department_name",
+    headerName: "Department",
+    type: "capitalized",
+  },
+  {
     field: "assigned_to_name",
     headerName: "Assigned To",
     type: "capitalized",

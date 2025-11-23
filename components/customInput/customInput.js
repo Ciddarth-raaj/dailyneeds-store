@@ -164,7 +164,7 @@ const TextField = ({
           <Flex flexDirection="column" gap="16px" mt="4px">
             {value.map((item, index) => {
               return (
-                <Flex key={index} gap="12px">
+                <Flex key={index} gap="12px" alignItems="center">
                   <Text fontSize="sm" noOfLines={1} maxW={"250px"}>
                     {item.replace(
                       "https://dailyneeds-assets-dev.s3.ap-south-1.amazonaws.com/",
