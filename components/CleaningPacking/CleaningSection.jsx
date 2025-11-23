@@ -66,6 +66,7 @@ function CleaningSection({ cleaningItems, nonCleaningItems }) {
         rightSection={
           <Button
             colorScheme="purple"
+            variant="new-outline"
             onClick={() => handleExport(cleaningItems, "cleaning")}
           >
             Export
@@ -92,6 +93,7 @@ function CleaningSection({ cleaningItems, nonCleaningItems }) {
         rightSection={
           <Button
             colorScheme="purple"
+            variant="new-outline"
             onClick={() => handleExport(nonCleaningItems, "no-cleaning")}
           >
             Export

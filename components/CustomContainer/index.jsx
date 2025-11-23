@@ -62,6 +62,10 @@ function CustomContainer({
           style={{
             borderColor: getColorSchemeColor(100),
             backgroundColor: filledHeader ? getColorSchemeColor(50) : "unset",
+            borderBottomColor:
+              !toggleChildren || isOpen
+                ? getColorSchemeColor(100)
+                : "transparent",
           }}
         >
           <p

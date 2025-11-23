@@ -232,7 +232,11 @@ function Create() {
                     onChange={(e) => handleFileChange(e, setValues)}
                   />
 
-                  <Button colorScheme="purple" onClick={triggerFileInput}>
+                  <Button
+                    colorScheme="purple"
+                    onClick={triggerFileInput}
+                    variant="new-outline"
+                  >
                     Import
                   </Button>
                 </>

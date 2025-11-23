@@ -137,7 +137,11 @@ function EmployeeIndex() {
 
             {getLastSynced()}
 
-            <Button colorScheme="purple" onClick={handleSync}>
+            <Button
+              variant="new-outline"
+              colorScheme="purple"
+              onClick={handleSync}
+            >
               Sync
             </Button>
           </Flex>

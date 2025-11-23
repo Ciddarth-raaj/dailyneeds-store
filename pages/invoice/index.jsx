@@ -144,7 +144,9 @@ function Invoice() {
         filledHeader
         rightSection={
           <Link href="/invoice/create" passHref>
-            <Button colorScheme="purple">Add Invoice</Button>
+            <Button colorScheme="purple" variant="new-outline">
+              Add Invoice
+            </Button>
           </Link>
         }
       >

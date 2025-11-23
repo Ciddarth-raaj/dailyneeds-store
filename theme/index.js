@@ -32,7 +32,8 @@ const Button = {
       const { colorScheme: c } = props;
 
       return {
-        bg: `${c}.50`,
+        fontWeight: 500,
+        bg: `white`,
         border: `1px solid transparent`,
         borderColor: `${c}.100`,
         color: `${c}.500`,

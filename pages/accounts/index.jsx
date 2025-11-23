@@ -33,10 +33,13 @@ function Index() {
     <GlobalWrapper title="Account Sheet">
       <CustomContainer
         title="Account Sheet"
+        filledHeader
         rightSection={
           canAddSheet ? (
             <Link href="/accounts/create" passHref>
-              <Button colorScheme="purple">Add New Sheet</Button>
+              <Button colorScheme="purple" variant="new-outline">
+                Add New Sheet
+              </Button>
             </Link>
           ) : null
         }

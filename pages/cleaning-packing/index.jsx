@@ -27,7 +27,7 @@ const getLastSyncedComponent = (list) => {
   }
 
   return (
-    <Text fontSize="sm" color="#FFFFFF">
+    <Text fontSize="sm" color="purple.500">
       Last Sync - {moment(list[0].created_at).fromNow()}
     </Text>
   );
@@ -147,11 +147,19 @@ function CleaningPacking() {
           <Flex alignItems="center" gap={4}>
             {getLastSyncedComponent(machinePackedItems)}
 
-            <Button colorScheme="purple" onClick={handleSync}>
+            <Button
+              colorScheme="purple"
+              onClick={handleSync}
+              variant="new-outline"
+            >
               Sync Now
             </Button>
 
-            <Button colorScheme="purple" onClick={handleExportAll}>
+            <Button
+              colorScheme="purple"
+              onClick={handleExportAll}
+              variant="new-outline"
+            >
               Export All
             </Button>
           </Flex>
@@ -170,6 +178,7 @@ function CleaningPacking() {
             defaultOpen={false}
             rightSection={
               <Button
+                variant="new-outline"
                 colorScheme="purple"
                 onClick={() => handleExport(handpackedItems, "hand-packed")}
               >
@@ -196,6 +205,7 @@ function CleaningPacking() {
             defaultOpen={false}
             rightSection={
               <Button
+                variant="new-outline"
                 colorScheme="purple"
                 onClick={() =>
                   handleExport(machinePackedItems, "machine-bulk-packed")

@@ -331,7 +331,11 @@ function Items() {
         title="Repack Items"
         filledHeader
         rightSection={
-          <Button colorScheme="purple" onClick={handleExport}>
+          <Button
+            colorScheme="purple"
+            onClick={handleExport}
+            variant="new-outline"
+          >
             Export
           </Button>
         }

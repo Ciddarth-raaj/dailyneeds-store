@@ -1,7 +1,7 @@
 export const icons = {
   // Core
   menu: '<i class="fa-solid fa-bars"></i>',
-  filter: '<i class="fa-solid fa-filter"></i>',
+  filter: '<i class="fa-solid fa-magnifying-glass fa-sm"></i>',
   columns: '<i class="fa-solid fa-table-columns"></i>',
   sortAscending: '<i class="fa-solid fa-arrow-up"></i>',
   sortDescending: '<i class="fa-solid fa-arrow-down"></i>',

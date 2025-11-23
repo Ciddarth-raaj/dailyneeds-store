@@ -141,7 +141,9 @@ function MaterialsCategory() {
         rightSection={
           canAddCategory ? (
             <Link href="/materials/category/create" passHref>
-              <Button colorScheme="purple">Add</Button>
+              <Button colorScheme="purple" variant="new-outline">
+                Add
+              </Button>
             </Link>
           ) : null
         }

@@ -1,7 +1,7 @@
 import { Box, Text } from "@chakra-ui/react";
 import React from "react";
 
-function Badge({ children, colorScheme = "purple", size = "md" }) {
+function Badge({ children, colorScheme = "purple", size = "xs" }) {
   const sizes = {
     xs: {
       p: "4px 8px",
