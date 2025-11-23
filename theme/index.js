@@ -27,6 +27,21 @@ const Button = {
       fontSize: "16px",
     },
   },
+  variants: {
+    "new-outline": (props) => {
+      const { colorScheme: c } = props;
+
+      return {
+        bg: `${c}.50`,
+        border: `1px solid transparent`,
+        borderColor: `${c}.100`,
+        color: `${c}.500`,
+        _hover: {
+          bg: `${c}.100`,
+        },
+      };
+    },
+  },
 };
 
 const activeLabelStyles = {
@@ -34,11 +49,25 @@ const activeLabelStyles = {
   color: "purple.500",
 };
 
+const defaultFocusColor = "purple.500";
+
 const theme = extendTheme({
+  styles: {
+    global: {
+      // styles for the `body`
+      input: {
+        focusBorderColor: "cyan.500",
+      },
+    },
+  },
   shadows: { outline: "0 0 0 2px var(--chakra-colors-purple-500)" },
   components: {
     Container,
     Button, // Add Button component configuration
+    Input: { defaultProps: { focusBorderColor: defaultFocusColor } },
+    Select: { defaultProps: { focusBorderColor: defaultFocusColor } },
+    Textarea: { defaultProps: { focusBorderColor: defaultFocusColor } },
+    NumberInput: { defaultProps: { focusBorderColor: defaultFocusColor } },
     Form: {
       variants: {
         floating: {

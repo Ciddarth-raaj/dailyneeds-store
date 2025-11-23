@@ -19,6 +19,7 @@ import {
   Switch,
   Flex,
   Text,
+  Button,
 } from "@chakra-ui/react";
 import { useState } from "react";
 import DatePicker from "react-datepicker";
@@ -26,6 +27,7 @@ import Timekeeper from "react-timekeeper";
 import styles from "./customInput.module.css";
 import moment from "moment";
 import { useDropzone } from "react-dropzone";
+import Link from "next/link";
 
 export const CustomDateTimeInput = forwardRef(
   (
@@ -71,6 +73,8 @@ const TextField = ({
   floatingLabel = false,
   position = "top",
   labelWidth = "unset",
+  multiple = false,
+  renderer,
   ...props
 }) => {
   const { setFieldValue } = useFormikContext();
@@ -108,16 +112,23 @@ const TextField = ({
   // Add file upload handling
   const onDrop = useCallback(
     (acceptedFiles) => {
-      setFieldValue(field.name, acceptedFiles[0]);
+      if (multiple) {
+        // For multiple files, set as array
+        const currentFiles = Array.isArray(field.value) ? field.value : [];
+        setFieldValue(field.name, [...currentFiles, ...acceptedFiles]);
+      } else {
+        // For single file, set as single file
+        setFieldValue(field.name, acceptedFiles[0]);
+      }
     },
-    [field.name, setFieldValue]
+    [field.name, field.value, setFieldValue, multiple]
   );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept,
     maxSize,
-    multiple: false,
+    multiple: multiple,
   });
 
   const getStaticLabelStyles = () => {
@@ -147,6 +158,40 @@ const TextField = ({
       return values.find((item) => item.id === value)?.value ?? "N/A";
     }
 
+    if (method === "file") {
+      if (Array.isArray(value) && value.length > 0) {
+        return (
+          <Flex flexDirection="column" gap="16px" mt="4px">
+            {value.map((item, index) => {
+              return (
+                <Flex key={index} gap="12px">
+                  <Text fontSize="sm" noOfLines={1} maxW={"250px"}>
+                    {item.replace(
+                      "https://dailyneeds-assets-dev.s3.ap-south-1.amazonaws.com/",
+                      ""
+                    )}
+                  </Text>
+                  <Link href={item} passHref>
+                    <a target="_blank" rel="noopener noreferrer">
+                      <Button size="xs" variant="link" colorScheme="purple">
+                        Open File
+                      </Button>
+                    </a>
+                  </Link>
+                </Flex>
+              );
+            })}
+          </Flex>
+        );
+      }
+
+      return (
+        <Flex>
+          <Text>{value}</Text>
+        </Flex>
+      );
+    }
+
     return value;
   };
 
@@ -170,7 +215,11 @@ const TextField = ({
           >
             {label?.replace("*", "")}
           </label>
-          <p className={styles.infoText}>{getDisplayValue(field.value)}</p>
+          {renderer ? (
+            renderer(field.value)
+          ) : (
+            <p className={styles.infoText}>{getDisplayValue(field.value)}</p>
+          )}
         </div>
       ) : (
         <>
@@ -505,35 +554,87 @@ const TextField = ({
                 }`}
               >
                 <input {...getInputProps()} />
-                {field.value ? (
-                  <div className={styles.fileInfo}>
-                    <i className="fa fa-file" />
-                    <span className={styles.fileNameStyle}>
-                      {field.value.name}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setFieldValue(field.name, null);
-                      }}
-                      className={styles.removeFile}
-                    >
-                      <i className="fa fa-times" />
-                    </button>
-                  </div>
+                {multiple ? (
+                  // Multiple files mode
+                  <>
+                    {Array.isArray(field.value) && field.value.length > 0 ? (
+                      <div className={styles.fileList}>
+                        {field.value.map((file, index) => (
+                          <div key={index} className={styles.fileInfo}>
+                            <i className="fa fa-file" />
+                            <span className={styles.fileNameStyle}>
+                              {(file.name ?? file)?.replace(
+                                "https://dailyneeds-assets-dev.s3.ap-south-1.amazonaws.com/",
+                                ""
+                              )}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const updatedFiles = field.value.filter(
+                                  (_, i) => i !== index
+                                );
+                                setFieldValue(
+                                  field.name,
+                                  updatedFiles.length > 0 ? updatedFiles : null
+                                );
+                              }}
+                              className={styles.removeFile}
+                            >
+                              <i className="fa fa-times" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className={styles.placeholder}>
+                        <i className="fa fa-cloud-upload" />
+                        <p
+                          className={styles.fileNameStyle}
+                          style={{ textAlign: "center" }}
+                        >
+                          {isDragActive
+                            ? "Drop the files here"
+                            : "Drag & drop files here, or click to select"}
+                        </p>
+                      </div>
+                    )}
+                  </>
                 ) : (
-                  <div className={styles.placeholder}>
-                    <i className="fa fa-cloud-upload" />
-                    <p
-                      className={styles.fileNameStyle}
-                      style={{ textAlign: "center" }}
-                    >
-                      {isDragActive
-                        ? "Drop the file here"
-                        : "Drag & drop a file here, or click to select"}
-                    </p>
-                  </div>
+                  // Single file mode
+                  <>
+                    {field.value ? (
+                      <div className={styles.fileInfo}>
+                        <i className="fa fa-file" />
+                        <span className={styles.fileNameStyle}>
+                          {field.value.name}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setFieldValue(field.name, null);
+                          }}
+                          className={styles.removeFile}
+                        >
+                          <i className="fa fa-times" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className={styles.placeholder}>
+                        <i className="fa fa-cloud-upload" />
+                        <p
+                          className={styles.fileNameStyle}
+                          style={{ textAlign: "center" }}
+                        >
+                          {isDragActive
+                            ? "Drop the file here"
+                            : "Drag & drop a file here, or click to select"}
+                        </p>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </div>

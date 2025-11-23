@@ -4,9 +4,62 @@ import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../components/CustomContainer";
 import { useTickets } from "../../customHooks/useTickets";
 import Badge from "../../components/Badge";
-import { Flex } from "@chakra-ui/react";
+import { Button, Flex } from "@chakra-ui/react";
 import CustomMenu from "../../components/CustomMenu";
 import { useRouter } from "next/router";
+
+export const statusRenderer = (value) => {
+  let style = {
+    colorScheme: "gray",
+    label: "None",
+  };
+
+  if (value === "closed") {
+    style.colorScheme = "gray";
+    style.label = "Closed";
+  } else if (value === "in_progress") {
+    style.colorScheme = "blue";
+    style.label = "In Progress";
+  } else if (value === "open") {
+    style.colorScheme = "orange";
+    style.label = "Open";
+  }
+
+  return (
+    <Flex alignItems="center" h="100%">
+      <Badge size="md" colorScheme={style.colorScheme}>
+        {style.label}
+      </Badge>
+    </Flex>
+  );
+};
+
+export const priorityRenderer = (value) => {
+  let style = {
+    colorScheme: "gray",
+    label: "None",
+  };
+
+  if (value === "high") {
+    style.colorScheme = "red";
+    style.label = "High";
+  } else if (value === "medium") {
+    style.colorScheme = "orange";
+    style.label = "Medium";
+  } else if (value === "low") {
+    style.colorScheme = "blue";
+    style.label = "Low";
+  } else if (value === "urgent") {
+    style.colorScheme = "red";
+    style.label = "Urgent❗";
+  }
+
+  return (
+    <Flex size="md" alignItems="center" h="100%">
+      <Badge colorScheme={style.colorScheme}>{style.label}</Badge>
+    </Flex>
+  );
+};
 
 export const colDefs = (router) => [
   {
@@ -37,61 +90,12 @@ export const colDefs = (router) => [
   {
     field: "priority",
     headerName: "Priority",
-    cellRenderer: (props) => {
-      let style = {
-        colorScheme: "gray",
-        label: "None",
-      };
-
-      if (props.value === "high") {
-        style.colorScheme = "red";
-        style.label = "High";
-      } else if (props.value === "medium") {
-        style.colorScheme = "orange";
-        style.label = "Medium";
-      } else if (props.value === "low") {
-        style.colorScheme = "blue";
-        style.label = "Low";
-      } else if (props.value === "urgent") {
-        style.colorScheme = "red";
-        style.label = "Urgent❗";
-      }
-
-      return (
-        <Flex size="md" alignItems="center" h="100%">
-          <Badge colorScheme={style.colorScheme}>{style.label}</Badge>
-        </Flex>
-      );
-    },
+    cellRenderer: (props) => priorityRenderer(props.value),
   },
   {
     field: "status",
     headerName: "Status",
-    cellRenderer: (props) => {
-      let style = {
-        colorScheme: "gray",
-        label: "None",
-      };
-
-      if (props.value === "closed") {
-        style.colorScheme = "gray";
-        style.label = "Closed";
-      } else if (props.value === "in_progress") {
-        style.colorScheme = "blue";
-        style.label = "In Progress";
-      } else if (props.value === "open") {
-        style.colorScheme = "orange";
-        style.label = "Open";
-      }
-
-      return (
-        <Flex alignItems="center" h="100%">
-          <Badge size="md" colorScheme={style.colorScheme}>
-            {style.label}
-          </Badge>
-        </Flex>
-      );
-    },
+    cellRenderer: (props) => statusRenderer(props.value),
   },
   {
     field: "id",
@@ -127,7 +131,19 @@ function Tickets() {
 
   return (
     <GlobalWrapper title="Tickets">
-      <CustomContainer title="Tickets" filledHeader>
+      <CustomContainer
+        title="Tickets"
+        filledHeader
+        rightSection={
+          <Button
+            colorScheme="purple"
+            variant="new-outline"
+            onClick={() => router.push("/tickets/create")}
+          >
+            Add Ticket
+          </Button>
+        }
+      >
         <AgGrid rowData={tickets} columnDefs={colDefs(router)} />
       </CustomContainer>
     </GlobalWrapper>

@@ -123,3 +123,9 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+.fileList {
+  gap: 10px;
+  display: flex;
+  flex-direction: column;
+}

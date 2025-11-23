@@ -15,3 +15,36 @@ export const getAllTickets = async (filters = {}) => {
     throw err;
   }
 };
+
+export const getTicketById = (id) => {
+  return new Promise(async function (resolve, reject) {
+    try {
+      const data = await API.get(`/ticket/${id}`);
+      resolve(data.data);
+    } catch (err) {
+      reject(err);
+    }
+  });
+};
+
+export const createTicket = (params) => {
+  return new Promise(async function (resolve, reject) {
+    try {
+      const data = await API.post(`/ticket`, params);
+      resolve(data.data);
+    } catch (err) {
+      reject(err);
+    }
+  });
+};
+
+export const updateTicket = (id, params) => {
+  return new Promise(async function (resolve, reject) {
+    try {
+      const data = await API.put(`/ticket/${id}`, params);
+      resolve(data.data);
+    } catch (err) {
+      reject(err);
+    }
+  });
+};
