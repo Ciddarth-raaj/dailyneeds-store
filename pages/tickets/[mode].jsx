@@ -144,31 +144,65 @@ function TicketForm() {
   }, [ticket, createMode]);
 
   const handleSubmit = async (values) => {
-    let data = {
-      title: values.title,
-      description: values.description,
-      status: values.status,
-      priority: values.priority,
-      outlet_id: values.outlet_id === "" ? null : values.outlet_id,
-      assigned_to: values.assigned_to === "" ? null : values.assigned_to,
-      department_id: values.department_id === "" ? null : values.department_id,
-    };
+    const toastId = toast.loading(
+      editMode ? "Updating Ticket!" : "Creating Ticket!"
+    );
 
-    if (!editMode) {
-      data.images = [];
+    try {
+      let data = {
+        title: values.title,
+        description: values.description,
+        status: values.status,
+        priority: values.priority,
+        outlet_id: values.outlet_id === "" ? null : values.outlet_id,
+        assigned_to: values.assigned_to === "" ? null : values.assigned_to,
+        department_id:
+          values.department_id === "" ? null : values.department_id,
+      };
 
-      if (values.files && values.files.length > 0) {
+      if (!editMode) {
+        data.images = [];
+
+        if (values.files && values.files.length > 0) {
+          for (const item of values.files) {
+            // If item is a string (URL), use it directly
+            if (typeof item === "string") {
+              data.images.push(item);
+            } else {
+              // If item is a File object, upload it
+              try {
+                const res = await FilesHelper.upload(
+                  item,
+                  item.name,
+                  "tickets"
+                );
+
+                if (res.code === 200) {
+                  data.images.push(res.remoteUrl);
+                }
+              } catch (err) {
+                console.log(err);
+              }
+            }
+          }
+        }
+      } else {
+        data.images_to_delete = [];
+        data.images_to_add = [];
+
+        const deletedImages = ticket.images.filter(
+          (item) => !values.files?.includes(item.s3_url)
+        );
+
+        data.images_to_delete = deletedImages.map((item) => item.image_id);
+
         for (const item of values.files) {
-          // If item is a string (URL), use it directly
-          if (typeof item === "string") {
-            data.images.push(item);
-          } else {
-            // If item is a File object, upload it
+          if (typeof item !== "string") {
             try {
               const res = await FilesHelper.upload(item, item.name, "tickets");
 
               if (res.code === 200) {
-                data.images.push(res.remoteUrl);
+                data.images_to_add.push(res.remoteUrl);
               }
             } catch (err) {
               console.log(err);
@@ -176,56 +210,49 @@ function TicketForm() {
           }
         }
       }
-    } else {
-      data.images_to_delete = [];
-      data.images_to_add = [];
 
-      const deletedImages = ticket.images.filter(
-        (item) => !values.files?.includes(item.s3_url)
-      );
-
-      data.images_to_delete = deletedImages.map((item) => item.image_id);
-
-      for (const item of values.files) {
-        if (typeof item !== "string") {
-          try {
-            const res = await FilesHelper.upload(item, item.name, "tickets");
-
-            if (res.code === 200) {
-              data.images_to_add.push(res.remoteUrl);
-            }
-          } catch (err) {
-            console.log(err);
-          }
-        }
+      if (onlyStatus) {
+        data = {
+          status: values.status,
+        };
       }
-    }
 
-    if (onlyStatus) {
-      data = {
-        status: values.status,
-      };
-    }
+      const promise = editMode
+        ? updateTicket(paramId, data)
+        : createTicket(data);
+      const response = await promise;
 
-    toast.promise(editMode ? updateTicket(paramId, data) : createTicket(data), {
-      loading: editMode ? "Updating Ticket!" : "Creating Ticket!",
-      success: (data) => {
-        if (data.code === 200 || data.id) {
-          router.push(
-            type === "my-tickets" ? "/tickets/my-tickets" : "/tickets"
-          );
-          return editMode
-            ? "Successfully Updated Ticket!"
-            : "Successfully Created Ticket!";
-        } else {
-          throw data;
+      if (response.code === 200 || response.id) {
+        if (editMode && ticket.assigned_to !== values.assigned_to) {
+          await updateTicket(paramId, {
+            assigned_to: values.assigned_to,
+          });
         }
-      },
-      error: (err) => {
-        console.log(err);
-        return editMode ? "Error Updating Ticket!" : "Error Creating Ticket!";
-      },
-    });
+
+        toast.success(
+          editMode
+            ? "Successfully Updated Ticket!"
+            : "Successfully Created Ticket!",
+          {
+            id: toastId,
+          }
+        );
+
+        router.push(type === "my-tickets" ? "/tickets/my-tickets" : "/tickets");
+      } else {
+        throw response;
+      }
+    } catch (err) {
+      console.log(err);
+      toast.error(
+        editMode ? "Error Updating Ticket!" : "Error Creating Ticket!",
+        {
+          id: toastId,
+        }
+      );
+    } finally {
+      toast.dismiss(toastId);
+    }
   };
 
   const globalWrapperPermissionKey = createMode
