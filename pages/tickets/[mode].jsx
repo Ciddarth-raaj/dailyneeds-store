@@ -250,8 +250,6 @@ function TicketForm() {
           id: toastId,
         }
       );
-    } finally {
-      toast.dismiss(toastId);
     }
   };
 
