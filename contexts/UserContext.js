@@ -4,6 +4,8 @@ import EmployeeHelper from "../helper/employee";
 
 const UserContext = createContext();
 
+const ACCESS_ALL_STORES_PERMISSION = "all_stores";
+
 export function UserProvider({ children }) {
   const [userConfig, setUserConfig] = useState({
     token: null,
@@ -15,12 +17,18 @@ export function UserProvider({ children }) {
     fetched: {},
   });
 
+  const accessAllStores =
+    Array.isArray(userConfig?.permissions) &&
+    userConfig?.permissions?.some(
+      (permission) => permission.permission_key === ACCESS_ALL_STORES_PERMISSION
+    );
+
   useEffect(() => {
     fetchUser();
     getPermissions();
     // Initialize from localStorage
     const token = localStorage.getItem("Token");
-    const storeId = localStorage.getItem("Store_id");
+    const storeId = accessAllStores ? null : localStorage.getItem("Store_id");
     const designationId = localStorage.getItem("Designation_id");
     const userType = localStorage.getItem("User_type");
     const employeeId = localStorage.getItem("Employee_id");
@@ -35,6 +43,12 @@ export function UserProvider({ children }) {
       permissions,
     });
   }, []);
+
+  useEffect(() => {
+    if (accessAllStores) {
+      updateUserConfig({ storeId: null });
+    }
+  }, [accessAllStores]);
 
   const getPermissions = () => {
     DesignationHelper.getPermissionById()
@@ -119,12 +133,17 @@ export function UserProvider({ children }) {
   const fetchUser = async () => {
     try {
       const response = await EmployeeHelper.getCurrentUserDetails();
+      let fetched = {};
 
       if (response) {
-        setUserConfig((value) => ({ ...value, fetched: response[0] }));
-      } else {
-        setUserConfig((value) => ({ ...value, fetched: {} }));
+        fetched = response[0];
       }
+
+      setUserConfig((value) => ({
+        ...value,
+        fetched,
+        storeId: accessAllStores ? null : fetched.store_id,
+      }));
     } catch (error) {
       console.error("Error fetching user details:", error);
     }

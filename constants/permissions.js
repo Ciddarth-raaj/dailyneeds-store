@@ -137,4 +137,8 @@ export const PERMISSIONS = {
     // view_all_issues: "View All Issues",
     // add_issue: "Add Issue",
   },
+  // Misc
+  miscellaneous: {
+    all_stores: "Access All Stores",
+  },
 };
