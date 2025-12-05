@@ -7,19 +7,13 @@ import useEBConsumptions from "../../customHooks/useEBConsumptions";
 import moment from "moment";
 import Link from "next/link";
 import { Menu, MenuItem } from "@szhsin/react-menu";
-
-const HEADINGS = {
-  consumption_id: "ID",
-  outlet_name: "Outlet",
-  date: "Date",
-  opening_units: "Opening Units",
-  closing_units: "Closing Units",
-  night_consumption: "Night Consumption",
-  day_consumption: "Day Consumption",
-  action: "Action",
-};
+import AgGrid from "../../components/AgGrid";
+import { Flex } from "@chakra-ui/react";
+import CustomMenu from "../../components/CustomMenu";
+import { useRouter } from "next/router";
 
 function EBConsumption() {
+  const router = useRouter();
   const { ebConsumptions, handleDelete } = useEBConsumptions();
 
   const getLastEBConsumption = ({ date, branch_id }) => {
@@ -60,42 +54,70 @@ function EBConsumption() {
     return {
       ...ebConsumption,
       date: moment(ebConsumption.date).format("DD/MM/YYYY"),
-      night_consumption: `${nightConsumption} units`,
-      day_consumption: `${dayConsumption} units`,
-      action: (
-        <Menu
-          align="end"
-          gap={5}
-          menuButton={
-            <IconButton
-              variant="ghost"
-              colorScheme="purple"
-              icon={<i className={`fa fa-ellipsis-v`} />}
-            />
-          }
-          transition
-        >
-          <Link
-            href={`/eb-consumption/view?id=${ebConsumption.consumption_id}`}
-            passHref
-          >
-            <a target="_blank" rel="noopener noreferrer">
-              <MenuItem>View</MenuItem>
-            </a>
-          </Link>
-          <Link
-            href={`/eb-consumption/edit?id=${ebConsumption.consumption_id}`}
-            passHref
-          >
-            <MenuItem>Edit</MenuItem>
-          </Link>
-          <MenuItem onClick={() => handleDelete(ebConsumption.consumption_id)}>
-            Delete
-          </MenuItem>
-        </Menu>
-      ),
+      night_consumption: nightConsumption,
+      day_consumption: dayConsumption,
     };
   });
+
+  const colDefs = [
+    {
+      field: "consumption_id",
+      headerName: "ID",
+      type: "id",
+    },
+    {
+      field: "outlet_name",
+      headerName: "Outlet",
+      type: "capitalized",
+    },
+    {
+      field: "date",
+      headerName: "Date",
+    },
+    {
+      field: "opening_units",
+      headerName: "Opening Units",
+      cellRenderer: (props) => `${props.value} units`,
+    },
+    {
+      field: "closing_units",
+      headerName: "Closing Units",
+      cellRenderer: (props) => `${props.value} units`,
+    },
+    {
+      field: "night_consumption",
+      headerName: "Night Consumption",
+      cellRenderer: (props) => `${props.value} units`,
+    },
+    {
+      field: "day_consumption",
+      headerName: "Day Consumption",
+      cellRenderer: (props) => `${props.value} units`,
+    },
+    {
+      field: "consumption_id",
+      headerName: "Action",
+      type: "action-column",
+      cellRenderer: (props) => (
+        <Flex justifyContent="center" alignItems="center" height={"100%"}>
+          <CustomMenu
+            items={[
+              {
+                label: "View",
+                onClick: () =>
+                  router.push(`/eb-consumption/view?id=${props.value}`),
+              },
+              {
+                label: "Edit",
+                onClick: () =>
+                  router.push(`/eb-consumption/edit?id=${props.value}`),
+              },
+            ]}
+          />
+        </Flex>
+      ),
+    },
+  ];
 
   return (
     <GlobalWrapper title="EB Consumption">
@@ -110,14 +132,7 @@ function EBConsumption() {
           </Link>
         }
       >
-        <Table
-          heading={HEADINGS}
-          rows={modifiedEbConsumptions}
-          variant="plain"
-          showPagination
-          dontAffectPagination
-          size="sm"
-        />
+        <AgGrid rowData={modifiedEbConsumptions} columnDefs={colDefs} />
       </CustomContainer>
     </GlobalWrapper>
   );

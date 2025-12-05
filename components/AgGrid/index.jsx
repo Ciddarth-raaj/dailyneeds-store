@@ -56,6 +56,14 @@ const AgGrid = React.forwardRef(function AgGrid(
               : "-";
           },
         },
+        "action-column": {
+          filter: false,
+          resizable: false,
+          flex: 0,
+          maxWidth: 100,
+          minWidth: 100,
+          width: 100,
+        },
       },
     };
 

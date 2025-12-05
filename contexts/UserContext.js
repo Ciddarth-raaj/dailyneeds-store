@@ -142,7 +142,7 @@ export function UserProvider({ children }) {
       setUserConfig((value) => ({
         ...value,
         fetched,
-        storeId: accessAllStores ? null : fetched.store_id,
+        storeId: accessAllStores ? null : fetched?.store_id,
       }));
     } catch (error) {
       console.error("Error fetching user details:", error);
