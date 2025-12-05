@@ -220,6 +220,12 @@ export default {
         selected: false,
         location: "/eb-consumption/create",
       },
+      view_eb_machine_master: {
+        title: "EB Machine Master",
+        permission: "view_eb_machine_master",
+        selected: false,
+        location: "/eb-consumption/master",
+      },
     },
   },
   lr_workflow: {

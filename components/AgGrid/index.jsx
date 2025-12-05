@@ -3,6 +3,8 @@ import { AgGridReact } from "ag-grid-react";
 import React from "react";
 import { icons } from "./icons";
 import { capitalize } from "../../util/string";
+import { Flex } from "@chakra-ui/react";
+import Badge from "../Badge";
 
 const agGridTheme = themeQuartz.withParams({
   accentColor: "var(--chakra-colors-purple-500)",
@@ -63,6 +65,17 @@ const AgGrid = React.forwardRef(function AgGrid(
           maxWidth: 100,
           minWidth: 100,
           width: 100,
+        },
+        "badge-column": {
+          cellRenderer: (props) => {
+            return (
+              <Flex alignItems="center" h="100%">
+                <Badge size="md" colorScheme={props.value.colorScheme}>
+                  {props.value.label}
+                </Badge>
+              </Flex>
+            );
+          },
         },
       },
     };
