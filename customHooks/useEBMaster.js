@@ -9,7 +9,7 @@ function useEBMaster() {
   const fetchData = async () => {
     try {
       const response = await getAllEBMaster({ offset: 0, limit: 10000000 });
-      if (response.machines.length) {
+      if (response.machines) {
         setEbMasterList(response.machines);
       } else {
         throw response;
