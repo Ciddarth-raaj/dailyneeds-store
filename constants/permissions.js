@@ -67,6 +67,8 @@ export const PERMISSIONS = {
   eb_consumption: {
     view_eb_consumption: "View EB Consumption",
     add_eb_consumption: "Add EB Consumption",
+    view_eb_machine_master: "View EB Machine Master",
+    add_eb_machine_master: "Add EB Machine Master",
   },
 
   // LR Workflow
