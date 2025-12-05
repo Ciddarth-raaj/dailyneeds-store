@@ -145,7 +145,7 @@ function TicketForm() {
 
   const handleSubmit = async (values) => {
     const toastId = toast.loading(
-      editMode ? "Updating Ticket!" : "Creating Ticket!"
+      editMode || viewMode ? "Updating Ticket!" : "Creating Ticket!"
     );
 
     try {
@@ -160,7 +160,7 @@ function TicketForm() {
           values.department_id === "" ? null : values.department_id,
       };
 
-      if (!editMode) {
+      if (!editMode && !viewMode) {
         data.images = [];
 
         if (values.files && values.files.length > 0) {
@@ -217,20 +217,22 @@ function TicketForm() {
         };
       }
 
-      const promise = editMode
-        ? updateTicket(paramId, data)
-        : createTicket(data);
+      const promise =
+        editMode || viewMode ? updateTicket(paramId, data) : createTicket(data);
       const response = await promise;
 
       if (response.code === 200 || response.id) {
-        if (editMode && ticket.assigned_to !== values.assigned_to) {
+        if (
+          (editMode || viewMode) &&
+          ticket.assigned_to !== values.assigned_to
+        ) {
           await updateTicket(paramId, {
             assigned_to: values.assigned_to,
           });
         }
 
         toast.success(
-          editMode
+          editMode || viewMode
             ? "Successfully Updated Ticket!"
             : "Successfully Created Ticket!",
           {
@@ -245,7 +247,9 @@ function TicketForm() {
     } catch (err) {
       console.log(err);
       toast.error(
-        editMode ? "Error Updating Ticket!" : "Error Creating Ticket!",
+        editMode || viewMode
+          ? "Error Updating Ticket!"
+          : "Error Creating Ticket!",
         {
           id: toastId,
         }
@@ -318,23 +322,27 @@ function TicketForm() {
                     renderer={priorityRenderer}
                   />
 
-                  <CustomInput
-                    label="Status"
-                    isRequired
-                    name="status"
-                    method="switch"
-                    values={STATUS_LIST}
-                    editable={!viewMode}
-                    renderer={statusRenderer}
-                  />
+                  {!createMode && (
+                    <>
+                      <CustomInput
+                        label="Status"
+                        isRequired
+                        name="status"
+                        method="switch"
+                        values={STATUS_LIST}
+                        editable={!viewMode}
+                        renderer={statusRenderer}
+                      />
 
-                  <CustomInput
-                    label="Assigned To"
-                    name="assigned_to"
-                    method="switch"
-                    values={getEmployeeList(values.outlet_id)}
-                    editable={!viewMode && canAddTickets && !onlyStatus}
-                  />
+                      <CustomInput
+                        label="Assigned To"
+                        name="assigned_to"
+                        method="switch"
+                        values={getEmployeeList(values.outlet_id)}
+                        editable={canAddTickets && !onlyStatus}
+                      />
+                    </>
+                  )}
                 </Flex>
 
                 <CustomInput
@@ -364,7 +372,7 @@ function TicketForm() {
                     </Flex>
                   )}
 
-                {!viewMode && (
+                {canAddTickets && (
                   <Flex
                     className={styles.buttonContainer}
                     mt={8}
@@ -379,7 +387,7 @@ function TicketForm() {
                     </Button>
 
                     <Button colorScheme="purple" onClick={handleSubmit}>
-                      {editMode ? "Update" : "Create"}
+                      {editMode || viewMode ? "Update" : "Create"}
                     </Button>
                   </Flex>
                 )}
