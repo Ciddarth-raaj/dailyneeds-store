@@ -16,12 +16,13 @@ function EBConsumption() {
   const router = useRouter();
   const { ebConsumptions, handleDelete } = useEBConsumptions();
 
-  const getLastEBConsumption = ({ date, branch_id }) => {
-    if (date && branch_id) {
+  const getLastEBConsumption = ({ date, branch_id, machine_number }) => {
+    if (date && branch_id && machine_number) {
       const filteredList = ebConsumptions
         .filter(
           (item) =>
             item.branch_id == branch_id &&
+            item.machine_number == machine_number &&
             moment(item.date).isBefore(date, "day")
         )
         .sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -44,6 +45,7 @@ function EBConsumption() {
     const previousItem = getLastEBConsumption({
       date: ebConsumption.date,
       branch_id: ebConsumption.branch_id,
+      machine_number: ebConsumption.machine_number,
     });
 
     const nightConsumption =
@@ -69,6 +71,21 @@ function EBConsumption() {
       field: "outlet_name",
       headerName: "Outlet",
       type: "capitalized",
+    },
+    {
+      field: "machine_number",
+      headerName: "Machine",
+      type: "capitalized",
+      rowGroup: true,
+      valueGetter: (params) => {
+        return params.data.machine_number
+          ? `${params.data.machine_number} ${
+              params.data.machine_nickname
+                ? `- ${params.data.machine_nickname}`
+                : ""
+            }`
+          : "-";
+      },
     },
     {
       field: "date",

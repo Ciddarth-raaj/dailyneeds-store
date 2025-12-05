@@ -17,6 +17,7 @@ function CustomContainer({
   onToggle,
   colorScheme = "purple",
   size = "md",
+  childrenContainerStyle,
 }) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
 
@@ -105,6 +106,7 @@ function CustomContainer({
           className={`${styles.contentContainer} ${getSizeClass()} ${
             noPadding ? styles.noPadding : ""
           }`}
+          style={childrenContainerStyle}
         >
           {children}
         </div>
