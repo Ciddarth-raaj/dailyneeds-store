@@ -1,6 +1,7 @@
 import React, { useCallback } from "react";
 import { useDropzone } from "react-dropzone";
 import styles from "./FileUpload.module.css";
+import toast from "react-hot-toast";
 
 const FileUpload = ({
   value,
@@ -11,17 +12,41 @@ const FileUpload = ({
   placeholderText = "Drag & drop a file here, or click to select",
   width = "100%",
 }) => {
-  const onDrop = useCallback(
+  const onDropAccepted = useCallback(
     (acceptedFiles) => {
+      console.log("onDropAccepted called with:", acceptedFiles);
       if (acceptedFiles?.length > 0) {
+        console.log("Calling onChange with:", acceptedFiles[0]);
         onChange?.(acceptedFiles[0]);
       }
     },
     [onChange]
   );
 
+  const onDropRejected = useCallback(
+    (fileRejections) => {
+      fileRejections.forEach(({ file, errors }) => {
+        errors.forEach((error) => {
+          if (error.code === "file-too-large") {
+            toast.error(
+              `File ${file.name} is too large. Max size is ${
+                maxSize / 1024 / 1024
+              }MB`
+            );
+          } else if (error.code === "file-invalid-type") {
+            toast.error(`File ${file.name} is not a valid type`);
+          } else {
+            toast.error(`Error with file ${file.name}: ${error.message}`);
+          }
+        });
+      });
+    },
+    [maxSize]
+  );
+
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop,
+    onDropAccepted,
+    onDropRejected,
     accept,
     maxSize,
     disabled,

@@ -22,6 +22,7 @@ function Badge({ children, colorScheme = "purple", size = "xs" }) {
       borderRadius="4px"
       border={`0.01px solid red`}
       borderColor={`${colorScheme}.100`}
+      w="fit-content"
     >
       <Text
         fontSize={sizes[size].fontSize}

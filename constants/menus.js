@@ -516,4 +516,18 @@ export default {
   //     // },
   //   },
   // },
+  misc: {
+    title: "Miscellaneous",
+    selected: false,
+    openPage: false,
+    icon: "fa-book",
+    subMenu: {
+      price_checker: {
+        title: "Price Checker",
+        permission: "view_price_checker",
+        selected: false,
+        location: "/price-checker",
+      },
+    },
+  },
 };
