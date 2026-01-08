@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { Box, Grid, Image, Text, Button } from "@chakra-ui/react";
+import { Box, Grid, Image, Text, Button, Flex } from "@chakra-ui/react";
 
 /**
  * Normalize images to proper format for display and drag-drop
@@ -8,23 +8,37 @@ const normalizeImages = (images) => {
   if (!images || !Array.isArray(images)) return [];
 
   return images.map((img, idx) => {
-    if (img instanceof File) {
+    // If it's already a normalized object, preserve ALL properties
+    if (img && typeof img === "object" && !(img instanceof File)) {
+      return {
+        ...img, // Spread all existing properties first
+        image_url: img.image_url || img.url || img,
+        priority: img.priority !== undefined ? img.priority : idx,
+        // Preserve processing state
+        processing: img.processing === true,
+        processingError: img.processingError === true,
+        processingId: img.processingId, // Preserve processingId
+      };
+    } else if (img instanceof File) {
       return {
         image_url: img, // File object
         priority: idx,
+        processing: false,
       };
     } else if (typeof img === "string") {
       return {
         image_url: img,
         priority: idx,
-      };
-    } else if (img && img.image_url) {
-      return {
-        image_url: img.image_url,
-        priority: img.priority !== undefined ? img.priority : idx,
+        processing: false,
       };
     }
-    return img;
+    // Fallback: return as-is if it's already an object
+    return {
+      ...img,
+      priority: img?.priority !== undefined ? img.priority : idx,
+      processing: img?.processing === true,
+      processingError: img?.processingError === true,
+    };
   });
 };
 
@@ -32,6 +46,8 @@ const ProductImageGallery = ({
   images = [],
   viewMode = false,
   onImagesChange,
+  processingImages = new Set(), // Set of indices being processed
+  onRemoveBackground = null, // Function to process a single image by index
 }) => {
   const [draggedImageIndex, setDraggedImageIndex] = useState(null);
   const [dragOverImageIndex, setDragOverImageIndex] = useState(null);
@@ -52,13 +68,17 @@ const ProductImageGallery = ({
   const imagesWithUrls = useMemo(() => {
     return sortedImages.map((img) => {
       let imageUrl;
+      let isFileUrl = false;
+
       if (img instanceof File) {
         imageUrl = URL.createObjectURL(img);
+        isFileUrl = true;
       } else if (typeof img === "string") {
         imageUrl = img;
       } else if (img && img.image_url) {
         if (img.image_url instanceof File) {
           imageUrl = URL.createObjectURL(img.image_url);
+          isFileUrl = true;
         } else {
           imageUrl = img.image_url;
         }
@@ -68,7 +88,10 @@ const ProductImageGallery = ({
       return {
         ...img,
         displayUrl: imageUrl,
-        isFileUrl: img instanceof File || img?.image_url instanceof File,
+        isFileUrl,
+        isProcessing: img.processing === true,
+        processingError: img.processingError === true,
+        processingId: img.processingId, // Preserve processingId
       };
     });
   }, [sortedImages]);
@@ -156,7 +179,9 @@ const ProductImageGallery = ({
     <Grid
       templateColumns={{
         base: "1fr",
+        sm: "repeat(2, 1fr)",
         md: "repeat(3, 1fr)",
+        lg: "repeat(4, 1fr)",
       }}
       gap={4}
     >
@@ -177,13 +202,23 @@ const ProductImageGallery = ({
             ? `url-${img.image_url}`
             : `img-${index}`;
 
+        const isProcessing =
+          imgData.isProcessing || processingImages.has(index);
+        const hasError = imgData.processingError;
+
         return (
           <Box
             key={imageKey}
             position="relative"
             border="1px solid"
             borderColor={
-              isDragOver ? "purple.500" : isDragging ? "gray.400" : "gray.200"
+              hasError
+                ? "red.500"
+                : isDragOver
+                ? "purple.500"
+                : isDragging
+                ? "gray.400"
+                : "gray.200"
             }
             borderRadius="md"
             overflow="hidden"
@@ -192,21 +227,83 @@ const ProductImageGallery = ({
             transform={isDragging ? "scale(0.95)" : "scale(1)"}
             transition="all 0.2s"
             p={4}
-            draggable={!viewMode}
+            draggable={!viewMode && !isProcessing}
             onDragStart={() => handleDragStart(index)}
             onDragOver={(e) => handleDragOver(e, index)}
             onDragLeave={handleDragLeave}
             onDrop={(e) => handleDrop(e, index)}
             onDragEnd={handleDragEnd}
           >
-            <Image
-              src={imageUrl}
-              alt={`Product image ${index + 1}`}
-              width="100%"
-              height="200px"
-              objectFit="contain"
-              pointerEvents="none"
-            />
+            <Box position="relative" width="100%" height="200px">
+              <Image
+                src={imageUrl}
+                alt={`Product image ${index + 1}`}
+                width="100%"
+                height="200px"
+                objectFit="contain"
+                pointerEvents="none"
+                opacity={isProcessing ? 0.7 : 1}
+                transition="opacity 0.3s"
+              />
+              {isProcessing && (
+                <Box
+                  position="absolute"
+                  top={0}
+                  left={0}
+                  right={0}
+                  bottom={0}
+                  zIndex={2}
+                  display="flex"
+                  alignItems="center"
+                  justifyContent="center"
+                >
+                  <Flex
+                    gap={3}
+                    alignItems="center"
+                    justifyContent="center"
+                    bg="purple.500"
+                    p="4px 8px"
+                    borderRadius="md"
+                    fontSize="xs"
+                  >
+                    <Box
+                      as="i"
+                      className="fa fa-spinner fa-spin"
+                      fontSize="sm"
+                      color="white"
+                    />
+                    <Text
+                      fontSize="sm"
+                      color="white"
+                      textAlign="center"
+                      fontWeight="semibold"
+                    >
+                      Processing...
+                    </Text>
+                  </Flex>
+                </Box>
+              )}
+              {hasError && (
+                <Box
+                  position="absolute"
+                  top="50%"
+                  left="50%"
+                  transform="translate(-50%, -50%)"
+                  bg="red.500"
+                  color="white"
+                  px={3}
+                  py={2}
+                  borderRadius="md"
+                  fontSize="xs"
+                  fontWeight="medium"
+                  zIndex={3}
+                  textAlign="center"
+                >
+                  <Box as="i" className="fa fa-exclamation-triangle" mb={1} />
+                  <Box>Processing failed</Box>
+                </Box>
+              )}
+            </Box>
             {!viewMode && (
               <>
                 <Box
@@ -223,19 +320,37 @@ const ProductImageGallery = ({
                 >
                   #{index + 1}
                 </Box>
-                <Button
-                  position="absolute"
-                  top={2}
-                  right={2}
-                  size="xs"
-                  colorScheme="red"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDelete(index);
-                  }}
-                >
-                  <i className="fa fa-times" />
-                </Button>
+                <Flex position="absolute" top={2} right={2} gap={1}>
+                  {onRemoveBackground && (
+                    <Button
+                      size="xs"
+                      colorScheme="blue"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onRemoveBackground(index);
+                      }}
+                      isDisabled={isProcessing}
+                      isLoading={isProcessing}
+                    >
+                      <i
+                        className="fa fa-magic"
+                        style={{ marginRight: "4px" }}
+                      />
+                      Remove BG
+                    </Button>
+                  )}
+                  <Button
+                    size="xs"
+                    colorScheme="red"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(index);
+                    }}
+                    isDisabled={isProcessing}
+                  >
+                    <i className="fa fa-times" />
+                  </Button>
+                </Flex>
                 <Box
                   position="absolute"
                   bottom={2}

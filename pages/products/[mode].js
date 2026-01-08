@@ -8,13 +8,14 @@ import * as Yup from "yup";
 import CustomInput from "../../components/customInput/customInput";
 import { Button, Flex, Grid, Box, Text } from "@chakra-ui/react";
 import toast from "react-hot-toast";
-import brands from "../../helper/brands";
-import categories from "../../helper/categories";
-import subcategories from "../../helper/subcategories";
-import department from "../../helper/department";
+import { useBrands } from "../../customHooks/useBrands";
+import { useCategories } from "../../customHooks/useCategories";
+import { useSubcategories } from "../../customHooks/useSubcategories";
+import { useProductDepartments } from "../../customHooks/useProductDepartments";
 import asset from "../../helper/asset";
 import product from "../../helper/product";
-import ProductImageGallery from "../../components/ProductImageGallery";
+import { capitalize } from "../../util/string";
+import ProductImageUpload from "../../components/ProductImageUpload";
 
 const validation = Yup.object({
   brand_id: Yup.number().nullable(),
@@ -41,6 +42,8 @@ function ProductForm() {
   } = useProductById(id, { enabled: !createMode && !!id });
 
   const [initialValues, setInitialValues] = useState({
+    product_id: null,
+    de_display_name: "",
     brand_id: null,
     category_id: null,
     subcategory_id: null,
@@ -50,62 +53,19 @@ function ProductForm() {
     images: [],
   });
 
-  const [brandsList, setBrandsList] = useState([]);
-  const [categoriesList, setCategoriesList] = useState([]);
-  const [subcategoriesList, setSubcategoriesList] = useState([]);
-  const [departmentsList, setDepartmentsList] = useState([]);
-  const [loadingOptions, setLoadingOptions] = useState(true);
+  // Use custom hooks to fetch dropdown options
+  const { brandsList, loading: loadingBrands } = useBrands();
+  const { categoriesList, loading: loadingCategories } = useCategories();
+  const { subcategoriesList, loading: loadingSubcategories } =
+    useSubcategories();
+  const { departmentsList, loading: loadingDepartments } =
+    useProductDepartments();
 
-  // Fetch dropdown options
-  useEffect(() => {
-    async function fetchOptions() {
-      try {
-        setLoadingOptions(true);
-        const [brandsRes, categoriesRes, subcategoriesRes, departmentsRes] =
-          await Promise.all([
-            brands.getBrands(0, 10000),
-            categories.getCategories(0, 10000),
-            subcategories.getSubCategories(0, 10000),
-            department.getProductDepartment(),
-          ]);
-
-        setBrandsList(
-          (brandsRes?.data || brandsRes || []).map((b) => ({
-            id: b.brand_id,
-            value: b.brand_name,
-          }))
-        );
-
-        setCategoriesList(
-          (categoriesRes?.data || categoriesRes || []).map((c) => ({
-            id: c.category_id,
-            value: c.category_name,
-          }))
-        );
-
-        setSubcategoriesList(
-          (subcategoriesRes?.data || subcategoriesRes || []).map((s) => ({
-            id: s.subcategory_id,
-            value: s.subcategory_name,
-          }))
-        );
-
-        setDepartmentsList(
-          (departmentsRes || []).map((d) => ({
-            id: d.id || d.department_id,
-            value: d.value || d.department_name,
-          }))
-        );
-      } catch (error) {
-        console.error("Error fetching options:", error);
-        toast.error("Error loading form options");
-      } finally {
-        setLoadingOptions(false);
-      }
-    }
-
-    fetchOptions();
-  }, []);
+  const loadingOptions =
+    loadingBrands ||
+    loadingCategories ||
+    loadingSubcategories ||
+    loadingDepartments;
 
   // Set initial values when product data is loaded
   useEffect(() => {
@@ -133,7 +93,9 @@ function ProductForm() {
           : [];
 
       setInitialValues({
+        product_id: productData.product_id || null,
         brand_id: productData.brand_id || null,
+        de_display_name: productData.de_display_name || "",
         category_id: productData.category_id || null,
         subcategory_id: productData.subcategory_id || null,
         department_id: productData.department_id || null,
@@ -264,7 +226,9 @@ function ProductForm() {
           viewMode
             ? "View Product"
             : editMode
-            ? "Edit Product Images"
+            ? `Edit Product : ${capitalize(
+                productData?.de_display_name ?? "-"
+              )}`
             : "Create Product"
         }
         filledHeader
@@ -276,8 +240,7 @@ function ProductForm() {
           onSubmit={handleSubmit}
         >
           {(formikProps) => {
-            const { handleSubmit, resetForm, values, setFieldValue } =
-              formikProps;
+            const { handleSubmit, resetForm } = formikProps;
 
             return (
               <form onSubmit={handleSubmit}>
@@ -286,6 +249,18 @@ function ProductForm() {
                     templateColumns={{ base: "1fr", md: "1fr 1fr" }}
                     gap={4}
                   >
+                    <CustomInput
+                      label="Product ID"
+                      name="product_id"
+                      editable={false}
+                    />
+
+                    <CustomInput
+                      label="Name"
+                      name="de_display_name"
+                      editable={false}
+                    />
+
                     <CustomInput
                       label="Brand"
                       name="brand_id"
@@ -334,66 +309,7 @@ function ProductForm() {
                   </Grid>
 
                   {/* Images Section */}
-                  <Box mt={6}>
-                    <Text fontSize="sm" fontWeight="medium" mb={2}>
-                      Product Images
-                    </Text>
-
-                    {editMode && (
-                      <Box mb={4}>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          multiple
-                          style={{ display: "none" }}
-                          id="image-upload-input"
-                          onChange={(e) => {
-                            const files = Array.from(e.target.files || []);
-                            if (files.length > 0) {
-                              const currentImages = values.images || [];
-                              const newImageObjects = files.map(
-                                (file, idx) => ({
-                                  image_url: file, // File object
-                                  priority: currentImages.length + idx,
-                                })
-                              );
-
-                              setFieldValue("images", [
-                                ...currentImages,
-                                ...newImageObjects,
-                              ]);
-                            }
-                            // Reset input
-                            e.target.value = "";
-                          }}
-                        />
-                        <Button
-                          as="label"
-                          htmlFor="image-upload-input"
-                          colorScheme="purple"
-                          variant="outline"
-                          cursor="pointer"
-                          size="sm"
-                        >
-                          <i
-                            className="fa fa-upload"
-                            style={{ marginRight: "8px" }}
-                          />
-                          Upload Images
-                        </Button>
-                      </Box>
-                    )}
-
-                    <ProductImageGallery
-                      images={values.images || []}
-                      viewMode={!editMode}
-                      onImagesChange={(newImages) => {
-                        if (editMode) {
-                          setFieldValue("images", newImages);
-                        }
-                      }}
-                    />
-                  </Box>
+                  <ProductImageUpload editMode={editMode} viewMode={viewMode} />
                 </CustomContainer>
 
                 {editMode && (
