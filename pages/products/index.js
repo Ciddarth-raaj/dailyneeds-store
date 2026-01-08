@@ -8,6 +8,8 @@ import AgGrid from "../../components/AgGrid";
 function Products() {
   const { products } = useProducts({ limit: 10000, fetchAll: true });
 
+  console.log("CIDD", products);
+
   const colDefs = [
     {
       field: "product_id",
@@ -42,6 +44,11 @@ function Products() {
           {
             label: "View",
             redirectionUrl: `/products/view?id=${props.data.product_id}`,
+          },
+          {
+            label: "Edit",
+            value: "edit",
+            redirectionUrl: `/products/edit?id=${props.data.product_id}`,
           },
         ];
       },
