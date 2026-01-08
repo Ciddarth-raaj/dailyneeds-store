@@ -127,7 +127,7 @@ function ProductForm() {
               const uploadRes = await asset.upload(
                 imageItem,
                 imageItem.name,
-                "products_t",
+                "products/image",
                 undefined,
                 `${id}_${index + 1}`
               );
@@ -148,7 +148,7 @@ function ProductForm() {
                 const uploadRes = await asset.upload(
                   imageItem.image_url,
                   imageItem.image_url.name,
-                  "products_t",
+                  "products/image",
                   undefined,
                   `${id}_${index + 1}`
                 );
