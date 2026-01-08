@@ -5,6 +5,7 @@ import { icons } from "./icons";
 import { capitalize } from "../../util/string";
 import { Flex } from "@chakra-ui/react";
 import Badge from "../Badge";
+import CustomMenu from "../CustomMenu";
 
 const agGridTheme = themeQuartz.withParams({
   accentColor: "var(--chakra-colors-purple-500)",
@@ -65,6 +66,11 @@ const AgGrid = React.forwardRef(function AgGrid(
           maxWidth: 100,
           minWidth: 100,
           width: 100,
+          cellRenderer: (props) => (
+            <Flex justifyContent="center" alignItems="center" height={"100%"}>
+              <CustomMenu items={props.value} />
+            </Flex>
+          ),
         },
         "badge-column": {
           cellRenderer: (props) => {

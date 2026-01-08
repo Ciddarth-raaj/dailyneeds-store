@@ -1,5 +1,6 @@
 import { IconButton, Portal, Text } from "@chakra-ui/react";
 import { Menu, MenuItem } from "@szhsin/react-menu";
+import Link from "next/link";
 import React from "react";
 
 function CustomMenu({ items }) {
@@ -18,11 +19,19 @@ function CustomMenu({ items }) {
       }
       transition
     >
-      {items.map((item) => (
-        <MenuItem key={item.label} onClick={item.onClick}>
-          <Text fontSize="xs">{item.label}</Text>
-        </MenuItem>
-      ))}
+      {items.map((item) =>
+        item.redirectionUrl ? (
+          <Link key={item.label} href={item.redirectionUrl} passHref>
+            <MenuItem onClick={item.onClick}>
+              <Text fontSize="xs">{item.label}</Text>
+            </MenuItem>
+          </Link>
+        ) : (
+          <MenuItem key={item.label} onClick={item.onClick}>
+            <Text fontSize="xs">{item.label}</Text>
+          </MenuItem>
+        )
+      )}
     </Menu>
   );
 }
