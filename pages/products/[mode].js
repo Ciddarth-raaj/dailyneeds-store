@@ -211,7 +211,7 @@ function ProductForm() {
 
   if (loading || loadingOptions) {
     return (
-      <GlobalWrapper title="Products">
+      <GlobalWrapper title="Products" permissionKey="edit_products">
         <CustomContainer title="Loading..." filledHeader>
           <Text>Loading...</Text>
         </CustomContainer>
@@ -220,7 +220,7 @@ function ProductForm() {
   }
 
   return (
-    <GlobalWrapper title="Products">
+    <GlobalWrapper title="Products" permissionKey="edit_products">
       <CustomContainer
         title={
           viewMode

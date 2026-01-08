@@ -368,49 +368,49 @@ export default {
   //     },
   //   },
   // },
-  // products: {
-  //   title: "Products",
-  //   selected: false,
-  //   openPage: false,
-  //   icon: "fa-archive",
-  //   subMenu: {
-  //     view_products: {
-  //       title: "Product",
-  //       permission: "view_products",
-  //       selected: false,
-  //       location: "/products",
-  //     },
-  //     // view_departments: {
-  //     //   title: 'View Deapartments',
-  //     //   selected: false,
-  //     //   location: '/department'
-  //     // },
-  //     view_category: {
-  //       title: "Category",
-  //       permission: "view_category",
-  //       selected: false,
-  //       location: "/categories",
-  //     },
-  //     view_subcategory: {
-  //       title: "Subcategory",
-  //       permission: "view_subcategory",
-  //       selected: false,
-  //       location: "/subcategories",
-  //     },
-  //     view_brands: {
-  //       title: "Brand",
-  //       permission: "view_brands",
-  //       selected: false,
-  //       location: "/brands",
-  //     },
-  //     view_product_department: {
-  //       title: "Product Department",
-  //       permission: "view_product_department",
-  //       selected: false,
-  //       location: "/product-department",
-  //     },
-  //   },
-  // },
+  products: {
+    title: "Products",
+    selected: false,
+    openPage: false,
+    icon: "fa-archive",
+    subMenu: {
+      view_products: {
+        title: "All Products",
+        permission: "view_products",
+        selected: false,
+        location: "/products",
+      },
+      // view_departments: {
+      //   title: 'View Deapartments',
+      //   selected: false,
+      //   location: '/department'
+      // },
+      // view_category: {
+      //   title: "Category",
+      //   permission: "view_category",
+      //   selected: false,
+      //   location: "/categories",
+      // },
+      // view_subcategory: {
+      //   title: "Subcategory",
+      //   permission: "view_subcategory",
+      //   selected: false,
+      //   location: "/subcategories",
+      // },
+      // view_brands: {
+      //   title: "Brand",
+      //   permission: "view_brands",
+      //   selected: false,
+      //   location: "/brands",
+      // },
+      // view_product_department: {
+      //   title: "Product Department",
+      //   permission: "view_product_department",
+      //   selected: false,
+      //   location: "/product-department",
+      // },
+    },
+  },
   // indents: {
   //   title: "Indents & Transportations",
   //   selected: false,

@@ -4,11 +4,11 @@ import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../components/CustomContainer";
 import { Button } from "@chakra-ui/button";
 import AgGrid from "../../components/AgGrid";
+import usePermissions from "../../customHooks/usePermissions";
 
 function Products() {
   const { products } = useProducts({ limit: 10000, fetchAll: true });
-
-  console.log("CIDD", products);
+  const canEdit = usePermissions("edit_products");
 
   const colDefs = [
     {
@@ -40,32 +40,28 @@ function Products() {
       headerName: "Action",
       type: "action-column",
       valueGetter: (props) => {
-        return [
+        const menu = [
           {
             label: "View",
             redirectionUrl: `/products/view?id=${props.data.product_id}`,
           },
-          {
-            label: "Edit",
-            value: "edit",
-            redirectionUrl: `/products/edit?id=${props.data.product_id}`,
-          },
         ];
+
+        if (canEdit) {
+          menu.push({
+            label: "Edit",
+            redirectionUrl: `/products/edit?id=${props.data.product_id}`,
+          });
+        }
+
+        return menu;
       },
     },
   ];
 
   return (
-    <GlobalWrapper title="Products">
-      <CustomContainer
-        title="Products"
-        filledHeader
-        rightSection={
-          <Button colorScheme="purple" onClick={() => {}} variant="new-outline">
-            Export
-          </Button>
-        }
-      >
+    <GlobalWrapper title="Products" permissionKey="view_products">
+      <CustomContainer title="Products" filledHeader>
         <AgGrid rowData={products} colDefs={colDefs} />
       </CustomContainer>
     </GlobalWrapper>

@@ -108,8 +108,9 @@ export const PERMISSIONS = {
   },
 
   // Products
-  products: {
+  Products: {
     view_products: "View Products",
+    edit_products: "Edit Products",
     view_category: "View Category",
     view_subcategory: "View Sub Category",
     // view_brands: "View Brands",
@@ -140,7 +141,7 @@ export const PERMISSIONS = {
     // add_issue: "Add Issue",
   },
   // Misc
-  miscellaneous: {
+  Miscellaneous: {
     all_stores: "Access All Stores",
   },
 };
