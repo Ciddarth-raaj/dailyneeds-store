@@ -20,23 +20,8 @@ function Products() {
       type: "capitalized",
     },
     {
-      field: "department_name",
-      headerName: "Department",
-      type: "capitalized",
-    },
-    {
-      field: "category_name",
-      headerName: "Category",
-      type: "capitalized",
-    },
-    {
-      field: "subcategory_name",
-      headerName: "Subcategory",
-      type: "capitalized",
-    },
-    {
-      field: "brand_name",
-      headerName: "Brand",
+      field: "de_distributor",
+      headerName: "Distributor",
       type: "capitalized",
     },
     {

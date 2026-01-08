@@ -6,6 +6,7 @@ import { capitalize } from "../../util/string";
 import { Flex } from "@chakra-ui/react";
 import Badge from "../Badge";
 import CustomMenu from "../CustomMenu";
+import BadgeFilter, { badgeFilterHandler } from "./BadgeFilter";
 
 const agGridTheme = themeQuartz.withParams({
   accentColor: "var(--chakra-colors-purple-500)",
@@ -46,6 +47,10 @@ const AgGrid = React.forwardRef(function AgGrid(
       pagination: true,
       paginationPageSize: defaultRows,
       icons,
+      enableFilterHandlers: true,
+      filterHandlers: {
+        badgeFilterHandler: badgeFilterHandler,
+      },
       columnTypes: {
         id: {
           maxWidth: 100,
@@ -76,11 +81,15 @@ const AgGrid = React.forwardRef(function AgGrid(
           cellRenderer: (props) => {
             return (
               <Flex alignItems="center" h="100%">
-                <Badge size="md" colorScheme={props.value.colorScheme}>
-                  {props.value.label}
+                <Badge size="md" colorScheme={props.value?.colorScheme}>
+                  {props.value?.label}
                 </Badge>
               </Flex>
             );
+          },
+          filter: {
+            component: BadgeFilter,
+            handler: "badgeFilterHandler",
           },
         },
       },
