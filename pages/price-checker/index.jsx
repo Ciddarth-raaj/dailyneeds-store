@@ -1,7 +1,17 @@
-import React, { useState } from "react";
+import React, { useMemo, useState, useRef } from "react";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../components/CustomContainer";
-import { Box, Button, Flex } from "@chakra-ui/react";
+import {
+  Box,
+  Button,
+  Flex,
+  Tabs,
+  TabList,
+  TabPanels,
+  Tab,
+  TabPanel,
+  Text,
+} from "@chakra-ui/react";
 import FileUpload from "../../components/FileUpload";
 import { importFileToJSON, isValidFileType } from "../../util/fileImport";
 import toast from "react-hot-toast";
@@ -9,6 +19,7 @@ import AgGrid from "../../components/AgGrid";
 import Badge from "../../components/Badge";
 import exportCSVFile from "../../util/exportCSVFile";
 import moment from "moment";
+import { useProducts } from "../../customHooks/useProducts";
 
 // {
 //     "Outlet_ID": "2",
@@ -25,8 +36,23 @@ import moment from "moment";
 // }
 
 function PriceChecker() {
+  const { products } = useProducts({ limit: 10000, fetchAll: true });
   const [file, setFile] = useState(null);
   const [incorrectSellingPrices, setIncorrectSellingPrices] = useState([]);
+  const productsGridRef = useRef(null);
+  const distributorGridRef = useRef(null);
+
+  const mappedProducts = useMemo(() => {
+    if(products) {
+      const map = {}
+
+      products.forEach(product => {
+        map[product.product_id] = product;
+      })
+
+      return map;
+    }
+  }, [products])
 
   const onFileChange = (file) => {
     setFile(file);
@@ -95,7 +121,12 @@ function PriceChecker() {
     const itemsWithIncorrectValues = [];
 
     Object.keys(groupedByItem).forEach((itemCode) => {
-      const itemData = groupedByItem[itemCode];
+      let itemData = groupedByItem[itemCode];
+      itemData = {
+        ...itemData,
+        de_distributor: mappedProducts[itemData.Item_Code]?.de_distributor || "",
+        de_preparation_type: mappedProducts[itemData.Item_Code]?.de_preparation_type || "",
+      }
 
       // Group items by MRP to find inconsistencies
       const mrpGroups = itemData.items.reduce((acc, item) => {
@@ -132,6 +163,100 @@ function PriceChecker() {
     setIncorrectSellingPrices(itemsWithIncorrectValues);
   };
 
+  const groupedByDistributor = useMemo(() => {
+    if (!incorrectSellingPrices || incorrectSellingPrices.length === 0) {
+      return [];
+    }
+
+    const grouped = incorrectSellingPrices.reduce((acc, item) => {
+      const distributor = item.de_distributor || "Unknown";
+
+      if (!acc[distributor]) {
+        acc[distributor] = {
+          de_distributor: distributor,
+          productCount: 0,
+          items: [],
+        };
+      }
+
+      acc[distributor].productCount += 1;
+      acc[distributor].items.push(...item.items);
+
+      return acc;
+    }, {});
+
+    return Object.values(grouped);
+  }, [incorrectSellingPrices]);
+
+  const TABLE_HEADER = {
+    Outlet_ID: "Outlet_ID",
+    Outlet_Name: "Outlet_Name",
+    Item_Code: "Item_Code",
+    Item_Name: "Item_Name",
+    de_distributor: "Distributor",
+    de_preparation_type: "Preparation Type",
+    Batch_No: "Batch_No",
+    Purchase_Price: "Purchase_Price",
+    Landing_Cost: "Landing_Cost",
+    Old_MRP: "Old_MRP",
+    New_MRP: "New_MRP",
+    Old_Selling_Price: "Old_Selling_Price",
+    New_Selling_Price: "New_Selling_Price",
+  };
+
+  const exportItems = (items, titleSuffix) => {
+    const allData = items.map((row) => {
+      const product = mappedProducts[row.Item_Code];
+      const enrichedRow = {
+        ...row,
+        de_distributor: product?.de_distributor || "",
+        de_preparation_type: product?.de_preparation_type || "",
+      };
+
+      const orderedRow = {};
+      Object.keys(TABLE_HEADER).forEach((key) => {
+        orderedRow[key] = enrichedRow[key] ?? "";
+      });
+
+      return orderedRow;
+    });
+
+    exportCSVFile(
+      TABLE_HEADER,
+      allData,
+      `Price Checker${titleSuffix ? " - " + titleSuffix : ""} (${moment().format(
+        "DD-MM-YYYY"
+      )})`
+    );
+  };
+
+  const handleExportByDistributor = (items, distributor) => {
+    // Get filtered products from Products List tab (Tab 1)
+    let filteredProducts = incorrectSellingPrices;
+    if (productsGridRef.current?.api) {
+      const filteredRows = [];
+      productsGridRef.current.api.forEachNodeAfterFilter((node) => {
+        if (node.data) {
+          filteredRows.push(node.data);
+        }
+      });
+      filteredProducts = filteredRows;
+    }
+
+    // Filter products to only include those from the clicked distributor
+    const distributorProducts = filteredProducts.filter(
+      (product) => (product.de_distributor || "") === (distributor || "")
+    );
+
+    // Collect all items from filtered distributor products
+    const itemsToExport = [];
+    distributorProducts.forEach((product) => {
+      itemsToExport.push(...product.items);
+    });
+
+    exportItems(itemsToExport, distributor);
+  };
+
   const colDefs = [
     {
       field: "Item_Code",
@@ -142,6 +267,17 @@ function PriceChecker() {
       field: "Item_Name",
       headerName: "Name",
       type: "capitalized",
+    },
+    {
+      field: "de_distributor",
+      headerName: "Distributor",
+      type: "capitalized",
+    },
+    {
+      field: "de_preparation_type",
+      headerName: "PType",
+      type: "capitalized",
+      maxWidth: 100,
     },
     {
       field: "incorrectSellingPrices",
@@ -168,31 +304,45 @@ function PriceChecker() {
   ];
 
   const handleExport = () => {
-    const allData = [];
-    incorrectSellingPrices.forEach((item) => {
-      allData.push(...item.items);
+    let filteredProducts = incorrectSellingPrices;
+
+    // Get filtered rows from AgGrid if available
+    if (productsGridRef.current?.api) {
+      const filteredRows = [];
+      productsGridRef.current.api.forEachNodeAfterFilter((node) => {
+        if (node.data) {
+          filteredRows.push(node.data);
+        }
+      });
+      filteredProducts = filteredRows;
+    }
+
+    const allItems = [];
+    filteredProducts.forEach((item) => {
+      allItems.push(...item.items);
     });
 
-    const TABLE_HEADER = {
-      Outlet_ID: "Outlet_ID",
-      Outlet_Name: "Outlet_Name",
-      Item_Code: "Item_Code",
-      Item_Name: "Item_Name",
-      Batch_No: "Batch_No",
-      Purchase_Price: "Purchase_Price",
-      Landing_Cost: "Landing_Cost",
-      Old_MRP: "Old_MRP",
-      New_MRP: "New_MRP",
-      Old_Selling_Price: "Old_Selling_Price",
-      New_Selling_Price: "New_Selling_Price",
-    };
-
-    exportCSVFile(
-      TABLE_HEADER,
-      allData,
-      "Price Checker (" + moment().format("DD-MM-YYYY") + ")"
-    );
+    exportItems(allItems);
   };
+
+  const distributorColDefs = [
+    {
+      field: "de_distributor",
+      headerName: "Distributor",
+      type: "capitalized",
+      cellRenderer: (props) => {
+        const value = props.value || "Unknown";
+        return (
+          <Text cursor="pointer" onClick={() => handleExportByDistributor(props.data.items, value)}>{value}</Text>
+        );
+      },
+    },
+    {
+      field: "productCount",
+      headerName: "No. of Products",
+      type: "number",
+    },
+  ];
 
   return (
     <GlobalWrapper title="Price Checker" permissionKey={["view_price_checker"]}>
@@ -216,8 +366,25 @@ function PriceChecker() {
           maxSize={52428800}
         />
 
-        <Box mt="22px">
-          <AgGrid rowData={incorrectSellingPrices} colDefs={colDefs} />
+        <Box mt="42px">
+          <Tabs size="sm" colorScheme="purple">
+            <TabList>
+              <Tab>Products List</Tab>
+              <Tab>Grouped By Distributor</Tab>
+            </TabList>
+            <TabPanels>
+              <TabPanel p={0} pt={4}>
+                <AgGrid ref={productsGridRef} rowData={incorrectSellingPrices} colDefs={colDefs} />
+              </TabPanel>
+              <TabPanel p={0} pt={4}>
+                <AgGrid
+                  ref={distributorGridRef}
+                  rowData={groupedByDistributor}
+                  colDefs={distributorColDefs}
+                />
+              </TabPanel>
+            </TabPanels>
+          </Tabs>
         </Box>
       </CustomContainer>
     </GlobalWrapper>

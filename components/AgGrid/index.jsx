@@ -7,6 +7,7 @@ import { Flex } from "@chakra-ui/react";
 import Badge from "../Badge";
 import CustomMenu from "../CustomMenu";
 import BadgeFilter, { badgeFilterHandler } from "./BadgeFilter";
+import DropdownFilter, { dropdownFilterHandler } from "./DropdownFilter";
 
 const agGridTheme = themeQuartz.withParams({
   accentColor: "var(--chakra-colors-purple-500)",
@@ -50,6 +51,7 @@ const AgGrid = React.forwardRef(function AgGrid(
       enableFilterHandlers: true,
       filterHandlers: {
         badgeFilterHandler: badgeFilterHandler,
+        dropdownFilterHandler: dropdownFilterHandler,
       },
       columnTypes: {
         id: {
@@ -63,6 +65,10 @@ const AgGrid = React.forwardRef(function AgGrid(
               ? capitalize(props.value)
               : "-";
           },
+          // filter: {
+          //   component: DropdownFilter,
+          //   handler: "dropdownFilterHandler",
+          // },
         },
         "action-column": {
           filter: false,
