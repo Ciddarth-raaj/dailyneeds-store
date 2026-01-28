@@ -11,6 +11,7 @@ import {
   Tab,
   TabPanel,
   Text,
+  Tooltip,
 } from "@chakra-ui/react";
 import FileUpload from "../../components/FileUpload";
 import { importFileToJSON, isValidFileType } from "../../util/fileImport";
@@ -124,6 +125,7 @@ function PriceChecker() {
       let itemData = groupedByItem[itemCode];
       itemData = {
         ...itemData,
+        Item_Name: mappedProducts[itemData.Item_Code]?.gf_item_name || "",
         de_distributor: mappedProducts[itemData.Item_Code]?.de_distributor || "",
         de_preparation_type: mappedProducts[itemData.Item_Code]?.de_preparation_type || "",
       }
@@ -333,7 +335,7 @@ function PriceChecker() {
       cellRenderer: (props) => {
         const value = props.value || "Unknown";
         return (
-          <Text cursor="pointer" onClick={() => handleExportByDistributor(props.data.items, value)}>{value}</Text>
+          <Tooltip label="Click to download" openDelay={500}><Text cursor="pointer" onClick={() => handleExportByDistributor(props.data.items, value)}>{value}</Text></Tooltip>
         );
       },
     },
