@@ -5,6 +5,7 @@ import CustomContainer from "../../components/CustomContainer";
 import { Button } from "@chakra-ui/button";
 import AgGrid from "../../components/AgGrid";
 import usePermissions from "../../customHooks/usePermissions";
+import ProductImageUploadCell from "../../components/ProductImageUploadCell";
 
 function Products() {
   const { products } = useProducts({ limit: 10000, fetchAll: true });
@@ -36,6 +37,15 @@ function Products() {
           : { label: "No", colorScheme: "red" },
     },
     {
+      field: "images",
+      headerName: "Upload Images",
+      filter: false,
+      cellRenderer: (props) => {
+        if (!canEdit) return <span>-</span>;
+        return <ProductImageUploadCell value={props.value} data={props.data} api={props.api} />;
+      },
+    },
+    {
       field: "product_id",
       headerName: "Action",
       type: "action-column",
@@ -62,7 +72,13 @@ function Products() {
   return (
     <GlobalWrapper title="Products" permissionKey="view_products">
       <CustomContainer title="Products" filledHeader>
-        <AgGrid rowData={products} colDefs={colDefs} />
+        <AgGrid
+          rowData={products}
+          colDefs={colDefs}
+          gridOptions={{
+            getRowId: (params) => params.data.product_id,
+          }}
+        />
       </CustomContainer>
     </GlobalWrapper>
   );
