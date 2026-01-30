@@ -5,8 +5,8 @@ import product from "../helper/product";
  * Hook to fetch a single product by ID and update it
  * @param {string|number} productId - The product ID to fetch
  * @param {Object} options - Query options
- * @param {boolean} options.enabled - Whether the query should run (default: true)
- * @returns {Object} Query result with product data, loading state, error, refetch function, and update function
+ * @param {boolean} options.enabled - Whether to fetch on mount (default: true). If false, use refetch() to load on demand.
+ * @returns {Object} Query result with product, loading, error, refetch (returns product when called), and updateProduct
  */
 export function useProductById(productId, options = {}) {
   const { enabled = true } = options;
@@ -17,33 +17,35 @@ export function useProductById(productId, options = {}) {
   const [updateError, setUpdateError] = useState(null);
 
   const fetchProduct = useCallback(
-    async (noRefresh = false) => {
-      if (!enabled || !productId) {
+    async (noRefresh = false, force = false) => {
+      const shouldFetch = force || (enabled && productId);
+      if (!shouldFetch || !productId) {
         setLoading(false);
-        return;
+        return null;
       }
 
       try {
         if (!noRefresh) {
           setLoading(true);
-          setProductData(null);
+          if (!force) setProductData(null);
         }
 
         const data = await product.getProductById(productId);
         // API returns array with single product, return the first item
-        if (Array.isArray(data) && data.length > 0) {
-          setProductData(data[0]);
-        } else if (data) {
-          setProductData(data);
-        }
+        const resolved = Array.isArray(data) && data.length > 0 ? data[0] : data || null;
+        setProductData(resolved);
+        return resolved;
       } catch (err) {
         setError(err);
+        return null;
       } finally {
         setLoading(false);
       }
     },
     [productId, enabled]
   );
+
+  const refetch = useCallback(() => fetchProduct(false, true), [fetchProduct]);
 
   const updateProduct = useCallback(
     async (data) => {
@@ -56,7 +58,7 @@ export function useProductById(productId, options = {}) {
         });
         // Refetch product data after successful update
         if (response.code === 200) {
-          await fetchProduct(true);
+          await fetchProduct(true, true);
         }
         return response;
       } catch (err) {
@@ -70,15 +72,19 @@ export function useProductById(productId, options = {}) {
   );
 
   useEffect(() => {
-    fetchProduct();
-  }, [fetchProduct]);
+    if (enabled && productId) {
+      fetchProduct();
+    } else {
+      setLoading(false);
+    }
+  }, [enabled, productId, fetchProduct]);
 
   return {
     product: productData,
     setProduct: setProductData,
     loading,
     error,
-    refetch: fetchProduct,
+    refetch,
     updateProduct,
     updateLoading,
     updateError,

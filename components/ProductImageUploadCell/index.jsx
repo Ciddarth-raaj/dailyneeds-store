@@ -14,15 +14,23 @@ function ProductImageUploadCell({ value, data, api }) {
   const [uploading, setUploading] = useState(false);
   const productId = data?.product_id;
 
-  // Fetch product data to get existing images
-  const { product: productData, loading: loadingProduct, refetch } = useProductById(
-    productId,
-    { enabled: !!productId }
-  );
+  // Fetch product (including images) only when user is about to upload
+  const {
+    product: productData,
+    loading: loadingProduct,
+    refetch,
+  } = useProductById(productId, { enabled: false });
 
   if (!productId) {
     return <span>-</span>;
   }
+
+  const handleBrowseClick = async () => {
+    if (!productData && !loadingProduct) {
+      await refetch();
+    }
+    fileInputRef.current?.click();
+  };
 
   const handleFileSelect = async (event) => {
     const files = event.target.files;
@@ -32,26 +40,33 @@ function ProductImageUploadCell({ value, data, api }) {
     const toastId = toast.loading(`Uploading ${files.length} image(s)...`);
 
     try {
-      // Get existing images from the fetched product data
-      const existingImages = productData?.images || [];
+      // Ensure we have product data (including existing images) before merging
+      let currentProductData = productData;
+      if (!currentProductData) {
+        currentProductData = await refetch();
+      }
+
+      const existingImages = currentProductData?.images || [];
       let formattedExistingImages = [];
 
       // Format existing images
       if (Array.isArray(existingImages)) {
-        formattedExistingImages = existingImages.map((img, index) => {
-          if (typeof img === "string") {
-            return {
-              image_url: img,
-              priority: index,
-            };
-          } else if (img?.image_url) {
-            return {
-              image_url: img.image_url,
-              priority: img.priority !== undefined ? img.priority : index,
-            };
-          }
-          return null;
-        }).filter(Boolean);
+        formattedExistingImages = existingImages
+          .map((img, index) => {
+            if (typeof img === "string") {
+              return {
+                image_url: img,
+                priority: index,
+              };
+            } else if (img?.image_url) {
+              return {
+                image_url: img.image_url,
+                priority: img.priority !== undefined ? img.priority : index,
+              };
+            }
+            return null;
+          })
+          .filter(Boolean);
       }
 
       // Upload new images
@@ -64,7 +79,7 @@ function ProductImageUploadCell({ value, data, api }) {
             file.name,
             "products/image",
             undefined,
-            `${productId}_${formattedExistingImages.length + index + 1}`
+            `${productId}_${formattedExistingImages.length + index + 1}`,
           );
 
           if (uploadRes.code === 200) {
@@ -93,7 +108,7 @@ function ProductImageUploadCell({ value, data, api }) {
       if (response?.code === 200 || response?.code?.code === 200) {
         toast.success(
           `Successfully uploaded ${uploadedImages.length} image(s)`,
-          { id: toastId }
+          { id: toastId },
         );
 
         // Refetch product data to get updated images
@@ -105,7 +120,7 @@ function ProductImageUploadCell({ value, data, api }) {
             ...data,
             has_images: allImages.length > 0,
           };
-          
+
           // Try to find the row node and update it
           const rowNode = api.getRowNode(productId);
           if (rowNode) {
@@ -120,10 +135,7 @@ function ProductImageUploadCell({ value, data, api }) {
       }
     } catch (error) {
       console.error("Error uploading images:", error);
-      toast.error(
-        error.message || "Failed to upload images",
-        { id: toastId }
-      );
+      toast.error(error.message || "Failed to upload images", { id: toastId });
     } finally {
       setUploading(false);
       // Reset file input
@@ -148,7 +160,7 @@ function ProductImageUploadCell({ value, data, api }) {
         size="sm"
         colorScheme="purple"
         variant="outline"
-        onClick={() => fileInputRef.current?.click()}
+        onClick={handleBrowseClick}
         isLoading={uploading || loadingProduct}
         loadingText={uploading ? "Uploading..." : "Loading..."}
         disabled={uploading || loadingProduct}
