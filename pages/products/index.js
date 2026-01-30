@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
+import { useRouter } from "next/router";
 import { useProducts } from "../../customHooks/useProducts";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../components/CustomContainer";
@@ -8,8 +9,20 @@ import usePermissions from "../../customHooks/usePermissions";
 import ProductImageUploadCell from "../../components/ProductImageUploadCell";
 
 function Products() {
+  const router = useRouter();
+  const { query } = router;
+  const gridRef = useRef(null);
   const { products } = useProducts({ limit: 10000, fetchAll: true });
   const canEdit = usePermissions("edit_products");
+
+  useEffect(() => {
+    const distributor = query.distributor;
+    if (!distributor || typeof distributor !== "string" || !gridRef.current?.api || !Array.isArray(products) || products.length === 0) return;
+    gridRef.current.api.setFilterModel({
+      de_distributor: { filterType: "text", type: "equals", filter: distributor },
+    });
+    gridRef.current.api.onFilterChanged();
+  }, [products, query.distributor]);
 
   const colDefs = [
     {
@@ -73,6 +86,7 @@ function Products() {
     <GlobalWrapper title="Products" permissionKey="view_products">
       <CustomContainer title="Products" filledHeader>
         <AgGrid
+          ref={gridRef}
           rowData={products}
           colDefs={colDefs}
           gridOptions={{

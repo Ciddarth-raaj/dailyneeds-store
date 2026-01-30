@@ -380,6 +380,12 @@ export default {
         selected: false,
         location: "/products",
       },
+      view_products_report: {
+        title: "Product Image Report",
+        permission: "view_products",
+        selected: false,
+        location: "/products/report",
+      },
       // view_departments: {
       //   title: 'View Deapartments',
       //   selected: false,
