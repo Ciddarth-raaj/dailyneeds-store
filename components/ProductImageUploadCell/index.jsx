@@ -4,6 +4,7 @@ import toast from "react-hot-toast";
 import asset from "../../helper/asset";
 import product from "../../helper/product";
 import { useProductById } from "../../customHooks/useProductById";
+import { compressImagesIfNeeded } from "../../util/imageProcessor";
 
 /**
  * Component for uploading product images directly from AgGrid listing
@@ -37,7 +38,7 @@ function ProductImageUploadCell({ value, data, api }) {
     if (!files || files.length === 0) return;
 
     setUploading(true);
-    const toastId = toast.loading(`Uploading ${files.length} image(s)...`);
+    const toastId = toast.loading(`Preparing ${files.length} image(s)...`);
 
     try {
       // Ensure we have product data (including existing images) before merging
@@ -69,17 +70,24 @@ function ProductImageUploadCell({ value, data, api }) {
           .filter(Boolean);
       }
 
+      // Compress images if they're larger than 1MB
+      const filesToUpload = await compressImagesIfNeeded(
+        Array.from(files),
+        1024 * 1024,
+        0.8
+      );
+
       // Upload new images
       const uploadedImages = [];
-      for (let index = 0; index < files.length; index++) {
-        const file = files[index];
+      for (let index = 0; index < filesToUpload.length; index++) {
+        const file = filesToUpload[index];
         try {
           const uploadRes = await asset.upload(
             file,
             file.name,
             "products/image",
             undefined,
-            `${productId}_${formattedExistingImages.length + index + 1}`,
+            `${productId}_${formattedExistingImages.length + index + 1}`
           );
 
           if (uploadRes.code === 200) {
@@ -108,7 +116,7 @@ function ProductImageUploadCell({ value, data, api }) {
       if (response?.code === 200 || response?.code?.code === 200) {
         toast.success(
           `Successfully uploaded ${uploadedImages.length} image(s)`,
-          { id: toastId },
+          { id: toastId }
         );
 
         // Refetch product data to get updated images

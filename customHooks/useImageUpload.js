@@ -7,6 +7,7 @@ import {
   processImageFile,
   markImageAsProcessing,
 } from "../util/imageUpload";
+import { compressImagesIfNeeded } from "../util/imageProcessor";
 
 /**
  * Custom hook for handling image upload and processing
@@ -25,6 +26,9 @@ export function useImageUpload(getImages, setImages) {
     const files = Array.from(fileList || []);
     if (files.length === 0) return;
 
+    // Compress images if they're larger than 1MB
+    const compressedFiles = await compressImagesIfNeeded(files, 1024 * 1024, 0.8);
+
     // Get current images using the getter function
     const currentImages = getImages();
 
@@ -42,7 +46,7 @@ export function useImageUpload(getImages, setImages) {
     }
 
     // Create new image objects (without processing)
-    const newImageObjects = createImageObjects(files, validatedImages.length);
+    const newImageObjects = createImageObjects(compressedFiles, validatedImages.length);
 
     const updatedImages = [...validatedImages, ...newImageObjects];
     setImages(updatedImages);
