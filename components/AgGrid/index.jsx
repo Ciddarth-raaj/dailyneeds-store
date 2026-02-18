@@ -172,6 +172,9 @@ const AgGrid = React.forwardRef(function AgGrid(
       sortable: true,
       filter: true,
       flex: 1,
+      cellRenderer: (props) => {
+        return props.value !== null && props.value !== "" ? props.value : "-";
+      },
     };
     const baseOptions = {
       suppressColumnVirtualisation: false,
@@ -217,7 +220,7 @@ const AgGrid = React.forwardRef(function AgGrid(
           cellRenderer: (props) => {
             return (
               <Flex alignItems="center" h="100%">
-                <Badge size="md" colorScheme={props.value?.colorScheme}>
+                <Badge colorScheme={props.value?.colorScheme}>
                   {props.value?.label}
                 </Badge>
               </Flex>

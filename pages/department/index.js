@@ -31,31 +31,25 @@ function DepartmentView() {
     {
       field: "department_id",
       headerName: "ID",
-      maxWidth: 120,
-      resizable: false,
+      type: "id",
     },
     {
       field: "department_name",
       headerName: "Name",
-      resizable: true,
-      cellRenderer: (props) => capitalize(props.value),
+      type: "capitalized",
+    },
+    {
+      field: "department_code",
+      headerName: "Code",
+      hideByDefault: true,
     },
     {
       field: "status",
       headerName: "Status",
-      resizable: true,
-      maxWidth: 150,
-      filter: "agNumberColumnFilter",
-      cellRenderer: (props) => {
-        const isActive = props.value === 1;
-        return (
-          <Flex justifyContent="center" alignItems="center">
-            <Text color={isActive ? "green" : "red"}>
-              {isActive ? "Active" : "Terminated"}
-            </Text>
-          </Flex>
-        );
-      },
+      type: "badge-column",
+      valueGetter: (props) =>
+        props.data.status === 1 ? { label: "Active", colorScheme: "green" }
+          : { label: "Inactive", colorScheme: "red" },
     },
     // {
     //   field: "department_id",

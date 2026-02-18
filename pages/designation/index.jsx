@@ -1,33 +1,10 @@
-import { Formik, Form } from "formik";
-import {
-  Container,
-  Flex,
-  Button,
-  ButtonGroup,
-  Switch,
-  Badge,
-  Text,
-} from "@chakra-ui/react";
-import styles from "../../styles/admin.module.css";
 import React, { useState, useEffect } from "react";
 import DesignationHelper from "../../helper/designation";
-import CustomInput from "../../components/customInput/customInput";
-import Head from "../../util/head";
-import { toast } from "react-toastify";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
-import { Validation } from "../../util/validation";
-import Table from "../../components/table/table";
-import Link from "next/link";
-import exportCSVFile from "../../util/exportCSVFile";
-import moment from "moment";
 import CustomContainer from "../../components/CustomContainer";
 import AgGrid from "../../components/AgGrid";
-import { capitalize } from "../../util/string";
-import CustomMenu from "../../components/CustomMenu";
-import { useRouter } from "next/router";
 
 function DesignationView() {
-  const router = useRouter();
   const [designations, setDesignations] = useState([]);
 
   function getDesignationData() {
@@ -46,77 +23,36 @@ function DesignationView() {
     {
       field: "designation_id",
       headerName: "ID",
-      maxWidth: 120,
-      resizable: false,
+      type: "id",
     },
     {
       field: "designation_name",
       headerName: "Name",
-      resizable: true,
-      cellRenderer: (props) => capitalize(props.value),
+      type: "capitalized",
     },
     {
       field: "status",
       headerName: "Status",
-      resizable: true,
-      maxWidth: 150,
-      filter: "agNumberColumnFilter",
-      cellRenderer: (props) => {
-        const isActive = props.value === 1;
-        return (
-          <Flex justifyContent="center" alignItems="center">
-            <Text color={isActive ? "green" : "red"}>
-              {isActive ? "Active" : "Terminated"}
-            </Text>
-          </Flex>
-        );
-      },
+      type: "badge-column",
+      valueGetter: (props) =>
+        props.data.status === 1
+          ? { label: "Active", colorScheme: "green" }
+          : { label: "Inactive", colorScheme: "red" },
     },
     {
       field: "designation_id",
       headerName: "Action",
-      resizable: false,
-      maxWidth: 100,
-      filter: false,
-      cellRenderer: (props) => {
-        return (
-          <Flex justifyContent="center" alignItems="center" height={"100%"}>
-            <CustomMenu
-              items={[
-                {
-                  label: "View",
-                  onClick: () => router.push(`/designation/${props.value}`),
-                },
-              ]}
-            />
-          </Flex>
-        );
+      type: "action-column",
+      valueGetter: (props) => {
+        return [
+          {
+            label: "View",
+            redirectionUrl: `/designation/${props.data.designation_id}`,
+          },
+        ];
       },
     },
   ];
-
-  const getExportFile = () => {
-    const TABLE_HEADER = {
-      SNo: "SNo",
-      id: "Designation ID",
-      name: "Designation Name",
-      status: "Status",
-    };
-    const formattedData = [];
-    valuesNew.forEach((d, i) => {
-      formattedData.push({
-        SNo: i + 1,
-        id: d.id,
-        name: d.value,
-        status: d.status,
-      });
-    });
-    exportCSVFile(
-      TABLE_HEADER,
-      formattedData,
-      "designation_details" + moment().format("DD-MMY-YYYY")
-    );
-  };
 
   return (
     <GlobalWrapper title="Designation Details">
