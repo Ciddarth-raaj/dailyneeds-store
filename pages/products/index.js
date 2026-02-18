@@ -31,19 +31,29 @@ function Products() {
       type: "id",
     },
     {
-      field: "de_display_name",
+      field: "gf_item_name",
       headerName: "Name",
       type: "capitalized",
+      flex: 2,
+    },
+    {
+      field: "de_display_name",
+      hideByDefault: true,
+      headerName: "Delium Name",
+      type: "capitalized",
+      flex: 2,
     },
     {
       field: "de_distributor",
       headerName: "Distributor",
       type: "capitalized",
+      flex: 2,
     },
     {
       field: "has_images",
       headerName: "Has Image",
       type: "badge-column",
+      width: "auto",
       valueGetter: (props) =>
         props.data.has_images
           ? { label: "Yes", colorScheme: "green" }
@@ -53,6 +63,8 @@ function Products() {
       field: "images",
       headerName: "Upload Images",
       filter: false,
+      minWidth: 140,
+      hideExport: true,
       cellRenderer: (props) => {
         if (!canEdit) return <span>-</span>;
         return <ProductImageUploadCell value={props.value} data={props.data} api={props.api} />;
@@ -89,6 +101,7 @@ function Products() {
           ref={gridRef}
           rowData={products}
           colDefs={colDefs}
+          tableKey="products"
           gridOptions={{
             getRowId: (params) => params.data.product_id,
           }}

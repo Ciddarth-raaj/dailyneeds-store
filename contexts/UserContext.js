@@ -24,6 +24,7 @@ export function UserProvider({ children }) {
     );
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
     fetchUser();
     getPermissions();
     // Initialize from localStorage
@@ -70,8 +71,8 @@ export function UserProvider({ children }) {
       const storageKey = getStorageKey(key);
       const value = newConfig[key] == "null" ? null : newConfig[key];
 
-      // Update localStorage for each value
-      if (value !== undefined) {
+      // Update localStorage for each value (client-only)
+      if (value !== undefined && typeof window !== "undefined") {
         if (value === null) {
           localStorage.removeItem(storageKey);
         } else {
@@ -127,7 +128,7 @@ export function UserProvider({ children }) {
       employeeId: null,
       permissions: [],
     });
-    localStorage.clear();
+    if (typeof window !== "undefined") localStorage.clear();
   };
 
   const fetchUser = async () => {

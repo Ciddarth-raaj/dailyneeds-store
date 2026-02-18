@@ -93,6 +93,10 @@ export default function Header() {
   }, [isMobile, isDropdownOpen]);
 
   const logout = () => {
+    localStorage.removeItem("Token");
+    localStorage.removeItem("Designation_id");
+    localStorage.removeItem("Store_id");
+    localStorage.removeItem("User_type");
     localStorage.clear();
     window.location = "/";
   };
@@ -155,9 +159,8 @@ export default function Header() {
             </p>
           </div>
           <div
-            className={`${styles.dropdownContent} ${
-              isDropdownOpen ? styles.show : ""
-            }`}
+            className={`${styles.dropdownContent} ${isDropdownOpen ? styles.show : ""
+              }`}
             style={{ display: isDropdownOpen ? "block" : "none" }}
           >
             {Object.keys(settings).map((key) => (

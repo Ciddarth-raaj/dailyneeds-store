@@ -62,6 +62,7 @@ class MyApp extends React.Component {
   }
 
   initUser() {
+    if (typeof window === "undefined") return;
     try {
       const token = localStorage.getItem("Token");
       const designation_id = localStorage.getItem("Designation_id");
