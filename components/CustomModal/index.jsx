@@ -71,7 +71,7 @@ function CustomModal({
           color="purple.600"
           _hover={{ color: "purple.700", bg: "purple.50" }}
         />
-        <ModalBody bg="white" p="22px" {...bodyProps}>
+        <ModalBody bg="white" p="28px" {...bodyProps}>
           {children}
         </ModalBody>
         {footer != null && footer !== false && (

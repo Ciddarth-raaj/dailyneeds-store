@@ -2,7 +2,7 @@ import React, { useMemo, useState, useCallback } from "react";
 import { useRouter } from "next/router";
 import GlobalWrapper from "../../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../../components/CustomContainer";
-import { Button, Text, Box, Flex } from "@chakra-ui/react";
+import { Button, Text, Box, Flex, Switch } from "@chakra-ui/react";
 import CustomModal from "../../../components/CustomModal";
 import AgGrid from "../../../components/AgGrid";
 import { useJobWorksheets } from "../../../customHooks/useJobWorksheets";
@@ -14,10 +14,12 @@ import toast from "react-hot-toast";
 import moment from "moment";
 import { useConfirmDelete } from "../../../customHooks/useConfirmDelete";
 import Badge from "../../../components/Badge";
+import usePermissions from "../../../customHooks/usePermissions";
 
 function JobWorksheetIndex() {
   const router = useRouter();
   const [viewProductsWorksheetId, setViewProductsWorksheetId] = useState(null);
+  const canAdd = usePermissions("add_job_worksheet");
 
   const { jobWorksheets, loading, deleteJobWorksheet, refetch } =
     useJobWorksheets({
@@ -55,14 +57,11 @@ function JobWorksheetIndex() {
 
   const viewProductsGridRows = useMemo(() => {
     const items = worksheetWithItems?.items || [];
+
     return items.map((item, idx) => {
       const info = productMap[item.product_id] || {};
-      const label1 =
-        stickerOptions.find((s) => s.id === item.sticker_type_id_1)?.value ??
-        "-";
-      const label2 =
-        stickerOptions.find((s) => s.id === item.sticker_type_id_2)?.value ??
-        "-";
+      const label1 = item.sticker_type_1_label ?? "-";
+      const label2 = item.sticker_type_2_label ?? "-";
       const isSingle = (item.material_type || "Single") === "Single";
       const statusVal = item.status || "open";
       const itemId = item.id ?? item.job_worksheet_item_id;
@@ -82,12 +81,7 @@ function JobWorksheetIndex() {
         status_display: statusVal === "done" ? "Done" : "Open",
       };
     });
-  }, [
-    worksheetWithItems?.items,
-    productMap,
-    stickerOptions,
-    viewProductsWorksheetId,
-  ]);
+  }, [worksheetWithItems?.items, productMap, viewProductsWorksheetId]);
 
   const handleSetItemStatus = useCallback(
     (itemRow, newStatus) => async () => {
@@ -134,19 +128,30 @@ function JobWorksheetIndex() {
       },
       {
         field: "item_id",
-        headerName: "Action",
-        type: "action-column",
-        valueGetter: (params) => {
+        headerName: "Mark done",
+        width: 120,
+        cellRenderer: (params) => {
           const row = params.data;
-
-          if (!row || row.item_id == null) return [];
+          if (!row || row.item_id == null) return null;
           const isDone = row.status === "done";
-          return [
-            {
-              label: isDone ? "Set to Open" : "Set to Done",
-              onClick: handleSetItemStatus(row, isDone ? "open" : "done"),
-            },
-          ];
+          return (
+            <Flex align="center" h="100%">
+              <Switch
+                size="sm"
+                colorScheme="purple"
+                isChecked={isDone}
+                onChange={() => {
+                  handleSetItemStatus(
+                    row,
+                    isDone ? "open" : "done"
+                  )();
+                }}
+              />
+              <Text ml={2} fontSize="xs" color="gray.600">
+                {isDone ? "Done" : "Open"}
+              </Text>
+            </Flex>
+          );
         },
       },
     ],
@@ -233,20 +238,25 @@ function JobWorksheetIndex() {
         valueGetter: (params) => {
           const id = params.data?.job_worksheet_id;
           const grnNo = params.data?.grn_no;
-          return [
-            {
-              label: "View",
-              redirectionUrl: `/purchase/job-worksheet/view?id=${id}`,
-            },
-            {
-              label: "Edit",
-              redirectionUrl: `/purchase/job-worksheet/edit?id=${id}`,
-            },
+
+          const actions = [
             {
               label: "View Products",
               onClick: () => setViewProductsWorksheetId(id),
             },
             {
+              label: "View",
+              redirectionUrl: `/purchase/job-worksheet/view?id=${id}`,
+            },
+          ];
+
+          if (canAdd) {
+            actions.push({
+              label: "Edit",
+              redirectionUrl: `/purchase/job-worksheet/edit?id=${id}`,
+            });
+
+            actions.push({
               label: "Delete",
               onClick: () =>
                 confirmDelete({
@@ -259,8 +269,10 @@ function JobWorksheetIndex() {
                     toast.success("Job worksheet deleted");
                   },
                 }),
-            },
-          ];
+            });
+          }
+
+          return actions;
         },
       },
     ],
@@ -301,13 +313,15 @@ function JobWorksheetIndex() {
         title="Job Worksheet"
         filledHeader
         rightSection={
-          <Button
-            colorScheme="purple"
-            size="sm"
-            onClick={() => router.push("/purchase/job-worksheet/create")}
-          >
-            Create
-          </Button>
+          canAdd && (
+            <Button
+              colorScheme="purple"
+              size="sm"
+              onClick={() => router.push("/purchase/job-worksheet/create")}
+            >
+              Create
+            </Button>
+          )
         }
       >
         {loading ? (

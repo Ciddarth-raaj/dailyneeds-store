@@ -19,6 +19,7 @@ import {
   Box,
   Image,
 } from "@chakra-ui/react";
+import Badge from "../../../components/Badge";
 import { Formik } from "formik";
 import * as Yup from "yup";
 import toast from "react-hot-toast";
@@ -261,8 +262,13 @@ function JobWorksheetMode() {
     ? "Edit Job Worksheet"
     : "Create Job Worksheet";
 
+  const getPermissionKey = () => {
+    if (viewMode) return "view_job_worksheet";
+    return "add_job_worksheet";
+  };
+
   return (
-    <GlobalWrapper title={title} permissionKey="view_job_worksheet">
+    <GlobalWrapper title={title} permissionKey={getPermissionKey()}>
       <CustomContainer title={title} filledHeader>
         <Formik
           enableReinitialize
@@ -348,7 +354,7 @@ function JobWorksheetMode() {
                               <Th>Sticker Type</Th>
                               <Th>Qty</Th>
                               <Th>MRP</Th>
-                              {viewMode && <Th>Status</Th>}
+                              <Th>Status</Th>
                               {!viewMode && <Th w="60px" />}
                             </Tr>
                           </Thead>
@@ -356,6 +362,8 @@ function JobWorksheetMode() {
                             {values.items.map((row, idx) => {
                               const productInfo =
                                 productMap[row.product_id] || {};
+                              const isRowDone = row.status === "done";
+                              const canEdit = !viewMode && !isRowDone;
 
                               const isSingle =
                                 (row.material_type || "Single") === "Single";
@@ -408,7 +416,7 @@ function JobWorksheetMode() {
                                       }
                                       method="switch"
                                       values={MATERIAL_TYPES}
-                                      editable={!viewMode}
+                                      editable={canEdit}
                                       size="sm"
                                     />
                                   </Td>
@@ -425,7 +433,7 @@ function JobWorksheetMode() {
                                         }
                                         method="switch"
                                         values={stickerOptions}
-                                        editable={!viewMode}
+                                        editable={canEdit}
                                         size="sm"
                                         placeholder="Select"
                                       />
@@ -442,7 +450,7 @@ function JobWorksheetMode() {
                                           }
                                           method="switch"
                                           values={stickerOptions}
-                                          editable={!viewMode}
+                                          editable={canEdit}
                                           size="sm"
                                           placeholder="Select"
                                         />
@@ -457,7 +465,7 @@ function JobWorksheetMode() {
                                           }
                                           method="switch"
                                           values={stickerOptions}
-                                          editable={!viewMode}
+                                          editable={canEdit}
                                           size="sm"
                                           placeholder="Select"
                                         />
@@ -470,43 +478,43 @@ function JobWorksheetMode() {
                                       type="number"
                                       value={row.qty}
                                       onChange={(v) => updateItem("qty", v)}
-                                      editable={!viewMode}
+                                      editable={canEdit}
                                       size="sm"
                                     />
                                   </Td>
                                   <Td>
                                     <Text fontSize="sm">{row.mrp}</Text>
                                   </Td>
-                                  {viewMode && (
-                                    <Td>
-                                      <CustomInputStandalone
-                                        label=""
-                                        value={row.status ?? "open"}
-                                        onChange={(v) =>
-                                          updateItem("status", v)
-                                        }
-                                        method="switch"
-                                        values={STATUS_OPTIONS}
-                                        editable={!viewMode}
-                                        size="sm"
-                                      />
-                                    </Td>
-                                  )}
+                                  <Td>
+                                    <Badge
+                                      colorScheme={
+                                        (row.status ?? "open") === "done"
+                                          ? "green"
+                                          : "blue"
+                                      }
+                                    >
+                                      {(row.status ?? "open") === "done"
+                                        ? "Done"
+                                        : "Open"}
+                                    </Badge>
+                                  </Td>
                                   {!viewMode && (
                                     <Td>
-                                      <IconButton
-                                        aria-label="Remove"
-                                        size="xs"
-                                        colorScheme="red"
-                                        variant="ghost"
-                                        icon={<i className="fa fa-trash" />}
-                                        onClick={() => {
-                                          const next = values.items.filter(
-                                            (_, i) => i !== idx
-                                          );
-                                          setFieldValue("items", next);
-                                        }}
-                                      />
+                                      {!isRowDone && (
+                                        <IconButton
+                                          aria-label="Remove"
+                                          size="xs"
+                                          colorScheme="red"
+                                          variant="ghost"
+                                          icon={<i className="fa fa-trash" />}
+                                          onClick={() => {
+                                            const next = values.items.filter(
+                                              (_, i) => i !== idx
+                                            );
+                                            setFieldValue("items", next);
+                                          }}
+                                        />
+                                      )}
                                     </Td>
                                   )}
                                 </Tr>
