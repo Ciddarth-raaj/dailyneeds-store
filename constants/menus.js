@@ -331,6 +331,12 @@ export default {
         selected: false,
         location: "/purchase/difference",
       },
+      view_job_worksheet: {
+        title: "Job Worksheet",
+        permission: "view_job_worksheet",
+        selected: false,
+        location: "/purchase/job-worksheet",
+      },
     },
   },
   debit_note: {

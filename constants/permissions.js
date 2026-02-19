@@ -99,6 +99,7 @@ export const PERMISSIONS = {
   purchase: {
     view_purchases: "View Purchases",
     view_purchases_difference: "View Purchases Difference",
+    view_job_worksheet: "View Job Worksheet",
   },
 
   // Debit Note
