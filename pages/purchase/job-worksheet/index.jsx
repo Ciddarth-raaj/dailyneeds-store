@@ -15,6 +15,7 @@ import moment from "moment";
 import { useConfirmDelete } from "../../../customHooks/useConfirmDelete";
 import Badge from "../../../components/Badge";
 import usePermissions from "../../../customHooks/usePermissions";
+import Link from "next/link";
 
 function JobWorksheetIndex() {
   const router = useRouter();
@@ -141,10 +142,7 @@ function JobWorksheetIndex() {
                 colorScheme="purple"
                 isChecked={isDone}
                 onChange={() => {
-                  handleSetItemStatus(
-                    row,
-                    isDone ? "open" : "done"
-                  )();
+                  handleSetItemStatus(row, isDone ? "open" : "done")();
                 }}
               />
               <Text ml={2} fontSize="xs" color="gray.600">
@@ -203,7 +201,13 @@ function JobWorksheetIndex() {
           }
 
           return (
-            <Flex gap="4px" p="4px" alignItems="center" flexWrap="wrap">
+            <Flex
+              gap="4px"
+              p="4px"
+              alignItems="center"
+              flexWrap="wrap"
+              h="full"
+            >
               <Badge colorScheme="purple">{`${doneCount} / ${
                 doneCount + openCount
               }`}</Badge>
@@ -314,13 +318,9 @@ function JobWorksheetIndex() {
         filledHeader
         rightSection={
           canAdd && (
-            <Button
-              colorScheme="purple"
-              size="sm"
-              onClick={() => router.push("/purchase/job-worksheet/create")}
-            >
-              Create
-            </Button>
+            <Link href="/purchase/job-worksheet/create" passHref>
+              <Button colorScheme="purple">Create</Button>
+            </Link>
           )
         }
       >

@@ -335,13 +335,15 @@ function JobWorksheetMode() {
                       filledHeader
                       smallHeader
                       rightSection={
-                        <Button
-                          colorScheme="purple"
-                          variant="new-outline"
-                          onClick={() => setFieldValue("items", [])}
-                        >
-                          Clear
-                        </Button>
+                        viewMode ? null : (
+                          <Button
+                            colorScheme="purple"
+                            variant="new-outline"
+                            onClick={() => setFieldValue("items", [])}
+                          >
+                            Clear
+                          </Button>
+                        )
                       }
                     >
                       {values.items?.length > 0 ? (
@@ -354,7 +356,7 @@ function JobWorksheetMode() {
                               <Th>Sticker Type</Th>
                               <Th>Qty</Th>
                               <Th>MRP</Th>
-                              <Th>Status</Th>
+                              {!createMode && <Th>Status</Th>}
                               {!viewMode && <Th w="60px" />}
                             </Tr>
                           </Thead>
@@ -485,19 +487,21 @@ function JobWorksheetMode() {
                                   <Td>
                                     <Text fontSize="sm">{row.mrp}</Text>
                                   </Td>
-                                  <Td>
-                                    <Badge
-                                      colorScheme={
-                                        (row.status ?? "open") === "done"
-                                          ? "green"
-                                          : "blue"
-                                      }
-                                    >
-                                      {(row.status ?? "open") === "done"
-                                        ? "Done"
-                                        : "Open"}
-                                    </Badge>
-                                  </Td>
+                                  {!createMode && (
+                                    <Td>
+                                      <Badge
+                                        colorScheme={
+                                          (row.status ?? "open") === "done"
+                                            ? "green"
+                                            : "blue"
+                                        }
+                                      >
+                                        {(row.status ?? "open") === "done"
+                                          ? "Done"
+                                          : "Open"}
+                                      </Badge>
+                                    </Td>
+                                  )}
                                   {!viewMode && (
                                     <Td>
                                       {!isRowDone && (
