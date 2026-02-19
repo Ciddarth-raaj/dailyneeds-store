@@ -275,15 +275,6 @@ function JobWorksheetMode() {
                       />
                     </Grid>
 
-                    {!viewMode && hasItems && (
-                      <Box mb={4}>
-                        <Text fontSize="sm" color="gray.500" mb={2}>
-                          To replace items, clear the list below and you can
-                          upload again.
-                        </Text>
-                      </Box>
-                    )}
-
                     <CustomContainer
                       title="Items"
                       size="xs"

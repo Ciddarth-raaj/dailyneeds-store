@@ -337,6 +337,12 @@ export default {
         selected: false,
         location: "/purchase/job-worksheet",
       },
+      view_sticker_types: {
+        title: "Sticker Types",
+        permission: "view_sticker_types",
+        selected: false,
+        location: "/purchase/sticker-types",
+      },
     },
   },
   debit_note: {
