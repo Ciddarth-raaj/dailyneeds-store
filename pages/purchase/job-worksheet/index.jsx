@@ -309,6 +309,7 @@ function JobWorksheetIndex() {
             <AgGrid
               rowData={viewProductsGridRows}
               columnDefs={viewProductsColDefs}
+              tableKey="job-worksheet-view-products"
             />
           </Box>
         )}
