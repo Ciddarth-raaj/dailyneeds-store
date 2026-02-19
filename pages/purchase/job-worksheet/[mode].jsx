@@ -3,6 +3,7 @@ import { useRouter } from "next/router";
 import GlobalWrapper from "../../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../../components/CustomContainer";
 import CustomInput from "../../../components/customInput/customInput";
+import { CustomInputStandalone } from "../../../components/customInput/customInput";
 import {
   Button,
   Flex,
@@ -16,18 +17,31 @@ import {
   IconButton,
   Text,
   Box,
+  Image,
 } from "@chakra-ui/react";
 import { Formik } from "formik";
 import * as Yup from "yup";
 import toast from "react-hot-toast";
-import usePeople from "../../../customHooks/usePeople";
 import { useJobWorksheetById } from "../../../customHooks/useJobWorksheetById";
+import { useProducts } from "../../../customHooks/useProducts";
+import { useProductSuppliers } from "../../../customHooks/useProductSuppliers";
+import { useStickerTypes } from "../../../customHooks/useStickerTypes";
 import FileUploaderWithColumnMapping from "../../../components/FileUploaderWithColumnMapping";
 import {
   createJobWorksheet,
   updateJobWorksheet,
 } from "../../../helper/jobWorksheet";
-import { capitalize } from "../../../util/string";
+
+const MATERIAL_TYPES = [
+  { id: "Single", value: "Single" },
+  { id: "Double", value: "Double" },
+  { id: "Looping", value: "Looping" },
+];
+
+const STATUS_OPTIONS = [
+  { id: "open", value: "Open" },
+  { id: "done", value: "Done" },
+];
 
 const ITEMS_COLUMN_CONFIG = [
   {
@@ -56,12 +70,16 @@ const ITEMS_COLUMN_CONFIG = [
 const validationSchema = Yup.object({
   grn_no: Yup.string().required("GRN No is required").trim(),
   date: Yup.string().required("Date is required"),
-  supplier_id: Yup.number().required("Supplier is required").nullable(),
+  supplier_id: Yup.string().required("Supplier is required").trim().nullable(),
   items: Yup.array().of(
     Yup.object({
       product_id: Yup.number().required("Product is required").nullable(),
       qty: Yup.number().min(0, "Qty must be ≥ 0").required("Qty is required"),
       mrp: Yup.number().min(0, "MRP must be ≥ 0").required("MRP is required"),
+      material_type: Yup.string().nullable(),
+      sticker_type_1: Yup.number().nullable(),
+      sticker_type_2: Yup.number().nullable(),
+      status: Yup.string().oneOf(["open", "done"]).nullable(),
     })
   ),
 });
@@ -79,15 +97,29 @@ function JobWorksheetMode() {
     worksheetId,
     { enabled: (viewMode || editMode) && !!worksheetId, withItems: true }
   );
-  const { peopleList } = usePeople();
+  const { products } = useProducts({ limit: 10000, fetchAll: true });
+  const { supplierOptions } = useProductSuppliers();
+  const { stickerTypes } = useStickerTypes({ limit: 500 });
 
-  const supplierOptions = useMemo(
+  const productMap = useMemo(() => {
+    const map = {};
+    (products || []).forEach((p) => {
+      const imageUrl = p.image_url;
+      map[p.product_id] = {
+        gf_item_name: p.gf_item_name ?? p.de_display_name ?? "-",
+        imageUrl,
+      };
+    });
+    return map;
+  }, [products]);
+
+  const stickerOptions = useMemo(
     () =>
-      peopleList.map((p) => ({
-        id: p.person_id,
-        value: p.name || `Person #${p.person_id}`,
+      (stickerTypes || []).map((s) => ({
+        id: s.sticker_id,
+        value: s.label,
       })),
-    [peopleList]
+    [stickerTypes]
   );
 
   const [initialValues, setInitialValues] = useState({
@@ -119,20 +151,32 @@ function JobWorksheetMode() {
           product_id: it.product_id,
           qty: it.qty,
           mrp: it.mrp,
+          material_type: it.material_type ?? "Single",
+          sticker_type_1: it.sticker_type_1 ?? it.sticker_type_id ?? null,
+          sticker_type_2: it.sticker_type_2 ?? null,
+          status: it.status ?? "open",
         })),
       });
     }
   }, [createMode, worksheet]);
 
   const handleMappedItems = (setFieldValue) => (mappedRows) => {
-    const valid = mappedRows.filter(
-      (r) =>
-        r.product_id != null &&
-        r.qty != null &&
-        r.mrp != null &&
-        Number(r.qty) >= 0 &&
-        Number(r.mrp) >= 0
-    );
+    const valid = mappedRows
+      .filter(
+        (r) =>
+          r.product_id != null &&
+          r.qty != null &&
+          r.mrp != null &&
+          Number(r.qty) >= 0 &&
+          Number(r.mrp) >= 0
+      )
+      .map((r) => ({
+        ...r,
+        material_type: r.material_type ?? "Single",
+        sticker_type_1: r.sticker_type_1 ?? null,
+        sticker_type_2: r.sticker_type_2 ?? null,
+        status: r.status ?? "open",
+      }));
     setFieldValue("items", valid);
     toast.success(`Imported ${valid.length} item(s)`);
   };
@@ -141,11 +185,15 @@ function JobWorksheetMode() {
     const payload = {
       grn_no: values.grn_no.trim(),
       date: values.date,
-      supplier_id: parseInt(values.supplier_id, 10),
+      supplier_id: values.supplier_id?.trim() ?? "",
       items: values.items.map((it) => ({
         product_id: parseInt(it.product_id, 10),
         qty: parseInt(Number(it.qty), 10),
         mrp: Number(it.mrp),
+        material_type: it.material_type ?? "Single",
+        sticker_type_1: it.sticker_type_1 ?? null,
+        sticker_type_2: it.sticker_type_2 ?? null,
+        status: it.status ?? "open",
       })),
     };
 
@@ -154,7 +202,7 @@ function JobWorksheetMode() {
         const res = await createJobWorksheet(payload);
         if (res?.id) {
           toast.success("Job worksheet created");
-          router.push(`/purchase/job-worksheet/edit?id=${res.id}`);
+          router.push(`/purchase/job-worksheet`);
         } else {
           toast.error(res?.msg || "Create failed");
         }
@@ -276,7 +324,7 @@ function JobWorksheetMode() {
                     </Grid>
 
                     <CustomContainer
-                      title="Items"
+                      title="Products"
                       size="xs"
                       filledHeader
                       smallHeader
@@ -294,37 +342,176 @@ function JobWorksheetMode() {
                         <Table size="sm" variant="simple" mb={4}>
                           <Thead>
                             <Tr>
-                              <Th>Item Code (product_id)</Th>
-                              <Th>Rec Qty</Th>
+                              <Th>Image</Th>
+                              <Th>Name</Th>
+                              <Th>Material Type</Th>
+                              <Th>Sticker Type</Th>
+                              <Th>Qty</Th>
                               <Th>MRP</Th>
+                              {viewMode && <Th>Status</Th>}
                               {!viewMode && <Th w="60px" />}
                             </Tr>
                           </Thead>
                           <Tbody>
-                            {values.items.map((row, idx) => (
-                              <Tr key={idx}>
-                                <Td>{row.product_id}</Td>
-                                <Td>{row.qty}</Td>
-                                <Td>{row.mrp}</Td>
-                                {!viewMode && (
+                            {values.items.map((row, idx) => {
+                              const productInfo =
+                                productMap[row.product_id] || {};
+
+                              const isSingle =
+                                (row.material_type || "Single") === "Single";
+                              const updateItem = (field, val) => {
+                                const next = values.items.map((item, i) =>
+                                  i === idx ? { ...item, [field]: val } : item
+                                );
+                                setFieldValue("items", next);
+                              };
+                              return (
+                                <Tr key={idx}>
                                   <Td>
-                                    <IconButton
-                                      aria-label="Remove"
-                                      size="xs"
-                                      colorScheme="red"
-                                      variant="ghost"
-                                      icon={<i className="fa fa-trash" />}
-                                      onClick={() => {
-                                        const next = values.items.filter(
-                                          (_, i) => i !== idx
-                                        );
-                                        setFieldValue("items", next);
-                                      }}
+                                    {productInfo.imageUrl ? (
+                                      <Image
+                                        src={productInfo.imageUrl}
+                                        alt=""
+                                        boxSize="20"
+                                        objectFit="cover"
+                                        borderRadius="md"
+                                      />
+                                    ) : (
+                                      <Box
+                                        boxSize="20"
+                                        bg="gray.100"
+                                        borderRadius="md"
+                                        display="flex"
+                                        alignItems="center"
+                                        justifyContent="center"
+                                      >
+                                        <Text
+                                          fontSize="smaller"
+                                          color="gray.400"
+                                        >
+                                          No Image
+                                        </Text>
+                                      </Box>
+                                    )}
+                                  </Td>
+                                  <Td>
+                                    <Text fontSize="sm">
+                                      {productInfo.gf_item_name ?? "-"}
+                                    </Text>
+                                  </Td>
+                                  <Td>
+                                    <CustomInputStandalone
+                                      label=""
+                                      value={row.material_type ?? "Single"}
+                                      onChange={(v) =>
+                                        updateItem("material_type", v)
+                                      }
+                                      method="switch"
+                                      values={MATERIAL_TYPES}
+                                      editable={!viewMode}
+                                      size="sm"
                                     />
                                   </Td>
-                                )}
-                              </Tr>
-                            ))}
+                                  <Td>
+                                    {isSingle ? (
+                                      <CustomInputStandalone
+                                        label=""
+                                        value={row.sticker_type_1 ?? ""}
+                                        onChange={(v) =>
+                                          updateItem(
+                                            "sticker_type_1",
+                                            v ? Number(v) : null
+                                          )
+                                        }
+                                        method="switch"
+                                        values={stickerOptions}
+                                        editable={!viewMode}
+                                        size="sm"
+                                        placeholder="Select"
+                                      />
+                                    ) : (
+                                      <Flex direction="column" gap={2}>
+                                        <CustomInputStandalone
+                                          label=""
+                                          value={row.sticker_type_1 ?? ""}
+                                          onChange={(v) =>
+                                            updateItem(
+                                              "sticker_type_1",
+                                              v ? Number(v) : null
+                                            )
+                                          }
+                                          method="switch"
+                                          values={stickerOptions}
+                                          editable={!viewMode}
+                                          size="sm"
+                                          placeholder="Select"
+                                        />
+                                        <CustomInputStandalone
+                                          label=""
+                                          value={row.sticker_type_2 ?? ""}
+                                          onChange={(v) =>
+                                            updateItem(
+                                              "sticker_type_2",
+                                              v ? Number(v) : null
+                                            )
+                                          }
+                                          method="switch"
+                                          values={stickerOptions}
+                                          editable={!viewMode}
+                                          size="sm"
+                                          placeholder="Select"
+                                        />
+                                      </Flex>
+                                    )}
+                                  </Td>
+                                  <Td>
+                                    <CustomInputStandalone
+                                      label=""
+                                      type="number"
+                                      value={row.qty}
+                                      onChange={(v) => updateItem("qty", v)}
+                                      editable={!viewMode}
+                                      size="sm"
+                                    />
+                                  </Td>
+                                  <Td>
+                                    <Text fontSize="sm">{row.mrp}</Text>
+                                  </Td>
+                                  {viewMode && (
+                                    <Td>
+                                      <CustomInputStandalone
+                                        label=""
+                                        value={row.status ?? "open"}
+                                        onChange={(v) =>
+                                          updateItem("status", v)
+                                        }
+                                        method="switch"
+                                        values={STATUS_OPTIONS}
+                                        editable={!viewMode}
+                                        size="sm"
+                                      />
+                                    </Td>
+                                  )}
+                                  {!viewMode && (
+                                    <Td>
+                                      <IconButton
+                                        aria-label="Remove"
+                                        size="xs"
+                                        colorScheme="red"
+                                        variant="ghost"
+                                        icon={<i className="fa fa-trash" />}
+                                        onClick={() => {
+                                          const next = values.items.filter(
+                                            (_, i) => i !== idx
+                                          );
+                                          setFieldValue("items", next);
+                                        }}
+                                      />
+                                    </Td>
+                                  )}
+                                </Tr>
+                              );
+                            })}
                           </Tbody>
                         </Table>
                       ) : (

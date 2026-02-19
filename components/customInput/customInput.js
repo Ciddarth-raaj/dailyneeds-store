@@ -649,4 +649,93 @@ const TextField = ({
     </div>
   );
 };
+/**
+ * Standalone input (no Formik). Use for inline editing with value/onChange.
+ * Supports: text, number, and method="switch" (dropdown).
+ */
+export function CustomInputStandalone({
+  label,
+  value,
+  onChange,
+  type = "text",
+  method,
+  values = [],
+  editable = true,
+  placeholder,
+  size = "sm",
+  ...rest
+}) {
+  const handleChange = (e) => {
+    const v = e?.target?.value;
+    if (method === "switch" || type === "text") onChange(v);
+    else if (type === "number") onChange(v !== "" ? Number(v) : null);
+  };
+
+  const displayValue =
+    method === "switch" && values?.length
+      ? values.find((item) => String(item.id) === String(value))?.value ?? ""
+      : value;
+
+  if (!editable) {
+    return (
+      <div>
+        {label && (
+          <label className={styles.label} style={{ display: "block", marginBottom: "4px" }}>
+            {label}
+          </label>
+        )}
+        <p className={styles.infoText}>{displayValue ?? "N/A"}</p>
+      </div>
+    );
+  }
+
+  return (
+    <FormControl size={size}>
+      {label && (
+        <FormLabel fontSize="sm" mb={1}>
+          {label}
+        </FormLabel>
+      )}
+      {method === "switch" ? (
+        <Select
+          size={size}
+          value={value ?? ""}
+          onChange={handleChange}
+          placeholder={placeholder}
+          {...rest}
+        >
+          {values.map((opt) => (
+            <option key={opt.id} value={opt.id}>
+              {opt.value}
+            </option>
+          ))}
+        </Select>
+      ) : type === "number" ? (
+        <NumberInput
+          size={size}
+          value={value ?? ""}
+          onChange={(_, val) => onChange(val !== "" ? Number(val) : null)}
+          min={0}
+          {...rest}
+        >
+          <NumberInputField placeholder={placeholder} />
+          <NumberInputStepper>
+            <NumberIncrementStepper />
+            <NumberDecrementStepper />
+          </NumberInputStepper>
+        </NumberInput>
+      ) : (
+        <Input
+          size={size}
+          value={value ?? ""}
+          onChange={handleChange}
+          placeholder={placeholder}
+          type={type}
+          {...rest}
+        />
+      )}
+    </FormControl>
+  );
+}
+
 export default TextField;

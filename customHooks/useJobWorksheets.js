@@ -5,7 +5,7 @@ import {
 } from "../helper/jobWorksheet";
 
 /**
- * @param {Object} filters - { grn_no, supplier_id, date_from, date_to, limit, offset }
+ * @param {Object} filters - { grn_no, supplier_id (supplier name string), date_from, date_to, limit, offset }
  */
 export function useJobWorksheets(filters = {}) {
   const [data, setData] = useState([]);

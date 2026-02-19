@@ -62,3 +62,18 @@ export const getJobWorksheetItems = (id) => {
     throw new Error(res.data?.msg || "Failed to fetch items");
   });
 };
+
+/**
+ * Update a single job worksheet item.
+ * @param {number} worksheetId - Job worksheet ID
+ * @param {number} itemId - Job worksheet item ID
+ * @param {Object} body - { product_id, qty, mrp, status? }
+ */
+export const updateJobWorksheetItem = (worksheetId, itemId, body) => {
+  return API.put(`/job-worksheet/${worksheetId}/items/${itemId}`, body).then(
+    (res) => {
+      if (res.data?.code === 200) return res.data;
+      throw new Error(res.data?.msg || "Failed to update item");
+    }
+  );
+};

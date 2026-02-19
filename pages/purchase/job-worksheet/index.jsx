@@ -1,25 +1,162 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState, useCallback } from "react";
 import { useRouter } from "next/router";
 import GlobalWrapper from "../../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../../components/CustomContainer";
-import { Button, Text } from "@chakra-ui/react";
+import { Button, Text, Box, Flex } from "@chakra-ui/react";
+import CustomModal from "../../../components/CustomModal";
 import AgGrid from "../../../components/AgGrid";
 import { useJobWorksheets } from "../../../customHooks/useJobWorksheets";
-import useConfirmDelete from "../../../customHooks/useConfirmDelete";
+import { useJobWorksheetById } from "../../../customHooks/useJobWorksheetById";
+import { useProducts } from "../../../customHooks/useProducts";
+import { useStickerTypes } from "../../../customHooks/useStickerTypes";
+import { updateJobWorksheetItem } from "../../../helper/jobWorksheet";
 import toast from "react-hot-toast";
 import moment from "moment";
+import { useConfirmDelete } from "../../../customHooks/useConfirmDelete";
+import Badge from "../../../components/Badge";
 
 function JobWorksheetIndex() {
   const router = useRouter();
-  const { jobWorksheets, loading, deleteJobWorksheet } = useJobWorksheets({
-    limit: 500,
-  });
+  const [viewProductsWorksheetId, setViewProductsWorksheetId] = useState(null);
+
+  const { jobWorksheets, loading, deleteJobWorksheet, refetch } =
+    useJobWorksheets({
+      limit: 500,
+    });
   const { confirmDelete, ConfirmDeleteDialog } = useConfirmDelete();
+  const {
+    worksheet: worksheetWithItems,
+    loading: loadingWorksheet,
+    refetch: refetchWorksheet,
+  } = useJobWorksheetById(viewProductsWorksheetId, {
+    enabled: !!viewProductsWorksheetId,
+    withItems: true,
+  });
+  const { products } = useProducts({ limit: 10000, fetchAll: true });
+  const { stickerTypes } = useStickerTypes({ limit: 500 });
+
+  const productMap = useMemo(() => {
+    const map = {};
+    (products || []).forEach((p) => {
+      const imageUrl = p.image_url;
+      map[p.product_id] = {
+        gf_item_name: p.gf_item_name ?? p.de_display_name ?? "-",
+        imageUrl,
+      };
+    });
+    return map;
+  }, [products]);
+
+  const stickerOptions = useMemo(
+    () =>
+      (stickerTypes || []).map((s) => ({ id: s.sticker_id, value: s.label })),
+    [stickerTypes]
+  );
+
+  const viewProductsGridRows = useMemo(() => {
+    const items = worksheetWithItems?.items || [];
+    return items.map((item, idx) => {
+      const info = productMap[item.product_id] || {};
+      const label1 =
+        stickerOptions.find((s) => s.id === item.sticker_type_id_1)?.value ??
+        "-";
+      const label2 =
+        stickerOptions.find((s) => s.id === item.sticker_type_id_2)?.value ??
+        "-";
+      const isSingle = (item.material_type || "Single") === "Single";
+      const statusVal = item.status || "open";
+      const itemId = item.id ?? item.job_worksheet_item_id;
+      return {
+        id: `row-${viewProductsWorksheetId}-${itemId}`,
+        item_id: itemId,
+        product_id: item.product_id,
+        gf_item_name: info.gf_item_name,
+        imageUrl: info.imageUrl,
+        material_type: item.material_type || "Single",
+        sticker_label_1: label1,
+        sticker_label_2: label2,
+        sticker_display: isSingle ? label1 : `${label1} / ${label2}`,
+        qty: item.qty,
+        mrp: item.mrp,
+        status: statusVal,
+        status_display: statusVal === "done" ? "Done" : "Open",
+      };
+    });
+  }, [
+    worksheetWithItems?.items,
+    productMap,
+    stickerOptions,
+    viewProductsWorksheetId,
+  ]);
+
+  const handleSetItemStatus = useCallback(
+    (itemRow, newStatus) => async () => {
+      if (!viewProductsWorksheetId || itemRow?.item_id == null) return;
+      try {
+        await updateJobWorksheetItem(viewProductsWorksheetId, itemRow.item_id, {
+          product_id: itemRow.product_id,
+          qty: itemRow.qty,
+          mrp: itemRow.mrp,
+          status: newStatus,
+        });
+        toast.success(
+          `Status set to ${newStatus === "done" ? "Done" : "Open"}`
+        );
+        refetchWorksheet();
+      } catch (err) {
+        toast.error(err.message || "Failed to update status");
+      }
+    },
+    [viewProductsWorksheetId]
+  );
+
+  const viewProductsColDefs = useMemo(
+    () => [
+      {
+        field: "imageUrl",
+        headerName: "Image",
+        type: "image",
+      },
+      { field: "gf_item_name", headerName: "Name" },
+      { field: "material_type", headerName: "Material Type" },
+      { field: "sticker_display", headerName: "Sticker Type" },
+      { field: "qty", headerName: "Qty" },
+      { field: "mrp", headerName: "MRP" },
+      {
+        field: "status",
+        headerName: "Status",
+        type: "badge-column",
+        valueGetter: (props) => {
+          return props.data?.status === "done"
+            ? { label: "Done", colorScheme: "green" }
+            : { label: "Open", colorScheme: "blue" };
+        },
+      },
+      {
+        field: "item_id",
+        headerName: "Action",
+        type: "action-column",
+        valueGetter: (params) => {
+          const row = params.data;
+
+          if (!row || row.item_id == null) return [];
+          const isDone = row.status === "done";
+          return [
+            {
+              label: isDone ? "Set to Open" : "Set to Done",
+              onClick: handleSetItemStatus(row, isDone ? "open" : "done"),
+            },
+          ];
+        },
+      },
+    ],
+    [handleSetItemStatus]
+  );
 
   const colDefs = useMemo(
     () => [
       {
-        field: "id",
+        field: "job_worksheet_id",
         headerName: "ID",
         type: "id",
         width: 90,
@@ -32,34 +169,69 @@ function JobWorksheetIndex() {
       {
         field: "date",
         headerName: "Date",
-        valueFormatter: (params) =>
-          params.value ? moment(params.value).format("DD-MM-YYYY") : "-",
-        flex: 1,
+        type: "date",
       },
       {
-        field: "supplier_name",
+        field: "supplier_id",
         headerName: "Supplier",
-        flex: 2,
+        valueGetter: (params) =>
+          params.data?.supplier_id ?? params.data?.supplier_name ?? "",
       },
       {
         field: "supplier_phone",
         headerName: "Phone",
         hideByDefault: true,
-        flex: 1,
       },
       {
         field: "item_count",
         headerName: "Items",
-        type: "numericColumn",
-        width: 100,
       },
       {
-        field: "id",
+        field: "status_count",
+        headerName: "Status Count",
+        cellRenderer: (props) => {
+          const doneCount = props.data?.status_count?.done ?? 0;
+          const openCount = props.data?.status_count?.open ?? 0;
+
+          if (openCount == 0) {
+            return "-";
+          }
+
+          return (
+            <Flex gap="4px" p="4px" alignItems="center" flexWrap="wrap">
+              <Badge colorScheme="purple">{`${doneCount} / ${
+                doneCount + openCount
+              }`}</Badge>
+            </Flex>
+          );
+        },
+      },
+      {
+        field: "status_count",
+        headerName: "Status",
+        type: "badge-column",
+        valueGetter: (props) => {
+          const openCount = props.data?.status_count?.open ?? 0;
+
+          if (openCount === 0) {
+            return {
+              label: "Done",
+              colorScheme: "green",
+            };
+          }
+
+          return {
+            label: "In Progress",
+            colorScheme: "blue",
+          };
+        },
+      },
+      {
+        field: "job_worksheet_id",
         headerName: "Action",
         type: "action-column",
-        width: 120,
         valueGetter: (params) => {
-          const id = params.data?.id;
+          const id = params.data?.job_worksheet_id;
           const grnNo = params.data?.grn_no;
           return [
             {
@@ -71,11 +243,17 @@ function JobWorksheetIndex() {
               redirectionUrl: `/purchase/job-worksheet/edit?id=${id}`,
             },
             {
+              label: "View Products",
+              onClick: () => setViewProductsWorksheetId(id),
+            },
+            {
               label: "Delete",
               onClick: () =>
                 confirmDelete({
                   title: "Delete job worksheet",
-                  message: `Are you sure you want to delete job worksheet "${grnNo ?? id}"?`,
+                  message: `Are you sure you want to delete job worksheet "${
+                    grnNo ?? id
+                  }"?`,
                   onConfirm: async () => {
                     await deleteJobWorksheet(id);
                     toast.success("Job worksheet deleted");
@@ -89,9 +267,36 @@ function JobWorksheetIndex() {
     [confirmDelete, deleteJobWorksheet]
   );
 
+  const closeViewProducts = () => {
+    refetch();
+    setViewProductsWorksheetId(null);
+  };
+
   return (
     <GlobalWrapper title="Job Worksheet" permissionKey="view_job_worksheet">
       <ConfirmDeleteDialog />
+      <CustomModal
+        isOpen={!!viewProductsWorksheetId}
+        onClose={closeViewProducts}
+        title={`Products${
+          worksheetWithItems?.grn_no ? ` – ${worksheetWithItems.grn_no}` : ""
+        }`}
+        size="6xl"
+        scrollBehavior="inside"
+        trapFocus={false}
+        autoFocus={false}
+      >
+        {loadingWorksheet ? (
+          <Text>Loading products...</Text>
+        ) : (
+          <Box>
+            <AgGrid
+              rowData={viewProductsGridRows}
+              columnDefs={viewProductsColDefs}
+            />
+          </Box>
+        )}
+      </CustomModal>
       <CustomContainer
         title="Job Worksheet"
         filledHeader
@@ -112,7 +317,6 @@ function JobWorksheetIndex() {
             rowData={jobWorksheets}
             columnDefs={colDefs}
             tableKey="job-worksheet"
-            gridOptions={{ getRowId: (params) => params.data?.id }}
           />
         )}
       </CustomContainer>

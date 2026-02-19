@@ -17,6 +17,7 @@ import {
   AccordionPanel,
   AccordionIcon,
   Button,
+  Image,
 } from "@chakra-ui/react";
 import { icons } from "./icons";
 import { capitalize } from "../../util/string";
@@ -26,6 +27,7 @@ import BadgeFilter, { badgeFilterHandler } from "./BadgeFilter";
 import DropdownFilter, { dropdownFilterHandler } from "./DropdownFilter";
 import Drawer from "../Drawer";
 import toast from "react-hot-toast";
+import moment from "moment";
 
 const COLUMN_STORAGE_PREFIX = "aggrid-columns-";
 
@@ -173,7 +175,10 @@ const AgGrid = React.forwardRef(function AgGrid(
       filter: true,
       flex: 1,
       cellRenderer: (props) => {
-        return props.value !== null && props.value !== "" ? props.value : "-";
+        if (!props || props.value === undefined) return "-";
+        if (props.value === null || props.value === "") return "-";
+        if (typeof props.value === "object") return "-";
+        return String(props.value);
       },
     };
     const baseOptions = {
@@ -196,9 +201,35 @@ const AgGrid = React.forwardRef(function AgGrid(
         },
         capitalized: {
           cellRenderer: (props) => {
-            return props.value !== null && props.value !== ""
-              ? capitalize(props.value)
-              : "-";
+            if (!props || props.value === undefined || props.value === null)
+              return "-";
+            if (
+              typeof props.value !== "string" &&
+              typeof props.value !== "number"
+            )
+              return "-";
+            return capitalize(String(props.value));
+          },
+        },
+        date: {
+          cellRenderer: (params) =>
+            params.value ? moment(params.value).format("DD/MM/YYYY") : "-",
+        },
+        image: {
+          autoHeight: true,
+          cellRenderer: (params) => {
+            if (!params.value) return null;
+            return (
+              <Box p="4px">
+                <Image
+                  src={params.value}
+                  alt=""
+                  boxSize="20"
+                  objectFit="cover"
+                  borderRadius="md"
+                />
+              </Box>
+            );
           },
         },
         "action-column": {
@@ -209,15 +240,20 @@ const AgGrid = React.forwardRef(function AgGrid(
           maxWidth: 100,
           minWidth: 100,
           width: 100,
-          cellRenderer: (props) => (
-            <Flex justifyContent="center" alignItems="center" height={"100%"}>
-              <CustomMenu items={props.value} />
-            </Flex>
-          ),
+          cellRenderer: (props) => {
+            if (!props) return null;
+            const items = Array.isArray(props.value) ? props.value : [];
+            return (
+              <Flex justifyContent="center" alignItems="center" height={"100%"}>
+                <CustomMenu items={items} />
+              </Flex>
+            );
+          },
         },
         "badge-column": {
           exportRenderer: ({ value }) => value?.label ?? "",
           cellRenderer: (props) => {
+            if (!props || !props.value) return null;
             return (
               <Flex alignItems="center" h="100%">
                 <Badge colorScheme={props.value?.colorScheme}>
