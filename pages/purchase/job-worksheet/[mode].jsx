@@ -302,6 +302,7 @@ function JobWorksheetMode() {
                     <FileUploaderWithColumnMapping
                       config={ITEMS_COLUMN_CONFIG}
                       onMappedData={handleMappedItems(setFieldValue)}
+                      skipHeaders={2}
                     />
                   </Box>
                 ) : (

@@ -43,12 +43,14 @@ function coerceValue(raw, type) {
  * - Parses file and opens a modal to map file columns to config keys
  * - config: [{ key, label, required, suggestedKey, type: "number"|"string"|"date" }]
  * - onMappedData(mappedRows) called with array of objects keyed by config keys
+ * - skipHeaders: number of rows to skip before reading headers (default: 0)
  */
 export default function FileUploaderWithColumnMapping({
   config,
   onMappedData,
   accept = ".xlsx,.xls,.csv",
   maxFiles = 1,
+  skipHeaders = 0,
   ...rest
 }) {
   const { isOpen, onOpen, onClose } = useDisclosure();
@@ -61,7 +63,7 @@ export default function FileUploaderWithColumnMapping({
     (acceptedFiles) => {
       const file = acceptedFiles[0];
       if (!file) return;
-      parseSpreadsheetFile(file)
+      parseSpreadsheetFile(file, { skipHeaders })
         .then(({ headers, rows }) => {
           setFileHeaders(headers);
           setFileRows(rows);
@@ -85,7 +87,7 @@ export default function FileUploaderWithColumnMapping({
           toast.error(err.message || "Failed to parse file");
         });
     },
-    [config, onOpen]
+    [config, onOpen, skipHeaders]
   );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
