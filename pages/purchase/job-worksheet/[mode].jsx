@@ -109,6 +109,8 @@ function JobWorksheetMode() {
       map[p.product_id] = {
         gf_item_name: p.gf_item_name ?? p.de_display_name ?? "-",
         imageUrl,
+        store_uom: p.store_uom ?? "-",
+        purchase_uom: p.purchase_uom ?? "-",
       };
     });
     return map;
@@ -347,14 +349,17 @@ function JobWorksheetMode() {
                       }
                     >
                       {values.items?.length > 0 ? (
-                        <Table size="sm" variant="simple" mb={4}>
+                        <Table size="sm" variant="striped" mb={4}>
                           <Thead>
                             <Tr>
+                              <Th>ID</Th>
                               <Th>Image</Th>
                               <Th>Name</Th>
-                              <Th>Material Type</Th>
-                              <Th>Sticker Type</Th>
-                              <Th>Qty</Th>
+                              <Th>Store UOM</Th>
+                              <Th>Purchase UOM</Th>
+                              <Th w="150px">Material Type</Th>
+                              <Th w="150px">Sticker Type</Th>
+                              <Th w="100px">Qty</Th>
                               <Th>MRP</Th>
                               {!createMode && <Th>Status</Th>}
                               {!viewMode && <Th w="60px" />}
@@ -377,6 +382,9 @@ function JobWorksheetMode() {
                               };
                               return (
                                 <Tr key={idx}>
+                                  <Td>
+                                    <Text fontSize="sm">{row.product_id}</Text>
+                                  </Td>
                                   <Td>
                                     {productInfo.imageUrl ? (
                                       <Image
@@ -405,8 +413,18 @@ function JobWorksheetMode() {
                                     )}
                                   </Td>
                                   <Td>
-                                    <Text fontSize="sm">
+                                    <Text fontSize="xs" lineHeight="1.4">
                                       {productInfo.gf_item_name ?? "-"}
+                                    </Text>
+                                  </Td>
+                                  <Td>
+                                    <Text fontSize="sm">
+                                      {productInfo.store_uom ?? "-"}
+                                    </Text>
+                                  </Td>
+                                  <Td>
+                                    <Text fontSize="sm">
+                                      {productInfo.purchase_uom ?? "-"}
                                     </Text>
                                   </Td>
                                   <Td>

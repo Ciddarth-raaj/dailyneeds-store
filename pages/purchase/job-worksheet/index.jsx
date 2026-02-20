@@ -45,6 +45,8 @@ function JobWorksheetIndex() {
       map[p.product_id] = {
         gf_item_name: p.gf_item_name ?? p.de_display_name ?? "-",
         imageUrl,
+        store_uom: p.store_uom ?? "-",
+        purchase_uom: p.purchase_uom ?? "-",
       };
     });
     return map;
@@ -72,6 +74,8 @@ function JobWorksheetIndex() {
         product_id: item.product_id,
         gf_item_name: info.gf_item_name,
         imageUrl: info.imageUrl,
+        store_uom: info.store_uom,
+        purchase_uom: info.purchase_uom,
         material_type: item.material_type || "Single",
         sticker_label_1: label1,
         sticker_label_2: label2,
@@ -107,12 +111,15 @@ function JobWorksheetIndex() {
 
   const viewProductsColDefs = useMemo(
     () => [
+      { field: "product_id", headerName: "ID", type: "id" },
       {
         field: "imageUrl",
         headerName: "Image",
         type: "image",
       },
       { field: "gf_item_name", headerName: "Name" },
+      { field: "store_uom", headerName: "Store UOM" },
+      { field: "purchase_uom", headerName: "Purchase UOM" },
       { field: "material_type", headerName: "Material Type" },
       { field: "sticker_display", headerName: "Sticker Type" },
       { field: "qty", headerName: "Qty" },
