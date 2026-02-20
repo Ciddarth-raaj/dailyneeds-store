@@ -111,6 +111,7 @@ function JobWorksheetMode() {
         imageUrl,
         store_uom: p.store_uom ?? "-",
         purchase_uom: p.purchase_uom ?? "-",
+        repln_mode: p.repln_mode ?? "-",
       };
     });
     return map;
@@ -357,6 +358,7 @@ function JobWorksheetMode() {
                               <Th>Name</Th>
                               <Th>Store UOM</Th>
                               <Th>Purchase UOM</Th>
+                              <Th>SKU Type</Th>
                               <Th w="150px">Material Type</Th>
                               <Th w="150px">Sticker Type</Th>
                               <Th w="100px">Qty</Th>
@@ -426,6 +428,24 @@ function JobWorksheetMode() {
                                     <Text fontSize="sm">
                                       {productInfo.purchase_uom ?? "-"}
                                     </Text>
+                                  </Td>
+                                  <Td>
+                                    <Badge
+                                      colorScheme={
+                                        productInfo.repln_mode === "pa"
+                                          ? "purple"
+                                          : productInfo.repln_mode === "ft"
+                                          ? "orange"
+                                          : "gray"
+                                      }
+                                      size="xs"
+                                    >
+                                      {productInfo.repln_mode === "pa"
+                                        ? "PA"
+                                        : productInfo.repln_mode === "ft"
+                                        ? "FT"
+                                        : productInfo.repln_mode ?? "-"}
+                                    </Badge>
                                   </Td>
                                   <Td>
                                     <CustomInputStandalone

@@ -47,6 +47,7 @@ function JobWorksheetIndex() {
         imageUrl,
         store_uom: p.store_uom ?? "-",
         purchase_uom: p.purchase_uom ?? "-",
+        repln_mode: p.repln_mode ?? "-",
       };
     });
     return map;
@@ -76,6 +77,7 @@ function JobWorksheetIndex() {
         imageUrl: info.imageUrl,
         store_uom: info.store_uom,
         purchase_uom: info.purchase_uom,
+        repln_mode: info.repln_mode,
         material_type: item.material_type || "Single",
         sticker_label_1: label1,
         sticker_label_2: label2,
@@ -120,6 +122,17 @@ function JobWorksheetIndex() {
       { field: "gf_item_name", headerName: "Name" },
       { field: "store_uom", headerName: "Store UOM" },
       { field: "purchase_uom", headerName: "Purchase UOM" },
+      {
+        field: "repln_mode",
+        headerName: "SKU Type",
+        type: "badge-column",
+        valueGetter: (params) => {
+          const mode = params.data?.repln_mode;
+          if (mode === "pa") return { label: "PA", colorScheme: "purple" };
+          if (mode === "ft") return { label: "FT", colorScheme: "orange" };
+          return { label: mode ?? "-", colorScheme: "gray" };
+        },
+      },
       { field: "material_type", headerName: "Material Type" },
       { field: "sticker_display", headerName: "Sticker Type" },
       { field: "qty", headerName: "Qty" },
