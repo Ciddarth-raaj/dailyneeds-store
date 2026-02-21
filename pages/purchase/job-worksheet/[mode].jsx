@@ -197,8 +197,13 @@ function JobWorksheetMode() {
           setFieldValue("date", rawDate);
         }
       }
-      if (firstRow.supplier_name != null && String(firstRow.supplier_name).trim() !== "") {
-        const supplierName = String(firstRow.supplier_name).trim().toLowerCase();
+      if (
+        firstRow.supplier_name != null &&
+        String(firstRow.supplier_name).trim() !== ""
+      ) {
+        const supplierName = String(firstRow.supplier_name)
+          .trim()
+          .toLowerCase();
         const matched = supplierOptions.find(
           (opt) => String(opt.value).trim().toLowerCase() === supplierName
         );
@@ -559,14 +564,7 @@ function JobWorksheetMode() {
                                     )}
                                   </Td>
                                   <Td>
-                                    <CustomInputStandalone
-                                      label=""
-                                      type="number"
-                                      value={row.qty}
-                                      onChange={(v) => updateItem("qty", v)}
-                                      editable={canEdit}
-                                      size="sm"
-                                    />
+                                    <Text fontSize="sm">{row.qty}</Text>
                                   </Td>
                                   <Td>
                                     <Text fontSize="sm">{row.mrp}</Text>
