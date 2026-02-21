@@ -93,7 +93,7 @@ function ProductImageUploadCell({ value, data, api }) {
           if (uploadRes.code === 200) {
             uploadedImages.push({
               image_url: uploadRes.remoteUrl,
-              priority: formattedExistingImages.length + index,
+              priority: formattedExistingImages.length + index + 1,
             });
           }
         } catch (err) {
