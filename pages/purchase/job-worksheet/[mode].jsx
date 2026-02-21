@@ -66,6 +66,24 @@ const ITEMS_COLUMN_CONFIG = [
     suggestedKey: "MRP",
     type: "number",
   },
+  {
+    key: "grn_no",
+    label: "Purchase No",
+    suggestedKey: "Purchase No",
+    type: "number",
+  },
+  {
+    key: "supplier_name",
+    label: "Supplier Name",
+    suggestedKey: "Supplier Name",
+    type: "string",
+  },
+  {
+    key: "date",
+    label: "Date",
+    suggestedKey: "Mrc  Date",
+    type: "string",
+  },
 ];
 
 const validationSchema = Yup.object({
@@ -165,6 +183,33 @@ function JobWorksheetMode() {
   }, [createMode, worksheet]);
 
   const handleMappedItems = (setFieldValue) => (mappedRows) => {
+    const firstRow = mappedRows[0];
+    if (firstRow) {
+      if (firstRow.grn_no != null && String(firstRow.grn_no).trim() !== "") {
+        setFieldValue("grn_no", String(firstRow.grn_no).trim());
+      }
+      if (firstRow.date != null && String(firstRow.date).trim() !== "") {
+        const rawDate = String(firstRow.date).trim();
+        const parsed = new Date(rawDate);
+        if (!isNaN(parsed.getTime())) {
+          setFieldValue("date", parsed.toISOString().slice(0, 10));
+        } else {
+          setFieldValue("date", rawDate);
+        }
+      }
+      if (firstRow.supplier_name != null && String(firstRow.supplier_name).trim() !== "") {
+        const supplierName = String(firstRow.supplier_name).trim().toLowerCase();
+        const matched = supplierOptions.find(
+          (opt) => String(opt.value).trim().toLowerCase() === supplierName
+        );
+        if (matched) {
+          setFieldValue("supplier_id", matched.id);
+        } else {
+          toast.error(`Supplier "${firstRow.supplier_name}" not found`);
+        }
+      }
+    }
+
     const valid = mappedRows
       .filter(
         (r) =>
@@ -357,8 +402,8 @@ function JobWorksheetMode() {
                               <Th>ID</Th>
                               <Th>Image</Th>
                               <Th>Name</Th>
-                              <Th>Store UOM</Th>
                               <Th>Purchase UOM</Th>
+                              <Th>Store UOM</Th>
                               <Th>SKU Type</Th>
                               <Th w="150px">Material Type</Th>
                               <Th w="150px">Sticker Type</Th>
@@ -422,12 +467,12 @@ function JobWorksheetMode() {
                                   </Td>
                                   <Td>
                                     <Text fontSize="sm">
-                                      {productInfo.store_uom ?? "-"}
+                                      {productInfo.purchase_uom ?? "-"}
                                     </Text>
                                   </Td>
                                   <Td>
                                     <Text fontSize="sm">
-                                      {productInfo.purchase_uom ?? "-"}
+                                      {productInfo.store_uom ?? "-"}
                                     </Text>
                                   </Td>
                                   <Td>

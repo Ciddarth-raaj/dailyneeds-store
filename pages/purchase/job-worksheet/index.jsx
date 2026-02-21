@@ -120,8 +120,8 @@ function JobWorksheetIndex() {
         type: "image",
       },
       { field: "gf_item_name", headerName: "Name" },
-      { field: "store_uom", headerName: "Store UOM" },
       { field: "purchase_uom", headerName: "Purchase UOM" },
+      { field: "store_uom", headerName: "Store UOM" },
       {
         field: "repln_mode",
         headerName: "SKU Type",
