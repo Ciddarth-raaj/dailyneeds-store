@@ -3,11 +3,25 @@ export default {
   dashboard: {
     title: "Dashboard",
     selected: true,
-    openPage: true,
+    // openPage: true,
     icon: "fa-pie-chart ",
-    location: "/",
-    permission: "dashboard",
-    isDirect: true,
+    // location: "/",
+    // permission: "dashboard",
+    // isDirect: true,
+    subMenu: {
+      view_dashboard: {
+        title: "Dashboard",
+        permission: "dashboard",
+        selected: false,
+        location: "/",
+      },
+      view_products_dashboard: {
+        title: "Products Dashboard",
+        permission: "view_products_dashboard",
+        selected: false,
+        location: "/dashboard/products",
+      },
+    },
   },
   employee: {
     title: "Employees",

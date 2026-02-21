@@ -197,7 +197,6 @@ const AgGrid = React.forwardRef(function AgGrid(
         id: {
           maxWidth: 100,
           resizable: false,
-          filter: false,
         },
         capitalized: {
           cellRenderer: (props) => {
