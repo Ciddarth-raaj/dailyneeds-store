@@ -103,6 +103,8 @@ export const PERMISSIONS = {
     add_job_worksheet: "Add Job Worksheet",
     view_sticker_types: "View Sticker Types",
     add_sticker_types: "Add Sticker Types",
+    view_purchase_return: "View Purchase Return",
+    add_purchase_return: "Add Purchase Return Extra",
   },
 
   // Debit Note

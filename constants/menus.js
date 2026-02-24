@@ -357,6 +357,12 @@ export default {
         selected: false,
         location: "/purchase/sticker-types",
       },
+      view_purchase_return: {
+        title: "Purchase Return",
+        permission: "view_purchase_return",
+        selected: false,
+        location: "/purchase/purchase-return",
+      },
     },
   },
   debit_note: {
