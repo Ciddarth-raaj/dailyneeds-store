@@ -18,6 +18,8 @@ import {
   AccordionIcon,
   Button,
   Image,
+  Tooltip,
+  Link,
 } from "@chakra-ui/react";
 import { icons } from "./icons";
 import { capitalize } from "../../util/string";
@@ -254,6 +256,44 @@ const AgGrid = React.forwardRef(function AgGrid(
             return (
               <Flex justifyContent="center" alignItems="center" height={"100%"}>
                 <CustomMenu items={items} />
+              </Flex>
+            );
+          },
+        },
+        "action-icons": {
+          hideExport: true,
+          filter: false,
+          resizable: false,
+          flex: 0,
+          maxWidth: 100,
+          minWidth: 100,
+          width: 100,
+          cellRenderer: (props) => {
+            if (!props) return null;
+            const items = Array.isArray(props.value) ? props.value : [];
+            return (
+              <Flex
+                justifyContent="center"
+                alignItems="center"
+                height={"100%"}
+                gap={1}
+              >
+                {items.map((item) => {
+                  return (
+                    <Link href={item.redirectionUrl} passHref key={item.label}>
+                      <Tooltip label={item.label} key={item.label}>
+                        <IconButton
+                          variant="ghost"
+                          colorScheme={item.colorScheme || "purple"}
+                          aria-label={item.label}
+                          size="xs"
+                          icon={<i className={item.icon} />}
+                          onClick={item.onClick}
+                        />
+                      </Tooltip>
+                    </Link>
+                  );
+                })}
               </Flex>
             );
           },

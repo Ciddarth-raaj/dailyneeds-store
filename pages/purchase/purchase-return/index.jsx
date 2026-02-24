@@ -127,27 +127,32 @@ function PurchaseReturnListing() {
         : []),
       {
         field: "mprh_pr_no",
+        type: "action-icons",
         headerName: "Action",
-        type: "action-column",
         valueGetter: (params) => {
           const row = params.data;
           const prNo = row?.mprh_pr_no;
           const hasExtra = row?.status != null || row?.no_of_boxes != null;
           const actions = [
             {
+              label: "Print",
+              icon: "fa-solid fa-print",
+              onClick: () => handleOpenPrintDrawer(row),
+              colorScheme: "blue",
+            },
+            {
               label: "View",
+              icon: "fa-solid fa-eye",
               redirectionUrl: `/purchase/purchase-return/view?mprh_pr_no=${encodeURIComponent(
                 prNo
               )}`,
             },
-            {
-              label: "Print",
-              onClick: () => handleOpenPrintDrawer(row),
-            },
           ];
+
           if (hasExtra && canAdd) {
             actions.push({
               label: "Edit",
+              icon: "fa-solid fa-pen",
               redirectionUrl: `/purchase/purchase-return/edit?mprh_pr_no=${encodeURIComponent(
                 prNo
               )}`,
@@ -155,11 +160,13 @@ function PurchaseReturnListing() {
           } else if (!hasExtra && canAdd) {
             actions.push({
               label: "Add extra",
+              icon: "fa-solid fa-pen",
               redirectionUrl: `/purchase/purchase-return/create?mprh_pr_no=${encodeURIComponent(
                 prNo
               )}`,
             });
           }
+
           return actions;
         },
       },
