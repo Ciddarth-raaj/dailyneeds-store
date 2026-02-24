@@ -26,7 +26,8 @@ export const getPurchaseReturnById = (mprh_pr_no) => {
 
 /**
  * Create purchase_return_extra for a given mprh_pr_no.
- * @param {Object} body - { mprh_pr_no, no_of_boxes?, status?, distributor_id? }
+ * Distributor comes from header (mprh_dist_code); extra table has no distributor_id.
+ * @param {Object} body - { mprh_pr_no, no_of_boxes?, status?, created_by? }
  */
 export const createPurchaseReturnExtra = (body) => {
   return API.post("/purchase-return/extra", body).then((res) => {
@@ -39,7 +40,7 @@ export const createPurchaseReturnExtra = (body) => {
 /**
  * Update purchase_return_extra for a given mprh_pr_no.
  * @param {string} mprh_pr_no
- * @param {Object} body - { no_of_boxes?, status?, distributor_id? }
+ * @param {Object} body - { no_of_boxes?, status? }
  */
 export const updatePurchaseReturnExtra = (mprh_pr_no, body) => {
   return API.put(

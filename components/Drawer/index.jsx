@@ -71,7 +71,9 @@ function Drawer({
             {title}
           </DrawerHeader>
         )}
-        <DrawerBody bg="white">{children}</DrawerBody>
+        <DrawerBody bg="white" p="22px">
+          {children}
+        </DrawerBody>
         {footer && (
           <DrawerFooter
             borderTopWidth="1px"

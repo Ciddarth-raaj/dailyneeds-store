@@ -29,6 +29,7 @@ export const PERMISSIONS = {
   // Master
   master: {
     view_master_list: "View Master List",
+    view_product_distributors: "View Product Distributors",
   },
 
   // Materials

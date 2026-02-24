@@ -120,6 +120,12 @@ export default {
         selected: false,
         location: "/master",
       },
+      view_product_distributors: {
+        title: "Product Distributors",
+        permission: "view_product_distributors",
+        selected: false,
+        location: "/master/distributors",
+      },
     },
   },
   materials: {

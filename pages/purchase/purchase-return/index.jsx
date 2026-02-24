@@ -1,19 +1,27 @@
-import React, { useMemo, useCallback } from "react";
-import { useRouter } from "next/router";
+import React, { useMemo, useCallback, useState } from "react";
 import GlobalWrapper from "../../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../../components/CustomContainer";
-import { Text, Flex, Switch } from "@chakra-ui/react";
+import { Text, Switch } from "@chakra-ui/react";
 import AgGrid from "../../../components/AgGrid";
+import PrintDrawer from "../../../components/purchase-return/PrintDrawer";
 import { usePurchaseReturns } from "../../../customHooks/usePurchaseReturns";
 import usePermissions from "../../../customHooks/usePermissions";
+import { useUser } from "../../../contexts/UserContext";
 import { updatePurchaseReturnExtra } from "../../../helper/purchaseReturn";
 import toast from "react-hot-toast";
-import moment from "moment";
 
 function PurchaseReturnListing() {
-  const router = useRouter();
   const canAdd = usePermissions("add_purchase_return");
   const { purchaseReturns, loading, refetch } = usePurchaseReturns();
+  const { userConfig } = useUser();
+  const { employeeId, fetched } = userConfig;
+  const currentUserName =
+    userConfig?.userType === "2" ? "Vinodh" : fetched?.employee_name ?? "—";
+
+  const [printDrawerRow, setPrintDrawerRow] = useState(null);
+
+  const handleClosePrintDrawer = useCallback(() => setPrintDrawerRow(null), []);
+  const handleOpenPrintDrawer = useCallback((row) => setPrintDrawerRow(row), []);
 
   const handleStatusChange = useCallback(
     (row, newStatus) => () => {
@@ -44,12 +52,12 @@ function PurchaseReturnListing() {
       {
         field: "mprh_pr_refno",
         headerName: "PR No",
+        type: "id",
       },
       {
         field: "distributor_name",
         headerName: "Distributor",
-        valueGetter: (params) =>
-          params.data?.distributor?.name ?? params.data?.distributor_id ?? "-",
+        type: "capitalized",
         flex: 2,
       },
       {
@@ -71,7 +79,7 @@ function PurchaseReturnListing() {
       {
         field: "no_of_boxes",
         headerName: "Boxes",
-        valueGetter: (params) => params.data?.no_of_boxes ?? "-",
+        type: "number",
       },
       {
         field: "status",
@@ -119,15 +127,20 @@ function PurchaseReturnListing() {
         headerName: "Action",
         type: "action-column",
         valueGetter: (params) => {
-          const prNo = params.data?.mprh_pr_no;
+          const row = params.data;
+          const prNo = row?.mprh_pr_no;
           const hasExtra =
-            params.data?.status != null || params.data?.no_of_boxes != null;
+            row?.status != null || row?.no_of_boxes != null;
           const actions = [
             {
               label: "View",
               redirectionUrl: `/purchase/purchase-return/view?mprh_pr_no=${encodeURIComponent(
                 prNo
               )}`,
+            },
+            {
+              label: "Print",
+              onClick: () => handleOpenPrintDrawer(row),
             },
           ];
           if (hasExtra && canAdd) {
@@ -149,11 +162,19 @@ function PurchaseReturnListing() {
         },
       },
     ],
-    [canAdd, handleStatusChange]
+    [canAdd, handleStatusChange, handleOpenPrintDrawer]
   );
 
   return (
     <GlobalWrapper title="Purchase Return" permissionKey="view_purchase_return">
+      <PrintDrawer
+        isOpen={printDrawerRow != null}
+        onClose={handleClosePrintDrawer}
+        row={printDrawerRow}
+        refetch={refetch}
+        employeeId={employeeId}
+        currentUserName={currentUserName}
+      />
       <CustomContainer title="Purchase Return" filledHeader>
         {loading ? (
           <Text>Loading...</Text>

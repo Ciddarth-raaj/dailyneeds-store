@@ -42,15 +42,10 @@ export function usePurchaseReturnById(mprh_pr_no, options = {}) {
 
   const createExtra = useCallback(
     async (body) => {
-      const distId = body.distributor_id;
       const res = await createPurchaseReturnExtra({
         mprh_pr_no,
         no_of_boxes: body.no_of_boxes ?? 0,
         status: body.status ?? "open",
-        distributor_id:
-          distId !== null && distId !== undefined && String(distId).trim() !== ""
-            ? String(distId).trim()
-            : undefined,
       });
       await fetchOne();
       return res;

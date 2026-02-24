@@ -20,14 +20,12 @@ import toast from "react-hot-toast";
 import moment from "moment";
 import { usePurchaseReturnById } from "../../../customHooks/usePurchaseReturnById";
 import { usePurchaseReturns } from "../../../customHooks/usePurchaseReturns";
-import usePeople from "../../../customHooks/usePeople";
 
 const validationSchema = Yup.object({
   no_of_boxes: Yup.number()
     .min(0, "Must be ≥ 0")
     .nullable()
     .transform((v) => (v === "" || isNaN(v) ? null : v)),
-  distributor_id: Yup.string().nullable().trim(),
 });
 
 function PurchaseReturnForm() {
@@ -57,18 +55,6 @@ function PurchaseReturnForm() {
   } = usePurchaseReturnById(mprh_pr_no, {
     enabled: !!mprh_pr_no && (viewMode || editMode || createMode),
   });
-
-  const { peopleList } = usePeople();
-  const distributorOptions = useMemo(
-    () => [
-      { id: "", value: "— None —" },
-      ...(peopleList || []).map((p) => ({
-        id: String(p.person_id),
-        value: p.name || `#${p.person_id}`,
-      })),
-    ],
-    [peopleList]
-  );
 
   const itemsGridRows = useMemo(() => {
     const pr = purchaseReturn;
@@ -111,8 +97,9 @@ function PurchaseReturnForm() {
     mprh_pr_dt: "",
     mprh_basic_amount: "",
     mprh_net_amount: "",
+    mprh_dist_code: "",
+    distributor_name: "",
     no_of_boxes: 0,
-    distributor_id: "",
   });
 
   useEffect(() => {
@@ -133,8 +120,9 @@ function PurchaseReturnForm() {
           purchaseReturn?.mprh_net_amount != null
             ? String(purchaseReturn.mprh_net_amount)
             : "",
+        mprh_dist_code: purchaseReturn?.mprh_dist_code ?? "",
+        distributor_name: purchaseReturn?.distributor_name ?? "",
         no_of_boxes: 0,
-        distributor_id: purchaseReturn?.distributor_id ?? "",
       }));
       return;
     }
@@ -153,21 +141,17 @@ function PurchaseReturnForm() {
           purchaseReturn.mprh_net_amount != null
             ? String(purchaseReturn.mprh_net_amount)
             : "",
+        mprh_dist_code: purchaseReturn.mprh_dist_code ?? "",
+        distributor_name: purchaseReturn.distributor_name ?? "",
         no_of_boxes: purchaseReturn.no_of_boxes ?? 0,
-        distributor_id: purchaseReturn.distributor_id ?? "",
       });
     }
   }, [createMode, mprh_pr_no, purchaseReturn]);
 
   const handleSubmit = async (values) => {
-    const distId = values.distributor_id;
     const payload = {
       no_of_boxes: Number(values.no_of_boxes) || 0,
       status: "open",
-      distributor_id:
-        distId !== null && distId !== undefined && String(distId).trim() !== ""
-          ? String(distId).trim()
-          : null,
     };
 
     if (createMode && mprh_pr_no) {
@@ -183,23 +167,17 @@ function PurchaseReturnForm() {
     }
 
     if (editMode && mprh_pr_no) {
-      const updatePayload = {
-        no_of_boxes: Number(values.no_of_boxes) || 0,
-        distributor_id:
-          distId !== null &&
-          distId !== undefined &&
-          String(distId).trim() !== ""
-            ? String(distId).trim()
-            : null,
-      };
-      toast.promise(updateExtra(updatePayload), {
-        loading: "Updating purchase return extra...",
-        success: () => {
-          router.push("/purchase/purchase-return");
-          return "Purchase return extra updated";
-        },
-        error: (err) => err.message || "Failed to update",
-      });
+      toast.promise(
+        updateExtra({ no_of_boxes: Number(values.no_of_boxes) || 0 }),
+        {
+          loading: "Updating purchase return extra...",
+          success: () => {
+            router.push("/purchase/purchase-return");
+            return "Purchase return extra updated";
+          },
+          error: (err) => err.message || "Failed to update",
+        }
+      );
     }
   };
 
@@ -361,6 +339,18 @@ function PurchaseReturnForm() {
                       type="text"
                       editable={false}
                     />
+                    <CustomInput
+                      label="Distributor Code"
+                      name="mprh_dist_code"
+                      type="text"
+                      editable={false}
+                    />
+                    <CustomInput
+                      label="Distributor Name"
+                      name="distributor_name"
+                      type="text"
+                      editable={false}
+                    />
                   </Grid>
                 </CustomContainer>
               </Box>
@@ -396,13 +386,6 @@ function PurchaseReturnForm() {
                     name="no_of_boxes"
                     type="number"
                     min={0}
-                    editable={isExtraEditable}
-                  />
-                  <CustomInput
-                    label="Distributor"
-                    name="distributor_id"
-                    method="switch"
-                    values={distributorOptions}
                     editable={isExtraEditable}
                   />
                 </Grid>
