@@ -18,6 +18,7 @@ import {
   createPurchaseReturnExtra,
   updatePurchaseReturnExtra,
 } from "../../helper/purchaseReturn";
+import { downloadPurchaseReturnLabelsPdf } from "../../helper/purchaseReturnLabelsPdf";
 import toast from "react-hot-toast";
 import moment from "moment";
 import Drawer from "../Drawer";
@@ -39,54 +40,80 @@ function PrintDrawer({
   employeeId,
   currentUserName = "—",
 }) {
-  const [noOfBoxes, setNoOfBoxes] = useState(0);
+  const [noOfBoxes, setNoOfBoxes] = useState("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (row && isOpen) {
-      setNoOfBoxes(row.no_of_boxes ?? 0);
+      const existing = row.no_of_boxes;
+      setNoOfBoxes(
+        existing != null && existing !== "" ? Number(existing) : ""
+      );
     }
   }, [row, isOpen]);
 
   const handleClose = useCallback(() => {
-    setNoOfBoxes(0);
+    setNoOfBoxes("");
     onClose();
   }, [onClose]);
-
-  const handleDone = useCallback(async () => {
-    if (!row?.mprh_pr_no) return;
-    const prNo = row.mprh_pr_no;
-    const hasExtra = row.status != null || row.no_of_boxes != null;
-    const boxes = Number(noOfBoxes) || 0;
-
-    setSaving(true);
-    try {
-      if (!hasExtra) {
-        await createPurchaseReturnExtra({
-          mprh_pr_no: String(prNo),
-          no_of_boxes: boxes,
-          status: "open",
-        });
-        toast.success("Created");
-      } else {
-        await updatePurchaseReturnExtra(prNo, { no_of_boxes: boxes });
-        toast.success("Updated");
-      }
-      await refetch();
-      handleClose();
-      // TODO: trigger print handler
-    } catch (err) {
-      toast.error(err.message || "Failed to save");
-    } finally {
-      setSaving(false);
-    }
-  }, [row, noOfBoxes, employeeId, refetch, handleClose]);
 
   const createdByName = row
     ? row.status != null || row.no_of_boxes != null
       ? row.created_by_name ?? "—"
       : currentUserName
     : "—";
+
+  const boxesNum = Number(noOfBoxes);
+  const hasValidBoxes = !isNaN(boxesNum) && boxesNum >= 1;
+  const hasExtra = row?.status != null || row?.no_of_boxes != null;
+  const existingBoxes = hasExtra ? Number(row.no_of_boxes) : null;
+  const valueUnchanged =
+    hasExtra &&
+    existingBoxes != null &&
+    !isNaN(boxesNum) &&
+    boxesNum === existingBoxes;
+
+  const handleDone = useCallback(async () => {
+    if (!row?.mprh_pr_no || !hasValidBoxes) return;
+    const prNo = row.mprh_pr_no;
+    const boxes = boxesNum;
+
+    setSaving(true);
+    try {
+      if (!valueUnchanged) {
+        if (!hasExtra) {
+          await createPurchaseReturnExtra({
+            mprh_pr_no: String(prNo),
+            no_of_boxes: boxes,
+            status: "open",
+          });
+          toast.success("Created");
+        } else {
+          await updatePurchaseReturnExtra(prNo, { no_of_boxes: boxes });
+          toast.success("Updated");
+        }
+        await refetch();
+      }
+      downloadPurchaseReturnLabelsPdf(row, boxes, {
+        enteredBy: createdByName || currentUserName || "—",
+      });
+      handleClose();
+    } catch (err) {
+      toast.error(err.message || "Failed to save");
+    } finally {
+      setSaving(false);
+    }
+  }, [
+    row,
+    hasValidBoxes,
+    boxesNum,
+    valueUnchanged,
+    hasExtra,
+    refetch,
+    handleClose,
+    createdByName,
+    currentUserName,
+  ]);
 
   return (
     <Drawer
@@ -100,6 +127,7 @@ function PrintDrawer({
           onClick={handleDone}
           isLoading={saving}
           loadingText="Saving..."
+          isDisabled={!hasValidBoxes}
         >
           Done
         </Button>
@@ -174,12 +202,14 @@ function PrintDrawer({
                 No. of boxes
               </FormLabel>
               <NumberInput
-                value={noOfBoxes}
+                value={noOfBoxes === "" ? "" : noOfBoxes}
                 onChange={(_, val) => {
-                  setNoOfBoxes(isNaN(val) ? 0 : Number(val));
+                  if (val === undefined || val === "") setNoOfBoxes("");
+                  else setNoOfBoxes(isNaN(val) ? "" : Number(val));
                 }}
-                min={0}
+                min={1}
                 size="md"
+                placeholder=""
               >
                 <NumberInputField focusBorderColor="purple.400" />
                 <NumberInputStepper>

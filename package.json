@@ -26,6 +26,7 @@
     "formik": "^2.2.9",
     "formik-error-focus": "^1.1.0",
     "framer-motion": "^4.1.17",
+    "jspdf": "^4.2.0",
     "jszip": "^3.10.1",
     "moment": "^2.29.1",
     "next": "11.1.0",

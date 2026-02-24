@@ -21,7 +21,10 @@ function PurchaseReturnListing() {
   const [printDrawerRow, setPrintDrawerRow] = useState(null);
 
   const handleClosePrintDrawer = useCallback(() => setPrintDrawerRow(null), []);
-  const handleOpenPrintDrawer = useCallback((row) => setPrintDrawerRow(row), []);
+  const handleOpenPrintDrawer = useCallback(
+    (row) => setPrintDrawerRow(row),
+    []
+  );
 
   const handleStatusChange = useCallback(
     (row, newStatus) => () => {
@@ -129,8 +132,7 @@ function PurchaseReturnListing() {
         valueGetter: (params) => {
           const row = params.data;
           const prNo = row?.mprh_pr_no;
-          const hasExtra =
-            row?.status != null || row?.no_of_boxes != null;
+          const hasExtra = row?.status != null || row?.no_of_boxes != null;
           const actions = [
             {
               label: "View",
@@ -176,16 +178,12 @@ function PurchaseReturnListing() {
         currentUserName={currentUserName}
       />
       <CustomContainer title="Purchase Return" filledHeader>
-        {loading ? (
-          <Text>Loading...</Text>
-        ) : (
-          <AgGrid
-            rowData={purchaseReturns}
-            columnDefs={colDefs}
-            tableKey="purchase-return"
-            gridOptions={{ getRowId: (params) => params.data?.mprh_pr_no }}
-          />
-        )}
+        <AgGrid
+          rowData={purchaseReturns}
+          columnDefs={colDefs}
+          tableKey="purchase-return"
+          gridOptions={{ getRowId: (params) => params.data?.mprh_pr_no }}
+        />
       </CustomContainer>
     </GlobalWrapper>
   );
