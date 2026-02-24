@@ -50,6 +50,7 @@ function PurchaseReturnListing() {
         headerName: "Distributor",
         valueGetter: (params) =>
           params.data?.distributor?.name ?? params.data?.distributor_id ?? "-",
+        flex: 2,
       },
       {
         field: "mprh_pr_dt",
@@ -59,15 +60,13 @@ function PurchaseReturnListing() {
       {
         field: "mprh_basic_amount",
         headerName: "Basic Amount",
-        valueFormatter: (params) =>
-          params.value != null ? Number(params.value).toFixed(2) : "-",
+        type: "currency",
         hideByDefault: true,
       },
       {
         field: "mprh_net_amount",
         headerName: "Net Amount",
-        valueFormatter: (params) =>
-          params.value != null ? Number(params.value).toFixed(2) : "-",
+        type: "currency",
       },
       {
         field: "no_of_boxes",

@@ -21,6 +21,7 @@ import {
 } from "@chakra-ui/react";
 import { icons } from "./icons";
 import { capitalize } from "../../util/string";
+import currencyFormatter from "../../util/currencyFormatter";
 import Badge from "../Badge";
 import CustomMenu from "../CustomMenu";
 import BadgeFilter, { badgeFilterHandler } from "./BadgeFilter";
@@ -213,6 +214,14 @@ const AgGrid = React.forwardRef(function AgGrid(
         date: {
           cellRenderer: (params) =>
             params.value ? moment(params.value).format("DD/MM/YYYY") : "-",
+        },
+        currency: {
+          cellRenderer: (params) => {
+            if (params.value === undefined || params.value === null) return "-";
+            const num = Number(params.value);
+            if (Number.isNaN(num)) return "-";
+            return currencyFormatter(num);
+          },
         },
         image: {
           autoHeight: true,

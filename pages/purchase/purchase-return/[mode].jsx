@@ -98,8 +98,7 @@ function PurchaseReturnForm() {
       {
         field: "MPR_ITEM_AMOUNT",
         headerName: "Amount",
-        valueFormatter: (p) =>
-          p.value != null ? Number(p.value).toFixed(2) : "-",
+        type: "currency",
       },
       { field: "MPR_MRC_NO", headerName: "MRC No", hideByDefault: true },
     ],
