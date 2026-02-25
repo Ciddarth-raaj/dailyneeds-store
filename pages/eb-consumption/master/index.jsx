@@ -89,7 +89,7 @@ function EbMachineMaster() {
         rightSection={
           canAdd ? (
             <Link href="/eb-consumption/master/create" passHref>
-              <Button colorScheme="purple" variant="new-outline">
+              <Button colorScheme="purple" size="sm">
                 Add
               </Button>
             </Link>

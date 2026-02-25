@@ -340,7 +340,9 @@ function JobWorksheetIndex() {
         rightSection={
           canAdd && (
             <Link href="/purchase/job-worksheet/create" passHref>
-              <Button colorScheme="purple">Create</Button>
+              <Button colorScheme="purple" size="sm">
+                Create
+              </Button>
             </Link>
           )
         }

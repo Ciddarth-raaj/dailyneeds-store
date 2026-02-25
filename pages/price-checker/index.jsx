@@ -44,16 +44,16 @@ function PriceChecker() {
   const distributorGridRef = useRef(null);
 
   const mappedProducts = useMemo(() => {
-    if(products) {
-      const map = {}
+    if (products) {
+      const map = {};
 
-      products.forEach(product => {
+      products.forEach((product) => {
         map[product.product_id] = product;
-      })
+      });
 
       return map;
     }
-  }, [products])
+  }, [products]);
 
   const onFileChange = (file) => {
     setFile(file);
@@ -126,9 +126,11 @@ function PriceChecker() {
       itemData = {
         ...itemData,
         Item_Name: mappedProducts[itemData.Item_Code]?.gf_item_name || "",
-        de_distributor: mappedProducts[itemData.Item_Code]?.de_distributor || "",
-        de_preparation_type: mappedProducts[itemData.Item_Code]?.de_preparation_type || "",
-      }
+        de_distributor:
+          mappedProducts[itemData.Item_Code]?.de_distributor || "",
+        de_preparation_type:
+          mappedProducts[itemData.Item_Code]?.de_preparation_type || "",
+      };
 
       // Group items by MRP to find inconsistencies
       const mrpGroups = itemData.items.reduce((acc, item) => {
@@ -226,9 +228,9 @@ function PriceChecker() {
     exportCSVFile(
       TABLE_HEADER,
       allData,
-      `Price Checker${titleSuffix ? " - " + titleSuffix : ""} (${moment().format(
-        "DD-MM-YYYY"
-      )})`
+      `Price Checker${
+        titleSuffix ? " - " + titleSuffix : ""
+      } (${moment().format("DD-MM-YYYY")})`
     );
   };
 
@@ -335,7 +337,14 @@ function PriceChecker() {
       cellRenderer: (props) => {
         const value = props.value || "Unknown";
         return (
-          <Tooltip label="Click to download" openDelay={500}><Text cursor="pointer" onClick={() => handleExportByDistributor(props.data.items, value)}>{value}</Text></Tooltip>
+          <Tooltip label="Click to download" openDelay={500}>
+            <Text
+              cursor="pointer"
+              onClick={() => handleExportByDistributor(props.data.items, value)}
+            >
+              {value}
+            </Text>
+          </Tooltip>
         );
       },
     },
@@ -352,11 +361,7 @@ function PriceChecker() {
         title="Price Checker"
         filledHeader
         rightSection={
-          <Button
-            colorScheme="purple"
-            variant="new-outline"
-            onClick={handleExport}
-          >
+          <Button colorScheme="purple" size="sm" onClick={handleExport}>
             Export
           </Button>
         }
@@ -376,7 +381,11 @@ function PriceChecker() {
             </TabList>
             <TabPanels>
               <TabPanel p={0} pt={4}>
-                <AgGrid ref={productsGridRef} rowData={incorrectSellingPrices} colDefs={colDefs} />
+                <AgGrid
+                  ref={productsGridRef}
+                  rowData={incorrectSellingPrices}
+                  colDefs={colDefs}
+                />
               </TabPanel>
               <TabPanel p={0} pt={4}>
                 <AgGrid

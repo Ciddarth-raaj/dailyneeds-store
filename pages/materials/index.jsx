@@ -144,17 +144,18 @@ function Materials() {
         filledHeader
         rightSection={
           <Flex>
-            {canAddMaterial && (
-              <Link href="/materials/create" passHref>
-                <Button colorScheme="purple" variant="new-outline">
-                  Add
+            {canAddCategory && (
+              <Link href="/materials/category/create" passHref>
+                <Button colorScheme="purple" variant="new-outline" size="sm">
+                  Add Category
                 </Button>
               </Link>
             )}
-            {canAddCategory && (
-              <Link href="/materials/category/create" passHref>
-                <Button colorScheme="purple" variant="new-outline" ml={2}>
-                  Add Category
+
+            {canAddMaterial && (
+              <Link href="/materials/create" passHref>
+                <Button colorScheme="purple" size="sm" ml={2}>
+                  Add
                 </Button>
               </Link>
             )}

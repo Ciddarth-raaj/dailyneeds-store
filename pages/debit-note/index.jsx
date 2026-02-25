@@ -272,7 +272,7 @@ function Purchase() {
         title="All Debit Note"
         filledHeader
         rightSection={
-          <Button colorScheme="purple" onClick={exportData}>
+          <Button colorScheme="purple" onClick={exportData} size="sm">
             Export
           </Button>
         }

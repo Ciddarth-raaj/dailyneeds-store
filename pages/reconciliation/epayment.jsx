@@ -382,14 +382,19 @@ function Epayment() {
         <CustomContainer
           title="Imported Data"
           style={{ marginTop: "22px" }}
-          smallHeader
+          size="xs"
           rightSection={
-            <Button colorScheme="purple" onClick={handleSave}>
+            <Button colorScheme="purple" onClick={handleSave} size="sm">
               Save
             </Button>
           }
         >
-          <CustomContainer title="EPayments" filledHeader smallHeader>
+          <CustomContainer
+            title="EPayments"
+            filledHeader
+            smallHeader
+            style={{ marginBottom: "18px" }}
+          >
             {rows?.list?.length > 0 ? (
               <Table
                 variant="plain"

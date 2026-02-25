@@ -275,7 +275,7 @@ function Purchase() {
         title="All Purchases"
         filledHeader
         rightSection={
-          <Button colorScheme="purple" onClick={exportData}>
+          <Button colorScheme="purple" onClick={exportData} size="sm">
             Export
           </Button>
         }

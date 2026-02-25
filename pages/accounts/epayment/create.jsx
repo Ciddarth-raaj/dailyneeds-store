@@ -235,7 +235,7 @@ function Create() {
                   <Button
                     colorScheme="purple"
                     onClick={triggerFileInput}
-                    variant="new-outline"
+                    size="sm"
                   >
                     Import
                   </Button>

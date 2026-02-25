@@ -152,7 +152,7 @@ function Tickets() {
         rightSection={
           <Button
             colorScheme="purple"
-            variant="new-outline"
+            size="sm"
             onClick={() => router.push("/tickets/create")}
           >
             Add Ticket

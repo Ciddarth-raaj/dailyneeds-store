@@ -80,13 +80,16 @@ function DigitalPayments() {
             <Button
               colorScheme="purple"
               onClick={handleExportData}
+              size="sm"
               disabled={rows.length === 0}
             >
               Export
             </Button>
 
             <Link href={`/reconciliation/digital-payments/create`} passHref>
-              <Button colorScheme="purple">Add</Button>
+              <Button colorScheme="purple" size="sm">
+                Add
+              </Button>
             </Link>
           </Flex>
         }

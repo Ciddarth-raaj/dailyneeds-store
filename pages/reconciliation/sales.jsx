@@ -323,9 +323,9 @@ function Sales() {
         <CustomContainer
           title="Imported Data"
           style={{ marginTop: "22px" }}
-          smallHeader
+          size="xs"
           rightSection={
-            <Button colorScheme="purple" onClick={handleSave}>
+            <Button colorScheme="purple" onClick={handleSave} size="sm">
               Save
             </Button>
           }

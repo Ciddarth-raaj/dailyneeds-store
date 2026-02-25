@@ -37,7 +37,7 @@ function Index() {
         rightSection={
           canAddSheet ? (
             <Link href="/accounts/create" passHref>
-              <Button colorScheme="purple" variant="new-outline">
+              <Button colorScheme="purple" size="sm">
                 Add New Sheet
               </Button>
             </Link>

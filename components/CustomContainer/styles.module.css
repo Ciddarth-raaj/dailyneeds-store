@@ -31,11 +31,11 @@
 }
 
 .sizeXs .heading {
-  font-size: 14px;
+  font-size: 12px;
 }
 
 .sizeXs .smallHeading {
-  font-size: 13px;
+  font-size: 11px;
 }
 
 /* Size: Medium (Default) */
@@ -52,11 +52,11 @@
 }
 
 .sizeMd .heading {
-  font-size: 18px;
+  font-size: 15px;
 }
 
 .sizeMd .smallHeading {
-  font-size: 16px;
+  font-size: 14px;
 }
 
 /* Size: Large */
@@ -73,11 +73,11 @@
 }
 
 .sizeLg .heading {
-  font-size: 20px;
+  font-size: 17px;
 }
 
 .sizeLg .smallHeading {
-  font-size: 18px;
+  font-size: 16px;
 }
 
 .filledHeader {

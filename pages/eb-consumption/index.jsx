@@ -143,7 +143,7 @@ function EBConsumption() {
         filledHeader
         rightSection={
           <Link href="/eb-consumption/create" passHref>
-            <Button colorScheme="purple" variant="new-outline">
+            <Button colorScheme="purple" size="sm">
               Add
             </Button>
           </Link>

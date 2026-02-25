@@ -151,15 +151,12 @@ function CleaningPacking() {
               colorScheme="purple"
               onClick={handleSync}
               variant="new-outline"
+              size="sm"
             >
               Sync Now
             </Button>
 
-            <Button
-              colorScheme="purple"
-              onClick={handleExportAll}
-              variant="new-outline"
-            >
+            <Button colorScheme="purple" onClick={handleExportAll} size="sm">
               Export All
             </Button>
           </Flex>
@@ -179,6 +176,7 @@ function CleaningPacking() {
             rightSection={
               <Button
                 variant="new-outline"
+                size="sm"
                 colorScheme="purple"
                 onClick={() => handleExport(handpackedItems, "hand-packed")}
               >
@@ -206,6 +204,7 @@ function CleaningPacking() {
             rightSection={
               <Button
                 variant="new-outline"
+                size="sm"
                 colorScheme="purple"
                 onClick={() =>
                   handleExport(machinePackedItems, "machine-bulk-packed")
