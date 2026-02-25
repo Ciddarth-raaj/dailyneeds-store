@@ -28,6 +28,7 @@ import styles from "./customInput.module.css";
 import moment from "moment";
 import { useDropzone } from "react-dropzone";
 import Link from "next/link";
+import SearchableDropdown from "./SearchableDropdown";
 
 export const CustomDateTimeInput = forwardRef(
   (
@@ -154,8 +155,10 @@ const TextField = ({
       return moment(value).format("DD/MM/YYYY");
     }
 
-    if (method === "switch") {
-      return values.find((item) => item.id === value)?.value ?? "N/A";
+    if (method === "switch" || method === "searchable-dropdown") {
+      const option = values.find((item) => String(item.id) === String(value));
+      if (option) return option.value;
+      return value != null && value !== "" ? String(value) : "N/A";
     }
 
     if (method === "file") {
@@ -228,6 +231,7 @@ const TextField = ({
             "number",
             "expiry-datepicker",
             "switch",
+            "searchable-dropdown",
             "timepicker",
             "datepicker",
             "password",
@@ -322,6 +326,18 @@ const TextField = ({
                       </Fragment>
                     ))}
                   </Select>
+                )}
+
+                {method === "searchable-dropdown" && (
+                  <SearchableDropdown
+                    name={field.name}
+                    options={values ?? []}
+                    value={field.value}
+                    onChange={(id) => setFieldValue(field.name, id)}
+                    placeholder={props.placeholder ?? "Search or select..."}
+                    isDisabled={!editable}
+                    size={props.size}
+                  />
                 )}
 
                 {method === undefined && (

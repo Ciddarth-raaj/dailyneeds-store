@@ -369,6 +369,12 @@ export default {
         selected: false,
         location: "/purchase/purchase-return",
       },
+      view_purchase_acknowledgement: {
+        title: "Purchase Acknowledgement",
+        permission: "view_purchase_acknowledgement",
+        selected: false,
+        location: "/purchase/purchase-acknowledgement",
+      },
     },
   },
   debit_note: {

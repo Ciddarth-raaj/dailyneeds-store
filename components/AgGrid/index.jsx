@@ -279,20 +279,30 @@ const AgGrid = React.forwardRef(function AgGrid(
                 gap={1}
               >
                 {items.map((item) => {
-                  return (
-                    <Link href={item.redirectionUrl} passHref key={item.label}>
-                      <Tooltip label={item.label} key={item.label}>
-                        <IconButton
-                          variant="ghost"
-                          colorScheme={item.colorScheme || "purple"}
-                          aria-label={item.label}
-                          size="xs"
-                          icon={<i className={item.icon} />}
-                          onClick={item.onClick}
-                        />
-                      </Tooltip>
-                    </Link>
+                  const btn = (
+                    <Tooltip label={item.label} key={item.label}>
+                      <IconButton
+                        variant="ghost"
+                        colorScheme={item.colorScheme || "purple"}
+                        aria-label={item.label}
+                        size="xs"
+                        icon={<i className={item.icon} />}
+                        onClick={item.onClick}
+                      />
+                    </Tooltip>
                   );
+                  if (item.redirectionUrl) {
+                    return (
+                      <Link
+                        href={item.redirectionUrl}
+                        passHref
+                        key={item.label}
+                      >
+                        {btn}
+                      </Link>
+                    );
+                  }
+                  return <Box key={item.label} as="span">{btn}</Box>;
                 })}
               </Flex>
             );
