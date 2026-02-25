@@ -152,6 +152,12 @@ export default {
         selected: false,
         location: "/materials/request",
       },
+      view_sticker_types: {
+        title: "Sticker Types",
+        permission: "view_sticker_types",
+        selected: false,
+        location: "/purchase/sticker-types",
+      },
     },
   },
   purchase_order: {
@@ -293,6 +299,18 @@ export default {
         selected: false,
         location: "/accounts/epayment/create",
       },
+      view_purchase_order: {
+        title: "All Purchases",
+        permission: "view_purchases",
+        selected: false,
+        location: "/purchase",
+      },
+      view_purchases_difference: {
+        title: "Difference",
+        permission: "view_purchases_difference",
+        selected: false,
+        location: "/purchase/difference",
+      },
     },
   },
   reconcilation: {
@@ -339,29 +357,11 @@ export default {
     openPage: false,
     icon: "fa-dollar-sign",
     subMenu: {
-      view_purchase_order: {
-        title: "All Purchases",
-        permission: "view_purchases",
-        selected: false,
-        location: "/purchase",
-      },
-      view_purchases_difference: {
-        title: "Difference",
-        permission: "view_purchases_difference",
-        selected: false,
-        location: "/purchase/difference",
-      },
       view_job_worksheet: {
         title: "Job Worksheet",
         permission: "view_job_worksheet",
         selected: false,
         location: "/purchase/job-worksheet",
-      },
-      view_sticker_types: {
-        title: "Sticker Types",
-        permission: "view_sticker_types",
-        selected: false,
-        location: "/purchase/sticker-types",
       },
       view_purchase_return: {
         title: "Purchase Return",

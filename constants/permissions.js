@@ -40,6 +40,8 @@ export const PERMISSIONS = {
     add_materials_category: "Add Materials Category",
     view_materials_request: "View Materials Request",
     add_materials_request: "Add Materials Request",
+    view_sticker_types: "View Sticker Types",
+    add_sticker_types: "Add Sticker Types",
   },
 
   // Purchase Order
@@ -84,6 +86,8 @@ export const PERMISSIONS = {
     add_account_sheet: "Add Account Sheet",
     save_account_sheet: "Save Account Sheet",
     unsave_account_sheet: "Unsave Account Sheet",
+    view_purchases: "View Purchases",
+    view_purchases_difference: "View Purchases Difference",
   },
 
   // Reconciliation
@@ -98,12 +102,8 @@ export const PERMISSIONS = {
 
   // Purchase
   purchase: {
-    view_purchases: "View Purchases",
-    view_purchases_difference: "View Purchases Difference",
     view_job_worksheet: "View Job Worksheet",
     add_job_worksheet: "Add Job Worksheet",
-    view_sticker_types: "View Sticker Types",
-    add_sticker_types: "Add Sticker Types",
     view_purchase_return: "View Purchase Return",
     add_purchase_return: "Add Purchase Return Extra",
     update_purchase_return_status: "Update Purchase Return Status",

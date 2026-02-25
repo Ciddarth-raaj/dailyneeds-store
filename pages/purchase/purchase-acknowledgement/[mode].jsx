@@ -3,7 +3,15 @@ import { useRouter } from "next/router";
 import GlobalWrapper from "../../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../../components/CustomContainer";
 import CustomInput from "../../../components/customInput/customInput";
-import { Button, Flex, Grid, Text, Box, IconButton } from "@chakra-ui/react";
+import {
+  Button,
+  Flex,
+  Grid,
+  Text,
+  Box,
+  IconButton,
+  useBreakpointValue,
+} from "@chakra-ui/react";
 import AgGrid from "../../../components/AgGrid";
 import CustomModal from "../../../components/CustomModal";
 import PurchaseReturnStatusSwitch from "../../../components/purchase-return/PurchaseReturnStatusSwitch";
@@ -50,6 +58,8 @@ function PurchaseAckForm() {
   const editMode = mode === "edit";
   const createMode = mode === "create";
 
+  const isMobile = useBreakpointValue({ base: true, md: false });
+
   const canAdd = usePermissions("add_purchase_acknowledgement");
   const { distributors, loading: loadingDist } = useDistributors();
   const { print: printAcknowledgement } = usePurchaseAcknowledgementPrint();
@@ -83,6 +93,7 @@ function PurchaseAckForm() {
         it.product?.de_display_name ?? it.product?.gf_item_name ?? "—",
       MPR_ITEM_QTY: it.MPR_ITEM_QTY,
       MPR_ITEM_AMOUNT: it.MPR_ITEM_AMOUNT,
+      product_image: it.product?.image_url ?? null,
     }));
   }, [productsModalRow]);
 
@@ -349,14 +360,20 @@ function PurchaseAckForm() {
         isOpen={productsModalRow != null}
         onClose={() => setProductsModalRow(null)}
         title={`Products — ${productsModalRow?.mprh_pr_refno ?? "PR"}`}
-        size="lg"
+        size="5xl"
         footer={false}
       >
         <AgGrid
           rowData={productListRows}
           columnDefs={[
             { field: "MPR_ITEM_CODE", headerName: "Item Code" },
-            { field: "product_name", headerName: "Product", flex: 2 },
+            { field: "product_image", headerName: "Image", type: "image" },
+            {
+              field: "product_name",
+              headerName: "Product",
+              flex: 2,
+              type: "capitalized",
+            },
             { field: "MPR_ITEM_QTY", headerName: "Qty", type: "number" },
             {
               field: "MPR_ITEM_AMOUNT",
@@ -433,6 +450,7 @@ function PurchaseAckForm() {
                         size="sm"
                         colorScheme="purple"
                         variant="outline"
+                        display={{ base: "none", md: "block" }}
                         onClick={() =>
                           setFieldValue("invoices", [
                             ...values.invoices,
@@ -468,30 +486,42 @@ function PurchaseAckForm() {
                             <Grid
                               key={index}
                               templateColumns={{
-                                base: "1fr auto",
+                                base: "1fr",
                                 md: "1fr 1fr 1fr auto",
                               }}
                               gap={3}
                               alignItems="flex-end"
                               mb={3}
                               fontSize="sm"
+                              border={{
+                                base: "1px solid",
+                                md: "none",
+                              }}
+                              borderColor="gray.200"
+                              p={{ base: 4, md: 0 }}
+                              borderRadius="8px"
+                              position="relative"
                             >
                               <CustomInput
-                                label={index === 0 ? "Invoice No" : ""}
+                                label={
+                                  index === 0 || isMobile ? "Invoice No" : ""
+                                }
                                 name={`invoices.${index}.invoice_no`}
                                 placeholder="Invoice number"
                                 editable={!isReadOnly}
                                 ignoreMarginBottom
                               />
                               <CustomInput
-                                label={index === 0 ? "Invoice Date" : ""}
+                                label={
+                                  index === 0 || isMobile ? "Invoice Date" : ""
+                                }
                                 name={`invoices.${index}.invoice_date`}
                                 method="datepicker"
                                 editable={!isReadOnly}
                                 ignoreMarginBottom
                               />
                               <CustomInput
-                                label={index === 0 ? "Amount" : ""}
+                                label={index === 0 || isMobile ? "Amount" : ""}
                                 name={`invoices.${index}.amount`}
                                 type="number"
                                 min={0}
@@ -500,10 +530,17 @@ function PurchaseAckForm() {
                               />
                               {!isReadOnly && (
                                 <IconButton
+                                  position={{
+                                    base: "absolute",
+                                    md: "relative",
+                                  }}
+                                  mb={{ base: 0, md: "16px" }}
+                                  right="8px"
+                                  top="8px"
                                   icon={<i className="fa fa-trash" />}
                                   colorScheme="red"
                                   variant="outline"
-                                  size="sm"
+                                  size="xs"
                                   onClick={() => remove(index)}
                                   isDisabled={
                                     (values.invoices || []).length <= 1
@@ -512,6 +549,26 @@ function PurchaseAckForm() {
                               )}
                             </Grid>
                           ))}
+
+                          {!isReadOnly && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              w="100%"
+                              colorScheme="purple"
+                              variant="outline"
+                              display={{ base: "block", md: "none" }}
+                              onClick={() =>
+                                setFieldValue("invoices", [
+                                  ...values.invoices,
+                                  defaultInvoiceRow(),
+                                ])
+                              }
+                              leftIcon={<i className="fa fa-plus" />}
+                            >
+                              Add invoice
+                            </Button>
+                          )}
                         </>
                       )}
                     </FieldArray>
