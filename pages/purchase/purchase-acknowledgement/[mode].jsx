@@ -3,9 +3,11 @@ import { useRouter } from "next/router";
 import GlobalWrapper from "../../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../../components/CustomContainer";
 import CustomInput from "../../../components/customInput/customInput";
-import { Button, Flex, Grid, Text, Box, Switch } from "@chakra-ui/react";
+import { Button, Flex, Grid, Text, Box } from "@chakra-ui/react";
 import AgGrid from "../../../components/AgGrid";
 import CustomModal from "../../../components/CustomModal";
+import PurchaseReturnStatusSwitch from "../../../components/purchase-return/PurchaseReturnStatusSwitch";
+import PurchaseReturnsMobileCards from "../../../components/purchase-return/PurchaseReturnsMobileCards";
 import { Formik, useFormikContext } from "formik";
 import * as Yup from "yup";
 import toast from "react-hot-toast";
@@ -13,7 +15,6 @@ import moment from "moment";
 import { usePurchaseAcknowledgementById } from "../../../customHooks/usePurchaseAcknowledgements";
 import { useDistributors } from "../../../customHooks/useDistributors";
 import { usePurchaseReturnsByDistributor } from "../../../customHooks/usePurchaseReturnsByDistributor";
-import { updatePurchaseReturnExtra } from "../../../helper/purchaseReturn";
 import usePermissions from "../../../customHooks/usePermissions";
 import EmptyData from "../../../components/EmptyData";
 import { capitalize } from "../../../util/string";
@@ -114,24 +115,6 @@ function PurchaseAckForm() {
     }
   }, [createMode, purchaseAcknowledgement]);
 
-  const handleStatusChange = useCallback(
-    (row, newStatus) => () => {
-      const prNo = row?.mprh_pr_no;
-      if (!prNo) return;
-      toast.promise(
-        updatePurchaseReturnExtra(prNo, { status: newStatus }).then(() => {
-          refetchPr();
-        }),
-        {
-          loading: "Updating status...",
-          success: `Status set to ${newStatus === "done" ? "Done" : "Open"}`,
-          error: (err) => err.message || "Failed to update status",
-        }
-      );
-    },
-    [refetchPr]
-  );
-
   const prTableRows = useMemo(() => {
     return (purchaseReturns || []).map((pr) => {
       const items = pr?.items || [];
@@ -165,22 +148,9 @@ function PurchaseAckForm() {
               hideExport: true,
               cellRenderer: (params) => {
                 const row = params.data;
-                const status = row?.status;
-                const isDone = status === "done";
-
-                if (!status) {
-                  return "-";
-                }
-
+                if (!row?.status) return "-";
                 return (
-                  <Switch
-                    size="sm"
-                    colorScheme="purple"
-                    isChecked={isDone}
-                    onChange={() => {
-                      handleStatusChange(row, isDone ? "open" : "done")();
-                    }}
-                  />
+                  <PurchaseReturnStatusSwitch row={row} onSuccess={refetchPr} />
                 );
               },
             },
@@ -233,7 +203,7 @@ function PurchaseAckForm() {
         },
       },
     ],
-    [canAdd, handleStatusChange, purchaseReturns]
+    [canAdd, purchaseReturns, refetchPr]
   );
 
   const handleSubmit = async (values) => {
@@ -399,21 +369,35 @@ function PurchaseAckForm() {
                     size="xs"
                     filledHeader
                     smallHeader
+                    toggleChildren
                   >
                     {loadingPr ? (
                       <Text py={2}>Loading...</Text>
                     ) : prTableRows.length === 0 ? (
                       <EmptyData message="No open purchase returns for this distributor." />
                     ) : (
-                      <AgGrid
-                        rowData={prTableRows}
-                        columnDefs={prColDefs}
-                        tableKey={`purchase-ack-pr-${distributorIdForPr}`}
-                        gridOptions={{
-                          getRowId: (params) =>
-                            String(params.data?.mprh_pr_no ?? ""),
-                        }}
-                      />
+                      <>
+                        <Box display={{ base: "none", md: "block" }}>
+                          <AgGrid
+                            rowData={prTableRows}
+                            columnDefs={prColDefs}
+                            tableKey={`purchase-ack-pr-${distributorIdForPr}`}
+                            gridOptions={{
+                              getRowId: (params) =>
+                                String(params.data?.mprh_pr_no ?? ""),
+                            }}
+                          />
+                        </Box>
+                        <Box display={{ base: "block", md: "none" }}>
+                          <PurchaseReturnsMobileCards
+                            rows={prTableRows}
+                            purchaseReturns={purchaseReturns}
+                            canAdd={canAdd}
+                            onViewProducts={setProductsModalRow}
+                            onStatusSuccess={refetchPr}
+                          />
+                        </Box>
+                      </>
                     )}
                   </CustomContainer>
                 </Box>
