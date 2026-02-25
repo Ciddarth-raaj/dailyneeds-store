@@ -4,6 +4,7 @@ import CustomContainer from "../../../components/CustomContainer";
 import { Text, Button, Flex } from "@chakra-ui/react";
 import AgGrid from "../../../components/AgGrid";
 import { usePurchaseAcknowledgements } from "../../../customHooks/usePurchaseAcknowledgements";
+import { usePurchaseAcknowledgementPrint } from "../../../customHooks/usePurchaseAcknowledgementPrint";
 import usePermissions from "../../../customHooks/usePermissions";
 import ConfirmDeleteModal from "../../../components/ConfirmDeleteModal";
 import toast from "react-hot-toast";
@@ -14,6 +15,8 @@ function PurchaseAckListing() {
   const canAdd = usePermissions("add_purchase_acknowledgement");
   const { purchaseAcknowledgements, loading, remove, refetch } =
     usePurchaseAcknowledgements();
+  const { print: printAcknowledgement } =
+    usePurchaseAcknowledgementPrint();
   const [deleteItem, setDeleteItem] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -92,6 +95,12 @@ function PurchaseAckListing() {
                 id
               )}`,
             },
+            {
+              label: "Print",
+              icon: "fa-solid fa-print",
+              colorScheme: "purple",
+              onClick: () => printAcknowledgement(row),
+            },
           ];
           if (canAdd) {
             actions.push({
@@ -112,7 +121,7 @@ function PurchaseAckListing() {
         },
       },
     ],
-    [canAdd, handleDeleteClick]
+    [canAdd, handleDeleteClick, printAcknowledgement]
   );
 
   return (

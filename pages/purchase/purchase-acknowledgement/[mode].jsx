@@ -13,6 +13,7 @@ import * as Yup from "yup";
 import toast from "react-hot-toast";
 import moment from "moment";
 import { usePurchaseAcknowledgementById } from "../../../customHooks/usePurchaseAcknowledgements";
+import { usePurchaseAcknowledgementPrint } from "../../../customHooks/usePurchaseAcknowledgementPrint";
 import { useDistributors } from "../../../customHooks/useDistributors";
 import { usePurchaseReturnsByDistributor } from "../../../customHooks/usePurchaseReturnsByDistributor";
 import usePermissions from "../../../customHooks/usePermissions";
@@ -51,6 +52,7 @@ function PurchaseAckForm() {
 
   const canAdd = usePermissions("add_purchase_acknowledgement");
   const { distributors, loading: loadingDist } = useDistributors();
+  const { print: printAcknowledgement } = usePurchaseAcknowledgementPrint();
   const { purchaseAcknowledgement, loading: loadingAck } =
     usePurchaseAcknowledgementById(id, {
       enabled: !!id && (viewMode || editMode),
@@ -500,7 +502,22 @@ function PurchaseAckForm() {
                   )}
                 </CustomContainer>
 
-                <Flex gap={3} justify="flex-end" mt={6}>
+                <Flex gap={3} justify="flex-end" mt={6} wrap="wrap">
+                  {(viewMode || editMode) && id && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      colorScheme="purple"
+                      leftIcon={<i className="fa-solid fa-print" />}
+                      onClick={() =>
+                        printAcknowledgement(
+                          purchaseAcknowledgement ?? id
+                        )
+                      }
+                    >
+                      Print
+                    </Button>
+                  )}
                   <Button
                     type="button"
                     variant="outline"

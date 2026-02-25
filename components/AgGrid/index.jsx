@@ -302,7 +302,11 @@ const AgGrid = React.forwardRef(function AgGrid(
                       </Link>
                     );
                   }
-                  return <Box key={item.label} as="span">{btn}</Box>;
+                  return (
+                    <Box key={item.label} as="span">
+                      {btn}
+                    </Box>
+                  );
                 })}
               </Flex>
             );
