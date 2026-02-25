@@ -6,11 +6,11 @@ import moment from "moment";
  * Each table: two-column layout (label | value) with rows: Supplier, PRN No., PRN Date, Entered By, Carton No.
  * @param {Object} row - Purchase return row: distributor_name, mprh_pr_refno, mprh_pr_dt, created_by_name
  * @param {number} noOfBoxes - Total number of boxes (labels to generate)
- * @param {Object} [options] - { filename?: string, enteredBy?: string }
+ * @param {Object} [options] - { filename?: string, enteredBy?: string, print?: boolean } If print is true, opens print dialog instead of downloading.
  */
 export function downloadPurchaseReturnLabelsPdf(row, noOfBoxes, options = {}) {
-  const { filename: optionsFilename, enteredBy: optionsEnteredBy } =
-    typeof options === "string" ? { filename: options, enteredBy: undefined } : options;
+  const opts = typeof options === "string" ? { filename: options, enteredBy: undefined, print: false } : options;
+  const { filename: optionsFilename, enteredBy: optionsEnteredBy, print: usePrint = false } = opts;
 
   const n = Math.max(1, Number(noOfBoxes) || 0);
   const doc = new jsPDF({
@@ -124,8 +124,36 @@ export function downloadPurchaseReturnLabelsPdf(row, noOfBoxes, options = {}) {
     }
   }
 
-  const name =
-    optionsFilename ||
-    `purchase-return-labels-${prnNo || "labels"}-${moment().format("YYYY-MM-DD")}.pdf`;
-  doc.save(name);
+  if (usePrint) {
+    const blob = doc.output("blob");
+    const url = URL.createObjectURL(blob);
+    const iframe = document.createElement("iframe");
+    iframe.style.position = "absolute";
+    iframe.style.width = "0";
+    iframe.style.height = "0";
+    iframe.style.border = "none";
+    iframe.src = url;
+    document.body.appendChild(iframe);
+    iframe.onload = () => {
+      try {
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+      } finally {
+        const cleanup = () => {
+          document.body.removeChild(iframe);
+          URL.revokeObjectURL(url);
+        };
+        if (iframe.contentWindow.onafterprint) {
+          iframe.contentWindow.onafterprint = cleanup;
+        } else {
+          setTimeout(cleanup, 500);
+        }
+      }
+    };
+  } else {
+    const name =
+      optionsFilename ||
+      `purchase-return-labels-${prnNo || "labels"}-${moment().format("YYYY-MM-DD")}.pdf`;
+    doc.save(name);
+  }
 }

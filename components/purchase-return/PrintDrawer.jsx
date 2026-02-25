@@ -46,9 +46,7 @@ function PrintDrawer({
   useEffect(() => {
     if (row && isOpen) {
       const existing = row.no_of_boxes;
-      setNoOfBoxes(
-        existing != null && existing !== "" ? Number(existing) : ""
-      );
+      setNoOfBoxes(existing != null && existing !== "" ? Number(existing) : "");
     }
   }, [row, isOpen]);
 
@@ -96,6 +94,7 @@ function PrintDrawer({
       }
       downloadPurchaseReturnLabelsPdf(row, boxes, {
         enteredBy: createdByName || currentUserName || "—",
+        print: true,
       });
       handleClose();
     } catch (err) {
@@ -129,7 +128,7 @@ function PrintDrawer({
           loadingText="Saving..."
           isDisabled={!hasValidBoxes}
         >
-          Done
+          Print
         </Button>
       }
     >
