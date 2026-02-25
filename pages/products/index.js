@@ -73,11 +73,12 @@ function Products() {
     {
       field: "product_id",
       headerName: "Action",
-      type: "action-column",
+      type: "action-icons",
       valueGetter: (props) => {
         const menu = [
           {
             label: "View",
+            iconType: "view",
             redirectionUrl: `/products/view?id=${props.data.product_id}`,
           },
         ];
@@ -85,6 +86,7 @@ function Products() {
         if (canEdit) {
           menu.push({
             label: "Edit",
+            iconType: "edit",
             redirectionUrl: `/products/edit?id=${props.data.product_id}`,
           });
         }

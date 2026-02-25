@@ -122,7 +122,7 @@ class BranchDetail extends React.Component {
               filledHeader
               rightSection={
                 <Link href="/branch-details/create" passHref>
-                  <Button colorScheme="purple">Add New Branch</Button>
+                  <Button colorScheme="purple" size="sm">Add</Button>
                 </Link>
               }
             >

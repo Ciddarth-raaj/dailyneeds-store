@@ -42,11 +42,12 @@ function DesignationView() {
     {
       field: "designation_id",
       headerName: "Action",
-      type: "action-column",
+      type: "action-icons",
       valueGetter: (props) => {
         return [
           {
             label: "View",
+            iconType: "view",
             redirectionUrl: `/designation/${props.data.designation_id}`,
           },
         ];

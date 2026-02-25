@@ -258,7 +258,10 @@ function JobWorksheetIndex() {
       {
         field: "job_worksheet_id",
         headerName: "Action",
-        type: "action-column",
+        type: "action-icons",
+        width: 130,
+        maxWidth: 130,
+        minWidth: 130,
         valueGetter: (params) => {
           const id = params.data?.job_worksheet_id;
           const grnNo = params.data?.grn_no;
@@ -266,10 +269,13 @@ function JobWorksheetIndex() {
           const actions = [
             {
               label: "View Products",
+              icon: "fa-solid fa-list",
+              colorScheme: "blue",
               onClick: () => setViewProductsWorksheetId(id),
             },
             {
               label: "View",
+              iconType: "view",
               redirectionUrl: `/purchase/job-worksheet/view?id=${id}`,
             },
           ];
@@ -277,11 +283,14 @@ function JobWorksheetIndex() {
           if (canAdd) {
             actions.push({
               label: "Edit",
+              iconType: "edit",
               redirectionUrl: `/purchase/job-worksheet/edit?id=${id}`,
             });
 
             actions.push({
               label: "Delete",
+              iconType: "delete",
+              colorScheme: "red",
               onClick: () =>
                 confirmDelete({
                   title: "Delete job worksheet",

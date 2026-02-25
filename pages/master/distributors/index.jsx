@@ -28,12 +28,13 @@ function DistributorListing() {
       {
         field: "MDM_DIST_CODE",
         headerName: "Action",
-        type: "action-column",
+        type: "action-icons",
         valueGetter: (params) => {
           const code = params.data?.MDM_DIST_CODE;
           return [
             {
               label: "View",
+              icon: "fa-solid fa-eye",
               redirectionUrl: `/master/distributors/view?code=${encodeURIComponent(
                 code
               )}`,

@@ -265,12 +265,19 @@ const AgGrid = React.forwardRef(function AgGrid(
           filter: false,
           resizable: false,
           flex: 0,
-          maxWidth: 100,
-          minWidth: 100,
-          width: 100,
+          width: 130,
+          maxWidth: 130,
+          minWidth: 130,
           cellRenderer: (props) => {
             if (!props) return null;
             const items = Array.isArray(props.value) ? props.value : [];
+
+            const ICON_TYPES = {
+              view: "fa-solid fa-eye",
+              edit: "fa-solid fa-pen",
+              delete: "fa-solid fa-trash",
+            };
+
             return (
               <Flex
                 justifyContent="center"
@@ -279,6 +286,8 @@ const AgGrid = React.forwardRef(function AgGrid(
                 gap={1}
               >
                 {items.map((item) => {
+                  const icon = ICON_TYPES[item.iconType] || item.icon;
+
                   const btn = (
                     <Tooltip label={item.label} key={item.label}>
                       <IconButton
@@ -286,7 +295,7 @@ const AgGrid = React.forwardRef(function AgGrid(
                         colorScheme={item.colorScheme || "purple"}
                         aria-label={item.label}
                         size="xs"
-                        icon={<i className={item.icon} />}
+                        icon={<i className={icon} />}
                         onClick={item.onClick}
                       />
                     </Tooltip>
