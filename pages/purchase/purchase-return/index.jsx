@@ -12,6 +12,7 @@ import toast from "react-hot-toast";
 
 function PurchaseReturnListing() {
   const canAdd = usePermissions("add_purchase_return");
+  const canUpdateStatus = usePermissions("update_purchase_return_status");
   const { purchaseReturns, loading, refetch } = usePurchaseReturns();
   const { userConfig } = useUser();
   const { employeeId, fetched } = userConfig;
@@ -96,7 +97,7 @@ function PurchaseReturnListing() {
           return { label: "Open", colorScheme: "blue" };
         },
       },
-      ...(canAdd
+      ...(canUpdateStatus
         ? [
             {
               field: "status",

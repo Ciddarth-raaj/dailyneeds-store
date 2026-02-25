@@ -298,61 +298,54 @@ function PurchaseReturnForm() {
           {({ handleSubmit: formikSubmit }) => (
             <form onSubmit={formikSubmit}>
               <Box mb={6}>
-                <CustomContainer
-                  title="Header"
-                  size="xs"
-                  filledHeader
-                  smallHeader
+                <Grid
+                  templateColumns={{ base: "1fr", md: "1fr 1fr" }}
+                  gap={4}
+                  fontSize="sm"
                 >
-                  <Grid
-                    templateColumns={{ base: "1fr", md: "1fr 1fr" }}
-                    gap={4}
-                    fontSize="sm"
-                  >
-                    <CustomInput
-                      label="Return No"
-                      name="mprh_pr_no"
-                      type="text"
-                      editable={false}
-                    />
-                    <CustomInput
-                      label="PR No"
-                      name="mprh_pr_refno"
-                      type="text"
-                      editable={false}
-                    />
-                    <CustomInput
-                      label="PR Date"
-                      name="mprh_pr_dt"
-                      type="text"
-                      editable={false}
-                    />
-                    <CustomInput
-                      label="Basic Amount"
-                      name="mprh_basic_amount"
-                      type="text"
-                      editable={false}
-                    />
-                    <CustomInput
-                      label="Net Amount"
-                      name="mprh_net_amount"
-                      type="text"
-                      editable={false}
-                    />
-                    <CustomInput
-                      label="Distributor Code"
-                      name="mprh_dist_code"
-                      type="text"
-                      editable={false}
-                    />
-                    <CustomInput
-                      label="Distributor Name"
-                      name="distributor_name"
-                      type="text"
-                      editable={false}
-                    />
-                  </Grid>
-                </CustomContainer>
+                  <CustomInput
+                    label="Return No"
+                    name="mprh_pr_no"
+                    type="text"
+                    editable={false}
+                  />
+                  <CustomInput
+                    label="PR No"
+                    name="mprh_pr_refno"
+                    type="text"
+                    editable={false}
+                  />
+                  <CustomInput
+                    label="PR Date"
+                    name="mprh_pr_dt"
+                    type="text"
+                    editable={false}
+                  />
+                  <CustomInput
+                    label="Basic Amount"
+                    name="mprh_basic_amount"
+                    type="text"
+                    editable={false}
+                  />
+                  <CustomInput
+                    label="Net Amount"
+                    name="mprh_net_amount"
+                    type="text"
+                    editable={false}
+                  />
+                  <CustomInput
+                    label="Distributor Code"
+                    name="mprh_dist_code"
+                    type="text"
+                    editable={false}
+                  />
+                  <CustomInput
+                    label="Distributor Name"
+                    name="distributor_name"
+                    type="text"
+                    editable={false}
+                  />
+                </Grid>
               </Box>
 
               <Box mb={6}>
@@ -387,6 +380,7 @@ function PurchaseReturnForm() {
                     type="number"
                     min={0}
                     editable={isExtraEditable}
+                    ignoreMarginBottom
                   />
                 </Grid>
               </CustomContainer>
