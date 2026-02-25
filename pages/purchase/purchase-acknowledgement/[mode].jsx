@@ -66,7 +66,7 @@ function PurchaseAckForm() {
     purchaseReturns,
     loading: loadingPr,
     refetch: refetchPr,
-  } = usePurchaseReturnsByDistributor(distributorIdForPr, {
+  } = usePurchaseReturnsByDistributor(distributorIdForPr, id, {
     enabled: !!distributorIdForPr,
   });
 
@@ -182,7 +182,7 @@ function PurchaseAckForm() {
       { field: "total_qty", headerName: "Total Qty", type: "number" },
       { field: "total_amount", headerName: "Total Amount", type: "currency" },
       { field: "no_of_boxes", headerName: "No. of Boxes", type: "number" },
-      ...(canAdd
+      ...(canAdd && !createMode
         ? [
             {
               field: "status",
@@ -192,7 +192,13 @@ function PurchaseAckForm() {
                 const row = params.data;
                 if (!row?.status) return "-";
                 return (
-                  <PurchaseReturnStatusSwitch row={row} onSuccess={refetchPr} />
+                  <PurchaseReturnStatusSwitch
+                    row={row}
+                    onSuccess={refetchPr}
+                    purchaseAcknowledgementId={
+                      id != null ? Number(id) || null : null
+                    }
+                  />
                 );
               },
             },
@@ -245,7 +251,7 @@ function PurchaseAckForm() {
         },
       },
     ],
-    [canAdd, purchaseReturns, refetchPr]
+    [canAdd, id, purchaseReturns, refetchPr]
   );
 
   const handleSubmit = async (values) => {
@@ -513,7 +519,7 @@ function PurchaseAckForm() {
                 </Flex>
               </Box>
 
-              {!viewMode && (values.distributor_id || distributorIdForPr) && (
+              {(values.distributor_id || distributorIdForPr) && (
                 <Box mb={6}>
                   <CustomContainer
                     title="Purchase Returns"
@@ -521,6 +527,13 @@ function PurchaseAckForm() {
                     filledHeader
                     smallHeader
                     toggleChildren
+                    rightSection={
+                      createMode ? (
+                        <Text fontSize="xs" color="purple.500">
+                          Save before updating status
+                        </Text>
+                      ) : null
+                    }
                   >
                     {loadingPr ? (
                       <Text py={2}>Loading...</Text>
@@ -546,6 +559,9 @@ function PurchaseAckForm() {
                             canAdd={canAdd}
                             onViewProducts={setProductsModalRow}
                             onStatusSuccess={refetchPr}
+                            purchaseAcknowledgementId={
+                              id != null ? Number(id) || null : null
+                            }
                           />
                         </Box>
                       </>

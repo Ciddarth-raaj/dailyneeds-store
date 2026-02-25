@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { getPurchaseReturnsByDistributor } from "../helper/purchaseReturn";
 
-export function usePurchaseReturnsByDistributor(distributorId, options = {}) {
+export function usePurchaseReturnsByDistributor(distributorId, purchaseAcknowledgementId, options = {}) {
   const { enabled = true } = options;
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -16,7 +16,7 @@ export function usePurchaseReturnsByDistributor(distributorId, options = {}) {
     try {
       setLoading(true);
       setError(null);
-      const res = await getPurchaseReturnsByDistributor(distributorId);
+      const res = await getPurchaseReturnsByDistributor(distributorId, purchaseAcknowledgementId);
       setData(Array.isArray(res?.data) ? res.data : []);
     } catch (err) {
       setError(err);
@@ -24,7 +24,7 @@ export function usePurchaseReturnsByDistributor(distributorId, options = {}) {
     } finally {
       setLoading(false);
     }
-  }, [distributorId, enabled]);
+  }, [distributorId, purchaseAcknowledgementId, enabled]);
 
   useEffect(() => {
     refetch();

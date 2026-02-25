@@ -21,6 +21,7 @@ import PurchaseReturnStatusSwitch from "./PurchaseReturnStatusSwitch";
  * @param {boolean} props.canAdd - Whether to show status switch
  * @param {function} props.onViewProducts - (pr) => void when "View products" is clicked
  * @param {function} props.onStatusSuccess - Callback after status update (refetch)
+ * @param {number|null|undefined} props.purchaseAcknowledgementId - When on purchase ack page, pass to link PR to acknowledgement when marking done
  */
 function PurchaseReturnsMobileCards({
   rows = [],
@@ -28,6 +29,7 @@ function PurchaseReturnsMobileCards({
   canAdd,
   onViewProducts,
   onStatusSuccess,
+  purchaseAcknowledgementId,
 }) {
   if (rows.length === 0) {
     return null;
@@ -88,6 +90,7 @@ function PurchaseReturnsMobileCards({
                   <PurchaseReturnStatusSwitch
                     row={row}
                     onSuccess={onStatusSuccess}
+                    purchaseAcknowledgementId={purchaseAcknowledgementId}
                   />
                 </Flex>
               )}

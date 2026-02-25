@@ -16,10 +16,11 @@ export const getPurchaseReturns = () => {
 /**
  * Get purchase returns for a distributor (open only). See PURCHASE_ACKNOWLEDGEMENT_APIS.md.
  * @param {string} distributorId - MDM_DIST_CODE / mprh_dist_code
+ * @param {string} purchaseAcknowledgementId - Purchase acknowledgement ID
  */
-export const getPurchaseReturnsByDistributor = (distributorId) => {
+export const getPurchaseReturnsByDistributor = (distributorId, purchaseAcknowledgementId) => {
   return API.get(
-    `/purchase-return/by-distributor/${encodeURIComponent(distributorId)}`
+    `/purchase-return/by-distributor/${encodeURIComponent(distributorId)}?purchase_acknowledgement_id=${purchaseAcknowledgementId != null ? encodeURIComponent(purchaseAcknowledgementId) : ""}`
   ).then((res) => {
     const data = res?.data ?? res;
     if (data?.code === 200) return data;
@@ -54,7 +55,7 @@ export const createPurchaseReturnExtra = (body) => {
 /**
  * Update purchase_return_extra for a given mprh_pr_no.
  * @param {string} mprh_pr_no
- * @param {Object} body - { no_of_boxes?, status? }
+ * @param {Object} body - { no_of_boxes?, status?, purchase_acknowledgement_id? }
  */
 export const updatePurchaseReturnExtra = (mprh_pr_no, body) => {
   return API.put(
