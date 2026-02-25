@@ -1,6 +1,5 @@
 import React, { Fragment, forwardRef, useCallback } from "react";
 import { ErrorMessage, useField, useFormikContext } from "formik";
-
 import {
   Input,
   Textarea,
@@ -21,7 +20,6 @@ import {
   Text,
   Button,
 } from "@chakra-ui/react";
-import { useState } from "react";
 import DatePicker from "react-datepicker";
 import Timekeeper from "react-timekeeper";
 import styles from "./customInput.module.css";
@@ -79,8 +77,7 @@ const TextField = ({
   ...props
 }) => {
   const { setFieldValue } = useFormikContext();
-  const [field, meta] = useField(props);
-  const [startDate, setStartDate] = useState(new Date());
+  const [field] = useField(props);
   let start = 1950;
   let end = new Date().getFullYear();
   let endexpiry = 2050;
@@ -95,6 +92,22 @@ const TextField = ({
   }
   const years = arr;
   const expiryyear = expiryarr;
+  const FORM_CONTROL_METHODS = [
+    "TextArea",
+    "number",
+    "expiry-datepicker",
+    "switch",
+    "searchable-dropdown",
+    "timepicker",
+    "datepicker",
+    "password",
+    "readonly",
+    "disabled",
+    "numberinput",
+    "switch_toggle",
+    "file",
+    undefined,
+  ];
   const months = [
     "January",
     "February",
@@ -143,30 +156,23 @@ const TextField = ({
   };
 
   const getDisplayValue = (value) => {
-    if (props.value || props.value == 0) {
-      return props.value;
-    }
+    if (props.value || props.value == 0) return props.value;
+    if (!value && value !== 0 && value !== "0") return "N/A";
 
-    if (!value && value !== 0 && value !== "0") {
-      return "N/A";
-    }
-
-    if (method === "datepicker") {
-      return moment(value).format("DD/MM/YYYY");
-    }
-
-    if (method === "switch" || method === "searchable-dropdown") {
-      const option = values.find((item) => String(item.id) === String(value));
-      if (option) return option.value;
-      return value != null && value !== "" ? String(value) : "N/A";
-    }
-
-    if (method === "file") {
-      if (Array.isArray(value) && value.length > 0) {
-        return (
-          <Flex flexDirection="column" gap="16px" mt="4px">
-            {value.map((item, index) => {
-              return (
+    switch (method) {
+      case "datepicker":
+        return moment(value).format("DD/MM/YYYY");
+      case "switch":
+      case "searchable-dropdown": {
+        const option = values.find((item) => String(item.id) === String(value));
+        if (option) return option.value;
+        return value != null && value !== "" ? String(value) : "N/A";
+      }
+      case "file":
+        if (Array.isArray(value) && value.length > 0) {
+          return (
+            <Flex flexDirection="column" gap="16px" mt="4px">
+              {value.map((item, index) => (
                 <Flex key={index} gap="12px" alignItems="center">
                   <Text fontSize="sm" noOfLines={1} maxW={"250px"}>
                     {item.replace(
@@ -182,20 +188,18 @@ const TextField = ({
                     </a>
                   </Link>
                 </Flex>
-              );
-            })}
+              ))}
+            </Flex>
+          );
+        }
+        return (
+          <Flex>
+            <Text>{value}</Text>
           </Flex>
         );
-      }
-
-      return (
-        <Flex>
-          <Text>{value}</Text>
-        </Flex>
-      );
+      default:
+        return value;
     }
-
-    return value;
   };
 
   return (
@@ -226,22 +230,7 @@ const TextField = ({
         </div>
       ) : (
         <>
-          {[
-            "TextArea",
-            "number",
-            "expiry-datepicker",
-            "switch",
-            "searchable-dropdown",
-            "timepicker",
-            "datepicker",
-            "password",
-            "readonly",
-            "disabled",
-            "numberinput",
-            "switch_toggle",
-            "file",
-            undefined,
-          ].includes(method) && (
+          {FORM_CONTROL_METHODS.includes(method) && (
             <FormControl variant={floatingLabel ? "floating" : "default"}>
               <div
                 style={{
@@ -264,98 +253,108 @@ const TextField = ({
                     {label}
                   </label>
                 )}
-                {method === "TextArea" && (
-                  <Textarea
-                    {...field}
-                    {...props}
-                    width="100%"
-                    placeholder={floatingLabel ? " " : props.placeholder}
-                    onWheel={(e) => e.target.blur()}
-                  />
-                )}
-                {method === "switch_toggle" && (
-                  <Flex align="center" gap={2}>
-                    <Switch
-                      id={field.name}
-                      isChecked={!!field.value}
-                      onChange={onChange}
-                      isDisabled={props.isDisabled || !editable}
-                      colorScheme="purple"
-                      {...props}
-                    />
-                    <Text
-                      fontSize="sm"
-                      color={field.value ? "green.500" : "gray.400"}
-                    >
-                      {field.value ? "Active" : "Inactive"}
-                    </Text>
-                  </Flex>
-                )}
-                {method === "number" && (
-                  <NumberInput
-                    {...field}
-                    {...props}
-                    size="sm"
-                    max={9000000000}
-                    keepWithinRange={false}
-                    clampValueOnBlur={false}
-                    onWheel={(e) => e.target.blur()}
-                  >
-                    <NumberInputField
-                      focusBorderColor="blue.200"
-                      borderRadius={"5px"}
-                      height={"40px"}
-                      placeholder={floatingLabel ? " " : props.placeholder}
-                    />
-                    <NumberInputStepper>
-                      <NumberIncrementStepper />
-                      <NumberDecrementStepper />
-                    </NumberInputStepper>
-                  </NumberInput>
-                )}
-                {method === "switch" && (
-                  <Select {...field} {...props} placeholder="Select Option">
-                    {values?.map((m) => (
-                      <Fragment key={m.id}>
-                        <option value={m.id}>{m.value}</option>
-                        <ErrorMessage
-                          component="div"
-                          name={field.name}
-                          className={styles.errorMessage}
+                {(() => {
+                  switch (method) {
+                    case "TextArea":
+                      return (
+                        <Textarea
+                          {...field}
+                          {...props}
+                          width="100%"
+                          placeholder={floatingLabel ? " " : props.placeholder}
+                          onWheel={(e) => e.target.blur()}
                         />
-                      </Fragment>
-                    ))}
-                  </Select>
-                )}
-
-                {method === "searchable-dropdown" && (
-                  <SearchableDropdown
-                    name={field.name}
-                    options={values ?? []}
-                    value={field.value}
-                    onChange={(id) => setFieldValue(field.name, id)}
-                    placeholder={props.placeholder ?? "Search or select..."}
-                    isDisabled={!editable}
-                    size={props.size}
-                  />
-                )}
-
-                {method === undefined && (
-                  <Input
-                    {...field}
-                    {...props}
-                    autoComplete="off"
-                    placeholder={floatingLabel ? " " : props.placeholder}
-                    onWheel={(e) => e.target.blur()}
-                    onChange={(val) => {
-                      setFieldValue(field.name, val.target.value);
-                      onChange && onChange(val.target.value);
-                    }}
-                    style={{
-                      backgroundColor: "white",
-                    }}
-                  />
-                )}
+                      );
+                    case "switch_toggle":
+                      return (
+                        <Flex align="center" gap={2}>
+                          <Switch
+                            id={field.name}
+                            isChecked={!!field.value}
+                            onChange={onChange}
+                            isDisabled={props.isDisabled || !editable}
+                            colorScheme="purple"
+                            {...props}
+                          />
+                          <Text
+                            fontSize="sm"
+                            color={field.value ? "green.500" : "gray.400"}
+                          >
+                            {field.value ? "Active" : "Inactive"}
+                          </Text>
+                        </Flex>
+                      );
+                    case "number":
+                      return (
+                        <NumberInput
+                          {...field}
+                          {...props}
+                          size="sm"
+                          max={9000000000}
+                          keepWithinRange={false}
+                          clampValueOnBlur={false}
+                          onWheel={(e) => e.target.blur()}
+                        >
+                          <NumberInputField
+                            focusBorderColor="blue.200"
+                            borderRadius={"5px"}
+                            height={"40px"}
+                            placeholder={floatingLabel ? " " : props.placeholder}
+                          />
+                          <NumberInputStepper>
+                            <NumberIncrementStepper />
+                            <NumberDecrementStepper />
+                          </NumberInputStepper>
+                        </NumberInput>
+                      );
+                    case "switch":
+                      return (
+                        <Select {...field} {...props} placeholder="Select Option">
+                          {values?.map((m) => (
+                            <Fragment key={m.id}>
+                              <option value={m.id}>{m.value}</option>
+                              <ErrorMessage
+                                component="div"
+                                name={field.name}
+                                className={styles.errorMessage}
+                              />
+                            </Fragment>
+                          ))}
+                        </Select>
+                      );
+                    case "searchable-dropdown":
+                      return (
+                        <SearchableDropdown
+                          name={field.name}
+                          options={values ?? []}
+                          value={field.value}
+                          onChange={(id) => setFieldValue(field.name, id)}
+                          placeholder={props.placeholder ?? "Search or select..."}
+                          isDisabled={!editable}
+                          size={props.size}
+                        />
+                      );
+                    case undefined:
+                      return (
+                        <Input
+                          {...field}
+                          {...props}
+                          autoComplete="off"
+                          placeholder={floatingLabel ? " " : props.placeholder}
+                          onWheel={(e) => e.target.blur()}
+                          onChange={(val) => {
+                            setFieldValue(field.name, val.target.value);
+                            onChange && onChange(val.target.value);
+                          }}
+                          style={{
+                            backgroundColor: "white",
+                          }}
+                        />
+                      );
+                    default:
+                      return null;
+                  }
+                })()}
                 {floatingLabel && <FormLabel>{label}</FormLabel>}
               </div>
               <FormErrorMessage>
@@ -363,298 +362,309 @@ const TextField = ({
               </FormErrorMessage>
             </FormControl>
           )}
-          {method === "expiry-datepicker" && (
-            <>
-              <DatePicker
-                {...field}
-                {...props}
-                selected={(field.value && new Date(field.value)) || null}
-                customInput={<CustomDateTimeInput />}
-                renderCustomHeader={({
-                  val,
-                  changeYear,
-                  changeMonth,
-                  decreaseMonth,
-                  increaseMonth,
-                  prevMonthButtonDisabled,
-                  nextMonthButtonDisabled,
-                }) => (
-                  <div
-                    style={{
-                      margin: 10,
-                      display: "flex",
-                      justifyContent: "center",
-                    }}
-                  >
-                    <button
-                      onClick={decreaseMonth}
-                      disabled={prevMonthButtonDisabled}
-                    >
-                      {"<"}
-                    </button>
-                    <select
-                      value={val}
-                      onChange={({ target: { value } }) => changeYear(value)}
-                    >
-                      {expiryyear.map((option) => (
-                        <option key={option} value={option}>
-                          {option}
-                        </option>
-                      ))}
-                    </select>
-
-                    <select
-                      value={months[moment(val).month()]}
-                      onChange={({ target: { value } }) =>
-                        changeMonth(months.indexOf(value))
-                      }
-                    >
-                      {months.map((option) => (
-                        <option key={option} value={option}>
-                          {option}
-                        </option>
-                      ))}
-                    </select>
-
-                    <button
-                      onClick={increaseMonth}
-                      disabled={nextMonthButtonDisabled}
-                    >
-                      {">"}
-                    </button>
-                  </div>
-                )}
-                onChange={(val) => {
-                  setFieldValue(field.name, moment(val).format("YYYY-MM-DD"));
-                }}
-              />
-              {selected === "" && (
-                <ErrorMessage
-                  component="div"
-                  name={field.name}
-                  className={styles.errorMessage}
-                />
-              )}
-            </>
-          )}
-          {method === "timepicker" && (
-            <>
-              <Timekeeper
-                {...field}
-                showTimeSelect
-                showTimeSelectOnly
-                timeCaption="Time"
-                dateFormat="hh:mm:ss"
-                {...props}
-                switchToMinuteOnHourSelect={true}
-                selected={
-                  (moment(field.value).toISOString() &&
-                    new Date(field.value)) ||
-                  null
-                }
-                onChange={(val) => {
-                  setFieldValue(field.name, val.formattedSimple);
-                }}
-                customInput={<CustomDateTimeInput />}
-              />
-              {selected === "" && (
-                <ErrorMessage
-                  component="div"
-                  name={field.name}
-                  className={styles.errorMessage}
-                />
-              )}
-            </>
-          )}
-          {method === "datepicker" && (
-            <>
-              <DatePicker
-                {...field}
-                {...props}
-                selected={(field.value && new Date(field.value)) || null}
-                customInput={
-                  <CustomDateTimeInput
-                    disabled={props.disabled}
-                    placeholder={props.placeholder}
-                  />
-                }
-                onChange={(val) => {
-                  onChange && onChange(val);
-                  setFieldValue(field.name, moment(val).format("YYYY-MM-DD"));
-                }}
-              />
-              {selected === "" && (
-                <ErrorMessage
-                  component="div"
-                  name={field.name}
-                  className={styles.errorMessage}
-                />
-              )}
-            </>
-          )}
-          {method === "password" && (
-            <InputGroup size="md">
-              <Input
-                pr="4.5rem"
-                {...field}
-                {...props}
-                onWheel={(e) => e.target.blur()}
-                style={{
-                  backgroundColor: "white",
-                }}
-              />
-              <InputRightElement width="3.5rem">
-                <i
-                  className="fa fa-eye"
-                  onClick={onClick}
-                  style={{
-                    cursor: "pointer",
-                    color: "var(--chakra-colors-purple-500)",
-                  }}
-                />
-              </InputRightElement>
-            </InputGroup>
-          )}
-          {method === "readonly" && (
-            <Input
-              {...field}
-              {...props}
-              isDisabled={true}
-              autoComplete="off"
-              onWheel={(e) => e.target.blur()}
-            />
-          )}
-          {method === "disabled" && (
-            <Input
-              {...field}
-              {...props}
-              isReadOnly={true}
-              autoComplete="off"
-              onWheel={(e) => e.target.blur()}
-              style={{
-                backgroundColor: "white",
-              }}
-            />
-          )}
-          {method === "numberinput" && (
-            <InputGroup>
-              <InputLeftAddon>{children}</InputLeftAddon>
-              <Input
-                defaultValue={defaultValue}
-                {...field}
-                {...props}
-                onWheel={(e) => e.target.blur()}
-                style={{
-                  backgroundColor: "white",
-                }}
-              />
-            </InputGroup>
-          )}
-          {method === "singlevalue" && (
-            <Input
-              value={props.selected}
-              isDisabled={true}
-              isReadOnly={true}
-              onWheel={(e) => e.target.blur()}
-              style={{
-                backgroundColor: "white",
-              }}
-            />
-          )}
-          {method === "file" && (
-            <div className={styles.fileUpload}>
-              <div
-                {...getRootProps()}
-                className={`${styles.dropzone} ${
-                  isDragActive ? styles.dragActive : ""
-                }`}
-              >
-                <input {...getInputProps()} />
-                {multiple ? (
-                  // Multiple files mode
+          {(() => {
+            switch (method) {
+              case "expiry-datepicker":
+                return (
                   <>
-                    {Array.isArray(field.value) && field.value.length > 0 ? (
-                      <div className={styles.fileList}>
-                        {field.value.map((file, index) => (
-                          <div key={index} className={styles.fileInfo}>
-                            <i className="fa fa-file" />
-                            <span className={styles.fileNameStyle}>
-                              {(file.name ?? file)?.replace(
-                                "https://dailyneeds-assets-dev.s3.ap-south-1.amazonaws.com/",
-                                ""
-                              )}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                const updatedFiles = field.value.filter(
-                                  (_, i) => i !== index
-                                );
-                                setFieldValue(
-                                  field.name,
-                                  updatedFiles.length > 0 ? updatedFiles : null
-                                );
-                              }}
-                              className={styles.removeFile}
-                            >
-                              <i className="fa fa-times" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className={styles.placeholder}>
-                        <i className="fa fa-cloud-upload" />
-                        <p
-                          className={styles.fileNameStyle}
-                          style={{ textAlign: "center" }}
-                        >
-                          {isDragActive
-                            ? "Drop the files here"
-                            : "Drag & drop files here, or click to select"}
-                        </p>
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  // Single file mode
-                  <>
-                    {field.value ? (
-                      <div className={styles.fileInfo}>
-                        <i className="fa fa-file" />
-                        <span className={styles.fileNameStyle}>
-                          {field.value.name}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setFieldValue(field.name, null);
+                    <DatePicker
+                      {...field}
+                      {...props}
+                      selected={(field.value && new Date(field.value)) || null}
+                      customInput={<CustomDateTimeInput />}
+                      renderCustomHeader={({
+                        val,
+                        changeYear,
+                        changeMonth,
+                        decreaseMonth,
+                        increaseMonth,
+                        prevMonthButtonDisabled,
+                        nextMonthButtonDisabled,
+                      }) => (
+                        <div
+                          style={{
+                            margin: 10,
+                            display: "flex",
+                            justifyContent: "center",
                           }}
-                          className={styles.removeFile}
                         >
-                          <i className="fa fa-times" />
-                        </button>
-                      </div>
-                    ) : (
-                      <div className={styles.placeholder}>
-                        <i className="fa fa-cloud-upload" />
-                        <p
-                          className={styles.fileNameStyle}
-                          style={{ textAlign: "center" }}
-                        >
-                          {isDragActive
-                            ? "Drop the file here"
-                            : "Drag & drop a file here, or click to select"}
-                        </p>
-                      </div>
+                          <button
+                            onClick={decreaseMonth}
+                            disabled={prevMonthButtonDisabled}
+                          >
+                            {"<"}
+                          </button>
+                          <select
+                            value={val}
+                            onChange={({ target: { value } }) => changeYear(value)}
+                          >
+                            {expiryyear.map((option) => (
+                              <option key={option} value={option}>
+                                {option}
+                              </option>
+                            ))}
+                          </select>
+                          <select
+                            value={months[moment(val).month()]}
+                            onChange={({ target: { value } }) =>
+                              changeMonth(months.indexOf(value))
+                            }
+                          >
+                            {months.map((option) => (
+                              <option key={option} value={option}>
+                                {option}
+                              </option>
+                            ))}
+                          </select>
+                          <button
+                            onClick={increaseMonth}
+                            disabled={nextMonthButtonDisabled}
+                          >
+                            {">"}
+                          </button>
+                        </div>
+                      )}
+                      onChange={(val) => {
+                        setFieldValue(field.name, moment(val).format("YYYY-MM-DD"));
+                      }}
+                    />
+                    {selected === "" && (
+                      <ErrorMessage
+                        component="div"
+                        name={field.name}
+                        className={styles.errorMessage}
+                      />
                     )}
                   </>
-                )}
-              </div>
-            </div>
-          )}
+                );
+              case "timepicker":
+                return (
+                  <>
+                    <Timekeeper
+                      {...field}
+                      showTimeSelect
+                      showTimeSelectOnly
+                      timeCaption="Time"
+                      dateFormat="hh:mm:ss"
+                      {...props}
+                      switchToMinuteOnHourSelect={true}
+                      selected={
+                        (moment(field.value).toISOString() &&
+                          new Date(field.value)) ||
+                        null
+                      }
+                      onChange={(val) => {
+                        setFieldValue(field.name, val.formattedSimple);
+                      }}
+                      customInput={<CustomDateTimeInput />}
+                    />
+                    {selected === "" && (
+                      <ErrorMessage
+                        component="div"
+                        name={field.name}
+                        className={styles.errorMessage}
+                      />
+                    )}
+                  </>
+                );
+              case "datepicker":
+                return (
+                  <>
+                    <DatePicker
+                      {...field}
+                      {...props}
+                      selected={(field.value && new Date(field.value)) || null}
+                      customInput={
+                        <CustomDateTimeInput
+                          disabled={props.disabled}
+                          placeholder={props.placeholder}
+                        />
+                      }
+                      onChange={(val) => {
+                        onChange && onChange(val);
+                        setFieldValue(field.name, moment(val).format("YYYY-MM-DD"));
+                      }}
+                    />
+                    {selected === "" && (
+                      <ErrorMessage
+                        component="div"
+                        name={field.name}
+                        className={styles.errorMessage}
+                      />
+                    )}
+                  </>
+                );
+              case "password":
+                return (
+                  <InputGroup size="md">
+                    <Input
+                      pr="4.5rem"
+                      {...field}
+                      {...props}
+                      onWheel={(e) => e.target.blur()}
+                      style={{
+                        backgroundColor: "white",
+                      }}
+                    />
+                    <InputRightElement width="3.5rem">
+                      <i
+                        className="fa fa-eye"
+                        onClick={onClick}
+                        style={{
+                          cursor: "pointer",
+                          color: "var(--chakra-colors-purple-500)",
+                        }}
+                      />
+                    </InputRightElement>
+                  </InputGroup>
+                );
+              case "readonly":
+                return (
+                  <Input
+                    {...field}
+                    {...props}
+                    isDisabled={true}
+                    autoComplete="off"
+                    onWheel={(e) => e.target.blur()}
+                  />
+                );
+              case "disabled":
+                return (
+                  <Input
+                    {...field}
+                    {...props}
+                    isReadOnly={true}
+                    autoComplete="off"
+                    onWheel={(e) => e.target.blur()}
+                    style={{
+                      backgroundColor: "white",
+                    }}
+                  />
+                );
+              case "numberinput":
+                return (
+                  <InputGroup>
+                    <InputLeftAddon>{children}</InputLeftAddon>
+                    <Input
+                      defaultValue={defaultValue}
+                      {...field}
+                      {...props}
+                      onWheel={(e) => e.target.blur()}
+                      style={{
+                        backgroundColor: "white",
+                      }}
+                    />
+                  </InputGroup>
+                );
+              case "singlevalue":
+                return (
+                  <Input
+                    value={props.selected}
+                    isDisabled={true}
+                    isReadOnly={true}
+                    onWheel={(e) => e.target.blur()}
+                    style={{
+                      backgroundColor: "white",
+                    }}
+                  />
+                );
+              case "file":
+                return (
+                  <div className={styles.fileUpload}>
+                    <div
+                      {...getRootProps()}
+                      className={`${styles.dropzone} ${
+                        isDragActive ? styles.dragActive : ""
+                      }`}
+                    >
+                      <input {...getInputProps()} />
+                      {multiple ? (
+                        <>
+                          {Array.isArray(field.value) && field.value.length > 0 ? (
+                            <div className={styles.fileList}>
+                              {field.value.map((file, index) => (
+                                <div key={index} className={styles.fileInfo}>
+                                  <i className="fa fa-file" />
+                                  <span className={styles.fileNameStyle}>
+                                    {(file.name ?? file)?.replace(
+                                      "https://dailyneeds-assets-dev.s3.ap-south-1.amazonaws.com/",
+                                      ""
+                                    )}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      const updatedFiles = field.value.filter(
+                                        (_, i) => i !== index
+                                      );
+                                      setFieldValue(
+                                        field.name,
+                                        updatedFiles.length > 0 ? updatedFiles : null
+                                      );
+                                    }}
+                                    className={styles.removeFile}
+                                  >
+                                    <i className="fa fa-times" />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className={styles.placeholder}>
+                              <i className="fa fa-cloud-upload" />
+                              <p
+                                className={styles.fileNameStyle}
+                                style={{ textAlign: "center" }}
+                              >
+                                {isDragActive
+                                  ? "Drop the files here"
+                                  : "Drag & drop files here, or click to select"}
+                              </p>
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          {field.value ? (
+                            <div className={styles.fileInfo}>
+                              <i className="fa fa-file" />
+                              <span className={styles.fileNameStyle}>
+                                {field.value.name}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setFieldValue(field.name, null);
+                                }}
+                                className={styles.removeFile}
+                              >
+                                <i className="fa fa-times" />
+                              </button>
+                            </div>
+                          ) : (
+                            <div className={styles.placeholder}>
+                              <i className="fa fa-cloud-upload" />
+                              <p
+                                className={styles.fileNameStyle}
+                                style={{ textAlign: "center" }}
+                              >
+                                {isDragActive
+                                  ? "Drop the file here"
+                                  : "Drag & drop a file here, or click to select"}
+                              </p>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                );
+              default:
+                return null;
+            }
+          })()}
         </>
       )}
       <ErrorMessage
@@ -705,6 +715,57 @@ export function CustomInputStandalone({
     );
   }
 
+  const renderInput = () => {
+    switch (method) {
+      case "switch":
+        return (
+          <Select
+            size={size}
+            value={value ?? ""}
+            onChange={handleChange}
+            placeholder={placeholder}
+            {...rest}
+          >
+            {values.map((opt) => (
+              <option key={opt.id} value={opt.id}>
+                {opt.value}
+              </option>
+            ))}
+          </Select>
+        );
+      default:
+        switch (type) {
+          case "number":
+            return (
+              <NumberInput
+                size={size}
+                value={value ?? ""}
+                onChange={(_, val) => onChange(val !== "" ? Number(val) : null)}
+                min={0}
+                {...rest}
+              >
+                <NumberInputField placeholder={placeholder} />
+                <NumberInputStepper>
+                  <NumberIncrementStepper />
+                  <NumberDecrementStepper />
+                </NumberInputStepper>
+              </NumberInput>
+            );
+          default:
+            return (
+              <Input
+                size={size}
+                value={value ?? ""}
+                onChange={handleChange}
+                placeholder={placeholder}
+                type={type}
+                {...rest}
+              />
+            );
+        }
+    }
+  };
+
   return (
     <FormControl size={size}>
       {label && (
@@ -712,44 +773,7 @@ export function CustomInputStandalone({
           {label}
         </FormLabel>
       )}
-      {method === "switch" ? (
-        <Select
-          size={size}
-          value={value ?? ""}
-          onChange={handleChange}
-          placeholder={placeholder}
-          {...rest}
-        >
-          {values.map((opt) => (
-            <option key={opt.id} value={opt.id}>
-              {opt.value}
-            </option>
-          ))}
-        </Select>
-      ) : type === "number" ? (
-        <NumberInput
-          size={size}
-          value={value ?? ""}
-          onChange={(_, val) => onChange(val !== "" ? Number(val) : null)}
-          min={0}
-          {...rest}
-        >
-          <NumberInputField placeholder={placeholder} />
-          <NumberInputStepper>
-            <NumberIncrementStepper />
-            <NumberDecrementStepper />
-          </NumberInputStepper>
-        </NumberInput>
-      ) : (
-        <Input
-          size={size}
-          value={value ?? ""}
-          onChange={handleChange}
-          placeholder={placeholder}
-          type={type}
-          {...rest}
-        />
-      )}
+      {renderInput()}
     </FormControl>
   );
 }
