@@ -85,10 +85,10 @@ function normalizeAcknowledgementData(raw) {
 }
 
 /**
- * Generate and download PDF for a purchase acknowledgement.
+ * Open print dialog for a purchase acknowledgement PDF (no download).
  * Layout for A4; includes optional Purchase Returns table at the end.
  * @param {Object} acknowledgement - API shape
- * @param {Object} [options] - { filename?: string, linkedPurchaseReturns?: Array<{ prNo, qty, amt, boxes }> }
+ * @param {Object} [options] - { linkedPurchaseReturns?: Array<{ prNo, qty, amt, boxes }> }
  */
 export async function downloadPurchaseAcknowledgementPdf(
   acknowledgement,
@@ -287,8 +287,29 @@ export async function downloadPurchaseAcknowledgementPdf(
     });
   }
 
-  const filename =
-    options.filename ||
-    `purchase-acknowledgement-${purAckNo}-${moment().format("YYYY-MM-DD")}.pdf`;
-  doc.save(filename);
+  const blob = doc.output("blob");
+  const url = URL.createObjectURL(blob);
+  const iframe = document.createElement("iframe");
+  iframe.style.position = "absolute";
+  iframe.style.width = "0";
+  iframe.style.height = "0";
+  iframe.style.border = "none";
+  iframe.src = url;
+  document.body.appendChild(iframe);
+  iframe.onload = () => {
+    try {
+      iframe.contentWindow.focus();
+      iframe.contentWindow.print();
+    } finally {
+      const cleanup = () => {
+        document.body.removeChild(iframe);
+        URL.revokeObjectURL(url);
+      };
+      if (iframe.contentWindow.onafterprint) {
+        iframe.contentWindow.onafterprint = cleanup;
+      } else {
+        setTimeout(cleanup, 500);
+      }
+    }
+  };
 }

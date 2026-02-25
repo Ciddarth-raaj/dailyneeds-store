@@ -79,7 +79,6 @@ export function usePurchaseAcknowledgementPrint() {
       await downloadPurchaseAcknowledgementPdf(data, {
         linkedPurchaseReturns,
       });
-      toast.success("PDF downloaded");
     } catch (err) {
       toast.error(err?.message || "Failed to print");
     } finally {

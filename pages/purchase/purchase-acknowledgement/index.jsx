@@ -15,8 +15,7 @@ function PurchaseAckListing() {
   const canAdd = usePermissions("add_purchase_acknowledgement");
   const { purchaseAcknowledgements, loading, remove, refetch } =
     usePurchaseAcknowledgements();
-  const { print: printAcknowledgement } =
-    usePurchaseAcknowledgementPrint();
+  const { print: printAcknowledgement } = usePurchaseAcknowledgementPrint();
   const [deleteItem, setDeleteItem] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -77,29 +76,35 @@ function PurchaseAckListing() {
         valueGetter: (params) => {
           const invoices = params.data?.invoices;
           if (!Array.isArray(invoices)) return null;
-          return invoices.reduce((sum, inv) => sum + (Number(inv?.amount) || 0), 0);
+          return invoices.reduce(
+            (sum, inv) => sum + (Number(inv?.amount) || 0),
+            0
+          );
         },
       },
       {
         field: "purchase_acknowledgement_id",
         type: "action-icons",
         headerName: "Action",
+        minWidth: 130,
+        maxWidth: 130,
+        width: 130,
         valueGetter: (params) => {
           const row = params.data;
           const id = row?.purchase_acknowledgement_id;
           const actions = [
+            {
+              label: "Print",
+              icon: "fa-solid fa-print",
+              colorScheme: "blue",
+              onClick: () => printAcknowledgement(row),
+            },
             {
               label: "View",
               icon: "fa-solid fa-eye",
               redirectionUrl: `/purchase/purchase-acknowledgement/view?id=${encodeURIComponent(
                 id
               )}`,
-            },
-            {
-              label: "Print",
-              icon: "fa-solid fa-print",
-              colorScheme: "purple",
-              onClick: () => printAcknowledgement(row),
             },
           ];
           if (canAdd) {

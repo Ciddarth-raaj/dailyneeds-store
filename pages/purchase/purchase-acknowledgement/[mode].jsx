@@ -139,13 +139,8 @@ function PurchaseAckForm() {
         0
       );
       return {
-        mprh_pr_no: pr.mprh_pr_no,
-        mprh_pr_refno: pr.mprh_pr_refno ?? "—",
+        ...pr,
         total_qty: totalQty,
-        total_amount: pr.mprh_net_amount != null ? pr.mprh_net_amount : "—",
-        no_of_boxes: pr.no_of_boxes ?? "—",
-        status: pr.status,
-        items: pr.items,
       };
     });
   }, [purchaseReturns]);
@@ -181,6 +176,7 @@ function PurchaseAckForm() {
   const prColDefs = useMemo(
     () => [
       { field: "mprh_pr_refno", headerName: "PR No", type: "id" },
+      { field: "mprh_pr_dt", headerName: "PR Date", type: "date" },
       { field: "total_qty", headerName: "Total Qty", type: "number" },
       { field: "total_amount", headerName: "Total Amount", type: "currency" },
       { field: "no_of_boxes", headerName: "No. of Boxes", type: "number" },
@@ -372,7 +368,27 @@ function PurchaseAckForm() {
         />
       </CustomModal>
 
-      <CustomContainer title={title} filledHeader>
+      <CustomContainer
+        title={title}
+        filledHeader
+        rightSection={
+          (viewMode || editMode) &&
+          id && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              colorScheme="purple"
+              leftIcon={<i className="fa-solid fa-print" />}
+              onClick={() =>
+                printAcknowledgement(purchaseAcknowledgement ?? id)
+              }
+            >
+              Print
+            </Button>
+          )
+        }
+      >
         <Formik
           enableReinitialize
           initialValues={initialValues}
@@ -503,21 +519,6 @@ function PurchaseAckForm() {
                 </CustomContainer>
 
                 <Flex gap={3} justify="flex-end" mt={6} wrap="wrap">
-                  {(viewMode || editMode) && id && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      colorScheme="purple"
-                      leftIcon={<i className="fa-solid fa-print" />}
-                      onClick={() =>
-                        printAcknowledgement(
-                          purchaseAcknowledgement ?? id
-                        )
-                      }
-                    >
-                      Print
-                    </Button>
-                  )}
                   <Button
                     type="button"
                     variant="outline"
