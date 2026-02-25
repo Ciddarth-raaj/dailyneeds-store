@@ -59,14 +59,23 @@ function PurchaseAckListing() {
         flex: 2,
       },
       {
-        field: "invoice_date",
-        headerName: "Invoice Date",
-        type: "date",
+        field: "invoices",
+        headerName: "Invoices",
+        type: "number",
+        valueGetter: (params) => {
+          const invoices = params.data?.invoices;
+          return Array.isArray(invoices) ? invoices.length : 0;
+        },
       },
       {
-        field: "amount",
-        headerName: "Amount",
+        field: "invoices_total_amount",
+        headerName: "Total Amount",
         type: "currency",
+        valueGetter: (params) => {
+          const invoices = params.data?.invoices;
+          if (!Array.isArray(invoices)) return null;
+          return invoices.reduce((sum, inv) => sum + (Number(inv?.amount) || 0), 0);
+        },
       },
       {
         field: "purchase_acknowledgement_id",

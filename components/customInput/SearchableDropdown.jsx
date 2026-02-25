@@ -28,7 +28,7 @@ function SearchableDropdown({
   onChange,
   placeholder = "Search or select...",
   isDisabled = false,
-  size = "md",
+  size = "sm",
   name,
   ...rest
 }) {
@@ -67,7 +67,7 @@ function SearchableDropdown({
   return (
     <FormControl isDisabled={isDisabled} {...rest}>
       {label && (
-        <FormLabel fontSize="sm" mb={1}>
+        <FormLabel fontSize="sm" fontWeight={600} color="gray.600" letterSpacing="0.01em" mb={1.5}>
           {label}
         </FormLabel>
       )}
@@ -75,6 +75,10 @@ function SearchableDropdown({
         <Input
           name={name}
           size={size}
+          height="40px"
+          borderRadius="6px"
+          fontSize="sm"
+          bg="white"
           value={isOpen ? search : displayText}
           onChange={(e) => {
             const v = e.target.value;
@@ -103,7 +107,7 @@ function SearchableDropdown({
             bg="white"
             borderWidth="1px"
             borderColor="gray.200"
-            borderRadius="md"
+            borderRadius="6px"
             boxShadow="md"
             maxH="240px"
             overflowY="auto"
@@ -140,7 +144,7 @@ function SearchableDropdown({
             bg="white"
             borderWidth="1px"
             borderColor="gray.200"
-            borderRadius="md"
+            borderRadius="6px"
             boxShadow="md"
             px={3}
             py={3}

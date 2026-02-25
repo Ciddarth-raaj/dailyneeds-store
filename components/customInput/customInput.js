@@ -48,6 +48,11 @@ export const CustomDateTimeInput = forwardRef(
       ref={ref}
       onClick={onClick}
       variant={variant}
+      size="sm"
+      height="40px"
+      borderRadius="6px"
+      focusBorderColor="purple.400"
+      fontSize="sm"
       style={style}
       disabled={disabled}
       placeholder={placeholder}
@@ -74,6 +79,7 @@ const TextField = ({
   labelWidth = "unset",
   multiple = false,
   renderer,
+  ignoreMarginBottom = false,
   ...props
 }) => {
   const { setFieldValue } = useFormikContext();
@@ -203,7 +209,7 @@ const TextField = ({
   };
 
   return (
-    <div className={styles.personalInputs} style={containerStyle}>
+    <div className={styles.personalInputs} style={{ ...containerStyle, marginBottom: ignoreMarginBottom ? 0 : "22px" }}>
       {editable != undefined && !editable ? (
         <div
           style={{
@@ -246,12 +252,20 @@ const TextField = ({
                 }}
               >
                 {!floatingLabel && (
-                  <label
-                    className={styles.label}
-                    style={getStaticLabelStyles()}
-                  >
-                    {label}
-                  </label>
+                  <Flex w="100%">
+                    <label
+                      className={styles.label}
+                      style={getStaticLabelStyles()}
+                    >
+                      {label}
+                    </label>
+
+                    <ErrorMessage
+                      component="div"
+                      name={field.name}
+                      className={styles.errorMessage}
+                    />
+                  </Flex>
                 )}
                 {(() => {
                   switch (method) {
@@ -261,6 +275,11 @@ const TextField = ({
                           {...field}
                           {...props}
                           width="100%"
+                          size="sm"
+                          minHeight="40px"
+                          borderRadius="6px"
+                          focusBorderColor="purple.400"
+                          fontSize="sm"
                           placeholder={floatingLabel ? " " : props.placeholder}
                           onWheel={(e) => e.target.blur()}
                         />
@@ -296,9 +315,10 @@ const TextField = ({
                           onWheel={(e) => e.target.blur()}
                         >
                           <NumberInputField
-                            focusBorderColor="blue.200"
-                            borderRadius={"5px"}
-                            height={"40px"}
+                            focusBorderColor="purple.400"
+                            borderRadius="6px"
+                            height="40px"
+                            fontSize="sm"
                             placeholder={floatingLabel ? " " : props.placeholder}
                           />
                           <NumberInputStepper>
@@ -309,7 +329,16 @@ const TextField = ({
                       );
                     case "switch":
                       return (
-                        <Select {...field} {...props} placeholder="Select Option">
+                        <Select
+                          {...field}
+                          {...props}
+                          size="sm"
+                          height="40px"
+                          borderRadius="6px"
+                          focusBorderColor="purple.400"
+                          fontSize="sm"
+                          placeholder="Select Option"
+                        >
                           {values?.map((m) => (
                             <Fragment key={m.id}>
                               <option value={m.id}>{m.value}</option>
@@ -331,7 +360,7 @@ const TextField = ({
                           onChange={(id) => setFieldValue(field.name, id)}
                           placeholder={props.placeholder ?? "Search or select..."}
                           isDisabled={!editable}
-                          size={props.size}
+                          size="sm"
                         />
                       );
                     case undefined:
@@ -339,6 +368,11 @@ const TextField = ({
                         <Input
                           {...field}
                           {...props}
+                          size="sm"
+                          height="40px"
+                          borderRadius="6px"
+                          focusBorderColor="purple.400"
+                          fontSize="sm"
                           autoComplete="off"
                           placeholder={floatingLabel ? " " : props.placeholder}
                           onWheel={(e) => e.target.blur()}
@@ -346,9 +380,7 @@ const TextField = ({
                             setFieldValue(field.name, val.target.value);
                             onChange && onChange(val.target.value);
                           }}
-                          style={{
-                            backgroundColor: "white",
-                          }}
+                          bg="white"
                         />
                       );
                     default:
@@ -496,15 +528,18 @@ const TextField = ({
                 );
               case "password":
                 return (
-                  <InputGroup size="md">
+                  <InputGroup size="sm">
                     <Input
                       pr="4.5rem"
+                      size="sm"
+                      height="40px"
+                      borderRadius="6px"
+                      focusBorderColor="purple.400"
+                      fontSize="sm"
+                      bg="white"
                       {...field}
                       {...props}
                       onWheel={(e) => e.target.blur()}
-                      style={{
-                        backgroundColor: "white",
-                      }}
                     />
                     <InputRightElement width="3.5rem">
                       <i
@@ -521,6 +556,10 @@ const TextField = ({
               case "readonly":
                 return (
                   <Input
+                    size="sm"
+                    height="40px"
+                    borderRadius="6px"
+                    fontSize="sm"
                     {...field}
                     {...props}
                     isDisabled={true}
@@ -531,41 +570,48 @@ const TextField = ({
               case "disabled":
                 return (
                   <Input
+                    size="sm"
+                    height="40px"
+                    borderRadius="6px"
+                    fontSize="sm"
+                    bg="white"
                     {...field}
                     {...props}
                     isReadOnly={true}
                     autoComplete="off"
                     onWheel={(e) => e.target.blur()}
-                    style={{
-                      backgroundColor: "white",
-                    }}
                   />
                 );
               case "numberinput":
                 return (
-                  <InputGroup>
-                    <InputLeftAddon>{children}</InputLeftAddon>
+                  <InputGroup size="sm">
+                    <InputLeftAddon borderRadius="6px" fontSize="sm" height="40px">{children}</InputLeftAddon>
                     <Input
+                      size="sm"
+                      height="40px"
+                      borderRadius="6px"
+                      focusBorderColor="purple.400"
+                      fontSize="sm"
+                      bg="white"
                       defaultValue={defaultValue}
                       {...field}
                       {...props}
                       onWheel={(e) => e.target.blur()}
-                      style={{
-                        backgroundColor: "white",
-                      }}
                     />
                   </InputGroup>
                 );
               case "singlevalue":
                 return (
                   <Input
+                    size="sm"
+                    height="40px"
+                    borderRadius="6px"
+                    fontSize="sm"
+                    bg="white"
                     value={props.selected}
                     isDisabled={true}
                     isReadOnly={true}
                     onWheel={(e) => e.target.blur()}
-                    style={{
-                      backgroundColor: "white",
-                    }}
                   />
                 );
               case "file":
@@ -573,9 +619,8 @@ const TextField = ({
                   <div className={styles.fileUpload}>
                     <div
                       {...getRootProps()}
-                      className={`${styles.dropzone} ${
-                        isDragActive ? styles.dragActive : ""
-                      }`}
+                      className={`${styles.dropzone} ${isDragActive ? styles.dragActive : ""
+                        }`}
                     >
                       <input {...getInputProps()} />
                       {multiple ? (
@@ -667,11 +712,11 @@ const TextField = ({
           })()}
         </>
       )}
-      <ErrorMessage
+      {/* <ErrorMessage
         component="div"
         name={field.name}
         className={styles.errorMessage}
-      />
+      /> */}
     </div>
   );
 };
@@ -721,6 +766,10 @@ export function CustomInputStandalone({
         return (
           <Select
             size={size}
+            height="40px"
+            borderRadius="6px"
+            focusBorderColor="purple.400"
+            fontSize="sm"
             value={value ?? ""}
             onChange={handleChange}
             placeholder={placeholder}
@@ -755,6 +804,10 @@ export function CustomInputStandalone({
             return (
               <Input
                 size={size}
+                height="40px"
+                borderRadius="6px"
+                focusBorderColor="purple.400"
+                fontSize="sm"
                 value={value ?? ""}
                 onChange={handleChange}
                 placeholder={placeholder}

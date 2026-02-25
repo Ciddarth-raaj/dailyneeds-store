@@ -2,13 +2,11 @@
   width: 100%;
   display: flex;
   flex-direction: column;
-  /* align-items: flex-start; */
-  /* justify-content: flex-start; */
-  /* height: 120px; */
-  padding: 0px 7px;
+  padding: 0 7px;
   position: relative;
-  margin-bottom: 38px;
+  margin-bottom: 22px;
 }
+
 .datePicker {
   border: 2px solid rgb(243, 235, 235);
   width: 100%;
@@ -25,8 +23,9 @@
 .errorMessage {
   color: #d83131;
   position: absolute;
-  bottom: -25px;
+  /* bottom: -25px; */
   font-size: 14px;
+  right: 0;
 }
 
 .infoText {
@@ -39,15 +38,21 @@
 
 .label,
 .uneditableLabel {
-  font-size: 14px;
-  color: gray;
+  font-size: 13px;
   font-weight: 600;
+  color: var(--chakra-colors-gray-600);
+  letter-spacing: 0.01em;
   margin-bottom: 6px;
+  line-height: 1.4;
+}
+
+.label {
+  display: block;
 }
 
 .uneditableLabel {
   color: var(--chakra-colors-purple-500);
-  font-weight: 400;
+  font-weight: 500;
 }
 .fileUpload {
   width: 100%;

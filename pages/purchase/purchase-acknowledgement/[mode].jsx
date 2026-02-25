@@ -3,12 +3,12 @@ import { useRouter } from "next/router";
 import GlobalWrapper from "../../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../../components/CustomContainer";
 import CustomInput from "../../../components/customInput/customInput";
-import { Button, Flex, Grid, Text, Box } from "@chakra-ui/react";
+import { Button, Flex, Grid, Text, Box, IconButton } from "@chakra-ui/react";
 import AgGrid from "../../../components/AgGrid";
 import CustomModal from "../../../components/CustomModal";
 import PurchaseReturnStatusSwitch from "../../../components/purchase-return/PurchaseReturnStatusSwitch";
 import PurchaseReturnsMobileCards from "../../../components/purchase-return/PurchaseReturnsMobileCards";
-import { Formik, useFormikContext } from "formik";
+import { Formik, Form, useFormikContext, FieldArray } from "formik";
 import * as Yup from "yup";
 import toast from "react-hot-toast";
 import moment from "moment";
@@ -19,13 +19,18 @@ import usePermissions from "../../../customHooks/usePermissions";
 import EmptyData from "../../../components/EmptyData";
 import { capitalize } from "../../../util/string";
 
-const validationSchema = Yup.object({
-  distributor_id: Yup.string().trim().required("Distributor is required"),
-  invoice_date: Yup.string().trim().required("Invoice date is required"),
+const invoiceItemSchema = Yup.object({
+  invoice_no: Yup.string().trim().max(100).required("Required"),
+  invoice_date: Yup.string().trim().required("Required"),
   amount: Yup.number()
-    .min(0, "Amount must be ≥ 0")
-    .nullable()
+    .min(0, "Must be ≥ 0")
+    .required("Required")
     .transform((v) => (v === "" || isNaN(v) ? null : v)),
+});
+
+const validationSchema = Yup.object({
+  distributor_id: Yup.string().trim().required("Required"),
+  invoices: Yup.array().of(invoiceItemSchema).min(1, "Required"),
 });
 
 function SyncDistributorId({ setSelectedDistributorId }) {
@@ -85,31 +90,40 @@ function PurchaseAckForm() {
     }
   }, [purchaseAcknowledgement?.distributor_id]);
 
-  const [initialValues, setInitialValues] = useState({
-    distributor_id: "",
+  const defaultInvoiceRow = () => ({
+    invoice_no: "",
     invoice_date: moment().format("YYYY-MM-DD"),
     amount: "",
+  });
+
+  const [initialValues, setInitialValues] = useState({
+    distributor_id: "",
+    invoices: [defaultInvoiceRow()],
   });
 
   useEffect(() => {
     if (createMode) {
       setInitialValues({
         distributor_id: "",
-        invoice_date: moment().format("YYYY-MM-DD"),
-        amount: "",
+        invoices: [defaultInvoiceRow()],
       });
       return;
     }
     if (purchaseAcknowledgement) {
+      const invoices = purchaseAcknowledgement.invoices;
+      const invoiceRows =
+        Array.isArray(invoices) && invoices.length > 0
+          ? invoices.map((inv) => ({
+              invoice_no: inv.invoice_no ?? "",
+              invoice_date: inv.invoice_date
+                ? moment(inv.invoice_date).format("YYYY-MM-DD")
+                : moment().format("YYYY-MM-DD"),
+              amount: inv.amount != null ? String(inv.amount) : "",
+            }))
+          : [defaultInvoiceRow()];
       setInitialValues({
         distributor_id: purchaseAcknowledgement.distributor_id ?? "",
-        invoice_date: purchaseAcknowledgement.invoice_date
-          ? moment(purchaseAcknowledgement.invoice_date).format("YYYY-MM-DD")
-          : "",
-        amount:
-          purchaseAcknowledgement.amount != null
-            ? String(purchaseAcknowledgement.amount)
-            : "",
+        invoices: invoiceRows,
       });
       setSelectedDistributorId(purchaseAcknowledgement.distributor_id ?? "");
     }
@@ -133,6 +147,34 @@ function PurchaseAckForm() {
       };
     });
   }, [purchaseReturns]);
+
+  const invoiceGridColumns = useMemo(
+    () => [
+      { field: "invoice_no", headerName: "Invoice No" },
+      {
+        field: "invoice_date",
+        headerName: "Invoice Date",
+        type: "date",
+      },
+      {
+        field: "amount",
+        headerName: "Amount",
+        type: "currency",
+      },
+    ],
+    []
+  );
+
+  const invoiceGridRows = useMemo(() => {
+    const list = purchaseAcknowledgement?.invoices;
+    if (!Array.isArray(list)) return [];
+    return list.map((inv, idx) => ({
+      id: inv.purchase_acknowledgement_invoice_id ?? `inv-${idx}`,
+      invoice_no: inv?.invoice_no,
+      invoice_date: inv?.invoice_date,
+      amount: inv?.amount != null ? Number(inv.amount) : null,
+    }));
+  }, [purchaseAcknowledgement?.invoices]);
 
   const prColDefs = useMemo(
     () => [
@@ -208,9 +250,13 @@ function PurchaseAckForm() {
 
   const handleSubmit = async (values) => {
     const payload = {
-      distributor_id: values.distributor_id.trim(),
-      invoice_date: values.invoice_date.trim(),
-      amount: Number(values.amount) || 0,
+      distributor_id: String(values.distributor_id).trim(),
+      invoices: (values.invoices || []).map((inv) => ({
+        invoice_no: String(inv.invoice_no).trim() || undefined,
+        invoice_date:
+          String(inv.invoice_date).trim() || moment().format("YYYY-MM-DD"),
+        amount: Number(inv.amount) || 0,
+      })),
     };
 
     if (createMode) {
@@ -326,7 +372,7 @@ function PurchaseAckForm() {
           onSubmit={handleSubmit}
         >
           {({ setFieldValue, values, handleSubmit: formikSubmit }) => (
-            <form onSubmit={formikSubmit}>
+            <Form>
               <SyncDistributorId
                 setSelectedDistributorId={setSelectedDistributorId}
               />
@@ -346,21 +392,126 @@ function PurchaseAckForm() {
                   }))}
                   placeholder="Select distributor..."
                   editable={!isReadOnly && createMode}
-                />
-                <CustomInput
-                  label="Invoice Date"
-                  name="invoice_date"
-                  type="date"
-                  editable={!isReadOnly}
-                />
-                <CustomInput
-                  label="Amount"
-                  name="amount"
-                  type="number"
-                  min={0}
-                  editable={!isReadOnly}
+                  ignoreMarginBottom
                 />
               </Grid>
+
+              <Box mb={6}>
+                <CustomContainer
+                  title="Invoices"
+                  size="xs"
+                  filledHeader
+                  smallHeader
+                  rightSection={
+                    !isReadOnly && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        colorScheme="purple"
+                        variant="outline"
+                        onClick={() =>
+                          setFieldValue("invoices", [
+                            ...values.invoices,
+                            defaultInvoiceRow(),
+                          ])
+                        }
+                        leftIcon={<i className="fa fa-plus" />}
+                      >
+                        Add invoice
+                      </Button>
+                    )
+                  }
+                >
+                  {viewMode ? (
+                    invoiceGridRows.length === 0 ? (
+                      <EmptyData message="No invoices." />
+                    ) : (
+                      <AgGrid
+                        rowData={invoiceGridRows}
+                        columnDefs={invoiceGridColumns}
+                        tableKey="purchase-ack-invoices-view"
+                        gridOptions={{
+                          getRowId: (params) =>
+                            String(params.data?.id ?? params.rowIndex),
+                        }}
+                      />
+                    )
+                  ) : (
+                    <FieldArray name="invoices">
+                      {({ push, remove }) => (
+                        <>
+                          {(values.invoices || []).map((inv, index) => (
+                            <Grid
+                              key={index}
+                              templateColumns={{
+                                base: "1fr auto",
+                                md: "1fr 1fr 1fr auto",
+                              }}
+                              gap={3}
+                              alignItems="flex-end"
+                              mb={3}
+                              fontSize="sm"
+                            >
+                              <CustomInput
+                                label={index === 0 ? "Invoice No" : ""}
+                                name={`invoices.${index}.invoice_no`}
+                                placeholder="Invoice number"
+                                editable={!isReadOnly}
+                                ignoreMarginBottom
+                              />
+                              <CustomInput
+                                label={index === 0 ? "Invoice Date" : ""}
+                                name={`invoices.${index}.invoice_date`}
+                                method="datepicker"
+                                editable={!isReadOnly}
+                                ignoreMarginBottom
+                              />
+                              <CustomInput
+                                label={index === 0 ? "Amount" : ""}
+                                name={`invoices.${index}.amount`}
+                                type="number"
+                                min={0}
+                                editable={!isReadOnly}
+                                ignoreMarginBottom
+                              />
+                              {!isReadOnly && (
+                                <IconButton
+                                  icon={<i className="fa fa-trash" />}
+                                  colorScheme="red"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => remove(index)}
+                                  isDisabled={
+                                    (values.invoices || []).length <= 1
+                                  }
+                                />
+                              )}
+                            </Grid>
+                          ))}
+                        </>
+                      )}
+                    </FieldArray>
+                  )}
+                </CustomContainer>
+
+                <Flex gap={3} justify="flex-end" mt={6}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    colorScheme="purple"
+                    onClick={() =>
+                      router.push("/purchase/purchase-acknowledgement")
+                    }
+                  >
+                    {viewMode ? "Back" : "Cancel"}
+                  </Button>
+                  {!viewMode && (
+                    <Button type="submit" colorScheme="purple">
+                      {createMode ? "Create" : "Update"}
+                    </Button>
+                  )}
+                </Flex>
+              </Box>
 
               {!viewMode && (values.distributor_id || distributorIdForPr) && (
                 <Box mb={6}>
@@ -402,25 +553,7 @@ function PurchaseAckForm() {
                   </CustomContainer>
                 </Box>
               )}
-
-              <Flex gap={3} justify="flex-end" mt={6}>
-                <Button
-                  type="button"
-                  variant="outline"
-                  colorScheme="purple"
-                  onClick={() =>
-                    router.push("/purchase/purchase-acknowledgement")
-                  }
-                >
-                  {viewMode ? "Back" : "Cancel"}
-                </Button>
-                {!viewMode && (
-                  <Button type="submit" colorScheme="purple">
-                    {createMode ? "Create" : "Update"}
-                  </Button>
-                )}
-              </Flex>
-            </form>
+            </Form>
           )}
         </Formik>
       </CustomContainer>
