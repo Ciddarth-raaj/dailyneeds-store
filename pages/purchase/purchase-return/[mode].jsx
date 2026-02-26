@@ -100,6 +100,7 @@ function PurchaseReturnForm() {
     mprh_dist_code: "",
     distributor_name: "",
     no_of_boxes: 0,
+    remark: "",
   });
 
   useEffect(() => {
@@ -123,6 +124,7 @@ function PurchaseReturnForm() {
         mprh_dist_code: purchaseReturn?.mprh_dist_code ?? "",
         distributor_name: purchaseReturn?.distributor_name ?? "",
         no_of_boxes: 0,
+        remark: purchaseReturn?.remark ?? "",
       }));
       return;
     }
@@ -144,6 +146,7 @@ function PurchaseReturnForm() {
         mprh_dist_code: purchaseReturn.mprh_dist_code ?? "",
         distributor_name: purchaseReturn.distributor_name ?? "",
         no_of_boxes: purchaseReturn.no_of_boxes ?? 0,
+        remark: purchaseReturn.remark ?? "",
       });
     }
   }, [createMode, mprh_pr_no, purchaseReturn]);
@@ -382,16 +385,14 @@ function PurchaseReturnForm() {
                     editable={isExtraEditable}
                     ignoreMarginBottom
                   />
-                  {pr?.remark != null && String(pr.remark).trim() !== "" && (
+                  {viewMode && (
                     <Box gridColumn={{ base: "1", md: "1 / -1" }}>
-                      <FormControl>
-                        <FormLabel fontSize="sm" fontWeight="600">
-                          Remark
-                        </FormLabel>
-                        <Text fontSize="sm" color="gray.700">
-                          {pr.remark}
-                        </Text>
-                      </FormControl>
+                      <CustomInput
+                        label="Remark"
+                        name="remark"
+                        type="text"
+                        editable={false}
+                      />
                     </Box>
                   )}
                 </Grid>
