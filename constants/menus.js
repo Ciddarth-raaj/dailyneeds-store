@@ -126,6 +126,12 @@ export default {
         selected: false,
         location: "/master/distributors",
       },
+      view_remarks_master: {
+        title: "Remarks",
+        permission: "view_remarks_master",
+        selected: false,
+        location: "/master/remarks",
+      },
     },
   },
   materials: {

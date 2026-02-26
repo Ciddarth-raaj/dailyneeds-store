@@ -382,6 +382,18 @@ function PurchaseReturnForm() {
                     editable={isExtraEditable}
                     ignoreMarginBottom
                   />
+                  {pr?.remark != null && String(pr.remark).trim() !== "" && (
+                    <Box gridColumn={{ base: "1", md: "1 / -1" }}>
+                      <FormControl>
+                        <FormLabel fontSize="sm" fontWeight="600">
+                          Remark
+                        </FormLabel>
+                        <Text fontSize="sm" color="gray.700">
+                          {pr.remark}
+                        </Text>
+                      </FormControl>
+                    </Box>
+                  )}
                 </Grid>
               </CustomContainer>
 

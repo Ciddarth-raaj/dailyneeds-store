@@ -30,6 +30,8 @@ export const PERMISSIONS = {
   master: {
     view_master_list: "View Master List",
     view_product_distributors: "View Product Distributors",
+    view_remarks_master: "View Remarks Master",
+    add_remarks_master: "Add Remarks Master",
   },
 
   // Materials

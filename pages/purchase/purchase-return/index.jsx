@@ -4,6 +4,7 @@ import CustomContainer from "../../../components/CustomContainer";
 import { Text, Switch } from "@chakra-ui/react";
 import AgGrid from "../../../components/AgGrid";
 import PrintDrawer from "../../../components/purchase-return/PrintDrawer";
+import PurchaseReturnRemarkAction from "../../../components/purchase-return/PurchaseReturnRemarkAction";
 import { usePurchaseReturns } from "../../../customHooks/usePurchaseReturns";
 import usePermissions from "../../../customHooks/usePermissions";
 import { useUser } from "../../../contexts/UserContext";
@@ -23,6 +24,7 @@ function PurchaseReturnListing() {
   const [printDrawerRow, setPrintDrawerRow] = useState(null);
 
   const handleClosePrintDrawer = useCallback(() => setPrintDrawerRow(null), []);
+  const handleRemarkSuccess = useCallback(() => refetch(), [refetch]);
   const handleOpenPrintDrawer = useCallback(
     (row) => setPrintDrawerRow(row),
     []
@@ -66,6 +68,44 @@ function PurchaseReturnListing() {
     [refetch]
   );
 
+  return (
+    <GlobalWrapper title="Purchase Return" permissionKey="view_purchase_return">
+      <PrintDrawer
+        isOpen={printDrawerRow != null}
+        onClose={handleClosePrintDrawer}
+        row={printDrawerRow}
+        refetch={refetch}
+        employeeId={employeeId}
+        currentUserName={currentUserName}
+      />
+      <PurchaseReturnRemarkAction onSuccess={handleRemarkSuccess}>
+        {(getRemarkAction) => (
+          <PurchaseReturnListingContent
+            getRemarkAction={getRemarkAction}
+            canAdd={canAdd}
+            canUpdateStatus={canUpdateStatus}
+            purchaseReturns={purchaseReturns}
+            loading={loading}
+            handleStatusChange={handleStatusChange}
+            handleOpenPrintDrawer={handleOpenPrintDrawer}
+            handleDownloadPdf={handleDownloadPdf}
+          />
+        )}
+      </PurchaseReturnRemarkAction>
+    </GlobalWrapper>
+  );
+}
+
+function PurchaseReturnListingContent({
+  getRemarkAction,
+  canAdd,
+  canUpdateStatus,
+  purchaseReturns,
+  loading,
+  handleStatusChange,
+  handleOpenPrintDrawer,
+  handleDownloadPdf,
+}) {
   const colDefs = useMemo(
     () => [
       {
@@ -163,7 +203,7 @@ function PurchaseReturnListing() {
               colorScheme: "blue",
             },
             {
-              label: "Download PDF",
+              label: "Download",
               icon: "fa-solid fa-file-pdf",
               onClick: () => handleDownloadPdf(row),
               colorScheme: "red",
@@ -176,6 +216,10 @@ function PurchaseReturnListing() {
               )}`,
             },
           ];
+
+          // if (hasExtra) {
+          //   actions.push(getRemarkAction(row));
+          // }
 
           if (hasExtra && canAdd) {
             actions.push({
@@ -199,28 +243,29 @@ function PurchaseReturnListing() {
         },
       },
     ],
-    [canAdd, handleStatusChange, handleOpenPrintDrawer, handleDownloadPdf]
+    [
+      getRemarkAction,
+      canAdd,
+      canUpdateStatus,
+      handleStatusChange,
+      handleOpenPrintDrawer,
+      handleDownloadPdf,
+    ]
   );
 
   return (
-    <GlobalWrapper title="Purchase Return" permissionKey="view_purchase_return">
-      <PrintDrawer
-        isOpen={printDrawerRow != null}
-        onClose={handleClosePrintDrawer}
-        row={printDrawerRow}
-        refetch={refetch}
-        employeeId={employeeId}
-        currentUserName={currentUserName}
-      />
-      <CustomContainer title="Purchase Return" filledHeader>
+    <CustomContainer title="Purchase Return" filledHeader>
+      {loading ? (
+        <Text>Loading...</Text>
+      ) : (
         <AgGrid
           rowData={purchaseReturns}
           columnDefs={colDefs}
           tableKey="purchase-return"
           gridOptions={{ getRowId: (params) => params.data?.mprh_pr_no }}
         />
-      </CustomContainer>
-    </GlobalWrapper>
+      )}
+    </CustomContainer>
   );
 }
 

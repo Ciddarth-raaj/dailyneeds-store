@@ -16,6 +16,7 @@ import AgGrid from "../../../components/AgGrid";
 import CustomModal from "../../../components/CustomModal";
 import PurchaseReturnStatusSwitch from "../../../components/purchase-return/PurchaseReturnStatusSwitch";
 import PurchaseReturnsMobileCards from "../../../components/purchase-return/PurchaseReturnsMobileCards";
+import { useRemarkModal } from "../../../components/purchase-return/PurchaseReturnRemarkAction";
 import { Formik, Form, useFormikContext, FieldArray } from "formik";
 import * as Yup from "yup";
 import toast from "react-hot-toast";
@@ -83,6 +84,7 @@ function PurchaseAckForm() {
   });
 
   const [productsModalRow, setProductsModalRow] = useState(null);
+  const { getRemarkAction, RemarkModalComponent } = useRemarkModal(refetchPr);
 
   const productListRows = useMemo(() => {
     const items = productsModalRow?.items || [];
@@ -191,6 +193,12 @@ function PurchaseAckForm() {
       { field: "total_qty", headerName: "Total Qty", type: "number" },
       { field: "total_amount", headerName: "Total Amount", type: "currency" },
       { field: "no_of_boxes", headerName: "No. of Boxes", type: "number" },
+      {
+        field: "remark",
+        headerName: "Remark",
+        flex: 1,
+        minWidth: 120,
+      },
       ...(canAdd && !createMode
         ? [
             {
@@ -241,8 +249,9 @@ function PurchaseAckForm() {
             (p) => p.mprh_pr_no === row?.mprh_pr_no
           );
           const id = row?.mprh_pr_no;
+          const hasExtra = row?.status != null || row?.no_of_boxes != null;
 
-          return [
+          const actions = [
             {
               label: "View",
               icon: "fa-solid fa-eye",
@@ -257,10 +266,14 @@ function PurchaseAckForm() {
               onClick: () => setProductsModalRow(prRow || row),
             },
           ];
+          if (hasExtra) {
+            actions.unshift(getRemarkAction(row));
+          }
+          return actions;
         },
       },
     ],
-    [canAdd, id, purchaseReturns, refetchPr]
+    [canAdd, id, purchaseReturns, refetchPr, getRemarkAction]
   );
 
   const handleSubmit = async (values) => {
@@ -384,6 +397,8 @@ function PurchaseAckForm() {
           tableKey="purchase-ack-products-modal"
         />
       </CustomModal>
+
+      <RemarkModalComponent />
 
       <CustomContainer
         title={title}

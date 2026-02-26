@@ -6,10 +6,10 @@ import SideBar from "../sideBar/sideBar";
 import Header from "../header/header";
 import Head from "../../util/head";
 import usePermissions from "../../customHooks/usePermissions";
-import { Flex, useBreakpointValue } from "@chakra-ui/react";
+import { Flex, Spinner, useBreakpointValue } from "@chakra-ui/react";
 import EmptyData from "../EmptyData";
 
-export default function GlobalWrapper({ children, title, permissionKey = [] }) {
+export default function GlobalWrapper({ children, title, permissionKey = [], loading = false }) {
   const canViewPage = usePermissions(permissionKey);
   const isMobile = useBreakpointValue({ base: true, md: false });
   const [isSidebarMinimized, setIsSidebarMinimized] = useState(() => {
@@ -39,26 +39,34 @@ export default function GlobalWrapper({ children, title, permissionKey = [] }) {
       <div className={styles.mainContainer}>
         <SideBar />
         <Header />
-        {canViewPage ? (
-          <div
-            className={styles.childContainer}
-            style={{
-              marginLeft: isMobile
-                ? undefined
-                : isSidebarMinimized
-                ? "75px"
-                : "255px",
-            }}
-          >
-            {children}
-          </div>
-        ) : (
+
+        {loading ? (
           <Flex w="100%" h="100vh" justifyContent="center" alignItems="center">
-            <EmptyData
-              message="You do not have permission to view this page"
-              faIcon="fa-lock"
-            />
+            <Spinner size="xl" color="purple.500" thickness="4px" />
           </Flex>
+        ) : (
+          <>
+            {canViewPage ? (
+              <div
+                className={styles.childContainer}
+                style={{
+                  marginLeft: isMobile
+                    ? undefined
+                    : isSidebarMinimized
+                      ? "75px"
+                      : "255px",
+                }}
+              >
+                {children}
+              </div>
+            ) : (
+              <Flex w="100%" h="100vh" justifyContent="center" alignItems="center">
+                <EmptyData
+                  message="You do not have permission to view this page"
+                  faIcon="fa-lock"
+                />
+              </Flex>
+            )}</>
         )}
       </div>
     </>
