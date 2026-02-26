@@ -8,6 +8,7 @@ import { usePurchaseReturns } from "../../../customHooks/usePurchaseReturns";
 import usePermissions from "../../../customHooks/usePermissions";
 import { useUser } from "../../../contexts/UserContext";
 import { updatePurchaseReturnExtra } from "../../../helper/purchaseReturn";
+import { downloadPurchaseReturnLabelsPdf } from "../../../helper/purchaseReturnLabelsPdf";
 import toast from "react-hot-toast";
 
 function PurchaseReturnListing() {
@@ -25,6 +26,26 @@ function PurchaseReturnListing() {
   const handleOpenPrintDrawer = useCallback(
     (row) => setPrintDrawerRow(row),
     []
+  );
+
+  const handleDownloadPdf = useCallback(
+    (row) => {
+      const boxes = row?.no_of_boxes;
+      if (boxes != null && Number(boxes) >= 1) {
+        const createdByName =
+          row?.status != null || row?.no_of_boxes != null
+            ? row.created_by_name ?? "—"
+            : currentUserName;
+        downloadPurchaseReturnLabelsPdf(row, Number(boxes), {
+          enteredBy: createdByName || currentUserName || "—",
+          print: false,
+        });
+        toast.success("Download started");
+      } else {
+        setPrintDrawerRow(row);
+      }
+    },
+    [currentUserName]
   );
 
   const handleStatusChange = useCallback(
@@ -142,6 +163,12 @@ function PurchaseReturnListing() {
               colorScheme: "blue",
             },
             {
+              label: "Download PDF",
+              icon: "fa-solid fa-file-pdf",
+              onClick: () => handleDownloadPdf(row),
+              colorScheme: "red",
+            },
+            {
               label: "View",
               icon: "fa-solid fa-eye",
               redirectionUrl: `/purchase/purchase-return/view?mprh_pr_no=${encodeURIComponent(
@@ -172,7 +199,7 @@ function PurchaseReturnListing() {
         },
       },
     ],
-    [canAdd, handleStatusChange, handleOpenPrintDrawer]
+    [canAdd, handleStatusChange, handleOpenPrintDrawer, handleDownloadPdf]
   );
 
   return (

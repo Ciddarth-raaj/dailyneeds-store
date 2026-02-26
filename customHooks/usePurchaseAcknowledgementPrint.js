@@ -78,6 +78,7 @@ export function usePurchaseAcknowledgementPrint() {
 
       await downloadPurchaseAcknowledgementPdf(data, {
         linkedPurchaseReturns,
+        print: true,
       });
     } catch (err) {
       toast.error(err?.message || "Failed to print");
@@ -86,5 +87,75 @@ export function usePurchaseAcknowledgementPrint() {
     }
   }, []);
 
-  return { print, printing };
+  const download = useCallback(async (idOrData) => {
+    if (idOrData == null) {
+      toast.error("No acknowledgement to download");
+      return;
+    }
+    setPrinting(true);
+    try {
+      let data = null;
+      if (typeof idOrData === "object" && idOrData !== null) {
+        const hasEnough =
+          idOrData.purchase_acknowledgement_id != null &&
+          (idOrData.distributor_name != null || idOrData.distributor_id != null);
+        const hasInvoices = Array.isArray(idOrData.invoices);
+        if (hasEnough && hasInvoices) {
+          data = idOrData;
+        } else if (idOrData.purchase_acknowledgement_id != null) {
+          data = await getPurchaseAcknowledgementById(
+            idOrData.purchase_acknowledgement_id
+          );
+        }
+      } else {
+        const id = String(idOrData).trim();
+        if (id) data = await getPurchaseAcknowledgementById(id);
+      }
+      if (!data) {
+        toast.error("Could not load acknowledgement for download");
+        return;
+      }
+      let linkedPurchaseReturns = [];
+      const distId = data.distributor_id;
+      const ackId = data.purchase_acknowledgement_id;
+      if (distId != null && ackId != null) {
+        try {
+          const prRes = await getPurchaseReturnsByDistributor(distId, ackId);
+          const prList = Array.isArray(prRes?.data) ? prRes.data : [];
+          linkedPurchaseReturns = prList
+            .filter(
+              (pr) =>
+                pr.status === "done" &&
+                String(pr.purchase_acknowledgement_id) === String(ackId)
+            )
+            .map((pr) => {
+              const items = pr?.items || [];
+              const totalQty = items.reduce(
+                (s, it) => s + (Number(it.MPR_ITEM_QTY) || 0),
+                0
+              );
+              return {
+                prNo: pr.mprh_pr_refno ?? "—",
+                qty: totalQty,
+                amt: pr.mprh_net_amount != null ? Number(pr.mprh_net_amount) : 0,
+                boxes: pr.no_of_boxes != null ? Number(pr.no_of_boxes) : "—",
+              };
+            });
+        } catch {
+          // continue without PR table
+        }
+      }
+      await downloadPurchaseAcknowledgementPdf(data, {
+        linkedPurchaseReturns,
+        print: false,
+      });
+      toast.success("Download started");
+    } catch (err) {
+      toast.error(err?.message || "Failed to download");
+    } finally {
+      setPrinting(false);
+    }
+  }, []);
+
+  return { print, download, printing };
 }

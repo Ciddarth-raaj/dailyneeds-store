@@ -97,6 +97,7 @@ export async function downloadPurchaseAcknowledgementPdf(
   const { supplierName, purAckNo, invoiceRows, total } =
     normalizeAcknowledgementData(acknowledgement);
   const linkedPurchaseReturns = options.linkedPurchaseReturns || [];
+  const usePrint = options.print !== false;
 
   const printDateTime = moment().format("DD/MM/YY HH:mm");
   const printTimeOnly = moment().format("HH:mm");
@@ -287,40 +288,95 @@ export async function downloadPurchaseAcknowledgementPdf(
     });
   }
 
+  if (!usePrint) {
+    const name = `purchase-ack-${purAckNo}-${moment().format("YYYY-MM-DD")}.pdf`;
+    doc.save(name);
+    return;
+  }
+
   const blob = doc.output("blob");
   const url = URL.createObjectURL(blob);
-  const iframe = document.createElement("iframe");
-  iframe.style.position = "absolute";
-  iframe.style.left = "-9999px";
-  iframe.style.width = "1px";
-  iframe.style.height = "1px";
-  iframe.style.border = "none";
-  iframe.style.visibility = "hidden";
-  iframe.src = url;
-  document.body.appendChild(iframe);
-  iframe.onload = () => {
-    const cleanup = () => {
+  const isWindows =
+    typeof navigator !== "undefined" &&
+    /Win(dows|32|64|CE)/i.test(navigator.platform || navigator.userAgent || "");
+
+  const cleanup = () => {
+    try {
+      URL.revokeObjectURL(url);
+    } catch (_) {}
+  };
+
+  if (isWindows) {
+    const runPrintAndCleanup = (win, doCleanup) => {
       try {
-        if (iframe.parentNode) document.body.removeChild(iframe);
-      } catch (_) {}
-      try {
-        URL.revokeObjectURL(url);
-      } catch (_) {}
-    };
-    const runPrint = () => {
-      try {
-        const win = iframe.contentWindow;
-        if (win) {
+        if (win && !win.closed) {
           win.focus();
           win.print();
         }
       } catch (_) {}
+      setTimeout(doCleanup, 3000);
     };
-    if (iframe.contentWindow?.onafterprint) {
-      iframe.contentWindow.onafterprint = cleanup;
+    const printWindow = window.open(url, "_blank", "noopener,noreferrer");
+    if (printWindow) {
+      setTimeout(() => runPrintAndCleanup(printWindow, cleanup), 400);
     } else {
-      setTimeout(cleanup, 2000);
+      const iframe = document.createElement("iframe");
+      iframe.style.position = "absolute";
+      iframe.style.left = "-9999px";
+      iframe.style.width = "1px";
+      iframe.style.height = "1px";
+      iframe.style.border = "none";
+      iframe.style.visibility = "hidden";
+      iframe.src = url;
+      document.body.appendChild(iframe);
+      iframe.onload = () => {
+        const iframeCleanup = () => {
+          try {
+            if (iframe.parentNode) document.body.removeChild(iframe);
+          } catch (_) {}
+          cleanup();
+        };
+        const win = iframe.contentWindow;
+        if (win?.onafterprint) win.onafterprint = iframeCleanup;
+        else setTimeout(iframeCleanup, 3000);
+        setTimeout(() => {
+          try {
+            if (win) {
+              win.focus();
+              win.print();
+            }
+          } catch (_) {}
+        }, 200);
+      };
     }
-    setTimeout(runPrint, 150);
-  };
+  } else {
+    const iframe = document.createElement("iframe");
+    iframe.style.position = "absolute";
+    iframe.style.left = "-9999px";
+    iframe.style.width = "1px";
+    iframe.style.height = "1px";
+    iframe.style.border = "none";
+    iframe.style.visibility = "hidden";
+    iframe.src = url;
+    document.body.appendChild(iframe);
+    iframe.onload = () => {
+      const iframeCleanup = () => {
+        try {
+          if (iframe.parentNode) document.body.removeChild(iframe);
+        } catch (_) {}
+        cleanup();
+      };
+      const win = iframe.contentWindow;
+      if (win?.onafterprint) win.onafterprint = iframeCleanup;
+      else setTimeout(iframeCleanup, 3000);
+      setTimeout(() => {
+        try {
+          if (win) {
+            win.focus();
+            win.print();
+          }
+        } catch (_) {}
+      }, 200);
+    };
+  }
 }

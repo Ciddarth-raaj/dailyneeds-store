@@ -15,7 +15,8 @@ function PurchaseAckListing() {
   const canAdd = usePermissions("add_purchase_acknowledgement");
   const { purchaseAcknowledgements, loading, remove, refetch } =
     usePurchaseAcknowledgements();
-  const { print: printAcknowledgement } = usePurchaseAcknowledgementPrint();
+  const { print: printAcknowledgement, download: downloadAcknowledgementPdf } =
+    usePurchaseAcknowledgementPrint();
   const [deleteItem, setDeleteItem] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -86,9 +87,9 @@ function PurchaseAckListing() {
         field: "purchase_acknowledgement_id",
         type: "action-icons",
         headerName: "Action",
-        minWidth: 130,
-        maxWidth: 130,
-        width: 130,
+        minWidth: 150,
+        maxWidth: 150,
+        width: 150,
         valueGetter: (params) => {
           const row = params.data;
           const id = row?.purchase_acknowledgement_id;
@@ -98,6 +99,12 @@ function PurchaseAckListing() {
               icon: "fa-solid fa-print",
               colorScheme: "blue",
               onClick: () => printAcknowledgement(row),
+            },
+            {
+              label: "Download",
+              icon: "fa-solid fa-file-pdf",
+              colorScheme: "red",
+              onClick: () => downloadAcknowledgementPdf(row),
             },
             {
               label: "View",
@@ -126,7 +133,12 @@ function PurchaseAckListing() {
         },
       },
     ],
-    [canAdd, handleDeleteClick, printAcknowledgement]
+    [
+      canAdd,
+      handleDeleteClick,
+      printAcknowledgement,
+      downloadAcknowledgementPdf,
+    ]
   );
 
   return (

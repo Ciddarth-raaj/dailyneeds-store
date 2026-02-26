@@ -13,6 +13,7 @@ import {
   VStack,
   Divider,
   Heading,
+  Flex,
 } from "@chakra-ui/react";
 import {
   createPurchaseReturnExtra,
@@ -114,6 +115,50 @@ function PrintDrawer({
     currentUserName,
   ]);
 
+  const handleDownload = useCallback(async () => {
+    if (!row?.mprh_pr_no || !hasValidBoxes) return;
+    const prNo = row.mprh_pr_no;
+    const boxes = boxesNum;
+
+    setSaving(true);
+    try {
+      if (!valueUnchanged) {
+        if (!hasExtra) {
+          await createPurchaseReturnExtra({
+            mprh_pr_no: String(prNo),
+            no_of_boxes: boxes,
+            status: "open",
+          });
+          toast.success("Created");
+        } else {
+          await updatePurchaseReturnExtra(prNo, { no_of_boxes: boxes });
+          toast.success("Updated");
+        }
+        await refetch();
+      }
+      downloadPurchaseReturnLabelsPdf(row, boxes, {
+        enteredBy: createdByName || currentUserName || "—",
+        print: false,
+      });
+      toast.success("Download started");
+      handleClose();
+    } catch (err) {
+      toast.error(err.message || "Failed to save");
+    } finally {
+      setSaving(false);
+    }
+  }, [
+    row,
+    hasValidBoxes,
+    boxesNum,
+    valueUnchanged,
+    hasExtra,
+    refetch,
+    handleClose,
+    createdByName,
+    currentUserName,
+  ]);
+
   return (
     <Drawer
       isOpen={isOpen}
@@ -121,15 +166,27 @@ function PrintDrawer({
       title="Print"
       size="sm"
       footer={
-        <Button
-          colorScheme="purple"
-          onClick={handleDone}
-          isLoading={saving}
-          loadingText="Saving..."
-          isDisabled={!hasValidBoxes}
-        >
-          Print
-        </Button>
+        <Flex gap={3} justify="flex-end">
+          <Button
+            colorScheme="green"
+            variant="outline"
+            onClick={handleDownload}
+            isLoading={saving}
+            loadingText="Saving..."
+            isDisabled={!hasValidBoxes}
+          >
+            Download PDF
+          </Button>
+          <Button
+            colorScheme="purple"
+            onClick={handleDone}
+            isLoading={saving}
+            loadingText="Saving..."
+            isDisabled={!hasValidBoxes}
+          >
+            Print
+          </Button>
+        </Flex>
       }
     >
       {row && (
