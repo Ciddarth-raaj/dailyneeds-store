@@ -3,6 +3,8 @@ import moment from "moment";
 
 const STORE_ADDRESS =
   "188/1 & 188/3, Iyyanar Koil Street, Muthirayarpalayam Puducherry-605009.";
+const WAREHOUSE_MOBILE_NO = "9788599644";
+const COMPANY_NAME = "Daily Needs Department Store";
 const PURCHASE_NO = "9788599744";
 const ACCOUNTS_NO = "9788599044";
 const NOTE_LINE_1 =
@@ -11,7 +13,7 @@ const NOTE_LINE_2 =
   "Pls Do not send New Bill Copy or Due/Return Items";
 
 const PAGE_W = 210;
-const MARGIN = 5;
+const MARGIN = 10;
 const CONTENT_W = PAGE_W - 2 * MARGIN;
 const LINE_H = 5;
 const FONT_NORMAL = 10;
@@ -139,8 +141,15 @@ export async function downloadPurchaseAcknowledgementPdf(
       logoW,
       logoH
     );
-    y += logoH + 2;
+    y += logoH + 5;
+  } else {
+    y += 4;
   }
+
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "bold");
+  doc.text(COMPANY_NAME, PAGE_W / 2, y, { align: "center" });
+  y += LINE_H;
 
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
@@ -149,7 +158,10 @@ export async function downloadPurchaseAcknowledgementPdf(
     doc.text(line, PAGE_W / 2, y, { align: "center" });
     y += LINE_H - 0.5;
   });
-  y += 3;
+  doc.text(`Warehouse Mobile No : ${WAREHOUSE_MOBILE_NO}`, PAGE_W / 2, y, {
+    align: "center",
+  });
+  y += LINE_H + 2;
 
   solidLine(doc, MARGIN, y, CONTENT_W, 0.35);
   y += LINE_H;
@@ -216,11 +228,10 @@ export async function downloadPurchaseAcknowledgementPdf(
   doc.setFontSize(FONT_NORMAL);
   doc.text("Remarks:", MARGIN, y);
   y += LINE_H;
-  const remarksSpaceLines = 2;
+  const remarksSpaceLines = 6;
   y += LINE_H * remarksSpaceLines;
   doc.setFont("helvetica", "bold");
-  doc.text("Total:", colAmtRight, y, { align: "right" });
-  doc.text(Number(total).toFixed(2), colAmtRight, y + LINE_H, {
+  doc.text("Total : " + Number(total).toFixed(2), colAmtRight, y, {
     align: "right",
   });
   doc.setFont("helvetica", "normal");
@@ -236,21 +247,25 @@ export async function downloadPurchaseAcknowledgementPdf(
   solidLine(doc, MARGIN + 35, y, CONTENT_W - 70, 0.25);
   y += LINE_H + 2;
 
-  doc.text("For Enquiries:", MARGIN, y);
-  doc.text(`Purchase No: ${PURCHASE_NO}`, MARGIN, y + LINE_H - 0.5);
-  doc.text(`Accounts No: ${ACCOUNTS_NO}`, MARGIN, y + 2 * (LINE_H - 0.5));
-
-  const timeLabelX = rightEdge - 36;
-  doc.text("In Time :", timeLabelX, y);
-  doc.text("Out Time: " + printTimeOnly, timeLabelX, y + LINE_H - 0.5);
-  y += 2.5 * LINE_H;
+  const footerRowY = y;
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.text("For Enquiries:", MARGIN, footerRowY);
+  doc.text(`Purchase No: ${PURCHASE_NO}`, MARGIN, footerRowY + LINE_H - 0.5);
+  doc.text(`Accounts No: ${ACCOUNTS_NO}`, MARGIN, footerRowY + 2 * (LINE_H - 0.5));
 
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
-  doc.text(NOTE_LINE_1, PAGE_W / 2, y, { align: "center" });
-  y += LINE_H - 0.3;
-  doc.text(NOTE_LINE_2, PAGE_W / 2, y, { align: "center" });
-  y += LINE_H;
+  doc.text(NOTE_LINE_1, PAGE_W / 2, footerRowY, { align: "center" });
+  doc.text(NOTE_LINE_2, PAGE_W / 2, footerRowY + LINE_H - 0.3, {
+    align: "center",
+  });
+
+  const timeLabelX = rightEdge - 36;
+  doc.setFont("helvetica", "normal");
+  doc.text("In Time :", timeLabelX, footerRowY);
+  doc.text("Out Time: " + printTimeOnly, timeLabelX, footerRowY + LINE_H - 0.5);
+
+  y = footerRowY + 3 * LINE_H;
   solidLine(doc, MARGIN, y, CONTENT_W, 0.25);
 
   // Purchase Returns table at the end (after the end line)
@@ -303,7 +318,7 @@ export async function downloadPurchaseAcknowledgementPdf(
   const cleanup = () => {
     try {
       URL.revokeObjectURL(url);
-    } catch (_) {}
+    } catch (_) { }
   };
 
   if (isWindows) {
@@ -313,7 +328,7 @@ export async function downloadPurchaseAcknowledgementPdf(
           win.focus();
           win.print();
         }
-      } catch (_) {}
+      } catch (_) { }
       setTimeout(doCleanup, 3000);
     };
     const printWindow = window.open(url, "_blank", "noopener,noreferrer");
@@ -333,7 +348,7 @@ export async function downloadPurchaseAcknowledgementPdf(
         const iframeCleanup = () => {
           try {
             if (iframe.parentNode) document.body.removeChild(iframe);
-          } catch (_) {}
+          } catch (_) { }
           cleanup();
         };
         const win = iframe.contentWindow;
@@ -345,7 +360,7 @@ export async function downloadPurchaseAcknowledgementPdf(
               win.focus();
               win.print();
             }
-          } catch (_) {}
+          } catch (_) { }
         }, 200);
       };
     }
@@ -363,7 +378,7 @@ export async function downloadPurchaseAcknowledgementPdf(
       const iframeCleanup = () => {
         try {
           if (iframe.parentNode) document.body.removeChild(iframe);
-        } catch (_) {}
+        } catch (_) { }
         cleanup();
       };
       const win = iframe.contentWindow;
@@ -375,7 +390,7 @@ export async function downloadPurchaseAcknowledgementPdf(
             win.focus();
             win.print();
           }
-        } catch (_) {}
+        } catch (_) { }
       }, 200);
     };
   }
