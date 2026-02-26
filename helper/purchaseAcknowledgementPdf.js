@@ -175,14 +175,19 @@ export async function downloadPurchaseAcknowledgementPdf(
 
   // Supplier (left), Pur Ack No & Ack Date (right, labels start at same place); ack date = print time
   doc.setFontSize(FONT_NORMAL);
-  doc.setFont("helvetica", "normal");
+  doc.setFont("helvetica", "bold");
   doc.text("Supplier Name:", MARGIN, y);
+  doc.setFont("helvetica", "normal");
   doc.text(doc.splitTextToSize(supplierName, 70)[0] || supplierName, MARGIN + 28, y);
   const labelStartX = rightEdge - 48;
+  doc.setFont("helvetica", "bold");
   doc.text("Pur Ack No:", labelStartX, y);
+  doc.setFont("helvetica", "normal");
   doc.text(purAckNo, rightEdge, y, { align: "right" });
   y += LINE_H;
+  doc.setFont("helvetica", "bold");
   doc.text("Ack Date:", labelStartX, y);
+  doc.setFont("helvetica", "normal");
   doc.text(printDateTime, rightEdge, y, { align: "right" });
   y += LINE_H + 2;
 
@@ -226,9 +231,11 @@ export async function downloadPurchaseAcknowledgementPdf(
   solidLine(doc, MARGIN, y, CONTENT_W, 0.3);
   y += LINE_H;
   doc.setFontSize(FONT_NORMAL);
+  doc.setFont("helvetica", "bold");
   doc.text("Remarks:", MARGIN, y);
+  doc.setFont("helvetica", "normal");
   y += LINE_H;
-  const remarksSpaceLines = 6;
+  const remarksSpaceLines = 4;
   y += LINE_H * remarksSpaceLines;
   doc.setFont("helvetica", "bold");
   doc.text("Total : " + Number(total).toFixed(2), colAmtRight, y, {
@@ -249,8 +256,9 @@ export async function downloadPurchaseAcknowledgementPdf(
 
   const footerRowY = y;
   doc.setFontSize(9);
-  doc.setFont("helvetica", "normal");
+  doc.setFont("helvetica", "bold");
   doc.text("For Enquiries:", MARGIN, footerRowY);
+  doc.setFont("helvetica", "normal");
   doc.text(`Purchase No: ${PURCHASE_NO}`, MARGIN, footerRowY + LINE_H - 0.5);
   doc.text(`Accounts No: ${ACCOUNTS_NO}`, MARGIN, footerRowY + 2 * (LINE_H - 0.5));
 
@@ -261,9 +269,11 @@ export async function downloadPurchaseAcknowledgementPdf(
   });
 
   const timeLabelX = rightEdge - 36;
-  doc.setFont("helvetica", "normal");
   doc.text("In Time :", timeLabelX, footerRowY);
-  doc.text("Out Time: " + printTimeOnly, timeLabelX, footerRowY + LINE_H - 0.5);
+  doc.text("Out Time : ", timeLabelX, footerRowY + LINE_H - 0.5);
+  doc.setFont("helvetica", "normal");
+  const outTimeValueX = timeLabelX + doc.getTextWidth("Out Time : ");
+  doc.text(printTimeOnly, outTimeValueX, footerRowY + LINE_H - 0.5);
 
   y = footerRowY + 3 * LINE_H;
   solidLine(doc, MARGIN, y, CONTENT_W, 0.25);
