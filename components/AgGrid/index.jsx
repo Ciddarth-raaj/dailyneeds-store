@@ -296,7 +296,13 @@ const AgGrid = React.forwardRef(function AgGrid(
                         aria-label={item.label}
                         size="xs"
                         icon={<i className={icon} />}
-                        onClick={item.onClick}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (item.onClick) {
+                            e.preventDefault();
+                            item.onClick(e);
+                          }
+                        }}
                       />
                     </Tooltip>
                   );

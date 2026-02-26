@@ -291,25 +291,36 @@ export async function downloadPurchaseAcknowledgementPdf(
   const url = URL.createObjectURL(blob);
   const iframe = document.createElement("iframe");
   iframe.style.position = "absolute";
-  iframe.style.width = "0";
-  iframe.style.height = "0";
+  iframe.style.left = "-9999px";
+  iframe.style.width = "1px";
+  iframe.style.height = "1px";
   iframe.style.border = "none";
+  iframe.style.visibility = "hidden";
   iframe.src = url;
   document.body.appendChild(iframe);
   iframe.onload = () => {
-    try {
-      iframe.contentWindow.focus();
-      iframe.contentWindow.print();
-    } finally {
-      const cleanup = () => {
-        document.body.removeChild(iframe);
+    const cleanup = () => {
+      try {
+        if (iframe.parentNode) document.body.removeChild(iframe);
+      } catch (_) {}
+      try {
         URL.revokeObjectURL(url);
-      };
-      if (iframe.contentWindow.onafterprint) {
-        iframe.contentWindow.onafterprint = cleanup;
-      } else {
-        setTimeout(cleanup, 500);
-      }
+      } catch (_) {}
+    };
+    const runPrint = () => {
+      try {
+        const win = iframe.contentWindow;
+        if (win) {
+          win.focus();
+          win.print();
+        }
+      } catch (_) {}
+    };
+    if (iframe.contentWindow?.onafterprint) {
+      iframe.contentWindow.onafterprint = cleanup;
+    } else {
+      setTimeout(cleanup, 2000);
     }
+    setTimeout(runPrint, 150);
   };
 }
