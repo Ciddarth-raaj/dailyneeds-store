@@ -151,9 +151,14 @@ function PurchaseAckForm() {
         (s, it) => s + (Number(it.MPR_ITEM_QTY) || 0),
         0
       );
+      const totalAmount = items.reduce(
+        (s, it) => s + (Number(it.MPR_ITEM_AMOUNT) || 0),
+        0
+      );
       return {
         ...pr,
         total_qty: totalQty,
+        total_amount: totalAmount,
       };
     });
   }, [purchaseReturns]);
