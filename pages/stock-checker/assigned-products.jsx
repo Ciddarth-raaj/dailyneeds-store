@@ -21,6 +21,7 @@ function AssignedProductsPage() {
   const [editRowId, setEditRowId] = useState(null);
   const [saving, setSaving] = useState(false);
   const editInputRefs = useRef({ physical: null, system: null });
+  const gridRef = useRef(null);
 
   const openItemDrawer = useCallback((stockCheckerRow, branchId) => {
     setDrawerState({ row: stockCheckerRow, preselectedBranchId: branchId });
@@ -269,7 +270,6 @@ function AssignedProductsPage() {
         field: "is_verified",
         headerName: "Status",
         type: "badge-column",
-        sort: "asc",
         valueGetter: (params) =>
           params.data?.is_verified
             ? { label: "Verified", colorScheme: "green" }
@@ -356,6 +356,12 @@ function AssignedProductsPage() {
     [enterEditMode]
   );
 
+  const handleGridReady = useCallback((params) => {
+    params.api?.applyColumnState?.({
+      state: [{ colId: "is_verified", sort: "asc" }],
+    });
+  }, []);
+
   return (
     <GlobalWrapper
       title="Assigned Products"
@@ -373,12 +379,14 @@ function AssignedProductsPage() {
           <Text>Loading...</Text>
         ) : (
           <AgGrid
+            ref={gridRef}
             rowData={rowData}
             columnDefs={colDefs}
             tableKey="assigned-products-list"
             gridOptions={{
               getRowId: (params) => params.data?.id,
               onCellDoubleClicked: handleCellDoubleClick,
+              onGridReady: handleGridReady,
             }}
           />
         )}
