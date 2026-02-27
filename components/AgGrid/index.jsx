@@ -302,6 +302,7 @@ const AgGrid = React.forwardRef(function AgGrid(
                         aria-label={item.label}
                         size="xs"
                         icon={<i className={icon} />}
+                        disabled={item.disabled ?? false}
                         onClick={(e) => {
                           e.stopPropagation();
                           if (item.onClick) {
@@ -335,6 +336,11 @@ const AgGrid = React.forwardRef(function AgGrid(
         },
         "badge-column": {
           exportRenderer: ({ value }) => value?.label ?? "",
+          comparator: (valueA, valueB) => {
+            const a = valueA?.label ?? "";
+            const b = valueB?.label ?? "";
+            return String(a).localeCompare(String(b));
+          },
           cellRenderer: (props) => {
             if (!props || !props.value) return null;
             return (

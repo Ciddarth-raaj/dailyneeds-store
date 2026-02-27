@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useCallback } from "react";
 import { useRouter } from "next/router";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../components/CustomContainer";
@@ -6,7 +6,10 @@ import { Box, Button, Flex, Text, Image, Grid } from "@chakra-ui/react";
 import { Formik, Form } from "formik";
 import * as Yup from "yup";
 import toast from "react-hot-toast";
-import { createStockChecker } from "../../helper/stockChecker";
+import {
+  createStockChecker,
+  createOrUpdateStockCheckerItem,
+} from "../../helper/stockChecker";
 import { useProducts } from "../../customHooks/useProducts";
 import { useStockCheckerById } from "../../customHooks/useStockCheckerById";
 import useOutlets from "../../customHooks/useOutlets";
@@ -34,10 +37,13 @@ function StockCheckerForm() {
   const viewMode = mode === "view";
   const stockCheckerId = queryId != null ? parseInt(String(queryId), 10) : null;
 
-  const { stockChecker, loading: detailLoading } = useStockCheckerById(
-    stockCheckerId,
-    { enabled: viewMode && !!stockCheckerId }
-  );
+  const {
+    stockChecker,
+    loading: detailLoading,
+    refetch: refetchStockChecker,
+  } = useStockCheckerById(stockCheckerId, {
+    enabled: viewMode && !!stockCheckerId,
+  });
   const { outlets } = useOutlets({ skipIds: [1] });
   const branchesList = useMemo(() => {
     const list = Array.isArray(outlets) ? outlets : outlets?.data;
@@ -59,12 +65,58 @@ function StockCheckerForm() {
       const outletId = outlet.outlet_id ?? outlet.id;
       const item = itemsByBranchId[outletId];
       return {
+        branchId: outletId,
         branchName: outlet.outlet_name ?? outlet.name ?? "-",
         systemStock: item?.system_stock != null ? item.system_stock : "",
         physicalStock: item?.physical_stock != null ? item.physical_stock : "",
+        isVerified: !!item?.is_verified,
       };
     });
   }, [branchesList, itemsByBranchId]);
+
+  const handleVerifyBranch = useCallback(
+    async (rowData) => {
+      if (!stockCheckerId || rowData?.branchId == null) return;
+      const physical = Number(rowData?.physicalStock) || 0;
+      const system = Number(rowData?.systemStock) || 0;
+      try {
+        await createOrUpdateStockCheckerItem({
+          stock_checker_id: stockCheckerId,
+          branch_id: rowData.branchId,
+          physical_stock: physical,
+          system_stock: system,
+          is_verified: true,
+        });
+        toast.success("Marked as verified");
+        refetchStockChecker();
+      } catch (err) {
+        toast.error(err?.message || "Failed to verify");
+      }
+    },
+    [stockCheckerId, refetchStockChecker]
+  );
+
+  const handleUnverifyBranch = useCallback(
+    async (rowData) => {
+      if (!stockCheckerId || rowData?.branchId == null) return;
+      const physical = Number(rowData?.physicalStock) || 0;
+      const system = Number(rowData?.systemStock) || 0;
+      try {
+        await createOrUpdateStockCheckerItem({
+          stock_checker_id: stockCheckerId,
+          branch_id: rowData.branchId,
+          physical_stock: physical,
+          system_stock: system,
+          is_verified: false,
+        });
+        toast.success("Marked as unverified");
+        refetchStockChecker();
+      } catch (err) {
+        toast.error(err?.message || "Failed to unverify");
+      }
+    },
+    [stockCheckerId, refetchStockChecker]
+  );
 
   const branchColDefs = useMemo(
     () => [
@@ -93,8 +145,49 @@ function StockCheckerForm() {
               parseInt(params.data.physicalStock)
             : null,
       },
+      {
+        field: "is_verified",
+        headerName: "Status",
+        type: "badge-column",
+        valueGetter: (params) =>
+          params.data?.isVerified
+            ? { label: "Verified", colorScheme: "green" }
+            : { label: "Unverified", colorScheme: "gray" },
+      },
+      {
+        field: "actions",
+        headerName: "Action",
+        type: "action-icons",
+        valueGetter: (params) => {
+          const data = params.data;
+          if (!data) return [];
+          const actions = [];
+          const hasData =
+            (data.physicalStock !== "" && data.physicalStock != null) ||
+            (data.systemStock !== "" && data.systemStock != null);
+
+          if (!data.isVerified) {
+            actions.push({
+              label: "Verify",
+              icon: "fa-solid fa-circle-check",
+              colorScheme: "green",
+              onClick: () => handleVerifyBranch(data),
+              disabled: !hasData,
+            });
+          }
+          if (data.isVerified) {
+            actions.push({
+              label: "Unverify",
+              icon: "fa-solid fa-circle-xmark",
+              colorScheme: "red",
+              onClick: () => handleUnverifyBranch(data),
+            });
+          }
+          return actions;
+        },
+      },
     ],
-    []
+    [handleVerifyBranch, handleUnverifyBranch]
   );
 
   const { products, loading: productsLoading } = useProducts({
@@ -261,7 +354,6 @@ function StockCheckerForm() {
               rowData={branchRows}
               columnDefs={branchColDefs}
               tableKey="stock-checker-branch-table"
-              gridOptions={{ getRowId: (params) => String(params.rowIndex) }}
             />
           </CustomContainer>
 

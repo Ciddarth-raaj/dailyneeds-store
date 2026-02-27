@@ -49,7 +49,7 @@ export const deleteStockChecker = (id) => {
 /**
  * Create or update a stock checker item (upsert).
  * POST /stock-checker/items
- * Body: { stock_checker_id, branch_id, physical_stock, system_stock }
+ * Body: { stock_checker_id, branch_id, physical_stock, system_stock, is_verified? }
  */
 export const createOrUpdateStockCheckerItem = (body) => {
   return API.post("/stock-checker/items", body).then((res) => {

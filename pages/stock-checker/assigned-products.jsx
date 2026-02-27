@@ -37,18 +37,34 @@ function AssignedProductsPage() {
     setEditRowId(null);
   }, []);
 
+  const getCurrentStockValues = useCallback(
+    (rowData) => {
+      const isEditingThisRow = editRowId === rowData?.id;
+      if (isEditingThisRow) {
+        return {
+          physical_stock: Number(editInputRefs.current.physical?.value) || 0,
+          system_stock: Number(editInputRefs.current.system?.value) || 0,
+        };
+      }
+      return {
+        physical_stock: Number(rowData?.physical_stock) || 0,
+        system_stock: Number(rowData?.system_stock) || 0,
+      };
+    },
+    [editRowId]
+  );
+
   const handleSave = useCallback(
     async (rowData) => {
       if (!rowData?._stockChecker) return;
-      const physicalVal = editInputRefs.current.physical?.value ?? "";
-      const systemVal = editInputRefs.current.system?.value ?? "";
+      const { physical_stock, system_stock } = getCurrentStockValues(rowData);
       setSaving(true);
       try {
         await createOrUpdateStockCheckerItem({
           stock_checker_id: rowData._stockChecker.stock_checker_id,
           branch_id: rowData._branchId,
-          physical_stock: Number(physicalVal) || 0,
-          system_stock: Number(systemVal) || 0,
+          physical_stock,
+          system_stock,
         });
         toast.success("Saved");
         refetch();
@@ -59,7 +75,57 @@ function AssignedProductsPage() {
         setSaving(false);
       }
     },
-    [refetch, exitEditMode]
+    [refetch, exitEditMode, getCurrentStockValues]
+  );
+
+  const handleVerify = useCallback(
+    async (rowData) => {
+      if (!rowData?._stockChecker) return;
+      const { physical_stock, system_stock } = getCurrentStockValues(rowData);
+      setSaving(true);
+      try {
+        await createOrUpdateStockCheckerItem({
+          stock_checker_id: rowData._stockChecker.stock_checker_id,
+          branch_id: rowData._branchId,
+          physical_stock,
+          system_stock,
+          is_verified: true,
+        });
+        toast.success("Marked as verified");
+        refetch();
+        exitEditMode();
+      } catch (err) {
+        toast.error(err?.message || "Failed to verify");
+      } finally {
+        setSaving(false);
+      }
+    },
+    [refetch, exitEditMode, getCurrentStockValues]
+  );
+
+  const handleUnverify = useCallback(
+    async (rowData) => {
+      if (!rowData?._stockChecker) return;
+      const { physical_stock, system_stock } = getCurrentStockValues(rowData);
+      setSaving(true);
+      try {
+        await createOrUpdateStockCheckerItem({
+          stock_checker_id: rowData._stockChecker.stock_checker_id,
+          branch_id: rowData._branchId,
+          physical_stock,
+          system_stock,
+          is_verified: false,
+        });
+        toast.success("Marked as unverified");
+        refetch();
+        exitEditMode();
+      } catch (err) {
+        toast.error(err?.message || "Failed to unverify");
+      } finally {
+        setSaving(false);
+      }
+    },
+    [refetch, exitEditMode, getCurrentStockValues]
   );
 
   const branchesForUser = useMemo(() => {
@@ -88,6 +154,7 @@ function AssignedProductsPage() {
           id: `${sc.stock_checker_id}-${branchId}`,
           _stockChecker: sc,
           _branchId: branchId,
+          _item: item,
           productId,
           productName:
             sc.product?.de_display_name ||
@@ -97,6 +164,7 @@ function AssignedProductsPage() {
           physical_stock:
             item?.physical_stock != null ? item.physical_stock : "",
           system_stock: item?.system_stock != null ? item.system_stock : "",
+          is_verified: !!item?.is_verified,
         });
       }
     }
@@ -118,7 +186,7 @@ function AssignedProductsPage() {
       {
         field: "branchName",
         headerName: "Branch name",
-        flex: 2,
+        flex: 1.5,
       },
       {
         field: "system_stock",
@@ -190,12 +258,22 @@ function AssignedProductsPage() {
       },
       {
         field: "difference",
-        headerName: "Difference",
+        headerName: "Diff.",
         width: 120,
         cellRenderer: (params) => {
           const data = params.data;
           return data?.system_stock - data?.physical_stock;
         },
+      },
+      {
+        field: "is_verified",
+        headerName: "Status",
+        type: "badge-column",
+        sort: "asc",
+        valueGetter: (params) =>
+          params.data?.is_verified
+            ? { label: "Verified", colorScheme: "green" }
+            : { label: "Unverified", colorScheme: "gray" },
       },
       {
         field: "actions",
@@ -221,7 +299,7 @@ function AssignedProductsPage() {
               },
             ];
           }
-          return [
+          const actions = [
             {
               label: "Edit",
               icon: "fa-solid fa-pen",
@@ -229,10 +307,43 @@ function AssignedProductsPage() {
               onClick: () => enterEditMode(data),
             },
           ];
+
+          const dataExists =
+            data.physical_stock !== "" &&
+            data.physical_stock != null &&
+            data.system_stock !== "" &&
+            data.system_stock != null;
+
+          if (!data.is_verified) {
+            actions.push({
+              label: "Verify",
+              icon: "fa-solid fa-circle-check",
+              colorScheme: "green",
+              onClick: () => handleVerify(data),
+              disabled: !dataExists,
+            });
+          }
+          if (data.is_verified) {
+            actions.push({
+              label: "Unverify",
+              icon: "fa-solid fa-circle-xmark",
+              colorScheme: "red",
+              onClick: () => handleUnverify(data),
+              disabled: !dataExists,
+            });
+          }
+          return actions;
         },
       },
     ],
-    [editRowId, enterEditMode, exitEditMode, handleSave]
+    [
+      editRowId,
+      enterEditMode,
+      exitEditMode,
+      handleSave,
+      handleVerify,
+      handleUnverify,
+    ]
   );
 
   const handleCellDoubleClick = useCallback(
