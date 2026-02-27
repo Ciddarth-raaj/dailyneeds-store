@@ -45,10 +45,12 @@ function AssignedProductsPage() {
       for (const outlet of branchesForUser) {
         const branchId = outlet.outlet_id ?? outlet.id;
         const item = itemsByBranchId[branchId];
+        const productId = sc.product_id ?? sc.product?.product_id;
         rows.push({
           id: `${sc.stock_checker_id}-${branchId}`,
           _stockChecker: sc,
           _branchId: branchId,
+          productId,
           productName:
             sc.product?.de_display_name ||
             sc.product?.gf_item_name ||
@@ -65,6 +67,11 @@ function AssignedProductsPage() {
 
   const colDefs = useMemo(
     () => [
+      {
+        field: "productId",
+        headerName: "ID",
+        type: "id",
+      },
       {
         field: "productName",
         headerName: "Product",
