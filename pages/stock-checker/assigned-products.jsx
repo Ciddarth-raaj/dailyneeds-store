@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useCallback } from "react";
+import React, { useMemo, useState, useCallback, useRef } from "react";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../components/CustomContainer";
 import { Text } from "@chakra-ui/react";
@@ -7,15 +7,20 @@ import { useStockCheckers } from "../../customHooks/useStockCheckers";
 import useOutlets from "../../customHooks/useOutlets";
 import { useUser } from "../../contexts/UserContext";
 import StockCheckerItemDrawer from "../../components/stock-checker/StockCheckerItemDrawer";
+import { createOrUpdateStockCheckerItem } from "../../helper/stockChecker";
+import toast from "react-hot-toast";
 
 function AssignedProductsPage() {
   const { storeId } = useUser().userConfig;
-  const { outlets } = useOutlets();
+  const { outlets } = useOutlets({ skipIds: [1] });
   const { stockCheckers, loading, refetch } = useStockCheckers();
   const [drawerState, setDrawerState] = useState({
     row: null,
     preselectedBranchId: null,
   });
+  const [editRowId, setEditRowId] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const editInputRefs = useRef({ physical: null, system: null });
 
   const openItemDrawer = useCallback((stockCheckerRow, branchId) => {
     setDrawerState({ row: stockCheckerRow, preselectedBranchId: branchId });
@@ -23,6 +28,39 @@ function AssignedProductsPage() {
   const closeItemDrawer = useCallback(() => {
     setDrawerState({ row: null, preselectedBranchId: null });
   }, []);
+
+  const enterEditMode = useCallback((row) => {
+    setEditRowId(row.id);
+  }, []);
+
+  const exitEditMode = useCallback(() => {
+    setEditRowId(null);
+  }, []);
+
+  const handleSave = useCallback(
+    async (rowData) => {
+      if (!rowData?._stockChecker) return;
+      const physicalVal = editInputRefs.current.physical?.value ?? "";
+      const systemVal = editInputRefs.current.system?.value ?? "";
+      setSaving(true);
+      try {
+        await createOrUpdateStockCheckerItem({
+          stock_checker_id: rowData._stockChecker.stock_checker_id,
+          branch_id: rowData._branchId,
+          physical_stock: Number(physicalVal) || 0,
+          system_stock: Number(systemVal) || 0,
+        });
+        toast.success("Saved");
+        refetch();
+        exitEditMode();
+      } catch (err) {
+        toast.error(err?.message || "Failed to save");
+      } finally {
+        setSaving(false);
+      }
+    },
+    [refetch, exitEditMode]
+  );
 
   const branchesForUser = useMemo(() => {
     const list = Array.isArray(outlets) ? outlets : outlets?.data;
@@ -83,12 +121,81 @@ function AssignedProductsPage() {
         flex: 2,
       },
       {
-        field: "physical_stock",
-        headerName: "Phy. stock",
-      },
-      {
         field: "system_stock",
         headerName: "Sys. stock",
+        width: 120,
+        cellStyle: {
+          padding: 0,
+        },
+        cellRenderer: (params) => {
+          const data = params.data;
+          const isEditing = data && editRowId === data.id;
+          if (isEditing) {
+            const defaultValue =
+              data.system_stock !== "" && data.system_stock != null
+                ? String(data.system_stock)
+                : "";
+            return (
+              <input
+                ref={(el) => (editInputRefs.current.system = el)}
+                style={{
+                  height: "100%",
+                  width: "100%",
+                  padding: "0 10px",
+                }}
+                placeholder="0"
+                min={0}
+                type="number"
+                defaultValue={defaultValue}
+              />
+            );
+          }
+          const v = data?.system_stock;
+          return v !== "" && v != null ? String(v) : "—";
+        },
+      },
+      {
+        field: "physical_stock",
+        headerName: "Phy. stock",
+        width: 120,
+        cellStyle: {
+          padding: 0,
+        },
+        cellRenderer: (params) => {
+          const data = params.data;
+          const isEditing = data && editRowId === data.id;
+          if (isEditing) {
+            const defaultValue =
+              data.physical_stock !== "" && data.physical_stock != null
+                ? String(data.physical_stock)
+                : "";
+            return (
+              <input
+                ref={(el) => (editInputRefs.current.physical = el)}
+                style={{
+                  height: "100%",
+                  width: "100%",
+                  padding: "0 10px",
+                }}
+                placeholder="0"
+                min={0}
+                type="number"
+                defaultValue={defaultValue}
+              />
+            );
+          }
+          const v = data?.physical_stock;
+          return v !== "" && v != null ? String(v) : "—";
+        },
+      },
+      {
+        field: "difference",
+        headerName: "Difference",
+        width: 120,
+        cellRenderer: (params) => {
+          const data = params.data;
+          return data?.system_stock - data?.physical_stock;
+        },
       },
       {
         field: "actions",
@@ -97,18 +204,45 @@ function AssignedProductsPage() {
         valueGetter: (params) => {
           const data = params.data;
           if (!data?._stockChecker) return [];
+          const isEditing = editRowId === data.id;
+          if (isEditing) {
+            return [
+              {
+                label: "Save",
+                icon: "fa-solid fa-check",
+                colorScheme: "green",
+                onClick: () => handleSave(data),
+              },
+              {
+                label: "Close",
+                icon: "fa-solid fa-times",
+                colorScheme: "red",
+                onClick: () => exitEditMode(),
+              },
+            ];
+          }
           return [
             {
-              label: "Add / Edit stock",
-              icon: "fa-solid fa-plus-circle",
+              label: "Edit",
+              icon: "fa-solid fa-pen",
               colorScheme: "purple",
-              onClick: () => openItemDrawer(data._stockChecker, data._branchId),
+              onClick: () => enterEditMode(data),
             },
           ];
         },
       },
     ],
-    [openItemDrawer]
+    [editRowId, enterEditMode, exitEditMode, handleSave]
+  );
+
+  const handleCellDoubleClick = useCallback(
+    (event) => {
+      const colId = event.column?.colId ?? event.column?.getColId?.();
+      if (colId === "physical_stock" || colId === "system_stock") {
+        if (event.data) enterEditMode(event.data);
+      }
+    },
+    [enterEditMode]
   );
 
   return (
@@ -131,7 +265,10 @@ function AssignedProductsPage() {
             rowData={rowData}
             columnDefs={colDefs}
             tableKey="assigned-products-list"
-            gridOptions={{ getRowId: (params) => params.data?.id }}
+            gridOptions={{
+              getRowId: (params) => params.data?.id,
+              onCellDoubleClicked: handleCellDoubleClick,
+            }}
           />
         )}
       </CustomContainer>

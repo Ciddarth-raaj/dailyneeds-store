@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import BranchHelper from "../helper/outlets";
 
-function useOutlets() {
+function useOutlets({ skipIds = [] } = {}) {
   const [outlets, setOutlets] = useState([]);
 
   const init = async () => {
@@ -13,7 +13,11 @@ function useOutlets() {
     init();
   }, []);
 
-  return { outlets };
+  const filteredOutlets = useMemo(() => {
+    return outlets.filter((outlet) => !skipIds.includes(outlet.outlet_id));
+  }, [outlets, skipIds]);
+
+  return { outlets: filteredOutlets };
 }
 
 export default useOutlets;

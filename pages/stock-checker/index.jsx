@@ -17,7 +17,7 @@ function StockCheckerListing() {
   const canAdd = usePermissions("add_stock_checker");
   const { stockCheckers, loading, deleteStockChecker, refetch } =
     useStockCheckers();
-  const { outlets } = useOutlets();
+  const { outlets } = useOutlets({ skipIds: [1] });
   const { confirmDelete, ConfirmDeleteDialog } = useConfirmDelete();
   const [itemDrawerRow, setItemDrawerRow] = useState(null);
 

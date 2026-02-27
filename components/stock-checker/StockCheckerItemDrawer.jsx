@@ -33,7 +33,7 @@ function StockCheckerItemDrawer({
   preselectedBranchId,
 }) {
   const { storeId } = useUser().userConfig;
-  const { outlets } = useOutlets();
+  const { outlets } = useOutlets({ skipIds: [1] });
   const prevBranchRef = useRef(null);
 
   const branchesList = useMemo(() => {
@@ -186,14 +186,14 @@ function StockCheckerItemForm({
           editable={!isBranchDisabled}
         />
         <CustomInput
-          label="Physical stock"
-          name="physical_stock"
+          label="System stock"
+          name="system_stock"
           type="number"
           placeholder="0"
         />
         <CustomInput
-          label="System stock"
-          name="system_stock"
+          label="Physical stock"
+          name="physical_stock"
           type="number"
           placeholder="0"
         />

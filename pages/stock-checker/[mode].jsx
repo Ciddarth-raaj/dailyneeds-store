@@ -38,7 +38,7 @@ function StockCheckerForm() {
     stockCheckerId,
     { enabled: viewMode && !!stockCheckerId }
   );
-  const { outlets } = useOutlets();
+  const { outlets } = useOutlets({ skipIds: [1] });
   const branchesList = useMemo(() => {
     const list = Array.isArray(outlets) ? outlets : outlets?.data;
     return Array.isArray(list) ? list : [];
