@@ -217,6 +217,12 @@ const AgGrid = React.forwardRef(function AgGrid(
           cellRenderer: (params) =>
             params.value ? moment(params.value).format("DD/MM/YYYY") : "-",
         },
+        datetime: {
+          cellRenderer: (params) =>
+            params.value
+              ? moment(params.value).format("DD/MM/YYYY • hh:mm A")
+              : "-",
+        },
         currency: {
           cellRenderer: (params) => {
             if (params.value === undefined || params.value === null) return "-";

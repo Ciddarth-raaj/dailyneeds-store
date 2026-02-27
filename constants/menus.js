@@ -572,6 +572,26 @@ export default {
   //     // },
   //   },
   // },
+  stock_checker: {
+    title: "Stock Checker",
+    selected: false,
+    openPage: false,
+    icon: "fa-clipboard-list",
+    subMenu: {
+      view_stock_checker: {
+        title: "View All",
+        permission: "view_stock_checker",
+        selected: false,
+        location: "/stock-checker",
+      },
+      view_assigned_products: {
+        title: "Assigned Products",
+        permission: "view_assigned_products",
+        selected: false,
+        location: "/stock-checker/assigned-products",
+      },
+    },
+  },
   misc: {
     title: "Miscellaneous",
     selected: false,

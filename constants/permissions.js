@@ -152,6 +152,14 @@ export const PERMISSIONS = {
     // view_all_issues: "View All Issues",
     // add_issue: "Add Issue",
   },
+
+  // Stock Checker
+  stock_checker: {
+    view_stock_checker: "View Stock Checker",
+    add_stock_checker: "Add Stock Checker",
+    view_assigned_products: "View Assigned Products",
+  },
+
   // Misc
   Miscellaneous: {
     all_stores: "Access All Stores",

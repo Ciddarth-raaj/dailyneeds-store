@@ -80,6 +80,8 @@ const TextField = ({
   multiple = false,
   renderer,
   ignoreMarginBottom = false,
+  customRenderer,
+  renderSelected,
   ...props
 }) => {
   const { setFieldValue } = useFormikContext();
@@ -361,6 +363,8 @@ const TextField = ({
                           placeholder={props.placeholder ?? "Search or select..."}
                           isDisabled={!editable}
                           size="sm"
+                          customRenderer={customRenderer}
+                          renderSelected={renderSelected}
                         />
                       );
                     case undefined:
