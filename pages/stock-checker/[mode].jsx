@@ -398,7 +398,7 @@ function StockCheckerForm() {
                   method="searchable-dropdown"
                   values={productOptions}
                   placeholder="Select product"
-                  editable={!productsLoading}
+                  isDisabled={productsLoading}
                   customRenderer={productCustomRenderer}
                   renderSelected={productRenderSelected}
                 />

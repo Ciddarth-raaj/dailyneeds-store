@@ -361,7 +361,7 @@ const TextField = ({
                           value={field.value}
                           onChange={(id) => setFieldValue(field.name, id)}
                           placeholder={props.placeholder ?? "Search or select..."}
-                          isDisabled={!editable}
+                          isDisabled={props.isDisabled}
                           size="sm"
                           customRenderer={customRenderer}
                           renderSelected={renderSelected}
