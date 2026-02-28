@@ -12,6 +12,7 @@ import {
   LabelList,
 } from "recharts";
 import DashboardChartLegend from "./CustomChartLegend";
+import EmptyData from "../EmptyData";
 
 const TICK_FILL = "#4A5568";
 const TICK_FONT_SIZE = 10;
@@ -125,18 +126,15 @@ function BarChartGraph({
   if (!data || data.length === 0) {
     return (
       <>
-        <Box
+        <Flex
           w="100%"
           height={height}
           maxHeight={maxHeight}
-          display="flex"
-          align="center"
-          justify="center"
+          alignItems="center"
+          justifyContent="center"
         >
-          <Text color="gray.500" fontSize="sm">
-            {emptyMessage}
-          </Text>
-        </Box>
+          <EmptyData size="md" message={emptyMessage} />
+        </Flex>
         <DashboardChartLegend items={legendItems} />
       </>
     );

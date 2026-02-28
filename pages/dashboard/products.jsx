@@ -11,6 +11,7 @@ import {
   Input,
   useDisclosure,
   Grid,
+  Button,
 } from "@chakra-ui/react";
 import Badge from "../../components/Badge";
 import PieChartGraph from "../../components/Dashboard/PieChartGraph";
@@ -26,13 +27,22 @@ import Link from "next/link";
 
 const PIE_COLORS = ["#805AD5", "#B794F4"];
 
+// Helper to format as YYYY-MM-DD, using local date
+function formatYYYYMMDD(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 function getMonthRange() {
   const now = new Date();
   const first = new Date(now.getFullYear(), now.getMonth(), 1);
   const last = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
   return {
-    date_from: first.toISOString().slice(0, 10),
-    date_to: last.toISOString().slice(0, 10),
+    date_from: formatYYYYMMDD(first),
+    date_to: formatYYYYMMDD(last),
   };
 }
 
@@ -299,7 +309,7 @@ function ProductsDashboard() {
       permissionKey="view_products_dashboard"
     >
       <Flex flexDirection="column" gap="22px">
-        <CustomContainer title="Filter" filledHeader smallHeader size="xs">
+        <CustomContainer title="Filter" filledHeader size="xs">
           <Flex gap={4} alignItems="flex-end" flexWrap="wrap">
             <FormControl maxW="180px">
               <FormLabel fontSize="sm">From</FormLabel>
@@ -319,6 +329,19 @@ function ProductsDashboard() {
                 onChange={(e) => setDateTo(e.target.value)}
               />
             </FormControl>
+
+            <Button
+              size="sm"
+              colorScheme="purple"
+              variant="ghost"
+              onClick={() => {
+                const today = new Date();
+                setDateFrom(formatYYYYMMDD(today));
+                setDateTo(formatYYYYMMDD(today));
+              }}
+            >
+              Today
+            </Button>
           </Flex>
         </CustomContainer>
 
@@ -326,7 +349,6 @@ function ProductsDashboard() {
           <CustomContainer
             title="With image vs Without image"
             filledHeader
-            smallHeader
             size="xs"
           >
             <Box minH={CHART_HEIGHT}>
@@ -343,7 +365,6 @@ function ProductsDashboard() {
           <CustomContainer
             title="Products updated by user"
             filledHeader
-            smallHeader
             size="xs"
           >
             <Box minH={CHART_HEIGHT}>
@@ -362,7 +383,7 @@ function ProductsDashboard() {
           </CustomContainer>
         </Grid>
 
-        <CustomContainer title="By user" filledHeader smallHeader>
+        <CustomContainer title="By user" filledHeader>
           <AgGrid
             rowData={byUserTableRows}
             columnDefs={byUserColDefs}
@@ -374,7 +395,7 @@ function ProductsDashboard() {
           />
         </CustomContainer>
 
-        <CustomContainer title="Product Image Report" filledHeader smallHeader>
+        <CustomContainer title="Product Image Report" filledHeader>
           <AgGrid
             rowData={productImageReportByDistributor}
             columnDefs={productImageReportColDefs}
