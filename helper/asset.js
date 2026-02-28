@@ -7,7 +7,7 @@ const asset = {
       formData.append("file", file, file.name);
       formData.append("name", name);
       formData.append("folder", folder);
-      formData.append("actualName", actualName);
+      formData.append("actualName", actualName ?? name);
       formData.append("type", type == undefined ? "open" : type);
       API.post("/asset", formData)
         .then(async (res) => {

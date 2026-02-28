@@ -592,6 +592,26 @@ export default {
       },
     },
   },
+  expiry_checker: {
+    title: "Expiry Checker",
+    selected: false,
+    openPage: false,
+    icon: "fa-calendar-check",
+    subMenu: {
+      view_expiry_checker: {
+        title: "View All",
+        permission: "view_expiry_checker",
+        selected: false,
+        location: "/products/expiry-checker",
+      },
+      view_expiry_assigned_products: {
+        title: "Assigned Products",
+        permission: "view_expiry_assigned_products",
+        selected: false,
+        location: "/products/expiry-checker/assigned-products",
+      },
+    },
+  },
   misc: {
     title: "Miscellaneous",
     selected: false,

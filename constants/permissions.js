@@ -160,6 +160,13 @@ export const PERMISSIONS = {
     view_assigned_products: "View Assigned Products",
   },
 
+  // Expiry Checker
+  expiry_checker: {
+    view_expiry_checker: "View Expiry Checker",
+    add_expiry_checker: "Add Expiry Checker",
+    add_expiry_checker: "View Expiry Assigned Products",
+  },
+
   // Misc
   Miscellaneous: {
     all_stores: "Access All Stores",

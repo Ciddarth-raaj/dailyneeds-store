@@ -319,6 +319,7 @@ const AgGrid = React.forwardRef(function AgGrid(
                         href={item.redirectionUrl}
                         passHref
                         key={item.label}
+                        target={item.target}
                       >
                         {btn}
                       </Link>
