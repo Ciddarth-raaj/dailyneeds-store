@@ -510,6 +510,7 @@ const TextField = ({
                       {...field}
                       {...props}
                       selected={(field.value && new Date(field.value)) || null}
+                      portalId="root-portal"
                       customInput={
                         <CustomDateTimeInput
                           disabled={props.disabled}

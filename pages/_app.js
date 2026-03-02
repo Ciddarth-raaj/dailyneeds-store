@@ -99,13 +99,15 @@ class MyApp extends React.Component {
   render() {
     const { Component, pageProps } = this.props;
     return (
-      <ChakraProvider theme={theme}>
-        <UserProvider>
-          <Toaster />
-          <ToastContainer />
-          <Component {...pageProps} />
-        </UserProvider>
-      </ChakraProvider>
+      <div id="root-portal">
+        <ChakraProvider theme={theme}>
+          <UserProvider>
+            <Toaster />
+            <ToastContainer />
+            <Component {...pageProps} />
+          </UserProvider>
+        </ChakraProvider>
+      </div>
     );
   }
 }
