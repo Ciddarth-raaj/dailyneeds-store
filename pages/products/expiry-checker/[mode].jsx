@@ -31,8 +31,9 @@ const validationSchema = Yup.object({
   qty: Yup.number().required("Qty is required").min(0, "Must be ≥ 0"),
   ref_file: Yup.mixed().test(
     "ref-file",
-    "Ref file is required",
-    (v) => v != null && (typeof v === "string" || (v && v instanceof File))
+    "Ref file must be a string or file",
+    (v) =>
+      v == null || v === "" || typeof v === "string" || (v && v instanceof File)
   ),
 });
 

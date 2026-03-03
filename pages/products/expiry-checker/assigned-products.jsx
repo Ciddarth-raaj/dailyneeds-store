@@ -197,6 +197,11 @@ function ExpiryAssignedProductsPage() {
         type: "id",
       },
       {
+        field: "image_url",
+        headerName: "Image",
+        type: "image",
+      },
+      {
         field: "productName",
         headerName: "Product",
         flex: 2,
