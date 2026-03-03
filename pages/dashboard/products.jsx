@@ -6,12 +6,8 @@ import {
   Box,
   Flex,
   Text,
-  FormControl,
-  FormLabel,
-  Input,
   useDisclosure,
   Grid,
-  Button,
 } from "@chakra-ui/react";
 import Badge from "../../components/Badge";
 import PieChartGraph from "../../components/Dashboard/PieChartGraph";
@@ -24,27 +20,10 @@ import { useProducts } from "../../customHooks/useProducts";
 import { useProductImagesLog } from "../../customHooks/useProductImagesLog";
 import { capitalize } from "../../util/string";
 import Link from "next/link";
+import { getMonthRange } from "../../util/dateRange";
+import DateRangeFilter from "../../components/DateRangeFilter";
 
 const PIE_COLORS = ["#805AD5", "#B794F4"];
-
-// Helper to format as YYYY-MM-DD, using local date
-function formatYYYYMMDD(date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-function getMonthRange() {
-  const now = new Date();
-  const first = new Date(now.getFullYear(), now.getMonth(), 1);
-  const last = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-
-  return {
-    date_from: formatYYYYMMDD(first),
-    date_to: formatYYYYMMDD(last),
-  };
-}
 
 function ProductsDashboard() {
   const router = useRouter();
@@ -309,41 +288,12 @@ function ProductsDashboard() {
       permissionKey="view_products_dashboard"
     >
       <Flex flexDirection="column" gap="22px">
-        <CustomContainer title="Filter" filledHeader size="xs">
-          <Flex gap={4} alignItems="flex-end" flexWrap="wrap">
-            <FormControl maxW="180px">
-              <FormLabel fontSize="sm">From</FormLabel>
-              <Input
-                type="date"
-                size="sm"
-                value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
-              />
-            </FormControl>
-            <FormControl maxW="180px">
-              <FormLabel fontSize="sm">To</FormLabel>
-              <Input
-                type="date"
-                size="sm"
-                value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
-              />
-            </FormControl>
-
-            <Button
-              size="sm"
-              colorScheme="purple"
-              variant="ghost"
-              onClick={() => {
-                const today = new Date();
-                setDateFrom(formatYYYYMMDD(today));
-                setDateTo(formatYYYYMMDD(today));
-              }}
-            >
-              Today
-            </Button>
-          </Flex>
-        </CustomContainer>
+        <DateRangeFilter
+          dateFrom={dateFrom}
+          dateTo={dateTo}
+          onDateFromChange={setDateFrom}
+          onDateToChange={setDateTo}
+        />
 
         <Grid templateColumns={{ base: "1fr", md: "1fr 1fr" }} gap={4}>
           <CustomContainer
