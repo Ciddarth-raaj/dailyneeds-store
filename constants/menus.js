@@ -21,6 +21,12 @@ export default {
         selected: false,
         location: "/dashboard/products",
       },
+      view_purchase_return_dashboard: {
+        title: "Purchase Return Dashboard",
+        permission: "view_purchase_return_dashboard",
+        selected: false,
+        location: "/dashboard/purchase-return",
+      },
     },
   },
   employee: {
