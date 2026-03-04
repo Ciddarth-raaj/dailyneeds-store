@@ -124,6 +124,7 @@ export const PERMISSIONS = {
   Products: {
     view_products: "View Products",
     edit_products: "Edit Products",
+    view_product_changes: "View Product Changes",
     view_category: "View Category",
     view_subcategory: "View Sub Category",
     // view_brands: "View Brands",
@@ -171,5 +172,6 @@ export const PERMISSIONS = {
   // Misc
   Miscellaneous: {
     all_stores: "Access All Stores",
+    allow_product_sync: "Allow Product Sync",
   },
 };

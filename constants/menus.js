@@ -442,6 +442,12 @@ export default {
         selected: false,
         location: "/products/report",
       },
+      view_product_changes: {
+        title: "Changes",
+        permission: "view_product_changes",
+        selected: false,
+        location: "/products/changes",
+      },
       // view_departments: {
       //   title: 'View Deapartments',
       //   selected: false,

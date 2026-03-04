@@ -137,5 +137,19 @@ const product = {
           reject(err);
         });
     }),
+
+  // Trigger product sync (Delium/GoFrugal)
+  sync: () =>
+    new Promise(function (resolve, reject) {
+      API.post("/product/sync")
+        .then((res) => {
+          if (res?.data?.code === 200) {
+            resolve(res.data);
+          } else {
+            reject(res?.data?.msg || "Product sync failed");
+          }
+        })
+        .catch((err) => reject(err));
+    }),
 };
 export default product;

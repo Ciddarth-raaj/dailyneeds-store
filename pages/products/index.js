@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/router";
 import { useProducts } from "../../customHooks/useProducts";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
@@ -7,13 +7,34 @@ import { Button } from "@chakra-ui/button";
 import AgGrid from "../../components/AgGrid";
 import usePermissions from "../../customHooks/usePermissions";
 import ProductImageUploadCell from "../../components/ProductImageUploadCell";
+import product from "../../helper/product";
+import toast from "react-hot-toast";
 
 function Products() {
   const router = useRouter();
   const { query } = router;
   const gridRef = useRef(null);
-  const { products } = useProducts({ limit: 10000, fetchAll: true });
+  const { products, refetch } = useProducts({ limit: 10000, fetchAll: true });
   const canEdit = usePermissions("edit_products");
+  const canSync = usePermissions("allow_product_sync");
+  const [syncing, setSyncing] = useState(false);
+
+  const handleSync = async () => {
+    setSyncing(true);
+    try {
+      const res = await product.sync();
+      const detail =
+        res?.productsProcessed != null
+          ? ` (${res.productsProcessed} products, ${res.categoriesProcessed ?? 0} categories)`
+          : "";
+      toast.success(`${res?.msg || "Sync completed"}${detail}`);
+      refetch();
+    } catch (err) {
+      toast.error(err?.message || "Product sync failed");
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   useEffect(() => {
     const distributor = query.distributor;
@@ -98,7 +119,23 @@ function Products() {
 
   return (
     <GlobalWrapper title="Products" permissionKey="view_products">
-      <CustomContainer title="Products" filledHeader>
+      <CustomContainer
+        title="Products"
+        filledHeader
+        rightSection={
+          canSync ? (
+            <Button
+              colorScheme="purple"
+              size="sm"
+              onClick={handleSync}
+              isLoading={syncing}
+              leftIcon={<i className="fa fa-sync-alt" />}
+            >
+              Sync
+            </Button>
+          ) : null
+        }
+      >
         <AgGrid
           ref={gridRef}
           rowData={products}
