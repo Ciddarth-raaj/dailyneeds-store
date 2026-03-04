@@ -36,7 +36,7 @@ const productsChanges = {
 
   approve: (productsChangeId, isApproved) =>
     new Promise((resolve, reject) => {
-      API.patch(`/products-changes/${productsChangeId}/approve`, {
+      API.put(`/products-changes/${productsChangeId}/approve`, {
         is_approved: isApproved,
       })
         .then((res) => {
