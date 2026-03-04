@@ -24,9 +24,19 @@ function ProductChangesPage() {
       },
       {
         field: "product_id",
-        headerName: "Product ID",
+        headerName: "PID",
+        type: "id",
+      },
+      {
+        field: "product_image_url",
+        headerName: "Image",
+        type: "image",
+      },
+      {
+        field: "gf_item_name",
+        headerName: "Name",
         type: "capitalized",
-        flex: 1,
+        flex: 2,
       },
       {
         field: "is_approved",
