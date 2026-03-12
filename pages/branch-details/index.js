@@ -33,6 +33,8 @@ const HEADINGS = {
   outlet_id: "ID",
   outlet_name: "Name",
   outlet_nickname: "Nickname",
+  gofrugal_id: "GoFrugal ID",
+  outlet_code: "Outlet Code",
   action: "Action",
 };
 
@@ -81,34 +83,33 @@ class BranchDetail extends React.Component {
         resizable: true,
       },
       {
+        field: "gofrugal_id",
+        headerName: "GoFrugal ID",
+        hideByDefault: true,
+      },
+      {
+        field: "outlet_code",
+        headerName: "Outlet Code",
+        resizable: true,
+        hideByDefault: true,
+      },
+      {
         field: "outlet_id",
         headerName: "Action",
-        resizable: false,
-        maxWidth: 100,
-        filter: false,
-        cellRenderer: (props) => {
-          return (
-            <Flex justifyContent="center" alignItems="center" height={"100%"}>
-              <CustomMenu
-                items={[
-                  {
-                    label: "View",
-                    onClick: () =>
-                      this.props.router.push(
-                        `/branch-details/view?id=${props.data.outlet_id}`
-                      ),
-                  },
-                  {
-                    label: "Edit",
-                    onClick: () =>
-                      this.props.router.push(
-                        `/branch-details/Edit?id=${props.data.outlet_id}`
-                      ),
-                  },
-                ]}
-              />
-            </Flex>
-          );
+        type: "action-icons",
+        valueGetter: (props) => {
+          return [
+            {
+              label: "View",
+              iconType: "view",
+              redirectionUrl: `/branch-details/view?id=${props.data.outlet_id}`,
+            },
+            {
+              label: "Edit",
+              iconType: "edit",
+              redirectionUrl: `/branch-details/edit?id=${props.data.outlet_id}`,
+            },
+          ];
         },
       },
     ];
@@ -122,7 +123,9 @@ class BranchDetail extends React.Component {
               filledHeader
               rightSection={
                 <Link href="/branch-details/create" passHref>
-                  <Button colorScheme="purple" size="sm">Add</Button>
+                  <Button colorScheme="purple" size="sm">
+                    Add
+                  </Button>
                 </Link>
               }
             >

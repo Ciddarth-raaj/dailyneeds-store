@@ -152,6 +152,8 @@ export const BranchValidation = Yup.object({
     .max(12345678900, "Must be 10 characters or less")
     .required("Fill Contact Number"),
   outlet_address: Yup.string().nullable().required("Fill Address"),
+  gofrugal_id: Yup.string().nullable().optional(),
+  outlet_code: Yup.string().nullable().optional(),
 });
 export const CompanyDetailsValidation = Yup.object({
   company_name: Yup.string().nullable().required("Fill Company Name"),

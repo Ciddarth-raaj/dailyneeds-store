@@ -8,7 +8,7 @@ import styles from "./branchModal.module.css";
 import { BranchValidation } from "../../util/validation";
 import useDesignations from "../../customHooks/useDesignations";
 import { Button } from "@chakra-ui/button";
-import { Input } from "@chakra-ui/react";
+import { Grid, Input } from "@chakra-ui/react";
 import OutletHelper from "../../helper/outlets";
 import toast from "react-hot-toast";
 import { useRouter } from "next/router";
@@ -27,6 +27,8 @@ function BranchEditor() {
     phone: null,
     outlet_address: null,
     store_id: null,
+    gofrugal_id: null,
+    outlet_code: null,
     budget: [],
   });
 
@@ -103,6 +105,8 @@ function BranchEditor() {
         outlet_address: values.outlet_address,
         telegram_username: values.telegram_username,
         opening_cash: values.opening_cash,
+        gofrugal_id: values.gofrugal_id,
+        outlet_code: values.outlet_code,
       },
       budget: values.budget,
     };
@@ -135,6 +139,8 @@ function BranchEditor() {
         outlet_address: values.outlet_address,
         telegram_username: values.telegram_username,
         opening_cash: values.opening_cash,
+        gofrugal_id: values.gofrugal_id,
+        outlet_code: values.outlet_code,
       },
       budget: values.budget,
     };
@@ -230,7 +236,24 @@ function BranchEditor() {
                   editable={editable}
                 />
 
-                <CustomContainer title="Employee Count" smallHeader>
+                <CustomContainer title="Configuration IDs" smallHeader filledHeader style={{ marginBottom: "22px" }}>
+                  <Grid templateColumns="1fr 1fr 1fr">
+                    <CustomInput
+                      label="GoFrugal ID"
+                      name="gofrugal_id"
+                      type="text"
+                      editable={editable}
+                    />
+                    <CustomInput
+                      label="Outlet Code"
+                      name="outlet_code"
+                      type="text"
+                      editable={editable}
+                    />
+                  </Grid>
+                </CustomContainer>
+
+                <CustomContainer title="Employee Count" smallHeader toggleChildren defaultOpen={false} >
                   <div className={styles.contentHolder}>
                     {designations.map((m, i) => (
                       <div className={styles.inputHolder} key={i}>
