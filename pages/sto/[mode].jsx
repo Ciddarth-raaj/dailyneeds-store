@@ -1,4 +1,10 @@
-import React, { useMemo, useState, useCallback, useEffect } from "react";
+import React, {
+  useMemo,
+  useState,
+  useCallback,
+  useEffect,
+  useRef,
+} from "react";
 import { useRouter } from "next/router";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../components/CustomContainer";
@@ -47,30 +53,46 @@ const COLUMN_MAPPING_CONFIG = [
 ];
 
 /**
- * Build table rows from transfer(s) using file_qty from response as quantity.
+ * Build table rows from transfer(s): dbQuantity from items, quantity from file_items.
+ * Same row shape as create (handleMappedData) so upload and view/edit show identical values.
  */
 function buildRowsFromTransfers(transfers, products) {
   if (!Array.isArray(transfers) || transfers.length === 0) return [];
   const byArticleId = {};
   transfers.forEach((transfer) => {
     const toStore = transfer.Cust_Name ?? transfer.branch?.outlet_name ?? "-";
+    // dbQuantity from items (Item_Code, Item_qty)
     (transfer.items || []).forEach((item) => {
       const articleId = item.Item_Code;
       const dbQty = item.Item_qty != null ? Number(item.Item_qty) : 0;
-      const fileQty = item.file_qty != null ? Number(item.file_qty) : null;
       if (byArticleId[articleId]) {
-        byArticleId[articleId].quantity =
-          byArticleId[articleId].quantity != null && fileQty != null
-            ? byArticleId[articleId].quantity + fileQty
-            : byArticleId[articleId].quantity ?? fileQty;
         byArticleId[articleId].dbQuantity += dbQty;
       } else {
         byArticleId[articleId] = {
           articleId,
-          articleName: products[articleId]?.gf_item_name ?? item.Item_Name ?? "-",
+          articleName:
+            products[articleId]?.gf_item_name ?? item.Item_Name ?? "-",
+          toStore,
+          quantity: null,
+          dbQuantity: dbQty,
+        };
+      }
+    });
+    // quantity (file_qty) from file_items (product_id, file_qty)
+    (transfer.file_items || []).forEach((fi) => {
+      const articleId = fi.product_id;
+      const fileQty = fi.file_qty != null ? Number(fi.file_qty) : null;
+      if (byArticleId[articleId]) {
+        const prev = byArticleId[articleId].quantity;
+        byArticleId[articleId].quantity =
+          prev != null && fileQty != null ? prev + fileQty : prev ?? fileQty;
+      } else {
+        byArticleId[articleId] = {
+          articleId,
+          articleName: products[articleId]?.gf_item_name ?? "-",
           toStore,
           quantity: fileQty,
-          dbQuantity: dbQty,
+          dbQuantity: 0,
         };
       }
     });
@@ -88,6 +110,7 @@ function STOForm({ mode }) {
   const [dnRefNo, setDnRefNo] = useState(isCreate ? null : queryId ?? null);
   const [parsedRows, setParsedRows] = useState([]);
   const [submitting, setSubmitting] = useState(false);
+  const userHasClearedRef = useRef(false);
 
   const { transfers, loading: listLoading } = useStockTransfer();
   const { transfers: transfersByRef, loading: refLoading } =
@@ -111,6 +134,7 @@ function STOForm({ mode }) {
   const products = getMappedProducts();
 
   useEffect(() => {
+    if (userHasClearedRef.current) return;
     if (
       mergedTransfersForPrefill.length > 0 &&
       mergedTransfersForPrefill.some((t) => t.is_checked) &&
@@ -122,6 +146,10 @@ function STOForm({ mode }) {
       }
     }
   }, [mergedTransfersForPrefill, products]);
+
+  useEffect(() => {
+    userHasClearedRef.current = false;
+  }, [queryId, dnRefNo]);
 
   useEffect(() => {
     if (
@@ -182,7 +210,6 @@ function STOForm({ mode }) {
       {
         field: "difference",
         headerName: "Difference",
-        sort: "asc",
         flex: 1,
         valueGetter: (params) => {
           return params.data.dbQuantity - params.data.quantity;
@@ -207,59 +234,68 @@ function STOForm({ mode }) {
     []
   );
 
-  const getDbQuantity = (articleId) => {
-    const transferItem = selectedTransfer?.items?.filter(
-      (item) => item.Item_Code == articleId
-    );
+  const getDbQuantity = useCallback(
+    (articleId) => {
+      let total = 0;
+      (mergedTransfersForPrefill || []).forEach((t) => {
+        (t.items || []).forEach((item) => {
+          if (item.Item_Code == articleId) {
+            total += item.Item_qty != null ? Number(item.Item_qty) : 0;
+          }
+        });
+      });
+      return total === 0 ? null : total;
+    },
+    [mergedTransfersForPrefill]
+  );
 
-    const totalQuantity =
-      transferItem && transferItem.length > 0
-        ? transferItem.reduce((acc, item) => acc + parseInt(item.Item_qty), 0)
-        : null;
-
-    return totalQuantity;
-  };
-
-  const handleMappedData = (mappedRows) => {
-    const items =
-      mappedRows && mappedRows.length > 0
-        ? mappedRows
-            .filter((row) => row.quantity != 0)
-            .map((row) => {
-              const dbQuantity = getDbQuantity(row.articleId);
-
-              return {
+  const handleMappedData = useCallback(
+    (mappedRows) => {
+      const fromFile =
+        mappedRows && mappedRows.length > 0
+          ? mappedRows
+              .filter(
+                (row) => row.quantity != null && Number(row.quantity) !== 0
+              )
+              .map((row) => ({
                 articleId: row.articleId,
                 articleName:
                   products[row.articleId]?.gf_item_name ?? row.articleName,
                 toStore: row.toStore,
-                quantity: row.quantity,
-                dbQuantity,
-              };
-            })
-        : [];
+                quantity: row.quantity != null ? Number(row.quantity) : null,
+                dbQuantity: getDbQuantity(row.articleId),
+              }))
+          : [];
 
-    if (selectedTransfer?.items.length > items.length) {
-      const filteredItems = selectedTransfer?.items.filter(
-        (item) => !items.some((i) => i.articleId == item.Item_Code)
-      );
+      const fileArticleIds = new Set(fromFile.map((r) => String(r.articleId)));
+      const toStore =
+        mergedTransfersForPrefill?.[0]?.Cust_Name ??
+        mergedTransfersForPrefill?.[0]?.branch?.outlet_name ??
+        "-";
 
-      filteredItems.forEach((item) => {
-        items.push({
-          articleId: item.Item_Code,
-          articleName:
-            products[item.Item_Code]?.gf_item_name ?? item.articleName,
-          toStore: selectedTransfer?.Cust_Name,
-          quantity: null,
-          dbQuantity: getDbQuantity(item.Item_Code),
+      (mergedTransfersForPrefill || []).forEach((transfer) => {
+        (transfer.items || []).forEach((item) => {
+          const articleId = item.Item_Code;
+          if (fileArticleIds.has(String(articleId))) return;
+          fileArticleIds.add(String(articleId));
+          fromFile.push({
+            articleId,
+            articleName:
+              products[articleId]?.gf_item_name ?? item.Item_Name ?? "-",
+            toStore,
+            quantity: null,
+            dbQuantity: getDbQuantity(articleId),
+          });
         });
       });
-    }
 
-    setParsedRows(items);
-  };
+      setParsedRows(fromFile);
+    },
+    [mergedTransfersForPrefill, products, getDbQuantity]
+  );
 
   const handleClearItems = useCallback(() => {
+    userHasClearedRef.current = true;
     setParsedRows([]);
   }, []);
 
@@ -290,10 +326,9 @@ function STOForm({ mode }) {
 
   const refDisabled = isEdit || isView;
   const showFileUpload =
-    isCreate &&
     hasRefSelected &&
     !hasParsedData &&
-    !selectedTransfer?.is_checked;
+    (isCreate ? !selectedTransfer?.is_checked : isEdit);
   const showClearButton = (isCreate || isEdit) && hasParsedData;
   const showSubmitButton = isCreate || isEdit;
   const pageTitle =
@@ -310,6 +345,20 @@ function STOForm({ mode }) {
       return acc + (row[totalKey] != null ? Number(row[totalKey]) : 0);
     }, 0);
   };
+
+  const sortedParsedRows = useMemo(() => {
+    return [...parsedRows].sort((a, b) => {
+      const diffA =
+        a.quantity != null ? (a.dbQuantity ?? 0) - (a.quantity ?? 0) : null;
+      const diffB =
+        b.quantity != null ? (b.dbQuantity ?? 0) - (b.quantity ?? 0) : null;
+      const hasDiffA = diffA != null && Number(diffA) !== 0;
+      const hasDiffB = diffB != null && Number(diffB) !== 0;
+      if (hasDiffA && !hasDiffB) return -1;
+      if (!hasDiffA && hasDiffB) return 1;
+      return 0;
+    });
+  }, [parsedRows]);
 
   return (
     <GlobalWrapper
@@ -387,7 +436,7 @@ function STOForm({ mode }) {
                   }
                 >
                   <AgGrid
-                    rowData={parsedRows}
+                    rowData={sortedParsedRows}
                     columnDefs={colDefs}
                     tableKey={`sto-${mode}-items`}
                   />
