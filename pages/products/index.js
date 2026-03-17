@@ -52,6 +52,11 @@ function Products() {
       type: "id",
     },
     {
+      field: "image_url",
+      headerName: "Image",
+      type: "image",
+    },
+    {
       field: "gf_item_name",
       headerName: "Name",
       type: "capitalized",
