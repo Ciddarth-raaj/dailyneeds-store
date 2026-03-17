@@ -35,7 +35,9 @@ function computeRowFromTransfer(transfer) {
 function STOListing() {
   const canAdd = usePermissions("add_sto");
   const { confirmDelete, ConfirmDeleteDialog } = useConfirmDelete();
-  const { transfers, loading, refetch } = useStockTransfer({ is_checked: true });
+  const { transfers, loading, refetch } = useStockTransfer({
+    is_checked: true,
+  });
 
   const rowData = useMemo(() => {
     return (transfers || []).map(computeRowFromTransfer);
@@ -67,7 +69,10 @@ function STOListing() {
               iconType: "edit",
               redirectionUrl: `/sto/edit?id=${dnRefNo}`,
             },
-            {
+          ];
+
+          if (canAdd) {
+            actions.push({
               label: "Delete",
               iconType: "delete",
               colorScheme: "red",
@@ -81,13 +86,14 @@ function STOListing() {
                     refetch();
                   },
                 }),
-            },
-          ];
+            });
+          }
+
           return actions;
         },
       },
     ],
-    [confirmDelete, refetch]
+    [confirmDelete, refetch, canAdd]
   );
 
   return (
