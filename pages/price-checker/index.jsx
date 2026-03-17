@@ -206,15 +206,31 @@ function PriceChecker() {
     New_MRP: "New_MRP",
     Old_Selling_Price: "Old_Selling_Price",
     New_Selling_Price: "New_Selling_Price",
+    Margin: "Margin",
+    "Mark Up": "Mark Up",
   };
 
   const exportItems = (items, titleSuffix) => {
+    const sanitizeFileName = (name) =>
+      (name ?? "").replace(/[^a-zA-Z0-9]/g, "_"); // replaces all non-alphanumeric with _
+
     const allData = items.map((row) => {
       const product = mappedProducts[row.Item_Code];
+      // Strip special chars from name
+      const safeName =
+        typeof row.Item_Name === "string"
+          ? row.Item_Name.replace(/[^a-zA-Z0-9]/g, "_")
+          : row.Item_Name;
+
       const enrichedRow = {
         ...row,
+        Item_Name: safeName,
         de_distributor: product?.de_distributor || "",
         de_preparation_type: product?.de_preparation_type || "",
+        Margin: (100 - (row.Purchase_Price / row.Old_MRP) * 100).toFixed(2),
+        "Mark Up": (100 - (row.Old_Selling_Price / row.Old_MRP) * 100).toFixed(
+          2
+        ),
       };
 
       const orderedRow = {};
@@ -228,9 +244,11 @@ function PriceChecker() {
     exportCSVFile(
       TABLE_HEADER,
       allData,
-      `Price Checker${
-        titleSuffix ? " - " + titleSuffix : ""
-      } (${moment().format("DD-MM-YYYY")})`
+      sanitizeFileName(
+        `Price Checker${titleSuffix ? " " + titleSuffix : ""}${moment().format(
+          "DDMMYYYYHHmm"
+        )}`
+      )
     );
   };
 
