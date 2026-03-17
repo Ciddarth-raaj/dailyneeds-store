@@ -64,7 +64,7 @@ function PurchaseReturnForm() {
       MPR_ITEM_CODE: it.MPR_ITEM_CODE,
       imageUrl: it.product?.image_url ?? null,
       product_name:
-        it.product?.de_display_name ?? it.product?.gf_item_name ?? "-",
+        it.product?.gf_item_name ?? it.product?.de_display_name ?? "-",
       MPR_ITEM_QTY: it.MPR_ITEM_QTY,
       MPR_ITEM_AMOUNT: it.MPR_ITEM_AMOUNT,
       MPR_MRC_NO: it.MPR_MRC_NO,
@@ -73,13 +73,13 @@ function PurchaseReturnForm() {
 
   const itemsColDefs = useMemo(
     () => [
-      { field: "MPR_ITEM_CODE", headerName: "Item Code", type: "id" },
+      { field: "MPR_ITEM_CODE", headerName: "ID", type: "id" },
       {
         field: "imageUrl",
         headerName: "Image",
         type: "image",
       },
-      { field: "product_name", headerName: "Product" },
+      { field: "product_name", headerName: "Product", flex: 2 },
       { field: "MPR_ITEM_QTY", headerName: "Qty" },
       {
         field: "MPR_ITEM_AMOUNT",

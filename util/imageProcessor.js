@@ -67,16 +67,80 @@ export async function processImagesRemoveBackground(files, onProgress) {
 }
 
 /**
- * Compress image if it's larger than the specified size threshold
+ * Make a non-square image square by adding white padding on the sides.
+ * Applied to all images that are not square; no file size check.
+ * @param {File} file - The image file to process
+ * @returns {Promise<File>} - Square image file (same file if already square, else new file with white padding)
+ */
+export function makeImageSquare(file) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+
+    reader.onload = (e) => {
+      const img = new Image();
+
+      img.onload = () => {
+        const width = img.width;
+        const height = img.height;
+
+        if (width === height) {
+          resolve(file);
+          return;
+        }
+
+        const size = Math.max(width, height);
+        const canvas = document.createElement("canvas");
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext("2d");
+
+        ctx.fillStyle = "#FFFFFF";
+        ctx.fillRect(0, 0, size, size);
+
+        const x = (size - width) / 2;
+        const y = (size - height) / 2;
+        ctx.drawImage(img, x, y, width, height);
+
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              resolve(file);
+              return;
+            }
+            const fileName = file.name.replace(/\.[^/.]+$/, "") + ".jpg";
+            const squareFile = new File([blob], fileName, {
+              type: "image/jpeg",
+              lastModified: Date.now(),
+            });
+            resolve(squareFile);
+          },
+          "image/jpeg",
+          0.92
+        );
+      };
+
+      img.onerror = () => resolve(file);
+      img.src = e.target.result;
+    };
+
+    reader.onerror = () => resolve(file);
+    reader.readAsDataURL(file);
+  });
+}
+
+/**
+ * Compress image if it's larger than the specified size threshold.
+ * Non-square images are first made square (white padding) before size check.
  * @param {File} file - The image file to compress
  * @param {number} maxSizeBytes - Maximum file size in bytes before compression (default: 1MB)
  * @param {number} quality - JPEG quality (0-1, default: 0.8)
  * @returns {Promise<File>} - Compressed image file or original if already small or compression fails
  */
 export async function compressImageIfNeeded(file, maxSizeBytes = 1024 * 1024, quality = 0.8) {
-  // If file is already smaller than threshold, return as-is
-  if (file.size <= maxSizeBytes) {
-    return file;
+  let currentFile = await makeImageSquare(file);
+
+  if (currentFile.size <= maxSizeBytes) {
+    return currentFile;
   }
 
   try {
@@ -87,11 +151,9 @@ export async function compressImageIfNeeded(file, maxSizeBytes = 1024 * 1024, qu
         const img = new Image();
 
         img.onload = () => {
-          // Create canvas
           const canvas = document.createElement("canvas");
           const ctx = canvas.getContext("2d");
 
-          // Calculate new dimensions if needed (maintain aspect ratio, max width 1920px)
           let width = img.width;
           let height = img.height;
           const maxWidth = 1920;
@@ -104,28 +166,23 @@ export async function compressImageIfNeeded(file, maxSizeBytes = 1024 * 1024, qu
           canvas.width = width;
           canvas.height = height;
 
-          // Draw image on canvas
           ctx.drawImage(img, 0, 0, width, height);
 
-          // Convert to blob with compression
           canvas.toBlob(
             (blob) => {
               if (!blob) {
-                // If blob creation fails, return original file
-                resolve(file);
+                resolve(currentFile);
                 return;
               }
 
-              // Create new File from blob
-              const fileName = file.name.replace(/\.[^/.]+$/, "") + ".jpg";
+              const fileName = currentFile.name.replace(/\.[^/.]+$/, "") + ".jpg";
               const compressedFile = new File([blob], fileName, {
                 type: "image/jpeg",
                 lastModified: Date.now(),
               });
 
-              // If compressed file is still larger than original, return original
-              if (compressedFile.size >= file.size) {
-                resolve(file);
+              if (compressedFile.size >= currentFile.size) {
+                resolve(currentFile);
               } else {
                 resolve(compressedFile);
               }
@@ -135,25 +192,16 @@ export async function compressImageIfNeeded(file, maxSizeBytes = 1024 * 1024, qu
           );
         };
 
-        img.onerror = () => {
-          // If image load fails, return original file
-          resolve(file);
-        };
-
+        img.onerror = () => resolve(currentFile);
         img.src = e.target.result;
       };
 
-      reader.onerror = () => {
-        // If file read fails, return original file
-        resolve(file);
-      };
-
-      reader.readAsDataURL(file);
+      reader.onerror = () => resolve(currentFile);
+      reader.readAsDataURL(currentFile);
     });
   } catch (error) {
     console.error("Error compressing image:", error);
-    // If compression fails, return original file
-    return file;
+    return currentFile;
   }
 }
 
