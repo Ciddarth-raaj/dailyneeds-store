@@ -173,5 +173,7 @@ export const PERMISSIONS = {
   Miscellaneous: {
     all_stores: "Access All Stores",
     allow_product_sync: "Allow Product Sync",
+    view_sto: "View STO Comparison",
+    add_sto: "Add STO Comparison",
   },
 };

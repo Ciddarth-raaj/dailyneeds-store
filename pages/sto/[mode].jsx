@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useCallback } from "react";
+import React, { useMemo, useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/router";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../components/CustomContainer";
@@ -6,6 +6,7 @@ import { Box, Button, Flex, Text, Grid } from "@chakra-ui/react";
 import CustomInput from "../../components/customInput/customInput";
 import AgGrid from "../../components/AgGrid";
 import useStockTransfer from "../../customHooks/useStockTransfer";
+import useStockTransferByRefId from "../../customHooks/useStockTransferByRefId";
 import currencyFormatter from "../../util/currencyFormatter";
 import FileUploaderWithColumnMapping from "../../components/FileUploaderWithColumnMapping";
 import toast from "react-hot-toast";
@@ -43,18 +44,55 @@ const COLUMN_MAPPING_CONFIG = [
   },
 ];
 
-function STOCreateForm() {
+/**
+ * Build table rows from transfer(s) using file_qty from response as quantity.
+ */
+function buildRowsFromTransfers(transfers, products) {
+  if (!Array.isArray(transfers) || transfers.length === 0) return [];
+  const rows = [];
+  transfers.forEach((transfer) => {
+    const toStore = transfer.Cust_Name ?? transfer.branch?.outlet_name ?? "-";
+    (transfer.items || []).forEach((item) => {
+      const articleId = item.Item_Code;
+      const dbQty = item.Item_qty != null ? Number(item.Item_qty) : 0;
+      rows.push({
+        articleId,
+        articleName: products[articleId]?.gf_item_name ?? item.Item_Name ?? "-",
+        toStore,
+        quantity: item.file_qty != null ? Number(item.file_qty) : null,
+        dbQuantity: dbQty,
+      });
+    });
+  });
+  return rows;
+}
+
+function STOForm({ mode }) {
   const router = useRouter();
-  const [dnRefNo, setDnRefNo] = useState(null);
+  const { id: queryId } = router.query;
+  const isCreate = mode === "create";
+  const isEdit = mode === "edit";
+  const isView = mode === "view";
+
+  const [dnRefNo, setDnRefNo] = useState(isCreate ? null : queryId ?? null);
   const [parsedRows, setParsedRows] = useState([]);
   const [submitting, setSubmitting] = useState(false);
 
   const { transfers, loading: listLoading } = useStockTransfer();
-  const selectedTransfer = useMemo(() => {
-    return transfers?.find((t) => t.Dn_Ref_no == dnRefNo);
-  }, [transfers, dnRefNo]);
+  const { transfers: transfersByRef, loading: refLoading } = useStockTransferByRefId(
+    isEdit || isView ? queryId : null
+  );
 
-  console.log("CIDD", selectedTransfer);
+  const selectedTransfer = useMemo(() => {
+    if (isCreate) return transfers?.find((t) => t.Dn_Ref_no == dnRefNo);
+    if (transfersByRef?.length) return transfersByRef[0];
+    return null;
+  }, [isCreate, transfers, transfersByRef, dnRefNo]);
+
+  const mergedTransfersForPrefill = useMemo(() => {
+    if (isCreate && selectedTransfer) return [selectedTransfer];
+    return transfersByRef || [];
+  }, [isCreate, selectedTransfer, transfersByRef]);
 
   const { getMappedProducts, loading: productsLoading } = useProducts({
     limit: 50000,
@@ -62,13 +100,33 @@ function STOCreateForm() {
   });
   const products = getMappedProducts();
 
+  useEffect(() => {
+    if (
+      mergedTransfersForPrefill.length > 0 &&
+      mergedTransfersForPrefill.some((t) => t.is_checked) &&
+      products
+    ) {
+      const rows = buildRowsFromTransfers(mergedTransfersForPrefill, products);
+      if (rows.length > 0) {
+        setParsedRows((prev) => (prev.length === 0 ? rows : prev));
+      }
+    }
+  }, [mergedTransfersForPrefill, products]);
+
+  useEffect(() => {
+    if ((isEdit || isView) && queryId != null && queryId !== "" && dnRefNo !== queryId) {
+      setDnRefNo(queryId);
+    }
+  }, [isEdit, isView, queryId, dnRefNo]);
+
   const transferOptions = useMemo(() => {
-    return (transfers || []).map((t) => ({
+    const list = isCreate ? transfers : transfersByRef;
+    return (list || []).map((t) => ({
       id: t.Dn_Ref_no,
       value: String(t.Dn_Ref_no),
       ...t,
     }));
-  }, [transfers]);
+  }, [isCreate, transfers, transfersByRef]);
 
   const stoCustomRenderer = useCallback(
     (option) => (
@@ -202,10 +260,31 @@ function STOCreateForm() {
     router.push("/sto");
   }, [router]);
 
+  const refDisabled = isEdit || isView;
+  const showFileUpload =
+    isCreate &&
+    hasRefSelected &&
+    !hasParsedData &&
+    !selectedTransfer?.is_checked;
+  const showClearButton = (isCreate || isEdit) && hasParsedData;
+  const showSubmitButton = isCreate || isEdit;
+  const pageTitle =
+    mode === "view"
+      ? "View STO"
+      : mode === "edit"
+      ? "Edit STO"
+      : "Create STO";
+  const loading =
+    listLoading ||
+    productsLoading ||
+    ((isEdit || isView) && refLoading && !transfersByRef?.length);
+
+  const permissionKey = isView ? "view_sto" : "add_sto";
+
   return (
-    <GlobalWrapper title="Stock Transfer Out - Create">
-      <CustomContainer title="Create STO" filledHeader>
-        {listLoading || productsLoading ? (
+    <GlobalWrapper title={`Stock Transfer Out - ${pageTitle}`} permissionKey={permissionKey}>
+      <CustomContainer title={pageTitle} filledHeader>
+        {loading ? (
           <Flex py={4} justify="center">
             <Text>Loading...</Text>
           </Flex>
@@ -216,17 +295,19 @@ function STOCreateForm() {
                 label="DN Ref No"
                 value={dnRefNo}
                 onChange={(value) => {
-                  setDnRefNo(value);
-                  setParsedRows([]);
+                  if (!refDisabled) {
+                    setDnRefNo(value);
+                    setParsedRows([]);
+                  }
                 }}
                 method="searchable-dropdown"
                 values={transferOptions}
                 placeholder="Select ref no"
                 customRenderer={stoCustomRenderer}
-                editable={!listLoading}
+                editable={!listLoading && !refDisabled}
               />
 
-              {hasRefSelected && !hasParsedData && (
+              {showFileUpload && (
                 <Box>
                   <Text fontSize="sm" fontWeight={500} mb={2} color="gray.700">
                     Upload file (CSV or XLSX) and map columns
@@ -246,20 +327,22 @@ function STOCreateForm() {
                   filledHeader
                   size="xs"
                   rightSection={
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      colorScheme="red"
-                      onClick={handleClearItems}
-                    >
-                      Clear
-                    </Button>
+                    showClearButton ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        colorScheme="red"
+                        onClick={handleClearItems}
+                      >
+                        Clear
+                      </Button>
+                    ) : null
                   }
                 >
                   <AgGrid
                     rowData={parsedRows}
                     columnDefs={colDefs}
-                    tableKey="sto-create-items"
+                    tableKey={`sto-${mode}-items`}
                   />
                 </CustomContainer>
               )}
@@ -267,18 +350,20 @@ function STOCreateForm() {
 
             <Flex gap={2} mt={4} justify="flex-end">
               <Button size="sm" variant="outline" onClick={handleCancel}>
-                Cancel
+                {isView ? "Back to list" : "Cancel"}
               </Button>
-              <Button
-                size="sm"
-                colorScheme="purple"
-                onClick={handleSubmit}
-                isDisabled={!hasRefSelected || !hasParsedData}
-                isLoading={submitting}
-                loadingText="Saving..."
-              >
-                Submit
-              </Button>
+              {showSubmitButton && (
+                <Button
+                  size="sm"
+                  colorScheme="purple"
+                  onClick={handleSubmit}
+                  isDisabled={!hasRefSelected || !hasParsedData}
+                  isLoading={submitting}
+                  loadingText="Saving..."
+                >
+                  Submit
+                </Button>
+              )}
             </Flex>
           </>
         )}
@@ -287,15 +372,17 @@ function STOCreateForm() {
   );
 }
 
+const VALID_MODES = ["create", "view", "edit"];
+
 function STOModePage() {
   const router = useRouter();
   const { mode } = router.query;
 
-  if (router.isReady && mode != null && mode !== "create") {
+  if (router.isReady && mode != null && !VALID_MODES.includes(mode)) {
     return (
-      <GlobalWrapper title="Stock Transfer Out">
+      <GlobalWrapper title="Stock Transfer Out" permissionKey="view_sto">
         <CustomContainer title="Invalid mode" filledHeader>
-          <Text py={4}>Only create mode is available.</Text>
+          <Text py={4}>Mode must be create, view, or edit.</Text>
           <Button
             size="sm"
             colorScheme="purple"
@@ -308,12 +395,12 @@ function STOModePage() {
     );
   }
 
-  if (mode != null && mode === "create") {
-    return <STOCreateForm />;
+  if (mode != null && VALID_MODES.includes(mode)) {
+    return <STOForm mode={mode} />;
   }
 
   return (
-    <GlobalWrapper title="Stock Transfer Out">
+    <GlobalWrapper title="Stock Transfer Out" permissionKey="view_sto">
       <CustomContainer title="Loading..." filledHeader>
         <Flex py={4} justify="center">
           <Text>Loading...</Text>

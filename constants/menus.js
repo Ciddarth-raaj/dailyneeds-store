@@ -630,6 +630,12 @@ export default {
     openPage: false,
     icon: "fa-book",
     subMenu: {
+      sto_comparison: {
+        title: "STO Comparison",
+        permission: "view_sto",
+        selected: false,
+        location: "/sto",
+      },
       price_checker: {
         title: "Price Checker",
         permission: "view_price_checker",

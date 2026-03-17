@@ -5,6 +5,7 @@ import { Button, Text } from "@chakra-ui/react";
 import Link from "next/link";
 import AgGrid from "../../components/AgGrid";
 import useStockTransfer from "../../customHooks/useStockTransfer";
+import usePermissions from "../../customHooks/usePermissions";
 
 function computeRowFromTransfer(transfer) {
   const items = transfer.items || [];
@@ -29,6 +30,7 @@ function computeRowFromTransfer(transfer) {
 }
 
 function STOListing() {
+  const canAdd = usePermissions("add_sto");
   const { transfers, loading } = useStockTransfer({ is_checked: true });
 
   const rowData = useMemo(() => {
@@ -69,16 +71,18 @@ function STOListing() {
   );
 
   return (
-    <GlobalWrapper title="Stock Transfer Out">
+    <GlobalWrapper title="Stock Transfer Out" permissionKey="view_sto">
       <CustomContainer
         title="Stock Transfer Out"
         filledHeader
         rightSection={
-          <Link href="/sto/create" passHref>
-            <Button colorScheme="purple" size="sm" as="a">
-              Create
-            </Button>
-          </Link>
+          canAdd ? (
+            <Link href="/sto/create" passHref>
+              <Button colorScheme="purple" size="sm" as="a">
+                Create
+              </Button>
+            </Link>
+          ) : null
         }
       >
         {loading ? (
