@@ -596,6 +596,12 @@ export default {
         selected: false,
         location: "/sto",
       },
+      offers: {
+        title: "Offers",
+        permission: "view_product_offers",
+        selected: false,
+        location: "/product-offers",
+      },
       price_checker: {
         title: "Price Checker",
         permission: "view_price_checker",

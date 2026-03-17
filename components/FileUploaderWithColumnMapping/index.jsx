@@ -44,6 +44,7 @@ function coerceValue(raw, type) {
  * - config: [{ key, label, required, suggestedKey, type: "number"|"string"|"date" }]
  * - onMappedData(mappedRows) called with array of objects keyed by config keys
  * - skipHeaders: number of rows to skip before reading headers (default: 0)
+ * - renderer: optional (openFileBrowser) => element; call openFileBrowser to open the file dialog (e.g. Button with onClick={openFileBrowser})
  */
 export default function FileUploaderWithColumnMapping({
   config,
@@ -51,6 +52,7 @@ export default function FileUploaderWithColumnMapping({
   accept = ".xlsx,.xls,.csv",
   maxFiles = 1,
   skipHeaders = 0,
+  renderer,
   ...rest
 }) {
   const { isOpen, onOpen, onClose } = useDisclosure();
@@ -90,7 +92,7 @@ export default function FileUploaderWithColumnMapping({
     [config, onOpen, skipHeaders]
   );
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+  const { getRootProps, getInputProps, open, isDragActive } = useDropzone({
     onDrop,
     accept,
     maxFiles,
@@ -125,8 +127,26 @@ export default function FileUploaderWithColumnMapping({
     setColumnMapping({});
   }, [config, columnMapping, fileRows, onMappedData, onClose]);
 
-  return (
-    <>
+  const triggerElement =
+    typeof renderer === "function" ? (
+      <>
+        <Box
+          as="span"
+          sx={{
+            position: "absolute",
+            width: 0,
+            height: 0,
+            overflow: "hidden",
+            opacity: 0,
+            pointerEvents: "none",
+          }}
+          aria-hidden
+        >
+          <input {...getInputProps()} />
+        </Box>
+        {renderer(open)}
+      </>
+    ) : (
       <Box
         {...getRootProps()}
         p={6}
@@ -146,6 +166,11 @@ export default function FileUploaderWithColumnMapping({
             : "Drop an XLSX or CSV file here, or click to select"}
         </Text>
       </Box>
+    );
+
+  return (
+    <>
+      {triggerElement}
 
       <Modal isOpen={isOpen} onClose={onClose} size="md" isCentered>
         <ModalOverlay />
