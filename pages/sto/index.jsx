@@ -47,6 +47,7 @@ function STOListing() {
     () => [
       { field: "dn_no", headerName: "DN No" },
       { field: "dn_ref_no", headerName: "DN Ref No" },
+      { field: "_raw.Cust_Name", headerName: "To Branch" },
       { field: "total_items", headerName: "Total Items" },
       { field: "total_file_items", headerName: "Total File Items" },
       { field: "missing_items", headerName: "Missing Items" },
