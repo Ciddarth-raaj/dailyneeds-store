@@ -51,22 +51,31 @@ const COLUMN_MAPPING_CONFIG = [
  */
 function buildRowsFromTransfers(transfers, products) {
   if (!Array.isArray(transfers) || transfers.length === 0) return [];
-  const rows = [];
+  const byArticleId = {};
   transfers.forEach((transfer) => {
     const toStore = transfer.Cust_Name ?? transfer.branch?.outlet_name ?? "-";
     (transfer.items || []).forEach((item) => {
       const articleId = item.Item_Code;
       const dbQty = item.Item_qty != null ? Number(item.Item_qty) : 0;
-      rows.push({
-        articleId,
-        articleName: products[articleId]?.gf_item_name ?? item.Item_Name ?? "-",
-        toStore,
-        quantity: item.file_qty != null ? Number(item.file_qty) : null,
-        dbQuantity: dbQty,
-      });
+      const fileQty = item.file_qty != null ? Number(item.file_qty) : null;
+      if (byArticleId[articleId]) {
+        byArticleId[articleId].quantity =
+          byArticleId[articleId].quantity != null && fileQty != null
+            ? byArticleId[articleId].quantity + fileQty
+            : byArticleId[articleId].quantity ?? fileQty;
+        byArticleId[articleId].dbQuantity += dbQty;
+      } else {
+        byArticleId[articleId] = {
+          articleId,
+          articleName: products[articleId]?.gf_item_name ?? item.Item_Name ?? "-",
+          toStore,
+          quantity: fileQty,
+          dbQuantity: dbQty,
+        };
+      }
     });
   });
-  return rows;
+  return Object.values(byArticleId);
 }
 
 function STOForm({ mode }) {
