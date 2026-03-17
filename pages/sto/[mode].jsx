@@ -12,6 +12,8 @@ import FileUploaderWithColumnMapping from "../../components/FileUploaderWithColu
 import toast from "react-hot-toast";
 import { useProducts } from "../../customHooks/useProducts";
 import stoCheck from "../../helper/stoCheck";
+import Badge from "../../components/Badge";
+import moment from "moment";
 
 const COLUMN_MAPPING_CONFIG = [
   {
@@ -139,10 +141,15 @@ function STOForm({ mode }) {
           <Text fontSize="sm" fontWeight={500} noOfLines={1}>
             {option.Dn_Ref_no ?? option.value}
           </Text>
+
           <Text fontSize="xs" color="gray.500">
             {option.Cust_Name} | {currencyFormatter(option.Dn_Amt)} |{" "}
             <Text as="span" color="purple.500">
               {option.Tot_Items} item{option.Tot_Items > 1 ? "s" : ""}
+            </Text>
+            {" | "}
+            <Text as="span" color="orange.500">
+              {moment(option.Dn_Date).format("DD/MM/YYYY")}
             </Text>
           </Text>
         </Flex>
@@ -289,6 +296,12 @@ function STOForm({ mode }) {
 
   const permissionKey = isView ? "view_sto" : "add_sto";
 
+  const getTotals = (totalKey) => {
+    return parsedRows.reduce((acc, row) => {
+      return acc + (row[totalKey] != null ? Number(row[totalKey]) : 0);
+    }, 0);
+  };
+
   return (
     <GlobalWrapper
       title={`Stock Transfer Out - ${pageTitle}`}
@@ -338,16 +351,30 @@ function STOForm({ mode }) {
                   filledHeader
                   size="xs"
                   rightSection={
-                    showClearButton ? (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        colorScheme="red"
-                        onClick={handleClearItems}
-                      >
-                        Clear
-                      </Button>
-                    ) : null
+                    <Flex gap={2} align="center">
+                      <Badge colorScheme="orange">
+                        File Qty : {getTotals("quantity")}
+                      </Badge>
+                      <Badge colorScheme="orange">
+                        DB Qty : {getTotals("dbQuantity")}
+                      </Badge>
+
+                      <Badge colorScheme="orange">
+                        Difference :{" "}
+                        {getTotals("quantity") - getTotals("dbQuantity")}
+                      </Badge>
+
+                      {showClearButton ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          colorScheme="red"
+                          onClick={handleClearItems}
+                        >
+                          Clear
+                        </Button>
+                      ) : null}
+                    </Flex>
                   }
                 >
                   <AgGrid
