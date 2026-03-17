@@ -56,7 +56,7 @@ const COLUMN_MAPPING_CONFIG = [
  * Build table rows from transfer(s): dbQuantity from items, quantity from file_items.
  * Same row shape as create (handleMappedData) so upload and view/edit show identical values.
  */
-function buildRowsFromTransfers(transfers, products) {
+function buildRowsFromTransfers(transfers) {
   if (!Array.isArray(transfers) || transfers.length === 0) return [];
 
   const byArticleId = {};
@@ -71,8 +71,7 @@ function buildRowsFromTransfers(transfers, products) {
       } else {
         byArticleId[articleId] = {
           articleId,
-          articleName:
-            products[articleId]?.gf_item_name ?? item.Item_Name ?? "-",
+          articleName: item.Item_Name ?? "-",
           toStore,
           quantity: null,
           dbQuantity: dbQty,
@@ -91,7 +90,7 @@ function buildRowsFromTransfers(transfers, products) {
       } else {
         byArticleId[articleId] = {
           articleId,
-          articleName: products[articleId]?.gf_item_name ?? "-",
+          articleName: fi?.gf_item_name ?? "-",
           toStore,
           quantity: fileQty,
           dbQuantity: null,
@@ -142,13 +141,13 @@ function STOForm({ mode }) {
 
   useEffect(() => {
     if (userHasClearedRef.current) return;
-    if (mergedTransfersForPrefill.length > 0 && products) {
-      const rows = buildRowsFromTransfers(mergedTransfersForPrefill, products);
+    if (mergedTransfersForPrefill.length > 0) {
+      const rows = buildRowsFromTransfers(mergedTransfersForPrefill);
       if (rows.length > 0) {
         setParsedRows((prev) => (prev.length === 0 ? [...rows] : prev));
       }
     }
-  }, [mergedTransfersForPrefill, JSON.stringify(products)]);
+  }, [mergedTransfersForPrefill]);
 
   useEffect(() => {
     userHasClearedRef.current = false;
