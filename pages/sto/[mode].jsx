@@ -79,9 +79,8 @@ function STOForm({ mode }) {
   const [submitting, setSubmitting] = useState(false);
 
   const { transfers, loading: listLoading } = useStockTransfer();
-  const { transfers: transfersByRef, loading: refLoading } = useStockTransferByRefId(
-    isEdit || isView ? queryId : null
-  );
+  const { transfers: transfersByRef, loading: refLoading } =
+    useStockTransferByRefId(isEdit || isView ? queryId : null);
 
   const selectedTransfer = useMemo(() => {
     if (isCreate) return transfers?.find((t) => t.Dn_Ref_no == dnRefNo);
@@ -114,7 +113,12 @@ function STOForm({ mode }) {
   }, [mergedTransfersForPrefill, products]);
 
   useEffect(() => {
-    if ((isEdit || isView) && queryId != null && queryId !== "" && dnRefNo !== queryId) {
+    if (
+      (isEdit || isView) &&
+      queryId != null &&
+      queryId !== "" &&
+      dnRefNo !== queryId
+    ) {
       setDnRefNo(queryId);
     }
   }, [isEdit, isView, queryId, dnRefNo]);
@@ -149,7 +153,12 @@ function STOForm({ mode }) {
 
   const colDefs = useMemo(
     () => [
-      { field: "articleId", headerName: "Article Id", flex: 1 },
+      {
+        field: "articleId",
+        headerName: "Article Id",
+        flex: 1,
+        valueGetter: (params) => Number(params.data.articleId),
+      },
       { field: "articleName", headerName: "Article Name", flex: 2 },
       { field: "toStore", headerName: "To Store", flex: 1 },
       { field: "quantity", headerName: "File Quantity", flex: 1 },
@@ -157,6 +166,7 @@ function STOForm({ mode }) {
       {
         field: "difference",
         headerName: "Difference",
+        sort: "asc",
         flex: 1,
         valueGetter: (params) => {
           return params.data.dbQuantity - params.data.quantity;
@@ -189,7 +199,7 @@ function STOForm({ mode }) {
     const totalQuantity =
       transferItem && transferItem.length > 0
         ? transferItem.reduce((acc, item) => acc + parseInt(item.Item_qty), 0)
-        : 0;
+        : null;
 
     return totalQuantity;
   };
@@ -197,18 +207,20 @@ function STOForm({ mode }) {
   const handleMappedData = (mappedRows) => {
     const items =
       mappedRows && mappedRows.length > 0
-        ? mappedRows.map((row) => {
-            const dbQuantity = getDbQuantity(row.articleId);
+        ? mappedRows
+            .filter((row) => row.quantity != 0)
+            .map((row) => {
+              const dbQuantity = getDbQuantity(row.articleId);
 
-            return {
-              articleId: row.articleId,
-              articleName:
-                products[row.articleId]?.gf_item_name ?? row.articleName,
-              toStore: row.toStore,
-              quantity: row.quantity,
-              dbQuantity,
-            };
-          })
+              return {
+                articleId: row.articleId,
+                articleName:
+                  products[row.articleId]?.gf_item_name ?? row.articleName,
+                toStore: row.toStore,
+                quantity: row.quantity,
+                dbQuantity,
+              };
+            })
         : [];
 
     if (selectedTransfer?.items.length > items.length) {
@@ -269,11 +281,7 @@ function STOForm({ mode }) {
   const showClearButton = (isCreate || isEdit) && hasParsedData;
   const showSubmitButton = isCreate || isEdit;
   const pageTitle =
-    mode === "view"
-      ? "View STO"
-      : mode === "edit"
-      ? "Edit STO"
-      : "Create STO";
+    mode === "view" ? "View STO" : mode === "edit" ? "Edit STO" : "Create STO";
   const loading =
     listLoading ||
     productsLoading ||
@@ -282,7 +290,10 @@ function STOForm({ mode }) {
   const permissionKey = isView ? "view_sto" : "add_sto";
 
   return (
-    <GlobalWrapper title={`Stock Transfer Out - ${pageTitle}`} permissionKey={permissionKey}>
+    <GlobalWrapper
+      title={`Stock Transfer Out - ${pageTitle}`}
+      permissionKey={permissionKey}
+    >
       <CustomContainer title={pageTitle} filledHeader>
         {loading ? (
           <Flex py={4} justify="center">
