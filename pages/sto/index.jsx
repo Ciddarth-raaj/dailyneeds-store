@@ -6,6 +6,9 @@ import Link from "next/link";
 import AgGrid from "../../components/AgGrid";
 import useStockTransfer from "../../customHooks/useStockTransfer";
 import usePermissions from "../../customHooks/usePermissions";
+import { useConfirmDelete } from "../../customHooks/useConfirmDelete";
+import toast from "react-hot-toast";
+import stoCheck from "../../helper/stoCheck";
 
 function computeRowFromTransfer(transfer) {
   const items = transfer.items || [];
@@ -31,7 +34,8 @@ function computeRowFromTransfer(transfer) {
 
 function STOListing() {
   const canAdd = usePermissions("add_sto");
-  const { transfers, loading } = useStockTransfer({ is_checked: true });
+  const { confirmDelete, ConfirmDeleteDialog } = useConfirmDelete();
+  const { transfers, loading, refetch } = useStockTransfer({ is_checked: true });
 
   const rowData = useMemo(() => {
     return (transfers || []).map(computeRowFromTransfer);
@@ -52,7 +56,7 @@ function STOListing() {
           const row = params.data;
           if (!row) return [];
           const dnRefNo = row.dn_ref_no;
-          return [
+          const actions = [
             {
               label: "View",
               iconType: "view",
@@ -63,15 +67,32 @@ function STOListing() {
               iconType: "edit",
               redirectionUrl: `/sto/edit?id=${dnRefNo}`,
             },
+            {
+              label: "Delete",
+              iconType: "delete",
+              colorScheme: "red",
+              onClick: () =>
+                confirmDelete({
+                  title: "Delete STO check",
+                  message: `Are you sure you want to delete STO check for ref ${dnRefNo}?`,
+                  onConfirm: async () => {
+                    await stoCheck.deleteByRef(dnRefNo);
+                    toast.success("STO check deleted");
+                    refetch();
+                  },
+                }),
+            },
           ];
+          return actions;
         },
       },
     ],
-    []
+    [confirmDelete, refetch]
   );
 
   return (
     <GlobalWrapper title="Stock Transfer Out" permissionKey="view_sto">
+      <ConfirmDeleteDialog />
       <CustomContainer
         title="Stock Transfer Out"
         filledHeader
