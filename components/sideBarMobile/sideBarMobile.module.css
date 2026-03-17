@@ -123,6 +123,29 @@
     color: black;
   }
 
+  .subMenuGroup {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 10px;
+  }
+
+  .subMenuGroupTitle {
+    font-weight: 600;
+    color: rgb(87, 87, 87);
+    margin-bottom: 6px;
+  }
+
+  .nestedSubMenuWrapper {
+    margin-left: 12px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .nestedSubMenuWrapper p::before {
+    content: "-";
+    margin-right: 5px;
+  }
+
   .sideBarOptions {
     display: flex;
     flex-direction: column;

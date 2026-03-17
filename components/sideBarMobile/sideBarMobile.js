@@ -53,12 +53,19 @@ export default class SideBarMobile extends React.Component {
         <div className={styles.sideBarOptions}>
           {Object.keys(menu).map((key) => {
             const subMenu = menu[key].subMenu || {};
-            const permittedSubKeys = Object.keys(subMenu).filter(
-              (sKey) =>
-                filteredData?.find(
-                  (item) => item.permission_key == subMenu[sKey].permission
-                ) !== undefined
-            );
+            const hasPermission = (permission) =>
+              filteredData?.find(
+                (item) => item.permission_key == permission
+              ) !== undefined;
+            const permittedSubKeys = Object.keys(subMenu).filter((sKey) => {
+              const item = subMenu[sKey];
+              if (item.subMenu) {
+                return Object.keys(item.subMenu).some((ssKey) =>
+                  hasPermission(item.subMenu[ssKey].permission)
+                );
+              }
+              return hasPermission(item.permission);
+            });
 
             const isDirectMenu = Boolean(menu[key].isDirect);
             const hasDirectPermission =
@@ -110,19 +117,56 @@ export default class SideBarMobile extends React.Component {
                   menu[key].subMenu != undefined &&
                   permittedSubKeys.length > 0 && (
                     <div className={styles.subMenuWrapper}>
-                      {permittedSubKeys.map((sKey) => (
-                        <Link
-                          key={sKey}
-                          href={
-                            menu[key].subMenu[sKey].location == undefined
-                              ? ""
-                              : menu[key].subMenu[sKey].location
-                          }
-                          passHref
-                        >
-                          <p>{menu[key].subMenu[sKey].title}</p>
-                        </Link>
-                      ))}
+                      {permittedSubKeys.map((sKey) => {
+                        const item = menu[key].subMenu[sKey];
+                        if (item.subMenu) {
+                          const permittedNested = Object.keys(
+                            item.subMenu
+                          ).filter((ssKey) =>
+                            hasPermission(item.subMenu[ssKey].permission)
+                          );
+                          if (permittedNested.length === 0) return null;
+                          return (
+                            <div
+                              key={sKey}
+                              className={styles.subMenuGroup}
+                            >
+                              <p className={styles.subMenuGroupTitle}>
+                                {item.title}
+                              </p>
+                              <div className={styles.nestedSubMenuWrapper}>
+                                {permittedNested.map((ssKey) => {
+                                  const nested = item.subMenu[ssKey];
+                                  return (
+                                    <Link
+                                      key={ssKey}
+                                      href={
+                                        nested.location == null
+                                          ? ""
+                                          : nested.location
+                                      }
+                                      passHref
+                                    >
+                                      <p>{nested.title}</p>
+                                    </Link>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        }
+                        return (
+                          <Link
+                            key={sKey}
+                            href={
+                              item.location == null ? "" : item.location
+                            }
+                            passHref
+                          >
+                            <p>{item.title}</p>
+                          </Link>
+                        );
+                      })}
                     </div>
                   )}
               </div>

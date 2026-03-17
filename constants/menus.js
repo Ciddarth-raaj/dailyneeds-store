@@ -584,46 +584,6 @@ export default {
   //     // },
   //   },
   // },
-  stock_checker: {
-    title: "Stock Checker",
-    selected: false,
-    openPage: false,
-    icon: "fa-clipboard-list",
-    subMenu: {
-      view_stock_checker: {
-        title: "View All",
-        permission: "view_stock_checker",
-        selected: false,
-        location: "/stock-checker",
-      },
-      view_assigned_products: {
-        title: "Assigned Products",
-        permission: "view_assigned_products",
-        selected: false,
-        location: "/stock-checker/assigned-products",
-      },
-    },
-  },
-  expiry_checker: {
-    title: "Expiry Checker",
-    selected: false,
-    openPage: false,
-    icon: "fa-calendar-check",
-    subMenu: {
-      view_expiry_checker: {
-        title: "View All",
-        permission: "view_expiry_checker",
-        selected: false,
-        location: "/products/expiry-checker",
-      },
-      view_expiry_assigned_products: {
-        title: "Assigned Products",
-        permission: "view_expiry_assigned_products",
-        selected: false,
-        location: "/products/expiry-checker/assigned-products",
-      },
-    },
-  },
   misc: {
     title: "Miscellaneous",
     selected: false,
@@ -642,6 +602,40 @@ export default {
         selected: false,
         location: "/price-checker",
       },
+      stock_checker: {
+        title: "Stock Checker",
+        subMenu: {
+          view_stock_checker: {
+            title: "View All",
+            permission: "view_stock_checker",
+            selected: false,
+            location: "/stock-checker",
+          },
+          view_assigned_products: {
+            title: "Assigned Products",
+            permission: "view_assigned_products",
+            selected: false,
+            location: "/stock-checker/assigned-products",
+          },
+        }
+      },
+      expiry_checker: {
+        title: "Expiry Checker",
+        subMenu: {
+          view_expiry_checker: {
+            title: "View All",
+            permission: "view_expiry_checker",
+            selected: false,
+            location: "/products/expiry-checker",
+          },
+          view_expiry_assigned_products: {
+            title: "Assigned Products",
+            permission: "view_expiry_assigned_products",
+            selected: false,
+            location: "/products/expiry-checker/assigned-products",
+          },
+        }
+      }
     },
   },
 };

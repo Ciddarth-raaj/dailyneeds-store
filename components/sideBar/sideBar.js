@@ -56,13 +56,24 @@ export default function Sidebar() {
         return;
       }
 
-      // Check submenu routes
+      // Check submenu routes (one level and nested subMenu)
       if (updatedMenu[key].subMenu) {
         Object.keys(updatedMenu[key].subMenu).forEach((sKey) => {
-          if (updatedMenu[key].subMenu[sKey].location === router.asPath) {
+          const subItem = updatedMenu[key].subMenu[sKey];
+          if (subItem.location === router.asPath) {
             updatedMenu[key].selected = true;
-            updatedMenu[key].subMenu[sKey].selected = true;
-            updatedMenu[key].isOpen = true; // Open the menu if submenu route matches
+            if (subItem.selected !== undefined) subItem.selected = true;
+            updatedMenu[key].isOpen = true;
+          }
+          if (subItem.subMenu) {
+            Object.keys(subItem.subMenu).forEach((ssKey) => {
+              if (subItem.subMenu[ssKey].location === router.asPath) {
+                updatedMenu[key].selected = true;
+                if (subItem.subMenu[ssKey].selected !== undefined)
+                  subItem.subMenu[ssKey].selected = true;
+                updatedMenu[key].isOpen = true;
+              }
+            });
           }
         });
       }
@@ -141,21 +152,27 @@ export default function Sidebar() {
       </div>
 
       <div
-        className={`${styles.container} ${
-          !isMobile && isMinimized ? styles.minimized : ""
-        }`}
+        className={`${styles.container} ${!isMobile && isMinimized ? styles.minimized : ""
+          }`}
         style={{ display: isMobile ? (isOpen ? "block" : "none") : "block" }}
       >
         <Box className={styles.sideBarOptions}>
           {Object.keys(menu).map((key, index) => {
-            // Compute permitted sub menu items for this main menu
+            // Compute permitted sub menu items (one level or nested subMenu)
             const subMenu = menu[key].subMenu || {};
-            const permittedSubKeys = Object.keys(subMenu).filter(
-              (sKey) =>
-                filteredData?.find(
-                  (item) => item.permission_key == subMenu[sKey].permission
-                ) !== undefined
-            );
+            const hasPermission = (permission) =>
+              filteredData?.find(
+                (item) => item.permission_key == permission
+              ) !== undefined;
+            const permittedSubKeys = Object.keys(subMenu).filter((sKey) => {
+              const item = subMenu[sKey];
+              if (item.subMenu) {
+                return Object.keys(item.subMenu).some((ssKey) =>
+                  hasPermission(item.subMenu[ssKey].permission)
+                );
+              }
+              return hasPermission(item.permission);
+            });
 
             const isDirectMenu = Boolean(menu[key].isDirect);
             const hasDirectPermission =
@@ -182,24 +199,21 @@ export default function Sidebar() {
                 <Box className={styles.menuWrapper}>
                   <Box
                     as="a"
-                    className={`${styles.optionHolder} ${
-                      menu[key].selected ? styles.selectedMenu : ""
-                    } ${menu[key].isOpen ? styles.openMenu : ""}`}
+                    className={`${styles.optionHolder} ${menu[key].selected ? styles.selectedMenu : ""
+                      } ${menu[key].isOpen ? styles.openMenu : ""}`}
                     onClick={() => handleMainMenuClick(key, isDirectMenu)}
                   >
                     <Box className={styles.iconWrapper}>
                       <i
-                        className={`fa ${menu[key].icon} ${
-                          menu[key].selected
+                        className={`fa ${menu[key].icon} ${menu[key].selected
                             ? styles["icons-selected"]
                             : styles.iconsUnselected
-                        }`}
+                          }`}
                       />
                     </Box>
                     <span
-                      className={`${styles.menuTitle} ${
-                        isMinimized && !isMobile ? styles.hoverTitle : ""
-                      }`}
+                      className={`${styles.menuTitle} ${isMinimized && !isMobile ? styles.hoverTitle : ""
+                        }`}
                     >
                       {menu[key].title}
                     </span>
@@ -209,27 +223,88 @@ export default function Sidebar() {
                     menu[key].subMenu &&
                     permittedSubKeys.length > 0 && (
                       <div
-                        className={`${styles.subMenuWrapper} ${
-                          isMinimized && !isMobile ? styles.hoverSubMenu : ""
-                        }`}
+                        className={`${styles.subMenuWrapper} ${isMinimized && !isMobile ? styles.hoverSubMenu : ""
+                          }`}
                       >
                         {permittedSubKeys.map((sKey) => {
+                          const item = menu[key].subMenu[sKey];
+                          if (item.subMenu) {
+                            const permittedNested = Object.keys(
+                              item.subMenu
+                            ).filter((ssKey) =>
+                              hasPermission(item.subMenu[ssKey].permission)
+                            );
+                            if (permittedNested.length === 0) return null;
+                            return (
+                              <div
+                                key={sKey}
+                                className={styles.subMenuGroup}
+                              >
+                                <Text
+                                  className={styles.subMenuGroupTitle}
+                                  fontSize="xs"
+                                  fontWeight="600"
+                                  color="gray.600"
+                                  mb={1}
+                                >
+                                  {item.title}
+                                </Text>
+                                <div
+                                  className={
+                                    styles.nestedSubMenuWrapper
+                                  }
+                                >
+                                  {permittedNested.map((ssKey) => {
+                                    const nestedItem =
+                                      item.subMenu[ssKey];
+                                    const isActive =
+                                      router.asPath ===
+                                      nestedItem.location;
+                                    return (
+                                      <Link
+                                        key={ssKey}
+                                        href={
+                                          nestedItem.location || ""
+                                        }
+                                        passHref
+                                      >
+                                        <Box
+                                          as="a"
+                                          className={`${styles.subMenuItem} ${isActive
+                                              ? styles.active
+                                              : ""
+                                            }`}
+                                        >
+                                          <Text
+                                            className={
+                                              styles.menuText
+                                            }
+                                          >
+                                            {nestedItem.title}
+                                          </Text>
+                                        </Box>
+                                      </Link>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            );
+                          }
                           const isActive =
-                            router.asPath === menu[key].subMenu[sKey].location;
+                            router.asPath === item.location;
                           return (
                             <Link
                               key={sKey}
-                              href={menu[key].subMenu[sKey].location || ""}
+                              href={item.location || ""}
                               passHref
                             >
                               <Box
                                 as="a"
-                                className={`${styles.subMenuItem} ${
-                                  isActive ? styles.active : ""
-                                }`}
+                                className={`${styles.subMenuItem} ${isActive ? styles.active : ""
+                                  }`}
                               >
                                 <Text className={styles.menuText}>
-                                  {menu[key].subMenu[sKey].title}
+                                  {item.title}
                                 </Text>
                               </Box>
                             </Link>
@@ -254,9 +329,8 @@ export default function Sidebar() {
             title={isMinimized ? "Expand sidebar" : "Minimize sidebar"}
           >
             <i
-              className={`fa ${
-                isMinimized ? "fa-chevron-right" : "fa-chevron-left"
-              }`}
+              className={`fa ${isMinimized ? "fa-chevron-right" : "fa-chevron-left"
+                }`}
             />
           </Box>
         )}
