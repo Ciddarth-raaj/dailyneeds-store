@@ -100,11 +100,13 @@ export function useProducts(options = {}) {
   }, [products]);
 
   const getMappedProducts = useCallback(() => {
-    return products.map((p) => ({
-      id: p.product_id,
-      value: p.product_id,
-      ...p,
-    }));
+    const mappedProducts = {}
+
+    products.forEach((p) => {
+      mappedProducts[p.product_id] = p;
+    });
+
+    return mappedProducts;
   }, [products]);
 
   return {
