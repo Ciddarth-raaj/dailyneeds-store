@@ -58,13 +58,14 @@ const COLUMN_MAPPING_CONFIG = [
  */
 function buildRowsFromTransfers(transfers, products) {
   if (!Array.isArray(transfers) || transfers.length === 0) return [];
+
   const byArticleId = {};
   transfers.forEach((transfer) => {
     const toStore = transfer.Cust_Name ?? transfer.branch?.outlet_name ?? "-";
     // dbQuantity from items (Item_Code, Item_qty)
     (transfer.items || []).forEach((item) => {
       const articleId = item.Item_Code;
-      const dbQty = item.Item_qty != null ? Number(item.Item_qty) : 0;
+      const dbQty = item.Item_qty != null ? Number(item.Item_qty) : null;
       if (byArticleId[articleId]) {
         byArticleId[articleId].dbQuantity += dbQty;
       } else {
@@ -78,6 +79,7 @@ function buildRowsFromTransfers(transfers, products) {
         };
       }
     });
+
     // quantity (file_qty) from file_items (product_id, file_qty)
     (transfer.file_items || []).forEach((fi) => {
       const articleId = fi.product_id;
@@ -92,11 +94,12 @@ function buildRowsFromTransfers(transfers, products) {
           articleName: products[articleId]?.gf_item_name ?? "-",
           toStore,
           quantity: fileQty,
-          dbQuantity: 0,
+          dbQuantity: null,
         };
       }
     });
   });
+
   return Object.values(byArticleId);
 }
 
@@ -127,7 +130,11 @@ function STOForm({ mode }) {
     return transfersByRef || [];
   }, [isCreate, selectedTransfer, transfersByRef]);
 
-  const { getMappedProducts, loading: productsLoading } = useProducts({
+  const {
+    products: productsList,
+    getMappedProducts,
+    loading: productsLoading,
+  } = useProducts({
     limit: 50000,
     fetchAll: true,
   });
@@ -135,17 +142,13 @@ function STOForm({ mode }) {
 
   useEffect(() => {
     if (userHasClearedRef.current) return;
-    if (
-      mergedTransfersForPrefill.length > 0 &&
-      mergedTransfersForPrefill.some((t) => t.is_checked) &&
-      products
-    ) {
+    if (mergedTransfersForPrefill.length > 0 && products) {
       const rows = buildRowsFromTransfers(mergedTransfersForPrefill, products);
       if (rows.length > 0) {
-        setParsedRows((prev) => (prev.length === 0 ? rows : prev));
+        setParsedRows((prev) => (prev.length === 0 ? [...rows] : prev));
       }
     }
-  }, [mergedTransfersForPrefill, products]);
+  }, [mergedTransfersForPrefill, JSON.stringify(products)]);
 
   useEffect(() => {
     userHasClearedRef.current = false;
@@ -199,8 +202,8 @@ function STOForm({ mode }) {
     () => [
       {
         field: "articleId",
-        headerName: "Article Id",
-        flex: 1,
+        headerName: "ID",
+        type: "id",
         valueGetter: (params) => Number(params.data.articleId),
       },
       { field: "articleName", headerName: "Article Name", flex: 2 },
@@ -215,10 +218,6 @@ function STOForm({ mode }) {
           return params.data.dbQuantity - params.data.quantity;
         },
         cellRenderer: (params) => {
-          if (!params.data.quantity) {
-            return <Text color="gray">N/A</Text>;
-          }
-
           if (params.value == 0) {
             return "-";
           }
@@ -348,12 +347,11 @@ function STOForm({ mode }) {
 
   const sortedParsedRows = useMemo(() => {
     return [...parsedRows].sort((a, b) => {
-      const diffA =
-        a.quantity != null ? (a.dbQuantity ?? 0) - (a.quantity ?? 0) : null;
-      const diffB =
-        b.quantity != null ? (b.dbQuantity ?? 0) - (b.quantity ?? 0) : null;
+      const diffA = (a.dbQuantity ?? 0) - (a.quantity ?? 0);
+      const diffB = (b.dbQuantity ?? 0) - (b.quantity ?? 0);
       const hasDiffA = diffA != null && Number(diffA) !== 0;
       const hasDiffB = diffB != null && Number(diffB) !== 0;
+
       if (hasDiffA && !hasDiffB) return -1;
       if (!hasDiffA && hasDiffB) return 1;
       return 0;
