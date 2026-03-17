@@ -99,11 +99,20 @@ export function useProducts(options = {}) {
     return products.sort((a, b) => a.product_id - b.product_id);
   }, [products]);
 
+  const getMappedProducts = useCallback(() => {
+    return products.map((p) => ({
+      id: p.product_id,
+      value: p.product_id,
+      ...p,
+    }));
+  }, [products]);
+
   return {
     products: sortedProducts,
     setProducts,
     loading,
     error,
     refetch: fetchProducts,
+    getMappedProducts: getMappedProducts
   };
 }

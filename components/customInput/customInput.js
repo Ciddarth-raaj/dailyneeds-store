@@ -1,5 +1,5 @@
-import React, { Fragment, forwardRef, useCallback } from "react";
-import { ErrorMessage, useField, useFormikContext } from "formik";
+import React, { Fragment, forwardRef, useCallback, useContext, useMemo, useState } from "react";
+import { ErrorMessage, useField, useFormikContext, FormikContext } from "formik";
 import {
   Input,
   Textarea,
@@ -61,7 +61,12 @@ export const CustomDateTimeInput = forwardRef(
 );
 CustomDateTimeInput.displayName = "CustomDateTimeInput";
 
-const TextField = ({
+/**
+ * Shared body: receives field and setFieldValue (from Formik or standalone state).
+ */
+const TextFieldBody = ({
+  field,
+  setFieldValue,
   label,
   values,
   children,
@@ -82,10 +87,9 @@ const TextField = ({
   ignoreMarginBottom = false,
   customRenderer,
   renderSelected,
+  showErrors = true,
   ...props
 }) => {
-  const { setFieldValue } = useFormikContext();
-  const [field] = useField(props);
   let start = 1950;
   let end = new Date().getFullYear();
   let endexpiry = 2050;
@@ -262,11 +266,13 @@ const TextField = ({
                       {label}
                     </label>
 
-                    <ErrorMessage
-                      component="div"
-                      name={field.name}
-                      className={styles.errorMessage}
-                    />
+                    {showErrors && (
+                      <ErrorMessage
+                        component="div"
+                        name={field.name}
+                        className={styles.errorMessage}
+                      />
+                    )}
                   </Flex>
                 )}
                 {(() => {
@@ -344,11 +350,13 @@ const TextField = ({
                           {values?.map((m) => (
                             <Fragment key={m.id}>
                               <option value={m.id}>{m.value}</option>
-                              <ErrorMessage
-                                component="div"
-                                name={field.name}
-                                className={styles.errorMessage}
-                              />
+                              {showErrors && (
+                                <ErrorMessage
+                                  component="div"
+                                  name={field.name}
+                                  className={styles.errorMessage}
+                                />
+                              )}
                             </Fragment>
                           ))}
                         </Select>
@@ -393,9 +401,11 @@ const TextField = ({
                 })()}
                 {floatingLabel && <FormLabel>{label}</FormLabel>}
               </div>
-              <FormErrorMessage>
-                <ErrorMessage name={field.name} />
-              </FormErrorMessage>
+              {showErrors && (
+                <FormErrorMessage>
+                  <ErrorMessage name={field.name} />
+                </FormErrorMessage>
+              )}
             </FormControl>
           )}
           {(() => {
@@ -464,7 +474,7 @@ const TextField = ({
                         setFieldValue(field.name, moment(val).format("YYYY-MM-DD"));
                       }}
                     />
-                    {selected === "" && (
+                    {showErrors && selected === "" && (
                       <ErrorMessage
                         component="div"
                         name={field.name}
@@ -494,7 +504,7 @@ const TextField = ({
                       }}
                       customInput={<CustomDateTimeInput />}
                     />
-                    {selected === "" && (
+                    {showErrors && selected === "" && (
                       <ErrorMessage
                         component="div"
                         name={field.name}
@@ -522,7 +532,7 @@ const TextField = ({
                         setFieldValue(field.name, moment(val).format("YYYY-MM-DD"));
                       }}
                     />
-                    {selected === "" && (
+                    {showErrors && selected === "" && (
                       <ErrorMessage
                         component="div"
                         name={field.name}
@@ -725,6 +735,91 @@ const TextField = ({
     </div>
   );
 };
+
+/** Uses Formik context; requires name and Formik provider. */
+const TextFieldWithFormik = (props) => {
+  const { setFieldValue } = useFormikContext();
+  const [field] = useField(props);
+  return (
+    <TextFieldBody
+      field={field}
+      setFieldValue={setFieldValue}
+      showErrors={true}
+      {...props}
+    />
+  );
+};
+
+/** Works without Formik: uses value/onChange from props or internal state. */
+const TextFieldStandalone = (props) => {
+  const {
+    value: valueProp,
+    onChange: onChangeProp,
+    defaultValue,
+    name: nameProp,
+    ...rest
+  } = props;
+  const [internalValue, setInternalValue] = useState(
+    valueProp !== undefined ? valueProp : defaultValue ?? ""
+  );
+  const value =
+    valueProp !== undefined ? valueProp : internalValue;
+  const setValue = useCallback(
+    (v) => {
+      if (valueProp === undefined) setInternalValue(v);
+      onChangeProp?.(v);
+    },
+    [valueProp, onChangeProp]
+  );
+  const field = useMemo(
+    () => ({
+      name: nameProp || "_standalone",
+      value,
+      onChange: (e) => {
+        const v =
+          e?.target?.value !== undefined ? e.target.value : e;
+        setValue(v);
+      },
+      onBlur: () => {},
+    }),
+    [value, setValue, nameProp]
+  );
+  const setFieldValue = useCallback((_, v) => setValue(v), [setValue]);
+  const handleChange = useCallback(
+    (v) => {
+      setValue(v);
+      onChangeProp?.(v);
+    },
+    [setValue, onChangeProp]
+  );
+  return (
+    <TextFieldBody
+      field={field}
+      setFieldValue={setFieldValue}
+      showErrors={false}
+      {...rest}
+      value={value}
+      onChange={handleChange}
+      name={nameProp}
+      defaultValue={defaultValue}
+    />
+  );
+};
+
+/**
+ * CustomInput: works with or without Formik.
+ * - With Formik + name: uses useField/useFormikContext.
+ * - Without Formik or without name: uses value/onChange (or internal state).
+ */
+function CustomInput(props) {
+  const formik = useContext(FormikContext);
+  const hasFormik = formik != null && props.name != null && props.name !== "";
+  if (hasFormik) {
+    return <TextFieldWithFormik {...props} />;
+  }
+  return <TextFieldStandalone {...props} />;
+}
+
 /**
  * Standalone input (no Formik). Use for inline editing with value/onChange.
  * Supports: text, number, and method="switch" (dropdown).
@@ -836,4 +931,4 @@ export function CustomInputStandalone({
   );
 }
 
-export default TextField;
+export default CustomInput;
