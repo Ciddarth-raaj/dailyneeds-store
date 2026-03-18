@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useCallback } from "react";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../components/CustomContainer";
 import { Button, Text, Box, useDisclosure } from "@chakra-ui/react";
@@ -68,6 +68,21 @@ function ProductOffersListing() {
     });
   }, [previewRows, productsMap]);
 
+  const handleToggleActive = useCallback(
+    async (row) => {
+      try {
+        await productOffers.update(row.product_id, {
+          is_active: !row.is_active,
+        });
+        toast.success(row.is_active ? "Offer deactivated" : "Offer activated");
+        refetch();
+      } catch (err) {
+        toast.error(err?.message ?? "Update failed");
+      }
+    },
+    [refetch]
+  );
+
   const previewColDefs = useMemo(
     () => [
       { field: "product_id", headerName: "ID", type: "id" },
@@ -88,7 +103,16 @@ function ProductOffersListing() {
       {
         field: "is_active",
         headerName: "Active",
-        valueGetter: (params) => (params.data?.is_active ? "Yes" : "No"),
+        type: "badge-column",
+        valueGetter: (params) =>
+          params.data?.is_active
+            ? { label: "Yes", colorScheme: "green" }
+            : { label: "No", colorScheme: "red" },
+      },
+      {
+        field: "created_at",
+        headerName: "Created At",
+        type: "datetime",
       },
       {
         field: "actions",
@@ -111,6 +135,14 @@ function ProductOffersListing() {
             },
           ];
           if (canAdd) {
+            actions.unshift({
+              label: !row.is_active ? "Make Inactive" : "Make Active",
+              icon: !row.is_active
+                ? "fa-solid fa-toggle-off"
+                : "fa-solid fa-toggle-on",
+              colorScheme: !row.is_active ? "red" : "green",
+              onClick: () => handleToggleActive(row),
+            });
             actions.push({
               label: "Delete",
               iconType: "delete",
@@ -133,7 +165,7 @@ function ProductOffersListing() {
         },
       },
     ],
-    [confirmDelete, refetch, canAdd]
+    [confirmDelete, refetch, canAdd, handleToggleActive]
   );
 
   const handleImportMappedData = (mappedRows) => {

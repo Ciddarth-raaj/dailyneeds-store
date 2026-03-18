@@ -218,6 +218,7 @@ const AgGrid = React.forwardRef(function AgGrid(
             params.value ? moment(params.value).format("DD/MM/YYYY") : "-",
         },
         datetime: {
+          minWidth: 180,
           cellRenderer: (params) =>
             params.value
               ? moment(params.value).format("DD/MM/YYYY • hh:mm A")
