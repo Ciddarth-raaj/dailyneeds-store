@@ -79,11 +79,16 @@ const AgGrid = React.forwardRef(function AgGrid(
     defaultRows = 20,
     className,
     tableKey,
+    selectMode = false,
+    onSelectionChanged,
+    getRowId,
     ...props
   },
   ref
 ) {
   const gridRef = React.useRef(null);
+  const onSelectionChangedRef = React.useRef(onSelectionChanged);
+  onSelectionChangedRef.current = onSelectionChanged;
   const combinedRef = React.useCallback(
     (el) => {
       gridRef.current = el;
@@ -99,6 +104,12 @@ const AgGrid = React.forwardRef(function AgGrid(
   React.useEffect(() => {
     if (isOpen) setHasDrawerMounted(true);
   }, [isOpen]);
+
+  React.useEffect(() => {
+    if (!selectMode && gridRef.current?.api) {
+      gridRef.current.api.deselectAll();
+    }
+  }, [selectMode]);
 
   const rawColDefs = React.useMemo(
     () => columnDefs ?? colDefs ?? [],
@@ -475,6 +486,18 @@ const AgGrid = React.forwardRef(function AgGrid(
         ref={combinedRef}
         rowData={rowData}
         columnDefs={resolvedColumnDefs}
+        getRowId={getRowId}
+        rowSelection={
+          selectMode ? { mode: "multiRow", selectAll: "filtered" } : undefined
+        }
+        onSelectionChanged={
+          selectMode && onSelectionChangedRef.current
+            ? (e) => {
+                if (e.api)
+                  onSelectionChangedRef.current(e.api.getSelectedRows());
+              }
+            : undefined
+        }
         gridOptions={{
           ...mergedGridOptions,
           ...gridOptionsProp,

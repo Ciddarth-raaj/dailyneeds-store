@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useCallback } from "react";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../components/CustomContainer";
-import { Button, Text, Box, useDisclosure } from "@chakra-ui/react";
+import { Button, Text, Box, useDisclosure, Flex } from "@chakra-ui/react";
 import Link from "next/link";
 import AgGrid from "../../components/AgGrid";
 import CustomModal from "../../components/CustomModal";
@@ -50,6 +50,9 @@ function ProductOffersListing() {
   } = useDisclosure();
   const [previewRows, setPreviewRows] = useState([]);
   const [confirming, setConfirming] = useState(false);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedRows, setSelectedRows] = useState([]);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   const previewTableRows = useMemo(() => {
     if (!previewRows.length) return [];
@@ -195,6 +198,30 @@ function ProductOffersListing() {
     setPreviewRows([]);
   };
 
+  const handleBulkDelete = useCallback(async () => {
+    if (!selectedRows?.length) return;
+    setBulkDeleting(true);
+    try {
+      const ids = selectedRows
+        .map((r) => r.product_id)
+        .filter((id) => id != null);
+      await productOffers.bulkDelete(ids);
+      toast.success(`Deleted ${ids.length} offer(s)`);
+      setSelectMode(false);
+      setSelectedRows([]);
+      refetch();
+    } catch (err) {
+      toast.error(err?.message ?? "Bulk delete failed");
+    } finally {
+      setBulkDeleting(false);
+    }
+  }, [selectedRows, refetch]);
+
+  const handleCancelSelectMode = useCallback(() => {
+    setSelectMode(false);
+    setSelectedRows([]);
+  }, []);
+
   return (
     <GlobalWrapper title="Product Offers" permissionKey="view_product_offers">
       <ConfirmDeleteDialog />
@@ -233,11 +260,61 @@ function ProductOffersListing() {
             Loading...
           </Text>
         ) : (
-          <AgGrid
-            rowData={offers}
-            columnDefs={colDefs}
-            tableKey="product-offers-list"
-          />
+          <>
+            <Flex
+              gap={3}
+              align="center"
+              mb={3}
+              p={3}
+              bg="purple.50"
+              borderRadius="md"
+              borderWidth="1px"
+              borderColor="purple.100"
+              justify="flex-end"
+            >
+              {selectMode ? (
+                <>
+                  <Button
+                    size="sm"
+                    colorScheme="red"
+                    onClick={handleBulkDelete}
+                    isLoading={bulkDeleting}
+                    loadingText="Deleting..."
+                    isDisabled={!selectedRows?.length}
+                  >
+                    Delete Selected ({selectedRows?.length ?? 0})
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    colorScheme="purple"
+                    onClick={handleCancelSelectMode}
+                  >
+                    Cancel
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  colorScheme="purple"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSelectMode(true)}
+                >
+                  Select
+                </Button>
+              )}
+            </Flex>
+            <AgGrid
+              rowData={offers}
+              columnDefs={colDefs}
+              tableKey="product-offers-list"
+              selectMode={selectMode}
+              onSelectionChanged={setSelectedRows}
+              getRowId={(params) =>
+                String(params.data?.product_id ?? params.data?.id ?? "")
+              }
+            />
+          </>
         )}
       </CustomContainer>
 
