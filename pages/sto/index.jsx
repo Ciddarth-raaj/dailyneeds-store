@@ -10,24 +10,54 @@ import { useConfirmDelete } from "../../customHooks/useConfirmDelete";
 import toast from "react-hot-toast";
 import stoCheck from "../../helper/stoCheck";
 
+/**
+ * Same aggregation as buildRowsFromTransfers in [mode].jsx: per-article dbQuantity from items,
+ * quantity from file_items. Difference = dbQuantity - quantity; "has difference" when !== 0.
+ */
 function computeRowFromTransfer(transfer) {
-  const items = transfer.items || [];
+  const byArticleId = {};
+
+  (transfer.items || []).forEach((item) => {
+    const articleId = item.Item_Code;
+    const dbQty = item.Item_qty != null ? Number(item.Item_qty) : null;
+    if (byArticleId[articleId]) {
+      byArticleId[articleId].dbQuantity += dbQty;
+    } else {
+      byArticleId[articleId] = { articleId, quantity: null, dbQuantity: dbQty };
+    }
+  });
+
+  (transfer.file_items || []).forEach((fi) => {
+    const articleId = fi.product_id;
+    const fileQty = fi.file_qty != null ? Number(fi.file_qty) : null;
+    if (byArticleId[articleId]) {
+      const prev = byArticleId[articleId].quantity;
+      byArticleId[articleId].quantity =
+        prev != null && fileQty != null ? prev + fileQty : prev ?? fileQty;
+    } else {
+      byArticleId[articleId] = {
+        articleId,
+        quantity: fileQty,
+        dbQuantity: null,
+      };
+    }
+  });
+
+  const rows = Object.values(byArticleId);
   const totalItems =
-    transfer.Tot_Items != null ? Number(transfer.Tot_Items) : items.length;
-  const totalFileItems = items.filter((item) => item.file_qty != null).length;
-  const missingItems = items.filter((item) => {
-    const qty = item.Item_qty != null ? Number(item.Item_qty) : 0;
-    const fileQty = item.file_qty != null ? Number(item.file_qty) : null;
-    if (fileQty === null) return qty !== 0;
-    return Number(fileQty) !== Number(qty);
-  }).length;
+    transfer.Tot_Items != null ? Number(transfer.Tot_Items) : rows.length;
+  const totalFileItems = (transfer.file_items || []).length;
+  const missingItems = rows.filter((row) => {
+    const diff = (row.dbQuantity ?? 0) - (row.quantity ?? 0);
+    return diff !== 0;
+  });
 
   return {
     dn_no: transfer.Dn_no,
     dn_ref_no: transfer.Dn_Ref_no,
     total_items: totalItems,
     total_file_items: totalFileItems,
-    missing_items: missingItems,
+    missing_items: missingItems.length,
     _raw: transfer,
   };
 }
@@ -48,8 +78,8 @@ function STOListing() {
       { field: "dn_no", headerName: "DN No" },
       { field: "dn_ref_no", headerName: "DN Ref No" },
       { field: "_raw.Cust_Name", headerName: "To Branch" },
+      { field: "_raw.DN_date", headerName: "DN Date", type: "date" },
       { field: "total_items", headerName: "Total Items" },
-      { field: "total_file_items", headerName: "Total File Items" },
       { field: "missing_items", headerName: "Missing Items" },
       {
         field: "actions",

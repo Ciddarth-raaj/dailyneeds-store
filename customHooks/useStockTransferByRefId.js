@@ -20,7 +20,6 @@ function useStockTransferByRefId(dnRefNo) {
     try {
       setLoading(true);
       const data = await stockTransferOut.getStockTransferByRefId(dnRefNo);
-      console.log("CIDD", data);
       setTransfers(Array.isArray(data) ? data : []);
     } catch (err) {
       toast.error(err?.message ?? "Error fetching stock transfers by ref");
