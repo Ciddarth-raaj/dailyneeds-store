@@ -173,8 +173,8 @@ function STOForm({ mode }) {
     }));
   }, [isCreate, transfers, transfersByRef]);
 
-  const stoCustomRenderer = useCallback(
-    (option) => (
+  const stoCustomRenderer = useCallback((option) => {
+    return (
       <Flex align="center" gap={3} py={1}>
         <Flex direction="column" minW={0} flex={1}>
           <Text fontSize="sm" fontWeight={500} noOfLines={1}>
@@ -188,14 +188,13 @@ function STOForm({ mode }) {
             </Text>
             {" | "}
             <Text as="span" color="orange.500">
-              {moment(option.Dn_Date).format("DD/MM/YYYY")}
+              {moment(option.DN_date).format("DD/MM/YYYY")}
             </Text>
           </Text>
         </Flex>
       </Flex>
-    ),
-    []
-  );
+    );
+  }, []);
 
   const colDefs = useMemo(
     () => [
@@ -369,22 +368,37 @@ function STOForm({ mode }) {
           </Flex>
         ) : (
           <>
-            <Grid templateColumns={{ base: "1fr", md: "1fr" }} gap={4}>
-              <CustomInput
-                label="DN Ref No"
-                value={dnRefNo}
-                onChange={(value) => {
-                  if (!refDisabled) {
-                    setDnRefNo(value);
-                    setParsedRows([]);
-                  }
-                }}
-                method="searchable-dropdown"
-                values={transferOptions}
-                placeholder="Select ref no"
-                customRenderer={stoCustomRenderer}
-                editable={!listLoading && !refDisabled}
-              />
+            <Grid templateColumns="1fr" gap={4}>
+              <Grid templateColumns={{ base: "1fr", md: "1fr 1fr" }} gap={4}>
+                <CustomInput
+                  label="DN Ref No"
+                  value={dnRefNo}
+                  onChange={(value) => {
+                    if (!refDisabled) {
+                      setDnRefNo(value);
+                      setParsedRows([]);
+                    }
+                  }}
+                  method="searchable-dropdown"
+                  values={transferOptions}
+                  placeholder="Select ref no"
+                  customRenderer={stoCustomRenderer}
+                  editable={!listLoading && !refDisabled}
+                />
+                {!isCreate && (
+                  <CustomInput
+                    label="DN Date"
+                    value={
+                      selectedTransfer?.DN_date
+                        ? moment(selectedTransfer.DN_date).format("DD/MM/YYYY")
+                        : ""
+                    }
+                    method="datepicker"
+                    type="date"
+                    editable={false}
+                  />
+                )}
+              </Grid>
 
               {showFileUpload && (
                 <Box>
