@@ -18,6 +18,7 @@ export function useProducts(options = {}) {
     filter = null,
     enabled = true,
     fetchAll = false,
+    fetchNonOnline = false,
   } = options;
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -51,7 +52,7 @@ export function useProducts(options = {}) {
                 currentOffset
               );
             } else {
-              data = await product.getProduct(limit, currentOffset);
+              data = await product.getProduct(limit, currentOffset, fetchNonOnline);
             }
 
             if (Array.isArray(data) && data.length > 0) {

@@ -84,7 +84,11 @@ function mapLineItemsToPriceCheckerRows(items, mappedProducts) {
 }
 
 function PriceChecker() {
-  const { products } = useProducts({ limit: 10000, fetchAll: true });
+  const { products } = useProducts({
+    limit: 50000,
+    fetchAll: true,
+    fetchNonOnline: true,
+  });
   const [file, setFile] = useState(null);
   const [incorrectSellingPrices, setIncorrectSellingPrices] = useState([]);
   const [tabIndex, setTabIndex] = useState(0);
@@ -174,7 +178,10 @@ function PriceChecker() {
       let itemData = groupedByItem[itemCode];
       itemData = {
         ...itemData,
-        Item_Name: mappedProducts[itemData.Item_Code]?.gf_item_name || "",
+        Item_Name:
+          mappedProducts[itemData.Item_Code]?.gf_item_name ||
+          mappedProducts[itemData.Item_Code]?.de_display_name ||
+          "",
         de_distributor:
           mappedProducts[itemData.Item_Code]?.de_distributor || "",
         de_preparation_type:

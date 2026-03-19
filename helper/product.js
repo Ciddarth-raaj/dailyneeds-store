@@ -38,9 +38,9 @@ const product = {
     }),
 
   // Get products with pagination
-  getProduct: (limit, offset) =>
+  getProduct: (limit, offset, fetchNonOnline = false) =>
     new Promise(function (resolve, reject) {
-      API.get(`/product?limit=${limit}&offset=${offset}`)
+      API.get(`/product?limit=${limit}&offset=${offset}&fetchAll=${fetchNonOnline}`)
         .then(async (res) => {
           if (res.status === 200) {
             resolve(res.data);
