@@ -18,10 +18,7 @@ import { importFileToJSON, isValidFileType } from "../../util/fileImport";
 import toast from "react-hot-toast";
 import AgGrid from "../../components/AgGrid";
 import Badge from "../../components/Badge";
-import exportCSVFile, {
-  generateCsvFromObjects,
-} from "../../util/exportCSVFile";
-import JSZip from "jszip";
+import exportCSVFile from "../../util/exportCSVFile";
 import moment from "moment";
 import { useProducts } from "../../customHooks/useProducts";
 
@@ -81,6 +78,10 @@ function mapLineItemsToPriceCheckerRows(items, mappedProducts) {
 
     return orderedRow;
   });
+}
+
+function distributorGroupKey(d) {
+  return d || "Unknown";
 }
 
 function PriceChecker() {
@@ -292,8 +293,9 @@ function PriceChecker() {
   const handleExportByDistributor = useCallback(
     (distributor) => {
       const filteredProducts = getFilteredIncorrectSellingPrices();
+      const key = distributorGroupKey(distributor);
       const distributorProducts = filteredProducts.filter(
-        (product) => (product.de_distributor || "") === (distributor || "")
+        (product) => distributorGroupKey(product.de_distributor) === key
       );
 
       const itemsToExport = [];
@@ -353,72 +355,37 @@ function PriceChecker() {
     },
   ];
 
-  const handleExport = useCallback(async () => {
+  const handleExport = useCallback(() => {
     if (tabIndex === 1) {
       if (!selectedDistributorRows.length) {
         toast.error("Select at least one distributor group to export");
         return;
       }
 
-      const sanitizeFileName = (name) =>
-        (name ?? "").replace(/[^a-zA-Z0-9]/g, "_");
-
-      const stamp = moment().format("DDMMYYYYHHmm");
-      const folderBase = sanitizeFileName(`Price_Checker_Export_${stamp}`);
-      const zip = new JSZip();
-      const folder = zip.folder(folderBase);
+      const selectedKeys = new Set(
+        selectedDistributorRows.map((row) =>
+          distributorGroupKey(row?.de_distributor)
+        )
+      );
 
       const filteredProducts = getFilteredIncorrectSellingPrices();
-      const nameCount = new Map();
+      const matchingProducts = filteredProducts.filter((product) =>
+        selectedKeys.has(distributorGroupKey(product.de_distributor))
+      );
 
-      try {
-        selectedDistributorRows.forEach((row) => {
-          const distributor = row.de_distributor ?? "";
-          const distributorProducts = filteredProducts.filter(
-            (product) => (product.de_distributor || "") === distributor
-          );
+      const allItems = [];
+      matchingProducts.forEach((item) => {
+        allItems.push(...item.items);
+      });
 
-          const itemsToExport = [];
-          distributorProducts.forEach((product) => {
-            itemsToExport.push(...product.items);
-          });
-
-          const allData = mapLineItemsToPriceCheckerRows(
-            itemsToExport,
-            mappedProducts
-          );
-          const rows = [PRICE_CHECKER_TABLE_HEADER, ...allData];
-          const csv = generateCsvFromObjects(rows);
-
-          const base = sanitizeFileName(
-            `Price Checker ${distributor || "Unknown"} ${stamp}`
-          );
-          const n = (nameCount.get(base) || 0) + 1;
-          nameCount.set(base, n);
-          const uniqueBase = n > 1 ? `${base}_${n}` : base;
-          folder.file(`${uniqueBase}.csv`, csv);
-        });
-
-        const blob = await zip.generateAsync({ type: "blob" });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.setAttribute("href", url);
-        link.setAttribute("download", `${folderBase}.zip`);
-        link.style.visibility = "hidden";
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-
-        toast.success(
-          `Downloaded folder with ${selectedDistributorRows.length} file${
-            selectedDistributorRows.length === 1 ? "" : "s"
-          } (${folderBase}.zip)`
-        );
-      } catch (e) {
-        console.error(e);
-        toast.error(e?.message || "Export failed");
-      }
+      exportItems(allItems);
+      toast.success(
+        `Exported ${allItems.length} line item${
+          allItems.length === 1 ? "" : "s"
+        } from ${selectedKeys.size} distributor${
+          selectedKeys.size === 1 ? "" : "s"
+        }`
+      );
       return;
     }
 
@@ -434,7 +401,6 @@ function PriceChecker() {
     tabIndex,
     selectedDistributorRows,
     getFilteredIncorrectSellingPrices,
-    mappedProducts,
     exportItems,
   ]);
 
