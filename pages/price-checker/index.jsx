@@ -10,6 +10,8 @@ import {
   TabPanels,
   Tab,
   TabPanel,
+  Text,
+  Tooltip,
 } from "@chakra-ui/react";
 import FileUpload from "../../components/FileUpload";
 import { importFileToJSON, isValidFileType } from "../../util/fileImport";
@@ -69,9 +71,7 @@ function mapLineItemsToPriceCheckerRows(items, mappedProducts) {
       de_distributor: product?.de_distributor || "",
       de_preparation_type: product?.de_preparation_type || "",
       Margin: (100 - (row.Purchase_Price / row.Old_MRP) * 100).toFixed(2),
-      "Mark Up": (100 - (row.Old_Selling_Price / row.Old_MRP) * 100).toFixed(
-        2
-      ),
+      "Mark Up": (100 - (row.Old_Selling_Price / row.Old_MRP) * 100).toFixed(2),
     };
 
     const orderedRow = {};
@@ -282,6 +282,24 @@ function PriceChecker() {
     return filteredProducts;
   }, [incorrectSellingPrices]);
 
+  const handleExportByDistributor = useCallback(
+    (distributor) => {
+      const filteredProducts = getFilteredIncorrectSellingPrices();
+      const distributorProducts = filteredProducts.filter(
+        (product) => (product.de_distributor || "") === (distributor || "")
+      );
+
+      const itemsToExport = [];
+      distributorProducts.forEach((product) => {
+        itemsToExport.push(...product.items);
+      });
+
+      exportItems(itemsToExport, distributor);
+      toast.success("CSV downloaded");
+    },
+    [getFilteredIncorrectSellingPrices, exportItems]
+  );
+
   const colDefs = [
     {
       field: "Item_Code",
@@ -424,6 +442,24 @@ function PriceChecker() {
         field: "de_distributor",
         headerName: "Distributor",
         type: "capitalized",
+        cellRenderer: (params) => {
+          const name = params.value ?? "";
+          return (
+            <Tooltip label="Download CSV" placement="bottom" openDelay={500}>
+              <Text
+                as="span"
+                cursor="pointer"
+                textDecoration="underline"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleExportByDistributor(params.data?.de_distributor);
+                }}
+              >
+                {name || "Unknown"}
+              </Text>
+            </Tooltip>
+          );
+        },
       },
       {
         field: "productCount",
@@ -431,7 +467,7 @@ function PriceChecker() {
         type: "number",
       },
     ],
-    []
+    [handleExportByDistributor]
   );
 
   const exportButtonLabel =
