@@ -4,7 +4,6 @@ export default function exportCSVFile(headers, items, fileTitle) {
   if (headers) {
     items.unshift(headers);
   }
-  console.log({ one: exportCSVFile });
   // Convert Object to JSON
   var jsonObject = JSON.stringify(items);
   var csv = convertToCSV(jsonObject);
@@ -40,6 +39,14 @@ function convertToCSV(objArray) {
     str += line + "\r\n";
   }
   return str;
+}
+
+/** Build CSV text from an array of row objects (does not mutate rows). */
+export function generateCsvFromObjects(rows) {
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return "";
+  }
+  return convertToCSV(JSON.stringify(rows));
 }
 
 function jsonToCsv(jsonArray, delimiter = ",") {
