@@ -68,9 +68,10 @@ function solidLine(doc, x, y, w, lineWidth = 0.25) {
 function normalizeAcknowledgementData(raw) {
   const supplierName =
     raw?.distributor_name ?? raw?.distributor_id ?? "—";
-  const purAckNo = raw?.purchase_acknowledgement_id != null
-    ? String(raw.purchase_acknowledgement_id)
-    : "—";
+  const mmmRef =
+    raw?.mmm_refno ?? raw?.mmm_ref_no ?? raw?.mmm_refNo ?? null;
+  const purAckNo =
+    mmmRef != null && mmmRef !== "" ? String(mmmRef) : "—";
 
   const invoices = Array.isArray(raw?.invoices) ? raw.invoices : [];
   const invoiceRows = invoices.map((inv, idx) => ({
