@@ -15,6 +15,7 @@ import router from "next/router";
 import axiosInstance from "../util/api";
 import { Toaster } from "react-hot-toast";
 import { UserProvider } from "../contexts/UserContext";
+import { SystemNotificationProvider } from "../contexts/SystemNotificationContext";
 import theme from "../theme";
 
 import {
@@ -102,9 +103,11 @@ class MyApp extends React.Component {
       <div id="root-portal">
         <ChakraProvider theme={theme}>
           <UserProvider>
-            <Toaster />
-            <ToastContainer />
-            <Component {...pageProps} />
+            <SystemNotificationProvider>
+              <Toaster />
+              <ToastContainer />
+              <Component {...pageProps} />
+            </SystemNotificationProvider>
           </UserProvider>
         </ChakraProvider>
       </div>

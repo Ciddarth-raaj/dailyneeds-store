@@ -14,6 +14,8 @@ import EmptyData from "../components/EmptyData";
 import MTDStatistics from "../components/Dashboard/MTDStatistics";
 import EmployeeStats from "../components/Dashboard/EmployeeStats";
 
+import { triggerLocalNotification } from "../util/triggerLocalNotification";
+
 export const OverallStatsCard = (
   totalData,
   title,
@@ -50,8 +52,8 @@ export const OverallStatsCard = (
           isEmpty || totalData?.no_of_bills == 0
             ? "-"
             : currencyFormatter(
-                totalData?.total_sales / totalData?.no_of_bills
-              ),
+              totalData?.total_sales / totalData?.no_of_bills
+            ),
           colorScheme,
           size
         )}
@@ -243,6 +245,16 @@ function Index() {
     },
   ];
 
+  const test = async () => {
+    await triggerLocalNotification({
+      title: "Export finished 5",
+      body: "Your file is ready to download.",
+      url: "/reports", // optional: opens when user clicks the notification
+      tag: "export-1235", // optional: replace/update same tag
+      silent: false
+    });
+  }
+
   return (
     <GlobalWrapper permissionKey="dashboard">
       <Flex flexDirection="column" gap="22px">
@@ -256,6 +268,8 @@ function Index() {
           style={{ background: "white" }}
           disabled={storeId !== null}
         />
+
+        <button onClick={test}>Test</button>
 
         <MTDStatistics selectedOutlet={selectedOutlet} />
 
