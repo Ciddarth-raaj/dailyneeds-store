@@ -9,6 +9,7 @@ import usePermissions from "../../../customHooks/usePermissions";
 import ConfirmDeleteModal from "../../../components/ConfirmDeleteModal";
 import toast from "react-hot-toast";
 import { useRouter } from "next/router";
+import { syncPurchaseAcknowledgement } from "../../../helper/purchaseAcknowledgement";
 
 function PurchaseAckListing() {
   const router = useRouter();
@@ -19,6 +20,7 @@ function PurchaseAckListing() {
     usePurchaseAcknowledgementPrint();
   const [deleteItem, setDeleteItem] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
   const handleDeleteClick = useCallback((row) => {
     setDeleteItem(row);
@@ -41,6 +43,24 @@ function PurchaseAckListing() {
       setDeleting(false);
     }
   }, [deleteItem, remove]);
+
+  const handleSync = useCallback(async () => {
+    setSyncing(true);
+    try {
+      const result = await syncPurchaseAcknowledgement();
+      const n = result?.groups_imported ?? 0;
+      if (n > 0) {
+        toast.success(`${n} Purchase Acknowledgements imported`);
+        refetch();
+      } else {
+        toast.success("No Purchase Acknowledgements to import");
+      }
+    } catch (err) {
+      toast.error(err?.message || "Purchase Acknowledgements sync failed");
+    } finally {
+      setSyncing(false);
+    }
+  }, [refetch, syncing]);
 
   const colDefs = useMemo(
     () => [
@@ -158,17 +178,30 @@ function PurchaseAckListing() {
         title="Purchase Acknowledgement"
         filledHeader
         rightSection={
-          canAdd && (
+          <Flex gap="12px" alignItems="center">
+            {canAdd && (
+              <Button
+                colorScheme="purple"
+                size="sm"
+                onClick={() =>
+                  router.push("/purchase/purchase-acknowledgement/create")
+                }
+              >
+                Add
+              </Button>
+            )}
+
             <Button
               colorScheme="purple"
+              variant="outline"
               size="sm"
-              onClick={() =>
-                router.push("/purchase/purchase-acknowledgement/create")
-              }
+              onClick={handleSync}
+              isLoading={syncing}
+              loadingText="Syncing..."
             >
-              Add
+              Sync
             </Button>
-          )
+          </Flex>
         }
       >
         {loading ? (

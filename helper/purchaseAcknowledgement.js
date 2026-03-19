@@ -52,3 +52,19 @@ export const deletePurchaseAcknowledgement = (id) => {
     throw new Error(data?.msg || "Failed to delete purchase acknowledgement");
   });
 };
+
+/**
+ * POST /purchase-acknowledgement/sync
+ * @returns {Promise<{ groups_imported, rows_marked_imported, purchase_acknowledgement_ids, code }>}
+ */
+export const syncPurchaseAcknowledgement = () => {
+  return API.post("/purchase-acknowledgement/sync").then((res) => {
+    const outer = res?.data ?? res;
+    if (outer?.code !== 200) {
+      throw new Error(outer?.msg || "Failed to sync purchase acknowledgements");
+    }
+    const inner = outer?.data;
+    if (inner?.code === 200) return inner;
+    throw new Error(inner?.msg || outer?.msg || "Failed to sync purchase acknowledgements");
+  });
+};
