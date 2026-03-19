@@ -40,6 +40,11 @@ const invoiceItemSchema = Yup.object({
 
 const validationSchema = Yup.object({
   distributor_id: Yup.string().trim().required("Required"),
+  mmm_refno: Yup.number()
+    .typeError("Required")
+    .integer("Must be a whole number")
+    .required("Required"),
+  mmm_date: Yup.string().trim().required("Required"),
   invoices: Yup.array().of(invoiceItemSchema).min(1, "Required"),
 });
 
@@ -113,6 +118,8 @@ function PurchaseAckForm() {
 
   const [initialValues, setInitialValues] = useState({
     distributor_id: "",
+    mmm_refno: "",
+    mmm_date: "",
     invoices: [defaultInvoiceRow()],
   });
 
@@ -120,6 +127,8 @@ function PurchaseAckForm() {
     if (createMode) {
       setInitialValues({
         distributor_id: "",
+        mmm_refno: "",
+        mmm_date: "",
         invoices: [defaultInvoiceRow()],
       });
       return;
@@ -138,6 +147,14 @@ function PurchaseAckForm() {
           : [defaultInvoiceRow()];
       setInitialValues({
         distributor_id: purchaseAcknowledgement.distributor_id ?? "",
+        mmm_refno:
+          purchaseAcknowledgement.mmm_refno != null &&
+          purchaseAcknowledgement.mmm_refno !== ""
+            ? String(purchaseAcknowledgement.mmm_refno)
+            : "",
+        mmm_date: purchaseAcknowledgement.mmm_date
+          ? moment(purchaseAcknowledgement.mmm_date).format("YYYY-MM-DD")
+          : "",
         invoices: invoiceRows,
       });
       setSelectedDistributorId(purchaseAcknowledgement.distributor_id ?? "");
@@ -284,6 +301,10 @@ function PurchaseAckForm() {
   const handleSubmit = async (values) => {
     const payload = {
       distributor_id: String(values.distributor_id).trim(),
+      mmm_refno: Number(values.mmm_refno),
+      mmm_date: values.mmm_date
+        ? moment(values.mmm_date).format("YYYY-MM-DD HH:mm:ss")
+        : undefined,
       invoices: (values.invoices || []).map((inv) => ({
         invoice_no: String(inv.invoice_no).trim() || undefined,
         invoice_date:
@@ -455,6 +476,24 @@ function PurchaseAckForm() {
                   editable={!isReadOnly && createMode}
                   ignoreMarginBottom
                 />
+                <Grid templateColumns="1fr 1fr" gap={4}>
+                  <CustomInput
+                    label="Ref No"
+                    name="mmm_refno"
+                    type="number"
+                    placeholder="Reference no"
+                    editable={!isReadOnly}
+                    ignoreMarginBottom
+                  />
+                  <CustomInput
+                    label="Date"
+                    name="mmm_date"
+                    type="date"
+                    method="datepicker"
+                    editable={!isReadOnly}
+                    ignoreMarginBottom
+                  />
+                </Grid>
               </Grid>
 
               <Box mb={6}>

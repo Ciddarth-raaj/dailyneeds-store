@@ -82,6 +82,16 @@ function PurchaseAckListing() {
         flex: 2,
       },
       {
+        field: "mmm_refno",
+        headerName: "Ref No",
+      },
+      {
+        field: "mmm_date",
+        headerName: "Date",
+        type: "date",
+        sort: "desc",
+      },
+      {
         field: "invoices",
         headerName: "Invoices",
         type: "number",
