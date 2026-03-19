@@ -86,48 +86,45 @@ function LandingNotificationPrompt() {
   return (
     <Box
       position="fixed"
-      left={0}
-      right={0}
-      bottom={0}
+      bottom={4}
+      right={4}
       zIndex="popover"
-      px={4}
-      py={3}
+      maxW="20rem"
+      px={3}
+      py={2.5}
       bg="gray.900"
       color="white"
       boxShadow="lg"
-      borderTopWidth="1px"
-      borderColor="whiteAlpha.300"
+      borderWidth="1px"
+      borderColor="whiteAlpha.200"
+      borderRadius="md"
     >
-      <Flex
-        maxW="1200px"
-        mx="auto"
-        align="center"
-        gap={4}
-        flexWrap="wrap"
-        justify="space-between"
-      >
-        <Box flex="1" minW="200px">
-          <Text fontWeight="semibold" fontSize="sm">
-            Stay updated
-          </Text>
-          <Text fontSize="sm" opacity={0.9} mt={1}>
-            Enable browser notifications to get alerts while you use DailyNeeds.
-          </Text>
-        </Box>
-        <Flex gap={2} align="center">
-          <Button
-            size="sm"
-            variant="ghost"
-            color="whiteAlpha.900"
-            onClick={handleDismiss}
-          >
-            Not now
-          </Button>
-          <Button size="sm" colorScheme="purple" onClick={handleEnable}>
-            Enable notifications
-          </Button>
-          <CloseButton onClick={handleDismiss} color="whiteAlpha.800" />
-        </Flex>
+
+      <CloseButton
+        size="sm"
+        onClick={handleDismiss}
+        color="whiteAlpha.700"
+        style={{ position: "absolute", top: "2px", right: "2px" }}
+      />
+
+      <Text fontWeight="semibold" fontSize="xs">
+        Stay updated
+      </Text>
+      <Text fontSize="xs" opacity={0.85} mt={1} lineHeight="short">
+        Enable notifications for alerts while you use DailyNeeds.
+      </Text>
+      <Flex gap={2} mt={3} flexWrap="wrap" justify="flex-end">
+        <Button
+          size="xs"
+          variant="ghost"
+          color="whiteAlpha.900"
+          onClick={handleDismiss}
+        >
+          Not now
+        </Button>
+        <Button size="xs" colorScheme="purple" onClick={handleEnable}>
+          Enable
+        </Button>
       </Flex>
     </Box>
   );

@@ -4,7 +4,7 @@ This document defines the backend contract needed by the frontend notification s
 
 ## What FE Already Does
 
-- Shows a **bottom banner on first visit** when `Notification.permission === "default"`, with **Enable notifications** / **Not now** (dismiss stored in `localStorage` key `SystemNotificationPromptDismissed`).
+- Shows a **compact bottom-right prompt on first visit** when `Notification.permission === "default"`, with **Enable** / **Not now** (dismiss stored in `localStorage` key `SystemNotificationPromptDismissed`).
 - **Does not** call `Notification.requestPermission()` when a server notification arrives — only the banner (or your own UI calling `requestPermission`) triggers the browser prompt, so users see the option as soon as they land.
 - Polls backend periodically for new notifications (when logged in).
 - Uses browser system notifications via Web Notifications API when permission is **granted**.
