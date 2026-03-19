@@ -65,9 +65,16 @@ function PurchaseAckListing() {
   const colDefs = useMemo(
     () => [
       {
+        field: "mmm_refno",
+        headerName: "Ref No",
+        type: "id",
+        sort: "desc",
+      },
+      {
         field: "purchase_acknowledgement_id",
         headerName: "ID",
         type: "id",
+        hideByDefault: true,
       },
       {
         field: "distributor_id",
@@ -82,14 +89,9 @@ function PurchaseAckListing() {
         flex: 2,
       },
       {
-        field: "mmm_refno",
-        headerName: "Ref No",
-      },
-      {
         field: "mmm_date",
         headerName: "Date",
         type: "date",
-        sort: "desc",
       },
       {
         field: "invoices",
