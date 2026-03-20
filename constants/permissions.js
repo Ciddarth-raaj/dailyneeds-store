@@ -155,6 +155,12 @@ export const PERMISSIONS = {
     // add_issue: "Add Issue",
   },
 
+  // Pick & Pack
+  pick_pack: {
+    view_pick_pack_remarks: "View Pick & Pack Remarks",
+    add_pick_pack_remarks: "Add Pick & Pack Remarks",
+  },
+
   // Stock Checker
   stock_checker: {
     view_stock_checker: "View Stock Checker",

@@ -584,6 +584,20 @@ export default {
   //     // },
   //   },
   // },
+  pick_pack: {
+    title: "Pick & Pack",
+    selected: false,
+    openPage: false,
+    icon: "fa-boxes-packing",
+    subMenu: {
+      view_pick_pack_remarks: {
+        title: "Remarks Master",
+        permission: "view_pick_pack_remarks",
+        selected: false,
+        location: "/pick-pack/remarks",
+      },
+    },
+  },
   misc: {
     title: "Miscellaneous",
     selected: false,
