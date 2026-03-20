@@ -596,6 +596,12 @@ export default {
         selected: false,
         location: "/pick-pack/remarks",
       },
+      view_pick_pack_write_off: {
+        title: "Write Off",
+        permission: "view_pick_pack_write_off",
+        selected: false,
+        location: "/pick-pack/write-off",
+      },
     },
   },
   misc: {

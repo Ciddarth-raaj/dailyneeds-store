@@ -159,6 +159,8 @@ export const PERMISSIONS = {
   pick_pack: {
     view_pick_pack_remarks: "View Pick & Pack Remarks",
     add_pick_pack_remarks: "Add Pick & Pack Remarks",
+    view_pick_pack_write_off: "View Pick & Pack Write Off",
+    add_pick_pack_write_off: "Add Pick & Pack Write Off",
   },
 
   // Stock Checker

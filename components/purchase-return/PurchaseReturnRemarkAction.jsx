@@ -4,9 +4,11 @@ import RemarkModal from "./RemarkModal";
 /**
  * Hook to get the Remark action and modal. Use when you need getRemarkAction in useMemo (e.g. PA form).
  * @param {function} onSuccess - Called after remark is saved (e.g. refetch)
+ * @param {{ variant?: 'purchase_return'|'pick_pack_write_off' }} [options]
  * @returns {{ getRemarkAction: (row) => action, RemarkModalComponent: React.FC }}
  */
-export function useRemarkModal(onSuccess) {
+export function useRemarkModal(onSuccess, options = {}) {
+  const { variant = "purchase_return" } = options;
   const [remarkModalRow, setRemarkModalRow] = useState(null);
 
   const openRemark = useCallback((row) => setRemarkModalRow(row), []);
@@ -34,9 +36,10 @@ export function useRemarkModal(onSuccess) {
         onClose={closeRemark}
         row={remarkModalRow}
         onSuccess={handleSuccess}
+        variant={variant}
       />
     ),
-    [remarkModalRow, closeRemark, handleSuccess]
+    [remarkModalRow, closeRemark, handleSuccess, variant]
   );
 
   return { getRemarkAction, RemarkModalComponent };

@@ -1,11 +1,13 @@
-import React, { useMemo, useState } from "react";
-import { Button, VStack, Text } from "@chakra-ui/react";
+import React, { useEffect, useMemo, useState } from "react";
+import { Button, VStack } from "@chakra-ui/react";
 import { Formik } from "formik";
 import * as Yup from "yup";
 import CustomModal from "../CustomModal";
 import CustomInput from "../customInput/customInput";
-import { useRemarksMaster } from "../../customHooks/useRemarksMaster";
+import { getRemarks } from "../../helper/remarksMaster";
+import { getPickPackRemarks } from "../../helper/pickPackRemarks";
 import { updatePurchaseReturnExtra } from "../../helper/purchaseReturn";
+import { updatePickPackWriteOff } from "../../helper/pickPackWriteOff";
 import toast from "react-hot-toast";
 
 const OTHERS_VALUE = "others";
@@ -22,16 +24,38 @@ const validationSchema = Yup.object({
 });
 
 /**
- * Modal to set or change the remark for a purchase return extra.
- * User can pick from remarks master (active) or "Others" and enter custom text.
+ * Modal to set or change the remark for a purchase return extra or pick-pack write-off.
+ * User can pick from remarks master / pick-pack remarks (active) or "Others" and enter custom text.
  * @param {boolean} isOpen
  * @param {function} onClose
- * @param {object} row - Purchase return row (must have extra: status/no_of_boxes and mprh_pr_no)
+ * @param {object} row - Purchase return: mprh_pr_no, remark_id, remark. Pick-pack: pick_pack_write_off_id, remark_id, remark_str
  * @param {function} onSuccess - Called after successful save (e.g. refetch + onClose)
+ * @param {'purchase_return'|'pick_pack_write_off'} [variant='purchase_return']
  */
-function RemarkModal({ isOpen, onClose, row, onSuccess }) {
+function RemarkModal({
+  isOpen,
+  onClose,
+  row,
+  onSuccess,
+  variant = "purchase_return",
+}) {
   const [saving, setSaving] = useState(false);
-  const { remarks } = useRemarksMaster();
+  const [remarks, setRemarks] = useState([]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const load =
+      variant === "pick_pack_write_off"
+        ? getPickPackRemarks
+        : getRemarks;
+    load()
+      .then((body) => {
+        const list = Array.isArray(body?.data) ? body.data : [];
+        setRemarks(list);
+      })
+      .catch(() => setRemarks([]));
+  }, [isOpen, variant]);
+
   const activeRemarks = (remarks || []).filter(
     (r) => r.is_active === true || r.is_active === 1
   );
@@ -50,7 +74,8 @@ function RemarkModal({ isOpen, onClose, row, onSuccess }) {
   const initialValues = useMemo(() => {
     if (!row) return { reason_id: "", custom_remark: "" };
     const rid = row.remark_id;
-    const freeText = row.remark;
+    const freeText =
+      variant === "pick_pack_write_off" ? row.remark_str : row.remark;
     if (rid != null && rid !== "") {
       return { reason_id: String(rid), custom_remark: "" };
     }
@@ -61,16 +86,51 @@ function RemarkModal({ isOpen, onClose, row, onSuccess }) {
       };
     }
     return { reason_id: "", custom_remark: "" };
-  }, [row]);
+  }, [row, variant]);
 
   const handleSubmit = async (values) => {
-    const prNo = row?.mprh_pr_no;
-    if (!prNo) return;
-
     const isOthers = values.reason_id === OTHERS_VALUE;
 
     setSaving(true);
     try {
+      if (variant === "pick_pack_write_off") {
+        const writeOffId = row?.pick_pack_write_off_id;
+        if (writeOffId == null) {
+          toast.error("Missing write-off id");
+          return;
+        }
+        if (isOthers) {
+          const text = (values.custom_remark || "").trim();
+          if (text.length > 500) {
+            toast.error("Remark must be at most 500 characters");
+            return;
+          }
+          await updatePickPackWriteOff(writeOffId, {
+            remark_str: text || null,
+            remark_id: null,
+          });
+        } else {
+          const remarkId = values.reason_id
+            ? parseInt(values.reason_id, 10)
+            : null;
+          if (!remarkId) {
+            toast.error("Please select a reason or enter a custom remark");
+            return;
+          }
+          await updatePickPackWriteOff(writeOffId, {
+            remark_id: remarkId,
+            remark_str: null,
+          });
+        }
+        toast.success("Remark updated");
+        onSuccess?.();
+        onClose();
+        return;
+      }
+
+      const prNo = row?.mprh_pr_no;
+      if (!prNo) return;
+
       if (isOthers) {
         const text = (values.custom_remark || "").trim();
         if (text.length > 500) {
