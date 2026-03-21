@@ -373,6 +373,7 @@ const TextFieldBody = ({
                           size="sm"
                           customRenderer={customRenderer}
                           renderSelected={renderSelected}
+                          showClearButton={props.showClearButton}
                         />
                       );
                     case undefined:

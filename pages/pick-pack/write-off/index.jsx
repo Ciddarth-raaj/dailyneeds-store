@@ -147,9 +147,7 @@ function PickPackWriteOffPage() {
           from_date: from,
           to_date: to,
         });
-        setMonthRows(
-          Array.isArray(data) ? data.map(normalizeWriteOffRow) : []
-        );
+        setMonthRows(Array.isArray(data) ? data.map(normalizeWriteOffRow) : []);
       } catch (e) {
         toast.error(e?.message || "Failed to load write-offs");
         setMonthRows([]);
@@ -280,7 +278,7 @@ function PickPackWriteOffPage() {
       {
         field: "remark_id",
         headerName: "Remark",
-        minWidth: 130,
+        flex: 1.5,
         autoHeight: true,
         cellRenderer: (params) => {
           const verified = isWriteOffVerified(params.data?.is_verified);

@@ -7,7 +7,11 @@ import {
   useOutsideClick,
   FormControl,
   FormLabel,
+  InputGroup,
+  InputRightElement,
+  IconButton,
 } from "@chakra-ui/react";
+import { CloseIcon } from "@chakra-ui/icons";
 
 /**
  * A dropdown that allows searching/filtering within options.
@@ -22,6 +26,7 @@ import {
  * @param {string} [props.name] - Input name (for Formik)
  * @param {function} [props.customRenderer] - (option) => ReactNode to render each list row
  * @param {function} [props.renderSelected] - (option) => string to show in input when option selected
+ * @param {boolean} [props.showClearButton=true] - Show a clear control when a value is selected
  */
 function SearchableDropdown({
   label,
@@ -34,6 +39,7 @@ function SearchableDropdown({
   name,
   customRenderer,
   renderSelected,
+  showClearButton = true,
   ...rest
 }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -67,6 +73,20 @@ function SearchableDropdown({
       ? renderSelected(selectedOption)
       : selectedOption.value ?? ""
     : "";
+
+  const hasValue =
+    value !== null &&
+    value !== undefined &&
+    value !== "" &&
+    !(typeof value === "number" && Number.isNaN(value));
+
+  const handleClear = (e) => {
+    e?.preventDefault?.();
+    e?.stopPropagation?.();
+    onChangeRef.current?.(null);
+    setSearch("");
+    setIsOpen(false);
+  };
 
   const filteredOptions = search.trim()
     ? options.filter((opt) =>
@@ -188,32 +208,60 @@ function SearchableDropdown({
         </FormLabel>
       )}
       <Box ref={containerRef} position="relative" width="100%">
-        <Input
-          key={`selected-${value}`}
-          name={name}
-          size={size}
-          height="40px"
-          borderRadius="6px"
-          fontSize="sm"
-          bg="white"
-          value={isOpen ? search : displayText}
-          onChange={(e) => {
-            const v = e.target.value;
-            if (isOpen) {
-              setSearch(v);
-            } else {
-              setIsOpen(true);
-              setSearch(v);
-            }
-          }}
-          onFocus={() => setIsOpen(true)}
-          placeholder={placeholder}
-          isDisabled={isDisabled}
-          autoComplete="off"
-          focusBorderColor="purple.400"
-          _placeholder={{ color: "gray.500" }}
-          _disabled={{ opacity: 0.8, cursor: "not-allowed" }}
-        />
+        <InputGroup size={size}>
+          <Input
+            key={`selected-${value}`}
+            name={name}
+            size={size}
+            height="40px"
+            borderRadius="6px"
+            fontSize="sm"
+            bg="white"
+            pr={showClearButton && hasValue && !isDisabled ? 9 : undefined}
+            value={isOpen ? search : displayText}
+            onChange={(e) => {
+              const v = e.target.value;
+              if (isOpen) {
+                setSearch(v);
+              } else {
+                setIsOpen(true);
+                setSearch(v);
+              }
+            }}
+            onFocus={() => setIsOpen(true)}
+            placeholder={placeholder}
+            isDisabled={isDisabled}
+            autoComplete="off"
+            focusBorderColor="purple.400"
+            _placeholder={{ color: "gray.500" }}
+            _disabled={{ opacity: 0.8, cursor: "not-allowed" }}
+          />
+          {showClearButton && hasValue && !isDisabled ? (
+            <InputRightElement
+              width="2.25rem"
+              height="40px"
+              pr={1}
+              pointerEvents="auto"
+            >
+              <IconButton
+                type="button"
+                aria-label="Clear selection"
+                icon={<CloseIcon boxSize={2.5} />}
+                size="xs"
+                variant="ghost"
+                colorScheme="gray"
+                borderRadius="md"
+                minW="1.75rem"
+                h="1.75rem"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+                onClick={handleClear}
+              />
+            </InputRightElement>
+          ) : null}
+        </InputGroup>
       </Box>
       {typeof document !== "undefined" &&
         createPortal(dropdownContent, document.body)}

@@ -54,7 +54,33 @@ export default function WriteOffRemarkCell({
   }, [data?.remark_value, data?.remark_id, remarkOptions]);
 
   const handleChange = async (newId) => {
-    if (writeOffId == null || newId == null || newId === "") return;
+    if (writeOffId == null) return;
+
+    /** SearchableDropdown clear button passes null */
+    if (newId == null || newId === "") {
+      setSaving(true);
+      try {
+        await updatePickPackWriteOff(writeOffId, {
+          remark_id: null,
+          remark_str: null,
+          reason_employee_id: null,
+        });
+        toast.success("Remark cleared");
+        onRemarkUpdated?.(writeOffId, {
+          remark_id: null,
+          remark_str: null,
+          remark_value: "",
+          reason_employee_id: null,
+          reason_employee_name: null,
+        });
+      } catch (err) {
+        toast.error(err?.message || "Failed to clear remark");
+      } finally {
+        setSaving(false);
+      }
+      return;
+    }
+
     const remarkId = parseInt(String(newId), 10);
     if (Number.isNaN(remarkId)) return;
 
