@@ -90,7 +90,7 @@ function buildRowsFromTransfers(transfers) {
       } else {
         byArticleId[articleId] = {
           articleId,
-          articleName: fi?.gf_item_name ?? "-",
+          articleName: fi?.gf_item_name ?? fi?.de_display_name ?? "-",
           toStore,
           quantity: fileQty,
           dbQuantity: null,
@@ -257,7 +257,9 @@ function STOForm({ mode }) {
               .map((row) => ({
                 articleId: row.articleId,
                 articleName:
-                  products[row.articleId]?.gf_item_name ?? row.articleName,
+                  products[row.articleId]?.gf_item_name ??
+                  products[row.articleId]?.de_display_name ??
+                  row.articleName,
                 toStore: row.toStore,
                 quantity: row.quantity != null ? Number(row.quantity) : null,
                 dbQuantity: getDbQuantity(row.articleId),
@@ -278,7 +280,10 @@ function STOForm({ mode }) {
           fromFile.push({
             articleId,
             articleName:
-              products[articleId]?.gf_item_name ?? item.Item_Name ?? "-",
+              products[articleId]?.gf_item_name ??
+              products[articleId]?.de_display_name ??
+              item.Item_Name ??
+              "-",
             toStore,
             quantity: null,
             dbQuantity: getDbQuantity(articleId),
