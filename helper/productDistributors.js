@@ -35,6 +35,19 @@ export const upsertProductDistributorMapping = (body) => {
   });
 };
 
+/**
+ * Bulk upsert buyer mappings (main DB only). 1–2000 items; duplicate codes: last wins.
+ * Body: { items: [{ MDM_DIST_CODE, buyer_id: number|null }, ...] }
+ * Response: { code: 200, count: number }
+ */
+export const bulkUpsertProductDistributorMappings = (items) => {
+  return API.post("/product-distributors/bulk", { items }).then((res) => {
+    const data = res?.data ?? res;
+    if (data?.code === 200) return data;
+    throw new Error(data?.msg || "Failed to bulk import distributor buyers");
+  });
+};
+
 /** @deprecated Use upsertProductDistributorMapping — POST only assigns buyer; does not create ERP rows */
 export const createProductDistributor = upsertProductDistributorMapping;
 
