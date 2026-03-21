@@ -13,7 +13,6 @@ import { useCategories } from "../../customHooks/useCategories";
 import { useSubcategories } from "../../customHooks/useSubcategories";
 import { useProductDepartments } from "../../customHooks/useProductDepartments";
 import asset from "../../helper/asset";
-import product from "../../helper/product";
 import { capitalize } from "../../util/string";
 import ProductImageUpload from "../../components/ProductImageUpload";
 

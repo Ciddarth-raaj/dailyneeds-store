@@ -176,6 +176,14 @@ const TextFieldBody = ({
         return moment(value).format("DD/MM/YYYY");
       case "switch":
       case "searchable-dropdown": {
+        if (multiple && Array.isArray(value)) {
+          if (value.length === 0) return "N/A";
+          const labels = value.map((id) => {
+            const option = values.find((item) => String(item.id) === String(id));
+            return option ? option.value : String(id);
+          });
+          return labels.join(", ");
+        }
         const option = values.find((item) => String(item.id) === String(value));
         if (option) return option.value;
         return value != null && value !== "" ? String(value) : "N/A";
@@ -366,14 +374,30 @@ const TextFieldBody = ({
                         <SearchableDropdown
                           name={field.name}
                           options={values ?? []}
-                          value={field.value}
-                          onChange={(id) => setFieldValue(field.name, id)}
-                          placeholder={props.placeholder ?? "Search or select..."}
+                          value={
+                            multiple
+                              ? Array.isArray(field.value)
+                                ? field.value
+                                : field.value != null && field.value !== ""
+                                  ? [field.value]
+                                  : []
+                              : field.value
+                          }
+                          onChange={(next) =>
+                            setFieldValue(field.name, next)
+                          }
+                          placeholder={
+                            props.placeholder ??
+                            (multiple
+                              ? "Search or select multiple…"
+                              : "Search or select...")
+                          }
                           isDisabled={props.isDisabled}
                           size="sm"
                           customRenderer={customRenderer}
                           renderSelected={renderSelected}
                           showClearButton={props.showClearButton}
+                          multiple={multiple}
                         />
                       );
                     case undefined:

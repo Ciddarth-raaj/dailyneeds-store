@@ -12,25 +12,23 @@ import usePermissions from "../../customHooks/usePermissions";
 import { useProducts } from "../../customHooks/useProducts";
 import { useProductOfferByProductId } from "../../customHooks/useProductOfferByProductId";
 
-const validationSchema = Yup.object({
-  product_id: Yup.mixed()
-    .required("Required")
-    .test(
-      "is-product",
-      "Select a product",
-      (v) => v != null && v !== "" && Number(v) > 0
-    ),
-  mrp: Yup.number()
-    .min(0, "Must be ≥ 0")
-    .required("Required")
-    .transform((v) => (v === "" || Number.isNaN(Number(v)) ? null : Number(v))),
-  selling_price: Yup.number()
-    .min(0, "Must be ≥ 0")
-    .required("Required")
-    .transform((v) => (v === "" || Number.isNaN(Number(v)) ? null : Number(v))),
-});
+const mrpField = Yup.number()
+  .min(0, "Must be ≥ 0")
+  .required("Required")
+  .transform((v) => (v === "" || Number.isNaN(Number(v)) ? null : Number(v)));
 
-const initialValues = {
+const sellingPriceField = Yup.number()
+  .min(0, "Must be ≥ 0")
+  .required("Required")
+  .transform((v) => (v === "" || Number.isNaN(Number(v)) ? null : Number(v)));
+
+const initialValuesCreate = {
+  product_ids: [],
+  mrp: "",
+  selling_price: "",
+};
+
+const initialValuesSingle = {
   product_id: "",
   mrp: "",
   selling_price: "",
@@ -120,11 +118,40 @@ function ProductOffersForm() {
     []
   );
 
-  const [formInitialValues, setFormInitialValues] = useState(initialValues);
+  const [formInitialValues, setFormInitialValues] = useState(initialValuesSingle);
+
+  const validationSchema = useMemo(() => {
+    if (createMode) {
+      return Yup.object({
+        product_ids: Yup.array()
+          .of(Yup.mixed())
+          .min(1, "Select at least one product")
+          .required("Select at least one product")
+          .test(
+            "has-ids",
+            "Select at least one product",
+            (arr) => Array.isArray(arr) && arr.length > 0
+          ),
+        mrp: mrpField,
+        selling_price: sellingPriceField,
+      });
+    }
+    return Yup.object({
+      product_id: Yup.mixed()
+        .required("Required")
+        .test(
+          "is-product",
+          "Select a product",
+          (v) => v != null && v !== "" && Number(v) > 0
+        ),
+      mrp: mrpField,
+      selling_price: sellingPriceField,
+    });
+  }, [createMode]);
 
   useEffect(() => {
     if (createMode) {
-      setFormInitialValues(initialValues);
+      setFormInitialValues(initialValuesCreate);
       return;
     }
     if (offer) {
@@ -141,17 +168,38 @@ function ProductOffersForm() {
 
   const handleSubmit = async (values) => {
     if (createMode) {
+      const ids = Array.isArray(values.product_ids) ? values.product_ids : [];
+      if (ids.length === 0) {
+        toast.error("Select at least one product");
+        return;
+      }
+      const mrp = values.mrp !== "" ? Number(values.mrp) : null;
+      const selling_price =
+        values.selling_price !== "" ? Number(values.selling_price) : null;
+      const toastId = toast.loading(
+        ids.length > 1 ? `Creating ${ids.length} offers…` : "Creating offer…"
+      );
       try {
-        await productOffers.create({
-          product_id: Number(values.product_id),
-          mrp: values.mrp !== "" ? Number(values.mrp) : null,
-          selling_price:
-            values.selling_price !== "" ? Number(values.selling_price) : null,
-        });
-        toast.success("Offer created");
+        await Promise.all(
+          ids.map((pid) =>
+            productOffers.create({
+              product_id: Number(pid),
+              mrp,
+              selling_price,
+            })
+          )
+        );
+        toast.success(
+          ids.length > 1
+            ? `Created ${ids.length} offers`
+            : "Offer created",
+          { id: toastId }
+        );
         router.push("/product-offers");
       } catch (err) {
-        toast.error(err?.message ?? "Failed to create offer");
+        toast.error(err?.message ?? "Failed to create offer(s)", {
+          id: toastId,
+        });
       }
       return;
     }
@@ -207,6 +255,7 @@ function ProductOffersForm() {
     <GlobalWrapper title={title} permissionKey="view_product_offers">
       <CustomContainer title={title} filledHeader>
         <Formik
+          key={createMode ? "create-multi" : "single-offer"}
           enableReinitialize
           initialValues={formInitialValues}
           validationSchema={validationSchema}
@@ -219,16 +268,30 @@ function ProductOffersForm() {
                 gap={4}
                 mb={6}
               >
-                <CustomInput
-                  label="Product"
-                  name="product_id"
-                  method="searchable-dropdown"
-                  values={productOptions}
-                  placeholder="Select product"
-                  editable={!isReadOnly && !productsLoading}
-                  customRenderer={productCustomRenderer}
-                  renderSelected={productRenderSelected}
-                />
+                {createMode ? (
+                  <CustomInput
+                    label="Products (bulk create)"
+                    name="product_ids"
+                    method="searchable-dropdown"
+                    values={productOptions}
+                    multiple
+                    placeholder="Search and select one or more products"
+                    editable={!productsLoading}
+                    customRenderer={productCustomRenderer}
+                    renderSelected={productRenderSelected}
+                  />
+                ) : (
+                  <CustomInput
+                    label="Product"
+                    name="product_id"
+                    method="searchable-dropdown"
+                    values={productOptions}
+                    placeholder="Select product"
+                    editable={!isReadOnly && !productsLoading}
+                    customRenderer={productCustomRenderer}
+                    renderSelected={productRenderSelected}
+                  />
+                )}
                 <CustomInput
                   label="MRP"
                   name="mrp"
@@ -273,7 +336,7 @@ function ProductOffersForm() {
                       Cancel
                     </Button>
                     <Button type="submit" colorScheme="purple">
-                      {createMode ? "Create" : "Update"}
+                      {createMode ? "Create offer(s)" : "Update"}
                     </Button>
                   </>
                 )}

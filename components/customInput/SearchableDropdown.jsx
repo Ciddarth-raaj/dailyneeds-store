@@ -1,9 +1,13 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { FixedSizeList as VirtualList } from "react-window";
 import {
   Input,
   Box,
+  Flex,
+  Tag,
+  TagLabel,
+  TagCloseButton,
   useOutsideClick,
   FormControl,
   FormLabel,
@@ -11,15 +15,16 @@ import {
   InputRightElement,
   IconButton,
 } from "@chakra-ui/react";
-import { CloseIcon } from "@chakra-ui/icons";
+import { CheckIcon, CloseIcon } from "@chakra-ui/icons";
 
 /**
  * A dropdown that allows searching/filtering within options.
  * @param {Object} props
  * @param {string} [props.label] - Label text
  * @param {Array<{ id: string|number, value: string }>} props.options - Options list
- * @param {string|number} [props.value] - Selected option id
- * @param {function} [props.onChange] - (id) => void when selection changes
+ * @param {string|number|Array<string|number>} [props.value] - Selected id(s); array when multiple
+ * @param {function} [props.onChange] - (id|null) or (id[]) when multiple
+ * @param {boolean} [props.multiple=false] - If true, value/onChange use arrays of option ids
  * @param {string} [props.placeholder] - Placeholder when nothing selected
  * @param {boolean} [props.isDisabled] - Disable the control
  * @param {string} [props.size] - Chakra size (sm, md, lg)
@@ -40,6 +45,7 @@ function SearchableDropdown({
   customRenderer,
   renderSelected,
   showClearButton = true,
+  multiple = false,
   ...rest
 }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -65,41 +71,119 @@ function SearchableDropdown({
     },
   });
 
-  const selectedOption = options.find(
-    (opt) => opt != null && (String(opt.id) === String(value) || opt.id === value)
-  );
-  const displayText = selectedOption
-    ? typeof renderSelected === "function"
-      ? renderSelected(selectedOption)
-      : selectedOption.value ?? ""
-    : "";
+  const selectedIds = useMemo(() => {
+    if (multiple) {
+      if (!Array.isArray(value)) return [];
+      return value.filter(
+        (v) =>
+          v !== null &&
+          v !== undefined &&
+          v !== "" &&
+          !(typeof v === "number" && Number.isNaN(v))
+      );
+    }
+    if (
+      value === null ||
+      value === undefined ||
+      value === "" ||
+      (typeof value === "number" && Number.isNaN(value))
+    ) {
+      return [];
+    }
+    return [value];
+  }, [multiple, value]);
 
-  const hasValue =
-    value !== null &&
-    value !== undefined &&
-    value !== "" &&
-    !(typeof value === "number" && Number.isNaN(value));
+  const isOptionSelected = (id) =>
+    selectedIds.some((s) => String(s) === String(id));
+
+  const selectedOptions = useMemo(
+    () =>
+      selectedIds
+        .map((id) =>
+          options.find(
+            (opt) => opt != null && String(opt.id) === String(id)
+          )
+        )
+        .filter(Boolean),
+    [options, selectedIds]
+  );
+
+  const displayText = useMemo(() => {
+    if (multiple) {
+      if (selectedOptions.length === 0) return "";
+      if (selectedOptions.length <= 2) {
+        return selectedOptions
+          .map((opt) =>
+            typeof renderSelected === "function"
+              ? renderSelected(opt)
+              : opt.value ?? String(opt.id)
+          )
+          .join(", ");
+      }
+      return `${selectedOptions.length} selected`;
+    }
+    const selectedOption = selectedOptions[0];
+    return selectedOption
+      ? typeof renderSelected === "function"
+        ? renderSelected(selectedOption)
+        : selectedOption.value ?? ""
+      : "";
+  }, [multiple, selectedOptions, renderSelected]);
+
+  const hasValue = selectedIds.length > 0;
 
   const handleClear = (e) => {
     e?.preventDefault?.();
     e?.stopPropagation?.();
-    onChangeRef.current?.(null);
+    onChangeRef.current?.(multiple ? [] : null);
     setSearch("");
     setIsOpen(false);
   };
 
-  const filteredOptions = search.trim()
-    ? options.filter((opt) =>
-        String(opt.value || "")
-          .toLowerCase()
-          .includes(search.toLowerCase())
-      )
-    : options;
+  const handleRemoveOne = (id) => {
+    if (!multiple) return;
+    const next = selectedIds.filter((s) => String(s) !== String(id));
+    onChangeRef.current?.(next);
+  };
+
+  const filteredOptions = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return q
+      ? options.filter((opt) =>
+          String(opt.value || "").toLowerCase().includes(q)
+        )
+      : options;
+  }, [options, search]);
+
+  /** Selected options first (order follows value), then remaining — applies to single & multiple */
+  const orderedListOptions = useMemo(() => {
+    if (selectedIds.length === 0) return filteredOptions;
+    const selectedSet = new Set(selectedIds.map(String));
+    const selectedInOrder = [];
+    selectedIds.forEach((id) => {
+      const opt = filteredOptions.find(
+        (o) => o != null && String(o.id) === String(id)
+      );
+      if (opt) selectedInOrder.push(opt);
+    });
+    const unselected = filteredOptions.filter(
+      (opt) => !selectedSet.has(String(opt.id))
+    );
+    return [...selectedInOrder, ...unselected];
+  }, [filteredOptions, selectedIds]);
 
   const handleSelect = (id) => {
-    onChangeRef.current?.(id);
+    if (!multiple) {
+      onChangeRef.current?.(id);
+      setSearch("");
+      setIsOpen(false);
+      return;
+    }
+    const next = isOptionSelected(id)
+      ? selectedIds.filter((s) => String(s) !== String(id))
+      : [...selectedIds, id];
+    onChangeRef.current?.(next);
     setSearch("");
-    setIsOpen(false);
   };
 
   useEffect(() => {
@@ -121,7 +205,7 @@ function SearchableDropdown({
   const LIST_HEIGHT = 240;
 
   const dropdownContent =
-    isOpen && filteredOptions.length > 0 ? (
+    isOpen && orderedListOptions.length > 0 ? (
       <Box
         ref={dropdownRef}
         position="fixed"
@@ -137,14 +221,17 @@ function SearchableDropdown({
         overflow="hidden"
       >
         <VirtualList
-          height={Math.min(LIST_HEIGHT, filteredOptions.length * ROW_HEIGHT)}
+          height={Math.min(
+            LIST_HEIGHT,
+            orderedListOptions.length * ROW_HEIGHT
+          )}
           width={dropdownPosition.width}
-          itemCount={filteredOptions.length}
+          itemCount={orderedListOptions.length}
           itemSize={ROW_HEIGHT}
           overscanCount={5}
         >
           {({ index, style }) => {
-            const opt = filteredOptions[index];
+            const opt = orderedListOptions[index];
             return (
               <Box
                 as="div"
@@ -169,16 +256,24 @@ function SearchableDropdown({
                 display="flex"
                 alignItems="center"
                 lineHeight="1.2"
+                justifyContent="space-between"
+                gap={2}
+                bg={multiple && isOptionSelected(opt.id) ? "purple.50" : undefined}
               >
-                {typeof customRenderer === "function"
-                  ? customRenderer(opt)
-                  : opt.value}
+                <Box minW={0} flex={1}>
+                  {typeof customRenderer === "function"
+                    ? customRenderer(opt)
+                    : opt.value}
+                </Box>
+                {multiple && isOptionSelected(opt.id) ? (
+                  <CheckIcon color="var(--chakra-colors-purple-600)" boxSize={3} />
+                ) : null}
               </Box>
             );
           }}
         </VirtualList>
       </Box>
-    ) : isOpen && filteredOptions.length === 0 && search.trim() ? (
+    ) : isOpen && orderedListOptions.length === 0 && search.trim() ? (
       <Box
         ref={dropdownRef}
         position="fixed"
@@ -210,7 +305,11 @@ function SearchableDropdown({
       <Box ref={containerRef} position="relative" width="100%">
         <InputGroup size={size}>
           <Input
-            key={`selected-${value}`}
+            key={
+              multiple
+                ? `m-${selectedIds.join(",")}`
+                : `selected-${value}`
+            }
             name={name}
             size={size}
             height="40px"
@@ -262,6 +361,50 @@ function SearchableDropdown({
             </InputRightElement>
           ) : null}
         </InputGroup>
+        {multiple && selectedOptions.length > 0 ? (
+          <Box mt={2}>
+            <Box
+              fontSize="xs"
+              fontWeight={600}
+              color="gray.500"
+              textTransform="uppercase"
+              letterSpacing="0.04em"
+              mb={1.5}
+            >
+              Selected ({selectedOptions.length})
+            </Box>
+            <Flex wrap="wrap" gap={2}>
+              {selectedOptions.map((opt) => (
+                <Tag
+                  key={String(opt.id)}
+                  size="sm"
+                  colorScheme="purple"
+                  borderRadius="md"
+                  maxW="100%"
+                >
+                  <TagLabel isTruncated maxW="220px">
+                    {typeof renderSelected === "function"
+                      ? renderSelected(opt)
+                      : opt.value ?? String(opt.id)}
+                  </TagLabel>
+                  {!isDisabled ? (
+                    <TagCloseButton
+                      aria-label={`Remove ${opt.value ?? opt.id}`}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRemoveOne(opt.id);
+                      }}
+                    />
+                  ) : null}
+                </Tag>
+              ))}
+            </Flex>
+          </Box>
+        ) : null}
       </Box>
       {typeof document !== "undefined" &&
         createPortal(dropdownContent, document.body)}
