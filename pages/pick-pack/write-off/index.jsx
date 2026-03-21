@@ -84,6 +84,7 @@ function PickPackWriteOffPage() {
   const [monthRows, setMonthRows] = useState([]);
   const [loadingMonth, setLoadingMonth] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [clearingDay, setClearingDay] = useState(false);
 
   const canAdd = usePermissions("add_pick_pack_write_off");
   const { confirmDelete, ConfirmDeleteDialog } = useConfirmDelete();
@@ -216,6 +217,23 @@ function PickPackWriteOffPage() {
     return s != null && String(s).trim() !== "";
   };
 
+  /** Sum mismatch_qty when the same product_id appears multiple times in the file */
+  const mergeImportRowsByProduct = useCallback((rows) => {
+    const byProduct = new Map();
+    for (const r of rows) {
+      const pid = Number(r.product_id);
+      const qty = Number(r.mismatch_qty);
+      if (Number.isNaN(pid) || Number.isNaN(qty)) continue;
+      byProduct.set(pid, (byProduct.get(pid) ?? 0) + qty);
+    }
+    return Array.from(byProduct.entries()).map(
+      ([product_id, mismatch_qty]) => ({
+        product_id,
+        mismatch_qty,
+      })
+    );
+  }, []);
+
   const handleImportMapped = useCallback(
     async (mappedRows) => {
       if (!selectedDate) return;
@@ -230,18 +248,23 @@ function PickPackWriteOffPage() {
         toast.error("No valid rows to import");
         return;
       }
+      const merged = mergeImportRowsByProduct(valid);
       setImporting(true);
       try {
         await Promise.all(
-          valid.map((r) =>
+          merged.map((r) =>
             createPickPackWriteOff({
-              product_id: Number(r.product_id),
-              mismatch_qty: Number(r.mismatch_qty),
+              product_id: r.product_id,
+              mismatch_qty: r.mismatch_qty,
               date: selectedDate,
             })
           )
         );
-        toast.success(`Imported ${valid.length} row(s)`);
+        const mergedNote =
+          valid.length !== merged.length
+            ? ` (${valid.length} file rows → ${merged.length} products, qty combined)`
+            : "";
+        toast.success(`Imported ${merged.length} row(s)${mergedNote}`);
         await loadMonth();
       } catch (e) {
         toast.error(e?.message || "Import failed");
@@ -249,8 +272,46 @@ function PickPackWriteOffPage() {
         setImporting(false);
       }
     },
-    [selectedDate, loadMonth]
+    [selectedDate, loadMonth, mergeImportRowsByProduct]
   );
+
+  const handleClearDay = useCallback(() => {
+    const ids = rowsForSelectedDay
+      .map((r) => r.pick_pack_write_off_id)
+      .filter((id) => id != null && id !== "");
+    if (!ids.length) {
+      toast.error("No write-offs for this date");
+      return;
+    }
+    confirmDelete({
+      title: "Clear all for this date",
+      message: `Remove all ${ids.length} write-off(s) for ${moment(
+        selectedDate
+      ).format("DD/MM/YYYY")}? This cannot be undone.`,
+      onConfirm: async () => {
+        setClearingDay(true);
+        try {
+          const results = await Promise.allSettled(
+            ids.map((id) => deletePickPackWriteOff(id))
+          );
+          const ok = results.filter((r) => r.status === "fulfilled").length;
+          const fail = results.length - ok;
+          if (fail === 0) {
+            toast.success(`Removed ${ok} write-off(s)`);
+          } else {
+            toast.error(
+              `Removed ${ok}, ${fail} failed (e.g. verified rows may be protected)`
+            );
+          }
+          await loadMonth();
+        } catch (e) {
+          toast.error(e?.message || "Failed to clear day");
+        } finally {
+          setClearingDay(false);
+        }
+      },
+    });
+  }, [rowsForSelectedDay, selectedDate, confirmDelete, loadMonth]);
 
   const colDefs = useMemo(
     () => [
@@ -401,22 +462,35 @@ function PickPackWriteOffPage() {
           filledHeader
           rightSection={
             canAdd ? (
-              <FileUploaderWithColumnMapping
-                config={WRITE_OFF_IMPORT_CONFIG}
-                onMappedData={handleImportMapped}
-                accept=".xlsx,.xls,.csv"
-                renderer={(openFileBrowser) => (
-                  <Button
-                    onClick={openFileBrowser}
-                    colorScheme="purple"
-                    size="sm"
-                    isLoading={importing}
-                    loadingText="Importing..."
-                  >
-                    Import file
-                  </Button>
-                )}
-              />
+              <Flex gap={2} wrap="wrap" align="center" justify="flex-end">
+                <Button
+                  variant="outline"
+                  colorScheme="red"
+                  size="sm"
+                  onClick={handleClearDay}
+                  isLoading={clearingDay}
+                  loadingText="Clearing…"
+                  isDisabled={!rowsForSelectedDay.length || clearingDay}
+                >
+                  Clear
+                </Button>
+                <FileUploaderWithColumnMapping
+                  config={WRITE_OFF_IMPORT_CONFIG}
+                  onMappedData={handleImportMapped}
+                  accept=".xlsx,.xls,.csv"
+                  renderer={(openFileBrowser) => (
+                    <Button
+                      onClick={openFileBrowser}
+                      colorScheme="purple"
+                      size="sm"
+                      isLoading={importing}
+                      loadingText="Importing..."
+                    >
+                      Import file
+                    </Button>
+                  )}
+                />
+              </Flex>
             ) : null
           }
         >
