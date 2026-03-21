@@ -102,6 +102,29 @@ function buildRowsFromTransfers(transfers) {
   return Object.values(byArticleId);
 }
 
+/** Rows from ERP line items only (no file_qty) — used after Clear to allow re-upload. */
+function buildRowsFromItemsOnly(transfer) {
+  if (!transfer) return [];
+  const toStore = transfer.Cust_Name ?? transfer.branch?.outlet_name ?? "-";
+  const byArticleId = {};
+  (transfer.items || []).forEach((item) => {
+    const articleId = item.Item_Code;
+    const dbQty = item.Item_qty != null ? Number(item.Item_qty) : null;
+    if (byArticleId[articleId]) {
+      byArticleId[articleId].dbQuantity += dbQty;
+    } else {
+      byArticleId[articleId] = {
+        articleId,
+        articleName: item.Item_Name ?? "-",
+        toStore,
+        quantity: null,
+        dbQuantity: dbQty,
+      };
+    }
+  });
+  return Object.values(byArticleId);
+}
+
 function STOForm({ mode }) {
   const router = useRouter();
   const { id: queryId } = router.query;
@@ -112,7 +135,14 @@ function STOForm({ mode }) {
   const [dnRefNo, setDnRefNo] = useState(isCreate ? null : queryId ?? null);
   const [parsedRows, setParsedRows] = useState([]);
   const [submitting, setSubmitting] = useState(false);
+  /** After Clear, allow file upload again even if API still has file_items until next save. */
+  const [userClearedFileMapping, setUserClearedFileMapping] = useState(false);
   const userHasClearedRef = useRef(false);
+  /**
+   * Create: after file map/clear, skip re-applying rows from `transfers` refetches (same DN ref).
+   * Reset when DN ref changes.
+   */
+  const skipCreateRowsFromTransfersRef = useRef(false);
 
   const { transfers, loading: listLoading } = useStockTransfer();
   const { transfers: transfersByRef, loading: refLoading } =
@@ -139,7 +169,7 @@ function STOForm({ mode }) {
   });
   const products = getMappedProducts();
 
-  /** Edit/View: prefill table from API. Create: no prefill — user must pick ref, then upload file, then table appears. */
+  /** Edit/View: prefill table from API when rows empty (unless user cleared). */
   useEffect(() => {
     if (isCreate) return;
     if (userHasClearedRef.current) return;
@@ -151,8 +181,29 @@ function STOForm({ mode }) {
     }
   }, [mergedTransfersForPrefill, isCreate]);
 
+  /**
+   * Create: when DN ref is selected, show items immediately (items + file_items merge from API).
+   * Skips while skipCreateRowsFromTransfersRef is set (file mapped/cleared) so list refetch does not wipe local rows.
+   */
+  useEffect(() => {
+    if (!isCreate || !router.isReady) return;
+    if (!dnRefNo) {
+      setParsedRows([]);
+      return;
+    }
+    if (skipCreateRowsFromTransfersRef.current) return;
+    const t = transfers?.find((x) => String(x.Dn_Ref_no) === String(dnRefNo));
+    if (!t) {
+      setParsedRows([]);
+      return;
+    }
+    setParsedRows(buildRowsFromTransfers([t]));
+  }, [isCreate, router.isReady, dnRefNo, transfers]);
+
   useEffect(() => {
     userHasClearedRef.current = false;
+    setUserClearedFileMapping(false);
+    skipCreateRowsFromTransfersRef.current = false;
   }, [queryId, dnRefNo]);
 
   /** Create page: /sto/create?id=<Dn_Ref_no> pre-selects the transfer */
@@ -175,9 +226,7 @@ function STOForm({ mode }) {
   }, [isEdit, isView, queryId, dnRefNo]);
 
   const transferOptions = useMemo(() => {
-    const list = isCreate
-      ? transfers.filter((item) => (item.file_items || []).length === 0)
-      : transfersByRef;
+    const list = isCreate ? transfers : transfersByRef;
     return (list || []).map((t) => ({
       id: t.Dn_Ref_no,
       value: String(t.Dn_Ref_no),
@@ -260,6 +309,8 @@ function STOForm({ mode }) {
 
   const handleMappedData = useCallback(
     (mappedRows) => {
+      setUserClearedFileMapping(false);
+      if (isCreate) skipCreateRowsFromTransfersRef.current = true;
       const fromFile =
         mappedRows && mappedRows.length > 0
           ? mappedRows
@@ -305,16 +356,42 @@ function STOForm({ mode }) {
 
       setParsedRows(fromFile);
     },
-    [mergedTransfersForPrefill, products, getDbQuantity]
+    [mergedTransfersForPrefill, products, getDbQuantity, isCreate]
   );
 
   const handleClearItems = useCallback(() => {
     userHasClearedRef.current = true;
-    setParsedRows([]);
-  }, []);
+    setUserClearedFileMapping(true);
+    if (isCreate) skipCreateRowsFromTransfersRef.current = true;
+    if (selectedTransfer) {
+      setParsedRows(buildRowsFromItemsOnly(selectedTransfer));
+    } else {
+      setParsedRows([]);
+    }
+  }, [selectedTransfer, isCreate]);
 
   const hasRefSelected = dnRefNo != null && dnRefNo !== "";
   const hasParsedData = parsedRows.length > 0;
+
+  const hasServerFileItems =
+    (selectedTransfer?.file_items && selectedTransfer.file_items.length > 0) ||
+    false;
+  const hasLocalFileQuantity = parsedRows.some(
+    (r) => r.quantity != null && !Number.isNaN(Number(r.quantity))
+  );
+  /** Uploader: no file qty yet, and (no server file_items or user cleared to replace). */
+  const showFileUpload =
+    hasRefSelected &&
+    (isCreate || isEdit) &&
+    !hasLocalFileQuantity &&
+    (!hasServerFileItems || userClearedFileMapping);
+  /** Clear: show while server has file_items (and not cleared) or any row has file quantity from file/API. */
+  const showClearButton =
+    hasRefSelected &&
+    (isCreate || isEdit) &&
+    hasParsedData &&
+    !userClearedFileMapping &&
+    (hasServerFileItems || hasLocalFileQuantity);
 
   const handleSubmit = useCallback(async () => {
     if (!hasRefSelected || !hasParsedData) return;
@@ -339,10 +416,6 @@ function STOForm({ mode }) {
   }, [router]);
 
   const refDisabled = isEdit || isView;
-  /** Create: ref → upload file → table. Edit: same when rows cleared. */
-  const showFileUpload =
-    hasRefSelected && !hasParsedData && (isCreate || isEdit);
-  const showClearButton = (isCreate || isEdit) && hasParsedData;
   const showSubmitButton = isCreate || isEdit;
   const pageTitle =
     mode === "view" ? "View STO" : mode === "edit" ? "Edit STO" : "Create STO";
@@ -392,7 +465,9 @@ function STOForm({ mode }) {
                   onChange={(value) => {
                     if (!refDisabled) {
                       setDnRefNo(value);
-                      setParsedRows([]);
+                      setUserClearedFileMapping(false);
+                      // Rows repopulate from selected transfer via effects (create) or stay until refetch (edit)
+                      if (!value) setParsedRows([]);
                     }
                   }}
                   method="searchable-dropdown"
@@ -417,13 +492,12 @@ function STOForm({ mode }) {
               </Grid>
 
               {showFileUpload && (
-                <Box>
-                  {isCreate ? (
-                    <Text fontSize="sm" color="gray.600" mb={2}>
-                      Upload a file and map columns — the items table will appear
-                      here next.
-                    </Text>
-                  ) : null}
+                <Box mb={4}>
+                  <Text fontSize="sm" color="gray.600" mb={2}>
+                    {isCreate
+                      ? "Map file columns to set file quantities for the line items above."
+                      : "Upload a file to set or replace file quantities."}
+                  </Text>
                   <Text fontSize="sm" fontWeight={500} mb={2} color="gray.700">
                     Upload file (CSV or XLSX) and map columns
                   </Text>
@@ -435,14 +509,14 @@ function STOForm({ mode }) {
                 </Box>
               )}
 
-              {hasParsedData && (
+              {hasRefSelected && hasParsedData && (
                 <CustomContainer
                   title="Items"
                   smallHeader
                   filledHeader
                   size="xs"
                   rightSection={
-                    <Flex gap={2} align="center">
+                    <Flex gap={2} align="center" flexWrap="wrap">
                       <Badge colorScheme="orange">
                         File Qty : {getTotals("quantity")}
                       </Badge>
