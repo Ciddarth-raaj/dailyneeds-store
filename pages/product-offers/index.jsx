@@ -41,7 +41,11 @@ function ProductOffersListing() {
   const canAdd = usePermissions("add_product_offers");
   const { confirmDelete, ConfirmDeleteDialog } = useConfirmDelete();
   const { offers, loading, refetch } = useProductOffers();
-  const { getMappedProducts } = useProducts({ limit: 50000, fetchAll: true });
+  const { getMappedProducts } = useProducts({
+    limit: 50000,
+    fetchAll: true,
+    fetchNonOnline: true,
+  });
   const productsMap = useMemo(() => getMappedProducts(), [getMappedProducts]);
   const {
     isOpen: isPreviewOpen,
