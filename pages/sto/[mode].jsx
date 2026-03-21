@@ -139,7 +139,9 @@ function STOForm({ mode }) {
   });
   const products = getMappedProducts();
 
+  /** Edit/View: prefill table from API. Create: no prefill — user must pick ref, then upload file, then table appears. */
   useEffect(() => {
+    if (isCreate) return;
     if (userHasClearedRef.current) return;
     if (mergedTransfersForPrefill.length > 0) {
       const rows = buildRowsFromTransfers(mergedTransfersForPrefill);
@@ -147,11 +149,19 @@ function STOForm({ mode }) {
         setParsedRows((prev) => (prev.length === 0 ? [...rows] : prev));
       }
     }
-  }, [mergedTransfersForPrefill]);
+  }, [mergedTransfersForPrefill, isCreate]);
 
   useEffect(() => {
     userHasClearedRef.current = false;
   }, [queryId, dnRefNo]);
+
+  /** Create page: /sto/create?id=<Dn_Ref_no> pre-selects the transfer */
+  useEffect(() => {
+    if (!isCreate || !router.isReady) return;
+    const id = router.query.id;
+    if (id == null || id === "") return;
+    setDnRefNo(String(id));
+  }, [isCreate, router.isReady, router.query.id]);
 
   useEffect(() => {
     if (
@@ -165,7 +175,9 @@ function STOForm({ mode }) {
   }, [isEdit, isView, queryId, dnRefNo]);
 
   const transferOptions = useMemo(() => {
-    const list = isCreate ? transfers : transfersByRef;
+    const list = isCreate
+      ? transfers.filter((item) => (item.file_items || []).length === 0)
+      : transfersByRef;
     return (list || []).map((t) => ({
       id: t.Dn_Ref_no,
       value: String(t.Dn_Ref_no),
@@ -327,10 +339,9 @@ function STOForm({ mode }) {
   }, [router]);
 
   const refDisabled = isEdit || isView;
+  /** Create: ref → upload file → table. Edit: same when rows cleared. */
   const showFileUpload =
-    hasRefSelected &&
-    !hasParsedData &&
-    (isCreate ? !selectedTransfer?.is_checked : isEdit);
+    hasRefSelected && !hasParsedData && (isCreate || isEdit);
   const showClearButton = (isCreate || isEdit) && hasParsedData;
   const showSubmitButton = isCreate || isEdit;
   const pageTitle =
@@ -407,6 +418,12 @@ function STOForm({ mode }) {
 
               {showFileUpload && (
                 <Box>
+                  {isCreate ? (
+                    <Text fontSize="sm" color="gray.600" mb={2}>
+                      Upload a file and map columns — the items table will appear
+                      here next.
+                    </Text>
+                  ) : null}
                   <Text fontSize="sm" fontWeight={500} mb={2} color="gray.700">
                     Upload file (CSV or XLSX) and map columns
                   </Text>

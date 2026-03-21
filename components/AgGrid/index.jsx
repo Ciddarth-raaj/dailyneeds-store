@@ -325,7 +325,7 @@ const AgGrid = React.forwardRef(function AgGrid(
                       />
                     </Tooltip>
                   );
-                  if (item.redirectionUrl) {
+                  if (item.redirectionUrl && !item.disabled) {
                     return (
                       <Link
                         href={item.redirectionUrl}

@@ -183,7 +183,9 @@ export const PERMISSIONS = {
     allow_product_sync: "Allow Product Sync",
     view_sto: "View STO Comparison",
     add_sto: "Add STO Comparison",
+    delete_sto: "Delete STO Comparison",
     view_product_offers: "View Product Offers",
     add_product_offers: "Add Product Offers",
+    view_price_checker: "View Price Checker",
   },
 };
