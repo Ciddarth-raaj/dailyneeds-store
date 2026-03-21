@@ -7,8 +7,9 @@ import CustomContainer from "../../../components/CustomContainer";
 import AgGrid from "../../../components/AgGrid";
 import WriteOffMonthCalendar from "../../../components/pick-pack/WriteOffMonthCalendar";
 import FileUploaderWithColumnMapping from "../../../components/FileUploaderWithColumnMapping";
-import { useRemarkModal } from "../../../components/purchase-return/PurchaseReturnRemarkAction";
+import WriteOffRemarkCell from "../../../components/pick-pack/WriteOffRemarkCell";
 import usePermissions from "../../../customHooks/usePermissions";
+import { usePickPackRemarks } from "../../../customHooks/usePickPackRemarks";
 import { useConfirmDelete } from "../../../customHooks/useConfirmDelete";
 import { useProducts } from "../../../customHooks/useProducts";
 import {
@@ -39,6 +40,7 @@ function PickPackWriteOffPage() {
   const { products } = useProducts({
     limit: 50000,
     fetchAll: true,
+    fetchNonOnline: true,
   });
 
   const mappedProducts = useMemo(() => {
@@ -63,6 +65,15 @@ function PickPackWriteOffPage() {
 
   const canAdd = usePermissions("add_pick_pack_write_off");
   const { confirmDelete, ConfirmDeleteDialog } = useConfirmDelete();
+  const { remarks: pickPackRemarksList } = usePickPackRemarks();
+
+  const activePickPackRemarks = useMemo(
+    () =>
+      (pickPackRemarksList || []).filter(
+        (r) => r.is_active === true || r.is_active === 1
+      ),
+    [pickPackRemarksList]
+  );
 
   const loadMonth = useCallback(async () => {
     const from = viewingMonth.clone().startOf("month").format("YYYY-MM-DD");
@@ -92,9 +103,13 @@ function PickPackWriteOffPage() {
     );
   }, [monthRows, selectedDate]);
 
-  const { getRemarkAction, RemarkModalComponent } = useRemarkModal(loadMonth, {
-    variant: "pick_pack_write_off",
-  });
+  const handleRemarkUpdated = useCallback((writeOffId, updates) => {
+    setMonthRows((prev) =>
+      prev.map((r) =>
+        r.pick_pack_write_off_id === writeOffId ? { ...r, ...updates } : r
+      )
+    );
+  }, []);
 
   const handleImportMapped = useCallback(
     async (mappedRows) => {
@@ -156,10 +171,18 @@ function PickPackWriteOffPage() {
         type: "number",
       },
       {
-        field: "_remark_display",
+        field: "remark_id",
         headerName: "Remark",
-        type: "capitalized",
-        flex: 2,
+        minWidth: 130,
+        autoHeight: true,
+        cellRenderer: (params) => (
+          <WriteOffRemarkCell
+            data={params.data}
+            remarkOptions={activePickPackRemarks}
+            onRemarkUpdated={handleRemarkUpdated}
+            isEditable={canAdd}
+          />
+        ),
       },
       {
         field: "actions",
@@ -168,7 +191,7 @@ function PickPackWriteOffPage() {
         valueGetter: (params) => {
           const row = params.data;
           const id = row?.pick_pack_write_off_id;
-          const actions = [getRemarkAction(row)];
+          const actions = [];
           if (canAdd) {
             actions.push({
               label: "Delete",
@@ -190,7 +213,13 @@ function PickPackWriteOffPage() {
         },
       },
     ],
-    [getRemarkAction, canAdd, confirmDelete, loadMonth]
+    [
+      activePickPackRemarks,
+      canAdd,
+      confirmDelete,
+      loadMonth,
+      handleRemarkUpdated,
+    ]
   );
 
   const gridRows = useMemo(() => {
@@ -205,7 +234,6 @@ function PickPackWriteOffPage() {
         _product_name:
           p?.gf_item_name ?? p?.de_display_name ?? r.product_name ?? "—",
         _image_url: p?.image_url ?? r.product_image_url ?? "",
-        _remark_display: r.remark_value ?? "—",
       };
     });
   }, [rowsForSelectedDay, mappedProducts]);
@@ -216,7 +244,6 @@ function PickPackWriteOffPage() {
       permissionKey="view_pick_pack_write_off"
     >
       <ConfirmDeleteDialog />
-      <RemarkModalComponent />
 
       <Flex flexDirection="column" gap={6}>
         <WriteOffMonthCalendar

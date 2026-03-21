@@ -211,6 +211,7 @@ function SearchableDropdown({
           isDisabled={isDisabled}
           autoComplete="off"
           focusBorderColor="purple.400"
+          _placeholder={{ color: "gray.500" }}
           _disabled={{ opacity: 0.8, cursor: "not-allowed" }}
         />
       </Box>
