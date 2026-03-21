@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import moment from "moment";
 import { Box, Button, Flex, Text } from "@chakra-ui/react";
 import toast from "react-hot-toast";
@@ -16,7 +22,23 @@ import {
   listPickPackWriteOffs,
   createPickPackWriteOff,
   deletePickPackWriteOff,
+  updatePickPackWriteOff,
 } from "../../../helper/pickPackWriteOff";
+import useEmployees from "../../../customHooks/useEmployees";
+import WriteOffShortageEmployeeModal from "../../../components/pick-pack/WriteOffShortageEmployeeModal";
+
+/** List/detail APIs may return 1, "1", or true */
+function isWriteOffVerified(value) {
+  return value === true || value === 1 || value === "1";
+}
+
+function normalizeWriteOffRow(row) {
+  if (!row || typeof row !== "object") return row;
+  return {
+    ...row,
+    is_verified: isWriteOffVerified(row.is_verified),
+  };
+}
 
 /** Matches FileUploaderWithColumnMapping: keys are API fields; labels are targets to map from file headers. */
 const WRITE_OFF_IMPORT_CONFIG = [
@@ -66,6 +88,45 @@ function PickPackWriteOffPage() {
   const canAdd = usePermissions("add_pick_pack_write_off");
   const { confirmDelete, ConfirmDeleteDialog } = useConfirmDelete();
   const { remarks: pickPackRemarksList } = usePickPackRemarks();
+  const { employees, loading: employeesLoading } = useEmployees({});
+
+  const [shortageModal, setShortageModal] = useState(null);
+  const gridRef = useRef(null);
+
+  /** AG Grid React cells may not re-render when row data changes; force remark column refresh */
+  const refreshRemarkColumnCells = useCallback(() => {
+    requestAnimationFrame(() => {
+      try {
+        gridRef.current?.api?.refreshCells({
+          force: true,
+          columns: ["remark_id"],
+        });
+      } catch (_) {
+        /* grid not mounted */
+      }
+    });
+  }, []);
+
+  const employeeOptions = useMemo(
+    () =>
+      (employees || []).map((e) => ({
+        id: String(e.employee_id),
+        value: e.employee_name,
+        employee_id: e.employee_id,
+        employee_name: e.employee_name,
+        designation_name: e.designation_name,
+        store_name: e.store_name,
+      })),
+    [employees]
+  );
+
+  const employeeMap = useMemo(() => {
+    const map = {};
+    employees.forEach((e) => {
+      map[e.employee_id] = e;
+    });
+    return map;
+  }, [employees]);
 
   const activePickPackRemarks = useMemo(
     () =>
@@ -75,23 +136,29 @@ function PickPackWriteOffPage() {
     [pickPackRemarksList]
   );
 
-  const loadMonth = useCallback(async () => {
-    const from = viewingMonth.clone().startOf("month").format("YYYY-MM-DD");
-    const to = viewingMonth.clone().endOf("month").format("YYYY-MM-DD");
-    setLoadingMonth(true);
-    try {
-      const data = await listPickPackWriteOffs({
-        from_date: from,
-        to_date: to,
-      });
-      setMonthRows(data);
-    } catch (e) {
-      toast.error(e?.message || "Failed to load write-offs");
-      setMonthRows([]);
-    } finally {
-      setLoadingMonth(false);
-    }
-  }, [viewingMonth]);
+  const loadMonth = useCallback(
+    async (options = {}) => {
+      const { showLoading = true } = options;
+      const from = viewingMonth.clone().startOf("month").format("YYYY-MM-DD");
+      const to = viewingMonth.clone().endOf("month").format("YYYY-MM-DD");
+      if (showLoading) setLoadingMonth(true);
+      try {
+        const data = await listPickPackWriteOffs({
+          from_date: from,
+          to_date: to,
+        });
+        setMonthRows(
+          Array.isArray(data) ? data.map(normalizeWriteOffRow) : []
+        );
+      } catch (e) {
+        toast.error(e?.message || "Failed to load write-offs");
+        setMonthRows([]);
+      } finally {
+        if (showLoading) setLoadingMonth(false);
+      }
+    },
+    [viewingMonth]
+  );
 
   useEffect(() => {
     loadMonth();
@@ -103,13 +170,53 @@ function PickPackWriteOffPage() {
     );
   }, [monthRows, selectedDate]);
 
-  const handleRemarkUpdated = useCallback((writeOffId, updates) => {
-    setMonthRows((prev) =>
-      prev.map((r) =>
-        r.pick_pack_write_off_id === writeOffId ? { ...r, ...updates } : r
-      )
-    );
+  /** Refetch month list after a mutation (no full-page spinner — grid stays visible). */
+  const refetchAfterUpdate = useCallback(async () => {
+    await loadMonth({ showLoading: false });
+  }, [loadMonth]);
+
+  const handleRemarkUpdated = useCallback(
+    async (_writeOffId, _updates) => {
+      await refetchAfterUpdate();
+    },
+    [refetchAfterUpdate]
+  );
+
+  const handleShortageEmployeeRequired = useCallback((payload) => {
+    setShortageModal(payload);
   }, []);
+
+  const handleVerifyRow = useCallback(
+    async (row) => {
+      const id = row?.pick_pack_write_off_id;
+      if (id == null) return;
+      try {
+        await updatePickPackWriteOff(id, { is_verified: true });
+        toast.success("Verified");
+        // Optimistic UI so grid/React cells update even if AG Grid reuses row nodes
+        setMonthRows((prev) =>
+          prev.map((r) =>
+            String(r.pick_pack_write_off_id) === String(id)
+              ? normalizeWriteOffRow({ ...r, is_verified: true })
+              : r
+          )
+        );
+        refreshRemarkColumnCells();
+        await refetchAfterUpdate();
+        refreshRemarkColumnCells();
+      } catch (e) {
+        toast.error(e?.message || "Failed to verify");
+      }
+    },
+    [refetchAfterUpdate, refreshRemarkColumnCells]
+  );
+
+  const hasWriteOffReason = (row) => {
+    const rid = row?.remark_id;
+    if (rid != null && rid !== "") return true;
+    const s = row?.remark_str;
+    return s != null && String(s).trim() !== "";
+  };
 
   const handleImportMapped = useCallback(
     async (mappedRows) => {
@@ -175,28 +282,51 @@ function PickPackWriteOffPage() {
         headerName: "Remark",
         minWidth: 130,
         autoHeight: true,
-        cellRenderer: (params) => (
-          <WriteOffRemarkCell
-            data={params.data}
-            remarkOptions={activePickPackRemarks}
-            onRemarkUpdated={handleRemarkUpdated}
-            isEditable={canAdd}
-          />
-        ),
+        cellRenderer: (params) => {
+          const verified = isWriteOffVerified(params.data?.is_verified);
+          const rowId = params.data?.pick_pack_write_off_id;
+          return (
+            <WriteOffRemarkCell
+              key={`remark-${rowId}-${verified ? "v" : "o"}`}
+              data={params.data}
+              remarkOptions={activePickPackRemarks}
+              onRemarkUpdated={handleRemarkUpdated}
+              onShortageEmployeeRequired={handleShortageEmployeeRequired}
+              isEditable={canAdd && !verified}
+              employeeMap={employeeMap}
+            />
+          );
+        },
       },
       {
         field: "actions",
         type: "action-icons",
         headerName: "Actions",
+        minWidth: 168,
+        maxWidth: 200,
+        width: 168,
         valueGetter: (params) => {
           const row = params.data;
           const id = row?.pick_pack_write_off_id;
           const actions = [];
+          const verified = isWriteOffVerified(row?.is_verified);
+          const canVerify = canAdd && hasWriteOffReason(row) && !verified;
           if (canAdd) {
+            actions.push({
+              label: "Verify",
+              icon: verified ? "fa-solid fa-circle-check" : "fa-solid fa-check",
+              colorScheme: "green",
+              disabled: !canVerify,
+              onClick: () => {
+                if (!canVerify) return;
+                handleVerifyRow(row);
+              },
+            });
             actions.push({
               label: "Delete",
               icon: "fa-solid fa-trash",
               colorScheme: "red",
+              disabled: verified,
               onClick: () =>
                 confirmDelete({
                   title: "Delete write-off",
@@ -219,6 +349,9 @@ function PickPackWriteOffPage() {
       confirmDelete,
       loadMonth,
       handleRemarkUpdated,
+      handleShortageEmployeeRequired,
+      handleVerifyRow,
+      employeeMap,
     ]
   );
 
@@ -244,6 +377,17 @@ function PickPackWriteOffPage() {
       permissionKey="view_pick_pack_write_off"
     >
       <ConfirmDeleteDialog />
+
+      <WriteOffShortageEmployeeModal
+        isOpen={shortageModal != null}
+        onClose={() => setShortageModal(null)}
+        writeOffId={shortageModal?.writeOffId}
+        remarkId={shortageModal?.remarkId}
+        remarkLabel={shortageModal?.remark_value}
+        employeeOptions={employeeOptions}
+        employeesLoading={employeesLoading}
+        onSuccess={handleRemarkUpdated}
+      />
 
       <Flex flexDirection="column" gap={6}>
         <WriteOffMonthCalendar
@@ -285,13 +429,13 @@ function PickPackWriteOffPage() {
           ) : (
             <Box>
               <AgGrid
+                ref={gridRef}
                 rowData={gridRows}
                 columnDefs={colDefs}
                 tableKey="pick-pack-write-off"
-                gridOptions={{
-                  getRowId: (params) =>
-                    String(params.data?.pick_pack_write_off_id ?? ""),
-                }}
+                getRowId={(params) =>
+                  String(params.data?.pick_pack_write_off_id ?? "")
+                }
               />
             </Box>
           )}

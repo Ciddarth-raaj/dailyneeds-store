@@ -28,12 +28,7 @@ const MONTHS = [
 ];
 
 /**
- * Month/year picker + day cells styled like Daily Records Calendar.
- * @param {string} selectedDate - YYYY-MM-DD
- * @param {function(string)} onSelectDate
- * @param {object[]} writeOffsList - rows with .date for highlight (green = has record)
- * @param {moment.Moment} viewingMonth - first day of month being viewed
- * @param {function(moment.Moment)} onViewingMonthChange
+ * Day colors: red = no records, yellow = has records but not all verified, green = all verified.
  */
 function WriteOffMonthCalendar({
   selectedDate,
@@ -57,17 +52,55 @@ function WriteOffMonthCalendar({
     return dateArray;
   }, [viewingMonth]);
 
-  const datesWithRecords = useMemo(() => {
-    const dateSet = new Set();
+  /** Per day: total rows + verified count */
+  const dayAggregation = useMemo(() => {
+    const map = {};
     writeOffsList.forEach((row) => {
       if (!row?.date) return;
       const d = moment(row.date).format("YYYY-MM-DD");
-      dateSet.add(d);
+      if (!map[d]) map[d] = { total: 0, verified: 0 };
+      map[d].total += 1;
+      if (
+        row.is_verified === true ||
+        row.is_verified === 1 ||
+        row.is_verified === "1"
+      ) {
+        map[d].verified += 1;
+      }
     });
-    return dateSet;
+    return map;
   }, [writeOffsList]);
 
-  const hasRecord = (date) => datesWithRecords.has(date.format("YYYY-MM-DD"));
+  const getDayVisual = (date) => {
+    const key = date.format("YYYY-MM-DD");
+    const agg = dayAggregation[key];
+    if (!agg || agg.total === 0) {
+      return {
+        kind: "empty",
+        bg: "red.50",
+        border: "red.200",
+        text: "red.600",
+        hint: "No records",
+      };
+    }
+    if (agg.verified >= agg.total) {
+      return {
+        kind: "verified",
+        bg: "green.50",
+        border: "green.200",
+        text: "green.600",
+        hint: `All verified (${agg.verified}/${agg.total})`,
+      };
+    }
+    return {
+      kind: "pending",
+      bg: "yellow.50",
+      border: "yellow.300",
+      text: "yellow.800",
+      hint: `Pending verify (${agg.verified}/${agg.total})`,
+    };
+  };
+
   const isSelected = (date) => date.format("YYYY-MM-DD") === selectedDate;
 
   const yearOptions = useMemo(() => {
@@ -123,12 +156,12 @@ function WriteOffMonthCalendar({
 
       <Flex flexWrap="wrap" gap="8px">
         {dates.map((date, index) => {
-          const hasRecordForDate = hasRecord(date);
+          const visual = getDayVisual(date);
           const selected = isSelected(date);
 
           return (
             <Tooltip
-              label={date.format("DD/MM/YYYY - ddd")}
+              label={`${date.format("DD/MM/YYYY - ddd")} — ${visual.hint}`}
               key={index}
               openDelay={500}
             >
@@ -142,24 +175,14 @@ function WriteOffMonthCalendar({
                 display="flex"
                 justifyContent="center"
                 alignItems="center"
-                bg={hasRecordForDate ? "green.50" : "red.50"}
+                bg={visual.bg}
                 border="1px solid"
-                borderColor={
-                  selected
-                    ? "purple.500"
-                    : hasRecordForDate
-                    ? "green.200"
-                    : "red.200"
-                }
+                borderColor={selected ? "purple.500" : visual.border}
                 boxShadow={selected ? "0 0 0 2px var(--chakra-colors-purple-400)" : undefined}
                 cursor="pointer"
                 _hover={{ opacity: 0.9 }}
               >
-                <Text
-                  fontWeight="medium"
-                  fontSize="xs"
-                  color={hasRecordForDate ? "green.600" : "red.600"}
-                >
+                <Text fontWeight="medium" fontSize="xs" color={visual.text}>
                   {date.format("D")}
                 </Text>
               </Box>

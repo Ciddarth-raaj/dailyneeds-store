@@ -36,4 +36,4 @@ function Badge({ children, colorScheme = "purple", size = "xs" }) {
   );
 }
 
-export default Badge;
+export default React.memo(Badge);
