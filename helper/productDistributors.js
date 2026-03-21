@@ -1,9 +1,10 @@
 import API from "../util/api";
 
 /**
- * Product Distributors API - see backend docs PURCHASE_RETURN_AND_PRODUCT_DISTRIBUTORS_APIS.md
+ * Product Distributors API — Gofrugal master + main-DB buyer mapping.
+ * @see dailyneeds-store-backend/docs/product_distributor_changes.md
  * Base path: /product-distributors
- * Data: medishopdb_MED_DISTRIBUTOR_MAST (MDM_DIST_CODE, MDM_DIST_NAME, MDM_SHORT_NAME)
+ * GET responses include buyer_id, buyer_name. POST body upserts mapping only.
  */
 
 export const getProductDistributors = () => {
@@ -25,13 +26,17 @@ export const getProductDistributorByCode = (code) => {
   });
 };
 
-export const createProductDistributor = (body) => {
+/** Upsert buyer mapping: { MDM_DIST_CODE, buyer_id?: number|null } */
+export const upsertProductDistributorMapping = (body) => {
   return API.post("/product-distributors", body).then((res) => {
     const data = res?.data ?? res;
     if (data?.code === 200) return data;
-    throw new Error(data?.msg || "Failed to create distributor");
+    throw new Error(data?.msg || "Failed to save buyer assignment");
   });
 };
+
+/** @deprecated Use upsertProductDistributorMapping — POST only assigns buyer; does not create ERP rows */
+export const createProductDistributor = upsertProductDistributorMapping;
 
 export const updateProductDistributor = (code, body) => {
   return API.put(

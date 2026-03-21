@@ -2,8 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import {
   getProductDistributors,
   getProductDistributorByCode,
-  createProductDistributor,
-  updateProductDistributor,
+  upsertProductDistributorMapping,
   deleteProductDistributor,
 } from "../helper/productDistributors";
 
@@ -78,9 +77,14 @@ export function useDistributorByCode(code, options = {}) {
     fetchOne();
   }, [fetchOne]);
 
-  const updateDistributor = useCallback(
-    async (body) => {
-      await updateProductDistributor(code, body);
+  const saveBuyerMapping = useCallback(
+    async (buyer_id) => {
+      if (!code) throw new Error("Distributor code is required");
+      await upsertProductDistributorMapping({
+        MDM_DIST_CODE: code,
+        buyer_id:
+          buyer_id === "" || buyer_id === undefined ? null : Number(buyer_id),
+      });
       await fetchOne();
     },
     [code, fetchOne]
@@ -91,13 +95,13 @@ export function useDistributorByCode(code, options = {}) {
     loading,
     error,
     refetch: fetchOne,
-    updateDistributor,
+    saveBuyerMapping,
   };
 }
 
 export function useCreateDistributor() {
   const createDistributor = useCallback(async (body) => {
-    return createProductDistributor(body);
+    return upsertProductDistributorMapping(body);
   }, []);
   return { createDistributor };
 }

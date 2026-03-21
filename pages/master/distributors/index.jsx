@@ -4,9 +4,16 @@ import CustomContainer from "../../../components/CustomContainer";
 import { Text } from "@chakra-ui/react";
 import AgGrid from "../../../components/AgGrid";
 import { useDistributors } from "../../../customHooks/useDistributors";
+import usePermissions from "../../../customHooks/usePermissions";
+
+const listPermissionKeys = [
+  "view_product_distributors",
+  "view_product_distributor",
+];
 
 function DistributorListing() {
   const { distributors, loading } = useDistributors();
+  const canAssignBuyer = usePermissions(["add_product_distributor"]);
 
   const colDefs = useMemo(
     () => [
@@ -26,30 +33,47 @@ function DistributorListing() {
         headerName: "Short Name",
       },
       {
-        field: "MDM_DIST_CODE",
+        field: "buyer_name",
+        headerName: "Buyer",
+        type: "capitalized",
+      },
+      {
+        colId: "actions",
         headerName: "Action",
         type: "action-icons",
+        sortable: false,
+        filter: false,
         valueGetter: (params) => {
-          const code = params.data?.MDM_DIST_CODE;
-          return [
+          const distCode = params.data?.MDM_DIST_CODE;
+          const actions = [
             {
               label: "View",
               icon: "fa-solid fa-eye",
               redirectionUrl: `/master/distributors/view?code=${encodeURIComponent(
-                code
+                distCode
               )}`,
             },
           ];
+          if (canAssignBuyer) {
+            actions.push({
+              label: "Edit",
+              icon: "fa-solid fa-pen",
+              redirectionUrl: `/master/distributors/edit?code=${encodeURIComponent(
+                distCode
+              )}`,
+            });
+          }
+          return actions;
         },
       },
     ],
-    []
+    [canAssignBuyer]
   );
 
   return (
     <GlobalWrapper
       title="Product Distributors"
-      permissionKey="view_product_distributors"
+      permissionKey={listPermissionKeys}
     >
       <CustomContainer title="Product Distributors" filledHeader>
         {loading ? (
@@ -60,7 +84,7 @@ function DistributorListing() {
             columnDefs={colDefs}
             tableKey="master-distributors"
             gridOptions={{
-              getRowId: (params) => params.data?.MDM_DIST_CODE,
+              getRowId: (params) => String(params.data?.MDM_DIST_CODE ?? ""),
             }}
           />
         )}
