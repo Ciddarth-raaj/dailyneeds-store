@@ -141,7 +141,10 @@ function ReceivingStockPage() {
         type: "capitalized",
         flex: 2,
         valueGetter: (p) => {
-          const name = p.data?.product?.gf_item_name;
+          const name =
+            p.data?.product?.gf_item_name ??
+            p.data?.product?.de_name ??
+            p.data?.product?.de_display_name;
           if (name) return name;
           const code = p.data?.gofrugal?.MMD_ITEM_CODE;
           return code != null ? `Unknown item (${code})` : "—";
