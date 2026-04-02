@@ -70,6 +70,20 @@ function Products() {
       flex: 2,
     },
     {
+      field: "non_offer_stock",
+      hideByDefault: true,
+      headerName: "NOS",
+      type: "number",
+      filter: false
+    },
+    {
+      field: "offer_stock",
+      hideByDefault: true,
+      headerName: "OS",
+      type: "number",
+      filter: false
+    },
+    {
       field: "de_distributor",
       headerName: "Distributor",
       type: "capitalized",

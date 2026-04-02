@@ -111,6 +111,18 @@ const AgGrid = React.forwardRef(function AgGrid(
     }
   }, [selectMode]);
 
+  /** Let autoHeight columns (e.g. image) measure after data / layout. */
+  React.useEffect(() => {
+    const id = requestAnimationFrame(() => {
+      try {
+        gridRef.current?.api?.resetRowHeights?.();
+      } catch (_e) {
+        /* ignore */
+      }
+    });
+    return () => cancelAnimationFrame(id);
+  }, [rowData]);
+
   const rawColDefs = React.useMemo(
     () => columnDefs ?? colDefs ?? [],
     [columnDefs, colDefs]
@@ -245,15 +257,44 @@ const AgGrid = React.forwardRef(function AgGrid(
         },
         image: {
           autoHeight: true,
+          minWidth: 80,
+          cellStyle: {
+            lineHeight: 1,
+            paddingTop: 4,
+            paddingBottom: 4,
+          },
           cellRenderer: (params) => {
             if (!params.value) return null;
+            const bumpRowHeight = () => {
+              try {
+                params.api?.resetRowHeights?.();
+              } catch (_e) {
+                /* ignore */
+              }
+            };
             return (
-              <Box p="4px">
+              <Box
+                w="100%"
+                minW={0}
+                display="flex"
+                alignItems="center"
+                justifyContent="center"
+                lineHeight={1}
+              >
                 <Image
                   src={params.value}
                   alt=""
-                  boxSize="20"
-                  objectFit="cover"
+                  onLoad={bumpRowHeight}
+                  onError={bumpRowHeight}
+                  sx={{
+                    minWidth: 0,
+                    maxWidth: "100%",
+                    maxHeight: "120px",
+                    width: "auto",
+                    height: "auto",
+                    objectFit: "contain",
+                    verticalAlign: "middle",
+                  }}
                   borderRadius="md"
                 />
               </Box>

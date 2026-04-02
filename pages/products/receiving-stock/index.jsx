@@ -131,7 +131,7 @@ function ReceivingStockPage() {
         type: "id",
       },
       {
-        field: "product.image_url",
+        field: "product.image_link",
         headerName: "Image",
         type: "image",
       },
@@ -218,6 +218,8 @@ function ReceivingStockPage() {
     ],
     [canAdd, canDelete, handleClear, handleUpsert]
   );
+
+  console.log("CIDD", rowData);
 
   return (
     <GlobalWrapper
