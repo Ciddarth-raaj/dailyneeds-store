@@ -90,7 +90,8 @@ function buildRowsFromTransfers(transfers) {
       } else {
         byArticleId[articleId] = {
           articleId,
-          articleName: fi?.gf_item_name ?? fi?.de_display_name ?? "-",
+          articleName:
+            fi?.gf_item_name ?? fi?.de_name ?? fi?.de_display_name ?? "-",
           toStore,
           quantity: fileQty,
           dbQuantity: null,
@@ -166,6 +167,7 @@ function STOForm({ mode }) {
   } = useProducts({
     limit: 50000,
     fetchAll: true,
+    fetchNonOnline: true,
   });
   const products = getMappedProducts();
 
@@ -321,6 +323,7 @@ function STOForm({ mode }) {
                 articleId: row.articleId,
                 articleName:
                   products[row.articleId]?.gf_item_name ??
+                  products[row.articleId]?.de_name ??
                   products[row.articleId]?.de_display_name ??
                   row.articleName,
                 toStore: row.toStore,
@@ -344,6 +347,7 @@ function STOForm({ mode }) {
             articleId,
             articleName:
               products[articleId]?.gf_item_name ??
+              products[articleId]?.de_name ??
               products[articleId]?.de_display_name ??
               item.Item_Name ??
               "-",

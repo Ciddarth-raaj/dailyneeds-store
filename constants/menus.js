@@ -448,6 +448,12 @@ export default {
         selected: false,
         location: "/products/changes",
       },
+      view_receiving_stock: {
+        title: "Receiving Stock",
+        permission: "view_stock_received",
+        selected: false,
+        location: "/products/receiving-stock",
+      },
       // view_departments: {
       //   title: 'View Deapartments',
       //   selected: false,
