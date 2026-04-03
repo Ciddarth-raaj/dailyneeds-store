@@ -35,6 +35,13 @@ const IMPORT_COLUMN_CONFIG = [
     suggestedKey: "selling_price",
     type: "number",
   },
+  {
+    key: "opening_stock",
+    label: "Opening Stock",
+    required: true,
+    suggestedKey: "opening_stock",
+    type: "number",
+  },
 ];
 
 function ProductOffersListing() {
@@ -71,6 +78,7 @@ function ProductOffersListing() {
         image_url: p?.image_url ?? null,
         mrp: row.mrp,
         selling_price: row.selling_price,
+        opening_stock: row.opening_stock,
       };
     });
   }, [previewRows, productsMap]);
@@ -97,6 +105,7 @@ function ProductOffersListing() {
       { field: "product_name", headerName: "Product Name", flex: 2 },
       { field: "mrp", headerName: "MRP", type: "currency" },
       { field: "selling_price", headerName: "Selling Price", type: "currency" },
+      { field: "opening_stock", headerName: "Opening stock" },
     ],
     []
   );
@@ -107,6 +116,17 @@ function ProductOffersListing() {
       { field: "gf_item_name", headerName: "Product Name", flex: 2 },
       { field: "mrp", headerName: "MRP", type: "currency" },
       { field: "selling_price", headerName: "Selling Price", type: "currency" },
+      {
+        field: "opening_stock",
+        headerName: "Opening Stock",
+        hideByDefault: true,
+      },
+      {
+        field: "stock_input",
+        headerName: "Inc. Stock",
+        hideByDefault: true,
+        valueGetter: (params) => parseInt(params.data?.stock_input) ?? 0,
+      },
       {
         field: "is_active",
         headerName: "Active",

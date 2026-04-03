@@ -22,16 +22,23 @@ const sellingPriceField = Yup.number()
   .required("Required")
   .transform((v) => (v === "" || Number.isNaN(Number(v)) ? null : Number(v)));
 
+const openingStockField = Yup.number()
+  .min(0, "Must be ≥ 0")
+  .required("Required")
+  .transform((v) => (v === "" || Number.isNaN(Number(v)) ? null : Number(v)));
+
 const initialValuesCreate = {
   product_ids: [],
   mrp: "",
   selling_price: "",
+  opening_stock: "",
 };
 
 const initialValuesSingle = {
   product_id: "",
   mrp: "",
   selling_price: "",
+  opening_stock: "",
 };
 
 function ProductOffersForm() {
@@ -118,7 +125,8 @@ function ProductOffersForm() {
     []
   );
 
-  const [formInitialValues, setFormInitialValues] = useState(initialValuesSingle);
+  const [formInitialValues, setFormInitialValues] =
+    useState(initialValuesSingle);
 
   const validationSchema = useMemo(() => {
     if (createMode) {
@@ -134,6 +142,7 @@ function ProductOffersForm() {
           ),
         mrp: mrpField,
         selling_price: sellingPriceField,
+        opening_stock: openingStockField,
       });
     }
     return Yup.object({
@@ -146,6 +155,7 @@ function ProductOffersForm() {
         ),
       mrp: mrpField,
       selling_price: sellingPriceField,
+      opening_stock: openingStockField,
     });
   }, [createMode]);
 
@@ -160,6 +170,10 @@ function ProductOffersForm() {
         mrp: offer.mrp != null ? String(offer.mrp) : "",
         selling_price:
           offer.selling_price != null ? String(offer.selling_price) : "",
+        opening_stock:
+          offer.opening_stock != null && offer.opening_stock !== ""
+            ? String(parseInt(offer.opening_stock))
+            : "0",
       });
     }
   }, [createMode, offer]);
@@ -176,6 +190,8 @@ function ProductOffersForm() {
       const mrp = values.mrp !== "" ? Number(values.mrp) : null;
       const selling_price =
         values.selling_price !== "" ? Number(values.selling_price) : null;
+      const opening_stock =
+        values.opening_stock !== "" ? Number(values.opening_stock) : 0;
       const toastId = toast.loading(
         ids.length > 1 ? `Creating ${ids.length} offers…` : "Creating offer…"
       );
@@ -186,13 +202,12 @@ function ProductOffersForm() {
               product_id: Number(pid),
               mrp,
               selling_price,
+              opening_stock,
             })
           )
         );
         toast.success(
-          ids.length > 1
-            ? `Created ${ids.length} offers`
-            : "Offer created",
+          ids.length > 1 ? `Created ${ids.length} offers` : "Offer created",
           { id: toastId }
         );
         router.push("/product-offers");
@@ -210,6 +225,8 @@ function ProductOffersForm() {
           mrp: values.mrp !== "" ? Number(values.mrp) : null,
           selling_price:
             values.selling_price !== "" ? Number(values.selling_price) : null,
+          opening_stock:
+            values.opening_stock !== "" ? Number(values.opening_stock) : 0,
         });
         toast.success("Offer updated");
         router.push("/product-offers");
@@ -304,6 +321,13 @@ function ProductOffersForm() {
                   name="selling_price"
                   type="number"
                   placeholder="Selling price"
+                  editable={!isReadOnly}
+                />
+                <CustomInput
+                  label="Opening stock"
+                  name="opening_stock"
+                  type="number"
+                  placeholder="0"
                   editable={!isReadOnly}
                 />
               </Grid>

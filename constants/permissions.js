@@ -125,6 +125,8 @@ export const PERMISSIONS = {
   Products: {
     view_products: "View Products",
     edit_products: "Edit Products",
+    view_product_offers: "View Product Offers",
+    add_product_offers: "Add Product Offers",
     view_stock_received: "View Receiving Stock",
     add_stock_received: "Add Receiving Stock",
     delete_stock_received: "Delete Receiving Stock",
@@ -188,8 +190,6 @@ export const PERMISSIONS = {
     view_sto: "View STO Comparison",
     add_sto: "Add STO Comparison",
     delete_sto: "Delete STO Comparison",
-    view_product_offers: "View Product Offers",
-    add_product_offers: "Add Product Offers",
     view_price_checker: "View Price Checker",
   },
 };

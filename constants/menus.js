@@ -454,6 +454,12 @@ export default {
         selected: false,
         location: "/products/receiving-stock",
       },
+      view_product_offers: {
+        title: "Product Offers",
+        permission: "view_product_offers",
+        selected: false,
+        location: "/product-offers",
+      },
       // view_departments: {
       //   title: 'View Deapartments',
       //   selected: false,
@@ -621,12 +627,6 @@ export default {
         permission: "view_sto",
         selected: false,
         location: "/sto",
-      },
-      offers: {
-        title: "Offers",
-        permission: "view_product_offers",
-        selected: false,
-        location: "/product-offers",
       },
       price_checker: {
         title: "Price Checker",
