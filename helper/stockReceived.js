@@ -4,17 +4,25 @@ const body = (res) => res?.data;
 
 const stockReceived = {
   /**
-   * GET /stock-received/gofrugal-dtl?pending_only=
+   * GET /stock-received/gofrugal-dtl?pending_only=&days_buffer=
    * @param {boolean} pendingOnly
+   * @param {number} [daysBuffer] default 0, max 3650
+   * @returns {Promise<{ data: Array, meta: object }>}
    */
-  listGofrugalDtl: (pendingOnly = false) =>
+  listGofrugalDtl: (pendingOnly = false, daysBuffer = 0) =>
     new Promise((resolve, reject) => {
       const q = pendingOnly ? "true" : "false";
-      API.get(`/stock-received/gofrugal-dtl?pending_only=${q}`)
+      const d = Math.min(3650, Math.max(0, Math.floor(Number(daysBuffer) || 0)));
+      API.get(
+        `/stock-received/gofrugal-dtl?pending_only=${q}&days_buffer=${d}`
+      )
         .then((res) => {
           const b = body(res);
           if (b?.code === 200) {
-            resolve(Array.isArray(b.data) ? b.data : []);
+            resolve({
+              data: Array.isArray(b.data) ? b.data : [],
+              meta: b.meta && typeof b.meta === "object" ? b.meta : {},
+            });
           } else {
             reject(new Error(b?.msg ?? "Failed to load receiving stock"));
           }

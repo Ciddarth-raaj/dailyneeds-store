@@ -1,8 +1,10 @@
-import React, { useMemo, useCallback } from "react";
+import React, { useMemo, useCallback, useState } from "react";
+import moment from "moment";
 import GlobalWrapper from "../../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../../components/CustomContainer";
-import { Text } from "@chakra-ui/react";
+import { Text, Flex, FormControl, FormLabel, Select } from "@chakra-ui/react";
 import AgGrid from "../../../components/AgGrid";
+import MonthStatusCalendar from "../../../components/calendar/MonthStatusCalendar";
 import useStockReceivedGofrugal from "../../../customHooks/useStockReceivedGofrugal";
 import usePermissions from "../../../customHooks/usePermissions";
 import { useConfirmDelete } from "../../../customHooks/useConfirmDelete";
@@ -25,13 +27,81 @@ function sortReceivingRows(list) {
   });
 }
 
+/** YYYY-MM-DD -> { total, filled } */
+function buildStatsByMrcDate(rows) {
+  const map = {};
+  (rows || []).forEach((row) => {
+    const raw = row?.gofrugal?.MMH_MRC_DT;
+    if (raw == null || raw === "") return;
+    const d = moment(raw).format("YYYY-MM-DD");
+    if (!map[d]) map[d] = { total: 0, filled: 0 };
+    map[d].total += 1;
+    if (row.stock_received != null) map[d].filled += 1;
+  });
+  return map;
+}
+
 function ReceivingStockPage() {
+  const [daysBuffer, setDaysBuffer] = useState(0);
+  const [selectedDate, setSelectedDate] = useState(() =>
+    moment().format("YYYY-MM-DD")
+  );
+  const [viewingMonth, setViewingMonth] = useState(() =>
+    moment().clone().startOf("month")
+  );
+
   const canAdd = usePermissions(["add_stock_received"]);
   const canDelete = usePermissions(["delete_stock_received"]);
-  const { rows, setRows, loading } = useStockReceivedGofrugal();
+  const { rows, setRows, loading } = useStockReceivedGofrugal({
+    daysBuffer,
+  });
   const { confirmDelete, ConfirmDeleteDialog } = useConfirmDelete();
 
-  const rowData = useMemo(() => sortReceivingRows(rows), [rows]);
+  const statsByDay = useMemo(() => buildStatsByMrcDate(rows), [rows]);
+
+  const getDayVisual = useCallback(
+    (date) => {
+      const key = date.format("YYYY-MM-DD");
+      const s = statsByDay[key];
+      const total = s?.total ?? 0;
+      if (total === 0) {
+        return {
+          bg: "red.50",
+          border: "red.200",
+          text: "red.600",
+          primary: "0",
+          secondary: "No memos",
+        };
+      }
+      const filled = s?.filled ?? 0;
+      if (filled < total) {
+        return {
+          bg: "yellow.50",
+          border: "yellow.300",
+          text: "yellow.800",
+          primary: `${filled}/${total}`,
+          secondary: "Still saving",
+        };
+      }
+      return {
+        bg: "green.50",
+        border: "green.200",
+        text: "green.600",
+        primary: `${total}/${total}`,
+        secondary: "All saved",
+      };
+    },
+    [statsByDay]
+  );
+
+  const rowData = useMemo(() => {
+    const filtered = (rows || []).filter((row) => {
+      const raw = row?.gofrugal?.MMH_MRC_DT;
+      if (raw == null || raw === "") return false;
+      return moment(raw).format("YYYY-MM-DD") === selectedDate;
+    });
+    return sortReceivingRows(filtered);
+  }, [rows, selectedDate]);
 
   const buildUpsertPayload = useCallback((line, isOffer) => {
     const g = line?.gofrugal || {};
@@ -111,6 +181,27 @@ function ReceivingStockPage() {
     [confirmDelete, setRows]
   );
 
+  const bufferOptions = [0, 1, 3, 7, 14, 30, 60, 90];
+
+  const calendarHeaderRight = (
+    <FormControl maxW="200px">
+      <FormLabel fontSize="xs" mb={1} whiteSpace="nowrap">
+        Offer date buffer (days)
+      </FormLabel>
+      <Select
+        size="sm"
+        value={daysBuffer}
+        onChange={(e) => setDaysBuffer(Number(e.target.value))}
+      >
+        {bufferOptions.map((d) => (
+          <option key={d} value={d}>
+            {d}
+          </option>
+        ))}
+      </Select>
+    </FormControl>
+  );
+
   const colDefs = useMemo(
     () => [
       {
@@ -126,6 +217,12 @@ function ReceivingStockPage() {
         hideByDefault: true,
       },
       {
+        field: "gofrugal.MMH_MRC_REFNO",
+        headerName: "Ref No",
+        type: "capitalized",
+        type: "id",
+      },
+      {
         field: "product.product_id",
         headerName: "PID",
         type: "id",
@@ -134,6 +231,8 @@ function ReceivingStockPage() {
         field: "product.image_link",
         headerName: "Image",
         type: "image",
+        hideByDefault: true,
+        valueGetter: (p) => p.data?.product?.image_link,
       },
       {
         field: "product.gf_item_name",
@@ -151,14 +250,36 @@ function ReceivingStockPage() {
         },
       },
       {
-        field: "recd_qty",
+        field: "gofrugal.MMD_RECD_QTY",
         headerName: "Recd qty",
+        filter: false,
         valueGetter: (p) => {
           const g = p.data?.gofrugal;
           const v = g?.MMD_RECD_QTY;
           if (v === undefined || v === null || v === "") return "—";
           return v;
         },
+      },
+      {
+        field: "gofrugal.MMD_PUR_PRICE",
+        headerName: "Pur price",
+        filter: false,
+        type: "currency",
+        valueGetter: (p) => p.data?.gofrugal?.MMD_PUR_PRICE,
+      },
+      {
+        field: "gofrugal.MMD_MRP",
+        headerName: "MRP",
+        filter: false,
+        type: "currency",
+        valueGetter: (p) => p.data?.gofrugal?.MMD_MRP,
+      },
+      {
+        field: "gofrugal.MMD_SALE_RATE",
+        headerName: "Sale rate",
+        filter: false,
+        type: "currency",
+        valueGetter: (p) => p.data?.gofrugal?.MMD_SALE_RATE,
       },
       {
         field: "stock_received.is_offer",
@@ -222,31 +343,47 @@ function ReceivingStockPage() {
     [canAdd, canDelete, handleClear, handleUpsert]
   );
 
-  console.log("CIDD", rowData);
-
   return (
     <GlobalWrapper
       title="Receiving Stock"
       permissionKey={["view_stock_received"]}
     >
       <ConfirmDeleteDialog />
-      <CustomContainer title="Receiving Stock" filledHeader>
-        {loading ? (
-          <Text>Loading…</Text>
-        ) : (
-          <AgGrid
-            rowData={rowData}
-            columnDefs={colDefs}
-            tableKey="products-receiving-stock"
-            gridOptions={{
-              getRowId: (params) => {
-                const g = params.data?.gofrugal || {};
-                return `${g.MMD_MRC_NO}-${g.MMD_MRC_SL_NO}`;
-              },
-            }}
-          />
-        )}
-      </CustomContainer>
+      <Flex flexDirection="column" gap={6}>
+        <MonthStatusCalendar
+          title="Receiving by MRC date"
+          selectedDate={selectedDate}
+          onSelectDate={setSelectedDate}
+          viewingMonth={viewingMonth}
+          onViewingMonthChange={setViewingMonth}
+          loading={loading}
+          getDayVisual={getDayVisual}
+          headerRight={calendarHeaderRight}
+        />
+
+        <CustomContainer
+          title={`Receiving Stock — ${moment(selectedDate).format(
+            "DD/MM/YYYY"
+          )}`}
+          filledHeader
+        >
+          {loading ? (
+            <Text>Loading…</Text>
+          ) : (
+            <AgGrid
+              rowData={rowData}
+              columnDefs={colDefs}
+              tableKey="products-receiving-stock"
+              gridOptions={{
+                getRowId: (params) => {
+                  const g = params.data?.gofrugal || {};
+                  return `${g.MMD_MRC_NO}-${g.MMD_MRC_SL_NO}`;
+                },
+              }}
+            />
+          )}
+        </CustomContainer>
+      </Flex>
     </GlobalWrapper>
   );
 }
