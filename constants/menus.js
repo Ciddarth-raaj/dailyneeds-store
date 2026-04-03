@@ -455,7 +455,7 @@ export default {
         location: "/products/receiving-stock",
       },
       view_product_offers: {
-        title: "Product Offers",
+        title: "Offers",
         permission: "view_product_offers",
         selected: false,
         location: "/product-offers",
