@@ -2,14 +2,170 @@ import React, { useMemo, useCallback, useState } from "react";
 import moment from "moment";
 import GlobalWrapper from "../../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../../components/CustomContainer";
-import { Text, Flex, FormControl, FormLabel, Select } from "@chakra-ui/react";
+import {
+  Text,
+  Flex,
+  FormControl,
+  FormLabel,
+  Select,
+  Tooltip,
+  Box,
+  VStack,
+  HStack,
+  Divider,
+} from "@chakra-ui/react";
 import AgGrid from "../../../components/AgGrid";
 import MonthStatusCalendar from "../../../components/calendar/MonthStatusCalendar";
 import useStockReceivedGofrugal from "../../../customHooks/useStockReceivedGofrugal";
+import useProductOffers from "../../../customHooks/useProductOffers";
 import usePermissions from "../../../customHooks/usePermissions";
 import { useConfirmDelete } from "../../../customHooks/useConfirmDelete";
 import toast from "react-hot-toast";
 import stockReceived from "../../../helper/stockReceived";
+import currencyFormatter from "../../../util/currencyFormatter";
+import { capitalize } from "../../../util/string";
+
+function formatOfferMoney(v) {
+  if (v === undefined || v === null || v === "") return "—";
+  const n = Number(v);
+  if (Number.isNaN(n)) return "—";
+  return currencyFormatter(n);
+}
+
+function getDisplayNameFromRow(data) {
+  const name =
+    data?.product?.gf_item_name ??
+    data?.product?.de_name ??
+    data?.product?.de_display_name;
+  if (name) return capitalize(String(name));
+  const code = data?.gofrugal?.MMD_ITEM_CODE;
+  return code != null ? `Unknown item (${code})` : "—";
+}
+
+/** Name cell (centered); hover shows offer MRP / selling price in tooltip. */
+function ReceivingProductNameCell({ data, offersByProductId, offersLoading }) {
+  const displayName = getDisplayNameFromRow(data);
+  const pid = data?.product?.product_id;
+  const offer =
+    pid != null ? offersByProductId[Number(pid)] : undefined;
+
+  const label =
+    offersLoading ? (
+      <Box
+        minW="140px"
+        borderRadius="md"
+        bg="gray.800"
+        color="white"
+        px={3}
+        py={2}
+        boxShadow="lg"
+      >
+        <Text fontSize="xs" color="whiteAlpha.700">
+          Loading offer prices…
+        </Text>
+      </Box>
+    ) : !offer ? (
+      <Box
+        minW="200px"
+        borderRadius="lg"
+        overflow="hidden"
+        border="1px solid"
+        borderColor="whiteAlpha.200"
+        bg="gray.800"
+        color="white"
+        boxShadow="0 12px 40px -8px rgba(0,0,0,0.45)"
+      >
+        <Flex align="stretch">
+          <Box w="4px" flexShrink={0} bg="orange.400" aria-hidden />
+          <VStack align="stretch" spacing={1} px={3} py={2.5} flex={1}>
+            <Text
+              fontSize="10px"
+              fontWeight="semibold"
+              letterSpacing="0.08em"
+              textTransform="uppercase"
+              color="whiteAlpha.500"
+            >
+              Product offer
+            </Text>
+            <Text fontSize="sm" color="whiteAlpha.800" lineHeight="1.35">
+              No offer for this product.
+            </Text>
+          </VStack>
+        </Flex>
+      </Box>
+    ) : (
+      <Box
+        minW="200px"
+        borderRadius="lg"
+        overflow="hidden"
+        border="1px solid"
+        borderColor="whiteAlpha.200"
+        bg="gray.800"
+        color="white"
+        boxShadow="0 12px 40px -8px rgba(0,0,0,0.45)"
+      >
+        <Flex align="stretch">
+          <Box w="4px" flexShrink={0} bg="purple.400" aria-hidden />
+          <VStack align="stretch" spacing={2} px={3} py={2.5} flex={1}>
+            <Text
+              fontSize="10px"
+              fontWeight="semibold"
+              letterSpacing="0.08em"
+              textTransform="uppercase"
+              color="whiteAlpha.500"
+            >
+              Offer pricing
+            </Text>
+            <VStack align="stretch" spacing={1.5}>
+              <HStack justify="space-between" spacing={4} w="100%">
+                <Text fontSize="xs" color="whiteAlpha.600">
+                  MRP
+                </Text>
+                <Text
+                  fontSize="sm"
+                  fontWeight="semibold"
+                  fontVariantNumeric="tabular-nums"
+                >
+                  {formatOfferMoney(offer.mrp)}
+                </Text>
+              </HStack>
+              <Divider borderColor="whiteAlpha.200" />
+              <HStack justify="space-between" spacing={4} w="100%">
+                <Text fontSize="xs" color="whiteAlpha.600">
+                  Selling price
+                </Text>
+                <Text
+                  fontSize="sm"
+                  fontWeight="semibold"
+                  fontVariantNumeric="tabular-nums"
+                >
+                  {formatOfferMoney(offer.selling_price)}
+                </Text>
+              </HStack>
+            </VStack>
+          </VStack>
+        </Flex>
+      </Box>
+    );
+
+  return (
+    <Tooltip
+      hasArrow={false}
+      placement="top-start"
+      gutter={10}
+      openDelay={250}
+      p={0}
+      bg="transparent"
+      boxShadow="none"
+      label={label}
+      shouldWrapChildren
+    >
+      <Box w="100%" minW={0} overflow="hidden" py={0.5}>
+        <Text noOfLines={1}>{displayName}</Text>
+      </Box>
+    </Tooltip>
+  );
+}
 
 function sortReceivingRows(list) {
   if (!Array.isArray(list)) return [];
@@ -55,6 +211,16 @@ function ReceivingStockPage() {
   const { rows, setRows, loading } = useStockReceivedGofrugal({
     daysBuffer,
   });
+  const { offers, loading: offersLoading } = useProductOffers();
+  const offersByProductId = useMemo(() => {
+    const map = {};
+    for (const o of offers || []) {
+      const id = o?.product_id;
+      if (id != null) map[Number(id)] = o;
+    }
+    return map;
+  }, [offers]);
+
   const { confirmDelete, ConfirmDeleteDialog } = useConfirmDelete();
 
   const statsByDay = useMemo(() => buildStatsByMrcDate(rows), [rows]);
@@ -220,7 +386,7 @@ function ReceivingStockPage() {
         field: "gofrugal.MMH_MRC_REFNO",
         headerName: "Ref No",
         type: "capitalized",
-        type: "id",
+        minWidth: 100,
       },
       {
         field: "product.product_id",
@@ -237,17 +403,22 @@ function ReceivingStockPage() {
       {
         field: "product.gf_item_name",
         headerName: "Name",
-        type: "capitalized",
         flex: 2,
-        valueGetter: (p) => {
-          const name =
-            p.data?.product?.gf_item_name ??
-            p.data?.product?.de_name ??
-            p.data?.product?.de_display_name;
-          if (name) return name;
-          const code = p.data?.gofrugal?.MMD_ITEM_CODE;
-          return code != null ? `Unknown item (${code})` : "—";
+        minWidth: 160,
+        filter: false,
+        cellStyle: {
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "flex-start",
         },
+        valueGetter: (p) => getDisplayNameFromRow(p.data),
+        cellRenderer: (params) => (
+          <ReceivingProductNameCell
+            data={params.data}
+            offersByProductId={offersByProductId}
+            offersLoading={offersLoading}
+          />
+        ),
       },
       {
         field: "gofrugal.MMD_RECD_QTY",
@@ -340,7 +511,7 @@ function ReceivingStockPage() {
         },
       },
     ],
-    [canAdd, canDelete, handleClear, handleUpsert]
+    [canAdd, canDelete, handleClear, handleUpsert, offersByProductId, offersLoading]
   );
 
   return (
