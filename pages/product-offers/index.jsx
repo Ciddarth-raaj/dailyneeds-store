@@ -120,12 +120,27 @@ function ProductOffersListing() {
         field: "opening_stock",
         headerName: "Opening Stock",
         hideByDefault: true,
+        valueGetter: (params) => parseInt(params.data?.opening_stock) ?? 0,
       },
       {
         field: "stock_input",
         headerName: "Inc. Stock",
         hideByDefault: true,
         valueGetter: (params) => parseInt(params.data?.stock_input) ?? 0,
+      },
+      {
+        field: "stock_input",
+        headerName: "Sold Stock",
+        hideByDefault: true,
+        valueGetter: (params) => parseInt(params.data?.stock_output) ?? 0,
+      },
+      {
+        headerName: "Avl. Stock",
+        hideByDefault: true,
+        valueGetter: (params) =>
+          parseInt(params.data?.opening_stock) +
+            parseInt(params.data?.stock_input) -
+            parseInt(params.data?.stock_output) ?? 0,
       },
       {
         field: "is_active",
