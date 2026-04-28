@@ -31,7 +31,19 @@ function ImagesArchiveProgressModal({
   formatBytes,
   onDownloadZip,
   downloadingFile,
+  fileDownloadProgress,
 }) {
+  const fileStatusMeta =
+    fileDownloadProgress?.status === "completed"
+      ? { label: "Completed", colorScheme: "green" }
+      : fileDownloadProgress?.status === "failed"
+        ? { label: "Failed", colorScheme: "red" }
+        : fileDownloadProgress?.status === "downloading"
+          ? { label: "Downloading", colorScheme: "purple" }
+          : fileDownloadProgress?.status === "starting"
+            ? { label: "Starting", colorScheme: "yellow" }
+            : null;
+
   return (
     <CustomModal
       isOpen={isOpen}
@@ -82,6 +94,54 @@ function ImagesArchiveProgressModal({
               "The image archive could not be created. Please try again."}
           </Text>
         </Box>
+      ) : fileStatusMeta ? (
+        <VStack align="stretch" spacing={4}>
+          <Box
+            p={3}
+            borderWidth="1px"
+            borderColor="green.100"
+            borderRadius="lg"
+            bg="green.50"
+          >
+            <SimpleGrid columns={2} spacing={3} mb={2}>
+              <VStack align="flex-start" spacing={1}>
+                <Text fontSize="xs" color="gray.500" fontWeight="500">
+                  File Download Status
+                </Text>
+                <Badge colorScheme={fileStatusMeta.colorScheme}>
+                  {fileStatusMeta.label}
+                </Badge>
+              </VStack>
+              <VStack align="flex-start" spacing={1}>
+                <Text fontSize="xs" color="gray.500" fontWeight="500">
+                  Downloaded
+                </Text>
+                <Text fontSize="sm" fontWeight="600" color="green.700">
+                  {formatBytes(fileDownloadProgress?.loaded || 0)} /{" "}
+                  {formatBytes(
+                    fileDownloadProgress?.total || fileDownloadProgress?.loaded || 0
+                  )}
+                </Text>
+              </VStack>
+            </SimpleGrid>
+            <HStack spacing={2} align="center" mb={1}>
+              <Text fontSize="xs" color="gray.500" fontWeight="500" flex={1}>
+                ZIP File Progress
+              </Text>
+              <Text fontSize="xs" fontWeight="600" color="green.600">
+                {Number(fileDownloadProgress?.percent || 0)}%
+              </Text>
+            </HStack>
+            <Progress
+              value={Number(fileDownloadProgress?.percent || 0)}
+              colorScheme={fileStatusMeta.colorScheme}
+              borderRadius="full"
+              size="sm"
+              hasStripe={fileDownloadProgress?.status === "downloading"}
+              isAnimated={fileDownloadProgress?.status === "downloading"}
+            />
+          </Box>
+        </VStack>
       ) : (
         <VStack align="stretch" spacing={4}>
           <SimpleGrid columns={2} spacing={3}>
@@ -212,6 +272,7 @@ function ImagesArchiveProgressModal({
                   />
                 </HStack>
               </Box>
+
             </>
           ) : null}
         </VStack>

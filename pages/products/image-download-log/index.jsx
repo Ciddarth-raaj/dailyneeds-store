@@ -99,6 +99,12 @@ export default function ImageDownloadLogPage() {
         valueGetter: (params) => Number(params.data?.total_files || 0),
       },
       {
+        field: "downloaded_files",
+        headerName: "Files Downloaded",
+        type: "number",
+        valueGetter: (params) => Number(params.data?.downloaded_files || 0),
+      },
+      {
         field: "progress_percent",
         headerName: "Progress",
         valueGetter: (params) =>
@@ -122,7 +128,7 @@ export default function ImageDownloadLogPage() {
           return [
             {
               label: "Download ZIP",
-              iconType: "download",
+              icon: "fa-solid fa-download",
               disabled: !canDownload,
               onClick: () => handleDownload(params.data),
             },

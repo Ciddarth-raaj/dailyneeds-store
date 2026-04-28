@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/router";
 import { useDisclosure } from "@chakra-ui/react";
+import axios from "axios";
 import toast from "react-hot-toast";
 import product from "../../helper/product";
 import ImagesArchiveActionButton from "./ImagesArchiveActionButton";
@@ -58,9 +59,13 @@ function ImagesArchiveDownloadControl() {
   const [downloadProgress, setDownloadProgress] = useState(null);
   const [downloadingStart, setDownloadingStart] = useState(false);
   const [downloadingFile, setDownloadingFile] = useState(false);
+  const [fileDownloadProgress, setFileDownloadProgress] = useState(null);
   const [cancelling, setCancelling] = useState(false);
   const pollTimerRef = useRef(null);
   const restoredFromQueryJobIdRef = useRef(null);
+  const fileDownloadAbortRef = useRef(null);
+  const fileDownloadCancelSourceRef = useRef(null);
+  const activeFileTransferIdRef = useRef(0);
   const { isOpen, onOpen, onClose } = useDisclosure();
 
   const clearPoll = useCallback(() => {
@@ -163,6 +168,14 @@ function ImagesArchiveDownloadControl() {
   useEffect(
     () => () => {
       clearPoll();
+      if (fileDownloadAbortRef.current) {
+        fileDownloadAbortRef.current.abort();
+        fileDownloadAbortRef.current = null;
+      }
+      if (fileDownloadCancelSourceRef.current) {
+        fileDownloadCancelSourceRef.current.cancel("File download cancelled");
+        fileDownloadCancelSourceRef.current = null;
+      }
     },
     [clearPoll]
   );
@@ -197,21 +210,87 @@ function ImagesArchiveDownloadControl() {
 
   const handleDownloadZip = async () => {
     if (!downloadProgress?.job_id) return;
+    const controller = new AbortController();
+    const cancelSource = axios.CancelToken.source();
+    const transferId = Date.now();
+    activeFileTransferIdRef.current = transferId;
+    fileDownloadAbortRef.current = controller;
+    fileDownloadCancelSourceRef.current = cancelSource;
     setDownloadingFile(true);
+    setFileDownloadProgress({
+      status: "starting",
+      loaded: 0,
+      total: 0,
+      percent: 0,
+    });
     try {
       await product.downloadImagesZipFile(
         downloadProgress.job_id,
-        downloadProgress.download_url
+        downloadProgress.download_url,
+        ({ loaded, total, percent }) => {
+          if (activeFileTransferIdRef.current !== transferId) return;
+          setFileDownloadProgress({
+            status: "downloading",
+            loaded,
+            total,
+            percent,
+          });
+        },
+        controller.signal,
+        cancelSource.token
       );
-      toast.success("ZIP download started");
+      if (activeFileTransferIdRef.current !== transferId) return;
+      setFileDownloadProgress((prev) => ({
+        status: "completed",
+        loaded: Number(prev?.loaded || 0),
+        total: Number(prev?.total || prev?.loaded || 0),
+        percent: 100,
+      }));
+      toast.success("ZIP download completed");
     } catch (err) {
+      const isCancelled =
+        product.isAxiosRequestCancelled(err) ||
+        err?.code === "ERR_CANCELED" ||
+        err?.name === "CanceledError";
+      if (isCancelled) {
+        setFileDownloadProgress(null);
+        return;
+      }
+      setFileDownloadProgress((prev) => ({
+        status: "failed",
+        loaded: Number(prev?.loaded || 0),
+        total: Number(prev?.total || 0),
+        percent: Number(prev?.percent || 0),
+      }));
       toast.error(err?.message || "Unable to download ZIP");
     } finally {
+      activeFileTransferIdRef.current = 0;
+      fileDownloadAbortRef.current = null;
+      fileDownloadCancelSourceRef.current = null;
       setDownloadingFile(false);
     }
   };
 
   const handleCancelJob = async () => {
+    const isFileTransferActive =
+      fileDownloadProgress?.status === "starting" ||
+      fileDownloadProgress?.status === "downloading" ||
+      downloadingFile;
+    if (isFileTransferActive) {
+      if (fileDownloadAbortRef.current) {
+        fileDownloadAbortRef.current.abort();
+      }
+      if (fileDownloadCancelSourceRef.current) {
+        fileDownloadCancelSourceRef.current.cancel("File download cancelled");
+      }
+      activeFileTransferIdRef.current = 0;
+      fileDownloadAbortRef.current = null;
+      fileDownloadCancelSourceRef.current = null;
+      setDownloadingFile(false);
+      setFileDownloadProgress(null);
+      toast.success("File download cancelled");
+      return;
+    }
     const jobId = downloadProgress?.job_id;
     if (!jobId) {
       onClose();
@@ -409,6 +488,7 @@ function ImagesArchiveDownloadControl() {
         formatBytes={formatBytes}
         onDownloadZip={handleDownloadZip}
         downloadingFile={downloadingFile}
+        fileDownloadProgress={fileDownloadProgress}
       />
     </>
   );

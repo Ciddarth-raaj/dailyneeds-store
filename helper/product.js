@@ -1,5 +1,6 @@
 import API from "../util/api";
 import constants from "../constants/api";
+import axios from "axios";
 
 const product = {
   // Create or update product
@@ -251,7 +252,14 @@ const product = {
 
   // Download ZIP with auth header from localStorage token.
   // If backend provides relative download_url, resolve against API base URL.
-  downloadImagesZipFile: async (jobId, downloadUrl) => {
+  // Uses axios so caller can render live file download progress.
+  downloadImagesZipFile: async (
+    jobId,
+    downloadUrl,
+    onProgress,
+    signal,
+    cancelToken
+  ) => {
     if (!jobId) throw new Error("jobId is required");
     const token =
       typeof window !== "undefined" ? localStorage.getItem("Token") : null;
@@ -262,14 +270,28 @@ const product = {
     const url = downloadUrl
       ? new URL(downloadUrl, baseUrl).toString()
       : fallbackUrl;
-    const res = await fetch(url, {
+    const res = await API.request({
       method: "GET",
+      url,
+      responseType: "blob",
+      transformResponse: [(data) => data],
+      signal,
+      cancelToken,
       headers: token ? { "x-access-token": token } : {},
+      onDownloadProgress: (event) => {
+        if (typeof onProgress === "function") {
+          const loaded = Number(event?.loaded || 0);
+          const total = Number(event?.total || 0);
+          const percent =
+            total > 0 ? Math.max(0, Math.min(100, Math.round((loaded / total) * 100))) : 0;
+          onProgress({ loaded, total, percent });
+        }
+      },
     });
-    if (!res.ok) {
+    if (res?.status !== 200) {
       throw new Error("Download file is not ready yet");
     }
-    const blob = await res.blob();
+    const blob = res.data;
     const fileUrl = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = fileUrl;
@@ -279,5 +301,7 @@ const product = {
     a.remove();
     URL.revokeObjectURL(fileUrl);
   },
+
+  isAxiosRequestCancelled: (err) => axios.isCancel(err),
 };
 export default product;
