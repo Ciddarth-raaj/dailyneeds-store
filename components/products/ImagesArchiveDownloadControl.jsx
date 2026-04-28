@@ -60,6 +60,7 @@ function ImagesArchiveDownloadControl() {
   const [downloadingFile, setDownloadingFile] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const pollTimerRef = useRef(null);
+  const restoredFromQueryJobIdRef = useRef(null);
   const { isOpen, onOpen, onClose } = useDisclosure();
 
   const clearPoll = useCallback(() => {
@@ -122,7 +123,19 @@ function ImagesArchiveDownloadControl() {
           progress.status === "cancelled"
         ) {
           clearPoll();
-          clearJobIdFromQuery();
+          const queryJobId =
+            typeof router.query.jobId === "string"
+              ? router.query.jobId
+              : router.query.jobId?.[0];
+          const keepReadyFromQuery =
+            Boolean(progress.ready) &&
+            restoredFromQueryJobIdRef.current != null &&
+            String(restoredFromQueryJobIdRef.current) === String(progress.job_id) &&
+            queryJobId != null &&
+            String(queryJobId) === String(progress.job_id);
+          if (!keepReadyFromQuery) {
+            clearJobIdFromQuery();
+          }
           if (progress.status === "cancelled") {
             setDownloadProgress(null);
             onClose();
@@ -144,7 +157,7 @@ function ImagesArchiveDownloadControl() {
         toast.error(err?.message || "Failed to fetch image download status");
       }
     },
-    [clearJobIdFromQuery, clearPoll, onClose]
+    [clearJobIdFromQuery, clearPoll, onClose, router.query.jobId]
   );
 
   useEffect(
@@ -247,7 +260,15 @@ function ImagesArchiveDownloadControl() {
           POLL_INTERVAL_MS
         );
       } else {
-        clearJobIdFromQuery();
+        const keepReadyFromQuery =
+          Boolean(progress.ready) &&
+          queryJobId != null &&
+          restoredFromQueryJobIdRef.current != null &&
+          String(restoredFromQueryJobIdRef.current) === String(progress.job_id) &&
+          String(queryJobId) === String(progress.job_id);
+        if (!keepReadyFromQuery) {
+          clearJobIdFromQuery();
+        }
         if (progress.status === "cancelled") {
           setDownloadProgress(null);
           onClose();
@@ -257,9 +278,11 @@ function ImagesArchiveDownloadControl() {
 
     const restoreFromQuery = async (jobId) => {
       try {
+        restoredFromQueryJobIdRef.current = String(jobId);
         const progress = await product.getImagesDownloadStatus(jobId);
         if (!progress?.job_id) {
           clearJobIdFromQuery();
+          restoredFromQueryJobIdRef.current = null;
           return;
         }
         setDownloadProgress(progress);
@@ -275,6 +298,7 @@ function ImagesArchiveDownloadControl() {
 
     const restoreFromActiveJob = async () => {
       try {
+        restoredFromQueryJobIdRef.current = null;
         const active = await product.getActiveImagesDownloadJob();
         if (!active?.has_active_job || !active?.job_id) return;
         const progress =
