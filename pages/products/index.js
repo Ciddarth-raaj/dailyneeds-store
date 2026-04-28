@@ -3,12 +3,13 @@ import { useRouter } from "next/router";
 import { useProducts } from "../../customHooks/useProducts";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../components/CustomContainer";
-import { Button } from "@chakra-ui/button";
+import { Button, HStack } from "@chakra-ui/react";
 import AgGrid from "../../components/AgGrid";
 import usePermissions from "../../customHooks/usePermissions";
 import ProductImageUploadCell from "../../components/ProductImageUploadCell";
 import product from "../../helper/product";
 import toast from "react-hot-toast";
+import ImagesArchiveDownloadControl from "../../components/products/ImagesArchiveDownloadControl";
 
 function Products() {
   const router = useRouter();
@@ -25,7 +26,9 @@ function Products() {
       const res = await product.sync();
       const detail =
         res?.productsProcessed != null
-          ? ` (${res.productsProcessed} products, ${res.categoriesProcessed ?? 0} categories)`
+          ? ` (${res.productsProcessed} products, ${
+              res.categoriesProcessed ?? 0
+            } categories)`
           : "";
       toast.success(`${res?.msg || "Sync completed"}${detail}`);
       refetch();
@@ -38,12 +41,39 @@ function Products() {
 
   useEffect(() => {
     const distributor = query.distributor;
-    if (!distributor || typeof distributor !== "string" || !gridRef.current?.api || !Array.isArray(products) || products.length === 0) return;
+    if (
+      !distributor ||
+      typeof distributor !== "string" ||
+      !gridRef.current?.api ||
+      !Array.isArray(products) ||
+      products.length === 0
+    )
+      return;
     gridRef.current.api.setFilterModel({
-      de_distributor: { filterType: "text", type: "equals", filter: distributor },
+      de_distributor: {
+        filterType: "text",
+        type: "equals",
+        filter: distributor,
+      },
     });
     gridRef.current.api.onFilterChanged();
   }, [products, query.distributor]);
+
+  const rightSection = canSync ? (
+    <HStack spacing={2}>
+      <Button
+        colorScheme="purple"
+        size="sm"
+        onClick={handleSync}
+        isLoading={syncing}
+        leftIcon={<i className="fa fa-sync-alt" />}
+      >
+        Sync
+      </Button>
+
+      <ImagesArchiveDownloadControl />
+    </HStack>
+  ) : null;
 
   const colDefs = [
     {
@@ -74,14 +104,14 @@ function Products() {
       hideByDefault: true,
       headerName: "NOS",
       type: "number",
-      filter: false
+      filter: false,
     },
     {
       field: "offer_stock",
       hideByDefault: true,
       headerName: "OS",
       type: "number",
-      filter: false
+      filter: false,
     },
     {
       field: "de_distributor",
@@ -107,7 +137,13 @@ function Products() {
       hideExport: true,
       cellRenderer: (props) => {
         if (!canEdit) return <span>-</span>;
-        return <ProductImageUploadCell value={props.value} data={props.data} api={props.api} />;
+        return (
+          <ProductImageUploadCell
+            value={props.value}
+            data={props.data}
+            api={props.api}
+          />
+        );
       },
     },
     {
@@ -141,19 +177,7 @@ function Products() {
       <CustomContainer
         title="Products"
         filledHeader
-        rightSection={
-          canSync ? (
-            <Button
-              colorScheme="purple"
-              size="sm"
-              onClick={handleSync}
-              isLoading={syncing}
-              leftIcon={<i className="fa fa-sync-alt" />}
-            >
-              Sync
-            </Button>
-          ) : null
-        }
+        rightSection={rightSection}
       >
         <AgGrid
           ref={gridRef}
@@ -165,6 +189,7 @@ function Products() {
           }}
         />
       </CustomContainer>
+
     </GlobalWrapper>
   );
 }

@@ -1,4 +1,5 @@
 import API from "../util/api";
+import constants from "../constants/api";
 
 const product = {
   // Create or update product
@@ -151,5 +152,109 @@ const product = {
         })
         .catch((err) => reject(err));
     }),
+
+  // Start product images bulk ZIP job.
+  startImagesDownload: () =>
+    new Promise((resolve, reject) => {
+      API.post("/product/images/download/start")
+        .then((res) => {
+          if (res?.data?.code === 202 || res?.data?.code === 200) {
+            resolve(res.data?.progress ?? null);
+          } else {
+            reject(new Error(res?.data?.message ?? "Failed to start download"));
+          }
+        })
+        .catch((err) => reject(err));
+    }),
+
+  // Poll status by job id.
+  getImagesDownloadStatus: (jobId) =>
+    new Promise((resolve, reject) => {
+      API.get(`/product/images/download/status?jobId=${encodeURIComponent(jobId)}`)
+        .then((res) => {
+          if (res?.data?.code === 200) {
+            resolve(res.data?.progress ?? null);
+          } else {
+            const err = new Error(
+              res?.data?.message ?? res?.data?.msg ?? "Failed to fetch status"
+            );
+            err.status = res?.status;
+            err.code = res?.data?.code;
+            reject(err);
+          }
+        })
+        .catch((err) => {
+          const mapped = new Error(
+            err?.message ?? "Failed to fetch status"
+          );
+          mapped.status = err?.response?.status;
+          mapped.code = err?.response?.data?.code;
+          reject(mapped);
+        });
+    }),
+
+  // Get active image download job for current user/session.
+  getActiveImagesDownloadJob: () =>
+    new Promise((resolve, reject) => {
+      API.get("/product/images/download/active-job")
+        .then((res) => {
+          if (res?.data?.code === 200) {
+            resolve({
+              has_active_job: Boolean(res.data?.has_active_job),
+              job_id: res.data?.job_id ?? null,
+              progress: res.data?.progress ?? null,
+            });
+          } else {
+            reject(
+              new Error(res?.data?.message ?? "Failed to fetch active job")
+            );
+          }
+        })
+        .catch((err) => reject(err));
+    }),
+
+  // Request cancellation for active image download job.
+  cancelImagesDownload: (jobId) =>
+    new Promise((resolve, reject) => {
+      if (!jobId) {
+        reject(new Error("jobId is required"));
+        return;
+      }
+      API.post("/product/images/download/cancel", { jobId })
+        .then((res) => {
+          if (res?.data?.code === 202 || res?.data?.code === 200) {
+            resolve(res.data?.progress ?? null);
+          } else {
+            reject(new Error(res?.data?.message ?? "Failed to cancel job"));
+          }
+        })
+        .catch((err) => reject(err));
+    }),
+
+  // Download ZIP with auth header from localStorage token.
+  downloadImagesZipFile: async (jobId) => {
+    if (!jobId) throw new Error("jobId is required");
+    const token =
+      typeof window !== "undefined" ? localStorage.getItem("Token") : null;
+    const url = `${constants.BASE_URL}product/images/download/file?jobId=${encodeURIComponent(
+      jobId
+    )}`;
+    const res = await fetch(url, {
+      method: "GET",
+      headers: token ? { "x-access-token": token } : {},
+    });
+    if (!res.ok) {
+      throw new Error("Download file is not ready yet");
+    }
+    const blob = await res.blob();
+    const fileUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = fileUrl;
+    a.download = `product-images-${jobId}.zip`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(fileUrl);
+  },
 };
 export default product;
