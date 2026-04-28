@@ -191,5 +191,6 @@ export const PERMISSIONS = {
     add_sto: "Add STO Comparison",
     delete_sto: "Delete STO Comparison",
     view_price_checker: "View Price Checker",
+    view_images_download_log: "View Image Download Log",
   },
 };

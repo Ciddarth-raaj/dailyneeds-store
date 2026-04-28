@@ -41,7 +41,9 @@ const product = {
   // Get products with pagination
   getProduct: (limit, offset, fetchNonOnline = false) =>
     new Promise(function (resolve, reject) {
-      API.get(`/product?limit=${limit}&offset=${offset}&fetchAll=${fetchNonOnline}`)
+      API.get(
+        `/product?limit=${limit}&offset=${offset}&fetchAll=${fetchNonOnline}`
+      )
         .then(async (res) => {
           if (res.status === 200) {
             resolve(res.data);
@@ -170,7 +172,9 @@ const product = {
   // Poll status by job id.
   getImagesDownloadStatus: (jobId) =>
     new Promise((resolve, reject) => {
-      API.get(`/product/images/download/status?jobId=${encodeURIComponent(jobId)}`)
+      API.get(
+        `/product/images/download/status?jobId=${encodeURIComponent(jobId)}`
+      )
         .then((res) => {
           if (res?.data?.code === 200) {
             resolve(res.data?.progress ?? null);
@@ -184,9 +188,7 @@ const product = {
           }
         })
         .catch((err) => {
-          const mapped = new Error(
-            err?.message ?? "Failed to fetch status"
-          );
+          const mapped = new Error(err?.message ?? "Failed to fetch status");
           mapped.status = err?.response?.status;
           mapped.code = err?.response?.data?.code;
           reject(mapped);
@@ -231,15 +233,31 @@ const product = {
         .catch((err) => reject(err));
     }),
 
+  // List image archive jobs.
+  listImagesDownloadJobs: () =>
+    new Promise((resolve, reject) => {
+      API.get("/product/images/download/list")
+        .then((res) => {
+          if (res?.data?.code === 200) {
+            resolve(res.data.downloads ?? []);
+          } else {
+            reject(
+              new Error(res?.data?.message ?? "Failed to fetch download log")
+            );
+          }
+        })
+        .catch((err) => reject(err));
+    }),
+
   // Download ZIP with auth header from localStorage token.
   // If backend provides relative download_url, resolve against API base URL.
   downloadImagesZipFile: async (jobId, downloadUrl) => {
     if (!jobId) throw new Error("jobId is required");
     const token =
       typeof window !== "undefined" ? localStorage.getItem("Token") : null;
-    const fallbackUrl = `${constants.BASE_URL}product/images/download/file?jobId=${encodeURIComponent(
-      jobId
-    )}`;
+    const fallbackUrl = `${
+      constants.BASE_URL
+    }product/images/download/file?jobId=${encodeURIComponent(jobId)}`;
     const baseUrl = API?.defaults?.baseURL || constants.BASE_URL;
     const url = downloadUrl
       ? new URL(downloadUrl, baseUrl).toString()

@@ -634,6 +634,12 @@ export default {
         selected: false,
         location: "/price-checker",
       },
+      images_download_log: {
+        title: "Image Download Log",
+        permission: "view_images_download_log",
+        selected: false,
+        location: "/products/image-download-log",
+      },
       stock_checker: {
         title: "Stock Checker",
         subMenu: {

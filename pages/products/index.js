@@ -18,6 +18,7 @@ function Products() {
   const { products, refetch } = useProducts({ limit: 10000, fetchAll: true });
   const canEdit = usePermissions("edit_products");
   const canSync = usePermissions("allow_product_sync");
+  const canViewImageDownloadLog = usePermissions("view_images_download_log");
   const [syncing, setSyncing] = useState(false);
 
   const handleSync = async () => {
@@ -59,19 +60,20 @@ function Products() {
     gridRef.current.api.onFilterChanged();
   }, [products, query.distributor]);
 
-  const rightSection = canSync ? (
+  const rightSection = canSync || canViewImageDownloadLog ? (
     <HStack spacing={2}>
-      <Button
-        colorScheme="purple"
-        size="sm"
-        onClick={handleSync}
-        isLoading={syncing}
-        leftIcon={<i className="fa fa-sync-alt" />}
-      >
-        Sync
-      </Button>
-
-      <ImagesArchiveDownloadControl />
+      {canSync ? (
+        <Button
+          colorScheme="purple"
+          size="sm"
+          onClick={handleSync}
+          isLoading={syncing}
+          leftIcon={<i className="fa fa-sync-alt" />}
+        >
+          Sync
+        </Button>
+      ) : null}
+      {canViewImageDownloadLog ? <ImagesArchiveDownloadControl /> : null}
     </HStack>
   ) : null;
 
