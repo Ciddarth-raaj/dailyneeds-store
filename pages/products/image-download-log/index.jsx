@@ -5,12 +5,14 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { Badge } from "@chakra-ui/react";
+import axios from "axios";
+import { useDisclosure } from "@chakra-ui/react";
 import toast from "react-hot-toast";
 import AgGrid from "../../../components/AgGrid";
 import CustomContainer from "../../../components/CustomContainer";
 import GlobalWrapper from "../../../components/globalWrapper/globalWrapper";
 import product from "../../../helper/product";
+import ImageLogDownloadProgressModal from "../../../components/products/ImageLogDownloadProgressModal";
 
 const POLL_MS = 5000;
 
@@ -41,6 +43,13 @@ function getStatusBadge(status) {
 export default function ImageDownloadLogPage() {
   const [rows, setRows] = useState([]);
   const timerRef = useRef(null);
+  const fileDownloadAbortRef = useRef(null);
+  const fileDownloadCancelSourceRef = useRef(null);
+  const activeFileTransferIdRef = useRef(0);
+  const [downloadingFile, setDownloadingFile] = useState(false);
+  const [fileDownloadProgress, setFileDownloadProgress] = useState(null);
+  const [activeDownloadRow, setActiveDownloadRow] = useState(null);
+  const { isOpen, onOpen, onClose } = useDisclosure();
 
   const clearTimer = useCallback(() => {
     if (timerRef.current) {
@@ -71,15 +80,105 @@ export default function ImageDownloadLogPage() {
     return () => clearTimer();
   }, [clearTimer, fetchLogs]);
 
+  useEffect(
+    () => () => {
+      if (fileDownloadAbortRef.current) {
+        fileDownloadAbortRef.current.abort();
+        fileDownloadAbortRef.current = null;
+      }
+      if (fileDownloadCancelSourceRef.current) {
+        fileDownloadCancelSourceRef.current.cancel("File download cancelled");
+        fileDownloadCancelSourceRef.current = null;
+      }
+    },
+    []
+  );
+
+  const handleCloseDownloadModal = useCallback(() => {
+    if (downloadingFile) return;
+    onClose();
+    setActiveDownloadRow(null);
+    setFileDownloadProgress(null);
+  }, [downloadingFile, onClose]);
+
+  const handleCancelFileDownload = useCallback(() => {
+    if (fileDownloadAbortRef.current) {
+      fileDownloadAbortRef.current.abort();
+    }
+    if (fileDownloadCancelSourceRef.current) {
+      fileDownloadCancelSourceRef.current.cancel("File download cancelled");
+    }
+    activeFileTransferIdRef.current = 0;
+    fileDownloadAbortRef.current = null;
+    fileDownloadCancelSourceRef.current = null;
+    setDownloadingFile(false);
+    setFileDownloadProgress(null);
+    setActiveDownloadRow(null);
+    onClose();
+    toast.success("File download cancelled");
+  }, [onClose]);
+
   const handleDownload = useCallback(async (row) => {
     if (!row?.job_id || !row?.download_url) return;
+    const controller = new AbortController();
+    const cancelSource = axios.CancelToken.source();
+    const transferId = Date.now();
+    activeFileTransferIdRef.current = transferId;
+    fileDownloadAbortRef.current = controller;
+    fileDownloadCancelSourceRef.current = cancelSource;
+    setActiveDownloadRow(row);
+    setDownloadingFile(true);
+    setFileDownloadProgress({
+      status: "starting",
+      loaded: 0,
+      total: 0,
+      percent: 0,
+    });
+    onOpen();
     try {
-      await product.downloadImagesZipFile(row.job_id, row.download_url);
-      toast.success("ZIP download started");
+      await product.downloadImagesZipFile(
+        row.job_id,
+        row.download_url,
+        ({ loaded, total, percent }) => {
+          if (activeFileTransferIdRef.current !== transferId) return;
+          setFileDownloadProgress({
+            status: "downloading",
+            loaded,
+            total,
+            percent,
+          });
+        },
+        controller.signal,
+        cancelSource.token
+      );
+      if (activeFileTransferIdRef.current !== transferId) return;
+      setFileDownloadProgress((prev) => ({
+        status: "completed",
+        loaded: Number(prev?.loaded || 0),
+        total: Number(prev?.total || prev?.loaded || 0),
+        percent: 100,
+      }));
+      toast.success("ZIP download completed");
     } catch (err) {
+      const isCancelled =
+        product.isAxiosRequestCancelled(err) ||
+        err?.code === "ERR_CANCELED" ||
+        err?.name === "CanceledError";
+      if (isCancelled) return;
       toast.error(err?.message || "Unable to download ZIP");
+      setFileDownloadProgress((prev) => ({
+        status: "failed",
+        loaded: Number(prev?.loaded || 0),
+        total: Number(prev?.total || 0),
+        percent: Number(prev?.percent || 0),
+      }));
+    } finally {
+      activeFileTransferIdRef.current = 0;
+      fileDownloadAbortRef.current = null;
+      fileDownloadCancelSourceRef.current = null;
+      setDownloadingFile(false);
     }
-  }, []);
+  }, [onOpen]);
 
   const colDefs = useMemo(
     () => [
@@ -155,6 +254,20 @@ export default function ImageDownloadLogPage() {
           emptyOverlayText="No image download jobs found"
         />
       </CustomContainer>
+      <ImageLogDownloadProgressModal
+        isOpen={isOpen}
+        onClose={handleCloseDownloadModal}
+        onCancel={handleCancelFileDownload}
+        fileName={
+          activeDownloadRow?.zip_name ||
+          activeDownloadRow?.file_name ||
+          (activeDownloadRow?.job_id
+            ? `product-images-${activeDownloadRow.job_id}.zip`
+            : "Downloading archive file")
+        }
+        fileDownloadProgress={fileDownloadProgress}
+        downloadingFile={downloadingFile}
+      />
     </GlobalWrapper>
   );
 }
