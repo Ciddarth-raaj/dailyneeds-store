@@ -232,13 +232,18 @@ const product = {
     }),
 
   // Download ZIP with auth header from localStorage token.
-  downloadImagesZipFile: async (jobId) => {
+  // If backend provides relative download_url, resolve against API base URL.
+  downloadImagesZipFile: async (jobId, downloadUrl) => {
     if (!jobId) throw new Error("jobId is required");
     const token =
       typeof window !== "undefined" ? localStorage.getItem("Token") : null;
-    const url = `${constants.BASE_URL}product/images/download/file?jobId=${encodeURIComponent(
+    const fallbackUrl = `${constants.BASE_URL}product/images/download/file?jobId=${encodeURIComponent(
       jobId
     )}`;
+    const baseUrl = API?.defaults?.baseURL || constants.BASE_URL;
+    const url = downloadUrl
+      ? new URL(downloadUrl, baseUrl).toString()
+      : fallbackUrl;
     const res = await fetch(url, {
       method: "GET",
       headers: token ? { "x-access-token": token } : {},

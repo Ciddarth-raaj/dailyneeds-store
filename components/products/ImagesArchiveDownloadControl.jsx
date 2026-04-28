@@ -199,7 +199,10 @@ function ImagesArchiveDownloadControl() {
     if (!downloadProgress?.job_id) return;
     setDownloadingFile(true);
     try {
-      await product.downloadImagesZipFile(downloadProgress.job_id);
+      await product.downloadImagesZipFile(
+        downloadProgress.job_id,
+        downloadProgress.download_url
+      );
       toast.success("ZIP download started");
     } catch (err) {
       toast.error(err?.message || "Unable to download ZIP");
