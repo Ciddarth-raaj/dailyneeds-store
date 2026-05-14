@@ -107,7 +107,6 @@ function GstPortalContent() {
     openOtpModal({
       title: "Confirm with OTP",
       submitMode,
-      autoRequestOtp: false,
       onSuccessExtra: () => {
         loadSession();
       },

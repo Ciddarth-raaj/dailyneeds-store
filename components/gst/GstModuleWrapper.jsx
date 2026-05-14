@@ -21,7 +21,6 @@ export const GstTaxpayerUiContext = createContext(defaultCtx);
 const defaultOtpOptions = {
   title: "GST portal OTP",
   submitMode: "revalidate",
-  autoRequestOtp: false,
   initialMessage: "",
 };
 
@@ -64,7 +63,6 @@ export default function GstModuleWrapper({ children }) {
         openOtpModal({
           title: "Renew GST portal session",
           submitMode: "revalidate",
-          autoRequestOtp: true,
           initialMessage:
             data?.msg ||
             "Your GST portal session must be renewed with OTP (day 29 or policy).",
@@ -107,7 +105,6 @@ export default function GstModuleWrapper({ children }) {
         }}
         title={otpOptions.title}
         submitMode={otpOptions.submitMode}
-        autoRequestOtp={otpOptions.autoRequestOtp}
         initialMessage={otpOptions.initialMessage}
       />
     </GstTaxpayerUiContext.Provider>

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   Button,
   FormControl,
@@ -17,10 +17,9 @@ import {
 
 /**
  * GST portal OTP flow (request → enter OTP → verify or revalidate).
- * Reusable from the GST module wrapper (auto) or any page (manual).
+ * Reusable from the GST module wrapper or any page. OTP is sent only when the user taps "Send OTP".
  *
  * @param {"verify" | "revalidate"} submitMode - which POST endpoint to use for OTP submission.
- * @param {boolean} autoRequestOtp - when the modal opens, automatically POST otp/request once.
  */
 export default function GstTaxpayerOtpModal({
   isOpen,
@@ -28,52 +27,23 @@ export default function GstTaxpayerOtpModal({
   onSuccess,
   title = "GST portal OTP",
   submitMode = "revalidate",
-  autoRequestOtp = false,
   initialMessage,
 }) {
   const [otp, setOtp] = useState("");
   const [requesting, setRequesting] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const autoRequestedRef = useRef(false);
 
   const resetLocal = useCallback(() => {
     setOtp("");
     setRequesting(false);
     setSubmitting(false);
-    autoRequestedRef.current = false;
   }, []);
 
   useEffect(() => {
     if (!isOpen) {
       resetLocal();
-      return;
     }
-    if (!autoRequestOtp || autoRequestedRef.current) return;
-    autoRequestedRef.current = true;
-    let cancelled = false;
-    (async () => {
-      setRequesting(true);
-      try {
-        const { httpStatus, data } = await postTaxpayerOtpRequest();
-        if (cancelled) return;
-        if (httpStatus >= 200 && httpStatus < 300 && data?.code === 200) {
-          toast.success("OTP sent to the registered GST portal contact.");
-        } else {
-          toast.error(
-            data?.msg ||
-              `Could not send OTP (HTTP ${httpStatus}). Try “Send OTP” again.`
-          );
-        }
-      } catch (e) {
-        if (!cancelled) toast.error(e?.message || "Failed to request OTP");
-      } finally {
-        if (!cancelled) setRequesting(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [isOpen, autoRequestOtp, resetLocal]);
+  }, [isOpen, resetLocal]);
 
   const handleRequestOtp = async () => {
     setRequesting(true);
@@ -154,8 +124,8 @@ export default function GstTaxpayerOtpModal({
           </Text>
         ) : null}
         <Text fontSize="sm" color="gray.600">
-          Use the OTP sent to your GST portal–registered mobile/email. Request
-          a new OTP if needed, then enter the code below.
+          Tap <strong>Send OTP</strong> to receive a code on your GST
+          portal–registered mobile or email. Then enter the code below.
         </Text>
         <Button
           colorScheme="teal"
