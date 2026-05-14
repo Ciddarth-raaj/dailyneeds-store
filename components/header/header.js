@@ -5,6 +5,25 @@ import Head from "../../util/head";
 import { useUser } from "../../contexts/UserContext";
 import { useBreakpointValue } from "@chakra-ui/react";
 
+/** Must match sideBar.module.css rail + menu column widths and header .container padding-left */
+const SIDEBAR_TOTAL_EXPANDED_PX = 300;
+const SIDEBAR_TOTAL_MINIMIZED_PX = 120;
+const HEADER_PADDING_LEFT_PX = 94;
+const LOGO_CLEARANCE_GAP_PX = 9;
+
+function getLogoMarginLeftPx(isSidebarMinimized) {
+  const sidebarTotal = isSidebarMinimized
+    ? SIDEBAR_TOTAL_MINIMIZED_PX
+    : SIDEBAR_TOTAL_EXPANDED_PX;
+  return sidebarTotal + LOGO_CLEARANCE_GAP_PX - HEADER_PADDING_LEFT_PX;
+}
+
+function readDesktopSidebarMinimized() {
+  if (typeof window === "undefined") return false;
+  if (window.matchMedia("(max-width: 767px)").matches) return false;
+  return localStorage.getItem("sidebarMinimized") === "true";
+}
+
 export default function Header() {
   const [settings] = React.useState({
     // company: {
@@ -71,9 +90,28 @@ export default function Header() {
   const [loginVisibility, setLoginVisibility] = React.useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const isMobile = useBreakpointValue({ base: true, md: false });
+  const [isSidebarMinimized, setIsSidebarMinimized] = useState(
+    readDesktopSidebarMinimized
+  );
   const { userConfig } = useUser();
   const { userType, fetched } = userConfig;
   const { employee_name, designation_name } = fetched ?? {};
+
+  useEffect(() => {
+    if (isMobile) return;
+    setIsSidebarMinimized(localStorage.getItem("sidebarMinimized") === "true");
+  }, [isMobile]);
+
+  useEffect(() => {
+    if (isMobile) return undefined;
+    const handleSidebarToggle = (event) => {
+      setIsSidebarMinimized(Boolean(event.detail?.minimized));
+    };
+    window.addEventListener("sidebarMinimizeToggle", handleSidebarToggle);
+    return () => {
+      window.removeEventListener("sidebarMinimizeToggle", handleSidebarToggle);
+    };
+  }, [isMobile]);
 
   // Handle click outside to close dropdown on mobile
   useEffect(() => {
@@ -133,9 +171,20 @@ export default function Header() {
     }
   };
 
+  const logoStyle =
+    isMobile === true
+      ? undefined
+      : { marginLeft: `${getLogoMarginLeftPx(isSidebarMinimized)}px` };
+
   return (
     <div className={styles.container}>
-      <img src={"/assets/dnds-logo.png"} alt="logo" className={styles.logo} />
+      <img
+        src={"/assets/dnds-logo.png"}
+        alt="logo"
+        className={styles.logo}
+        style={logoStyle}
+        suppressHydrationWarning
+      />
       <div className={styles.navigationBar}>
         <div
           className={`${styles.wrapper} ${isDropdownOpen ? styles.show : ""}`}

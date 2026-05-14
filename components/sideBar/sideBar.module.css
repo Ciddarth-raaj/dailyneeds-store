@@ -1,19 +1,172 @@
+.shell {
+  position: fixed;
+  left: 0;
+  top: 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: row;
+  z-index: 200;
+  align-items: stretch;
+  background-color: #ffffff;
+  border-right: 1px solid #eee;
+}
+
+.moduleRail {
+  width: 40px;
+  min-width: 40px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  /* Match main panel horizontal padding; slightly tighter top so icons align with nav */
+  padding: 6px 5px 12px;
+  background-color: #ffffff;
+  border-right: 1px solid #f0f0f0;
+  overflow-y: auto;
+}
+
+.moduleRailButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.moduleRailButton i {
+  font-size: 13px;
+}
+
+/* Module rail accents (default / "All" = purple) */
+.moduleRailButton[data-accent="purple"] {
+  color: var(--chakra-colors-purple-400);
+}
+.moduleRailButton[data-accent="purple"]:hover {
+  background-color: var(--chakra-colors-purple-50);
+  color: var(--chakra-colors-purple-600);
+}
+.moduleRailButton.moduleRailButtonActive[data-accent="purple"] {
+  background-color: var(--chakra-colors-purple-50);
+  color: var(--chakra-colors-purple-700);
+}
+
+.moduleRailButton[data-accent="teal"] {
+  color: var(--chakra-colors-teal-500);
+}
+.moduleRailButton[data-accent="teal"]:hover {
+  background-color: var(--chakra-colors-teal-50);
+  color: var(--chakra-colors-teal-700);
+}
+.moduleRailButton.moduleRailButtonActive[data-accent="teal"] {
+  background-color: var(--chakra-colors-teal-50);
+  color: var(--chakra-colors-teal-800);
+}
+
+.moduleRailButton[data-accent="blue"] {
+  color: var(--chakra-colors-blue-500);
+}
+.moduleRailButton[data-accent="blue"]:hover {
+  background-color: var(--chakra-colors-blue-50);
+  color: var(--chakra-colors-blue-700);
+}
+.moduleRailButton.moduleRailButtonActive[data-accent="blue"] {
+  background-color: var(--chakra-colors-blue-50);
+  color: var(--chakra-colors-blue-800);
+}
+
+.moduleRailButton[data-accent="cyan"] {
+  color: var(--chakra-colors-cyan-500);
+}
+.moduleRailButton[data-accent="cyan"]:hover {
+  background-color: var(--chakra-colors-cyan-50);
+  color: var(--chakra-colors-cyan-700);
+}
+.moduleRailButton.moduleRailButtonActive[data-accent="cyan"] {
+  background-color: var(--chakra-colors-cyan-50);
+  color: var(--chakra-colors-cyan-800);
+}
+
+.moduleRailButton[data-accent="orange"] {
+  color: var(--chakra-colors-orange-500);
+}
+.moduleRailButton[data-accent="orange"]:hover {
+  background-color: var(--chakra-colors-orange-50);
+  color: var(--chakra-colors-orange-700);
+}
+.moduleRailButton.moduleRailButtonActive[data-accent="orange"] {
+  background-color: var(--chakra-colors-orange-50);
+  color: var(--chakra-colors-orange-800);
+}
+
+.moduleRailButton[data-accent="pink"] {
+  color: var(--chakra-colors-pink-500);
+}
+.moduleRailButton[data-accent="pink"]:hover {
+  background-color: var(--chakra-colors-pink-50);
+  color: var(--chakra-colors-pink-700);
+}
+.moduleRailButton.moduleRailButtonActive[data-accent="pink"] {
+  background-color: var(--chakra-colors-pink-50);
+  color: var(--chakra-colors-pink-800);
+}
+
 .container {
   height: 100vh;
   width: 260px;
   min-width: 260px;
-  z-index: 200;
-  padding: 12px 5px;
+  position: relative;
+  padding: 12px 5px 0;
   display: flex;
-  background-color: #ffffff;
-  position: fixed;
-  left: 0;
   flex-direction: column;
-  align-items: center;
+  background-color: #ffffff;
+  align-items: stretch;
+  overflow: hidden;
+  border-right: none;
+  transition: width 0.3s ease;
+}
+
+.menuScrollArea {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
   overflow-y: auto;
   overflow-x: hidden;
-  border-right: 1px solid #eee;
-  transition: width 0.3s ease;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.menuScrollArea::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  background: transparent;
+}
+
+.menuScrollArea::-webkit-scrollbar-thumb {
+  background: transparent;
+}
+
+.container:hover .menuScrollArea {
+  scrollbar-width: thin;
+}
+
+.container:hover .menuScrollArea::-webkit-scrollbar {
+  width: 5px;
+}
+
+.container:hover .menuScrollArea::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.container:hover .menuScrollArea::-webkit-scrollbar-thumb {
+  background: var(--chakra-colors-purple-200);
+  border-radius: 10px;
 }
 
 .container.minimized {
@@ -21,11 +174,15 @@
   min-width: 80px;
 }
 
+/* Shadow on whole shell so it does not cast onto the module rail */
+.shell:has(.container.minimized:hover) {
+  box-shadow: 4px 0 20px rgba(0, 0, 0, 0.06);
+  z-index: 201;
+}
+
 .container.minimized:hover {
   width: 260px;
   min-width: 260px;
-  box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
-  z-index: 201;
 }
 
 @media (max-width: 480px) {
@@ -37,19 +194,6 @@
   .minimizeButton {
     display: none !important;
   }
-}
-
-.container::-webkit-scrollbar {
-  width: 5px;
-}
-
-.container::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.container::-webkit-scrollbar-thumb {
-  background: var(--chakra-colors-purple-200);
-  border-radius: 10px;
 }
 
 .sideBarOptions {
@@ -367,15 +511,17 @@
   .change {
     position: fixed;
     top: 6px;
-    left: 270px;
+    left: 310px;
     z-index: 1000;
   }
 }
 
 .minimizeButton {
-  position: absolute;
-  bottom: 20px;
-  right: 10px;
+  flex-shrink: 0;
+  align-self: flex-end;
+  margin-top: auto;
+  margin-right: 10px;
+  margin-bottom: 20px;
   width: 32px;
   height: 32px;
   display: flex;
@@ -398,5 +544,5 @@
 }
 
 .container.minimized .minimizeButton {
-  right: 24px;
+  margin-right: 24px;
 }

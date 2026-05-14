@@ -164,7 +164,7 @@
 
 .logo {
   height: 40px;
-  margin-left: 175px;
+  /* margin-left set inline on desktop from sidebar width (see header.js) */
 }
 
 /* Mobile responsive styles */

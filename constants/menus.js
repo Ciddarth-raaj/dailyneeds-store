@@ -1,5 +1,4 @@
-/* eslint-disable import/no-anonymous-default-export */
-export default {
+const ALL_PAGES_MENU = {
   dashboard: {
     title: "Dashboard",
     selected: true,
@@ -655,7 +654,7 @@ export default {
             selected: false,
             location: "/stock-checker/assigned-products",
           },
-        }
+        },
       },
       expiry_checker: {
         title: "Expiry Checker",
@@ -672,8 +671,27 @@ export default {
             selected: false,
             location: "/products/expiry-checker/assigned-products",
           },
-        }
-      }
+        },
+      },
     },
   },
 };
+
+/**
+ * Top-level app modules; each has its own sidebar menu tree.
+ * `accent` drives module-rail colors (see sideBar.module.css). Use: purple | teal | blue | cyan | orange | pink.
+ * Rail icon: set `iconClass` (full FA6 classes, e.g. "fa-solid fa-chart-line") or `icon` (legacy suffix, e.g. "fa-users" → "fa fa-users").
+ */
+export const MENU_MODULES = {
+  all: {
+    title: "All",
+    /** Full FA6 class string, or use `icon` (e.g. "fa-users") with legacy `fa ${icon}` */
+    iconClass: "fa-solid fa-layer-group",
+    accent: "purple",
+    menu: ALL_PAGES_MENU,
+  },
+};
+
+export const DEFAULT_MODULE_ID = "all";
+
+export default ALL_PAGES_MENU;

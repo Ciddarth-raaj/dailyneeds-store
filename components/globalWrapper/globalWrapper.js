@@ -53,8 +53,8 @@ export default function GlobalWrapper({ children, title, permissionKey = [], loa
                   marginLeft: isMobile
                     ? undefined
                     : isSidebarMinimized
-                      ? "75px"
-                      : "255px",
+                      ? "120px"
+                      : "300px",
                 }}
               >
                 {children}
