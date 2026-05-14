@@ -72,6 +72,7 @@
 .moduleRail {
   width: 40px;
   min-width: 40px;
+  max-width: 40px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
@@ -81,7 +82,9 @@
   padding: 6px 5px 12px;
   background-color: #ffffff;
   border-right: 1px solid #f0f0f0;
-  overflow-y: auto;
+  /* Rail is fixed-width icon strip — do not scroll independently from the main menu */
+  overflow: hidden;
+  align-self: stretch;
 }
 
 .moduleRailButton {
