@@ -3,6 +3,7 @@ import GlobalWrapper from "../../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../../components/CustomContainer";
 import { Text } from "@chakra-ui/react";
 import AgGrid from "../../../components/AgGrid";
+import GstModuleWrapper from "../../../components/gst/GstModuleWrapper";
 import { useGstVendors } from "../../../customHooks/useGstVendors";
 
 function GstVendorsListingPage() {
@@ -49,20 +50,22 @@ function GstVendorsListingPage() {
 
   return (
     <GlobalWrapper title="GST vendors" permissionKey={["view_gst_vendors"]}>
-      <CustomContainer title="GST vendors" filledHeader>
-        {loading ? (
-          <Text>Loading...</Text>
-        ) : (
-          <AgGrid
-            rowData={vendors}
-            columnDefs={colDefs}
-            tableKey="gst-vendors-list"
-            gridOptions={{
-              getRowId: (params) => String(params.data?.gst_vendor_id ?? ""),
-            }}
-          />
-        )}
-      </CustomContainer>
+      <GstModuleWrapper>
+        <CustomContainer title="GST vendors" filledHeader>
+          {loading ? (
+            <Text>Loading...</Text>
+          ) : (
+            <AgGrid
+              rowData={vendors}
+              columnDefs={colDefs}
+              tableKey="gst-vendors-list"
+              gridOptions={{
+                getRowId: (params) => String(params.data?.gst_vendor_id ?? ""),
+              }}
+            />
+          )}
+        </CustomContainer>
+      </GstModuleWrapper>
     </GlobalWrapper>
   );
 }

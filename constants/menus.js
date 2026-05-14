@@ -679,6 +679,20 @@ const ALL_PAGES_MENU = {
 
 /** Menu tree for the GST module (module rail → GST). */
 const GST_MENU = {
+  gst_configs: {
+    title: "Configs",
+    selected: false,
+    openPage: false,
+    icon: "fa-sliders",
+    subMenu: {
+      gst_portal: {
+        title: "GST Portal",
+        permission: "view_gst_portal",
+        selected: false,
+        location: "/gst/portal",
+      },
+    },
+  },
   gst_vendors: {
     title: "Vendors",
     selected: false,

@@ -31,19 +31,23 @@ import DropdownFilter, { dropdownFilterHandler } from "./DropdownFilter";
 import Drawer from "../Drawer";
 import toast from "react-hot-toast";
 import moment from "moment";
+import { useModuleTableTheme } from "../../contexts/ModuleTableThemeContext";
 
 const COLUMN_STORAGE_PREFIX = "aggrid-columns-";
 
-const agGridTheme = themeQuartz.withParams({
-  accentColor: "var(--chakra-colors-purple-500)",
-  headerBackgroundColor: "var(--chakra-colors-purple-50)",
-  headerTextColor: "var(--chakra-colors-purple-700)",
-  fontFamily: "inherit",
-  borderColor: "var(--chakra-colors-purple-100)",
-  borderWidth: "0.5px",
-  textColor: "var(--chakra-colors-gray-600)",
-  fontSize: "13px",
-});
+function buildAgGridTheme(colorScheme) {
+  const c = colorScheme || "purple";
+  return themeQuartz.withParams({
+    accentColor: `var(--chakra-colors-${c}-500)`,
+    headerBackgroundColor: `var(--chakra-colors-${c}-50)`,
+    headerTextColor: `var(--chakra-colors-${c}-700)`,
+    fontFamily: "inherit",
+    borderColor: `var(--chakra-colors-${c}-100)`,
+    borderWidth: "0.5px",
+    textColor: "var(--chakra-colors-gray-600)",
+    fontSize: "13px",
+  });
+}
 
 function loadColumnVisibility(tableKey, colDefs) {
   if (!tableKey || typeof window === "undefined") return null;
@@ -82,10 +86,19 @@ const AgGrid = React.forwardRef(function AgGrid(
     selectMode = false,
     onSelectionChanged,
     getRowId,
+    tableColorScheme,
     ...props
   },
   ref
 ) {
+  const { colorScheme: contextColorScheme } = useModuleTableTheme();
+  const effectiveColorScheme =
+    tableColorScheme ?? contextColorScheme ?? "purple";
+  const agGridTheme = React.useMemo(
+    () => buildAgGridTheme(effectiveColorScheme),
+    [effectiveColorScheme]
+  );
+
   const gridRef = React.useRef(null);
   const onSelectionChangedRef = React.useRef(onSelectionChanged);
   onSelectionChangedRef.current = onSelectionChanged;
@@ -195,6 +208,7 @@ const AgGrid = React.forwardRef(function AgGrid(
   );
 
   const mergedGridOptions = React.useMemo(() => {
+    const cs = effectiveColorScheme;
     const defaultColDef = {
       resizable: true,
       sortable: true,
@@ -351,7 +365,7 @@ const AgGrid = React.forwardRef(function AgGrid(
                     <Tooltip label={item.label} key={item.label}>
                       <IconButton
                         variant="ghost"
-                        colorScheme={item.colorScheme || "purple"}
+                        colorScheme={item.colorScheme || cs}
                         aria-label={item.label}
                         size="xs"
                         icon={<i className={icon} />}
@@ -424,7 +438,7 @@ const AgGrid = React.forwardRef(function AgGrid(
         ...(gridOptionsProp?.defaultColDef || {}),
       },
     };
-  }, [defaultRows, gridOptionsProp]);
+  }, [defaultRows, gridOptionsProp, effectiveColorScheme]);
 
   const getEffectiveColDef = React.useCallback(
     (colDef) => {
@@ -506,6 +520,8 @@ const AgGrid = React.forwardRef(function AgGrid(
     }));
   }, [rawColDefs, columnIdMap]);
 
+  const cs = effectiveColorScheme;
+
   return (
     <Box position="relative" w="100%">
       <Button
@@ -517,7 +533,7 @@ const AgGrid = React.forwardRef(function AgGrid(
         borderBottomRadius={0}
         size="xs"
         leftIcon={<i className="fa-solid fa-gear" />}
-        colorScheme="purple"
+        colorScheme={cs}
         onClick={onOpen}
       >
         Settings
@@ -558,7 +574,7 @@ const AgGrid = React.forwardRef(function AgGrid(
           title="Table settings"
           footer={
             <Flex justifyContent="flex-end" w="100%">
-              <Button colorScheme="purple" onClick={onClose}>
+              <Button colorScheme={cs} onClick={onClose}>
                 Done
               </Button>
             </Flex>
@@ -569,19 +585,19 @@ const AgGrid = React.forwardRef(function AgGrid(
               <AccordionItem
                 border="none"
                 borderBottomWidth="1px"
-                borderColor="purple.100"
+                borderColor={`${cs}.100`}
                 _last={{ borderBottom: "none" }}
               >
                 <AccordionButton
                   px={0}
                   py={4}
-                  _hover={{ bg: "purple.50" }}
+                  _hover={{ bg: `${cs}.50` }}
                   _expanded={{ pb: 3 }}
                 >
-                  <Text fontWeight="600" fontSize="sm" color="purple.700">
+                  <Text fontWeight="600" fontSize="sm" color={`${cs}.700`}>
                     Export
                   </Text>
-                  <AccordionIcon ml="auto" color="purple.600" />
+                  <AccordionIcon ml="auto" color={`${cs}.600`} />
                 </AccordionButton>
                 <AccordionPanel px={0} pt={0} pb={4}>
                   <VStack align="stretch" spacing={2}>
@@ -598,18 +614,18 @@ const AgGrid = React.forwardRef(function AgGrid(
                         textAlign="left"
                         borderRadius="md"
                         borderWidth="1px"
-                        borderColor="purple.100"
-                        bg="purple.50"
+                        borderColor={`${cs}.100`}
+                        bg={`${cs}.50`}
                         _hover={{
-                          bg: "purple.100",
-                          borderColor: "purple.200",
+                          bg: `${cs}.100`,
+                          borderColor: `${cs}.200`,
                         }}
                         onClick={() => {
                           onClick();
                           if (key !== "pdf") onClose();
                         }}
                       >
-                        <Text fontSize="sm" fontWeight="500" color="purple.700">
+                        <Text fontSize="sm" fontWeight="500" color={`${cs}.700`}>
                           {label}
                         </Text>
                       </Box>
@@ -621,24 +637,24 @@ const AgGrid = React.forwardRef(function AgGrid(
               <AccordionItem
                 border="none"
                 borderBottomWidth="1px"
-                borderColor="purple.100"
+                borderColor={`${cs}.100`}
                 _last={{ borderBottom: "none" }}
               >
                 <AccordionButton
                   px={0}
                   py={4}
-                  _hover={{ bg: "purple.50" }}
+                  _hover={{ bg: `${cs}.50` }}
                   _expanded={{ pb: 3 }}
                 >
-                  <Text fontWeight="600" fontSize="sm" color="purple.700">
+                  <Text fontWeight="600" fontSize="sm" color={`${cs}.700`}>
                     Columns
                   </Text>
-                  <AccordionIcon ml="auto" color="purple.600" />
+                  <AccordionIcon ml="auto" color={`${cs}.600`} />
                 </AccordionButton>
                 <AccordionPanel px={0} pt={0} pb={4}>
                   <Text
                     fontSize="xs"
-                    color="purple.600"
+                    color={`${cs}.600`}
                     mb={3}
                     lineHeight="tall"
                   >
@@ -651,11 +667,11 @@ const AgGrid = React.forwardRef(function AgGrid(
                     sx={{
                       "&::-webkit-scrollbar": { width: "6px" },
                       "&::-webkit-scrollbar-track": {
-                        bg: "purple.50",
+                        bg: `${cs}.50`,
                         borderRadius: "3px",
                       },
                       "&::-webkit-scrollbar-thumb": {
-                        bg: "purple.200",
+                        bg: `${cs}.200`,
                         borderRadius: "3px",
                       },
                     }}
@@ -668,15 +684,15 @@ const AgGrid = React.forwardRef(function AgGrid(
                           py={2.5}
                           px={2}
                           borderRadius="md"
-                          _hover={{ bg: "purple.50" }}
+                          _hover={{ bg: `${cs}.50` }}
                           borderBottomWidth="1px"
-                          borderColor="purple.50"
+                          borderColor={`${cs}.50`}
                           _last={{ borderBottom: "none" }}
                         >
                           <Checkbox
                             size="sm"
                             flex={1}
-                            colorScheme="purple"
+                            colorScheme={cs}
                             isChecked={columnVisibility[item.colId] !== false}
                             onChange={(e) =>
                               handleColumnVisibilityChange(
@@ -685,7 +701,7 @@ const AgGrid = React.forwardRef(function AgGrid(
                               )
                             }
                           >
-                            <Text fontSize="sm" color="purple.700">
+                            <Text fontSize="sm" color={`${cs}.700`}>
                               {item.headerName}
                             </Text>
                           </Checkbox>

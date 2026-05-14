@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { Box, Checkbox, VStack, Text } from "@chakra-ui/react";
 import Badge from "../Badge";
+import { useModuleTableTheme } from "../../contexts/ModuleTableThemeContext";
 
 /**
  * Custom AG Grid filter component for badge-column type
  * Follows AG Grid's new filter component pattern
  */
 const BadgeFilter = ({ model, onModelChange, getValue, column, api }) => {
+  const { colorScheme: tableColorScheme } = useModuleTableTheme();
   const [uniqueBadges, setUniqueBadges] = useState([]);
   const selectedLabels = model?.values || [];
 
@@ -47,7 +49,7 @@ const BadgeFilter = ({ model, onModelChange, getValue, column, api }) => {
           if (!badges.has(label)) {
             badges.set(label, {
               label: label,
-              colorScheme: value.colorScheme || "purple",
+              colorScheme: value.colorScheme || tableColorScheme,
             });
           }
         }
@@ -76,7 +78,7 @@ const BadgeFilter = ({ model, onModelChange, getValue, column, api }) => {
       api.removeEventListener("filterChanged", onModelUpdated);
       api.removeEventListener("rowDataUpdated", onModelUpdated);
     };
-  }, [api, column]);
+  }, [api, column, tableColorScheme]);
 
   const handleLabelToggle = (label) => {
     const newSelectedLabels = selectedLabels.includes(label)
@@ -144,7 +146,7 @@ const BadgeFilter = ({ model, onModelChange, getValue, column, api }) => {
                 isChecked={isSelected}
                 onChange={() => handleLabelToggle(badge.label)}
               >
-                <Badge size="md" colorScheme={badge.colorScheme || "purple"}>
+                <Badge size="md" colorScheme={badge.colorScheme || tableColorScheme}>
                   {badge.label}
                 </Badge>
               </Checkbox>

@@ -14,12 +14,14 @@ import {
   Divider,
 } from "@chakra-ui/react";
 import { ChevronDownIcon } from "@chakra-ui/icons";
+import { useModuleTableTheme } from "../../contexts/ModuleTableThemeContext";
 
 /**
  * Custom AG Grid filter component for dropdown filter type
  * Extracts unique values from rows and displays them in a dropdown
  */
 const DropdownFilter = React.memo(({ model, onModelChange, getValue, column, api }) => {
+  const { colorScheme: cs } = useModuleTableTheme();
   const [uniqueValues, setUniqueValues] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [isOpen, setIsOpen] = useState(false);
@@ -345,7 +347,10 @@ const DropdownFilter = React.memo(({ model, onModelChange, getValue, column, api
                     onKeyDown={(e) => e.stopPropagation()}
                     bg="white"
                     borderColor="gray.200"
-                    _focus={{ borderColor: "purple.400", boxShadow: "0 0 0 1px var(--chakra-colors-purple-400)" }}
+                    _focus={{
+                      borderColor: `${cs}.400`,
+                      boxShadow: `0 0 0 1px var(--chakra-colors-${cs}-400)`,
+                    }}
                   />
                 </InputGroup>
 
@@ -356,7 +361,7 @@ const DropdownFilter = React.memo(({ model, onModelChange, getValue, column, api
                     isIndeterminate={someSelected}
                     onChange={handleSelectAll}
                     size="sm"
-                    colorScheme="purple"
+                    colorScheme={cs}
                   >
                     <Text fontSize="sm" fontWeight="semibold" color="gray.700">
                       Select All
@@ -366,10 +371,10 @@ const DropdownFilter = React.memo(({ model, onModelChange, getValue, column, api
                     <Button
                       size="xs"
                       variant="ghost"
-                      colorScheme="purple"
+                      colorScheme={cs}
                       onClick={handleClearAll}
                       fontWeight="medium"
-                      _hover={{ bg: "purple.50" }}
+                      _hover={{ bg: `${cs}.50` }}
                     >
                       Clear
                     </Button>
@@ -397,7 +402,7 @@ const DropdownFilter = React.memo(({ model, onModelChange, getValue, column, api
                             px={2}
                             py={1.5}
                             borderRadius="md"
-                            _hover={{ bg: isSelected ? "purple.50" : "gray.50" }}
+                            _hover={{ bg: isSelected ? `${cs}.50` : "gray.50" }}
                             cursor="pointer"
                             onClick={(e) => handleValueToggle(value, e)}
                           >
@@ -405,13 +410,13 @@ const DropdownFilter = React.memo(({ model, onModelChange, getValue, column, api
                               isChecked={isSelected}
                               onChange={(e) => handleValueToggle(value, e)}
                               size="sm"
-                              colorScheme="purple"
+                              colorScheme={cs}
                               width="100%"
                             >
                               <Text 
                                 fontSize="sm" 
                                 isTruncated
-                                color={isSelected ? "purple.700" : "gray.700"}
+                                color={isSelected ? `${cs}.700` : "gray.700"}
                                 fontWeight={isSelected ? "medium" : "normal"}
                               >
                                 {value}

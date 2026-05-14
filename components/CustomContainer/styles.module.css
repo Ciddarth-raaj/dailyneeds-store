@@ -3,7 +3,7 @@
   border-radius: 12px;
   overflow: hidden;
   /* box-shadow: rgba(99, 99, 99, 0.2) 0px 2px 8px 0px; */
-  border: 1px solid var(--chakra-colors-purple-100);
+  border: 1px solid var(--chakra-colors-gray-200);
 }
 
 .heading {
@@ -14,7 +14,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid var(--chakra-colors-purple-100);
+  border-bottom: 1px solid var(--chakra-colors-gray-200);
 }
 
 /* Size: Extra Small */
@@ -80,13 +80,7 @@
   font-size: 16px;
 }
 
-.filledHeader {
-  background-color: var(--chakra-colors-purple-50);
-}
-
-.subtleHeader {
-  background-color: var(--chakra-colors-purple-50);
-}
+/* Header tint comes from inline styles (module colorScheme + filled/subtle). */
 
 .subtleHeader .heading {
   font-weight: 600;

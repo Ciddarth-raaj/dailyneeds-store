@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { IconButton } from "@chakra-ui/react";
 
 import styles from "./styles.module.css";
+import { useModuleTableTheme } from "../../contexts/ModuleTableThemeContext";
 
 function CustomContainer({
   title,
@@ -15,10 +16,13 @@ function CustomContainer({
   toggleChildren,
   defaultOpen = true,
   onToggle,
-  colorScheme = "purple",
+  colorScheme: colorSchemeProp,
   size = "md",
   childrenContainerStyle,
 }) {
+  const { colorScheme: contextColorScheme } = useModuleTableTheme();
+  const colorScheme = colorSchemeProp ?? contextColorScheme ?? "purple";
+
   const [isOpen, setIsOpen] = useState(defaultOpen);
 
   const handleToggle = () => {
@@ -62,7 +66,10 @@ function CustomContainer({
           } ${getHeaderStyle()} ${getSizeClass()}`}
           style={{
             borderColor: getColorSchemeColor(100),
-            backgroundColor: filledHeader ? getColorSchemeColor(50) : "unset",
+            backgroundColor:
+              filledHeader || subtleHeader
+                ? getColorSchemeColor(50)
+                : "unset",
             borderBottomColor:
               !toggleChildren || isOpen
                 ? getColorSchemeColor(100)
@@ -86,7 +93,7 @@ function CustomContainer({
                 aria-label="Toggle section visibility"
                 size="sm"
                 variant="ghost"
-                colorScheme="purple"
+                colorScheme={colorScheme}
                 icon={
                   <i
                     className={`fa ${
