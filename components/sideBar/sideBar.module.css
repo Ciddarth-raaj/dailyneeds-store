@@ -9,6 +9,64 @@
   align-items: stretch;
   background-color: #ffffff;
   border-right: 1px solid #eee;
+  /* Main menu + scrollbar + minimize — follow selected module rail accent */
+  --menu-accent-50: var(--chakra-colors-purple-50);
+  --menu-accent-100: var(--chakra-colors-purple-100);
+  --menu-accent-200: var(--chakra-colors-purple-200);
+  --menu-accent-300: var(--chakra-colors-purple-300);
+  --menu-accent-500: var(--chakra-colors-purple-500);
+  --menu-accent-600: var(--chakra-colors-purple-600);
+  --menu-accent-700: var(--chakra-colors-purple-700);
+}
+
+.shell[data-menu-accent="teal"] {
+  --menu-accent-50: var(--chakra-colors-teal-50);
+  --menu-accent-100: var(--chakra-colors-teal-100);
+  --menu-accent-200: var(--chakra-colors-teal-200);
+  --menu-accent-300: var(--chakra-colors-teal-300);
+  --menu-accent-500: var(--chakra-colors-teal-500);
+  --menu-accent-600: var(--chakra-colors-teal-600);
+  --menu-accent-700: var(--chakra-colors-teal-700);
+}
+
+.shell[data-menu-accent="blue"] {
+  --menu-accent-50: var(--chakra-colors-blue-50);
+  --menu-accent-100: var(--chakra-colors-blue-100);
+  --menu-accent-200: var(--chakra-colors-blue-200);
+  --menu-accent-300: var(--chakra-colors-blue-300);
+  --menu-accent-500: var(--chakra-colors-blue-500);
+  --menu-accent-600: var(--chakra-colors-blue-600);
+  --menu-accent-700: var(--chakra-colors-blue-700);
+}
+
+.shell[data-menu-accent="cyan"] {
+  --menu-accent-50: var(--chakra-colors-cyan-50);
+  --menu-accent-100: var(--chakra-colors-cyan-100);
+  --menu-accent-200: var(--chakra-colors-cyan-200);
+  --menu-accent-300: var(--chakra-colors-cyan-300);
+  --menu-accent-500: var(--chakra-colors-cyan-500);
+  --menu-accent-600: var(--chakra-colors-cyan-600);
+  --menu-accent-700: var(--chakra-colors-cyan-700);
+}
+
+.shell[data-menu-accent="orange"] {
+  --menu-accent-50: var(--chakra-colors-orange-50);
+  --menu-accent-100: var(--chakra-colors-orange-100);
+  --menu-accent-200: var(--chakra-colors-orange-200);
+  --menu-accent-300: var(--chakra-colors-orange-300);
+  --menu-accent-500: var(--chakra-colors-orange-500);
+  --menu-accent-600: var(--chakra-colors-orange-600);
+  --menu-accent-700: var(--chakra-colors-orange-700);
+}
+
+.shell[data-menu-accent="pink"] {
+  --menu-accent-50: var(--chakra-colors-pink-50);
+  --menu-accent-100: var(--chakra-colors-pink-100);
+  --menu-accent-200: var(--chakra-colors-pink-200);
+  --menu-accent-300: var(--chakra-colors-pink-300);
+  --menu-accent-500: var(--chakra-colors-pink-500);
+  --menu-accent-600: var(--chakra-colors-pink-600);
+  --menu-accent-700: var(--chakra-colors-pink-700);
 }
 
 .moduleRail {
@@ -165,7 +223,7 @@
 }
 
 .container:hover .menuScrollArea::-webkit-scrollbar-thumb {
-  background: var(--chakra-colors-purple-200);
+  background: var(--menu-accent-200);
   border-radius: 10px;
 }
 
@@ -244,13 +302,13 @@
 }
 
 .optionHolder:hover {
-  background-color: var(--chakra-colors-purple-50);
-  color: var(--chakra-colors-purple-600);
+  background-color: var(--menu-accent-50);
+  color: var(--menu-accent-600);
 }
 
 .selectedMenu {
-  color: var(--chakra-colors-purple-600);
-  background-color: var(--chakra-colors-purple-50);
+  color: var(--menu-accent-600);
+  background-color: var(--menu-accent-50);
 }
 
 .selectedMenu::before {
@@ -261,7 +319,7 @@
   transform: translateY(-50%);
   width: 3px;
   height: 60%;
-  background-color: var(--chakra-colors-purple-500);
+  background-color: var(--menu-accent-500);
   border-radius: 0 4px 4px 0;
 }
 
@@ -274,12 +332,12 @@
   height: 24px;
   border-radius: 3px;
   transition: all 0.3s ease;
-  background-color: var(--chakra-colors-purple-50);
+  background-color: var(--menu-accent-50);
   flex-shrink: 0;
 }
 
 .optionHolder:hover .iconWrapper {
-  background-color: var(--chakra-colors-purple-100);
+  background-color: var(--menu-accent-100);
 }
 
 .optionHolder i {
@@ -326,11 +384,11 @@
 }
 
 .icons-selected {
-  color: var(--chakra-colors-purple-600);
+  color: var(--menu-accent-600);
 }
 
 .iconsUnselected {
-  color: var(--chakra-colors-purple-300);
+  color: var(--menu-accent-300);
 }
 
 .subMenuWrapper {
@@ -354,8 +412,8 @@
   background: linear-gradient(
     to bottom,
     transparent,
-    var(--chakra-colors-purple-100) 10%,
-    var(--chakra-colors-purple-100) 90%,
+    var(--menu-accent-100) 10%,
+    var(--menu-accent-100) 90%,
     transparent
   );
 }
@@ -401,7 +459,7 @@
   top: 50%;
   width: 12px;
   height: 2px;
-  background-color: rgba(106, 0, 148, 0.15);
+  background-color: color-mix(in srgb, var(--menu-accent-600) 18%, transparent);
   transform: translateY(-50%);
   transition: all 0.3s ease;
 }
@@ -422,38 +480,38 @@
 }
 
 .subMenuItem:hover {
-  color: var(--chakra-colors-purple-600);
-  background-color: var(--chakra-colors-purple-50);
+  color: var(--menu-accent-600);
+  background-color: var(--menu-accent-50);
 }
 
 .subMenuItem:hover::before {
-  background-color: var(--chakra-colors-purple-200);
+  background-color: var(--menu-accent-200);
 }
 
 .subMenuItem:hover .bulletPoint {
-  background-color: var(--chakra-colors-purple-500);
+  background-color: var(--menu-accent-500);
 }
 
 .subMenuItem:hover .menuText {
-  color: var(--chakra-colors-purple-600);
+  color: var(--menu-accent-600);
 }
 
 /* Add active state for submenu items */
 .subMenuItem.active {
-  background-color: var(--chakra-colors-purple-50);
+  background-color: var(--menu-accent-50);
 }
 
 .subMenuItem.active .bulletPoint {
-  background-color: var(--chakra-colors-purple-500);
+  background-color: var(--menu-accent-500);
 }
 
 .subMenuItem.active .menuText {
-  color: var(--chakra-colors-purple-600);
+  color: var(--menu-accent-600);
   font-weight: 600;
 }
 
 .subMenuItem.active::before {
-  background-color: var(--chakra-colors-purple-200);
+  background-color: var(--menu-accent-200);
 }
 
 /* Section Divider Styles */
@@ -529,14 +587,14 @@
   justify-content: center;
   cursor: pointer;
   border-radius: 6px;
-  background-color: var(--chakra-colors-purple-50);
-  color: var(--chakra-colors-purple-600);
+  background-color: var(--menu-accent-50);
+  color: var(--menu-accent-600);
   transition: all 0.3s ease;
   z-index: 10;
 }
 
 .minimizeButton:hover {
-  background-color: var(--chakra-colors-purple-100);
+  background-color: var(--menu-accent-100);
 }
 
 .minimizeButton i {

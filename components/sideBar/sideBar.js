@@ -194,6 +194,9 @@ export default function Sidebar() {
     }
   };
 
+  const menuAccent =
+    MENU_MODULES[selectedModuleId]?.accent ?? "purple";
+
   return (
     <>
       <div
@@ -207,6 +210,7 @@ export default function Sidebar() {
 
       <div
         className={styles.shell}
+        data-menu-accent={menuAccent}
         style={{ display: isMobile ? (isOpen ? "flex" : "none") : "flex" }}
       >
         <Box

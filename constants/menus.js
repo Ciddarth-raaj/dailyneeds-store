@@ -697,7 +697,7 @@ const GST_MENU = {
 
 /**
  * Top-level app modules; each has its own sidebar menu tree.
- * `accent` drives module-rail colors (see sideBar.module.css). Use: purple | teal | blue | cyan | orange | pink.
+ * `accent` drives module-rail colors and the main menu panel (see sideBar `data-menu-accent`).
  * Rail icon: set `iconClass` (full FA6 classes, e.g. "fa-solid fa-chart-line") or `icon` (legacy suffix, e.g. "fa-users" → "fa fa-users").
  */
 export const MENU_MODULES = {
