@@ -40,9 +40,7 @@ function allVendorsHaveFilingForPeriod(vendors, filings, year, month) {
   if (!vendors.length || year == null || month == null) return false;
   const idsWith = new Set(
     filings
-      .filter(
-        (r) => Number(r.year) === year && Number(r.month) === month
-      )
+      .filter((r) => Number(r.year) === year && Number(r.month) === month)
       .map((r) => r.gst_vendor_id)
   );
   for (const v of vendors) {
@@ -62,10 +60,7 @@ export default function GstFilingDatesPage() {
   const syncModal = useDisclosure();
   const [syncPeriod, setSyncPeriod] = useState(() => lastMonthYYYYMM());
 
-  const fyMonths = useMemo(
-    () => getIndianFinancialYearMonths(new Date()),
-    []
-  );
+  const fyMonths = useMemo(() => getIndianFinancialYearMonths(new Date()), []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -113,10 +108,7 @@ export default function GstFilingDatesPage() {
     load();
   }, [load]);
 
-  const parsedSyncPeriod = useMemo(
-    () => parseYYYYMM(syncPeriod),
-    [syncPeriod]
-  );
+  const parsedSyncPeriod = useMemo(() => parseYYYYMM(syncPeriod), [syncPeriod]);
 
   const showAlreadySyncedWarning = useMemo(() => {
     if (!parsedSyncPeriod) return false;
@@ -232,12 +224,12 @@ export default function GstFilingDatesPage() {
 
   return (
     <GlobalWrapper
-      title="Filing dates"
+      title="Filing Dates"
       permissionKey={["view_gst_filing_dates"]}
     >
       <GstModuleWrapper>
         <CustomContainer
-          title="Filing dates"
+          title="Filing Dates"
           filledHeader
           rightSection={syncButton}
         >

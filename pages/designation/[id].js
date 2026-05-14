@@ -204,7 +204,9 @@ class CreateDesignation extends React.Component {
                       <VStack align="stretch" spacing={10} w="100%">
                         {Object.keys(PERMISSIONS).map((menuKey) => {
                           const menuPermissions = PERMISSIONS[menuKey];
-                          const menuTitle = MENUS[menuKey]?.title || menuKey;
+                          const menuTitle =
+                            MENUS[menuKey]?.title ||
+                            (menuKey === "gst" ? "GST" : menuKey);
                           const permissionKeys = Object.keys(
                             menuPermissions
                           ).filter(
@@ -219,6 +221,9 @@ class CreateDesignation extends React.Component {
                               title={menuTitle}
                               subtleHeader
                               smallHeader
+                              colorScheme={
+                                menuKey === "gst" ? "teal" : "purple"
+                              }
                             >
                               <Grid
                                 templateColumns="repeat(3, 1fr)"

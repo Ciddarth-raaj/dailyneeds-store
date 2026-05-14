@@ -183,6 +183,14 @@ export const PERMISSIONS = {
     add_expiry_checker: "View Expiry Assigned Products",
   },
 
+  // GST
+  gst: {
+    view_gst_portal: "View GST Portal",
+    view_gst_vendors: "View GST Vendors",
+    view_gst_filing_dates: "View GST Filing Dates",
+    sync_gst_gstr2a_b2b: "Sync GSTR-2A B2B",
+  },
+
   // Misc
   Miscellaneous: {
     all_stores: "Access All Stores",
