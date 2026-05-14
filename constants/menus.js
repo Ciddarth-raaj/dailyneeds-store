@@ -677,6 +677,24 @@ const ALL_PAGES_MENU = {
   },
 };
 
+/** Menu tree for the GST module (module rail → GST). */
+const GST_MENU = {
+  gst_vendors: {
+    title: "Vendors",
+    selected: false,
+    openPage: false,
+    icon: "fa-address-book",
+    subMenu: {
+      view_all: {
+        title: "View All",
+        permission: "view_gst_vendors",
+        selected: false,
+        location: "/gst/vendors",
+      },
+    },
+  },
+};
+
 /**
  * Top-level app modules; each has its own sidebar menu tree.
  * `accent` drives module-rail colors (see sideBar.module.css). Use: purple | teal | blue | cyan | orange | pink.
@@ -689,6 +707,12 @@ export const MENU_MODULES = {
     iconClass: "fa-solid fa-layer-group",
     accent: "purple",
     menu: ALL_PAGES_MENU,
+  },
+  gst: {
+    title: "GST",
+    iconClass: "fa-solid fa-file-invoice-dollar",
+    accent: "teal",
+    menu: GST_MENU,
   },
 };
 
