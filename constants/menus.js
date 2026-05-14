@@ -673,6 +673,12 @@ const ALL_PAGES_MENU = {
           },
         },
       },
+      sync_gst_gstr2a_b2b: {
+        title: "GST GSTR-2A B2B sync",
+        permission: "sync_gst_gstr2a_b2b",
+        selected: false,
+        location: "/gst/filing-dates",
+      },
     },
   },
 };
@@ -704,6 +710,12 @@ const GST_MENU = {
         permission: "view_gst_vendors",
         selected: false,
         location: "/gst/vendors",
+      },
+      filing_dates: {
+        title: "Filing dates",
+        permission: "view_gst_filing_dates",
+        selected: false,
+        location: "/gst/filing-dates",
       },
     },
   },
