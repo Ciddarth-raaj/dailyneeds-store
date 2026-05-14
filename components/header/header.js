@@ -5,16 +5,18 @@ import Head from "../../util/head";
 import { useUser } from "../../contexts/UserContext";
 import { useBreakpointValue } from "@chakra-ui/react";
 
-/** Must match sideBar.module.css rail + menu column widths and header .container padding-left */
-const SIDEBAR_TOTAL_EXPANDED_PX = 300;
-const SIDEBAR_TOTAL_MINIMIZED_PX = 120;
+/** Menu column widths; rail width comes from `sidebarRailWidth` event (0 or 40). */
+const MENU_PANEL_EXPANDED_PX = 260;
+const MENU_PANEL_MINIMIZED_PX = 80;
 const HEADER_PADDING_LEFT_PX = 94;
 const LOGO_CLEARANCE_GAP_PX = 9;
 
-function getLogoMarginLeftPx(isSidebarMinimized) {
-  const sidebarTotal = isSidebarMinimized
-    ? SIDEBAR_TOTAL_MINIMIZED_PX
-    : SIDEBAR_TOTAL_EXPANDED_PX;
+function getLogoMarginLeftPx(isSidebarMinimized, sidebarRailPx) {
+  const rail = typeof sidebarRailPx === "number" ? sidebarRailPx : 40;
+  const menuPanel = isSidebarMinimized
+    ? MENU_PANEL_MINIMIZED_PX
+    : MENU_PANEL_EXPANDED_PX;
+  const sidebarTotal = rail + menuPanel;
   return sidebarTotal + LOGO_CLEARANCE_GAP_PX - HEADER_PADDING_LEFT_PX;
 }
 
@@ -93,6 +95,7 @@ export default function Header() {
   const [isSidebarMinimized, setIsSidebarMinimized] = useState(
     readDesktopSidebarMinimized
   );
+  const [sidebarRailPx, setSidebarRailPx] = useState(40);
   const { userConfig } = useUser();
   const { userType, fetched } = userConfig;
   const { employee_name, designation_name } = fetched ?? {};
@@ -110,6 +113,18 @@ export default function Header() {
     window.addEventListener("sidebarMinimizeToggle", handleSidebarToggle);
     return () => {
       window.removeEventListener("sidebarMinimizeToggle", handleSidebarToggle);
+    };
+  }, [isMobile]);
+
+  useEffect(() => {
+    if (isMobile) return undefined;
+    const handleRail = (event) => {
+      const v = event?.detail?.railPx;
+      setSidebarRailPx(typeof v === "number" ? v : 40);
+    };
+    window.addEventListener("sidebarRailWidth", handleRail);
+    return () => {
+      window.removeEventListener("sidebarRailWidth", handleRail);
     };
   }, [isMobile]);
 
@@ -174,7 +189,7 @@ export default function Header() {
   const logoStyle =
     isMobile === true
       ? undefined
-      : { marginLeft: `${getLogoMarginLeftPx(isSidebarMinimized)}px` };
+      : { marginLeft: `${getLogoMarginLeftPx(isSidebarMinimized, sidebarRailPx)}px` };
 
   return (
     <div className={styles.container}>

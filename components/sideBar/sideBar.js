@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { Box, Text, Tooltip, useBreakpointValue } from "@chakra-ui/react";
@@ -58,6 +58,40 @@ function buildMenuStateForModule(moduleId) {
   return initialMenu;
 }
 
+/** True if at least one top-level row would render (same rules as sidebar menu map). */
+function moduleHasPermittedMenuItem(menuTree, filteredData) {
+  if (!menuTree || !Array.isArray(filteredData)) return false;
+
+  const hasPermission = (permission) =>
+    filteredData.find((item) => item.permission_key == permission) !==
+    undefined;
+
+  for (const key of Object.keys(menuTree)) {
+    const entry = menuTree[key];
+    const subMenu = entry.subMenu || {};
+    const permittedSubKeys = Object.keys(subMenu).filter((sKey) => {
+      const item = subMenu[sKey];
+      if (item.subMenu) {
+        return Object.keys(item.subMenu).some((ssKey) =>
+          hasPermission(item.subMenu[ssKey].permission)
+        );
+      }
+      return hasPermission(item.permission);
+    });
+
+    const isDirectMenu = Boolean(entry.isDirect);
+    const hasDirectPermission =
+      !entry.permission ||
+      filteredData.some(
+        (item) => item.permission_key == entry.permission
+      );
+
+    if (!isDirectMenu && permittedSubKeys.length > 0) return true;
+    if (isDirectMenu && hasDirectPermission) return true;
+  }
+  return false;
+}
+
 export default function Sidebar() {
   const router = useRouter();
   const isMobile = useBreakpointValue({ base: true, md: false });
@@ -67,6 +101,7 @@ export default function Sidebar() {
     buildMenuStateForModule(DEFAULT_MODULE_ID)
   );
   const [filteredData, setFilteredData] = useState([]);
+  const [permissionsReady, setPermissionsReady] = useState(false);
 
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(() => {
@@ -116,15 +151,44 @@ export default function Sidebar() {
     return updatedMenu;
   }, []);
 
-  useEffect(() => {
-    const fromPath = findModuleIdForPath(router.asPath);
-    if (fromPath) setSelectedModuleId(fromPath);
-  }, [router.asPath]);
+  const visibleModuleIds = useMemo(() => {
+    const allIds = Object.keys(MENU_MODULES);
+    if (!permissionsReady) return allIds;
+    return allIds.filter((id) =>
+      moduleHasPermittedMenuItem(MENU_MODULES[id].menu, filteredData)
+    );
+  }, [permissionsReady, filteredData]);
 
   useEffect(() => {
-    const base = buildMenuStateForModule(selectedModuleId);
+    if (!permissionsReady) return;
+    if (visibleModuleIds.length === 0) {
+      setSelectedModuleId((prev) =>
+        prev !== DEFAULT_MODULE_ID ? DEFAULT_MODULE_ID : prev
+      );
+      return;
+    }
+
+    const fromPath = findModuleIdForPath(router.asPath);
+    if (fromPath && visibleModuleIds.includes(fromPath)) {
+      setSelectedModuleId(fromPath);
+      return;
+    }
+
+    setSelectedModuleId((prev) =>
+      visibleModuleIds.includes(prev) ? prev : visibleModuleIds[0]
+    );
+  }, [router.asPath, permissionsReady, visibleModuleIds]);
+
+  useEffect(() => {
+    const moduleForMenu =
+      visibleModuleIds.length > 0
+        ? visibleModuleIds.includes(selectedModuleId)
+          ? selectedModuleId
+          : visibleModuleIds[0]
+        : DEFAULT_MODULE_ID;
+    const base = buildMenuStateForModule(moduleForMenu);
     setMenu(applyRouteToMenu(base, router.asPath));
-  }, [selectedModuleId, router.asPath, applyRouteToMenu]);
+  }, [selectedModuleId, visibleModuleIds, router.asPath, applyRouteToMenu]);
 
   useEffect(() => {
     getPermissions();
@@ -134,15 +198,25 @@ export default function Sidebar() {
     DesignationHelper.getPermissionById()
       .then((data) => {
         try {
-          if (!data || data.code === 403) return;
+          if (!data || data.code === 403) {
+            setFilteredData([]);
+            return;
+          }
 
           setFilteredData(data);
           global.config.permissions = data;
         } catch (error) {
           console.error("Error processing permissions:", error);
+          setFilteredData([]);
         }
       })
-      .catch((err) => console.log(err));
+      .catch((err) => {
+        console.log(err);
+        setFilteredData([]);
+      })
+      .finally(() => {
+        setPermissionsReady(true);
+      });
   };
 
   const handleModuleClick = (moduleId) => {
@@ -197,6 +271,16 @@ export default function Sidebar() {
   const menuAccent =
     MENU_MODULES[selectedModuleId]?.accent ?? "purple";
 
+  const showModuleRail = visibleModuleIds.length > 0;
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const railPx = showModuleRail ? 40 : 0;
+    window.dispatchEvent(
+      new CustomEvent("sidebarRailWidth", { detail: { railPx } })
+    );
+  }, [showModuleRail]);
+
   return (
     <>
       <div
@@ -213,11 +297,12 @@ export default function Sidebar() {
         data-menu-accent={menuAccent}
         style={{ display: isMobile ? (isOpen ? "flex" : "none") : "flex" }}
       >
+        {showModuleRail ? (
         <Box
           className={styles.moduleRail}
           aria-label="Main modules"
         >
-          {Object.keys(MENU_MODULES).map((moduleId) => {
+          {visibleModuleIds.map((moduleId) => {
             const mod = MENU_MODULES[moduleId];
             const isActive = moduleId === selectedModuleId;
             return (
@@ -246,6 +331,7 @@ export default function Sidebar() {
             );
           })}
         </Box>
+        ) : null}
 
         <div
           className={`${styles.container} ${!isMobile && isMinimized ? styles.minimized : ""

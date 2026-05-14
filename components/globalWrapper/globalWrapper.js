@@ -19,6 +19,7 @@ export default function GlobalWrapper({ children, title, permissionKey = [], loa
     }
     return false;
   });
+  const [sidebarRailPx, setSidebarRailPx] = useState(40);
 
   useEffect(() => {
     const handleSidebarToggle = (event) => {
@@ -32,6 +33,20 @@ export default function GlobalWrapper({ children, title, permissionKey = [], loa
       window.removeEventListener("sidebarMinimizeToggle", handleSidebarToggle);
     };
   }, [isMobile]);
+
+  useEffect(() => {
+    const handleRail = (event) => {
+      const v = event?.detail?.railPx;
+      setSidebarRailPx(typeof v === "number" ? v : 40);
+    };
+    window.addEventListener("sidebarRailWidth", handleRail);
+    return () => {
+      window.removeEventListener("sidebarRailWidth", handleRail);
+    };
+  }, []);
+
+  const sidebarTotalExpanded = sidebarRailPx + 260;
+  const sidebarTotalMinimized = sidebarRailPx + 80;
 
   return (
     <>
@@ -53,8 +68,8 @@ export default function GlobalWrapper({ children, title, permissionKey = [], loa
                   marginLeft: isMobile
                     ? undefined
                     : isSidebarMinimized
-                      ? "120px"
-                      : "300px",
+                      ? `${sidebarTotalMinimized}px`
+                      : `${sidebarTotalExpanded}px`,
                 }}
               >
                 {children}
