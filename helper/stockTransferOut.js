@@ -2,15 +2,23 @@ import API from "../util/api";
 
 const stockTransferOut = {
   /**
-   * Get all stock transfers (list).
+   * Get stock transfers (list).
    * GET /stock-transfer-out
+   * @param {{ is_checked?: boolean, from_date?: string, to_date?: string }} opts
+   * @see dailyneeds-store-backend/docs/stock-transfer-out-date-filters.md
    * @returns {Promise<Array>} Array of transfers (header + items each)
    */
-  getStockTransfers: ({ is_checked }) =>
+  getStockTransfers: ({ is_checked, from_date, to_date } = {}) =>
     new Promise((resolve, reject) => {
       const params = {};
       if (is_checked != null) {
         params.is_checked = is_checked;
+      }
+      if (from_date != null && from_date !== "") {
+        params.from_date = from_date;
+      }
+      if (to_date != null && to_date !== "") {
+        params.to_date = to_date;
       }
       API.get("/stock-transfer-out", { params })
         .then((res) => {

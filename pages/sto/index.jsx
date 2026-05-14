@@ -82,9 +82,6 @@ function STOListing() {
   const { confirmDelete, ConfirmDeleteDialog } = useConfirmDelete();
   /** ON = all transfers (current behaviour). OFF = only is_checked === true (legacy list). */
   const [showAll, setShowAll] = useState(false);
-  const { transfers, loading, refetch } = useStockTransfer({
-    is_checked: showAll ? undefined : true,
-  });
 
   const [selectedDate, setSelectedDate] = useState(() =>
     moment().format("YYYY-MM-DD")
@@ -92,6 +89,21 @@ function STOListing() {
   const [viewingMonth, setViewingMonth] = useState(() =>
     moment().clone().startOf("month")
   );
+
+  const viewingMonthDateRange = useMemo(() => {
+    const start = moment(viewingMonth).startOf("month");
+    const end = moment(viewingMonth).endOf("month");
+    return {
+      from_date: start.format("YYYY-MM-DD"),
+      to_date: end.format("YYYY-MM-DD"),
+    };
+  }, [viewingMonth]);
+
+  const { transfers, loading, refetch } = useStockTransfer({
+    is_checked: showAll ? undefined : true,
+    from_date: viewingMonthDateRange.from_date,
+    to_date: viewingMonthDateRange.to_date,
+  });
 
   const transfersForSelectedDay = useMemo(() => {
     return (transfers || []).filter((t) => {

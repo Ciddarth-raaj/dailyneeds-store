@@ -16,7 +16,9 @@ const stoCheck = {
           if (res?.data?.code === 200) {
             resolve(res.data.data ?? []);
           } else {
-            reject(new Error(res?.data?.msg ?? "Failed to fetch STO check list"));
+            reject(
+              new Error(res?.data?.msg ?? "Failed to fetch STO check list")
+            );
           }
         })
         .catch((err) => reject(err));
@@ -86,7 +88,9 @@ const stoCheck = {
           if (res?.data?.code === 200) {
             resolve(res.data);
           } else {
-            reject(new Error(res?.data?.msg ?? "Failed to bulk save STO check"));
+            reject(
+              new Error(res?.data?.msg ?? "Failed to bulk save STO check")
+            );
           }
         })
         .catch((err) => reject(err));
