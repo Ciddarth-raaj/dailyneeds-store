@@ -26,6 +26,12 @@ const ALL_PAGES_MENU = {
         selected: false,
         location: "/dashboard/purchase-return",
       },
+      view_stock_dashboard: {
+        title: "Stock Dashboard",
+        permission: "view_stock_dashboard",
+        selected: false,
+        location: "/dashboard/stock",
+      },
     },
   },
   employee: {

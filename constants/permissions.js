@@ -3,6 +3,7 @@ export const PERMISSIONS = {
   dashboard: {
     dashboard: "View Dashboard",
     view_purchase_return_dashboard: "View Purchase Return Dashboard",
+    view_stock_dashboard: "View Stock Dashboard",
   },
 
   // Employees
