@@ -16,6 +16,17 @@ export const toNum = (v) => {
   return Number.isNaN(n) ? 0 : n;
 };
 
+/** AgGrid valueGetter: returns null when the field value is 0 (or empty). */
+export function numericValueOrNull(field) {
+  return (params) => {
+    const value = params.data?.[field];
+    if (value == null || value === "") return null;
+    const n = Number(value);
+    if (Number.isNaN(n) || n === 0) return null;
+    return value;
+  };
+}
+
 export const labelOf = (v) =>
   v == null || String(v).trim() === "" ? "Unknown" : String(v).trim();
 
