@@ -11,6 +11,7 @@ import {
   Center,
   Flex,
   Grid,
+  IconButton,
   Select,
   Spinner,
   Tab,
@@ -18,6 +19,7 @@ import {
   Tabs,
   Text,
 } from "@chakra-ui/react";
+import { DownloadIcon } from "@chakra-ui/icons";
 import {
   Cell,
   Pie,
@@ -26,6 +28,7 @@ import {
   Tooltip as RechartsTooltip,
 } from "recharts";
 import toast from "react-hot-toast";
+import { downloadCsv } from "../../util/exportCSVFile";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../components/CustomContainer";
 import CustomModal from "../../components/CustomModal";
@@ -38,6 +41,8 @@ import { capitalize, formatShorthandNumber } from "../../util/string";
 import {
   PIE_COLORS,
   buildDonutData,
+  BUCKET_EXPORT_LABEL,
+  buildBucketBranchExportRows,
   buildGroupedTableRows,
   buildSupplierGroupedTableRows,
   mapDeadStockItemToRow,
@@ -336,7 +341,7 @@ function StockDashboard() {
     setSubcategoryFilter("");
   }, []);
 
-  const openProductsModal = (title, rows, options = {}) => {
+  const openProductsModal = useCallback((title, rows, options = {}) => {
     const { showBranchFilter = true } = options;
     setProductModalTitle(title);
     setProductModalRows(rows || []);
@@ -344,7 +349,7 @@ function StockDashboard() {
     setModalBranchFilter("");
     setModalBucketFilter(null);
     setProductModalOpen(true);
-  };
+  }, []);
 
   const closeProductsModal = () => {
     setProductModalOpen(false);
@@ -453,10 +458,11 @@ function StockDashboard() {
       {
         field: "actions",
         headerName: "Actions",
-        type: "action-column",
+        type: "action-icons",
         valueGetter: (params) => [
           {
             label: "View Products",
+            iconType: "view",
             onClick: () =>
               openProductsModal(
                 `${params.data?.group_name} - Products`,
@@ -466,7 +472,7 @@ function StockDashboard() {
         ],
       },
     ],
-    []
+    [openProductsModal]
   );
 
   const groupedBranchTableColDefs = useMemo(
@@ -511,10 +517,11 @@ function StockDashboard() {
       {
         field: "actions",
         headerName: "Actions",
-        type: "action-column",
+        type: "action-icons",
         valueGetter: (params) => [
           {
             label: "View Products",
+            iconType: "view",
             onClick: () =>
               openProductsModal(
                 `${params.data?.group_name} - Products`,
@@ -525,7 +532,7 @@ function StockDashboard() {
         ],
       },
     ],
-    []
+    [openProductsModal]
   );
 
   const productModalColDefs = useMemo(
@@ -719,6 +726,33 @@ function StockDashboard() {
 
     return totals;
   }, [summaryProductModalRows]);
+
+  const exportBucketCsv = useCallback(
+    (bucketKey, cardTitle) => {
+      const { exportRows } = buildBucketBranchExportRows(
+        summaryProductModalRows,
+        bucketKey
+      );
+      if (!exportRows.length) {
+        toast.error("No data to export for this bucket.");
+        return;
+      }
+
+      const bucketLabel = BUCKET_EXPORT_LABEL[bucketKey] || bucketKey;
+      const titleSlug = (productModalTitle || "products")
+        .replace(/[^\w\s-]/g, "")
+        .trim()
+        .replace(/\s+/g, "-")
+        .slice(0, 40);
+      const dateStr = new Date().toISOString().slice(0, 10);
+      downloadCsv(
+        exportRows,
+        `stock-${bucketLabel}-${titleSlug}-${dateStr}.csv`
+      );
+      toast.success(`${cardTitle} exported.`);
+    },
+    [summaryProductModalRows, productModalTitle]
+  );
 
   const productSummaryCards = useMemo(
     () => [
@@ -995,6 +1029,7 @@ function StockDashboard() {
           {productSummaryCards.map((card) => (
             <Box
               key={card.key}
+              position="relative"
               p={4}
               borderWidth="1px"
               borderRadius="12px"
@@ -1014,6 +1049,19 @@ function StockDashboard() {
               }
               boxShadow={modalBucketFilter === card.key ? "md" : "none"}
             >
+              <Box position="absolute" top={2} right={2} zIndex={1}>
+                <IconButton
+                  icon={<DownloadIcon />}
+                  size="xs"
+                  variant="ghost"
+                  colorScheme={card.color}
+                  aria-label={`Export ${card.title} CSV`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    exportBucketCsv(card.key, card.title);
+                  }}
+                />
+              </Box>
               <Text
                 fontSize="sm"
                 color={`${card.color}.700`}

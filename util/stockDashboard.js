@@ -149,3 +149,71 @@ export const buildGroupedTableRows = (rows, groupKey) => {
 
 export const buildSupplierGroupedTableRows = (rows) =>
   buildGroupedTableRows(rows, "supplier");
+
+/** Stock qty field per summary card bucket key. */
+export const BUCKET_EXPORT_STOCK_QTY_FIELD = {
+  30: "30_days_stock",
+  90: "90_days_stock",
+  120: "120_days_stock",
+  gt120: "than_120_days_stock",
+};
+
+export const BUCKET_EXPORT_LABEL = {
+  30: "30D",
+  90: "90D",
+  120: "120D",
+  gt120: "gt120",
+};
+
+/**
+ * Pivot modal rows to CSV rows: ID, Product + one column per branch (stock qty for bucket).
+ */
+export function buildBucketBranchExportRows(rows, bucketKey) {
+  const stockField = BUCKET_EXPORT_STOCK_QTY_FIELD[bucketKey];
+  if (!stockField || !Array.isArray(rows) || rows.length === 0) {
+    return { branchColumns: [], exportRows: [] };
+  }
+
+  const branchSet = new Set();
+  rows.forEach((row) => {
+    branchSet.add(labelOf(row.branch_name));
+  });
+  const branchColumns = Array.from(branchSet).sort();
+
+  const byProduct = new Map();
+  rows.forEach((row) => {
+    const productId = row.product_id;
+    if (productId == null || Number.isNaN(Number(productId))) return;
+
+    const branch = labelOf(row.branch_name);
+    const amount = toNum(row[stockField]);
+    if (amount === 0) return;
+
+    if (!byProduct.has(productId)) {
+      byProduct.set(productId, {
+        ID: productId,
+        Product:
+          row.product_name ||
+          row.gf_item_name ||
+          row.de_name ||
+          String(productId),
+      });
+    }
+
+    const record = byProduct.get(productId);
+    record[branch] = round2(toNum(record[branch]) + amount);
+  });
+
+  const exportRows = Array.from(byProduct.values()).map((record) => {
+    const row = { ID: record.ID, Product: record.Product };
+    branchColumns.forEach((branch) => {
+      const value = record[branch];
+      row[branch] = value == null || value === 0 ? "" : value;
+    });
+    return row;
+  });
+
+  exportRows.sort((a, b) => Number(a.ID) - Number(b.ID));
+
+  return { branchColumns, exportRows };
+}
