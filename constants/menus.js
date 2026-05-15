@@ -713,6 +713,20 @@ const GST_MENU = {
       },
     },
   },
+  gst_tools: {
+    title: "Tools",
+    selected: false,
+    openPage: false,
+    icon: "fa-wrench",
+    subMenu: {
+      gstr_2a_purchase_register: {
+        title: "GSTR 2A v Purchase Register",
+        permission: "view_gst_gstr2a_purchase_register",
+        selected: false,
+        location: "/gst/tools/gstr-2a-purchase-register",
+      },
+    },
+  },
 };
 
 /**

@@ -189,6 +189,7 @@ export const PERMISSIONS = {
     view_gst_vendors: "View GST Vendors",
     view_gst_filing_dates: "View GST Filing Dates",
     sync_gst_gstr2a_b2b: "Sync GSTR-2A B2B",
+    view_gst_gstr2a_purchase_register: "View GSTR 2A v Purchase Register",
   },
 
   // Misc
