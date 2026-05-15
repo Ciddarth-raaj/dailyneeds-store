@@ -7,8 +7,10 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { ChakraProvider } from "@chakra-ui/react";
 import GstTaxpayerOtpModal from "./GstTaxpayerOtpModal";
 import { getTaxpayerSessionCheck } from "../../helper/gstTaxpayer";
+import { createAppTheme } from "../../theme";
 
 const CHECK_INTERVAL_MS = 3 * 60 * 1000;
 
@@ -25,10 +27,15 @@ const defaultOtpOptions = {
 };
 
 /**
- * Wraps GST module pages: one shared OTP modal + session checks.
+ * Wraps GST module pages: module-scoped Chakra theme, one shared OTP modal + session checks.
  * Use `useGstTaxpayerUi()` from children to open the same modal (e.g. Revalidate on GST Portal).
+ *
+ * @param {object} props
+ * @param {import("react").ReactNode} props.children
+ * @param {string} [props.colorScheme="teal"] Chakra palette name for theme tokens (matches GST rail accent).
  */
-export default function GstModuleWrapper({ children }) {
+export default function GstModuleWrapper({ children, colorScheme = "teal" }) {
+  const moduleTheme = useMemo(() => createAppTheme(colorScheme), [colorScheme]);
   const [otpModalOpen, setOtpModalOpen] = useState(false);
   const [otpOptions, setOtpOptions] = useState(defaultOtpOptions);
   const otpModalOpenRef = useRef(false);
@@ -90,24 +97,26 @@ export default function GstModuleWrapper({ children }) {
   );
 
   return (
-    <GstTaxpayerUiContext.Provider value={ctxValue}>
-      {children}
-      <GstTaxpayerOtpModal
-        isOpen={otpModalOpen}
-        onClose={closeOtpModal}
-        onSuccess={(session) => {
-          try {
-            onSuccessExtraRef.current?.(session);
-          } finally {
-            onSuccessExtraRef.current = null;
-          }
-          evaluateCheck();
-        }}
-        title={otpOptions.title}
-        submitMode={otpOptions.submitMode}
-        initialMessage={otpOptions.initialMessage}
-      />
-    </GstTaxpayerUiContext.Provider>
+    <ChakraProvider theme={moduleTheme}>
+      <GstTaxpayerUiContext.Provider value={ctxValue}>
+        {children}
+        <GstTaxpayerOtpModal
+          isOpen={otpModalOpen}
+          onClose={closeOtpModal}
+          onSuccess={(session) => {
+            try {
+              onSuccessExtraRef.current?.(session);
+            } finally {
+              onSuccessExtraRef.current = null;
+            }
+            evaluateCheck();
+          }}
+          title={otpOptions.title}
+          submitMode={otpOptions.submitMode}
+          initialMessage={otpOptions.initialMessage}
+        />
+      </GstTaxpayerUiContext.Provider>
+    </ChakraProvider>
   );
 }
 
