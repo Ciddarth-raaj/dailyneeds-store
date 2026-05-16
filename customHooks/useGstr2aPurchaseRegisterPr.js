@@ -1,6 +1,7 @@
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { usePurchase } from "./usePurchase";
 import { usePurchaseGst } from "./usePurchaseGst";
+import { usePurchaseGstMatch } from "./usePurchaseGstMatch";
 import {
   aggregatePurchasesByVendor,
   mergePurchaseRegisterSources,
@@ -9,7 +10,7 @@ import {
 
 /**
  * Purchase register (PR) data for GSTR-2A v Purchase Register.
- * Merges `usePurchase` and `usePurchaseGst` into one vendor aggregate.
+ * Merges `usePurchase`, `usePurchaseGst`, and purchase-gst matches.
  *
  * @param {string} period - `YYYY-MM` return month
  */
@@ -20,13 +21,22 @@ export function useGstr2aPurchaseRegisterPr(period) {
     purchase,
     loading: purchaseLoading,
     error: purchaseError,
+    refetch: refetchPurchases,
   } = usePurchase(purchaseFilters ?? {});
 
   const {
     purchaseGst,
     loading: purchaseGstLoading,
     error: purchaseGstError,
+    refetch: refetchPurchaseGst,
   } = usePurchaseGst(purchaseFilters ?? {});
+
+  const {
+    matches,
+    loading: matchLoading,
+    error: matchError,
+    refetch: refetchMatches,
+  } = usePurchaseGstMatch(purchaseFilters);
 
   const purchases = useMemo(
     () => mergePurchaseRegisterSources(purchase ?? [], purchaseGst ?? []),
@@ -39,7 +49,9 @@ export function useGstr2aPurchaseRegisterPr(period) {
   );
 
   const loading =
-    purchaseFilters == null ? false : purchaseLoading || purchaseGstLoading;
+    purchaseFilters == null
+      ? false
+      : purchaseLoading || purchaseGstLoading || matchLoading;
 
   const error = useMemo(() => {
     if (purchaseError) {
@@ -48,13 +60,26 @@ export function useGstr2aPurchaseRegisterPr(period) {
     if (purchaseGstError) {
       return purchaseGstError?.message ?? String(purchaseGstError);
     }
+    if (matchError) {
+      return matchError?.message ?? String(matchError);
+    }
     return null;
-  }, [purchaseError, purchaseGstError]);
+  }, [purchaseError, purchaseGstError, matchError]);
+
+  const refetch = useCallback(async () => {
+    await Promise.all([
+      refetchPurchases(true),
+      refetchPurchaseGst(true),
+      refetchMatches(true),
+    ]);
+  }, [refetchPurchases, refetchPurchaseGst, refetchMatches]);
 
   return {
     purchases,
+    matches,
     vendorPrByGstin,
     loading,
     error,
+    refetch,
   };
 }

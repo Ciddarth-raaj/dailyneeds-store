@@ -9,17 +9,28 @@ import {
   Spinner,
   Text,
 } from "@chakra-ui/react";
+import toast from "react-hot-toast";
 import CustomModal from "../CustomModal";
 import AgGrid from "../AgGrid";
-import { useGstr2aPurchaseRegisterPr } from "../../customHooks/useGstr2aPurchaseRegisterPr";
+import { useUser } from "../../contexts/UserContext";
+import {
+  deletePurchaseGstMatch,
+  upsertPurchaseGstMatch,
+} from "../../helper/purchaseGstMatch";
 import currencyFormatter from "../../util/currencyFormatter";
 import {
+  buildPurchasesMatchedElsewhere,
+  findMatchForDocument,
+  findPurchaseByMatch,
   getPrSourceBadge,
+  getPurchaseDisplayTotalAmount,
+  getPurchaseMatchIds,
   getPurchaseTaxable,
   getPurchaseTotalTax,
-  isZeroTotalAmount,
+  isPurchaseLockedByOtherMatch,
   normalizeGstin,
   parseDecimal,
+  stringsMatchInvoice,
 } from "../../util/gstr2aPurchaseRegister";
 import { useModuleTableTheme } from "../../contexts/ModuleTableThemeContext";
 
@@ -38,12 +49,6 @@ function isMatchablePurchase(item) {
   return Boolean(item?.tally_response?.voucher_no);
 }
 
-/** When total amount is 0, show total tax as the total amount */
-function getDisplayTotalAmount(item) {
-  if (isZeroTotalAmount(item)) return getPurchaseTotalTax(item);
-  return parseDecimal(item?.total_amount);
-}
-
 const MATCH_COLOR = "var(--chakra-colors-green-600)";
 
 function amountsMatch(a, b) {
@@ -51,14 +56,7 @@ function amountsMatch(a, b) {
 }
 
 function stringsMatch(a, b) {
-  const na = String(a ?? "")
-    .trim()
-    .toUpperCase();
-  const nb = String(b ?? "")
-    .trim()
-    .toUpperCase();
-  if (!na || !nb || na === "—" || nb === "—") return false;
-  return na === nb;
+  return stringsMatchInvoice(a, b);
 }
 
 function datesMatch(purchaseDate, docDateStr) {
@@ -121,7 +119,7 @@ function sortPurchasesForMatch(purchases, docInvoice, docDate, docTax) {
     const taxDiffB = Math.abs(getPurchaseTotalTax(b) - docTaxNum);
     if (taxDiffA !== taxDiffB) return taxDiffA - taxDiffB;
 
-    return getDisplayTotalAmount(a) - getDisplayTotalAmount(b);
+    return getPurchaseDisplayTotalAmount(a) - getPurchaseDisplayTotalAmount(b);
   });
 }
 
@@ -143,16 +141,32 @@ export default function Gstr2aMatchModal({
   onClose,
   documentRow,
   period,
+  purchases: allPurchases = [],
+  matches = [],
+  prLoading = false,
+  prError = null,
+  onMatchChanged,
 }) {
   const { colorScheme: cs } = useModuleTableTheme();
+  const { userConfig } = useUser();
   const gridRef = useRef(null);
   const [selectedPurchase, setSelectedPurchase] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [clearing, setClearing] = useState(false);
 
-  const {
-    purchases: allPurchases,
-    loading: prLoading,
-    error: prError,
-  } = useGstr2aPurchaseRegisterPr(period);
+  const existingMatch = useMemo(() => {
+    if (!documentRow) return null;
+    return findMatchForDocument(documentRow, allPurchases, matches);
+  }, [documentRow, allPurchases, matches]);
+
+  const lockedByOtherMatch = useMemo(
+    () =>
+      buildPurchasesMatchedElsewhere(
+        matches,
+        documentRow?.gst_b2b_invoice_id
+      ),
+    [matches, documentRow?.gst_b2b_invoice_id]
+  );
 
   const purchases = useMemo(() => {
     if (!isOpen || !documentRow) return [];
@@ -166,15 +180,74 @@ export default function Gstr2aMatchModal({
       documentRow.docNo2A,
       documentRow.docDate2A,
       documentRow.totalTax2A
-    );
-  }, [isOpen, documentRow, allPurchases]);
+    ).map((p) => ({
+      ...p,
+      _lockedByOtherMatch: isPurchaseLockedByOtherMatch(p, lockedByOtherMatch),
+    }));
+  }, [isOpen, documentRow, allPurchases, lockedByOtherMatch]);
+
+  const isRowSelectable = useCallback(
+    (node) => !node.data?._lockedByOtherMatch,
+    []
+  );
+
+  const matchedPurchaseInGrid = useMemo(() => {
+    if (!existingMatch?.match || !purchases.length) return null;
+    return findPurchaseByMatch(existingMatch.match, purchases);
+  }, [existingMatch, purchases]);
 
   const loading = isOpen && prLoading;
   const fetchError = isOpen ? prError : null;
 
+  const applyPreselection = useCallback(() => {
+    const api = gridRef.current?.api;
+    if (!api) return;
+
+    if (!matchedPurchaseInGrid) {
+      api.deselectAll();
+      return;
+    }
+
+    const rowId = String(matchedPurchaseInGrid.mmh_mrc_refno ?? "");
+    if (!rowId) return;
+
+    api.deselectAll();
+    const node = api.getRowNode(rowId);
+    if (node && !node.data?._lockedByOtherMatch) {
+      node.setSelected(true);
+      setSelectedPurchase(node.data);
+    }
+  }, [matchedPurchaseInGrid]);
+
   useEffect(() => {
-    if (isOpen) setSelectedPurchase(null);
-  }, [isOpen, documentRow, period]);
+    if (!isOpen) {
+      setSelectedPurchase(null);
+      return;
+    }
+    if (matchedPurchaseInGrid) {
+      setSelectedPurchase(matchedPurchaseInGrid);
+    } else {
+      setSelectedPurchase(null);
+    }
+  }, [isOpen, documentRow, period, matchedPurchaseInGrid]);
+
+  useEffect(() => {
+    if (!isOpen || !matchedPurchaseInGrid) return;
+    const id = requestAnimationFrame(() => applyPreselection());
+    return () => cancelAnimationFrame(id);
+  }, [isOpen, purchases, matchedPurchaseInGrid, applyPreselection]);
+
+  const gridOptions = useMemo(
+    () => ({
+      getRowStyle: (params) =>
+        params.data?._lockedByOtherMatch
+          ? { opacity: 0.45, cursor: "not-allowed" }
+          : undefined,
+      onFirstDataRendered: () => applyPreselection(),
+      onRowDataUpdated: () => applyPreselection(),
+    }),
+    [applyPreselection]
+  );
 
   const columnDefs = useMemo(() => {
     const doc = documentRow;
@@ -203,12 +276,9 @@ export default function Gstr2aMatchModal({
         minWidth: 130,
         cellRenderer: (params) => {
           const v = params.value;
-          const display =
-            v == null || v === "" ? "—" : String(v);
+          const display = v == null || v === "" ? "—" : String(v);
           return (
-            <MatchCell match={stringsMatch(v, doc.docNo2A)}>
-              {display}
-            </MatchCell>
+            <MatchCell match={stringsMatch(v, doc.docNo2A)}>{display}</MatchCell>
           );
         },
       },
@@ -265,7 +335,7 @@ export default function Gstr2aMatchModal({
         headerName: "Total Amount",
         sortable: false,
         minWidth: 120,
-        valueGetter: (p) => getDisplayTotalAmount(p.data),
+        valueGetter: (p) => getPurchaseDisplayTotalAmount(p.data),
         cellRenderer: (params) => {
           const val = params.value;
           if (val === undefined || val === null) return "—";
@@ -276,15 +346,16 @@ export default function Gstr2aMatchModal({
   }, [documentRow]);
 
   const handleSelectionChanged = useCallback((rows) => {
-    if (!rows?.length) {
+    const selectable = (rows || []).filter((r) => !r._lockedByOtherMatch);
+    if (!selectable.length) {
       setSelectedPurchase(null);
       return;
     }
-    if (rows.length === 1) {
-      setSelectedPurchase(rows[0]);
+    if (selectable.length === 1) {
+      setSelectedPurchase(selectable[0]);
       return;
     }
-    const last = rows[rows.length - 1];
+    const last = selectable[selectable.length - 1];
     const api = gridRef.current?.api;
     if (api) {
       api.deselectAll();
@@ -298,12 +369,110 @@ export default function Gstr2aMatchModal({
     onClose();
   };
 
+  const handleMatch = useCallback(async () => {
+    if (!selectedPurchase || !documentRow) return;
+
+    const employeeId = parseInt(String(userConfig?.employeeId ?? ""), 10);
+    if (!Number.isFinite(employeeId)) {
+      toast.error("Employee ID not found. Please sign in again.");
+      return;
+    }
+
+    const invoiceId = documentRow.gst_b2b_invoice_id;
+    if (invoiceId == null) {
+      toast.error("GSTR-2A invoice id not found for this document.");
+      return;
+    }
+
+    const ids = getPurchaseMatchIds(selectedPurchase);
+    if (ids.purchase_id == null && ids.gst_tally_purchase_id == null) {
+      toast.error("Could not resolve purchase id for the selected row.");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const body = {
+        gst_b2b_invoice_id: invoiceId,
+        ...ids,
+        matched_by: employeeId,
+      };
+      const matchId =
+        existingMatch?.match?.gst_purchase_match_id ??
+        documentRow.gst_purchase_match_id;
+      if (matchId != null) {
+        body.gst_purchase_match_id = matchId;
+      }
+
+      const data = await upsertPurchaseGstMatch(body);
+      if (data.code === 200) {
+        toast.success(data.updated ? "Match updated" : "Match saved");
+        await onMatchChanged?.();
+        onClose();
+      } else {
+        toast.error(data?.msg || "Failed to save match");
+      }
+    } catch (e) {
+      toast.error(e?.message || "Failed to save match");
+    } finally {
+      setSaving(false);
+    }
+  }, [
+    selectedPurchase,
+    documentRow,
+    userConfig?.employeeId,
+    existingMatch,
+    onMatchChanged,
+    onClose,
+  ]);
+
+  const handleClearMatch = useCallback(async () => {
+    const matchId =
+      existingMatch?.match?.gst_purchase_match_id ??
+      documentRow?.gst_purchase_match_id;
+    if (!matchId) return;
+
+    setClearing(true);
+    try {
+      const data = await deletePurchaseGstMatch(matchId);
+      if (data.code === 200) {
+        toast.success("Match cleared");
+        await onMatchChanged?.();
+        onClose();
+      } else {
+        toast.error(data?.msg || "Failed to clear match");
+      }
+    } catch (e) {
+      toast.error(e?.message || "Failed to clear match");
+    } finally {
+      setClearing(false);
+    }
+  }, [existingMatch, documentRow, onMatchChanged, onClose]);
+
+  const hasExistingMatch = Boolean(existingMatch?.match);
+
   const footer = (
     <Flex justify="flex-end" gap={3} w="100%">
-      <Button variant="ghost" onClick={handleClose}>
+      {hasExistingMatch ? (
+        <Button
+          variant="outline"
+          colorScheme="red"
+          onClick={handleClearMatch}
+          isLoading={clearing}
+          isDisabled={saving}
+        >
+          Clear match
+        </Button>
+      ) : null}
+      <Button variant="ghost" onClick={handleClose} isDisabled={saving || clearing}>
         Cancel
       </Button>
-      <Button colorScheme={cs} isDisabled={!selectedPurchase}>
+      <Button
+        colorScheme={cs}
+        isDisabled={!selectedPurchase}
+        isLoading={saving}
+        onClick={handleMatch}
+      >
         Match
       </Button>
     </Flex>
@@ -373,7 +542,8 @@ export default function Gstr2aMatchModal({
       <Text fontSize="xs" color="gray.600" mb={3}>
         Showing pushed-to-Tally purchases for GSTIN {documentRow.ctin}. Sorted
         by invoice no, bill date, total tax, then total amount. Matching fields
-        are shown in green.
+        are shown in green. Rows already matched to another document cannot be
+        selected.
       </Text>
 
       {loading ? (
@@ -397,8 +567,10 @@ export default function Gstr2aMatchModal({
           tableKey={`gst-gstr2a-match-${period}`}
           tableColorScheme={cs}
           selectMode
+          isRowSelectable={isRowSelectable}
           onSelectionChanged={handleSelectionChanged}
           getRowId={(params) => String(params.data?.mmh_mrc_refno ?? "")}
+          gridOptions={gridOptions}
         />
       )}
     </CustomModal>

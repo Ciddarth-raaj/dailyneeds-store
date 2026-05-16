@@ -84,6 +84,7 @@ const AgGrid = React.forwardRef(function AgGrid(
     className,
     tableKey,
     selectMode = false,
+    isRowSelectable,
     onSelectionChanged,
     getRowId,
     tableColorScheme,
@@ -545,7 +546,15 @@ const AgGrid = React.forwardRef(function AgGrid(
         columnDefs={resolvedColumnDefs}
         getRowId={getRowId}
         rowSelection={
-          selectMode ? { mode: "multiRow", selectAll: "filtered" } : undefined
+          selectMode
+            ? {
+                mode: "multiRow",
+                selectAll: "filtered",
+                ...(typeof isRowSelectable === "function"
+                  ? { isRowSelectable }
+                  : {}),
+              }
+            : undefined
         }
         onSelectionChanged={
           selectMode && onSelectionChangedRef.current

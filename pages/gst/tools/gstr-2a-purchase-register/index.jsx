@@ -28,7 +28,10 @@ import GstModuleWrapper from "../../../../components/gst/GstModuleWrapper";
 import Gstr2aMatchModal from "../../../../components/gst/Gstr2aMatchModal";
 import { useGstB2bInvoices } from "../../../../customHooks/useGstB2bInvoices";
 import { useGstr2aPurchaseRegisterPr } from "../../../../customHooks/useGstr2aPurchaseRegisterPr";
-import { mergeVendorRowsWithPr } from "../../../../util/gstr2aPurchaseRegister";
+import {
+  enrichDocumentRowsWithMatches,
+  mergeVendorRowsWithPr,
+} from "../../../../util/gstr2aPurchaseRegister";
 
 function parseDecimal(v) {
   if (v == null || v === "") return 0;
@@ -124,6 +127,7 @@ function buildDocumentRows(invoices) {
         : `${vendorKey(inv)}|${inv.inum}|${inv.idt}`;
     return {
       _rowId: id,
+      gst_b2b_invoice_id: inv.gst_b2b_invoice_id ?? null,
       supplierName: inv.vendor_name || "—",
       ctin: (inv.ctin || "").trim() || "—",
       docNo2A: inv.inum || "—",
@@ -193,9 +197,12 @@ export default function GstGstr2aPurchaseRegisterPage() {
   }, []);
 
   const {
+    purchases,
+    matches,
     vendorPrByGstin,
     loading: prLoading,
     error: prError,
+    refetch: refetchPr,
   } = useGstr2aPurchaseRegisterPr(period);
 
   const vendorRows = useMemo(() => {
@@ -204,11 +211,15 @@ export default function GstGstr2aPurchaseRegisterPage() {
   }, [invoices, vendorPrByGstin]);
 
   const documentRows = useMemo(() => {
-    const rows = buildDocumentRows(invoices);
+    const rows = enrichDocumentRowsWithMatches(
+      buildDocumentRows(invoices),
+      purchases,
+      matches
+    );
     const f = (filterCtin || "").trim();
     if (!f) return rows;
     return rows.filter((r) => (r.ctin || "").trim() === f);
-  }, [invoices, filterCtin]);
+  }, [invoices, filterCtin, purchases, matches]);
 
   const vendorColDefs = useMemo(
     () => [
@@ -329,14 +340,19 @@ export default function GstGstr2aPurchaseRegisterPage() {
         flex: 0,
         filter: false,
         sortable: false,
-        valueGetter: (params) => [
-          {
-            label: "Match",
-            icon: "fa-solid fa-link",
-            colorScheme: "teal",
-            onClick: () => onOpenMatch(params.data),
-          },
-        ],
+        valueGetter: (params) => {
+          const matched = Boolean(params.data?.isMatched);
+          return [
+            {
+              label: matched ? "Matched" : "Match",
+              icon: matched
+                ? "fa-solid fa-check"
+                : "fa-solid fa-link",
+              colorScheme: "teal",
+              onClick: () => onOpenMatch(params.data),
+            },
+          ];
+        },
       },
       {
         headerName: "Supplier Details",
@@ -547,6 +563,11 @@ export default function GstGstr2aPurchaseRegisterPage() {
           onClose={onCloseMatch}
           documentRow={matchDocument}
           period={period}
+          purchases={purchases}
+          matches={matches}
+          prLoading={prLoading}
+          prError={prError}
+          onMatchChanged={refetchPr}
         />
         <CustomContainer
           title="GSTR 2A v Purchase Register"

@@ -173,3 +173,176 @@ export function mergeVendorRowsWithPr(vendors2A, vendorPrByGstin) {
     )
   );
 }
+
+export function stringsMatchInvoice(a, b) {
+  const na = String(a ?? "")
+    .trim()
+    .toUpperCase();
+  const nb = String(b ?? "")
+    .trim()
+    .toUpperCase();
+  if (!na || !nb || na === "—" || nb === "—") return false;
+  return na === nb;
+}
+
+export function getPurchaseDisplayTotalAmount(item) {
+  if (isZeroTotalAmount(item)) return getPurchaseTotalTax(item);
+  return parseDecimal(item?.total_amount);
+}
+
+/** POST body FKs for the selected purchase row (System vs Tally). */
+export function getPurchaseMatchIds(purchase) {
+  if (!purchase) {
+    return { purchase_id: null, gst_tally_purchase_id: null };
+  }
+  if (purchase.prSource === PR_SOURCE_TALLY || purchase.gst_tally_purchase_id != null) {
+    return {
+      purchase_id: null,
+      gst_tally_purchase_id: purchase.gst_tally_purchase_id ?? null,
+    };
+  }
+  return {
+    purchase_id: purchase.purchase_id ?? null,
+    gst_tally_purchase_id: null,
+  };
+}
+
+/** Purchase / tally ids already matched to a different B2B invoice. */
+export function buildPurchasesMatchedElsewhere(matches, currentB2bInvoiceId) {
+  const locked = new Set();
+  for (const m of matches || []) {
+    if (m.gst_b2b_invoice_id == null) continue;
+    if (
+      currentB2bInvoiceId != null &&
+      m.gst_b2b_invoice_id === currentB2bInvoiceId
+    ) {
+      continue;
+    }
+    if (m.purchase_id != null) locked.add(`p:${m.purchase_id}`);
+    if (m.gst_tally_purchase_id != null) {
+      locked.add(`t:${m.gst_tally_purchase_id}`);
+    }
+  }
+  return locked;
+}
+
+export function isPurchaseLockedByOtherMatch(purchase, lockedSet) {
+  if (!purchase || !lockedSet?.size) return false;
+  if (purchase.prSource === PR_SOURCE_SYSTEM && purchase.purchase_id != null) {
+    return lockedSet.has(`p:${purchase.purchase_id}`);
+  }
+  if (purchase.gst_tally_purchase_id != null) {
+    return lockedSet.has(`t:${purchase.gst_tally_purchase_id}`);
+  }
+  return false;
+}
+
+export function buildMatchByB2bInvoiceId(matches) {
+  const byInvoiceId = new Map();
+  for (const m of matches || []) {
+    if (m.gst_b2b_invoice_id != null) {
+      byInvoiceId.set(m.gst_b2b_invoice_id, m);
+    }
+  }
+  return byInvoiceId;
+}
+
+export function findPurchaseByMatch(match, purchases) {
+  if (!match) return null;
+
+  if (match.purchase_id != null) {
+    const byPurchase = (purchases || []).find((p) => {
+      if (p.prSource === PR_SOURCE_TALLY) return false;
+      return p.purchase_id === match.purchase_id;
+    });
+    if (byPurchase) return byPurchase;
+  }
+
+  if (match.gst_tally_purchase_id != null) {
+    const byTally = (purchases || []).find(
+      (p) => p.gst_tally_purchase_id === match.gst_tally_purchase_id
+    );
+    if (byTally) return byTally;
+  }
+
+  return null;
+}
+
+export function findMatchForDocument(documentRow, purchases, matches) {
+  const invoiceId = documentRow?.gst_b2b_invoice_id;
+  if (invoiceId == null) return null;
+
+  const match = (matches || []).find((m) => m.gst_b2b_invoice_id === invoiceId);
+  if (!match) return null;
+
+  const purchase = findPurchaseByMatch(match, purchases);
+  return { match, purchase };
+}
+
+export function purchaseToDocumentPrFields(purchase) {
+  if (!purchase) {
+    return {
+      docNoPr: null,
+      docDatePr: null,
+      taxablePr: null,
+      igstPr: null,
+      cgstPr: null,
+      sgstPr: null,
+      totalTaxPr: null,
+      totalValuePr: null,
+    };
+  }
+
+  const taxablePr = getPurchaseTaxable(purchase);
+  const totalTaxPr = getPurchaseTotalTax(purchase);
+  const billDt = purchase.mmh_dist_bill_dt;
+  const docDatePr = billDt
+    ? moment(billDt).format("DD-MM-YYYY")
+    : null;
+
+  let igstPr = null;
+  let cgstPr = null;
+  let sgstPr = null;
+  if (shouldShowIGST(purchase)) {
+    igstPr = parseDecimal(purchase.tot_igst_amt);
+  } else {
+    cgstPr = parseDecimal(purchase.tot_cgst_amt);
+    sgstPr = parseDecimal(purchase.tot_sgst_amt);
+  }
+
+  return {
+    docNoPr: purchase.mmh_dist_bill_no || null,
+    docDatePr,
+    taxablePr,
+    igstPr,
+    cgstPr,
+    sgstPr,
+    totalTaxPr,
+    totalValuePr: getPurchaseDisplayTotalAmount(purchase),
+  };
+}
+
+export function enrichDocumentRowsWithMatches(documentRows, purchases, matches) {
+  const matchByInvoiceId = buildMatchByB2bInvoiceId(matches);
+  const emptyPr = purchaseToDocumentPrFields(null);
+
+  return (documentRows || []).map((row) => {
+    const invoiceId = row.gst_b2b_invoice_id;
+    if (invoiceId == null) {
+      return { ...row, ...emptyPr, isMatched: false, gst_purchase_match_id: null };
+    }
+
+    const match = matchByInvoiceId.get(invoiceId);
+    if (!match) {
+      return { ...row, ...emptyPr, isMatched: false, gst_purchase_match_id: null };
+    }
+
+    const purchase = findPurchaseByMatch(match, purchases);
+    return {
+      ...row,
+      ...(purchase ? purchaseToDocumentPrFields(purchase) : emptyPr),
+      gst_purchase_match_id: match.gst_purchase_match_id,
+      isMatched: true,
+    };
+  });
+}
