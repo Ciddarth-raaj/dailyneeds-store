@@ -322,6 +322,12 @@ const ALL_PAGES_MENU = {
         selected: false,
         location: "/purchase",
       },
+      view_tally_purchases: {
+        title: "All Tally Purchases",
+        permission: "view_tally_purchases",
+        selected: false,
+        location: "/purchase/tally",
+      },
       view_purchases_difference: {
         title: "Difference",
         permission: "view_purchases_difference",

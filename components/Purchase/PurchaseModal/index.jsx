@@ -75,13 +75,14 @@ function PurchaseModal({
   item,
   updatePurchase,
   unapprovePurchase,
+  readOnly = false,
 }) {
   const [initialValues, setInitialValues] = useState(INITIAL_VALUES);
   const [editable, setEditable] = useState(true);
 
   useEffect(() => {
     if (item) {
-      if (item?.is_approved) {
+      if (readOnly || item?.is_approved) {
         setEditable(false);
       } else {
         setEditable(true);
@@ -469,18 +470,19 @@ function PurchaseModal({
                   >
                     Close
                   </Button>
-                  {editable ? (
-                    <Button colorScheme="purple" onClick={handleSubmit}>
-                      Save & Approve
-                    </Button>
-                  ) : (
-                    <Button
-                      colorScheme="purple"
-                      onClick={() => unapproveHandler(item.purchase_id)}
-                    >
-                      Unlock
-                    </Button>
-                  )}
+                  {!readOnly &&
+                    (editable ? (
+                      <Button colorScheme="purple" onClick={handleSubmit}>
+                        Save & Approve
+                      </Button>
+                    ) : (
+                      <Button
+                        colorScheme="purple"
+                        onClick={() => unapproveHandler(item.purchase_id)}
+                      >
+                        Unlock
+                      </Button>
+                    ))}
                 </Flex>
               </ModalFooter>
             </>

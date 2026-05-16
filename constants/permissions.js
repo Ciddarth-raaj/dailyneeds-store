@@ -92,6 +92,7 @@ export const PERMISSIONS = {
     save_account_sheet: "Save Account Sheet",
     unsave_account_sheet: "Unsave Account Sheet",
     view_purchases: "View Purchases",
+    view_tally_purchases: "View Tally Purchases",
     view_purchases_difference: "View Purchases Difference",
   },
 
