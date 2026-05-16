@@ -26,7 +26,9 @@ import CustomContainer from "../../../../components/CustomContainer";
 import AgGrid from "../../../../components/AgGrid";
 import GstModuleWrapper from "../../../../components/gst/GstModuleWrapper";
 import Gstr2aMatchModal from "../../../../components/gst/Gstr2aMatchModal";
+import { useGstr2aPurchaseRegisterPr } from "../../../../customHooks/useGstr2aPurchaseRegisterPr";
 import { getGstB2bInvoices } from "../../../../helper/gstB2bInvoices";
+import { mergeVendorRowsWithPr } from "../../../../util/gstr2aPurchaseRegister";
 
 function parseDecimal(v) {
   if (v == null || v === "") return 0;
@@ -42,6 +44,15 @@ function lineTaxSum(it) {
     parseDecimal(it?.csamt) +
     parseDecimal(it?.cesamt)
   );
+}
+
+/** PR grid values: null when missing or zero (displays "—"). */
+function prValueGetter(field) {
+  return (params) => {
+    const v = params.data?.[field];
+    if (v == null || v === 0) return null;
+    return v;
+  };
 }
 
 function vendorKey(inv) {
@@ -206,7 +217,16 @@ export default function GstGstr2aPurchaseRegisterPage() {
     setTabIndex(index);
   }, []);
 
-  const vendorRows = useMemo(() => aggregateVendors(invoices), [invoices]);
+  const {
+    vendorPrByGstin,
+    loading: prLoading,
+    error: prError,
+  } = useGstr2aPurchaseRegisterPr(period);
+
+  const vendorRows = useMemo(() => {
+    const from2A = aggregateVendors(invoices);
+    return mergeVendorRowsWithPr(from2A, vendorPrByGstin);
+  }, [invoices, vendorPrByGstin]);
 
   const documentRows = useMemo(() => {
     const rows = buildDocumentRows(invoices);
@@ -275,7 +295,7 @@ export default function GstGstr2aPurchaseRegisterPage() {
             filter: false,
             sortable: true,
             minWidth: 80,
-            valueFormatter: (p) => (p.value == null ? "—" : String(p.value)),
+            valueGetter: prValueGetter("docCountPr"),
           },
         ],
       },
@@ -293,6 +313,7 @@ export default function GstGstr2aPurchaseRegisterPage() {
             headerName: "PR",
             type: "currency",
             minWidth: 110,
+            valueGetter: prValueGetter("taxablePr"),
           },
         ],
       },
@@ -310,12 +331,17 @@ export default function GstGstr2aPurchaseRegisterPage() {
             headerName: "PR",
             type: "currency",
             minWidth: 110,
+            valueGetter: prValueGetter("totalTaxPr"),
           },
         ],
       },
     ],
     [onGstinNavigate]
   );
+
+  const pageLoading = loading || prLoading;
+  const pageError =
+    error || (prError ? prError?.message || "Failed to load purchases" : null);
 
   const documentColDefs = useMemo(
     () => [
@@ -529,7 +555,7 @@ export default function GstGstr2aPurchaseRegisterPage() {
   );
 
   const metaLine =
-    meta && !loading && !error ? (
+    meta && !pageLoading && !pageError ? (
       <Text fontSize="xs" color="gray.600" mt={1}>
         Period {meta.year}-{String(meta.month).padStart(2, "0")}:{" "}
         {meta.invoice_count ?? 0} invoices, {meta.item_count ?? 0} line items
@@ -554,12 +580,12 @@ export default function GstGstr2aPurchaseRegisterPage() {
           rightSection={monthPicker}
         >
           {metaLine}
-          {loading ? (
+          {pageLoading ? (
             <Text mt={3}>Loading…</Text>
-          ) : error ? (
+          ) : pageError ? (
             <Alert status="error" borderRadius="md" mt={3}>
               <AlertIcon />
-              {error}
+              {pageError}
             </Alert>
           ) : (
             <Tabs
