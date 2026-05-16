@@ -1,29 +1,34 @@
-import React, { useEffect, useMemo, useState, useCallback } from "react";
+import React, { useMemo, useState, useCallback } from "react";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../components/CustomContainer";
+import AgGrid from "../../components/AgGrid";
 import { usePurchase } from "../../customHooks/usePurchase";
-import Table from "../../components/table/table";
 import moment from "moment";
 import currencyFormatter from "../../util/currencyFormatter";
-import { Menu, MenuItem } from "@szhsin/react-menu";
-import { Button, IconButton } from "@chakra-ui/button";
-import { Badge, Checkbox, Flex, Input } from "@chakra-ui/react";
+import { Button } from "@chakra-ui/button";
+import { Checkbox, Flex, Input, Text } from "@chakra-ui/react";
 
 import PurchaseModal from "../../components/Purchase/PurchaseModal";
 import FromToDateOutletPicker from "../../components/DateOutletPicker/FromToDateOutletPicker";
 import { exportToExcel } from "../../util/exportCSVFile";
 
-const HEADINGS = {
-  mmh_mrc_refno: "MRC Ref No",
-  supplier_name: "Supplier Name",
-  supplier_gstn: "GSTN",
-  mmh_mrc_dt: "MRC Date",
-  mmh_dist_bill_dt: "Dist Bill Date",
-  mmh_mrc_amt: "MRC Amount",
-  total_amount: "Total Amount",
-  status: "Status",
-  actions: "Actions",
-};
+function getStatusBadge(item) {
+  if (!item) return null;
+  if (item.has_updated) {
+    return { label: "Updated", colorScheme: "red" };
+  }
+  if (item.tally_response?.voucher_no) {
+    return { label: "Pushed to Tally", colorScheme: "blue" };
+  }
+  if (item.is_approved) {
+    return { label: "Approved", colorScheme: "purple" };
+  }
+  return { label: "Pending", colorScheme: "yellow" };
+}
+
+function getStatusLabel(item) {
+  return getStatusBadge(item)?.label ?? "";
+}
 
 function Purchase() {
   const [search, setSearch] = useState("");
@@ -48,10 +53,6 @@ function Purchase() {
     isUpdated: false,
     isPending: false,
     isPushed: false,
-  });
-  const [sortConfig, setSortConfig] = useState({
-    key: "mmh_mrc_refno",
-    direction: "desc",
   });
 
   const isOpen = selectedPurchase !== null;
@@ -95,141 +96,108 @@ function Purchase() {
 
   const {
     purchase,
+    loading,
     updatePurchase,
     unapprovePurchase,
     deletePurchaseTallyResponse,
   } = usePurchase(filters);
 
-  const handleSort = useCallback((key, direction) => {
-    setSortConfig({ key, direction });
-  }, []);
-
-  const getStatus = (item) => {
-    if (item.has_updated) {
-      return <Badge colorScheme="red">Updated</Badge>;
-    }
-
-    if (item.tally_response.voucher_no) {
-      return <Badge colorScheme="blue">Pushed to Tally</Badge>;
-    }
-
-    if (item.is_approved) {
-      return <Badge colorScheme="purple">Approved</Badge>;
-    }
-
-    return <Badge colorScheme="yellow">Pending</Badge>;
-  };
-
-  const getStatusUnformmated = (item) => {
-    if (item.has_updated) {
-      return "Updated";
-    }
-
-    if (item.tally_response.voucher_no) {
-      return "Pushed to Tally";
-    }
-
-    if (item.is_approved) {
-      return "Approved";
-    }
-
-    return "Pending";
-  };
-
-  const rows = useMemo(() => {
-    const sortedPurchase = [...purchase].sort((a, b) => {
-      if (sortConfig.direction === null) {
-        return b.mmh_mrc_refno - a.mmh_mrc_refno; // Default sort
-      }
-
-      const multiplier = sortConfig.direction === "asc" ? 1 : -1;
-
-      switch (sortConfig.key) {
-        case "mmh_mrc_dt":
-        case "mmh_dist_bill_dt":
-          const dateA = new Date(a[sortConfig.key]).getTime();
-          const dateB = new Date(b[sortConfig.key]).getTime();
-          return multiplier * (dateA - dateB);
-
-        case "mmh_mrc_refno":
-          return (
-            multiplier *
-            String(a[sortConfig.key]).localeCompare(
-              String(b[sortConfig.key]),
-              undefined,
-              {
-                numeric: true,
-              }
-            )
-          );
-
-        case "mmh_mrc_amt":
-          const amtA = parseFloat(a[sortConfig.key]);
-          const amtB = parseFloat(b[sortConfig.key]);
-          return multiplier * (amtA - amtB);
-
-        case "supplier_name":
-        case "supplier_gstn":
-          return (
-            multiplier *
-            a[sortConfig.key]
-              .toLowerCase()
-              .localeCompare(b[sortConfig.key].toLowerCase())
-          );
-
-        default:
-          return 0;
-      }
-    });
-
-    const formattedRows = sortedPurchase?.map((item) => ({
-      ...item,
-      mmh_mrc_dt: moment(item.mmh_mrc_dt).format("DD-MM-YYYY"),
-      mmh_dist_bill_dt: moment(item.mmh_dist_bill_dt).format("DD-MM-YYYY"),
-      mmh_mrc_amt: currencyFormatter(item.mmh_mrc_amt),
-      status: getStatus(item),
-      total_amount: item.total_amount
-        ? currencyFormatter(item.total_amount)
-        : "-",
-      actions: (
-        <Menu
-          align="end"
-          gap={5}
-          menuButton={
-            <IconButton
-              variant="ghost"
-              colorScheme="purple"
-              icon={<i className={`fa fa-ellipsis-v`} />}
-            />
-          }
-          transition
-        >
-          {item.VoucherNo && (
-            <MenuItem
-              onClick={() => deletePurchaseTallyResponse(item.VoucherNo)}
-            >
-              Delete Tally Response
-            </MenuItem>
-          )}
-          <MenuItem onClick={() => setSelectedPurchase(item)}>Edit</MenuItem>
-        </Menu>
-      ),
-    }));
-
-    if (!search) return formattedRows;
+  const filteredPurchases = useMemo(() => {
+    if (!search.trim()) return purchase ?? [];
 
     const searchLower = search.toLowerCase();
-    return formattedRows?.filter((row) => {
-      // Search in all columns except actions
-      return Object.entries(row)
-        .filter(([key]) => key !== "actions")
-        .some(([_, value]) => {
-          if (value === null || value === undefined) return false;
-          if (React.isValidElement(value)) return false; // Skip React components (like Badge)
-          return String(value).toLowerCase().includes(searchLower);
-        });
+    return (purchase ?? []).filter((item) => {
+      const statusLabel = getStatusLabel(item);
+      const fields = [
+        item.mmh_mrc_refno,
+        item.supplier_name,
+        item.supplier_gstn,
+        item.mmh_mrc_dt,
+        item.mmh_dist_bill_dt,
+        item.mmh_mrc_amt,
+        item.total_amount,
+        statusLabel,
+      ];
+      return fields.some((value) =>
+        String(value ?? "")
+          .toLowerCase()
+          .includes(searchLower)
+      );
     });
-  }, [purchase, search, sortConfig]);
+  }, [purchase, search]);
+
+  const columnDefs = useMemo(
+    () => [
+      {
+        field: "mmh_mrc_refno",
+        headerName: "MRC Ref No",
+      },
+      {
+        field: "supplier_name",
+        headerName: "Supplier Name",
+        type: "capitalized",
+      },
+      {
+        field: "supplier_gstn",
+        headerName: "GSTN",
+        minWidth: 155,
+      },
+      {
+        field: "mmh_mrc_dt",
+        headerName: "MRC Date",
+        type: "date",
+      },
+      {
+        field: "mmh_dist_bill_dt",
+        headerName: "Dist Bill Date",
+        type: "date",
+      },
+      {
+        field: "mmh_mrc_amt",
+        headerName: "MRC Amount",
+        type: "currency",
+      },
+      {
+        field: "total_amount",
+        headerName: "Total Amount",
+        type: "currency",
+      },
+      {
+        colId: "status",
+        headerName: "Status",
+        type: "badge-column",
+        minWidth: 130,
+        valueGetter: (params) => getStatusBadge(params.data),
+      },
+      {
+        field: "purchase_id",
+        headerName: "Action",
+        type: "action-icons",
+        valueGetter: (params) => {
+          const item = params.data;
+          if (!item) return [];
+          const actions = [
+            {
+              label: "Edit",
+              icon: "fa-solid fa-pen",
+              colorScheme: "purple",
+              onClick: () => setSelectedPurchase(item),
+            },
+          ];
+          if (item.VoucherNo) {
+            actions.push({
+              label: "Delete Tally Response",
+              icon: "fa-solid fa-trash",
+              colorScheme: "red",
+              onClick: () => deletePurchaseTallyResponse(item.VoucherNo),
+            });
+          }
+          return actions;
+        },
+      },
+    ],
+    [deletePurchaseTallyResponse]
+  );
 
   const handleCheckedFilters = (key, value) => {
     setCheckedFilters({
@@ -241,16 +209,18 @@ function Purchase() {
     });
   };
 
-  const exportData = () => {
-    const data = rows.map((item) => ({
+  const exportData = useCallback(() => {
+    const data = filteredPurchases.map((item) => ({
       "MRC Ref No": item.mmh_mrc_refno,
       "Supplier Name": item.supplier_name,
       GSTN: item.supplier_gstn,
-      "MRC Date": item.mmh_mrc_dt,
-      "Dist Bill Date": item.mmh_dist_bill_dt,
-      "MRC Amount": item.mmh_mrc_amt,
-      "Total Amount": item.total_amount,
-      Status: getStatusUnformmated(item),
+      "MRC Date": moment(item.mmh_mrc_dt).format("DD-MM-YYYY"),
+      "Dist Bill Date": moment(item.mmh_dist_bill_dt).format("DD-MM-YYYY"),
+      "MRC Amount": currencyFormatter(item.mmh_mrc_amt),
+      "Total Amount": item.total_amount
+        ? currencyFormatter(item.total_amount)
+        : "-",
+      Status: getStatusLabel(item),
     }));
 
     exportToExcel(
@@ -260,7 +230,7 @@ function Purchase() {
         toDate
       ).format("DD/MM/YYYY")}.xlsx`
     );
-  };
+  }, [filteredPurchases, fromDate, toDate]);
 
   return (
     <GlobalWrapper>
@@ -334,14 +304,18 @@ function Purchase() {
           </Checkbox>
         </Flex>
 
-        <Table
-          variant="plain"
-          heading={HEADINGS}
-          rows={rows}
-          sortCallback={handleSort}
-          size="sm"
-          showPagination
-        />
+        {loading ? (
+          <Text>Loading…</Text>
+        ) : (
+          <AgGrid
+            rowData={filteredPurchases}
+            columnDefs={columnDefs}
+            tableKey="purchase-all"
+            gridOptions={{
+              getRowId: (params) => String(params.data?.purchase_id ?? ""),
+            }}
+          />
+        )}
       </CustomContainer>
     </GlobalWrapper>
   );
