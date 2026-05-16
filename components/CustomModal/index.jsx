@@ -8,6 +8,7 @@ import {
   ModalFooter,
   ModalCloseButton,
 } from "@chakra-ui/react";
+import { useModuleTableTheme } from "../../contexts/ModuleTableThemeContext";
 
 /**
  * Reusable Modal component with project theme (purple).
@@ -33,10 +34,14 @@ function CustomModal({
   size = "md",
   isCentered = true,
   scrollBehavior = "inside",
+  colorScheme: colorSchemeProp,
   contentProps = {},
   bodyProps = {},
   ...rest
 }) {
+  const { colorScheme: contextColorScheme } = useModuleTableTheme();
+  const cs = colorSchemeProp ?? contextColorScheme ?? "purple";
+
   return (
     <ChakraModal
       isOpen={isOpen}
@@ -51,25 +56,25 @@ function CustomModal({
         borderRadius="xl"
         overflow="hidden"
         borderWidth="1px"
-        borderColor="purple.100"
+        borderColor={`${cs}.100`}
         h="max-content"
         {...contentProps}
       >
         {title != null && (
           <ModalHeader
             borderBottomWidth="1px"
-            borderColor="purple.100"
-            bg="purple.50"
+            borderColor={`${cs}.100`}
+            bg={`${cs}.50`}
             fontWeight="600"
-            color="purple.700"
+            color={`${cs}.700`}
             fontSize="16px"
           >
             {title}
           </ModalHeader>
         )}
         <ModalCloseButton
-          color="purple.600"
-          _hover={{ color: "purple.700", bg: "purple.50" }}
+          color={`${cs}.600`}
+          _hover={{ color: `${cs}.700`, bg: `${cs}.50` }}
         />
         <ModalBody bg="white" p="28px" {...bodyProps}>
           {children}
@@ -77,8 +82,8 @@ function CustomModal({
         {footer != null && footer !== false && (
           <ModalFooter
             borderTopWidth="1px"
-            borderColor="purple.100"
-            bg="purple.50"
+            borderColor={`${cs}.100`}
+            bg={`${cs}.50`}
           >
             {footer}
           </ModalFooter>

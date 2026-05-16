@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import moment from "moment";
 import {
   Alert,
@@ -19,6 +25,7 @@ import GlobalWrapper from "../../../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../../../components/CustomContainer";
 import AgGrid from "../../../../components/AgGrid";
 import GstModuleWrapper from "../../../../components/gst/GstModuleWrapper";
+import Gstr2aMatchModal from "../../../../components/gst/Gstr2aMatchModal";
 import { getGstB2bInvoices } from "../../../../helper/gstB2bInvoices";
 
 function parseDecimal(v) {
@@ -129,13 +136,16 @@ function buildDocumentRows(invoices) {
 }
 
 export default function GstGstr2aPurchaseRegisterPage() {
-  const [period, setPeriod] = useState(() => moment().format("YYYY-MM"));
+  const [period, setPeriod] = useState(() =>
+    moment().subtract(1, "month").format("YYYY-MM")
+  );
   const [invoices, setInvoices] = useState([]);
   const [meta, setMeta] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [tabIndex, setTabIndex] = useState(0);
   const [filterCtin, setFilterCtin] = useState(null);
+  const [matchDocument, setMatchDocument] = useState(null);
   /** When true, next switch to Document tab came from vendor GSTIN link — do not clear filter. */
   const documentTabFromGstinLinkRef = useRef(false);
 
@@ -177,6 +187,15 @@ export default function GstGstr2aPurchaseRegisterPage() {
     documentTabFromGstinLinkRef.current = true;
     setFilterCtin(c);
     setTabIndex(1);
+  }, []);
+
+  const onOpenMatch = useCallback((row) => {
+    if (!row) return;
+    setMatchDocument(row);
+  }, []);
+
+  const onCloseMatch = useCallback(() => {
+    setMatchDocument(null);
   }, []);
 
   const handleTabChange = useCallback((index) => {
@@ -241,23 +260,6 @@ export default function GstGstr2aPurchaseRegisterPage() {
         ],
       },
       {
-        headerName: "Total Tax",
-        children: [
-          {
-            field: "totalTax2A",
-            headerName: "2A",
-            type: "currency",
-            minWidth: 110,
-          },
-          {
-            field: "totalTaxPr",
-            headerName: "PR",
-            type: "currency",
-            minWidth: 110,
-          },
-        ],
-      },
-      {
         headerName: "No. of Documents",
         children: [
           {
@@ -294,12 +296,48 @@ export default function GstGstr2aPurchaseRegisterPage() {
           },
         ],
       },
+      {
+        headerName: "Total Tax",
+        children: [
+          {
+            field: "totalTax2A",
+            headerName: "2A",
+            type: "currency",
+            minWidth: 110,
+          },
+          {
+            field: "totalTaxPr",
+            headerName: "PR",
+            type: "currency",
+            minWidth: 110,
+          },
+        ],
+      },
     ],
     [onGstinNavigate]
   );
 
   const documentColDefs = useMemo(
     () => [
+      {
+        field: "_matchAction",
+        headerName: "Action",
+        type: "action-icons",
+        pinned: "left",
+        lockPosition: true,
+        width: 90,
+        flex: 0,
+        filter: false,
+        sortable: false,
+        valueGetter: (params) => [
+          {
+            label: "Match",
+            icon: "fa-solid fa-link",
+            colorScheme: "teal",
+            onClick: () => onOpenMatch(params.data),
+          },
+        ],
+      },
       {
         headerName: "Supplier Details",
         children: [
@@ -471,7 +509,7 @@ export default function GstGstr2aPurchaseRegisterPage() {
         ],
       },
     ],
-    []
+    [onOpenMatch]
   );
 
   const monthPicker = (
@@ -504,6 +542,12 @@ export default function GstGstr2aPurchaseRegisterPage() {
       permissionKey={["view_gst_gstr2a_purchase_register"]}
     >
       <GstModuleWrapper>
+        <Gstr2aMatchModal
+          isOpen={matchDocument != null}
+          onClose={onCloseMatch}
+          documentRow={matchDocument}
+          period={period}
+        />
         <CustomContainer
           title="GSTR 2A v Purchase Register"
           filledHeader
