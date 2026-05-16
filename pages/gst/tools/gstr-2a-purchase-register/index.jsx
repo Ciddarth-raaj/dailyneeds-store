@@ -26,8 +26,8 @@ import CustomContainer from "../../../../components/CustomContainer";
 import AgGrid from "../../../../components/AgGrid";
 import GstModuleWrapper from "../../../../components/gst/GstModuleWrapper";
 import Gstr2aMatchModal from "../../../../components/gst/Gstr2aMatchModal";
+import { useGstB2bInvoices } from "../../../../customHooks/useGstB2bInvoices";
 import { useGstr2aPurchaseRegisterPr } from "../../../../customHooks/useGstr2aPurchaseRegisterPr";
-import { getGstB2bInvoices } from "../../../../helper/gstB2bInvoices";
 import { mergeVendorRowsWithPr } from "../../../../util/gstr2aPurchaseRegister";
 
 function parseDecimal(v) {
@@ -150,43 +150,18 @@ export default function GstGstr2aPurchaseRegisterPage() {
   const [period, setPeriod] = useState(() =>
     moment().subtract(1, "month").format("YYYY-MM")
   );
-  const [invoices, setInvoices] = useState([]);
-  const [meta, setMeta] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [tabIndex, setTabIndex] = useState(0);
   const [filterCtin, setFilterCtin] = useState(null);
   const [matchDocument, setMatchDocument] = useState(null);
   /** When true, next switch to Document tab came from vendor GSTIN link — do not clear filter. */
   const documentTabFromGstinLinkRef = useRef(false);
 
-  const { year, month } = useMemo(() => {
-    const m = moment(period, "YYYY-MM", true);
-    if (!m.isValid()) {
-      return { year: moment().year(), month: moment().month() + 1 };
-    }
-    return { year: m.year(), month: m.month() + 1 };
-  }, [period]);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const { data, meta: m } = await getGstB2bInvoices(year, month);
-      setInvoices(data);
-      setMeta(m);
-    } catch (e) {
-      setInvoices([]);
-      setMeta(null);
-      setError(e?.message || "Failed to load GSTR-2A B2B invoices");
-    } finally {
-      setLoading(false);
-    }
-  }, [year, month]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
+  const {
+    invoices,
+    meta,
+    loading,
+    error,
+  } = useGstB2bInvoices(period);
 
   useEffect(() => {
     setFilterCtin(null);
@@ -340,8 +315,7 @@ export default function GstGstr2aPurchaseRegisterPage() {
   );
 
   const pageLoading = loading || prLoading;
-  const pageError =
-    error || (prError ? prError?.message || "Failed to load purchases" : null);
+  const pageError = error || prError || null;
 
   const documentColDefs = useMemo(
     () => [

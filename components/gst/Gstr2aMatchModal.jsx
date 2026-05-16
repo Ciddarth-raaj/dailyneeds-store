@@ -1,10 +1,4 @@
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import moment from "moment";
 import {
   Box,
@@ -17,16 +11,17 @@ import {
 } from "@chakra-ui/react";
 import CustomModal from "../CustomModal";
 import AgGrid from "../AgGrid";
-import { getAllPurchases } from "../../helper/purchase";
+import { useGstr2aPurchaseRegisterPr } from "../../customHooks/useGstr2aPurchaseRegisterPr";
 import currencyFormatter from "../../util/currencyFormatter";
-import { shouldShowIGST } from "../../util/purchase";
+import {
+  getPrSourceBadge,
+  getPurchaseTaxable,
+  getPurchaseTotalTax,
+  isZeroTotalAmount,
+  normalizeGstin,
+  parseDecimal,
+} from "../../util/gstr2aPurchaseRegister";
 import { useModuleTableTheme } from "../../contexts/ModuleTableThemeContext";
-
-function parseDecimal(v) {
-  if (v == null || v === "") return 0;
-  const n = parseFloat(String(v).replace(/,/g, "").trim());
-  return Number.isFinite(n) ? n : 0;
-}
 
 function parseDocDate(dateStr) {
   if (!dateStr || dateStr === "—") return null;
@@ -38,30 +33,9 @@ function parseDocDate(dateStr) {
   return m.isValid() ? m : null;
 }
 
-function normalizeGstin(g) {
-  return (g || "").trim().toUpperCase();
-}
-
-function isPushedToTally(item) {
+function isMatchablePurchase(item) {
+  if (item?.gst_tally_purchase_id != null) return true;
   return Boolean(item?.tally_response?.voucher_no);
-}
-
-function isZeroTotalAmount(item) {
-  return parseDecimal(item?.total_amount) === 0;
-}
-
-function getPurchaseTotalTax(item) {
-  if (!item) return 0;
-  if (shouldShowIGST(item)) {
-    return parseDecimal(item.tot_igst_amt);
-  }
-  return parseDecimal(item.tot_sgst_amt) + parseDecimal(item.tot_cgst_amt);
-}
-
-/** When total amount is 0, taxable is 0; otherwise total amount − tax */
-function getPurchaseTaxable(item) {
-  if (isZeroTotalAmount(item)) return 0;
-  return parseDecimal(item?.total_amount) - getPurchaseTotalTax(item);
 }
 
 /** When total amount is 0, show total tax as the total amount */
@@ -172,62 +146,35 @@ export default function Gstr2aMatchModal({
 }) {
   const { colorScheme: cs } = useModuleTableTheme();
   const gridRef = useRef(null);
-  const [purchases, setPurchases] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [fetchError, setFetchError] = useState(null);
   const [selectedPurchase, setSelectedPurchase] = useState(null);
 
-  const periodRange = useMemo(() => {
-    const m = moment(period, "YYYY-MM", true);
-    if (!m.isValid()) return null;
-    return {
-      from: m.clone().startOf("month").toDate(),
-      to: m.clone().endOf("month").toDate(),
-    };
-  }, [period]);
+  const {
+    purchases: allPurchases,
+    loading: prLoading,
+    error: prError,
+  } = useGstr2aPurchaseRegisterPr(period);
 
-  const loadPurchases = useCallback(async () => {
-    if (!isOpen || !periodRange || !documentRow) return;
-    setLoading(true);
-    setFetchError(null);
-    setPurchases([]);
-    setSelectedPurchase(null);
-    try {
-      const startOfDay = new Date(periodRange.from);
-      startOfDay.setHours(0, 0, 0, 0);
-      const endOfDay = new Date(periodRange.to);
-      endOfDay.setHours(23, 59, 59, 999);
+  const purchases = useMemo(() => {
+    if (!isOpen || !documentRow) return [];
+    const gstin = normalizeGstin(documentRow.ctin);
+    const filtered = (allPurchases || []).filter(
+      (p) =>
+        normalizeGstin(p.supplier_gstn) === gstin && isMatchablePurchase(p)
+    );
+    return sortPurchasesForMatch(
+      filtered,
+      documentRow.docNo2A,
+      documentRow.docDate2A,
+      documentRow.totalTax2A
+    );
+  }, [isOpen, documentRow, allPurchases]);
 
-      const data = await getAllPurchases({
-        from_date: startOfDay.toISOString(),
-        to_date: endOfDay.toISOString(),
-        is_pushed: true,
-      });
-      if (data.code === 200) {
-        const gstin = normalizeGstin(documentRow.ctin);
-        const filtered = (data.data || []).filter(
-          (p) => normalizeGstin(p.supplier_gstn) === gstin && isPushedToTally(p)
-        );
-        const sorted = sortPurchasesForMatch(
-          filtered,
-          documentRow.docNo2A,
-          documentRow.docDate2A,
-          documentRow.totalTax2A
-        );
-        setPurchases(sorted);
-      } else {
-        setFetchError("Failed to load purchases");
-      }
-    } catch (e) {
-      setFetchError(e?.message || "Failed to load purchases");
-    } finally {
-      setLoading(false);
-    }
-  }, [isOpen, periodRange, documentRow]);
+  const loading = isOpen && prLoading;
+  const fetchError = isOpen ? prError : null;
 
   useEffect(() => {
-    loadPurchases();
-  }, [loadPurchases]);
+    if (isOpen) setSelectedPurchase(null);
+  }, [isOpen, documentRow, period]);
 
   const columnDefs = useMemo(() => {
     const doc = documentRow;
@@ -239,6 +186,14 @@ export default function Gstr2aMatchModal({
         headerName: "MRC Ref No",
         filter: true,
         sortable: false,
+      },
+      {
+        colId: "prSource",
+        headerName: "Source",
+        type: "badge-column",
+        sortable: false,
+        minWidth: 100,
+        valueGetter: (params) => getPrSourceBadge(params.data?.prSource),
       },
       {
         field: "mmh_dist_bill_no",

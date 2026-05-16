@@ -1,50 +1,60 @@
 import { useMemo } from "react";
-import moment from "moment";
 import { usePurchase } from "./usePurchase";
-import { aggregatePurchasesByVendor } from "../util/gstr2aPurchaseRegister";
+import { usePurchaseGst } from "./usePurchaseGst";
+import {
+  aggregatePurchasesByVendor,
+  mergePurchaseRegisterSources,
+  purchasePeriodFilters,
+} from "../util/gstr2aPurchaseRegister";
 
 /**
  * Purchase register (PR) data for GSTR-2A v Purchase Register.
- * Wraps `usePurchase` today; additional PR APIs can be merged here later.
+ * Merges `usePurchase` and `usePurchaseGst` into one vendor aggregate.
  *
  * @param {string} period - `YYYY-MM` return month
  */
 export function useGstr2aPurchaseRegisterPr(period) {
-  const purchaseFilters = useMemo(() => {
-    const m = moment(period, "YYYY-MM", true);
-    if (!m.isValid()) return null;
-
-    const startOfDay = m.clone().startOf("month").toDate();
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = m.clone().endOf("month").toDate();
-    endOfDay.setHours(23, 59, 59, 999);
-
-    return {
-      from_date: startOfDay.toISOString(),
-      to_date: endOfDay.toISOString(),
-    };
-  }, [period]);
+  const purchaseFilters = useMemo(() => purchasePeriodFilters(period), [period]);
 
   const {
     purchase,
     loading: purchaseLoading,
     error: purchaseError,
-    refetch: refetchPurchases,
   } = usePurchase(purchaseFilters ?? {});
 
-  /** Future: merge rows from additional purchase-register APIs here. */
-  const allPurchases = useMemo(() => purchase ?? [], [purchase]);
+  const {
+    purchaseGst,
+    loading: purchaseGstLoading,
+    error: purchaseGstError,
+  } = usePurchaseGst(purchaseFilters ?? {});
 
-  const vendorPrByGstin = useMemo(
-    () => aggregatePurchasesByVendor(allPurchases),
-    [allPurchases]
+  const purchases = useMemo(
+    () => mergePurchaseRegisterSources(purchase ?? [], purchaseGst ?? []),
+    [purchase, purchaseGst]
   );
 
+  const vendorPrByGstin = useMemo(
+    () => aggregatePurchasesByVendor(purchases),
+    [purchases]
+  );
+
+  const loading =
+    purchaseFilters == null ? false : purchaseLoading || purchaseGstLoading;
+
+  const error = useMemo(() => {
+    if (purchaseError) {
+      return purchaseError?.message ?? String(purchaseError);
+    }
+    if (purchaseGstError) {
+      return purchaseGstError?.message ?? String(purchaseGstError);
+    }
+    return null;
+  }, [purchaseError, purchaseGstError]);
+
   return {
-    purchases: allPurchases,
+    purchases,
     vendorPrByGstin,
-    loading: purchaseFilters == null ? false : purchaseLoading,
-    error: purchaseError,
-    refetch: refetchPurchases,
+    loading,
+    error,
   };
 }

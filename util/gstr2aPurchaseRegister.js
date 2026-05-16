@@ -1,3 +1,4 @@
+import moment from "moment";
 import { shouldShowIGST } from "./purchase";
 
 export function parseDecimal(v) {
@@ -45,6 +46,64 @@ export function vendorRowPrKey(row) {
  * Aggregate purchase register rows by supplier (GSTIN when present).
  * docCount = number of purchase records for that supplier.
  */
+/** `YYYY-MM` → `{ from_date, to_date }` ISO strings, or null if invalid. */
+export function purchasePeriodFilters(period) {
+  const m = moment(period, "YYYY-MM", true);
+  if (!m.isValid()) return null;
+
+  const startOfDay = m.clone().startOf("month").toDate();
+  startOfDay.setHours(0, 0, 0, 0);
+  const endOfDay = m.clone().endOf("month").toDate();
+  endOfDay.setHours(23, 59, 59, 999);
+
+  return {
+    from_date: startOfDay.toISOString(),
+    to_date: endOfDay.toISOString(),
+  };
+}
+
+export const PR_SOURCE_SYSTEM = "System";
+export const PR_SOURCE_TALLY = "Tally";
+
+export function getPrSourceBadge(prSource) {
+  if (prSource === PR_SOURCE_TALLY) {
+    return { label: PR_SOURCE_TALLY, colorScheme: "blue" };
+  }
+  if (prSource === PR_SOURCE_SYSTEM) {
+    return { label: PR_SOURCE_SYSTEM, colorScheme: "purple" };
+  }
+  return null;
+}
+
+/**
+ * Merge main purchases with tally-only rows; same MRC ref prefers the purchase row.
+ */
+export function mergePurchaseRegisterSources(purchase = [], purchaseGst = []) {
+  const byRef = new Map();
+
+  for (const p of purchase) {
+    const ref = p?.mmh_mrc_refno;
+    if (ref != null && ref !== "") {
+      byRef.set(String(ref), { ...p, prSource: PR_SOURCE_SYSTEM });
+    }
+  }
+
+  for (const g of purchaseGst) {
+    const ref = g?.mmh_mrc_refno;
+    if (ref == null || ref === "") continue;
+    const key = String(ref);
+    if (!byRef.has(key)) {
+      byRef.set(key, {
+        ...g,
+        purchase_id: g.gst_tally_purchase_id,
+        prSource: PR_SOURCE_TALLY,
+      });
+    }
+  }
+
+  return Array.from(byRef.values());
+}
+
 export function aggregatePurchasesByVendor(purchases) {
   const by = new Map();
   for (const p of purchases || []) {
