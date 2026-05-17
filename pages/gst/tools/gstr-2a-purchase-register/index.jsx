@@ -11,6 +11,7 @@ import {
   AlertIcon,
   Box,
   Button,
+  Flex,
   FormControl,
   FormLabel,
   Input,
@@ -21,16 +22,22 @@ import {
   Tabs,
   Text,
 } from "@chakra-ui/react";
+import toast from "react-hot-toast";
 import GlobalWrapper from "../../../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../../../components/CustomContainer";
 import AgGrid from "../../../../components/AgGrid";
 import GstModuleWrapper from "../../../../components/gst/GstModuleWrapper";
+import Gstr2aAutoMatchPreviewModal from "../../../../components/gst/Gstr2aAutoMatchPreviewModal";
 import Gstr2aMatchModal from "../../../../components/gst/Gstr2aMatchModal";
+import { useUser } from "../../../../contexts/UserContext";
 import { useGstB2bInvoices } from "../../../../customHooks/useGstB2bInvoices";
 import { useGstr2aPurchaseRegisterPr } from "../../../../customHooks/useGstr2aPurchaseRegisterPr";
+import { upsertPurchaseGstMatch } from "../../../../helper/purchaseGstMatch";
 import {
+  buildAutoMatchPairs,
   enrichDocumentRowsWithMatches,
   enrichVendorRowsWithMatchPct,
+  getPurchaseMatchIds,
   mergeVendorRowsWithPr,
 } from "../../../../util/gstr2aPurchaseRegister";
 
@@ -158,8 +165,13 @@ export default function GstGstr2aPurchaseRegisterPage() {
   const [tabIndex, setTabIndex] = useState(0);
   const [filterCtin, setFilterCtin] = useState(null);
   const [matchDocument, setMatchDocument] = useState(null);
+  const [autoMatching, setAutoMatching] = useState(false);
+  const [autoMatchPreviewOpen, setAutoMatchPreviewOpen] = useState(false);
+  const [autoMatchPairs, setAutoMatchPairs] = useState([]);
+  const [autoMatchUnmatched, setAutoMatchUnmatched] = useState([]);
   /** When true, next switch to Document tab came from vendor GSTIN link — do not clear filter. */
   const documentTabFromGstinLinkRef = useRef(false);
+  const { userConfig } = useUser();
 
   const { invoices, meta, loading, error } = useGstB2bInvoices(period);
 
@@ -217,6 +229,89 @@ export default function GstGstr2aPurchaseRegisterPage() {
     if (!f) return rows;
     return rows.filter((r) => (r.ctin || "").trim() === f);
   }, [invoices, filterCtin, purchases, matches]);
+
+  const unmatchedDocumentCount = useMemo(
+    () =>
+      documentRows.filter((r) => !r.isMatched && r.gst_b2b_invoice_id != null)
+        .length,
+    [documentRows]
+  );
+
+  const handleOpenAutoMatchPreview = useCallback(() => {
+    const pairs = buildAutoMatchPairs(documentRows, purchases, matches);
+    const pairedIds = new Set(
+      pairs.map((p) => p.document.gst_b2b_invoice_id)
+    );
+    const unmatched = documentRows.filter(
+      (r) =>
+        !r.isMatched &&
+        r.gst_b2b_invoice_id != null &&
+        !pairedIds.has(r.gst_b2b_invoice_id)
+    );
+
+    if (!pairs.length && !unmatched.length) {
+      toast("No unmatched documents to review.");
+      return;
+    }
+
+    setAutoMatchPairs(pairs);
+    setAutoMatchUnmatched(unmatched);
+    setAutoMatchPreviewOpen(true);
+  }, [documentRows, purchases, matches]);
+
+  const handleCloseAutoMatchPreview = useCallback(() => {
+    if (autoMatching) return;
+    setAutoMatchPreviewOpen(false);
+    setAutoMatchPairs([]);
+    setAutoMatchUnmatched([]);
+  }, [autoMatching]);
+
+  const handleConfirmAutoMatch = useCallback(async () => {
+    const employeeId = parseInt(String(userConfig?.employeeId ?? ""), 10);
+    if (!Number.isFinite(employeeId)) {
+      toast.error("Employee ID not found. Please sign in again.");
+      return;
+    }
+
+    if (!autoMatchPairs.length) return;
+
+    setAutoMatching(true);
+    let success = 0;
+    let failed = 0;
+
+    try {
+      for (const { document: doc, purchase } of autoMatchPairs) {
+        try {
+          const data = await upsertPurchaseGstMatch({
+            gst_b2b_invoice_id: doc.gst_b2b_invoice_id,
+            ...getPurchaseMatchIds(purchase),
+            matched_by: employeeId,
+          });
+          if (data.code === 200) success += 1;
+          else failed += 1;
+        } catch {
+          failed += 1;
+        }
+      }
+
+      await refetchPr();
+      setAutoMatchPreviewOpen(false);
+      setAutoMatchPairs([]);
+      setAutoMatchUnmatched([]);
+
+      if (success > 0) {
+        toast.success(
+          `Auto-matched ${success} document${success === 1 ? "" : "s"}${
+            failed > 0 ? ` (${failed} failed)` : ""
+          }`
+        );
+      } else {
+        toast.error("Auto-match failed for all candidates.");
+      }
+    } finally {
+      setAutoMatching(false);
+    }
+  }, [autoMatchPairs, userConfig?.employeeId, refetchPr]);
 
   const vendorColDefs = useMemo(
     () => [
@@ -573,6 +668,14 @@ export default function GstGstr2aPurchaseRegisterPage() {
           prError={prError}
           onMatchChanged={refetchPr}
         />
+        <Gstr2aAutoMatchPreviewModal
+          isOpen={autoMatchPreviewOpen}
+          onClose={handleCloseAutoMatchPreview}
+          pairs={autoMatchPairs}
+          unmatchedDocuments={autoMatchUnmatched}
+          confirming={autoMatching}
+          onConfirm={handleConfirmAutoMatch}
+        />
         <CustomContainer
           title="GSTR 2A v Purchase Register"
           filledHeader
@@ -610,26 +713,50 @@ export default function GstGstr2aPurchaseRegisterPage() {
                   />
                 </TabPanel>
                 <TabPanel px={0}>
-                  {filterCtin ? (
-                    <Box mb={2}>
-                      <Text as="span" fontSize="sm" color="gray.700">
-                        Showing documents for GSTIN{" "}
-                        <Text as="span" fontWeight="semibold">
-                          {filterCtin}
+                  <Flex
+                    justify="space-between"
+                    align="center"
+                    flexWrap="wrap"
+                    gap={2}
+                    mb={2}
+                  >
+                    <Box>
+                      {filterCtin ? (
+                        <Text as="span" fontSize="sm" color="gray.700">
+                          Showing documents for GSTIN{" "}
+                          <Text as="span" fontWeight="semibold">
+                            {filterCtin}
+                          </Text>
+                          <Button
+                            type="button"
+                            variant="link"
+                            colorScheme="teal"
+                            size="sm"
+                            ml={3}
+                            onClick={() => setFilterCtin(null)}
+                          >
+                            Show all
+                          </Button>
                         </Text>
-                      </Text>
-                      <Button
-                        type="button"
-                        variant="link"
-                        colorScheme="teal"
-                        size="sm"
-                        ml={3}
-                        onClick={() => setFilterCtin(null)}
-                      >
-                        Show all
-                      </Button>
+                      ) : null}
                     </Box>
-                  ) : null}
+                    <Button
+                      type="button"
+                      colorScheme="teal"
+                      size="sm"
+                      leftIcon={<i className="fa-solid fa-wand-magic-sparkles" />}
+                      onClick={handleOpenAutoMatchPreview}
+                      isLoading={autoMatching && !autoMatchPreviewOpen}
+                      isDisabled={
+                        pageLoading || unmatchedDocumentCount === 0
+                      }
+                    >
+                      Auto match
+                      {unmatchedDocumentCount > 0
+                        ? ` (${unmatchedDocumentCount} unmatched)`
+                        : ""}
+                    </Button>
+                  </Flex>
                   <AgGrid
                     rowData={documentRows}
                     columnDefs={documentColDefs}

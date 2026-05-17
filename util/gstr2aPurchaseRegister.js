@@ -231,6 +231,199 @@ export function stringsMatchInvoice(a, b) {
   return na === nb;
 }
 
+export function parseDocDate(dateStr) {
+  if (!dateStr || dateStr === "—") return null;
+  const m = moment(
+    dateStr,
+    ["DD-MM-YYYY", "D-M-YYYY", "YYYY-MM-DD", moment.ISO_8601],
+    true
+  );
+  return m.isValid() ? m : null;
+}
+
+export function amountsMatchRounded(a, b) {
+  return Math.round(parseDecimal(a)) === Math.round(parseDecimal(b));
+}
+
+export function datesMatchPurchase(docDateStr, purchaseDate) {
+  const docMoment = parseDocDate(docDateStr);
+  const purchaseMoment = moment(purchaseDate);
+  if (!docMoment || !purchaseMoment.isValid()) return false;
+  return docMoment.isSame(purchaseMoment, "day");
+}
+
+export function isMatchablePurchase(item) {
+  if (item?.gst_tally_purchase_id != null) return true;
+  return Boolean(item?.tally_response?.voucher_no);
+}
+
+export function purchaseLockKey(purchase) {
+  const ids = getPurchaseMatchIds(purchase);
+  if (ids.gst_tally_purchase_id != null) {
+    return `t:${ids.gst_tally_purchase_id}`;
+  }
+  if (ids.purchase_id != null) return `p:${ids.purchase_id}`;
+  return null;
+}
+
+/**
+ * Auto-match rules:
+ * 1. Invoice no. match → confirm
+ * 2. Else any 2 of: date, total tax (rounded), total value (rounded)
+ */
+export function evaluateAutoMatch(documentRow, purchase) {
+  const invoiceMatch = stringsMatchInvoice(
+    purchase.mmh_dist_bill_no,
+    documentRow.docNo2A
+  );
+  const dateMatch = datesMatchPurchase(
+    documentRow.docDate2A,
+    purchase.mmh_dist_bill_dt
+  );
+  const taxMatch = amountsMatchRounded(
+    getPurchaseTotalTax(purchase),
+    documentRow.totalTax2A
+  );
+  const valueMatch = amountsMatchRounded(
+    getPurchaseDisplayTotalAmount(purchase),
+    documentRow.totalValue2A
+  );
+
+  if (invoiceMatch) {
+    return { confirmed: true, invoiceMatch: true, secondaryCount: 3 };
+  }
+
+  const secondaryCount = [dateMatch, taxMatch, valueMatch].filter(Boolean).length;
+  return {
+    confirmed: secondaryCount >= 2,
+    invoiceMatch: false,
+    secondaryCount,
+  };
+}
+
+function autoMatchDateDistanceDays(docDateStr, purchaseDate) {
+  const docMoment = parseDocDate(docDateStr);
+  const purchaseMoment = moment(purchaseDate);
+  if (!docMoment || !purchaseMoment.isValid()) return Number.MAX_SAFE_INTEGER;
+  return Math.abs(docMoment.diff(purchaseMoment, "days"));
+}
+
+export function findAutoMatchPurchase(
+  documentRow,
+  purchases,
+  lockedSet,
+  usedSet = new Set()
+) {
+  const gstin = normalizeGstin(documentRow.ctin);
+  let best = null;
+  let bestRank = -1;
+  let bestDateDist = Number.MAX_SAFE_INTEGER;
+
+  for (const p of purchases || []) {
+    if (normalizeGstin(p.supplier_gstn) !== gstin) continue;
+    if (!isMatchablePurchase(p)) continue;
+
+    const lockKey = purchaseLockKey(p);
+    if (lockKey && (lockedSet?.has(lockKey) || usedSet.has(lockKey))) continue;
+
+    const result = evaluateAutoMatch(documentRow, p);
+    if (!result.confirmed) continue;
+
+    const rank = result.invoiceMatch
+      ? 1000 + result.secondaryCount
+      : result.secondaryCount;
+    const dateDist = autoMatchDateDistanceDays(
+      documentRow.docDate2A,
+      p.mmh_dist_bill_dt
+    );
+
+    if (rank > bestRank || (rank === bestRank && dateDist < bestDateDist)) {
+      best = p;
+      bestRank = rank;
+      bestDateDist = dateDist;
+    }
+  }
+
+  return best;
+}
+
+export function getAutoMatchCompareFlags(documentRow, purchase) {
+  const pr = purchaseToDocumentPrFields(purchase);
+  return {
+    invoice: stringsMatchInvoice(
+      purchase.mmh_dist_bill_no,
+      documentRow.docNo2A
+    ),
+    date: datesMatchPurchase(documentRow.docDate2A, purchase.mmh_dist_bill_dt),
+    taxable: amountsMatchRounded(pr.taxablePr, documentRow.taxable2A),
+    igst: amountsMatchRounded(pr.igstPr, documentRow.igst2A),
+    cgst: amountsMatchRounded(pr.cgstPr, documentRow.cgst2A),
+    sgst: amountsMatchRounded(pr.sgstPr, documentRow.sgst2A),
+    totalTax: amountsMatchRounded(pr.totalTaxPr, documentRow.totalTax2A),
+    totalValue: amountsMatchRounded(pr.totalValuePr, documentRow.totalValue2A),
+  };
+}
+
+export function buildAutoMatchPreviewRows(pairs) {
+  return (pairs || []).map(({ document, purchase }) => {
+    const pr = purchaseToDocumentPrFields(purchase);
+    return {
+      _rowId: String(document.gst_b2b_invoice_id),
+      gst_b2b_invoice_id: document.gst_b2b_invoice_id,
+      supplierName: document.supplierName,
+      ctin: document.ctin,
+      docNo2A: document.docNo2A,
+      docNoPr: pr.docNoPr,
+      docDate2A: document.docDate2A,
+      docDatePr: pr.docDatePr,
+      taxable2A: document.taxable2A,
+      taxablePr: pr.taxablePr,
+      igst2A: document.igst2A,
+      igstPr: pr.igstPr,
+      cgst2A: document.cgst2A,
+      cgstPr: pr.cgstPr,
+      sgst2A: document.sgst2A,
+      sgstPr: pr.sgstPr,
+      totalTax2A: document.totalTax2A,
+      totalTaxPr: pr.totalTaxPr,
+      totalValue2A: document.totalValue2A,
+      totalValuePr: pr.totalValuePr,
+      prSource: purchase.prSource,
+      _compareFlags: getAutoMatchCompareFlags(document, purchase),
+      _document: document,
+      _purchase: purchase,
+    };
+  });
+}
+
+/** Unmatched documents paired with purchases for auto-match save. */
+export function buildAutoMatchPairs(documentRows, purchases, matches) {
+  const pairs = [];
+  const usedPurchases = new Set();
+
+  for (const doc of documentRows || []) {
+    if (doc.isMatched || doc.gst_b2b_invoice_id == null) continue;
+
+    const lockedForDoc = buildPurchasesMatchedElsewhere(
+      matches,
+      doc.gst_b2b_invoice_id
+    );
+    const purchase = findAutoMatchPurchase(
+      doc,
+      purchases,
+      lockedForDoc,
+      usedPurchases
+    );
+    if (!purchase) continue;
+
+    const key = purchaseLockKey(purchase);
+    if (key) usedPurchases.add(key);
+    pairs.push({ document: doc, purchase });
+  }
+
+  return pairs;
+}
+
 export function getPurchaseDisplayTotalAmount(item) {
   if (isZeroTotalAmount(item)) return getPurchaseTotalTax(item);
   return parseDecimal(item?.total_amount);
