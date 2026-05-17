@@ -46,8 +46,7 @@ export function vendorRowPrKey(row) {
  * Aggregate purchase register rows by supplier (GSTIN when present).
  * docCount = number of purchase records for that supplier.
  */
-/** `YYYY-MM` → `{ from_date, to_date }` ISO strings, or null if invalid. */
-export function purchasePeriodFilters(period) {
+function periodDateRange(period) {
   const m = moment(period, "YYYY-MM", true);
   if (!m.isValid()) return null;
 
@@ -56,9 +55,28 @@ export function purchasePeriodFilters(period) {
   const endOfDay = m.clone().endOf("month").toDate();
   endOfDay.setHours(23, 59, 59, 999);
 
+  return { startOfDay, endOfDay };
+}
+
+/** GSTR-2A PR page: filter purchases by dist bill date (`mmh_dist_bill_dt`). */
+export function purchasePeriodFilters(period) {
+  const range = periodDateRange(period);
+  if (!range) return null;
+
   return {
-    from_date: startOfDay.toISOString(),
-    to_date: endOfDay.toISOString(),
+    dist_bill_from_date: range.startOfDay.toISOString(),
+    dist_bill_to_date: range.endOfDay.toISOString(),
+  };
+}
+
+/** GSTR-2A PR page: filter purchase-gst matches by linked MRC date. */
+export function purchaseMatchPeriodFilters(period) {
+  const range = periodDateRange(period);
+  if (!range) return null;
+
+  return {
+    from_date: range.startOfDay.toISOString(),
+    to_date: range.endOfDay.toISOString(),
   };
 }
 

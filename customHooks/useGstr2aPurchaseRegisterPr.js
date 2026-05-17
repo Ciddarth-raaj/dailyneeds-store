@@ -5,6 +5,7 @@ import { usePurchaseGstMatch } from "./usePurchaseGstMatch";
 import {
   aggregatePurchasesByVendor,
   mergePurchaseRegisterSources,
+  purchaseMatchPeriodFilters,
   purchasePeriodFilters,
 } from "../util/gstr2aPurchaseRegister";
 
@@ -16,6 +17,7 @@ import {
  */
 export function useGstr2aPurchaseRegisterPr(period) {
   const purchaseFilters = useMemo(() => purchasePeriodFilters(period), [period]);
+  const matchFilters = useMemo(() => purchaseMatchPeriodFilters(period), [period]);
 
   const {
     purchase,
@@ -36,7 +38,7 @@ export function useGstr2aPurchaseRegisterPr(period) {
     loading: matchLoading,
     error: matchError,
     refetch: refetchMatches,
-  } = usePurchaseGstMatch(purchaseFilters);
+  } = usePurchaseGstMatch(matchFilters);
 
   const purchases = useMemo(
     () => mergePurchaseRegisterSources(purchase ?? [], purchaseGst ?? []),
@@ -49,7 +51,7 @@ export function useGstr2aPurchaseRegisterPr(period) {
   );
 
   const loading =
-    purchaseFilters == null
+    purchaseFilters == null || matchFilters == null
       ? false
       : purchaseLoading || purchaseGstLoading || matchLoading;
 
