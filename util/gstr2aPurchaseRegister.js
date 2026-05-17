@@ -134,6 +134,52 @@ export function aggregatePurchasesByVendor(purchases) {
  * Merge GSTR-2A vendor aggregates with purchase register aggregates.
  * Suppliers only in PR are included with 2A columns as null (display "—").
  */
+export function invoiceVendorKey(inv) {
+  const c = (inv.ctin || "").trim();
+  if (c) return c;
+  const vid = inv.gst_vendor_id;
+  return vid != null ? `__vid_${vid}` : "__unknown";
+}
+
+/** Per-supplier 2A document counts and how many have a purchase-gst match. */
+export function buildVendorMatchStats(invoices, matches) {
+  const matchByInvoice = buildMatchByB2bInvoiceId(matches);
+  const stats = new Map();
+
+  for (const inv of invoices || []) {
+    const key = invoiceVendorKey(inv);
+    if (!stats.has(key)) {
+      stats.set(key, { total: 0, matched: 0 });
+    }
+    if (inv.gst_b2b_invoice_id == null) continue;
+
+    const s = stats.get(key);
+    s.total += 1;
+    if (matchByInvoice.has(inv.gst_b2b_invoice_id)) {
+      s.matched += 1;
+    }
+  }
+
+  return stats;
+}
+
+export function enrichVendorRowsWithMatchPct(vendorRows, invoices, matches) {
+  const stats = buildVendorMatchStats(invoices, matches);
+
+  return (vendorRows || []).map((row) => {
+    const s = stats.get(row._rowId) ?? stats.get(vendorRowPrKey(row));
+    const total = s?.total ?? 0;
+    const matched = s?.matched ?? 0;
+
+    return {
+      ...row,
+      matchedCount: total > 0 ? matched : null,
+      matchedTotal: total > 0 ? total : null,
+      matchedPct: total > 0 ? Math.round((matched / total) * 100) : null,
+    };
+  });
+}
+
 export function mergeVendorRowsWithPr(vendors2A, vendorPrByGstin) {
   const merged = new Map();
   const prRemaining = new Map(vendorPrByGstin);

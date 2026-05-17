@@ -30,6 +30,7 @@ import { useGstB2bInvoices } from "../../../../customHooks/useGstB2bInvoices";
 import { useGstr2aPurchaseRegisterPr } from "../../../../customHooks/useGstr2aPurchaseRegisterPr";
 import {
   enrichDocumentRowsWithMatches,
+  enrichVendorRowsWithMatchPct,
   mergeVendorRowsWithPr,
 } from "../../../../util/gstr2aPurchaseRegister";
 
@@ -160,12 +161,7 @@ export default function GstGstr2aPurchaseRegisterPage() {
   /** When true, next switch to Document tab came from vendor GSTIN link — do not clear filter. */
   const documentTabFromGstinLinkRef = useRef(false);
 
-  const {
-    invoices,
-    meta,
-    loading,
-    error,
-  } = useGstB2bInvoices(period);
+  const { invoices, meta, loading, error } = useGstB2bInvoices(period);
 
   useEffect(() => {
     setFilterCtin(null);
@@ -207,8 +203,9 @@ export default function GstGstr2aPurchaseRegisterPage() {
 
   const vendorRows = useMemo(() => {
     const from2A = aggregateVendors(invoices);
-    return mergeVendorRowsWithPr(from2A, vendorPrByGstin);
-  }, [invoices, vendorPrByGstin]);
+    const merged = mergeVendorRowsWithPr(from2A, vendorPrByGstin);
+    return enrichVendorRowsWithMatchPct(merged, invoices, matches);
+  }, [invoices, vendorPrByGstin, matches]);
 
   const documentRows = useMemo(() => {
     const rows = enrichDocumentRowsWithMatches(
@@ -262,6 +259,15 @@ export default function GstGstr2aPurchaseRegisterPage() {
             flex: 0,
             filter: true,
             sortable: true,
+          },
+          {
+            field: "matchedPct",
+            headerName: "Matched",
+            pinned: "left",
+            flex: 0,
+            width: 110,
+            valueFormatter: (p) => (!p.value ? null : p.value),
+            cellRenderer: (p) => (!p.value ? "-" : `${p.value}%`),
           },
         ],
       },
@@ -345,9 +351,7 @@ export default function GstGstr2aPurchaseRegisterPage() {
           return [
             {
               label: matched ? "Matched" : "Match",
-              icon: matched
-                ? "fa-solid fa-check"
-                : "fa-solid fa-link",
+              icon: matched ? "fa-solid fa-check" : "fa-solid fa-link",
               colorScheme: "teal",
               onClick: () => onOpenMatch(params.data),
             },
