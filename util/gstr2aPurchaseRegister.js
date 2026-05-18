@@ -69,15 +69,21 @@ export function purchasePeriodFilters(period) {
   };
 }
 
-/** GSTR-2A PR page: filter purchase-gst matches by linked MRC date. */
+/** GSTR-2A PR page: matches for invoices in the selected GSTR return period. */
 export function purchaseMatchPeriodFilters(period) {
-  const range = periodDateRange(period);
-  if (!range) return null;
+  const m = moment(period, "YYYY-MM", true);
+  if (!m.isValid()) return null;
 
   return {
-    from_date: range.startOfDay.toISOString(),
-    to_date: range.endOfDay.toISOString(),
+    year: m.year(),
+    month: m.month() + 1,
   };
+}
+
+export function normalizeB2bInvoiceId(id) {
+  if (id == null || id === "") return null;
+  const n = Number(id);
+  return Number.isFinite(n) ? n : null;
 }
 
 export const PR_SOURCE_SYSTEM = "System";
@@ -471,7 +477,8 @@ export function buildPurchasesMatchedElsewhere(matches, currentB2bInvoiceId) {
     if (m.gst_b2b_invoice_id == null) continue;
     if (
       currentB2bInvoiceId != null &&
-      m.gst_b2b_invoice_id === currentB2bInvoiceId
+      normalizeB2bInvoiceId(m.gst_b2b_invoice_id) ===
+        normalizeB2bInvoiceId(currentB2bInvoiceId)
     ) {
       continue;
     }
@@ -497,8 +504,9 @@ export function isPurchaseLockedByOtherMatch(purchase, lockedSet) {
 export function buildMatchByB2bInvoiceId(matches) {
   const byInvoiceId = new Map();
   for (const m of matches || []) {
-    if (m.gst_b2b_invoice_id != null) {
-      byInvoiceId.set(m.gst_b2b_invoice_id, m);
+    const id = normalizeB2bInvoiceId(m.gst_b2b_invoice_id);
+    if (id != null) {
+      byInvoiceId.set(id, m);
     }
   }
   return byInvoiceId;
@@ -508,16 +516,18 @@ export function findPurchaseByMatch(match, purchases) {
   if (!match) return null;
 
   if (match.purchase_id != null) {
+    const purchaseId = Number(match.purchase_id);
     const byPurchase = (purchases || []).find((p) => {
       if (p.prSource === PR_SOURCE_TALLY) return false;
-      return p.purchase_id === match.purchase_id;
+      return Number(p.purchase_id) === purchaseId;
     });
     if (byPurchase) return byPurchase;
   }
 
   if (match.gst_tally_purchase_id != null) {
+    const tallyId = Number(match.gst_tally_purchase_id);
     const byTally = (purchases || []).find(
-      (p) => p.gst_tally_purchase_id === match.gst_tally_purchase_id
+      (p) => Number(p.gst_tally_purchase_id) === tallyId
     );
     if (byTally) return byTally;
   }
@@ -526,10 +536,12 @@ export function findPurchaseByMatch(match, purchases) {
 }
 
 export function findMatchForDocument(documentRow, purchases, matches) {
-  const invoiceId = documentRow?.gst_b2b_invoice_id;
+  const invoiceId = normalizeB2bInvoiceId(documentRow?.gst_b2b_invoice_id);
   if (invoiceId == null) return null;
 
-  const match = (matches || []).find((m) => m.gst_b2b_invoice_id === invoiceId);
+  const match = (matches || []).find(
+    (m) => normalizeB2bInvoiceId(m.gst_b2b_invoice_id) === invoiceId
+  );
   if (!match) return null;
 
   const purchase = findPurchaseByMatch(match, purchases);
@@ -589,7 +601,7 @@ export function enrichDocumentRowsWithMatches(documentRows, purchases, matches) 
       return { ...row, ...emptyPr, isMatched: false, gst_purchase_match_id: null };
     }
 
-    const match = matchByInvoiceId.get(invoiceId);
+    const match = matchByInvoiceId.get(normalizeB2bInvoiceId(invoiceId));
     if (!match) {
       return { ...row, ...emptyPr, isMatched: false, gst_purchase_match_id: null };
     }

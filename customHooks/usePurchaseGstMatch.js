@@ -8,7 +8,11 @@ export function usePurchaseGstMatch(filters) {
 
   const fetchMatches = useCallback(
     async (noRefresh = false) => {
-      if (!filters?.from_date || !filters?.to_date) {
+      const hasReturnPeriod =
+        filters?.year != null && filters?.month != null;
+      const hasDateRange = filters?.from_date && filters?.to_date;
+
+      if (!hasReturnPeriod && !hasDateRange) {
         setMatches([]);
         setLoading(false);
         setError(null);
