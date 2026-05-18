@@ -580,6 +580,7 @@ const AgGrid = React.forwardRef(function AgGrid(
           onClose={onClose}
           placement="right"
           size="sm"
+          colorScheme={cs}
           title="Table settings"
           footer={
             <Flex justifyContent="flex-end" w="100%">

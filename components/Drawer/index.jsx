@@ -22,6 +22,7 @@ import {
  * @param {React.ReactNode} footer - Optional footer content
  * @param {React.Ref} finalFocusRef - Ref to return focus to on close
  * @param {React.Ref} initialFocusRef - Ref to focus when opening
+ * @param {string} colorScheme - Chakra color scheme (e.g. purple, teal)
  */
 function Drawer({
   isOpen,
@@ -33,8 +34,11 @@ function Drawer({
   footer,
   finalFocusRef,
   initialFocusRef,
+  colorScheme = "purple",
   ...rest
 }) {
+  const cs = colorScheme;
+
   return (
     <ChakraDrawer
       isOpen={isOpen}
@@ -48,23 +52,23 @@ function Drawer({
       <DrawerOverlay />
       <DrawerContent
         borderLeftWidth="1px"
-        borderColor="purple.100"
+        borderColor={`${cs}.100`}
         m={"22px"}
         borderRadius="10px"
         overflow="hidden"
       >
         <DrawerCloseButton
-          color="purple.600"
-          _hover={{ color: "purple.700", bg: "purple.50" }}
+          color={`${cs}.600`}
+          _hover={{ color: `${cs}.700`, bg: `${cs}.50` }}
           mt="4px"
         />
         {title && (
           <DrawerHeader
             borderBottomWidth="1px"
-            borderColor="purple.100"
-            bg="purple.50"
+            borderColor={`${cs}.100`}
+            bg={`${cs}.50`}
             fontWeight="600"
-            color="purple.700"
+            color={`${cs}.700`}
             fontSize="16px"
             mt="3px"
           >
@@ -77,8 +81,8 @@ function Drawer({
         {footer && (
           <DrawerFooter
             borderTopWidth="1px"
-            borderColor="purple.100"
-            bg="purple.50"
+            borderColor={`${cs}.100`}
+            bg={`${cs}.50`}
           >
             {footer}
           </DrawerFooter>
