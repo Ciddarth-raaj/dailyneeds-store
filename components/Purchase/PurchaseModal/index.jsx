@@ -1,6 +1,7 @@
 import {
   Badge,
   Button,
+  Divider,
   Flex,
   Modal,
   ModalBody,
@@ -26,6 +27,12 @@ const JV_LEDGER_LIST = [
   { id: 3, value: "Payment Hold" },
 ];
 
+/** Combined GST % rows always shown in the modal (Local Purchase / IGST Purchase label). */
+const ALWAYS_SHOW_GST_PERC = 40;
+const DEFAULT_GST_PERCS = [0, 5, ALWAYS_SHOW_GST_PERC, 18, 28];
+/** Half CGST/SGST rates for empty slots; 12% (6) only when already on the purchase. */
+const REQUIRED_HALF_PERCS = [0, 2.5, 9, 14, 20];
+
 const INITIAL_VALUES = {
   invoice_amount: 0.0,
   mmh_mrc_refno: "",
@@ -34,13 +41,11 @@ const INITIAL_VALUES = {
   mmh_mrc_dt: "",
   mmh_dist_bill_dt: "",
   mmh_mrc_amt: 0.0,
-  gst: [
-    { VALUE: null, PERC: 0, TAXABLE: null },
-    { VALUE: null, PERC: 5, TAXABLE: null },
-    { VALUE: null, PERC: 12, TAXABLE: null },
-    { VALUE: null, PERC: 18, TAXABLE: null },
-    { VALUE: null, PERC: 28, TAXABLE: null },
-  ],
+  gst: DEFAULT_GST_PERCS.map((PERC) => ({
+    VALUE: null,
+    PERC,
+    TAXABLE: null,
+  })),
   cgst: [
     { VALUE: null, PERC: 0, TAXABLE: null },
     { VALUE: null, PERC: 2.5, TAXABLE: null },
@@ -97,29 +102,33 @@ function PurchaseModal({
           : parseFloat(taxItem.PERC)
       );
 
-      // Required PERC values
-      const requiredPercs = [0, 2.5, 6, 9, 14];
-
-      // Add missing PERC values with 0 VALUE
-      const missingGstItems = requiredPercs
-        .filter((perc) => !existingPercs.includes(perc))
-        .map((perc) => ({
-          VALUE: null,
-          PERC: perc * 2,
-          TAXABLE: null,
-        }));
+      // Add missing PERC values (excludes 12% unless already on record)
+      const missingGstItems = REQUIRED_HALF_PERCS.filter(
+        (perc) => !existingPercs.includes(perc)
+      ).map((perc) => ({
+        VALUE: null,
+        PERC: perc * 2,
+        TAXABLE: null,
+      }));
 
       // Combine existing and missing items and sort by PERC
       item.gst = [
         ...taxList.map((taxItem) => ({
-          // VALUE: taxItem.VALUE ? parseFloat(taxItem.VALUE).toFixed(2) : null,
           VALUE: taxItem.VALUE,
           PERC: parseFloat(taxItem.PERC * (shouldShowIGST(item) ? 1 : 2)),
-          // TAXABLE: parseFloat(taxItem.TAXABLE).toFixed(2),
           TAXABLE: taxItem.TAXABLE,
         })),
         ...missingGstItems,
       ].sort((a, b) => a.PERC - b.PERC);
+
+      if (!item.gst.some((g) => Number(g.PERC) === ALWAYS_SHOW_GST_PERC)) {
+        item.gst.push({
+          VALUE: null,
+          PERC: ALWAYS_SHOW_GST_PERC,
+          TAXABLE: null,
+        });
+        item.gst.sort((a, b) => a.PERC - b.PERC);
+      }
 
       setInitialValues(structuredClone({ ...INITIAL_VALUES, ...item }));
     }
@@ -170,7 +179,7 @@ function PurchaseModal({
       cgst: item.cgst,
       sgst: item.sgst,
       igst: item.igst,
-      tot_gst_cess_amt: values.tot_gst_cess_amt,
+      tot_gst_cess_amt: 0,
       mmh_manual_disc: values.mmh_manual_disc,
       mmd_goods_tcs_amt: values.mmd_goods_tcs_amt,
       retail_outlet_id: values.retail_outlet_id,
@@ -181,7 +190,7 @@ function PurchaseModal({
       tot_cgst_amt: item.tot_cgst_amt,
       tot_igst_amt: item.tot_igst_amt,
       ts: values.ts,
-      cess: values.cess,
+      cess: [],
     };
 
     if (shouldShowIGST(values)) {
@@ -352,12 +361,7 @@ function PurchaseModal({
                     </div>
                   ))}
 
-                  <CustomInput
-                    label="CESS 12% Input"
-                    name="tot_gst_cess_amt"
-                    type="number"
-                    disabled={!editable}
-                  />
+                  <Divider my={4} borderColor="gray.200" />
 
                   <div className={styles.inputContainer}>
                     <CustomInput
