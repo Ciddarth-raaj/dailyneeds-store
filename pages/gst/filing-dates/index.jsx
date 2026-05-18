@@ -59,6 +59,7 @@ export default function GstFilingDatesPage() {
 
   const syncModal = useDisclosure();
   const [syncPeriod, setSyncPeriod] = useState(() => lastMonthYYYYMM());
+  const [syncing, setSyncing] = useState(false);
 
   const fyMonths = useMemo(() => getIndianFinancialYearMonths(new Date()), []);
 
@@ -181,6 +182,7 @@ export default function GstFilingDatesPage() {
   }, [syncModal]);
 
   const runSync = useCallback(() => {
+    if (syncing) return;
     const p = parseYYYYMM(syncPeriod);
     if (!p) {
       toast.error("Choose a valid month.");
@@ -188,8 +190,13 @@ export default function GstFilingDatesPage() {
     }
     const { year, month } = p;
     const work = (async () => {
-      await syncGstr2aB2b(year, month);
-      await refreshFilingTable();
+      setSyncing(true);
+      try {
+        await syncGstr2aB2b(year, month);
+        await refreshFilingTable();
+      } finally {
+        setSyncing(false);
+      }
     })();
 
     toast
@@ -202,14 +209,14 @@ export default function GstFilingDatesPage() {
       })
       .then(() => syncModal.onClose())
       .catch(() => {});
-  }, [syncPeriod, refreshFilingTable, syncModal]);
+  }, [syncPeriod, refreshFilingTable, syncModal, syncing]);
 
   const syncModalFooter = (
     <>
       <Button variant="ghost" mr={3} onClick={syncModal.onClose}>
         Cancel
       </Button>
-      <Button colorScheme="teal" onClick={runSync}>
+      <Button colorScheme="teal" onClick={runSync} isLoading={syncing} isDisabled={syncing}>
         Start sync
       </Button>
     </>
