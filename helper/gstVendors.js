@@ -24,6 +24,15 @@ export const getVendorFilingDates = () => {
   });
 };
 
+/** Latest row from `gst_fetch_log` (most recent GSTR sync). */
+export const getLatestGstFetchLog = () => {
+  return API.get("/gst/fetch-log/latest").then((res) => {
+    const body = res?.data ?? res;
+    if (body?.code === 200) return body;
+    throw new Error(body?.msg || "Failed to fetch latest GST sync time");
+  });
+};
+
 /**
  * Pull GSTR-2A B2B from Sandbox for a return period (persists filing dates when successful).
  * @see dailyneeds-store-backend/docs/gst-api-endpoints.md

@@ -5,10 +5,12 @@ import {
   Alert,
   AlertIcon,
   Button,
+  Flex,
   FormControl,
   FormLabel,
   Input,
   Text,
+  Tooltip,
   useDisclosure,
 } from "@chakra-ui/react";
 import GlobalWrapper from "../../../components/globalWrapper/globalWrapper";
@@ -16,9 +18,11 @@ import CustomContainer from "../../../components/CustomContainer";
 import AgGrid from "../../../components/AgGrid";
 import GstModuleWrapper from "../../../components/gst/GstModuleWrapper";
 import CustomModal from "../../../components/CustomModal";
+import { useModuleTableTheme } from "../../../contexts/ModuleTableThemeContext";
 import usePermissions from "../../../customHooks/usePermissions";
 import {
   getGstVendors,
+  getLatestGstFetchLog,
   getVendorFilingDates,
   syncGstr2aB2b,
 } from "../../../helper/gstVendors";
@@ -36,6 +40,12 @@ function formatFilingCell(value) {
   return m.isValid() ? m.format("DD/MM/YYYY") : String(value);
 }
 
+function formatLastSyncTime(value) {
+  if (value == null || value === "") return "—";
+  const m = moment(value);
+  return m.isValid() ? m.format("DD MMM YYYY, h:mm A") : String(value);
+}
+
 function allVendorsHaveFilingForPeriod(vendors, filings, year, month) {
   if (!vendors.length || year == null || month == null) return false;
   const idsWith = new Set(
@@ -50,10 +60,12 @@ function allVendorsHaveFilingForPeriod(vendors, filings, year, month) {
 }
 
 export default function GstFilingDatesPage() {
+  const { colorScheme } = useModuleTableTheme();
   const canSyncGstr2aB2b = usePermissions(["sync_gst_gstr2a_b2b"]);
 
   const [vendors, setVendors] = useState([]);
   const [filings, setFilings] = useState([]);
+  const [lastSyncAt, setLastSyncAt] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -62,6 +74,15 @@ export default function GstFilingDatesPage() {
   const [syncing, setSyncing] = useState(false);
 
   const fyMonths = useMemo(() => getIndianFinancialYearMonths(new Date()), []);
+
+  const loadLastSync = useCallback(async () => {
+    try {
+      const logBody = await getLatestGstFetchLog();
+      setLastSyncAt(logBody?.data?.created_at ?? null);
+    } catch {
+      setLastSyncAt(null);
+    }
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -80,14 +101,17 @@ export default function GstFilingDatesPage() {
         );
         setFilings([]);
       }
+
+      await loadLastSync();
     } catch (e) {
       setError(e?.message || "Failed to load data");
       setVendors([]);
       setFilings([]);
+      setLastSyncAt(null);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [loadLastSync]);
 
   /** Refetch vendors + filing rows without hiding the grid (e.g. after sync). */
   const refreshFilingTable = useCallback(async () => {
@@ -103,7 +127,8 @@ export default function GstFilingDatesPage() {
     } catch (e) {
       toast.error(e?.message || "Could not refresh filing dates after sync.");
     }
-  }, []);
+    await loadLastSync();
+  }, [loadLastSync]);
 
   useEffect(() => {
     load();
@@ -216,17 +241,34 @@ export default function GstFilingDatesPage() {
       <Button variant="ghost" mr={3} onClick={syncModal.onClose}>
         Cancel
       </Button>
-      <Button colorScheme="teal" onClick={runSync} isLoading={syncing} isDisabled={syncing}>
+      <Button
+        colorScheme={colorScheme}
+        onClick={runSync}
+        isLoading={syncing}
+        isDisabled={syncing}
+      >
         Start sync
       </Button>
     </>
   );
 
-  const syncButton =
-    canSyncGstr2aB2b && !loading && !error ? (
-      <Button colorScheme="teal" size="sm" onClick={openSyncModal}>
-        Sync
-      </Button>
+  const headerRight =
+    !loading && !error ? (
+      <Flex align="center" gap={3} flexWrap="wrap" justify="flex-end">
+        <Tooltip label="Last Sync" placement="top">
+          <Flex align="center" gap={1.5} color={`${colorScheme}.600`}>
+            <i className="fa-solid fa-clock" aria-hidden style={{ fontSize: "0.7rem" }} />
+            <Text fontSize="xs" fontWeight="medium" color={`${colorScheme}.800`}>
+              {formatLastSyncTime(lastSyncAt)}
+            </Text>
+          </Flex>
+        </Tooltip>
+        {canSyncGstr2aB2b ? (
+          <Button colorScheme={colorScheme} size="sm" onClick={openSyncModal}>
+            Sync
+          </Button>
+        ) : null}
+      </Flex>
     ) : null;
 
   return (
@@ -238,7 +280,7 @@ export default function GstFilingDatesPage() {
         <CustomContainer
           title="Filing Dates"
           filledHeader
-          rightSection={syncButton}
+          rightSection={headerRight}
         >
           {loading ? (
             <Text>Loading…</Text>
