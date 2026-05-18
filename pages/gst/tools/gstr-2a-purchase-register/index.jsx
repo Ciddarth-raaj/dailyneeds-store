@@ -29,11 +29,15 @@ import AgGrid from "../../../../components/AgGrid";
 import GstModuleWrapper from "../../../../components/gst/GstModuleWrapper";
 import Gstr2aAutoMatchPreviewModal from "../../../../components/gst/Gstr2aAutoMatchPreviewModal";
 import Gstr2aMatchModal from "../../../../components/gst/Gstr2aMatchModal";
+import Gstr2aPrSummaryTable from "../../../../components/gst/Gstr2aPrSummaryTable";
+import { useModuleTableTheme } from "../../../../contexts/ModuleTableThemeContext";
 import { useUser } from "../../../../contexts/UserContext";
 import { useGstB2bInvoices } from "../../../../customHooks/useGstB2bInvoices";
 import { useGstr2aPurchaseRegisterPr } from "../../../../customHooks/useGstr2aPurchaseRegisterPr";
 import { upsertPurchaseGstMatch } from "../../../../helper/purchaseGstMatch";
 import {
+  aggregateGstr2aPeriodSummary,
+  aggregatePurchasePeriodSummary,
   buildAutoMatchPairs,
   computeTaxDiff,
   enrichDocumentRowsWithMatches,
@@ -178,6 +182,7 @@ function buildDocumentRows(invoices) {
 }
 
 export default function GstGstr2aPurchaseRegisterPage() {
+  const { colorScheme } = useModuleTableTheme();
   const [period, setPeriod] = useState(() =>
     moment().subtract(1, "month").format("YYYY-MM")
   );
@@ -192,7 +197,7 @@ export default function GstGstr2aPurchaseRegisterPage() {
   const documentTabFromGstinLinkRef = useRef(false);
   const { userConfig } = useUser();
 
-  const { invoices, meta, loading, error } = useGstB2bInvoices(period);
+  const { invoices, loading, error } = useGstB2bInvoices(period);
 
   useEffect(() => {
     setFilterCtin(null);
@@ -248,6 +253,16 @@ export default function GstGstr2aPurchaseRegisterPage() {
     if (!f) return rows;
     return rows.filter((r) => (r.ctin || "").trim() === f);
   }, [invoices, filterCtin, purchases, matches]);
+
+  const summary2A = useMemo(
+    () => aggregateGstr2aPeriodSummary(invoices),
+    [invoices]
+  );
+
+  const summaryPD = useMemo(
+    () => aggregatePurchasePeriodSummary(purchases),
+    [purchases]
+  );
 
   const unmatchedDocumentCount = useMemo(
     () =>
@@ -650,7 +665,13 @@ export default function GstGstr2aPurchaseRegisterPage() {
 
   const monthPicker = (
     <FormControl display="flex" alignItems="center" gap={2} w="auto" m={0}>
-      <FormLabel fontSize="sm" m={0} whiteSpace="nowrap">
+      <FormLabel
+        fontSize="xs"
+        m={0}
+        whiteSpace="nowrap"
+        color={`${colorScheme}.700`}
+        fontWeight="medium"
+      >
         Return month
       </FormLabel>
       <Input
@@ -663,14 +684,6 @@ export default function GstGstr2aPurchaseRegisterPage() {
       />
     </FormControl>
   );
-
-  const metaLine =
-    meta && !pageLoading && !pageError ? (
-      <Text fontSize="xs" color="gray.600" mt={1}>
-        Period {meta.year}-{String(meta.month).padStart(2, "0")}:{" "}
-        {meta.invoice_count ?? 0} invoices, {meta.item_count ?? 0} line items
-      </Text>
-    ) : null;
 
   return (
     <GlobalWrapper
@@ -702,7 +715,6 @@ export default function GstGstr2aPurchaseRegisterPage() {
           filledHeader
           rightSection={monthPicker}
         >
-          {metaLine}
           {pageLoading ? (
             <Text mt={3}>Loading…</Text>
           ) : pageError ? (
@@ -711,13 +723,18 @@ export default function GstGstr2aPurchaseRegisterPage() {
               {pageError}
             </Alert>
           ) : (
-            <Tabs
-              index={tabIndex}
-              onChange={handleTabChange}
-              colorScheme="teal"
-              variant="enclosed"
-              mt={3}
-            >
+            <>
+              <Gstr2aPrSummaryTable
+                summary2A={summary2A}
+                summaryPD={summaryPD}
+                colorScheme={colorScheme}
+              />
+              <Tabs
+                index={tabIndex}
+                onChange={handleTabChange}
+                colorScheme={colorScheme}
+                variant="enclosed"
+              >
               <TabList>
                 <Tab fontSize="sm">Vendor View</Tab>
                 <Tab fontSize="sm">Document View</Tab>
@@ -788,7 +805,8 @@ export default function GstGstr2aPurchaseRegisterPage() {
                   />
                 </TabPanel>
               </TabPanels>
-            </Tabs>
+              </Tabs>
+            </>
           )}
         </CustomContainer>
       </GstModuleWrapper>

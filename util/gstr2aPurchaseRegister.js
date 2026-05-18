@@ -465,6 +465,58 @@ export function getPurchaseDisplayTotalAmount(item) {
   return parseDecimal(item?.total_amount);
 }
 
+function lineTaxSumFromB2bItem(it) {
+  return (
+    parseDecimal(it?.iamt) +
+    parseDecimal(it?.camt) +
+    parseDecimal(it?.samt) +
+    parseDecimal(it?.csamt) +
+    parseDecimal(it?.cesamt)
+  );
+}
+
+/** Period totals from stored GSTR-2A B2B invoices. */
+export function aggregateGstr2aPeriodSummary(invoices) {
+  let docCount = 0;
+  let taxable = 0;
+  let tax = 0;
+  let total = 0;
+
+  for (const inv of invoices || []) {
+    docCount += 1;
+    const items = Array.isArray(inv.items) ? inv.items : [];
+    let taxableInv = 0;
+    let taxInv = 0;
+    for (const it of items) {
+      taxableInv += parseDecimal(it.txval);
+      taxInv += lineTaxSumFromB2bItem(it);
+    }
+    const declaredVal = parseDecimal(inv.val);
+    taxable += taxableInv;
+    tax += taxInv;
+    total += declaredVal > 0 ? declaredVal : taxableInv + taxInv;
+  }
+
+  return { docCount, taxable, tax, total };
+}
+
+/** Period totals from merged purchase register rows. */
+export function aggregatePurchasePeriodSummary(purchases) {
+  let docCount = 0;
+  let taxable = 0;
+  let tax = 0;
+  let total = 0;
+
+  for (const p of purchases || []) {
+    docCount += 1;
+    taxable += getPurchaseTaxable(p);
+    tax += getPurchaseTotalTax(p);
+    total += getPurchaseDisplayTotalAmount(p);
+  }
+
+  return { docCount, taxable, tax, total };
+}
+
 /** POST body FKs for the selected purchase row (System vs Tally). */
 export function getPurchaseMatchIds(purchase) {
   if (!purchase) {
