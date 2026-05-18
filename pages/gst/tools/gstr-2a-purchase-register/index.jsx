@@ -42,6 +42,7 @@ import {
   computeTaxDiff,
   enrichDocumentRowsWithMatches,
   enrichVendorRowsWithMatchPct,
+  getDocumentMatchStatusBadge,
   getPurchaseMatchIds,
   isTaxDiffOutOfRange,
   mergeVendorRowsWithPr,
@@ -273,9 +274,7 @@ export default function GstGstr2aPurchaseRegisterPage() {
 
   const handleOpenAutoMatchPreview = useCallback(() => {
     const pairs = buildAutoMatchPairs(documentRows, purchases, matches);
-    const pairedIds = new Set(
-      pairs.map((p) => p.document.gst_b2b_invoice_id)
-    );
+    const pairedIds = new Set(pairs.map((p) => p.document.gst_b2b_invoice_id));
     const unmatched = documentRows.filter(
       (r) =>
         !r.isMatched &&
@@ -472,7 +471,8 @@ export default function GstGstr2aPurchaseRegisterPage() {
         type: "action-icons",
         pinned: "left",
         lockPosition: true,
-        width: 90,
+        width: 0,
+        maxWidth: 80,
         flex: 0,
         filter: false,
         sortable: false,
@@ -511,6 +511,16 @@ export default function GstGstr2aPurchaseRegisterPage() {
             flex: 0,
             filter: true,
             sortable: true,
+          },
+          {
+            field: "matchStatus",
+            headerName: "Status",
+            type: "badge-column",
+            pinned: "left",
+            lockPosition: true,
+            width: 120,
+            flex: 0,
+            valueGetter: (params) => getDocumentMatchStatusBadge(params.data),
           },
         ],
       },
@@ -735,76 +745,76 @@ export default function GstGstr2aPurchaseRegisterPage() {
                 colorScheme={colorScheme}
                 variant="enclosed"
               >
-              <TabList>
-                <Tab fontSize="sm">Vendor View</Tab>
-                <Tab fontSize="sm">Document View</Tab>
-              </TabList>
-              <TabPanels>
-                <TabPanel px={0}>
-                  <AgGrid
-                    rowData={vendorRows}
-                    columnDefs={vendorColDefs}
-                    tableKey={`gst-gstr2a-pr-vendor-${period}`}
-                    gridOptions={{
-                      getRowId: (params) => String(params.data?._rowId ?? ""),
-                    }}
-                  />
-                </TabPanel>
-                <TabPanel px={0}>
-                  <Flex
-                    justify="space-between"
-                    align="center"
-                    flexWrap="wrap"
-                    gap={2}
-                    mb={2}
-                  >
-                    <Box>
-                      {filterCtin ? (
-                        <Text as="span" fontSize="sm" color="gray.700">
-                          Showing documents for GSTIN{" "}
-                          <Text as="span" fontWeight="semibold">
-                            {filterCtin}
-                          </Text>
-                          <Button
-                            type="button"
-                            variant="link"
-                            colorScheme={colorScheme}
-                            size="sm"
-                            ml={3}
-                            onClick={() => setFilterCtin(null)}
-                          >
-                            Show all
-                          </Button>
-                        </Text>
-                      ) : null}
-                    </Box>
-                    <Button
-                      type="button"
-                      colorScheme={colorScheme}
-                      size="sm"
-                      leftIcon={<i className="fa-solid fa-wand-magic-sparkles" />}
-                      onClick={handleOpenAutoMatchPreview}
-                      isLoading={autoMatching && !autoMatchPreviewOpen}
-                      isDisabled={
-                        pageLoading || unmatchedDocumentCount === 0
-                      }
+                <TabList>
+                  <Tab fontSize="sm">Vendor View</Tab>
+                  <Tab fontSize="sm">Document View</Tab>
+                </TabList>
+                <TabPanels>
+                  <TabPanel px={0}>
+                    <AgGrid
+                      rowData={vendorRows}
+                      columnDefs={vendorColDefs}
+                      tableKey={`gst-gstr2a-pr-vendor-${period}`}
+                      gridOptions={{
+                        getRowId: (params) => String(params.data?._rowId ?? ""),
+                      }}
+                    />
+                  </TabPanel>
+                  <TabPanel px={0}>
+                    <Flex
+                      justify="space-between"
+                      align="center"
+                      flexWrap="wrap"
+                      gap={2}
+                      mb={2}
                     >
-                      Auto match
-                      {unmatchedDocumentCount > 0
-                        ? ` (${unmatchedDocumentCount} unmatched)`
-                        : ""}
-                    </Button>
-                  </Flex>
-                  <AgGrid
-                    rowData={documentRows}
-                    columnDefs={documentColDefs}
-                    tableKey={`gst-gstr2a-pr-doc-${period}`}
-                    gridOptions={{
-                      getRowId: (params) => String(params.data?._rowId ?? ""),
-                    }}
-                  />
-                </TabPanel>
-              </TabPanels>
+                      <Box>
+                        {filterCtin ? (
+                          <Text as="span" fontSize="sm" color="gray.700">
+                            Showing documents for GSTIN{" "}
+                            <Text as="span" fontWeight="semibold">
+                              {filterCtin}
+                            </Text>
+                            <Button
+                              type="button"
+                              variant="link"
+                              colorScheme={colorScheme}
+                              size="sm"
+                              ml={3}
+                              onClick={() => setFilterCtin(null)}
+                            >
+                              Show all
+                            </Button>
+                          </Text>
+                        ) : null}
+                      </Box>
+                      <Button
+                        type="button"
+                        colorScheme={colorScheme}
+                        size="sm"
+                        leftIcon={
+                          <i className="fa-solid fa-wand-magic-sparkles" />
+                        }
+                        onClick={handleOpenAutoMatchPreview}
+                        isLoading={autoMatching && !autoMatchPreviewOpen}
+                        isDisabled={pageLoading || unmatchedDocumentCount === 0}
+                      >
+                        Auto match
+                        {unmatchedDocumentCount > 0
+                          ? ` (${unmatchedDocumentCount} unmatched)`
+                          : ""}
+                      </Button>
+                    </Flex>
+                    <AgGrid
+                      rowData={documentRows}
+                      columnDefs={documentColDefs}
+                      tableKey={`gst-gstr2a-pr-doc-${period}`}
+                      gridOptions={{
+                        getRowId: (params) => String(params.data?._rowId ?? ""),
+                      }}
+                    />
+                  </TabPanel>
+                </TabPanels>
               </Tabs>
             </>
           )}

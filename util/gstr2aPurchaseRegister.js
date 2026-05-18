@@ -400,6 +400,24 @@ export function getAutoMatchCompareFlags(documentRow, purchase) {
   };
 }
 
+/**
+ * Document view status badge (matched rows only).
+ * Match = tax diff in [-1, 1]; Mismatch = otherwise.
+ */
+export function getDocumentMatchStatusBadge(row) {
+  if (!row?.isMatched) return null;
+
+  const taxDiff = computeTaxDiff(row.totalTax2A, row.totalTaxPr);
+  const withinRange =
+    taxDiff != null && Number.isFinite(taxDiff) && !isTaxDiffOutOfRange(taxDiff);
+
+  if (withinRange) {
+    return { label: "Match", colorScheme: "green" };
+  }
+
+  return { label: "Mismatch", colorScheme: "red" };
+}
+
 export function buildAutoMatchPreviewRows(pairs) {
   return (pairs || []).map(({ document, purchase }) => {
     const pr = purchaseToDocumentPrFields(purchase);
