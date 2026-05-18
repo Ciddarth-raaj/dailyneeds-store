@@ -419,11 +419,13 @@ export function getAutoMatchCompareFlags(documentRow, purchase) {
 }
 
 /**
- * Document view status badge (matched rows only).
- * Match = tax diff in [-1, 1]; Mismatch = otherwise.
+ * Document view status: Unmatched | Match | Mismatch.
+ * Match = linked + tax diff in [-1, 1]; Mismatch = linked + tax diff outside range.
  */
 export function getDocumentMatchStatusBadge(row) {
-  if (!row?.isMatched) return null;
+  if (!row?.isMatched) {
+    return { label: "Unmatched", colorScheme: "gray" };
+  }
 
   const taxDiff = computeTaxDiff(row.totalTax2A, row.totalTaxPr);
   const withinRange =
