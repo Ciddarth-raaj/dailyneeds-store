@@ -35,9 +35,11 @@ import { useGstr2aPurchaseRegisterPr } from "../../../../customHooks/useGstr2aPu
 import { upsertPurchaseGstMatch } from "../../../../helper/purchaseGstMatch";
 import {
   buildAutoMatchPairs,
+  computeTaxDiff,
   enrichDocumentRowsWithMatches,
   enrichVendorRowsWithMatchPct,
   getPurchaseMatchIds,
+  isTaxDiffOutOfRange,
   mergeVendorRowsWithPr,
 } from "../../../../util/gstr2aPurchaseRegister";
 
@@ -63,6 +65,23 @@ function prValueGetter(field) {
     const v = params.data?.[field];
     if (v == null || v === 0) return null;
     return v;
+  };
+}
+
+function taxDiffColumnDef(tax2AField, taxPrField) {
+  return {
+    colId: "taxDiff",
+    headerName: "Tax Diff",
+    type: "currency",
+    minWidth: 100,
+    filter: true,
+    sortable: true,
+    valueGetter: (params) =>
+      computeTaxDiff(params.data?.[tax2AField], params.data?.[taxPrField]),
+    cellStyle: (params) =>
+      isTaxDiffOutOfRange(params.value)
+        ? { color: "var(--chakra-colors-red-600)", fontWeight: 600 }
+        : undefined,
   };
 }
 
@@ -420,6 +439,7 @@ export default function GstGstr2aPurchaseRegisterPage() {
             minWidth: 110,
             valueGetter: prValueGetter("totalTaxPr"),
           },
+          taxDiffColumnDef("totalTax2A", "totalTaxPr"),
         ],
       },
     ],
@@ -604,6 +624,7 @@ export default function GstGstr2aPurchaseRegisterPage() {
             type: "currency",
             minWidth: 110,
           },
+          taxDiffColumnDef("totalTax2A", "totalTaxPr"),
         ],
       },
       {

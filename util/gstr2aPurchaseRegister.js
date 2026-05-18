@@ -23,6 +23,18 @@ export function getPurchaseTotalTax(item) {
   return parseDecimal(item.tot_sgst_amt) + parseDecimal(item.tot_cgst_amt);
 }
 
+/** 2A total tax − PR total tax; null when either side is missing. */
+export function computeTaxDiff(tax2A, taxPr) {
+  if (tax2A == null || taxPr == null) return null;
+  return parseDecimal(tax2A) - parseDecimal(taxPr);
+}
+
+/** True when diff is outside the inclusive range [-1, 1]. */
+export function isTaxDiffOutOfRange(diff) {
+  if (diff == null || !Number.isFinite(diff)) return false;
+  return diff < -1 || diff > 1;
+}
+
 /** When total amount is 0, taxable is 0; otherwise total amount − tax */
 export function getPurchaseTaxable(item) {
   if (isZeroTotalAmount(item)) return 0;
