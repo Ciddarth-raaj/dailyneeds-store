@@ -32,6 +32,13 @@ import Drawer from "../Drawer";
 import toast from "react-hot-toast";
 import moment from "moment";
 import { useModuleTableTheme } from "../../contexts/ModuleTableThemeContext";
+import {
+  applyColumnVisibility,
+  assignColumnIds,
+  buildEffectiveColDefMap,
+  buildExportAoA,
+  collectLeafColumnMeta,
+} from "./columnDefsUtils";
 
 const COLUMN_STORAGE_PREFIX = "aggrid-columns-";
 
@@ -142,14 +149,15 @@ const AgGrid = React.forwardRef(function AgGrid(
     [columnDefs, colDefs]
   );
 
-  const columnIdMap = React.useMemo(() => {
-    const seen = {};
-    return rawColDefs.map((colDef, index) => {
-      const base = colDef.colId ?? colDef.field ?? `col_${index}`;
-      const count = (seen[base] = (seen[base] || 0) + 1);
-      return count === 1 ? base : `${base}_${count - 1}`;
-    });
-  }, [rawColDefs]);
+  const colDefsWithIds = React.useMemo(
+    () => assignColumnIds(rawColDefs),
+    [rawColDefs]
+  );
+
+  const leafColumnMeta = React.useMemo(
+    () => collectLeafColumnMeta(colDefsWithIds),
+    [colDefsWithIds]
+  );
 
   const columnTypesForVisibility = React.useMemo(() => {
     const base = {
@@ -164,8 +172,7 @@ const AgGrid = React.forwardRef(function AgGrid(
   const initialColumnVisibility = React.useMemo(() => {
     const stored = loadColumnVisibility(tableKey, rawColDefs);
     const visibility = {};
-    rawColDefs.forEach((colDef, index) => {
-      const colId = columnIdMap[index];
+    leafColumnMeta.forEach(({ colDef, colId }) => {
       if (stored && typeof stored[colId] === "boolean") {
         visibility[colId] = stored[colId];
       } else {
@@ -178,7 +185,7 @@ const AgGrid = React.forwardRef(function AgGrid(
       }
     });
     return visibility;
-  }, [tableKey, rawColDefs, columnIdMap, columnTypesForVisibility]);
+  }, [tableKey, rawColDefs, leafColumnMeta, columnTypesForVisibility]);
 
   const [columnVisibility, setColumnVisibility] = React.useState(
     initialColumnVisibility
@@ -188,13 +195,10 @@ const AgGrid = React.forwardRef(function AgGrid(
     setColumnVisibility(initialColumnVisibility);
   }, [tableKey, initialColumnVisibility]);
 
-  const resolvedColumnDefs = React.useMemo(() => {
-    return rawColDefs.map((colDef, index) => {
-      const colId = columnIdMap[index];
-      const visible = columnVisibility[colId] !== false;
-      return { ...colDef, colId, hide: !visible };
-    });
-  }, [rawColDefs, columnVisibility, columnIdMap]);
+  const resolvedColumnDefs = React.useMemo(
+    () => applyColumnVisibility(colDefsWithIds, columnVisibility),
+    [colDefsWithIds, columnVisibility]
+  );
 
   const handleColumnVisibilityChange = React.useCallback(
     (colId, visible) => {
@@ -452,74 +456,74 @@ const AgGrid = React.forwardRef(function AgGrid(
     [mergedGridOptions]
   );
 
-  const getExportParams = React.useCallback(() => {
-    const effectiveColDefs = rawColDefs.map((colDef) =>
-      getEffectiveColDef(colDef)
-    );
-    const exportableColIds = rawColDefs
-      .map((colDef, index) => ({
-        effectiveColDef: effectiveColDefs[index],
-        colId: columnIdMap[index],
-      }))
-      .filter(
-        ({ effectiveColDef, colId }) =>
-          effectiveColDef.hideExport !== true &&
-          colId &&
-          columnVisibility[colId] !== false
-      )
-      .map(({ colId }) => colId);
-    const effectiveColDefByColId = Object.fromEntries(
-      rawColDefs.map((colDef, index) => [
-        columnIdMap[index],
-        effectiveColDefs[index],
-      ])
-    );
-    return {
-      columnKeys: exportableColIds.length > 0 ? exportableColIds : undefined,
-      processCellCallback: (params) => {
-        const colId = params.column?.getColId?.();
-        const effectiveColDef = colId ? effectiveColDefByColId[colId] : null;
-        const exportRenderer = effectiveColDef?.exportRenderer;
-        const value = exportRenderer
-          ? exportRenderer({
-              value: params.value,
-              data: params.node?.data,
-              node: params.node,
-              column: params.column,
-            })
-          : params.value;
-        return value != null ? String(value) : "";
-      },
-    };
-  }, [rawColDefs, columnIdMap, columnVisibility, getEffectiveColDef]);
+  const getEffectiveColDefByColId = React.useCallback(() => {
+    return buildEffectiveColDefMap(colDefsWithIds, getEffectiveColDef);
+  }, [colDefsWithIds, getEffectiveColDef]);
+
+  const exportHeaderByColId = React.useMemo(
+    () =>
+      Object.fromEntries(
+        collectLeafColumnMeta(colDefsWithIds).map(({ colId, headerName }) => [
+          colId,
+          headerName,
+        ])
+      ),
+    [colDefsWithIds]
+  );
+
+  const buildExportData = React.useCallback(() => {
+    const api = gridRef.current?.api;
+    if (!api) return [];
+    return buildExportAoA(api, {
+      columnVisibility,
+      effectiveColDefByColId: getEffectiveColDefByColId(),
+      exportHeaderByColId,
+    });
+  }, [columnVisibility, getEffectiveColDefByColId, exportHeaderByColId]);
+
+  const downloadExportFile = React.useCallback((blob, fileName) => {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName;
+    link.click();
+    URL.revokeObjectURL(url);
+  }, []);
 
   const handleExportCsv = React.useCallback(() => {
-    if (!gridRef.current?.api) return;
-    const exportParams = getExportParams();
-    gridRef.current.api.exportDataAsCsv({
-      fileName: `export-${new Date().toISOString().slice(0, 10)}.csv`,
-      ...exportParams,
-    });
-  }, [getExportParams]);
+    const aoa = buildExportData();
+    if (!aoa.length) {
+      toast.error("No columns available to export.");
+      return;
+    }
+    const csv = Papa.unparse(aoa);
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    downloadExportFile(
+      blob,
+      `export-${new Date().toISOString().slice(0, 10)}.csv`
+    );
+  }, [buildExportData, downloadExportFile]);
 
   const handleExportXlsx = React.useCallback(() => {
-    if (!gridRef.current?.api) return;
-    const exportParams = getExportParams();
-    const csv = gridRef.current.api.getDataAsCsv(exportParams);
-    if (!csv) return;
-    const parsed = Papa.parse(csv);
-    const ws = XLSX.utils.aoa_to_sheet(parsed.data || []);
+    const aoa = buildExportData();
+    if (!aoa.length) {
+      toast.error("No columns available to export.");
+      return;
+    }
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
     XLSX.writeFile(wb, `export-${new Date().toISOString().slice(0, 10)}.xlsx`);
-  }, [getExportParams]);
+  }, [buildExportData]);
 
-  const columnItems = React.useMemo(() => {
-    return rawColDefs.map((colDef, index) => ({
-      colId: columnIdMap[index],
-      headerName: colDef.headerName ?? colDef.field ?? columnIdMap[index],
-    }));
-  }, [rawColDefs, columnIdMap]);
+  const columnItems = React.useMemo(
+    () =>
+      leafColumnMeta.map(({ colId, headerName }) => ({
+        colId,
+        headerName,
+      })),
+    [leafColumnMeta]
+  );
 
   const cs = effectiveColorScheme;
 
