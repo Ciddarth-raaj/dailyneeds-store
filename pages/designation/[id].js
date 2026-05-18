@@ -8,10 +8,8 @@ import {
   CheckboxGroup,
   Grid,
   Checkbox,
-  Box,
   Text,
   VStack,
-  Divider,
 } from "@chakra-ui/react";
 import React from "react";
 import { toast } from "react-toastify";
@@ -31,7 +29,27 @@ import CustomContainer from "../../components/CustomContainer";
 
 //Constants
 import { PERMISSIONS } from "../../constants/permissions";
-import MENUS from "../../constants/menus";
+import MENUS, { MENU_MODULES } from "../../constants/menus";
+
+function isNestedPermissionGroup(menuPermissions) {
+  const values = Object.values(menuPermissions || {});
+  if (!values.length) return false;
+  return values.every((v) => typeof v === "object" && v !== null);
+}
+
+function renderPermissionCheckboxes(menuPermissions, permissions, handleCheckbox) {
+  return Object.keys(menuPermissions)
+    .filter((key) => menuPermissions[key])
+    .map((key) => (
+      <Checkbox
+        key={key}
+        isChecked={permissions.includes(key)}
+        onChange={(e) => handleCheckbox(key, e.target.checked)}
+      >
+        {menuPermissions[key]}
+      </Checkbox>
+    ));
+}
 
 class CreateDesignation extends React.Component {
   constructor(props) {
@@ -202,50 +220,81 @@ class CreateDesignation extends React.Component {
                     <CheckboxGroup>
                       {/* <Checkbox></Checkbox> */}
                       <VStack align="stretch" spacing={10} w="100%">
-                        {Object.keys(PERMISSIONS).map((menuKey) => {
+                        {Object.keys(PERMISSIONS).flatMap((menuKey) => {
                           const menuPermissions = PERMISSIONS[menuKey];
                           const menuTitle =
                             MENUS[menuKey]?.title ||
                             (menuKey === "gst" ? "GST" : menuKey);
+                          const nested = isNestedPermissionGroup(menuPermissions);
+                          const sectionColorScheme =
+                            menuKey === "gst" ? "blue" : "purple";
+
+                          if (nested) {
+                            return Object.keys(menuPermissions)
+                              .filter((groupKey) => menuPermissions[groupKey])
+                              .map((groupKey) => {
+                                const groupPerms = menuPermissions[groupKey];
+                                const groupTitle =
+                                  MENU_MODULES[menuKey]?.menu?.[groupKey]
+                                    ?.title || groupKey;
+                                const groupKeys = Object.keys(groupPerms).filter(
+                                  (key) => groupPerms[key]
+                                );
+
+                                if (!groupKeys.length) return null;
+
+                                return (
+                                  <CustomContainer
+                                    key={`${menuKey}-${groupKey}`}
+                                    title={`${menuTitle} - ${groupTitle}`}
+                                    subtleHeader
+                                    smallHeader
+                                    colorScheme={sectionColorScheme}
+                                  >
+                                    <Grid
+                                      templateColumns="repeat(3, 1fr)"
+                                      gap={6}
+                                      pl={4}
+                                    >
+                                      {renderPermissionCheckboxes(
+                                        groupPerms,
+                                        this.state.permissions,
+                                        this.handleCheckbox
+                                      )}
+                                    </Grid>
+                                  </CustomContainer>
+                                );
+                              })
+                              .filter(Boolean);
+                          }
+
                           const permissionKeys = Object.keys(
                             menuPermissions
-                          ).filter(
-                            (key) => menuPermissions[key] // Filter out empty objects
-                          );
+                          ).filter((key) => menuPermissions[key]);
 
-                          if (permissionKeys.length === 0) return null;
+                          if (permissionKeys.length === 0) return [];
 
-                          return (
+                          return [
                             <CustomContainer
                               key={menuKey}
                               title={menuTitle}
                               subtleHeader
                               smallHeader
-                              colorScheme={
-                                menuKey === "gst" ? "blue" : "purple"
-                              }
+                              colorScheme={sectionColorScheme}
                             >
                               <Grid
                                 templateColumns="repeat(3, 1fr)"
                                 gap={6}
                                 pl={4}
                               >
-                                {permissionKeys.map((key) => (
-                                  <Checkbox
-                                    key={key}
-                                    isChecked={this.state.permissions.includes(
-                                      key
-                                    )}
-                                    onChange={(e) =>
-                                      this.handleCheckbox(key, e.target.checked)
-                                    }
-                                  >
-                                    {menuPermissions[key]}
-                                  </Checkbox>
-                                ))}
+                                {renderPermissionCheckboxes(
+                                  menuPermissions,
+                                  this.state.permissions,
+                                  this.handleCheckbox
+                                )}
                               </Grid>
-                            </CustomContainer>
-                          );
+                            </CustomContainer>,
+                          ];
                         })}
                       </VStack>
                     </CheckboxGroup>

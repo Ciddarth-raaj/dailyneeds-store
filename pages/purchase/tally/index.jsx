@@ -2,6 +2,8 @@ import React, { useCallback, useMemo, useState } from "react";
 import GlobalWrapper from "../../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../../components/CustomContainer";
 import AgGrid from "../../../components/AgGrid";
+import GstModuleWrapper from "../../../components/gst/GstModuleWrapper";
+import { ModuleTableThemeProvider } from "../../../contexts/ModuleTableThemeContext";
 import { usePurchaseGst } from "../../../customHooks/usePurchaseGst";
 import moment from "moment";
 import currencyFormatter from "../../../util/currencyFormatter";
@@ -189,7 +191,7 @@ function AllTallyPurchases() {
             {
               label: "View",
               icon: "fa-solid fa-eye",
-              colorScheme: "purple",
+              colorScheme: "blue",
               onClick: () => handleView(item),
             },
           ];
@@ -229,57 +231,62 @@ function AllTallyPurchases() {
       title="All Tally Purchases"
       permissionKey="view_tally_purchases"
     >
-      <PurchaseModal
-        isOpen={isOpen}
-        onClose={onClose}
-        item={selectedPurchase}
-        readOnly
-      />
-      <CustomContainer
-        title="All Tally Purchases"
-        filledHeader
-        rightSection={
-          <Button
-            colorScheme="purple"
-            onClick={exportData}
-            size="sm"
-            isDisabled={viewLoading}
-          >
-            Export
-          </Button>
-        }
-      >
-        <Input
-          placeholder="Search"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          mb="22px"
-        />
-
-        <FromToDateOutletPicker
-          fromDate={fromDate}
-          toDate={toDate}
-          setFromDate={setFromDate}
-          setToDate={setToDate}
-          selectedOutlet={selectedOutlet}
-          setSelectedOutlet={setSelectedOutlet}
-          style={{ marginBottom: "22px" }}
-        />
-
-        {loading || viewLoading ? (
-          <Text>Loading…</Text>
-        ) : (
-          <AgGrid
-            rowData={filteredPurchases}
-            columnDefs={columnDefs}
-            tableKey="purchase-tally-all"
-            gridOptions={{
-              getRowId: (params) =>
-                String(params.data?.gst_tally_purchase_id ?? ""),
-            }}
+      <GstModuleWrapper>
+        <ModuleTableThemeProvider colorScheme="blue">
+          <PurchaseModal
+            isOpen={isOpen}
+            onClose={onClose}
+            item={selectedPurchase}
+            readOnly
           />
-        )}
-      </CustomContainer>
+          <CustomContainer
+            title="All Tally Purchases"
+            filledHeader
+            colorScheme="blue"
+            rightSection={
+              <Button
+                colorScheme="blue"
+                onClick={exportData}
+                size="sm"
+                isDisabled={viewLoading}
+              >
+                Export
+              </Button>
+            }
+          >
+            <Input
+              placeholder="Search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              mb="22px"
+            />
+
+            <FromToDateOutletPicker
+              fromDate={fromDate}
+              toDate={toDate}
+              setFromDate={setFromDate}
+              setToDate={setToDate}
+              selectedOutlet={selectedOutlet}
+              setSelectedOutlet={setSelectedOutlet}
+              style={{ marginBottom: "22px" }}
+            />
+
+            {loading || viewLoading ? (
+              <Text>Loading…</Text>
+            ) : (
+              <AgGrid
+                rowData={filteredPurchases}
+                columnDefs={columnDefs}
+                tableKey="purchase-tally-all"
+                gridOptions={{
+                  getRowId: (params) =>
+                    String(params.data?.gst_tally_purchase_id ?? ""),
+                }}
+              />
+            )}
+          </CustomContainer>
+        </ModuleTableThemeProvider>
+      </GstModuleWrapper>
     </GlobalWrapper>
   );
 }

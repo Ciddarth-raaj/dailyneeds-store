@@ -6,6 +6,16 @@ import useOutlets from "../../customHooks/useOutlets";
 
 import styles from "./styles.module.css";
 
+/** Keep calendar above AgGrid headers; no visual/portal changes. */
+const popperZIndexModifier = {
+  name: "zIndex",
+  enabled: true,
+  phase: "write",
+  fn({ state }) {
+    state.styles.popper.zIndex = "1500";
+  },
+};
+
 function FromToDateOutletPicker({
   fromDate,
   setFromDate,
@@ -35,6 +45,7 @@ function FromToDateOutletPicker({
         selectsStart
         startDate={fromDate}
         endDate={toDate}
+        popperModifiers={[popperZIndexModifier]}
       />
 
       <DatePicker
@@ -48,6 +59,7 @@ function FromToDateOutletPicker({
         startDate={fromDate}
         endDate={toDate}
         minDate={fromDate}
+        popperModifiers={[popperZIndexModifier]}
       />
 
       <Select

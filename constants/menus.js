@@ -322,12 +322,6 @@ const ALL_PAGES_MENU = {
         selected: false,
         location: "/purchase",
       },
-      view_tally_purchases: {
-        title: "All Tally Purchases",
-        permission: "view_tally_purchases",
-        selected: false,
-        location: "/purchase/tally",
-      },
       view_purchases_difference: {
         title: "Difference",
         permission: "view_purchases_difference",
@@ -691,20 +685,6 @@ const ALL_PAGES_MENU = {
 
 /** Menu tree for the GST module (module rail → GST). */
 const GST_MENU = {
-  gst_configs: {
-    title: "Configs",
-    selected: false,
-    openPage: false,
-    icon: "fa-sliders",
-    subMenu: {
-      gst_portal: {
-        title: "GST Portal",
-        permission: "view_gst_portal",
-        selected: false,
-        location: "/gst/portal",
-      },
-    },
-  },
   gst_vendors: {
     title: "Vendors",
     selected: false,
@@ -723,6 +703,12 @@ const GST_MENU = {
         selected: false,
         location: "/gst/filing-dates",
       },
+      view_tally_purchases: {
+        title: "All Tally Purchases",
+        permission: "view_tally_purchases",
+        selected: false,
+        location: "/purchase/tally",
+      },
     },
   },
   gst_tools: {
@@ -736,6 +722,20 @@ const GST_MENU = {
         permission: "view_gst_gstr2a_purchase_register",
         selected: false,
         location: "/gst/tools/gstr-2a-purchase-register",
+      },
+    },
+  },
+  gst_configs: {
+    title: "Configs",
+    selected: false,
+    openPage: false,
+    icon: "fa-sliders",
+    subMenu: {
+      gst_portal: {
+        title: "GST Portal",
+        permission: "view_gst_portal",
+        selected: false,
+        location: "/gst/portal",
       },
     },
   },
