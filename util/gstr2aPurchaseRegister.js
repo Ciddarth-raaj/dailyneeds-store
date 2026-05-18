@@ -111,33 +111,51 @@ export function getPrSourceBadge(prSource) {
   return null;
 }
 
+/** Stable merge / grid row key: source + id (ids may overlap across System vs Tally). */
+export function purchaseRegisterMergeKey(prSource, purchaseId) {
+  if (purchaseId == null || purchaseId === "") return null;
+  return `${prSource}:${purchaseId}`;
+}
+
+export function getPurchaseRegisterRowKey(row) {
+  if (!row) return "";
+  const source =
+    row.prSource ??
+    (row.gst_tally_purchase_id != null ? PR_SOURCE_TALLY : PR_SOURCE_SYSTEM);
+  const id =
+    source === PR_SOURCE_TALLY
+      ? row.gst_tally_purchase_id ?? row.purchase_id
+      : row.purchase_id;
+  return purchaseRegisterMergeKey(source, id) ?? "";
+}
+
 /**
- * Merge main purchases with tally-only rows; same MRC ref prefers the purchase row.
+ * Merge System purchases with Tally GST rows (union by prSource + id).
  */
 export function mergePurchaseRegisterSources(purchase = [], purchaseGst = []) {
-  const byRef = new Map();
+  const byKey = new Map();
 
   for (const p of purchase) {
-    const ref = p?.mmh_mrc_refno;
-    if (ref != null && ref !== "") {
-      byRef.set(String(ref), { ...p, prSource: PR_SOURCE_SYSTEM });
+    const key = purchaseRegisterMergeKey(PR_SOURCE_SYSTEM, p?.purchase_id);
+    if (key) {
+      byKey.set(key, { ...p, prSource: PR_SOURCE_SYSTEM });
     }
   }
 
   for (const g of purchaseGst) {
-    const ref = g?.mmh_mrc_refno;
-    if (ref == null || ref === "") continue;
-    const key = String(ref);
-    if (!byRef.has(key)) {
-      byRef.set(key, {
-        ...g,
-        purchase_id: g.gst_tally_purchase_id,
-        prSource: PR_SOURCE_TALLY,
-      });
-    }
+    const key = purchaseRegisterMergeKey(
+      PR_SOURCE_TALLY,
+      g?.gst_tally_purchase_id
+    );
+    if (!key || byKey.has(key)) continue;
+    byKey.set(key, {
+      ...g,
+      purchase_id: g.gst_tally_purchase_id,
+      prSource: PR_SOURCE_TALLY,
+    });
   }
 
-  return Array.from(byRef.values());
+  return Array.from(byKey.values());
 }
 
 export function aggregatePurchasesByVendor(purchases) {

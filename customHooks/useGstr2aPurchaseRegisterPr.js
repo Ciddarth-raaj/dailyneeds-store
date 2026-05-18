@@ -16,8 +16,14 @@ import {
  * @param {string} period - `YYYY-MM` return month
  */
 export function useGstr2aPurchaseRegisterPr(period) {
-  const purchaseFilters = useMemo(() => purchasePeriodFilters(period), [period]);
-  const matchFilters = useMemo(() => purchaseMatchPeriodFilters(period), [period]);
+  const purchaseFilters = useMemo(
+    () => purchasePeriodFilters(period),
+    [period]
+  );
+  const matchFilters = useMemo(
+    () => purchaseMatchPeriodFilters(period),
+    [period]
+  );
 
   const {
     purchase,
@@ -44,6 +50,13 @@ export function useGstr2aPurchaseRegisterPr(period) {
     () => mergePurchaseRegisterSources(purchase ?? [], purchaseGst ?? []),
     [purchase, purchaseGst]
   );
+
+  purchases?.forEach((item) => {
+    if (item.mmh_mrc_refno == "36") {
+      console.log("CIDD item", item.supplier_name);
+      console.log("CIDD item", item);
+    }
+  });
 
   const vendorPrByGstin = useMemo(
     () => aggregatePurchasesByVendor(purchases),

@@ -25,6 +25,7 @@ import {
   getPrSourceBadge,
   getPurchaseDisplayTotalAmount,
   getPurchaseMatchIds,
+  getPurchaseRegisterRowKey,
   getPurchaseTaxable,
   getPurchaseTotalTax,
   isPurchaseLockedByOtherMatch,
@@ -208,7 +209,7 @@ export default function Gstr2aMatchModal({
       return;
     }
 
-    const rowId = String(matchedPurchaseInGrid.mmh_mrc_refno ?? "");
+    const rowId = getPurchaseRegisterRowKey(matchedPurchaseInGrid);
     if (!rowId) return;
 
     api.deselectAll();
@@ -359,7 +360,7 @@ export default function Gstr2aMatchModal({
     const api = gridRef.current?.api;
     if (api) {
       api.deselectAll();
-      api.getRowNode(String(last.mmh_mrc_refno))?.setSelected(true);
+      api.getRowNode(getPurchaseRegisterRowKey(last))?.setSelected(true);
     }
     setSelectedPurchase(last);
   }, []);
@@ -569,7 +570,7 @@ export default function Gstr2aMatchModal({
           selectMode
           isRowSelectable={isRowSelectable}
           onSelectionChanged={handleSelectionChanged}
-          getRowId={(params) => String(params.data?.mmh_mrc_refno ?? "")}
+          getRowId={(params) => getPurchaseRegisterRowKey(params.data)}
           gridOptions={gridOptions}
         />
       )}
