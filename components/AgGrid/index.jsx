@@ -463,10 +463,9 @@ const AgGrid = React.forwardRef(function AgGrid(
   const exportHeaderByColId = React.useMemo(
     () =>
       Object.fromEntries(
-        collectLeafColumnMeta(colDefsWithIds).map(({ colId, headerName }) => [
-          colId,
-          headerName,
-        ])
+        collectLeafColumnMeta(colDefsWithIds, "", " - ").map(
+          ({ colId, headerName }) => [colId, headerName]
+        )
       ),
     [colDefsWithIds]
   );

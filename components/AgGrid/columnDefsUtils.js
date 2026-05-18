@@ -37,7 +37,11 @@ export function applyColumnVisibility(colDefs, visibility) {
 }
 
 /** Leaf columns with stable colId and a label for the settings panel. */
-export function collectLeafColumnMeta(colDefs, parentLabel = "") {
+export function collectLeafColumnMeta(
+  colDefs,
+  parentLabel = "",
+  groupSeparator = " › "
+) {
   const leaves = [];
   const seen = {};
 
@@ -45,7 +49,7 @@ export function collectLeafColumnMeta(colDefs, parentLabel = "") {
     (defs || []).forEach((colDef, index) => {
       if (colDef.children?.length) {
         const nextPath = groupPath
-          ? `${groupPath} › ${colDef.headerName || ""}`
+          ? `${groupPath}${groupSeparator}${colDef.headerName || ""}`
           : colDef.headerName || "";
         walk(colDef.children, nextPath);
         return;
@@ -59,7 +63,9 @@ export function collectLeafColumnMeta(colDefs, parentLabel = "") {
       }
 
       const leafLabel = colDef.headerName || colDef.field || colId;
-      const headerName = groupPath ? `${groupPath} › ${leafLabel}` : leafLabel;
+      const headerName = groupPath
+        ? `${groupPath}${groupSeparator}${leafLabel}`
+        : leafLabel;
 
       leaves.push({ colDef, colId, headerName });
     });

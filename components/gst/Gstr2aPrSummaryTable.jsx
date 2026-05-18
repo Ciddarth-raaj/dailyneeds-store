@@ -37,14 +37,14 @@ export default function Gstr2aPrSummaryTable({
   const p = summaryPD ?? {};
 
   const rows = [
-    { label: "GSTR-2A", ...a },
     { label: "Purchase Document", ...p },
+    { label: "GSTR-2A", ...a },
     {
       label: "Difference",
-      docCount: Number(a.docCount ?? 0) - Number(p.docCount ?? 0),
-      taxable: Number(a.taxable ?? 0) - Number(p.taxable ?? 0),
-      tax: Number(a.tax ?? 0) - Number(p.tax ?? 0),
-      total: Number(a.total ?? 0) - Number(p.total ?? 0),
+      docCount: Number(p.docCount ?? 0) - Number(a.docCount ?? 0),
+      taxable: Number(p.taxable ?? 0) - Number(a.taxable ?? 0),
+      tax: Number(p.tax ?? 0) - Number(a.tax ?? 0),
+      total: Number(p.total ?? 0) - Number(a.total ?? 0),
       isDifference: true,
     },
   ];
