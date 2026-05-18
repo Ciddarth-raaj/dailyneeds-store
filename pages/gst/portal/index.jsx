@@ -13,6 +13,7 @@ import CustomContainer from "../../../components/CustomContainer";
 import GstModuleWrapper, {
   useGstTaxpayerUi,
 } from "../../../components/gst/GstModuleWrapper";
+import { useModuleTableTheme } from "../../../contexts/ModuleTableThemeContext";
 import { getTaxpayerSession } from "../../../helper/gstTaxpayer";
 
 function formatFromNow(ms) {
@@ -77,6 +78,7 @@ function DetailField({ label, hint, children }) {
 }
 
 function GstPortalContent() {
+  const { colorScheme } = useModuleTableTheme();
   const { openOtpModal } = useGstTaxpayerUi();
   const [session, setSession] = useState(null);
   const [loadError, setLoadError] = useState(null);
@@ -115,11 +117,11 @@ function GstPortalContent() {
 
   const headerActions =
     session && !loading ? (
-      <Button colorScheme="teal" size="sm" onClick={openRevalidateModal}>
+      <Button colorScheme={colorScheme} size="sm" onClick={openRevalidateModal}>
         Confirm again with OTP
       </Button>
     ) : loadError ? (
-      <Button colorScheme="teal" size="sm" variant="outline" onClick={loadSession}>
+      <Button colorScheme={colorScheme} size="sm" variant="outline" onClick={loadSession}>
         Try again
       </Button>
     ) : null;
@@ -129,7 +131,7 @@ function GstPortalContent() {
       title="GST Portal"
       filledHeader
       rightSection={headerActions}
-      colorScheme="teal"
+      colorScheme={colorScheme}
     >
       <VStack align="stretch" spacing={5}>
         {loading ? (
@@ -169,7 +171,7 @@ function GstPortalContent() {
               title="Connection details"
               smallHeader
               subtleHeader
-              colorScheme="teal"
+              colorScheme={colorScheme}
             >
               <VStack align="stretch" spacing={0}>
                 <DetailField

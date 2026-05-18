@@ -101,7 +101,7 @@ export function createAppTheme(colorScheme = "purple") {
         input: {
           focusBorderColor: `${cs}.500`,
         },
-        // Text selection follows module accent (root theme = purple; GST = teal via GstModuleWrapper).
+        // Text selection follows module accent (root theme = purple; GST = blue via GstModuleWrapper).
         "::selection": {
           background: `var(--chakra-colors-${cs}-200)`,
           color: `var(--chakra-colors-${cs}-900)`,

@@ -128,7 +128,7 @@ export default function GstTaxpayerOtpModal({
           portal–registered mobile or email. Then enter the code below.
         </Text>
         <Button
-          colorScheme="teal"
+          colorScheme="blue"
           variant="outline"
           size="sm"
           onClick={handleRequestOtp}

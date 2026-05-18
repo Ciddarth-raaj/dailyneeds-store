@@ -31,7 +31,7 @@ function formatCell(value, format) {
 export default function Gstr2aPrSummaryTable({
   summary2A,
   summaryPD,
-  colorScheme = "teal",
+  colorScheme = "blue",
 }) {
   const a = summary2A ?? {};
   const p = summaryPD ?? {};

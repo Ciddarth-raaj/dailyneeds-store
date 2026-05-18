@@ -32,9 +32,9 @@ const defaultOtpOptions = {
  *
  * @param {object} props
  * @param {import("react").ReactNode} props.children
- * @param {string} [props.colorScheme="teal"] Chakra palette name for theme tokens (matches GST rail accent).
+ * @param {string} [props.colorScheme="blue"] Chakra palette name for theme tokens (matches GST rail accent).
  */
-export default function GstModuleWrapper({ children, colorScheme = "teal" }) {
+export default function GstModuleWrapper({ children, colorScheme = "blue" }) {
   const moduleTheme = useMemo(() => createAppTheme(colorScheme), [colorScheme]);
   const [otpModalOpen, setOtpModalOpen] = useState(false);
   const [otpOptions, setOtpOptions] = useState(defaultOtpOptions);

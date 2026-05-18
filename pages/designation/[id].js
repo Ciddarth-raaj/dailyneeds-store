@@ -222,7 +222,7 @@ class CreateDesignation extends React.Component {
                               subtleHeader
                               smallHeader
                               colorScheme={
-                                menuKey === "gst" ? "teal" : "purple"
+                                menuKey === "gst" ? "blue" : "purple"
                               }
                             >
                               <Grid

@@ -368,7 +368,7 @@ export default function GstGstr2aPurchaseRegisterPage() {
                 <Button
                   type="button"
                   variant="link"
-                  colorScheme="teal"
+                  colorScheme={colorScheme}
                   size="xs"
                   fontWeight="normal"
                   onClick={() => onGstinNavigate(v)}
@@ -458,7 +458,7 @@ export default function GstGstr2aPurchaseRegisterPage() {
         ],
       },
     ],
-    [onGstinNavigate]
+    [onGstinNavigate, colorScheme]
   );
 
   const pageLoading = loading || prLoading;
@@ -482,7 +482,7 @@ export default function GstGstr2aPurchaseRegisterPage() {
             {
               label: matched ? "Matched" : "Match",
               icon: matched ? "fa-solid fa-check" : "fa-solid fa-link",
-              colorScheme: "teal",
+              colorScheme,
               onClick: () => onOpenMatch(params.data),
             },
           ];
@@ -660,7 +660,7 @@ export default function GstGstr2aPurchaseRegisterPage() {
         ],
       },
     ],
-    [onOpenMatch]
+    [onOpenMatch, colorScheme]
   );
 
   const monthPicker = (
@@ -768,7 +768,7 @@ export default function GstGstr2aPurchaseRegisterPage() {
                           <Button
                             type="button"
                             variant="link"
-                            colorScheme="teal"
+                            colorScheme={colorScheme}
                             size="sm"
                             ml={3}
                             onClick={() => setFilterCtin(null)}
@@ -780,7 +780,7 @@ export default function GstGstr2aPurchaseRegisterPage() {
                     </Box>
                     <Button
                       type="button"
-                      colorScheme="teal"
+                      colorScheme={colorScheme}
                       size="sm"
                       leftIcon={<i className="fa-solid fa-wand-magic-sparkles" />}
                       onClick={handleOpenAutoMatchPreview}

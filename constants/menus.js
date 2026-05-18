@@ -757,7 +757,7 @@ export const MENU_MODULES = {
   gst: {
     title: "GST",
     iconClass: "fa-solid fa-file-invoice-dollar",
-    accent: "teal",
+    accent: "blue",
     menu: GST_MENU,
   },
 };
