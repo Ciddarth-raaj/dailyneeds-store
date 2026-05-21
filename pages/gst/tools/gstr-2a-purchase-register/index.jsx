@@ -39,6 +39,7 @@ import {
   aggregateGstr2aPeriodSummary,
   aggregatePurchasePeriodSummary,
   buildAutoMatchPairs,
+  buildDocumentViewRows,
   computeTaxDiff,
   enrichDocumentRowsWithMatches,
   enrichVendorRowsWithMatchPct,
@@ -245,8 +246,12 @@ export default function GstGstr2aPurchaseRegisterPage() {
   }, [invoices, vendorPrByGstin, matches]);
 
   const documentRows = useMemo(() => {
-    const rows = enrichDocumentRowsWithMatches(
-      buildDocumentRows(invoices),
+    const rows = buildDocumentViewRows(
+      enrichDocumentRowsWithMatches(
+        buildDocumentRows(invoices),
+        purchases,
+        matches
+      ),
       purchases,
       matches
     );
@@ -478,12 +483,14 @@ export default function GstGstr2aPurchaseRegisterPage() {
         sortable: false,
         valueGetter: (params) => {
           const matched = Boolean(params.data?.isMatched);
+          const prOnly = Boolean(params.data?.isPrOnly);
           return [
             {
               label: matched ? "Matched" : "Match",
               icon: matched ? "fa-solid fa-check" : "fa-solid fa-link",
               colorScheme,
-              onClick: () => onOpenMatch(params.data),
+              disabled: prOnly,
+              onClick: prOnly ? undefined : () => onOpenMatch(params.data),
             },
           ];
         },
@@ -533,6 +540,8 @@ export default function GstGstr2aPurchaseRegisterPage() {
             filter: true,
             sortable: true,
             minWidth: 140,
+            valueFormatter: (p) =>
+              p.value == null || p.value === "" ? "—" : String(p.value),
           },
           {
             field: "docNoPr",
@@ -554,6 +563,8 @@ export default function GstGstr2aPurchaseRegisterPage() {
             filter: true,
             sortable: true,
             minWidth: 118,
+            valueFormatter: (p) =>
+              p.value == null || p.value === "" ? "—" : String(p.value),
           },
           {
             field: "docDatePr",

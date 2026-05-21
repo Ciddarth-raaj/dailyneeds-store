@@ -572,6 +572,76 @@ export function getPurchaseMatchIds(purchase) {
   };
 }
 
+/** Lock key for a purchase row in gst_purchase_match (`p:{id}` / `t:{id}`). */
+export function getPurchaseMatchLockKey(purchase) {
+  if (!purchase) return null;
+  if (purchase.prSource === PR_SOURCE_TALLY || purchase.gst_tally_purchase_id != null) {
+    if (purchase.gst_tally_purchase_id != null) {
+      return `t:${purchase.gst_tally_purchase_id}`;
+    }
+    return null;
+  }
+  if (purchase.purchase_id != null) {
+    return `p:${purchase.purchase_id}`;
+  }
+  return null;
+}
+
+/** All purchase / tally ids linked to any GSTR-2A B2B invoice. */
+export function buildMatchedPurchaseKeys(matches) {
+  const keys = new Set();
+  for (const m of matches || []) {
+    if (m.purchase_id != null) keys.add(`p:${m.purchase_id}`);
+    if (m.gst_tally_purchase_id != null) {
+      keys.add(`t:${m.gst_tally_purchase_id}`);
+    }
+  }
+  return keys;
+}
+
+/**
+ * Document rows for PR purchases with no 2A mapping: PR filled, 2A null.
+ */
+export function buildPrOnlyDocumentRows(purchases, matches) {
+  const matchedKeys = buildMatchedPurchaseKeys(matches);
+  const rows = [];
+
+  for (const purchase of purchases || []) {
+    const lockKey = getPurchaseMatchLockKey(purchase);
+    if (!lockKey || matchedKeys.has(lockKey)) continue;
+
+    const rowKey = getPurchaseRegisterRowKey(purchase);
+    rows.push({
+      _rowId: `pr-only:${rowKey}`,
+      gst_b2b_invoice_id: null,
+      isPrOnly: true,
+      isMatched: false,
+      gst_purchase_match_id: null,
+      supplierName: String(purchase.supplier_name ?? "").trim() || "—",
+      ctin: normalizeGstin(purchase.supplier_gstn) || "—",
+      docNo2A: null,
+      docDate2A: null,
+      taxable2A: null,
+      igst2A: null,
+      cgst2A: null,
+      sgst2A: null,
+      totalTax2A: null,
+      totalValue2A: null,
+      ...purchaseToDocumentPrFields(purchase),
+    });
+  }
+
+  return rows;
+}
+
+/** 2A document rows plus PR-only rows (no B2B invoice link). */
+export function buildDocumentViewRows(documentRowsFrom2A, purchases, matches) {
+  return [
+    ...(documentRowsFrom2A || []),
+    ...buildPrOnlyDocumentRows(purchases, matches),
+  ];
+}
+
 /** Purchase / tally ids already matched to a different B2B invoice. */
 export function buildPurchasesMatchedElsewhere(matches, currentB2bInvoiceId) {
   const locked = new Set();
