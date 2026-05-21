@@ -22,7 +22,6 @@ import {
   buildPurchasesMatchedElsewhere,
   findMatchForDocument,
   findPurchaseByMatch,
-  getPrSourceBadge,
   getPurchaseDisplayTotalAmount,
   getPurchaseMatchIds,
   getPurchaseRegisterRowKey,
@@ -46,8 +45,7 @@ function parseDocDate(dateStr) {
 }
 
 function isMatchablePurchase(item) {
-  if (item?.gst_tally_purchase_id != null) return true;
-  return Boolean(item?.tally_response?.voucher_no);
+  return item?.gst_tally_purchase_id != null;
 }
 
 const MATCH_COLOR = "var(--chakra-colors-green-600)";
@@ -260,14 +258,6 @@ export default function Gstr2aMatchModal({
         headerName: "MRC Ref No",
         filter: true,
         sortable: false,
-      },
-      {
-        colId: "prSource",
-        headerName: "Source",
-        type: "badge-column",
-        sortable: false,
-        minWidth: 100,
-        valueGetter: (params) => getPrSourceBadge(params.data?.prSource),
       },
       {
         field: "mmh_dist_bill_no",

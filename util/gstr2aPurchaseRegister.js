@@ -98,64 +98,19 @@ export function normalizeB2bInvoiceId(id) {
   return Number.isFinite(n) ? n : null;
 }
 
-export const PR_SOURCE_SYSTEM = "System";
-export const PR_SOURCE_TALLY = "Tally";
-
-export function getPrSourceBadge(prSource) {
-  if (prSource === PR_SOURCE_TALLY) {
-    return { label: PR_SOURCE_TALLY, colorScheme: "blue" };
-  }
-  if (prSource === PR_SOURCE_SYSTEM) {
-    return { label: PR_SOURCE_SYSTEM, colorScheme: "purple" };
-  }
-  return null;
-}
-
-/** Stable merge / grid row key: source + id (ids may overlap across System vs Tally). */
-export function purchaseRegisterMergeKey(prSource, purchaseId) {
-  if (purchaseId == null || purchaseId === "") return null;
-  return `${prSource}:${purchaseId}`;
-}
-
+/** Stable grid row key for a Tally purchase register row. */
 export function getPurchaseRegisterRowKey(row) {
   if (!row) return "";
-  const source =
-    row.prSource ??
-    (row.gst_tally_purchase_id != null ? PR_SOURCE_TALLY : PR_SOURCE_SYSTEM);
-  const id =
-    source === PR_SOURCE_TALLY
-      ? row.gst_tally_purchase_id ?? row.purchase_id
-      : row.purchase_id;
-  return purchaseRegisterMergeKey(source, id) ?? "";
+  const id = row.gst_tally_purchase_id ?? row.purchase_id;
+  return id != null && id !== "" ? String(id) : "";
 }
 
-/**
- * Merge System purchases with Tally GST rows (union by prSource + id).
- */
-export function mergePurchaseRegisterSources(purchase = [], purchaseGst = []) {
-  const byKey = new Map();
-
-  for (const p of purchase) {
-    const key = purchaseRegisterMergeKey(PR_SOURCE_SYSTEM, p?.purchase_id);
-    if (key) {
-      byKey.set(key, { ...p, prSource: PR_SOURCE_SYSTEM });
-    }
-  }
-
-  for (const g of purchaseGst) {
-    const key = purchaseRegisterMergeKey(
-      PR_SOURCE_TALLY,
-      g?.gst_tally_purchase_id
-    );
-    if (!key || byKey.has(key)) continue;
-    byKey.set(key, {
-      ...g,
-      purchase_id: g.gst_tally_purchase_id,
-      prSource: PR_SOURCE_TALLY,
-    });
-  }
-
-  return Array.from(byKey.values());
+/** Normalize Tally GST purchase rows for GSTR-2A PR. */
+export function normalizeTallyPurchases(purchaseGst = []) {
+  return purchaseGst.map((g) => ({
+    ...g,
+    purchase_id: g.gst_tally_purchase_id,
+  }));
 }
 
 export function aggregatePurchasesByVendor(purchases) {
@@ -307,8 +262,7 @@ export function datesMatchPurchase(docDateStr, purchaseDate) {
 }
 
 export function isMatchablePurchase(item) {
-  if (item?.gst_tally_purchase_id != null) return true;
-  return Boolean(item?.tally_response?.voucher_no);
+  return item?.gst_tally_purchase_id != null;
 }
 
 export function purchaseLockKey(purchase) {
@@ -316,7 +270,6 @@ export function purchaseLockKey(purchase) {
   if (ids.gst_tally_purchase_id != null) {
     return `t:${ids.gst_tally_purchase_id}`;
   }
-  if (ids.purchase_id != null) return `p:${ids.purchase_id}`;
   return null;
 }
 
@@ -462,7 +415,6 @@ export function buildAutoMatchPreviewRows(pairs) {
       totalTaxPr: pr.totalTaxPr,
       totalValue2A: document.totalValue2A,
       totalValuePr: pr.totalValuePr,
-      prSource: purchase.prSource,
       _compareFlags: getAutoMatchCompareFlags(document, purchase),
       _document: document,
       _purchase: purchase,
@@ -555,34 +507,24 @@ export function aggregatePurchasePeriodSummary(purchases) {
   return { docCount, taxable, tax, total };
 }
 
-/** POST body FKs for the selected purchase row (System vs Tally). */
+/** POST body FKs for the selected Tally purchase row. */
 export function getPurchaseMatchIds(purchase) {
   if (!purchase) {
     return { purchase_id: null, gst_tally_purchase_id: null };
   }
-  if (purchase.prSource === PR_SOURCE_TALLY || purchase.gst_tally_purchase_id != null) {
-    return {
-      purchase_id: null,
-      gst_tally_purchase_id: purchase.gst_tally_purchase_id ?? null,
-    };
-  }
+  const tallyId = purchase.gst_tally_purchase_id ?? purchase.purchase_id ?? null;
   return {
-    purchase_id: purchase.purchase_id ?? null,
-    gst_tally_purchase_id: null,
+    purchase_id: null,
+    gst_tally_purchase_id: tallyId,
   };
 }
 
-/** Lock key for a purchase row in gst_purchase_match (`p:{id}` / `t:{id}`). */
+/** Lock key for a Tally purchase row in gst_purchase_match (`t:{id}`). */
 export function getPurchaseMatchLockKey(purchase) {
   if (!purchase) return null;
-  if (purchase.prSource === PR_SOURCE_TALLY || purchase.gst_tally_purchase_id != null) {
-    if (purchase.gst_tally_purchase_id != null) {
-      return `t:${purchase.gst_tally_purchase_id}`;
-    }
-    return null;
-  }
-  if (purchase.purchase_id != null) {
-    return `p:${purchase.purchase_id}`;
+  const tallyId = purchase.gst_tally_purchase_id ?? purchase.purchase_id;
+  if (tallyId != null) {
+    return `t:${tallyId}`;
   }
   return null;
 }
@@ -664,11 +606,9 @@ export function buildPurchasesMatchedElsewhere(matches, currentB2bInvoiceId) {
 
 export function isPurchaseLockedByOtherMatch(purchase, lockedSet) {
   if (!purchase || !lockedSet?.size) return false;
-  if (purchase.prSource === PR_SOURCE_SYSTEM && purchase.purchase_id != null) {
-    return lockedSet.has(`p:${purchase.purchase_id}`);
-  }
-  if (purchase.gst_tally_purchase_id != null) {
-    return lockedSet.has(`t:${purchase.gst_tally_purchase_id}`);
+  const tallyId = purchase.gst_tally_purchase_id ?? purchase.purchase_id;
+  if (tallyId != null) {
+    return lockedSet.has(`t:${tallyId}`);
   }
   return false;
 }
@@ -685,26 +625,15 @@ export function buildMatchByB2bInvoiceId(matches) {
 }
 
 export function findPurchaseByMatch(match, purchases) {
-  if (!match) return null;
+  if (match?.gst_tally_purchase_id == null) return null;
 
-  if (match.purchase_id != null) {
-    const purchaseId = Number(match.purchase_id);
-    const byPurchase = (purchases || []).find((p) => {
-      if (p.prSource === PR_SOURCE_TALLY) return false;
-      return Number(p.purchase_id) === purchaseId;
-    });
-    if (byPurchase) return byPurchase;
-  }
-
-  if (match.gst_tally_purchase_id != null) {
-    const tallyId = Number(match.gst_tally_purchase_id);
-    const byTally = (purchases || []).find(
-      (p) => Number(p.gst_tally_purchase_id) === tallyId
-    );
-    if (byTally) return byTally;
-  }
-
-  return null;
+  const tallyId = Number(match.gst_tally_purchase_id);
+  return (
+    (purchases || []).find(
+      (p) =>
+        Number(p.gst_tally_purchase_id ?? p.purchase_id) === tallyId
+    ) ?? null
+  );
 }
 
 export function findMatchForDocument(documentRow, purchases, matches) {

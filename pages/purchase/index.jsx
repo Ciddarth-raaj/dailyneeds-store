@@ -14,9 +14,6 @@ import { exportToExcel } from "../../util/exportCSVFile";
 
 function getStatusBadge(item) {
   if (!item) return null;
-  if (item.has_updated) {
-    return { label: "Updated", colorScheme: "red" };
-  }
   if (item.tally_response?.voucher_no) {
     return { label: "Pushed to Tally", colorScheme: "blue" };
   }
@@ -50,7 +47,6 @@ function Purchase() {
   const [selectedPurchase, setSelectedPurchase] = useState(null);
   const [checkedFilters, setCheckedFilters] = useState({
     isApproved: false,
-    isUpdated: false,
     isPending: false,
     isPushed: false,
   });
@@ -76,10 +72,6 @@ function Purchase() {
 
     if (checkedFilters.isApproved) {
       filterItem["is_approved"] = true;
-    }
-
-    if (checkedFilters.isUpdated) {
-      filterItem["has_updated"] = true;
     }
 
     if (checkedFilters.isPending) {
@@ -202,7 +194,6 @@ function Purchase() {
   const handleCheckedFilters = (key, value) => {
     setCheckedFilters({
       isApproved: false,
-      isUpdated: false,
       isPending: false,
       isPushed: false,
       [key]: value,
@@ -285,15 +276,6 @@ function Purchase() {
             }
           >
             Pending
-          </Checkbox>
-          <Checkbox
-            isChecked={checkedFilters.isUpdated}
-            colorScheme="purple"
-            onChange={(e) =>
-              handleCheckedFilters("isUpdated", e.target.checked)
-            }
-          >
-            Updated
           </Checkbox>
           <Checkbox
             isChecked={checkedFilters.isPushed}

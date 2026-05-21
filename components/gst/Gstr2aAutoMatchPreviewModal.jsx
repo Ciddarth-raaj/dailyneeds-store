@@ -12,10 +12,7 @@ import {
 import CustomModal from "../CustomModal";
 import AgGrid from "../AgGrid";
 import currencyFormatter from "../../util/currencyFormatter";
-import {
-  buildAutoMatchPreviewRows,
-  getPrSourceBadge,
-} from "../../util/gstr2aPurchaseRegister";
+import { buildAutoMatchPreviewRows } from "../../util/gstr2aPurchaseRegister";
 import { useModuleTableTheme } from "../../contexts/ModuleTableThemeContext";
 
 const MATCH_COLOR = "var(--chakra-colors-green-600)";
@@ -80,17 +77,6 @@ function compareColPair(flagKey, field2A, fieldPr, formatPr, format2A) {
 
 function buildMatchedColumnDefs() {
   return [
-    {
-      colId: "prSource",
-      headerName: "Source",
-      pinned: "left",
-      lockPosition: true,
-      width: 100,
-      flex: 0,
-      sortable: false,
-      valueGetter: (params) => getPrSourceBadge(params.data?.prSource),
-      type: "badge-column",
-    },
     {
       headerName: "Document Number",
       children: compareColPair("invoice", "docNo2A", "docNoPr"),

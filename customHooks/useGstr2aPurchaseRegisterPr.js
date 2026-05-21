@@ -1,17 +1,16 @@
 import { useCallback, useMemo } from "react";
-import { usePurchase } from "./usePurchase";
 import { usePurchaseGst } from "./usePurchaseGst";
 import { usePurchaseGstMatch } from "./usePurchaseGstMatch";
 import {
   aggregatePurchasesByVendor,
-  mergePurchaseRegisterSources,
+  normalizeTallyPurchases,
   purchaseMatchPeriodFilters,
   purchasePeriodFilters,
 } from "../util/gstr2aPurchaseRegister";
 
 /**
  * Purchase register (PR) data for GSTR-2A v Purchase Register.
- * Merges `usePurchase`, `usePurchaseGst`, and purchase-gst matches.
+ * Uses Tally GST purchases (`usePurchaseGst`) and purchase-gst matches.
  *
  * @param {string} period - `YYYY-MM` return month
  */
@@ -24,13 +23,6 @@ export function useGstr2aPurchaseRegisterPr(period) {
     () => purchaseMatchPeriodFilters(period),
     [period]
   );
-
-  const {
-    purchase,
-    loading: purchaseLoading,
-    error: purchaseError,
-    refetch: refetchPurchases,
-  } = usePurchase(purchaseFilters ?? {});
 
   const {
     purchaseGst,
@@ -47,16 +39,9 @@ export function useGstr2aPurchaseRegisterPr(period) {
   } = usePurchaseGstMatch(matchFilters);
 
   const purchases = useMemo(
-    () => mergePurchaseRegisterSources(purchase ?? [], purchaseGst ?? []),
-    [purchase, purchaseGst]
+    () => normalizeTallyPurchases(purchaseGst ?? []),
+    [purchaseGst]
   );
-
-  purchases?.forEach((item) => {
-    if (item.mmh_mrc_refno == "36") {
-      console.log("CIDD item", item.supplier_name);
-      console.log("CIDD item", item);
-    }
-  });
 
   const vendorPrByGstin = useMemo(
     () => aggregatePurchasesByVendor(purchases),
@@ -66,12 +51,9 @@ export function useGstr2aPurchaseRegisterPr(period) {
   const loading =
     purchaseFilters == null || matchFilters == null
       ? false
-      : purchaseLoading || purchaseGstLoading || matchLoading;
+      : purchaseGstLoading || matchLoading;
 
   const error = useMemo(() => {
-    if (purchaseError) {
-      return purchaseError?.message ?? String(purchaseError);
-    }
     if (purchaseGstError) {
       return purchaseGstError?.message ?? String(purchaseGstError);
     }
@@ -79,15 +61,11 @@ export function useGstr2aPurchaseRegisterPr(period) {
       return matchError?.message ?? String(matchError);
     }
     return null;
-  }, [purchaseError, purchaseGstError, matchError]);
+  }, [purchaseGstError, matchError]);
 
   const refetch = useCallback(async () => {
-    await Promise.all([
-      refetchPurchases(true),
-      refetchPurchaseGst(true),
-      refetchMatches(true),
-    ]);
-  }, [refetchPurchases, refetchPurchaseGst, refetchMatches]);
+    await Promise.all([refetchPurchaseGst(true), refetchMatches(true)]);
+  }, [refetchPurchaseGst, refetchMatches]);
 
   return {
     purchases,
