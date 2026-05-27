@@ -14,6 +14,23 @@ import toast from "react-hot-toast";
 import PurchaseModal from "../../../components/Purchase/PurchaseModal";
 import FromToDateOutletPicker from "../../../components/DateOutletPicker/FromToDateOutletPicker";
 import { exportToExcel } from "../../../util/exportCSVFile";
+import { capitalize } from "../../../util/string";
+
+function getSourceBadge(item) {
+  const source = item?.source;
+  if (!source) return null;
+  if (source === "tally") {
+    return { label: "Tally", colorScheme: "blue" };
+  }
+  if (source === "system") {
+    return { label: "System", colorScheme: "purple" };
+  }
+  return { label: capitalize(String(source)), colorScheme: "gray" };
+}
+
+function getSourceLabel(item) {
+  return getSourceBadge(item)?.label ?? "";
+}
 
 function AllTallyPurchases() {
   const [search, setSearch] = useState("");
@@ -68,6 +85,8 @@ function AllTallyPurchases() {
         item.mmh_mrc_refno,
         item.supplier_name,
         item.supplier_gstn,
+        item.source,
+        getSourceLabel(item),
         item.master_id,
         item.mmh_dist_bill_no,
         item.outlet_name,
@@ -127,6 +146,13 @@ function AllTallyPurchases() {
         filter: true,
         sortable: true,
         minWidth: 150,
+      },
+      {
+        colId: "source",
+        headerName: "Source",
+        type: "badge-column",
+        minWidth: 110,
+        valueGetter: (params) => getSourceBadge(params.data),
       },
       {
         field: "mmh_mrc_dt",
@@ -206,6 +232,7 @@ function AllTallyPurchases() {
       "MRC Ref No": item.mmh_mrc_refno,
       "Supplier Name": item.supplier_name,
       GSTN: item.supplier_gstn,
+      Source: getSourceLabel(item) || "-",
       "MRC Date": moment(item.mmh_mrc_dt).format("DD-MM-YYYY"),
       "Dist Bill Date": moment(item.mmh_dist_bill_dt).format("DD-MM-YYYY"),
       "Dist Bill No": item.mmh_dist_bill_no,
