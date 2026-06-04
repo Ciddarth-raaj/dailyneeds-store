@@ -90,7 +90,9 @@ function DebitNoteModal({
       : selectedPurchase?.supplier_gstn === initialValues.supplier_gstn;
 
   const fetchPurchaseFromRefNo = async () => {
-    const res = await getPurchaseByRefNo(purchaseRefNo);
+    if (!item?.store_id) return;
+
+    const res = await getPurchaseByRefNo(purchaseRefNo, item.store_id);
 
     if (res.code === 200) {
       setSelectedPurchase(res.data);
@@ -101,10 +103,10 @@ function DebitNoteModal({
 
   useEffect(() => {
     setSelectedPurchase(null);
-    if (debouncedPurchaseRefNo) {
+    if (debouncedPurchaseRefNo && item?.store_id) {
       fetchPurchaseFromRefNo();
     }
-  }, [debouncedPurchaseRefNo]);
+  }, [debouncedPurchaseRefNo, item?.store_id]);
 
   useEffect(() => {
     if (item) {

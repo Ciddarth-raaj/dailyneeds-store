@@ -10,9 +10,21 @@ export const getAllPurchases = async (filters) => {
   }
 };
 
-export const getPurchaseByRefNo = async (mmh_mrc_refno) => {
+export const getPurchaseById = async (purchase_id) => {
   try {
-    const response = await API.get(`/purchase/${mmh_mrc_refno}`);
+    const response = await API.get(`/purchase/${purchase_id}`);
+    return response.data;
+  } catch (err) {
+    console.log(err);
+    throw err;
+  }
+};
+
+export const getPurchaseByRefNo = async (mmh_mrc_refno, retail_outlet_id) => {
+  try {
+    const response = await API.get(`/purchase/refno/${mmh_mrc_refno}`, {
+      params: { retail_outlet_id },
+    });
     return response.data;
   } catch (err) {
     console.log(err);
