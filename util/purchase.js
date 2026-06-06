@@ -1,5 +1,5 @@
 export const LOCAL_PURCHASE_40_PERC = 40;
-const LEGACY_LOCAL_PURCHASE_28_PERC = 28;
+export const LOCAL_PURCHASE_28_PERC = 28;
 const CESS_PERC = 12;
 
 export const shouldShowIGST = (values) => {
@@ -26,7 +26,10 @@ const findTaxEntry = (arr, perc, taxable = null) =>
     return Number(entry.TAXABLE) === Number(taxable);
   });
 
-/** Build modal GST rows from stored purchase tax arrays (legacy 28%+cess → 40%). */
+/**
+ * Build modal GST rows from stored purchase tax arrays.
+ * Maps to 40% when matching cess exists; otherwise keeps 28% (stored as 14% half-rate).
+ */
 export const buildPurchaseGstRows = (item) => {
   const taxList = shouldShowIGST(item) ? item.igst : item.sgst;
   const displayPerc = (perc) =>
@@ -40,7 +43,7 @@ export const buildPurchaseGstRows = (item) => {
 
   if (!shouldShowIGST(item)) {
     const legacyRows = gst.filter(
-      (row) => Number(row.PERC) === LEGACY_LOCAL_PURCHASE_28_PERC && row.TAXABLE
+      (row) => Number(row.PERC) === LOCAL_PURCHASE_28_PERC && row.TAXABLE
     );
 
     legacyRows.forEach((legacyRow) => {
@@ -72,7 +75,7 @@ export const buildPurchaseGstRows = (item) => {
       gst = gst.filter(
         (row) =>
           !(
-            Number(row.PERC) === LEGACY_LOCAL_PURCHASE_28_PERC &&
+            Number(row.PERC) === LOCAL_PURCHASE_28_PERC &&
             Number(row.TAXABLE) === Number(taxable)
           )
       );

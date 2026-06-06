@@ -22,6 +22,7 @@ import currencyFormatter from "../../../util/currencyFormatter";
 import {
   buildPurchaseGstRows,
   calculateTotalAmount,
+  LOCAL_PURCHASE_28_PERC,
   LOCAL_PURCHASE_40_PERC,
   shouldShowIGST,
 } from "../../../util/purchase";
@@ -32,10 +33,9 @@ const JV_LEDGER_LIST = [
   { id: 3, value: "Payment Hold" },
 ];
 
-const DEFAULT_GST_PERCS = [0, 5, LOCAL_PURCHASE_40_PERC, 18];
-/** Half CGST/SGST rates for empty slots (20 → Local Purchase 40%). */
-const REQUIRED_HALF_PERCS = [0, 2.5, 9, 20];
-const DISABLED_LOCAL_PURCHASE_PERC = 28;
+const DEFAULT_GST_PERCS = [0, 5, LOCAL_PURCHASE_40_PERC, 18, LOCAL_PURCHASE_28_PERC];
+/** Half CGST/SGST rates for empty slots (14 → 28%, 20 → 40%). */
+const REQUIRED_HALF_PERCS = [0, 2.5, 9, 14, 20];
 
 const INITIAL_VALUES = {
   invoice_amount: 0.0,
@@ -115,14 +115,15 @@ function PurchaseModal({
         (a, b) => a.PERC - b.PERC
       );
 
-      if (
-        !shouldShowIGST(item) &&
-        !item.gst.some((g) => Number(g.PERC) === LOCAL_PURCHASE_40_PERC)
-      ) {
-        item.gst.push({
-          VALUE: null,
-          PERC: LOCAL_PURCHASE_40_PERC,
-          TAXABLE: null,
+      if (!shouldShowIGST(item)) {
+        [LOCAL_PURCHASE_40_PERC, LOCAL_PURCHASE_28_PERC].forEach((perc) => {
+          if (!item.gst.some((g) => Number(g.PERC) === perc)) {
+            item.gst.push({
+              VALUE: null,
+              PERC: perc,
+              TAXABLE: null,
+            });
+          }
         });
         item.gst.sort((a, b) => a.PERC - b.PERC);
       }
@@ -299,15 +300,7 @@ function PurchaseModal({
                     disabled={!editable}
                   />
 
-                  {values.gst.map((item, index) => {
-                    if (
-                      !shouldShowIGST(values) &&
-                      Number(item.PERC) === DISABLED_LOCAL_PURCHASE_PERC
-                    ) {
-                      return null;
-                    }
-
-                    return (
+                  {values.gst.map((item, index) => (
                     <div key={index} className={styles.inputContainer}>
                       <CustomInput
                         label={`${
@@ -364,8 +357,7 @@ function PurchaseModal({
                         </>
                       )}
                     </div>
-                    );
-                  })}
+                  ))}
 
                   <Divider my={4} borderColor="gray.200" />
 
