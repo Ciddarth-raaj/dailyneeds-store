@@ -19,7 +19,12 @@ import styles from "./styles.module.css";
 import moment from "moment";
 import toast from "react-hot-toast";
 import currencyFormatter from "../../../util/currencyFormatter";
-import { calculateTotalAmount, shouldShowIGST } from "../../../util/purchase";
+import {
+  buildPurchaseGstRows,
+  calculateTotalAmount,
+  LOCAL_PURCHASE_40_PERC,
+  shouldShowIGST,
+} from "../../../util/purchase";
 
 const JV_LEDGER_LIST = [
   { id: 1, value: "Ready to Pay" },
@@ -27,11 +32,10 @@ const JV_LEDGER_LIST = [
   { id: 3, value: "Payment Hold" },
 ];
 
-/** Combined GST % rows always shown in the modal (Local Purchase / IGST Purchase label). */
-const ALWAYS_SHOW_GST_PERC = 40;
-const DEFAULT_GST_PERCS = [0, 5, ALWAYS_SHOW_GST_PERC, 18, 28];
-/** Half CGST/SGST rates for empty slots; 12% (6) only when already on the purchase. */
-const REQUIRED_HALF_PERCS = [0, 2.5, 9, 14, 20];
+const DEFAULT_GST_PERCS = [0, 5, LOCAL_PURCHASE_40_PERC, 18];
+/** Half CGST/SGST rates for empty slots (20 → Local Purchase 40%). */
+const REQUIRED_HALF_PERCS = [0, 2.5, 9, 20];
+const DISABLED_LOCAL_PURCHASE_PERC = 28;
 
 const INITIAL_VALUES = {
   invoice_amount: 0.0,
@@ -93,38 +97,31 @@ function PurchaseModal({
         setEditable(true);
       }
 
-      const taxList = shouldShowIGST(item) ? item.igst : item.sgst;
+      item.gst = buildPurchaseGstRows(item);
 
-      // Get existing PERC values
-      const existingPercs = taxList.map((taxItem) =>
-        shouldShowIGST(item)
-          ? parseFloat(taxItem.PERC) / 2
-          : parseFloat(taxItem.PERC)
+      const existingPercs = item.gst.map((taxItem) =>
+        shouldShowIGST(item) ? taxItem.PERC : taxItem.PERC / 2
       );
 
-      // Add missing PERC values (excludes 12% unless already on record)
       const missingGstItems = REQUIRED_HALF_PERCS.filter(
         (perc) => !existingPercs.includes(perc)
       ).map((perc) => ({
         VALUE: null,
-        PERC: perc * 2,
+        PERC: shouldShowIGST(item) ? perc : perc * 2,
         TAXABLE: null,
       }));
 
-      // Combine existing and missing items and sort by PERC
-      item.gst = [
-        ...taxList.map((taxItem) => ({
-          VALUE: taxItem.VALUE,
-          PERC: parseFloat(taxItem.PERC * (shouldShowIGST(item) ? 1 : 2)),
-          TAXABLE: taxItem.TAXABLE,
-        })),
-        ...missingGstItems,
-      ].sort((a, b) => a.PERC - b.PERC);
+      item.gst = [...item.gst, ...missingGstItems].sort(
+        (a, b) => a.PERC - b.PERC
+      );
 
-      if (!item.gst.some((g) => Number(g.PERC) === ALWAYS_SHOW_GST_PERC)) {
+      if (
+        !shouldShowIGST(item) &&
+        !item.gst.some((g) => Number(g.PERC) === LOCAL_PURCHASE_40_PERC)
+      ) {
         item.gst.push({
           VALUE: null,
-          PERC: ALWAYS_SHOW_GST_PERC,
+          PERC: LOCAL_PURCHASE_40_PERC,
           TAXABLE: null,
         });
         item.gst.sort((a, b) => a.PERC - b.PERC);
@@ -302,7 +299,15 @@ function PurchaseModal({
                     disabled={!editable}
                   />
 
-                  {values.gst.map((item, index) => (
+                  {values.gst.map((item, index) => {
+                    if (
+                      !shouldShowIGST(values) &&
+                      Number(item.PERC) === DISABLED_LOCAL_PURCHASE_PERC
+                    ) {
+                      return null;
+                    }
+
+                    return (
                     <div key={index} className={styles.inputContainer}>
                       <CustomInput
                         label={`${
@@ -359,7 +364,8 @@ function PurchaseModal({
                         </>
                       )}
                     </div>
-                  ))}
+                    );
+                  })}
 
                   <Divider my={4} borderColor="gray.200" />
 

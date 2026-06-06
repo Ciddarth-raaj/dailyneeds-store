@@ -1,3 +1,7 @@
+export const LOCAL_PURCHASE_40_PERC = 40;
+const LEGACY_LOCAL_PURCHASE_28_PERC = 28;
+const CESS_PERC = 12;
+
 export const shouldShowIGST = (values) => {
   if (
     !values?.supplier_gstn ||
@@ -9,6 +13,73 @@ export const shouldShowIGST = (values) => {
   }
 
   return true;
+};
+
+const findTaxEntry = (arr, perc, taxable = null) =>
+  (arr || []).find((entry) => {
+    if (Number(entry.PERC) !== perc) {
+      return false;
+    }
+    if (taxable == null || taxable === "") {
+      return true;
+    }
+    return Number(entry.TAXABLE) === Number(taxable);
+  });
+
+/** Build modal GST rows from stored purchase tax arrays (legacy 28%+cess → 40%). */
+export const buildPurchaseGstRows = (item) => {
+  const taxList = shouldShowIGST(item) ? item.igst : item.sgst;
+  const displayPerc = (perc) =>
+    shouldShowIGST(item) ? parseFloat(perc) : parseFloat(perc) * 2;
+
+  let gst = (taxList || []).map((taxItem) => ({
+    VALUE: taxItem.VALUE,
+    PERC: displayPerc(taxItem.PERC),
+    TAXABLE: taxItem.TAXABLE,
+  }));
+
+  if (!shouldShowIGST(item)) {
+    const legacyRows = gst.filter(
+      (row) => Number(row.PERC) === LEGACY_LOCAL_PURCHASE_28_PERC && row.TAXABLE
+    );
+
+    legacyRows.forEach((legacyRow) => {
+      const taxable = legacyRow.TAXABLE;
+      const cessEntry =
+        findTaxEntry(item.cess, CESS_PERC, taxable) ||
+        (item.cess || []).find(
+          (entry) =>
+            Number(entry.PERC) === CESS_PERC && parseFloat(entry.VALUE) > 0
+        );
+
+      if (!cessEntry) {
+        return;
+      }
+
+      const idx40 = gst.findIndex((row) => Number(row.PERC) === LOCAL_PURCHASE_40_PERC);
+      const mergedRow = {
+        VALUE: null,
+        PERC: LOCAL_PURCHASE_40_PERC,
+        TAXABLE: taxable,
+      };
+
+      if (idx40 >= 0) {
+        gst[idx40] = mergedRow;
+      } else {
+        gst.push(mergedRow);
+      }
+
+      gst = gst.filter(
+        (row) =>
+          !(
+            Number(row.PERC) === LEGACY_LOCAL_PURCHASE_28_PERC &&
+            Number(row.TAXABLE) === Number(taxable)
+          )
+      );
+    });
+  }
+
+  return gst.sort((a, b) => a.PERC - b.PERC);
 };
 
 export const calculateTotalAmount = (values) => {
@@ -23,7 +94,6 @@ export const calculateTotalAmount = (values) => {
     mmd_goods_tcs_amt,
     gst,
     mmh_manual_disc,
-    tot_gst_cess_amt,
   } = values;
 
   let total_gst = 0;
@@ -91,10 +161,6 @@ export const calculateTotalAmount = (values) => {
     mmd_goods_tcs_amt = 0;
   }
 
-  if (isNaN(tot_gst_cess_amt)) {
-    tot_gst_cess_amt = 0;
-  }
-
   if (isNaN(due)) {
     due = 0;
   } else {
@@ -120,7 +186,6 @@ export const calculateTotalAmount = (values) => {
     parseFloat(round_off) +
     parseFloat(mmd_goods_tcs_amt) +
     parseFloat(mmh_manual_disc) +
-    parseFloat(tot_gst_cess_amt) +
     total_tax +
     total_gst;
 
