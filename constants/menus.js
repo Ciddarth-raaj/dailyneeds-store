@@ -685,6 +685,20 @@ const WMS_MENU = {
       },
     },
   },
+  uploads: {
+    title: "Uploads",
+    selected: false,
+    openPage: false,
+    icon: "fa-upload",
+    subMenu: {
+      view_stock_holding_report: {
+        title: "Stock Holding Report",
+        permission: "view_stock_holding_report",
+        selected: false,
+        location: "/uploads/stock-holding-report",
+      },
+    },
+  },
 };
 
 /** Menu tree for the GST module (module rail → GST). */

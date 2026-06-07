@@ -184,6 +184,13 @@ export const PERMISSIONS = {
     add_expiry_checker: "View Expiry Assigned Products",
   },
 
+  // Uploads
+  uploads: {
+    view_stock_holding_report: "View Stock Holding Report",
+    add_stock_holding_report: "Add Stock Holding Report",
+    delete_stock_holding_report: "Delete Stock Holding Report",
+  },
+
   // GST (group order matches GST module menu: Vendors → Tools → Configs)
   gst: {
     gst_vendors: {
