@@ -1,6 +1,6 @@
 import API from "../util/api";
 
-export const REPORT_UPLOAD_BATCH_SIZE = 15000;
+export const REPORT_UPLOAD_BATCH_SIZE = 5000;
 
 function chunkArray(arr, size) {
   const chunks = [];
