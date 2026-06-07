@@ -102,6 +102,7 @@ export const getLatestStockHoldingReportByDate = (
       const allItems = [];
       let offset = 0;
       let header = null;
+      let reportId = null;
       let hasMore = true;
 
       while (hasMore) {
@@ -110,12 +111,17 @@ export const getLatestStockHoldingReportByDate = (
           return;
         }
 
+        const params = {
+          date,
+          limit: REPORT_UPLOAD_BATCH_SIZE,
+          offset,
+        };
+        if (reportId != null) {
+          params.report_id = reportId;
+        }
+
         const res = await API.get("/stock-holding-report/latest/items", {
-          params: {
-            date,
-            limit: REPORT_UPLOAD_BATCH_SIZE,
-            offset,
-          },
+          params,
           signal,
         });
         const data = res?.data ?? res;
@@ -130,6 +136,9 @@ export const getLatestStockHoldingReportByDate = (
         }
 
         const page = data?.data || {};
+        if (page.stock_holding_report_id != null) {
+          reportId = page.stock_holding_report_id;
+        }
         if (!header) {
           const {
             items: _items,
