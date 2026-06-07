@@ -201,9 +201,9 @@ function ExpiryCheckerForm() {
     () =>
       (products || []).map((p) => ({
         id: p.product_id,
-        value: `${p.gf_item_name} (${p.product_id})`,
+        value: `${p.de_name ?? p.de_display_name ?? ""} (${p.product_id})`,
         product_id: p.product_id,
-        product_name: p.gf_item_name,
+        product_name: p.de_name ?? p.de_display_name,
         image_url: p.image_url,
       })),
     [products]
@@ -365,7 +365,7 @@ function ExpiryCheckerForm() {
 
     const product = expiryChecker?.product;
     const productName =
-      product?.gf_item_name || product?.de_display_name || "-";
+      product?.de_name || product?.de_display_name || "-";
     const refFile = expiryChecker?.ref_file ?? "-";
 
     return (

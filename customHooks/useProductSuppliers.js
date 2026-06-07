@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { useProducts } from "./useProducts";
 
 /**
- * Hook to get unique supplier names (gf_manufacturer) from the products list.
+ * Hook to get unique supplier names (de_distributor) from the products list.
  * Useful for dropdowns that need to pick a supplier/manufacturer.
  *
  * @param {Object} options - Passed to useProducts (e.g. limit, fetchAll, enabled)

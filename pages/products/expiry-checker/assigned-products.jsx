@@ -171,7 +171,7 @@ function ExpiryAssignedProductsPage() {
           _item: item,
           productId,
           productName:
-            product?.gf_item_name ||
+            product?.de_name ||
             product?.de_display_name ||
             `Product ${ec.product_id ?? ec.products_expiry_checker_id}`,
           image_url: product?.image_url,

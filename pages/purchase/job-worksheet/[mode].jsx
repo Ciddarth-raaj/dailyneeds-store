@@ -125,7 +125,7 @@ function JobWorksheetMode() {
     (products || []).forEach((p) => {
       const imageUrl = p.image_url;
       map[p.product_id] = {
-        gf_item_name: p.gf_item_name ?? p.de_display_name ?? "-",
+        de_name: p.de_name ?? p.de_display_name ?? "-",
         imageUrl,
         store_uom: p.store_uom ?? "-",
         purchase_uom: p.purchase_uom ?? "-",
@@ -467,7 +467,7 @@ function JobWorksheetMode() {
                                   </Td>
                                   <Td>
                                     <Text fontSize="xs" lineHeight="1.4">
-                                      {productInfo.gf_item_name ?? "-"}
+                                      {productInfo.de_name ?? "-"}
                                     </Text>
                                   </Td>
                                   <Td>

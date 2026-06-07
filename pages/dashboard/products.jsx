@@ -78,7 +78,7 @@ function ProductsDashboard() {
     (products || []).forEach((p) => {
       map[p.product_id] = {
         product_id: p.product_id,
-        name: p.gf_item_name ?? p.de_display_name ?? "-",
+        name: p.de_name ?? p.de_display_name ?? "-",
         imageUrl: p.image_url,
         distributor: p.de_distributor ?? "-",
       };
@@ -104,7 +104,7 @@ function ProductsDashboard() {
         if (!byDistributor[dist]) byDistributor[dist] = [];
         byDistributor[dist].push({
           product_id: p.product_id,
-          name: p.gf_item_name ?? p.de_display_name ?? "-",
+          name: p.de_name ?? p.de_display_name ?? "-",
           distributor: dist,
         });
       }

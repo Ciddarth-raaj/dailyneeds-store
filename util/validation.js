@@ -178,10 +178,7 @@ export const ProductItemsValidation = Yup.object({
   grinding: Yup.number().nullable().required("Choose Grinding"),
   cover_type: Yup.number().nullable().required("Choose Cover Type"),
   cover_sizes: Yup.number().nullable().required("Choose Cover Size"),
-  gf_description: Yup.string().nullable().required("Enter Description"),
-  gf_detailed_description: Yup.string()
-    .nullable()
-    .required("Enter Detailed Desription"),
+  // @deprecated gf_description / gf_detailed_description — no longer required
   de_distributor: Yup.string().nullable().required("Choose Distrivutor"),
   variant: Yup.number().nullable().required("Choose Variant"),
   variant_of: Yup.number().nullable().required("Choose Variant Of"),

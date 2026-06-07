@@ -424,7 +424,7 @@ function PickPackWriteOffPage() {
       return {
         ...r,
         _product_name:
-          p?.gf_item_name ?? p?.de_display_name ?? r.product_name ?? "—",
+          p?.de_name ?? p?.de_display_name ?? r.product_name ?? "—",
         _image_url: p?.image_url ?? r.product_image_url ?? "",
       };
     });

@@ -46,7 +46,7 @@ function ExpiryCheckerListing() {
         type: "image",
       },
       {
-        field: "product.gf_item_name",
+        field: "product.de_name",
         headerName: "Product",
         type: "capitalized",
         flex: 2,

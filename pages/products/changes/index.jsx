@@ -33,7 +33,7 @@ function ProductChangesPage() {
         type: "image",
       },
       {
-        field: "gf_item_name",
+        field: "de_name",
         headerName: "Name",
         type: "capitalized",
         flex: 2,

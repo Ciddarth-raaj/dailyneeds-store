@@ -59,7 +59,7 @@ export function mapDeadStockItemToRow(item) {
     product_id: Number(item?.product_id),
     outlet_id: item?.outlet_id,
     branch_name: labelOf(item?.outlet_name),
-    product_name: item?.gf_item_name || item?.de_name || "—",
+    product_name: item?.de_name || item?.de_display_name || "—",
     buyer: labelOf(item?.buyer_name),
     supplier: labelOf(item?.de_distributor),
     department_id: item?.department_id ?? null,
@@ -86,9 +86,8 @@ export const pickProductMeta = (row, mappedProduct) => {
     product_image: src.image_url || null,
     product_name:
       row.product_name ||
-      src.gf_item_name ||
-      src.de_display_name ||
       src.de_name ||
+      src.de_display_name ||
       "—",
   };
 };
@@ -194,8 +193,8 @@ export function buildBucketBranchExportRows(rows, bucketKey) {
         ID: productId,
         Product:
           row.product_name ||
-          row.gf_item_name ||
           row.de_name ||
+          row.de_display_name ||
           String(productId),
       });
     }

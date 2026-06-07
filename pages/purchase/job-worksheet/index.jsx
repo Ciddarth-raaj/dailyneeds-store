@@ -43,7 +43,7 @@ function JobWorksheetIndex() {
     (products || []).forEach((p) => {
       const imageUrl = p.image_url;
       map[p.product_id] = {
-        gf_item_name: p.gf_item_name ?? p.de_display_name ?? "-",
+        de_name: p.de_name ?? p.de_display_name ?? "-",
         imageUrl,
         store_uom: p.store_uom ?? "-",
         purchase_uom: p.purchase_uom ?? "-",
@@ -73,7 +73,7 @@ function JobWorksheetIndex() {
         id: `row-${viewProductsWorksheetId}-${itemId}`,
         item_id: itemId,
         product_id: item.product_id,
-        gf_item_name: info.gf_item_name,
+        de_name: info.de_name,
         imageUrl: info.imageUrl,
         store_uom: info.store_uom,
         purchase_uom: info.purchase_uom,
@@ -119,7 +119,7 @@ function JobWorksheetIndex() {
         headerName: "Image",
         type: "image",
       },
-      { field: "gf_item_name", headerName: "Name" },
+      { field: "de_name", headerName: "Name" },
       { field: "purchase_uom", headerName: "Purchase UOM" },
       { field: "store_uom", headerName: "Store UOM" },
       {

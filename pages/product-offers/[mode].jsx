@@ -64,9 +64,9 @@ function ProductOffersForm() {
     () =>
       (products || []).map((p) => ({
         id: p.product_id,
-        value: `${p.gf_item_name ?? ""} (${p.product_id})`,
+        value: `${p.de_name ?? ""} (${p.product_id})`,
         product_id: p.product_id,
-        product_name: p.gf_item_name,
+        product_name: p.de_name,
         image_url: p.image_url,
       })),
     [products]

@@ -42,7 +42,7 @@ function StockCheckerListing() {
         type: "id",
       },
       {
-        field: "product.gf_item_name",
+        field: "product.de_name",
         headerName: "Product",
         type: "capitalized",
         flex: 2,

@@ -74,7 +74,7 @@ function ProductOffersListing() {
         productsMap[Number(row.product_id)];
       return {
         product_id: row.product_id,
-        product_name: p?.gf_item_name ?? "-",
+        product_name: p?.de_name ?? "-",
         image_url: p?.image_url ?? null,
         mrp: row.mrp,
         selling_price: row.selling_price,
@@ -113,7 +113,7 @@ function ProductOffersListing() {
   const colDefs = useMemo(
     () => [
       { field: "product_id", headerName: "ID", type: "id" },
-      { field: "gf_item_name", headerName: "Product Name", flex: 2 },
+      { field: "de_name", headerName: "Product Name", flex: 2 },
       { field: "mrp", headerName: "MRP", type: "currency" },
       { field: "selling_price", headerName: "Selling Price", type: "currency" },
       {
@@ -193,7 +193,7 @@ function ProductOffersListing() {
                 confirmDelete({
                   title: "Delete offer",
                   message: `Delete offer for product ${
-                    row.gf_item_name || productId
+                    row.de_name || productId
                   }?`,
                   onConfirm: async () => {
                     await productOffers.delete(productId);

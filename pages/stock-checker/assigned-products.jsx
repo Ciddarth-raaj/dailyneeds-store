@@ -158,7 +158,7 @@ function AssignedProductsPage() {
           _item: item,
           productId,
           productName:
-            sc.product?.gf_item_name ||
+            sc.product?.de_name ||
             sc.product?.de_display_name ||
             `Product ${sc.product_id ?? sc.stock_checker_id}`,
           branchName: outlet.outlet_name ?? outlet.name ?? "-",

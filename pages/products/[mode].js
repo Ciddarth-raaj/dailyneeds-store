@@ -21,7 +21,6 @@ const validation = Yup.object({
   category_id: Yup.number().nullable(),
   subcategory_id: Yup.number().nullable(),
   department_id: Yup.number().nullable(),
-  gf_manufacturer: Yup.string().nullable(),
   de_distributor: Yup.string().nullable(),
   images: Yup.array().nullable(),
 });
@@ -47,7 +46,6 @@ function ProductForm() {
     category_id: null,
     subcategory_id: null,
     department_id: null,
-    gf_manufacturer: "",
     de_distributor: "",
     images: [],
   });
@@ -98,7 +96,6 @@ function ProductForm() {
         category_id: productData.category_id || null,
         subcategory_id: productData.subcategory_id || null,
         department_id: productData.department_id || null,
-        gf_manufacturer: productData.gf_manufacturer || "",
         de_distributor: productData.de_distributor || "",
         images: formattedImages,
       });
@@ -293,14 +290,7 @@ function ProductForm() {
                     />
 
                     <CustomInput
-                      label="Manufacturer"
-                      name="gf_manufacturer"
-                      type="text"
-                      editable={false}
-                    />
-
-                    <CustomInput
-                      label="Supplier/Distributor"
+                      label="Distributor"
                       name="de_distributor"
                       type="text"
                       editable={false}

@@ -387,44 +387,46 @@ export const DropDownOption = [
       keywords: "Keywords",
     },
   },
+  // @deprecated — use de_distributor instead of gf_manufacturer
   {
     value: "gf_manufacturer",
-    label: "Manufacturer",
+    label: "Manufacturer (deprecated)",
     final: {
       gf_manufacturer: "Manufacturer",
     },
   },
+  // @deprecated GoFrugal fields — no longer used in application
   {
     value: "gf_food_type",
-    label: "Food Type",
+    label: "Food Type (deprecated)",
     final: {
       gf_food_type: "Food Type",
     },
   },
   {
     value: "gf_description",
-    label: "Description",
+    label: "Description (deprecated)",
     final: {
       gf_description: "Description",
     },
   },
   {
     value: "gf_detailed_description",
-    label: "Detailed Description",
+    label: "Detailed Description (deprecated)",
     final: {
       gf_detailed_description: "Detailed Description",
     },
   },
   {
     value: "gf_weight_grams",
-    label: "Weight Grams",
+    label: "Weight Grams (deprecated)",
     final: {
       gf_weight_grams: "Wight Grams",
     },
   },
   {
     value: "gf_item_product_type",
-    label: "Product Type",
+    label: "Product Type (deprecated)",
     final: {
       gf_item_product_type: "Product Type",
     },
@@ -485,9 +487,10 @@ export const DropDownOption = [
       cover_sizes: "Cover Sizes",
     },
   },
+  // @deprecated
   {
     value: "gf_tax_id",
-    label: "Tax Id",
+    label: "Tax Id (deprecated)",
     final: {
       gf_tax_id: "Tax Id",
     },
@@ -499,16 +502,18 @@ export const DropDownOption = [
       return: "Return",
     },
   },
+  // @deprecated
   {
     value: "gf_status",
-    label: "Status",
+    label: "Status (deprecated)",
     final: {
       gf_status: "Status",
     },
   },
+  // @deprecated
   {
     value: "gf_applies_online",
-    label: "Applies Online",
+    label: "Applies Online (deprecated)",
     final: {
       gf_applies_online: "Applies Online",
     },

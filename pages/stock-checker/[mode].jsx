@@ -199,9 +199,9 @@ function StockCheckerForm() {
     () =>
       (products || []).map((p) => ({
         id: p.product_id,
-        value: `${p.gf_item_name} (${p.product_id})`,
+        value: `${p.de_name ?? p.de_display_name ?? ""} (${p.product_id})`,
         product_id: p.product_id,
-        product_name: p.gf_item_name,
+        product_name: p.de_name ?? p.de_display_name,
         image_url: p.image_url,
       })),
     [products]
@@ -307,7 +307,7 @@ function StockCheckerForm() {
 
     const product = stockChecker?.product;
     const productName =
-      product?.gf_item_name || product?.de_display_name || "-";
+      product?.de_name || product?.de_display_name || "-";
     const createdByName =
       stockChecker?.created_by_employee?.employee_name ?? "-";
 

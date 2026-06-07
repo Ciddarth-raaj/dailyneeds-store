@@ -200,7 +200,7 @@ function Items() {
         item_id: item.item_id,
         item_name: (
           <p style={{ textTransform: "capitalize" }}>
-            {item.gf_item_name.toLowerCase()}
+            {(item.de_name ?? item.de_display_name ?? "-").toLowerCase()}
           </p>
         ),
         package_size: `${item.measure} gms`,
@@ -227,7 +227,7 @@ function Items() {
       item_id: item.item_id,
       item_name: (
         <p style={{ textTransform: "capitalize" }}>
-          {item.gf_item_name.toLowerCase()}
+          {(item.de_name ?? item.de_display_name ?? "-").toLowerCase()}
         </p>
       ),
       package_size: `${item.measure} gms`,
@@ -299,7 +299,7 @@ function Items() {
     itemsList.forEach((d, i) => {
       formattedData.push({
         item_id: d.item_id,
-        item_name: capitalize(d.gf_item_name.toLowerCase()),
+        item_name: capitalize((d.de_name ?? d.de_display_name ?? "-").toLowerCase()),
         package_size: `${d.measure} gms`,
         cleaning: findItem(BOOLEAN_LIST, d.edited_cleaning ?? d.cleaning),
         packing_type: findItem(

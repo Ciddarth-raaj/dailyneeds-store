@@ -64,7 +64,7 @@ function PurchaseReturnForm() {
       MPR_ITEM_CODE: it.MPR_ITEM_CODE,
       imageUrl: it.product?.image_url ?? null,
       product_name:
-        it.product?.gf_item_name ?? it.product?.de_display_name ?? "-",
+        it.product?.de_name ?? it.product?.de_display_name ?? "-",
       MPR_ITEM_QTY: it.MPR_ITEM_QTY,
       MPR_ITEM_AMOUNT: it.MPR_ITEM_AMOUNT,
       MPR_MRC_NO: it.MPR_MRC_NO,

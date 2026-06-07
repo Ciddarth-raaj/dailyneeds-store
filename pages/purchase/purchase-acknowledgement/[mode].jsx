@@ -97,7 +97,7 @@ function PurchaseAckForm() {
       id: `${productsModalRow?.mprh_pr_no}-${idx}-${it.MPR_ITEM_CODE}`,
       MPR_ITEM_CODE: it.MPR_ITEM_CODE,
       product_name:
-        it.product?.de_display_name ?? it.product?.gf_item_name ?? "—",
+        it.product?.de_name ?? it.product?.de_display_name ?? "—",
       MPR_ITEM_QTY: it.MPR_ITEM_QTY,
       MPR_ITEM_AMOUNT: it.MPR_ITEM_AMOUNT,
       product_image: it.product?.image_url ?? null,

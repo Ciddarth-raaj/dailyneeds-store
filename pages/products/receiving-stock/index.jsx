@@ -34,7 +34,7 @@ function formatOfferMoney(v) {
 
 function getDisplayNameFromRow(data) {
   const name =
-    data?.product?.gf_item_name ??
+    data?.product?.de_name ??
     data?.product?.de_name ??
     data?.product?.de_display_name;
   if (name) return capitalize(String(name));
@@ -401,7 +401,7 @@ function ReceivingStockPage() {
         valueGetter: (p) => p.data?.product?.image_link,
       },
       {
-        field: "product.gf_item_name",
+        field: "product.de_name",
         headerName: "Name",
         flex: 2,
         minWidth: 160,

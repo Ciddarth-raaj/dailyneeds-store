@@ -180,7 +180,7 @@ function PriceChecker() {
       itemData = {
         ...itemData,
         Item_Name:
-          mappedProducts[itemData.Item_Code]?.gf_item_name ||
+          mappedProducts[itemData.Item_Code]?.de_name ||
           mappedProducts[itemData.Item_Code]?.de_display_name ||
           "",
         de_distributor:
