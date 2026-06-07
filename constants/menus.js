@@ -131,12 +131,6 @@ const ALL_PAGES_MENU = {
         selected: false,
         location: "/master",
       },
-      view_product_distributors: {
-        title: "Product Distributors",
-        permission: "view_product_distributors",
-        selected: false,
-        location: "/master/distributors",
-      },
       view_remarks_master: {
         title: "Remarks",
         permission: "view_remarks_master",
@@ -214,20 +208,6 @@ const ALL_PAGES_MENU = {
         permission: "add_invoice",
         selected: false,
         location: "/invoice/create",
-      },
-    },
-  },
-  items: {
-    title: "Items",
-    selected: false,
-    openPage: false,
-    icon: "fa-shopping-basket", // Changed to a more relevant icon for materials
-    subMenu: {
-      view_items: {
-        title: "Repack Items Master",
-        permission: "view_items",
-        selected: false,
-        location: "/items",
       },
     },
   },
@@ -435,12 +415,6 @@ const ALL_PAGES_MENU = {
     openPage: false,
     icon: "fa-archive",
     subMenu: {
-      view_products: {
-        title: "All Products",
-        permission: "view_products",
-        selected: false,
-        location: "/products",
-      },
       view_products_report: {
         title: "Product Image Report",
         permission: "view_products",
@@ -683,6 +657,36 @@ const ALL_PAGES_MENU = {
   },
 };
 
+/** Menu tree for the WMS module (module rail → WMS). */
+const WMS_MENU = {
+  master: {
+    title: "Master",
+    selected: false,
+    openPage: false,
+    icon: "fa-list-alt",
+    subMenu: {
+      view_product_distributors: {
+        title: "Product Distributors",
+        permission: "view_product_distributors",
+        selected: false,
+        location: "/master/distributors",
+      },
+      view_products: {
+        title: "All Products",
+        permission: "view_products",
+        selected: false,
+        location: "/products",
+      },
+      view_items: {
+        title: "Repack Items Master",
+        permission: "view_items",
+        selected: false,
+        location: "/items",
+      },
+    },
+  },
+};
+
 /** Menu tree for the GST module (module rail → GST). */
 const GST_MENU = {
   gst_vendors: {
@@ -753,6 +757,12 @@ export const MENU_MODULES = {
     iconClass: "fa-solid fa-layer-group",
     accent: "purple",
     menu: ALL_PAGES_MENU,
+  },
+  wms: {
+    title: "WMS",
+    iconClass: "fa-solid fa-warehouse",
+    accent: "teal",
+    menu: WMS_MENU,
   },
   gst: {
     title: "GST",

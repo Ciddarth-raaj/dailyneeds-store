@@ -8,37 +8,9 @@ import {
   MENU_MODULES,
   DEFAULT_MODULE_ID,
 } from "../../constants/menus";
+import { findModuleIdForPath } from "../../util/moduleTableTheme";
 import "../../constants/variables";
 import DesignationHelper from "../../helper/designation";
-
-function menuContainsPath(menuTree, path) {
-  if (!menuTree) return false;
-  for (const key of Object.keys(menuTree)) {
-    const item = menuTree[key];
-    if (item.location === path) return true;
-    if (item.subMenu) {
-      for (const sKey of Object.keys(item.subMenu)) {
-        const sub = item.subMenu[sKey];
-        if (sub.location === path) return true;
-        if (sub.subMenu) {
-          for (const ssKey of Object.keys(sub.subMenu)) {
-            if (sub.subMenu[ssKey].location === path) return true;
-          }
-        }
-      }
-    }
-  }
-  return false;
-}
-
-function findModuleIdForPath(asPath) {
-  const moduleIds = Object.keys(MENU_MODULES);
-  for (let i = 0; i < moduleIds.length; i += 1) {
-    const id = moduleIds[i];
-    if (menuContainsPath(MENU_MODULES[id].menu, asPath)) return id;
-  }
-  return null;
-}
 
 function buildMenuStateForModule(moduleId) {
   const template = MENU_MODULES[moduleId].menu;

@@ -139,9 +139,10 @@ export function createAppTheme(colorScheme = "purple") {
                 {
                   ...activeLabelStyles,
                 },
-              "input:not(:placeholder-shown), textarea:not(:placeholder-shown)": {
-                color: "gray.900",
-              },
+              "input:not(:placeholder-shown), textarea:not(:placeholder-shown)":
+                {
+                  color: "gray.900",
+                },
               "input, textarea": {
                 color: "gray.400",
               },
