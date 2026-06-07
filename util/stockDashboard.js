@@ -78,8 +78,8 @@ export function mapDeadStockItemToRow(item) {
 export const pickProductMeta = (row, mappedProduct) => {
   const src = mappedProduct || {};
   return {
-    buyer: labelOf(src.buyer_name || row.buyer),
-    supplier: labelOf(src.de_distributor || row.supplier),
+    buyer: labelOf(row.buyer || src.buyer_name),
+    supplier: labelOf(row.supplier),
     department: labelOf(row.department_name || src.department_name),
     category: labelOf(src.category_name),
     subcategory: labelOf(src.subcategory_name),
