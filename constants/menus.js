@@ -32,6 +32,12 @@ const ALL_PAGES_MENU = {
         selected: false,
         location: "/dashboard/stock",
       },
+      view_stock_holding_dashboard: {
+        title: "Stock Holding Dashboard",
+        permission: "view_stock_holding_dashboard",
+        selected: false,
+        location: "/dashboard/stock-holding",
+      },
     },
   },
   employee: {
