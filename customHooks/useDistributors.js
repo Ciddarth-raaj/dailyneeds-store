@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import {
   getProductDistributors,
-  getProductDistributorByCode,
+  getProductDistributorByCid,
   upsertProductDistributorMapping,
   deleteProductDistributor,
 } from "../helper/productDistributors";
@@ -30,8 +30,8 @@ export function useDistributors() {
   }, [fetchList]);
 
   const deleteDistributor = useCallback(
-    async (code) => {
-      await deleteProductDistributor(code);
+    async (cid) => {
+      await deleteProductDistributor(cid);
       await fetchList();
     },
     [fetchList]
@@ -46,14 +46,14 @@ export function useDistributors() {
   };
 }
 
-export function useDistributorByCode(code, options = {}) {
+export function useDistributorByCid(cid, options = {}) {
   const { enabled = true } = options;
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   const fetchOne = useCallback(async () => {
-    if (!code || !enabled) {
+    if (!cid || !enabled) {
       setLoading(false);
       setData(null);
       return null;
@@ -61,7 +61,7 @@ export function useDistributorByCode(code, options = {}) {
     try {
       setLoading(true);
       setError(null);
-      const result = await getProductDistributorByCode(code);
+      const result = await getProductDistributorByCid(cid);
       setData(result);
       return result;
     } catch (err) {
@@ -71,7 +71,7 @@ export function useDistributorByCode(code, options = {}) {
     } finally {
       setLoading(false);
     }
-  }, [code, enabled]);
+  }, [cid, enabled]);
 
   useEffect(() => {
     fetchOne();
@@ -79,15 +79,15 @@ export function useDistributorByCode(code, options = {}) {
 
   const saveBuyerMapping = useCallback(
     async (buyer_id) => {
-      if (!code) throw new Error("Distributor code is required");
+      if (!cid) throw new Error("Distributor CID is required");
       await upsertProductDistributorMapping({
-        MDM_DIST_CODE: code,
+        CID: cid,
         buyer_id:
           buyer_id === "" || buyer_id === undefined ? null : Number(buyer_id),
       });
       await fetchOne();
     },
-    [code, fetchOne]
+    [cid, fetchOne]
   );
 
   return {
@@ -97,6 +97,11 @@ export function useDistributorByCode(code, options = {}) {
     refetch: fetchOne,
     saveBuyerMapping,
   };
+}
+
+/** @deprecated Use useDistributorByCid */
+export function useDistributorByCode(cid, options = {}) {
+  return useDistributorByCid(cid, options);
 }
 
 export function useCreateDistributor() {

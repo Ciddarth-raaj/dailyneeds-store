@@ -13,10 +13,10 @@ const BULK_IMPORT_MAX_ROWS = 2000;
 
 const DISTRIBUTOR_IMPORT_COLUMN_CONFIG = [
   {
-    key: "MDM_DIST_CODE",
-    label: "MDM_DIST_CODE",
+    key: "CID",
+    label: "CID",
     required: true,
-    suggestedKey: "MDM_DIST_CODE",
+    suggestedKey: "CID",
     type: "string",
   },
   {
@@ -43,7 +43,7 @@ function DistributorListing() {
 
       const items = mappedRows
         .map((row) => {
-          const code = String(row.MDM_DIST_CODE ?? "").trim();
+          const cid = String(row.CID ?? "").trim();
           const rawBid = row.buyer_id;
           const buyer_id =
             rawBid === "" ||
@@ -52,13 +52,13 @@ function DistributorListing() {
             (typeof rawBid === "number" && Number.isNaN(rawBid))
               ? null
               : Number(rawBid);
-          return { MDM_DIST_CODE: code, buyer_id };
+          return { CID: cid, buyer_id };
         })
-        .filter((r) => r.MDM_DIST_CODE !== "");
+        .filter((r) => r.CID !== "");
 
       const skipped = mappedRows.length - items.length;
       if (!items.length) {
-        toast.error("No valid rows: MDM_DIST_CODE is required on each row.");
+        toast.error("No valid rows: CID is required on each row.");
         return;
       }
       if (items.length > BULK_IMPORT_MAX_ROWS) {
@@ -75,7 +75,7 @@ function DistributorListing() {
         const res = await bulkUpsertProductDistributorMappings(items);
         const count = res?.count ?? items.length;
         const extra =
-          skipped > 0 ? ` (${skipped} row(s) skipped without code)` : "";
+          skipped > 0 ? ` (${skipped} row(s) skipped without CID)` : "";
         toast.success(`Updated ${count} distributor mapping(s).${extra}`, {
           id: toastId,
         });
@@ -90,8 +90,21 @@ function DistributorListing() {
   const colDefs = useMemo(
     () => [
       {
+        field: "CID",
+        headerName: "CID",
+        type: "id",
+        maxWidth: 120,
+      },
+      {
         field: "MDM_DIST_CODE",
-        headerName: "ID",
+        headerName: "Medishop Code",
+        hideByDefault: true,
+        type: "id",
+      },
+      {
+        field: "HQ_DIST_CODE",
+        headerName: "HQ Code",
+        hideByDefault: true,
         type: "id",
       },
       {
@@ -116,13 +129,13 @@ function DistributorListing() {
         sortable: false,
         filter: false,
         valueGetter: (params) => {
-          const distCode = params.data?.MDM_DIST_CODE;
+          const cid = params.data?.CID;
           const actions = [
             {
               label: "View",
               icon: "fa-solid fa-eye",
-              redirectionUrl: `/master/distributors/view?code=${encodeURIComponent(
-                distCode
+              redirectionUrl: `/master/distributors/view?cid=${encodeURIComponent(
+                cid
               )}`,
             },
           ];
@@ -130,8 +143,8 @@ function DistributorListing() {
             actions.push({
               label: "Edit",
               icon: "fa-solid fa-pen",
-              redirectionUrl: `/master/distributors/edit?code=${encodeURIComponent(
-                distCode
+              redirectionUrl: `/master/distributors/edit?cid=${encodeURIComponent(
+                cid
               )}`,
             });
           }
@@ -180,7 +193,7 @@ function DistributorListing() {
             columnDefs={colDefs}
             tableKey="master-distributors"
             gridOptions={{
-              getRowId: (params) => String(params.data?.MDM_DIST_CODE ?? ""),
+              getRowId: (params) => String(params.data?.CID ?? ""),
             }}
           />
         )}

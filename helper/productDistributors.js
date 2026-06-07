@@ -1,10 +1,9 @@
 import API from "../util/api";
 
 /**
- * Product Distributors API — Gofrugal master + main-DB buyer mapping.
- * @see dailyneeds-store-backend/docs/product_distributor_changes.md
+ * Product Distributors API — master data from product_distributor_master + buyer mapping via cid.
  * Base path: /product-distributors
- * GET responses include buyer_id, buyer_name. POST body upserts mapping only.
+ * CID is the primary key for buyer assignment; MDM_DIST_CODE is the medishop code (purchase flows).
  */
 
 export const getProductDistributors = () => {
@@ -15,9 +14,9 @@ export const getProductDistributors = () => {
   });
 };
 
-export const getProductDistributorByCode = (code) => {
+export const getProductDistributorByCid = (cid) => {
   return API.get(
-    `/product-distributors/${encodeURIComponent(code)}`
+    `/product-distributors/${encodeURIComponent(cid)}`
   ).then((res) => {
     const data = res?.data ?? res;
     if (data?.code === 200) return data.data;
@@ -26,7 +25,10 @@ export const getProductDistributorByCode = (code) => {
   });
 };
 
-/** Upsert buyer mapping: { MDM_DIST_CODE, buyer_id?: number|null } */
+/** @deprecated Use getProductDistributorByCid */
+export const getProductDistributorByCode = getProductDistributorByCid;
+
+/** Upsert buyer mapping: { CID, buyer_id?: number|null } */
 export const upsertProductDistributorMapping = (body) => {
   return API.post("/product-distributors", body).then((res) => {
     const data = res?.data ?? res;
@@ -36,9 +38,8 @@ export const upsertProductDistributorMapping = (body) => {
 };
 
 /**
- * Bulk upsert buyer mappings (main DB only). 1–2000 items; duplicate codes: last wins.
- * Body: { items: [{ MDM_DIST_CODE, buyer_id: number|null }, ...] }
- * Response: { code: 200, count: number }
+ * Bulk upsert buyer mappings. 1–2000 items; duplicate CIDs: last wins.
+ * Body: { items: [{ CID, buyer_id: number|null }, ...] }
  */
 export const bulkUpsertProductDistributorMappings = (items) => {
   return API.post("/product-distributors/bulk", { items }).then((res) => {
@@ -48,23 +49,12 @@ export const bulkUpsertProductDistributorMappings = (items) => {
   });
 };
 
-/** @deprecated Use upsertProductDistributorMapping — POST only assigns buyer; does not create ERP rows */
+/** @deprecated Use upsertProductDistributorMapping */
 export const createProductDistributor = upsertProductDistributorMapping;
 
-export const updateProductDistributor = (code, body) => {
-  return API.put(
-    `/product-distributors/${encodeURIComponent(code)}`,
-    body
-  ).then((res) => {
-    const data = res?.data ?? res;
-    if (data?.code === 200) return data;
-    throw new Error(data?.msg || "Failed to update distributor");
-  });
-};
-
-export const deleteProductDistributor = (code) => {
+export const deleteProductDistributor = (cid) => {
   return API.delete(
-    `/product-distributors/${encodeURIComponent(code)}`
+    `/product-distributors/${encodeURIComponent(cid)}`
   ).then((res) => {
     const data = res?.data ?? res;
     if (data?.code === 200) return data;

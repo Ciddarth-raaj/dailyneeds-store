@@ -17,7 +17,7 @@ import {
 import { Formik } from "formik";
 import * as Yup from "yup";
 import toast from "react-hot-toast";
-import { useDistributorByCode } from "../../../customHooks/useDistributors";
+import { useDistributorByCid } from "../../../customHooks/useDistributors";
 import useEmployees from "../../../customHooks/useEmployees";
 import usePermissions from "../../../customHooks/usePermissions";
 
@@ -27,14 +27,18 @@ const viewPermissionKeys = [
 ];
 
 const validationSchema = Yup.object({
+  CID: Yup.string().trim(),
   MDM_DIST_CODE: Yup.string().trim(),
+  HQ_DIST_CODE: Yup.string().trim(),
   MDM_DIST_NAME: Yup.string().trim(),
   MDM_SHORT_NAME: Yup.string().trim(),
   buyer_id: Yup.mixed().nullable(),
 });
 
 const initialValues = {
+  CID: "",
   MDM_DIST_CODE: "",
+  HQ_DIST_CODE: "",
   MDM_DIST_NAME: "",
   MDM_SHORT_NAME: "",
   buyer_id: "",
@@ -42,9 +46,14 @@ const initialValues = {
 
 function DistributorMode() {
   const router = useRouter();
-  const { mode, code: codeQuery } = router.query;
-  const code =
-    typeof codeQuery === "string" ? codeQuery : codeQuery?.[0];
+  const { mode, cid: cidQuery, code: legacyCodeQuery } = router.query;
+  const cid =
+    typeof cidQuery === "string"
+      ? cidQuery
+      : cidQuery?.[0] ??
+        (typeof legacyCodeQuery === "string"
+          ? legacyCodeQuery
+          : legacyCodeQuery?.[0]);
 
   const viewMode = mode === "view";
   const editMode = mode === "edit";
@@ -54,12 +63,9 @@ function DistributorMode() {
 
   const { employees, loading: loadingEmployees } = useEmployees({});
 
-  const { distributor, loading, saveBuyerMapping } = useDistributorByCode(
-    code,
-    {
-      enabled: (editMode || viewMode) && !!code,
-    }
-  );
+  const { distributor, loading, saveBuyerMapping } = useDistributorByCid(cid, {
+    enabled: (editMode || viewMode) && !!cid,
+  });
 
   const [formInitialValues, setFormInitialValues] = useState(initialValues);
 
@@ -78,7 +84,9 @@ function DistributorMode() {
     if (distributor) {
       const bid = distributor.buyer_id;
       setFormInitialValues({
+        CID: distributor.CID ?? "",
         MDM_DIST_CODE: distributor.MDM_DIST_CODE ?? "",
+        HQ_DIST_CODE: distributor.HQ_DIST_CODE ?? "",
         MDM_DIST_NAME: distributor.MDM_DIST_NAME ?? "",
         MDM_SHORT_NAME: distributor.MDM_SHORT_NAME ?? "",
         buyer_id:
@@ -90,14 +98,12 @@ function DistributorMode() {
   }, [distributor]);
 
   const handleSubmit = async (values) => {
-    if (!editMode || !code) return;
+    if (!editMode || !cid) return;
     const toastId = toast.loading("Saving buyer assignment…");
     try {
       const raw = values.buyer_id;
       const buyer_id =
-        raw === "" || raw === null || raw === undefined
-          ? null
-          : Number(raw);
+        raw === "" || raw === null || raw === undefined ? null : Number(raw);
       await saveBuyerMapping(buyer_id);
       toast.success("Buyer assignment saved", { id: toastId });
       router.push("/master/distributors");
@@ -118,8 +124,8 @@ function DistributorMode() {
             <Flex direction="column" gap={1}>
               <AlertTitle>Create is not allowed</AlertTitle>
               <AlertDescription>
-                Distributor master data comes from Gofrugal. Use the list to
-                view distributors and assign a buyer on the edit page.
+                Distributor master data is imported via HQ sync. Use the list
+                to view distributors and assign a buyer on the edit page.
               </AlertDescription>
             </Flex>
           </Alert>
@@ -173,7 +179,7 @@ function DistributorMode() {
     );
   }
 
-  if ((editMode || viewMode) && !loading && !distributor && code) {
+  if ((editMode || viewMode) && !loading && !distributor && cid) {
     return (
       <GlobalWrapper title="Product Distributors" permissionKey={viewPermissionKeys}>
         <CustomContainer title="Not found" filledHeader>
@@ -216,8 +222,20 @@ function DistributorMode() {
                 mb={6}
               >
                 <CustomInput
-                  label="Code"
+                  label="CID"
+                  name="CID"
+                  type="text"
+                  editable={false}
+                />
+                <CustomInput
+                  label="Medishop Code"
                   name="MDM_DIST_CODE"
+                  type="text"
+                  editable={false}
+                />
+                <CustomInput
+                  label="HQ Code"
+                  name="HQ_DIST_CODE"
                   type="text"
                   editable={false}
                 />
@@ -281,8 +299,8 @@ function DistributorMode() {
                     colorScheme="purple"
                     onClick={() =>
                       router.push(
-                        `/master/distributors/edit?code=${encodeURIComponent(
-                          code
+                        `/master/distributors/edit?cid=${encodeURIComponent(
+                          cid
                         )}`
                       )
                     }
