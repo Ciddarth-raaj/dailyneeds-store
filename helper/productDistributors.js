@@ -49,6 +49,20 @@ export const bulkUpsertProductDistributorMappings = (items) => {
   });
 };
 
+/**
+ * Bulk update holding days on product_distributor_master by cid.
+ * Body: { items: [{ cid, holding_days }, ...] }
+ */
+export const bulkImportProductDistributorHoldingDays = (items) => {
+  return API.post("/product-distributors/bulk/holding-days", { items }).then(
+    (res) => {
+      const data = res?.data ?? res;
+      if (data?.code === 200) return data;
+      throw new Error(data?.msg || "Failed to import holding days");
+    }
+  );
+};
+
 /** @deprecated Use upsertProductDistributorMapping */
 export const createProductDistributor = upsertProductDistributorMapping;
 
