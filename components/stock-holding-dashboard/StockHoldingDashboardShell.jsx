@@ -33,7 +33,7 @@ function toDropdownOptions(options = []) {
   }));
 }
 
-function ReportFetchProgress({ progress, title }) {
+function ReportFetchProgress({ progress, title, onStop }) {
   const loaded = progress?.loaded ?? 0;
   const total = progress?.total;
   const hasTotal = total != null && total > 0;
@@ -67,6 +67,13 @@ function ReportFetchProgress({ progress, title }) {
         colorScheme="purple"
         borderRadius="md"
       />
+      {onStop ? (
+        <Flex justify="flex-end" mt={3}>
+          <Button size="xs" variant="outline" colorScheme="red" onClick={onStop}>
+            Stop
+          </Button>
+        </Flex>
+      ) : null}
     </Box>
   );
 }
@@ -98,6 +105,7 @@ export default function StockHoldingDashboardShell({
     fetchProgress,
     lastSyncAt,
     refreshData,
+    cancelFetch,
     rawItems,
     enriching,
     dashboard,
@@ -167,6 +175,7 @@ export default function StockHoldingDashboardShell({
             <ReportFetchProgress
               progress={fetchProgress}
               title="Loading report"
+              onStop={cancelFetch}
             />
           </Box>
         </Center>
@@ -249,6 +258,7 @@ export default function StockHoldingDashboardShell({
             <ReportFetchProgress
               progress={fetchProgress}
               title="Fetching latest report"
+              onStop={cancelFetch}
             />
           </CustomContainer>
         ) : null}

@@ -157,6 +157,33 @@ export async function clearCachedReport(date) {
   clearLegacyLocalStorageCache(date);
 }
 
+function clearAllLegacyLocalStorageCaches() {
+  if (typeof window === "undefined") return;
+
+  try {
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key?.startsWith(LEGACY_STORAGE_PREFIX)) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach((key) => localStorage.removeItem(key));
+  } catch {
+    // ignore
+  }
+}
+
+export async function clearAllCachedReports() {
+  try {
+    await runStoreRequest("readwrite", (store) => store.clear());
+  } catch {
+    // ignore
+  }
+
+  clearAllLegacyLocalStorageCaches();
+}
+
 export async function hasFreshCachedReport(date, now = new Date()) {
   const cached = await readCachedReport(date);
   return Boolean(cached && !shouldRefreshFromApi(cached, now));

@@ -4,6 +4,7 @@ import {
   Button,
   Flex,
   Input,
+  Progress,
   Text,
   useDisclosure,
 } from "@chakra-ui/react";
@@ -22,6 +23,7 @@ import {
   deleteStockHoldingReport,
   getStockHoldingReports,
 } from "../../../helper/stockHoldingReport";
+import { clearAllCachedReports } from "../../../util/stockHoldingDashboardCache";
 
 const IMPORT_COLUMN_CONFIG = [
   {
@@ -108,6 +110,43 @@ const getStatusBadge = (status) => {
   };
 };
 
+function formatDateTime(value) {
+  if (!value) return "—";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString();
+}
+
+function UploadProgress({ progress }) {
+  if (!progress) return null;
+
+  const { batch, totalBatches, itemCount } = progress;
+  const percent =
+    totalBatches > 0 ? Math.min(100, Math.round((batch / totalBatches) * 100)) : 0;
+
+  return (
+    <Box w="100%" mt={2}>
+      <Flex justify="space-between" mb={2} gap={3} flexWrap="wrap">
+        <Text fontSize="sm" color="gray.600">
+          Uploading batch {batch} of {totalBatches}
+        </Text>
+        {itemCount != null ? (
+          <Text fontSize="sm" color="gray.600">
+            {Number(itemCount).toLocaleString()} items saved
+          </Text>
+        ) : null}
+      </Flex>
+      <Progress
+        value={percent}
+        size="sm"
+        colorScheme="teal"
+        borderRadius="md"
+        hasStripe
+        isAnimated
+      />
+    </Box>
+  );
+}
+
 function StockHoldingReportPage() {
   const canAdd = usePermissions("add_stock_holding_report");
   const canDelete = usePermissions("delete_stock_holding_report");
@@ -129,11 +168,12 @@ function StockHoldingReportPage() {
   }, [outlets]);
 
   const [loading, setLoading] = useState(true);
-  const [rows, setRows] = useState([]);
+  const [currentReport, setCurrentReport] = useState(null);
   const [reportName, setReportName] = useState("");
   const [reportDate, setReportDate] = useState(formatToday());
   const [previewRows, setPreviewRows] = useState([]);
   const [saving, setSaving] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(null);
   const {
     isOpen: isImportOpen,
     onOpen: onImportOpen,
@@ -144,9 +184,16 @@ function StockHoldingReportPage() {
     setLoading(true);
     try {
       const response = await getStockHoldingReports();
-      setRows(Array.isArray(response?.data) ? response.data : []);
+      const list = Array.isArray(response?.data) ? response.data : [];
+      const latest = list.length
+        ? [...list].sort(
+            (a, b) =>
+              Number(b.stock_holding_report_id) - Number(a.stock_holding_report_id)
+          )[0]
+        : null;
+      setCurrentReport(latest);
     } catch (err) {
-      toast.error(err?.message || "Failed to load stock holding reports.");
+      toast.error(err?.message || "Failed to load stock holding report.");
     } finally {
       setLoading(false);
     }
@@ -210,6 +257,7 @@ function StockHoldingReportPage() {
     setPreviewRows([]);
     setReportName("");
     setReportDate(formatToday());
+    setUploadProgress(null);
   }, [onImportClose]);
 
   const handleImportMappedData = useCallback(
@@ -240,13 +288,20 @@ function StockHoldingReportPage() {
     }
 
     setSaving(true);
+    setUploadProgress(null);
     try {
-      const response = await createStockHoldingReportBatched({
-        report_name: reportName.trim(),
-        date: reportDate,
-        items: validPayloadRows,
-      });
+      const response = await createStockHoldingReportBatched(
+        {
+          report_name: reportName.trim(),
+          date: reportDate,
+          items: validPayloadRows,
+        },
+        {
+          onProgress: (progress) => setUploadProgress(progress),
+        }
+      );
       if (response?.code === 200 || response?.code === 201) {
+        await clearAllCachedReports();
         toast.success("Stock holding report saved.");
         handleCloseImport();
         fetchReports();
@@ -259,6 +314,7 @@ function StockHoldingReportPage() {
       toast.error(err?.message || "Failed to save stock holding report.");
     } finally {
       setSaving(false);
+      setUploadProgress(null);
     }
   }, [
     fetchReports,
@@ -268,72 +324,21 @@ function StockHoldingReportPage() {
     validPayloadRows,
   ]);
 
-  const handleDelete = useCallback(
-    (id) => {
-      if (!id) return;
-      confirmDelete({
-        title: "Delete Stock Holding Report",
-        message:
-          "Are you sure you want to delete this stock holding report? This action cannot be undone.",
-        onConfirm: async () => {
-          await deleteStockHoldingReport(id);
-          toast.success("Stock holding report deleted.");
-          fetchReports();
-        },
-      });
-    },
-    [confirmDelete, fetchReports]
-  );
-
-  const listColumnDefs = useMemo(
-    () => [
-      {
-        field: "stock_holding_report_id",
-        headerName: "ID",
-        type: "id",
-        sort: "desc",
+  const handleDelete = useCallback(() => {
+    const id = currentReport?.stock_holding_report_id;
+    if (!id) return;
+    confirmDelete({
+      title: "Delete Stock Holding Report",
+      message:
+        "Are you sure you want to delete the current stock holding report? This action cannot be undone.",
+      onConfirm: async () => {
+        await deleteStockHoldingReport(id);
+        await clearAllCachedReports();
+        toast.success("Stock holding report deleted.");
+        fetchReports();
       },
-      { field: "report_name", headerName: "Report Name", flex: 1 },
-      {
-        field: "date",
-        headerName: "Date",
-        type: "date",
-      },
-      {
-        field: "item_count",
-        headerName: "Items",
-        type: "number",
-      },
-      {
-        field: "created_by_name",
-        headerName: "Created By",
-        type: "capitalized",
-      },
-      {
-        field: "created_at",
-        headerName: "Created At",
-        type: "datetime",
-      },
-      {
-        field: "action",
-        headerName: "Action",
-        type: "action-column",
-        valueGetter: (params) => {
-          const actions = [];
-          if (canDelete) {
-            actions.push({
-              label: "Delete",
-              value: "delete",
-              type: "danger",
-              onClick: () => handleDelete(params.data?.stock_holding_report_id),
-            });
-          }
-          return actions;
-        },
-      },
-    ],
-    [canDelete, handleDelete]
-  );
+    });
+  }, [confirmDelete, currentReport, fetchReports]);
 
   const previewColumnDefs = useMemo(
     () => [
@@ -411,50 +416,119 @@ function StockHoldingReportPage() {
               accept=".xlsx,.xls,.csv"
               renderer={(openFileBrowser) => (
                 <Button onClick={openFileBrowser} colorScheme="teal" size="sm">
-                  Import
+                  {currentReport ? "Replace Report" : "Import Report"}
                 </Button>
               )}
             />
           ) : null
         }
       >
+        <Text fontSize="sm" color="gray.600" mb={4}>
+          Only one stock holding report is kept. A successful import replaces the
+          previous report.
+        </Text>
+
         {loading ? (
           <Text py={4} color="gray.600">
             Loading...
           </Text>
+        ) : currentReport ? (
+          <Box
+            borderWidth="1px"
+            borderRadius="md"
+            borderColor="gray.200"
+            p={4}
+            bg="white"
+          >
+            <Flex
+              justify="space-between"
+              align={{ base: "stretch", md: "center" }}
+              direction={{ base: "column", md: "row" }}
+              gap={4}
+            >
+              <Box>
+                <Text fontSize="lg" fontWeight="semibold" color="gray.800">
+                  {currentReport.report_name || "Stock Holding Report"}
+                </Text>
+                <Text fontSize="sm" color="gray.600" mt={1}>
+                  Report date: {currentReport.date || "—"}
+                </Text>
+                <Text fontSize="sm" color="gray.600">
+                  Items:{" "}
+                  {currentReport.item_count != null
+                    ? Number(currentReport.item_count).toLocaleString()
+                    : "—"}
+                </Text>
+                <Text fontSize="sm" color="gray.600">
+                  Uploaded: {formatDateTime(currentReport.created_at)}
+                  {currentReport.created_by_name
+                    ? ` by ${currentReport.created_by_name}`
+                    : ""}
+                </Text>
+              </Box>
+              {canDelete ? (
+                <Button
+                  colorScheme="red"
+                  variant="outline"
+                  size="sm"
+                  alignSelf={{ base: "flex-start", md: "center" }}
+                  onClick={handleDelete}
+                >
+                  Delete Report
+                </Button>
+              ) : null}
+            </Flex>
+          </Box>
         ) : (
-          <AgGrid
-            tableKey="stock-holding-report-list"
-            rowData={rows}
-            columnDefs={listColumnDefs}
-          />
+          <Box
+            borderWidth="1px"
+            borderRadius="md"
+            borderColor="gray.200"
+            p={6}
+            bg="gray.50"
+          >
+            <Text color="gray.600">
+              No stock holding report uploaded yet. Use Import Report to upload
+              the first file.
+            </Text>
+          </Box>
         )}
       </CustomContainer>
 
       <CustomModal
         isOpen={isImportOpen}
         onClose={handleCloseImport}
-        title="Import Stock Holding Report"
+        title={currentReport ? "Replace Stock Holding Report" : "Import Stock Holding Report"}
         size="6xl"
         colorScheme="teal"
         footer={
-          <Flex justifyContent="flex-end" gap={4}>
-            <Button variant="outline" onClick={handleCloseImport}>
-              Cancel
-            </Button>
-            <Button
-              colorScheme="teal"
-              onClick={handleSave}
-              isLoading={saving}
-              loadingText="Saving..."
-              isDisabled={!previewRows.length}
-            >
-              Save
-            </Button>
+          <Flex direction="column" w="100%" gap={3}>
+            <UploadProgress progress={uploadProgress} />
+            <Flex justifyContent="flex-end" gap={4}>
+              <Button variant="outline" onClick={handleCloseImport} isDisabled={saving}>
+                Cancel
+              </Button>
+              <Button
+                colorScheme="teal"
+                onClick={handleSave}
+                isLoading={saving}
+                loadingText="Saving..."
+                isDisabled={!previewRows.length}
+              >
+                {currentReport ? "Replace Report" : "Save Report"}
+              </Button>
+            </Flex>
           </Flex>
         }
       >
         <Flex direction="column" gap={4}>
+          {currentReport ? (
+            <Text fontSize="sm" color="orange.600">
+              Saving will upload the new report first, then remove the previous
+              one.
+            </Text>
+          ) : null}
+
           <Flex gap={4} flexWrap="wrap">
             <Box w={{ base: "100%", md: "280px" }}>
               <Text fontSize="sm" mb={1} color="gray.600">
