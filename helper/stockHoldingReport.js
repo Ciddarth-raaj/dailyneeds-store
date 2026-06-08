@@ -26,8 +26,15 @@ export const createStockHoldingReport = (payload) => {
   });
 };
 
-export const appendStockHoldingReportItems = (reportId, items) => {
-  return API.post(`/stock-holding-report/${reportId}/items`, { items }).then(
+export const appendStockHoldingReportItems = (
+  reportId,
+  items,
+  { finalize = false } = {}
+) => {
+  return API.post(`/stock-holding-report/${reportId}/items`, {
+    items,
+    finalize,
+  }).then(
     (res) => {
       const data = res?.data ?? res;
       if (data?.code === 200) return data;
@@ -62,9 +69,11 @@ export const createStockHoldingReportBatched = async (
 
   const batches = chunkArray(items, REPORT_UPLOAD_BATCH_SIZE);
   for (let i = 0; i < batches.length; i++) {
+    const isLastBatch = i === batches.length - 1;
     const batchResponse = await appendStockHoldingReportItems(
       reportId,
-      batches[i]
+      batches[i],
+      { finalize: isLastBatch }
     );
     if (batchResponse?.code !== 200) {
       throw batchResponse;

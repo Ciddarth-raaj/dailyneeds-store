@@ -7,12 +7,14 @@ import {
   Flex,
   Grid,
   Input,
+  Progress,
   Spinner,
   Tab,
   TabList,
   Tabs,
   Text,
 } from "@chakra-ui/react";
+import { RepeatIcon } from "@chakra-ui/icons";
 import GlobalWrapper from "../globalWrapper/globalWrapper";
 import CustomContainer from "../CustomContainer";
 import SearchableDropdown from "../customInput/SearchableDropdown";
@@ -29,6 +31,44 @@ function toDropdownOptions(options = []) {
     id: o.value,
     value: o.label,
   }));
+}
+
+function ReportFetchProgress({ progress, title }) {
+  const loaded = progress?.loaded ?? 0;
+  const total = progress?.total;
+  const hasTotal = total != null && total > 0;
+  const percent = hasTotal
+    ? Math.min(100, Math.round((loaded / total) * 100))
+    : null;
+
+  const countLabel = hasTotal
+    ? `${loaded.toLocaleString()} / ${total.toLocaleString()} rows`
+    : loaded > 0
+      ? `${loaded.toLocaleString()} rows loaded`
+      : "Starting…";
+
+  return (
+    <Box w="100%">
+      <Flex justify="space-between" align="center" mb={2} gap={3} flexWrap="wrap">
+        <Text fontSize="sm" fontWeight="medium" color="gray.700">
+          {title}
+        </Text>
+        <Text fontSize="sm" color="gray.600">
+          {countLabel}
+          {percent != null ? ` (${percent}%)` : ""}
+        </Text>
+      </Flex>
+      <Progress
+        value={hasTotal ? percent : undefined}
+        isIndeterminate={!hasTotal && loaded === 0}
+        hasStripe={!hasTotal && loaded > 0}
+        isAnimated
+        size="sm"
+        colorScheme="purple"
+        borderRadius="md"
+      />
+    </Box>
+  );
 }
 
 function FilterDropdown({ label, placeholder, value, options, onChange }) {
@@ -54,8 +94,10 @@ export default function StockHoldingDashboardShell({
     selectedDate,
     setSelectedDate,
     loading,
+    refreshing,
     fetchProgress,
     lastSyncAt,
+    refreshData,
     rawItems,
     enriching,
     dashboard,
@@ -113,21 +155,20 @@ export default function StockHoldingDashboardShell({
   const showDashboard = hasReportData && !enriching;
   const tabIndex = DASHBOARD_TABS.findIndex((t) => t.value === activeTab);
 
-  if (loading) {
+  if (loading && !refreshing) {
     return (
       <GlobalWrapper
         title="Stock Holding Dashboard"
         permissionKey="view_stock_holding_dashboard"
       >
-        <Center minH="240px" flexDirection="column" gap={3}>
+        <Center minH="320px" flexDirection="column" gap={4} px={6} w="100%">
           <Spinner size="lg" color="purple.500" />
-          <Text fontSize="sm" color="gray.600">
-            {fetchProgress?.total != null
-              ? `Loading report… ${fetchProgress.loaded.toLocaleString()} / ${fetchProgress.total.toLocaleString()} rows`
-              : fetchProgress?.loaded
-                ? `Loading report… ${fetchProgress.loaded.toLocaleString()} rows`
-                : "Loading report…"}
-          </Text>
+          <Box w="100%" maxW="520px">
+            <ReportFetchProgress
+              progress={fetchProgress}
+              title="Loading report"
+            />
+          </Box>
         </Center>
       </GlobalWrapper>
     );
@@ -190,9 +231,27 @@ export default function StockHoldingDashboardShell({
                   {lastSyncFormatted || "No sync data"}
                 </Text>
               </Box>
+              <Button
+                size="sm"
+                variant="outline"
+                leftIcon={<RepeatIcon />}
+                onClick={refreshData}
+                isDisabled={loading || refreshing}
+              >
+                Refresh
+              </Button>
             </Flex>
           </Flex>
         </CustomContainer>
+
+        {refreshing ? (
+          <CustomContainer title="Refreshing Data" filledHeader size="xs">
+            <ReportFetchProgress
+              progress={fetchProgress}
+              title="Fetching latest report"
+            />
+          </CustomContainer>
+        ) : null}
 
         {hasReportData && enriching ? (
           <Center minH="240px">
