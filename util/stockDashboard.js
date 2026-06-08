@@ -79,44 +79,14 @@ export function mapDeadStockItemToRow(item) {
   };
 }
 
-const resolveCategoryName = (src, categoryById) => {
-  if (src.category_name) return src.category_name;
-  const id = src.category_id;
-  if (id != null && categoryById?.[id] != null) return categoryById[id];
-  if (id != null && categoryById?.[String(id)] != null) {
-    return categoryById[String(id)];
-  }
-  return null;
-};
-
-const resolveSubcategoryName = (src, subcategoryById) => {
-  if (src.subcategory_name) return src.subcategory_name;
-  const id = src.subcategory_id;
-  if (id != null && subcategoryById?.[id] != null) return subcategoryById[id];
-  if (id != null && subcategoryById?.[String(id)] != null) {
-    return subcategoryById[String(id)];
-  }
-  return null;
-};
-
-export const pickProductMeta = (
-  row,
-  mappedProduct,
-  { categoryById, subcategoryById } = {}
-) => {
+export const pickProductMeta = (row, mappedProduct) => {
   const src = mappedProduct || {};
-  const productMeta = {
-    category_id: src.category_id ?? row.category_id,
-    category_name: src.category_name ?? row.category_name,
-    subcategory_id: src.subcategory_id ?? row.subcategory_id,
-    subcategory_name: src.subcategory_name ?? row.subcategory_name,
-  };
   return {
     buyer: labelOf(row.buyer || src.buyer_name),
     supplier: labelOf(row.supplier),
     department: labelOf(row.department_name || src.department_name),
-    category: labelOf(resolveCategoryName(productMeta, categoryById)),
-    subcategory: labelOf(resolveSubcategoryName(productMeta, subcategoryById)),
+    category: labelOf(row.category_name || src.category_name),
+    subcategory: labelOf(row.subcategory_name || src.subcategory_name),
     product_image: src.image_url || null,
     product_name:
       row.product_name ||
