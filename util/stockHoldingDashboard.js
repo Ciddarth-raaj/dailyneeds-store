@@ -334,17 +334,6 @@ function withPctSplit(rows, totalCount) {
   }));
 }
 
-function countRawAvailability(items) {
-  let available = 0;
-  let outOfStock = 0;
-  (items || []).forEach((item) => {
-    const key = getStockAvailabilityKey(item);
-    if (key === STOCK_AVAILABILITY_KEYS.OUT_OF_STOCK) outOfStock += 1;
-    else available += 1;
-  });
-  return { available, outOfStock };
-}
-
 const getProductKey = (item) => {
   const id = item?.product_id;
   return id == null ? "unknown" : String(id);
@@ -355,6 +344,65 @@ const countUniqueProducts = (items) => {
   (items || []).forEach((item) => keys.add(getProductKey(item)));
   return keys.size;
 };
+
+function groupRowsByProduct(items) {
+  const byProduct = new Map();
+  (items || []).forEach((item) => {
+    const key = getProductKey(item);
+    let rows = byProduct.get(key);
+    if (!rows) {
+      rows = [];
+      byProduct.set(key, rows);
+    }
+    rows.push(item);
+  });
+  return byProduct;
+}
+
+function getDominantLabel(rows, labelKey) {
+  const counts = new Map();
+  (rows || []).forEach((row) => {
+    const label = labelOf(row[labelKey]);
+    counts.set(label, (counts.get(label) || 0) + 1);
+  });
+
+  let bestLabel = "Unknown";
+  let bestCount = -1;
+  counts.forEach((count, label) => {
+    if (count > bestCount) {
+      bestCount = count;
+      bestLabel = label;
+    }
+  });
+  return bestLabel;
+}
+
+function getProductStatusKey(rows) {
+  const hasInactive = (rows || []).some(
+    (row) =>
+      normalizeStatusKey(row.status_key) === STOCK_HOLDING_STATUS_KEYS.INACTIVE
+  );
+  return hasInactive
+    ? STOCK_HOLDING_STATUS_KEYS.INACTIVE
+    : STOCK_HOLDING_STATUS_KEYS.ACTIVE;
+}
+
+function getProductStockAvailabilityKey(rows) {
+  return (rows || []).some(
+    (row) => getStockAvailabilityKey(row) === STOCK_AVAILABILITY_KEYS.AVAILABLE
+  )
+    ? STOCK_AVAILABILITY_KEYS.AVAILABLE
+    : STOCK_AVAILABILITY_KEYS.OUT_OF_STOCK;
+}
+
+function countProductsByBucket(items, getBucketKey) {
+  const counts = new Map();
+  groupRowsByProduct(items).forEach((productRows) => {
+    const bucket = getBucketKey(productRows);
+    counts.set(bucket, (counts.get(bucket) || 0) + 1);
+  });
+  return counts;
+}
 
 /** Product-weighted availability: average per-product branch availability across products. */
 function computeProductWeightedAvailabilityPcts(items) {
@@ -411,15 +459,20 @@ export function computeAvailabilitySummary(rows) {
     };
   }
 
-  const { available, outOfStock } = countRawAvailability(rows);
+  const availabilityProductCounts = countProductsByBucket(
+    rows,
+    getProductStockAvailabilityKey
+  );
   const pcts = computeProductWeightedAvailabilityPcts(rows);
 
   return {
     total,
     available_pct: pcts.available_pct,
     out_of_stock_pct: pcts.out_of_stock_pct,
-    available_count: available,
-    out_of_stock_count: outOfStock,
+    available_count:
+      availabilityProductCounts.get(STOCK_AVAILABILITY_KEYS.AVAILABLE) ?? 0,
+    out_of_stock_count:
+      availabilityProductCounts.get(STOCK_AVAILABILITY_KEYS.OUT_OF_STOCK) ?? 0,
   };
 }
 
@@ -568,10 +621,6 @@ export function computeStockHoldingDashboardState(rows, filters = {}) {
   const stockAvailabilityOptions = new Map();
 
   const statusCounts = { active: 0, inactive: 0 };
-  const availabilityCounts = {
-    available: 0,
-    out_of_stock: 0,
-  };
   const purchaseTypeCounts = new Map();
   const chainBillCounts = new Map();
 
@@ -669,23 +718,6 @@ export function computeStockHoldingDashboardState(rows, filters = {}) {
     totalStockQty += toNum(row.stock_qty);
     totalStockValue += toNum(row.stock_value);
 
-    const status = row.status_key;
-    if (statusCounts[status] != null) statusCounts[status] += 1;
-
-    const availabilityKey = getStockAvailabilityKey(row);
-    if (availabilityKey && availabilityCounts[availabilityKey] != null) {
-      availabilityCounts[availabilityKey] += 1;
-    }
-
-    purchaseTypeCounts.set(
-      row.purchase_type_label,
-      (purchaseTypeCounts.get(row.purchase_type_label) || 0) + 1
-    );
-    chainBillCounts.set(
-      row.chain_bill_count_level_label,
-      (chainBillCounts.get(row.chain_bill_count_level_label) || 0) + 1
-    );
-
     accumulateEntityGroup(
       supplierGrouped,
       "supplier_id",
@@ -725,10 +757,40 @@ export function computeStockHoldingDashboardState(rows, filters = {}) {
       row
     );
     accumulateLabelGroup(statusGrouped, "status_label", row);
+    const availabilityKey = getStockAvailabilityKey(row);
     accumulateAvailabilityGroup(stockAvailabilityGrouped, availabilityKey, row);
   }
 
-  const filteredCount = filteredRows.length;
+  const uniqueProductCount = countUniqueProducts(filteredRows);
+
+  countProductsByBucket(filteredRows, getProductStatusKey).forEach(
+    (count, key) => {
+      if (statusCounts[key] != null) statusCounts[key] = count;
+    }
+  );
+
+  const availabilityCounts = {
+    available: 0,
+    out_of_stock: 0,
+  };
+  countProductsByBucket(filteredRows, getProductStockAvailabilityKey).forEach(
+    (count, key) => {
+      if (availabilityCounts[key] != null) availabilityCounts[key] = count;
+    }
+  );
+
+  countProductsByBucket(filteredRows, (rows) =>
+    getDominantLabel(rows, "purchase_type_label")
+  ).forEach((count, label) => {
+    purchaseTypeCounts.set(label, count);
+  });
+
+  countProductsByBucket(filteredRows, (rows) =>
+    getDominantLabel(rows, "chain_bill_count_level_label")
+  ).forEach((count, label) => {
+    chainBillCounts.set(label, count);
+  });
+
   const availabilityPcts = computeProductWeightedAvailabilityPcts(filteredRows);
   const availabilityPctByKey = {
     [STOCK_AVAILABILITY_KEYS.AVAILABLE]: availabilityPcts.available_pct,
@@ -822,8 +884,10 @@ export function computeStockHoldingDashboardState(rows, filters = {}) {
     chainLevelTableRows: sortGroupedRows(chainLevelGrouped),
     statusTableRows: sortGroupedRows(statusGrouped),
     stockAvailabilityTableRows: withPctSplit(
-      sortStockAvailabilityRows(stockAvailabilityGrouped),
-      filteredCount
+      enrichGroupedRowsWithProductCount(
+        sortStockAvailabilityRows(stockAvailabilityGrouped)
+      ),
+      uniqueProductCount
     ),
   };
 }
@@ -869,15 +933,6 @@ export const pruneMultiFilter = (selected, options) => {
     options.some((o) => o.value === value)
   );
   return arraysShallowEqual(selected, next) ? selected || [] : next;
-};
-
-export const pruneStatusFilter = (selected, options) => {
-  const pruned = pruneMultiFilter(selected, options);
-  if (pruned.length > 0) return pruned;
-  const hasActive = (options || []).some(
-    (o) => o.value === STOCK_HOLDING_STATUS_KEYS.ACTIVE
-  );
-  return hasActive ? [STOCK_HOLDING_STATUS_KEYS.ACTIVE] : pruned;
 };
 
 export const toggleMultiFilterValue = (selected, value) => {
@@ -959,11 +1014,8 @@ export function buildStatusPieData(rows) {
     inactive: 0,
   };
 
-  (rows || []).forEach((row) => {
-    const status = normalizeStatusKey(row.status_key ?? row.status);
-    if (statusCounts[status] != null) {
-      statusCounts[status] += 1;
-    }
+  countProductsByBucket(rows, getProductStatusKey).forEach((count, key) => {
+    if (statusCounts[key] != null) statusCounts[key] = count;
   });
 
   return statusOrder
@@ -984,8 +1036,8 @@ const CHAIN_BILL_CHART_COLORS = {
 
 function buildLabelCountPieData(rows, labelKey, colorMap) {
   const counts = new Map();
-  (rows || []).forEach((row) => {
-    const label = labelOf(row[labelKey]);
+  groupRowsByProduct(rows).forEach((productRows) => {
+    const label = getDominantLabel(productRows, labelKey);
     counts.set(label, (counts.get(label) || 0) + 1);
   });
 

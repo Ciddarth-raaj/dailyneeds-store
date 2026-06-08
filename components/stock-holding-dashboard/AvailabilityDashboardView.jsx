@@ -51,7 +51,7 @@ function AvailabilityStatCard({ title, pct, count, color = "purple" }) {
         {pct}%
       </Text>
       <Text fontSize="sm" color={`${color}.600`}>
-        {formatFullNumber(count)} items
+        {formatFullNumber(count)} products
       </Text>
     </Flex>
   );

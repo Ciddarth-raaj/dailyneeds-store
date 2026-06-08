@@ -14,7 +14,6 @@ import {
   filterOptionsKey,
   filterStockHoldingRows,
   pruneMultiFilter,
-  pruneStatusFilter,
   STOCK_HOLDING_STATUS_KEYS,
   toggleMultiFilterValue,
 } from "../util/stockHoldingDashboard";
@@ -210,7 +209,7 @@ export function StockHoldingDashboardProvider({ children }) {
       pruneMultiFilter(prev, purchaseTypeOptions)
     );
     setChainLevelFilter((prev) => pruneMultiFilter(prev, chainLevelOptions));
-    setStatusFilter((prev) => pruneStatusFilter(prev, statusOptions));
+    setStatusFilter((prev) => pruneMultiFilter(prev, statusOptions));
     setStockAvailabilityFilter((prev) =>
       pruneMultiFilter(prev, stockAvailabilityOptions)
     );
@@ -242,7 +241,7 @@ export function StockHoldingDashboardProvider({ children }) {
       setSubcategoryFilter([]);
       setPurchaseTypeFilter([]);
       setChainLevelFilter([]);
-      setStatusFilter([...DEFAULT_STATUS_FILTER]);
+      setStatusFilter([]);
       setStockAvailabilityFilter([]);
       setGridResetKey((prev) => prev + 1);
     });
