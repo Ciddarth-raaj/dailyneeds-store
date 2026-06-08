@@ -36,6 +36,8 @@ import AgGrid from "../../components/AgGrid";
 import DashboardChartLegend from "../../components/Dashboard/CustomChartLegend";
 import { useProducts } from "../../customHooks/useProducts";
 import { useDeadStockItems } from "../../customHooks/useDeadStockItems";
+import { useCategories } from "../../customHooks/useCategories";
+import { useSubcategories } from "../../customHooks/useSubcategories";
 import currencyFormatter from "../../util/currencyFormatter";
 import { capitalize, formatShorthandNumber } from "../../util/string";
 import {
@@ -151,6 +153,8 @@ function StockDashboard() {
     fetchAll: true,
     enabled: !loading && items.length > 0,
   });
+  const { categoriesList } = useCategories();
+  const { subcategoriesList } = useSubcategories();
 
   const [buyerFilter, setBuyerFilter] = useState("");
   const [supplierFilter, setSupplierFilter] = useState("");
@@ -182,11 +186,30 @@ function StockDashboard() {
     return map;
   }, [products]);
 
+  const categoryById = useMemo(() => {
+    const map = {};
+    (categoriesList || []).forEach((c) => {
+      if (c?.id != null) map[c.id] = c.value;
+    });
+    return map;
+  }, [categoriesList]);
+
+  const subcategoryById = useMemo(() => {
+    const map = {};
+    (subcategoriesList || []).forEach((s) => {
+      if (s?.id != null) map[s.id] = s.value;
+    });
+    return map;
+  }, [subcategoriesList]);
+
   const enrichedRows = useMemo(() => {
     return (items || []).map((item) => {
       const row = mapDeadStockItemToRow(item);
       const mappedProduct = productById[row.product_id];
-      const meta = pickProductMeta(row, mappedProduct);
+      const meta = pickProductMeta(row, mappedProduct, {
+        categoryById,
+        subcategoryById,
+      });
       return {
         ...row,
         product_name: meta.product_name,
@@ -200,7 +223,7 @@ function StockDashboard() {
         total_value: sumValue(row),
       };
     });
-  }, [items, productById]);
+  }, [items, productById, categoryById, subcategoryById]);
 
   const filterOptions = useMemo(() => {
     const buyers = new Set();

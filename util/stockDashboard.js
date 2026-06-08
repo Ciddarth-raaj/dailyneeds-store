@@ -64,6 +64,10 @@ export function mapDeadStockItemToRow(item) {
     supplier: labelOf(item?.de_distributor),
     department_id: item?.department_id ?? null,
     department_name: item?.department_name ?? null,
+    category_id: item?.category_id ?? null,
+    category_name: item?.category_name ?? null,
+    subcategory_id: item?.subcategory_id ?? null,
+    subcategory_name: item?.subcategory_name ?? null,
     "30_days_stock": toNum(thirty.stock),
     "30_days_stock_value": toNum(thirty.stock_value),
     "90_days_stock": toNum(ninety.stock),
@@ -75,14 +79,44 @@ export function mapDeadStockItemToRow(item) {
   };
 }
 
-export const pickProductMeta = (row, mappedProduct) => {
+const resolveCategoryName = (src, categoryById) => {
+  if (src.category_name) return src.category_name;
+  const id = src.category_id;
+  if (id != null && categoryById?.[id] != null) return categoryById[id];
+  if (id != null && categoryById?.[String(id)] != null) {
+    return categoryById[String(id)];
+  }
+  return null;
+};
+
+const resolveSubcategoryName = (src, subcategoryById) => {
+  if (src.subcategory_name) return src.subcategory_name;
+  const id = src.subcategory_id;
+  if (id != null && subcategoryById?.[id] != null) return subcategoryById[id];
+  if (id != null && subcategoryById?.[String(id)] != null) {
+    return subcategoryById[String(id)];
+  }
+  return null;
+};
+
+export const pickProductMeta = (
+  row,
+  mappedProduct,
+  { categoryById, subcategoryById } = {}
+) => {
   const src = mappedProduct || {};
+  const productMeta = {
+    category_id: src.category_id ?? row.category_id,
+    category_name: src.category_name ?? row.category_name,
+    subcategory_id: src.subcategory_id ?? row.subcategory_id,
+    subcategory_name: src.subcategory_name ?? row.subcategory_name,
+  };
   return {
     buyer: labelOf(row.buyer || src.buyer_name),
     supplier: labelOf(row.supplier),
     department: labelOf(row.department_name || src.department_name),
-    category: labelOf(src.category_name),
-    subcategory: labelOf(src.subcategory_name),
+    category: labelOf(resolveCategoryName(productMeta, categoryById)),
+    subcategory: labelOf(resolveSubcategoryName(productMeta, subcategoryById)),
     product_image: src.image_url || null,
     product_name:
       row.product_name ||
