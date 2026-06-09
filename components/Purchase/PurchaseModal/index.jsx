@@ -22,6 +22,8 @@ import currencyFormatter from "../../../util/currencyFormatter";
 import {
   buildPurchaseGstRows,
   calculateTotalAmount,
+  IGST_DISPLAY_PERCS,
+  LOCAL_GST_HALF_PERCS,
   LOCAL_PURCHASE_28_PERC,
   LOCAL_PURCHASE_40_PERC,
   shouldShowIGST,
@@ -33,9 +35,7 @@ const JV_LEDGER_LIST = [
   { id: 3, value: "Payment Hold" },
 ];
 
-const DEFAULT_GST_PERCS = [0, 5, LOCAL_PURCHASE_40_PERC, 18, LOCAL_PURCHASE_28_PERC];
-/** Half CGST/SGST rates for empty slots (14 → 28%, 20 → 40%). */
-const REQUIRED_HALF_PERCS = [0, 2.5, 9, 14, 20];
+const DEFAULT_GST_PERCS = IGST_DISPLAY_PERCS;
 
 const INITIAL_VALUES = {
   invoice_amount: 0.0,
@@ -99,17 +99,20 @@ function PurchaseModal({
 
       item.gst = buildPurchaseGstRows(item);
 
+      const isIgst = shouldShowIGST(item);
+      const requiredPercs = isIgst ? IGST_DISPLAY_PERCS : LOCAL_GST_HALF_PERCS;
+
       const existingPercs = item.gst.map((taxItem) =>
-        shouldShowIGST(item) ? taxItem.PERC : taxItem.PERC / 2
+        isIgst ? taxItem.PERC : taxItem.PERC / 2
       );
 
-      const missingGstItems = REQUIRED_HALF_PERCS.filter(
-        (perc) => !existingPercs.includes(perc)
-      ).map((perc) => ({
-        VALUE: null,
-        PERC: shouldShowIGST(item) ? perc : perc * 2,
-        TAXABLE: null,
-      }));
+      const missingGstItems = requiredPercs
+        .filter((perc) => !existingPercs.includes(perc))
+        .map((perc) => ({
+          VALUE: null,
+          PERC: isIgst ? perc : perc * 2,
+          TAXABLE: null,
+        }));
 
       item.gst = [...item.gst, ...missingGstItems].sort(
         (a, b) => a.PERC - b.PERC

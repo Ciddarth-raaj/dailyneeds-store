@@ -1,5 +1,15 @@
 export const LOCAL_PURCHASE_40_PERC = 40;
 export const LOCAL_PURCHASE_28_PERC = 28;
+/** Full IGST slab rates shown in the purchase modal. */
+export const IGST_DISPLAY_PERCS = [
+  0,
+  5,
+  18,
+  LOCAL_PURCHASE_28_PERC,
+  LOCAL_PURCHASE_40_PERC,
+];
+/** Half CGST/SGST rates stored in the DB (14 → 28%, 20 → 40%). */
+export const LOCAL_GST_HALF_PERCS = [0, 2.5, 9, 14, 20];
 const CESS_PERC = 12;
 
 export const shouldShowIGST = (values) => {
