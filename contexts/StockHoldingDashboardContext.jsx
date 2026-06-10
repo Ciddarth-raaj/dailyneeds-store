@@ -8,7 +8,10 @@ import React, {
   useState,
 } from "react";
 import toast from "react-hot-toast";
-import { getLatestStockHoldingReportByDate } from "../helper/stockHoldingReport";
+import {
+  getLatestStockHoldingReportByDate,
+  getStockHoldingReportStatus,
+} from "../helper/stockHoldingReport";
 import {
   computeStockHoldingDashboardState,
   enrichStockHoldingItems,
@@ -19,6 +22,7 @@ import {
   toggleMultiFilterValue,
 } from "../util/stockHoldingDashboard";
 import {
+  getLocalDayKey,
   readCachedReport,
   shouldRefreshFromApi,
   writeCachedReport,
@@ -26,12 +30,10 @@ import {
 
 const DEFAULT_STATUS_FILTER = [STOCK_HOLDING_STATUS_KEYS.ACTIVE];
 
-const todayStr = () => new Date().toISOString().slice(0, 10);
-
 const StockHoldingDashboardContext = createContext(null);
 
 export function StockHoldingDashboardProvider({ children }) {
-  const [selectedDate, setSelectedDate] = useState(todayStr());
+  const [selectedDate, setSelectedDate] = useState(() => getLocalDayKey());
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [fetchProgress, setFetchProgress] = useState(null);
@@ -68,13 +70,40 @@ export function StockHoldingDashboardProvider({ children }) {
     setLastSyncAt(report?.created_at ?? null);
   }, []);
 
+  const canUseCachedReport = useCallback(async (date, cached, { signal } = {}) => {
+    if (!cached) return false;
+    if (shouldRefreshFromApi(cached)) return false;
+
+    try {
+      const status = await getStockHoldingReportStatus(date, {
+        report_id: cached.stock_holding_report_id ?? null,
+        report_created_at: cached.created_at ?? null,
+        client_fetched_at: cached.fetchedAt ?? null,
+        signal,
+      });
+      if (signal?.aborted) return false;
+      return status?.data?.needs_refresh === false;
+    } catch {
+      return false;
+    }
+  }, []);
+
   const loadReport = useCallback(
-    async (date, { forceRefresh = false, signal, cachedReport } = {}) => {
+    async (
+      date,
+      { forceRefresh = false, signal, cachedReport, cacheValid } = {}
+    ) => {
       if (!forceRefresh) {
         const cached =
           cachedReport === undefined ? await readCachedReport(date) : cachedReport;
         if (signal?.aborted) return null;
-        if (cached && !shouldRefreshFromApi(cached)) {
+
+        let validCache = cacheValid;
+        if (validCache === undefined) {
+          validCache = await canUseCachedReport(date, cached, { signal });
+        }
+
+        if (validCache) {
           applyReportData(cached);
           return { fromCache: true };
         }
@@ -107,7 +136,7 @@ export function StockHoldingDashboardProvider({ children }) {
       applyReportData(report);
       return response;
     },
-    [applyReportData]
+    [applyReportData, canUseCachedReport]
   );
 
   const resetFetchState = useCallback(() => {
@@ -142,6 +171,10 @@ export function StockHoldingDashboardProvider({ children }) {
   }, [abortActiveFetch]);
 
   useEffect(() => {
+    setSelectedDate(getLocalDayKey());
+  }, []);
+
+  useEffect(() => {
     abortActiveFetch();
     const generation = fetchGenerationRef.current;
     const controller = new AbortController();
@@ -151,16 +184,23 @@ export function StockHoldingDashboardProvider({ children }) {
       const cached = await readCachedReport(selectedDate);
       if (fetchGenerationRef.current !== generation) return;
 
-      const hasFreshCache = cached && !shouldRefreshFromApi(cached);
+      let cacheValid = false;
+      if (cached && !shouldRefreshFromApi(cached)) {
+        cacheValid = await canUseCachedReport(selectedDate, cached, {
+          signal: controller.signal,
+        });
+      }
+      if (fetchGenerationRef.current !== generation) return;
 
       try {
-        if (!hasFreshCache) {
+        if (!cacheValid) {
           setLoading(true);
           setFetchProgress(null);
         }
         await loadReport(selectedDate, {
           signal: controller.signal,
           cachedReport: cached,
+          cacheValid,
         });
       } catch (err) {
         if (controller.signal.aborted || isAbortError(err)) return;
@@ -183,6 +223,7 @@ export function StockHoldingDashboardProvider({ children }) {
     isAbortError,
     resetFetchState,
     abortActiveFetch,
+    canUseCachedReport,
   ]);
 
   const refreshData = useCallback(async () => {

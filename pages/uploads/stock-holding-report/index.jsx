@@ -3,8 +3,10 @@ import {
   Box,
   Button,
   Flex,
+  SimpleGrid,
   Text,
 } from "@chakra-ui/react";
+import moment from "moment";
 import toast from "react-hot-toast";
 import GlobalWrapper from "../../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../../components/CustomContainer";
@@ -17,10 +19,29 @@ import {
 } from "../../../helper/stockHoldingReport";
 import { clearAllCachedReports } from "../../../util/stockHoldingDashboardCache";
 
+function formatReportDate(value) {
+  if (!value) return "—";
+  const m = moment(value);
+  return m.isValid() ? m.format("DD MMM YYYY") : String(value);
+}
+
 function formatDateTime(value) {
   if (!value) return "—";
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString();
+  const m = moment(value);
+  return m.isValid() ? m.format("DD MMM YYYY, hh:mm A") : String(value);
+}
+
+function ReportDetail({ label, value }) {
+  return (
+    <Box>
+      <Text fontSize="xs" fontWeight="medium" color="gray.500" textTransform="uppercase">
+        {label}
+      </Text>
+      <Text fontSize="md" fontWeight="semibold" color="gray.800" mt={1}>
+        {value}
+      </Text>
+    </Box>
+  );
 }
 
 function StockHoldingReportPage() {
@@ -127,7 +148,7 @@ function StockHoldingReportPage() {
             borderWidth="1px"
             borderRadius="md"
             borderColor="gray.200"
-            p={4}
+            overflow="hidden"
             bg="white"
           >
             <Flex
@@ -135,25 +156,18 @@ function StockHoldingReportPage() {
               align={{ base: "stretch", md: "center" }}
               direction={{ base: "column", md: "row" }}
               gap={4}
+              px={5}
+              py={4}
+              bg="gray.50"
+              borderBottomWidth="1px"
+              borderColor="gray.200"
             >
               <Box>
                 <Text fontSize="lg" fontWeight="semibold" color="gray.800">
                   {currentReport.report_name || "Stock Holding Report"}
                 </Text>
-                <Text fontSize="sm" color="gray.600" mt={1}>
-                  Report date: {currentReport.date || "—"}
-                </Text>
-                <Text fontSize="sm" color="gray.600">
-                  Items:{" "}
-                  {currentReport.item_count != null
-                    ? Number(currentReport.item_count).toLocaleString()
-                    : "—"}
-                </Text>
-                <Text fontSize="sm" color="gray.600">
-                  Last synced: {formatDateTime(currentReport.created_at)}
-                  {currentReport.created_by_name
-                    ? ` by ${currentReport.created_by_name}`
-                    : ""}
+                <Text fontSize="sm" color="gray.500" mt={1}>
+                  Report #{currentReport.stock_holding_report_id}
                 </Text>
               </Box>
               {canDelete ? (
@@ -168,6 +182,23 @@ function StockHoldingReportPage() {
                 </Button>
               ) : null}
             </Flex>
+
+            <Box px={5} py={5}>
+              <SimpleGrid columns={{ base: 1, sm: 2, lg: 3 }} spacing={5}>
+                <ReportDetail
+                  label="Report date"
+                  value={formatReportDate(currentReport.date)}
+                />
+                <ReportDetail
+                  label="Last synced"
+                  value={formatDateTime(currentReport.created_at)}
+                />
+                <ReportDetail
+                  label="Synced by"
+                  value={currentReport.created_by_name || "System"}
+                />
+              </SimpleGrid>
+            </Box>
           </Box>
         ) : (
           <Box

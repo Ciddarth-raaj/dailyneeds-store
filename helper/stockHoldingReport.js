@@ -110,6 +110,26 @@ export const deleteStockHoldingReport = (id) => {
   });
 };
 
+export const getStockHoldingReportStatus = (
+  date,
+  { report_id, report_created_at, client_fetched_at, signal } = {}
+) => {
+  const params = { date };
+  if (report_id != null) params.report_id = report_id;
+  if (report_created_at) params.report_created_at = report_created_at;
+  if (client_fetched_at) params.client_fetched_at = client_fetched_at;
+
+  return API.get("/stock-holding-report/latest/status", { params, signal }).then(
+    (res) => {
+      const data = res?.data ?? res;
+      if (data?.code === 200) return data;
+      throw new Error(
+        data?.message || "Failed to check stock holding report status"
+      );
+    }
+  );
+};
+
 export const getLatestStockHoldingReportByDate = (
   date,
   { onProgress, signal } = {}
