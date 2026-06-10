@@ -10,6 +10,14 @@ function chunkArray(arr, size) {
   return chunks;
 }
 
+export const syncStockHoldingReport = () => {
+  return API.post("/stock-holding-report/sync").then((res) => {
+    const data = res?.data ?? res;
+    if (data?.code === 200) return data;
+    throw new Error(data?.message || "Failed to sync stock holding report");
+  });
+};
+
 export const getStockHoldingReports = () => {
   return API.get("/stock-holding-report/").then((res) => {
     const data = res?.data ?? res;
