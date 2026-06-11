@@ -42,6 +42,7 @@ const PRICE_CHECKER_TABLE_HEADER = {
   Margin: "Margin",
   "Mark Down": "Mark Down",
   Expected_Selling: "Expected Selling",
+  offer_price: "Offer Price",
   mpfd_markup_down: "mpfd_markup_down",
   mpfd_price_parameter: "mpfd_price_parameter",
   mpfd_value: "mpfd_value",
@@ -121,6 +122,7 @@ function mapLineItemsToPriceCheckerRows(items) {
           ? formatPriceValue(100 - (oldSelling / oldMrp) * 100)
           : "",
       Expected_Selling: formatPriceValue(row.Expected_Selling),
+      offer_price: formatPriceValue(row.offer_price),
     };
 
     const orderedRow = {};
@@ -375,6 +377,13 @@ function PriceChecker() {
           </Flex>
         );
       },
+    },
+    {
+      field: "offerPrice",
+      headerName: "Offer Price",
+      hideByDefault: true,
+      type: "currency",
+      minWidth: 120,
     },
     {
       field: "expectedSellingPrices",
