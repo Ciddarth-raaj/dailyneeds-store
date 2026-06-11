@@ -40,7 +40,14 @@ const PRICE_CHECKER_TABLE_HEADER = {
   Old_Selling_Price: "Old_Selling_Price",
   New_Selling_Price: "New_Selling_Price",
   Margin: "Margin",
-  "Mark Up": "Mark Up",
+  "Mark Down": "Mark Down",
+  Expected_Selling: "Expected Selling",
+  mpfd_markup_down: "mpfd_markup_down",
+  mpfd_price_parameter: "mpfd_price_parameter",
+  mpfd_value: "mpfd_value",
+  mpfd_amt_perc: "mpfd_amt_perc",
+  mpfd_roundoff_type: "mpfd_roundoff_type",
+  mpfd_roundoff_value: "mpfd_roundoff_value",
 };
 
 const UPLOAD_REQUIRED_HEADERS = [
@@ -55,6 +62,27 @@ const UPLOAD_REQUIRED_HEADERS = [
 function toNum(v) {
   const n = Number(v);
   return Number.isFinite(n) ? n : null;
+}
+
+function normalizeMrpKey(v) {
+  const trimmed = v == null ? "" : String(v).trim();
+  if (!trimmed) return "";
+  const n = Number(trimmed);
+  return Number.isFinite(n) ? String(n) : trimmed;
+}
+
+function filterExpectedSellingPrices(expectedSellingPrices, incorrectSellingPrices) {
+  const issueMrps = new Set(
+    (incorrectSellingPrices || [])
+      .map((entry) => normalizeMrpKey(entry.mrp))
+      .filter(Boolean)
+  );
+
+  if (!issueMrps.size) return [];
+
+  return (expectedSellingPrices || []).filter((entry) =>
+    issueMrps.has(normalizeMrpKey(entry.mrp))
+  );
 }
 
 function formatPriceValue(v) {
@@ -81,17 +109,18 @@ function mapLineItemsToPriceCheckerRows(items) {
       Purchase_Price: formatPriceValue(row.Purchase_Price),
       Landing_Cost: formatPriceValue(row.Landing_Cost),
       Old_MRP: formatPriceValue(row.Old_MRP),
-      New_MRP: formatPriceValue(row.New_MRP),
+      New_MRP: formatPriceValue(row.Old_MRP),
       Old_Selling_Price: formatPriceValue(row.Old_Selling_Price),
       New_Selling_Price: formatPriceValue(row.New_Selling_Price),
       Margin:
         oldMrp && purchasePrice != null
           ? formatPriceValue(100 - (purchasePrice / oldMrp) * 100)
           : "",
-      "Mark Up":
+      "Mark Down":
         oldMrp && oldSelling != null
           ? formatPriceValue(100 - (oldSelling / oldMrp) * 100)
           : "",
+      Expected_Selling: formatPriceValue(row.Expected_Selling),
     };
 
     const orderedRow = {};
@@ -340,6 +369,40 @@ function PriceChecker() {
                   <Badge colorScheme="orange">{`Selling Prices: ${price.sellingPrices
                     .map((value) => formatPriceValue(value))
                     .join(" | ")}`}</Badge>
+                </Flex>
+              );
+            })}
+          </Flex>
+        );
+      },
+    },
+    {
+      field: "expectedSellingPrices",
+      headerName: "Expected Selling",
+      hideByDefault: true,
+      minWidth: 320,
+      flex: 1,
+      autoHeight: true,
+      cellRenderer: (props) => {
+        const entries = filterExpectedSellingPrices(
+          props.value,
+          props.data?.incorrectSellingPrices
+        );
+
+        return (
+          <Flex flexDirection="column" gap={2} p={4}>
+            {entries.map((entry) => {
+              const label = `MRP: ${formatPriceValue(entry.mrp)} → ${formatPriceValue(entry.expectedSelling)}`;
+
+              return (
+                <Flex
+                  key={entry.mrp}
+                  gap={2}
+                  alignItems="center"
+                  h="100%"
+                  flexWrap="wrap"
+                >
+                  <Badge colorScheme="green">{label}</Badge>
                 </Flex>
               );
             })}
