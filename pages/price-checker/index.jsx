@@ -11,6 +11,7 @@ import {
   TabPanels,
   Tab,
   TabPanel,
+  Switch,
   Text,
   Tooltip,
 } from "@chakra-ui/react";
@@ -238,10 +239,16 @@ function PriceChecker() {
   const [selectedGroupRows, setSelectedGroupRows] = useState([]);
   const [tabIndex, setTabIndex] = useState(0);
   const [groupedTab, setGroupedTab] = useState(0);
+  const [showAll, setShowAll] = useState(false);
   const productsGridRef = useRef(null);
   const groupGridRef = useRef(null);
 
   const activeGroupField = GROUP_BY_TABS[groupedTab]?.value ?? "de_distributor";
+
+  const displayProducts = useMemo(() => {
+    if (showAll) return products;
+    return products.filter((product) => product.hasIssue);
+  }, [products, showAll]);
 
   const onFileChange = async (nextFile) => {
     setFile(nextFile);
@@ -268,14 +275,14 @@ function PriceChecker() {
   const groupedCounts = useMemo(() => {
     const counts = {};
     GROUP_BY_TABS.forEach((tab) => {
-      counts[tab.value] = buildGroupedRows(products, tab.value).length;
+      counts[tab.value] = buildGroupedRows(displayProducts, tab.value).length;
     });
     return counts;
-  }, [products]);
+  }, [displayProducts]);
 
   const groupedRows = useMemo(
-    () => buildGroupedRows(products, activeGroupField),
-    [products, activeGroupField]
+    () => buildGroupedRows(displayProducts, activeGroupField),
+    [displayProducts, activeGroupField]
   );
 
   const exportItems = useCallback((items, titleSuffix) => {
@@ -296,7 +303,7 @@ function PriceChecker() {
   }, []);
 
   const getFilteredProducts = useCallback(() => {
-    let filteredProducts = products;
+    let filteredProducts = displayProducts;
     if (productsGridRef.current?.api) {
       const filteredRows = [];
       productsGridRef.current.api.forEachNodeAfterFilter((node) => {
@@ -307,7 +314,7 @@ function PriceChecker() {
       filteredProducts = filteredRows;
     }
     return filteredProducts;
-  }, [products]);
+  }, [displayProducts]);
 
   const handleExportByGroup = useCallback(
     (groupName, groupField = activeGroupField) => {
@@ -327,7 +334,7 @@ function PriceChecker() {
     [getFilteredProducts, exportItems, activeGroupField]
   );
 
-  const colDefs = [
+  const colDefs = useMemo(() => [
     {
       field: "Item_Code",
       headerName: "ID",
@@ -361,14 +368,20 @@ function PriceChecker() {
       flex: 1.5,
       autoHeight: true,
       cellRenderer: (props) => {
+        const sellingPrices = showAll
+          ? props.data?.allSellingPrices || []
+          : props.value || [];
+
         return (
           <Flex flexDirection="column" gap={2} p={4}>
-            {(props.value || []).map((price) => {
+            {sellingPrices.map((price) => {
+              const isIssue = (price.sellingPrices || []).length > 1;
+
               return (
                 <Flex key={price.mrp} gap={2} alignItems="center" h="100%" flexWrap="wrap">
                   <Badge>{`MRP: ${formatPriceValue(price.mrp)}`}</Badge>
 
-                  <Badge colorScheme="orange">{`Selling Prices: ${price.sellingPrices
+                  <Badge colorScheme={isIssue ? "orange" : "gray"}>{`Selling Prices: ${price.sellingPrices
                     .map((value) => formatPriceValue(value))
                     .join(" | ")}`}</Badge>
                 </Flex>
@@ -393,19 +406,23 @@ function PriceChecker() {
       flex: 1,
       autoHeight: true,
       cellRenderer: (props) => {
-        const entries = filterExpectedSellingPrices(
-          props.value,
-          props.data?.incorrectSellingPrices
-        );
+        const entries = showAll
+          ? props.data?.allExpectedSellingPrices || []
+          : filterExpectedSellingPrices(
+              props.value,
+              props.data?.incorrectSellingPrices
+            );
 
         return (
           <Flex flexDirection="column" gap={2} p={4}>
             {entries.map((entry) => {
-              const label = `MRP: ${formatPriceValue(entry.mrp)} → ${formatPriceValue(entry.expectedSelling)}`;
+              const label = entry.mrp
+                ? `MRP: ${formatPriceValue(entry.mrp)} → ${formatPriceValue(entry.expectedSelling)}`
+                : `PP: ${formatPriceValue(entry.purchasePrice)} → ${formatPriceValue(entry.expectedSelling)}`;
 
               return (
                 <Flex
-                  key={entry.mrp}
+                  key={entry.mrp ?? entry.purchasePrice}
                   gap={2}
                   alignItems="center"
                   h="100%"
@@ -419,7 +436,7 @@ function PriceChecker() {
         );
       },
     },
-  ];
+  ], [showAll]);
 
   const handleExport = useCallback(() => {
     if (tabIndex === 1) {
@@ -526,10 +543,20 @@ function PriceChecker() {
   const metaSummary = meta?.uploaded_at
     ? `${meta.total_rows ?? 0} rows · ${
         meta.issue_product_count ?? 0
-      } products with issues · uploaded ${moment(meta.uploaded_at).format(
-        "DD MMM YYYY, HH:mm"
-      )}`
+      } products with issues${
+        meta.total_product_count != null
+          ? ` · ${meta.total_product_count} products total`
+          : ""
+      } · uploaded ${moment(meta.uploaded_at).format("DD MMM YYYY, HH:mm")}`
     : null;
+
+  const productsTabLabel = showAll
+    ? `Products List (${displayProducts.length})`
+    : `Products List (${displayProducts.length}${
+        meta?.total_product_count != null
+          ? ` of ${meta.total_product_count}`
+          : ""
+      })`;
 
   return (
     <GlobalWrapper title="Price Checker" permissionKey={["view_price_checker"]}>
@@ -544,7 +571,7 @@ function PriceChecker() {
             isDisabled={
               uploading ||
               loading ||
-              !products.length ||
+              !displayProducts.length ||
               (tabIndex === 1 && selectedGroupRows.length === 0)
             }
           >
@@ -582,14 +609,25 @@ function PriceChecker() {
             onChange={handleTabChange}
           >
             <TabList>
-              <Tab>Products List ({products.length})</Tab>
+              <Tab>{productsTabLabel}</Tab>
               <Tab>Group By</Tab>
             </TabList>
             <TabPanels>
               <TabPanel p={0} pt={4}>
+                <Flex justify="flex-end" align="center" gap={2} mb={3}>
+                  <Text fontSize="sm" color="gray.700">
+                    Show All
+                  </Text>
+                  <Switch
+                    size="sm"
+                    colorScheme="purple"
+                    isChecked={showAll}
+                    onChange={(e) => setShowAll(e.target.checked)}
+                  />
+                </Flex>
                 <AgGrid
                   ref={productsGridRef}
-                  rowData={products}
+                  rowData={displayProducts}
                   colDefs={colDefs}
                 />
               </TabPanel>
