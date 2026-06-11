@@ -1,7 +1,19 @@
-import React, { useMemo, useState, useCallback } from "react";
+import React, { useMemo, useState, useCallback, useRef, useEffect } from "react";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../components/CustomContainer";
-import { Button, Text, Box, useDisclosure, Flex } from "@chakra-ui/react";
+import {
+  Button,
+  Text,
+  Box,
+  useDisclosure,
+  Flex,
+  Tabs,
+  TabList,
+  TabPanels,
+  Tab,
+  TabPanel,
+  Tooltip,
+} from "@chakra-ui/react";
 import Link from "next/link";
 import AgGrid from "../../components/AgGrid";
 import CustomModal from "../../components/CustomModal";
@@ -44,6 +56,33 @@ const IMPORT_COLUMN_CONFIG = [
   },
 ];
 
+function groupLabel(value) {
+  const label = value == null ? "" : String(value).trim();
+  return label || "Unknown";
+}
+
+function buildBuyerGroupedRows(offers) {
+  if (!offers?.length) return [];
+
+  const grouped = offers.reduce((acc, offer) => {
+    const groupName = groupLabel(offer.buyer_name);
+
+    if (!acc[groupName]) {
+      acc[groupName] = {
+        group_name: groupName,
+        productCount: 0,
+      };
+    }
+
+    acc[groupName].productCount += 1;
+    return acc;
+  }, {});
+
+  return Object.values(grouped).sort((a, b) =>
+    a.group_name.localeCompare(b.group_name)
+  );
+}
+
 function ProductOffersListing() {
   const canAdd = usePermissions("add_product_offers");
   const { confirmDelete, ConfirmDeleteDialog } = useConfirmDelete();
@@ -64,6 +103,10 @@ function ProductOffersListing() {
   const [selectMode, setSelectMode] = useState(false);
   const [selectedRows, setSelectedRows] = useState([]);
   const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [tabIndex, setTabIndex] = useState(0);
+  const [pendingBuyerFilter, setPendingBuyerFilter] = useState(null);
+  const offersGridRef = useRef(null);
+  const pendingBuyerFilterRef = useRef(null);
 
   const previewTableRows = useMemo(() => {
     if (!previewRows.length) return [];
@@ -114,6 +157,13 @@ function ProductOffersListing() {
     () => [
       { field: "product_id", headerName: "ID", type: "id" },
       { field: "de_name", headerName: "Product Name", flex: 2 },
+      {
+        field: "buyer_name",
+        headerName: "Buyer",
+        hideByDefault: true,
+        type: "capitalized",
+        filterParams: { caseSensitive: true },
+      },
       { field: "mrp", headerName: "MRP", type: "currency" },
       { field: "selling_price", headerName: "Selling Price", type: "currency" },
       {
@@ -210,6 +260,105 @@ function ProductOffersListing() {
     [confirmDelete, refetch, canAdd, handleToggleActive]
   );
 
+  const groupedByBuyer = useMemo(
+    () => buildBuyerGroupedRows(offers),
+    [offers]
+  );
+
+  const applyBuyerFilterToGrid = useCallback((api) => {
+    const buyerName = pendingBuyerFilterRef.current;
+    if (!api || buyerName == null) return;
+
+    const filterModel =
+      buyerName === "Unknown"
+        ? {
+            buyer_name: {
+              filterType: "text",
+              type: "blank",
+              caseSensitive: true,
+            },
+          }
+        : {
+            buyer_name: {
+              filterType: "text",
+              type: "equals",
+              filter: buyerName,
+              caseSensitive: true,
+            },
+          };
+
+    api.setFilterModel(filterModel);
+    api.onFilterChanged();
+    pendingBuyerFilterRef.current = null;
+    setPendingBuyerFilter(null);
+  }, []);
+
+  const handleBuyerGroupClick = useCallback((buyerName) => {
+    const filterValue = buyerName ?? "Unknown";
+    pendingBuyerFilterRef.current = filterValue;
+    setPendingBuyerFilter(filterValue);
+    setTabIndex(0);
+  }, []);
+
+  const handleOffersGridReady = useCallback(
+    (params) => {
+      if (pendingBuyerFilterRef.current != null) {
+        applyBuyerFilterToGrid(params.api);
+      }
+    },
+    [applyBuyerFilterToGrid]
+  );
+
+  const handleTabChange = useCallback((index) => {
+    setTabIndex(index);
+    if (index === 1) {
+      setSelectMode(false);
+      setSelectedRows([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (tabIndex !== 0 || pendingBuyerFilter == null) return;
+    const api = offersGridRef.current?.api;
+    if (api) {
+      applyBuyerFilterToGrid(api);
+    }
+  }, [tabIndex, pendingBuyerFilter, applyBuyerFilterToGrid]);
+
+  const groupColDefs = useMemo(
+    () => [
+      {
+        field: "group_name",
+        headerName: "Buyer",
+        type: "capitalized",
+        cellRenderer: (params) => {
+          const name = params.value ?? "";
+          return (
+            <Tooltip label="View offers" placement="bottom" openDelay={500}>
+              <Text
+                as="span"
+                cursor="pointer"
+                textDecoration="underline"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleBuyerGroupClick(params.data?.group_name);
+                }}
+              >
+                {name || "Unknown"}
+              </Text>
+            </Tooltip>
+          );
+        },
+      },
+      {
+        field: "productCount",
+        headerName: "No. of Products",
+        type: "number",
+      },
+    ],
+    [handleBuyerGroupClick]
+  );
+
   const handleImportMappedData = (mappedRows) => {
     if (!mappedRows?.length) return;
     setPreviewRows(mappedRows);
@@ -299,61 +448,86 @@ function ProductOffersListing() {
             Loading...
           </Text>
         ) : (
-          <>
-            <Flex
-              gap={3}
-              align="center"
-              mb={3}
-              p={3}
-              bg="purple.50"
-              borderRadius="md"
-              borderWidth="1px"
-              borderColor="purple.100"
-              justify="flex-end"
-            >
-              {selectMode ? (
-                <>
-                  <Button
-                    size="sm"
-                    colorScheme="red"
-                    onClick={handleBulkDelete}
-                    isLoading={bulkDeleting}
-                    loadingText="Deleting..."
-                    isDisabled={!selectedRows?.length}
-                  >
-                    Delete Selected ({selectedRows?.length ?? 0})
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    colorScheme="purple"
-                    onClick={handleCancelSelectMode}
-                  >
-                    Cancel
-                  </Button>
-                </>
-              ) : (
-                <Button
-                  colorScheme="purple"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setSelectMode(true)}
+          <Tabs
+            size="sm"
+            colorScheme="purple"
+            index={tabIndex}
+            onChange={handleTabChange}
+          >
+            <TabList>
+              <Tab>Offers List ({offers.length})</Tab>
+              <Tab>Group By Buyers ({groupedByBuyer.length})</Tab>
+            </TabList>
+            <TabPanels>
+              <TabPanel p={0} pt={4}>
+                <Flex
+                  gap={3}
+                  align="center"
+                  mb={3}
+                  p={3}
+                  bg="purple.50"
+                  borderRadius="md"
+                  borderWidth="1px"
+                  borderColor="purple.100"
+                  justify="flex-end"
                 >
-                  Select
-                </Button>
-              )}
-            </Flex>
-            <AgGrid
-              rowData={offers}
-              columnDefs={colDefs}
-              tableKey="product-offers-list"
-              selectMode={selectMode}
-              onSelectionChanged={setSelectedRows}
-              getRowId={(params) =>
-                String(params.data?.product_id ?? params.data?.id ?? "")
-              }
-            />
-          </>
+                  {selectMode ? (
+                    <>
+                      <Button
+                        size="sm"
+                        colorScheme="red"
+                        onClick={handleBulkDelete}
+                        isLoading={bulkDeleting}
+                        loadingText="Deleting..."
+                        isDisabled={!selectedRows?.length}
+                      >
+                        Delete Selected ({selectedRows?.length ?? 0})
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        colorScheme="purple"
+                        onClick={handleCancelSelectMode}
+                      >
+                        Cancel
+                      </Button>
+                    </>
+                  ) : (
+                    <Button
+                      colorScheme="purple"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSelectMode(true)}
+                    >
+                      Select
+                    </Button>
+                  )}
+                </Flex>
+                <AgGrid
+                  ref={offersGridRef}
+                  rowData={offers}
+                  columnDefs={colDefs}
+                  tableKey="product-offers-list"
+                  selectMode={selectMode}
+                  onSelectionChanged={setSelectedRows}
+                  onGridReady={handleOffersGridReady}
+                  getRowId={(params) =>
+                    String(params.data?.product_id ?? params.data?.id ?? "")
+                  }
+                />
+              </TabPanel>
+              <TabPanel p={0} pt={4}>
+                <AgGrid
+                  tableKey="product-offers-grouped-buyers"
+                  rowData={groupedByBuyer}
+                  columnDefs={groupColDefs}
+                  getRowId={(params) =>
+                    `buyer:${params.data?.group_name ?? "unknown"}`
+                  }
+                />
+              </TabPanel>
+            </TabPanels>
+          </Tabs>
         )}
       </CustomContainer>
 

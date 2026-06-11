@@ -73,7 +73,10 @@ function normalizeMrpKey(v) {
   return Number.isFinite(n) ? String(n) : trimmed;
 }
 
-function filterExpectedSellingPrices(expectedSellingPrices, incorrectSellingPrices) {
+function filterExpectedSellingPrices(
+  expectedSellingPrices,
+  incorrectSellingPrices
+) {
   const issueMrps = new Set(
     (incorrectSellingPrices || [])
       .map((entry) => normalizeMrpKey(entry.mrp))
@@ -183,12 +186,18 @@ function UploadProgress({ progress }) {
   const countLabel = hasTotal
     ? `${processed.toLocaleString()} / ${total.toLocaleString()} rows`
     : processed > 0
-      ? `${processed.toLocaleString()} rows processed`
-      : "Starting…";
+    ? `${processed.toLocaleString()} rows processed`
+    : "Starting…";
 
   return (
     <Box mt={4} w="100%">
-      <Flex justify="space-between" align="center" mb={2} gap={3} flexWrap="wrap">
+      <Flex
+        justify="space-between"
+        align="center"
+        mb={2}
+        gap={3}
+        flexWrap="wrap"
+      >
         <Text fontSize="sm" fontWeight="medium" color="gray.700">
           {progress?.stage_label || progress?.message || "Processing upload"}
         </Text>
@@ -295,9 +304,9 @@ function PriceChecker() {
       PRICE_CHECKER_TABLE_HEADER,
       allData,
       sanitizeFileName(
-        `Price Checker${
-          titleSuffix ? " " + titleSuffix : ""
-        }${moment().format("DDMMYYYYHHmm")}`
+        `Price Checker${titleSuffix ? " " + titleSuffix : ""}${moment().format(
+          "DDMMYYYYHHmm"
+        )}`
       )
     );
   }, []);
@@ -334,109 +343,124 @@ function PriceChecker() {
     [getFilteredProducts, exportItems, activeGroupField]
   );
 
-  const colDefs = useMemo(() => [
-    {
-      field: "Item_Code",
-      headerName: "ID",
-      type: "id",
-    },
-    {
-      field: "Item_Name",
-      headerName: "Name",
-      type: "capitalized",
-    },
-    {
-      field: "de_distributor",
-      headerName: "Distributor",
-      type: "capitalized",
-    },
-    {
-      field: "buyer_name",
-      headerName: "Buyer",
-      type: "capitalized",
-    },
-    {
-      field: "de_preparation_type",
-      headerName: "PType",
-      type: "capitalized",
-      maxWidth: 100,
-    },
-    {
-      field: "incorrectSellingPrices",
-      headerName: "Incorrect Selling Prices",
-      minWidth: 420,
-      flex: 1.5,
-      autoHeight: true,
-      cellRenderer: (props) => {
-        const sellingPrices = showAll
-          ? props.data?.allSellingPrices || []
-          : props.value || [];
-
-        return (
-          <Flex flexDirection="column" gap={2} p={4}>
-            {sellingPrices.map((price) => {
-              const isIssue = (price.sellingPrices || []).length > 1;
-
-              return (
-                <Flex key={price.mrp} gap={2} alignItems="center" h="100%" flexWrap="wrap">
-                  <Badge>{`MRP: ${formatPriceValue(price.mrp)}`}</Badge>
-
-                  <Badge colorScheme={isIssue ? "orange" : "gray"}>{`Selling Prices: ${price.sellingPrices
-                    .map((value) => formatPriceValue(value))
-                    .join(" | ")}`}</Badge>
-                </Flex>
-              );
-            })}
-          </Flex>
-        );
+  const colDefs = useMemo(
+    () => [
+      {
+        field: "Item_Code",
+        headerName: "ID",
+        type: "id",
       },
-    },
-    {
-      field: "offerPrice",
-      headerName: "Offer Price",
-      hideByDefault: true,
-      type: "currency",
-      minWidth: 120,
-    },
-    {
-      field: "expectedSellingPrices",
-      headerName: "Expected Selling",
-      hideByDefault: true,
-      minWidth: 320,
-      flex: 1,
-      autoHeight: true,
-      cellRenderer: (props) => {
-        const entries = showAll
-          ? props.data?.allExpectedSellingPrices || []
-          : filterExpectedSellingPrices(
-              props.value,
-              props.data?.incorrectSellingPrices
-            );
-
-        return (
-          <Flex flexDirection="column" gap={2} p={4}>
-            {entries.map((entry) => {
-              const label = entry.mrp
-                ? `MRP: ${formatPriceValue(entry.mrp)} → ${formatPriceValue(entry.expectedSelling)}`
-                : `PP: ${formatPriceValue(entry.purchasePrice)} → ${formatPriceValue(entry.expectedSelling)}`;
-
-              return (
-                <Flex
-                  key={entry.mrp ?? entry.purchasePrice}
-                  gap={2}
-                  alignItems="center"
-                  h="100%"
-                  flexWrap="wrap"
-                >
-                  <Badge colorScheme="green">{label}</Badge>
-                </Flex>
-              );
-            })}
-          </Flex>
-        );
+      {
+        field: "Item_Name",
+        headerName: "Name",
+        type: "capitalized",
       },
-    },
-  ], [showAll]);
+      {
+        field: "de_distributor",
+        headerName: "Distributor",
+        type: "capitalized",
+      },
+      {
+        field: "buyer_name",
+        headerName: "Buyer",
+        type: "capitalized",
+      },
+      {
+        field: "de_preparation_type",
+        headerName: "PType",
+        type: "capitalized",
+        maxWidth: 100,
+      },
+      {
+        field: "incorrectSellingPrices",
+        headerName: "Incorrect Selling Prices",
+        minWidth: 420,
+        flex: 1.5,
+        autoHeight: true,
+        cellRenderer: (props) => {
+          const sellingPrices = showAll
+            ? props.data?.allSellingPrices || []
+            : props.value || [];
+
+          return (
+            <Flex flexDirection="column" gap={2} p={4}>
+              {sellingPrices.map((price) => {
+                const isIssue = (price.sellingPrices || []).length > 1;
+
+                return (
+                  <Flex
+                    key={price.mrp}
+                    gap={2}
+                    alignItems="center"
+                    h="100%"
+                    flexWrap="wrap"
+                  >
+                    <Badge>{`MRP: ${formatPriceValue(price.mrp)}`}</Badge>
+
+                    <Badge
+                      colorScheme={isIssue ? "orange" : "gray"}
+                    >{`Selling Prices: ${price.sellingPrices
+                      .map((value) => formatPriceValue(value))
+                      .join(" | ")}`}</Badge>
+                  </Flex>
+                );
+              })}
+            </Flex>
+          );
+        },
+      },
+      {
+        field: "offerPrice",
+        headerName: "Offer Price",
+        hideByDefault: true,
+        type: "currency",
+        minWidth: 120,
+      },
+      {
+        field: "expectedSellingPrices",
+        headerName: "Expected Selling",
+        hideByDefault: true,
+        minWidth: 320,
+        flex: 1,
+        autoHeight: true,
+        cellRenderer: (props) => {
+          const entries = showAll
+            ? props.data?.allExpectedSellingPrices || []
+            : filterExpectedSellingPrices(
+                props.value,
+                props.data?.incorrectSellingPrices
+              );
+
+          return (
+            <Flex flexDirection="column" gap={2} p={4}>
+              {entries.map((entry) => {
+                const label = entry.mrp
+                  ? `MRP: ${formatPriceValue(entry.mrp)} → ${formatPriceValue(
+                      entry.expectedSelling
+                    )}`
+                  : `PP: ${formatPriceValue(
+                      entry.purchasePrice
+                    )} → ${formatPriceValue(entry.expectedSelling)}`;
+
+                return (
+                  <Flex
+                    key={entry.mrp ?? entry.purchasePrice}
+                    gap={2}
+                    alignItems="center"
+                    h="100%"
+                    flexWrap="wrap"
+                  >
+                    <Badge colorScheme="green">{label}</Badge>
+                  </Flex>
+                );
+              })}
+            </Flex>
+          );
+        },
+      },
+    ],
+    [showAll]
+  );
 
   const handleExport = useCallback(() => {
     if (tabIndex === 1) {
@@ -463,9 +487,7 @@ function PriceChecker() {
       toast.success(
         `Exported ${allItems.length} line item${
           allItems.length === 1 ? "" : "s"
-        } from ${selectedKeys.size} group${
-          selectedKeys.size === 1 ? "" : "s"
-        }`
+        } from ${selectedKeys.size} group${selectedKeys.size === 1 ? "" : "s"}`
       );
       return;
     }
@@ -534,9 +556,7 @@ function PriceChecker() {
   );
 
   const exportButtonLabel =
-    tabIndex === 0
-      ? `Export`
-      : `Export (${selectedGroupRows.length} items)`;
+    tabIndex === 0 ? `Export` : `Export (${selectedGroupRows.length} items)`;
 
   const activeGroupTableKey = `price-checker-grouped-${activeGroupField}`;
 
@@ -656,7 +676,9 @@ function PriceChecker() {
                   selectMode
                   onSelectionChanged={setSelectedGroupRows}
                   getRowId={(params) =>
-                    `${params.data?.group_field ?? activeGroupField}:${params.data?.group_name ?? "unknown"}`
+                    `${params.data?.group_field ?? activeGroupField}:${
+                      params.data?.group_name ?? "unknown"
+                    }`
                   }
                 />
               </TabPanel>
