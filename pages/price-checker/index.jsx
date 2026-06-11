@@ -94,8 +94,10 @@ function formatPriceValue(v) {
   if (v == null || v === "") return "";
   const n = toNum(v);
   if (n == null) return String(v);
-  const fixed = (Math.round(n * 100) / 100).toFixed(2);
-  return fixed.endsWith(".00") ? fixed.slice(0, -3) : fixed;
+  const fixed = (Math.round(n * 100 + Number.EPSILON) / 100).toFixed(2);
+  if (fixed.endsWith(".00")) return fixed.slice(0, -3);
+  if (fixed.endsWith("0")) return fixed.slice(0, -1);
+  return fixed;
 }
 
 function mapLineItemsToPriceCheckerRows(items) {
