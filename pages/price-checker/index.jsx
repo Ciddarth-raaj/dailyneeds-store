@@ -384,10 +384,26 @@ function PriceChecker() {
             ? props.data?.allSellingPrices || []
             : props.value || [];
 
+          const sortedSellingPrices = [...sellingPrices].sort((a, b) => {
+            const aConflict =
+              a.hasConflict ?? (a.sellingPrices || []).length > 1;
+            const bConflict =
+              b.hasConflict ?? (b.sellingPrices || []).length > 1;
+            if (aConflict !== bConflict) return aConflict ? -1 : 1;
+            return String(a.mrp ?? "").localeCompare(String(b.mrp ?? ""));
+          });
+
           return (
             <Flex flexDirection="column" gap={2} p={4}>
-              {sellingPrices.map((price) => {
-                const isIssue = (price.sellingPrices || []).length > 1;
+              {sortedSellingPrices.map((price) => {
+                const hasConflict =
+                  price.hasConflict ?? (price.sellingPrices || []).length > 1;
+                const mismatchesExpected = price.mismatchesExpected === true;
+                const sellingBadgeColor = hasConflict
+                  ? "red"
+                  : mismatchesExpected
+                  ? "yellow"
+                  : "gray";
 
                 return (
                   <Flex
@@ -400,7 +416,7 @@ function PriceChecker() {
                     <Badge>{`MRP: ${formatPriceValue(price.mrp)}`}</Badge>
 
                     <Badge
-                      colorScheme={isIssue ? "orange" : "gray"}
+                      colorScheme={sellingBadgeColor}
                     >{`Selling Prices: ${price.sellingPrices
                       .map((value) => formatPriceValue(value))
                       .join(" | ")}`}</Badge>
