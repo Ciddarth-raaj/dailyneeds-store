@@ -15,6 +15,7 @@ import router from "next/router";
 import axiosInstance from "../util/api";
 import { Toaster } from "react-hot-toast";
 import { UserProvider } from "../contexts/UserContext";
+import { ProductsProvider } from "../contexts/ProductsContext";
 import ModuleTableThemeBridge from "../components/ModuleTableThemeBridge";
 import theme from "../theme";
 
@@ -103,11 +104,13 @@ class MyApp extends React.Component {
       <div id="root-portal">
         <ChakraProvider theme={theme}>
           <UserProvider>
-            <ModuleTableThemeBridge>
-              <Toaster />
-              <ToastContainer />
-              <Component {...pageProps} />
-            </ModuleTableThemeBridge>
+            <ProductsProvider>
+              <ModuleTableThemeBridge>
+                <Toaster />
+                <ToastContainer />
+                <Component {...pageProps} />
+              </ModuleTableThemeBridge>
+            </ProductsProvider>
           </UserProvider>
         </ChakraProvider>
       </div>
