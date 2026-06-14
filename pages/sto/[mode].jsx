@@ -190,8 +190,8 @@ function STOForm({ mode }) {
   const skipCreateRowsFromTransfersRef = useRef(false);
 
   const createDateRange = useMemo(() => {
-    const start = moment().startOf("month");
-    const end = moment().endOf("month");
+    const end = moment();
+    const start = moment().subtract(6, "days");
     return {
       from_date: start.format("YYYY-MM-DD"),
       to_date: end.format("YYYY-MM-DD"),
