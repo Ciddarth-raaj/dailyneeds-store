@@ -109,18 +109,17 @@ class CreateDesignation extends React.Component {
       .finally(() => this.setState({ loading: false }));
   }
 
-  handleCheckbox(key, checked) {
-    let { permissions } = this.state;
-
-    if (permissions.includes(key) && !checked) {
-      const index = permissions.findIndex((v) => v == key);
-      permissions.splice(index, 1);
-    } else {
-      permissions.push(key);
-    }
-
-    this.setState({ permissions });
-  }
+  handleCheckbox = (key, checked) => {
+    this.setState((prev) => {
+      const { permissions } = prev;
+      if (checked) {
+        if (permissions.includes(key)) return null;
+        return { permissions: [...permissions, key] };
+      }
+      if (!permissions.includes(key)) return null;
+      return { permissions: permissions.filter((v) => v !== key) };
+    });
+  };
 
   render() {
     const { loading } = this.state;
