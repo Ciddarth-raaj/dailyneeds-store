@@ -8,7 +8,7 @@ import React, {
 import { useRouter } from "next/router";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../components/CustomContainer";
-import { Box, Button, Flex, Text, Grid } from "@chakra-ui/react";
+import { Box, Button, Flex, Text, Grid, Progress } from "@chakra-ui/react";
 import CustomInput from "../../components/customInput/customInput";
 import AgGrid from "../../components/AgGrid";
 import useStockTransfer from "../../customHooks/useStockTransfer";
@@ -126,6 +126,50 @@ function buildRowsFromItemsOnly(transfer) {
   return Object.values(byArticleId);
 }
 
+function StockTransferFetchProgress({ progress }) {
+  const loaded = progress?.loaded ?? 0;
+  const total = progress?.total;
+  const hasTotal = total != null && total > 0;
+  const percent = hasTotal
+    ? Math.min(100, Math.round((loaded / total) * 100))
+    : null;
+
+  const countLabel = hasTotal
+    ? `${loaded} / ${total} day${total === 1 ? "" : "s"}`
+    : loaded > 0
+    ? `${loaded} day${loaded === 1 ? "" : "s"} loaded`
+    : "Starting…";
+
+  return (
+    <Box mb={4} w="100%">
+      <Flex
+        justify="space-between"
+        align="center"
+        mb={2}
+        gap={3}
+        flexWrap="wrap"
+      >
+        <Text fontSize="sm" fontWeight="medium" color="gray.700">
+          Loading stock transfers
+        </Text>
+        <Text fontSize="sm" color="gray.600">
+          {countLabel}
+          {percent != null ? ` (${percent}%)` : ""}
+        </Text>
+      </Flex>
+      <Progress
+        value={hasTotal ? percent : undefined}
+        isIndeterminate={!hasTotal && loaded === 0}
+        hasStripe={!hasTotal && loaded > 0}
+        isAnimated
+        size="sm"
+        colorScheme="purple"
+        borderRadius="md"
+      />
+    </Box>
+  );
+}
+
 function STOForm({ mode }) {
   const router = useRouter();
   const { id: queryId } = router.query;
@@ -145,7 +189,23 @@ function STOForm({ mode }) {
    */
   const skipCreateRowsFromTransfersRef = useRef(false);
 
-  const { transfers, loading: listLoading } = useStockTransfer();
+  const createDateRange = useMemo(() => {
+    const start = moment().startOf("month");
+    const end = moment().endOf("month");
+    return {
+      from_date: start.format("YYYY-MM-DD"),
+      to_date: end.format("YYYY-MM-DD"),
+    };
+  }, []);
+
+  const {
+    transfers,
+    loading: listLoading,
+    fetchProgress: transferFetchProgress,
+  } = useStockTransfer({
+    ...createDateRange,
+    enabled: isCreate,
+  });
   const { transfers: transfersByRef, loading: refLoading } =
     useStockTransferByRefId(isEdit || isView ? queryId : null);
 
@@ -423,12 +483,18 @@ function STOForm({ mode }) {
   const showSubmitButton = isCreate || isEdit;
   const pageTitle =
     mode === "view" ? "View STO" : mode === "edit" ? "Edit STO" : "Create STO";
-  const loading =
-    listLoading ||
-    productsLoading ||
-    ((isEdit || isView) && refLoading && !transfersByRef?.length);
 
   const permissionKey = isView ? "view_sto" : "add_sto";
+
+  const showTransferProgress =
+    isCreate && listLoading && transferFetchProgress != null;
+
+  const loading =
+    productsLoading ||
+    (isCreate
+      ? listLoading && !showTransferProgress
+      : listLoading) ||
+    ((isEdit || isView) && refLoading && !transfersByRef?.length);
 
   const getTotals = (totalKey) => {
     return parsedRows.reduce((acc, row) => {
@@ -455,6 +521,9 @@ function STOForm({ mode }) {
       permissionKey={permissionKey}
     >
       <CustomContainer title={pageTitle} filledHeader>
+        {showTransferProgress ? (
+          <StockTransferFetchProgress progress={transferFetchProgress} />
+        ) : null}
         {loading ? (
           <Flex py={4} justify="center">
             <Text>Loading...</Text>
