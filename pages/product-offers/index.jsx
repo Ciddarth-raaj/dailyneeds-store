@@ -13,6 +13,7 @@ import {
   Tab,
   TabPanel,
   Tooltip,
+  Badge,
 } from "@chakra-ui/react";
 import Link from "next/link";
 import AgGrid from "../../components/AgGrid";
@@ -56,16 +57,21 @@ const IMPORT_COLUMN_CONFIG = [
   },
 ];
 
+const LIST_FILTER_LABELS = {
+  buyer_name: "Buyer",
+  distributor_name: "Distributor",
+};
+
 function groupLabel(value) {
   const label = value == null ? "" : String(value).trim();
   return label || "Unknown";
 }
 
-function buildBuyerGroupedRows(offers) {
+function buildGroupedRows(offers, field) {
   if (!offers?.length) return [];
 
   const grouped = offers.reduce((acc, offer) => {
-    const groupName = groupLabel(offer.buyer_name);
+    const groupName = groupLabel(offer[field]);
 
     if (!acc[groupName]) {
       acc[groupName] = {
@@ -104,9 +110,9 @@ function ProductOffersListing() {
   const [selectedRows, setSelectedRows] = useState([]);
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [tabIndex, setTabIndex] = useState(0);
-  const [pendingBuyerFilter, setPendingBuyerFilter] = useState(null);
+  const [activeListFilter, setActiveListFilter] = useState(null);
   const offersGridRef = useRef(null);
-  const pendingBuyerFilterRef = useRef(null);
+  const activeListFilterRef = useRef(null);
 
   const previewTableRows = useMemo(() => {
     if (!previewRows.length) return [];
@@ -160,6 +166,13 @@ function ProductOffersListing() {
       {
         field: "buyer_name",
         headerName: "Buyer",
+        hideByDefault: true,
+        type: "capitalized",
+        filterParams: { caseSensitive: true },
+      },
+      {
+        field: "distributor_name",
+        headerName: "Distributor",
         hideByDefault: true,
         type: "capitalized",
         filterParams: { caseSensitive: true },
@@ -261,75 +274,108 @@ function ProductOffersListing() {
   );
 
   const groupedByBuyer = useMemo(
-    () => buildBuyerGroupedRows(offers),
+    () => buildGroupedRows(offers, "buyer_name"),
     [offers]
   );
 
-  const applyBuyerFilterToGrid = useCallback((api) => {
-    const buyerName = pendingBuyerFilterRef.current;
-    if (!api || buyerName == null) return;
+  const groupedByDistributor = useMemo(
+    () => buildGroupedRows(offers, "distributor_name"),
+    [offers]
+  );
+
+  const applyTextFilterToGrid = useCallback((api, field, filterValue) => {
+    if (!api || filterValue == null) return;
 
     const filterModel =
-      buyerName === "Unknown"
+      filterValue === "Unknown"
         ? {
-            buyer_name: {
+            [field]: {
               filterType: "text",
               type: "blank",
               caseSensitive: true,
             },
           }
         : {
-            buyer_name: {
+            [field]: {
               filterType: "text",
               type: "equals",
-              filter: buyerName,
+              filter: filterValue,
               caseSensitive: true,
             },
           };
 
     api.setFilterModel(filterModel);
     api.onFilterChanged();
-    pendingBuyerFilterRef.current = null;
-    setPendingBuyerFilter(null);
   }, []);
 
+  const applyListFilter = useCallback(
+    (api, filter) => {
+      if (!api || !filter) return;
+      applyTextFilterToGrid(api, filter.field, filter.value);
+    },
+    [applyTextFilterToGrid]
+  );
+
   const handleBuyerGroupClick = useCallback((buyerName) => {
-    const filterValue = buyerName ?? "Unknown";
-    pendingBuyerFilterRef.current = filterValue;
-    setPendingBuyerFilter(filterValue);
+    setActiveListFilter({
+      field: "buyer_name",
+      value: buyerName ?? "Unknown",
+    });
     setTabIndex(0);
+  }, []);
+
+  const handleDistributorGroupClick = useCallback((distributorName) => {
+    setActiveListFilter({
+      field: "distributor_name",
+      value: distributorName ?? "Unknown",
+    });
+    setTabIndex(0);
+  }, []);
+
+  const handleClearListFilter = useCallback(() => {
+    setActiveListFilter(null);
+    const api = offersGridRef.current?.api;
+    if (api) {
+      api.setFilterModel(null);
+      api.onFilterChanged();
+    }
   }, []);
 
   const handleOffersGridReady = useCallback(
     (params) => {
-      if (pendingBuyerFilterRef.current != null) {
-        applyBuyerFilterToGrid(params.api);
+      const filter = activeListFilterRef.current;
+      if (filter) {
+        applyListFilter(params.api, filter);
       }
     },
-    [applyBuyerFilterToGrid]
+    [applyListFilter]
   );
 
   const handleTabChange = useCallback((index) => {
     setTabIndex(index);
-    if (index === 1) {
+    if (index === 1 || index === 2) {
       setSelectMode(false);
       setSelectedRows([]);
     }
   }, []);
 
   useEffect(() => {
-    if (tabIndex !== 0 || pendingBuyerFilter == null) return;
+    activeListFilterRef.current = activeListFilter;
+  }, [activeListFilter]);
+
+  useEffect(() => {
+    if (tabIndex !== 0 || !activeListFilter) return;
     const api = offersGridRef.current?.api;
     if (api) {
-      applyBuyerFilterToGrid(api);
+      applyListFilter(api, activeListFilter);
     }
-  }, [tabIndex, pendingBuyerFilter, applyBuyerFilterToGrid]);
+  }, [tabIndex, activeListFilter, applyListFilter]);
 
-  const groupColDefs = useMemo(
-    () => [
+  const buildGroupColDefs = useCallback(
+    (headerName, onGroupClick) => [
       {
         field: "group_name",
-        headerName: "Buyer",
+        headerName,
         type: "capitalized",
         cellRenderer: (params) => {
           const name = params.value ?? "";
@@ -341,7 +387,7 @@ function ProductOffersListing() {
                 textDecoration="underline"
                 onClick={(e) => {
                   e.stopPropagation();
-                  handleBuyerGroupClick(params.data?.group_name);
+                  onGroupClick(params.data?.group_name);
                 }}
               >
                 {name || "Unknown"}
@@ -356,7 +402,17 @@ function ProductOffersListing() {
         type: "number",
       },
     ],
-    [handleBuyerGroupClick]
+    []
+  );
+
+  const buyerGroupColDefs = useMemo(
+    () => buildGroupColDefs("Buyer", handleBuyerGroupClick),
+    [buildGroupColDefs, handleBuyerGroupClick]
+  );
+
+  const distributorGroupColDefs = useMemo(
+    () => buildGroupColDefs("Distributor", handleDistributorGroupClick),
+    [buildGroupColDefs, handleDistributorGroupClick]
   );
 
   const handleImportMappedData = (mappedRows) => {
@@ -457,6 +513,7 @@ function ProductOffersListing() {
             <TabList>
               <Tab>Offers List ({offers.length})</Tab>
               <Tab>Group By Buyers ({groupedByBuyer.length})</Tab>
+              <Tab>Group By Distributor ({groupedByDistributor.length})</Tab>
             </TabList>
             <TabPanels>
               <TabPanel p={0} pt={4}>
@@ -469,39 +526,61 @@ function ProductOffersListing() {
                   borderRadius="md"
                   borderWidth="1px"
                   borderColor="purple.100"
-                  justify="flex-end"
+                  justify="space-between"
                 >
-                  {selectMode ? (
-                    <>
+                  <Flex gap={3} align="center" flexWrap="wrap">
+                    {activeListFilter ? (
+                      <>
+                        <Text fontSize="sm" color="gray.600">
+                          Filtered by {LIST_FILTER_LABELS[activeListFilter.field]}:
+                        </Text>
+                        <Badge colorScheme="purple" fontSize="sm" px={2} py={1}>
+                          {activeListFilter.value}
+                        </Badge>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          colorScheme="purple"
+                          onClick={handleClearListFilter}
+                        >
+                          Clear filter
+                        </Button>
+                      </>
+                    ) : null}
+                  </Flex>
+                  <Flex gap={3} align="center">
+                    {selectMode ? (
+                      <>
+                        <Button
+                          size="sm"
+                          colorScheme="red"
+                          onClick={handleBulkDelete}
+                          isLoading={bulkDeleting}
+                          loadingText="Deleting..."
+                          isDisabled={!selectedRows?.length}
+                        >
+                          Delete Selected ({selectedRows?.length ?? 0})
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          colorScheme="purple"
+                          onClick={handleCancelSelectMode}
+                        >
+                          Cancel
+                        </Button>
+                      </>
+                    ) : (
                       <Button
-                        size="sm"
-                        colorScheme="red"
-                        onClick={handleBulkDelete}
-                        isLoading={bulkDeleting}
-                        loadingText="Deleting..."
-                        isDisabled={!selectedRows?.length}
-                      >
-                        Delete Selected ({selectedRows?.length ?? 0})
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
                         colorScheme="purple"
-                        onClick={handleCancelSelectMode}
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setSelectMode(true)}
                       >
-                        Cancel
+                        Select
                       </Button>
-                    </>
-                  ) : (
-                    <Button
-                      colorScheme="purple"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setSelectMode(true)}
-                    >
-                      Select
-                    </Button>
-                  )}
+                    )}
+                  </Flex>
                 </Flex>
                 <AgGrid
                   ref={offersGridRef}
@@ -520,9 +599,19 @@ function ProductOffersListing() {
                 <AgGrid
                   tableKey="product-offers-grouped-buyers"
                   rowData={groupedByBuyer}
-                  columnDefs={groupColDefs}
+                  columnDefs={buyerGroupColDefs}
                   getRowId={(params) =>
                     `buyer:${params.data?.group_name ?? "unknown"}`
+                  }
+                />
+              </TabPanel>
+              <TabPanel p={0} pt={4}>
+                <AgGrid
+                  tableKey="product-offers-grouped-distributors"
+                  rowData={groupedByDistributor}
+                  columnDefs={distributorGroupColDefs}
+                  getRowId={(params) =>
+                    `distributor:${params.data?.group_name ?? "unknown"}`
                   }
                 />
               </TabPanel>
