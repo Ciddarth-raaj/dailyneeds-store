@@ -3,7 +3,7 @@ import { useRouter } from "next/router";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../components/CustomContainer";
 import CustomInput from "../../components/customInput/customInput";
-import { Button, Flex, Grid, Text, Box, Image } from "@chakra-ui/react";
+import { Button, Flex, Grid, Text, Box, Image, Progress } from "@chakra-ui/react";
 import { Formik } from "formik";
 import * as Yup from "yup";
 import toast from "react-hot-toast";
@@ -41,6 +41,50 @@ const initialValuesSingle = {
   opening_stock: "",
 };
 
+function ProductsFetchProgress({ progress }) {
+  const loaded = progress?.loaded ?? 0;
+  const total = progress?.total;
+  const hasTotal = total != null && total > 0;
+  const percent = hasTotal
+    ? Math.min(100, Math.round((loaded / total) * 100))
+    : null;
+
+  const countLabel = hasTotal
+    ? `${loaded.toLocaleString()} / ${total.toLocaleString()} products`
+    : loaded > 0
+    ? `${loaded.toLocaleString()} products loaded`
+    : "Starting…";
+
+  return (
+    <Box mb={4} w="100%">
+      <Flex
+        justify="space-between"
+        align="center"
+        mb={2}
+        gap={3}
+        flexWrap="wrap"
+      >
+        <Text fontSize="sm" fontWeight="medium" color="gray.700">
+          Loading products
+        </Text>
+        <Text fontSize="sm" color="gray.600">
+          {countLabel}
+          {percent != null ? ` (${percent}%)` : ""}
+        </Text>
+      </Flex>
+      <Progress
+        value={hasTotal ? percent : undefined}
+        isIndeterminate={!hasTotal && loaded === 0}
+        hasStripe={!hasTotal && loaded > 0}
+        isAnimated
+        size="sm"
+        colorScheme="purple"
+        borderRadius="md"
+      />
+    </Box>
+  );
+}
+
 function ProductOffersForm() {
   const router = useRouter();
   const { mode, product_id: productIdQuery } = router.query;
@@ -52,7 +96,7 @@ function ProductOffersForm() {
   const createMode = mode === "create";
   const canAdd = usePermissions("add_product_offers");
 
-  const { products, loading: productsLoading } = useProducts({
+  const { products, loading: productsLoading, fetchProgress } = useProducts({
     limit: 10000,
     fetchAll: true,
   });
@@ -179,6 +223,7 @@ function ProductOffersForm() {
   }, [createMode, offer]);
 
   const isReadOnly = viewMode;
+  const formDisabled = productsLoading;
 
   const handleSubmit = async (values) => {
     if (createMode) {
@@ -271,7 +316,15 @@ function ProductOffersForm() {
   return (
     <GlobalWrapper title={title} permissionKey="view_product_offers">
       <CustomContainer title={title} filledHeader>
-        <Formik
+        {productsLoading ? (
+          <ProductsFetchProgress progress={fetchProgress} />
+        ) : null}
+        <Box
+          opacity={formDisabled ? 0.6 : 1}
+          pointerEvents={formDisabled ? "none" : "auto"}
+          aria-busy={formDisabled}
+        >
+          <Formik
           key={createMode ? "create-multi" : "single-offer"}
           enableReinitialize
           initialValues={formInitialValues}
@@ -293,7 +346,7 @@ function ProductOffersForm() {
                     values={productOptions}
                     multiple
                     placeholder="Search and select one or more products"
-                    editable={!productsLoading}
+                    editable={!isReadOnly && !formDisabled}
                     customRenderer={productCustomRenderer}
                     renderSelected={productRenderSelected}
                   />
@@ -304,7 +357,7 @@ function ProductOffersForm() {
                     method="searchable-dropdown"
                     values={productOptions}
                     placeholder="Select product"
-                    editable={!isReadOnly && !productsLoading}
+                    editable={!isReadOnly && !formDisabled}
                     customRenderer={productCustomRenderer}
                     renderSelected={productRenderSelected}
                   />
@@ -314,21 +367,21 @@ function ProductOffersForm() {
                   name="mrp"
                   type="number"
                   placeholder="MRP"
-                  editable={!isReadOnly}
+                  editable={!isReadOnly && !formDisabled}
                 />
                 <CustomInput
                   label="Selling Price"
                   name="selling_price"
                   type="number"
                   placeholder="Selling price"
-                  editable={!isReadOnly}
+                  editable={!isReadOnly && !formDisabled}
                 />
                 <CustomInput
                   label="Opening stock"
                   name="opening_stock"
                   type="number"
                   placeholder="0"
-                  editable={!isReadOnly}
+                  editable={!isReadOnly && !formDisabled}
                 />
               </Grid>
 
@@ -355,11 +408,16 @@ function ProductOffersForm() {
                       type="button"
                       variant="outline"
                       colorScheme="purple"
+                      isDisabled={formDisabled}
                       onClick={() => router.push("/product-offers")}
                     >
                       Cancel
                     </Button>
-                    <Button type="submit" colorScheme="purple">
+                    <Button
+                      type="submit"
+                      colorScheme="purple"
+                      isDisabled={formDisabled}
+                    >
                       {createMode ? "Create offer(s)" : "Update"}
                     </Button>
                   </>
@@ -368,6 +426,7 @@ function ProductOffersForm() {
             </form>
           )}
         </Formik>
+        </Box>
       </CustomContainer>
     </GlobalWrapper>
   );

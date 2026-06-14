@@ -12,6 +12,7 @@ const EMPTY_ENTRY = {
   loading: false,
   error: null,
   fetched: false,
+  fetchProgress: null,
 };
 
 const ProductsContext = createContext(null);
@@ -34,17 +35,17 @@ export function buildProductsCacheKey(options = {}) {
   });
 }
 
-async function loadProducts({
-  limit,
-  offset,
-  filter,
-  fetchAll,
-  fetchNonOnline,
-}) {
+async function loadProducts(
+  { limit, offset, filter, fetchAll, fetchNonOnline },
+  onProgress
+) {
   if (fetchAll) {
     let allProducts = [];
     let currentOffset = offset;
     let hasMore = true;
+    let page = 0;
+
+    onProgress?.({ loaded: 0, total: null, page: 0 });
 
     while (hasMore) {
       let data;
@@ -56,7 +57,13 @@ async function loadProducts({
 
       if (Array.isArray(data) && data.length > 0) {
         allProducts = [...allProducts, ...data];
+        page += 1;
         currentOffset += limit;
+        onProgress?.({
+          loaded: allProducts.length,
+          total: null,
+          page,
+        });
         if (data.length < limit) {
           hasMore = false;
         }
@@ -65,8 +72,15 @@ async function loadProducts({
       }
     }
 
+    onProgress?.({
+      loaded: allProducts.length,
+      total: allProducts.length,
+      page,
+    });
     return allProducts;
   }
+
+  onProgress?.({ loaded: 0, total: null, page: 0 });
 
   let data;
   if (filter) {
@@ -75,7 +89,13 @@ async function loadProducts({
     data = await product.getProduct(limit, offset, fetchNonOnline);
   }
 
-  return Array.isArray(data) ? data : [];
+  const products = Array.isArray(data) ? data : [];
+  onProgress?.({
+    loaded: products.length,
+    total: products.length,
+    page: 1,
+  });
+  return products;
 }
 
 export function ProductsProvider({ children }) {
@@ -119,17 +139,21 @@ export function ProductsProvider({ children }) {
       setCacheEntry(key, {
         loading: true,
         error: null,
+        fetchProgress: { loaded: 0, total: null, page: 0 },
         ...(force ? { products: [], fetched: false } : {}),
       });
 
       const promise = (async () => {
         try {
-          const products = await loadProducts(options);
+          const products = await loadProducts(options, (progress) => {
+            setCacheEntry(key, { fetchProgress: progress });
+          });
           setCacheEntry(key, {
             products,
             loading: false,
             error: null,
             fetched: true,
+            fetchProgress: null,
           });
           return products;
         } catch (err) {
@@ -137,6 +161,7 @@ export function ProductsProvider({ children }) {
             loading: false,
             error: err,
             fetched: false,
+            fetchProgress: null,
           });
           throw err;
         } finally {

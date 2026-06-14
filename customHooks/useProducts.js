@@ -50,7 +50,7 @@ export function useProducts(options = {}) {
     [normalizedOptions]
   );
 
-  const { products, loading, error } = getCacheEntry(cacheKey);
+  const { products, loading, error, fetchProgress } = getCacheEntry(cacheKey);
 
   useEffect(() => {
     if (!enabled) return;
@@ -86,6 +86,7 @@ export function useProducts(options = {}) {
     setProducts,
     loading: enabled ? loading : false,
     error,
+    fetchProgress: enabled ? fetchProgress : null,
     refetch,
     getMappedProducts,
   };
