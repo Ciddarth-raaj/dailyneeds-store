@@ -3,7 +3,15 @@ import { useRouter } from "next/router";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../components/CustomContainer";
 import CustomInput from "../../components/customInput/customInput";
-import { Button, Flex, Grid, Text, Box, Image, Progress } from "@chakra-ui/react";
+import {
+  Button,
+  Flex,
+  Grid,
+  Text,
+  Box,
+  Image,
+  Progress,
+} from "@chakra-ui/react";
 import { Formik } from "formik";
 import * as Yup from "yup";
 import toast from "react-hot-toast";
@@ -96,7 +104,11 @@ function ProductOffersForm() {
   const createMode = mode === "create";
   const canAdd = usePermissions("add_product_offers");
 
-  const { products, loading: productsLoading, fetchProgress } = useProducts({
+  const {
+    products,
+    loading: productsLoading,
+    fetchProgress,
+  } = useProducts({
     limit: 10000,
     fetchAll: true,
   });
@@ -325,107 +337,107 @@ function ProductOffersForm() {
           aria-busy={formDisabled}
         >
           <Formik
-          key={createMode ? "create-multi" : "single-offer"}
-          enableReinitialize
-          initialValues={formInitialValues}
-          validationSchema={validationSchema}
-          onSubmit={handleSubmit}
-        >
-          {({ handleSubmit: formikSubmit }) => (
-            <form onSubmit={formikSubmit}>
-              <Grid
-                templateColumns={{ base: "1fr", md: "1fr 1fr" }}
-                gap={4}
-                mb={6}
-              >
-                {createMode ? (
+            key={createMode ? "create-multi" : "single-offer"}
+            enableReinitialize
+            initialValues={formInitialValues}
+            validationSchema={validationSchema}
+            onSubmit={handleSubmit}
+          >
+            {({ handleSubmit: formikSubmit }) => (
+              <form onSubmit={formikSubmit}>
+                <Grid
+                  templateColumns={{ base: "1fr", md: "1fr 1fr" }}
+                  gap={4}
+                  mb={6}
+                >
+                  {createMode ? (
+                    <CustomInput
+                      label="Products (bulk create)"
+                      name="product_ids"
+                      method="searchable-dropdown"
+                      values={productOptions}
+                      multiple
+                      placeholder="Search and select one or more products"
+                      editable={!isReadOnly && !formDisabled}
+                      customRenderer={productCustomRenderer}
+                      renderSelected={productRenderSelected}
+                    />
+                  ) : (
+                    <CustomInput
+                      label="Product"
+                      name="product_id"
+                      method="searchable-dropdown"
+                      values={productOptions}
+                      placeholder="Select product"
+                      editable={!isReadOnly && !formDisabled}
+                      customRenderer={productCustomRenderer}
+                      renderSelected={productRenderSelected}
+                    />
+                  )}
                   <CustomInput
-                    label="Products (bulk create)"
-                    name="product_ids"
-                    method="searchable-dropdown"
-                    values={productOptions}
-                    multiple
-                    placeholder="Search and select one or more products"
+                    label="MRP"
+                    name="mrp"
+                    type="number"
+                    placeholder="MRP"
                     editable={!isReadOnly && !formDisabled}
-                    customRenderer={productCustomRenderer}
-                    renderSelected={productRenderSelected}
                   />
-                ) : (
                   <CustomInput
-                    label="Product"
-                    name="product_id"
-                    method="searchable-dropdown"
-                    values={productOptions}
-                    placeholder="Select product"
+                    label="Selling Price"
+                    name="selling_price"
+                    type="number"
+                    placeholder="Selling price"
                     editable={!isReadOnly && !formDisabled}
-                    customRenderer={productCustomRenderer}
-                    renderSelected={productRenderSelected}
                   />
-                )}
-                <CustomInput
-                  label="MRP"
-                  name="mrp"
-                  type="number"
-                  placeholder="MRP"
-                  editable={!isReadOnly && !formDisabled}
-                />
-                <CustomInput
-                  label="Selling Price"
-                  name="selling_price"
-                  type="number"
-                  placeholder="Selling price"
-                  editable={!isReadOnly && !formDisabled}
-                />
-                <CustomInput
-                  label="Opening stock"
-                  name="opening_stock"
-                  type="number"
-                  placeholder="0"
-                  editable={!isReadOnly && !formDisabled}
-                />
-              </Grid>
+                  <CustomInput
+                    label="Opening stock"
+                    name="opening_stock"
+                    type="number"
+                    placeholder="0"
+                    editable={!isReadOnly && !formDisabled}
+                  />
+                </Grid>
 
-              <Flex gap={3} justify="flex-end" mt={6}>
-                {viewMode ? (
-                  <Button
-                    type="button"
-                    colorScheme="purple"
-                    onClick={() => router.push("/product-offers")}
-                  >
-                    Back
-                  </Button>
-                ) : !canAdd ? (
-                  <Button
-                    type="button"
-                    colorScheme="purple"
-                    onClick={() => router.push("/product-offers")}
-                  >
-                    Back
-                  </Button>
-                ) : (
-                  <>
+                <Flex gap={3} justify="flex-end" mt={6}>
+                  {viewMode ? (
                     <Button
                       type="button"
-                      variant="outline"
                       colorScheme="purple"
-                      isDisabled={formDisabled}
                       onClick={() => router.push("/product-offers")}
                     >
-                      Cancel
+                      Back
                     </Button>
+                  ) : !canAdd ? (
                     <Button
-                      type="submit"
+                      type="button"
                       colorScheme="purple"
-                      isDisabled={formDisabled}
+                      onClick={() => router.push("/product-offers")}
                     >
-                      {createMode ? "Create offer(s)" : "Update"}
+                      Back
                     </Button>
-                  </>
-                )}
-              </Flex>
-            </form>
-          )}
-        </Formik>
+                  ) : (
+                    <>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        colorScheme="purple"
+                        isDisabled={formDisabled}
+                        onClick={() => router.push("/product-offers")}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        type="submit"
+                        colorScheme="purple"
+                        isDisabled={formDisabled}
+                      >
+                        {createMode ? "Create offer(s)" : "Update"}
+                      </Button>
+                    </>
+                  )}
+                </Flex>
+              </form>
+            )}
+          </Formik>
         </Box>
       </CustomContainer>
     </GlobalWrapper>

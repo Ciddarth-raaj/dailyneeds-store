@@ -221,6 +221,28 @@ function UploadProgress({ progress }) {
   );
 }
 
+function DataFetchProgress() {
+  return (
+    <Box mt={4} mb={4} w="100%">
+      <Flex justify="space-between" align="center" mb={2} gap={3} flexWrap="wrap">
+        <Text fontSize="sm" fontWeight="medium" color="gray.700">
+          Loading price checker data
+        </Text>
+        <Text fontSize="sm" color="gray.600">
+          Fetching from server…
+        </Text>
+      </Flex>
+      <Progress
+        isIndeterminate
+        isAnimated
+        size="sm"
+        colorScheme="purple"
+        borderRadius="md"
+      />
+    </Box>
+  );
+}
+
 function PriceChecker() {
   const { products, meta, loading, error, refetch } = usePriceChecker();
   const handleUploadComplete = useCallback(
@@ -622,10 +644,12 @@ function PriceChecker() {
           onChange={onFileChange}
           accept=".xlsx,.xls,.csv"
           maxSize={52428800}
-          disabled={uploading}
+          disabled={uploading || loading}
         />
 
         {uploadProgress ? <UploadProgress progress={uploadProgress} /> : null}
+
+        {loading ? <DataFetchProgress /> : null}
 
         {metaSummary ? (
           <Text mt={3} fontSize="sm" color="gray.600">
@@ -639,7 +663,12 @@ function PriceChecker() {
           </Text>
         ) : null}
 
-        <Box mt="42px">
+        <Box
+          mt="42px"
+          opacity={loading ? 0.6 : 1}
+          pointerEvents={loading ? "none" : "auto"}
+          aria-busy={loading}
+        >
           <Tabs
             size="sm"
             colorScheme="purple"
@@ -660,6 +689,7 @@ function PriceChecker() {
                     size="sm"
                     colorScheme="purple"
                     isChecked={showAll}
+                    isDisabled={loading}
                     onChange={(e) => setShowAll(e.target.checked)}
                   />
                 </Flex>
