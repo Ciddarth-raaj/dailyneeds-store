@@ -26,7 +26,35 @@ class CreatePackingMaterialSize extends React.Component {
 			loadingItem: false,
 			editItems: false,
 			toggleReset: false,
+			data: [],
+			id: null,
 		};
+	}
+
+	componentDidMount() {
+		this.fetchRecord();
+	}
+
+	componentDidUpdate(prevProps) {
+		if (prevProps.router.query.id !== this.props.router.query.id) {
+			this.fetchRecord();
+		}
+	}
+
+	fetchRecord() {
+		const recordId = this.props.router.query.id;
+		if (!recordId || recordId === "create") {
+			this.setState({ data: [], id: null });
+			return;
+		}
+		MaterialHelper.getMaterialSizeById(recordId)
+			.then((data) => {
+				this.setState({
+					data,
+					id: data[0]?.size_id ?? null,
+				});
+			})
+			.catch((err) => console.log(err));
 	}
 
 	createPackMaterialSize(values) {
@@ -48,7 +76,7 @@ class CreatePackingMaterialSize extends React.Component {
 			.finally(() => this.setState({ loadingSubmit: false }));
 	}
     updatePackMaterialSize(values) {
-        const { size_id } = this.props.data[0];
+        const { size_id } = this.state.data[0];
 		const { router } = this.props;
 		this.setState({ loading: true });
 		MaterialHelper.updatePackMaterialSize({
@@ -69,16 +97,17 @@ class CreatePackingMaterialSize extends React.Component {
 	}
 	render() {
 		const { loadingItem, loadingSubmit, loadingReset, toggleReset, editItems } = this.state;
-        const { id } = this.props;
+        const { id } = this.state;
 		return (
 			<GlobalWrapper title="Pack Material Size">
 				 
 				<Formik
+					enableReinitialize
 					initialValues={{
-						material_size: this.props.data[0]?.material_size,
-						weight: this.props.data[0]?.weight,
-						cost: this.props.data[0]?.cost,
-						description: this.props.data[0]?.description,
+						material_size: this.state.data[0]?.material_size,
+						weight: this.state.data[0]?.weight,
+						cost: this.state.data[0]?.cost,
+						description: this.state.data[0]?.description,
 					}}
 					// validationSchema={PackValidation}
 					onSubmit={(values) => {
@@ -145,17 +174,6 @@ class CreatePackingMaterialSize extends React.Component {
 			</GlobalWrapper>
 		);
 	}
-}
-
-export async function getServerSideProps(context) {
-	var data = [];
-	if(context.query.id !== "create") {
-	data = await MaterialHelper.getMaterialSizeById(context.query.id);
-	}
-	const id = context.query.id != "create" ? data[0].size_id : null;
-	return {
-		props: { data, id }
-	};
 }
 
 export default withRouter(CreatePackingMaterialSize);

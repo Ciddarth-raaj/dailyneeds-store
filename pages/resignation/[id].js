@@ -26,13 +26,40 @@ class CreateResignation extends React.Component {
             loading: false,
             employeeDet: [],
             employee_name: "",
-            // value: "",
             name: '',
             hoverElement: false,
+            data: [],
+            id: null,
+            value: "",
         };
     }
     componentDidMount() {
         this.getEmployeeDet();
+        this.fetchRecord();
+    }
+
+    componentDidUpdate(prevProps) {
+        if (prevProps.router.query.id !== this.props.router.query.id) {
+            this.fetchRecord();
+        }
+    }
+
+    fetchRecord() {
+        const recordId = this.props.router.query.id;
+        if (!recordId || recordId === "create") {
+            this.setState({ data: [], id: null, value: "" });
+            return;
+        }
+        ResignationHelper.getResignationById(recordId)
+            .then((data) => {
+                const id = data[0]?.resignation_id ?? null;
+                this.setState({
+                    data,
+                    id,
+                    value: id !== null ? data[0]?.employee_name ?? "" : "",
+                });
+            })
+            .catch((err) => console.log(err));
     }
     getEmployeeDet() {
         EmployeeHelper.getFamilyDet()
@@ -45,7 +72,7 @@ class CreateResignation extends React.Component {
         this.setState({ loading: true });
         const { router } = this.props;
         ResignationHelper.updateResignation({
-            resignation_id: this.props.data[0].resignation_id,
+            resignation_id: this.state.data[0].resignation_id,
             resignation_details: values
         })
             .then((data) => {
@@ -78,17 +105,17 @@ class CreateResignation extends React.Component {
             .finally(() => this.setState({ loading: false }));
     }
     render() {
-        const { loading, employeeDet, employee_name, hoverElement, name } = this.state;
-        const { id, data, value } = this.props;
+        const { loading, employeeDet, employee_name, hoverElement, name, id, value } = this.state;
         return (
             <GlobalWrapper title="Resignation">
                  
                 <Formik
+                    enableReinitialize
                     initialValues={{
-                        employee_name: this.props.data[0]?.employee_name,
-                        reason_type: this.props.data[0]?.reason_type,
-                        reason: this.props.data[0]?.reason,
-                        resignation_date: this.props.data[0]?.resignation_date
+                        employee_name: this.state.data[0]?.employee_name,
+                        reason_type: this.state.data[0]?.reason_type,
+                        reason: this.state.data[0]?.reason,
+                        resignation_date: this.state.data[0]?.resignation_date
                     }}
                     validationSchema={ResignationValidation}
                     onSubmit={(values) => {
@@ -168,17 +195,4 @@ class CreateResignation extends React.Component {
         );
     }
 }
-export async function getServerSideProps(context) {
-    var data = [];
-    var value = "",
-    data = await ResignationHelper.getResignationById(context.query.id);
-	const id = context.query.id != "create" ? data[0].resignation_id : null;
-    if(id !== null) {
-        value = data[0].employee_name
-    }
-	return {
-		props: { data, id, value }
-	};
-}
-
 export default withRouter(CreateResignation);

@@ -37,16 +37,45 @@ class BranchModal extends React.Component {
       toggle: false,
       isLoading: false,
       store_id: undefined,
+      data: [],
+      id: null,
     };
   }
   componentDidMount() {
-    this.getBudgetStore();
-    this.getBudgetStoreId();
+    this.fetchRecord();
     this.getDesignation();
   }
+
+  componentDidUpdate(prevProps) {
+    if (prevProps.router.query.id !== this.props.router.query.id) {
+      this.fetchRecord();
+    }
+  }
+
+  fetchRecord() {
+    const recordId = this.props.router.query.id;
+    if (!recordId || recordId === "create") {
+      this.setState({ data: [], id: null });
+      return;
+    }
+    BranchHelper.getOutletByOutletId(recordId)
+      .then((data) => {
+        this.setState(
+          {
+            data,
+            id: data[0]?.outlet_id ?? null,
+          },
+          () => {
+            this.getBudgetStore();
+            this.getBudgetStoreId();
+          }
+        );
+      })
+      .catch((err) => console.log(err));
+  }
   getBudgetStoreId() {
-    if (this.props.data[0]?.outlet_id !== undefined) {
-      BudgetHelper.getBudgetStoreId(this.props.data[0]?.outlet_id)
+    if (this.state.data[0]?.outlet_id !== undefined) {
+      BudgetHelper.getBudgetStoreId(this.state.data[0]?.outlet_id)
         .then((data) => {
           // console.log({endatabudget: data});
           this.setState({ store_data: data });
@@ -55,7 +84,7 @@ class BranchModal extends React.Component {
     }
   }
   getBudgetStore() {
-    BudgetHelper.getBudgetStore(this.props.data[0]?.outlet_id)
+    BudgetHelper.getBudgetStore(this.state.data[0]?.outlet_id)
       .then((data) => {
         // console.log({enadatabudget: data});
         this.setState({ store_id: data[0] });
@@ -75,7 +104,7 @@ class BranchModal extends React.Component {
     delete values.budget_id;
     const { router } = this.props;
     OutletHelper.updateOutlet({
-      outlet_id: this.props.data[0].outlet_id,
+      outlet_id: this.state.data[0].outlet_id,
       outlet_details: values,
     })
       .then((data) => {
@@ -139,7 +168,7 @@ class BranchModal extends React.Component {
   }
 
   render() {
-    const { setVisibility, id } = this.props;
+    const { setVisibility, id } = this.state;
     const {
       toggle,
       isLoading,
@@ -153,13 +182,14 @@ class BranchModal extends React.Component {
       <GlobalWrapper title="Branch">
          
         <Formik
+          enableReinitialize
           initialValues={{
-            outlet_name: this.props.data[0]?.outlet_name,
-            outlet_nickname: this.props.data[0]?.outlet_nickname,
-            outlet_phone: this.props.data[0]?.outlet_phone,
-            phone: this.props.data[0]?.phone,
-            outlet_address: this.props.data[0]?.outlet_address,
-            store_id: this.props.data[0]?.outlet_id,
+            outlet_name: this.state.data[0]?.outlet_name,
+            outlet_nickname: this.state.data[0]?.outlet_nickname,
+            outlet_phone: this.state.data[0]?.outlet_phone,
+            phone: this.state.data[0]?.phone,
+            outlet_address: this.state.data[0]?.outlet_address,
+            store_id: this.state.data[0]?.outlet_id,
             budget: [],
             budget_id: [],
           }}
@@ -196,7 +226,7 @@ class BranchModal extends React.Component {
                 <div className={styles.mainContainer}>
                   <CustomContainer
                     title={
-                      this.props.id !== null ? "Update Branch" : "Create Branch"
+                      this.state.id !== null ? "Update Branch" : "Create Branch"
                     }
                     filledHeader
                   >
@@ -242,7 +272,7 @@ class BranchModal extends React.Component {
                         }}
                         type="submit"
                       >
-                        {this.props.id !== null && (
+                        {this.state.id !== null && (
                           <Button
                             isLoading={isLoading}
                             colorScheme="purple"
@@ -279,13 +309,13 @@ class BranchModal extends React.Component {
                       colorScheme="purple"
                       loadingText="Updating"
                       onClick={() => {
-                        if (this.props.data[0]?.outlet_id !== undefined) {
+                        if (this.state.data[0]?.outlet_id !== undefined) {
                           this.setState({ budget_trigger: true });
                         }
                         handleSubmit();
                       }}
                     >
-                      {this.props.data[0]?.outlet_id === undefined
+                      {this.state.data[0]?.outlet_id === undefined
                         ? "Create"
                         : "Update"}
                     </Button>
@@ -298,17 +328,6 @@ class BranchModal extends React.Component {
       </GlobalWrapper>
     );
   }
-}
-
-export async function getServerSideProps(context) {
-  var data = [];
-  if (context.query.id !== "create") {
-    data = await BranchHelper.getOutletByOutletId(context.query.id);
-  }
-  const id = context.query.id != "create" ? data[0].outlet_id : null;
-  return {
-    props: { data, id },
-  };
 }
 
 export default withRouter(BranchModal);

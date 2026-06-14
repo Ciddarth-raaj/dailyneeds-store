@@ -26,7 +26,35 @@ class CreatePackingMaterialType extends React.Component {
 			loadingItem: false,
 			editItems: false,
 			toggleReset: false,
+			data: [],
+			id: null,
 		};
+	}
+
+	componentDidMount() {
+		this.fetchRecord();
+	}
+
+	componentDidUpdate(prevProps) {
+		if (prevProps.router.query.id !== this.props.router.query.id) {
+			this.fetchRecord();
+		}
+	}
+
+	fetchRecord() {
+		const recordId = this.props.router.query.id;
+		if (!recordId || recordId === "create") {
+			this.setState({ data: [], id: null });
+			return;
+		}
+		MaterialHelper.getMaterialTypeById(recordId)
+			.then((data) => {
+				this.setState({
+					data,
+					id: data[0]?.type_id ?? null,
+				});
+			})
+			.catch((err) => console.log(err));
 	}
 
 	createPackMaterialType(values) {
@@ -47,7 +75,7 @@ class CreatePackingMaterialType extends React.Component {
 			.finally(() => this.setState({ loadingSubmit: false }));
 	}
     updatePackMaterialType(values) {
-        const { type_id } = this.props.data[0];
+        const { type_id } = this.state.data[0];
 		const { router } = this.props;
 		this.setState({ loading: true });
 		MaterialHelper.updatePackMaterialType({
@@ -68,14 +96,15 @@ class CreatePackingMaterialType extends React.Component {
 	}
 	render() {
 		const { loadingItem, loadingSubmit, loadingReset, toggleReset, editItems } = this.state;
-        const { id } = this.props;
+        const { id } = this.state;
 		return (
 			<GlobalWrapper title="Pack Material Type">
 				 
 				<Formik
+					enableReinitialize
 					initialValues={{
-                        material_type: this.props.data[0]?.material_type,
-                        description: this.props.data[0]?.description
+                        material_type: this.state.data[0]?.material_type,
+                        description: this.state.data[0]?.description
 					}}
 					// validationSchema={PackValidation}
 					onSubmit={(values) => {
@@ -122,17 +151,6 @@ class CreatePackingMaterialType extends React.Component {
 			</GlobalWrapper>
 		);
 	}
-}
-
-export async function getServerSideProps(context) {
-	var data = [];
-	if(context.query.id !== "create") {
-	data = await MaterialHelper.getMaterialTypeById(context.query.id);
-	}
-	const id = context.query.id != "create" ? data[0].type_id : null;
-	return {
-		props: { data, id }
-	};
 }
 
 export default withRouter(CreatePackingMaterialType);

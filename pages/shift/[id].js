@@ -28,7 +28,35 @@ class CreateShift extends React.Component {
 		super(props);
 		this.state = {
 			loading: false,
+			data: [],
+			id: null,
 		};
+	}
+
+	componentDidMount() {
+		this.fetchRecord();
+	}
+
+	componentDidUpdate(prevProps) {
+		if (prevProps.router.query.id !== this.props.router.query.id) {
+			this.fetchRecord();
+		}
+	}
+
+	fetchRecord() {
+		const recordId = this.props.router.query.id;
+		if (!recordId || recordId === "create") {
+			this.setState({ data: [], id: null });
+			return;
+		}
+		ShiftHelper.getShiftById(recordId)
+			.then((data) => {
+				this.setState({
+					data,
+					id: data[0]?.shift_id ?? null,
+				});
+			})
+			.catch((err) => console.log(err));
 	}
 
 	createShift(values) {
@@ -57,7 +85,7 @@ class CreateShift extends React.Component {
 	updateShift(values) {
 		// values.shift_in_time = moment(values.shift_in_time).format("hh:mm:ss");
 		// values.shift_out_time = moment(values.shift_out_time).format("hh:mm:ss");
-		const { shift_id } = this.props.data[0];
+		const { shift_id } = this.state.data[0];
 		const { router } = this.props;
 		this.setState({ loading: true });
 		ShiftHelper.updateShift({
@@ -78,16 +106,17 @@ class CreateShift extends React.Component {
 	}
 	render() {
 		const { loading, shift } = this.state;
-		const { id } = this.props;
+		const { id } = this.state;
 		return (
 			<GlobalWrapper title="Shift">
 				 
 				<Formik
+					enableReinitialize
 					initialValues={{
-						shift_name: this.props.data[0]?.shift_name,
-						shift_in_time: this.props.data[0]?.shift_in_time || null,
-						shift_out_time: this.props.data[0]?.shift_out_time || null,
-						status: this.props.data	[0]?.status,
+						shift_name: this.state.data[0]?.shift_name,
+						shift_in_time: this.state.data[0]?.shift_in_time || null,
+						shift_out_time: this.state.data[0]?.shift_out_time || null,
+						status: this.state.data[0]?.status,
 					}}
 					validationSchema={ShiftValidation}
 					onSubmit={(values) => {
@@ -142,16 +171,5 @@ class CreateShift extends React.Component {
 	}
 }
 
-
-export async function getServerSideProps(context) {
-	var data = [];
-	if(context.query.id !== "create") {
-	data = await ShiftHelper.getShiftById(context.query.id);
-	}
-	const id = context.query.id != "create" ? data[0].shift_id : null;
-	return {
-		props: { data, id }
-	};
-}
 
 export default withRouter(CreateShift);

@@ -149,17 +149,76 @@ const validationSchema = Yup.object().shape({
 
 class Create extends React.Component {
   editViewMode = false;
+
+  buildInitialValues(data) {
+    const record = data[0] || {};
+    return {
+      employee_id: record?.employee_id,
+      employee_name: record?.employee_name,
+      gender: record?.gender,
+      email_id: record?.email_id,
+      primary_contact_number: record?.primary_contact_number,
+      alternate_contact_number: record?.alternate_contact_number,
+      date_of_joining: record?.date_of_joining,
+      telegram_username: record?.telegram_username,
+      employee_image: record?.employee_image,
+      marital_status: record?.marital_status,
+      dob: record?.dob,
+      marriage_date: record?.marriage_date,
+      permanent_address: record?.permanent_address,
+      residential_address: record?.residential_address,
+      father_name: record?.father_name,
+      spouse_name: record?.spouse_name,
+      blood_group: record?.blood_group,
+      store_id: record?.store_id,
+      department_id: record?.department_id,
+      designation_id: record?.designation_id,
+      shift_id: record?.shift_id,
+      qualification: record?.qualification,
+      previous_experience: record?.previous_experience,
+      additional_course: record?.additional_course,
+      payment_type: record?.payment_type,
+      bank_name: record?.bank_name,
+      ifsc: record?.ifsc,
+      account_no: record?.account_no,
+      aadhaar_card_no: record?.aadhaar_card_no,
+      aadhaar_card_name: record?.aadhaar_card_name,
+      aadhaar_card_image: record?.aadhaar_card_image,
+      pan_no: record?.pan_no,
+      pf_number: record?.pf_number,
+      UAN: record?.uan,
+      esi_number: record?.esi_number,
+      salary: record?.salary,
+      introducer_name: record?.introducer_name,
+      introducer_details: record?.introducer_details,
+      uniform_qty: record?.uniform_qty,
+      online_portal: record?.online_portal,
+      esi: record?.esi,
+      pf: record?.pf,
+      designation_name: record?.designation_name,
+      store_name: record?.outlet_name,
+      shift_name: record?.shift_name,
+      department_name: record?.department_name,
+      payment_name:
+        record?.payment_type === "1"
+          ? "Bank"
+          : record?.payment_type === "2"
+          ? "Cash"
+          : "",
+    };
+  }
+
   constructor(props) {
     super(props);
 
-    this.editViewMode = props.id !== null;
+    this.editViewMode = false;
 
     this.state = {
       card_name_change: false,
       card_number_change: false,
       imageContainer: false,
       idContainer: false,
-      employee_image: props.data[0]?.employee_image,
+      employee_image: null,
       loading: false,
       handlingSubmit: "",
       department: [],
@@ -221,81 +280,16 @@ class Create extends React.Component {
       loadingPFInfo: false,
       loadingSalInfo: false,
       loadingOtherInfo: false,
-      id: props.id,
+      data: [],
+      id: null,
+      dataLoaded: false,
     };
 
-    this.initialValues = {
-      // Employee Information
-      employee_id: this.props.data[0]?.employee_id,
-      employee_name: this.props.data[0]?.employee_name,
-      gender: this.props.data[0]?.gender,
-      email_id: this.props.data[0]?.email_id,
-      primary_contact_number: this.props.data[0]?.primary_contact_number,
-      alternate_contact_number: this.props.data[0]?.alternate_contact_number,
-      date_of_joining: this.props.data[0]?.date_of_joining,
-      telegram_username: this.props.data[0]?.telegram_username,
-      employee_image: this.props.data[0]?.employee_image,
-
-      // Personal Details
-      marital_status: this.props.data[0]?.marital_status,
-      dob: this.props.data[0]?.dob,
-      marriage_date: this.props.data[0]?.marriage_date,
-      permanent_address: this.props.data[0]?.permanent_address,
-      residential_address: this.props.data[0]?.residential_address,
-      father_name: this.props.data[0]?.father_name,
-      spouse_name: this.props.data[0]?.spouse_name,
-      blood_group: this.props.data[0]?.blood_group,
-
-      // Current Position
-      store_id: this.props.data[0]?.store_id,
-      department_id: this.props.data[0]?.department_id,
-      designation_id: this.props.data[0]?.designation_id,
-      shift_id: this.props.data[0]?.shift_id,
-
-      // Education Details
-      qualification: this.props.data[0]?.qualification,
-      previous_experience: this.props.data[0]?.previous_experience,
-      additional_course: this.props.data[0]?.additional_course,
-
-      // Employee Identification
-      payment_type: this.props.data[0]?.payment_type,
-      bank_name: this.props.data[0]?.bank_name,
-      ifsc: this.props.data[0]?.ifsc,
-      account_no: this.props.data[0]?.account_no,
-      aadhaar_card_no: this.props.data[0]?.aadhaar_card_no,
-      aadhaar_card_name: this.props.data[0]?.aadhaar_card_name,
-      aadhaar_card_image: this.props.data[0]?.aadhaar_card_image,
-
-      // PF & ESI
-      pan_no: this.props.data[0]?.pan_no,
-      pf_number: this.props.data[0]?.pf_number,
-      UAN: this.props.data[0]?.uan,
-      esi_number: this.props.data[0]?.esi_number,
-
-      // Salary Details
-      salary: this.props.data[0]?.salary,
-
-      // Additional fields for compatibility
-      introducer_name: this.props.data[0]?.introducer_name,
-      introducer_details: this.props.data[0]?.introducer_details,
-      uniform_qty: this.props.data[0]?.uniform_qty,
-      online_portal: this.props.data[0]?.online_portal,
-      esi: this.props.data[0]?.esi,
-      pf: this.props.data[0]?.pf,
-      designation_name: this.props.data[0]?.designation_name,
-      store_name: this.props.data[0]?.outlet_name,
-      shift_name: this.props.data[0]?.shift_name,
-      department_name: this.props.data[0]?.department_name,
-      payment_name:
-        this.props.data[0]?.payment_type === "1"
-          ? "Bank"
-          : this.props.data[0]?.payment_type === "2"
-          ? "Cash"
-          : "",
-    };
+    this.initialValues = this.buildInitialValues([]);
   }
 
   componentDidMount() {
+    this.fetchEmployee();
     this.getDesignation();
     this.getDepartment();
     this.getShift();
@@ -303,7 +297,11 @@ class Create extends React.Component {
     this.getAdhaar();
   }
 
-  componentDidUpdate() {
+  componentDidUpdate(prevProps) {
+    if (prevProps.router.query.id !== this.props.router.query.id) {
+      this.fetchEmployee();
+    }
+
     const { employee_name, handlingSubmit } = this.state;
     if (employee_name !== "") {
       this.getResignation();
@@ -313,6 +311,28 @@ class Create extends React.Component {
       this.handleSubmit();
       this.setState({ handlingSubmit: true });
     }
+  }
+
+  fetchEmployee() {
+    const recordId = this.props.router.query.id;
+    if (!recordId || recordId === "create") {
+      this.editViewMode = false;
+      this.initialValues = this.buildInitialValues([]);
+      this.setState({ data: [], id: null, dataLoaded: true });
+      return;
+    }
+    EmployeeHelper.getEmployeeByID(recordId)
+      .then((data) => {
+        this.editViewMode = true;
+        this.initialValues = this.buildInitialValues(data);
+        this.setState({
+          data,
+          id: data[0]?.employee_id ?? null,
+          employee_image: data[0]?.employee_image,
+          dataLoaded: true,
+        });
+      })
+      .catch((err) => console.log(err));
   }
 
   getBranchData() {
@@ -435,7 +455,7 @@ class Create extends React.Component {
 
   updateEmployeeLatest = async (values, setLoading) => {
     try {
-      const { employee_id } = this.props.data[0];
+      const { employee_id } = this.state.data[0];
 
       setLoading && setLoading(true);
       const res = await EmployeeHelper.updateEmployeeDetails({
@@ -465,11 +485,22 @@ class Create extends React.Component {
       branchModalVisibility,
       resignationData,
       id,
+      dataLoaded,
     } = this.state;
+
+    if (!dataLoaded) {
+      return (
+        <GlobalWrapper title="New Employee">
+          <div>Loading...</div>
+        </GlobalWrapper>
+      );
+    }
 
     return (
       <GlobalWrapper title="New Employee">
         <Formik
+          enableReinitialize
+          key={String(id)}
           initialValues={this.initialValues}
           validationSchema={validationSchema}
           onSubmit={this.createEmployee}
@@ -630,20 +661,6 @@ class Create extends React.Component {
       </GlobalWrapper>
     );
   }
-}
-
-export async function getServerSideProps(context) {
-  var data = [];
-  if (context.query.id !== "create") {
-    data = await EmployeeHelper.getEmployeeByID(context.query.id);
-  }
-  const id = context.query.id != "create" ? data[0].employee_id : null;
-  let doc = [];
-  doc =
-    context.query.id == "create" ? null : await DocumentHelper.getDocType(id);
-  return {
-    props: { data, id, doc },
-  };
 }
 
 export default withRouter(Create);

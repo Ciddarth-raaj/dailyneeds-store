@@ -29,13 +29,38 @@ class CreateSalary extends React.Component {
             employeeDet: [],
             hoverElement: false,
             employee_name: "",
-            name: ''
+            name: '',
+			data: [],
+			id: null,
 		};
 	}
 
     componentDidMount() {
         this.getEmployeeDet();
+		this.fetchRecord();
     }
+
+	componentDidUpdate(prevProps) {
+		if (prevProps.router.query.id !== this.props.router.query.id) {
+			this.fetchRecord();
+		}
+	}
+
+	fetchRecord() {
+		const recordId = this.props.router.query.id;
+		if (!recordId || recordId === "create") {
+			this.setState({ data: [], id: null });
+			return;
+		}
+		SalaryHelper.getSalaryById(recordId)
+			.then((data) => {
+				this.setState({
+					data,
+					id: data[0]?.payment_id ?? null,
+				});
+			})
+			.catch((err) => console.log(err));
+	}
     getEmployeeDet() {
         EmployeeHelper.getFamilyDet()
             .then((data) => {
@@ -65,7 +90,7 @@ class CreateSalary extends React.Component {
 	}
 
 	updateSalary(values) {
-		const { payment_id } = this.props.data[0];
+		const { payment_id } = this.state.data[0];
 		const { router } = this.props;
 		this.setState({ loading: true });
 		SalaryHelper.updateSalary({
@@ -87,15 +112,16 @@ class CreateSalary extends React.Component {
 
 	render() {
 		const { loading,  employeeDet, hoverElement, employee_name, name } = this.state;
-		const { id } = this.props;
+		const { id } = this.state;
 		return (
 			<GlobalWrapper title="Salary">
 				 
 				<Formik
+					enableReinitialize
 					initialValues={{
-						employee: this.props.data[0]?.employee_name,
-						loan_amount: this.props.data[0]?.loan_amount,
-						installment_duration: this.props.data[0]?.installment,
+						employee: this.state.data[0]?.employee_name,
+						loan_amount: this.state.data[0]?.loan_amount,
+						installment_duration: this.state.data[0]?.installment,
 					}}
 					validationSchema={SalaryValidation}
 					onSubmit={(values) => {
@@ -162,16 +188,5 @@ class CreateSalary extends React.Component {
 	}
 }
 
-
-export async function getServerSideProps(context) {
-	var data = [];
-	if(context.query.id !== "create") {
-	data = await SalaryHelper.getSalaryById(context.query.id);
-	}
-	const id = context.query.id != "create" ? data[0].payment_id : null;
-	return {
-		props: { data, id }
-	};
-}
 
 export default withRouter(CreateSalary);

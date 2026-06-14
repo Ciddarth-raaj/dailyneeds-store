@@ -30,11 +30,36 @@ class Family extends React.Component {
             employeeDet: [],
             hoverElement: false,
             employee_name: "",
-            name: ''
+            name: '',
+            data: [],
+            id: null,
         };
     }
     componentDidMount() {
         this.getEmployeeDet();
+        this.fetchRecord();
+    }
+
+    componentDidUpdate(prevProps) {
+        if (prevProps.router.query.id !== this.props.router.query.id) {
+            this.fetchRecord();
+        }
+    }
+
+    fetchRecord() {
+        const recordId = this.props.router.query.id;
+        if (!recordId || recordId === "create") {
+            this.setState({ data: [], id: null });
+            return;
+        }
+        FamilyHelper.getFamilyById(recordId)
+            .then((data) => {
+                this.setState({
+                    data,
+                    id: data[0]?.family_id ?? null,
+                });
+            })
+            .catch((err) => console.log(err));
     }
     getEmployeeDet() {
         EmployeeHelper.getFamilyDet()
@@ -63,7 +88,7 @@ class Family extends React.Component {
             .finally(() => this.setState({ loadingFamily: false }));
         }
     updateFamily(values) {
-        const { family_id } = this.props.data[0];
+        const { family_id } = this.state.data[0];
         const { employee_name } = this.state;
         this.setState({ loading: true });
         values.employee_name = employee_name ? employee_name : "";
@@ -90,21 +115,22 @@ class Family extends React.Component {
     }
     render() {
         const { loadingFamily, editFamily, employeeDet, employee_id, hoverElement, name, employee_name } = this.state;
-        const { id } = this.props;
+        const { id } = this.state;
         return (
             <GlobalWrapper title="Family">
                  
                 <Formik
+                    enableReinitialize
                     initialValues={{
-                        name: this.props.data[0]?.name,
-                        dob: moment(this.props.data[0]?.dob).format("MM/DD/YYYY"),
-                        gender: this.props.data[0]?.gender,
-                        blood_group: this.props.data[0]?.blood_group,
-                        relation: this.props.data[0]?.relation,
-                        profession: this.props.data[0]?.profession,
-                        nationality: this.props.data[0]?.nationality,
-                        remarks: this.props.data[0]?.remarks,
-                        employee_name: this.props.data[0]?.employee_name,
+                        name: this.state.data[0]?.name,
+                        dob: moment(this.state.data[0]?.dob).format("MM/DD/YYYY"),
+                        gender: this.state.data[0]?.gender,
+                        blood_group: this.state.data[0]?.blood_group,
+                        relation: this.state.data[0]?.relation,
+                        profession: this.state.data[0]?.profession,
+                        nationality: this.state.data[0]?.nationality,
+                        remarks: this.state.data[0]?.remarks,
+                        employee_name: this.state.data[0]?.employee_name,
                     }}
                     validationSchema={EmployeeFamilyValidation}
                     onSubmit={(values) => {
@@ -299,17 +325,6 @@ class Family extends React.Component {
             </GlobalWrapper >
         );
     }
-}
-
-export async function getServerSideProps(context) {
-    var data = [];
-	if(context.query.id !== "create") {
-    data = await FamilyHelper.getFamilyById(context.query.id);
-    }
-    const id = context.query.id != "create" ? data[0].family_id : null;
-    return {
-        props: { data, id }
-    };
 }
 
 export default withRouter(Family);

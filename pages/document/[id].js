@@ -22,11 +22,35 @@ class ApproveDocument extends React.Component {
 		super(props);
 		this.state = {
 			loading: false,
+			data: [],
 		};
 	}
 
+	componentDidMount() {
+		this.fetchRecord();
+	}
+
+	componentDidUpdate(prevProps) {
+		if (prevProps.router.query.id !== this.props.router.query.id) {
+			this.fetchRecord();
+		}
+	}
+
+	fetchRecord() {
+		const recordId = this.props.router.query.id;
+		if (!recordId || recordId === "create") {
+			this.setState({ data: [] });
+			return;
+		}
+		DocumentHelper.getDocumentById(recordId)
+			.then((data) => {
+				this.setState({ data });
+			})
+			.catch((err) => console.log(err));
+	}
+
 	ApproveDocument(values) {
-        const { document_id } = this.props.data[0];
+        const { document_id } = this.state.data[0];
 		const { router } = this.props;
 		this.setState({ loading: true });
 		DocumentHelper.approveDocument({
@@ -53,16 +77,16 @@ class ApproveDocument extends React.Component {
 	
 	render() {
 		const { loading } = this.state;
-		const { id } = this.props;
 		return (
 			<GlobalWrapper title="Document">
 				 
 				<Formik
+					enableReinitialize
 					initialValues={{
-						card_name: this.props.data[0]?.card_name,
-	                    card_no: this.props.data[0]?.card_no,
-	                    file: this.props.data[0]?.file,
-                        is_verified: this.props.data[0]?.is_verified,
+						card_name: this.state.data[0]?.card_name,
+	                    card_no: this.state.data[0]?.card_no,
+	                    file: this.state.data[0]?.file,
+                        is_verified: this.state.data[0]?.is_verified,
 					}}
 					onSubmit={(values) => {
 						this.ApproveDocument(values);
@@ -112,16 +136,6 @@ class ApproveDocument extends React.Component {
 			</GlobalWrapper>
 		);
 	}
-}
-
-export async function getServerSideProps(context) {
-	var data = [];
-	if(context.query.id !== "create") {
-	data = await DocumentHelper.getDocumentById(context.query.id);
-	}
-	return {
-		props: { data }
-	};
 }
 
 export default withRouter(ApproveDocument);

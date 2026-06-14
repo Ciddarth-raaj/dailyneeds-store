@@ -23,7 +23,35 @@ class UpdateBudget extends React.Component {
 		super(props);
 		this.state = {
 			loading: false,
+			data: [],
+			id: null,
 		};
+	}
+
+	componentDidMount() {
+		this.fetchRecord();
+	}
+
+	componentDidUpdate(prevProps) {
+		if (prevProps.router.query.id !== this.props.router.query.id) {
+			this.fetchRecord();
+		}
+	}
+
+	fetchRecord() {
+		const recordId = this.props.router.query.id;
+		if (!recordId || recordId === "create") {
+			this.setState({ data: [], id: null });
+			return;
+		}
+		BudgetHelper.getBudgetById(recordId)
+			.then((data) => {
+				this.setState({
+					data,
+					id: data[0]?.budget_id ?? null,
+				});
+			})
+			.catch((err) => console.log(err));
 	}
 
 	createDepartment(values) {
@@ -43,7 +71,7 @@ class UpdateBudget extends React.Component {
 			.finally(() => this.setState({ loading: false }));
 	}
 	updateDepartment(values) {
-        const { department_id } = this.props.data[0];
+        const { department_id } = this.state.data[0];
 		const { router } = this.props;
 		this.setState({ loading: true });
 		DepartmentHelper.updateDepartment({
@@ -65,13 +93,14 @@ class UpdateBudget extends React.Component {
 	
 	render() {
 		const { loading } = this.state;
-		const { id } = this.props;
+		const { id } = this.state;
 		return (
 			<GlobalWrapper title="Update Budget">
 				 
 				<Formik
+					enableReinitialize
 					initialValues={{
-						department_name: this.props.data[0]?.department_name
+						department_name: this.state.data[0]?.department_name
 					}}
 					validationSchema={DepartmentValidation}
 					onSubmit={(values) => {
@@ -114,17 +143,6 @@ class UpdateBudget extends React.Component {
 			</GlobalWrapper>
 		);
 	}
-}
-
-export async function getServerSideProps(context) {
-	var data = [];
-	if(context.query.id !== "create") {
-	data = await BudgetHelper.getBudgetById(context.query.id);
-	}
-	const id = context.query.id != "create" ? data[0].budget_id : null;
-	return {
-		props: { data, id }
-	};
 }
 
 export default withRouter(UpdateBudget);

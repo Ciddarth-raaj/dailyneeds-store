@@ -27,7 +27,35 @@ class CreateVehicle extends React.Component {
 			loadingItem: false,
 			editItems: false,
 			toggleReset: false,
+			data: [],
+			id: null,
 		};
+	}
+
+	componentDidMount() {
+		this.fetchRecord();
+	}
+
+	componentDidUpdate(prevProps) {
+		if (prevProps.router.query.id !== this.props.router.query.id) {
+			this.fetchRecord();
+		}
+	}
+
+	fetchRecord() {
+		const recordId = this.props.router.query.id;
+		if (!recordId || recordId === "create") {
+			this.setState({ data: [], id: null });
+			return;
+		}
+		VehicleHelper.getVehicleById(recordId)
+			.then((data) => {
+				this.setState({
+					data,
+					id: data[0]?.vehicle_id ?? null,
+				});
+			})
+			.catch((err) => console.log(err));
 	}
 
 	createVehicle(values) {
@@ -51,7 +79,7 @@ class CreateVehicle extends React.Component {
 			.finally(() => this.setState({ loadingSubmit: false }));
 	}
     updateVehicle(values) {
-        const { vehicle_id } = this.props.data[0];
+        const { vehicle_id } = this.state.data[0];
 		const { router } = this.props;
         delete values.vehicle_id;
         values.fc_validity = moment(values.fc_validity).format("YYYY-MM-DD");
@@ -75,19 +103,20 @@ class CreateVehicle extends React.Component {
 	}
 	render() {
 		const { loadingItem, loadingSubmit, loadingReset, toggleReset, editItems } = this.state;
-        const { id } = this.props;
+        const { id } = this.state;
 		return (
 			<GlobalWrapper title="Vehicle">
 				 
 				<Formik
+					enableReinitialize
 					initialValues={{
-                        vehicle_id: this.props.data[0]?.vehicle_id,
-                        vehicle_name: this.props.data[0]?.vehicle_name,
-			            vehicle_number: this.props.data[0]?.vehicle_number,
-			            chasis_number: this.props.data[0]?.chasis_number,
-			            engine_number: this.props.data[0]?.engine_number,
-			            fc_validity: moment(this.props.data[0]?.fc_validity).format("YYYY-MM-DD"),
-			            insurance_validity: moment(this.props.data[0]?.insurance_validity).format("YYYY-MM-DD"),
+                        vehicle_id: this.state.data[0]?.vehicle_id,
+                        vehicle_name: this.state.data[0]?.vehicle_name,
+			            vehicle_number: this.state.data[0]?.vehicle_number,
+			            chasis_number: this.state.data[0]?.chasis_number,
+			            engine_number: this.state.data[0]?.engine_number,
+			            fc_validity: moment(this.state.data[0]?.fc_validity).format("YYYY-MM-DD"),
+			            insurance_validity: moment(this.state.data[0]?.insurance_validity).format("YYYY-MM-DD"),
 					}}
 					validationSchema={VehicleValidation}
 					onSubmit={(values) => {
@@ -168,17 +197,6 @@ class CreateVehicle extends React.Component {
 			</GlobalWrapper>
 		);
 	}
-}
-
-export async function getServerSideProps(context) {
-	var data = [];
-	if(context.query.id !== "create") {
-	data = await VehicleHelper.getVehicleById(context.query.id);
-	}
-	const id = context.query.id != "create" ? data[0].vehicle_id : null;
-	return {
-		props: { data, id }
-	};
 }
 
 export default withRouter(CreateVehicle);
