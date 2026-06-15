@@ -33,3 +33,14 @@ export function formatShorthandNumber(value) {
   const rounded = Math.round(abs * 100) / 100;
   return `${sign}${Number.isInteger(rounded) ? rounded : rounded}`;
 }
+
+export function formatCurrency(value) {
+  const num = Number(value ?? 0);
+  if (Number.isNaN(num)) return "₹0.00";
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(num);
+}

@@ -21,8 +21,10 @@ import {
   STOCK_HOLDING_STATUS_KEYS,
   toggleMultiFilterValue,
 } from "../util/stockHoldingDashboard";
+import { filterAvailableStockForSales } from "../util/salesDashboard";
 import {
   getLocalDayKey,
+  getPreviousLocalDayKey,
   readCachedReport,
   shouldRefreshFromApi,
   writeCachedReport,
@@ -32,9 +34,14 @@ const DEFAULT_STATUS_FILTER = [STOCK_HOLDING_STATUS_KEYS.ACTIVE];
 
 const StockHoldingDashboardContext = createContext(null);
 
-export function StockHoldingDashboardProvider({ children }) {
+export function StockHoldingDashboardProvider({ children, activeTab = "holding" }) {
+  const shouldLoadStockHolding = activeTab !== "sales";
+
   const [selectedDate, setSelectedDate] = useState(() => getLocalDayKey());
-  const [loading, setLoading] = useState(true);
+  const [salesSelectedDate, setSalesSelectedDate] = useState(() =>
+    getPreviousLocalDayKey()
+  );
+  const [loading, setLoading] = useState(shouldLoadStockHolding);
   const [refreshing, setRefreshing] = useState(false);
   const [fetchProgress, setFetchProgress] = useState(null);
   const [rawItems, setRawItems] = useState([]);
@@ -60,6 +67,10 @@ export function StockHoldingDashboardProvider({ children }) {
   const [itemsModalRows, setItemsModalRows] = useState([]);
   const [enrichedRows, setEnrichedRows] = useState([]);
   const [enriching, setEnriching] = useState(false);
+  const [salesSoldStatusFilter, setSalesSoldStatusFilter] = useState("all");
+  const [salesFilterOptions, setSalesFilterOptionsState] = useState(null);
+  const salesRefreshRef = useRef(null);
+  const salesStockCacheRef = useRef(new Map());
 
   const applyFilterUpdate = useCallback((updater) => {
     updater();
@@ -175,6 +186,13 @@ export function StockHoldingDashboardProvider({ children }) {
   }, []);
 
   useEffect(() => {
+    if (!shouldLoadStockHolding) {
+      setLoading(false);
+      setRefreshing(false);
+      setFetchProgress(null);
+      return undefined;
+    }
+
     abortActiveFetch();
     const generation = fetchGenerationRef.current;
     const controller = new AbortController();
@@ -218,6 +236,7 @@ export function StockHoldingDashboardProvider({ children }) {
     return () => abortActiveFetch();
   }, [
     selectedDate,
+    shouldLoadStockHolding,
     loadReport,
     applyReportData,
     isAbortError,
@@ -310,6 +329,74 @@ export function StockHoldingDashboardProvider({ children }) {
     ]
   );
 
+  const fetchStockReportItems = useCallback(
+    async (date, { forceRefresh = false, signal } = {}) => {
+      if (!date) return [];
+
+      if (!forceRefresh) {
+        const cached = await readCachedReport(date);
+        if (signal?.aborted) return [];
+
+        let cacheValid = false;
+        if (cached && !shouldRefreshFromApi(cached)) {
+          cacheValid = await canUseCachedReport(date, cached, { signal });
+        }
+        if (signal?.aborted) return [];
+
+        if (cacheValid) {
+          return Array.isArray(cached?.items) ? cached.items : [];
+        }
+      }
+
+      if (signal?.aborted) return [];
+
+      const response = await getLatestStockHoldingReportByDate(date, {
+        signal,
+      });
+      if (signal?.aborted) return [];
+
+      if (response?.code === 404) {
+        const emptyReport = { items: [], created_at: null };
+        await writeCachedReport(date, emptyReport);
+        return [];
+      }
+
+      const report = response?.data || {};
+      await writeCachedReport(date, report);
+      return Array.isArray(report?.items) ? report.items : [];
+    },
+    [canUseCachedReport]
+  );
+
+  const getStockRowsForDate = useCallback(
+    async (date, { signal, forceRefresh = false } = {}) => {
+      if (!date) return [];
+
+      if (!forceRefresh && salesStockCacheRef.current.has(date)) {
+        return filterAvailableStockForSales(
+          salesStockCacheRef.current.get(date),
+          dashboardFilters
+        );
+      }
+
+      const items = await fetchStockReportItems(date, { forceRefresh, signal });
+      if (signal?.aborted) return [];
+
+      const enriched = enrichStockHoldingItems(items);
+      salesStockCacheRef.current.set(date, enriched);
+      return filterAvailableStockForSales(enriched, dashboardFilters);
+    },
+    [fetchStockReportItems, dashboardFilters]
+  );
+
+  const clearSalesStockCache = useCallback((date) => {
+    if (date) {
+      salesStockCacheRef.current.delete(date);
+      return;
+    }
+    salesStockCacheRef.current.clear();
+  }, []);
+
   const dashboard = useMemo(
     () => computeStockHoldingDashboardState(enrichedRows, dashboardFilters),
     [enrichedRows, dashboardFilters]
@@ -360,6 +447,8 @@ export function StockHoldingDashboardProvider({ children }) {
   );
 
   useEffect(() => {
+    if (activeTab === "sales") return;
+
     setBranchFilter((prev) => pruneMultiFilter(prev, branchOptions));
     setBuyerFilter((prev) => pruneMultiFilter(prev, buyerOptions));
     setSupplierFilter((prev) => pruneMultiFilter(prev, supplierOptions));
@@ -375,7 +464,7 @@ export function StockHoldingDashboardProvider({ children }) {
     setStockAvailabilityFilter((prev) =>
       pruneMultiFilter(prev, stockAvailabilityOptions)
     );
-  }, [cascadeOptionsKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activeTab, cascadeOptionsKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const filteredModalRows = useMemo(() => {
     if (!itemsModalOpen || !itemsModalRows.length) return [];
@@ -405,9 +494,52 @@ export function StockHoldingDashboardProvider({ children }) {
       setChainLevelFilter([]);
       setStatusFilter([]);
       setStockAvailabilityFilter([]);
+      setSalesSoldStatusFilter("all");
       setGridResetKey((prev) => prev + 1);
     });
   }, [applyFilterUpdate]);
+
+  const registerSalesRefresh = useCallback((handler) => {
+    salesRefreshRef.current = handler;
+  }, []);
+
+  const setSalesFilterOptions = useCallback((options) => {
+    setSalesFilterOptionsState((prev) => {
+      if (!options) return null;
+      if (prev) {
+        const prevKey = filterOptionsKey(
+          prev.branchOptions,
+          prev.buyerOptions,
+          prev.supplierOptions,
+          prev.distributorOptions,
+          prev.departmentOptions,
+          prev.categoryOptions,
+          prev.subcategoryOptions,
+          prev.purchaseTypeOptions,
+          prev.chainLevelOptions
+        );
+        const nextKey = filterOptionsKey(
+          options.branchOptions,
+          options.buyerOptions,
+          options.supplierOptions,
+          options.distributorOptions,
+          options.departmentOptions,
+          options.categoryOptions,
+          options.subcategoryOptions,
+          options.purchaseTypeOptions,
+          options.chainLevelOptions
+        );
+        if (prevKey === nextKey) return prev;
+      }
+      return options;
+    });
+  }, []);
+
+  const refreshSalesData = useCallback(async () => {
+    if (typeof salesRefreshRef.current === "function") {
+      await salesRefreshRef.current();
+    }
+  }, []);
 
   const openItemsModal = useCallback((title, rows) => {
     setItemsModalTitle(title);
@@ -417,13 +549,18 @@ export function StockHoldingDashboardProvider({ children }) {
 
   const value = useMemo(
     () => ({
+      activeTab,
+      shouldLoadStockHolding,
       selectedDate,
       setSelectedDate,
+      salesSelectedDate,
+      setSalesSelectedDate,
       loading,
       refreshing,
       fetchProgress,
       lastSyncAt,
       refreshData,
+      refreshSalesData,
       cancelFetch,
       rawItems,
       enrichedRows,
@@ -453,6 +590,8 @@ export function StockHoldingDashboardProvider({ children }) {
       setStatusFilter,
       stockAvailabilityFilter,
       setStockAvailabilityFilter,
+      salesSoldStatusFilter,
+      setSalesSoldStatusFilter,
       gridResetKey,
       clearFilters,
       toggleChartFilter,
@@ -461,14 +600,23 @@ export function StockHoldingDashboardProvider({ children }) {
       itemsModalTitle,
       filteredModalRows,
       openItemsModal,
+      salesFilterOptions,
+      setSalesFilterOptions,
+      registerSalesRefresh,
+      getStockRowsForDate,
+      clearSalesStockCache,
     }),
     [
+      activeTab,
+      shouldLoadStockHolding,
       selectedDate,
+      salesSelectedDate,
       loading,
       refreshing,
       fetchProgress,
       lastSyncAt,
       refreshData,
+      refreshSalesData,
       cancelFetch,
       rawItems,
       enrichedRows,
@@ -487,6 +635,7 @@ export function StockHoldingDashboardProvider({ children }) {
       chainLevelFilter,
       statusFilter,
       stockAvailabilityFilter,
+      salesSoldStatusFilter,
       gridResetKey,
       clearFilters,
       toggleChartFilter,
@@ -494,6 +643,11 @@ export function StockHoldingDashboardProvider({ children }) {
       itemsModalTitle,
       filteredModalRows,
       openItemsModal,
+      salesFilterOptions,
+      setSalesFilterOptions,
+      registerSalesRefresh,
+      getStockRowsForDate,
+      clearSalesStockCache,
     ]
   );
 

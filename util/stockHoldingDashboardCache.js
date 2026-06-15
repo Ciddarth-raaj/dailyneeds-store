@@ -1,6 +1,7 @@
 const DB_NAME = "dailyneeds-store";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE_NAME = "stock-holding-dashboard-cache";
+export const SALES_DASHBOARD_STORE_NAME = "sales-dashboard-cache";
 const LEGACY_STORAGE_PREFIX = "stock-holding-dashboard:";
 const REFRESH_HOUR = 6;
 
@@ -11,6 +12,12 @@ export function getLocalDayKey(date = new Date()) {
   const m = String(date.getMonth() + 1).padStart(2, "0");
   const d = String(date.getDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
+}
+
+export function getPreviousLocalDayKey(date = new Date()) {
+  const dt = new Date(date);
+  dt.setDate(dt.getDate() - 1);
+  return getLocalDayKey(dt);
 }
 
 function isSameLocalDay(a, b) {
@@ -44,6 +51,9 @@ function openDb() {
         if (!db.objectStoreNames.contains(STORE_NAME)) {
           db.createObjectStore(STORE_NAME, { keyPath: "date" });
         }
+        if (!db.objectStoreNames.contains(SALES_DASHBOARD_STORE_NAME)) {
+          db.createObjectStore(SALES_DASHBOARD_STORE_NAME, { keyPath: "id" });
+        }
       };
     });
   }
@@ -51,7 +61,7 @@ function openDb() {
   return dbPromise;
 }
 
-function runStoreRequest(mode, fn) {
+function runStoreRequest(mode, fn, storeName = STORE_NAME) {
   return openDb().then(
     (db) =>
       new Promise((resolve, reject) => {
@@ -60,8 +70,8 @@ function runStoreRequest(mode, fn) {
           return;
         }
 
-        const tx = db.transaction(STORE_NAME, mode);
-        const store = tx.objectStore(STORE_NAME);
+        const tx = db.transaction(storeName, mode);
+        const store = tx.objectStore(storeName);
         const request = fn(store);
 
         request.onsuccess = () => resolve(request.result ?? true);
@@ -69,6 +79,10 @@ function runStoreRequest(mode, fn) {
         tx.onerror = () => reject(tx.error);
       })
   );
+}
+
+export function runSalesDashboardStoreRequest(mode, fn) {
+  return runStoreRequest(mode, fn, SALES_DASHBOARD_STORE_NAME);
 }
 
 function buildCachePayload(date, report) {

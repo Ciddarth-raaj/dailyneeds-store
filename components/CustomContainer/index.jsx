@@ -6,6 +6,7 @@ import { useModuleTableTheme } from "../../contexts/ModuleTableThemeContext";
 
 function CustomContainer({
   title,
+  subtitle,
   rightSection,
   children,
   filledHeader,
@@ -76,14 +77,19 @@ function CustomContainer({
                 : "transparent",
           }}
         >
-          <p
-            className={`${styles.heading} ${
-              smallHeader ? styles.smallHeading : ""
-            }`}
-            style={{ color: getColorSchemeColor(700) }}
-          >
-            {title}
-          </p>
+          <div>
+            <p
+              className={`${styles.heading} ${
+                smallHeader ? styles.smallHeading : ""
+              }`}
+              style={{ color: getColorSchemeColor(700) }}
+            >
+              {title}
+            </p>
+            {subtitle ? (
+              <p className={styles.subheading}>{subtitle}</p>
+            ) : null}
+          </div>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             {rightSection}
 

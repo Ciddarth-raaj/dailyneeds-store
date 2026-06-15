@@ -20,10 +20,12 @@ import CustomContainer from "../CustomContainer";
 import SearchableDropdown from "../customInput/SearchableDropdown";
 import ViewItemsModal from "./ViewItemsModal";
 import { useStockHoldingDashboard } from "../../contexts/StockHoldingDashboardContext";
+import { SALES_SOLD_STATUS_OPTIONS } from "../../util/salesDashboard";
 
 const DASHBOARD_TABS = [
   { value: "holding", label: "Stock Holding" },
   { value: "availability", label: "Stock Availability" },
+  { value: "sales", label: "Sales Dashboard" },
 ];
 
 function toDropdownOptions(options = []) {
@@ -100,11 +102,14 @@ export default function StockHoldingDashboardShell({
   const {
     selectedDate,
     setSelectedDate,
+    salesSelectedDate,
+    setSalesSelectedDate,
     loading,
     refreshing,
     fetchProgress,
     lastSyncAt,
     refreshData,
+    refreshSalesData,
     cancelFetch,
     rawItems,
     enriching,
@@ -132,6 +137,9 @@ export default function StockHoldingDashboardShell({
     setStatusFilter,
     stockAvailabilityFilter,
     setStockAvailabilityFilter,
+    salesSoldStatusFilter,
+    setSalesSoldStatusFilter,
+    salesFilterOptions,
     clearFilters,
     itemsModalOpen,
     setItemsModalOpen,
@@ -153,17 +161,62 @@ export default function StockHoldingDashboardShell({
     stockAvailabilityOptions,
   } = dashboard;
 
+  const isSalesTab = activeTab === "sales";
+  const branchOptionsSource = isSalesTab
+    ? salesFilterOptions?.branchOptions ?? []
+    : branchOptions;
+  const effectiveBuyerOptions = isSalesTab
+    ? salesFilterOptions?.buyerOptions ?? []
+    : buyerOptions;
+  const effectiveSupplierOptions = isSalesTab
+    ? salesFilterOptions?.supplierOptions ?? []
+    : supplierOptions;
+  const effectiveDistributorOptions = isSalesTab
+    ? salesFilterOptions?.distributorOptions ?? []
+    : distributorOptions;
+  const effectiveDepartmentOptions = isSalesTab
+    ? salesFilterOptions?.departmentOptions ?? []
+    : departmentOptions;
+  const effectiveCategoryOptions = isSalesTab
+    ? salesFilterOptions?.categoryOptions ?? []
+    : categoryOptions;
+  const effectiveSubcategoryOptions = isSalesTab
+    ? salesFilterOptions?.subcategoryOptions ?? []
+    : subcategoryOptions;
+  const effectivePurchaseTypeOptions = isSalesTab
+    ? salesFilterOptions?.purchaseTypeOptions ?? []
+    : purchaseTypeOptions;
+  const effectiveChainLevelOptions = isSalesTab
+    ? salesFilterOptions?.chainLevelOptions ?? []
+    : chainLevelOptions;
+  const datePickerValue = isSalesTab ? salesSelectedDate : selectedDate;
+  const handleDateChange = (value) => {
+    if (isSalesTab) {
+      setSalesSelectedDate(value);
+    } else {
+      setSelectedDate(value);
+    }
+  };
+  const handleRefresh = () => {
+    if (isSalesTab) {
+      refreshSalesData();
+    } else {
+      refreshData();
+    }
+  };
+
   const lastSyncFormatted = useMemo(() => {
     if (!lastSyncAt) return null;
     const m = moment(lastSyncAt);
     return m.isValid() ? m.format("DD MMM YYYY, hh:mm A") : null;
   }, [lastSyncAt]);
 
-  const hasReportData = rawItems.length > 0;
-  const showDashboard = hasReportData && !enriching;
+  const hasReportData = isSalesTab || rawItems.length > 0;
+  const showStockDashboard = hasReportData && !enriching;
+  const showFiltersAndContent = isSalesTab || showStockDashboard;
   const tabIndex = DASHBOARD_TABS.findIndex((t) => t.value === activeTab);
 
-  if (loading && !refreshing) {
+  if (loading && !refreshing && !isSalesTab) {
     return (
       <GlobalWrapper
         title="Stock Holding Dashboard"
@@ -228,23 +281,25 @@ export default function StockHoldingDashboardShell({
                 <Input
                   type="date"
                   size="sm"
-                  value={selectedDate}
-                  onChange={(e) => setSelectedDate(e.target.value)}
+                  value={datePickerValue}
+                  onChange={(e) => handleDateChange(e.target.value)}
                 />
               </Box>
-              <Box>
-                <Text fontSize="xs" mb={1} color="gray.500">
-                  Last sync
-                </Text>
-                <Text fontSize="sm" color="gray.700">
-                  {lastSyncFormatted || "No sync data"}
-                </Text>
-              </Box>
+              {!isSalesTab ? (
+                <Box>
+                  <Text fontSize="xs" mb={1} color="gray.500">
+                    Last sync
+                  </Text>
+                  <Text fontSize="sm" color="gray.700">
+                    {lastSyncFormatted || "No sync data"}
+                  </Text>
+                </Box>
+              ) : null}
               <Button
                 size="sm"
                 variant="outline"
                 leftIcon={<RepeatIcon />}
-                onClick={refreshData}
+                onClick={handleRefresh}
                 isDisabled={loading || refreshing}
               >
                 Refresh
@@ -275,7 +330,7 @@ export default function StockHoldingDashboardShell({
               dashboard data.
             </Text>
           </CustomContainer>
-        ) : showDashboard ? (
+        ) : showFiltersAndContent ? (
           <>
             <CustomContainer
               title="Filters"
@@ -299,7 +354,7 @@ export default function StockHoldingDashboardShell({
                   label="Branch"
                   placeholder="All branches"
                   value={branchFilter}
-                  options={branchOptions}
+                  options={branchOptionsSource}
                   onChange={(val) =>
                     applyFilterUpdate(() => setBranchFilter(val))
                   }
@@ -308,7 +363,7 @@ export default function StockHoldingDashboardShell({
                   label="Buyer"
                   placeholder="All buyers"
                   value={buyerFilter}
-                  options={buyerOptions}
+                  options={effectiveBuyerOptions}
                   onChange={(val) =>
                     applyFilterUpdate(() => setBuyerFilter(val))
                   }
@@ -317,7 +372,7 @@ export default function StockHoldingDashboardShell({
                   label="Distributor"
                   placeholder="All distributors"
                   value={distributorFilter}
-                  options={distributorOptions}
+                  options={effectiveDistributorOptions}
                   onChange={(val) =>
                     applyFilterUpdate(() => setDistributorFilter(val))
                   }
@@ -326,7 +381,7 @@ export default function StockHoldingDashboardShell({
                   label="Supplier"
                   placeholder="All suppliers"
                   value={supplierFilter}
-                  options={supplierOptions}
+                  options={effectiveSupplierOptions}
                   onChange={(val) =>
                     applyFilterUpdate(() => setSupplierFilter(val))
                   }
@@ -335,7 +390,7 @@ export default function StockHoldingDashboardShell({
                   label="Department"
                   placeholder="All departments"
                   value={departmentFilter}
-                  options={departmentOptions}
+                  options={effectiveDepartmentOptions}
                   onChange={(val) =>
                     applyFilterUpdate(() => setDepartmentFilter(val))
                   }
@@ -344,7 +399,7 @@ export default function StockHoldingDashboardShell({
                   label="Category"
                   placeholder="All categories"
                   value={categoryFilter}
-                  options={categoryOptions}
+                  options={effectiveCategoryOptions}
                   onChange={(val) =>
                     applyFilterUpdate(() => setCategoryFilter(val))
                   }
@@ -353,7 +408,7 @@ export default function StockHoldingDashboardShell({
                   label="Subcategory"
                   placeholder="All subcategories"
                   value={subcategoryFilter}
-                  options={subcategoryOptions}
+                  options={effectiveSubcategoryOptions}
                   onChange={(val) =>
                     applyFilterUpdate(() => setSubcategoryFilter(val))
                   }
@@ -362,7 +417,7 @@ export default function StockHoldingDashboardShell({
                   label="Purchase Type"
                   placeholder="All purchase types"
                   value={purchaseTypeFilter}
-                  options={purchaseTypeOptions}
+                  options={effectivePurchaseTypeOptions}
                   onChange={(val) =>
                     applyFilterUpdate(() => setPurchaseTypeFilter(val))
                   }
@@ -371,29 +426,49 @@ export default function StockHoldingDashboardShell({
                   label="Chain Bill Count Level"
                   placeholder="All levels"
                   value={chainLevelFilter}
-                  options={chainLevelOptions}
+                  options={effectiveChainLevelOptions}
                   onChange={(val) =>
                     applyFilterUpdate(() => setChainLevelFilter(val))
                   }
                 />
-                <FilterDropdown
-                  label="Product Availability"
-                  placeholder="All availability"
-                  value={stockAvailabilityFilter}
-                  options={stockAvailabilityOptions}
-                  onChange={(val) =>
-                    applyFilterUpdate(() => setStockAvailabilityFilter(val))
-                  }
-                />
-                <FilterDropdown
-                  label="Item Status"
-                  placeholder="All statuses"
-                  value={statusFilter}
-                  options={statusOptions}
-                  onChange={(val) =>
-                    applyFilterUpdate(() => setStatusFilter(val))
-                  }
-                />
+                {!isSalesTab ? (
+                  <>
+                    <FilterDropdown
+                      label="Product Availability"
+                      placeholder="All availability"
+                      value={stockAvailabilityFilter}
+                      options={stockAvailabilityOptions}
+                      onChange={(val) =>
+                        applyFilterUpdate(() => setStockAvailabilityFilter(val))
+                      }
+                    />
+                    <FilterDropdown
+                      label="Item Status"
+                      placeholder="All statuses"
+                      value={statusFilter}
+                      options={statusOptions}
+                      onChange={(val) =>
+                        applyFilterUpdate(() => setStatusFilter(val))
+                      }
+                    />
+                  </>
+                ) : (
+                  <FilterDropdown
+                    label="Sold Status"
+                    placeholder="All products"
+                    value={
+                      salesSoldStatusFilter === "all" ? [] : [salesSoldStatusFilter]
+                    }
+                    options={SALES_SOLD_STATUS_OPTIONS.filter(
+                      (o) => o.value !== "all"
+                    ).map((o) => ({ value: o.value, label: o.label }))}
+                    onChange={(val) =>
+                      applyFilterUpdate(() =>
+                        setSalesSoldStatusFilter(val?.[0] ?? "all")
+                      )
+                    }
+                  />
+                )}
               </Grid>
             </CustomContainer>
 

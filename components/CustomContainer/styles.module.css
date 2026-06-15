@@ -86,6 +86,21 @@
   font-weight: 600;
 }
 
+.subheading {
+  margin: 2px 0 0;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--chakra-colors-gray-500);
+}
+
+.sizeXs .subheading {
+  font-size: 10px;
+}
+
+.sizeLg .subheading {
+  font-size: 12px;
+}
+
 .noPadding {
   padding: 0;
 }

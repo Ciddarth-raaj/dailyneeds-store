@@ -3,9 +3,10 @@ import { StockHoldingDashboardProvider } from "../../../contexts/StockHoldingDas
 import StockHoldingDashboardShell from "../../../components/stock-holding-dashboard/StockHoldingDashboardShell";
 import HoldingDashboardView from "../../../components/stock-holding-dashboard/HoldingDashboardView";
 import AvailabilityDashboardView from "../../../components/stock-holding-dashboard/AvailabilityDashboardView";
+import SalesDashboardView from "../../../components/stock-holding-dashboard/SalesDashboardView";
 
 const DEFAULT_TAB = "holding";
-const VALID_TABS = new Set(["holding", "availability"]);
+const VALID_TABS = new Set(["holding", "availability", "sales"]);
 
 function StockHoldingDashboardPage() {
   const [activeTab, setActiveTab] = useState(DEFAULT_TAB);
@@ -16,12 +17,14 @@ function StockHoldingDashboardPage() {
   }, []);
 
   return (
-    <StockHoldingDashboardProvider>
+    <StockHoldingDashboardProvider activeTab={activeTab}>
       <StockHoldingDashboardShell activeTab={activeTab} onTabChange={onTabChange}>
         {activeTab === "holding" ? (
           <HoldingDashboardView />
-        ) : (
+        ) : activeTab === "availability" ? (
           <AvailabilityDashboardView />
+        ) : (
+          <SalesDashboardView />
         )}
       </StockHoldingDashboardShell>
     </StockHoldingDashboardProvider>
