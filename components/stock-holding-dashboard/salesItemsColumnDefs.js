@@ -1,4 +1,54 @@
+import {
+  computeProfitPct,
+  formatSalesCurrency,
+  formatSalesQtyDisplay,
+} from "../../util/salesDashboard";
+
 export const SALES_ITEMS_TABLE_KEY = "sales-dashboard-items";
+
+function salesQtyColumn(overrides = {}) {
+  return {
+    field: "sold_qty",
+    headerName: "Net Sales Qty",
+    type: "number",
+    valueFormatter: (params) => formatSalesQtyDisplay(params.value),
+    ...overrides,
+  };
+}
+
+function salesAmountColumn(overrides = {}) {
+  return {
+    field: "sold_value",
+    headerName: "Net Sales Amt",
+    type: "number",
+    valueFormatter: (params) => formatSalesCurrency(params.value),
+    ...overrides,
+  };
+}
+
+function salesProfitColumn(overrides = {}) {
+  return {
+    field: "sold_profit",
+    headerName: "Profit",
+    type: "number",
+    valueFormatter: (params) => formatSalesCurrency(params.value),
+    ...overrides,
+  };
+}
+
+function salesProfitPctColumn(overrides = {}) {
+  return {
+    field: "sold_profit_pct",
+    headerName: "Profit %",
+    type: "number",
+    valueGetter: (params) =>
+      params.data?.sold_profit_pct ??
+      computeProfitPct(params.data?.sold_profit, params.data?.sold_value),
+    valueFormatter: (params) =>
+      params.value == null ? "—" : `${Number(params.value).toFixed(2)}%`,
+    ...overrides,
+  };
+}
 
 export function getSalesItemsColumnDefs() {
   return [
@@ -22,21 +72,10 @@ export function getSalesItemsColumnDefs() {
       flex: 1,
       valueGetter: (params) => params.data?.buyer_name || "—",
     },
-    {
-      field: "sold_qty",
-      headerName: "Net Sales Qty",
-      type: "number",
-    },
-    {
-      field: "sold_value",
-      headerName: "Net Sales Amt",
-      type: "number",
-    },
-    {
-      field: "sold_profit",
-      headerName: "Profit",
-      type: "number",
-    },
+    salesQtyColumn(),
+    salesAmountColumn(),
+    salesProfitColumn(),
+    salesProfitPctColumn(),
     {
       field: "department_name",
       headerName: "Department",
@@ -68,9 +107,10 @@ export function getSalesGroupedColumnDefs({ onViewProducts }) {
   return [
     { field: "group_name", headerName: "Name", flex: 1 },
     { field: "item_count", headerName: "Products", type: "number" },
-    { field: "sold_qty", headerName: "Net Sales Qty", type: "number" },
-    { field: "sold_value", headerName: "Net Sales Amt", type: "number" },
-    { field: "sold_profit", headerName: "Profit", type: "number" },
+    salesQtyColumn(),
+    salesAmountColumn(),
+    salesProfitColumn(),
+    salesProfitPctColumn(),
     {
       field: "action",
       headerName: "Action",
@@ -104,35 +144,31 @@ export function getSalesCumulativeColumnDefs({ onViewDay }) {
           : dt.toLocaleDateString("en-GB");
       },
     },
-    {
-      field: "sold_qty",
-      headerName: "Daily Qty",
-      type: "number",
-    },
-    {
-      field: "sold_value",
-      headerName: "Daily Value",
-      type: "number",
-    },
-    {
-      field: "sold_profit",
-      headerName: "Daily Profit",
-      type: "number",
-    },
-    {
-      field: "cumulative_qty",
-      headerName: "Cumulative Qty",
-      type: "number",
-    },
-    {
+    salesQtyColumn({ field: "sold_qty", headerName: "Daily Qty" }),
+    salesAmountColumn({ field: "sold_value", headerName: "Daily Value" }),
+    salesProfitColumn({ field: "sold_profit", headerName: "Daily Profit" }),
+    salesProfitPctColumn({ field: "sold_profit_pct", headerName: "Daily Profit %" }),
+    salesQtyColumn({ field: "cumulative_qty", headerName: "Cumulative Qty" }),
+    salesAmountColumn({
       field: "cumulative_value",
       headerName: "Cumulative Value",
-      type: "number",
-    },
-    {
+    }),
+    salesProfitColumn({
       field: "cumulative_profit",
       headerName: "Cumulative Profit",
+    }),
+    {
+      field: "cumulative_profit_pct",
+      headerName: "Cumulative Profit %",
       type: "number",
+      valueGetter: (params) =>
+        params.data?.cumulative_profit_pct ??
+        computeProfitPct(
+          params.data?.cumulative_profit,
+          params.data?.cumulative_value
+        ),
+      valueFormatter: (params) =>
+        params.value == null ? "—" : `${Number(params.value).toFixed(2)}%`,
     },
     {
       field: "action",

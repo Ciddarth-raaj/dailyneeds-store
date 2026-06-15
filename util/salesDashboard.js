@@ -3,6 +3,7 @@ import {
   getStockAvailabilityKey,
   STOCK_AVAILABILITY_KEYS,
 } from "./stockHoldingDashboard";
+import { formatCurrency } from "./string";
 
 export const SALES_DASHBOARD_WINDOW_DAYS = 30;
 export const SALES_DASHBOARD_MAX_ROLLING_DAYS = 30;
@@ -21,6 +22,43 @@ export function getSalesDashboardChunkCount(
 ) {
   if (!totalDays || !chunkDays) return 0;
   return Math.ceil(totalDays / chunkDays);
+}
+
+export function roundSalesMetric(value) {
+  const num = Number(value ?? 0);
+  if (Number.isNaN(num)) return 0;
+  return Math.round(num * 100) / 100;
+}
+
+export function computeProfitPct(profit, salesAmount) {
+  const amount = roundSalesMetric(salesAmount);
+  if (amount === 0) return null;
+  return roundSalesMetric((Number(profit ?? 0) / amount) * 100);
+}
+
+export function formatSalesQtyDisplay(value) {
+  if (value === null || value === undefined) return "—";
+  return roundSalesMetric(value).toLocaleString("en-IN", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+export function formatSalesCurrency(value) {
+  return formatCurrency(roundSalesMetric(value));
+}
+
+export function formatProfitPctDisplay(profit, salesAmount) {
+  const pct = computeProfitPct(profit, salesAmount);
+  if (pct == null) return "—";
+  return `${pct.toFixed(2)}%`;
+}
+
+export function formatProfitWithPct(profit, salesAmount) {
+  const formatted = formatCurrency(roundSalesMetric(profit));
+  const pct = computeProfitPct(profit, salesAmount);
+  if (pct == null) return formatted;
+  return `${formatted} (${pct.toFixed(2)}%)`;
 }
 
 const FILTER_OPTION_KEYS = [
@@ -345,11 +383,22 @@ export function computeCumulativeRows(
     cumulativeQty += row.sold_qty;
     cumulativeValue += row.sold_value;
     cumulativeProfit += row.sold_profit;
+    const sold_qty = roundSalesMetric(row.sold_qty);
+    const sold_value = roundSalesMetric(row.sold_value);
+    const sold_profit = roundSalesMetric(row.sold_profit);
+    const cumulative_qty = roundSalesMetric(cumulativeQty);
+    const cumulative_value = roundSalesMetric(cumulativeValue);
+    const cumulative_profit = roundSalesMetric(cumulativeProfit);
     return {
       ...row,
-      cumulative_qty: cumulativeQty,
-      cumulative_value: cumulativeValue,
-      cumulative_profit: cumulativeProfit,
+      sold_qty,
+      sold_value,
+      sold_profit,
+      sold_profit_pct: computeProfitPct(sold_profit, sold_value),
+      cumulative_qty,
+      cumulative_value,
+      cumulative_profit,
+      cumulative_profit_pct: computeProfitPct(cumulative_profit, cumulative_value),
     };
   });
 }
@@ -493,7 +542,56 @@ export const SALES_GROUP_BY_CONFIG = {
     nameKey: "subcategory_name",
     unknownLabel: "Unknown Subcategory",
   },
+  buyer: {
+    getGroupKey: (item) => {
+      if (item?.buyer_id != null && String(item.buyer_id).trim() !== "") {
+        return `buyer:${item.buyer_id}`;
+      }
+      const name = String(item?.buyer_name ?? "").trim();
+      return name ? `buyer-name:${name.toLowerCase()}` : "unknown";
+    },
+    getGroupName: (item) => {
+      const name = String(item?.buyer_name ?? "").trim();
+      if (name) return name;
+      if (item?.buyer_id != null && String(item.buyer_id).trim() !== "") {
+        return String(item.buyer_id);
+      }
+      return "Unknown Buyer";
+    },
+    unknownLabel: "Unknown Buyer",
+  },
+  supplier: {
+    getGroupKey: (item) => {
+      const name = String(item?.supplier_name ?? "").trim();
+      return name ? `supplier:${name.toLowerCase()}` : "unknown";
+    },
+    getGroupName: (item) => {
+      const name = String(item?.supplier_name ?? "").trim();
+      return name || "Unknown Supplier";
+    },
+    unknownLabel: "Unknown Supplier",
+  },
 };
+
+function resolveGroupIdentity(item, config) {
+  if (typeof config.getGroupKey === "function") {
+    return {
+      groupKey: config.getGroupKey(item),
+      groupName:
+        (typeof config.getGroupName === "function"
+          ? config.getGroupName(item)
+          : item?.[config.nameKey]) || config.unknownLabel,
+    };
+  }
+
+  const rawId = item?.[config.idKey];
+  const groupKey = rawId == null ? "unknown" : String(rawId);
+  const groupName =
+    item?.[config.nameKey] ||
+    (rawId != null ? String(rawId) : config.unknownLabel);
+
+  return { groupKey, groupName };
+}
 
 export function computeSalesGroupedRows(items = [], groupBy = "branch") {
   const config = SALES_GROUP_BY_CONFIG[groupBy];
@@ -502,11 +600,7 @@ export function computeSalesGroupedRows(items = [], groupBy = "branch") {
   const grouped = new Map();
 
   (items || []).forEach((item) => {
-    const rawId = item?.[config.idKey];
-    const groupKey = rawId == null ? "unknown" : String(rawId);
-    const groupName =
-      item?.[config.nameKey] ||
-      (rawId != null ? String(rawId) : config.unknownLabel);
+    const { groupKey, groupName } = resolveGroupIdentity(item, config);
 
     if (!grouped.has(groupKey)) {
       grouped.set(groupKey, {
@@ -534,11 +628,19 @@ export function computeSalesGroupedRows(items = [], groupBy = "branch") {
     row.items.push(item);
   });
 
-  return Array.from(grouped.values()).sort((a, b) => {
-    const valueDelta = b.sold_value - a.sold_value;
-    if (valueDelta !== 0) return valueDelta;
-    return b.item_count - a.item_count;
-  });
+  return Array.from(grouped.values())
+    .map((row) => ({
+      ...row,
+      sold_qty: roundSalesMetric(row.sold_qty),
+      sold_value: roundSalesMetric(row.sold_value),
+      sold_profit: roundSalesMetric(row.sold_profit),
+      sold_profit_pct: computeProfitPct(row.sold_profit, row.sold_value),
+    }))
+    .sort((a, b) => {
+      const valueDelta = b.sold_value - a.sold_value;
+      if (valueDelta !== 0) return valueDelta;
+      return b.item_count - a.item_count;
+    });
 }
 
 export function getStockHoldingDateForSalesDate(salesDate) {
