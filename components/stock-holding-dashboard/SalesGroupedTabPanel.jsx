@@ -14,7 +14,7 @@ const GROUP_TAB_LABELS = {
   category: "Category",
   subcategory: "Subcategory",
   buyer: "Buyer",
-  supplier: "Supplier",
+  distributor: "Distributor",
 };
 
 export default function SalesGroupedTabPanel({

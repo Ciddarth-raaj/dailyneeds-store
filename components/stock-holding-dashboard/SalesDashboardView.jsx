@@ -39,7 +39,7 @@ const GROUP_TABS = [
   { value: "category", label: "By Category" },
   { value: "subcategory", label: "By Subcategory" },
   { value: "buyer", label: "By Buyer" },
-  { value: "supplier", label: "By Supplier" },
+  { value: "distributor", label: "By Distributor" },
 ];
 
 const ROLLING_WINDOWS = [

@@ -560,16 +560,23 @@ export const SALES_GROUP_BY_CONFIG = {
     },
     unknownLabel: "Unknown Buyer",
   },
-  supplier: {
+  distributor: {
     getGroupKey: (item) => {
-      const name = String(item?.supplier_name ?? "").trim();
-      return name ? `supplier:${name.toLowerCase()}` : "unknown";
+      if (item?.distributor_id != null && String(item.distributor_id).trim() !== "") {
+        return `distributor:${item.distributor_id}`;
+      }
+      const name = String(item?.distributor_name ?? "").trim();
+      return name ? `distributor-name:${name.toLowerCase()}` : "unknown";
     },
     getGroupName: (item) => {
-      const name = String(item?.supplier_name ?? "").trim();
-      return name || "Unknown Supplier";
+      const name = String(item?.distributor_name ?? "").trim();
+      if (name) return name;
+      if (item?.distributor_id != null && String(item.distributor_id).trim() !== "") {
+        return String(item.distributor_id);
+      }
+      return "Unknown Distributor";
     },
-    unknownLabel: "Unknown Supplier",
+    unknownLabel: "Unknown Distributor",
   },
 };
 
