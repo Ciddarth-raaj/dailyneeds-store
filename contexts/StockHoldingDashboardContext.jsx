@@ -29,24 +29,37 @@ import {
   shouldRefreshFromApi,
   writeCachedReport,
 } from "../util/stockHoldingDashboardCache";
+import {
+  attachStockHoldingBackgroundFetch,
+  cancelStockHoldingBackgroundFetch,
+  detachStockHoldingBackgroundFetch,
+  getStockHoldingBackgroundFetchState,
+  startStockHoldingBackgroundFetch,
+  subscribeStockHoldingBackgroundFetch,
+} from "../util/stockHoldingBackgroundFetch";
 
 const DEFAULT_STATUS_FILTER = [STOCK_HOLDING_STATUS_KEYS.ACTIVE];
+
+function getInitialSelectedDate() {
+  const bg = getStockHoldingBackgroundFetchState();
+  if (bg.active && bg.date) return bg.date;
+  return getLocalDayKey();
+}
 
 const StockHoldingDashboardContext = createContext(null);
 
 export function StockHoldingDashboardProvider({ children, activeTab = "holding" }) {
   const shouldLoadStockHolding = activeTab !== "sales";
 
-  const [selectedDate, setSelectedDate] = useState(() => getLocalDayKey());
+  const [selectedDate, setSelectedDate] = useState(getInitialSelectedDate);
   const [salesSelectedDate, setSalesSelectedDate] = useState(() =>
     getPreviousLocalDayKey()
   );
-  const [loading, setLoading] = useState(shouldLoadStockHolding);
+  const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [fetchProgress, setFetchProgress] = useState(null);
   const [rawItems, setRawItems] = useState([]);
   const [lastSyncAt, setLastSyncAt] = useState(null);
-  const fetchAbortRef = useRef(null);
   const fetchGenerationRef = useRef(0);
 
   const [branchFilter, setBranchFilter] = useState([]);
@@ -99,57 +112,6 @@ export function StockHoldingDashboardProvider({ children, activeTab = "holding" 
     }
   }, []);
 
-  const loadReport = useCallback(
-    async (
-      date,
-      { forceRefresh = false, signal, cachedReport, cacheValid } = {}
-    ) => {
-      if (!forceRefresh) {
-        const cached =
-          cachedReport === undefined ? await readCachedReport(date) : cachedReport;
-        if (signal?.aborted) return null;
-
-        let validCache = cacheValid;
-        if (validCache === undefined) {
-          validCache = await canUseCachedReport(date, cached, { signal });
-        }
-
-        if (validCache) {
-          applyReportData(cached);
-          return { fromCache: true };
-        }
-      }
-
-      if (signal?.aborted) return null;
-
-      const response = await getLatestStockHoldingReportByDate(date, {
-        signal,
-        onProgress: ({ loaded, total }) => {
-          if (!signal?.aborted) {
-            setFetchProgress({ loaded, total });
-          }
-        },
-      });
-
-      if (signal?.aborted) return null;
-
-      if (response?.code === 404) {
-        const emptyReport = { items: [], created_at: null };
-        await writeCachedReport(date, emptyReport);
-        if (signal?.aborted) return null;
-        applyReportData(emptyReport);
-        return response;
-      }
-
-      const report = response?.data || {};
-      await writeCachedReport(date, report);
-      if (signal?.aborted) return null;
-      applyReportData(report);
-      return response;
-    },
-    [applyReportData, canUseCachedReport]
-  );
-
   const resetFetchState = useCallback(() => {
     setLoading(false);
     setRefreshing(false);
@@ -166,116 +128,187 @@ export function StockHoldingDashboardProvider({ children, activeTab = "holding" 
 
   const cancelFetch = useCallback(() => {
     fetchGenerationRef.current += 1;
-    fetchAbortRef.current?.abort();
+    cancelStockHoldingBackgroundFetch();
     resetFetchState();
   }, [resetFetchState]);
 
-  const abortActiveFetch = useCallback(() => {
-    fetchGenerationRef.current += 1;
-    fetchAbortRef.current?.abort();
+  useEffect(() => {
+    attachStockHoldingBackgroundFetch();
+    return () => detachStockHoldingBackgroundFetch();
   }, []);
 
   useEffect(() => {
-    return () => {
-      abortActiveFetch();
+    return subscribeStockHoldingBackgroundFetch((bgState) => {
+      if (bgState.active && bgState.date === selectedDate) {
+        setFetchProgress(bgState.progress);
+        if (activeTab !== "sales") {
+          if (bgState.forceRefresh) {
+            setRefreshing(true);
+          } else {
+            setLoading(true);
+          }
+        }
+      }
+    });
+  }, [selectedDate, activeTab]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const generation = ++fetchGenerationRef.current;
+
+    const resumeInflightFetch = async (bgState) => {
+      const showFloatingIndicator = activeTab === "sales";
+      if (!showFloatingIndicator) {
+        if (bgState.forceRefresh) {
+          setRefreshing(true);
+        } else {
+          setLoading(true);
+        }
+      }
+      setFetchProgress(bgState.progress);
+
+      try {
+        await startStockHoldingBackgroundFetch(selectedDate, {
+          showFloatingIndicator,
+          onComplete: ({ report }) => {
+            if (!cancelled && fetchGenerationRef.current === generation) {
+              applyReportData(report);
+            }
+          },
+          onError: (err) => {
+            if (!cancelled && fetchGenerationRef.current === generation) {
+              toast.error(
+                err?.message || "Failed to load stock holding dashboard data."
+              );
+              applyReportData({ items: [], created_at: null });
+            }
+          },
+        });
+      } catch (err) {
+        if (isAbortError(err)) return;
+      } finally {
+        if (!cancelled && fetchGenerationRef.current === generation) {
+          resetFetchState();
+        }
+      }
     };
-  }, [abortActiveFetch]);
-
-  useEffect(() => {
-    setSelectedDate(getLocalDayKey());
-  }, []);
-
-  useEffect(() => {
-    if (!shouldLoadStockHolding) {
-      setLoading(false);
-      setRefreshing(false);
-      setFetchProgress(null);
-      return undefined;
-    }
-
-    abortActiveFetch();
-    const generation = fetchGenerationRef.current;
-    const controller = new AbortController();
-    fetchAbortRef.current = controller;
 
     (async () => {
+      const bg = getStockHoldingBackgroundFetchState();
+      if (bg.active && bg.date === selectedDate) {
+        await resumeInflightFetch(bg);
+        return;
+      }
+
       const cached = await readCachedReport(selectedDate);
-      if (fetchGenerationRef.current !== generation) return;
+      if (cancelled || fetchGenerationRef.current !== generation) return;
 
       let cacheValid = false;
       if (cached && !shouldRefreshFromApi(cached)) {
-        cacheValid = await canUseCachedReport(selectedDate, cached, {
-          signal: controller.signal,
-        });
+        cacheValid = await canUseCachedReport(selectedDate, cached);
       }
-      if (fetchGenerationRef.current !== generation) return;
+      if (cancelled || fetchGenerationRef.current !== generation) return;
+
+      if (cacheValid) {
+        applyReportData(cached);
+        setLoading(false);
+        setFetchProgress(null);
+        return;
+      }
+
+      const showFloatingIndicator = activeTab === "sales";
+      if (!showFloatingIndicator) {
+        setLoading(true);
+      }
+      setFetchProgress(null);
 
       try {
-        if (!cacheValid) {
-          setLoading(true);
-          setFetchProgress(null);
-        }
-        await loadReport(selectedDate, {
-          signal: controller.signal,
-          cachedReport: cached,
-          cacheValid,
+        await startStockHoldingBackgroundFetch(selectedDate, {
+          showFloatingIndicator,
+          onComplete: ({ report }) => {
+            if (!cancelled && fetchGenerationRef.current === generation) {
+              applyReportData(report);
+            }
+          },
+          onError: (err) => {
+            if (!cancelled && fetchGenerationRef.current === generation) {
+              toast.error(
+                err?.message || "Failed to load stock holding dashboard data."
+              );
+              applyReportData({ items: [], created_at: null });
+            }
+          },
         });
       } catch (err) {
-        if (controller.signal.aborted || isAbortError(err)) return;
-        toast.error(
-          err?.message || "Failed to load stock holding dashboard data."
-        );
-        applyReportData({ items: [], created_at: null });
+        if (isAbortError(err)) return;
       } finally {
-        if (fetchGenerationRef.current === generation) {
+        if (!cancelled && fetchGenerationRef.current === generation) {
           resetFetchState();
         }
       }
     })();
 
-    return () => abortActiveFetch();
+    return () => {
+      cancelled = true;
+      fetchGenerationRef.current += 1;
+    };
   }, [
     selectedDate,
-    shouldLoadStockHolding,
-    loadReport,
+    activeTab,
     applyReportData,
+    canUseCachedReport,
     isAbortError,
     resetFetchState,
-    abortActiveFetch,
-    canUseCachedReport,
   ]);
 
+  useEffect(() => {
+    if (activeTab === "sales") {
+      detachStockHoldingBackgroundFetch();
+      setLoading(false);
+      return;
+    }
+    attachStockHoldingBackgroundFetch();
+  }, [activeTab]);
+
   const refreshData = useCallback(async () => {
-    abortActiveFetch();
-    const generation = fetchGenerationRef.current;
-    const controller = new AbortController();
-    fetchAbortRef.current = controller;
+    const generation = ++fetchGenerationRef.current;
+    const showFloatingIndicator = activeTab === "sales";
 
     try {
       setRefreshing(true);
       setFetchProgress(null);
-      await loadReport(selectedDate, {
+      if (!showFloatingIndicator) {
+        setLoading(true);
+      }
+
+      await startStockHoldingBackgroundFetch(selectedDate, {
         forceRefresh: true,
-        signal: controller.signal,
+        showFloatingIndicator,
+        onComplete: ({ report }) => {
+          if (fetchGenerationRef.current === generation) {
+            applyReportData(report);
+          }
+        },
+        onError: (err) => {
+          if (fetchGenerationRef.current === generation) {
+            toast.error(
+              err?.message || "Failed to refresh stock holding dashboard data."
+            );
+          }
+        },
       });
-      if (
-        fetchGenerationRef.current === generation &&
-        !controller.signal.aborted
-      ) {
+
+      if (fetchGenerationRef.current === generation) {
         toast.success("Dashboard data refreshed.");
       }
     } catch (err) {
-      if (controller.signal.aborted || isAbortError(err)) return;
-      toast.error(
-        err?.message || "Failed to refresh stock holding dashboard data."
-      );
+      if (isAbortError(err)) return;
     } finally {
       if (fetchGenerationRef.current === generation) {
-        setRefreshing(false);
-        setFetchProgress(null);
+        resetFetchState();
       }
     }
-  }, [selectedDate, loadReport, isAbortError, abortActiveFetch]);
+  }, [selectedDate, activeTab, applyReportData, isAbortError, resetFetchState]);
 
   useEffect(() => {
     if (!rawItems.length) {

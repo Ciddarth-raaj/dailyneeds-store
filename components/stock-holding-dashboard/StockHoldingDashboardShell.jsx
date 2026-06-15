@@ -216,26 +216,6 @@ export default function StockHoldingDashboardShell({
   const showFiltersAndContent = isSalesTab || showStockDashboard;
   const tabIndex = DASHBOARD_TABS.findIndex((t) => t.value === activeTab);
 
-  if (loading && !refreshing && !isSalesTab) {
-    return (
-      <GlobalWrapper
-        title="Stock Holding Dashboard"
-        permissionKey="view_stock_holding_dashboard"
-      >
-        <Center minH="320px" flexDirection="column" gap={4} px={6} w="100%">
-          <Spinner size="lg" color="purple.500" />
-          <Box w="100%" maxW="520px">
-            <ReportFetchProgress
-              progress={fetchProgress}
-              title="Loading report"
-              onStop={cancelFetch}
-            />
-          </Box>
-        </Center>
-      </GlobalWrapper>
-    );
-  }
-
   return (
     <GlobalWrapper
       title="Stock Holding Dashboard"
@@ -307,6 +287,16 @@ export default function StockHoldingDashboardShell({
             </Flex>
           </Flex>
         </CustomContainer>
+
+        {loading && !refreshing && !isSalesTab ? (
+          <CustomContainer title="Loading Report" filledHeader size="xs">
+            <ReportFetchProgress
+              progress={fetchProgress}
+              title="Loading report in background"
+              onStop={cancelFetch}
+            />
+          </CustomContainer>
+        ) : null}
 
         {refreshing ? (
           <CustomContainer title="Refreshing Data" filledHeader size="xs">

@@ -17,6 +17,7 @@ import { Toaster } from "react-hot-toast";
 import { UserProvider } from "../contexts/UserContext";
 import { ProductsProvider } from "../contexts/ProductsContext";
 import ModuleTableThemeBridge from "../components/ModuleTableThemeBridge";
+import StockHoldingBackgroundLoadToast from "../components/stock-holding-dashboard/StockHoldingBackgroundLoadToast";
 import theme from "../theme";
 
 import {
@@ -108,6 +109,7 @@ class MyApp extends React.Component {
               <ModuleTableThemeBridge>
                 <Toaster />
                 <ToastContainer />
+                <StockHoldingBackgroundLoadToast />
                 <Component {...pageProps} />
               </ModuleTableThemeBridge>
             </ProductsProvider>
