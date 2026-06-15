@@ -625,6 +625,12 @@ const ALL_PAGES_MENU = {
         selected: false,
         location: "/products/image-download-log",
       },
+      api_logs: {
+        title: "API Logs",
+        permission: "view_api_logs",
+        selected: false,
+        location: "/misc/api-logs",
+      },
       stock_checker: {
         title: "Stock Checker",
         subMenu: {

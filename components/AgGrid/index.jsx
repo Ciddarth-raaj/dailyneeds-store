@@ -567,10 +567,7 @@ const AgGrid = React.forwardRef(function AgGrid(
               }
             : undefined
         }
-        gridOptions={{
-          ...mergedGridOptions,
-          ...gridOptionsProp,
-        }}
+        gridOptions={mergedGridOptions}
         domLayout="autoHeight"
         theme={agGridTheme}
         className={className}

@@ -217,5 +217,6 @@ export const PERMISSIONS = {
     delete_sto: "Delete STO Comparison",
     view_price_checker: "View Price Checker",
     view_images_download_log: "View Image Download Log",
+    view_api_logs: "View API Logs",
   },
 };
