@@ -2,36 +2,27 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import {
   getAllSalesDashboardItems,
-  streamSalesDashboardMeta,
-  streamSalesDashboardFilterOptions,
   SALES_DASHBOARD_ITEMS_STREAM_PAGE_SIZE,
 } from "../helper/salesReport";
 import {
-  buildSalesDashboardCacheId,
   buildSalesDashboardFiltersFromContext,
   buildSalesDashboardStats,
-  buildSalesFilterCacheKey,
-  buildSalesStockFilterCacheKey,
-  buildSalesFilterParams,
-  computeSoldUnsoldBarData,
-  emptySalesFilterOptions,
+  buildSalesDashboardBundleFromRawDays,
+  filterSalesItemsByDashboardFilters,
   formatDateDisplay,
+  getDefaultSalesRangeDates,
+  getRequiredBootstrapWindowDates,
   getStockHoldingDateForSalesDate,
+  listDatesInRange,
   mergeSalesItemsWithUnsoldStock,
   resolveStockRowsForSalesDate,
-  SALES_DASHBOARD_FETCH_DAYS,
-  SALES_DASHBOARD_CHUNK_DAYS,
-  getSalesDashboardChunkCount,
-  getDashboardItemsWindowDates,
-  getDefaultSalesRangeDates,
-  listDatesInRange,
+  SALES_DASHBOARD_RAW_CACHE_DAYS,
+  SALES_DASHBOARD_RETENTION_DAYS,
 } from "../util/salesDashboard";
 import {
-  buildSalesDashboardCacheEntry,
   clearAllSalesDashboardCache,
-  readSalesDashboardCache,
   readSalesDashboardItemsForDate,
-  writeSalesDashboardCache,
+  runDailySalesCachePruneIfNeeded,
   writeSalesDashboardItemsForDate,
 } from "../util/salesDashboardCache";
 
@@ -54,34 +45,12 @@ function getSalesDashboardErrorMessage(err, fallback) {
   return err?.message || fallback;
 }
 
-function buildBundleFromMeta(meta, dailyTotals = []) {
-  return {
-    as_of_date: meta?.as_of_date ?? null,
-    daily_totals: dailyTotals,
-    window_summaries: {},
-    selected_date_has_report: Boolean(meta?.selected_date_has_report),
-    filter_options: meta?.filter_options ?? null,
-  };
-}
-
-function hydrateFromCache(cached, { itemsCacheRef, selectedDate, filterCacheKey }) {
-  const items = Array.isArray(cached?.items) ? cached.items : [];
-  itemsCacheRef.current.set(`${selectedDate}__${filterCacheKey}`, items);
-
-  return {
-    bundle: cached?.bundle ?? null,
-    items,
-    displayItems: Array.isArray(cached?.displayItems) ? cached.displayItems : [],
-    stats: cached?.stats ?? null,
-  };
-}
-
-const RANGE_FETCH_CONCURRENCY = 3;
+const DAY_FETCH_CONCURRENCY = 3;
 
 async function fetchDatesWithConcurrency(
   dates,
   fetchDate,
-  { signal, concurrency = RANGE_FETCH_CONCURRENCY, onDayComplete } = {}
+  { signal, concurrency = DAY_FETCH_CONCURRENCY, onDayComplete } = {}
 ) {
   if (!dates.length) return;
 
@@ -102,29 +71,6 @@ async function fetchDatesWithConcurrency(
   await Promise.all(Array.from({ length: workerCount }, () => worker()));
 }
 
-async function hydrateDatesFromIndexedDb(
-  dates,
-  { itemsCacheRef, filterCacheKey, dashboardFilters, isDateCached }
-) {
-  const datesToRead = (dates || []).filter(
-    (date) => date && !isDateCached(date)
-  );
-  if (!datesToRead.length) return 0;
-
-  let hydratedCount = 0;
-
-  await Promise.all(
-    datesToRead.map(async (date) => {
-      const items = await readSalesDashboardItemsForDate(date, dashboardFilters);
-      if (items === undefined) return;
-      itemsCacheRef.current.set(`${date}__${filterCacheKey}`, items);
-      hydratedCount += 1;
-    })
-  );
-
-  return hydratedCount;
-}
-
 export default function useSalesDashboardData({
   selectedDate,
   dashboardFilters,
@@ -134,61 +80,54 @@ export default function useSalesDashboardData({
 }) {
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [summaryStreaming, setSummaryStreaming] = useState(false);
-  const [summaryStreamProgress, setSummaryStreamProgress] = useState(null);
-  const [loadedFromCache, setLoadedFromCache] = useState(false);
+  const [backgroundLoading, setBackgroundLoading] = useState(false);
+  const [backgroundProgress, setBackgroundProgress] = useState(null);
+  const [hydrateProgress, setHydrateProgress] = useState(null);
   const [bundle, setBundle] = useState(null);
   const [selectedDateItems, setSelectedDateItems] = useState([]);
-  const [selectedDateItemsLoading, setSelectedDateItemsLoading] =
-    useState(false);
   const [displayItems, setDisplayItems] = useState([]);
   const [displayItemsLoading, setDisplayItemsLoading] = useState(false);
-  const [itemsFetchProgress, setItemsFetchProgress] = useState(null);
-  const [cachedStats, setCachedStats] = useState(null);
+  const [filtersProcessing, setFiltersProcessing] = useState(false);
   const [rangeLoadProgress, setRangeLoadProgress] = useState(null);
   const [rangeItems, setRangeItems] = useState([]);
   const [rangeItemsLoading, setRangeItemsLoading] = useState(false);
   const [activeRange, setActiveRange] = useState({ fromDate: "", toDate: "" });
   const [rangeResetKey, setRangeResetKey] = useState(0);
 
-  const fetchAbortRef = useRef(null);
+  const bootstrapAbortRef = useRef(null);
+  const backgroundAbortRef = useRef(null);
   const rangeAbortRef = useRef(null);
-  const fetchGenerationRef = useRef(0);
+  const bootstrapGenerationRef = useRef(0);
+  const backgroundGenerationRef = useRef(0);
   const rangeGenerationRef = useRef(0);
+  const filterProcessingGenerationRef = useRef(0);
   const pendingRangeKeyRef = useRef("");
   const ensureItemsForDateRangeRef = useRef(null);
-  const itemsCacheRef = useRef(new Map());
+  const activeRangeRef = useRef(activeRange);
+  const rawItemsByDateRef = useRef(new Map());
+  const filteredItemsByDateRef = useRef(new Map());
   const displayItemsRef = useRef([]);
+
+  useEffect(() => {
+    activeRangeRef.current = activeRange;
+  }, [activeRange]);
 
   const salesFilters = useMemo(
     () => buildSalesDashboardFiltersFromContext(dashboardFilters),
     [dashboardFilters]
   );
 
-  const filterParams = useMemo(
-    () => buildSalesFilterParams(salesFilters),
-    [salesFilters]
-  );
+  const abortBootstrap = useCallback(() => {
+    if (bootstrapAbortRef.current) {
+      bootstrapAbortRef.current.abort();
+      bootstrapAbortRef.current = null;
+    }
+  }, []);
 
-  const filterCacheKey = useMemo(
-    () => buildSalesFilterCacheKey(salesFilters),
-    [salesFilters]
-  );
-
-  const stockFilterCacheKey = useMemo(
-    () => buildSalesStockFilterCacheKey(dashboardFilters),
-    [dashboardFilters]
-  );
-
-  const cacheId = useMemo(
-    () => buildSalesDashboardCacheId(selectedDate, dashboardFilters),
-    [selectedDate, filterCacheKey, stockFilterCacheKey]
-  );
-
-  const abortActiveFetch = useCallback(() => {
-    if (fetchAbortRef.current) {
-      fetchAbortRef.current.abort();
-      fetchAbortRef.current = null;
+  const abortBackground = useCallback(() => {
+    if (backgroundAbortRef.current) {
+      backgroundAbortRef.current.abort();
+      backgroundAbortRef.current = null;
     }
   }, []);
 
@@ -199,106 +138,181 @@ export default function useSalesDashboardData({
     }
   }, []);
 
-  const isDateCached = useCallback(
-    (date) => itemsCacheRef.current.has(`${date}__${filterCacheKey}`),
-    [filterCacheKey]
-  );
+  const isDateInMemory = useCallback((date) => rawItemsByDateRef.current.has(date), []);
 
-  const applyItemsChunk = useCallback(({ items, displayItems: nextDisplayItems }) => {
-    displayItemsRef.current = nextDisplayItems;
-    setSelectedDateItems(items);
-    setDisplayItems(nextDisplayItems);
-    setDisplayItemsLoading(false);
-    setSelectedDateItemsLoading(false);
+  const setRawItemsForDate = useCallback((date, items) => {
+    rawItemsByDateRef.current.set(date, Array.isArray(items) ? items : []);
   }, []);
 
-  const applyBundleUpdate = useCallback(
-    (nextBundle, displayItemsForStats) => {
-      const statsItems =
-        displayItemsForStats ?? displayItemsRef.current ?? [];
-      setBundle(nextBundle);
-      setCachedStats(
-        buildSalesDashboardStats(nextBundle, selectedDate, statsItems)
+  const getRawItemsForDate = useCallback((date) => {
+    return rawItemsByDateRef.current.get(date) ?? [];
+  }, []);
+
+  const getFilteredItemsForDate = useCallback(
+    (date) => {
+      if (filteredItemsByDateRef.current.has(date)) {
+        return filteredItemsByDateRef.current.get(date);
+      }
+      const filtered = filterSalesItemsByDashboardFilters(
+        getRawItemsForDate(date),
+        salesFilters
       );
+      filteredItemsByDateRef.current.set(date, filtered);
+      return filtered;
     },
-    [selectedDate]
+    [getRawItemsForDate, salesFilters]
   );
 
-  const fetchItemsForDate = useCallback(
-    async (date, { signal, useCache = true, onProgress, onChunk } = {}) => {
-      const memoryKey = `${date}__${filterCacheKey}`;
-      if (useCache && itemsCacheRef.current.has(memoryKey)) {
-        return itemsCacheRef.current.get(memoryKey);
+  const recomputeFilteredCache = useCallback(() => {
+    filteredItemsByDateRef.current.clear();
+    rawItemsByDateRef.current.forEach((_items, date) => {
+      filteredItemsByDateRef.current.set(
+        date,
+        filterSalesItemsByDashboardFilters(
+          rawItemsByDateRef.current.get(date) ?? [],
+          salesFilters
+        )
+      );
+    });
+  }, [salesFilters]);
+
+  const buildItemsByDateSnapshot = useCallback(() => {
+    const snapshot = {};
+    rawItemsByDateRef.current.forEach((items, date) => {
+      snapshot[date] = items;
+    });
+    return snapshot;
+  }, []);
+
+  const applyDashboardProjection = useCallback(
+    async ({ signal } = {}) => {
+      const { bundle: nextBundle, filteredItemsByDate } =
+        buildSalesDashboardBundleFromRawDays({
+          selectedDate,
+          itemsByDate: buildItemsByDateSnapshot(),
+          salesFilters,
+        });
+
+      filteredItemsByDateRef.current = new Map(
+        Object.entries(filteredItemsByDate)
+      );
+      setBundle(nextBundle);
+
+      const selectedDateKey = String(selectedDate);
+      const filteredSelectedItems = filteredItemsByDate[selectedDateKey] ?? [];
+      setSelectedDateItems(filteredSelectedItems);
+
+      if (!nextBundle.selected_date_has_report) {
+        const stockRows = await resolveStockRowsForSalesDate(
+          selectedDate,
+          getStockRowsForDate,
+          { signal }
+        );
+        if (signal?.aborted) return;
+        const nextDisplayItems = mergeSalesItemsWithUnsoldStock([], stockRows);
+        displayItemsRef.current = nextDisplayItems;
+        setDisplayItems(nextDisplayItems);
+        return;
+      }
+
+      const stockRows = await resolveStockRowsForSalesDate(
+        selectedDate,
+        getStockRowsForDate,
+        { signal }
+      );
+      if (signal?.aborted) return;
+
+      const soldItems = filteredSelectedItems.filter((item) => !item?.is_unsold);
+      const nextDisplayItems = mergeSalesItemsWithUnsoldStock(soldItems, stockRows);
+      displayItemsRef.current = nextDisplayItems;
+      setDisplayItems(nextDisplayItems);
+    },
+    [
+      selectedDate,
+      salesFilters,
+      buildItemsByDateSnapshot,
+      getStockRowsForDate,
+    ]
+  );
+
+  const fetchRawItemsForDate = useCallback(
+    async (date, { signal, useCache = true } = {}) => {
+      if (useCache && isDateInMemory(date)) {
+        return getRawItemsForDate(date);
       }
 
       if (useCache) {
-        const cachedItems = await readSalesDashboardItemsForDate(
-          date,
-          dashboardFilters
-        );
+        const cachedItems = await readSalesDashboardItemsForDate(date);
         if (cachedItems !== undefined) {
-          itemsCacheRef.current.set(memoryKey, cachedItems);
+          setRawItemsForDate(date, cachedItems);
           return cachedItems;
         }
       }
 
-      const allItems = await getAllSalesDashboardItems(date, filterParams, {
+      const allItems = await getAllSalesDashboardItems(date, {}, {
         signal,
         pageSize: SALES_DASHBOARD_ITEMS_STREAM_PAGE_SIZE,
-        onProgress: (progress) => {
-          onProgress?.(progress);
-          setItemsFetchProgress(progress);
-        },
-        onChunk: ({ items, progress }) => {
-          onChunk?.({ items, progress });
-        },
       });
 
-      itemsCacheRef.current.set(memoryKey, allItems);
-      await writeSalesDashboardItemsForDate(date, dashboardFilters, allItems);
+      setRawItemsForDate(date, allItems);
+      await writeSalesDashboardItemsForDate(date, allItems);
       return allItems;
     },
-    [dashboardFilters, filterCacheKey, filterParams]
+    [getRawItemsForDate, isDateInMemory, setRawItemsForDate]
   );
 
-  const prefetchItemsForDates = useCallback(
-    async (dates, { signal, onProgress } = {}) => {
+  const hydrateDatesFromIndexedDb = useCallback(
+    async (dates, { onProgress } = {}) => {
       const uniqueDates = Array.from(new Set((dates || []).filter(Boolean)));
-      if (!uniqueDates.length) return;
+      if (!uniqueDates.length) {
+        onProgress?.(null);
+        return 0;
+      }
 
-      const missingDates = uniqueDates.filter((date) => !isDateCached(date));
-      const totalDays = uniqueDates.length;
-      let loadedDays = uniqueDates.length - missingDates.length;
+      const datesToRead = uniqueDates.filter((date) => !isDateInMemory(date));
+      let processedDays = uniqueDates.length - datesToRead.length;
+      let hydratedCount = 0;
 
-      onProgress?.({ loadedDays, totalDays });
-      if (!missingDates.length) return;
+      onProgress?.({
+        loadedDays: processedDays,
+        totalDays: uniqueDates.length,
+        source: "indexeddb",
+      });
 
-      await fetchDatesWithConcurrency(
-        missingDates,
-        async (date) => {
-          await fetchItemsForDate(date, { signal, useCache: true });
-        },
-        {
-          signal,
-          onDayComplete: () => {
-            loadedDays += 1;
-            onProgress?.({ loadedDays, totalDays });
-          },
-        }
+      if (!datesToRead.length) {
+        onProgress?.(null);
+        return 0;
+      }
+
+      await Promise.all(
+        datesToRead.map(async (date) => {
+          const items = await readSalesDashboardItemsForDate(date);
+          processedDays += 1;
+          if (items !== undefined) {
+            setRawItemsForDate(date, items);
+            hydratedCount += 1;
+          }
+          onProgress?.({
+            loadedDays: processedDays,
+            totalDays: uniqueDates.length,
+            source: "indexeddb",
+          });
+        })
       );
+
+      onProgress?.(null);
+      return hydratedCount;
     },
-    [fetchItemsForDate, isDateCached]
+    [isDateInMemory, setRawItemsForDate]
   );
 
-  const collectSoldItemsForDateRange = useCallback(
+  const collectFilteredSoldItemsForRange = useCallback(
     (fromDate, toDate) => {
       const dates = listDatesInRange(fromDate, toDate);
       const allItems = [];
 
       dates.forEach((date) => {
-        const memoryKey = `${date}__${filterCacheKey}`;
-        const items = itemsCacheRef.current.get(memoryKey) ?? [];
-        items.forEach((item) => {
+        getFilteredItemsForDate(date).forEach((item) => {
           if (!item?.is_unsold) {
             allItems.push(item);
           }
@@ -307,222 +321,124 @@ export default function useSalesDashboardData({
 
       return allItems;
     },
-    [filterCacheKey]
+    [getFilteredItemsForDate]
   );
 
-  const mergeWithStock = useCallback(
-    async (date, items, { signal } = {}) => {
-      if (typeof getStockRowsForDate !== "function") {
-        return items;
-      }
-      const stockRows = await resolveStockRowsForSalesDate(
-        date,
-        getStockRowsForDate,
-        { signal }
-      );
-      if (signal?.aborted) return items;
-      return mergeSalesItemsWithUnsoldStock(items, stockRows);
-    },
-    [getStockRowsForDate]
-  );
+  const ensureBootstrapWindow = useCallback(
+    async ({ forceRefresh = false, signal } = {}) => {
+      const windowDates = getRequiredBootstrapWindowDates(selectedDate);
+      if (!windowDates.length) return;
 
-  const loadStockRowsForSalesDate = useCallback(
-    async ({ signal } = {}) =>
-      resolveStockRowsForSalesDate(selectedDate, getStockRowsForDate, {
-        signal,
-      }),
-    [selectedDate, getStockRowsForDate]
-  );
-
-  const persistToCache = useCallback(
-    async (nextBundle, items, nextDisplayItems) => {
-      const entry = buildSalesDashboardCacheEntry({
-        salesDate: selectedDate,
-        dashboardFilters,
-        bundle: nextBundle,
-        items,
-        displayItems: nextDisplayItems,
-      });
-      await writeSalesDashboardCache(entry);
-      setCachedStats(entry.stats);
-    },
-    [selectedDate, dashboardFilters]
-  );
-
-  const loadProductItems = useCallback(
-    async (meta, { signal, onItemsChunk } = {}) => {
-      const stockRows = await loadStockRowsForSalesDate({ signal });
-      if (signal?.aborted) {
-        throw new DOMException("Aborted", "AbortError");
+      if (forceRefresh) {
+        rawItemsByDateRef.current.clear();
+        filteredItemsByDateRef.current.clear();
       }
 
-      if (!meta?.selected_date_has_report) {
-        const displayItems = mergeSalesItemsWithUnsoldStock([], stockRows);
-        onItemsChunk?.({ items: [], displayItems });
-        return { items: [], displayItems };
-      }
-
-      const items = await fetchItemsForDate(selectedDate, {
-        signal,
-        useCache: true,
-        onChunk: ({ items: nextItems }) => {
-          const nextDisplayItems = mergeSalesItemsWithUnsoldStock(
-            nextItems,
-            stockRows
-          );
-          onItemsChunk?.({ items: nextItems, displayItems: nextDisplayItems });
-        },
+      setDisplayItemsLoading(true);
+      await hydrateDatesFromIndexedDb(windowDates, {
+        onProgress: setHydrateProgress,
       });
 
-      if (signal?.aborted) {
-        throw new DOMException("Aborted", "AbortError");
-      }
+      const priorityDate = String(selectedDate);
+      const priorityMissing =
+        !isDateInMemory(priorityDate) ||
+        (forceRefresh && !rawItemsByDateRef.current.has(priorityDate));
 
-      return {
-        items,
-        displayItems: mergeSalesItemsWithUnsoldStock(items, stockRows),
-      };
-    },
-    [selectedDate, fetchItemsForDate, loadStockRowsForSalesDate]
-  );
-
-  const loadFromNetwork = useCallback(
-    async ({
-      signal,
-      skipCacheWrite = false,
-      onMeta,
-      onSummaryProgress,
-      onSummaryChunk,
-      onItemsChunk,
-    } = {}) => {
-      let meta = {
-        as_of_date: selectedDate,
-        selected_date_has_report: false,
-        filter_options: emptySalesFilterOptions(),
-      };
-      let currentDailyTotals = [];
-      let nextBundle = buildBundleFromMeta(meta, currentDailyTotals);
-
-      setSummaryStreaming(true);
-      setSummaryStreamProgress({
-        loadedDays: 0,
-        totalDays: SALES_DASHBOARD_FETCH_DAYS,
-        chunkIndex: 0,
-        totalChunks: getSalesDashboardChunkCount(),
-        complete: false,
-      });
-
-      let metaDispatched = false;
-      let resolveMetaReady;
-      const metaReady = new Promise((resolve) => {
-        resolveMetaReady = resolve;
-      });
-
-      const metaPromise = streamSalesDashboardMeta(selectedDate, filterParams, {
-        signal,
-        chunkDays: SALES_DASHBOARD_CHUNK_DAYS,
-        onProgress: (progress) => {
-          setSummaryStreamProgress(progress);
-          onSummaryProgress?.(progress);
-        },
-        onChunk: ({ meta: batchMeta, dailyTotals, progress }) => {
-          meta = {
-            ...meta,
-            as_of_date: batchMeta?.as_of_date ?? meta.as_of_date,
-            selected_date_has_report: Boolean(
-              batchMeta?.selected_date_has_report
-            ),
-          };
-          currentDailyTotals = dailyTotals;
-          nextBundle = buildBundleFromMeta(meta, dailyTotals);
-          applyBundleUpdate(nextBundle);
-          onSummaryChunk?.({ bundle: nextBundle, progress });
-
-          if (!metaDispatched) {
-            metaDispatched = true;
-            resolveMetaReady();
-            onMeta?.(meta);
-          }
-        },
-      }).finally(() => {
-        setSummaryStreaming(false);
-        setSummaryStreamProgress(null);
-      });
-
-      const filterOptionsPromise = streamSalesDashboardFilterOptions(
-        selectedDate,
-        filterParams,
-        {
+      if (priorityMissing) {
+        await fetchRawItemsForDate(priorityDate, {
           signal,
-          chunkDays: SALES_DASHBOARD_CHUNK_DAYS,
-          onChunk: ({ filterOptions }) => {
-            meta = {
-              ...meta,
-              filter_options: filterOptions,
-            };
-            nextBundle = buildBundleFromMeta(meta, currentDailyTotals);
-            applyBundleUpdate(nextBundle);
+          useCache: !forceRefresh,
+        });
+      }
+
+      recomputeFilteredCache();
+      await applyDashboardProjection({ signal });
+
+      const remainingDates = windowDates.filter(
+        (date) => date !== priorityDate && !isDateInMemory(date)
+      );
+
+      if (!remainingDates.length || signal?.aborted) return;
+
+      const generation = ++backgroundGenerationRef.current;
+      const bgController = new AbortController();
+      backgroundAbortRef.current = bgController;
+
+      const baseLoadedDays = windowDates.length - remainingDates.length;
+      setBackgroundLoading(true);
+      setBackgroundProgress({
+        loadedDays: baseLoadedDays,
+        totalDays: windowDates.length,
+      });
+
+      try {
+        let loadedDays = baseLoadedDays;
+        await fetchDatesWithConcurrency(
+          remainingDates,
+          async (date) => {
+            await fetchRawItemsForDate(date, {
+              signal: bgController.signal,
+              useCache: !forceRefresh,
+            });
           },
+          {
+            signal: bgController.signal,
+            onDayComplete: async (date) => {
+              if (backgroundGenerationRef.current !== generation) return;
+              loadedDays += 1;
+              setBackgroundProgress({
+                loadedDays,
+                totalDays: windowDates.length,
+                currentDate: date,
+              });
+              recomputeFilteredCache();
+              await applyDashboardProjection({ signal: bgController.signal });
+            },
+          }
+        );
+      } catch (err) {
+        if (!bgController.signal.aborted && !isAbortError(err)) {
+          const message = getSalesDashboardErrorMessage(
+            err,
+            "Failed to load sales data in the background."
+          );
+          if (message) toast.error(message);
         }
-      );
-
-      const itemsPromise = metaReady.then(() =>
-        loadProductItems(meta, {
-          signal,
-          onItemsChunk,
-        })
-      );
-
-      const [{ meta: finalMeta, dailyTotals }, finalFilterOptions, itemsResult] =
-        await Promise.all([metaPromise, filterOptionsPromise, itemsPromise]);
-
-      meta = {
-        ...finalMeta,
-        filter_options: finalFilterOptions,
-      };
-      nextBundle = buildBundleFromMeta(meta, dailyTotals);
-      applyBundleUpdate(nextBundle);
-      onMeta?.(meta);
-
-      const { items, displayItems: nextDisplayItems } = itemsResult;
-
-      if (!skipCacheWrite) {
-        await persistToCache(nextBundle, items, nextDisplayItems);
+      } finally {
+        if (backgroundGenerationRef.current === generation) {
+          setBackgroundLoading(false);
+          setBackgroundProgress(null);
+        }
       }
-
-      const prefetchDates = getDashboardItemsWindowDates(selectedDate).filter(
-        (date) => date !== selectedDate
-      );
-      if (prefetchDates.length && !signal?.aborted) {
-        prefetchItemsForDates(prefetchDates, { signal }).catch(() => {});
-      }
-
-      return { bundle: nextBundle, items, displayItems: nextDisplayItems };
     },
     [
       selectedDate,
-      filterParams,
-      applyBundleUpdate,
-      loadProductItems,
-      persistToCache,
-      prefetchItemsForDates,
+      hydrateDatesFromIndexedDb,
+      isDateInMemory,
+      fetchRawItemsForDate,
+      recomputeFilteredCache,
+      applyDashboardProjection,
     ]
   );
 
+  const cancelBackgroundLoad = useCallback(() => {
+    abortBackground();
+    setBackgroundLoading(false);
+    setBackgroundProgress(null);
+  }, [abortBackground]);
+
   useEffect(() => {
-    if (!enabled || !selectedDate || !cacheId) {
+    if (!enabled || !selectedDate) {
+      rawItemsByDateRef.current.clear();
+      filteredItemsByDateRef.current.clear();
       displayItemsRef.current = [];
       setBundle(null);
       setSelectedDateItems([]);
       setDisplayItems([]);
-      setCachedStats(null);
-      setLoadedFromCache(false);
       setLoading(false);
-      setSummaryStreaming(false);
-      setSummaryStreamProgress(null);
-      setSelectedDateItemsLoading(false);
-      setDisplayItemsLoading(false);
-      setItemsFetchProgress(null);
+      setBackgroundLoading(false);
+      setBackgroundProgress(null);
+      setHydrateProgress(null);
       setRangeItems([]);
       setRangeItemsLoading(false);
       setRangeLoadProgress(null);
@@ -530,94 +446,34 @@ export default function useSalesDashboardData({
       return undefined;
     }
 
-    abortActiveFetch();
-    const generation = ++fetchGenerationRef.current;
+    abortBootstrap();
+    abortBackground();
+    const generation = ++bootstrapGenerationRef.current;
     const controller = new AbortController();
-    fetchAbortRef.current = controller;
+    bootstrapAbortRef.current = controller;
 
-    setSelectedDateItemsLoading(true);
+    setLoading(true);
     setDisplayItemsLoading(true);
-    setItemsFetchProgress(null);
-    setSummaryStreamProgress(null);
-    setSummaryStreaming(false);
+    setBundle(null);
+    setDisplayItems([]);
+    setSelectedDateItems([]);
+    setHydrateProgress(null);
 
     (async () => {
       try {
-        const cached = await readSalesDashboardCache(cacheId);
-        if (
-          fetchGenerationRef.current !== generation ||
-          controller.signal.aborted
-        ) {
-          return;
-        }
-
-        if (cached) {
-          const hydrated = hydrateFromCache(cached, {
-            itemsCacheRef,
-            selectedDate,
-            filterCacheKey,
-          });
-          displayItemsRef.current = hydrated.displayItems;
-          setBundle(hydrated.bundle);
-          setSelectedDateItems(hydrated.items);
-          setDisplayItems(hydrated.displayItems);
-          setCachedStats(hydrated.stats);
-          setLoadedFromCache(true);
-          setLoading(false);
-          setSummaryStreaming(false);
-          setSelectedDateItemsLoading(false);
-          setDisplayItemsLoading(false);
-          setItemsFetchProgress(null);
-
-          const prefetchDates = getDashboardItemsWindowDates(selectedDate).filter(
-            (date) => date !== selectedDate
-          );
-          if (prefetchDates.length && !controller.signal.aborted) {
-            prefetchItemsForDates(prefetchDates, {
-              signal: controller.signal,
-            }).catch(() => {});
-          }
-          return;
-        }
-
-        setLoadedFromCache(false);
-        setCachedStats(null);
-        setLoading(true);
-
-        const result = await loadFromNetwork({
-          signal: controller.signal,
-          onMeta: () => {
-            if (
-              fetchGenerationRef.current !== generation ||
-              controller.signal.aborted
-            ) {
-              return;
-            }
-            setLoading(false);
-          },
-          onItemsChunk: (chunk) => {
-            if (
-              fetchGenerationRef.current !== generation ||
-              controller.signal.aborted
-            ) {
-              return;
-            }
-            applyItemsChunk(chunk);
-          },
+        await runDailySalesCachePruneIfNeeded({
+          keepDays: SALES_DASHBOARD_RETENTION_DAYS,
+          asOfDate: selectedDate,
         });
 
         if (
-          fetchGenerationRef.current !== generation ||
+          bootstrapGenerationRef.current !== generation ||
           controller.signal.aborted
         ) {
           return;
         }
 
-        setBundle(result.bundle);
-        displayItemsRef.current = result.displayItems;
-        setSelectedDateItems(result.items);
-        setDisplayItems(result.displayItems);
-        setLoadedFromCache(false);
+        await ensureBootstrapWindow({ signal: controller.signal });
       } catch (err) {
         if (controller.signal.aborted || isAbortError(err)) return;
         const message = getSalesDashboardErrorMessage(
@@ -628,16 +484,11 @@ export default function useSalesDashboardData({
         setBundle(null);
         setSelectedDateItems([]);
         setDisplayItems([]);
-        setCachedStats(null);
-        setLoadedFromCache(false);
       } finally {
-        if (fetchGenerationRef.current === generation) {
+        if (bootstrapGenerationRef.current === generation) {
           setLoading(false);
-          setSummaryStreaming(false);
-          setSummaryStreamProgress(null);
-          setSelectedDateItemsLoading(false);
           setDisplayItemsLoading(false);
-          setItemsFetchProgress(null);
+          setHydrateProgress(null);
         }
       }
     })();
@@ -645,32 +496,69 @@ export default function useSalesDashboardData({
     return () => {
       controller.abort();
     };
+  }, [enabled, selectedDate, ensureBootstrapWindow, abortBootstrap, abortBackground]);
+
+  useEffect(() => {
+    if (!enabled || !selectedDate || rawItemsByDateRef.current.size === 0) {
+      return undefined;
+    }
+
+    const controller = new AbortController();
+    const generation = ++filterProcessingGenerationRef.current;
+    setFiltersProcessing(true);
+    setDisplayItemsLoading(true);
+
+    (async () => {
+      try {
+        recomputeFilteredCache();
+        await applyDashboardProjection({ signal: controller.signal });
+        if (controller.signal.aborted) return;
+
+        const { fromDate, toDate } = activeRangeRef.current ?? {};
+        if (fromDate && toDate && fromDate <= toDate) {
+          setRangeItems(collectFilteredSoldItemsForRange(fromDate, toDate));
+        }
+      } catch (err) {
+        if (controller.signal.aborted || isAbortError(err)) return;
+      } finally {
+        if (filterProcessingGenerationRef.current === generation) {
+          setFiltersProcessing(false);
+          setDisplayItemsLoading(false);
+        }
+      }
+    })();
+
+    return () => controller.abort();
   }, [
     enabled,
     selectedDate,
-    cacheId,
-    filterCacheKey,
-    abortActiveFetch,
-    loadFromNetwork,
-    applyItemsChunk,
-    prefetchItemsForDates,
+    salesFilters,
+    recomputeFilteredCache,
+    applyDashboardProjection,
+    collectFilteredSoldItemsForRange,
   ]);
 
   const refreshData = useCallback(async () => {
     if (!enabled || !selectedDate) return;
 
-    abortActiveFetch();
+    abortBootstrap();
+    abortBackground();
     abortRangeFetch();
     pendingRangeKeyRef.current = "";
-    const generation = ++fetchGenerationRef.current;
+
+    const generation = ++bootstrapGenerationRef.current;
     const controller = new AbortController();
-    fetchAbortRef.current = controller;
+    bootstrapAbortRef.current = controller;
 
     setRefreshing(true);
-    setLoadedFromCache(false);
-    setSummaryStreaming(false);
-    setSummaryStreamProgress(null);
-    itemsCacheRef.current.clear();
+    setLoading(true);
+    setDisplayItemsLoading(true);
+    setBundle(null);
+    setDisplayItems([]);
+    setSelectedDateItems([]);
+    setHydrateProgress(null);
+    rawItemsByDateRef.current.clear();
+    filteredItemsByDateRef.current.clear();
     setRangeItems([]);
     setActiveRange({ fromDate: "", toDate: "" });
     setRangeItemsLoading(false);
@@ -681,40 +569,17 @@ export default function useSalesDashboardData({
     try {
       await clearAllSalesDashboardCache();
 
-      const result = await loadFromNetwork({
+      await ensureBootstrapWindow({
+        forceRefresh: true,
         signal: controller.signal,
-        skipCacheWrite: false,
-        onMeta: () => {
-          if (
-            fetchGenerationRef.current !== generation ||
-            controller.signal.aborted
-          ) {
-            return;
-          }
-          setRefreshing(false);
-        },
-        onItemsChunk: (chunk) => {
-          if (
-            fetchGenerationRef.current !== generation ||
-            controller.signal.aborted
-          ) {
-            return;
-          }
-          applyItemsChunk(chunk);
-        },
       });
 
       if (
-        fetchGenerationRef.current !== generation ||
+        bootstrapGenerationRef.current !== generation ||
         controller.signal.aborted
       ) {
         return;
       }
-
-      setBundle(result.bundle);
-      displayItemsRef.current = result.displayItems;
-      setSelectedDateItems(result.items);
-      setDisplayItems(result.displayItems);
 
       setRangeResetKey((key) => key + 1);
       const defaultRange = getDefaultSalesRangeDates(selectedDate);
@@ -732,35 +597,54 @@ export default function useSalesDashboardData({
       );
       if (message) toast.error(message);
     } finally {
-      if (fetchGenerationRef.current === generation) {
+      if (bootstrapGenerationRef.current === generation) {
         setRefreshing(false);
-        setSummaryStreaming(false);
-        setSummaryStreamProgress(null);
-        setItemsFetchProgress(null);
+        setLoading(false);
+        setDisplayItemsLoading(false);
+        setHydrateProgress(null);
       }
     }
   }, [
     enabled,
     selectedDate,
-    loadFromNetwork,
-    abortActiveFetch,
+    ensureBootstrapWindow,
+    abortBootstrap,
+    abortBackground,
     abortRangeFetch,
-    applyItemsChunk,
     clearSalesStockCache,
   ]);
 
   const loadItemsForModal = useCallback(
     async (date) => {
       try {
-        const items = await fetchItemsForDate(date, { useCache: true });
-        return mergeWithStock(date, items);
+        if (!isDateInMemory(date)) {
+          await fetchRawItemsForDate(date, { useCache: true });
+          recomputeFilteredCache();
+        }
+        const items = getFilteredItemsForDate(date).filter(
+          (item) => !item?.is_unsold
+        );
+        if (typeof getStockRowsForDate !== "function") {
+          return items;
+        }
+        const stockRows = await resolveStockRowsForSalesDate(
+          date,
+          getStockRowsForDate
+        );
+        return mergeSalesItemsWithUnsoldStock(items, stockRows);
       } catch (err) {
         if (isAbortError(err)) throw err;
         toast.error(err?.message || "Failed to load sales items.");
         throw err;
       }
     },
-    [fetchItemsForDate, mergeWithStock]
+    [
+      fetchRawItemsForDate,
+      getFilteredItemsForDate,
+      getStockRowsForDate,
+      isDateInMemory,
+      recomputeFilteredCache,
+    ]
   );
 
   const ensureItemsForDateRange = useCallback(
@@ -792,10 +676,13 @@ export default function useSalesDashboardData({
 
       try {
         await hydrateDatesFromIndexedDb(dates, {
-          itemsCacheRef,
-          filterCacheKey,
-          dashboardFilters,
-          isDateCached,
+          onProgress: (progress) => {
+            if (rangeGenerationRef.current !== generation) return;
+            if (!progress) return;
+            const nextProgress = { ...progress, source: "indexeddb" };
+            onProgress?.(nextProgress);
+            setRangeLoadProgress(nextProgress);
+          },
         });
 
         if (
@@ -805,24 +692,31 @@ export default function useSalesDashboardData({
           throw new DOMException("Aborted", "AbortError");
         }
 
-        const missingDates = dates.filter((date) => !isDateCached(date));
+        const missingDates = dates.filter((date) => !isDateInMemory(date));
         const totalDays = dates.length;
         let loadedDays = totalDays - missingDates.length;
-        let items = collectSoldItemsForDateRange(fromDate, toDate);
+        recomputeFilteredCache();
+        let items = collectFilteredSoldItemsForRange(fromDate, toDate);
 
-        onProgress?.({ loadedDays, totalDays });
-        setRangeLoadProgress({ loadedDays, totalDays });
+        const cacheCompleteProgress = {
+          loadedDays,
+          totalDays,
+          source: "indexeddb",
+        };
+        onProgress?.(cacheCompleteProgress);
+        setRangeLoadProgress(cacheCompleteProgress);
         if (rangeGenerationRef.current === generation) {
           setRangeItems(items);
         }
 
         if (missingDates.length) {
+          setRangeLoadProgress({ loadedDays, totalDays, source: "server" });
           await fetchDatesWithConcurrency(
             missingDates,
             async (date) => {
-              await fetchItemsForDate(date, {
+              await fetchRawItemsForDate(date, {
                 signal: controller.signal,
-                useCache: true,
+                useCache: false,
               });
             },
             {
@@ -830,10 +724,15 @@ export default function useSalesDashboardData({
               onDayComplete: () => {
                 if (rangeGenerationRef.current !== generation) return;
                 loadedDays += 1;
-                const progress = { loadedDays, totalDays };
+                recomputeFilteredCache();
+                const progress = {
+                  loadedDays,
+                  totalDays,
+                  source: "server",
+                };
                 onProgress?.(progress);
                 setRangeLoadProgress(progress);
-                items = collectSoldItemsForDateRange(fromDate, toDate);
+                items = collectFilteredSoldItemsForRange(fromDate, toDate);
                 if (rangeGenerationRef.current === generation) {
                   setRangeItems(items);
                 }
@@ -849,7 +748,8 @@ export default function useSalesDashboardData({
           throw new DOMException("Aborted", "AbortError");
         }
 
-        items = collectSoldItemsForDateRange(fromDate, toDate);
+        recomputeFilteredCache();
+        items = collectFilteredSoldItemsForRange(fromDate, toDate);
         if (rangeGenerationRef.current === generation) {
           setRangeItems(items);
         }
@@ -874,11 +774,11 @@ export default function useSalesDashboardData({
     },
     [
       abortRangeFetch,
-      collectSoldItemsForDateRange,
-      dashboardFilters,
-      fetchItemsForDate,
-      filterCacheKey,
-      isDateCached,
+      collectFilteredSoldItemsForRange,
+      fetchRawItemsForDate,
+      hydrateDatesFromIndexedDb,
+      isDateInMemory,
+      recomputeFilteredCache,
     ]
   );
 
@@ -887,64 +787,44 @@ export default function useSalesDashboardData({
   }, [ensureItemsForDateRange]);
 
   const dailyTotals = bundle?.daily_totals ?? [];
-  const windowSummaries = bundle?.window_summaries ?? {};
   const filterOptions = bundle?.filter_options ?? null;
 
   const computedStats = useMemo(
-    () => buildSalesDashboardStats(bundle, selectedDate),
-    [bundle, selectedDate]
+    () => buildSalesDashboardStats(bundle, selectedDate, displayItems),
+    [bundle, selectedDate, displayItems]
   );
 
-  const lineChartData =
-    cachedStats?.lineChartData ?? computedStats.lineChartData;
-  const cumulativeRows =
-    cachedStats?.cumulativeRows ?? computedStats.cumulativeRows;
-  const window7 = cachedStats?.window7 ?? computedStats.window7;
-  const window15 = cachedStats?.window15 ?? computedStats.window15;
-  const window30 = cachedStats?.window30 ?? computedStats.window30;
   const todaySummary = useMemo(() => {
-    const summary = cachedStats?.todaySummary ?? computedStats.todaySummary;
+    const summary = computedStats.todaySummary;
     if (!summary) return null;
     return {
       ...summary,
       periodSubtitle: formatDateDisplay(selectedDate),
     };
-  }, [cachedStats?.todaySummary, computedStats.todaySummary, selectedDate]);
-  const monthSummary = cachedStats?.monthSummary ?? computedStats.monthSummary;
-
-  const soldUnsoldBarData = useMemo(() => {
-    if (displayItems.length > 0) {
-      return computeSoldUnsoldBarData(displayItems);
-    }
-    if (cachedStats?.soldUnsoldBarData) {
-      return cachedStats.soldUnsoldBarData;
-    }
-    return computeSoldUnsoldBarData(displayItems);
-  }, [cachedStats?.soldUnsoldBarData, displayItems]);
+  }, [computedStats.todaySummary, selectedDate]);
 
   return {
     loading,
     refreshing,
-    summaryStreaming,
-    summaryStreamProgress,
-    loadedFromCache,
+    backgroundLoading,
+    backgroundProgress,
+    hydrateProgress,
+    cancelBackgroundLoad,
     refreshData,
     bundle,
     dailyTotals,
-    windowSummaries,
-    window7,
-    window15,
-    window30,
+    window7: computedStats.window7,
+    window15: computedStats.window15,
+    window30: computedStats.window30,
     todaySummary,
-    monthSummary,
-    soldUnsoldBarData,
-    lineChartData,
-    cumulativeRows,
+    monthSummary: computedStats.monthSummary,
+    soldUnsoldBarData: computedStats.soldUnsoldBarData,
+    lineChartData: computedStats.lineChartData,
+    cumulativeRows: computedStats.cumulativeRows,
     selectedDateItems,
-    selectedDateItemsLoading,
     displayItems,
     displayItemsLoading,
-    itemsFetchProgress,
+    filtersProcessing,
     selectedDateHasReport: Boolean(bundle?.selected_date_has_report),
     filterOptions,
     loadItemsForModal,
@@ -954,5 +834,6 @@ export default function useSalesDashboardData({
     rangeLoadProgress,
     activeRange,
     rangeResetKey,
+    rawCacheDays: SALES_DASHBOARD_RAW_CACHE_DAYS,
   };
 };

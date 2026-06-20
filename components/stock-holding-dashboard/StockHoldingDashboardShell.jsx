@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useCallback, useMemo } from "react";
 import moment from "moment";
 import {
   Box,
@@ -81,15 +81,25 @@ function ReportFetchProgress({ progress, title, onStop }) {
 }
 
 function FilterDropdown({ label, placeholder, value, options, onChange }) {
+  const dropdownOptions = useMemo(
+    () => toDropdownOptions(options),
+    [options]
+  );
+
+  const handleChange = useCallback(
+    (val) => onChange(Array.isArray(val) ? val : []),
+    [onChange]
+  );
+
   return (
     <SearchableDropdown
       label={label}
       placeholder={placeholder}
       multiple
       size="sm"
-      options={toDropdownOptions(options)}
+      options={dropdownOptions}
       value={value}
-      onChange={(val) => onChange(Array.isArray(val) ? val : [])}
+      onChange={handleChange}
     />
   );
 }
@@ -111,6 +121,7 @@ export default function StockHoldingDashboardShell({
     refreshData,
     refreshSalesData,
     cancelFetch,
+    salesDashboardState,
     rawItems,
     enriching,
     dashboard,
@@ -162,6 +173,12 @@ export default function StockHoldingDashboardShell({
   } = dashboard;
 
   const isSalesTab = activeTab === "sales";
+  const salesBusy =
+    salesDashboardState?.loading ||
+    salesDashboardState?.refreshing ||
+    salesDashboardState?.backgroundLoading ||
+    salesDashboardState?.filtersProcessing ||
+    Boolean(salesDashboardState?.hydrateProgress);
   const branchOptionsSource = isSalesTab
     ? salesFilterOptions?.branchOptions ?? []
     : branchOptions;
@@ -214,7 +231,24 @@ export default function StockHoldingDashboardShell({
   const hasReportData = isSalesTab || rawItems.length > 0;
   const showStockDashboard = hasReportData && !enriching;
   const showFiltersAndContent = isSalesTab || showStockDashboard;
-  const tabIndex = DASHBOARD_TABS.findIndex((t) => t.value === activeTab);
+  const tabIndex = useMemo(
+    () => DASHBOARD_TABS.findIndex((t) => t.value === activeTab),
+    [activeTab]
+  );
+
+  const soldStatusFilterOptions = useMemo(
+    () =>
+      SALES_SOLD_STATUS_OPTIONS.filter((o) => o.value !== "all").map((o) => ({
+        value: o.value,
+        label: o.label,
+      })),
+    []
+  );
+
+  const handleTabChange = useCallback(
+    (idx) => onTabChange(DASHBOARD_TABS[idx]?.value ?? "holding"),
+    [onTabChange]
+  );
 
   return (
     <GlobalWrapper
@@ -240,7 +274,7 @@ export default function StockHoldingDashboardShell({
           >
             <Tabs
               index={tabIndex >= 0 ? tabIndex : 0}
-              onChange={(idx) => onTabChange(DASHBOARD_TABS[idx]?.value ?? "holding")}
+              onChange={handleTabChange}
               variant="line"
               colorScheme="purple"
             >
@@ -280,7 +314,7 @@ export default function StockHoldingDashboardShell({
                 variant="outline"
                 leftIcon={<RepeatIcon />}
                 onClick={handleRefresh}
-                isDisabled={loading || refreshing}
+                isDisabled={isSalesTab ? salesBusy : loading || refreshing}
               >
                 Refresh
               </Button>
@@ -298,7 +332,7 @@ export default function StockHoldingDashboardShell({
           </CustomContainer>
         ) : null}
 
-        {refreshing ? (
+        {refreshing && !isSalesTab ? (
           <CustomContainer title="Refreshing Data" filledHeader size="xs">
             <ReportFetchProgress
               progress={fetchProgress}
@@ -449,9 +483,7 @@ export default function StockHoldingDashboardShell({
                     value={
                       salesSoldStatusFilter === "all" ? [] : [salesSoldStatusFilter]
                     }
-                    options={SALES_SOLD_STATUS_OPTIONS.filter(
-                      (o) => o.value !== "all"
-                    ).map((o) => ({ value: o.value, label: o.label }))}
+                    options={soldStatusFilterOptions}
                     onChange={(val) =>
                       applyFilterUpdate(() =>
                         setSalesSoldStatusFilter(val?.[0] ?? "all")

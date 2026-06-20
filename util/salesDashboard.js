@@ -7,6 +7,9 @@ import { formatCurrency } from "./string";
 
 export const SALES_DASHBOARD_WINDOW_DAYS = 30;
 export const SALES_DASHBOARD_MAX_ROLLING_DAYS = 30;
+/** Raw day cache + retention window for IndexedDB. */
+export const SALES_DASHBOARD_RAW_CACHE_DAYS = 60;
+export const SALES_DASHBOARD_RETENTION_DAYS = 60;
 /** Longest MTD span: prior-month day 1 through day 31 of a 31-day month. */
 export const SALES_DASHBOARD_MTD_MAX_SPAN_DAYS = 62;
 /** Max rolling window compares N days vs the prior N days (2N). */
@@ -803,6 +806,169 @@ export function formatDateDisplay(value) {
   const dt = new Date(`${key}T12:00:00`);
   if (Number.isNaN(dt.getTime())) return key;
   return dt.toLocaleDateString("en-GB");
+}
+
+export function getRequiredBootstrapWindowDates(
+  asOfDate,
+  windowDays = SALES_DASHBOARD_RAW_CACHE_DAYS
+) {
+  return getDashboardItemsWindowDates(asOfDate, windowDays);
+}
+
+function matchesFilterValues(itemValue, filterValues = []) {
+  if (!Array.isArray(filterValues) || !filterValues.length) return true;
+  if (itemValue == null || String(itemValue).trim() === "") return false;
+  const normalized = String(itemValue);
+  return filterValues.map(String).includes(normalized);
+}
+
+export function filterSalesItemsByDashboardFilters(
+  items = [],
+  salesFilters = {}
+) {
+  const {
+    branchFilter = [],
+    buyerFilter = [],
+    supplierFilter = [],
+    distributorFilter = [],
+    departmentFilter = [],
+    categoryFilter = [],
+    subcategoryFilter = [],
+    purchaseTypeFilter = [],
+    chainLevelFilter = [],
+  } = salesFilters;
+
+  return (items || []).filter((item) => {
+    if (!matchesFilterValues(item?.branch_id, branchFilter)) return false;
+    if (!matchesFilterValues(item?.buyer_id, buyerFilter)) return false;
+    if (!matchesFilterValues(item?.supplier_id, supplierFilter)) return false;
+    if (!matchesFilterValues(item?.distributor_id, distributorFilter)) return false;
+    if (!matchesFilterValues(item?.department_id, departmentFilter)) return false;
+    if (!matchesFilterValues(item?.category_id, categoryFilter)) return false;
+    if (!matchesFilterValues(item?.subcategory_id, subcategoryFilter)) return false;
+    if (!matchesFilterValues(item?.purchase_type, purchaseTypeFilter)) return false;
+    if (!matchesFilterValues(item?.chain_level, chainLevelFilter)) return false;
+    return true;
+  });
+}
+
+function aggregateSoldMetricsFromItems(items = []) {
+  let sold_qty = 0;
+  let sold_value = 0;
+  let sold_profit = 0;
+  let row_count = 0;
+
+  (items || []).forEach((item) => {
+    if (item?.is_unsold) return;
+    sold_qty += Number(item?.sold_qty ?? 0);
+    sold_value += Number(item?.sold_value ?? 0);
+    sold_profit += Number(item?.sold_profit ?? 0);
+    row_count += 1;
+  });
+
+  return {
+    sold_qty: roundSalesMetric(sold_qty),
+    sold_value: roundSalesMetric(sold_value),
+    sold_profit: roundSalesMetric(sold_profit),
+    row_count,
+  };
+}
+
+export function buildDailyTotalsFromItemsByDate(itemsByDate = {}) {
+  return Object.entries(itemsByDate)
+    .map(([date, items]) => ({
+      date,
+      ...aggregateSoldMetricsFromItems(items),
+    }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+function buildFilterOptionList(items = [], { idKey, nameKey }) {
+  const map = new Map();
+  (items || []).forEach((item) => {
+    const value = item?.[idKey];
+    if (value == null || String(value).trim() === "") return;
+    const label = String(item?.[nameKey] ?? value).trim() || String(value);
+    map.set(String(value), { value: String(value), label });
+  });
+  return Array.from(map.values()).sort((a, b) =>
+    String(a.label).localeCompare(String(b.label))
+  );
+}
+
+export function buildFilterOptionsFromItems(items = []) {
+  return {
+    branchOptions: buildFilterOptionList(items, {
+      idKey: "branch_id",
+      nameKey: "branch_name",
+    }),
+    buyerOptions: buildFilterOptionList(items, {
+      idKey: "buyer_id",
+      nameKey: "buyer_name",
+    }),
+    supplierOptions: buildFilterOptionList(items, {
+      idKey: "supplier_id",
+      nameKey: "supplier_name",
+    }),
+    distributorOptions: buildFilterOptionList(items, {
+      idKey: "distributor_id",
+      nameKey: "distributor_name",
+    }),
+    departmentOptions: buildFilterOptionList(items, {
+      idKey: "department_id",
+      nameKey: "department_name",
+    }),
+    categoryOptions: buildFilterOptionList(items, {
+      idKey: "category_id",
+      nameKey: "category_name",
+    }),
+    subcategoryOptions: buildFilterOptionList(items, {
+      idKey: "subcategory_id",
+      nameKey: "subcategory_name",
+    }),
+    purchaseTypeOptions: buildFilterOptionList(items, {
+      idKey: "purchase_type",
+      nameKey: "purchase_type",
+    }),
+    chainLevelOptions: buildFilterOptionList(items, {
+      idKey: "chain_level",
+      nameKey: "chain_level",
+    }),
+  };
+}
+
+export function buildSalesDashboardBundleFromRawDays({
+  selectedDate,
+  itemsByDate = {},
+  salesFilters = {},
+}) {
+  const dates = Object.keys(itemsByDate).sort();
+  const allRawItems = dates.flatMap((date) => itemsByDate[date] ?? []);
+  const filteredByDate = {};
+
+  dates.forEach((date) => {
+    filteredByDate[date] = filterSalesItemsByDashboardFilters(
+      itemsByDate[date] ?? [],
+      salesFilters
+    );
+  });
+
+  const dailyTotals = buildDailyTotalsFromItemsByDate(filteredByDate);
+  const selectedDateKey = formatDateKey(selectedDate);
+  const selectedDateItems = filteredByDate[selectedDateKey] ?? [];
+  const rawSelectedItems = itemsByDate[selectedDateKey] ?? [];
+  const hasSoldRows = rawSelectedItems.some((item) => !item?.is_unsold);
+
+  return {
+    bundle: {
+      as_of_date: selectedDateKey,
+      daily_totals: dailyTotals,
+      window_summaries: {},
+      selected_date_has_report: hasSoldRows,
+      filter_options: buildFilterOptionsFromItems(allRawItems),
+    },
+    filteredItemsByDate: filteredByDate,
+  };
 }
 
 export function getDefaultSalesRangeDates(asOfDate) {

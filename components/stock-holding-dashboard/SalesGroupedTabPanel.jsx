@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { memo, useMemo } from "react";
 import { Center, Spinner, Text } from "@chakra-ui/react";
 import CustomContainer from "../CustomContainer";
 import AgGrid from "../AgGrid";
@@ -17,7 +17,7 @@ const GROUP_TAB_LABELS = {
   distributor: "Distributor",
 };
 
-export default function SalesGroupedTabPanel({
+function SalesGroupedTabPanel({
   groupBy,
   selectedDate,
   items = [],
@@ -38,7 +38,10 @@ export default function SalesGroupedTabPanel({
   );
 
   const label = GROUP_TAB_LABELS[groupBy] || "Group";
-  const title = `Sales by ${label} on ${formatDateDisplay(selectedDate)}`;
+  const title = useMemo(
+    () => `Sales by ${label} on ${formatDateDisplay(selectedDate)}`,
+    [label, selectedDate]
+  );
 
   return (
     <CustomContainer title={title} filledHeader size="xs">
@@ -66,3 +69,5 @@ export default function SalesGroupedTabPanel({
     </CustomContainer>
   );
 }
+
+export default memo(SalesGroupedTabPanel);

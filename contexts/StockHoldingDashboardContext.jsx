@@ -83,6 +83,15 @@ export function StockHoldingDashboardProvider({ children, activeTab = "holding" 
   const [salesSoldStatusFilter, setSalesSoldStatusFilter] = useState("all");
   const [salesFilterOptions, setSalesFilterOptionsState] = useState(null);
   const salesRefreshRef = useRef(null);
+  const [salesDashboardState, setSalesDashboardState] = useState({
+    loading: false,
+    refreshing: false,
+    backgroundLoading: false,
+    backgroundProgress: null,
+    hydrateProgress: null,
+    filtersProcessing: false,
+    cancelBackgroundLoad: null,
+  });
   const salesStockCacheRef = useRef(new Map());
 
   const applyFilterUpdate = useCallback((updater) => {
@@ -536,6 +545,32 @@ export function StockHoldingDashboardProvider({ children, activeTab = "holding" 
     salesRefreshRef.current = handler;
   }, []);
 
+  const registerSalesDashboardState = useCallback((state) => {
+    setSalesDashboardState((prev) => {
+      const next = state || {
+        loading: false,
+        refreshing: false,
+        backgroundLoading: false,
+        backgroundProgress: null,
+        hydrateProgress: null,
+        filtersProcessing: false,
+        cancelBackgroundLoad: null,
+      };
+      if (
+        prev.loading === next.loading &&
+        prev.refreshing === next.refreshing &&
+        prev.backgroundLoading === next.backgroundLoading &&
+        prev.backgroundProgress === next.backgroundProgress &&
+        prev.hydrateProgress === next.hydrateProgress &&
+        prev.filtersProcessing === next.filtersProcessing &&
+        prev.cancelBackgroundLoad === next.cancelBackgroundLoad
+      ) {
+        return prev;
+      }
+      return next;
+    });
+  }, []);
+
   const setSalesFilterOptions = useCallback((options) => {
     setSalesFilterOptionsState((prev) => {
       if (!options) return null;
@@ -636,6 +671,8 @@ export function StockHoldingDashboardProvider({ children, activeTab = "holding" 
       salesFilterOptions,
       setSalesFilterOptions,
       registerSalesRefresh,
+      registerSalesDashboardState,
+      salesDashboardState,
       getStockRowsForDate,
       clearSalesStockCache,
     }),
@@ -679,6 +716,8 @@ export function StockHoldingDashboardProvider({ children, activeTab = "holding" 
       salesFilterOptions,
       setSalesFilterOptions,
       registerSalesRefresh,
+      registerSalesDashboardState,
+      salesDashboardState,
       getStockRowsForDate,
       clearSalesStockCache,
     ]

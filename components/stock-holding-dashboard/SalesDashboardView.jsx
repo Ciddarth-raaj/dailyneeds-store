@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Box,
+  Button,
   Center,
   Flex,
   Grid,
@@ -63,6 +64,7 @@ export default function SalesDashboardView() {
     dashboardFilters,
     setSalesFilterOptions,
     registerSalesRefresh,
+    registerSalesDashboardState,
     getStockRowsForDate,
     clearSalesStockCache,
     salesSoldStatusFilter,
@@ -73,9 +75,10 @@ export default function SalesDashboardView() {
   const {
     loading,
     refreshing,
-    summaryStreaming,
-    summaryStreamProgress,
-    loadedFromCache,
+    backgroundLoading,
+    backgroundProgress,
+    hydrateProgress,
+    cancelBackgroundLoad,
     bundle,
     refreshData,
     window7,
@@ -88,6 +91,7 @@ export default function SalesDashboardView() {
     cumulativeRows,
     displayItems,
     displayItemsLoading,
+    filtersProcessing,
     selectedDateHasReport,
     filterOptions,
     loadItemsForModal,
@@ -109,6 +113,37 @@ export default function SalesDashboardView() {
     registerSalesRefresh(refreshData);
     return () => registerSalesRefresh(null);
   }, [refreshData, registerSalesRefresh]);
+
+  useEffect(() => {
+    registerSalesDashboardState({
+      loading,
+      refreshing,
+      backgroundLoading,
+      backgroundProgress,
+      hydrateProgress,
+      filtersProcessing,
+      cancelBackgroundLoad,
+    });
+    return () =>
+      registerSalesDashboardState({
+        loading: false,
+        refreshing: false,
+        backgroundLoading: false,
+        backgroundProgress: null,
+        hydrateProgress: null,
+        filtersProcessing: false,
+        cancelBackgroundLoad: null,
+      });
+  }, [
+    loading,
+    refreshing,
+    backgroundLoading,
+    backgroundProgress,
+    hydrateProgress,
+    filtersProcessing,
+    cancelBackgroundLoad,
+    registerSalesDashboardState,
+  ]);
 
   useEffect(() => {
     if (filterOptions) {
@@ -184,7 +219,7 @@ export default function SalesDashboardView() {
     [applyFilterUpdate, setSalesSoldStatusFilter]
   );
 
-  const productsLoading = displayItemsLoading;
+  const productsLoading = displayItemsLoading || filtersProcessing;
   const hasProductRows = filteredDisplayItems.length > 0;
   const hasUnfilteredProductRows = displayItems.length > 0;
   const isSoldStatusFiltered =
@@ -200,31 +235,64 @@ export default function SalesDashboardView() {
     [window7, window15, window30]
   );
 
-  const groupedPanelProps = {
-    selectedDate: salesSelectedDate,
-    items: filteredDisplayItems,
-    loading: displayItemsLoading,
-    hasReport: selectedDateHasReport,
-    hasSourceItems: hasUnfilteredProductRows,
-    onViewProducts: handleViewProducts,
-    emptyMessage: isSoldStatusFiltered
-      ? "No products match the selected sold status filter."
-      : undefined,
-  };
+  const groupedPanelProps = useMemo(
+    () => ({
+      selectedDate: salesSelectedDate,
+      items: filteredDisplayItems,
+      loading: productsLoading,
+      hasReport: selectedDateHasReport,
+      hasSourceItems: hasUnfilteredProductRows,
+      onViewProducts: handleViewProducts,
+      emptyMessage: isSoldStatusFiltered
+        ? "No products match the selected sold status filter."
+        : undefined,
+    }),
+    [
+      salesSelectedDate,
+      filteredDisplayItems,
+      productsLoading,
+      selectedDateHasReport,
+      hasUnfilteredProductRows,
+      handleViewProducts,
+      isSoldStatusFiltered,
+    ]
+  );
 
-  const summaryProgressPercent = summaryStreamProgress
+  const soldUnsoldChartTitle = useMemo(
+    () => `Sold vs Unsold (${formatDateDisplay(salesSelectedDate)})`,
+    [salesSelectedDate]
+  );
+
+  const lineChartTitle = useMemo(
+    () => "Daily Sales (Last 30 Days)",
+    []
+  );
+
+  const backgroundProgressPercent = backgroundProgress?.totalDays
     ? Math.round(
-        (summaryStreamProgress.loadedDays / summaryStreamProgress.totalDays) *
+        ((backgroundProgress.loadedDays ?? 0) / backgroundProgress.totalDays) *
           100
       )
     : 0;
 
-  if (loading && !refreshing && !loadedFromCache && !bundle) {
+  const hydrateProgressPercent = hydrateProgress?.totalDays
+    ? Math.round(
+        ((hydrateProgress.loadedDays ?? 0) / hydrateProgress.totalDays) * 100
+      )
+    : 0;
+
+  const isHydratingFromCache = Boolean(hydrateProgress);
+  const showInitialLoader =
+    (loading || isHydratingFromCache) && !refreshing && !bundle;
+
+  if (showInitialLoader) {
     return (
       <Center minH="240px" flexDirection="column" gap={3}>
         <Spinner size="lg" color="purple.500" />
         <Text fontSize="sm" color="gray.600">
-          Loading sales dashboard…
+          {isHydratingFromCache
+            ? `Loading cached sales data… ${hydrateProgress.loadedDays ?? 0} / ${hydrateProgress.totalDays} days`
+            : "Loading sales dashboard…"}
         </Text>
       </Center>
     );
@@ -232,21 +300,54 @@ export default function SalesDashboardView() {
 
   return (
     <>
-      {summaryStreaming && summaryStreamProgress ? (
+      {isHydratingFromCache && bundle ? (
+        <CustomContainer title="Loading Cached Sales Data" filledHeader size="xs">
+          <Flex direction="column" gap={3}>
+            <Text fontSize="sm" color="gray.600">
+              Loading cached sales data… {hydrateProgress.loadedDays ?? 0} /{" "}
+              {hydrateProgress.totalDays} days
+            </Text>
+            <Box
+              w="100%"
+              h="8px"
+              borderRadius="full"
+              bg="gray.100"
+              overflow="hidden"
+            >
+              <Box
+                h="100%"
+                borderRadius="full"
+                bg="purple.500"
+                w={`${hydrateProgressPercent}%`}
+                transition="width 0.35s ease"
+              />
+            </Box>
+          </Flex>
+        </CustomContainer>
+      ) : null}
+
+      {backgroundLoading && backgroundProgress ? (
         <CustomContainer title="Loading Sales Data" filledHeader size="xs">
-          <Flex direction="column" gap={2}>
-            <Flex justify="space-between" align="center" gap={3}>
+          <Flex direction="column" gap={3}>
+            <Flex justify="space-between" align="center" gap={3} flexWrap="wrap">
               <Text fontSize="sm" color="gray.600">
-                Loading sales data… {summaryStreamProgress.loadedDays} /{" "}
-                {summaryStreamProgress.totalDays} days
-                {summaryStreamProgress.currentDate
-                  ? ` (${summaryStreamProgress.currentDate})`
+                Loading sales data in background…{" "}
+                {backgroundProgress.loadedDays ?? 0} /{" "}
+                {backgroundProgress.totalDays} days
+                {backgroundProgress.currentDate
+                  ? ` (${formatDateDisplay(backgroundProgress.currentDate)})`
                   : ""}
               </Text>
-              <Text fontSize="xs" color="gray.500">
-                Day {summaryStreamProgress.chunkIndex} /{" "}
-                {summaryStreamProgress.totalChunks}
-              </Text>
+              {typeof cancelBackgroundLoad === "function" ? (
+                <Button
+                  size="xs"
+                  variant="outline"
+                  colorScheme="red"
+                  onClick={cancelBackgroundLoad}
+                >
+                  Stop
+                </Button>
+              ) : null}
             </Flex>
             <Box
               w="100%"
@@ -259,7 +360,7 @@ export default function SalesDashboardView() {
                 h="100%"
                 borderRadius="full"
                 bg="purple.500"
-                w={`${summaryProgressPercent}%`}
+                w={`${backgroundProgressPercent}%`}
                 transition="width 0.35s ease"
               />
             </Box>
@@ -273,6 +374,17 @@ export default function SalesDashboardView() {
             <Spinner size="sm" color="purple.500" />
             <Text fontSize="sm" color="gray.600">
               Refreshing sales dashboard…
+            </Text>
+          </Flex>
+        </CustomContainer>
+      ) : null}
+
+      {filtersProcessing ? (
+        <CustomContainer title="Applying Filters" filledHeader size="xs">
+          <Flex align="center" gap={3}>
+            <Spinner size="sm" color="purple.500" />
+            <Text fontSize="sm" color="gray.600">
+              Updating sales data for the selected filters…
             </Text>
           </Flex>
         </CustomContainer>
@@ -337,10 +449,12 @@ export default function SalesDashboardView() {
 
         <SalesSoldUnsoldBarChart
           data={soldUnsoldBarData}
-          title={`Sold vs Unsold (${formatDateDisplay(salesSelectedDate)})`}
+          title={soldUnsoldChartTitle}
           activeFilter={salesSoldStatusFilter}
           onBarClick={handleSoldUnsoldBarClick}
         />
+
+        <SalesLineChartCard data={lineChartData} title={lineChartTitle} />
 
         <Tabs
           index={groupedTab}
@@ -361,12 +475,7 @@ export default function SalesDashboardView() {
 
           <TabPanels>
             <TabPanel px={0}>
-              <Flex direction="column" gap={4}>
-                <SalesLineChartCard
-                  data={lineChartData}
-                  title="Daily Sales (Last 30 Days)"
-                />
-
+              {groupedTab === 0 ? (
                 <CustomContainer
                   title={`Sales on ${formatDateDisplay(salesSelectedDate)}`}
                   filledHeader
@@ -391,7 +500,7 @@ export default function SalesDashboardView() {
                     />
                   )}
                 </CustomContainer>
-              </Flex>
+              ) : null}
             </TabPanel>
 
             <TabPanel px={0}>
@@ -406,6 +515,7 @@ export default function SalesDashboardView() {
                   activeRange={activeRange}
                   rangeResetKey={rangeResetKey}
                   refreshing={refreshing}
+                  filtersProcessing={filtersProcessing}
                   soldStatusFilter={salesSoldStatusFilter}
                   buyerOptions={filterOptions?.buyerOptions}
                   emptyMessage={
@@ -418,27 +528,40 @@ export default function SalesDashboardView() {
             </TabPanel>
 
             <TabPanel px={0}>
-              <CustomContainer
-                title="Cumulative Sales (Last 30 Days)"
-                filledHeader
-                size="xs"
-              >
-                <AgGrid
-                  tableKey="sales-dashboard-cumulative"
-                  rowData={cumulativeRows}
-                  columnDefs={cumulativeColumnDefs}
-                  pagination={true}
-                  paginationPageSize={15}
-                />
-              </CustomContainer>
+              {groupedTab === 2 ? (
+                <CustomContainer
+                  title="Cumulative Sales (Last 30 Days)"
+                  filledHeader
+                  size="xs"
+                >
+                  {filtersProcessing ? (
+                    <Center py={12} flexDirection="column" gap={3} minH="200px">
+                      <Spinner size="lg" color="purple.500" thickness="3px" />
+                      <Text fontSize="sm" color="gray.600">
+                        Updating sales data for the selected filters…
+                      </Text>
+                    </Center>
+                  ) : (
+                    <AgGrid
+                      tableKey="sales-dashboard-cumulative"
+                      rowData={cumulativeRows}
+                      columnDefs={cumulativeColumnDefs}
+                      pagination={true}
+                      paginationPageSize={15}
+                    />
+                  )}
+                </CustomContainer>
+              ) : null}
             </TabPanel>
 
-            {GROUP_TABS.map((tab) => (
+            {GROUP_TABS.map((tab, index) => (
               <TabPanel key={tab.value} px={0}>
-                <SalesGroupedTabPanel
-                  groupBy={tab.value}
-                  {...groupedPanelProps}
-                />
+                {groupedTab === index + 3 ? (
+                  <SalesGroupedTabPanel
+                    groupBy={tab.value}
+                    {...groupedPanelProps}
+                  />
+                ) : null}
               </TabPanel>
             ))}
           </TabPanels>

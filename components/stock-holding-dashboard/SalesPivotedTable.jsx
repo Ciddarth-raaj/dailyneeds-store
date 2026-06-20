@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { memo, useMemo } from "react";
 import { Center, Flex, Spinner, Text } from "@chakra-ui/react";
 import AgGrid from "../AgGrid";
 import { getSalesPivotedColumnDefs } from "./salesItemsColumnDefs";
@@ -11,7 +11,7 @@ const PIVOTED_GRID_OPTIONS = {
   },
 };
 
-export default function SalesPivotedTable({
+function SalesPivotedTable({
   rows = [],
   branches = [],
   loading = false,
@@ -82,3 +82,5 @@ export default function SalesPivotedTable({
     </Flex>
   );
 }
+
+export default memo(SalesPivotedTable);

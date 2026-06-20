@@ -1,5 +1,20 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Box, Button, Center, Flex, Grid, Input, Spinner, Text } from "@chakra-ui/react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import {
+  Box,
+  Button,
+  Center,
+  Flex,
+  Grid,
+  Input,
+  Spinner,
+  Text,
+} from "@chakra-ui/react";
 import {
   filterSalesItemsBySoldStatus,
   formatDateDisplay,
@@ -25,6 +40,7 @@ export default function SalesRangeTabPanel({
   isActive = false,
   rangeResetKey = 0,
   refreshing = false,
+  filtersProcessing = false,
 }) {
   const defaultRange = useMemo(
     () => getDefaultSalesRangeDates(selectedDate),
@@ -149,7 +165,9 @@ export default function SalesRangeTabPanel({
   );
 
   const title = isAppliedValid
-    ? `Sales (${formatDateDisplay(appliedRange.fromDate)} – ${formatDateDisplay(appliedRange.toDate)})`
+    ? `Sales (${formatDateDisplay(appliedRange.fromDate)} – ${formatDateDisplay(
+        appliedRange.toDate
+      )})`
     : "Sales";
 
   const dayCount = isAppliedValid
@@ -157,16 +175,25 @@ export default function SalesRangeTabPanel({
     : 0;
   const isLoadingRange =
     refreshing ||
+    filtersProcessing ||
     applyPending ||
     rangeLoading ||
     (isAppliedValid && !isRangeDataCurrent);
   const progressState = progress ?? rangeLoadProgress;
-  const progressLabel =
-    progressState?.totalDays != null
-      ? `Loading sales… ${progressState.loadedDays ?? 0} / ${progressState.totalDays} days`
+  const progressLabel = filtersProcessing
+    ? "Updating sales data for the selected filters…"
+    : progressState?.totalDays != null
+      ? progressState.source === "indexeddb"
+        ? `Loading cached sales… ${progressState.loadedDays ?? 0} / ${
+            progressState.totalDays
+          } days`
+        : `Loading sales… ${progressState.loadedDays ?? 0} / ${
+            progressState.totalDays
+          } days`
       : "Loading sales data…";
   const applyDisabled =
-    !isDraftValid || (!hasPendingChanges && isRangeDataCurrent && !isLoadingRange);
+    !isDraftValid ||
+    (!hasPendingChanges && isRangeDataCurrent && !isLoadingRange);
 
   return (
     <CustomContainer title={title} filledHeader size="xs">

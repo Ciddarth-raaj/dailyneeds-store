@@ -1,70 +1,54 @@
-import {
-  buildSalesDashboardCacheId,
-  buildSalesDashboardFiltersFromContext,
-  buildSalesDashboardStats,
-  buildSalesFilterCacheKey,
-  buildSalesStockFilterCacheKey,
-  formatDateKey,
-} from "./salesDashboard";
+import { addDays, formatDateKey } from "./salesDashboard";
 import {
   runSalesDashboardStoreRequest,
   SALES_DASHBOARD_STORE_NAME,
 } from "./stockHoldingDashboardCache";
 
-export { buildSalesDashboardCacheId };
+const SALES_DAY_ENTRY_PREFIX = "sales-day__";
+const SALES_META_ENTRY_ID = "sales-dashboard-meta";
+const SALES_PRUNE_MARKER_KEY = "sales-dashboard-last-prune-date";
 
-export function buildSalesDashboardCacheEntry({
-  salesDate,
-  dashboardFilters = {},
-  bundle,
-  items = [],
-  displayItems = [],
-}) {
+export function buildSalesDayCacheId(salesDate) {
   const dateKey = formatDateKey(salesDate);
-  const salesFilters = buildSalesDashboardFiltersFromContext(dashboardFilters);
-  const salesFilterKey = buildSalesFilterCacheKey(salesFilters);
-  const stockFilterKey = buildSalesStockFilterCacheKey(dashboardFilters);
-  const id = buildSalesDashboardCacheId(dateKey, dashboardFilters);
+  if (!dateKey) return "";
+  return `${SALES_DAY_ENTRY_PREFIX}${dateKey}`;
+}
+
+export function parseSalesDayCacheId(id) {
+  if (!id || !String(id).startsWith(SALES_DAY_ENTRY_PREFIX)) return "";
+  return String(id).slice(SALES_DAY_ENTRY_PREFIX.length);
+}
+
+export function buildSalesDayCacheEntry(salesDate, items = []) {
+  const dateKey = formatDateKey(salesDate);
+  if (!dateKey) return null;
 
   return {
-    id,
+    id: buildSalesDayCacheId(dateKey),
+    type: "day",
     salesDate: dateKey,
-    salesFilterKey,
-    stockFilterKey,
     fetchedAt: new Date().toISOString(),
-    bundle: bundle ?? null,
     items: Array.isArray(items) ? items : [],
-    displayItems: Array.isArray(displayItems) ? displayItems : [],
-    stats: buildSalesDashboardStats(bundle, dateKey, displayItems),
   };
 }
 
-export async function readSalesDashboardCache(id) {
-  if (!id) return null;
+export async function readSalesDashboardItemsForDate(salesDate) {
+  const id = buildSalesDayCacheId(salesDate);
+  if (!id) return undefined;
 
   try {
     const cached = await runSalesDashboardStoreRequest("readonly", (store) =>
       store.get(id)
     );
-    if (cached?.id === id) return cached;
+    if (!cached || cached.id !== id) return undefined;
+    return Array.isArray(cached.items) ? cached.items : [];
   } catch {
-    // ignore
+    return undefined;
   }
-
-  return null;
 }
 
-export async function readSalesDashboardItemsForDate(
-  salesDate,
-  dashboardFilters = {}
-) {
-  const id = buildSalesDashboardCacheId(salesDate, dashboardFilters);
-  const cached = await readSalesDashboardCache(id);
-  if (!cached) return undefined;
-  return Array.isArray(cached.items) ? cached.items : [];
-}
-
-export async function writeSalesDashboardCache(entry) {
+export async function writeSalesDashboardItemsForDate(salesDate, items = []) {
+  const entry = buildSalesDayCacheEntry(salesDate, items);
   if (!entry?.id) return false;
 
   try {
@@ -75,24 +59,32 @@ export async function writeSalesDashboardCache(entry) {
   }
 }
 
-export async function writeSalesDashboardItemsForDate(
-  salesDate,
-  dashboardFilters = {},
-  items = []
-) {
-  const id = buildSalesDashboardCacheId(salesDate, dashboardFilters);
-  if (!id) return false;
+export async function readSalesDashboardMetaRecord() {
+  try {
+    const cached = await runSalesDashboardStoreRequest("readonly", (store) =>
+      store.get(SALES_META_ENTRY_ID)
+    );
+    if (!cached || cached.id !== SALES_META_ENTRY_ID) return null;
+    return cached;
+  } catch {
+    return null;
+  }
+}
 
-  const existing = await readSalesDashboardCache(id);
-  const entry = buildSalesDashboardCacheEntry({
-    salesDate,
-    dashboardFilters,
-    bundle: existing?.bundle ?? null,
-    items,
-    displayItems: existing?.displayItems ?? items,
-  });
-
-  return writeSalesDashboardCache(entry);
+export async function writeSalesDashboardMetaRecord(meta = {}) {
+  try {
+    await runSalesDashboardStoreRequest("readwrite", (store) =>
+      store.put({
+        id: SALES_META_ENTRY_ID,
+        type: "meta",
+        fetchedAt: new Date().toISOString(),
+        ...meta,
+      })
+    );
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 async function deleteEntriesWhere(predicate) {
@@ -136,18 +128,105 @@ async function deleteEntriesWhere(predicate) {
   }
 }
 
-export async function purgeSalesDashboardCacheExceptDate(salesDate) {
-  const dateKey = formatDateKey(salesDate);
-  if (!dateKey) return;
-  await deleteEntriesWhere((entry) => entry?.salesDate !== dateKey);
+export async function listCachedSalesDayDates() {
+  if (typeof window === "undefined" || !window.indexedDB) return [];
+
+  try {
+    const dates = await new Promise((resolve, reject) => {
+      const request = indexedDB.open("dailyneeds-store", 2);
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        const db = request.result;
+        if (!db.objectStoreNames.contains(SALES_DASHBOARD_STORE_NAME)) {
+          db.close();
+          resolve([]);
+          return;
+        }
+
+        const tx = db.transaction(SALES_DASHBOARD_STORE_NAME, "readonly");
+        const store = tx.objectStore(SALES_DASHBOARD_STORE_NAME);
+        const cursorReq = store.openCursor();
+        const found = [];
+
+        cursorReq.onsuccess = (event) => {
+          const cursor = event.target.result;
+          if (!cursor) return;
+          const value = cursor.value;
+          if (value?.type === "day" && value?.salesDate) {
+            found.push(value.salesDate);
+          }
+          cursor.continue();
+        };
+
+        tx.oncomplete = () => {
+          db.close();
+          resolve(found);
+        };
+        tx.onerror = () => reject(tx.error);
+        cursorReq.onerror = () => reject(cursorReq.error);
+      };
+    });
+
+    return Array.from(new Set(dates)).sort();
+  } catch {
+    return [];
+  }
 }
 
-export async function clearSalesDashboardCacheForDate(salesDate) {
-  const dateKey = formatDateKey(salesDate);
-  if (!dateKey) return;
-  await deleteEntriesWhere((entry) => entry?.salesDate === dateKey);
+export function getLastSalesCachePruneDate() {
+  if (typeof window === "undefined") return "";
+  try {
+    return window.localStorage.getItem(SALES_PRUNE_MARKER_KEY) || "";
+  } catch {
+    return "";
+  }
+}
+
+export function setLastSalesCachePruneDate(dateKey) {
+  if (typeof window === "undefined" || !dateKey) return;
+  try {
+    window.localStorage.setItem(SALES_PRUNE_MARKER_KEY, dateKey);
+  } catch {
+    // ignore
+  }
+}
+
+export async function pruneSalesDashboardCacheToLastNDays({
+  keepDays = 60,
+  asOfDate,
+} = {}) {
+  const asOf = formatDateKey(asOfDate ?? new Date());
+  if (!asOf || keepDays <= 0) return;
+
+  const cutoffDate = addDays(asOf, -(keepDays - 1));
+
+  await deleteEntriesWhere((entry) => {
+    if (entry?.type !== "day" || !entry?.salesDate) return false;
+    return entry.salesDate < cutoffDate;
+  });
+}
+
+export async function runDailySalesCachePruneIfNeeded({
+  keepDays = 60,
+  asOfDate,
+} = {}) {
+  const today = formatDateKey(asOfDate ?? new Date());
+  if (!today) return;
+
+  const lastPruneDate = getLastSalesCachePruneDate();
+  if (lastPruneDate === today) return;
+
+  await pruneSalesDashboardCacheToLastNDays({ keepDays, asOfDate: today });
+  setLastSalesCachePruneDate(today);
 }
 
 export async function clearAllSalesDashboardCache() {
-  await deleteEntriesWhere(() => true);
+  await deleteEntriesWhere((entry) => entry?.type === "day" || entry?.type === "meta");
+  if (typeof window !== "undefined") {
+    try {
+      window.localStorage.removeItem(SALES_PRUNE_MARKER_KEY);
+    } catch {
+      // ignore
+    }
+  }
 }
