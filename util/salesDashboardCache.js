@@ -54,6 +54,16 @@ export async function readSalesDashboardCache(id) {
   return null;
 }
 
+export async function readSalesDashboardItemsForDate(
+  salesDate,
+  dashboardFilters = {}
+) {
+  const id = buildSalesDashboardCacheId(salesDate, dashboardFilters);
+  const cached = await readSalesDashboardCache(id);
+  if (!cached) return undefined;
+  return Array.isArray(cached.items) ? cached.items : [];
+}
+
 export async function writeSalesDashboardCache(entry) {
   if (!entry?.id) return false;
 
@@ -63,6 +73,26 @@ export async function writeSalesDashboardCache(entry) {
   } catch {
     return false;
   }
+}
+
+export async function writeSalesDashboardItemsForDate(
+  salesDate,
+  dashboardFilters = {},
+  items = []
+) {
+  const id = buildSalesDashboardCacheId(salesDate, dashboardFilters);
+  if (!id) return false;
+
+  const existing = await readSalesDashboardCache(id);
+  const entry = buildSalesDashboardCacheEntry({
+    salesDate,
+    dashboardFilters,
+    bundle: existing?.bundle ?? null,
+    items,
+    displayItems: existing?.displayItems ?? items,
+  });
+
+  return writeSalesDashboardCache(entry);
 }
 
 async function deleteEntriesWhere(predicate) {
@@ -116,4 +146,8 @@ export async function clearSalesDashboardCacheForDate(salesDate) {
   const dateKey = formatDateKey(salesDate);
   if (!dateKey) return;
   await deleteEntriesWhere((entry) => entry?.salesDate === dateKey);
+}
+
+export async function clearAllSalesDashboardCache() {
+  await deleteEntriesWhere(() => true);
 }

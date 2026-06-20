@@ -22,13 +22,17 @@ import {
   SALES_DASHBOARD_FETCH_DAYS,
   SALES_DASHBOARD_CHUNK_DAYS,
   getSalesDashboardChunkCount,
+  getDashboardItemsWindowDates,
+  getDefaultSalesRangeDates,
+  listDatesInRange,
 } from "../util/salesDashboard";
 import {
   buildSalesDashboardCacheEntry,
-  clearSalesDashboardCacheForDate,
-  purgeSalesDashboardCacheExceptDate,
+  clearAllSalesDashboardCache,
   readSalesDashboardCache,
+  readSalesDashboardItemsForDate,
   writeSalesDashboardCache,
+  writeSalesDashboardItemsForDate,
 } from "../util/salesDashboardCache";
 
 function isAbortError(err) {
@@ -72,6 +76,55 @@ function hydrateFromCache(cached, { itemsCacheRef, selectedDate, filterCacheKey 
   };
 }
 
+const RANGE_FETCH_CONCURRENCY = 3;
+
+async function fetchDatesWithConcurrency(
+  dates,
+  fetchDate,
+  { signal, concurrency = RANGE_FETCH_CONCURRENCY, onDayComplete } = {}
+) {
+  if (!dates.length) return;
+
+  const queue = [...dates];
+  const workerCount = Math.min(concurrency, queue.length);
+
+  const worker = async () => {
+    while (queue.length > 0) {
+      if (signal?.aborted) return;
+      const date = queue.shift();
+      if (!date) return;
+      await fetchDate(date);
+      if (signal?.aborted) return;
+      onDayComplete?.(date);
+    }
+  };
+
+  await Promise.all(Array.from({ length: workerCount }, () => worker()));
+}
+
+async function hydrateDatesFromIndexedDb(
+  dates,
+  { itemsCacheRef, filterCacheKey, dashboardFilters, isDateCached }
+) {
+  const datesToRead = (dates || []).filter(
+    (date) => date && !isDateCached(date)
+  );
+  if (!datesToRead.length) return 0;
+
+  let hydratedCount = 0;
+
+  await Promise.all(
+    datesToRead.map(async (date) => {
+      const items = await readSalesDashboardItemsForDate(date, dashboardFilters);
+      if (items === undefined) return;
+      itemsCacheRef.current.set(`${date}__${filterCacheKey}`, items);
+      hydratedCount += 1;
+    })
+  );
+
+  return hydratedCount;
+}
+
 export default function useSalesDashboardData({
   selectedDate,
   dashboardFilters,
@@ -92,9 +145,18 @@ export default function useSalesDashboardData({
   const [displayItemsLoading, setDisplayItemsLoading] = useState(false);
   const [itemsFetchProgress, setItemsFetchProgress] = useState(null);
   const [cachedStats, setCachedStats] = useState(null);
+  const [rangeLoadProgress, setRangeLoadProgress] = useState(null);
+  const [rangeItems, setRangeItems] = useState([]);
+  const [rangeItemsLoading, setRangeItemsLoading] = useState(false);
+  const [activeRange, setActiveRange] = useState({ fromDate: "", toDate: "" });
+  const [rangeResetKey, setRangeResetKey] = useState(0);
 
   const fetchAbortRef = useRef(null);
+  const rangeAbortRef = useRef(null);
   const fetchGenerationRef = useRef(0);
+  const rangeGenerationRef = useRef(0);
+  const pendingRangeKeyRef = useRef("");
+  const ensureItemsForDateRangeRef = useRef(null);
   const itemsCacheRef = useRef(new Map());
   const displayItemsRef = useRef([]);
 
@@ -130,6 +192,18 @@ export default function useSalesDashboardData({
     }
   }, []);
 
+  const abortRangeFetch = useCallback(() => {
+    if (rangeAbortRef.current) {
+      rangeAbortRef.current.abort();
+      rangeAbortRef.current = null;
+    }
+  }, []);
+
+  const isDateCached = useCallback(
+    (date) => itemsCacheRef.current.has(`${date}__${filterCacheKey}`),
+    [filterCacheKey]
+  );
+
   const applyItemsChunk = useCallback(({ items, displayItems: nextDisplayItems }) => {
     displayItemsRef.current = nextDisplayItems;
     setSelectedDateItems(items);
@@ -157,6 +231,17 @@ export default function useSalesDashboardData({
         return itemsCacheRef.current.get(memoryKey);
       }
 
+      if (useCache) {
+        const cachedItems = await readSalesDashboardItemsForDate(
+          date,
+          dashboardFilters
+        );
+        if (cachedItems !== undefined) {
+          itemsCacheRef.current.set(memoryKey, cachedItems);
+          return cachedItems;
+        }
+      }
+
       const allItems = await getAllSalesDashboardItems(date, filterParams, {
         signal,
         pageSize: SALES_DASHBOARD_ITEMS_STREAM_PAGE_SIZE,
@@ -170,9 +255,59 @@ export default function useSalesDashboardData({
       });
 
       itemsCacheRef.current.set(memoryKey, allItems);
+      await writeSalesDashboardItemsForDate(date, dashboardFilters, allItems);
       return allItems;
     },
-    [filterCacheKey, filterParams]
+    [dashboardFilters, filterCacheKey, filterParams]
+  );
+
+  const prefetchItemsForDates = useCallback(
+    async (dates, { signal, onProgress } = {}) => {
+      const uniqueDates = Array.from(new Set((dates || []).filter(Boolean)));
+      if (!uniqueDates.length) return;
+
+      const missingDates = uniqueDates.filter((date) => !isDateCached(date));
+      const totalDays = uniqueDates.length;
+      let loadedDays = uniqueDates.length - missingDates.length;
+
+      onProgress?.({ loadedDays, totalDays });
+      if (!missingDates.length) return;
+
+      await fetchDatesWithConcurrency(
+        missingDates,
+        async (date) => {
+          await fetchItemsForDate(date, { signal, useCache: true });
+        },
+        {
+          signal,
+          onDayComplete: () => {
+            loadedDays += 1;
+            onProgress?.({ loadedDays, totalDays });
+          },
+        }
+      );
+    },
+    [fetchItemsForDate, isDateCached]
+  );
+
+  const collectSoldItemsForDateRange = useCallback(
+    (fromDate, toDate) => {
+      const dates = listDatesInRange(fromDate, toDate);
+      const allItems = [];
+
+      dates.forEach((date) => {
+        const memoryKey = `${date}__${filterCacheKey}`;
+        const items = itemsCacheRef.current.get(memoryKey) ?? [];
+        items.forEach((item) => {
+          if (!item?.is_unsold) {
+            allItems.push(item);
+          }
+        });
+      });
+
+      return allItems;
+    },
+    [filterCacheKey]
   );
 
   const mergeWithStock = useCallback(
@@ -209,7 +344,6 @@ export default function useSalesDashboardData({
         displayItems: nextDisplayItems,
       });
       await writeSalesDashboardCache(entry);
-      await purgeSalesDashboardCacheExceptDate(selectedDate);
       setCachedStats(entry.stats);
     },
     [selectedDate, dashboardFilters]
@@ -230,7 +364,7 @@ export default function useSalesDashboardData({
 
       const items = await fetchItemsForDate(selectedDate, {
         signal,
-        useCache: false,
+        useCache: true,
         onChunk: ({ items: nextItems }) => {
           const nextDisplayItems = mergeSalesItemsWithUnsoldStock(
             nextItems,
@@ -356,6 +490,13 @@ export default function useSalesDashboardData({
         await persistToCache(nextBundle, items, nextDisplayItems);
       }
 
+      const prefetchDates = getDashboardItemsWindowDates(selectedDate).filter(
+        (date) => date !== selectedDate
+      );
+      if (prefetchDates.length && !signal?.aborted) {
+        prefetchItemsForDates(prefetchDates, { signal }).catch(() => {});
+      }
+
       return { bundle: nextBundle, items, displayItems: nextDisplayItems };
     },
     [
@@ -364,6 +505,7 @@ export default function useSalesDashboardData({
       applyBundleUpdate,
       loadProductItems,
       persistToCache,
+      prefetchItemsForDates,
     ]
   );
 
@@ -381,6 +523,10 @@ export default function useSalesDashboardData({
       setSelectedDateItemsLoading(false);
       setDisplayItemsLoading(false);
       setItemsFetchProgress(null);
+      setRangeItems([]);
+      setRangeItemsLoading(false);
+      setRangeLoadProgress(null);
+      setActiveRange({ fromDate: "", toDate: "" });
       return undefined;
     }
 
@@ -422,6 +568,15 @@ export default function useSalesDashboardData({
           setSelectedDateItemsLoading(false);
           setDisplayItemsLoading(false);
           setItemsFetchProgress(null);
+
+          const prefetchDates = getDashboardItemsWindowDates(selectedDate).filter(
+            (date) => date !== selectedDate
+          );
+          if (prefetchDates.length && !controller.signal.aborted) {
+            prefetchItemsForDates(prefetchDates, {
+              signal: controller.signal,
+            }).catch(() => {});
+          }
           return;
         }
 
@@ -498,12 +653,15 @@ export default function useSalesDashboardData({
     abortActiveFetch,
     loadFromNetwork,
     applyItemsChunk,
+    prefetchItemsForDates,
   ]);
 
   const refreshData = useCallback(async () => {
     if (!enabled || !selectedDate) return;
 
     abortActiveFetch();
+    abortRangeFetch();
+    pendingRangeKeyRef.current = "";
     const generation = ++fetchGenerationRef.current;
     const controller = new AbortController();
     fetchAbortRef.current = controller;
@@ -513,12 +671,15 @@ export default function useSalesDashboardData({
     setSummaryStreaming(false);
     setSummaryStreamProgress(null);
     itemsCacheRef.current.clear();
+    setRangeItems([]);
+    setActiveRange({ fromDate: "", toDate: "" });
+    setRangeItemsLoading(false);
+    setRangeLoadProgress(null);
     clearSalesStockCache?.(getStockHoldingDateForSalesDate(selectedDate));
     clearSalesStockCache?.(selectedDate);
 
     try {
-      await purgeSalesDashboardCacheExceptDate(selectedDate);
-      await clearSalesDashboardCacheForDate(selectedDate);
+      await clearAllSalesDashboardCache();
 
       const result = await loadFromNetwork({
         signal: controller.signal,
@@ -554,6 +715,14 @@ export default function useSalesDashboardData({
       displayItemsRef.current = result.displayItems;
       setSelectedDateItems(result.items);
       setDisplayItems(result.displayItems);
+
+      setRangeResetKey((key) => key + 1);
+      const defaultRange = getDefaultSalesRangeDates(selectedDate);
+      await ensureItemsForDateRangeRef.current?.(
+        defaultRange.fromDate,
+        defaultRange.toDate
+      );
+
       toast.success("Sales dashboard data refreshed.");
     } catch (err) {
       if (controller.signal.aborted || isAbortError(err)) return;
@@ -575,6 +744,8 @@ export default function useSalesDashboardData({
     selectedDate,
     loadFromNetwork,
     abortActiveFetch,
+    abortRangeFetch,
+    applyItemsChunk,
     clearSalesStockCache,
   ]);
 
@@ -591,6 +762,129 @@ export default function useSalesDashboardData({
     },
     [fetchItemsForDate, mergeWithStock]
   );
+
+  const ensureItemsForDateRange = useCallback(
+    async (fromDate, toDate, { onProgress } = {}) => {
+      const rangeKey = `${fromDate}__${toDate}`;
+
+      if (pendingRangeKeyRef.current && pendingRangeKeyRef.current !== rangeKey) {
+        abortRangeFetch();
+      }
+
+      pendingRangeKeyRef.current = rangeKey;
+      const generation = ++rangeGenerationRef.current;
+      const controller = new AbortController();
+      rangeAbortRef.current = controller;
+
+      const dates = listDatesInRange(fromDate, toDate);
+      if (!dates.length) {
+        pendingRangeKeyRef.current = "";
+        setActiveRange({ fromDate: "", toDate: "" });
+        setRangeItems([]);
+        setRangeItemsLoading(false);
+        setRangeLoadProgress(null);
+        return [];
+      }
+
+      setRangeItemsLoading(true);
+      setActiveRange({ fromDate, toDate });
+      setRangeItems([]);
+
+      try {
+        await hydrateDatesFromIndexedDb(dates, {
+          itemsCacheRef,
+          filterCacheKey,
+          dashboardFilters,
+          isDateCached,
+        });
+
+        if (
+          rangeGenerationRef.current !== generation ||
+          controller.signal.aborted
+        ) {
+          throw new DOMException("Aborted", "AbortError");
+        }
+
+        const missingDates = dates.filter((date) => !isDateCached(date));
+        const totalDays = dates.length;
+        let loadedDays = totalDays - missingDates.length;
+        let items = collectSoldItemsForDateRange(fromDate, toDate);
+
+        onProgress?.({ loadedDays, totalDays });
+        setRangeLoadProgress({ loadedDays, totalDays });
+        if (rangeGenerationRef.current === generation) {
+          setRangeItems(items);
+        }
+
+        if (missingDates.length) {
+          await fetchDatesWithConcurrency(
+            missingDates,
+            async (date) => {
+              await fetchItemsForDate(date, {
+                signal: controller.signal,
+                useCache: true,
+              });
+            },
+            {
+              signal: controller.signal,
+              onDayComplete: () => {
+                if (rangeGenerationRef.current !== generation) return;
+                loadedDays += 1;
+                const progress = { loadedDays, totalDays };
+                onProgress?.(progress);
+                setRangeLoadProgress(progress);
+                items = collectSoldItemsForDateRange(fromDate, toDate);
+                if (rangeGenerationRef.current === generation) {
+                  setRangeItems(items);
+                }
+              },
+            }
+          );
+        }
+
+        if (
+          rangeGenerationRef.current !== generation ||
+          controller.signal.aborted
+        ) {
+          throw new DOMException("Aborted", "AbortError");
+        }
+
+        items = collectSoldItemsForDateRange(fromDate, toDate);
+        if (rangeGenerationRef.current === generation) {
+          setRangeItems(items);
+        }
+        return items;
+      } catch (err) {
+        if (controller.signal.aborted || isAbortError(err)) {
+          throw err;
+        }
+        const message = getSalesDashboardErrorMessage(
+          err,
+          "Failed to load sales data for the selected range."
+        );
+        if (message) toast.error(message);
+        throw err;
+      } finally {
+        if (rangeGenerationRef.current === generation) {
+          pendingRangeKeyRef.current = "";
+          setRangeItemsLoading(false);
+          setRangeLoadProgress(null);
+        }
+      }
+    },
+    [
+      abortRangeFetch,
+      collectSoldItemsForDateRange,
+      dashboardFilters,
+      fetchItemsForDate,
+      filterCacheKey,
+      isDateCached,
+    ]
+  );
+
+  useEffect(() => {
+    ensureItemsForDateRangeRef.current = ensureItemsForDateRange;
+  }, [ensureItemsForDateRange]);
 
   const dailyTotals = bundle?.daily_totals ?? [];
   const windowSummaries = bundle?.window_summaries ?? {};
@@ -654,5 +948,11 @@ export default function useSalesDashboardData({
     selectedDateHasReport: Boolean(bundle?.selected_date_has_report),
     filterOptions,
     loadItemsForModal,
+    ensureItemsForDateRange,
+    rangeItems,
+    rangeItemsLoading,
+    rangeLoadProgress,
+    activeRange,
+    rangeResetKey,
   };
 };

@@ -19,6 +19,8 @@ import {
   filterSalesItemsBySoldStatus,
   soldStatusFromBarName,
   SALES_SOLD_STATUS_KEYS,
+  pivotSalesItemsToRows,
+  enrichSalesItemsWithBuyerLabels,
 } from "../../util/salesDashboard";
 import { useStockHoldingDashboard } from "../../contexts/StockHoldingDashboardContext";
 import useSalesDashboardData from "../../customHooks/useSalesDashboardData";
@@ -27,10 +29,11 @@ import SalesLineChartCard from "./SalesLineChartCard";
 import SalesSoldUnsoldBarChart from "./SalesSoldUnsoldBarChart";
 import SalesGroupedTabPanel from "./SalesGroupedTabPanel";
 import ViewSalesItemsModal from "./ViewSalesItemsModal";
+import SalesPivotedTable from "./SalesPivotedTable";
+import SalesRangeTabPanel from "./SalesRangeTabPanel";
 import {
   getSalesCumulativeColumnDefs,
-  getSalesItemsColumnDefs,
-  SALES_ITEMS_TABLE_KEY,
+  SALES_PIVOTED_DAILY_TABLE_KEY,
 } from "./salesItemsColumnDefs";
 
 const GROUP_TABS = [
@@ -85,10 +88,15 @@ export default function SalesDashboardView() {
     cumulativeRows,
     displayItems,
     displayItemsLoading,
-    itemsFetchProgress,
     selectedDateHasReport,
     filterOptions,
     loadItemsForModal,
+    ensureItemsForDateRange,
+    rangeItems,
+    rangeItemsLoading,
+    rangeLoadProgress,
+    activeRange,
+    rangeResetKey,
   } = useSalesDashboardData({
     selectedDate: salesSelectedDate,
     dashboardFilters,
@@ -137,8 +145,6 @@ export default function SalesDashboardView() {
     [salesSelectedDate]
   );
 
-  const itemsColumnDefs = useMemo(() => getSalesItemsColumnDefs(), []);
-
   const cumulativeColumnDefs = useMemo(
     () =>
       getSalesCumulativeColumnDefs({
@@ -150,6 +156,20 @@ export default function SalesDashboardView() {
   const filteredDisplayItems = useMemo(
     () => filterSalesItemsBySoldStatus(displayItems, salesSoldStatusFilter),
     [displayItems, salesSoldStatusFilter]
+  );
+
+  const itemsForPivot = useMemo(
+    () =>
+      enrichSalesItemsWithBuyerLabels(
+        filteredDisplayItems,
+        filterOptions?.buyerOptions
+      ),
+    [filteredDisplayItems, filterOptions?.buyerOptions]
+  );
+
+  const pivotedDailySales = useMemo(
+    () => pivotSalesItemsToRows(itemsForPivot),
+    [itemsForPivot]
   );
 
   const handleSoldUnsoldBarClick = useCallback(
@@ -330,6 +350,7 @@ export default function SalesDashboardView() {
         >
           <TabList flexWrap="wrap">
             <Tab fontSize="sm">Daily Sales</Tab>
+            <Tab fontSize="sm">Sales</Tab>
             <Tab fontSize="sm">Cumulative Sales</Tab>
             {GROUP_TABS.map((tab) => (
               <Tab key={tab.value} fontSize="sm">
@@ -355,48 +376,45 @@ export default function SalesDashboardView() {
                     <Text fontSize="sm" color="gray.600">
                       No sales data found for the selected date.
                     </Text>
-                  ) : productsLoading && !hasProductRows ? (
-                    <Center py={8} flexDirection="column" gap={2}>
-                      <Spinner size="md" color="purple.500" />
-                      <Text fontSize="sm" color="gray.600">
-                        {itemsFetchProgress?.total != null
-                          ? `Loading products… ${itemsFetchProgress.loaded.toLocaleString()} / ${itemsFetchProgress.total.toLocaleString()}`
-                          : itemsFetchProgress?.loaded
-                            ? `Loading products… ${itemsFetchProgress.loaded.toLocaleString()} rows`
-                            : "Loading products…"}
-                      </Text>
-                    </Center>
-                  ) : !hasProductRows ? (
-                    <Text fontSize="sm" color="gray.600">
-                      {isSoldStatusFiltered
-                        ? "No products match the selected sold status filter."
-                        : "No products match the current filters for this date."}
-                    </Text>
                   ) : (
-                    <Flex direction="column" gap={3}>
-                      {productsLoading ? (
-                        <Flex align="center" gap={2}>
-                          <Spinner size="sm" color="purple.500" />
-                          <Text fontSize="sm" color="gray.600">
-                            {itemsFetchProgress?.total != null
-                              ? `Loading more products… ${itemsFetchProgress.loaded.toLocaleString()} / ${itemsFetchProgress.total.toLocaleString()}`
-                              : itemsFetchProgress?.loaded
-                                ? `Loading more products… ${itemsFetchProgress.loaded.toLocaleString()} rows`
-                                : "Loading more products…"}
-                          </Text>
-                        </Flex>
-                      ) : null}
-                      <AgGrid
-                        tableKey={SALES_ITEMS_TABLE_KEY}
-                        rowData={filteredDisplayItems}
-                        columnDefs={itemsColumnDefs}
-                        pagination={true}
-                        paginationPageSize={20}
-                      />
-                    </Flex>
+                    <SalesPivotedTable
+                      rows={pivotedDailySales.rows}
+                      branches={pivotedDailySales.branches}
+                      loading={productsLoading && !hasProductRows}
+                      tableKey={SALES_PIVOTED_DAILY_TABLE_KEY}
+                      showLoadingOverlay={productsLoading && hasProductRows}
+                      emptyMessage={
+                        isSoldStatusFiltered
+                          ? "No products match the selected sold status filter."
+                          : "No products match the current filters for this date."
+                      }
+                    />
                   )}
                 </CustomContainer>
               </Flex>
+            </TabPanel>
+
+            <TabPanel px={0}>
+              {groupedTab === 1 ? (
+                <SalesRangeTabPanel
+                  isActive
+                  selectedDate={salesSelectedDate}
+                  ensureItemsForDateRange={ensureItemsForDateRange}
+                  rangeItems={rangeItems}
+                  rangeLoading={rangeItemsLoading}
+                  rangeLoadProgress={rangeLoadProgress}
+                  activeRange={activeRange}
+                  rangeResetKey={rangeResetKey}
+                  refreshing={refreshing}
+                  soldStatusFilter={salesSoldStatusFilter}
+                  buyerOptions={filterOptions?.buyerOptions}
+                  emptyMessage={
+                    isSoldStatusFiltered
+                      ? "No products match the selected sold status filter."
+                      : undefined
+                  }
+                />
+              ) : null}
             </TabPanel>
 
             <TabPanel px={0}>

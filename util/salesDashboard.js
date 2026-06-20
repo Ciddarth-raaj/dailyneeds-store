@@ -805,4 +805,243 @@ export function formatDateDisplay(value) {
   return dt.toLocaleDateString("en-GB");
 }
 
+export function getDefaultSalesRangeDates(asOfDate) {
+  const toDate = formatDateKey(asOfDate ?? new Date());
+  const fromDate = addDays(toDate, -30);
+  return { fromDate, toDate };
+}
+
+export function getDashboardItemsWindowDates(
+  asOfDate,
+  windowDays = SALES_DASHBOARD_WINDOW_DAYS
+) {
+  const toDate = formatDateKey(asOfDate);
+  if (!toDate || windowDays <= 0) return [];
+  const fromDate = addDays(toDate, -(windowDays - 1));
+  return listDatesInRange(fromDate, toDate);
+}
+
+export function listDatesInRange(fromDate, toDate) {
+  const from = formatDateKey(fromDate);
+  const to = formatDateKey(toDate);
+  if (!from || !to || from > to) return [];
+
+  const dates = [];
+  let current = from;
+  while (current <= to) {
+    dates.push(current);
+    current = addDays(current, 1);
+  }
+  return dates;
+}
+
+export function getSalesBranchFieldKey(branchId, metric) {
+  return `branch_${String(branchId)}_${metric}`;
+}
+
+function toSalesMetricValue(value) {
+  if (value === null || value === undefined) return null;
+  const num = Number(value);
+  if (Number.isNaN(num)) return null;
+  return roundSalesMetric(num);
+}
+
+function normalizeBuyerName(item) {
+  const name =
+    item?.buyer_name ??
+    item?.buyer_label ??
+    item?.buyer ??
+    item?.buyerName ??
+    null;
+  const trimmed = String(name ?? "").trim();
+  if (trimmed) return trimmed;
+
+  if (item?.buyer_id != null && String(item.buyer_id).trim() !== "") {
+    return String(item.buyer_id);
+  }
+
+  return null;
+}
+
+function addBuyerNameToSet(buyers, item) {
+  const buyerName = normalizeBuyerName(item);
+  if (buyerName) {
+    buyers.add(buyerName);
+  }
+}
+
+export function getUniqueBuyerNames(items = []) {
+  const buyers = new Set();
+  (items || []).forEach((item) => addBuyerNameToSet(buyers, item));
+  return Array.from(buyers).sort((a, b) => a.localeCompare(b));
+}
+
+export function enrichSalesItemsWithBuyerLabels(items = [], buyerOptions = []) {
+  if (!Array.isArray(items) || !items.length) return [];
+
+  const labelById = new Map();
+  (buyerOptions || []).forEach((option) => {
+    if (option?.value == null || option?.value === "") return;
+    labelById.set(String(option.value), String(option.label ?? option.value));
+  });
+
+  return items.map((item) => {
+    if (normalizeBuyerName(item)) return item;
+
+    const buyerId = item?.buyer_id;
+    if (buyerId == null || String(buyerId).trim() === "") return item;
+
+    const label = labelById.get(String(buyerId));
+    if (!label) return item;
+
+    return { ...item, buyer_name: label };
+  });
+}
+
+export function aggregateSalesItemsByProductBranch(items = []) {
+  const byProduct = new Map();
+
+  (items || []).forEach((item) => {
+    const productId = item?.product_id;
+    const branchId = item?.branch_id;
+    if (productId == null || branchId == null) return;
+
+    const productKey = String(productId);
+    const branchKey = String(branchId);
+    const isUnsold = Boolean(item?.is_unsold);
+
+    if (!byProduct.has(productKey)) {
+      byProduct.set(productKey, {
+        product_id: productId,
+        product_name: item?.product_name ?? null,
+        product_image: item?.product_image ?? null,
+        department_name: item?.department_name ?? null,
+        category_name: item?.category_name ?? null,
+        supplier_name: item?.supplier_name ?? null,
+        distributor_name: item?.distributor_name ?? null,
+        is_unsold: isUnsold,
+        buyers: new Set(),
+        branches: new Map(),
+        total_qty: 0,
+        total_amt: 0,
+        total_profit: 0,
+      });
+    }
+
+    const record = byProduct.get(productKey);
+    addBuyerNameToSet(record.buyers, item);
+    if (!isUnsold) {
+      record.is_unsold = false;
+    }
+
+    if (!record.branches.has(branchKey)) {
+      record.branches.set(branchKey, {
+        branch_id: branchId,
+        branch_name: item?.branch_name ?? item?.branch_label ?? branchKey,
+        qty: null,
+        amt: null,
+        profit: null,
+        is_unsold: isUnsold,
+      });
+    }
+
+    const branchRecord = record.branches.get(branchKey);
+    if (!isUnsold) {
+      branchRecord.is_unsold = false;
+      const qty = toSalesMetricValue(item?.sold_qty) ?? 0;
+      const amt = toSalesMetricValue(item?.sold_value) ?? 0;
+      const profit = toSalesMetricValue(item?.sold_profit) ?? 0;
+
+      branchRecord.qty = roundSalesMetric((branchRecord.qty ?? 0) + qty);
+      branchRecord.amt = roundSalesMetric((branchRecord.amt ?? 0) + amt);
+      branchRecord.profit = roundSalesMetric((branchRecord.profit ?? 0) + profit);
+
+      record.total_qty = roundSalesMetric(record.total_qty + qty);
+      record.total_amt = roundSalesMetric(record.total_amt + amt);
+      record.total_profit = roundSalesMetric(record.total_profit + profit);
+    } else if (branchRecord.is_unsold) {
+      branchRecord.qty = null;
+      branchRecord.amt = null;
+      branchRecord.profit = null;
+    }
+  });
+
+  return byProduct;
+}
+
+export function pivotSalesItemsToRows(items = []) {
+  const aggregated = aggregateSalesItemsByProductBranch(items);
+  const branchMap = new Map();
+
+  aggregated.forEach((record) => {
+    record.branches.forEach((branch) => {
+      const branchKey = String(branch.branch_id);
+      if (!branchMap.has(branchKey)) {
+        branchMap.set(branchKey, {
+          id: branch.branch_id,
+          name: branch.branch_name || branchKey,
+        });
+      }
+    });
+  });
+
+  const branches = Array.from(branchMap.values()).sort((a, b) =>
+    String(a.name ?? "").localeCompare(String(b.name ?? ""))
+  );
+
+  const rows = Array.from(aggregated.values()).map((record) => {
+    const row = {
+      product_id: record.product_id,
+      product_name: record.product_name,
+      product_image: record.product_image,
+      department_name: record.department_name,
+      category_name: record.category_name,
+      supplier_name: record.supplier_name,
+      distributor_name: record.distributor_name,
+      buyer_names: Array.from(record.buyers).sort((a, b) => a.localeCompare(b)),
+      total_qty: record.total_qty,
+      total_amt: record.total_amt,
+      total_profit: record.total_profit,
+      total_profit_pct: computeProfitPct(record.total_profit, record.total_amt),
+      is_unsold: record.is_unsold,
+    };
+
+    record.branches.forEach((branchRecord) => {
+      const qtyKey = getSalesBranchFieldKey(branchRecord.branch_id, "qty");
+      const amtKey = getSalesBranchFieldKey(branchRecord.branch_id, "amt");
+      const profitKey = getSalesBranchFieldKey(branchRecord.branch_id, "profit");
+      const profitPctKey = getSalesBranchFieldKey(
+        branchRecord.branch_id,
+        "profit_pct"
+      );
+
+      if (branchRecord.is_unsold) {
+        row[qtyKey] = null;
+        row[amtKey] = null;
+        row[profitKey] = null;
+        row[profitPctKey] = null;
+        return;
+      }
+
+      row[qtyKey] = branchRecord.qty;
+      row[amtKey] = branchRecord.amt;
+      row[profitKey] = branchRecord.profit;
+      row[profitPctKey] = computeProfitPct(branchRecord.profit, branchRecord.amt);
+    });
+
+    return row;
+  });
+
+  rows.sort((a, b) => {
+    const aId = Number(a.product_id);
+    const bId = Number(b.product_id);
+    if (!Number.isNaN(aId) && !Number.isNaN(bId) && aId !== bId) {
+      return aId - bId;
+    }
+    return String(a.product_name ?? "").localeCompare(String(b.product_name ?? ""));
+  });
+
+  return { rows, branches };
+}
+
 export { formatDateKey, addDays };
