@@ -17,6 +17,8 @@ import {
   enrichStockHoldingItems,
   filterOptionsKey,
   filterStockHoldingRows,
+  MASTER_FILTER_KEYS,
+  pruneBranchFilterForMasterFilter,
   pruneMultiFilter,
   STOCK_HOLDING_STATUS_KEYS,
   toggleMultiFilterValue,
@@ -73,6 +75,7 @@ export function StockHoldingDashboardProvider({ children, activeTab = "holding" 
   const [chainLevelFilter, setChainLevelFilter] = useState([]);
   const [statusFilter, setStatusFilter] = useState(DEFAULT_STATUS_FILTER);
   const [stockAvailabilityFilter, setStockAvailabilityFilter] = useState([]);
+  const [masterFilter, setMasterFilter] = useState(MASTER_FILTER_KEYS.ALL);
   const [gridResetKey, setGridResetKey] = useState(0);
 
   const [itemsModalOpen, setItemsModalOpen] = useState(false);
@@ -355,6 +358,7 @@ export function StockHoldingDashboardProvider({ children, activeTab = "holding" 
       chainLevelFilter,
       statusFilter,
       stockAvailabilityFilter,
+      masterFilter,
     }),
     [
       branchFilter,
@@ -368,6 +372,7 @@ export function StockHoldingDashboardProvider({ children, activeTab = "holding" 
       chainLevelFilter,
       statusFilter,
       stockAvailabilityFilter,
+      masterFilter,
     ]
   );
 
@@ -489,6 +494,10 @@ export function StockHoldingDashboardProvider({ children, activeTab = "holding" 
   );
 
   useEffect(() => {
+    setBranchFilter((prev) => pruneBranchFilterForMasterFilter(prev, masterFilter));
+  }, [masterFilter]);
+
+  useEffect(() => {
     if (activeTab === "sales") return;
 
     setBranchFilter((prev) => pruneMultiFilter(prev, branchOptions));
@@ -525,6 +534,7 @@ export function StockHoldingDashboardProvider({ children, activeTab = "holding" 
 
   const clearFilters = useCallback(() => {
     applyFilterUpdate(() => {
+      setMasterFilter(MASTER_FILTER_KEYS.ALL);
       setBranchFilter([]);
       setBuyerFilter([]);
       setSupplierFilter([]);
@@ -658,6 +668,8 @@ export function StockHoldingDashboardProvider({ children, activeTab = "holding" 
       setStatusFilter,
       stockAvailabilityFilter,
       setStockAvailabilityFilter,
+      masterFilter,
+      setMasterFilter,
       salesSoldStatusFilter,
       setSalesSoldStatusFilter,
       gridResetKey,
@@ -705,6 +717,7 @@ export function StockHoldingDashboardProvider({ children, activeTab = "holding" 
       chainLevelFilter,
       statusFilter,
       stockAvailabilityFilter,
+      masterFilter,
       salesSoldStatusFilter,
       gridResetKey,
       clearFilters,

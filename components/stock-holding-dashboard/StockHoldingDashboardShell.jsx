@@ -9,6 +9,7 @@ import {
   Input,
   Progress,
   Spinner,
+  Select,
   Tab,
   TabList,
   Tabs,
@@ -21,6 +22,11 @@ import SearchableDropdown from "../customInput/SearchableDropdown";
 import ViewItemsModal from "./ViewItemsModal";
 import { useStockHoldingDashboard } from "../../contexts/StockHoldingDashboardContext";
 import { SALES_SOLD_STATUS_OPTIONS } from "../../util/salesDashboard";
+import {
+  filterBranchOptionsByMasterFilter,
+  MASTER_FILTER_KEYS,
+  MASTER_FILTER_OPTIONS,
+} from "../../util/stockHoldingDashboard";
 
 const DASHBOARD_TABS = [
   { value: "holding", label: "Stock Holding" },
@@ -148,6 +154,8 @@ export default function StockHoldingDashboardShell({
     setStatusFilter,
     stockAvailabilityFilter,
     setStockAvailabilityFilter,
+    masterFilter,
+    setMasterFilter,
     salesSoldStatusFilter,
     setSalesSoldStatusFilter,
     salesFilterOptions,
@@ -182,6 +190,10 @@ export default function StockHoldingDashboardShell({
   const branchOptionsSource = isSalesTab
     ? salesFilterOptions?.branchOptions ?? []
     : branchOptions;
+  const effectiveBranchOptions = useMemo(
+    () => filterBranchOptionsByMasterFilter(branchOptionsSource, masterFilter),
+    [branchOptionsSource, masterFilter]
+  );
   const effectiveBuyerOptions = isSalesTab
     ? salesFilterOptions?.buyerOptions ?? []
     : buyerOptions;
@@ -250,6 +262,39 @@ export default function StockHoldingDashboardShell({
     [onTabChange]
   );
 
+  const handleMasterFilterChange = useCallback(
+    (event) => {
+      applyFilterUpdate(() => {
+        setMasterFilter(event.target.value || MASTER_FILTER_KEYS.ALL);
+      });
+    },
+    [applyFilterUpdate, setMasterFilter]
+  );
+
+  const masterFilterControl = (
+    <Flex align="center" gap={2} flexShrink={0}>
+      <Text fontSize="xs" color="gray.600" whiteSpace="nowrap" mb={0}>
+        Master Filter
+      </Text>
+      <Select
+        size="sm"
+        w="108px"
+        h="32px"
+        minH="32px"
+        fontSize="xs"
+        value={masterFilter}
+        onChange={handleMasterFilterChange}
+        aria-label="Master Filter"
+      >
+        {MASTER_FILTER_OPTIONS.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </Select>
+    </Flex>
+  );
+
   return (
     <GlobalWrapper
       title="Stock Holding Dashboard"
@@ -264,7 +309,12 @@ export default function StockHoldingDashboardShell({
       />
 
       <Flex direction="column" gap="22px" w="100%" maxW="100%" overflow="hidden">
-        <CustomContainer title="Stock Holding Dashboard" filledHeader size="xs">
+        <CustomContainer
+          title="Stock Holding Dashboard"
+          filledHeader
+          size="xs"
+          rightSection={masterFilterControl}
+        >
           <Flex
             justify="space-between"
             w="100%"
@@ -378,7 +428,7 @@ export default function StockHoldingDashboardShell({
                   label="Branch"
                   placeholder="All branches"
                   value={branchFilter}
-                  options={branchOptionsSource}
+                  options={effectiveBranchOptions}
                   onChange={(val) =>
                     applyFilterUpdate(() => setBranchFilter(val))
                   }

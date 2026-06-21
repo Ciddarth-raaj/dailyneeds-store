@@ -1,4 +1,5 @@
 import { capitalize } from "./string";
+import { WAREHOUSE_ID } from "../constants/branches";
 
 export const STOCK_HOLDING_STATUS_KEYS = {
   ACTIVE: "active",
@@ -28,6 +29,61 @@ const STOCK_AVAILABILITY_PIE_ORDER = [
 ];
 
 export const STOCK_AVAILABILITY_ORDER = STOCK_AVAILABILITY_PIE_ORDER;
+
+export const MASTER_FILTER_KEYS = {
+  ALL: "all",
+  WAREHOUSE: "warehouse",
+  STORES: "stores",
+};
+
+export const MASTER_FILTER_OPTIONS = [
+  { value: MASTER_FILTER_KEYS.ALL, label: "All" },
+  { value: MASTER_FILTER_KEYS.WAREHOUSE, label: "Warehouse" },
+  { value: MASTER_FILTER_KEYS.STORES, label: "Stores" },
+];
+
+export function rowMatchesMasterFilter(row, masterFilter) {
+  const key = masterFilter ?? MASTER_FILTER_KEYS.ALL;
+  if (key === MASTER_FILTER_KEYS.ALL) return true;
+
+  const branchId = String(row?.branch_id ?? row?._branchKey ?? "");
+  if (!branchId || branchId === "unknown") return false;
+
+  const warehouseId = String(WAREHOUSE_ID);
+  if (key === MASTER_FILTER_KEYS.WAREHOUSE) return branchId === warehouseId;
+  if (key === MASTER_FILTER_KEYS.STORES) return branchId !== warehouseId;
+  return true;
+}
+
+export function filterBranchOptionsByMasterFilter(options = [], masterFilter) {
+  const key = masterFilter ?? MASTER_FILTER_KEYS.ALL;
+  if (key === MASTER_FILTER_KEYS.ALL) return options || [];
+
+  const warehouseId = String(WAREHOUSE_ID);
+  return (options || []).filter((option) => {
+    const id = String(option?.value ?? "");
+    if (key === MASTER_FILTER_KEYS.WAREHOUSE) return id === warehouseId;
+    if (key === MASTER_FILTER_KEYS.STORES) return id !== warehouseId;
+    return true;
+  });
+}
+
+export function pruneBranchFilterForMasterFilter(
+  branchFilter = [],
+  masterFilter
+) {
+  const key = masterFilter ?? MASTER_FILTER_KEYS.ALL;
+  if (key === MASTER_FILTER_KEYS.ALL) return branchFilter || [];
+
+  const warehouseId = String(WAREHOUSE_ID);
+  if (key === MASTER_FILTER_KEYS.WAREHOUSE) {
+    return (branchFilter || []).filter((id) => String(id) === warehouseId);
+  }
+  if (key === MASTER_FILTER_KEYS.STORES) {
+    return (branchFilter || []).filter((id) => String(id) !== warehouseId);
+  }
+  return branchFilter || [];
+}
 
 export const getStockAvailabilityLabel = (key) => {
   const entry = STOCK_AVAILABILITY_PIE_ORDER.find((item) => item.key === key);
@@ -251,10 +307,12 @@ function createFilterSets(filters = {}, omitKeys = null) {
     //   ? false
     //   : Boolean(filters.showStockOnOrderOnly),
     stockOnOrder: false,
+    masterFilter: filters.masterFilter ?? MASTER_FILTER_KEYS.ALL,
   };
 }
 
 function rowMatchesFilters(row, sets) {
+  if (!rowMatchesMasterFilter(row, sets.masterFilter)) return false;
   if (sets.branch && !sets.branch.has(row._branchKey)) return false;
   if (sets.buyer && !sets.buyer.has(row._buyerKey)) return false;
   if (sets.supplier && !sets.supplier.has(row._supplierKey)) return false;

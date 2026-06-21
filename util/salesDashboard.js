@@ -1,6 +1,8 @@
 import {
   filterStockHoldingRows,
   getStockAvailabilityKey,
+  MASTER_FILTER_KEYS,
+  rowMatchesMasterFilter,
   STOCK_AVAILABILITY_KEYS,
 } from "./stockHoldingDashboard";
 import { formatCurrency } from "./string";
@@ -153,6 +155,7 @@ export function buildSalesDashboardFiltersFromContext(contextFilters = {}) {
     subcategoryFilter,
     purchaseTypeFilter,
     chainLevelFilter,
+    masterFilter,
   } = contextFilters;
 
   return {
@@ -165,6 +168,7 @@ export function buildSalesDashboardFiltersFromContext(contextFilters = {}) {
     subcategoryFilter: subcategoryFilter || [],
     purchaseTypeFilter: purchaseTypeFilter || [],
     chainLevelFilter: chainLevelFilter || [],
+    masterFilter: masterFilter ?? MASTER_FILTER_KEYS.ALL,
   };
 }
 
@@ -836,9 +840,11 @@ export function filterSalesItemsByDashboardFilters(
     subcategoryFilter = [],
     purchaseTypeFilter = [],
     chainLevelFilter = [],
+    masterFilter = MASTER_FILTER_KEYS.ALL,
   } = salesFilters;
 
   return (items || []).filter((item) => {
+    if (!rowMatchesMasterFilter(item, masterFilter)) return false;
     if (!matchesFilterValues(item?.branch_id, branchFilter)) return false;
     if (!matchesFilterValues(item?.buyer_id, buyerFilter)) return false;
     if (!matchesFilterValues(item?.supplier_id, supplierFilter)) return false;
