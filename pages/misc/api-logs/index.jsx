@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import moment from "moment";
 import {
   Badge,
   Box,
@@ -26,7 +25,7 @@ import {
   formatCronTimeLabel,
   formatIstDateTime,
   formatIstShortDateTime,
-  resolveBulkSource,
+  resolveCronSource,
 } from "../../../util/apiSyncCron";
 
 const STATUS_COLORS = {
@@ -53,6 +52,9 @@ const LOG_TYPE_BADGES = {
     colorScheme: "green",
   },
   item_markupdown_bulk: { label: "Item Markup/Down", colorScheme: "yellow" },
+  hq_offers_hdr_bulk: { label: "HQ Offers Header", colorScheme: "purple" },
+  hq_offers_products_bulk: { label: "HQ Offers Products", colorScheme: "blue" },
+  hq_offers_issue_bulk: { label: "HQ Offers Issue", colorScheme: "teal" },
 };
 
 const SOURCE_BADGES = {
@@ -60,12 +62,6 @@ const SOURCE_BADGES = {
   manual: { label: "Manual", colorScheme: "purple" },
   external: { label: "External", colorScheme: "gray" },
 };
-
-function formatShortDateTime(value) {
-  if (!value) return "-";
-  const m = moment(value);
-  return `${m.format("DD MMM")} · ${m.format("HH:mm")}`;
-}
 
 function formatDuration(ms) {
   if (ms == null || ms === "") return "-";
@@ -97,9 +93,10 @@ function getStatusBadge(data) {
   };
 }
 
-function getSourceBadge(data, cronByType, isBulk) {
-  const source = isBulk
-    ? resolveBulkSource(data, cronByType?.[data?.log_type])
+function getSourceBadge(data, cronByType) {
+  const cronExpression = cronByType?.[data?.log_type];
+  const source = cronExpression
+    ? resolveCronSource(data, cronExpression)
     : data?.source;
   if (!source) return null;
   return (
@@ -110,16 +107,12 @@ function getSourceBadge(data, cronByType, isBulk) {
   );
 }
 
-function SlotPill({ slot, cronExpression, isBulk }) {
+function SlotPill({ slot, cronExpression }) {
   const color = STATUS_COLORS[slot.status] || "gray";
   const title = [slot.status, slot.error_message || slot.log?.error_message]
     .filter(Boolean)
     .join(": ");
-  const label = isBulk
-    ? formatBulkSlotLabel(slot, cronExpression)
-    : `${moment(slot.expected_at).format("DD MMM")} · ${moment(
-        slot.expected_at
-      ).format("HH:mm")}`;
+  const label = formatBulkSlotLabel(slot, cronExpression);
 
   return (
     <Box
@@ -136,8 +129,8 @@ function SlotPill({ slot, cronExpression, isBulk }) {
   );
 }
 
-function SyncTimelineCard({ item, isBulk = false }) {
-  const cronTimeLabel = isBulk ? formatCronTimeLabel(item.cron_expression) : null;
+function SyncTimelineCard({ item }) {
+  const cronTimeLabel = formatCronTimeLabel(item.cron_expression);
 
   return (
     <Box borderWidth="1px" borderRadius="md" px={3} py={2.5} bg="white">
@@ -161,19 +154,13 @@ function SyncTimelineCard({ item, isBulk = false }) {
 
       <Flex gap={3} flexWrap="wrap" fontSize="xs" color="gray.600">
         <Text>
-          Last:{" "}
-          {isBulk
-            ? formatIstShortDateTime(item.last_run?.created_at)
-            : formatShortDateTime(item.last_run?.created_at)}
+          Last: {formatIstShortDateTime(item.last_run?.created_at)}
           {item.last_run?.row_count != null
             ? ` · ${item.last_run.row_count} rows`
             : ""}
         </Text>
         <Text>
-          Next:{" "}
-          {isBulk
-            ? formatBulkDateTime(item.next_sync_at, item.cron_expression)
-            : formatShortDateTime(item.next_sync_at)}
+          Next: {formatBulkDateTime(item.next_sync_at, item.cron_expression)}
         </Text>
         <Text fontFamily="mono">
           {cronTimeLabel
@@ -195,7 +182,6 @@ function SyncTimelineCard({ item, isBulk = false }) {
               key={slot.expected_at}
               slot={slot}
               cronExpression={item.cron_expression}
-              isBulk={isBulk}
             />
           ))}
         </Flex>
@@ -204,7 +190,7 @@ function SyncTimelineCard({ item, isBulk = false }) {
   );
 }
 
-function LogTable({ logs, cronByType, isBulk = false }) {
+function LogTable({ logs, cronByType }) {
   const columnDefs = useMemo(
     () => [
       {
@@ -214,11 +200,7 @@ function LogTable({ logs, cronByType, isBulk = false }) {
         sortable: true,
         comparator: (valueA, valueB) =>
           new Date(valueA).getTime() - new Date(valueB).getTime(),
-        cellRenderer: (params) => {
-          if (!params.value) return "-";
-          if (isBulk) return formatIstDateTime(params.value);
-          return moment(params.value).format("DD/MM/YYYY • hh:mm A");
-        },
+        cellRenderer: (params) => formatIstDateTime(params.value),
       },
       {
         colId: "log_type",
@@ -239,8 +221,7 @@ function LogTable({ logs, cronByType, isBulk = false }) {
         headerName: "Source",
         type: "badge-column",
         flex: 0.8,
-        valueGetter: (params) =>
-          getSourceBadge(params.data, cronByType, isBulk),
+        valueGetter: (params) => getSourceBadge(params.data, cronByType),
       },
       {
         field: "row_count",
@@ -286,7 +267,7 @@ function LogTable({ logs, cronByType, isBulk = false }) {
         },
       },
     ],
-    [cronByType, isBulk]
+    [cronByType]
   );
 
   return (
@@ -302,14 +283,14 @@ export default function ApiLogsPage() {
   const [tabIndex, setTabIndex] = useState(0);
 
   const activeCategory = tabIndex === 0 ? "sync" : "bulk";
-  const isBulkTab = tabIndex === 1;
-  const bulkCronByType = useMemo(
+  const activeTimeline = tabIndex === 0 ? syncTimeline : bulkTimeline;
+  const cronByType = useMemo(
     () =>
-      bulkTimeline.reduce((acc, item) => {
+      activeTimeline.reduce((acc, item) => {
         acc[item.log_type] = item.cron_expression;
         return acc;
       }, {}),
-    [bulkTimeline]
+    [activeTimeline]
   );
   const activeTypes = useMemo(
     () =>
@@ -395,11 +376,7 @@ export default function ApiLogsPage() {
               ) : (
                 <VStack align="stretch" spacing={2} mb={6}>
                   {bulkTimeline.map((item) => (
-                    <SyncTimelineCard
-                      key={item.log_type}
-                      item={item}
-                      isBulk
-                    />
+                    <SyncTimelineCard key={item.log_type} item={item} />
                   ))}
                 </VStack>
               )}
@@ -414,11 +391,7 @@ export default function ApiLogsPage() {
           smallHeader
           filledHeader
         >
-          <LogTable
-            logs={filteredLogs}
-            cronByType={bulkCronByType}
-            isBulk={isBulkTab}
-          />
+          <LogTable logs={filteredLogs} cronByType={cronByType} />
         </CustomContainer>
       </CustomContainer>
     </GlobalWrapper>

@@ -74,7 +74,10 @@ export function formatIstDateTime(value) {
   return momentIst(value).format("DD/MM/YYYY • hh:mm A");
 }
 
-export function resolveBulkSource(log, cronExpression) {
+export function resolveCronSource(log, cronExpression) {
   if (isWithinBulkCronWindow(log?.created_at, cronExpression)) return "cron";
   return "manual";
 }
+
+/** @deprecated use resolveCronSource */
+export const resolveBulkSource = resolveCronSource;
