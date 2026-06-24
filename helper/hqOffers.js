@@ -33,6 +33,38 @@ const hqOffers = {
     });
   },
 
+  listProducts: (params = {}) => {
+    const { filter, ...rest } = params;
+    const query = { ...rest };
+    if (filter && typeof filter === "object" && Object.keys(filter).length > 0) {
+      query.filter = JSON.stringify(filter);
+    }
+    return new Promise((resolve, reject) => {
+      API.get("/hq-offers/products", { params: query })
+        .then((res) => {
+          if (res?.data?.code === 200) resolve(res.data);
+          else reject(new Error(res?.data?.msg ?? "Failed to fetch products"));
+        })
+        .catch(reject);
+    });
+  },
+
+  listProductsAll: (params = {}) => {
+    const { filter, ...rest } = params;
+    const query = { ...rest, limit: "all" };
+    if (filter && typeof filter === "object" && Object.keys(filter).length > 0) {
+      query.filter = JSON.stringify(filter);
+    }
+    return new Promise((resolve, reject) => {
+      API.get("/hq-offers/products", { params: query })
+        .then((res) => {
+          if (res?.data?.code === 200) resolve(res.data);
+          else reject(new Error(res?.data?.msg ?? "Failed to fetch products"));
+        })
+        .catch(reject);
+    });
+  },
+
   getByKey: (mohOfferId, retailOutletId) =>
     new Promise((resolve, reject) => {
       if (
