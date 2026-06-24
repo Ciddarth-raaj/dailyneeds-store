@@ -445,6 +445,12 @@ const ALL_PAGES_MENU = {
         selected: false,
         location: "/product-offers",
       },
+      view_offers_v2: {
+        title: "Offers V2",
+        permission: "view_hq_offers",
+        selected: false,
+        location: "/offers-v2",
+      },
       // view_departments: {
       //   title: 'View Deapartments',
       //   selected: false,

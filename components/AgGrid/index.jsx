@@ -20,6 +20,7 @@ import {
   Image,
   Tooltip,
   Link,
+  Select,
 } from "@chakra-ui/react";
 import { icons } from "./icons";
 import { capitalize } from "../../util/string";
@@ -37,10 +38,164 @@ import {
   assignColumnIds,
   buildEffectiveColDefMap,
   buildExportAoA,
+  buildExportAoAFromRows,
   collectLeafColumnMeta,
 } from "./columnDefsUtils";
 
 const COLUMN_STORAGE_PREFIX = "aggrid-columns-";
+const PAGE_SIZE_OPTIONS = [20, 50, 100];
+
+function formatPaginationCount(value) {
+  return Number(value || 0).toLocaleString("en-IN");
+}
+
+function parseGridDate(value) {
+  if (value == null || value === "") return null;
+  const dateOnly = String(value).slice(0, 10);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateOnly)) {
+    const [year, month, day] = dateOnly.split("-").map(Number);
+    return new Date(year, month - 1, day);
+  }
+  if (value instanceof Date) return value;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function PaginationNavButton({ label, iconClass, disabled, onClick }) {
+  return (
+    <Box
+      as="button"
+      type="button"
+      aria-label={label}
+      display="inline-flex"
+      alignItems="center"
+      justifyContent="center"
+      w="28px"
+      h="28px"
+      border="none"
+      bg="transparent"
+      cursor={disabled ? "default" : "pointer"}
+      opacity={disabled ? 0.35 : 0.7}
+      color="gray.600"
+      _hover={disabled ? undefined : { opacity: 1 }}
+      onClick={disabled ? undefined : onClick}
+    >
+      <i className={iconClass} style={{ fontSize: "12px" }} />
+    </Box>
+  );
+}
+
+function TablePaginationBar({
+  isServer,
+  page,
+  pageSize,
+  totalRows,
+  onPageChange,
+  gridRef,
+  borderColor = "gray.200",
+  pageSizeOptions = PAGE_SIZE_OPTIONS,
+}) {
+  const totalPages = Math.max(1, Math.ceil((totalRows || 0) / pageSize));
+  const safePage = Math.min(Math.max(page, 0), totalPages - 1);
+  const start = totalRows === 0 ? 0 : safePage * pageSize + 1;
+  const end = Math.min((safePage + 1) * pageSize, totalRows);
+
+  const goToPage = (nextPage) => {
+    const clamped = Math.min(Math.max(nextPage, 0), totalPages - 1);
+    if (clamped === safePage) return;
+    if (isServer) {
+      onPageChange?.({ page: clamped, pageSize, offset: clamped * pageSize });
+      return;
+    }
+    gridRef.current?.api?.paginationGoToPage?.(clamped);
+  };
+
+  const changePageSize = (nextPageSize) => {
+    if (nextPageSize === pageSize) return;
+    if (isServer) {
+      onPageChange?.({ page: 0, pageSize: nextPageSize, offset: 0 });
+      return;
+    }
+    const api = gridRef.current?.api;
+    if (!api) return;
+    api.setGridOption?.("paginationPageSize", nextPageSize);
+    api.paginationGoToPage?.(0);
+  };
+
+  return (
+    <Flex
+      align="center"
+      justify="flex-end"
+      h="48px"
+      px={4}
+      gap={4}
+      flexWrap="wrap"
+      fontSize="13px"
+      color="gray.600"
+      bg="white"
+      borderTopWidth="0.5px"
+      borderColor={borderColor}
+    >
+      <Flex align="center" gap={2}>
+        <Text whiteSpace="nowrap">Page Size:</Text>
+        <Select
+          size="sm"
+          w="64px"
+          h="28px"
+          minH="28px"
+          fontSize="13px"
+          borderColor="gray.300"
+          borderRadius="sm"
+          value={pageSize}
+          onChange={(e) => {
+            const nextPageSize = Number(e.target.value) || pageSize;
+            changePageSize(nextPageSize);
+          }}
+        >
+          {pageSizeOptions.map((size) => (
+            <option key={size} value={size}>
+              {size}
+            </option>
+          ))}
+        </Select>
+      </Flex>
+      <Text whiteSpace="nowrap">
+        {totalRows === 0
+          ? "0 to 0 of 0"
+          : `${formatPaginationCount(start)} to ${formatPaginationCount(end)} of ${formatPaginationCount(totalRows)}`}
+      </Text>
+      <Flex align="center" gap={0}>
+        <PaginationNavButton
+          label="First page"
+          iconClass="fa-solid fa-angles-left"
+          disabled={safePage <= 0}
+          onClick={() => goToPage(0)}
+        />
+        <PaginationNavButton
+          label="Previous page"
+          iconClass="fa-solid fa-angle-left"
+          disabled={safePage <= 0}
+          onClick={() => goToPage(safePage - 1)}
+        />
+        <Text whiteSpace="nowrap" px={2}>
+          Page {safePage + 1} of {totalPages}
+        </Text>
+        <PaginationNavButton
+          label="Next page"
+          iconClass="fa-solid fa-angle-right"
+          disabled={safePage >= totalPages - 1}
+          onClick={() => goToPage(safePage + 1)}
+        />
+        <PaginationNavButton
+          label="Last page"
+          iconClass="fa-solid fa-angles-right"
+          disabled={safePage >= totalPages - 1}
+          onClick={() => goToPage(totalPages - 1)}
+        />
+      </Flex>
+    </Flex>
+  );
+}
 
 function buildAgGridTheme(colorScheme) {
   const c = colorScheme || "purple";
@@ -95,10 +250,25 @@ const AgGrid = React.forwardRef(function AgGrid(
     onSelectionChanged,
     getRowId,
     tableColorScheme,
+    paginationMode = "client",
+    totalRows,
+    onPageChange,
+    paginationPage = 0,
+    loading = false,
+    sortMode = "client",
+    sort: sortState,
+    onSortChange,
+    onExportAll,
+    exportLoading = false,
+    filterMode = "client",
+    onFilterChange,
     ...props
   },
   ref
 ) {
+  const isServerPagination = paginationMode === "server";
+  const isServerSort = isServerPagination && sortMode === "server";
+  const isServerFilter = isServerPagination && filterMode === "server";
   const { colorScheme: contextColorScheme } = useModuleTableTheme();
   const effectiveColorScheme =
     tableColorScheme ?? contextColorScheme ?? "purple";
@@ -200,6 +370,84 @@ const AgGrid = React.forwardRef(function AgGrid(
     [colDefsWithIds, columnVisibility]
   );
 
+  const columnDefsForGrid = React.useMemo(() => {
+    if (!isServerSort || !sortState?.field) {
+      return resolvedColumnDefs.map((colDef) => ({ ...colDef, sort: null }));
+    }
+    return resolvedColumnDefs.map((colDef) => {
+      const key = colDef.field || colDef.colId;
+      if (key === sortState.field) {
+        return { ...colDef, sort: sortState.dir };
+      }
+      return { ...colDef, sort: null };
+    });
+  }, [resolvedColumnDefs, isServerSort, sortState]);
+
+  const handleSortChanged = React.useCallback(() => {
+    if (!isServerSort || !onSortChange) return;
+    const api = gridRef.current?.api;
+    if (!api) return;
+    const model = api.getColumnState?.() || [];
+    const sorted = model.find((col) => col.sort);
+    if (!sorted) {
+      onSortChange(null);
+      return;
+    }
+    const matchedCol = colDefsWithIds.find(
+      (col) => (col.colId || col.field) === sorted.colId
+    );
+    onSortChange({
+      field: matchedCol?.field || sorted.colId,
+      dir: sorted.sort === "asc" ? "asc" : "desc",
+    });
+  }, [colDefsWithIds, isServerSort, onSortChange]);
+
+  const filterDebounceRef = React.useRef(null);
+  const onFilterChangeRef = React.useRef(onFilterChange);
+  onFilterChangeRef.current = onFilterChange;
+
+  const handleFilterChanged = React.useCallback(() => {
+    if (!isServerFilter || !onFilterChangeRef.current) return;
+    const api = gridRef.current?.api;
+    if (!api) return;
+    if (filterDebounceRef.current) clearTimeout(filterDebounceRef.current);
+    filterDebounceRef.current = setTimeout(() => {
+      onFilterChangeRef.current(api.getFilterModel?.() || {});
+    }, 400);
+  }, [isServerFilter]);
+
+  React.useEffect(
+    () => () => {
+      if (filterDebounceRef.current) clearTimeout(filterDebounceRef.current);
+    },
+    []
+  );
+
+  const [clientPagination, setClientPagination] = React.useState({
+    page: 0,
+    pageSize: defaultRows,
+    total: 0,
+  });
+
+  const syncClientPagination = React.useCallback(() => {
+    if (isServerPagination) return;
+    const api = gridRef.current?.api;
+    if (!api) return;
+    setClientPagination({
+      page: api.paginationGetCurrentPage?.() ?? 0,
+      pageSize: api.paginationGetPageSize?.() ?? defaultRows,
+      total: api.paginationGetRowCount?.() ?? 0,
+    });
+  }, [defaultRows, isServerPagination]);
+
+  const handleClientPaginationChanged = React.useCallback(() => {
+    syncClientPagination();
+  }, [syncClientPagination]);
+
+  React.useEffect(() => {
+    syncClientPagination();
+  }, [rowData, defaultRows, syncClientPagination]);
+
   const handleColumnVisibilityChange = React.useCallback(
     (colId, visible) => {
       const next = { ...columnVisibility, [colId]: visible };
@@ -219,6 +467,7 @@ const AgGrid = React.forwardRef(function AgGrid(
       sortable: true,
       filter: true,
       flex: 1,
+      sortingOrder: ["asc", "desc", null],
       cellRenderer: (props) => {
         if (!props || props.value === undefined) return "-";
         if (props.value === null || props.value === "") return "-";
@@ -230,8 +479,16 @@ const AgGrid = React.forwardRef(function AgGrid(
       suppressColumnVirtualisation: false,
       suppressRowVirtualisation: false,
       animateRows: true,
-      pagination: true,
+      pagination: !isServerPagination,
       paginationPageSize: defaultRows,
+      paginationPageSizeSelector: PAGE_SIZE_OPTIONS,
+      suppressPaginationPanel: true,
+      ...(isServerFilter
+        ? {
+            isExternalFilterPresent: () => true,
+            doesExternalFilterPass: () => true,
+          }
+        : {}),
       icons,
       enableFilterHandlers: true,
       filterHandlers: {
@@ -256,8 +513,19 @@ const AgGrid = React.forwardRef(function AgGrid(
           },
         },
         date: {
-          cellRenderer: (params) =>
-            params.value ? moment(params.value).format("DD/MM/YYYY") : "-",
+          filter: "agDateColumnFilter",
+          valueGetter: (params) => {
+            const field = params.colDef?.field;
+            if (!field || !params.data) return null;
+            return parseGridDate(params.data[field]);
+          },
+          cellRenderer: (params) => {
+            if (!params.value) return "-";
+            const strict = moment(params.value, "YYYY-MM-DD", true);
+            return (strict.isValid() ? strict : moment(params.value)).format(
+              "DD/MM/YYYY"
+            );
+          },
         },
         datetime: {
           minWidth: 180,
@@ -443,7 +711,7 @@ const AgGrid = React.forwardRef(function AgGrid(
         ...(gridOptionsProp?.defaultColDef || {}),
       },
     };
-  }, [defaultRows, gridOptionsProp, effectiveColorScheme]);
+  }, [defaultRows, gridOptionsProp, effectiveColorScheme, isServerFilter, isServerPagination]);
 
   const getEffectiveColDef = React.useCallback(
     (colDef) => {
@@ -470,16 +738,6 @@ const AgGrid = React.forwardRef(function AgGrid(
     [colDefsWithIds]
   );
 
-  const buildExportData = React.useCallback(() => {
-    const api = gridRef.current?.api;
-    if (!api) return [];
-    return buildExportAoA(api, {
-      columnVisibility,
-      effectiveColDefByColId: getEffectiveColDefByColId(),
-      exportHeaderByColId,
-    });
-  }, [columnVisibility, getEffectiveColDefByColId, exportHeaderByColId]);
-
   const downloadExportFile = React.useCallback((blob, fileName) => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -489,31 +747,68 @@ const AgGrid = React.forwardRef(function AgGrid(
     URL.revokeObjectURL(url);
   }, []);
 
-  const handleExportCsv = React.useCallback(() => {
-    const aoa = buildExportData();
-    if (!aoa.length) {
-      toast.error("No columns available to export.");
-      return;
+  const buildExportData = React.useCallback(async () => {
+    if (isServerPagination && onExportAll) {
+      const rows = await onExportAll();
+      return buildExportAoAFromRows(rows, {
+        colDefs: colDefsWithIds,
+        columnVisibility,
+        effectiveColDefByColId: getEffectiveColDefByColId(),
+        exportHeaderByColId,
+      });
     }
-    const csv = Papa.unparse(aoa);
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    downloadExportFile(
-      blob,
-      `export-${new Date().toISOString().slice(0, 10)}.csv`
-    );
-  }, [buildExportData, downloadExportFile]);
+    const api = gridRef.current?.api;
+    if (!api) return [];
+    return buildExportAoA(api, {
+      columnVisibility,
+      effectiveColDefByColId: getEffectiveColDefByColId(),
+      exportHeaderByColId,
+    });
+  }, [
+    colDefsWithIds,
+    columnVisibility,
+    exportHeaderByColId,
+    getEffectiveColDefByColId,
+    isServerPagination,
+    onExportAll,
+  ]);
+
+  const runExport = React.useCallback(
+    async (buildFile) => {
+      if (exportLoading) return;
+      try {
+        const aoa = await buildExportData();
+        if (!aoa.length) {
+          toast.error("No columns available to export.");
+          return;
+        }
+        buildFile(aoa);
+      } catch (err) {
+        toast.error(err?.message || "Export failed.");
+      }
+    },
+    [buildExportData, exportLoading]
+  );
+
+  const handleExportCsv = React.useCallback(() => {
+    runExport((aoa) => {
+      const csv = Papa.unparse(aoa);
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      downloadExportFile(
+        blob,
+        `export-${new Date().toISOString().slice(0, 10)}.csv`
+      );
+    });
+  }, [downloadExportFile, runExport]);
 
   const handleExportXlsx = React.useCallback(() => {
-    const aoa = buildExportData();
-    if (!aoa.length) {
-      toast.error("No columns available to export.");
-      return;
-    }
-    const ws = XLSX.utils.aoa_to_sheet(aoa);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
-    XLSX.writeFile(wb, `export-${new Date().toISOString().slice(0, 10)}.xlsx`);
-  }, [buildExportData]);
+    runExport((aoa) => {
+      const ws = XLSX.utils.aoa_to_sheet(aoa);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
+      XLSX.writeFile(wb, `export-${new Date().toISOString().slice(0, 10)}.xlsx`);
+    });
+  }, [runExport]);
 
   const columnItems = React.useMemo(
     () =>
@@ -525,9 +820,14 @@ const AgGrid = React.forwardRef(function AgGrid(
   );
 
   const cs = effectiveColorScheme;
+  const tableBorderColor = `${cs}.100`;
+  const showPaginationBar =
+    isServerPagination && onPageChange
+      ? true
+      : mergedGridOptions.pagination !== false;
 
   return (
-    <Box position="relative" w="100%">
+    <Box position="relative" w="100%" opacity={loading ? 0.6 : 1}>
       <Button
         position="absolute"
         zIndex={2}
@@ -543,37 +843,71 @@ const AgGrid = React.forwardRef(function AgGrid(
         Settings
       </Button>
 
-      <AgGridReact
-        ref={combinedRef}
-        rowData={rowData}
-        columnDefs={resolvedColumnDefs}
-        getRowId={getRowId}
-        rowSelection={
-          selectMode
-            ? {
-                mode: "multiRow",
-                selectAll: "filtered",
-                ...(typeof isRowSelectable === "function"
-                  ? { isRowSelectable }
-                  : {}),
-              }
-            : undefined
-        }
-        onSelectionChanged={
-          selectMode && onSelectionChangedRef.current
-            ? (e) => {
-                if (e.api)
-                  onSelectionChangedRef.current(e.api.getSelectedRows());
-              }
-            : undefined
-        }
-        gridOptions={mergedGridOptions}
-        domLayout="autoHeight"
-        theme={agGridTheme}
-        className={className}
-        {...props}
-        sideBar
-      />
+      <Box
+        w="100%"
+        borderWidth="0.5px"
+        borderColor={tableBorderColor}
+        borderRadius="md"
+        overflow="hidden"
+        bg="white"
+      >
+        <AgGridReact
+          ref={combinedRef}
+          rowData={rowData}
+          columnDefs={columnDefsForGrid}
+          getRowId={getRowId}
+          onSortChanged={isServerSort ? handleSortChanged : undefined}
+          onFilterChanged={isServerFilter ? handleFilterChanged : undefined}
+          onPaginationChanged={
+            !isServerPagination ? handleClientPaginationChanged : undefined
+          }
+          onGridReady={() => {
+            syncClientPagination();
+          }}
+          rowSelection={
+            selectMode
+              ? {
+                  mode: "multiRow",
+                  selectAll: "filtered",
+                  ...(typeof isRowSelectable === "function"
+                    ? { isRowSelectable }
+                    : {}),
+                }
+              : undefined
+          }
+          onSelectionChanged={
+            selectMode && onSelectionChangedRef.current
+              ? (e) => {
+                  if (e.api)
+                    onSelectionChangedRef.current(e.api.getSelectedRows());
+                }
+              : undefined
+          }
+          gridOptions={mergedGridOptions}
+          domLayout="autoHeight"
+          theme={agGridTheme}
+          className={className}
+          {...props}
+          sideBar
+        />
+        {showPaginationBar ? (
+          <TablePaginationBar
+            isServer={isServerPagination}
+            page={
+              isServerPagination ? paginationPage : clientPagination.page
+            }
+            pageSize={
+              isServerPagination ? defaultRows : clientPagination.pageSize
+            }
+            totalRows={
+              isServerPagination ? totalRows ?? 0 : clientPagination.total
+            }
+            onPageChange={isServerPagination ? onPageChange : undefined}
+            gridRef={gridRef}
+            borderColor={tableBorderColor}
+          />
+        ) : null}
+      </Box>
       {hasDrawerMounted && (
         <Drawer
           isOpen={isOpen}
@@ -610,6 +944,11 @@ const AgGrid = React.forwardRef(function AgGrid(
                   <AccordionIcon ml="auto" color={`${cs}.600`} />
                 </AccordionButton>
                 <AccordionPanel px={0} pt={0} pb={4}>
+                  {exportLoading ? (
+                    <Text fontSize="sm" color={`${cs}.600`} mb={2}>
+                      Preparing export…
+                    </Text>
+                  ) : null}
                   <VStack align="stretch" spacing={2}>
                     {[
                       { key: "csv", label: "CSV", onClick: handleExportCsv },
@@ -630,9 +969,11 @@ const AgGrid = React.forwardRef(function AgGrid(
                           bg: `${cs}.100`,
                           borderColor: `${cs}.200`,
                         }}
+                        disabled={exportLoading}
+                        opacity={exportLoading ? 0.6 : 1}
                         onClick={() => {
                           onClick();
-                          if (key !== "pdf") onClose();
+                          onClose();
                         }}
                       >
                         <Text fontSize="sm" fontWeight="500" color={`${cs}.700`}>

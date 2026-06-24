@@ -212,3 +212,62 @@ export function buildExportAoA(
 
   return [headerRow, ...dataRows];
 }
+
+function resolveExportCellValue(def, row) {
+  let value;
+  if (def?.valueGetter && typeof def.valueGetter === "function") {
+    value = def.valueGetter({
+      data: row,
+      getValue: (field) => row?.[field],
+    });
+  } else if (def?.field) {
+    value = row?.[def.field];
+  }
+
+  if (def?.valueFormatter && typeof def.valueFormatter === "function") {
+    value = def.valueFormatter({ value, data: row });
+  }
+
+  if (def?.exportRenderer) {
+    value = def.exportRenderer({ value, data: row });
+  } else if (value != null && typeof value === "object") {
+    value = value.label ?? "";
+  } else if (
+    def?.type === "currency" &&
+    value != null &&
+    value !== "" &&
+    !Number.isNaN(Number(value))
+  ) {
+    value = currencyFormatter(value);
+  }
+
+  if (value == null || value === "") return "";
+  return String(value);
+}
+
+/** Build aoa from plain row objects (server-side export). */
+export function buildExportAoAFromRows(
+  rows,
+  { colDefs, columnVisibility, effectiveColDefByColId, exportHeaderByColId = {} }
+) {
+  const leaves = collectLeafColumnMeta(colDefs || []);
+  const columns = leaves.filter(({ colDef, colId }) => {
+    if (colDef.hideExport === true) return false;
+    if (columnVisibility[colId] === false) return false;
+    return Boolean(colDef.field || colDef.valueGetter || colDef.colId);
+  });
+
+  if (!columns.length) return [];
+
+  const headerRow = columns.map(
+    ({ colId, headerName }) => exportHeaderByColId[colId] || headerName
+  );
+  const dataRows = (rows || []).map((row) =>
+    columns.map(({ colDef, colId }) => {
+      const def = effectiveColDefByColId[colId] || colDef;
+      return resolveExportCellValue(def, row);
+    })
+  );
+
+  return [headerRow, ...dataRows];
+}
