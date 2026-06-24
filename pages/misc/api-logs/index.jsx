@@ -20,6 +20,14 @@ import CustomContainer from "../../../components/CustomContainer";
 import GlobalWrapper from "../../../components/globalWrapper/globalWrapper";
 import apiSyncLog from "../../../helper/apiSyncLog";
 import { capitalize } from "../../../util/string";
+import {
+  formatBulkDateTime,
+  formatBulkSlotLabel,
+  formatCronTimeLabel,
+  formatIstDateTime,
+  formatIstShortDateTime,
+  resolveBulkSource,
+} from "../../../util/apiSyncCron";
 
 const STATUS_COLORS = {
   success: "green",
@@ -89,8 +97,10 @@ function getStatusBadge(data) {
   };
 }
 
-function getSourceBadge(data) {
-  const source = data?.source;
+function getSourceBadge(data, cronByType, isBulk) {
+  const source = isBulk
+    ? resolveBulkSource(data, cronByType?.[data?.log_type])
+    : data?.source;
   if (!source) return null;
   return (
     SOURCE_BADGES[source] || {
@@ -100,11 +110,17 @@ function getSourceBadge(data) {
   );
 }
 
-function SlotPill({ slot }) {
+function SlotPill({ slot, cronExpression, isBulk }) {
   const color = STATUS_COLORS[slot.status] || "gray";
   const title = [slot.status, slot.error_message || slot.log?.error_message]
     .filter(Boolean)
     .join(": ");
+  const label = isBulk
+    ? formatBulkSlotLabel(slot, cronExpression)
+    : `${moment(slot.expected_at).format("DD MMM")} · ${moment(
+        slot.expected_at
+      ).format("HH:mm")}`;
+
   return (
     <Box
       title={title}
@@ -115,13 +131,14 @@ function SlotPill({ slot }) {
       bg={`${color}.100`}
       color={`${color}.700`}
     >
-      {moment(slot.expected_at).format("DD MMM")} ·{" "}
-      {moment(slot.expected_at).format("HH:mm")}
+      {label}
     </Box>
   );
 }
 
-function SyncTimelineCard({ item }) {
+function SyncTimelineCard({ item, isBulk = false }) {
+  const cronTimeLabel = isBulk ? formatCronTimeLabel(item.cron_expression) : null;
+
   return (
     <Box borderWidth="1px" borderRadius="md" px={3} py={2.5} bg="white">
       <Flex justify="space-between" align="center" gap={2} mb={1.5}>
@@ -144,13 +161,25 @@ function SyncTimelineCard({ item }) {
 
       <Flex gap={3} flexWrap="wrap" fontSize="xs" color="gray.600">
         <Text>
-          Last: {formatShortDateTime(item.last_run?.created_at)}
+          Last:{" "}
+          {isBulk
+            ? formatIstShortDateTime(item.last_run?.created_at)
+            : formatShortDateTime(item.last_run?.created_at)}
           {item.last_run?.row_count != null
             ? ` · ${item.last_run.row_count} rows`
             : ""}
         </Text>
-        <Text>Next: {formatShortDateTime(item.next_sync_at)}</Text>
-        <Text fontFamily="mono">{item.cron_expression || "-"}</Text>
+        <Text>
+          Next:{" "}
+          {isBulk
+            ? formatBulkDateTime(item.next_sync_at, item.cron_expression)
+            : formatShortDateTime(item.next_sync_at)}
+        </Text>
+        <Text fontFamily="mono">
+          {cronTimeLabel
+            ? `${cronTimeLabel} IST · ${item.cron_expression || "-"}`
+            : item.cron_expression || "-"}
+        </Text>
       </Flex>
 
       {item.last_run?.error_message ? (
@@ -162,7 +191,12 @@ function SyncTimelineCard({ item }) {
       {item.slots?.length > 0 ? (
         <Flex gap={1} flexWrap="wrap" mt={2}>
           {item.slots.map((slot) => (
-            <SlotPill key={slot.expected_at} slot={slot} />
+            <SlotPill
+              key={slot.expected_at}
+              slot={slot}
+              cronExpression={item.cron_expression}
+              isBulk={isBulk}
+            />
           ))}
         </Flex>
       ) : null}
@@ -170,13 +204,21 @@ function SyncTimelineCard({ item }) {
   );
 }
 
-function LogTable({ logs }) {
+function LogTable({ logs, cronByType, isBulk = false }) {
   const columnDefs = useMemo(
     () => [
       {
         field: "created_at",
         headerName: "Time",
-        type: "datetime",
+        flex: 1,
+        sortable: true,
+        comparator: (valueA, valueB) =>
+          new Date(valueA).getTime() - new Date(valueB).getTime(),
+        cellRenderer: (params) => {
+          if (!params.value) return "-";
+          if (isBulk) return formatIstDateTime(params.value);
+          return moment(params.value).format("DD/MM/YYYY • hh:mm A");
+        },
       },
       {
         colId: "log_type",
@@ -197,7 +239,8 @@ function LogTable({ logs }) {
         headerName: "Source",
         type: "badge-column",
         flex: 0.8,
-        valueGetter: (params) => getSourceBadge(params.data),
+        valueGetter: (params) =>
+          getSourceBadge(params.data, cronByType, isBulk),
       },
       {
         field: "row_count",
@@ -243,7 +286,7 @@ function LogTable({ logs }) {
         },
       },
     ],
-    []
+    [cronByType, isBulk]
   );
 
   return (
@@ -259,6 +302,15 @@ export default function ApiLogsPage() {
   const [tabIndex, setTabIndex] = useState(0);
 
   const activeCategory = tabIndex === 0 ? "sync" : "bulk";
+  const isBulkTab = tabIndex === 1;
+  const bulkCronByType = useMemo(
+    () =>
+      bulkTimeline.reduce((acc, item) => {
+        acc[item.log_type] = item.cron_expression;
+        return acc;
+      }, {}),
+    [bulkTimeline]
+  );
   const activeTypes = useMemo(
     () =>
       (tabIndex === 0 ? syncTimeline : bulkTimeline).map(
@@ -343,7 +395,11 @@ export default function ApiLogsPage() {
               ) : (
                 <VStack align="stretch" spacing={2} mb={6}>
                   {bulkTimeline.map((item) => (
-                    <SyncTimelineCard key={item.log_type} item={item} />
+                    <SyncTimelineCard
+                      key={item.log_type}
+                      item={item}
+                      isBulk
+                    />
                   ))}
                 </VStack>
               )}
@@ -358,7 +414,11 @@ export default function ApiLogsPage() {
           smallHeader
           filledHeader
         >
-          <LogTable logs={filteredLogs} />
+          <LogTable
+            logs={filteredLogs}
+            cronByType={bulkCronByType}
+            isBulk={isBulkTab}
+          />
         </CustomContainer>
       </CustomContainer>
     </GlobalWrapper>
