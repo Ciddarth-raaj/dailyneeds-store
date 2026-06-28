@@ -357,7 +357,7 @@ function ProductsTabContent() {
           if (nextPage !== page) setPage(nextPage);
         }}
         getRowId={(params) =>
-          `${params.data.moh_offer_hq_id}-${params.data.retail_outlet_id}-${params.data.product_id}-${params.data.moi_offer_sl_no ?? ""}`
+          `${params.data.moh_offer_hq_id}-${params.data.retail_outlet_id}-${params.data.product_id}`
         }
       />
     </>
