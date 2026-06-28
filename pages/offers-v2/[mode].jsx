@@ -19,6 +19,7 @@ import CustomContainer from "../../components/CustomContainer";
 import AgGrid from "../../components/AgGrid";
 import Badge from "../../components/Badge";
 import { useHqOfferByHqId } from "../../customHooks/useHqOfferByKey";
+import { buildDetailProductColumnDefs } from "./productColumns";
 
 function queryParam(value) {
   if (value == null) return null;
@@ -60,44 +61,7 @@ export default function OffersV2ModePage() {
     return idx >= 0 ? idx : 0;
   }, [branches, retailOutletId]);
 
-  const productColumnDefs = useMemo(
-    () => [
-      {
-        field: "product_id",
-        headerName: "PID",
-        type: "id",
-      },
-      {
-        field: "de_name",
-        headerName: "Product name",
-        flex: 1.5,
-        type: "capitalized",
-      },
-      {
-        field: "image_url",
-        headerName: "Image",
-        type: "image",
-        hideByDefault: true,
-      },
-      {
-        field: "moi_offer_on",
-        headerName: "Offer on",
-        flex: 1,
-      },
-      {
-        field: "moi_offer_value",
-        headerName: "Offer value",
-        flex: 0.8,
-        type: "number",
-        valueFormatter: (params) => {
-          if (params.value == null || params.value === "") return "-";
-          const n = Number(params.value);
-          return Number.isNaN(n) ? "-" : n.toFixed(2);
-        },
-      },
-    ],
-    []
-  );
+  const productColumnDefs = useMemo(() => buildDetailProductColumnDefs(), []);
 
   if (!isReady || loading) {
     return (

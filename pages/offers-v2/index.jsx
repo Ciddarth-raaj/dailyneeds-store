@@ -17,6 +17,7 @@ import Badge from "../../components/Badge";
 import { PaginationCacheProvider } from "../../contexts/PaginationCacheContext";
 import { usePagination } from "../../customHooks/usePagination";
 import hqOffers from "../../helper/hqOffers";
+import { buildListProductColumnDefs } from "./productColumns";
 
 function OffersTabContent() {
   const router = useRouter();
@@ -192,28 +193,42 @@ function OffersTabContent() {
   );
 }
 
-function ProductsTabContent() {
+function ProductsTabContent({
+  groupBy = null,
+  cacheKey,
+  tableKey,
+  defaultSort,
+  leadColumn = null,
+}) {
   const router = useRouter();
 
-  const fetchPage = useCallback(async ({ limit, offset, sort, filters }) => {
-    return hqOffers.listProducts({
-      limit,
-      offset,
-      sort_by: sort?.field,
-      sort_dir: sort?.dir,
-      status: filters?.status,
-      filter: filters?.columnFilters,
-    });
-  }, []);
+  const fetchPage = useCallback(
+    async ({ limit, offset, sort, filters }) => {
+      return hqOffers.listProducts({
+        limit,
+        offset,
+        sort_by: sort?.field,
+        sort_dir: sort?.dir,
+        status: filters?.status,
+        filter: filters?.columnFilters,
+        group_by: groupBy,
+      });
+    },
+    [groupBy]
+  );
 
-  const fetchAllForExport = useCallback(async ({ sort, filters }) => {
-    return hqOffers.listProductsAll({
-      sort_by: sort?.field,
-      sort_dir: sort?.dir,
-      status: filters?.status,
-      filter: filters?.columnFilters,
-    });
-  }, []);
+  const fetchAllForExport = useCallback(
+    async ({ sort, filters }) => {
+      return hqOffers.listProductsAll({
+        sort_by: sort?.field,
+        sort_dir: sort?.dir,
+        status: filters?.status,
+        filter: filters?.columnFilters,
+        group_by: groupBy,
+      });
+    },
+    [groupBy]
+  );
 
   const {
     rows,
@@ -231,88 +246,31 @@ function ProductsTabContent() {
     setColumnFilters,
     fetchAll,
   } = usePagination({
-    cacheKey: "hq-offers-v2-products-list",
+    cacheKey,
     fetchPage,
     fetchAll: fetchAllForExport,
     defaultPageSize: 20,
-    defaultSort: { field: "moh_offer_hq_id", dir: "desc" },
+    defaultSort,
     defaultFilters: { status: "active", columnFilters: {} },
   });
 
   const isActiveFilter = filters?.status !== "inactive";
 
   const columnDefs = useMemo(
-    () => [
-      {
-        field: "moh_offer_hq_id",
-        colId: "moh_offer_hq_id",
-        headerName: "Offer ID",
-        type: "id",
-        sortable: true,
-        sort: sort?.field === "moh_offer_hq_id" ? sort.dir : null,
-        filter: "agTextColumnFilter",
-        cellStyle: { cursor: "pointer", textDecoration: "underline" },
-        onCellClicked: (params) => {
-          const row = params.data;
-          if (!row) return;
-          router.push(`/offers-v2/view?moh_offer_hq_id=${row.moh_offer_hq_id}`);
-        },
-      },
-      {
-        field: "moh_offer_name",
-        headerName: "Offer name",
-        flex: 1.5,
-        sortable: true,
-        filter: "agTextColumnFilter",
-        sort: sort?.field === "moh_offer_name" ? sort.dir : null,
-      },
-      {
-        field: "product_id",
-        headerName: "PID",
-        type: "id",
-        sortable: true,
-        filter: "agTextColumnFilter",
-        sort: sort?.field === "product_id" ? sort.dir : null,
-      },
-      {
-        field: "de_name",
-        headerName: "Product name",
-        flex: 1.5,
-        type: "capitalized",
-        sortable: true,
-        filter: "agTextColumnFilter",
-        sort: sort?.field === "de_name" ? sort.dir : null,
-      },
-      {
-        field: "image_url",
-        headerName: "Image",
-        type: "image",
-        hideByDefault: true,
-      },
-      {
-        field: "moi_offer_on",
-        headerName: "Offer on",
-        flex: 1,
-        sortable: true,
-        filter: "agTextColumnFilter",
-        sort: sort?.field === "moi_offer_on" ? sort.dir : null,
-      },
-      {
-        field: "moi_offer_value",
-        headerName: "Offer value",
-        flex: 0.8,
-        type: "number",
-        sortable: true,
-        filter: "agNumberColumnFilter",
-        sort: sort?.field === "moi_offer_value" ? sort.dir : null,
-        valueFormatter: (params) => {
-          if (params.value == null || params.value === "") return "-";
-          const n = Number(params.value);
-          return Number.isNaN(n) ? "-" : n.toFixed(2);
-        },
-      },
-    ],
-    [router, sort]
+    () => buildListProductColumnDefs({ sort, router, leadColumn }),
+    [router, sort, leadColumn]
+  );
+
+  const getRowId = useCallback(
+    (params) => {
+      const d = params.data;
+      const parts = [];
+      if (groupBy === "distributor") parts.push(d.distributor_name ?? "");
+      if (groupBy === "buyer") parts.push(d.buyer_name ?? "");
+      parts.push(d.moh_offer_hq_id, d.product_id);
+      return parts.join("-");
+    },
+    [groupBy]
   );
 
   return (
@@ -337,7 +295,7 @@ function ProductsTabContent() {
       </Flex>
 
       <AgGrid
-        tableKey="hq-offers-v2-products-list"
+        tableKey={tableKey}
         rowData={rows}
         columnDefs={columnDefs}
         defaultRows={pageSize}
@@ -356,9 +314,7 @@ function ProductsTabContent() {
           if (nextPageSize !== pageSize) setPageSize(nextPageSize);
           if (nextPage !== page) setPage(nextPage);
         }}
-        getRowId={(params) =>
-          `${params.data.moh_offer_hq_id}-${params.data.product_id}`
-        }
+        getRowId={getRowId}
       />
     </>
   );
@@ -370,16 +326,40 @@ export default function OffersV2Page() {
       <CustomContainer title="Offers V2" filledHeader>
         <PaginationCacheProvider>
           <Tabs colorScheme="purple" isLazy lazyBehavior="keepMounted">
-            <TabList>
+            <TabList flexWrap="wrap">
               <Tab>Offers</Tab>
               <Tab>Products</Tab>
+              <Tab>By distributor</Tab>
+              <Tab>By buyer</Tab>
             </TabList>
             <TabPanels>
               <TabPanel px={0}>
                 <OffersTabContent />
               </TabPanel>
               <TabPanel px={0}>
-                <ProductsTabContent />
+                <ProductsTabContent
+                  cacheKey="hq-offers-v2-products-list"
+                  tableKey="hq-offers-v2-products-list"
+                  defaultSort={{ field: "moh_offer_hq_id", dir: "desc" }}
+                />
+              </TabPanel>
+              <TabPanel px={0}>
+                <ProductsTabContent
+                  groupBy="distributor"
+                  leadColumn="distributor"
+                  cacheKey="hq-offers-v2-products-by-distributor"
+                  tableKey="hq-offers-v2-products-by-distributor"
+                  defaultSort={{ field: "distributor_name", dir: "asc" }}
+                />
+              </TabPanel>
+              <TabPanel px={0}>
+                <ProductsTabContent
+                  groupBy="buyer"
+                  leadColumn="buyer"
+                  cacheKey="hq-offers-v2-products-by-buyer"
+                  tableKey="hq-offers-v2-products-by-buyer"
+                  defaultSort={{ field: "buyer_name", dir: "asc" }}
+                />
               </TabPanel>
             </TabPanels>
           </Tabs>

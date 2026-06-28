@@ -14,7 +14,15 @@ const BadgeFilter = ({ model, onModelChange, getValue, column, api }) => {
 
   // Extract unique badge values from the data
   useEffect(() => {
-    if (!api || !column) return;
+    if (!column) return;
+
+    const predefinedBadges = column.getColDef()?.filterParams?.predefinedBadges;
+    if (Array.isArray(predefinedBadges) && predefinedBadges.length > 0) {
+      setUniqueBadges(predefinedBadges);
+      return;
+    }
+
+    if (!api) return;
 
     const extractUniqueBadges = () => {
       const colDef = column.getColDef();
