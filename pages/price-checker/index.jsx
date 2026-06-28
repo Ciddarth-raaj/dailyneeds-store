@@ -396,6 +396,16 @@ function PriceChecker() {
         maxWidth: 100,
       },
       {
+        field: "hasActiveOffer",
+        headerName: "Offer",
+        type: "badge-column",
+        maxWidth: 100,
+        valueGetter: (params) =>
+          params.data?.hasActiveOffer
+            ? { label: "Yes", colorScheme: "green" }
+            : { label: "No", colorScheme: "red" },
+      },
+      {
         field: "incorrectSellingPrices",
         headerName: "Incorrect Selling Prices",
         minWidth: 420,
