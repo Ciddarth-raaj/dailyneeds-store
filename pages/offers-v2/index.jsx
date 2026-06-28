@@ -61,7 +61,7 @@ function OffersTabContent() {
     fetchPage,
     fetchAll: fetchAllForExport,
     defaultPageSize: 20,
-    defaultSort: { field: "moh_offer_id", dir: "desc" },
+    defaultSort: { field: "moh_offer_hq_id", dir: "desc" },
     defaultFilters: { status: "active", columnFilters: {} },
   });
 
@@ -70,21 +70,18 @@ function OffersTabContent() {
   const columnDefs = useMemo(
     () => [
       {
-        field: "moh_offer_id",
-        colId: "moh_offer_id",
+        field: "moh_offer_hq_id",
+        colId: "moh_offer_hq_id",
         headerName: "ID",
         type: "id",
         sortable: true,
-        sort: sort?.field === "moh_offer_id" ? sort.dir : null,
+        sort: sort?.field === "moh_offer_hq_id" ? sort.dir : null,
         filter: "agTextColumnFilter",
-        valueGetter: (params) => params.data?.display_offer_id,
         cellStyle: { cursor: "pointer", textDecoration: "underline" },
         onCellClicked: (params) => {
           const row = params.data;
           if (!row) return;
-          router.push(
-            `/offers-v2/view?moh_offer_id=${row.moh_offer_id}&retail_outlet_id=${row.retail_outlet_id}`
-          );
+          router.push(`/offers-v2/view?moh_offer_hq_id=${row.moh_offer_hq_id}`);
         },
       },
       {
@@ -119,12 +116,13 @@ function OffersTabContent() {
         sort: sort?.field === "moh_offer_end_date" ? sort.dir : null,
       },
       {
-        field: "branch_name",
-        headerName: "Branch",
-        flex: 1,
+        field: "branch_count",
+        headerName: "Branches",
+        type: "number",
+        flex: 0.7,
         sortable: true,
-        filter: "agTextColumnFilter",
-        sort: sort?.field === "branch_name" ? sort.dir : null,
+        filter: "agNumberColumnFilter",
+        sort: sort?.field === "branch_count" ? sort.dir : null,
       },
       {
         field: "status",
@@ -188,9 +186,7 @@ function OffersTabContent() {
           if (nextPageSize !== pageSize) setPageSize(nextPageSize);
           if (nextPage !== page) setPage(nextPage);
         }}
-        getRowId={(params) =>
-          `${params.data.moh_offer_id}-${params.data.retail_outlet_id}`
-        }
+        getRowId={(params) => String(params.data.moh_offer_hq_id)}
       />
     </>
   );
@@ -239,7 +235,7 @@ function ProductsTabContent() {
     fetchPage,
     fetchAll: fetchAllForExport,
     defaultPageSize: 20,
-    defaultSort: { field: "moh_offer_id", dir: "desc" },
+    defaultSort: { field: "moh_offer_hq_id", dir: "desc" },
     defaultFilters: { status: "active", columnFilters: {} },
   });
 
@@ -248,21 +244,18 @@ function ProductsTabContent() {
   const columnDefs = useMemo(
     () => [
       {
-        field: "moh_offer_id",
-        colId: "moh_offer_id",
+        field: "moh_offer_hq_id",
+        colId: "moh_offer_hq_id",
         headerName: "Offer ID",
         type: "id",
         sortable: true,
-        sort: sort?.field === "moh_offer_id" ? sort.dir : null,
+        sort: sort?.field === "moh_offer_hq_id" ? sort.dir : null,
         filter: "agTextColumnFilter",
-        valueGetter: (params) => params.data?.display_offer_id,
         cellStyle: { cursor: "pointer", textDecoration: "underline" },
         onCellClicked: (params) => {
           const row = params.data;
           if (!row) return;
-          router.push(
-            `/offers-v2/view?moh_offer_id=${row.moh_offer_id}&retail_outlet_id=${row.retail_outlet_id}`
-          );
+          router.push(`/offers-v2/view?moh_offer_hq_id=${row.moh_offer_hq_id}`);
         },
       },
       {
@@ -364,7 +357,7 @@ function ProductsTabContent() {
           if (nextPage !== page) setPage(nextPage);
         }}
         getRowId={(params) =>
-          `${params.data.moh_offer_id}-${params.data.retail_outlet_id}-${params.data.product_id}-${params.data.moi_offer_sl_no ?? ""}`
+          `${params.data.moh_offer_hq_id}-${params.data.retail_outlet_id}-${params.data.product_id}-${params.data.moi_offer_sl_no ?? ""}`
         }
       />
     </>

@@ -65,6 +65,27 @@ const hqOffers = {
     });
   },
 
+  getByHqId: (mohOfferHqId) =>
+    new Promise((resolve, reject) => {
+      if (mohOfferHqId == null || mohOfferHqId === "") {
+        reject(new Error("moh_offer_hq_id is required"));
+        return;
+      }
+      API.get(`/hq-offers/hdr/${encodeURIComponent(mohOfferHqId)}`)
+        .then((res) => {
+          if (res?.data?.code === 200) resolve(res.data.data);
+          else reject(new Error(res?.data?.msg ?? "Failed to fetch offer"));
+        })
+        .catch((err) => {
+          const msg =
+            err?.response?.data?.msg ??
+            err?.data?.msg ??
+            err?.message ??
+            "Failed to fetch offer";
+          reject(new Error(msg));
+        });
+    }),
+
   getByKey: (mohOfferId, retailOutletId) =>
     new Promise((resolve, reject) => {
       if (

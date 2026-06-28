@@ -4,15 +4,21 @@ import moment from "moment";
 import {
   Box,
   Button,
+  Flex,
   Grid,
   GridItem,
+  Tab,
+  TabList,
+  TabPanel,
+  TabPanels,
+  Tabs,
   Text,
 } from "@chakra-ui/react";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../components/CustomContainer";
 import AgGrid from "../../components/AgGrid";
 import Badge from "../../components/Badge";
-import { useHqOfferByKey } from "../../customHooks/useHqOfferByKey";
+import { useHqOfferByHqId } from "../../customHooks/useHqOfferByKey";
 
 function queryParam(value) {
   if (value == null) return null;
@@ -34,17 +40,25 @@ function SummaryField({ label, value }) {
 
 export default function OffersV2ModePage() {
   const router = useRouter();
-  const { mode, moh_offer_id: offerIdQuery, retail_outlet_id: outletIdQuery } =
+  const { mode, moh_offer_hq_id: offerHqIdQuery, retail_outlet_id: outletIdQuery } =
     router.query;
 
-  const mohOfferId = queryParam(offerIdQuery);
+  const mohOfferHqId = queryParam(offerHqIdQuery);
   const retailOutletId = queryParam(outletIdQuery);
   const viewMode = mode === "view";
   const isReady = router.isReady;
 
-  const { offer, products, loading } = useHqOfferByKey(mohOfferId, retailOutletId, {
-    enabled: isReady && viewMode && mohOfferId != null && retailOutletId != null,
+  const { offer, branches, loading } = useHqOfferByHqId(mohOfferHqId, {
+    enabled: isReady && viewMode && mohOfferHqId != null,
   });
+
+  const defaultBranchIndex = useMemo(() => {
+    if (!retailOutletId || !branches.length) return 0;
+    const idx = branches.findIndex(
+      (b) => String(b.retail_outlet_id) === String(retailOutletId)
+    );
+    return idx >= 0 ? idx : 0;
+  }, [branches, retailOutletId]);
 
   const productColumnDefs = useMemo(
     () => [
@@ -141,7 +155,7 @@ export default function OffersV2ModePage() {
           mb={6}
         >
           <GridItem>
-            <SummaryField label="ID" value={offer.display_offer_id} />
+            <SummaryField label="ID" value={offer.moh_offer_hq_id} />
           </GridItem>
           <GridItem>
             <SummaryField label="Offer name" value={offer.moh_offer_name} />
@@ -174,7 +188,7 @@ export default function OffersV2ModePage() {
             />
           </GridItem>
           <GridItem>
-            <SummaryField label="Branch" value={offer.branch_name} />
+            <SummaryField label="Branches" value={offer.branch_count} />
           </GridItem>
           <GridItem>
             <Box>
@@ -188,13 +202,38 @@ export default function OffersV2ModePage() {
           </GridItem>
         </Grid>
 
-        <CustomContainer title="Products" smallHeader filledHeader>
-          <AgGrid
-            tableKey="hq-offers-v2-products"
-            rowData={products}
-            columnDefs={productColumnDefs}
-            getRowId={(params) => String(params.data.product_id)}
-          />
+        <CustomContainer title="Products by branch" smallHeader filledHeader>
+          <Tabs
+            colorScheme="purple"
+            isLazy
+            lazyBehavior="keepMounted"
+            defaultIndex={defaultBranchIndex}
+          >
+            <TabList flexWrap="wrap">
+              {branches.map((branch) => (
+                <Tab key={branch.retail_outlet_id}>
+                  <Flex align="center" gap={2}>
+                    <Text>{branch.branch_name}</Text>
+                    <Badge colorScheme="purple">{branch.product_count}</Badge>
+                  </Flex>
+                </Tab>
+              ))}
+            </TabList>
+            <TabPanels>
+              {branches.map((branch) => (
+                <TabPanel key={branch.retail_outlet_id} px={0} pt={4}>
+                  <AgGrid
+                    tableKey={`hq-offers-v2-products-${branch.retail_outlet_id}`}
+                    rowData={branch.products}
+                    columnDefs={productColumnDefs}
+                    getRowId={(params) =>
+                      `${branch.retail_outlet_id}-${params.data.product_id}`
+                    }
+                  />
+                </TabPanel>
+              ))}
+            </TabPanels>
+          </Tabs>
         </CustomContainer>
       </CustomContainer>
     </GlobalWrapper>

@@ -1,20 +1,20 @@
 import { useCallback, useEffect, useState } from "react";
 import hqOffers from "../helper/hqOffers";
 
-export function useHqOfferByKey(mohOfferId, retailOutletId, { enabled = true } = {}) {
+export function useHqOfferByHqId(mohOfferHqId, { enabled = true } = {}) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(enabled);
   const [error, setError] = useState(null);
 
   const fetch = useCallback(async () => {
-    if (!enabled || mohOfferId == null || retailOutletId == null) {
+    if (!enabled || mohOfferHqId == null || mohOfferHqId === "") {
       setLoading(false);
       return;
     }
     setLoading(true);
     setError(null);
     try {
-      const result = await hqOffers.getByKey(mohOfferId, retailOutletId);
+      const result = await hqOffers.getByHqId(mohOfferHqId);
       setData(result);
     } catch (err) {
       setError(err);
@@ -22,7 +22,7 @@ export function useHqOfferByKey(mohOfferId, retailOutletId, { enabled = true } =
     } finally {
       setLoading(false);
     }
-  }, [enabled, mohOfferId, retailOutletId]);
+  }, [enabled, mohOfferHqId]);
 
   useEffect(() => {
     if (!enabled) {
@@ -32,5 +32,22 @@ export function useHqOfferByKey(mohOfferId, retailOutletId, { enabled = true } =
     fetch();
   }, [enabled, fetch]);
 
-  return { data, offer: data?.offer, products: data?.products ?? [], loading, error, refetch: fetch };
+  return {
+    data,
+    offer: data?.offer,
+    branches: data?.branches ?? [],
+    loading,
+    error,
+    refetch: fetch,
+  };
+}
+
+/** @deprecated Use useHqOfferByHqId */
+export function useHqOfferById(mohOfferHqId, options = {}) {
+  return useHqOfferByHqId(mohOfferHqId, options);
+}
+
+/** @deprecated Use useHqOfferByHqId */
+export function useHqOfferByKey(mohOfferHqId, _retailOutletId, options = {}) {
+  return useHqOfferByHqId(mohOfferHqId, options);
 }
