@@ -119,6 +119,8 @@ export function createAppTheme(colorScheme = "purple") {
       Container,
       Button,
       Table,
+      Tabs: { defaultProps: { size: "sm" } },
+      Tab: { baseStyle: { fontSize: "sm" } },
       Input: { defaultProps: { focusBorderColor: defaultFocusColor } },
       Select: { defaultProps: { focusBorderColor: defaultFocusColor } },
       Textarea: { defaultProps: { focusBorderColor: defaultFocusColor } },
