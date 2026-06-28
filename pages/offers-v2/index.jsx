@@ -268,7 +268,7 @@ function ProductsTabContent() {
       },
       {
         field: "product_id",
-        headerName: "Product ID",
+        headerName: "PID",
         type: "id",
         sortable: true,
         filter: "agTextColumnFilter",
@@ -357,7 +357,7 @@ function ProductsTabContent() {
           if (nextPage !== page) setPage(nextPage);
         }}
         getRowId={(params) =>
-          `${params.data.moh_offer_hq_id}-${params.data.retail_outlet_id}-${params.data.product_id}`
+          `${params.data.moh_offer_hq_id}-${params.data.product_id}`
         }
       />
     </>

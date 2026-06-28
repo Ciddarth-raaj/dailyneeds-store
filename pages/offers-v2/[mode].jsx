@@ -64,7 +64,7 @@ export default function OffersV2ModePage() {
     () => [
       {
         field: "product_id",
-        headerName: "Product ID",
+        headerName: "PID",
         type: "id",
       },
       {
