@@ -19,7 +19,7 @@ import CustomContainer from "../../components/CustomContainer";
 import AgGrid from "../../components/AgGrid";
 import Badge from "../../components/Badge";
 import { useHqOfferByHqId } from "../../customHooks/useHqOfferByKey";
-import { buildDetailProductColumnDefs } from "./productColumns";
+import { buildDetailProductColumnDefs } from "../../helper/hqOfferProductColumns";
 
 function queryParam(value) {
   if (value == null) return null;

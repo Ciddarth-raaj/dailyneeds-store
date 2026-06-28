@@ -1,6 +1,7 @@
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/router";
 import {
+  Box,
   Button,
   ButtonGroup,
   Flex,
@@ -9,6 +10,7 @@ import {
   TabPanel,
   TabPanels,
   Tabs,
+  Text,
 } from "@chakra-ui/react";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../components/CustomContainer";
@@ -17,7 +19,55 @@ import Badge from "../../components/Badge";
 import { PaginationCacheProvider } from "../../contexts/PaginationCacheContext";
 import { usePagination } from "../../customHooks/usePagination";
 import hqOffers from "../../helper/hqOffers";
-import { buildListProductColumnDefs } from "./productColumns";
+import { buildListProductColumnDefs } from "../../helper/hqOfferProductColumns";
+
+const PRODUCTS_TAB_INDEX = 1;
+
+function buildCrossFilterModel(crossFilter) {
+  if (!crossFilter?.field || crossFilter.value == null || crossFilter.value === "") {
+    return {};
+  }
+  return {
+    [crossFilter.field]: {
+      filterType: "text",
+      type: "equals",
+      filter: crossFilter.value,
+    },
+  };
+}
+
+function mergeColumnFilters(columnFilters, crossFilter) {
+  return {
+    ...(columnFilters || {}),
+    ...buildCrossFilterModel(crossFilter),
+  };
+}
+
+function crossFilterCacheSuffix(crossFilter) {
+  if (!crossFilter?.field || !crossFilter?.value) return "all";
+  return `${crossFilter.field}:${crossFilter.value}`;
+}
+
+function ActiveInactiveToggle({ isActiveFilter, onSetActive, onSetInactive }) {
+  return (
+    <ButtonGroup isAttached size="sm" variant="outline">
+      <Button
+        colorScheme={isActiveFilter ? "purple" : "gray"}
+        variant={isActiveFilter ? "solid" : "outline"}
+        onClick={onSetActive}
+      >
+        Active
+      </Button>
+      <Button
+        colorScheme={!isActiveFilter ? "purple" : "gray"}
+        variant={!isActiveFilter ? "solid" : "outline"}
+        onClick={onSetInactive}
+      >
+        Inactive
+      </Button>
+    </ButtonGroup>
+  );
+}
 
 function OffersTabContent() {
   const router = useRouter();
@@ -149,22 +199,11 @@ function OffersTabContent() {
   return (
     <>
       <Flex justify="flex-end" mb={3}>
-        <ButtonGroup isAttached size="sm" variant="outline">
-          <Button
-            colorScheme={isActiveFilter ? "purple" : "gray"}
-            variant={isActiveFilter ? "solid" : "outline"}
-            onClick={() => setFilters({ status: "active" })}
-          >
-            Active
-          </Button>
-          <Button
-            colorScheme={!isActiveFilter ? "purple" : "gray"}
-            variant={!isActiveFilter ? "solid" : "outline"}
-            onClick={() => setFilters({ status: "inactive" })}
-          >
-            Inactive
-          </Button>
-        </ButtonGroup>
+        <ActiveInactiveToggle
+          isActiveFilter={isActiveFilter}
+          onSetActive={() => setFilters({ status: "active" })}
+          onSetInactive={() => setFilters({ status: "inactive" })}
+        />
       </Flex>
 
       <AgGrid
@@ -193,18 +232,131 @@ function OffersTabContent() {
   );
 }
 
-function ProductsTabContent({
-  groupBy = null,
-  cacheKey,
-  tableKey,
-  defaultSort,
-  leadColumn = null,
-}) {
+function ProductsTabContent({ crossFilter, onClearCrossFilter }) {
   const router = useRouter();
+  const cacheKey = `hq-offers-v2-products-list-${crossFilterCacheSuffix(crossFilter)}`;
 
   const fetchPage = useCallback(
     async ({ limit, offset, sort, filters }) => {
       return hqOffers.listProducts({
+        limit,
+        offset,
+        sort_by: sort?.field,
+        sort_dir: sort?.dir,
+        status: filters?.status,
+        filter: mergeColumnFilters(filters?.columnFilters, crossFilter),
+      });
+    },
+    [crossFilter]
+  );
+
+  const fetchAllForExport = useCallback(
+    async ({ sort, filters }) => {
+      return hqOffers.listProductsAll({
+        sort_by: sort?.field,
+        sort_dir: sort?.dir,
+        status: filters?.status,
+        filter: mergeColumnFilters(filters?.columnFilters, crossFilter),
+      });
+    },
+    [crossFilter]
+  );
+
+  const {
+    rows,
+    total,
+    loading,
+    exportLoading,
+    page,
+    pageSize,
+    sort,
+    filters,
+    setPage,
+    setPageSize,
+    setSort,
+    setFilters,
+    setColumnFilters,
+    fetchAll,
+  } = usePagination({
+    cacheKey,
+    fetchPage,
+    fetchAll: fetchAllForExport,
+    defaultPageSize: 20,
+    defaultSort: { field: "moh_offer_hq_id", dir: "desc" },
+    defaultFilters: { status: "active", columnFilters: {} },
+  });
+
+  const isActiveFilter = filters?.status !== "inactive";
+  const crossFilterLabel =
+    crossFilter?.field === "buyer_name" ? "Buyer" : "Distributor";
+
+  const columnDefs = useMemo(
+    () => buildListProductColumnDefs({ sort, router }),
+    [router, sort]
+  );
+
+  return (
+    <>
+      <Flex justify="space-between" align="center" mb={3} gap={3} flexWrap="wrap">
+        {crossFilter?.value ? (
+          <Flex align="center" gap={2} flexWrap="wrap">
+            <Text fontSize="sm" color="gray.600">
+              Filtered by {crossFilterLabel}:
+            </Text>
+            <Badge colorScheme="purple">{crossFilter.value}</Badge>
+            <Button size="sm" variant="outline" onClick={onClearCrossFilter}>
+              Clear
+            </Button>
+          </Flex>
+        ) : (
+          <Box />
+        )}
+        <ActiveInactiveToggle
+          isActiveFilter={isActiveFilter}
+          onSetActive={() => setFilters({ status: "active" })}
+          onSetInactive={() => setFilters({ status: "inactive" })}
+        />
+      </Flex>
+
+      <AgGrid
+        tableKey={`hq-offers-v2-products-list-${crossFilterCacheSuffix(crossFilter)}`}
+        rowData={rows}
+        columnDefs={columnDefs}
+        defaultRows={pageSize}
+        paginationMode="server"
+        sortMode="server"
+        filterMode="server"
+        sort={sort}
+        onSortChange={setSort}
+        onFilterChange={setColumnFilters}
+        totalRows={total}
+        paginationPage={page}
+        loading={loading}
+        exportLoading={exportLoading}
+        onExportAll={fetchAll}
+        onPageChange={({ page: nextPage, pageSize: nextPageSize }) => {
+          if (nextPageSize !== pageSize) setPageSize(nextPageSize);
+          if (nextPage !== page) setPage(nextPage);
+        }}
+        getRowId={(params) =>
+          `${params.data.moh_offer_hq_id}-${params.data.product_id}`
+        }
+      />
+    </>
+  );
+}
+
+function GroupedTabContent({ groupBy, onSelectName }) {
+  const nameField = groupBy === "buyer" ? "buyer_name" : "distributor_name";
+  const nameHeader = groupBy === "buyer" ? "Buyer" : "Distributor";
+  const cacheKey =
+    groupBy === "buyer"
+      ? "hq-offers-v2-product-groups-buyer"
+      : "hq-offers-v2-product-groups-distributor";
+
+  const fetchPage = useCallback(
+    async ({ limit, offset, sort, filters }) => {
+      return hqOffers.listProductGroups({
         limit,
         offset,
         sort_by: sort?.field,
@@ -219,7 +371,7 @@ function ProductsTabContent({
 
   const fetchAllForExport = useCallback(
     async ({ sort, filters }) => {
-      return hqOffers.listProductsAll({
+      return hqOffers.listProductGroupsAll({
         sort_by: sort?.field,
         sort_dir: sort?.dir,
         status: filters?.status,
@@ -250,52 +402,55 @@ function ProductsTabContent({
     fetchPage,
     fetchAll: fetchAllForExport,
     defaultPageSize: 20,
-    defaultSort,
+    defaultSort: { field: nameField, dir: "asc" },
     defaultFilters: { status: "active", columnFilters: {} },
   });
 
   const isActiveFilter = filters?.status !== "inactive";
 
   const columnDefs = useMemo(
-    () => buildListProductColumnDefs({ sort, router, leadColumn }),
-    [router, sort, leadColumn]
-  );
-
-  const getRowId = useCallback(
-    (params) => {
-      const d = params.data;
-      const parts = [];
-      if (groupBy === "distributor") parts.push(d.distributor_name ?? "");
-      if (groupBy === "buyer") parts.push(d.buyer_name ?? "");
-      parts.push(d.moh_offer_hq_id, d.product_id);
-      return parts.join("-");
-    },
-    [groupBy]
+    () => [
+      {
+        field: nameField,
+        colId: nameField,
+        headerName: nameHeader,
+        flex: 1.5,
+        type: "capitalized",
+        sortable: true,
+        filter: "agTextColumnFilter",
+        sort: sort?.field === nameField ? sort.dir : null,
+        cellStyle: { cursor: "pointer", textDecoration: "underline" },
+        onCellClicked: (params) => {
+          const value = params.data?.[nameField];
+          if (!value) return;
+          onSelectName({ field: nameField, value });
+        },
+      },
+      {
+        field: "product_count",
+        headerName: "Products",
+        type: "number",
+        flex: 0.8,
+        sortable: true,
+        filter: "agNumberColumnFilter",
+        sort: sort?.field === "product_count" ? sort.dir : null,
+      },
+    ],
+    [nameField, nameHeader, onSelectName, sort]
   );
 
   return (
     <>
       <Flex justify="flex-end" mb={3}>
-        <ButtonGroup isAttached size="sm" variant="outline">
-          <Button
-            colorScheme={isActiveFilter ? "purple" : "gray"}
-            variant={isActiveFilter ? "solid" : "outline"}
-            onClick={() => setFilters({ status: "active" })}
-          >
-            Active
-          </Button>
-          <Button
-            colorScheme={!isActiveFilter ? "purple" : "gray"}
-            variant={!isActiveFilter ? "solid" : "outline"}
-            onClick={() => setFilters({ status: "inactive" })}
-          >
-            Inactive
-          </Button>
-        </ButtonGroup>
+        <ActiveInactiveToggle
+          isActiveFilter={isActiveFilter}
+          onSetActive={() => setFilters({ status: "active" })}
+          onSetInactive={() => setFilters({ status: "inactive" })}
+        />
       </Flex>
 
       <AgGrid
-        tableKey={tableKey}
+        tableKey={cacheKey}
         rowData={rows}
         columnDefs={columnDefs}
         defaultRows={pageSize}
@@ -314,18 +469,36 @@ function ProductsTabContent({
           if (nextPageSize !== pageSize) setPageSize(nextPageSize);
           if (nextPage !== page) setPage(nextPage);
         }}
-        getRowId={getRowId}
+        getRowId={(params) => String(params.data?.[nameField] ?? params.rowIndex)}
       />
     </>
   );
 }
 
 export default function OffersV2Page() {
+  const [tabIndex, setTabIndex] = useState(0);
+  const [productCrossFilter, setProductCrossFilter] = useState(null);
+
+  const handleGroupSelect = useCallback(({ field, value }) => {
+    setProductCrossFilter({ field, value });
+    setTabIndex(PRODUCTS_TAB_INDEX);
+  }, []);
+
+  const handleClearProductCrossFilter = useCallback(() => {
+    setProductCrossFilter(null);
+  }, []);
+
   return (
     <GlobalWrapper title="Offers V2" permissionKey="view_hq_offers">
       <CustomContainer title="Offers V2" filledHeader>
         <PaginationCacheProvider>
-          <Tabs colorScheme="purple" isLazy lazyBehavior="keepMounted">
+          <Tabs
+            colorScheme="purple"
+            isLazy
+            lazyBehavior="keepMounted"
+            index={tabIndex}
+            onChange={setTabIndex}
+          >
             <TabList flexWrap="wrap">
               <Tab>Offers</Tab>
               <Tab>Products</Tab>
@@ -338,27 +511,20 @@ export default function OffersV2Page() {
               </TabPanel>
               <TabPanel px={0}>
                 <ProductsTabContent
-                  cacheKey="hq-offers-v2-products-list"
-                  tableKey="hq-offers-v2-products-list"
-                  defaultSort={{ field: "moh_offer_hq_id", dir: "desc" }}
+                  crossFilter={productCrossFilter}
+                  onClearCrossFilter={handleClearProductCrossFilter}
                 />
               </TabPanel>
               <TabPanel px={0}>
-                <ProductsTabContent
+                <GroupedTabContent
                   groupBy="distributor"
-                  leadColumn="distributor"
-                  cacheKey="hq-offers-v2-products-by-distributor"
-                  tableKey="hq-offers-v2-products-by-distributor"
-                  defaultSort={{ field: "distributor_name", dir: "asc" }}
+                  onSelectName={handleGroupSelect}
                 />
               </TabPanel>
               <TabPanel px={0}>
-                <ProductsTabContent
+                <GroupedTabContent
                   groupBy="buyer"
-                  leadColumn="buyer"
-                  cacheKey="hq-offers-v2-products-by-buyer"
-                  tableKey="hq-offers-v2-products-by-buyer"
-                  defaultSort={{ field: "buyer_name", dir: "asc" }}
+                  onSelectName={handleGroupSelect}
                 />
               </TabPanel>
             </TabPanels>
