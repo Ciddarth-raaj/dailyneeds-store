@@ -205,16 +205,19 @@ export default function OffersV2ModePage() {
         <CustomContainer title="Products by branch" smallHeader filledHeader>
           <Tabs
             colorScheme="purple"
+            size="sm"
             isLazy
             lazyBehavior="keepMounted"
             defaultIndex={defaultBranchIndex}
           >
             <TabList flexWrap="wrap">
               {branches.map((branch) => (
-                <Tab key={branch.retail_outlet_id}>
-                  <Flex align="center" gap={2}>
-                    <Text>{branch.branch_name}</Text>
-                    <Badge colorScheme="purple">{branch.product_count}</Badge>
+                <Tab key={branch.retail_outlet_id} fontSize="sm">
+                  <Flex align="center" gap={1.5}>
+                    <Text fontSize="sm">{branch.branch_name}</Text>
+                    <Badge colorScheme="purple" size="xs">
+                      {branch.product_count}
+                    </Badge>
                   </Flex>
                 </Tab>
               ))}
