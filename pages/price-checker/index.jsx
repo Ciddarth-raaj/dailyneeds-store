@@ -50,6 +50,7 @@ const PRICE_CHECKER_TABLE_HEADER = {
   mpfd_amt_perc: "mpfd_amt_perc",
   mpfd_roundoff_type: "mpfd_roundoff_type",
   mpfd_roundoff_value: "mpfd_roundoff_value",
+  offer: "Offer",
 };
 
 const UPLOAD_REQUIRED_HEADERS = [
@@ -100,6 +101,14 @@ function formatPriceValue(v) {
   return fixed;
 }
 
+function mapProductItemsForExport(product) {
+  const offerLabel = product?.hasActiveOffer ? "Yes" : "No";
+  return (product?.items || []).map((item) => ({
+    ...item,
+    offer: offerLabel,
+  }));
+}
+
 function mapLineItemsToPriceCheckerRows(items) {
   return items.map((row) => {
     const purchasePrice = toNum(row.Purchase_Price);
@@ -129,6 +138,7 @@ function mapLineItemsToPriceCheckerRows(items) {
           : "",
       Expected_Selling: formatPriceValue(row.Expected_Selling),
       offer_price: formatPriceValue(row.offer_price),
+      offer: row.offer ?? "",
     };
 
     const orderedRow = {};
@@ -358,7 +368,7 @@ function PriceChecker() {
 
       const itemsToExport = [];
       groupProducts.forEach((product) => {
-        itemsToExport.push(...product.items);
+        itemsToExport.push(...mapProductItemsForExport(product));
       });
 
       exportItems(itemsToExport, groupName);
@@ -394,16 +404,6 @@ function PriceChecker() {
         headerName: "PType",
         type: "capitalized",
         maxWidth: 100,
-      },
-      {
-        field: "hasActiveOffer",
-        headerName: "Offer",
-        type: "badge-column",
-        maxWidth: 100,
-        valueGetter: (params) =>
-          params.data?.hasActiveOffer
-            ? { label: "Yes", colorScheme: "green" }
-            : { label: "No", colorScheme: "red" },
       },
       {
         field: "incorrectSellingPrices",
@@ -508,6 +508,16 @@ function PriceChecker() {
           );
         },
       },
+      {
+        field: "hasActiveOffer",
+        headerName: "Offer",
+        type: "badge-column",
+        maxWidth: 100,
+        valueGetter: (params) =>
+          params.data?.hasActiveOffer
+            ? { label: "Yes", colorScheme: "green" }
+            : { label: "No", colorScheme: "red" },
+      },
     ],
     [showAll]
   );
@@ -529,8 +539,8 @@ function PriceChecker() {
       );
 
       const allItems = [];
-      matchingProducts.forEach((item) => {
-        allItems.push(...item.items);
+      matchingProducts.forEach((product) => {
+        allItems.push(...mapProductItemsForExport(product));
       });
 
       exportItems(allItems);
@@ -545,8 +555,8 @@ function PriceChecker() {
     const filteredProducts = getFilteredProducts();
 
     const allItems = [];
-    filteredProducts.forEach((item) => {
-      allItems.push(...item.items);
+    filteredProducts.forEach((product) => {
+      allItems.push(...mapProductItemsForExport(product));
     });
 
     exportItems(allItems);
