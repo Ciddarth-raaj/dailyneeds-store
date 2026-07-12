@@ -658,7 +658,7 @@ const ALL_PAGES_MENU = {
 /** Menu tree for the Pick & Pack module (module rail → Pick & Pack). */
 const PICK_PACK_MENU = {
   pick_pack: {
-    title: "Pick & Pack",
+    title: "Pick and Pack",
     selected: false,
     openPage: false,
     icon: "fa-boxes-packing",
@@ -680,6 +680,32 @@ const PICK_PACK_MENU = {
         permission: "view_pick_pack_write_off",
         selected: false,
         location: "/pick-pack/write-off-list",
+      },
+    },
+  },
+  verification: {
+    title: "Verification",
+    selected: false,
+    openPage: false,
+    icon: "fa-clipboard-check",
+    subMenu: {
+      view_pick_pack_verification_remarks: {
+        title: "Verification Master",
+        permission: "view_pick_pack_verification_remarks",
+        selected: false,
+        location: "/pick-pack/verification/remarks",
+      },
+      view_pick_pack_verifications: {
+        title: "Verification",
+        permission: "view_pick_pack_verifications",
+        selected: false,
+        location: "/pick-pack/verification",
+      },
+      view_pick_pack_verifications_list: {
+        title: "Verification List",
+        permission: "view_pick_pack_verifications",
+        selected: false,
+        location: "/pick-pack/verification-list",
       },
     },
   },

@@ -214,11 +214,11 @@ a {
 }
 
 ::selection {
-  background: var(--chakra-colors-purple-100);
+  background: var(--module-accent-200, var(--chakra-colors-purple-100));
 }
 
 ::-moz-selection {
-  background: var(--chakra-colors-purple-100);
+  background: var(--module-accent-200, var(--chakra-colors-purple-100));
 }
 
 @media print {

@@ -1,17 +1,17 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/router";
-import GlobalWrapper from "../../../components/globalWrapper/globalWrapper";
-import CustomContainer from "../../../components/CustomContainer";
-import CustomInput from "../../../components/customInput/customInput";
+import GlobalWrapper from "../../../../components/globalWrapper/globalWrapper";
+import CustomContainer from "../../../../components/CustomContainer";
+import CustomInput from "../../../../components/customInput/customInput";
 import { Button, Flex } from "@chakra-ui/react";
 import { Formik } from "formik";
 import * as Yup from "yup";
 import toast from "react-hot-toast";
-import { usePickPackRemarkById } from "../../../customHooks/usePickPackRemarkById";
+import { usePickPackVerificationRemarkById } from "../../../../customHooks/usePickPackVerificationRemarkById";
 import {
-  createPickPackRemark,
-  updatePickPackRemark,
-} from "../../../helper/pickPackRemarks";
+  createPickPackVerificationRemark,
+  updatePickPackVerificationRemark,
+} from "../../../../helper/pickPackVerificationRemarks";
 
 const validationSchema = Yup.object({
   label: Yup.string()
@@ -24,7 +24,7 @@ const initialValues = {
   label: "",
 };
 
-function PickPackRemarksMode() {
+function PickPackVerificationRemarksMode() {
   const router = useRouter();
   const { mode, id } = router.query;
   const remarkId = id ? parseInt(id, 10) : null;
@@ -33,7 +33,7 @@ function PickPackRemarksMode() {
   const editMode = mode === "edit";
   const createMode = mode === "create";
 
-  const { remark, loading } = usePickPackRemarkById(remarkId, {
+  const { remark, loading } = usePickPackVerificationRemarkById(remarkId, {
     enabled: (editMode || viewMode) && !!remarkId,
   });
 
@@ -56,16 +56,16 @@ function PickPackRemarksMode() {
   const handleSubmit = async (values) => {
     if (createMode) {
       try {
-        const res = await createPickPackRemark({
+        const res = await createPickPackVerificationRemark({
           label: values.label.trim(),
           is_active: true,
         });
         const newId = res?.remark_id ?? res?.data?.remark_id;
         toast.success("Remark created");
         if (newId) {
-          router.push(`/pick-pack/remarks/view?id=${newId}`);
+          router.push(`/pick-pack/verification/remarks/view?id=${newId}`);
         } else {
-          router.push("/pick-pack/remarks");
+          router.push("/pick-pack/verification/remarks");
         }
       } catch (err) {
         toast.error(err.message || "Failed to create remark");
@@ -75,9 +75,11 @@ function PickPackRemarksMode() {
 
     if (editMode && remarkId) {
       try {
-        await updatePickPackRemark(remarkId, { label: values.label.trim() });
+        await updatePickPackVerificationRemark(remarkId, {
+          label: values.label.trim(),
+        });
         toast.success("Remark updated");
-        router.push("/pick-pack/remarks");
+        router.push("/pick-pack/verification/remarks");
       } catch (err) {
         toast.error(err.message || "Failed to update remark");
       }
@@ -86,7 +88,7 @@ function PickPackRemarksMode() {
 
   if ((editMode || viewMode) && loading && !remark) {
     return (
-      <GlobalWrapper title="Pick & Pack Remarks">
+      <GlobalWrapper title="Verification Master">
         <CustomContainer title="Loading..." filledHeader>
           <Flex py={4}>Loading...</Flex>
         </CustomContainer>
@@ -96,12 +98,12 @@ function PickPackRemarksMode() {
 
   if ((editMode || viewMode) && !loading && !remark && remarkId) {
     return (
-      <GlobalWrapper title="Pick & Pack Remarks">
+      <GlobalWrapper title="Verification Master">
         <CustomContainer title="Not found" filledHeader>
           <Flex py={4}>Remark not found.</Flex>
-          <Button
-            onClick={() => router.push("/pick-pack/remarks")}
-          >
+            <Button
+              onClick={() => router.push("/pick-pack/verification/remarks")}
+            >
             Back to list
           </Button>
         </CustomContainer>
@@ -116,7 +118,7 @@ function PickPackRemarksMode() {
     : "Create Remark";
 
   return (
-    <GlobalWrapper title={title} permissionKey="view_pick_pack_remarks">
+    <GlobalWrapper title={title} permissionKey="view_pick_pack_verification_remarks">
       <CustomContainer title={title} filledHeader>
         <Formik
           enableReinitialize
@@ -140,7 +142,7 @@ function PickPackRemarksMode() {
                 {viewMode ? (
                   <Button
                     type="button"
-                    onClick={() => router.push("/pick-pack/remarks")}
+                    onClick={() => router.push("/pick-pack/verification/remarks")}
                   >
                     Back
                   </Button>
@@ -149,7 +151,7 @@ function PickPackRemarksMode() {
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => router.push("/pick-pack/remarks")}
+                    onClick={() => router.push("/pick-pack/verification/remarks")}
                   >
                       Cancel
                     </Button>
@@ -167,4 +169,4 @@ function PickPackRemarksMode() {
   );
 }
 
-export default PickPackRemarksMode;
+export default PickPackVerificationRemarksMode;

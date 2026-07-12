@@ -1,19 +1,19 @@
 import React, { useMemo, useCallback } from "react";
 import { useRouter } from "next/router";
-import GlobalWrapper from "../../../components/globalWrapper/globalWrapper";
-import CustomContainer from "../../../components/CustomContainer";
+import GlobalWrapper from "../../../../components/globalWrapper/globalWrapper";
+import CustomContainer from "../../../../components/CustomContainer";
 import { Button, Text } from "@chakra-ui/react";
-import AgGrid from "../../../components/AgGrid";
-import { usePickPackRemarks } from "../../../customHooks/usePickPackRemarks";
-import usePermissions from "../../../customHooks/usePermissions";
+import AgGrid from "../../../../components/AgGrid";
+import { usePickPackVerificationRemarks } from "../../../../customHooks/usePickPackVerificationRemarks";
+import usePermissions from "../../../../customHooks/usePermissions";
 import toast from "react-hot-toast";
-import { useConfirmDelete } from "../../../customHooks/useConfirmDelete";
-import { updatePickPackRemark } from "../../../helper/pickPackRemarks";
+import { useConfirmDelete } from "../../../../customHooks/useConfirmDelete";
+import { updatePickPackVerificationRemark } from "../../../../helper/pickPackVerificationRemarks";
 
-function PickPackRemarksListing() {
+function PickPackVerificationRemarksListing() {
   const router = useRouter();
-  const canAdd = usePermissions("add_pick_pack_remarks");
-  const { remarks, loading, deleteRemark, refetch } = usePickPackRemarks();
+  const canAdd = usePermissions("add_pick_pack_verification_remarks");
+  const { remarks, loading, deleteRemark, refetch } = usePickPackVerificationRemarks();
   const { confirmDelete, ConfirmDeleteDialog } = useConfirmDelete();
 
   const handleToggleStatus = useCallback(
@@ -22,7 +22,9 @@ function PickPackRemarksListing() {
       if (id == null) return;
       const nextActive = !(row?.is_active === true || row?.is_active === 1);
       toast.promise(
-        updatePickPackRemark(id, { is_active: nextActive }).then(() => refetch()),
+        updatePickPackVerificationRemark(id, { is_active: nextActive }).then(() =>
+          refetch()
+        ),
         {
           loading: "Updating...",
           success: nextActive
@@ -68,7 +70,7 @@ function PickPackRemarksListing() {
             {
               label: "View",
               icon: "fa-solid fa-eye",
-              redirectionUrl: `/pick-pack/remarks/view?id=${id}`,
+              redirectionUrl: `/pick-pack/verification/remarks/view?id=${id}`,
             },
           ];
           if (canAdd) {
@@ -85,7 +87,7 @@ function PickPackRemarksListing() {
               {
                 label: "Edit",
                 icon: "fa-solid fa-pen",
-                redirectionUrl: `/pick-pack/remarks/edit?id=${id}`,
+                redirectionUrl: `/pick-pack/verification/remarks/edit?id=${id}`,
               },
               {
                 label: "Delete",
@@ -114,18 +116,18 @@ function PickPackRemarksListing() {
 
   return (
     <GlobalWrapper
-      title="Pick & Pack Remarks"
-      permissionKey="view_pick_pack_remarks"
+      title="Verification Master"
+      permissionKey="view_pick_pack_verification_remarks"
     >
       <ConfirmDeleteDialog />
       <CustomContainer
-        title="Pick & Pack Remarks"
+        title="Verification Master"
         filledHeader
         rightSection={
           canAdd ? (
             <Button
               size="sm"
-              onClick={() => router.push("/pick-pack/remarks/create")}
+              onClick={() => router.push("/pick-pack/verification/remarks/create")}
             >
               Add
             </Button>
@@ -138,10 +140,8 @@ function PickPackRemarksListing() {
           <AgGrid
             rowData={remarks}
             columnDefs={colDefs}
-            tableKey="pick-pack-remarks"
-            gridOptions={{
-              getRowId: (params) => String(params.data?.remark_id ?? ""),
-            }}
+            tableKey="pick-pack-verification-remarks"
+            getRowId={(params) => String(params.data?.remark_id ?? "")}
           />
         )}
       </CustomContainer>
@@ -149,4 +149,4 @@ function PickPackRemarksListing() {
   );
 }
 
-export default PickPackRemarksListing;
+export default PickPackVerificationRemarksListing;

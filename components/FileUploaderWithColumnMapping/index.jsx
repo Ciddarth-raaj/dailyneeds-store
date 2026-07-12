@@ -20,6 +20,7 @@ import {
 import { useDropzone } from "react-dropzone";
 import { parseSpreadsheetFile } from "../../util/parseSpreadsheetFile";
 import toast from "react-hot-toast";
+import { useModuleTableTheme } from "../../contexts/ModuleTableThemeContext";
 
 /**
  * Coerce a raw value to the target type.
@@ -39,7 +40,8 @@ function coerceValue(raw, type) {
   return s;
 }
 
-function AcceptedColumnsList({ config }) {
+function AcceptedColumnsList({ config, colorScheme }) {
+  const cs = colorScheme;
   return (
     <VStack align="stretch" spacing={2} mb={4}>
       <Text fontSize="sm" color="gray.600">
@@ -47,7 +49,7 @@ function AcceptedColumnsList({ config }) {
       </Text>
       <Box
         borderWidth="1px"
-        borderColor="purple.100"
+        borderColor={`${cs}.100`}
         borderRadius="md"
         overflow="hidden"
       >
@@ -57,11 +59,11 @@ function AcceptedColumnsList({ config }) {
             px={3}
             py={2}
             spacing={3}
-            bg={index % 2 === 0 ? "white" : "purple.50"}
+            bg={index % 2 === 0 ? "white" : `${cs}.50`}
             justify="space-between"
           >
             <HStack spacing={2} flex={1} minW={0}>
-              <Text fontSize="sm" fontWeight="medium" color="purple.800">
+              <Text fontSize="sm" fontWeight="medium" color={`${cs}.800`}>
                 {label}
               </Text>
               {required ? (
@@ -86,18 +88,25 @@ function AcceptedColumnsList({ config }) {
   );
 }
 
-function DropzoneArea({ getRootProps, getInputProps, isDragActive, compact }) {
+function DropzoneArea({
+  getRootProps,
+  getInputProps,
+  isDragActive,
+  compact,
+  colorScheme,
+}) {
+  const cs = colorScheme;
   return (
     <Box
       {...getRootProps()}
       p={compact ? 5 : 6}
       borderWidth="2px"
       borderStyle="dashed"
-      borderColor={isDragActive ? "purple.400" : "purple.200"}
+      borderColor={isDragActive ? `${cs}.400` : `${cs}.200`}
       borderRadius="md"
-      bg={isDragActive ? "purple.50" : "gray.50"}
+      bg={isDragActive ? `${cs}.50` : "gray.50"}
       cursor="pointer"
-      _hover={{ borderColor: "purple.300", bg: "purple.50" }}
+      _hover={{ borderColor: `${cs}.300`, bg: `${cs}.50` }}
       textAlign="center"
     >
       <input {...getInputProps()} />
@@ -107,6 +116,21 @@ function DropzoneArea({ getRootProps, getInputProps, isDragActive, compact }) {
           : "Drop an XLSX or CSV file here, or click to select"}
       </Text>
     </Box>
+  );
+}
+
+function MappingModalHeader({ children, colorScheme }) {
+  const cs = colorScheme;
+  return (
+    <ModalHeader
+      borderBottomWidth="1px"
+      borderColor={`${cs}.100`}
+      bg={`${cs}.50`}
+      color={`${cs}.700`}
+      fontSize="16px"
+    >
+      {children}
+    </ModalHeader>
   );
 }
 
@@ -129,6 +153,7 @@ export default function FileUploaderWithColumnMapping({
   renderer,
   ...rest
 }) {
+  const { colorScheme } = useModuleTableTheme();
   const {
     isOpen: isUploadOpen,
     onOpen: onUploadOpen,
@@ -236,11 +261,12 @@ export default function FileUploaderWithColumnMapping({
     renderer(onUploadOpen)
   ) : (
     <Box>
-      <AcceptedColumnsList config={config} />
+      <AcceptedColumnsList config={config} colorScheme={colorScheme} />
       <DropzoneArea
         getRootProps={getRootProps}
         getInputProps={getInputProps}
         isDragActive={isDragActive}
+        colorScheme={colorScheme}
       />
     </Box>
   );
@@ -258,30 +284,21 @@ export default function FileUploaderWithColumnMapping({
         >
           <ModalOverlay />
           <ModalContent borderRadius="xl" overflow="hidden">
-            <ModalHeader
-              borderBottomWidth="1px"
-              borderColor="purple.100"
-              bg="purple.50"
-              color="purple.700"
-              fontSize="16px"
-            >
+            <MappingModalHeader colorScheme={colorScheme}>
               Import file
-            </ModalHeader>
+            </MappingModalHeader>
             <ModalBody py={4}>
-              <AcceptedColumnsList config={config} />
+              <AcceptedColumnsList config={config} colorScheme={colorScheme} />
               <DropzoneArea
                 getRootProps={getRootProps}
                 getInputProps={getInputProps}
                 isDragActive={isDragActive}
                 compact
+                colorScheme={colorScheme}
               />
             </ModalBody>
             <ModalFooter>
-              <Button
-                variant="ghost"
-                colorScheme="purple"
-                onClick={handleUploadModalClose}
-              >
+              <Button variant="ghost" onClick={handleUploadModalClose}>
                 Cancel
               </Button>
             </ModalFooter>
@@ -297,15 +314,9 @@ export default function FileUploaderWithColumnMapping({
       >
         <ModalOverlay />
         <ModalContent borderRadius="xl" overflow="hidden">
-          <ModalHeader
-            borderBottomWidth="1px"
-            borderColor="purple.100"
-            bg="purple.50"
-            color="purple.700"
-            fontSize="16px"
-          >
+          <MappingModalHeader colorScheme={colorScheme}>
             Map columns
-          </ModalHeader>
+          </MappingModalHeader>
           <ModalBody py={4}>
             <Text fontSize="sm" color="gray.600" mb={4}>
               Map file columns to fields. File: {fileName} ({fileRows.length}{" "}
@@ -314,7 +325,7 @@ export default function FileUploaderWithColumnMapping({
             <VStack align="stretch" spacing={4}>
               {config.map(({ key, label, required, suggestedKey }) => (
                 <FormControl key={key} isRequired={required}>
-                  <FormLabel fontSize="sm" color="purple.700">
+                  <FormLabel fontSize="sm">
                     {label}
                     {suggestedKey ? (
                       <Text as="span" fontWeight="normal" color="gray.500">
@@ -333,9 +344,9 @@ export default function FileUploaderWithColumnMapping({
                       }))
                     }
                     placeholder="Select column"
-                    borderColor="purple.200"
+                    borderColor={`${colorScheme}.200`}
                     borderRadius="md"
-                    _hover={{ borderColor: "purple.300" }}
+                    _hover={{ borderColor: `${colorScheme}.300` }}
                   >
                     {fileHeaders.map((h) => (
                       <option key={h} value={h}>
@@ -348,17 +359,10 @@ export default function FileUploaderWithColumnMapping({
             </VStack>
           </ModalBody>
           <ModalFooter>
-            <Button
-              variant="ghost"
-              colorScheme="purple"
-              mr={2}
-              onClick={handleMappingModalClose}
-            >
+            <Button variant="ghost" mr={2} onClick={handleMappingModalClose}>
               Cancel
             </Button>
-            <Button colorScheme="purple" onClick={handleApplyMapping}>
-              Apply mapping
-            </Button>
+            <Button onClick={handleApplyMapping}>Apply mapping</Button>
           </ModalFooter>
         </ModalContent>
       </Modal>

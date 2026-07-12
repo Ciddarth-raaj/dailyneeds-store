@@ -42,6 +42,9 @@ const Button = {
       };
     },
   },
+  defaultProps: {
+    colorScheme: "purple",
+  },
 };
 
 /**
@@ -50,6 +53,8 @@ const Button = {
  */
 export function createAppTheme(colorScheme = "purple") {
   const cs = colorScheme;
+
+  const moduleButtonDefaults = { colorScheme: cs };
 
   const Table = {
     variants: {
@@ -95,20 +100,29 @@ export function createAppTheme(colorScheme = "purple") {
 
   const defaultFocusColor = `${cs}.500`;
 
+  const moduleAccentVars = [50, 100, 200, 400, 500, 600, 700, 900].reduce(
+    (acc, shade) => {
+      acc[`--module-accent-${shade}`] = `var(--chakra-colors-${cs}-${shade})`;
+      return acc;
+    },
+    {}
+  );
+
   return extendTheme({
     styles: {
       global: {
+        ":root": moduleAccentVars,
         input: {
           focusBorderColor: `${cs}.500`,
         },
-        // Text selection follows module accent (root theme = purple; GST = blue via GstModuleWrapper).
+        // Text selection follows module accent.
         "::selection": {
-          background: `var(--chakra-colors-${cs}-200)`,
-          color: `var(--chakra-colors-${cs}-900)`,
+          background: `var(--module-accent-200)`,
+          color: `var(--module-accent-900, var(--chakra-colors-${cs}-900))`,
         },
         "::-moz-selection": {
-          background: `var(--chakra-colors-${cs}-200)`,
-          color: `var(--chakra-colors-${cs}-900)`,
+          background: `var(--module-accent-200)`,
+          color: `var(--module-accent-900, var(--chakra-colors-${cs}-900))`,
         },
       },
     },
@@ -117,9 +131,13 @@ export function createAppTheme(colorScheme = "purple") {
     },
     components: {
       Container,
-      Button,
+      Button: {
+        ...Button,
+        defaultProps: moduleButtonDefaults,
+      },
+      IconButton: { defaultProps: moduleButtonDefaults },
       Table,
-      Tabs: { defaultProps: { size: "sm" } },
+      Tabs: { defaultProps: { size: "sm", colorScheme: cs } },
       Tab: {
         baseStyle: {
           fontSize: "sm",
@@ -129,11 +147,38 @@ export function createAppTheme(colorScheme = "purple") {
           },
         },
       },
-      Input: { defaultProps: { focusBorderColor: defaultFocusColor } },
-      Select: { defaultProps: { focusBorderColor: defaultFocusColor } },
-      Textarea: { defaultProps: { focusBorderColor: defaultFocusColor } },
-      NumberInput: { defaultProps: { focusBorderColor: defaultFocusColor } },
+      Switch: { defaultProps: moduleButtonDefaults },
+      Checkbox: { defaultProps: moduleButtonDefaults },
+      Radio: { defaultProps: moduleButtonDefaults },
+      Tag: { defaultProps: moduleButtonDefaults },
+      FormLabel: {
+        baseStyle: {
+          fontSize: "sm",
+          fontWeight: 600,
+          color: "gray.600",
+          letterSpacing: "0.01em",
+          mb: 1.5,
+        },
+      },
+      FormControl: {
+        baseStyle: {
+          _focusWithin: {
+            label: {
+              color: defaultFocusColor,
+            },
+          },
+        },
+      },
       Form: {
+        baseStyle: {
+          container: {
+            _focusWithin: {
+              label: {
+                color: defaultFocusColor,
+              },
+            },
+          },
+        },
         variants: {
           floating: {
             container: {
@@ -174,6 +219,10 @@ export function createAppTheme(colorScheme = "purple") {
           },
         },
       },
+      Input: { defaultProps: { focusBorderColor: defaultFocusColor } },
+      Select: { defaultProps: { focusBorderColor: defaultFocusColor } },
+      Textarea: { defaultProps: { focusBorderColor: defaultFocusColor } },
+      NumberInput: { defaultProps: { focusBorderColor: defaultFocusColor } },
     },
     fonts,
   });

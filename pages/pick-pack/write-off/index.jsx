@@ -385,13 +385,12 @@ function PickPackWriteOffPage() {
                   onMappedData={handleImportMapped}
                   accept=".xlsx,.xls,.csv"
                   renderer={(openFileBrowser) => (
-                    <Button
-                      onClick={openFileBrowser}
-                      colorScheme="purple"
-                      size="sm"
-                      isLoading={importing}
-                      loadingText="Importing..."
-                    >
+                            <Button
+                              onClick={openFileBrowser}
+                              size="sm"
+                              isLoading={importing}
+                              loadingText="Importing..."
+                            >
                       Import file
                     </Button>
                   )}

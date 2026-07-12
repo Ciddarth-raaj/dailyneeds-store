@@ -16,6 +16,7 @@ import {
   IconButton,
 } from "@chakra-ui/react";
 import { CheckIcon, CloseIcon } from "@chakra-ui/icons";
+import { useModuleTableTheme } from "../../contexts/ModuleTableThemeContext";
 
 /**
  * A dropdown that allows searching/filtering within options.
@@ -48,6 +49,7 @@ function SearchableDropdown({
   multiple = false,
   ...rest
 }) {
+  const { colorScheme } = useModuleTableTheme();
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [dropdownPosition, setDropdownPosition] = useState({
@@ -241,8 +243,8 @@ function SearchableDropdown({
                 fontSize="sm"
                 borderBottomWidth="1px"
                 borderColor="gray.50"
-                _hover={{ bg: "purple.50" }}
-                _active={{ bg: "purple.100" }}
+                _hover={{ bg: `${colorScheme}.50` }}
+                _active={{ bg: `${colorScheme}.100` }}
                 onMouseDown={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
@@ -258,7 +260,7 @@ function SearchableDropdown({
                 lineHeight="1.2"
                 justifyContent="space-between"
                 gap={2}
-                bg={multiple && isOptionSelected(opt.id) ? "purple.50" : undefined}
+                bg={multiple && isOptionSelected(opt.id) ? `${colorScheme}.50` : undefined}
               >
                 <Box minW={0} flex={1}>
                   {typeof customRenderer === "function"
@@ -266,7 +268,7 @@ function SearchableDropdown({
                     : opt.value}
                 </Box>
                 {multiple && isOptionSelected(opt.id) ? (
-                  <CheckIcon color="var(--chakra-colors-purple-600)" boxSize={3} />
+                  <CheckIcon color={`var(--module-accent-600)`} boxSize={3} />
                 ) : null}
               </Box>
             );
@@ -331,7 +333,6 @@ function SearchableDropdown({
             placeholder={placeholder}
             isDisabled={isDisabled}
             autoComplete="off"
-            focusBorderColor="purple.400"
             _placeholder={{ color: "gray.500" }}
             _disabled={{ opacity: 0.8, cursor: "not-allowed" }}
           />
@@ -378,7 +379,6 @@ function SearchableDropdown({
                 <Tag
                   key={String(opt.id)}
                   size="sm"
-                  colorScheme="purple"
                   borderRadius="md"
                   maxW="100%"
                 >

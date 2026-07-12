@@ -32,13 +32,10 @@ const MONTHS = [
   { value: 12, label: "December" },
 ];
 
-/**
- * Day colors: red = no records, yellow = unfilled reasons, green = all reasons filled.
- */
-function WriteOffMonthCalendar({
+function VerificationMonthCalendar({
   selectedDate,
   onSelectDate,
-  writeOffsList = [],
+  verificationsList = [],
   viewingMonth,
   onViewingMonthChange,
 }) {
@@ -59,8 +56,8 @@ function WriteOffMonthCalendar({
   }, [viewingMonth]);
 
   const dayAggregation = useMemo(
-    () => aggregatePickPackDaysByReason(writeOffsList),
-    [writeOffsList]
+    () => aggregatePickPackDaysByReason(verificationsList),
+    [verificationsList]
   );
 
   const isSelected = (date) => date.format("YYYY-MM-DD") === selectedDate;
@@ -161,4 +158,4 @@ function WriteOffMonthCalendar({
   );
 }
 
-export default WriteOffMonthCalendar;
+export default VerificationMonthCalendar;

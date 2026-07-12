@@ -1,18 +1,27 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { useRouter } from "next/router";
+import { ChakraProvider } from "@chakra-ui/react";
 import { ModuleTableThemeProvider } from "../contexts/ModuleTableThemeContext";
 import { getTableColorSchemeForPath } from "../util/moduleTableTheme";
+import { createAppTheme } from "../theme";
 
 /**
- * Syncs table accent to the active app module (see `MENU_MODULES` accents).
+ * Syncs Chakra + table accent to the active app module (see `MENU_MODULES` accents).
+ * Buttons without an explicit `colorScheme` use the module palette.
  */
 export default function ModuleTableThemeBridge({ children }) {
   const router = useRouter();
   const colorScheme = getTableColorSchemeForPath(router.pathname);
+  const moduleTheme = useMemo(
+    () => createAppTheme(colorScheme),
+    [colorScheme]
+  );
 
   return (
-    <ModuleTableThemeProvider colorScheme={colorScheme}>
-      {children}
-    </ModuleTableThemeProvider>
+    <ChakraProvider theme={moduleTheme}>
+      <ModuleTableThemeProvider colorScheme={colorScheme}>
+        {children}
+      </ModuleTableThemeProvider>
+    </ChakraProvider>
   );
 }

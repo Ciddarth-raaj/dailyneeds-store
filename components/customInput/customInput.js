@@ -51,7 +51,6 @@ export const CustomDateTimeInput = forwardRef(
       size="sm"
       height="40px"
       borderRadius="6px"
-      focusBorderColor="purple.400"
       fontSize="sm"
       style={style}
       disabled={disabled}
@@ -202,7 +201,7 @@ const TextFieldBody = ({
                   </Text>
                   <Link href={item} passHref>
                     <a target="_blank" rel="noopener noreferrer">
-                      <Button size="xs" variant="link" colorScheme="purple">
+                      <Button size="xs" variant="link">
                         Open File
                       </Button>
                     </a>
@@ -294,7 +293,6 @@ const TextFieldBody = ({
                           size="sm"
                           minHeight="40px"
                           borderRadius="6px"
-                          focusBorderColor="purple.400"
                           fontSize="sm"
                           placeholder={floatingLabel ? " " : props.placeholder}
                           onWheel={(e) => e.target.blur()}
@@ -308,7 +306,6 @@ const TextFieldBody = ({
                             isChecked={!!field.value}
                             onChange={onChange}
                             isDisabled={props.isDisabled || !editable}
-                            colorScheme="purple"
                             {...props}
                           />
                           <Text
@@ -331,7 +328,6 @@ const TextFieldBody = ({
                           onWheel={(e) => e.target.blur()}
                         >
                           <NumberInputField
-                            focusBorderColor="purple.400"
                             borderRadius="6px"
                             height="40px"
                             fontSize="sm"
@@ -351,7 +347,6 @@ const TextFieldBody = ({
                           size="sm"
                           height="40px"
                           borderRadius="6px"
-                          focusBorderColor="purple.400"
                           fontSize="sm"
                           placeholder="Select Option"
                         >
@@ -408,7 +403,6 @@ const TextFieldBody = ({
                           size="sm"
                           height="40px"
                           borderRadius="6px"
-                          focusBorderColor="purple.400"
                           fontSize="sm"
                           autoComplete="off"
                           placeholder={floatingLabel ? " " : props.placeholder}
@@ -574,7 +568,6 @@ const TextFieldBody = ({
                       size="sm"
                       height="40px"
                       borderRadius="6px"
-                      focusBorderColor="purple.400"
                       fontSize="sm"
                       bg="white"
                       {...field}
@@ -587,7 +580,7 @@ const TextFieldBody = ({
                         onClick={onClick}
                         style={{
                           cursor: "pointer",
-                          color: "var(--chakra-colors-purple-500)",
+                          color: "var(--module-accent-500, var(--chakra-colors-purple-500))",
                         }}
                       />
                     </InputRightElement>
@@ -630,7 +623,6 @@ const TextFieldBody = ({
                       size="sm"
                       height="40px"
                       borderRadius="6px"
-                      focusBorderColor="purple.400"
                       fontSize="sm"
                       bg="white"
                       defaultValue={defaultValue}
@@ -893,7 +885,6 @@ export function CustomInputStandalone({
             size={size}
             height="40px"
             borderRadius="6px"
-            focusBorderColor="purple.400"
             fontSize="sm"
             value={value ?? ""}
             onChange={handleChange}
@@ -931,7 +922,6 @@ export function CustomInputStandalone({
                 size={size}
                 height="40px"
                 borderRadius="6px"
-                focusBorderColor="purple.400"
                 fontSize="sm"
                 value={value ?? ""}
                 onChange={handleChange}
