@@ -605,6 +605,12 @@ const ALL_PAGES_MENU = {
         selected: false,
         location: "/pick-pack/write-off",
       },
+      view_pick_pack_write_off_list: {
+        title: "Write Off List",
+        permission: "view_pick_pack_write_off",
+        selected: false,
+        location: "/pick-pack/write-off-list",
+      },
     },
   },
   misc: {
