@@ -1,8 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import moment from "moment";
 import {
-  FormControl,
-  FormLabel,
   HStack,
   Input,
   Tab,
@@ -16,6 +14,7 @@ import toast from "react-hot-toast";
 import GlobalWrapper from "../../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../../components/CustomContainer";
 import AgGrid from "../../../components/AgGrid";
+import { useModuleTableTheme } from "../../../contexts/ModuleTableThemeContext";
 import usePermissions from "../../../customHooks/usePermissions";
 import { usePickPackRemarks } from "../../../customHooks/usePickPackRemarks";
 import { useProducts } from "../../../customHooks/useProducts";
@@ -73,6 +72,7 @@ function getReasonEmployeeName(row, employeeMap) {
 }
 
 function PickPackWriteOffListPage() {
+  const { colorScheme } = useModuleTableTheme();
   const [fromDate, setFromDate] = useState(() =>
     moment().startOf("month").format("YYYY-MM-DD")
   );
@@ -308,32 +308,24 @@ function PickPackWriteOffListPage() {
   }, [activeTabIndex, activePickPackRemarks.length]);
 
   const dateRangePicker = (
-    <HStack spacing={3} align="flex-end" flexShrink={0}>
-      <FormControl w="auto" minW="150px">
-        <FormLabel fontSize="xs" mb={1}>
-          From
-        </FormLabel>
-        <Input
-          type="date"
-          size="sm"
-          value={fromDate}
-          max={toDate}
-          onChange={(e) => handleFromDateChange(e.target.value)}
-        />
-      </FormControl>
-      <FormControl w="auto" minW="150px">
-        <FormLabel fontSize="xs" mb={1}>
-          To
-        </FormLabel>
-        <Input
-          type="date"
-          size="sm"
-          value={toDate}
-          min={fromDate}
-          max={moment().format("YYYY-MM-DD")}
-          onChange={(e) => handleToDateChange(e.target.value)}
-        />
-      </FormControl>
+    <HStack spacing={3} align="center" flexShrink={0}>
+      <Input
+        type="date"
+        size="sm"
+        w="150px"
+        value={fromDate}
+        max={toDate}
+        onChange={(e) => handleFromDateChange(e.target.value)}
+      />
+      <Input
+        type="date"
+        size="sm"
+        w="150px"
+        value={toDate}
+        min={fromDate}
+        max={moment().format("YYYY-MM-DD")}
+        onChange={(e) => handleToDateChange(e.target.value)}
+      />
     </HStack>
   );
 
@@ -354,7 +346,7 @@ function PickPackWriteOffListPage() {
         ) : (
           <Tabs
             size="sm"
-            colorScheme="purple"
+            colorScheme={colorScheme}
             index={activeTabIndex}
             onChange={setActiveTabIndex}
           >

@@ -587,32 +587,6 @@ const ALL_PAGES_MENU = {
   //     // },
   //   },
   // },
-  pick_pack: {
-    title: "Pick & Pack",
-    selected: false,
-    openPage: false,
-    icon: "fa-boxes-packing",
-    subMenu: {
-      view_pick_pack_remarks: {
-        title: "Remarks Master",
-        permission: "view_pick_pack_remarks",
-        selected: false,
-        location: "/pick-pack/remarks",
-      },
-      view_pick_pack_write_off: {
-        title: "Write Off",
-        permission: "view_pick_pack_write_off",
-        selected: false,
-        location: "/pick-pack/write-off",
-      },
-      view_pick_pack_write_off_list: {
-        title: "Write Off List",
-        permission: "view_pick_pack_write_off",
-        selected: false,
-        location: "/pick-pack/write-off-list",
-      },
-    },
-  },
   misc: {
     title: "Miscellaneous",
     selected: false,
@@ -676,6 +650,36 @@ const ALL_PAGES_MENU = {
             location: "/products/expiry-checker/assigned-products",
           },
         },
+      },
+    },
+  },
+};
+
+/** Menu tree for the Pick & Pack module (module rail → Pick & Pack). */
+const PICK_PACK_MENU = {
+  pick_pack: {
+    title: "Pick & Pack",
+    selected: false,
+    openPage: false,
+    icon: "fa-boxes-packing",
+    subMenu: {
+      view_pick_pack_remarks: {
+        title: "Remarks Master",
+        permission: "view_pick_pack_remarks",
+        selected: false,
+        location: "/pick-pack/remarks",
+      },
+      view_pick_pack_write_off: {
+        title: "Write Off",
+        permission: "view_pick_pack_write_off",
+        selected: false,
+        location: "/pick-pack/write-off",
+      },
+      view_pick_pack_write_off_list: {
+        title: "Write Off List",
+        permission: "view_pick_pack_write_off",
+        selected: false,
+        location: "/pick-pack/write-off-list",
       },
     },
   },
@@ -807,6 +811,12 @@ export const MENU_MODULES = {
     iconClass: "fa-solid fa-file-invoice-dollar",
     accent: "blue",
     menu: GST_MENU,
+  },
+  pick_pack: {
+    title: "Pick & Pack",
+    iconClass: "fa-solid fa-boxes-packing",
+    accent: "orange",
+    menu: PICK_PACK_MENU,
   },
 };
 
