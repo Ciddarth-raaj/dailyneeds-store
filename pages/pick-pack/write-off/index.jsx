@@ -6,7 +6,16 @@ import React, {
   useState,
 } from "react";
 import moment from "moment";
-import { Box, Button, Flex, Text } from "@chakra-ui/react";
+import {
+  Button,
+  Flex,
+  Tab,
+  TabList,
+  TabPanel,
+  TabPanels,
+  Tabs,
+  Text,
+} from "@chakra-ui/react";
 import toast from "react-hot-toast";
 import GlobalWrapper from "../../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../../components/CustomContainer";
@@ -92,6 +101,7 @@ function PickPackWriteOffPage() {
   const { employees, loading: employeesLoading } = useEmployees({});
 
   const [shortageModal, setShortageModal] = useState(null);
+  const [activeTabIndex, setActiveTabIndex] = useState(0);
   const gridRef = useRef(null);
 
   /** AG Grid React cells may not re-render when row data changes; force remark column refresh */
@@ -313,7 +323,44 @@ function PickPackWriteOffPage() {
     });
   }, [rowsForSelectedDay, selectedDate, confirmDelete, loadMonth]);
 
-  const colDefs = useMemo(
+  const enrichGridRow = useCallback(
+    (r) => {
+      const pid = r.product_id;
+      const p =
+        mappedProducts[pid] ??
+        mappedProducts[Number(pid)] ??
+        mappedProducts[String(pid)];
+      return {
+        ...r,
+        _product_name:
+          p?.de_name ?? p?.de_display_name ?? r.product_name ?? "—",
+        _image_url: p?.image_url ?? r.product_image_url ?? "",
+      };
+    },
+    [mappedProducts]
+  );
+
+  const gridRows = useMemo(
+    () => rowsForSelectedDay.map(enrichGridRow),
+    [rowsForSelectedDay, enrichGridRow]
+  );
+
+  const unfilledRows = useMemo(
+    () => gridRows.filter((row) => !hasWriteOffReason(row)),
+    [gridRows]
+  );
+
+  const rowsByRemarkId = useMemo(() => {
+    const map = {};
+    activePickPackRemarks.forEach((remark) => {
+      map[remark.remark_id] = gridRows.filter(
+        (row) => String(row.remark_id) === String(remark.remark_id)
+      );
+    });
+    return map;
+  }, [gridRows, activePickPackRemarks]);
+
+  const baseColDefs = useMemo(
     () => [
       {
         field: "product_id",
@@ -336,52 +383,59 @@ function PickPackWriteOffPage() {
         headerName: "Mismatch Qty",
         type: "number",
       },
-      {
-        field: "remark_id",
-        headerName: "Remark",
-        flex: 1.5,
-        autoHeight: true,
-        cellRenderer: (params) => {
-          const verified = isWriteOffVerified(params.data?.is_verified);
-          const rowId = params.data?.pick_pack_write_off_id;
-          return (
-            <WriteOffRemarkCell
-              key={`remark-${rowId}-${verified ? "v" : "o"}`}
-              data={params.data}
-              remarkOptions={activePickPackRemarks}
-              onRemarkUpdated={handleRemarkUpdated}
-              onShortageEmployeeRequired={handleShortageEmployeeRequired}
-              isEditable={canAdd && !verified}
-              employeeMap={employeeMap}
-            />
-          );
-        },
+    ],
+    []
+  );
+
+  const remarkColDef = useMemo(
+    () => ({
+      field: "remark_id",
+      headerName: "Remark",
+      flex: 1.5,
+      autoHeight: true,
+      cellRenderer: (params) => {
+        const verified = isWriteOffVerified(params.data?.is_verified);
+        const rowId = params.data?.pick_pack_write_off_id;
+        return (
+          <WriteOffRemarkCell
+            key={`remark-${rowId}-${verified ? "v" : "o"}`}
+            data={params.data}
+            remarkOptions={activePickPackRemarks}
+            onRemarkUpdated={handleRemarkUpdated}
+            onShortageEmployeeRequired={handleShortageEmployeeRequired}
+            isEditable={canAdd && !verified}
+            employeeMap={employeeMap}
+          />
+        );
       },
+    }),
+    [
+      activePickPackRemarks,
+      canAdd,
+      handleRemarkUpdated,
+      handleShortageEmployeeRequired,
+      employeeMap,
+    ]
+  );
+
+  const unfilledColDefs = useMemo(
+    () => [
+      ...baseColDefs,
+      remarkColDef,
       {
         field: "actions",
         type: "action-icons",
         headerName: "Actions",
-        minWidth: 168,
-        maxWidth: 200,
-        width: 168,
+        minWidth: 96,
+        maxWidth: 120,
+        width: 96,
         valueGetter: (params) => {
           const row = params.data;
           const id = row?.pick_pack_write_off_id;
-          const actions = [];
           const verified = isWriteOffVerified(row?.is_verified);
-          const canVerify = canAdd && hasWriteOffReason(row) && !verified;
-          if (canAdd) {
-            actions.push({
-              label: "Verify",
-              icon: verified ? "fa-solid fa-circle-check" : "fa-solid fa-check",
-              colorScheme: "green",
-              disabled: !canVerify,
-              onClick: () => {
-                if (!canVerify) return;
-                handleVerifyRow(row);
-              },
-            });
-            actions.push({
+          if (!canAdd) return [];
+          return [
+            {
               label: "Delete",
               icon: "fa-solid fa-trash",
               colorScheme: "red",
@@ -396,39 +450,53 @@ function PickPackWriteOffPage() {
                     loadMonth();
                   },
                 }),
-            });
-          }
-          return actions;
+            },
+          ];
         },
       },
     ],
-    [
-      activePickPackRemarks,
-      canAdd,
-      confirmDelete,
-      loadMonth,
-      handleRemarkUpdated,
-      handleShortageEmployeeRequired,
-      handleVerifyRow,
-      employeeMap,
-    ]
+    [baseColDefs, remarkColDef, canAdd, confirmDelete, loadMonth]
   );
 
-  const gridRows = useMemo(() => {
-    return rowsForSelectedDay.map((r) => {
-      const pid = r.product_id;
-      const p =
-        mappedProducts[pid] ??
-        mappedProducts[Number(pid)] ??
-        mappedProducts[String(pid)];
-      return {
-        ...r,
-        _product_name:
-          p?.de_name ?? p?.de_display_name ?? r.product_name ?? "—",
-        _image_url: p?.image_url ?? r.product_image_url ?? "",
-      };
-    });
-  }, [rowsForSelectedDay, mappedProducts]);
+  const remarkTabColDefs = useMemo(
+    () => [
+      ...baseColDefs,
+      {
+        field: "actions",
+        type: "action-icons",
+        headerName: "Actions",
+        minWidth: 96,
+        maxWidth: 120,
+        width: 96,
+        valueGetter: (params) => {
+          const row = params.data;
+          const verified = isWriteOffVerified(row?.is_verified);
+          const canVerify = canAdd && hasWriteOffReason(row) && !verified;
+          if (!canAdd) return [];
+          return [
+            {
+              label: "Verify",
+              icon: verified ? "fa-solid fa-circle-check" : "fa-solid fa-check",
+              colorScheme: "green",
+              disabled: !canVerify,
+              onClick: () => {
+                if (!canVerify) return;
+                handleVerifyRow(row);
+              },
+            },
+          ];
+        },
+      },
+    ],
+    [baseColDefs, canAdd, handleVerifyRow]
+  );
+
+  useEffect(() => {
+    const maxTabIndex = activePickPackRemarks.length;
+    if (activeTabIndex > maxTabIndex) {
+      setActiveTabIndex(0);
+    }
+  }, [activeTabIndex, activePickPackRemarks.length]);
 
   return (
     <GlobalWrapper
@@ -499,17 +567,47 @@ function PickPackWriteOffPage() {
               Loading calendar data…
             </Text>
           ) : (
-            <Box>
-              <AgGrid
-                ref={gridRef}
-                rowData={gridRows}
-                columnDefs={colDefs}
-                tableKey="pick-pack-write-off"
-                getRowId={(params) =>
-                  String(params.data?.pick_pack_write_off_id ?? "")
-                }
-              />
-            </Box>
+            <Tabs
+              size="sm"
+              colorScheme="purple"
+              index={activeTabIndex}
+              onChange={setActiveTabIndex}
+            >
+              <TabList flexWrap="wrap">
+                <Tab>Unfilled ({unfilledRows.length})</Tab>
+                {activePickPackRemarks.map((remark) => (
+                  <Tab key={remark.remark_id}>
+                    {remark.label || `Remark ${remark.remark_id}`} (
+                    {rowsByRemarkId[remark.remark_id]?.length ?? 0})
+                  </Tab>
+                ))}
+              </TabList>
+              <TabPanels>
+                <TabPanel p={0} pt={4}>
+                  <AgGrid
+                    ref={gridRef}
+                    rowData={unfilledRows}
+                    columnDefs={unfilledColDefs}
+                    tableKey="pick-pack-write-off-unfilled"
+                    getRowId={(params) =>
+                      String(params.data?.pick_pack_write_off_id ?? "")
+                    }
+                  />
+                </TabPanel>
+                {activePickPackRemarks.map((remark) => (
+                  <TabPanel key={remark.remark_id} p={0} pt={4}>
+                    <AgGrid
+                      rowData={rowsByRemarkId[remark.remark_id] ?? []}
+                      columnDefs={remarkTabColDefs}
+                      tableKey={`pick-pack-write-off-remark-${remark.remark_id}`}
+                      getRowId={(params) =>
+                        String(params.data?.pick_pack_write_off_id ?? "")
+                      }
+                    />
+                  </TabPanel>
+                ))}
+              </TabPanels>
+            </Tabs>
           )}
         </CustomContainer>
       </Flex>
