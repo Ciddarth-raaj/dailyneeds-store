@@ -112,17 +112,18 @@ export function exportToExcel(lists, sheetNames, fileName = "data.xlsx") {
     return;
   }
 
-  // Create a new workbook
   const workbook = XLSX.utils.book_new();
 
-  // Add each list as a separate sheet
   lists.forEach((list, index) => {
+    let worksheet;
     if (Array.isArray(list) && list.length > 0) {
-      const worksheet = XLSX.utils.json_to_sheet(list);
-      XLSX.utils.book_append_sheet(workbook, worksheet, sheetNames[index]);
+      worksheet = XLSX.utils.json_to_sheet(list);
+    } else {
+      // Keep the sheet present even when there are no data rows
+      worksheet = XLSX.utils.aoa_to_sheet([[]]);
     }
+    XLSX.utils.book_append_sheet(workbook, worksheet, sheetNames[index]);
   });
 
-  // Export the workbook to a file
   XLSX.writeFile(workbook, fileName);
 }

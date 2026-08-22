@@ -20,7 +20,7 @@ import { importFileToJSON, isValidFileType } from "../../util/fileImport";
 import toast from "react-hot-toast";
 import AgGrid from "../../components/AgGrid";
 import Badge from "../../components/Badge";
-import exportCSVFile from "../../util/exportCSVFile";
+import exportCSVFile, { exportToExcel } from "../../util/exportCSVFile";
 import moment from "moment";
 import { usePriceChecker } from "../../customHooks/usePriceChecker";
 import { usePriceCheckerUpload } from "../../customHooks/usePriceCheckerUpload";
@@ -89,6 +89,32 @@ function filterExpectedSellingPrices(
   return (expectedSellingPrices || []).filter((entry) =>
     issueMrps.has(normalizeMrpKey(entry.mrp))
   );
+}
+
+function basisBadgeLabel(price) {
+  const label = price?.basisLabel || (price?.basisType === "Purchase" ? "PP" : "MRP");
+  const value =
+    price?.basisValue != null && price.basisValue !== ""
+      ? formatPriceValue(price.basisValue)
+      : formatPriceValue(price?.mrp);
+  return `${label}: ${value}`;
+}
+
+function sellingPriceGroupKey(price, index) {
+  if (price?.basisType != null && price?.basisValue != null) {
+    return `${price.basisType}|${price.basisValue}`;
+  }
+  return `${price?.mrp ?? "group"}-${index}`;
+}
+
+function mapLineItemsToExcelRows(items) {
+  return mapLineItemsToPriceCheckerRows(items).map((row) => {
+    const excelRow = {};
+    Object.entries(PRICE_CHECKER_TABLE_HEADER).forEach(([key, label]) => {
+      excelRow[label] = row[key] ?? "";
+    });
+    return excelRow;
+  });
 }
 
 function formatPriceValue(v) {
@@ -422,12 +448,14 @@ function PriceChecker() {
             const bConflict =
               b.hasConflict ?? (b.sellingPrices || []).length > 1;
             if (aConflict !== bConflict) return aConflict ? -1 : 1;
-            return String(a.mrp ?? "").localeCompare(String(b.mrp ?? ""));
+            const aKey = `${a.basisLabel || "MRP"}:${a.basisValue ?? a.mrp ?? ""}`;
+            const bKey = `${b.basisLabel || "MRP"}:${b.basisValue ?? b.mrp ?? ""}`;
+            return aKey.localeCompare(bKey, undefined, { numeric: true });
           });
 
           return (
             <Flex flexDirection="column" gap={2} p={4}>
-              {sortedSellingPrices.map((price) => {
+              {sortedSellingPrices.map((price, index) => {
                 const hasConflict =
                   price.hasConflict ?? (price.sellingPrices || []).length > 1;
                 const mismatchesExpected = price.mismatchesExpected === true;
@@ -439,13 +467,13 @@ function PriceChecker() {
 
                 return (
                   <Flex
-                    key={price.mrp}
+                    key={sellingPriceGroupKey(price, index)}
                     gap={2}
                     alignItems="center"
                     h="100%"
                     flexWrap="wrap"
                   >
-                    <Badge>{`MRP: ${formatPriceValue(price.mrp)}`}</Badge>
+                    <Badge>{basisBadgeLabel(price)}</Badge>
 
                     <Badge
                       colorScheme={sellingBadgeColor}
@@ -568,6 +596,54 @@ function PriceChecker() {
     exportItems,
   ]);
 
+  const handleNewExport = useCallback(() => {
+    const conflictItems = [];
+    const verifyItems = [];
+
+    (products || []).forEach((product) => {
+      const rows = mapProductItemsForExport(product);
+      if (product.conflictExportClass === "conflict") {
+        conflictItems.push(...rows);
+      } else if (product.conflictExportClass === "markup_verify") {
+        verifyItems.push(...rows);
+      }
+    });
+
+    const headerOnly = Object.fromEntries(
+      Object.values(PRICE_CHECKER_TABLE_HEADER).map((label) => [label, ""])
+    );
+    const conflictRows = mapLineItemsToExcelRows(conflictItems);
+    const verifyRows = mapLineItemsToExcelRows(verifyItems);
+
+    if (!conflictRows.length && !verifyRows.length) {
+      toast.error("No conflict or verify rows to export");
+      return;
+    }
+
+    const sanitizeFileName = (name) =>
+      (name ?? "").replace(/[^a-zA-Z0-9]/g, "_");
+    const fileName = `${sanitizeFileName(
+      `MarkDown_Conflicts_${moment().format("DDMMYYYYHHmm")}`
+    )}.xlsx`;
+
+    exportToExcel(
+      [
+        conflictRows.length ? conflictRows : [headerOnly],
+        verifyRows.length ? verifyRows : [headerOnly],
+      ],
+      ["Conflicts (All Batches)", "Markup Based - For Verify"],
+      fileName
+    );
+
+    toast.success(
+      `Exported ${conflictRows.length} conflict row${
+        conflictRows.length === 1 ? "" : "s"
+      } and ${verifyRows.length} verify row${
+        verifyRows.length === 1 ? "" : "s"
+      }`
+    );
+  }, [products]);
+
   const handleTabChange = useCallback((index) => {
     setTabIndex(index);
     setSelectedGroupRows([]);
@@ -644,19 +720,30 @@ function PriceChecker() {
         title="Price Checker"
         filledHeader
         rightSection={
-          <Button
-            colorScheme="purple"
-            size="sm"
-            onClick={handleExport}
-            isDisabled={
-              uploading ||
-              loading ||
-              !displayProducts.length ||
-              (tabIndex === 1 && selectedGroupRows.length === 0)
-            }
-          >
-            {exportButtonLabel}
-          </Button>
+          <Flex gap={2} alignItems="center" flexWrap="wrap">
+            <Button
+              colorScheme="purple"
+              variant="outline"
+              size="sm"
+              onClick={handleExport}
+              isDisabled={
+                uploading ||
+                loading ||
+                !displayProducts.length ||
+                (tabIndex === 1 && selectedGroupRows.length === 0)
+              }
+            >
+              {exportButtonLabel}
+            </Button>
+            <Button
+              colorScheme="purple"
+              size="sm"
+              onClick={handleNewExport}
+              isDisabled={uploading || loading || !products.length}
+            >
+              New Export
+            </Button>
+          </Flex>
         }
       >
         <FileUpload
