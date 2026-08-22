@@ -385,6 +385,29 @@ function PriceChecker() {
     return filteredProducts;
   }, [displayProducts]);
 
+  const getExportProducts = useCallback(() => {
+    if (tabIndex === 1) {
+      if (!selectedGroupRows.length) {
+        return null;
+      }
+
+      const selectedKeys = new Set(
+        selectedGroupRows.map((row) => groupLabel(row?.group_name))
+      );
+
+      return getFilteredProducts().filter((product) =>
+        selectedKeys.has(groupLabel(product[activeGroupField]))
+      );
+    }
+
+    return getFilteredProducts();
+  }, [
+    tabIndex,
+    selectedGroupRows,
+    activeGroupField,
+    getFilteredProducts,
+  ]);
+
   const handleExportByGroup = useCallback(
     (groupName, groupField = activeGroupField) => {
       const filteredProducts = getFilteredProducts();
@@ -551,56 +574,42 @@ function PriceChecker() {
   );
 
   const handleExport = useCallback(() => {
-    if (tabIndex === 1) {
-      if (!selectedGroupRows.length) {
-        toast.error("Select at least one group to export");
-        return;
-      }
+    const exportProducts = getExportProducts();
+    if (!exportProducts) {
+      toast.error("Select at least one group to export");
+      return;
+    }
 
+    const allItems = [];
+    exportProducts.forEach((product) => {
+      allItems.push(...mapProductItemsForExport(product));
+    });
+
+    exportItems(allItems);
+
+    if (tabIndex === 1) {
       const selectedKeys = new Set(
         selectedGroupRows.map((row) => groupLabel(row?.group_name))
       );
-
-      const filteredProducts = getFilteredProducts();
-      const matchingProducts = filteredProducts.filter((product) =>
-        selectedKeys.has(groupLabel(product[activeGroupField]))
-      );
-
-      const allItems = [];
-      matchingProducts.forEach((product) => {
-        allItems.push(...mapProductItemsForExport(product));
-      });
-
-      exportItems(allItems);
       toast.success(
         `Exported ${allItems.length} line item${
           allItems.length === 1 ? "" : "s"
         } from ${selectedKeys.size} group${selectedKeys.size === 1 ? "" : "s"}`
       );
+    }
+  }, [tabIndex, selectedGroupRows, getExportProducts, exportItems]);
+
+  const handleNewExport = useCallback(() => {
+    const exportProducts = getExportProducts();
+    if (!exportProducts) {
+      toast.error("Select at least one group to export");
       return;
     }
 
-    const filteredProducts = getFilteredProducts();
-
-    const allItems = [];
-    filteredProducts.forEach((product) => {
-      allItems.push(...mapProductItemsForExport(product));
-    });
-
-    exportItems(allItems);
-  }, [
-    tabIndex,
-    selectedGroupRows,
-    activeGroupField,
-    getFilteredProducts,
-    exportItems,
-  ]);
-
-  const handleNewExport = useCallback(() => {
     const conflictItems = [];
     const verifyItems = [];
 
-    (products || []).forEach((product) => {
+    exportProducts.forEach((product) => {
       const rows = mapProductItemsForExport(product);
       if (product.conflictExportClass === "conflict") {
         conflictItems.push(...rows);
@@ -642,7 +651,7 @@ function PriceChecker() {
         verifyRows.length === 1 ? "" : "s"
       }`
     );
-  }, [products]);
+  }, [getExportProducts]);
 
   const handleTabChange = useCallback((index) => {
     setTabIndex(index);
@@ -739,7 +748,12 @@ function PriceChecker() {
               colorScheme="purple"
               size="sm"
               onClick={handleNewExport}
-              isDisabled={uploading || loading || !products.length}
+              isDisabled={
+                uploading ||
+                loading ||
+                !displayProducts.length ||
+                (tabIndex === 1 && selectedGroupRows.length === 0)
+              }
             >
               New Export
             </Button>
