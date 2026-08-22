@@ -368,6 +368,21 @@ function PriceChecker() {
     [displayProducts, activeGroupField]
   );
 
+  const newExportCounts = useMemo(() => {
+    let conflictCount = 0;
+    let verifyCount = 0;
+
+    for (const product of products) {
+      if (product.conflictExportClass === "conflict") {
+        conflictCount += 1;
+      } else if (product.conflictExportClass === "markup_verify") {
+        verifyCount += 1;
+      }
+    }
+
+    return { conflictCount, verifyCount };
+  }, [products]);
+
   const exportItems = useCallback((items, titleSuffix) => {
     const sanitizeFileName = (name) =>
       (name ?? "").replace(/[^a-zA-Z0-9]/g, "_");
@@ -484,6 +499,10 @@ function PriceChecker() {
             product?.hasConflict &&
             product?.rule2Conflict &&
             !sellingPrices.some((price) => price.hasConflict || price.rule2Only);
+          const showVerifyBadge =
+            product?.conflictExportClass === "markup_verify" &&
+            !product?.hasConflict &&
+            !showRule2OnlyBadge;
 
           const sortedSellingPrices = [...sellingPrices].sort((a, b) => {
             const aConflict =
@@ -508,6 +527,17 @@ function PriceChecker() {
                     <Badge colorScheme="red">
                       Rule 2: Mark Down % outlier
                     </Badge>
+                  </Box>
+                </Tooltip>
+              ) : null}
+              {showVerifyBadge ? (
+                <Tooltip
+                  label="Purchase/Landing basis — spot-check markup"
+                  placement="top"
+                  openDelay={400}
+                >
+                  <Box>
+                    <Badge colorScheme="yellow">To verify</Badge>
                   </Box>
                 </Tooltip>
               ) : null}
@@ -769,7 +799,9 @@ function PriceChecker() {
   const metaSummary = meta?.uploaded_at
     ? `${meta.total_rows ?? 0} rows · ${
         meta.issue_product_count ?? 0
-      } products with issues${
+      } products with issues · ${newExportCounts.conflictCount} in conflict · ${
+        newExportCounts.verifyCount
+      } to verify${
         meta.total_product_count != null
           ? ` · ${meta.total_product_count} products total`
           : ""
