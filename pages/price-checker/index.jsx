@@ -661,16 +661,15 @@ function PriceChecker() {
   }, [tabIndex, selectedGroupRows, getExportProducts, exportItems]);
 
   const handleNewExport = useCallback(() => {
-    const exportProducts = getExportProducts();
-    if (!exportProducts) {
-      toast.error("Select at least one group to export");
+    if (!products.length) {
+      toast.error("No price checker data to export");
       return;
     }
 
     const conflictItems = [];
     const verifyItems = [];
 
-    exportProducts.forEach((product) => {
+    products.forEach((product) => {
       const rows = mapProductItemsForExport(product);
       if (product.conflictExportClass === "conflict") {
         conflictItems.push(...rows);
@@ -710,9 +709,9 @@ function PriceChecker() {
         conflictRows.length === 1 ? "" : "s"
       } and ${verifyRows.length} verify row${
         verifyRows.length === 1 ? "" : "s"
-      }`
+      } from full dataset`
     );
-  }, [getExportProducts]);
+  }, [products]);
 
   const handleTabChange = useCallback((index) => {
     setTabIndex(index);
