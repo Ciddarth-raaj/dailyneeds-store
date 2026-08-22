@@ -100,6 +100,20 @@ function basisBadgeLabel(price) {
   return `${label}: ${value}`;
 }
 
+function conflictReasonLabel(reason) {
+  if (reason === "rule1") return "Rule 1: Same basis, different SP";
+  if (reason === "rule2") return "Rule 2: Mark Down % outlier";
+  return reason;
+}
+
+function formatConflictReasons(product) {
+  const reasons = product?.conflictReasons || [];
+  if (product?.overriddenByStableSp) {
+    return "Stable SP override (all batches within ₹0.10)";
+  }
+  return reasons.map(conflictReasonLabel).join("; ");
+}
+
 function sellingPriceGroupKey(price, index) {
   if (price?.basisType != null && price?.basisValue != null) {
     return `${price.basisType}|${price.basisValue}`;
@@ -461,9 +475,15 @@ function PriceChecker() {
         flex: 1.5,
         autoHeight: true,
         cellRenderer: (props) => {
+          const product = props.data;
           const sellingPrices = showAll
-            ? props.data?.allSellingPrices || []
+            ? product?.allSellingPrices || []
             : props.value || [];
+          const conflictReasonText = formatConflictReasons(product);
+          const showRule2OnlyBadge =
+            product?.hasConflict &&
+            product?.rule2Conflict &&
+            !sellingPrices.some((price) => price.hasConflict || price.rule2Only);
 
           const sortedSellingPrices = [...sellingPrices].sort((a, b) => {
             const aConflict =
@@ -478,7 +498,37 @@ function PriceChecker() {
 
           return (
             <Flex flexDirection="column" gap={2} p={4}>
+              {showRule2OnlyBadge ? (
+                <Tooltip
+                  label={conflictReasonText}
+                  placement="top"
+                  openDelay={400}
+                >
+                  <Box>
+                    <Badge colorScheme="red">
+                      Rule 2: Mark Down % outlier
+                    </Badge>
+                  </Box>
+                </Tooltip>
+              ) : null}
               {sortedSellingPrices.map((price, index) => {
+                if (price.rule2Only) {
+                  return (
+                    <Tooltip
+                      label={conflictReasonText}
+                      placement="top"
+                      openDelay={400}
+                      key="rule2-only"
+                    >
+                      <Box>
+                        <Badge colorScheme="red">
+                          Rule 2: Mark Down % outlier
+                        </Badge>
+                      </Box>
+                    </Tooltip>
+                  );
+                }
+
                 const hasConflict =
                   price.hasConflict ?? (price.sellingPrices || []).length > 1;
                 const mismatchesExpected = price.mismatchesExpected === true;
@@ -498,11 +548,22 @@ function PriceChecker() {
                   >
                     <Badge>{basisBadgeLabel(price)}</Badge>
 
-                    <Badge
-                      colorScheme={sellingBadgeColor}
-                    >{`Selling Prices: ${price.sellingPrices
-                      .map((value) => formatPriceValue(value))
-                      .join(" | ")}`}</Badge>
+                    <Tooltip
+                      label={
+                        price.hasConflict
+                          ? conflictReasonText || "Rule 1: Same basis, different SP"
+                          : undefined
+                      }
+                      placement="top"
+                      openDelay={400}
+                      isDisabled={!price.hasConflict || !conflictReasonText}
+                    >
+                      <Badge
+                        colorScheme={sellingBadgeColor}
+                      >{`Selling Prices: ${price.sellingPrices
+                        .map((value) => formatPriceValue(value))
+                        .join(" | ")}`}</Badge>
+                    </Tooltip>
                   </Flex>
                 );
               })}
