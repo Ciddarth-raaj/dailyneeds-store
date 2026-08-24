@@ -739,6 +739,20 @@ const WMS_MENU = {
       },
     },
   },
+  grn: {
+    title: "GRN",
+    selected: false,
+    openPage: false,
+    icon: "fa-truck-loading",
+    subMenu: {
+      view_all_grn: {
+        title: "All GRN",
+        permission: "view_all_grn",
+        selected: false,
+        location: "/grn",
+      },
+    },
+  },
   uploads: {
     title: "Uploads",
     selected: false,

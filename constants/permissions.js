@@ -197,6 +197,11 @@ export const PERMISSIONS = {
     delete_stock_holding_report: "Delete Stock Holding Report",
   },
 
+  // GRN
+  grn: {
+    view_all_grn: "View All GRN",
+  },
+
   // GST (group order matches GST module menu: Vendors → Tools → Configs)
   gst: {
     gst_vendors: {
