@@ -72,6 +72,27 @@ export function isGrnRowPriceMismatch(grnMrp, grnSp, grnDiscountPct, batches) {
   return !batches.some((batch) => isPriceCheckerBatchMatch(batch, grnMrp, grnSp));
 }
 
+export function getGrnLinePriceMismatch(row, itemsByProductId, pcLoading = false) {
+  if (pcLoading || !row) return false;
+  return isGrnRowPriceMismatch(
+    row.mrp,
+    row.mmd_sale_rate,
+    row.discount_pct,
+    itemsByProductId.get(row.product_id) ?? []
+  );
+}
+
+export function grnDetailHasPriceMismatch(
+  items,
+  itemsByProductId,
+  pcLoading = false
+) {
+  if (pcLoading || !Array.isArray(items) || items.length === 0) return false;
+  return items.some((item) =>
+    getGrnLinePriceMismatch(item, itemsByProductId, false)
+  );
+}
+
 export function sortRowsMismatchFirst(rows, isMismatchFn) {
   if (!Array.isArray(rows) || rows.length <= 1) return rows ?? [];
 

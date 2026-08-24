@@ -5,12 +5,20 @@ import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../components/CustomContainer";
 import AgGrid from "../../components/AgGrid";
 import GrnMonthCalendar from "../../components/grn/GrnMonthCalendar";
-import { Flex, Text } from "@chakra-ui/react";
+import { Flex, Text, useToken } from "@chakra-ui/react";
 import { useGrnList } from "../../customHooks/useGrnList";
+import { useGrnDetailsByRefno } from "../../customHooks/useGrnDetailsByRefno";
+import { useGrnPriceCheckerItemsMap } from "../../customHooks/useGrnPriceCheckerItemsMap";
+import {
+  getMismatchRowStyle,
+  grnDetailHasPriceMismatch,
+  sortRowsMismatchFirst,
+} from "../../util/grn";
 import toast from "react-hot-toast";
 
 function GrnListing() {
   const router = useRouter();
+  const [mismatchBg] = useToken("colors", ["red.100"]);
   const [selectedDate, setSelectedDate] = useState(() =>
     moment().format("YYYY-MM-DD")
   );
@@ -43,6 +51,47 @@ function GrnListing() {
       return dayKey === selectedDate;
     });
   }, [grnList, selectedDate]);
+
+  const refnos = useMemo(
+    () => rowData.map((row) => row?.mmh_mrc_refno).filter(Boolean),
+    [rowData]
+  );
+
+  const { detailsByRefno, loading: detailsLoading } = useGrnDetailsByRefno(
+    refnos,
+    { enabled: !loading && refnos.length > 0 }
+  );
+
+  const productIds = useMemo(() => {
+    const ids = new Set();
+    detailsByRefno.forEach((detail) => {
+      (detail?.items ?? []).forEach((item) => {
+        if (item?.product_id != null) ids.add(item.product_id);
+      });
+    });
+    return [...ids];
+  }, [detailsByRefno]);
+
+  const { itemsByProductId, loading: pcLoading } = useGrnPriceCheckerItemsMap(
+    productIds,
+    { enabled: !detailsLoading && productIds.length > 0 }
+  );
+
+  const highlightReady = !detailsLoading && !pcLoading;
+
+  const displayRowData = useMemo(() => {
+    const withFlags = rowData.map((row) => {
+      const refno = row?.mmh_mrc_refno != null ? String(row.mmh_mrc_refno) : "";
+      const items = detailsByRefno.get(refno)?.items ?? [];
+      return {
+        ...row,
+        _priceMismatch:
+          highlightReady &&
+          grnDetailHasPriceMismatch(items, itemsByProductId, false),
+      };
+    });
+    return sortRowsMismatchFirst(withFlags, (row) => row._priceMismatch);
+  }, [rowData, detailsByRefno, itemsByProductId, highlightReady]);
 
   const colDefs = useMemo(
     () => [
@@ -92,9 +141,12 @@ function GrnListing() {
   const gridOptions = useMemo(
     () => ({
       onRowClicked: handleRowClicked,
-      rowStyle: { cursor: "pointer" },
+      getRowStyle: (params) => ({
+        cursor: "pointer",
+        ...getMismatchRowStyle(params.data?._priceMismatch, mismatchBg),
+      }),
     }),
-    [handleRowClicked]
+    [handleRowClicked, mismatchBg]
   );
 
   return (
@@ -117,7 +169,7 @@ function GrnListing() {
             <Text>Loading...</Text>
           ) : (
             <AgGrid
-              rowData={rowData}
+              rowData={displayRowData}
               columnDefs={colDefs}
               tableKey="grn-list"
               gridOptions={gridOptions}

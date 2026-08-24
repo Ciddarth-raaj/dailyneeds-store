@@ -21,8 +21,8 @@ import { useGrnPriceCheckerItemsMap } from "../../customHooks/useGrnPriceChecker
 import { capitalize } from "../../util/string";
 import {
   formatDiscountPct,
+  getGrnLinePriceMismatch,
   getMismatchRowStyle,
-  isGrnRowPriceMismatch,
   sortRowsMismatchFirst,
 } from "../../util/grn";
 import currencyFormatter from "../../util/currencyFormatter";
@@ -82,12 +82,7 @@ function GrnDetailPage() {
       ...row,
       _priceMismatch:
         !pcLoading &&
-        isGrnRowPriceMismatch(
-          row.mrp,
-          row.mmd_sale_rate,
-          row.discount_pct,
-          itemsByProductId.get(row.product_id) ?? []
-        ),
+        getGrnLinePriceMismatch(row, itemsByProductId, false),
     }));
     return sortRowsMismatchFirst(withFlags, (row) => row._priceMismatch);
   }, [items, itemsByProductId, pcLoading]);
