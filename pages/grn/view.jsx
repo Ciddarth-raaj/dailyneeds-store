@@ -1,10 +1,11 @@
-import React, { useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/router";
 import Link from "next/link";
 import moment from "moment";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../components/CustomContainer";
 import AgGrid from "../../components/AgGrid";
+import GrnPriceCheckerItemsModal from "../../components/grn/GrnPriceCheckerItemsModal";
 import {
   Box,
   Button,
@@ -13,17 +14,31 @@ import {
   GridItem,
   Image,
   Text,
+  useToken,
 } from "@chakra-ui/react";
 import { useGrnDetail } from "../../customHooks/useGrnDetail";
+import { useGrnPriceCheckerItemsMap } from "../../customHooks/useGrnPriceCheckerItemsMap";
 import { capitalize } from "../../util/string";
+import {
+  formatDiscountPct,
+  getMismatchRowStyle,
+  isGrnRowPriceMismatch,
+  sortRowsMismatchFirst,
+} from "../../util/grn";
 import currencyFormatter from "../../util/currencyFormatter";
 import toast from "react-hot-toast";
+import { useModuleTableTheme } from "../../contexts/ModuleTableThemeContext";
 
 const colWidth = 120;
 
 function queryParam(value) {
   if (value == null) return null;
   return Array.isArray(value) ? value[0] : value;
+}
+
+function productDisplayName(product) {
+  const name = product?.de_name ?? product?.de_display_name;
+  return name ? capitalize(String(name)) : "";
 }
 
 function SummaryField({ label, value }) {
@@ -39,21 +54,57 @@ function SummaryField({ label, value }) {
   );
 }
 
-function formatDiscountPct(value) {
-  if (value == null || value === "") return "—";
-  const n = Number(value);
-  if (!Number.isFinite(n)) return "—";
-  return `${(Math.round(n * 100) / 100).toFixed(2)}%`;
-}
-
 function GrnDetailPage() {
   const router = useRouter();
   const refno = queryParam(router.query.refno);
   const isReady = router.isReady;
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const { colorScheme } = useModuleTableTheme();
+  const [linkColor] = useToken("colors", [`${colorScheme}.600`]);
+  const [mismatchBg] = useToken("colors", ["red.100"]);
 
   const { header, items, loading, error } = useGrnDetail(refno, {
     enabled: isReady && Boolean(refno),
   });
+
+  const productIds = useMemo(
+    () => [...new Set(items.map((item) => item.product_id).filter(Boolean))],
+    [items]
+  );
+
+  const { itemsByProductId, loading: pcLoading } = useGrnPriceCheckerItemsMap(
+    productIds,
+    { enabled: !loading && productIds.length > 0 }
+  );
+
+  const displayItems = useMemo(() => {
+    const withFlags = items.map((row) => ({
+      ...row,
+      _priceMismatch:
+        !pcLoading &&
+        isGrnRowPriceMismatch(
+          row.mrp,
+          row.mmd_sale_rate,
+          row.discount_pct,
+          itemsByProductId.get(row.product_id) ?? []
+        ),
+    }));
+    return sortRowsMismatchFirst(withFlags, (row) => row._priceMismatch);
+  }, [items, itemsByProductId, pcLoading]);
+
+  const gridOptions = useMemo(
+    () => ({
+      getRowId: (params) => String(params.data?.mmd_mrc_sl_no),
+      defaultColDef: {
+        flex: 0,
+        suppressSizeToFit: true,
+      },
+      rowHeight: 56,
+      getRowStyle: (params) =>
+        getMismatchRowStyle(params.data?._priceMismatch, mismatchBg),
+    }),
+    [mismatchBg]
+  );
 
   useEffect(() => {
     if (error) {
@@ -64,11 +115,40 @@ function GrnDetailPage() {
   const colDefs = useMemo(
     () => [
       {
+        headerName: "SNo",
+        colId: "sno",
+        flex: 0,
+        minWidth: 56,
+        maxWidth: 72,
+        width: 64,
+        sortable: false,
+        filter: false,
+        suppressSizeToFit: true,
+        valueGetter: (params) =>
+          params.node?.rowIndex != null ? params.node.rowIndex + 1 : "",
+      },
+      {
         field: "product_id",
         headerName: "Product ID",
         type: "id",
         flex: 0,
         minWidth: 100,
+        cellStyle: {
+          cursor: "pointer",
+          color: linkColor,
+          textDecoration: "underline",
+        },
+        onCellClicked: (params) => {
+          const productId = params.data?.product_id;
+          if (productId == null || productId === "") return;
+          setSelectedProduct({
+            productId,
+            productName: productDisplayName(params.data?.product),
+            mrp: params.data.mrp,
+            sp: params.data.mmd_sale_rate,
+            discountPct: params.data.discount_pct,
+          });
+        },
       },
       {
         field: "product.image_link",
@@ -111,9 +191,8 @@ function GrnDetailPage() {
         flex: 0,
         minWidth: 220,
         valueGetter: (params) => {
-          const product = params.data?.product;
-          const name = product?.de_name ?? product?.de_display_name;
-          return name ? capitalize(String(name)) : "—";
+          const name = productDisplayName(params.data?.product);
+          return name || "—";
         },
       },
       {
@@ -153,6 +232,15 @@ function GrnDetailPage() {
         maxWidth: colWidth,
       },
       {
+        field: "mmd_sale_rate",
+        headerName: "SP",
+        type: "currency",
+        flex: 0,
+        minWidth: colWidth,
+        width: colWidth,
+        maxWidth: colWidth,
+      },
+      {
         field: "mmd_pur_tax_per",
         headerName: "Pur. Tax %",
         type: "number",
@@ -173,15 +261,6 @@ function GrnDetailPage() {
       {
         field: "mmd_pur_price",
         headerName: "Net Cost",
-        type: "currency",
-        flex: 0,
-        minWidth: colWidth,
-        width: colWidth,
-        maxWidth: colWidth,
-      },
-      {
-        field: "mmd_sale_rate",
-        headerName: "SP",
         type: "currency",
         flex: 0,
         minWidth: colWidth,
@@ -217,7 +296,7 @@ function GrnDetailPage() {
         cellRenderer: (params) => formatDiscountPct(params.value),
       },
     ],
-    []
+    [linkColor]
   );
 
   const pageTitle = header?.mmh_mrc_refno
@@ -286,22 +365,30 @@ function GrnDetailPage() {
           ) : (
             <Box overflowX="auto" w="100%">
               <AgGrid
-                rowData={items}
+                rowData={displayItems}
                 columnDefs={colDefs}
                 tableKey="grn-detail-products"
-                gridOptions={{
-                  getRowId: (params) => String(params.data?.mmd_mrc_sl_no),
-                  defaultColDef: {
-                    flex: 0,
-                    suppressSizeToFit: true,
-                  },
-                  rowHeight: 56,
-                }}
+                gridOptions={gridOptions}
               />
             </Box>
           )}
         </CustomContainer>
       </Flex>
+      <GrnPriceCheckerItemsModal
+        isOpen={Boolean(selectedProduct)}
+        onClose={() => setSelectedProduct(null)}
+        productId={selectedProduct?.productId}
+        productName={selectedProduct?.productName}
+        grnMrp={selectedProduct?.mrp}
+        grnSp={selectedProduct?.sp}
+        grnDiscountPct={selectedProduct?.discountPct}
+        priceCheckerRows={
+          selectedProduct?.productId != null
+            ? itemsByProductId.get(selectedProduct.productId) ?? []
+            : undefined
+        }
+        priceCheckerLoading={pcLoading}
+      />
     </GlobalWrapper>
   );
 }

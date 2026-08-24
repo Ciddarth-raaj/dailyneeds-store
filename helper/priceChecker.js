@@ -66,6 +66,32 @@ const priceChecker = {
           reject(err);
         });
     }),
+
+  /**
+   * GET /price-checker/items-by-product?product_id= — grouped batches for one item.
+   */
+  getItemsByProduct: (productId) =>
+    new Promise((resolve, reject) => {
+      if (productId == null || productId === "") {
+        reject(new Error("product_id is required"));
+        return;
+      }
+
+      API.get("/price-checker/items-by-product", {
+        params: { product_id: productId },
+      })
+        .then((res) => {
+          const data = res?.data ?? res;
+          if (data?.code === 200) {
+            resolve(data);
+            return;
+          }
+          reject(
+            new Error(data?.msg ?? "Failed to fetch price checker items")
+          );
+        })
+        .catch((err) => reject(err));
+    }),
 };
 
 export default priceChecker;
