@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
 import moment from "moment";
+import { useRouter } from "next/router";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../components/CustomContainer";
 import AgGrid from "../../components/AgGrid";
@@ -9,6 +10,7 @@ import { useGrnList } from "../../customHooks/useGrnList";
 import toast from "react-hot-toast";
 
 function GrnListing() {
+  const router = useRouter();
   const [selectedDate, setSelectedDate] = useState(() =>
     moment().format("YYYY-MM-DD")
   );
@@ -78,6 +80,23 @@ function GrnListing() {
     []
   );
 
+  const handleRowClicked = useCallback(
+    (event) => {
+      const refno = event?.data?.mmh_mrc_refno;
+      if (refno == null || refno === "") return;
+      router.push(`/grn/view?refno=${encodeURIComponent(String(refno))}`);
+    },
+    [router]
+  );
+
+  const gridOptions = useMemo(
+    () => ({
+      onRowClicked: handleRowClicked,
+      rowStyle: { cursor: "pointer" },
+    }),
+    [handleRowClicked]
+  );
+
   return (
     <GlobalWrapper title="All GRN" permissionKey="view_all_grn">
       <Flex flexDirection="column" gap={6}>
@@ -97,7 +116,12 @@ function GrnListing() {
           {loading ? (
             <Text>Loading...</Text>
           ) : (
-            <AgGrid rowData={rowData} columnDefs={colDefs} tableKey="grn-list" />
+            <AgGrid
+              rowData={rowData}
+              columnDefs={colDefs}
+              tableKey="grn-list"
+              gridOptions={gridOptions}
+            />
           )}
         </CustomContainer>
       </Flex>
