@@ -751,6 +751,12 @@ const WMS_MENU = {
         selected: false,
         location: "/grn",
       },
+      view_purchase_uom: {
+        title: "Purchase UOM",
+        permission: "view_purchase_uom",
+        selected: false,
+        location: "/grn/purchase-uom",
+      },
     },
   },
   uploads: {

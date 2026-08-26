@@ -200,6 +200,7 @@ export const PERMISSIONS = {
   // GRN
   grn: {
     view_all_grn: "View All GRN",
+    view_purchase_uom: "View Purchase UOM",
   },
 
   // GST (group order matches GST module menu: Vendors → Tools → Configs)
