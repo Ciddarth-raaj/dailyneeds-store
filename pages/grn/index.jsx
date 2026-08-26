@@ -6,7 +6,7 @@ import CustomContainer from "../../components/CustomContainer";
 import AgGrid from "../../components/AgGrid";
 import GrnMonthCalendar from "../../components/grn/GrnMonthCalendar";
 import GrnHighlightLoader from "../../components/grn/GrnHighlightLoader";
-import { Flex, useToken } from "@chakra-ui/react";
+import { Button, Flex, useToken } from "@chakra-ui/react";
 import { useGrnList } from "../../customHooks/useGrnList";
 import { useGrnDetailsByRefno } from "../../customHooks/useGrnDetailsByRefno";
 import { useGrnPriceCheckerItemsMap } from "../../customHooks/useGrnPriceCheckerItemsMap";
@@ -128,8 +128,36 @@ function GrnListing() {
         type: "number",
         maxWidth: 160,
       },
+      {
+        colId: "purchase_uom_action",
+        headerName: "",
+        flex: 0,
+        minWidth: 150,
+        maxWidth: 150,
+        sortable: false,
+        filter: false,
+        cellRenderer: (params) => {
+          const refno = params.data?.mmh_mrc_refno;
+          if (refno == null || refno === "") return null;
+          return (
+            <Button
+              size="xs"
+              variant="outline"
+              colorScheme="purple"
+              onClick={(e) => {
+                e.stopPropagation();
+                router.push(
+                  `/grn/purchase-uom?refno=${encodeURIComponent(String(refno))}`
+                );
+              }}
+            >
+              Purchase UOM
+            </Button>
+          );
+        },
+      },
     ],
-    []
+    [router]
   );
 
   const handleRowClicked = useCallback(
