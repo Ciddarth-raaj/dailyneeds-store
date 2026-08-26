@@ -69,4 +69,4 @@ function PurchaseRefMobileCards({ rows = [] }) {
   );
 }
 
-export default PurchaseRefMobileCards;
+export default React.memo(PurchaseRefMobileCards);

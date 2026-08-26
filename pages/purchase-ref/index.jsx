@@ -4,7 +4,7 @@ import CustomContainer from "../../components/CustomContainer";
 import AgGrid from "../../components/AgGrid";
 import EmptyData from "../../components/EmptyData";
 import PurchaseRefMobileCards from "../../components/purchase-ref/PurchaseRefMobileCards";
-import { Box, Flex, Input, Spinner } from "@chakra-ui/react";
+import { Box, Flex, Input, Spinner, useBreakpointValue } from "@chakra-ui/react";
 import { usePurchaseRef } from "../../customHooks/usePurchaseRef";
 import useDebounce from "../../customHooks/useDebounce";
 import toast from "react-hot-toast";
@@ -13,6 +13,7 @@ function PurchaseRef() {
   const { rows, loading, error } = usePurchaseRef();
   const [searchQuery, setSearchQuery] = useState("");
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
+  const isMobile = useBreakpointValue({ base: true, md: false });
 
   useEffect(() => {
     if (error) {
@@ -117,19 +118,16 @@ function PurchaseRef() {
                 message="No products match your search"
                 faIcon="fa-file-invoice"
               />
+            ) : isMobile ? (
+              <PurchaseRefMobileCards rows={filteredRows} />
             ) : (
-              <>
-                <Box display={{ base: "none", md: "block" }} overflowX="auto">
-                  <AgGrid
-                    rowData={filteredRows}
-                    columnDefs={colDefs}
-                    tableKey="purchase-ref"
-                  />
-                </Box>
-                <Box display={{ base: "block", md: "none" }}>
-                  <PurchaseRefMobileCards rows={filteredRows} />
-                </Box>
-              </>
+              <Box overflowX="auto">
+                <AgGrid
+                  rowData={filteredRows}
+                  columnDefs={colDefs}
+                  tableKey="purchase-ref"
+                />
+              </Box>
             )}
           </>
         )}
