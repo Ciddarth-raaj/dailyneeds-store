@@ -203,6 +203,11 @@ export const PERMISSIONS = {
     view_purchase_uom: "View Purchase UOM",
   },
 
+  // Purchase Ref
+  purchase_ref: {
+    view_purchase_ref: "View Purchase Ref",
+  },
+
   // GST (group order matches GST module menu: Vendors → Tools → Configs)
   gst: {
     gst_vendors: {

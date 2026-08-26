@@ -759,6 +759,20 @@ const WMS_MENU = {
       },
     },
   },
+  purchase_ref: {
+    title: "Purchase Ref",
+    selected: false,
+    openPage: false,
+    icon: "fa-file-invoice",
+    subMenu: {
+      view_purchase_ref: {
+        title: "Purchase Ref",
+        permission: "view_purchase_ref",
+        selected: false,
+        location: "/purchase-ref",
+      },
+    },
+  },
   uploads: {
     title: "Uploads",
     selected: false,
