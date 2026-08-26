@@ -37,7 +37,7 @@ jobs:
           echo "NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}" > .env.production
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --force
 
       - name: Configure SSH for dnds-be
         env:
