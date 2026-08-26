@@ -42,6 +42,8 @@ function PurchaseUom() {
         name: productDisplayName(item.product),
         mrp: item.mrp,
         pareto: item.product?.pareto ?? null,
+        purchase_uom: item.product?.purchase_uom ?? null,
+        store_uom: item.product?.store_uom ?? null,
       })),
     [items]
   );
@@ -72,6 +74,20 @@ function PurchaseUom() {
       {
         field: "pareto",
         headerName: "Pareto",
+        flex: 0,
+        minWidth: 120,
+        valueFormatter: (params) => params.value ?? "—",
+      },
+      {
+        field: "purchase_uom",
+        headerName: "PUOM",
+        flex: 0,
+        minWidth: 120,
+        valueFormatter: (params) => params.value ?? "—",
+      },
+      {
+        field: "store_uom",
+        headerName: "SUOM",
         flex: 0,
         minWidth: 120,
         valueFormatter: (params) => params.value ?? "—",

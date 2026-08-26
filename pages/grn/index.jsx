@@ -6,7 +6,7 @@ import CustomContainer from "../../components/CustomContainer";
 import AgGrid from "../../components/AgGrid";
 import GrnMonthCalendar from "../../components/grn/GrnMonthCalendar";
 import GrnHighlightLoader from "../../components/grn/GrnHighlightLoader";
-import { Button, Flex, useToken } from "@chakra-ui/react";
+import { Flex, IconButton, Tooltip, useToken } from "@chakra-ui/react";
 import { useGrnList } from "../../customHooks/useGrnList";
 import { useGrnDetailsByRefno } from "../../customHooks/useGrnDetailsByRefno";
 import { useGrnPriceCheckerItemsMap } from "../../customHooks/useGrnPriceCheckerItemsMap";
@@ -132,27 +132,29 @@ function GrnListing() {
         colId: "purchase_uom_action",
         headerName: "",
         flex: 0,
-        minWidth: 150,
-        maxWidth: 150,
+        minWidth: 60,
+        maxWidth: 60,
         sortable: false,
         filter: false,
         cellRenderer: (params) => {
           const refno = params.data?.mmh_mrc_refno;
           if (refno == null || refno === "") return null;
           return (
-            <Button
-              size="xs"
-              variant="outline"
-              colorScheme="purple"
-              onClick={(e) => {
-                e.stopPropagation();
-                router.push(
-                  `/grn/purchase-uom?refno=${encodeURIComponent(String(refno))}`
-                );
-              }}
-            >
-              Purchase UOM
-            </Button>
+            <Tooltip label="Purchase UOM" hasArrow>
+              <IconButton
+                aria-label="Purchase UOM"
+                icon={<i className="fa fa-ruler-combined" />}
+                size="xs"
+                variant="outline"
+                colorScheme="purple"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  router.push(
+                    `/grn/purchase-uom?refno=${encodeURIComponent(String(refno))}`
+                  );
+                }}
+              />
+            </Tooltip>
           );
         },
       },
