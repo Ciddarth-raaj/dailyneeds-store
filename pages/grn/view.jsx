@@ -24,7 +24,6 @@ import {
   formatDiscountPct,
   getGrnLinePriceMismatch,
   getMismatchRowStyle,
-  sortRowsMismatchFirst,
 } from "../../util/grn";
 import currencyFormatter from "../../util/currencyFormatter";
 import toast from "react-hot-toast";
@@ -79,13 +78,12 @@ function GrnDetailPage() {
   );
 
   const displayItems = useMemo(() => {
-    const withFlags = items.map((row) => ({
+    return items.map((row) => ({
       ...row,
       _priceMismatch:
         !pcLoading &&
         getGrnLinePriceMismatch(row, itemsByProductId, false),
     }));
-    return sortRowsMismatchFirst(withFlags, (row) => row._priceMismatch);
   }, [items, itemsByProductId, pcLoading]);
 
   const highlightLoading =
