@@ -1,4 +1,5 @@
 # Deploy frontend to dnds-be on push to main-autodeploy.
+# Build runs on GitHub Actions; only artifacts are rsynced to the server (same as deploy.sh).
 #
 # Required GitHub Actions secrets:
 #   SSH_PRIVATE_KEY      - private key with access to dnds-be (e.g. ~/.ssh/dnds-gha-deploy)
@@ -16,6 +17,12 @@ on:
     branches:
       - main-autodeploy
   workflow_dispatch:
+
+env:
+  APP_DIR: ~/dnds-store-build
+  PM2_NAME: fe
+  PORT: "3000"
+  HOSTNAME: "0.0.0.0"
 
 jobs:
   deploy:
@@ -38,6 +45,24 @@ jobs:
 
       - name: Install dependencies
         run: npm ci --force
+
+      - name: Build Next.js
+        run: |
+          set -euo pipefail
+          NODE_MAJOR="$(node -p "process.versions.node.split('.')[0]")"
+          if [[ "${NODE_OPTIONS:-}" != *"openssl-legacy-provider"* ]] && (( NODE_MAJOR >= 17 )); then
+            export NODE_OPTIONS="${NODE_OPTIONS:+$NODE_OPTIONS }--openssl-legacy-provider"
+          fi
+          echo "Next $(node -p "require('next/package.json').version") | React $(node -p "require('react/package.json').version") | Node $(node -v)"
+          set -a
+          # shellcheck disable=SC1091
+          source .env.production
+          set +a
+          npm run build
+          if [[ ! -d .next/server ]]; then
+            echo "ERROR: .next/server was not created. Build output looks incomplete."
+            exit 1
+          fi
 
       - name: Configure SSH for dnds-be
         env:
@@ -62,5 +87,96 @@ jobs:
           EOF
           chmod 600 ~/.ssh/config
 
-      - name: Deploy
-        run: bash ./deploy.sh
+      - name: Rsync build to server and reload PM2
+        run: |
+          set -euo pipefail
+          SERVER="dnds-be"
+          APP_DIR="${{ env.APP_DIR }}"
+          PM2_NAME="${{ env.PM2_NAME }}"
+          PORT="${{ env.PORT }}"
+          HOSTNAME="${{ env.HOSTNAME }}"
+
+          USE_STANDALONE=false
+          if [[ -f .next/standalone/server.js ]]; then
+            USE_STANDALONE=true
+            echo "Detected standalone build output."
+          else
+            echo "Using classic Next.js deploy (Next 11: .next + npm start)."
+          fi
+
+          echo "Ensuring directories exist on server..."
+          if [[ "$USE_STANDALONE" == true ]]; then
+            ssh "$SERVER" "mkdir -p ${APP_DIR}/.next/static ${APP_DIR}/public"
+          else
+            ssh "$SERVER" "mkdir -p ${APP_DIR}/.next ${APP_DIR}/public"
+          fi
+
+          if [[ "$USE_STANDALONE" == true ]]; then
+            echo "Deploying standalone build..."
+            rsync -az --delete \
+              -e ssh \
+              .next/standalone/ \
+              "${SERVER}:${APP_DIR}/"
+          else
+            echo "Deploying build artifacts..."
+            rsync -az --delete \
+              -e ssh \
+              .next/ \
+              "${SERVER}:${APP_DIR}/.next/"
+
+            rsync -az \
+              -e ssh \
+              package.json package-lock.json next.config.js \
+              "${SERVER}:${APP_DIR}/"
+          fi
+
+          echo "Deploying static files..."
+          rsync -az --delete \
+            -e ssh \
+            .next/static/ \
+            "${SERVER}:${APP_DIR}/.next/static/"
+
+          if [[ -d public ]]; then
+            echo "Deploying public folder..."
+            rsync -az --delete \
+              -e ssh \
+              public/ \
+              "${SERVER}:${APP_DIR}/public/"
+          fi
+
+          echo "Reloading PM2..."
+          if [[ "$USE_STANDALONE" == true ]]; then
+            ssh "$SERVER" bash -s <<EOF
+          set -euo pipefail
+          cd ${APP_DIR}
+          export PORT=${PORT}
+          export HOSTNAME=${HOSTNAME}
+          export NODE_ENV=production
+
+          if pm2 describe ${PM2_NAME} >/dev/null 2>&1; then
+            pm2 reload ${PM2_NAME} --update-env
+          else
+            pm2 start server.js --name ${PM2_NAME} --cwd ${APP_DIR}
+            pm2 save
+          fi
+          EOF
+          else
+            ssh "$SERVER" bash -s <<EOF
+          set -euo pipefail
+          cd ${APP_DIR}
+          export PORT=${PORT}
+          export HOSTNAME=${HOSTNAME}
+          export NODE_ENV=production
+
+          npm ci --omit=dev --force
+
+          if pm2 describe ${PM2_NAME} >/dev/null 2>&1; then
+            pm2 reload ${PM2_NAME} --update-env
+          else
+            pm2 start npm --name ${PM2_NAME} --cwd ${APP_DIR} -- start -- -p ${PORT} -H ${HOSTNAME}
+            pm2 save
+          fi
+          EOF
+          fi
+
+          echo "Deployment complete."
