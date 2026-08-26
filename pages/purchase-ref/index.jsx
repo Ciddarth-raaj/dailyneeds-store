@@ -24,6 +24,10 @@ function PurchaseRef() {
   const filteredRows = useMemo(() => {
     const query = debouncedSearchQuery.trim().toLowerCase();
     if (!query) return rows;
+    // Numeric queries (PID) search immediately; text queries wait for 3+
+    // characters so a couple of keystrokes don't filter the whole list.
+    const isNumeric = /^\d+$/.test(query);
+    if (!isNumeric && query.length < 3) return rows;
     return rows.filter((row) => {
       const pid = row.product_id?.toString().toLowerCase() || "";
       const name = row.name?.toLowerCase() || "";
