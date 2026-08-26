@@ -24,6 +24,7 @@ import {
   formatDiscountPct,
   getGrnLinePriceMismatch,
   getMismatchRowStyle,
+  sortRowsMismatchFirst,
 } from "../../util/grn";
 import currencyFormatter from "../../util/currencyFormatter";
 import toast from "react-hot-toast";
@@ -78,12 +79,13 @@ function GrnDetailPage() {
   );
 
   const displayItems = useMemo(() => {
-    return items.map((row) => ({
+    const withFlags = items.map((row) => ({
       ...row,
       _priceMismatch:
         !pcLoading &&
         getGrnLinePriceMismatch(row, itemsByProductId, false),
     }));
+    return sortRowsMismatchFirst(withFlags, (row) => row._priceMismatch);
   }, [items, itemsByProductId, pcLoading]);
 
   const highlightLoading =
@@ -121,8 +123,7 @@ function GrnDetailPage() {
         sortable: false,
         filter: false,
         suppressSizeToFit: true,
-        valueGetter: (params) =>
-          params.node?.rowIndex != null ? params.node.rowIndex + 1 : "",
+        valueGetter: (params) => params.data?.mmd_mrc_sl_no ?? "",
       },
       {
         field: "product_id",
