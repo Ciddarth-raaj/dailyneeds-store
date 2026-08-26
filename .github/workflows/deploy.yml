@@ -1,0 +1,66 @@
+# Deploy frontend to dnds-be on push to main-autodeploy.
+#
+# Required GitHub Actions secrets:
+#   SSH_PRIVATE_KEY      - private key with access to dnds-be (e.g. ~/.ssh/dnds-gha-deploy)
+#   SSH_HOST             - 3.109.76.230
+#   SSH_USER             - ec2-user
+#   NEXT_PUBLIC_API_URL  - production API base URL (baked into Next.js build)
+#
+# One-time setup: install the matching public key in ec2-user's authorized_keys on dnds-be.
+# Local deploys still use ./deploy.sh with your existing ~/.ssh/config Host dnds-be.
+
+name: Deploy
+
+on:
+  push:
+    branches:
+      - main-autodeploy
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "16"
+          cache: npm
+
+      - name: Write .env.production
+        run: |
+          echo "NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}" > .env.production
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Configure SSH for dnds-be
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/dnds_gha_deploy
+          chmod 600 ~/.ssh/dnds_gha_deploy
+          ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+          cat >> ~/.ssh/config <<EOF
+          Host dnds-be
+            HostName ${SSH_HOST}
+            User ${SSH_USER}
+            IdentityFile ~/.ssh/dnds_gha_deploy
+            IdentitiesOnly yes
+            StrictHostKeyChecking yes
+          EOF
+          chmod 600 ~/.ssh/config
+
+      - name: Deploy
+        run: bash ./deploy.sh
