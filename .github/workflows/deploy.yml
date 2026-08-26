@@ -44,7 +44,7 @@ jobs:
           echo "NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}" > .env.production
 
       - name: Install dependencies
-        run: npm ci --force
+        run: npm install --force
 
       - name: Build Next.js
         run: |
@@ -168,7 +168,7 @@ jobs:
           export HOSTNAME=${HOSTNAME}
           export NODE_ENV=production
 
-          npm ci --omit=dev --force
+          npm install --omit=dev --force
 
           if pm2 describe ${PM2_NAME} >/dev/null 2>&1; then
             pm2 reload ${PM2_NAME} --update-env
