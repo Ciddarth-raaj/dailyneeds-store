@@ -7,7 +7,12 @@ import AgGrid from "../../../components/AgGrid";
 import EmptyData from "../../../components/EmptyData";
 import { Box, Button, Flex, Spinner } from "@chakra-ui/react";
 import { useGrnDetail } from "../../../customHooks/useGrnDetail";
+import { useGrnPriceCheckerItemsMap } from "../../../customHooks/useGrnPriceCheckerItemsMap";
 import { capitalize } from "../../../util/string";
+import {
+  getGrnLinePriceMismatch,
+  sortRowsMismatchFirst,
+} from "../../../util/grn";
 import toast from "react-hot-toast";
 
 function queryParam(value) {
@@ -35,9 +40,32 @@ function PurchaseUom() {
     }
   }, [error]);
 
+  const productIds = useMemo(
+    () => [...new Set(items.map((item) => item.product_id).filter(Boolean))],
+    [items]
+  );
+
+  const { itemsByProductId, loading: pcLoading } = useGrnPriceCheckerItemsMap(
+    productIds,
+    { enabled: !loading && productIds.length > 0 }
+  );
+
+  // Mirrors the GRN Details page: price-mismatch lines float to the top,
+  // otherwise items keep their original GRN order.
+  const sortedItems = useMemo(() => {
+    const withFlags = items.map((item) => ({
+      ...item,
+      _priceMismatch:
+        !pcLoading && getGrnLinePriceMismatch(item, itemsByProductId, false),
+    }));
+    return sortRowsMismatchFirst(withFlags, (row) => row._priceMismatch);
+  }, [items, itemsByProductId, pcLoading]);
+
+  const highlightLoading = !loading && productIds.length > 0 && pcLoading;
+
   const rowData = useMemo(
     () =>
-      items.map((item) => ({
+      sortedItems.map((item) => ({
         product_id: item.product_id,
         name: productDisplayName(item.product),
         mrp: item.mrp,
@@ -45,7 +73,7 @@ function PurchaseUom() {
         purchase_uom: item.product?.purchase_uom ?? null,
         store_uom: item.product?.store_uom ?? null,
       })),
-    [items]
+    [sortedItems]
   );
 
   const colDefs = useMemo(
@@ -125,7 +153,7 @@ function PurchaseUom() {
               message="Select a GRN from the All GRN page to view Purchase UOM"
               faIcon="fa-ruler-combined"
             />
-          ) : loading ? (
+          ) : loading || highlightLoading ? (
             <Flex w="100%" minH="200px" justifyContent="center" alignItems="center">
               <Spinner size="lg" color="purple.500" thickness="3px" />
             </Flex>
