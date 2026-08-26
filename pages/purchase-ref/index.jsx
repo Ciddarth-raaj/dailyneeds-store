@@ -76,7 +76,7 @@ function PurchaseRef() {
         type: "number",
         flex: 0,
         minWidth: 140,
-        valueFormatter: (params) =>
+        cellRenderer: (params) =>
           params.value != null
             ? (Math.round(params.value * 100) / 100).toString()
             : "—",
@@ -87,7 +87,7 @@ function PurchaseRef() {
         type: "number",
         flex: 0,
         minWidth: 150,
-        valueFormatter: (params) =>
+        cellRenderer: (params) =>
           params.value != null ? Math.round(params.value).toString() : "—",
       },
     ],
