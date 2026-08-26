@@ -51,9 +51,12 @@ function PurchaseUom() {
   );
 
   // Mirrors the GRN Details page: price-mismatch lines float to the top,
-  // otherwise items keep their original GRN order.
+  // otherwise items are ordered by their GRN line number (mmd_mrc_sl_no).
   const sortedItems = useMemo(() => {
-    const withFlags = items.map((item) => ({
+    const bySlNo = [...items].sort(
+      (a, b) => (a.mmd_mrc_sl_no ?? 0) - (b.mmd_mrc_sl_no ?? 0)
+    );
+    const withFlags = bySlNo.map((item) => ({
       ...item,
       _priceMismatch:
         !pcLoading && getGrnLinePriceMismatch(item, itemsByProductId, false),
