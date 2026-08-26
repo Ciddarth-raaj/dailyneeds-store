@@ -88,9 +88,7 @@ function PurchaseRef() {
         flex: 0,
         minWidth: 150,
         valueFormatter: (params) =>
-          params.value != null
-            ? (Math.round(params.value * 100) / 100).toString()
-            : "—",
+          params.value != null ? Math.round(params.value).toString() : "—",
       },
     ],
     []

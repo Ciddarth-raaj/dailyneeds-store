@@ -25,9 +25,7 @@ function PurchaseRefMobileCards({ rows = [] }) {
             ? (Math.round(row.current_stock * 100) / 100).toString()
             : "—";
         const avgSalesDisplay =
-          row.avg_sales != null
-            ? (Math.round(row.avg_sales * 100) / 100).toString()
-            : "—";
+          row.avg_sales != null ? Math.round(row.avg_sales).toString() : "—";
 
         return (
           <Box
