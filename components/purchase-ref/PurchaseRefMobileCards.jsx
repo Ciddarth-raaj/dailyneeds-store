@@ -6,7 +6,7 @@ import currencyFormatter from "../../util/currencyFormatter";
 /**
  * Mobile card list for the Purchase Ref page.
  * @param {Object} props
- * @param {Array} props.rows - product_id, name, supplier_name, mrp, net_cost, avg_sales
+ * @param {Array} props.rows - product_id, name, supplier_name, mrp, net_cost, current_stock, avg_sales
  */
 function PurchaseRefMobileCards({ rows = [] }) {
   if (rows.length === 0) {
@@ -20,6 +20,10 @@ function PurchaseRefMobileCards({ rows = [] }) {
           row.mrp != null ? currencyFormatter(row.mrp) : "—";
         const netCostDisplay =
           row.net_cost != null ? currencyFormatter(row.net_cost) : "—";
+        const currentStockDisplay =
+          row.current_stock != null
+            ? (Math.round(row.current_stock * 100) / 100).toString()
+            : "—";
         const avgSalesDisplay =
           row.avg_sales != null
             ? (Math.round(row.avg_sales * 100) / 100).toString()
@@ -54,6 +58,8 @@ function PurchaseRefMobileCards({ rows = [] }) {
                 <Text fontWeight="500">{mrpDisplay}</Text>
                 <Text color="gray.600">Net Cost</Text>
                 <Text fontWeight="500">{netCostDisplay}</Text>
+                <Text color="gray.600">Current Stock</Text>
+                <Text fontWeight="500">{currentStockDisplay}</Text>
                 <Text color="gray.600">Avg Sales (3mo)</Text>
                 <Text fontWeight="500">{avgSalesDisplay}</Text>
               </SimpleGrid>

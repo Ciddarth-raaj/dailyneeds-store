@@ -71,6 +71,17 @@ function PurchaseRef() {
         minWidth: 120,
       },
       {
+        field: "current_stock",
+        headerName: "Current Stock",
+        type: "number",
+        flex: 0,
+        minWidth: 140,
+        valueFormatter: (params) =>
+          params.value != null
+            ? (Math.round(params.value * 100) / 100).toString()
+            : "—",
+      },
+      {
         field: "avg_sales",
         headerName: "Avg Sales (3mo)",
         type: "number",
