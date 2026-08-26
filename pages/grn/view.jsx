@@ -6,6 +6,7 @@ import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../components/CustomContainer";
 import AgGrid from "../../components/AgGrid";
 import GrnPriceCheckerItemsModal from "../../components/grn/GrnPriceCheckerItemsModal";
+import GrnHighlightLoader from "../../components/grn/GrnHighlightLoader";
 import {
   Box,
   Button,
@@ -86,6 +87,9 @@ function GrnDetailPage() {
     }));
     return sortRowsMismatchFirst(withFlags, (row) => row._priceMismatch);
   }, [items, itemsByProductId, pcLoading]);
+
+  const highlightLoading =
+    !loading && productIds.length > 0 && pcLoading;
 
   const gridOptions = useMemo(
     () => ({
@@ -355,8 +359,15 @@ function GrnDetailPage() {
         </CustomContainer>
 
         <CustomContainer title="Products" filledHeader>
-          {loading ? (
-            <Text>Loading...</Text>
+          {loading || highlightLoading ? (
+            <GrnHighlightLoader
+              label={
+                loading
+                  ? "Loading products..."
+                  : "Checking price mismatches..."
+              }
+              minH={loading ? "120px" : "320px"}
+            />
           ) : (
             <Box overflowX="auto" w="100%">
               <AgGrid

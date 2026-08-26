@@ -5,7 +5,8 @@ import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../components/CustomContainer";
 import AgGrid from "../../components/AgGrid";
 import GrnMonthCalendar from "../../components/grn/GrnMonthCalendar";
-import { Flex, Text, useToken } from "@chakra-ui/react";
+import GrnHighlightLoader from "../../components/grn/GrnHighlightLoader";
+import { Flex, useToken } from "@chakra-ui/react";
 import { useGrnList } from "../../customHooks/useGrnList";
 import { useGrnDetailsByRefno } from "../../customHooks/useGrnDetailsByRefno";
 import { useGrnPriceCheckerItemsMap } from "../../customHooks/useGrnPriceCheckerItemsMap";
@@ -78,6 +79,8 @@ function GrnListing() {
   );
 
   const highlightReady = !detailsLoading && !pcLoading;
+  const highlightLoading =
+    !loading && refnos.length > 0 && (detailsLoading || pcLoading);
 
   const displayRowData = useMemo(() => {
     const withFlags = rowData.map((row) => {
@@ -165,8 +168,15 @@ function GrnListing() {
           title={`All GRN (${moment(selectedDate).format("DD/MM/YYYY")})`}
           filledHeader
         >
-          {loading ? (
-            <Text>Loading...</Text>
+          {loading || highlightLoading ? (
+            <GrnHighlightLoader
+              label={
+                loading
+                  ? "Loading GRN list..."
+                  : "Checking price mismatches..."
+              }
+              minH={loading ? "120px" : "240px"}
+            />
           ) : (
             <AgGrid
               rowData={displayRowData}
