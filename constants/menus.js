@@ -643,62 +643,6 @@ const ALL_PAGES_MENU = {
   },
 };
 
-/** Menu tree for the Pick & Pack module (module rail → Pick & Pack). */
-const PICK_PACK_MENU = {
-  pick_pack: {
-    title: "Pick and Pack",
-    selected: false,
-    openPage: false,
-    icon: "fa-boxes-packing",
-    subMenu: {
-      view_pick_pack_remarks: {
-        title: "Remarks Master",
-        permission: "view_pick_pack_remarks",
-        selected: false,
-        location: "/pick-pack/remarks",
-      },
-      view_pick_pack_write_off: {
-        title: "Write Off",
-        permission: "view_pick_pack_write_off",
-        selected: false,
-        location: "/pick-pack/write-off",
-      },
-      view_pick_pack_write_off_list: {
-        title: "Write Off List",
-        permission: "view_pick_pack_write_off",
-        selected: false,
-        location: "/pick-pack/write-off-list",
-      },
-    },
-  },
-  verification: {
-    title: "Verification",
-    selected: false,
-    openPage: false,
-    icon: "fa-clipboard-check",
-    subMenu: {
-      view_pick_pack_verification_remarks: {
-        title: "Verification Master",
-        permission: "view_pick_pack_verification_remarks",
-        selected: false,
-        location: "/pick-pack/verification/remarks",
-      },
-      view_pick_pack_verifications: {
-        title: "Verification",
-        permission: "view_pick_pack_verifications",
-        selected: false,
-        location: "/pick-pack/verification",
-      },
-      view_pick_pack_verifications_list: {
-        title: "Verification List",
-        permission: "view_pick_pack_verifications",
-        selected: false,
-        location: "/pick-pack/verification-list",
-      },
-    },
-  },
-};
-
 /** Menu tree for the WMS module (module rail → WMS). */
 const WMS_MENU = {
   master: {
@@ -793,6 +737,50 @@ const WMS_MENU = {
         selected: false,
         location: "/price-checker",
       },
+      view_pick_pack_remarks: {
+        title: "Remarks Master",
+        permission: "view_pick_pack_remarks",
+        selected: false,
+        location: "/pick-pack/remarks",
+      },
+      view_pick_pack_write_off: {
+        title: "Write Off",
+        permission: "view_pick_pack_write_off",
+        selected: false,
+        location: "/pick-pack/write-off",
+      },
+      view_pick_pack_write_off_list: {
+        title: "Write Off List",
+        permission: "view_pick_pack_write_off",
+        selected: false,
+        location: "/pick-pack/write-off-list",
+      },
+    },
+  },
+  verification: {
+    title: "Verification",
+    selected: false,
+    openPage: false,
+    icon: "fa-clipboard-check",
+    subMenu: {
+      view_pick_pack_verification_remarks: {
+        title: "Verification Master",
+        permission: "view_pick_pack_verification_remarks",
+        selected: false,
+        location: "/pick-pack/verification/remarks",
+      },
+      view_pick_pack_verifications: {
+        title: "Verification",
+        permission: "view_pick_pack_verifications",
+        selected: false,
+        location: "/pick-pack/verification",
+      },
+      view_pick_pack_verifications_list: {
+        title: "Verification List",
+        permission: "view_pick_pack_verifications",
+        selected: false,
+        location: "/pick-pack/verification-list",
+      },
     },
   },
 };
@@ -879,12 +867,6 @@ export const MENU_MODULES = {
     iconClass: "fa-solid fa-file-invoice-dollar",
     accent: "blue",
     menu: GST_MENU,
-  },
-  pick_pack: {
-    title: "Pick & Pack",
-    iconClass: "fa-solid fa-boxes-packing",
-    accent: "orange",
-    menu: PICK_PACK_MENU,
   },
 };
 
