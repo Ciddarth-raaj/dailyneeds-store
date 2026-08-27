@@ -421,24 +421,6 @@ const ALL_PAGES_MENU = {
     openPage: false,
     icon: "fa-archive",
     subMenu: {
-      view_receiving_stock: {
-        title: "Receiving Stock",
-        permission: "view_stock_received",
-        selected: false,
-        location: "/products/receiving-stock",
-      },
-      view_product_offers: {
-        title: "Offers",
-        permission: "view_product_offers",
-        selected: false,
-        location: "/product-offers",
-      },
-      view_offers_v2: {
-        title: "Offers V2",
-        permission: "view_hq_offers",
-        selected: false,
-        location: "/offers-v2",
-      },
       // view_departments: {
       //   title: 'View Deapartments',
       //   selected: false,
@@ -774,6 +756,32 @@ const WMS_MENU = {
         permission: "view_pick_pack_verifications",
         selected: false,
         location: "/pick-pack/verification-list",
+      },
+    },
+  },
+  offer: {
+    title: "Offer",
+    selected: false,
+    openPage: false,
+    icon: "fa-tags",
+    subMenu: {
+      view_receiving_stock: {
+        title: "Receiving Stock",
+        permission: "view_stock_received",
+        selected: false,
+        location: "/products/receiving-stock",
+      },
+      view_product_offers: {
+        title: "Offers",
+        permission: "view_product_offers",
+        selected: false,
+        location: "/product-offers",
+      },
+      view_offers_v2: {
+        title: "Offers V2",
+        permission: "view_hq_offers",
+        selected: false,
+        location: "/offers-v2",
       },
     },
   },
