@@ -587,12 +587,6 @@ const ALL_PAGES_MENU = {
     openPage: false,
     icon: "fa-book",
     subMenu: {
-      images_download_log: {
-        title: "Image Download Log",
-        permission: "view_images_download_log",
-        selected: false,
-        location: "/products/image-download-log",
-      },
       api_logs: {
         title: "API Logs",
         permission: "view_api_logs",
@@ -668,6 +662,12 @@ const WMS_MENU = {
         permission: "view_products",
         selected: false,
         location: "/products/report",
+      },
+      images_download_log: {
+        title: "Image Download Log",
+        permission: "view_images_download_log",
+        selected: false,
+        location: "/products/image-download-log",
       },
     },
   },
