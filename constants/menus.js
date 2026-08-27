@@ -211,20 +211,6 @@ const ALL_PAGES_MENU = {
       },
     },
   },
-  cleaning: {
-    title: "Cleaning and Packing",
-    selected: false,
-    openPage: false,
-    icon: "fa-boxes-packing", // Changed to a more relevant icon for materials
-    subMenu: {
-      view_cleaning: {
-        title: "View List",
-        permission: "view_cleaning_packing",
-        selected: false,
-        location: "/cleaning-packing",
-      },
-    },
-  },
   eb_consumption: {
     title: "EB Consumption",
     selected: false,
@@ -782,6 +768,20 @@ const WMS_MENU = {
         permission: "view_hq_offers",
         selected: false,
         location: "/offers-v2",
+      },
+    },
+  },
+  cleaning: {
+    title: "Cleaning and Packing",
+    selected: false,
+    openPage: false,
+    icon: "fa-boxes-packing",
+    subMenu: {
+      view_cleaning: {
+        title: "View List",
+        permission: "view_cleaning_packing",
+        selected: false,
+        location: "/cleaning-packing",
       },
     },
   },
