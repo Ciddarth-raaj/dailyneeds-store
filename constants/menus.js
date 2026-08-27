@@ -421,12 +421,6 @@ const ALL_PAGES_MENU = {
     openPage: false,
     icon: "fa-archive",
     subMenu: {
-      view_product_changes: {
-        title: "Changes",
-        permission: "view_product_changes",
-        selected: false,
-        location: "/products/changes",
-      },
       view_receiving_stock: {
         title: "Receiving Stock",
         permission: "view_stock_received",
