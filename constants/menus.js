@@ -593,12 +593,6 @@ const ALL_PAGES_MENU = {
     openPage: false,
     icon: "fa-book",
     subMenu: {
-      sto_comparison: {
-        title: "STO Comparison",
-        permission: "view_sto",
-        selected: false,
-        location: "/sto",
-      },
       price_checker: {
         title: "Price Checker",
         permission: "view_price_checker",
@@ -784,6 +778,20 @@ const WMS_MENU = {
         permission: "view_stock_holding_report",
         selected: false,
         location: "/uploads/stock-holding-report",
+      },
+    },
+  },
+  pick_and_pack: {
+    title: "Pick and Pack",
+    selected: false,
+    openPage: false,
+    icon: "fa-boxes-packing",
+    subMenu: {
+      sto_comparison: {
+        title: "STO Comparison",
+        permission: "view_sto",
+        selected: false,
+        location: "/sto",
       },
     },
   },
