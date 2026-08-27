@@ -14,12 +14,6 @@ const ALL_PAGES_MENU = {
         selected: false,
         location: "/",
       },
-      view_products_dashboard: {
-        title: "Products Dashboard",
-        permission: "view_products_dashboard",
-        selected: false,
-        location: "/dashboard/products",
-      },
       view_purchase_return_dashboard: {
         title: "Purchase Return Dashboard",
         permission: "view_purchase_return_dashboard",
@@ -644,6 +638,12 @@ const WMS_MENU = {
         permission: "view_images_download_log",
         selected: false,
         location: "/products/image-download-log",
+      },
+      view_products_dashboard: {
+        title: "Products Dashboard",
+        permission: "view_products_dashboard",
+        selected: false,
+        location: "/dashboard/products",
       },
     },
   },
