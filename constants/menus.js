@@ -421,12 +421,6 @@ const ALL_PAGES_MENU = {
     openPage: false,
     icon: "fa-archive",
     subMenu: {
-      view_products_report: {
-        title: "Product Image Report",
-        permission: "view_products",
-        selected: false,
-        location: "/products/report",
-      },
       view_product_changes: {
         title: "Changes",
         permission: "view_product_changes",
@@ -668,6 +662,12 @@ const WMS_MENU = {
         permission: "view_items",
         selected: false,
         location: "/items",
+      },
+      view_products_report: {
+        title: "Product Image Report",
+        permission: "view_products",
+        selected: false,
+        location: "/products/report",
       },
     },
   },
