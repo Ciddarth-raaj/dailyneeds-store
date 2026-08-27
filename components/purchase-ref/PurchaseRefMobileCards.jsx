@@ -1,15 +1,8 @@
 import React from "react";
-import {
-  Box,
-  Text,
-  Flex,
-  Badge,
-  VStack,
-  SimpleGrid,
-  Image,
-} from "@chakra-ui/react";
+import { Box, Text, Flex, Badge, VStack, SimpleGrid } from "@chakra-ui/react";
 import { capitalize } from "../../util/string";
 import currencyFormatter from "../../util/currencyFormatter";
+import ProductImageZoom from "./ProductImageZoom";
 
 /**
  * Mobile card list for the Purchase Ref page.
@@ -47,16 +40,7 @@ function PurchaseRefMobileCards({ rows = [] }) {
           >
             <VStack align="stretch" spacing={3}>
               <Flex align="center" gap={3}>
-                {row.image_url ? (
-                  <Image
-                    src={row.image_url}
-                    alt=""
-                    boxSize="48px"
-                    objectFit="contain"
-                    borderRadius="sm"
-                    flexShrink={0}
-                  />
-                ) : null}
+                <ProductImageZoom src={row.image_url} thumbSize="48px" />
                 <Flex
                   flex={1}
                   justify="space-between"

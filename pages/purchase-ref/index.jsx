@@ -4,6 +4,7 @@ import CustomContainer from "../../components/CustomContainer";
 import AgGrid from "../../components/AgGrid";
 import EmptyData from "../../components/EmptyData";
 import PurchaseRefMobileCards from "../../components/purchase-ref/PurchaseRefMobileCards";
+import ProductImageZoom from "../../components/purchase-ref/ProductImageZoom";
 import { Box, Flex, Input, Spinner, useBreakpointValue } from "@chakra-ui/react";
 import { usePurchaseRef } from "../../customHooks/usePurchaseRef";
 import useDebounce from "../../customHooks/useDebounce";
@@ -50,7 +51,16 @@ function PurchaseRef() {
       {
         field: "image_url",
         headerName: "Image",
-        type: "image",
+        flex: 0,
+        minWidth: 72,
+        width: 72,
+        sortable: false,
+        filter: false,
+        cellStyle: { lineHeight: 1, paddingTop: 4, paddingBottom: 4 },
+        cellRenderer: (params) =>
+          params.value ? (
+            <ProductImageZoom src={params.value} thumbSize="40px" />
+          ) : null,
       },
       {
         field: "name",
