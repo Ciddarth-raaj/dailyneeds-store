@@ -1,5 +1,13 @@
 import React from "react";
-import { Box, Text, Flex, Badge, VStack, SimpleGrid } from "@chakra-ui/react";
+import {
+  Box,
+  Text,
+  Flex,
+  Badge,
+  VStack,
+  SimpleGrid,
+  Image,
+} from "@chakra-ui/react";
 import { capitalize } from "../../util/string";
 import currencyFormatter from "../../util/currencyFormatter";
 
@@ -38,13 +46,31 @@ function PurchaseRefMobileCards({ rows = [] }) {
             shadow="sm"
           >
             <VStack align="stretch" spacing={3}>
-              <Flex justify="space-between" align="center" wrap="wrap" gap={2}>
-                <Text fontWeight="600" fontSize="md" color="purple.700">
-                  {row.name ? capitalize(row.name) : "—"}
-                </Text>
-                <Badge colorScheme="purple" fontSize="xs">
-                  {row.product_id ?? "—"}
-                </Badge>
+              <Flex align="center" gap={3}>
+                {row.image_url ? (
+                  <Image
+                    src={row.image_url}
+                    alt=""
+                    boxSize="48px"
+                    objectFit="contain"
+                    borderRadius="sm"
+                    flexShrink={0}
+                  />
+                ) : null}
+                <Flex
+                  flex={1}
+                  justify="space-between"
+                  align="center"
+                  wrap="wrap"
+                  gap={2}
+                >
+                  <Text fontWeight="600" fontSize="md" color="purple.700">
+                    {row.name ? capitalize(row.name) : "—"}
+                  </Text>
+                  <Badge colorScheme="purple" fontSize="xs">
+                    {row.product_id ?? "—"}
+                  </Badge>
+                </Flex>
               </Flex>
 
               <SimpleGrid columns={2} spacing={2} fontSize="sm">

@@ -48,6 +48,11 @@ function PurchaseRef() {
         minWidth: 120,
       },
       {
+        field: "image_url",
+        headerName: "Image",
+        type: "image",
+      },
+      {
         field: "name",
         headerName: "Name",
         type: "capitalized",
