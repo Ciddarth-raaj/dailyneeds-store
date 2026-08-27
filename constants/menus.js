@@ -593,12 +593,6 @@ const ALL_PAGES_MENU = {
     openPage: false,
     icon: "fa-book",
     subMenu: {
-      price_checker: {
-        title: "Price Checker",
-        permission: "view_price_checker",
-        selected: false,
-        location: "/price-checker",
-      },
       images_download_log: {
         title: "Image Download Log",
         permission: "view_images_download_log",
@@ -792,6 +786,12 @@ const WMS_MENU = {
         permission: "view_sto",
         selected: false,
         location: "/sto",
+      },
+      price_checker: {
+        title: "Price Checker",
+        permission: "view_price_checker",
+        selected: false,
+        location: "/price-checker",
       },
     },
   },
