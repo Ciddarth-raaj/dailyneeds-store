@@ -1,32 +1,109 @@
 import React, { useMemo, useState, useCallback } from "react";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../components/CustomContainer";
-import { Button, Text, Box, useDisclosure, Flex } from "@chakra-ui/react";
+import {
+  Button,
+  Text,
+  Box,
+  useDisclosure,
+  Flex,
+  Tabs,
+  TabList,
+  TabPanel,
+  TabPanels,
+  Tab,
+  Badge,
+} from "@chakra-ui/react";
 import Link from "next/link";
 import AgGrid from "../../components/AgGrid";
 import CustomModal from "../../components/CustomModal";
-import useOffersV3 from "../../customHooks/useOffersV3";
+import { useOffersV3Items, useOffersV3Batches } from "../../customHooks/useOffersV3";
 import usePermissions from "../../customHooks/usePermissions";
-import { useProducts } from "../../customHooks/useProducts";
-import { useConfirmDelete } from "../../customHooks/useConfirmDelete";
 import toast from "react-hot-toast";
 import offersV3 from "../../helper/offersV3";
 import FileUploaderWithColumnMapping from "../../components/FileUploaderWithColumnMapping";
-import { OFFER_TYPE_LABELS, normalizeOfferType } from "../../constants/offersV3";
+import {
+  OFFER_TYPE_LABELS,
+  ITEM_STATUS_LABELS,
+  ITEM_STATUS_COLORS,
+  BATCH_STATUS_LABELS,
+  BATCH_STATUS_COLORS,
+} from "../../constants/offersV3";
 
-const IMPORT_COLUMN_CONFIG = [
+const STOCK_UPLOAD_COLUMNS = [
   {
     key: "item_code",
     label: "Item Code (Product ID)",
     required: true,
     suggestedKey: "item_code",
+    aliases: ["itemcode", "product_id", "productid", "item id"],
     type: "number",
+  },
+  {
+    key: "outlet",
+    label: "Outlet",
+    required: true,
+    suggestedKey: "outlet",
+    aliases: ["outlet_name", "outletname", "branch", "outlet id", "store"],
+    type: "string",
+  },
+  {
+    key: "batch_no",
+    label: "Batch No",
+    required: true,
+    suggestedKey: "batch_no",
+    aliases: ["batchno", "batch", "batch number", "lot", "lot no"],
+    type: "string",
+  },
+  {
+    key: "stock_qty",
+    label: "Stock Qty",
+    required: true,
+    suggestedKey: "stock_qty",
+    aliases: ["stockqty", "qty", "quantity", "stock"],
+    type: "number",
+  },
+];
+
+const IMPORT_COLUMNS = [
+  {
+    key: "scope",
+    label: "Scope (item / batch)",
+    required: true,
+    suggestedKey: "scope",
+    aliases: ["offer scope", "type"],
+    type: "string",
+  },
+  {
+    key: "item_code",
+    label: "Item Code (Product ID)",
+    required: true,
+    suggestedKey: "item_code",
+    aliases: ["itemcode", "product_id", "productid"],
+    type: "number",
+  },
+  {
+    key: "outlet",
+    label: "Outlet (batch offers only)",
+    required: false,
+    suggestedKey: "outlet",
+    aliases: ["outlet_name", "outletname", "branch"],
+    type: "string",
+  },
+  {
+    key: "batch_no",
+    label: "Batch No (batch offers only)",
+    required: false,
+    suggestedKey: "batch_no",
+    aliases: ["batchno", "batch", "batch number", "lot"],
+    type: "string",
   },
   {
     key: "offer_type",
     label: "Offer Type",
     required: true,
     suggestedKey: "offer_type",
+    aliases: ["offertype", "type of offer"],
     type: "string",
   },
   {
@@ -36,63 +113,33 @@ const IMPORT_COLUMN_CONFIG = [
     suggestedKey: "value",
     type: "number",
   },
+  {
+    key: "status",
+    label: "Status",
+    required: false,
+    suggestedKey: "status",
+    type: "string",
+  },
 ];
 
-function OffersV3Listing() {
-  const canAdd = usePermissions("add_offers_v3");
-  const { confirmDelete, ConfirmDeleteDialog } = useConfirmDelete();
-  const { offers, loading, refetch } = useOffersV3();
-  const { getMappedProducts } = useProducts({
-    limit: 50000,
-    fetchAll: true,
-    fetchNonOnline: true,
-  });
-  const productsMap = useMemo(() => getMappedProducts(), [getMappedProducts]);
-  const {
-    isOpen: isPreviewOpen,
-    onOpen: onPreviewOpen,
-    onClose: onPreviewClose,
-  } = useDisclosure();
-  const [previewRows, setPreviewRows] = useState([]);
-  const [confirming, setConfirming] = useState(false);
-  const [selectMode, setSelectMode] = useState(false);
-  const [selectedRows, setSelectedRows] = useState([]);
-  const [bulkDeleting, setBulkDeleting] = useState(false);
+function StatusBadge({ status, labels, colors }) {
+  return <Badge colorScheme={colors[status] ?? "gray"}>{labels[status] ?? status}</Badge>;
+}
 
-  const handleToggleActive = useCallback(
+function ItemOffersTab({ canAdd }) {
+  const { offers, loading, refetch } = useOffersV3Items();
+
+  const handleToggleStatus = useCallback(
     async (row) => {
       try {
-        await offersV3.update(row.id, { is_active: !row.is_active });
-        toast.success(row.is_active ? "Offer deactivated" : "Offer activated");
+        await offersV3.items.update(row.id, { status: row.status === "active" ? "inactive" : "active" });
+        toast.success(row.status === "active" ? "Offer deactivated" : "Offer reactivated");
         refetch();
       } catch (err) {
         toast.error(err?.message ?? "Update failed");
       }
     },
     [refetch]
-  );
-
-  const previewColDefs = useMemo(
-    () => [
-      { field: "item_code", headerName: "Item Code", flex: 1 },
-      {
-        field: "item_name",
-        headerName: "Item Name",
-        flex: 2,
-        valueGetter: (params) =>
-          productsMap[params.data?.item_code]?.de_name ?? "Unknown product",
-      },
-      {
-        field: "offer_type",
-        headerName: "Offer Type",
-        flex: 1,
-        valueGetter: (params) =>
-          OFFER_TYPE_LABELS[normalizeOfferType(params.data?.offer_type)] ??
-          params.data?.offer_type,
-      },
-      { field: "value", headerName: "Value", type: "number" },
-    ],
-    [productsMap]
   );
 
   const colDefs = useMemo(
@@ -104,24 +151,20 @@ function OffersV3Listing() {
         field: "offer_type",
         headerName: "Offer Type",
         flex: 1,
-        valueGetter: (params) =>
-          OFFER_TYPE_LABELS[params.data?.offer_type] ?? params.data?.offer_type,
+        valueGetter: (params) => OFFER_TYPE_LABELS[params.data?.offer_type] ?? params.data?.offer_type,
       },
       { field: "value", headerName: "Value", type: "number" },
       {
-        field: "is_active",
-        headerName: "Active",
-        type: "badge-column",
-        valueGetter: (params) =>
-          params.data?.is_active
-            ? { label: "Yes", colorScheme: "green" }
-            : { label: "No", colorScheme: "red" },
+        field: "status",
+        headerName: "Status",
+        cellRenderer: (params) => (
+          <Flex align="center" h="100%">
+            <StatusBadge status={params.data?.status} labels={ITEM_STATUS_LABELS} colors={ITEM_STATUS_COLORS} />
+          </Flex>
+        ),
       },
-      {
-        field: "created_at",
-        headerName: "Created At",
-        type: "datetime",
-      },
+      { field: "created_by_name", headerName: "Created By", hideByDefault: true },
+      { field: "created_at", headerName: "Date Created", type: "datetime" },
       {
         field: "actions",
         headerName: "Action",
@@ -130,56 +173,195 @@ function OffersV3Listing() {
           const row = params.data;
           if (!row) return [];
           const actions = [
-            {
-              label: "View",
-              iconType: "view",
-              redirectionUrl: `/offers-v3/view?id=${row.id}`,
-            },
-            {
-              label: "Edit",
-              iconType: "edit",
-              redirectionUrl: `/offers-v3/edit?id=${row.id}`,
-            },
+            { label: "View", iconType: "view", redirectionUrl: `/offers-v3/item/view?id=${row.id}` },
+            { label: "Edit", iconType: "edit", redirectionUrl: `/offers-v3/item/edit?id=${row.id}` },
           ];
           if (canAdd) {
             actions.unshift({
-              label: !row.is_active ? "Make Inactive" : "Make Active",
-              icon: !row.is_active
-                ? "fa-solid fa-toggle-off"
-                : "fa-solid fa-toggle-on",
-              colorScheme: !row.is_active ? "red" : "green",
-              onClick: () => handleToggleActive(row),
-            });
-            actions.push({
-              label: "Delete",
-              iconType: "delete",
-              colorScheme: "red",
-              onClick: () =>
-                confirmDelete({
-                  title: "Delete offer",
-                  message: `Delete offer for item ${row.item_name || row.item_code}?`,
-                  onConfirm: async () => {
-                    await offersV3.delete(row.id);
-                    toast.success("Offer deleted");
-                    refetch();
-                  },
-                }),
+              label: row.status === "active" ? "Make Inactive" : "Reactivate",
+              icon: row.status === "active" ? "fa-solid fa-toggle-on" : "fa-solid fa-toggle-off",
+              colorScheme: row.status === "active" ? "green" : "red",
+              onClick: () => handleToggleStatus(row),
             });
           }
           return actions;
         },
       },
     ],
-    [confirmDelete, refetch, canAdd, handleToggleActive]
+    [canAdd, handleToggleStatus]
+  );
+
+  if (loading) {
+    return (
+      <Text py={4} color="gray.600">
+        Loading...
+      </Text>
+    );
+  }
+
+  return (
+    <>
+      <Flex justify="flex-end" mb={3}>
+        {canAdd ? (
+          <Link href="/offers-v3/item/create" passHref>
+            <Button colorScheme="purple" size="sm" as="a">
+              Create Item-Level Offer
+            </Button>
+          </Link>
+        ) : null}
+      </Flex>
+      <AgGrid
+        rowData={offers}
+        columnDefs={colDefs}
+        tableKey="offers-v3-items-list"
+        getRowId={(params) => String(params.data?.id ?? "")}
+      />
+    </>
+  );
+}
+
+function BatchOffersTab({ canAdd }) {
+  const { offers, loading, refetch } = useOffersV3Batches();
+
+  const handleEnd = useCallback(
+    async (row) => {
+      try {
+        await offersV3.batches.end(row.id);
+        toast.success("Batch marked Zero — Ended");
+        refetch();
+      } catch (err) {
+        toast.error(err?.message ?? "Failed to end batch");
+      }
+    },
+    [refetch]
+  );
+
+  const handleMakeInactive = useCallback(
+    async (row) => {
+      try {
+        await offersV3.batches.update(row.id, { status: "inactive" });
+        toast.success("Offer marked inactive");
+        refetch();
+      } catch (err) {
+        toast.error(err?.message ?? "Update failed");
+      }
+    },
+    [refetch]
+  );
+
+  const colDefs = useMemo(
+    () => [
+      { field: "id", headerName: "ID", type: "id" },
+      { field: "item_code", headerName: "Item Code", flex: 1 },
+      { field: "item_name", headerName: "Item Name", flex: 1.5 },
+      { field: "outlet_name", headerName: "Outlet", flex: 1 },
+      { field: "batch_no", headerName: "Batch No", flex: 1 },
+      {
+        field: "offer_type",
+        headerName: "Offer Type",
+        flex: 1,
+        valueGetter: (params) => OFFER_TYPE_LABELS[params.data?.offer_type] ?? params.data?.offer_type,
+      },
+      { field: "value", headerName: "Value", type: "number" },
+      {
+        field: "status",
+        headerName: "Status",
+        cellRenderer: (params) => (
+          <Flex align="center" h="100%">
+            <StatusBadge status={params.data?.status} labels={BATCH_STATUS_LABELS} colors={BATCH_STATUS_COLORS} />
+          </Flex>
+        ),
+      },
+      { field: "created_by_name", headerName: "Created By", hideByDefault: true },
+      { field: "created_at", headerName: "Date Created", type: "datetime" },
+      {
+        field: "actions",
+        headerName: "Action",
+        type: "action-icons",
+        valueGetter: (params) => {
+          const row = params.data;
+          if (!row) return [];
+          const actions = [
+            { label: "View", iconType: "view", redirectionUrl: `/offers-v3/batch/view?id=${row.id}` },
+            { label: "Edit", iconType: "edit", redirectionUrl: `/offers-v3/batch/edit?id=${row.id}` },
+          ];
+          if (canAdd) {
+            if (row.status === "zero_stock_flagged") {
+              actions.unshift({
+                label: "Confirm Batch Zero — End",
+                icon: "fa-solid fa-ban",
+                colorScheme: "orange",
+                onClick: () => handleEnd(row),
+              });
+            }
+            if (row.status !== "inactive" && row.status !== "batch_zero_ended") {
+              actions.push({
+                label: "Make Inactive",
+                icon: "fa-solid fa-toggle-on",
+                colorScheme: "red",
+                onClick: () => handleMakeInactive(row),
+              });
+            }
+          }
+          return actions;
+        },
+      },
+    ],
+    [canAdd, handleEnd, handleMakeInactive]
+  );
+
+  if (loading) {
+    return (
+      <Text py={4} color="gray.600">
+        Loading...
+      </Text>
+    );
+  }
+
+  return (
+    <>
+      <Flex justify="flex-end" mb={3}>
+        {canAdd ? (
+          <Link href="/offers-v3/batch/create" passHref>
+            <Button colorScheme="purple" size="sm" as="a">
+              Create Batch-Specific Offer
+            </Button>
+          </Link>
+        ) : null}
+      </Flex>
+      <AgGrid
+        rowData={offers}
+        columnDefs={colDefs}
+        tableKey="offers-v3-batches-list"
+        getRowId={(params) => String(params.data?.id ?? "")}
+      />
+    </>
+  );
+}
+
+function StockUploadTab({ onUploaded }) {
+  const {
+    isOpen: isPreviewOpen,
+    onOpen: onPreviewOpen,
+    onClose: onPreviewClose,
+  } = useDisclosure();
+  const [previewRows, setPreviewRows] = useState([]);
+  const [confirming, setConfirming] = useState(false);
+  const [lastResult, setLastResult] = useState(null);
+
+  const previewColDefs = useMemo(
+    () => [
+      { field: "item_code", headerName: "Item Code", flex: 1 },
+      { field: "outlet", headerName: "Outlet", flex: 1 },
+      { field: "batch_no", headerName: "Batch No", flex: 1 },
+      { field: "stock_qty", headerName: "Stock Qty", type: "number" },
+    ],
+    []
   );
 
   const handleImportMappedData = (mappedRows) => {
     if (!mappedRows?.length) return;
-    const normalized = mappedRows.map((row) => ({
-      ...row,
-      offer_type: normalizeOfferType(row.offer_type),
-    }));
-    setPreviewRows(normalized);
+    setPreviewRows(mappedRows);
     onPreviewOpen();
   };
 
@@ -187,13 +369,21 @@ function OffersV3Listing() {
     if (!previewRows.length) return;
     setConfirming(true);
     try {
-      const res = await offersV3.bulkInsert(previewRows);
-      toast.success(`Imported ${res?.inserted ?? previewRows.length} offer(s)`);
+      const res = await offersV3.stockUpload(previewRows);
+      setLastResult(res);
+      toast.success(
+        `Upserted ${res.upserted} row(s). ${res.flagged?.length ?? 0} flagged zero-stock, ${
+          res.reverted?.length ?? 0
+        } reverted, ${res.untagged?.length ?? 0} new untagged batch(es).`
+      );
+      if (res.unresolvedOutlets?.length) {
+        toast.error(`Could not resolve outlet(s): ${res.unresolvedOutlets.join(", ")}`);
+      }
       onPreviewClose();
       setPreviewRows([]);
-      refetch();
+      onUploaded?.();
     } catch (err) {
-      toast.error(err?.message ?? "Import failed");
+      toast.error(err?.message ?? "Upload failed");
     } finally {
       setConfirming(false);
     }
@@ -204,150 +394,348 @@ function OffersV3Listing() {
     setPreviewRows([]);
   };
 
-  const handleBulkDelete = useCallback(async () => {
-    if (!selectedRows?.length) return;
-    setBulkDeleting(true);
-    try {
-      const ids = selectedRows.map((r) => r.id).filter((id) => id != null);
-      await offersV3.bulkDelete(ids);
-      toast.success(`Deleted ${ids.length} offer(s)`);
-      setSelectMode(false);
-      setSelectedRows([]);
-      refetch();
-    } catch (err) {
-      toast.error(err?.message ?? "Bulk delete failed");
-    } finally {
-      setBulkDeleting(false);
-    }
-  }, [selectedRows, refetch]);
-
-  const handleCancelSelectMode = useCallback(() => {
-    setSelectMode(false);
-    setSelectedRows([]);
-  }, []);
-
   return (
-    <GlobalWrapper title="Offers V3" permissionKey="view_offers_v3">
-      <ConfirmDeleteDialog />
-      <CustomContainer
-        title="Offers V3"
-        filledHeader
-        rightSection={
-          canAdd ? (
-            <Box display="flex" gap={2}>
-              <FileUploaderWithColumnMapping
-                config={IMPORT_COLUMN_CONFIG}
-                onMappedData={handleImportMappedData}
-                accept=".xlsx,.xls,.csv"
-                renderer={(openFileBrowser) => (
-                  <Button
-                    onClick={openFileBrowser}
-                    colorScheme="purple"
-                    variant="outline"
-                    size="sm"
-                  >
-                    Import
-                  </Button>
-                )}
-              />
-              <Link href="/offers-v3/create" passHref>
-                <Button colorScheme="purple" size="sm" as="a">
-                  Create
-                </Button>
-              </Link>
-            </Box>
-          ) : null
-        }
-      >
-        {loading ? (
-          <Text py={4} color="gray.600">
-            Loading...
+    <Box>
+      <Text fontSize="sm" color="gray.600" mb={4}>
+        Upload the latest batch stock snapshot (Item Code, Outlet, Batch No, Stock Qty). Matching
+        active batch offers are flagged Zero Stock when their stock hits 0, and auto-reverted to
+        Active if stock comes back. New batches of items that already carry an active offer are
+        surfaced under Untagged Batches instead of assuming they inherit the offer.
+      </Text>
+      <FileUploaderWithColumnMapping config={STOCK_UPLOAD_COLUMNS} onMappedData={handleImportMappedData} />
+
+      {lastResult ? (
+        <Box mt={4} p={3} bg="purple.50" borderRadius="md" borderWidth="1px" borderColor="purple.100">
+          <Text fontSize="sm" fontWeight="medium" mb={1}>
+            Last upload summary
           </Text>
-        ) : (
-          <>
-            <Flex justify="flex-end" mb={3} gap={3}>
-              {selectMode ? (
-                <>
-                  <Button
-                    size="sm"
-                    colorScheme="red"
-                    onClick={handleBulkDelete}
-                    isLoading={bulkDeleting}
-                    loadingText="Deleting..."
-                    isDisabled={!selectedRows?.length}
-                  >
-                    Delete Selected ({selectedRows?.length ?? 0})
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    colorScheme="purple"
-                    onClick={handleCancelSelectMode}
-                  >
-                    Cancel
-                  </Button>
-                </>
-              ) : (
-                <Button
-                  colorScheme="purple"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setSelectMode(true)}
-                >
-                  Select
-                </Button>
-              )}
-            </Flex>
-            <AgGrid
-              rowData={offers}
-              columnDefs={colDefs}
-              tableKey="offers-v3-list"
-              selectMode={selectMode}
-              onSelectionChanged={setSelectedRows}
-              getRowId={(params) => String(params.data?.id ?? "")}
-            />
-          </>
-        )}
-      </CustomContainer>
+          <Text fontSize="sm">Rows upserted: {lastResult.upserted}</Text>
+          <Text fontSize="sm">Flagged zero-stock: {lastResult.flagged?.length ?? 0}</Text>
+          <Text fontSize="sm">Reverted to active: {lastResult.reverted?.length ?? 0}</Text>
+          <Text fontSize="sm">New untagged batches: {lastResult.untagged?.length ?? 0}</Text>
+          {lastResult.unresolvedOutlets?.length ? (
+            <Text fontSize="sm" color="red.600">
+              Unresolved outlets: {lastResult.unresolvedOutlets.join(", ")}
+            </Text>
+          ) : null}
+        </Box>
+      ) : null}
 
       <CustomModal
         isOpen={isPreviewOpen}
         onClose={handlePreviewClose}
-        title={`Preview import (${previewRows.length} rows)`}
+        title={`Preview stock upload (${previewRows.length} rows)`}
         size="4xl"
         scrollBehavior="inside"
         contentProps={{ maxH: "90vh" }}
         bodyProps={{ overflow: "auto" }}
         footer={
           <>
-            <Button
-              variant="ghost"
-              colorScheme="purple"
-              onClick={handlePreviewClose}
-            >
+            <Button variant="ghost" colorScheme="purple" onClick={handlePreviewClose}>
               Cancel
             </Button>
-            <Button
-              colorScheme="purple"
-              onClick={handleConfirmImport}
-              isLoading={confirming}
-              loadingText="Importing..."
-            >
+            <Button colorScheme="purple" onClick={handleConfirmImport} isLoading={confirming} loadingText="Uploading...">
+              Confirm upload
+            </Button>
+          </>
+        }
+      >
+        <AgGrid rowData={previewRows} columnDefs={previewColDefs} tableKey="offers-v3-stock-preview" defaultRows={10} />
+      </CustomModal>
+    </Box>
+  );
+}
+
+function UntaggedBatchesTab({ canAdd, refreshKey }) {
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchRows = useCallback(async () => {
+    try {
+      setLoading(true);
+      const data = await offersV3.untaggedBatches.list();
+      setRows(Array.isArray(data) ? data : []);
+    } catch (err) {
+      toast.error(err?.message ?? "Failed to fetch untagged batches");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    fetchRows();
+  }, [fetchRows, refreshKey]);
+
+  const handleDismiss = useCallback(
+    async (row) => {
+      try {
+        await offersV3.untaggedBatches.dismiss(row.id);
+        toast.success("Alert dismissed");
+        fetchRows();
+      } catch (err) {
+        toast.error(err?.message ?? "Failed to dismiss");
+      }
+    },
+    [fetchRows]
+  );
+
+  const colDefs = useMemo(
+    () => [
+      { field: "item_code", headerName: "Item Code", flex: 1 },
+      { field: "item_name", headerName: "Item Name", flex: 1.5 },
+      { field: "outlet_name", headerName: "Outlet", flex: 1 },
+      { field: "batch_no", headerName: "Batch No", flex: 1 },
+      { field: "detected_at", headerName: "Detected At", type: "datetime" },
+      {
+        field: "actions",
+        headerName: "Action",
+        type: "action-icons",
+        valueGetter: (params) => {
+          const row = params.data;
+          if (!row || !canAdd) return [];
+          return [
+            {
+              label: "Create Batch Offer",
+              icon: "fa-solid fa-plus",
+              colorScheme: "purple",
+              redirectionUrl: `/offers-v3/batch/create?item_code=${row.item_code}&outlet_id=${row.outlet_id}&batch_no=${encodeURIComponent(
+                row.batch_no
+              )}`,
+            },
+            {
+              label: "Dismiss",
+              icon: "fa-solid fa-xmark",
+              colorScheme: "gray",
+              onClick: () => handleDismiss(row),
+            },
+          ];
+        },
+      },
+    ],
+    [canAdd, handleDismiss]
+  );
+
+  if (loading) {
+    return (
+      <Text py={4} color="gray.600">
+        Loading...
+      </Text>
+    );
+  }
+
+  return (
+    <>
+      <Text fontSize="sm" color="gray.600" mb={3}>
+        New batches seen in a stock upload for an item that already has an active offer elsewhere.
+        Confirm by creating a batch offer for it, or dismiss if it shouldn't be tagged.
+      </Text>
+      <AgGrid
+        rowData={rows}
+        columnDefs={colDefs}
+        tableKey="offers-v3-untagged-batches"
+        getRowId={(params) => String(params.data?.id ?? "")}
+      />
+    </>
+  );
+}
+
+function MismatchesTab({ refreshKey }) {
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchRows = useCallback(async () => {
+    try {
+      setLoading(true);
+      const data = await offersV3.mismatches();
+      setRows(Array.isArray(data) ? data : []);
+    } catch (err) {
+      toast.error(err?.message ?? "Failed to fetch mismatches");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    fetchRows();
+  }, [fetchRows, refreshKey]);
+
+  const colDefs = useMemo(
+    () => [
+      { field: "scope", headerName: "Scope", flex: 0.7 },
+      { field: "item_code", headerName: "Item Code", flex: 1 },
+      { field: "item_name", headerName: "Item Name", flex: 1.5 },
+      { field: "outlet_name", headerName: "Outlet", flex: 1 },
+      { field: "batch_no", headerName: "Batch No", flex: 1 },
+      {
+        field: "offer_type",
+        headerName: "Offer Type",
+        flex: 1,
+        valueGetter: (params) => OFFER_TYPE_LABELS[params.data?.offer_type] ?? params.data?.offer_type,
+      },
+      { field: "value", headerName: "Value", type: "number" },
+      { field: "mrp", headerName: "MRP", type: "currency" },
+      { field: "expected_selling_price", headerName: "Expected SP", type: "currency" },
+      { field: "actual_selling_price", headerName: "Actual SP", type: "currency" },
+    ],
+    []
+  );
+
+  if (loading) {
+    return (
+      <Text py={4} color="gray.600">
+        Loading...
+      </Text>
+    );
+  }
+
+  return (
+    <>
+      <Flex justify="space-between" align="center" mb={3}>
+        <Text fontSize="sm" color="gray.600">
+          Active offers where the recorded selling price doesn't match what the offer should
+          produce from the current MRP.
+        </Text>
+        <Button size="sm" variant="outline" colorScheme="purple" onClick={fetchRows}>
+          Refresh
+        </Button>
+      </Flex>
+      <AgGrid
+        rowData={rows}
+        columnDefs={colDefs}
+        tableKey="offers-v3-mismatches"
+        getRowId={(params) => `${params.data?.scope}-${params.data?.offer_id}`}
+      />
+    </>
+  );
+}
+
+function OffersV3Listing() {
+  const canAdd = usePermissions("add_offers_v3");
+  const [tabIndex, setTabIndex] = useState(0);
+  const [dataVersion, setDataVersion] = useState(0);
+  const {
+    isOpen: isImportPreviewOpen,
+    onOpen: onImportPreviewOpen,
+    onClose: onImportPreviewClose,
+  } = useDisclosure();
+  const [importRows, setImportRows] = useState([]);
+  const [importing, setImporting] = useState(false);
+
+  const bumpDataVersion = useCallback(() => setDataVersion((v) => v + 1), []);
+
+  const importPreviewColDefs = useMemo(
+    () => [
+      { field: "scope", headerName: "Scope", flex: 0.7 },
+      { field: "item_code", headerName: "Item Code", flex: 1 },
+      { field: "outlet", headerName: "Outlet", flex: 1 },
+      { field: "batch_no", headerName: "Batch No", flex: 1 },
+      { field: "offer_type", headerName: "Offer Type", flex: 1 },
+      { field: "value", headerName: "Value", type: "number" },
+      { field: "status", headerName: "Status", flex: 1 },
+    ],
+    []
+  );
+
+  const handleImportMappedData = (mappedRows) => {
+    if (!mappedRows?.length) return;
+    setImportRows(mappedRows);
+    onImportPreviewOpen();
+  };
+
+  const handleConfirmImport = async () => {
+    if (!importRows.length) return;
+    setImporting(true);
+    try {
+      const res = await offersV3.import(importRows);
+      toast.success(
+        `Imported ${res.itemInserted} item-level and ${res.batchInserted} batch-specific offer(s). Skipped ${res.skipped}.`
+      );
+      onImportPreviewClose();
+      setImportRows([]);
+      bumpDataVersion();
+    } catch (err) {
+      toast.error(err?.message ?? "Import failed");
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const handleImportPreviewClose = () => {
+    onImportPreviewClose();
+    setImportRows([]);
+  };
+
+  return (
+    <GlobalWrapper title="Offers V3" permissionKey="view_offers_v3">
+      <CustomContainer
+        title="Offers V3"
+        filledHeader
+        rightSection={
+          canAdd ? (
+            <FileUploaderWithColumnMapping
+              config={IMPORT_COLUMNS}
+              onMappedData={handleImportMappedData}
+              renderer={(openFileBrowser) => (
+                <Button onClick={openFileBrowser} colorScheme="purple" variant="outline" size="sm">
+                  One-Time Go-Live Import
+                </Button>
+              )}
+            />
+          ) : null
+        }
+      >
+        <Tabs colorScheme="purple" isLazy lazyBehavior="keepMounted" index={tabIndex} onChange={setTabIndex}>
+          <TabList flexWrap="wrap">
+            <Tab>Item-Level Offers</Tab>
+            <Tab>Batch-Specific Offers</Tab>
+            <Tab>Stock Upload</Tab>
+            <Tab>Untagged Batches</Tab>
+            <Tab>Price Mismatches</Tab>
+          </TabList>
+          <TabPanels>
+            <TabPanel px={0}>
+              <ItemOffersTab canAdd={canAdd} key={`items-${dataVersion}`} />
+            </TabPanel>
+            <TabPanel px={0}>
+              <BatchOffersTab canAdd={canAdd} key={`batches-${dataVersion}`} />
+            </TabPanel>
+            <TabPanel px={0}>
+              <StockUploadTab onUploaded={bumpDataVersion} />
+            </TabPanel>
+            <TabPanel px={0}>
+              <UntaggedBatchesTab canAdd={canAdd} refreshKey={dataVersion} />
+            </TabPanel>
+            <TabPanel px={0}>
+              <MismatchesTab refreshKey={dataVersion} />
+            </TabPanel>
+          </TabPanels>
+        </Tabs>
+      </CustomContainer>
+
+      <CustomModal
+        isOpen={isImportPreviewOpen}
+        onClose={handleImportPreviewClose}
+        title={`Preview import (${importRows.length} rows)`}
+        size="4xl"
+        scrollBehavior="inside"
+        contentProps={{ maxH: "90vh" }}
+        bodyProps={{ overflow: "auto" }}
+        footer={
+          <>
+            <Button variant="ghost" colorScheme="purple" onClick={handleImportPreviewClose}>
+              Cancel
+            </Button>
+            <Button colorScheme="purple" onClick={handleConfirmImport} isLoading={importing} loadingText="Importing...">
               Confirm import
             </Button>
           </>
         }
       >
         <Text fontSize="sm" color="gray.600" mb={4}>
-          Review the data below and confirm to import these offers. Existing
-          offers with a matching item code will be updated.
+          These rows are treated as already-confirmed offers — no validation or threshold logic is
+          applied. Use only for the initial go-live load.
         </Text>
-        <AgGrid
-          rowData={previewRows}
-          columnDefs={previewColDefs}
-          tableKey="offers-v3-import-preview"
-          defaultRows={10}
-        />
+        <AgGrid rowData={importRows} columnDefs={importPreviewColDefs} tableKey="offers-v3-import-preview" defaultRows={10} />
       </CustomModal>
     </GlobalWrapper>
   );

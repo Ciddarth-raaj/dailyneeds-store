@@ -2,10 +2,11 @@ import { useCallback, useEffect, useState } from "react";
 import offersV3 from "../helper/offersV3";
 
 /**
- * @param {string|number} id - Offer id
+ * @param {string|number} id
+ * @param {"item"|"batch"} scope
  * @param {Object} options - { enabled: boolean }
  */
-export function useOffersV3ById(id, options = {}) {
+export function useOffersV3ById(id, scope, options = {}) {
   const { enabled = true } = options;
   const [offer, setOffer] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -21,7 +22,8 @@ export function useOffersV3ById(id, options = {}) {
     try {
       setLoading(true);
       setError(null);
-      const data = await offersV3.getById(offerId);
+      const data =
+        scope === "batch" ? await offersV3.batches.getById(offerId) : await offersV3.items.getById(offerId);
       setOffer(data);
       return data;
     } catch (err) {
@@ -31,7 +33,7 @@ export function useOffersV3ById(id, options = {}) {
     } finally {
       setLoading(false);
     }
-  }, [id, enabled]);
+  }, [id, scope, enabled]);
 
   useEffect(() => {
     fetchOne();

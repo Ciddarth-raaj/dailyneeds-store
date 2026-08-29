@@ -23,6 +23,33 @@ import toast from "react-hot-toast";
 import { useModuleTableTheme } from "../../contexts/ModuleTableThemeContext";
 
 /**
+ * Normalize a header/alias for fuzzy matching: lowercase, strip anything
+ * that isn't a letter or digit (so "Outlet Name", "outlet_name" and
+ * "OutletName" all normalize to "outletname").
+ */
+function normalizeHeader(s) {
+  return String(s ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+
+/**
+ * Best-effort auto-detect: try suggestedKey first, then each alias, matching
+ * on the normalized header so minor naming differences (spaces vs
+ * underscores, "Outlet" vs "Outlet_Name") still auto-map. Falls back to null
+ * so the admin can pick manually.
+ */
+function autoDetectColumn(headers, { suggestedKey, aliases }) {
+  const candidates = [suggestedKey, ...(aliases || [])].filter(Boolean).map(normalizeHeader);
+  for (const candidate of candidates) {
+    const match = headers.find((h) => normalizeHeader(h) === candidate);
+    if (match) return match;
+  }
+  return null;
+}
+
+/**
  * Coerce a raw value to the target type.
  */
 function coerceValue(raw, type) {
@@ -139,7 +166,9 @@ function MappingModalHeader({ children, colorScheme }) {
  * - Accepts .xlsx or .csv file
  * - With renderer: action button opens upload modal (accepted columns + dropzone), then column mapping modal
  * - Without renderer: accepted columns + dropzone inline, then column mapping modal
- * - config: [{ key, label, required, suggestedKey, type: "number"|"string"|"date" }]
+ * - config: [{ key, label, required, suggestedKey, aliases?: string[], type: "number"|"string"|"date" }]
+ *   Column auto-detection matches suggestedKey/aliases against file headers after
+ *   normalizing case, spaces and underscores (e.g. "Outlet Name" ~ "outlet_name").
  * - onMappedData(mappedRows) called with array of objects keyed by config keys
  * - skipHeaders: number of rows to skip before reading headers (default: 0)
  * - renderer: optional (openUploadModal) => element; call openUploadModal to open the upload step
@@ -178,16 +207,9 @@ export default function FileUploaderWithColumnMapping({
           setFileRows(rows);
           setFileName(file.name);
           const initial = {};
-          config.forEach(({ key, suggestedKey }) => {
-            const match = headers.find(
-              (h) =>
-                h &&
-                String(h).trim().toLowerCase() ===
-                  String(suggestedKey || "")
-                    .trim()
-                    .toLowerCase()
-            );
-            initial[key] = match || headers[0] || "";
+          config.forEach(({ key, suggestedKey, aliases }) => {
+            const match = autoDetectColumn(headers, { suggestedKey, aliases });
+            initial[key] = match || "";
           });
           setColumnMapping(initial);
           onUploadClose();

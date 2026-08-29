@@ -1,17 +1,17 @@
 import React, { useEffect, useMemo, useCallback, useState } from "react";
 import { useRouter } from "next/router";
-import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
-import CustomContainer from "../../components/CustomContainer";
-import CustomInput from "../../components/customInput/customInput";
-import { Button, Flex, Grid, Text, Box, Image, Progress } from "@chakra-ui/react";
+import GlobalWrapper from "../../../components/globalWrapper/globalWrapper";
+import CustomContainer from "../../../components/CustomContainer";
+import CustomInput from "../../../components/customInput/customInput";
+import { Button, Flex, Grid, Text, Box, Image } from "@chakra-ui/react";
 import { Formik } from "formik";
 import * as Yup from "yup";
 import toast from "react-hot-toast";
-import offersV3 from "../../helper/offersV3";
-import usePermissions from "../../customHooks/usePermissions";
-import { useProducts } from "../../customHooks/useProducts";
-import { useOffersV3ById } from "../../customHooks/useOffersV3ById";
-import { OFFER_TYPE_OPTIONS } from "../../constants/offersV3";
+import offersV3 from "../../../helper/offersV3";
+import usePermissions from "../../../customHooks/usePermissions";
+import { useProducts } from "../../../customHooks/useProducts";
+import { useOffersV3ById } from "../../../customHooks/useOffersV3ById";
+import { OFFER_TYPE_OPTIONS, ITEM_STATUS_LABELS } from "../../../constants/offersV3";
 
 const initialValues = {
   item_code: "",
@@ -22,57 +22,15 @@ const initialValues = {
 const validationSchema = Yup.object({
   item_code: Yup.mixed()
     .required("Required")
-    .test(
-      "is-product",
-      "Select a product",
-      (v) => v != null && v !== "" && Number(v) > 0
-    ),
+    .test("is-product", "Select a product", (v) => v != null && v !== "" && Number(v) > 0),
   offer_type: Yup.string().required("Required"),
   value: Yup.number()
-    .min(0, "Must be ≥ 0")
+    .moreThan(0, "Must be > 0")
     .required("Required")
     .transform((v) => (v === "" || Number.isNaN(Number(v)) ? null : Number(v))),
 });
 
-function ProductsFetchProgress({ progress }) {
-  const loaded = progress?.loaded ?? 0;
-  const total = progress?.total;
-  const hasTotal = total != null && total > 0;
-  const percent = hasTotal
-    ? Math.min(100, Math.round((loaded / total) * 100))
-    : null;
-
-  const countLabel = hasTotal
-    ? `${loaded.toLocaleString()} / ${total.toLocaleString()} products`
-    : loaded > 0
-    ? `${loaded.toLocaleString()} products loaded`
-    : "Starting…";
-
-  return (
-    <Box mb={4} w="100%">
-      <Flex justify="space-between" align="center" mb={2} gap={3} flexWrap="wrap">
-        <Text fontSize="sm" fontWeight="medium" color="gray.700">
-          Loading products
-        </Text>
-        <Text fontSize="sm" color="gray.600">
-          {countLabel}
-          {percent != null ? ` (${percent}%)` : ""}
-        </Text>
-      </Flex>
-      <Progress
-        value={hasTotal ? percent : undefined}
-        isIndeterminate={!hasTotal && loaded === 0}
-        hasStripe={!hasTotal && loaded > 0}
-        isAnimated
-        size="sm"
-        colorScheme="purple"
-        borderRadius="md"
-      />
-    </Box>
-  );
-}
-
-function OffersV3Form() {
+function OffersV3ItemForm() {
   const router = useRouter();
   const { mode, id: idQuery } = router.query;
   const id = typeof idQuery === "string" ? idQuery : idQuery?.[0];
@@ -82,15 +40,8 @@ function OffersV3Form() {
   const createMode = mode === "create";
   const canAdd = usePermissions("add_offers_v3");
 
-  const {
-    products,
-    loading: productsLoading,
-    fetchProgress,
-  } = useProducts({
-    limit: 10000,
-    fetchAll: true,
-  });
-  const { offer, loading } = useOffersV3ById(id, {
+  const { products, loading: productsLoading } = useProducts({ limit: 10000, fetchAll: true });
+  const { offer, loading, refetch } = useOffersV3ById(id, "item", {
     enabled: (editMode || viewMode) && !!id,
   });
 
@@ -132,8 +83,7 @@ function OffersV3Form() {
   );
 
   const productRenderSelected = useCallback(
-    (option) =>
-      option ? `${option.product_name ?? option.value} (ID: ${option.product_id})` : "",
+    (option) => (option ? `${option.product_name ?? option.value} (ID: ${option.product_id})` : ""),
     []
   );
 
@@ -165,8 +115,8 @@ function OffersV3Form() {
 
     if (createMode) {
       try {
-        await offersV3.create(payload);
-        toast.success("Offer created");
+        await offersV3.items.create(payload);
+        toast.success("Item-level offer created");
         router.push("/offers-v3");
       } catch (err) {
         toast.error(err?.message ?? "Failed to create offer");
@@ -176,7 +126,7 @@ function OffersV3Form() {
 
     if (editMode && id) {
       try {
-        await offersV3.update(id, payload);
+        await offersV3.items.update(id, payload);
         toast.success("Offer updated");
         router.push("/offers-v3");
       } catch (err) {
@@ -185,9 +135,19 @@ function OffersV3Form() {
     }
   };
 
+  const handleToggleStatus = async () => {
+    try {
+      await offersV3.items.update(id, { status: offer.status === "active" ? "inactive" : "active" });
+      toast.success(offer.status === "active" ? "Offer marked inactive" : "Offer reactivated");
+      refetch();
+    } catch (err) {
+      toast.error(err?.message ?? "Failed to update status");
+    }
+  };
+
   if ((editMode || viewMode) && loading && !offer && id) {
     return (
-      <GlobalWrapper title="Offer" permissionKey="view_offers_v3">
+      <GlobalWrapper title="Item Offer" permissionKey="view_offers_v3">
         <CustomContainer title="Loading..." filledHeader>
           <Flex py={4}>Loading...</Flex>
         </CustomContainer>
@@ -197,9 +157,9 @@ function OffersV3Form() {
 
   if ((editMode || viewMode) && !loading && !offer && id) {
     return (
-      <GlobalWrapper title="Offer" permissionKey="view_offers_v3">
+      <GlobalWrapper title="Item Offer" permissionKey="view_offers_v3">
         <CustomContainer title="Offer not found" filledHeader>
-          <Text py={4}>No offer found for ID {id}.</Text>
+          <Text py={4}>No item-level offer found for ID {id}.</Text>
           <Button colorScheme="purple" onClick={() => router.push("/offers-v3")}>
             Back to list
           </Button>
@@ -208,17 +168,29 @@ function OffersV3Form() {
     );
   }
 
-  const title = viewMode ? "View Offer" : editMode ? "Edit Offer" : "Create Offer";
+  const title = viewMode ? "View Item Offer" : editMode ? "Edit Item Offer" : "Create Item-Level Offer";
 
   return (
     <GlobalWrapper title={title} permissionKey="view_offers_v3">
       <CustomContainer title={title} filledHeader>
-        {productsLoading ? <ProductsFetchProgress progress={fetchProgress} /> : null}
-        <Box
-          opacity={formDisabled ? 0.6 : 1}
-          pointerEvents={formDisabled ? "none" : "auto"}
-          aria-busy={formDisabled}
-        >
+        {viewMode && offer ? (
+          <Flex mb={4} align="center" gap={3}>
+            <Text fontSize="sm" color="gray.600">
+              Status: <b>{ITEM_STATUS_LABELS[offer.status] ?? offer.status}</b>
+            </Text>
+            {canAdd && offer.status !== "inactive" ? (
+              <Button size="sm" colorScheme="red" variant="outline" onClick={handleToggleStatus}>
+                Make Inactive
+              </Button>
+            ) : null}
+            {canAdd && offer.status === "inactive" ? (
+              <Button size="sm" colorScheme="green" variant="outline" onClick={handleToggleStatus}>
+                Reactivate
+              </Button>
+            ) : null}
+          </Flex>
+        ) : null}
+        <Box opacity={formDisabled ? 0.6 : 1} pointerEvents={formDisabled ? "none" : "auto"} aria-busy={formDisabled}>
           <Formik
             enableReinitialize
             initialValues={formInitialValues}
@@ -234,7 +206,7 @@ function OffersV3Form() {
                     method="searchable-dropdown"
                     values={productOptions}
                     placeholder="Search and select a product"
-                    editable={!isReadOnly && !formDisabled}
+                    editable={!isReadOnly && !formDisabled && createMode}
                     customRenderer={productCustomRenderer}
                     renderSelected={productRenderSelected}
                   />
@@ -256,11 +228,7 @@ function OffersV3Form() {
 
                 <Flex gap={3} justify="flex-end" mt={6}>
                   {viewMode || !canAdd ? (
-                    <Button
-                      type="button"
-                      colorScheme="purple"
-                      onClick={() => router.push("/offers-v3")}
-                    >
+                    <Button type="button" colorScheme="purple" onClick={() => router.push("/offers-v3")}>
                       Back
                     </Button>
                   ) : (
@@ -289,4 +257,4 @@ function OffersV3Form() {
   );
 }
 
-export default OffersV3Form;
+export default OffersV3ItemForm;

@@ -11,17 +11,30 @@ export const OFFER_TYPE_OPTIONS = OFFER_TYPES.map((type) => ({
   value: OFFER_TYPE_LABELS[type],
 }));
 
-/**
- * Best-effort normalization of a free-text offer type (e.g. from an import
- * file) to one of OFFER_TYPES. Falls back to the raw trimmed/lowercased
- * value if it doesn't match a known alias.
- */
-export function normalizeOfferType(raw) {
-  const s = String(raw ?? "").trim().toLowerCase();
-  if (OFFER_TYPES.includes(s)) return s;
-  if (["%", "percent", "percentage off", "pct"].includes(s)) return "percentage";
-  if (["flat off", "amount", "flat discount"].includes(s)) return "flat";
-  if (["fixed", "fixed price", "sell price", "selling price"].includes(s))
-    return "fixed_price";
-  return s;
-}
+export const ITEM_STATUSES = ["active", "inactive"];
+
+export const ITEM_STATUS_LABELS = {
+  active: "Active",
+  inactive: "Inactive",
+};
+
+export const ITEM_STATUS_COLORS = {
+  active: "green",
+  inactive: "red",
+};
+
+export const BATCH_STATUSES = ["active", "zero_stock_flagged", "batch_zero_ended", "inactive"];
+
+export const BATCH_STATUS_LABELS = {
+  active: "Active",
+  zero_stock_flagged: "Zero Stock — Flagged",
+  batch_zero_ended: "Batch Zero — Ended",
+  inactive: "Inactive",
+};
+
+export const BATCH_STATUS_COLORS = {
+  active: "green",
+  zero_stock_flagged: "orange",
+  batch_zero_ended: "gray",
+  inactive: "red",
+};

@@ -1,174 +1,97 @@
 import API from "../util/api";
 
+function unwrap(promise, fallbackMsg) {
+  return promise
+    .then((res) => {
+      if (res?.data?.code === 200) return res.data;
+      const err = new Error(res?.data?.msg ?? fallbackMsg);
+      err.response = res;
+      throw err;
+    })
+    .catch((err) => {
+      throw err;
+    });
+}
+
 /**
- * Offers V3 API – offers_v3 (item_code, offer_type, value, is_active).
- * item_code is a product_table.product_id FK; item_name is joined from the
- * product master and returned read-only. Not linked to HQ offers.
+ * Offers V3 API — item-level and batch-specific offers, both linked to
+ * product_table via item_code (product_id). See offers_v3_item,
+ * offers_v3_batch, offers_v3_batch_stock, offers_v3_untagged_batches.
  */
 const offersV3 = {
-  /**
-   * List all offers.
-   * GET /offers-v3
-   */
-  list: () =>
-    new Promise((resolve, reject) => {
-      API.get("/offers-v3")
-        .then((res) => {
-          if (res?.data?.code === 200) {
-            resolve(res.data.data ?? []);
-          } else {
-            reject(new Error(res?.data?.msg ?? "Failed to fetch offers"));
-          }
-        })
-        .catch((err) => reject(err));
-    }),
-
-  /**
-   * Get one offer by id.
-   * GET /offers-v3/:id
-   */
-  getById: (id) =>
-    new Promise((resolve, reject) => {
-      if (id == null || id === "") {
-        reject(new Error("id is required"));
-        return;
-      }
-      API.get(`/offers-v3/${id}`)
-        .then((res) => {
-          if (res?.data?.code === 200) {
-            resolve(res.data.data);
-          } else {
-            reject(new Error(res?.data?.msg ?? "Failed to fetch offer"));
-          }
-        })
-        .catch((err) => reject(err));
-    }),
-
-  /**
-   * Create a single offer.
-   * POST /offers-v3
-   * Body: { item_code, offer_type, value, is_active? }
-   */
-  create: (data) =>
-    new Promise((resolve, reject) => {
-      API.post("/offers-v3", {
-        item_code: Number(data.item_code),
-        offer_type: data.offer_type,
-        value: Number(data.value),
-        is_active: data.is_active !== false,
-      })
-        .then((res) => {
-          if (res?.data?.code === 200) {
-            resolve(res.data);
-          } else {
-            reject(new Error(res?.data?.msg ?? "Failed to create offer"));
-          }
-        })
-        .catch((err) => reject(err));
-    }),
-
-  /**
-   * Bulk insert/update offers (upsert by item_code).
-   * POST /offers-v3/bulk
-   * Body: [{ item_code, offer_type, value, is_active? }, ...]
-   */
-  bulkInsert: (items) =>
-    new Promise((resolve, reject) => {
-      if (!Array.isArray(items) || items.length === 0) {
-        reject(new Error("items must be a non-empty array"));
-        return;
-      }
-      const payload = items.map((row) => ({
-        item_code: Number(row.item_code),
-        offer_type: row.offer_type,
-        value: Number(row.value),
-        is_active: row.is_active !== false,
-      }));
-      API.post("/offers-v3/bulk", payload)
-        .then((res) => {
-          if (res?.data?.code === 200) {
-            resolve(res.data);
-          } else {
-            reject(new Error(res?.data?.msg ?? "Failed to bulk insert offers"));
-          }
-        })
-        .catch((err) => reject(err));
-    }),
-
-  /**
-   * Update offer (partial).
-   * PUT /offers-v3/:id
-   */
-  update: (id, data) =>
-    new Promise((resolve, reject) => {
-      if (id == null || id === "") {
-        reject(new Error("id is required"));
-        return;
-      }
+  items: {
+    list: (status) =>
+      unwrap(API.get("/offers-v3/items", { params: status ? { status } : {} }), "Failed to fetch offers").then(
+        (d) => d.data ?? []
+      ),
+    getById: (id) => unwrap(API.get(`/offers-v3/items/${id}`), "Failed to fetch offer").then((d) => d.data),
+    create: (data) =>
+      unwrap(
+        API.post("/offers-v3/items", {
+          item_code: Number(data.item_code),
+          offer_type: data.offer_type,
+          value: Number(data.value),
+        }),
+        "Failed to create offer"
+      ),
+    update: (id, data) => {
       const body = {};
-      if (data.item_code !== undefined) body.item_code = Number(data.item_code);
       if (data.offer_type !== undefined) body.offer_type = data.offer_type;
       if (data.value !== undefined) body.value = Number(data.value);
-      if (data.is_active !== undefined) body.is_active = Boolean(data.is_active);
-      if (Object.keys(body).length === 0) {
-        reject(new Error("At least one field required"));
-        return;
-      }
-      API.put(`/offers-v3/${id}`, body)
-        .then((res) => {
-          if (res?.data?.code === 200) {
-            resolve(res.data);
-          } else {
-            reject(new Error(res?.data?.msg ?? "Failed to update offer"));
-          }
-        })
-        .catch((err) => reject(err));
-    }),
+      if (data.status !== undefined) body.status = data.status;
+      return unwrap(API.put(`/offers-v3/items/${id}`, body), "Failed to update offer");
+    },
+  },
 
-  /**
-   * Delete one offer.
-   * DELETE /offers-v3/:id
-   */
-  delete: (id) =>
-    new Promise((resolve, reject) => {
-      if (id == null || id === "") {
-        reject(new Error("id is required"));
-        return;
-      }
-      API.delete(`/offers-v3/${id}`)
-        .then((res) => {
-          if (res?.data?.code === 200) {
-            resolve(res.data);
-          } else {
-            reject(new Error(res?.data?.msg ?? "Failed to delete offer"));
-          }
-        })
-        .catch((err) => reject(err));
-    }),
+  batches: {
+    list: (filters = {}) =>
+      unwrap(API.get("/offers-v3/batches", { params: filters }), "Failed to fetch batch offers").then(
+        (d) => d.data ?? []
+      ),
+    getById: (id) => unwrap(API.get(`/offers-v3/batches/${id}`), "Failed to fetch batch offer").then((d) => d.data),
+    create: (data) =>
+      unwrap(
+        API.post("/offers-v3/batches", {
+          item_code: Number(data.item_code),
+          outlet_id: Number(data.outlet_id),
+          batch_no: data.batch_no,
+          offer_type: data.offer_type,
+          value: Number(data.value),
+        }),
+        "Failed to create batch offer"
+      ),
+    update: (id, data) => {
+      const body = {};
+      if (data.offer_type !== undefined) body.offer_type = data.offer_type;
+      if (data.value !== undefined) body.value = Number(data.value);
+      if (data.status !== undefined) body.status = data.status;
+      return unwrap(API.put(`/offers-v3/batches/${id}`, body), "Failed to update batch offer");
+    },
+    end: (id) => unwrap(API.post(`/offers-v3/batches/${id}/end`, {}), "Failed to end batch offer"),
+  },
 
-  /**
-   * Bulk delete.
-   * DELETE /offers-v3/bulk
-   * Body: { ids: [number, ...] }
-   */
-  bulkDelete: (ids) =>
-    new Promise((resolve, reject) => {
-      if (!Array.isArray(ids) || ids.length === 0) {
-        reject(new Error("ids must be a non-empty array"));
-        return;
-      }
-      API.delete("/offers-v3/bulk", {
-        data: { ids: ids.map(Number) },
-      })
-        .then((res) => {
-          if (res?.data?.code === 200) {
-            resolve(res.data);
-          } else {
-            reject(new Error(res?.data?.msg ?? "Failed to bulk delete"));
-          }
-        })
-        .catch((err) => reject(err));
-    }),
+  stockUpload: (rows) =>
+    unwrap(
+      API.post(
+        "/offers-v3/stock-upload",
+        rows.map((r) => ({
+          item_code: r.item_code,
+          outlet: r.outlet,
+          batch_no: r.batch_no,
+          stock_qty: r.stock_qty,
+        }))
+      ),
+      "Failed to upload stock"
+    ),
+
+  untaggedBatches: {
+    list: () => unwrap(API.get("/offers-v3/untagged-batches"), "Failed to fetch untagged batches").then((d) => d.data ?? []),
+    dismiss: (id) => unwrap(API.post(`/offers-v3/untagged-batches/${id}/dismiss`, {}), "Failed to dismiss"),
+  },
+
+  mismatches: () => unwrap(API.get("/offers-v3/mismatches"), "Failed to fetch mismatches").then((d) => d.data ?? []),
+
+  import: (rows) => unwrap(API.post("/offers-v3/import", rows), "Failed to import offers"),
 };
 
 export default offersV3;
