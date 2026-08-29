@@ -751,12 +751,6 @@ const WMS_MENU = {
     openPage: false,
     icon: "fa-tags",
     subMenu: {
-      view_product_offers: {
-        title: "Offers",
-        permission: "view_product_offers",
-        selected: false,
-        location: "/product-offers",
-      },
       view_offers_v2: {
         title: "Offers V2",
         permission: "view_hq_offers",
