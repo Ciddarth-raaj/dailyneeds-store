@@ -123,8 +123,6 @@ const offersV3 = {
   uploadMeta: () => unwrap(API.get("/offers-v3/upload-meta"), "Failed to fetch upload meta").then((d) => d.data ?? {}),
 
   import: (rows) => unwrap(API.post("/offers-v3/import", rows), "Failed to import offers"),
-
-  telegramTest: () => unwrap(API.post("/offers-v3/telegram-test", {}), "Telegram test failed"),
 };
 
 export default offersV3;

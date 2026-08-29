@@ -143,17 +143,8 @@ function OffersV3ItemForm() {
 
     if (createMode) {
       try {
-        const res = await offersV3.items.create(payload);
+        await offersV3.items.create(payload);
         toast.success("Item-level offer created");
-        if (res?._telegramNotify) {
-          if (res._telegramNotify.sent) {
-            toast.success("Telegram alert sent");
-          } else if (res._telegramNotify.skipped) {
-            toast.error(`No alert: ${res._telegramNotify.reason}`);
-          } else {
-            toast.error(`Telegram alert failed: ${res._telegramNotify.error}`);
-          }
-        }
         router.push("/offers-v3");
       } catch (err) {
         toast.error(err?.message ?? "Failed to create offer");
@@ -174,17 +165,8 @@ function OffersV3ItemForm() {
 
   const handleToggleStatus = async () => {
     try {
-      const res = await offersV3.items.update(id, { status: offer.status === "active" ? "inactive" : "active" });
+      await offersV3.items.update(id, { status: offer.status === "active" ? "inactive" : "active" });
       toast.success(offer.status === "active" ? "Offer marked inactive" : "Offer reactivated");
-      if (res?._telegramNotify) {
-        if (res._telegramNotify.sent) {
-          toast.success("Telegram alert sent");
-        } else if (res._telegramNotify.skipped) {
-          toast.error(`No alert: ${res._telegramNotify.reason}`);
-        } else {
-          toast.error(`Telegram alert failed: ${res._telegramNotify.error}`);
-        }
-      }
       refetch();
     } catch (err) {
       toast.error(err?.message ?? "Failed to update status");

@@ -138,17 +138,8 @@ function OffersV3BatchForm() {
 
     if (createMode) {
       try {
-        const res = await offersV3.batches.create(payload);
+        await offersV3.batches.create(payload);
         toast.success("Batch-specific offer created");
-        if (res?._telegramNotify) {
-          if (res._telegramNotify.sent) {
-            toast.success("Telegram alert sent");
-          } else if (res._telegramNotify.skipped) {
-            toast.error(`No alert: ${res._telegramNotify.reason}`);
-          } else {
-            toast.error(`Telegram alert failed: ${res._telegramNotify.error}`);
-          }
-        }
         router.push("/offers-v3");
       } catch (err) {
         toast.error(err?.message ?? "Failed to create batch offer");
@@ -172,17 +163,8 @@ function OffersV3BatchForm() {
 
   const handleMakeInactive = async () => {
     try {
-      const res = await offersV3.batches.update(id, { status: "inactive" });
+      await offersV3.batches.update(id, { status: "inactive" });
       toast.success("Offer marked inactive");
-      if (res?._telegramNotify) {
-        if (res._telegramNotify.sent) {
-          toast.success("Telegram alert sent");
-        } else if (res._telegramNotify.skipped) {
-          toast.error(`No alert: ${res._telegramNotify.reason}`);
-        } else {
-          toast.error(`Telegram alert failed: ${res._telegramNotify.error}`);
-        }
-      }
       refetch();
     } catch (err) {
       toast.error(err?.message ?? "Failed to update status");

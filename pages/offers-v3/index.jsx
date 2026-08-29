@@ -1045,32 +1045,15 @@ function OffersV3Listing() {
         filledHeader
         rightSection={
           canAdd ? (
-            <Flex gap={2}>
-              <Button
-                size="sm"
-                variant="outline"
-                colorScheme="gray"
-                onClick={async () => {
-                  try {
-                    await offersV3.telegramTest();
-                    toast.success("Test alert sent — check the Telegram group.");
-                  } catch (err) {
-                    toast.error(err?.message ?? "Telegram test failed");
-                  }
-                }}
-              >
-                Send Test Telegram Alert
-              </Button>
-              <FileUploaderWithColumnMapping
-                config={IMPORT_COLUMNS}
-                onMappedData={handleImportMappedData}
-                renderer={(openFileBrowser) => (
-                  <Button onClick={openFileBrowser} colorScheme="purple" variant="outline" size="sm">
-                    One-Time Go-Live Import
-                  </Button>
-                )}
-              />
-            </Flex>
+            <FileUploaderWithColumnMapping
+              config={IMPORT_COLUMNS}
+              onMappedData={handleImportMappedData}
+              renderer={(openFileBrowser) => (
+                <Button onClick={openFileBrowser} colorScheme="purple" variant="outline" size="sm">
+                  One-Time Go-Live Import
+                </Button>
+              )}
+            />
           ) : null
         }
       >
