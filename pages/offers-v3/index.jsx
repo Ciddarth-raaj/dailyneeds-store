@@ -22,6 +22,7 @@ import usePermissions from "../../customHooks/usePermissions";
 import toast from "react-hot-toast";
 import offersV3 from "../../helper/offersV3";
 import FileUploaderWithColumnMapping from "../../components/FileUploaderWithColumnMapping";
+import { downloadCsv } from "../../util/exportCSVFile";
 import {
   OFFER_TYPE_LABELS,
   ITEM_STATUS_LABELS,
@@ -171,6 +172,27 @@ const IMPORT_COLUMNS = [
 
 function StatusBadge({ status, labels, colors }) {
   return <Badge colorScheme={colors[status] ?? "gray"}>{labels[status] ?? status}</Badge>;
+}
+
+function downloadSkippedRows(skippedRows, filenamePrefix) {
+  if (!skippedRows?.length) return;
+  const fileName = `${filenamePrefix}-skipped-${new Date().toISOString().slice(0, 10)}.csv`;
+  downloadCsv(skippedRows, fileName);
+}
+
+function SkippedRowsDownloadButton({ skippedRows, filenamePrefix }) {
+  if (!skippedRows?.length) return null;
+  return (
+    <Button
+      size="sm"
+      variant="outline"
+      colorScheme="red"
+      mt={2}
+      onClick={() => downloadSkippedRows(skippedRows, filenamePrefix)}
+    >
+      Download skipped rows ({skippedRows.length})
+    </Button>
+  );
 }
 
 function ItemOffersTab({ canAdd }) {
@@ -464,6 +486,7 @@ function PriceUploadTab({ onUploaded }) {
               Unresolved outlets: {lastResult.unresolvedOutlets.join(", ")}
             </Text>
           ) : null}
+          <SkippedRowsDownloadButton skippedRows={lastResult.skippedRows} filenamePrefix="offers-v3-price-upload" />
         </Box>
       ) : null}
 
@@ -575,6 +598,7 @@ function StockUploadTab({ onUploaded }) {
               Unresolved outlets: {lastResult.unresolvedOutlets.join(", ")}
             </Text>
           ) : null}
+          <SkippedRowsDownloadButton skippedRows={lastResult.skippedRows} filenamePrefix="offers-v3-stock-upload" />
         </Box>
       ) : null}
 
@@ -777,6 +801,7 @@ function OffersV3Listing() {
   } = useDisclosure();
   const [importRows, setImportRows] = useState([]);
   const [importing, setImporting] = useState(false);
+  const [lastImportResult, setLastImportResult] = useState(null);
 
   const bumpDataVersion = useCallback(() => setDataVersion((v) => v + 1), []);
 
@@ -804,18 +829,10 @@ function OffersV3Listing() {
     setImporting(true);
     try {
       const res = await offersV3.import(importRows);
+      setLastImportResult(res);
       toast.success(
         `Imported ${res.itemInserted} item-level and ${res.batchInserted} batch-specific offer(s). Skipped ${res.skipped}, failed ${res.failed?.length ?? 0}.`
       );
-      if (res.failed?.length) {
-        toast.error(
-          `${res.failed.length} row(s) failed: ${res.failed
-            .slice(0, 5)
-            .map((f) => `#${f.item_code} (${f.reason})`)
-            .join(", ")}${res.failed.length > 5 ? "…" : ""}`,
-          { duration: 8000 }
-        );
-      }
       onImportPreviewClose();
       setImportRows([]);
       bumpDataVersion();
@@ -850,6 +867,21 @@ function OffersV3Listing() {
           ) : null
         }
       >
+        {lastImportResult ? (
+          <Box mb={4} p={3} bg="purple.50" borderRadius="md" borderWidth="1px" borderColor="purple.100">
+            <Text fontSize="sm" fontWeight="medium" mb={1}>
+              Last go-live import summary
+            </Text>
+            <Text fontSize="sm">Item-level offers created: {lastImportResult.itemInserted}</Text>
+            <Text fontSize="sm">Batch-specific offers created: {lastImportResult.batchInserted}</Text>
+            <Text fontSize="sm">Rows skipped (validation): {lastImportResult.skipped}</Text>
+            <Text fontSize="sm">Rows failed (e.g. unknown item code): {lastImportResult.failed?.length ?? 0}</Text>
+            <SkippedRowsDownloadButton
+              skippedRows={lastImportResult.skippedRows}
+              filenamePrefix="offers-v3-import"
+            />
+          </Box>
+        ) : null}
         <Tabs colorScheme="purple" isLazy lazyBehavior="keepMounted" index={tabIndex} onChange={setTabIndex}>
           <TabList flexWrap="wrap">
             <Tab>Item-Level Offers</Tab>
