@@ -31,6 +31,7 @@ const offersV3 = {
           item_code: Number(data.item_code),
           offer_type: data.offer_type,
           value: Number(data.value),
+          threshold_qty: Number(data.threshold_qty),
         }),
         "Failed to create offer"
       ),
@@ -38,6 +39,7 @@ const offersV3 = {
       const body = {};
       if (data.offer_type !== undefined) body.offer_type = data.offer_type;
       if (data.value !== undefined) body.value = Number(data.value);
+      if (data.threshold_qty !== undefined) body.threshold_qty = Number(data.threshold_qty);
       if (data.status !== undefined) body.status = data.status;
       return unwrap(API.put(`/offers-v3/items/${id}`, body), "Failed to update offer");
     },
@@ -107,6 +109,11 @@ const offersV3 = {
   untaggedBatches: {
     list: () => unwrap(API.get("/offers-v3/untagged-batches"), "Failed to fetch untagged batches").then((d) => d.data ?? []),
     dismiss: (id) => unwrap(API.post(`/offers-v3/untagged-batches/${id}/dismiss`, {}), "Failed to dismiss"),
+  },
+
+  lowStockWarnings: {
+    list: () => unwrap(API.get("/offers-v3/low-stock-warnings"), "Failed to fetch low-stock warnings").then((d) => d.data ?? []),
+    dismiss: (id) => unwrap(API.post(`/offers-v3/low-stock-warnings/${id}/dismiss`, {}), "Failed to dismiss"),
   },
 
   mismatches: () => unwrap(API.get("/offers-v3/mismatches"), "Failed to fetch mismatches").then((d) => d.data ?? []),

@@ -162,6 +162,14 @@ const IMPORT_COLUMNS = [
     type: "number",
   },
   {
+    key: "threshold_qty",
+    label: "Threshold Qty (item offers only; defaults to 0)",
+    required: false,
+    suggestedKey: "threshold_qty",
+    aliases: ["threshold", "low stock threshold", "threshold qty"],
+    type: "number",
+  },
+  {
     key: "status",
     label: "Status",
     required: false,
@@ -223,6 +231,7 @@ function ItemOffersTab({ canAdd }) {
         valueGetter: (params) => OFFER_TYPE_LABELS[params.data?.offer_type] ?? params.data?.offer_type,
       },
       { field: "value", headerName: "Value", type: "number" },
+      { field: "threshold_qty", headerName: "Threshold Qty", type: "number" },
       {
         field: "status",
         headerName: "Status",
@@ -552,7 +561,7 @@ function StockUploadTab({ onUploaded }) {
           res.flagged?.length ?? 0
         } flagged zero-stock, ${res.reverted?.length ?? 0} reverted, ${
           res.untagged?.length ?? 0
-        } new untagged batch(es).`
+        } new untagged batch(es), ${res.lowStock?.length ?? 0} low-stock warning(s).`
       );
       if (res.unresolvedOutlets?.length) {
         toast.error(`Could not resolve outlet(s): ${res.unresolvedOutlets.join(", ")}`);
@@ -581,7 +590,10 @@ function StockUploadTab({ onUploaded }) {
         comes back. New batches of items that already carry an active batch-specific offer
         elsewhere are surfaced under Untagged Batches instead of assuming they inherit it —
         items covered by an item-level offer don&apos;t need this, since that offer already applies
-        to all current and future stock automatically.
+        to all current and future stock automatically. For item-level offers, any outlet/batch
+        whose stock drops to (or below) the offer&apos;s Threshold Qty is instead surfaced under
+        Low Stock Warnings — a heads-up before that batch is replenished at a different cost
+        under the same still-active discount.
       </Text>
       <FileUploaderWithColumnMapping config={STOCK_UPLOAD_COLUMNS} onMappedData={handleImportMappedData} />
 
@@ -595,6 +607,7 @@ function StockUploadTab({ onUploaded }) {
           <Text fontSize="sm">Flagged zero-stock: {lastResult.flagged?.length ?? 0}</Text>
           <Text fontSize="sm">Reverted to active: {lastResult.reverted?.length ?? 0}</Text>
           <Text fontSize="sm">New untagged batches: {lastResult.untagged?.length ?? 0}</Text>
+          <Text fontSize="sm">Low-stock warnings (item-level offers): {lastResult.lowStock?.length ?? 0}</Text>
           {lastResult.unresolvedOutlets?.length ? (
             <Text fontSize="sm" color="red.600">
               Unresolved outlets: {lastResult.unresolvedOutlets.join(", ")}
@@ -724,6 +737,96 @@ function UntaggedBatchesTab({ canAdd, refreshKey }) {
   );
 }
 
+function LowStockWarningsTab({ refreshKey }) {
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchRows = useCallback(async () => {
+    try {
+      setLoading(true);
+      const data = await offersV3.lowStockWarnings.list();
+      setRows(Array.isArray(data) ? data : []);
+    } catch (err) {
+      toast.error(err?.message ?? "Failed to fetch low-stock warnings");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    fetchRows();
+  }, [fetchRows, refreshKey]);
+
+  const handleDismiss = useCallback(
+    async (row) => {
+      try {
+        await offersV3.lowStockWarnings.dismiss(row.id);
+        toast.success("Warning dismissed");
+        fetchRows();
+      } catch (err) {
+        toast.error(err?.message ?? "Failed to dismiss");
+      }
+    },
+    [fetchRows]
+  );
+
+  const colDefs = useMemo(
+    () => [
+      { field: "item_code", headerName: "Item Code", flex: 1 },
+      { field: "item_name", headerName: "Item Name", flex: 1.5 },
+      { field: "outlet_name", headerName: "Outlet", flex: 1 },
+      { field: "batch_no", headerName: "Batch No", flex: 1 },
+      { field: "stock_qty", headerName: "Stock Qty", type: "number" },
+      { field: "threshold_qty", headerName: "Threshold Qty", type: "number" },
+      { field: "detected_at", headerName: "Detected At", type: "datetime" },
+      {
+        field: "actions",
+        headerName: "Action",
+        type: "action-icons",
+        valueGetter: (params) => {
+          const row = params.data;
+          if (!row) return [];
+          return [
+            {
+              label: "Dismiss",
+              icon: "fa-solid fa-xmark",
+              colorScheme: "gray",
+              onClick: () => handleDismiss(row),
+            },
+          ];
+        },
+      },
+    ],
+    [handleDismiss]
+  );
+
+  if (loading) {
+    return (
+      <Text py={4} color="gray.600">
+        Loading...
+      </Text>
+    );
+  }
+
+  return (
+    <>
+      <Text fontSize="sm" color="gray.600" mb={3}>
+        Item-level offers only. An outlet/batch whose stock is above 0 but at or below its
+        offer&apos;s Threshold Qty — a window to end the offer before that batch is replenished
+        at a different cost under the same still-active discount. The offer&apos;s status stays
+        Active; other outlets/batches of the same item are unaffected. Clears automatically once
+        stock rises back above the threshold, or when the offer is made inactive.
+      </Text>
+      <AgGrid
+        rowData={rows}
+        columnDefs={colDefs}
+        tableKey="offers-v3-low-stock-warnings"
+        getRowId={(params) => String(params.data?.id ?? "")}
+      />
+    </>
+  );
+}
+
 function MismatchesTab({ refreshKey }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -817,6 +920,7 @@ function OffersV3Listing() {
       { field: "batch_no", headerName: "Batch No", flex: 1 },
       { field: "offer_type", headerName: "Offer Type", flex: 1 },
       { field: "value", headerName: "Value", type: "number" },
+      { field: "threshold_qty", headerName: "Threshold Qty", type: "number" },
       { field: "status", headerName: "Status", flex: 1 },
     ],
     []
@@ -893,6 +997,7 @@ function OffersV3Listing() {
             <Tab>Price Upload</Tab>
             <Tab>Stock Upload</Tab>
             <Tab>Untagged Batches</Tab>
+            <Tab>Low Stock Warnings</Tab>
             <Tab>Price Mismatches</Tab>
           </TabList>
           <TabPanels>
@@ -910,6 +1015,9 @@ function OffersV3Listing() {
             </TabPanel>
             <TabPanel px={0}>
               <UntaggedBatchesTab canAdd={canAdd} refreshKey={dataVersion} />
+            </TabPanel>
+            <TabPanel px={0}>
+              <LowStockWarningsTab refreshKey={dataVersion} />
             </TabPanel>
             <TabPanel px={0}>
               <MismatchesTab refreshKey={dataVersion} />

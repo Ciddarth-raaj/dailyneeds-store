@@ -17,6 +17,7 @@ const initialValues = {
   item_code: "",
   offer_type: "",
   value: "",
+  threshold_qty: "",
 };
 
 const validationSchema = Yup.object({
@@ -26,6 +27,11 @@ const validationSchema = Yup.object({
   offer_type: Yup.string().required("Required"),
   value: Yup.number()
     .moreThan(0, "Must be > 0")
+    .required("Required")
+    .transform((v) => (v === "" || Number.isNaN(Number(v)) ? null : Number(v))),
+  threshold_qty: Yup.number()
+    .integer("Must be a whole number")
+    .min(0, "Must be 0 or greater")
     .required("Required")
     .transform((v) => (v === "" || Number.isNaN(Number(v)) ? null : Number(v))),
 });
@@ -99,6 +105,7 @@ function OffersV3ItemForm() {
         item_code: offer.item_code ?? "",
         offer_type: offer.offer_type ?? "",
         value: offer.value != null ? String(offer.value) : "",
+        threshold_qty: offer.threshold_qty != null ? String(offer.threshold_qty) : "",
       });
     }
   }, [createMode, offer]);
@@ -111,6 +118,7 @@ function OffersV3ItemForm() {
       item_code: Number(values.item_code),
       offer_type: values.offer_type,
       value: Number(values.value),
+      threshold_qty: Number(values.threshold_qty),
     };
 
     if (createMode) {
@@ -223,6 +231,13 @@ function OffersV3ItemForm() {
                     type="number"
                     placeholder="Value"
                     editable={!isReadOnly && !formDisabled}
+                  />
+                  <CustomInput
+                    label="Threshold Qty (low-stock warning)"
+                    name="threshold_qty"
+                    type="number"
+                    placeholder="Threshold Qty"
+                    editable={!isReadOnly && !formDisabled && createMode}
                   />
                 </Grid>
 
