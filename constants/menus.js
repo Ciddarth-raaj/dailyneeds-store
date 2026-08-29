@@ -751,12 +751,6 @@ const WMS_MENU = {
     openPage: false,
     icon: "fa-tags",
     subMenu: {
-      view_receiving_stock: {
-        title: "Receiving Stock",
-        permission: "view_stock_received",
-        selected: false,
-        location: "/products/receiving-stock",
-      },
       view_product_offers: {
         title: "Offers",
         permission: "view_product_offers",
