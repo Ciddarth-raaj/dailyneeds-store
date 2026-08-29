@@ -630,10 +630,10 @@ function StockUploadTab({ onUploaded }) {
         comes back. New batches of items that already carry an active batch-specific offer
         elsewhere are surfaced under Untagged Batches instead of assuming they inherit it —
         items covered by an item-level offer don&apos;t need this, since that offer already applies
-        to all current and future stock automatically. For item-level offers, any outlet/batch
-        whose stock drops to (or below) the offer&apos;s Threshold Qty is instead surfaced under
-        Low Stock Warnings — a heads-up before that batch is replenished at a different cost
-        under the same still-active discount.
+        to all current and future stock automatically. For item-level offers, any item whose
+        total stock (summed across every store and batch) drops to (or below) the offer&apos;s
+        Threshold Qty is instead surfaced under Low Stock Warnings — a heads-up before the item
+        is replenished at a different cost under the same still-active discount.
       </Text>
       <UploadMetaSummary meta={uploadMeta} />
       <FileUploaderWithColumnMapping config={STOCK_UPLOAD_COLUMNS} onMappedData={handleImportMappedData} />
@@ -834,9 +834,7 @@ function LowStockWarningsTab({ refreshKey }) {
     () => [
       { field: "item_code", headerName: "Item Code", flex: 1 },
       { field: "item_name", headerName: "Item Name", flex: 1.5 },
-      { field: "outlet_name", headerName: "Outlet", flex: 1 },
-      { field: "batch_no", headerName: "Batch No", flex: 1 },
-      { field: "stock_qty", headerName: "Stock Qty", type: "number" },
+      { field: "total_stock_qty", headerName: "Total Stock (All Stores)", type: "number" },
       { field: "threshold_qty", headerName: "Threshold Qty", type: "number" },
       { field: "detected_at", headerName: "Detected At", type: "datetime" },
       {
@@ -871,11 +869,11 @@ function LowStockWarningsTab({ refreshKey }) {
   return (
     <>
       <Text fontSize="sm" color="gray.600" mb={3}>
-        Item-level offers only. An outlet/batch whose stock is above 0 but at or below its
-        offer&apos;s Threshold Qty — a window to end the offer before that batch is replenished
-        at a different cost under the same still-active discount. The offer&apos;s status stays
-        Active; other outlets/batches of the same item are unaffected. Clears automatically once
-        stock rises back above the threshold, or when the offer is made inactive.
+        Item-level offers only. An item whose stock, summed across every store and batch, is
+        above 0 but at or below its offer&apos;s Threshold Qty — a window to end the offer before
+        the item is replenished at a different cost under the same still-active discount. The
+        offer&apos;s status stays Active. Clears automatically once the total rises back above
+        the threshold, or when the offer is made inactive.
       </Text>
       <AgGrid
         rowData={rows}
