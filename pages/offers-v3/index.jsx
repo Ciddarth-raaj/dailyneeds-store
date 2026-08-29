@@ -7,6 +7,7 @@ import AgGrid from "../../components/AgGrid";
 import CustomModal from "../../components/CustomModal";
 import useOffersV3 from "../../customHooks/useOffersV3";
 import usePermissions from "../../customHooks/usePermissions";
+import { useProducts } from "../../customHooks/useProducts";
 import { useConfirmDelete } from "../../customHooks/useConfirmDelete";
 import toast from "react-hot-toast";
 import offersV3 from "../../helper/offersV3";
@@ -16,17 +17,10 @@ import { OFFER_TYPE_LABELS, normalizeOfferType } from "../../constants/offersV3"
 const IMPORT_COLUMN_CONFIG = [
   {
     key: "item_code",
-    label: "Item Code",
+    label: "Item Code (Product ID)",
     required: true,
     suggestedKey: "item_code",
-    type: "string",
-  },
-  {
-    key: "item_name",
-    label: "Item Name",
-    required: true,
-    suggestedKey: "item_name",
-    type: "string",
+    type: "number",
   },
   {
     key: "offer_type",
@@ -48,6 +42,12 @@ function OffersV3Listing() {
   const canAdd = usePermissions("add_offers_v3");
   const { confirmDelete, ConfirmDeleteDialog } = useConfirmDelete();
   const { offers, loading, refetch } = useOffersV3();
+  const { getMappedProducts } = useProducts({
+    limit: 50000,
+    fetchAll: true,
+    fetchNonOnline: true,
+  });
+  const productsMap = useMemo(() => getMappedProducts(), [getMappedProducts]);
   const {
     isOpen: isPreviewOpen,
     onOpen: onPreviewOpen,
@@ -75,7 +75,13 @@ function OffersV3Listing() {
   const previewColDefs = useMemo(
     () => [
       { field: "item_code", headerName: "Item Code", flex: 1 },
-      { field: "item_name", headerName: "Item Name", flex: 2 },
+      {
+        field: "item_name",
+        headerName: "Item Name",
+        flex: 2,
+        valueGetter: (params) =>
+          productsMap[params.data?.item_code]?.de_name ?? "Unknown product",
+      },
       {
         field: "offer_type",
         headerName: "Offer Type",
@@ -86,7 +92,7 @@ function OffersV3Listing() {
       },
       { field: "value", headerName: "Value", type: "number" },
     ],
-    []
+    [productsMap]
   );
 
   const colDefs = useMemo(

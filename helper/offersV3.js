@@ -1,8 +1,9 @@
 import API from "../util/api";
 
 /**
- * Offers V3 API – offers_v3 (item_code, item_name, offer_type, value, is_active).
- * Standalone offer model, not linked to product_table / HQ offers.
+ * Offers V3 API – offers_v3 (item_code, offer_type, value, is_active).
+ * item_code is a product_table.product_id FK; item_name is joined from the
+ * product master and returned read-only. Not linked to HQ offers.
  */
 const offersV3 = {
   /**
@@ -46,13 +47,12 @@ const offersV3 = {
   /**
    * Create a single offer.
    * POST /offers-v3
-   * Body: { item_code, item_name, offer_type, value, is_active? }
+   * Body: { item_code, offer_type, value, is_active? }
    */
   create: (data) =>
     new Promise((resolve, reject) => {
       API.post("/offers-v3", {
-        item_code: data.item_code,
-        item_name: data.item_name,
+        item_code: Number(data.item_code),
         offer_type: data.offer_type,
         value: Number(data.value),
         is_active: data.is_active !== false,
@@ -70,7 +70,7 @@ const offersV3 = {
   /**
    * Bulk insert/update offers (upsert by item_code).
    * POST /offers-v3/bulk
-   * Body: [{ item_code, item_name, offer_type, value, is_active? }, ...]
+   * Body: [{ item_code, offer_type, value, is_active? }, ...]
    */
   bulkInsert: (items) =>
     new Promise((resolve, reject) => {
@@ -79,8 +79,7 @@ const offersV3 = {
         return;
       }
       const payload = items.map((row) => ({
-        item_code: row.item_code,
-        item_name: row.item_name,
+        item_code: Number(row.item_code),
         offer_type: row.offer_type,
         value: Number(row.value),
         is_active: row.is_active !== false,
@@ -107,8 +106,7 @@ const offersV3 = {
         return;
       }
       const body = {};
-      if (data.item_code !== undefined) body.item_code = data.item_code;
-      if (data.item_name !== undefined) body.item_name = data.item_name;
+      if (data.item_code !== undefined) body.item_code = Number(data.item_code);
       if (data.offer_type !== undefined) body.offer_type = data.offer_type;
       if (data.value !== undefined) body.value = Number(data.value);
       if (data.is_active !== undefined) body.is_active = Boolean(data.is_active);
