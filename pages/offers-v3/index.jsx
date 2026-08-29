@@ -112,6 +112,14 @@ const PRICE_UPLOAD_COLUMNS = [
     aliases: ["old selling price", "oldsellingprice"],
     type: "number",
   },
+  {
+    key: "landing_cost",
+    label: "Landing Cost (optional)",
+    required: false,
+    suggestedKey: "Landing_Cost",
+    aliases: ["landing cost", "landingcost"],
+    type: "number",
+  },
 ];
 
 const IMPORT_COLUMNS = [
@@ -459,6 +467,7 @@ function PriceUploadTab({ onUploaded }) {
       { field: "batch_no", headerName: "Batch No", flex: 1 },
       { field: "mrp", headerName: "MRP", type: "number" },
       { field: "selling_price", headerName: "Selling Price", type: "number" },
+      { field: "landing_cost", headerName: "Landing Cost", type: "number" },
     ],
     []
   );

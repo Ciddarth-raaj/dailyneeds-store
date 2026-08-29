@@ -101,6 +101,7 @@ const offersV3 = {
           batch_no: r.batch_no,
           mrp: r.mrp,
           selling_price: r.selling_price,
+          landing_cost: r.landing_cost,
         }))
       ),
       "Failed to upload price data"
