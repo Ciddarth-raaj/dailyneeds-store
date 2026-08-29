@@ -56,22 +56,18 @@ const IMPORT_COLUMN_CONFIG = [
   },
   {
     key: "offer_value",
-    label: "Save Amount / % Off",
+    label: "Value",
     required: true,
     suggestedKey: "offer_value",
-    type: "number",
-  },
-  {
-    key: "opening_stock",
-    label: "Opening Stock",
-    required: true,
-    suggestedKey: "opening_stock",
     type: "number",
   },
 ];
 
 function normalizeOfferType(value) {
   const v = String(value ?? "").trim().toLowerCase();
+  if (["special_price", "special price", "special"].includes(v)) {
+    return OFFER_TYPES.SPECIAL_PRICE;
+  }
   if (["save", "save amount", "amount"].includes(v)) return OFFER_TYPES.SAVE;
   if (["percent_off", "percent", "%", "% off", "percentage"].includes(v)) {
     return OFFER_TYPES.PERCENT_OFF;
@@ -149,7 +145,6 @@ function ProductOffersListing() {
         image_url: p?.image_url ?? null,
         offer_type: row.offer_type,
         offer_value: row.offer_value,
-        opening_stock: row.opening_stock,
       };
     });
   }, [previewRows, productsMap]);
@@ -180,8 +175,7 @@ function ProductOffersListing() {
         valueGetter: (params) =>
           OFFER_TYPE_LABELS[params.data?.offer_type] ?? params.data?.offer_type,
       },
-      { field: "offer_value", headerName: "Save Amount / % Off" },
-      { field: "opening_stock", headerName: "Opening stock" },
+      { field: "offer_value", headerName: "Value" },
     ],
     []
   );
@@ -216,6 +210,14 @@ function ProductOffersListing() {
         headerName: "Offer Type",
         valueGetter: (params) =>
           OFFER_TYPE_LABELS[params.data?.offer_type] ?? params.data?.offer_type ?? "-",
+      },
+      {
+        field: "special_price",
+        headerName: "Special Price",
+        valueGetter: (params) =>
+          params.data?.offer_type === OFFER_TYPES.SPECIAL_PRICE
+            ? params.data?.offer_value
+            : null,
       },
       {
         field: "save_amount",

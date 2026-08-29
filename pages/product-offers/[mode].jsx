@@ -26,23 +26,28 @@ const offerValueField = Yup.number()
   .required("Required")
   .transform((v) => (v === "" || Number.isNaN(Number(v)) ? null : Number(v)));
 
-const openingStockField = Yup.number()
-  .min(0, "Must be ≥ 0")
-  .required("Required")
-  .transform((v) => (v === "" || Number.isNaN(Number(v)) ? null : Number(v)));
-
 const initialValuesCreate = {
   product_ids: [],
   offer_type: OFFER_TYPES.PERCENT_OFF,
   offer_value: "",
-  opening_stock: "",
 };
 
 const initialValuesSingle = {
   product_id: "",
   offer_type: OFFER_TYPES.PERCENT_OFF,
   offer_value: "",
-  opening_stock: "",
+};
+
+const OFFER_VALUE_LABELS = {
+  [OFFER_TYPES.SPECIAL_PRICE]: "Value (Special Price)",
+  [OFFER_TYPES.SAVE]: "Value (Save Amount)",
+  [OFFER_TYPES.PERCENT_OFF]: "Value (% Off)",
+};
+
+const OFFER_VALUE_PLACEHOLDERS = {
+  [OFFER_TYPES.SPECIAL_PRICE]: "Special price",
+  [OFFER_TYPES.SAVE]: "Amount to save",
+  [OFFER_TYPES.PERCENT_OFF]: "Discount %",
 };
 
 function ProductsFetchProgress({ progress }) {
@@ -204,7 +209,6 @@ function ProductOffersForm() {
             (arr) => Array.isArray(arr) && arr.length > 0
           ),
         ...offerFields,
-        opening_stock: openingStockField,
       });
     }
     return Yup.object({
@@ -216,7 +220,6 @@ function ProductOffersForm() {
           (v) => v != null && v !== "" && Number(v) > 0
         ),
       ...offerFields,
-      opening_stock: openingStockField,
     });
   }, [createMode]);
 
@@ -230,10 +233,6 @@ function ProductOffersForm() {
         product_id: offer.product_id ?? "",
         offer_type: offer.offer_type ?? OFFER_TYPES.PERCENT_OFF,
         offer_value: offer.offer_value != null ? String(offer.offer_value) : "",
-        opening_stock:
-          offer.opening_stock != null && offer.opening_stock !== ""
-            ? String(parseInt(offer.opening_stock))
-            : "0",
       });
     }
   }, [createMode, offer]);
@@ -244,8 +243,6 @@ function ProductOffersForm() {
   const handleSubmit = async (values) => {
     const offer_type = values.offer_type;
     const offer_value = values.offer_value !== "" ? Number(values.offer_value) : null;
-    const opening_stock =
-      values.opening_stock !== "" ? Number(values.opening_stock) : 0;
 
     if (createMode) {
       const ids = Array.isArray(values.product_ids) ? values.product_ids : [];
@@ -263,7 +260,6 @@ function ProductOffersForm() {
               product_id: Number(pid),
               offer_type,
               offer_value,
-              opening_stock,
             })
           )
         );
@@ -285,7 +281,6 @@ function ProductOffersForm() {
         await productOffers.update(productId, {
           offer_type,
           offer_value,
-          opening_stock,
         });
         toast.success("Offer updated");
         router.push("/product-offers");
@@ -384,25 +379,10 @@ function ProductOffersForm() {
                     editable={!isReadOnly && !formDisabled}
                   />
                   <CustomInput
-                    label={
-                      values.offer_type === OFFER_TYPES.PERCENT_OFF
-                        ? "% Off on Mrp"
-                        : "Save (Mrp - Selling)"
-                    }
+                    label={OFFER_VALUE_LABELS[values.offer_type] ?? "Value"}
                     name="offer_value"
                     type="number"
-                    placeholder={
-                      values.offer_type === OFFER_TYPES.PERCENT_OFF
-                        ? "Discount %"
-                        : "Amount to save"
-                    }
-                    editable={!isReadOnly && !formDisabled}
-                  />
-                  <CustomInput
-                    label="Opening stock"
-                    name="opening_stock"
-                    type="number"
-                    placeholder="0"
+                    placeholder={OFFER_VALUE_PLACEHOLDERS[values.offer_type] ?? "Value"}
                     editable={!isReadOnly && !formDisabled}
                   />
                 </Grid>
