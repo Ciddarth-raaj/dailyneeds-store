@@ -163,8 +163,15 @@ function OffersV3BatchForm() {
 
   const handleMakeInactive = async () => {
     try {
-      await offersV3.batches.update(id, { status: "inactive" });
+      const res = await offersV3.batches.update(id, { status: "inactive" });
       toast.success("Offer marked inactive");
+      if (res?._telegramNotify) {
+        if (res._telegramNotify.sent) {
+          toast.success("Telegram alert sent");
+        } else {
+          toast.error(`Telegram alert failed: ${res._telegramNotify.error}`);
+        }
+      }
       refetch();
     } catch (err) {
       toast.error(err?.message ?? "Failed to update status");
