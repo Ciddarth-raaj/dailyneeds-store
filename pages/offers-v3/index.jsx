@@ -419,7 +419,9 @@ function PriceUploadTab({ onUploaded }) {
     try {
       const res = await offersV3.priceUpload(previewRows);
       setLastResult(res);
-      toast.success(`Upserted ${res.upserted} row(s). ${res.untagged?.length ?? 0} new untagged batch(es).`);
+      toast.success(
+        `Upserted ${res.upserted} row(s), skipped ${res.skippedInvalidRows ?? 0}. ${res.untagged?.length ?? 0} new untagged batch(es).`
+      );
       if (res.unresolvedOutlets?.length) {
         toast.error(`Could not resolve outlet(s): ${res.unresolvedOutlets.join(", ")}`);
       }
@@ -455,6 +457,7 @@ function PriceUploadTab({ onUploaded }) {
             Last upload summary
           </Text>
           <Text fontSize="sm">Rows upserted: {lastResult.upserted}</Text>
+          <Text fontSize="sm">Rows skipped (missing Item Code/Batch No): {lastResult.skippedInvalidRows ?? 0}</Text>
           <Text fontSize="sm">New untagged batches: {lastResult.untagged?.length ?? 0}</Text>
           {lastResult.unresolvedOutlets?.length ? (
             <Text fontSize="sm" color="red.600">
@@ -522,9 +525,11 @@ function StockUploadTab({ onUploaded }) {
       const res = await offersV3.stockUpload(previewRows);
       setLastResult(res);
       toast.success(
-        `Upserted ${res.upserted} row(s). ${res.flagged?.length ?? 0} flagged zero-stock, ${
-          res.reverted?.length ?? 0
-        } reverted, ${res.untagged?.length ?? 0} new untagged batch(es).`
+        `Upserted ${res.upserted} row(s), skipped ${res.skippedInvalidRows ?? 0}. ${
+          res.flagged?.length ?? 0
+        } flagged zero-stock, ${res.reverted?.length ?? 0} reverted, ${
+          res.untagged?.length ?? 0
+        } new untagged batch(es).`
       );
       if (res.unresolvedOutlets?.length) {
         toast.error(`Could not resolve outlet(s): ${res.unresolvedOutlets.join(", ")}`);
@@ -561,6 +566,7 @@ function StockUploadTab({ onUploaded }) {
             Last upload summary
           </Text>
           <Text fontSize="sm">Rows upserted: {lastResult.upserted}</Text>
+          <Text fontSize="sm">Rows skipped (missing Item Code/Batch No): {lastResult.skippedInvalidRows ?? 0}</Text>
           <Text fontSize="sm">Flagged zero-stock: {lastResult.flagged?.length ?? 0}</Text>
           <Text fontSize="sm">Reverted to active: {lastResult.reverted?.length ?? 0}</Text>
           <Text fontSize="sm">New untagged batches: {lastResult.untagged?.length ?? 0}</Text>
