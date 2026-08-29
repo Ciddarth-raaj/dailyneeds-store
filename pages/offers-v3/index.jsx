@@ -805,8 +805,17 @@ function OffersV3Listing() {
     try {
       const res = await offersV3.import(importRows);
       toast.success(
-        `Imported ${res.itemInserted} item-level and ${res.batchInserted} batch-specific offer(s). Skipped ${res.skipped}.`
+        `Imported ${res.itemInserted} item-level and ${res.batchInserted} batch-specific offer(s). Skipped ${res.skipped}, failed ${res.failed?.length ?? 0}.`
       );
+      if (res.failed?.length) {
+        toast.error(
+          `${res.failed.length} row(s) failed: ${res.failed
+            .slice(0, 5)
+            .map((f) => `#${f.item_code} (${f.reason})`)
+            .join(", ")}${res.failed.length > 5 ? "…" : ""}`,
+          { duration: 8000 }
+        );
+      }
       onImportPreviewClose();
       setImportRows([]);
       bumpDataVersion();
