@@ -114,10 +114,10 @@ const PRICE_UPLOAD_COLUMNS = [
   },
   {
     key: "landing_cost",
-    label: "Landing Cost (optional)",
+    label: "Landing Cost (always Purchase_Price, optional)",
     required: false,
-    suggestedKey: "Landing_Cost",
-    aliases: ["landing cost", "landingcost"],
+    suggestedKey: "Purchase_Price",
+    aliases: ["purchase price", "purchaseprice", "landing cost", "landingcost"],
     type: "number",
   },
 ];
