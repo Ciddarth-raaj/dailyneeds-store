@@ -578,8 +578,10 @@ function StockUploadTab({ onUploaded }) {
         Upload the latest batch stock snapshot (Item Code, Outlet, Batch No, Stock Qty) — after
         Price Upload each cycle, so MRP/Selling Price are already current. Matching active batch
         offers are flagged Zero Stock when their stock hits 0, and auto-reverted to Active if stock
-        comes back. New batches of items that already carry an active offer are surfaced under
-        Untagged Batches instead of assuming they inherit the offer.
+        comes back. New batches of items that already carry an active batch-specific offer
+        elsewhere are surfaced under Untagged Batches instead of assuming they inherit it —
+        items covered by an item-level offer don&apos;t need this, since that offer already applies
+        to all current and future stock automatically.
       </Text>
       <FileUploaderWithColumnMapping config={STOCK_UPLOAD_COLUMNS} onMappedData={handleImportMappedData} />
 
@@ -707,8 +709,10 @@ function UntaggedBatchesTab({ canAdd, refreshKey }) {
   return (
     <>
       <Text fontSize="sm" color="gray.600" mb={3}>
-        New batches seen in a stock upload for an item that already has an active offer elsewhere.
-        Confirm by creating a batch offer for it, or dismiss if it shouldn&apos;t be tagged.
+        New batches seen in a stock or price upload for an item that already has an active
+        batch-specific offer elsewhere (items covered by an item-level offer don&apos;t show up
+        here — that offer already applies automatically). Confirm by creating a batch offer for
+        it, or dismiss if it shouldn&apos;t be tagged.
       </Text>
       <AgGrid
         rowData={rows}
