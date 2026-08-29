@@ -5,7 +5,7 @@ export const getGrnList = ({ from_date, to_date } = {}) => {
   if (from_date) params.from_date = from_date;
   if (to_date) params.to_date = to_date;
 
-  return API.get("/stock-received/grn-list", { params }).then((res) => {
+  return API.get("/grn/list", { params }).then((res) => {
     const data = res?.data ?? res;
     if (data?.code === 200) return data;
     throw new Error(data?.msg || "Failed to fetch GRN list");
@@ -13,7 +13,7 @@ export const getGrnList = ({ from_date, to_date } = {}) => {
 };
 
 export const getGrnDetail = (refno) => {
-  return API.get("/stock-received/grn-detail", {
+  return API.get("/grn/detail", {
     params: { refno },
   }).then((res) => {
     const data = res?.data ?? res;
