@@ -46,22 +46,42 @@ function OffersV3ItemForm() {
   const createMode = mode === "create";
   const canAdd = usePermissions("add_offers_v3");
 
-  const { products, loading: productsLoading } = useProducts({ limit: 10000, fetchAll: true });
+  // The item picker is only editable in create mode, so only pull the full
+  // (potentially very large) product list when it's actually needed. In
+  // edit/view mode the offer's own item_code/item_name is enough to render
+  // the (disabled) selected value.
+  const { products, loading: productsLoading } = useProducts({
+    limit: 10000,
+    fetchAll: true,
+    enabled: createMode,
+  });
   const { offer, loading, refetch } = useOffersV3ById(id, "item", {
     enabled: (editMode || viewMode) && !!id,
   });
 
-  const productOptions = useMemo(
-    () =>
-      (products || []).map((p) => ({
+  const productOptions = useMemo(() => {
+    if (createMode) {
+      return (products || []).map((p) => ({
         id: p.product_id,
         value: `${p.de_name ?? ""} (${p.product_id})`,
         product_id: p.product_id,
         product_name: p.de_name,
         image_url: p.image_url,
-      })),
-    [products]
-  );
+      }));
+    }
+    if (offer) {
+      return [
+        {
+          id: offer.item_code,
+          value: `${offer.item_name ?? ""} (${offer.item_code})`,
+          product_id: offer.item_code,
+          product_name: offer.item_name,
+          image_url: null,
+        },
+      ];
+    }
+    return [];
+  }, [createMode, products, offer]);
 
   const productCustomRenderer = useCallback(
     (option) => (
@@ -111,7 +131,7 @@ function OffersV3ItemForm() {
   }, [createMode, offer]);
 
   const isReadOnly = viewMode;
-  const formDisabled = productsLoading;
+  const formDisabled = createMode && productsLoading;
 
   const handleSubmit = async (values) => {
     const payload = {
@@ -237,7 +257,7 @@ function OffersV3ItemForm() {
                     name="threshold_qty"
                     type="number"
                     placeholder="Threshold Qty"
-                    editable={!isReadOnly && !formDisabled && createMode}
+                    editable={!isReadOnly && !formDisabled}
                   />
                 </Grid>
 
