@@ -678,7 +678,7 @@ function UntaggedBatchesTab({ canAdd, refreshKey }) {
     <>
       <Text fontSize="sm" color="gray.600" mb={3}>
         New batches seen in a stock upload for an item that already has an active offer elsewhere.
-        Confirm by creating a batch offer for it, or dismiss if it shouldn't be tagged.
+        Confirm by creating a batch offer for it, or dismiss if it shouldn&apos;t be tagged.
       </Text>
       <AgGrid
         rowData={rows}
@@ -743,7 +743,7 @@ function MismatchesTab({ refreshKey }) {
     <>
       <Flex justify="space-between" align="center" mb={3}>
         <Text fontSize="sm" color="gray.600">
-          Active offers where the recorded selling price doesn't match what the offer should
+          Active offers where the recorded selling price doesn&apos;t match what the offer should
           produce from the current MRP.
         </Text>
         <Button size="sm" variant="outline" colorScheme="purple" onClick={fetchRows}>
