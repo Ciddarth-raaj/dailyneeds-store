@@ -138,8 +138,15 @@ function OffersV3BatchForm() {
 
     if (createMode) {
       try {
-        await offersV3.batches.create(payload);
+        const res = await offersV3.batches.create(payload);
         toast.success("Batch-specific offer created");
+        if (res?._telegramNotify) {
+          if (res._telegramNotify.sent) {
+            toast.success("Telegram alert sent");
+          } else {
+            toast.error(`Telegram alert failed: ${res._telegramNotify.error}`);
+          }
+        }
         router.push("/offers-v3");
       } catch (err) {
         toast.error(err?.message ?? "Failed to create batch offer");

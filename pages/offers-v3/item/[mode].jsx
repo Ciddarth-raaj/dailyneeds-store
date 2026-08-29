@@ -143,8 +143,15 @@ function OffersV3ItemForm() {
 
     if (createMode) {
       try {
-        await offersV3.items.create(payload);
+        const res = await offersV3.items.create(payload);
         toast.success("Item-level offer created");
+        if (res?._telegramNotify) {
+          if (res._telegramNotify.sent) {
+            toast.success("Telegram alert sent");
+          } else {
+            toast.error(`Telegram alert failed: ${res._telegramNotify.error}`);
+          }
+        }
         router.push("/offers-v3");
       } catch (err) {
         toast.error(err?.message ?? "Failed to create offer");
