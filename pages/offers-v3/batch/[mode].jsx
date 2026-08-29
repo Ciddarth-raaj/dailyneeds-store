@@ -143,6 +143,8 @@ function OffersV3BatchForm() {
         if (res?._telegramNotify) {
           if (res._telegramNotify.sent) {
             toast.success("Telegram alert sent");
+          } else if (res._telegramNotify.skipped) {
+            toast.error(`No alert: ${res._telegramNotify.reason}`);
           } else {
             toast.error(`Telegram alert failed: ${res._telegramNotify.error}`);
           }
@@ -175,6 +177,8 @@ function OffersV3BatchForm() {
       if (res?._telegramNotify) {
         if (res._telegramNotify.sent) {
           toast.success("Telegram alert sent");
+        } else if (res._telegramNotify.skipped) {
+          toast.error(`No alert: ${res._telegramNotify.reason}`);
         } else {
           toast.error(`Telegram alert failed: ${res._telegramNotify.error}`);
         }
