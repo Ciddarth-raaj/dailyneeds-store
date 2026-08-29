@@ -1,4 +1,5 @@
-import React, { useMemo, useState, useCallback } from "react";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
+import moment from "moment";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../components/CustomContainer";
 import {
@@ -417,6 +418,18 @@ function BatchOffersTab({ canAdd }) {
   );
 }
 
+// Rows/products/last-uploaded-at summary, shown for every Offers V3 upload
+// (stock, price, go-live import), matching the Price Checker format.
+function UploadMetaSummary({ meta }) {
+  if (!meta?.uploaded_at) return null;
+  return (
+    <Text fontSize="sm" color="gray.600" mb={3}>
+      {meta.total_rows} rows · {meta.total_products} products total · uploaded{" "}
+      {moment(meta.uploaded_at).format("DD MMM YYYY, HH:mm")}
+    </Text>
+  );
+}
+
 function PriceUploadTab({ onUploaded }) {
   const {
     isOpen: isPreviewOpen,
@@ -426,6 +439,18 @@ function PriceUploadTab({ onUploaded }) {
   const [previewRows, setPreviewRows] = useState([]);
   const [confirming, setConfirming] = useState(false);
   const [lastResult, setLastResult] = useState(null);
+  const [uploadMeta, setUploadMeta] = useState(null);
+
+  const fetchUploadMeta = useCallback(() => {
+    offersV3
+      .uploadMeta()
+      .then((data) => setUploadMeta(data.price ?? null))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    fetchUploadMeta();
+  }, [fetchUploadMeta]);
 
   const previewColDefs = useMemo(
     () => [
@@ -459,6 +484,7 @@ function PriceUploadTab({ onUploaded }) {
       onPreviewClose();
       setPreviewRows([]);
       onUploaded?.();
+      fetchUploadMeta();
     } catch (err) {
       toast.error(err?.message ?? "Upload failed");
     } finally {
@@ -480,6 +506,7 @@ function PriceUploadTab({ onUploaded }) {
         are updated for a matching row; stock is untouched. Upload price data before stock each cycle
         so MRP/Selling Price are current by the time zero-stock and mismatch checks run.
       </Text>
+      <UploadMetaSummary meta={uploadMeta} />
       <FileUploaderWithColumnMapping config={PRICE_UPLOAD_COLUMNS} onMappedData={handleImportMappedData} />
 
       {lastResult ? (
@@ -533,6 +560,18 @@ function StockUploadTab({ onUploaded }) {
   const [previewRows, setPreviewRows] = useState([]);
   const [confirming, setConfirming] = useState(false);
   const [lastResult, setLastResult] = useState(null);
+  const [uploadMeta, setUploadMeta] = useState(null);
+
+  const fetchUploadMeta = useCallback(() => {
+    offersV3
+      .uploadMeta()
+      .then((data) => setUploadMeta(data.stock ?? null))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    fetchUploadMeta();
+  }, [fetchUploadMeta]);
 
   const previewColDefs = useMemo(
     () => [
@@ -569,6 +608,7 @@ function StockUploadTab({ onUploaded }) {
       onPreviewClose();
       setPreviewRows([]);
       onUploaded?.();
+      fetchUploadMeta();
     } catch (err) {
       toast.error(err?.message ?? "Upload failed");
     } finally {
@@ -595,6 +635,7 @@ function StockUploadTab({ onUploaded }) {
         Low Stock Warnings — a heads-up before that batch is replenished at a different cost
         under the same still-active discount.
       </Text>
+      <UploadMetaSummary meta={uploadMeta} />
       <FileUploaderWithColumnMapping config={STOCK_UPLOAD_COLUMNS} onMappedData={handleImportMappedData} />
 
       {lastResult ? (
@@ -909,8 +950,20 @@ function OffersV3Listing() {
   const [importRows, setImportRows] = useState([]);
   const [importing, setImporting] = useState(false);
   const [lastImportResult, setLastImportResult] = useState(null);
+  const [importUploadMeta, setImportUploadMeta] = useState(null);
 
   const bumpDataVersion = useCallback(() => setDataVersion((v) => v + 1), []);
+
+  const fetchImportUploadMeta = useCallback(() => {
+    offersV3
+      .uploadMeta()
+      .then((data) => setImportUploadMeta(data.import ?? null))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    fetchImportUploadMeta();
+  }, [fetchImportUploadMeta]);
 
   const importPreviewColDefs = useMemo(
     () => [
@@ -944,6 +997,7 @@ function OffersV3Listing() {
       onImportPreviewClose();
       setImportRows([]);
       bumpDataVersion();
+      fetchImportUploadMeta();
     } catch (err) {
       toast.error(err?.message ?? "Import failed");
     } finally {
@@ -975,19 +1029,26 @@ function OffersV3Listing() {
           ) : null
         }
       >
-        {lastImportResult ? (
+        {lastImportResult || importUploadMeta ? (
           <Box mb={4} p={3} bg="purple.50" borderRadius="md" borderWidth="1px" borderColor="purple.100">
             <Text fontSize="sm" fontWeight="medium" mb={1}>
               Last go-live import summary
             </Text>
-            <Text fontSize="sm">Item-level offers created: {lastImportResult.itemInserted}</Text>
-            <Text fontSize="sm">Batch-specific offers created: {lastImportResult.batchInserted}</Text>
-            <Text fontSize="sm">Rows skipped (validation): {lastImportResult.skipped}</Text>
-            <Text fontSize="sm">Rows failed (e.g. unknown item code): {lastImportResult.failed?.length ?? 0}</Text>
-            <SkippedRowsDownloadButton
-              skippedRows={lastImportResult.skippedRows}
-              filenamePrefix="offers-v3-import"
-            />
+            <UploadMetaSummary meta={importUploadMeta} />
+            {lastImportResult ? (
+              <>
+                <Text fontSize="sm">Item-level offers created: {lastImportResult.itemInserted}</Text>
+                <Text fontSize="sm">Batch-specific offers created: {lastImportResult.batchInserted}</Text>
+                <Text fontSize="sm">Rows skipped (validation): {lastImportResult.skipped}</Text>
+                <Text fontSize="sm">
+                  Rows failed (e.g. unknown item code): {lastImportResult.failed?.length ?? 0}
+                </Text>
+                <SkippedRowsDownloadButton
+                  skippedRows={lastImportResult.skippedRows}
+                  filenamePrefix="offers-v3-import"
+                />
+              </>
+            ) : null}
           </Box>
         ) : null}
         <Tabs colorScheme="purple" isLazy lazyBehavior="keepMounted" index={tabIndex} onChange={setTabIndex}>
