@@ -84,6 +84,26 @@ const offersV3 = {
       "Failed to upload stock"
     ),
 
+  /**
+   * Price Checker-style export (Item Code, Outlet, Batch No, MRP, Selling
+   * Price). The frontend column mapping must always source mrp/selling_price
+   * from Old_MRP/Old_Selling_Price — a fixed rule, not auto-detected.
+   */
+  priceUpload: (rows) =>
+    unwrap(
+      API.post(
+        "/offers-v3/price-upload",
+        rows.map((r) => ({
+          item_code: r.item_code,
+          outlet: r.outlet,
+          batch_no: r.batch_no,
+          mrp: r.mrp,
+          selling_price: r.selling_price,
+        }))
+      ),
+      "Failed to upload price data"
+    ),
+
   untaggedBatches: {
     list: () => unwrap(API.get("/offers-v3/untagged-batches"), "Failed to fetch untagged batches").then((d) => d.data ?? []),
     dismiss: (id) => unwrap(API.post(`/offers-v3/untagged-batches/${id}/dismiss`, {}), "Failed to dismiss"),

@@ -65,6 +65,53 @@ const STOCK_UPLOAD_COLUMNS = [
   },
 ];
 
+// Price Checker-style export (Price_Outlet_Batch_Wise_Export). MRP/Selling
+// Price always come from Old_MRP/Old_Selling_Price — a fixed rule, not
+// auto-detected — so those are the only aliases offered; New_MRP/
+// New_Selling_Price are intentionally never suggested.
+const PRICE_UPLOAD_COLUMNS = [
+  {
+    key: "item_code",
+    label: "Item Code (Product ID)",
+    required: true,
+    suggestedKey: "Item_Code",
+    aliases: ["itemcode", "product_id", "productid", "item id"],
+    type: "number",
+  },
+  {
+    key: "outlet",
+    label: "Outlet",
+    required: true,
+    suggestedKey: "Outlet_Name",
+    aliases: ["outlet", "outlet_id", "outletname", "branch", "store"],
+    type: "string",
+  },
+  {
+    key: "batch_no",
+    label: "Batch No",
+    required: true,
+    suggestedKey: "Batch_No",
+    aliases: ["batchno", "batch", "batch number", "lot"],
+    type: "string",
+  },
+  {
+    key: "mrp",
+    label: "MRP (always Old_MRP)",
+    required: true,
+    suggestedKey: "Old_MRP",
+    aliases: ["old mrp", "oldmrp"],
+    type: "number",
+  },
+  {
+    key: "selling_price",
+    label: "Selling Price (always Old_Selling_Price)",
+    required: true,
+    suggestedKey: "Old_Selling_Price",
+    aliases: ["old selling price", "oldsellingprice"],
+    type: "number",
+  },
+];
+
 const IMPORT_COLUMNS = [
   {
     key: "scope",
@@ -339,6 +386,109 @@ function BatchOffersTab({ canAdd }) {
   );
 }
 
+function PriceUploadTab({ onUploaded }) {
+  const {
+    isOpen: isPreviewOpen,
+    onOpen: onPreviewOpen,
+    onClose: onPreviewClose,
+  } = useDisclosure();
+  const [previewRows, setPreviewRows] = useState([]);
+  const [confirming, setConfirming] = useState(false);
+  const [lastResult, setLastResult] = useState(null);
+
+  const previewColDefs = useMemo(
+    () => [
+      { field: "item_code", headerName: "Item Code", flex: 1 },
+      { field: "outlet", headerName: "Outlet", flex: 1 },
+      { field: "batch_no", headerName: "Batch No", flex: 1 },
+      { field: "mrp", headerName: "MRP", type: "number" },
+      { field: "selling_price", headerName: "Selling Price", type: "number" },
+    ],
+    []
+  );
+
+  const handleImportMappedData = (mappedRows) => {
+    if (!mappedRows?.length) return;
+    setPreviewRows(mappedRows);
+    onPreviewOpen();
+  };
+
+  const handleConfirmImport = async () => {
+    if (!previewRows.length) return;
+    setConfirming(true);
+    try {
+      const res = await offersV3.priceUpload(previewRows);
+      setLastResult(res);
+      toast.success(`Upserted ${res.upserted} row(s). ${res.untagged?.length ?? 0} new untagged batch(es).`);
+      if (res.unresolvedOutlets?.length) {
+        toast.error(`Could not resolve outlet(s): ${res.unresolvedOutlets.join(", ")}`);
+      }
+      onPreviewClose();
+      setPreviewRows([]);
+      onUploaded?.();
+    } catch (err) {
+      toast.error(err?.message ?? "Upload failed");
+    } finally {
+      setConfirming(false);
+    }
+  };
+
+  const handlePreviewClose = () => {
+    onPreviewClose();
+    setPreviewRows([]);
+  };
+
+  return (
+    <Box>
+      <Text fontSize="sm" color="gray.600" mb={4}>
+        Upload the Price Checker-style export (Item Code, Outlet, Batch No, MRP, Selling Price).
+        MRP/Selling Price are always read from Old_MRP/Old_Selling_Price — New_MRP/New_Selling_Price
+        are blank in this export, so that mapping is fixed, not auto-detected. Only mrp/selling_price
+        are updated for a matching row; stock is untouched. Upload price data before stock each cycle
+        so MRP/Selling Price are current by the time zero-stock and mismatch checks run.
+      </Text>
+      <FileUploaderWithColumnMapping config={PRICE_UPLOAD_COLUMNS} onMappedData={handleImportMappedData} />
+
+      {lastResult ? (
+        <Box mt={4} p={3} bg="purple.50" borderRadius="md" borderWidth="1px" borderColor="purple.100">
+          <Text fontSize="sm" fontWeight="medium" mb={1}>
+            Last upload summary
+          </Text>
+          <Text fontSize="sm">Rows upserted: {lastResult.upserted}</Text>
+          <Text fontSize="sm">New untagged batches: {lastResult.untagged?.length ?? 0}</Text>
+          {lastResult.unresolvedOutlets?.length ? (
+            <Text fontSize="sm" color="red.600">
+              Unresolved outlets: {lastResult.unresolvedOutlets.join(", ")}
+            </Text>
+          ) : null}
+        </Box>
+      ) : null}
+
+      <CustomModal
+        isOpen={isPreviewOpen}
+        onClose={handlePreviewClose}
+        title={`Preview price upload (${previewRows.length} rows)`}
+        size="4xl"
+        scrollBehavior="inside"
+        contentProps={{ maxH: "90vh" }}
+        bodyProps={{ overflow: "auto" }}
+        footer={
+          <>
+            <Button variant="ghost" colorScheme="purple" onClick={handlePreviewClose}>
+              Cancel
+            </Button>
+            <Button colorScheme="purple" onClick={handleConfirmImport} isLoading={confirming} loadingText="Uploading...">
+              Confirm upload
+            </Button>
+          </>
+        }
+      >
+        <AgGrid rowData={previewRows} columnDefs={previewColDefs} tableKey="offers-v3-price-preview" defaultRows={10} />
+      </CustomModal>
+    </Box>
+  );
+}
+
 function StockUploadTab({ onUploaded }) {
   const {
     isOpen: isPreviewOpen,
@@ -397,10 +547,11 @@ function StockUploadTab({ onUploaded }) {
   return (
     <Box>
       <Text fontSize="sm" color="gray.600" mb={4}>
-        Upload the latest batch stock snapshot (Item Code, Outlet, Batch No, Stock Qty). Matching
-        active batch offers are flagged Zero Stock when their stock hits 0, and auto-reverted to
-        Active if stock comes back. New batches of items that already carry an active offer are
-        surfaced under Untagged Batches instead of assuming they inherit the offer.
+        Upload the latest batch stock snapshot (Item Code, Outlet, Batch No, Stock Qty) — after
+        Price Upload each cycle, so MRP/Selling Price are already current. Matching active batch
+        offers are flagged Zero Stock when their stock hits 0, and auto-reverted to Active if stock
+        comes back. New batches of items that already carry an active offer are surfaced under
+        Untagged Batches instead of assuming they inherit the offer.
       </Text>
       <FileUploaderWithColumnMapping config={STOCK_UPLOAD_COLUMNS} onMappedData={handleImportMappedData} />
 
@@ -688,6 +839,7 @@ function OffersV3Listing() {
           <TabList flexWrap="wrap">
             <Tab>Item-Level Offers</Tab>
             <Tab>Batch-Specific Offers</Tab>
+            <Tab>Price Upload</Tab>
             <Tab>Stock Upload</Tab>
             <Tab>Untagged Batches</Tab>
             <Tab>Price Mismatches</Tab>
@@ -698,6 +850,9 @@ function OffersV3Listing() {
             </TabPanel>
             <TabPanel px={0}>
               <BatchOffersTab canAdd={canAdd} key={`batches-${dataVersion}`} />
+            </TabPanel>
+            <TabPanel px={0}>
+              <PriceUploadTab onUploaded={bumpDataVersion} />
             </TabPanel>
             <TabPanel px={0}>
               <StockUploadTab onUploaded={bumpDataVersion} />
