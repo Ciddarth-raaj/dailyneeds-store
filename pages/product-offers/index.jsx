@@ -495,9 +495,9 @@ function ProductOffersListing() {
                   Create
                 </Button>
               </Link>
-              <Link href="/product-offers/quick-create" passHref>
+              <Link href="/product-offers/offerv3" passHref>
                 <Button colorScheme="purple" variant="outline" size="sm" as="a">
-                  Quick Create (Offer Type)
+                  Offer V3
                 </Button>
               </Link>
             </Box>

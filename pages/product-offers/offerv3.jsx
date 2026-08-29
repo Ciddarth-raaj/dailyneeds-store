@@ -91,7 +91,7 @@ function ProductsFetchProgress({ progress }) {
   );
 }
 
-function QuickCreateOffer() {
+function OfferV3() {
   const router = useRouter();
   const canAdd = usePermissions("add_product_offers");
 
@@ -181,8 +181,8 @@ function QuickCreateOffer() {
   };
 
   return (
-    <GlobalWrapper title="Quick Create Offer" permissionKey="view_product_offers">
-      <CustomContainer title="Quick Create Offer" filledHeader>
+    <GlobalWrapper title="Offer V3" permissionKey="view_product_offers">
+      <CustomContainer title="Offer V3" filledHeader>
         {productsLoading ? <ProductsFetchProgress progress={fetchProgress} /> : null}
         <Box
           opacity={formDisabled ? 0.6 : 1}
@@ -265,4 +265,4 @@ function QuickCreateOffer() {
   );
 }
 
-export default QuickCreateOffer;
+export default OfferV3;
