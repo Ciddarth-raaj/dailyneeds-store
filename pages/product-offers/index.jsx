@@ -25,27 +25,40 @@ import { useConfirmDelete } from "../../customHooks/useConfirmDelete";
 import toast from "react-hot-toast";
 import productOffers from "../../helper/productOffers";
 import FileUploaderWithColumnMapping from "../../components/FileUploaderWithColumnMapping";
+import { OFFER_TYPES, OFFER_TYPE_OPTIONS } from "../../constants/productOffers";
+
+const OFFER_TYPE_LABELS = OFFER_TYPE_OPTIONS.reduce((acc, opt) => {
+  acc[opt.id] = opt.value;
+  return acc;
+}, {});
 
 const IMPORT_COLUMN_CONFIG = [
   {
     key: "product_id",
-    label: "Product ID",
+    label: "Item Code",
     required: true,
     suggestedKey: "product_id",
     type: "number",
   },
   {
-    key: "mrp",
-    label: "MRP",
-    required: true,
-    suggestedKey: "mrp",
-    type: "number",
+    key: "item_name",
+    label: "Item Name",
+    required: false,
+    suggestedKey: "item_name",
+    type: "text",
   },
   {
-    key: "selling_price",
-    label: "Selling Price",
+    key: "offer_type",
+    label: "Offer Type",
     required: true,
-    suggestedKey: "selling_price",
+    suggestedKey: "offer_type",
+    type: "text",
+  },
+  {
+    key: "offer_value",
+    label: "Save Amount / % Off",
+    required: true,
+    suggestedKey: "offer_value",
     type: "number",
   },
   {
@@ -56,6 +69,15 @@ const IMPORT_COLUMN_CONFIG = [
     type: "number",
   },
 ];
+
+function normalizeOfferType(value) {
+  const v = String(value ?? "").trim().toLowerCase();
+  if (["save", "save amount", "amount"].includes(v)) return OFFER_TYPES.SAVE;
+  if (["percent_off", "percent", "%", "% off", "percentage"].includes(v)) {
+    return OFFER_TYPES.PERCENT_OFF;
+  }
+  return OFFER_TYPES.PERCENT_OFF;
+}
 
 const LIST_FILTER_LABELS = {
   buyer_name: "Buyer",
@@ -123,10 +145,10 @@ function ProductOffersListing() {
         productsMap[Number(row.product_id)];
       return {
         product_id: row.product_id,
-        product_name: p?.de_name ?? "-",
+        product_name: p?.de_name ?? row.item_name ?? "-",
         image_url: p?.image_url ?? null,
-        mrp: row.mrp,
-        selling_price: row.selling_price,
+        offer_type: row.offer_type,
+        offer_value: row.offer_value,
         opening_stock: row.opening_stock,
       };
     });
@@ -152,8 +174,13 @@ function ProductOffersListing() {
       { field: "product_id", headerName: "ID", type: "id" },
       { field: "image_url", headerName: "Image", type: "image" },
       { field: "product_name", headerName: "Product Name", flex: 2 },
-      { field: "mrp", headerName: "MRP", type: "currency" },
-      { field: "selling_price", headerName: "Selling Price", type: "currency" },
+      {
+        field: "offer_type",
+        headerName: "Offer Type",
+        valueGetter: (params) =>
+          OFFER_TYPE_LABELS[params.data?.offer_type] ?? params.data?.offer_type,
+      },
+      { field: "offer_value", headerName: "Save Amount / % Off" },
       { field: "opening_stock", headerName: "Opening stock" },
     ],
     []
@@ -177,30 +204,34 @@ function ProductOffersListing() {
         type: "capitalized",
         filterParams: { caseSensitive: true },
       },
-      { field: "mrp", headerName: "MRP", type: "currency" },
-      { field: "selling_price", headerName: "Selling Price", type: "currency" },
+      { field: "mrp", headerName: "MRP", type: "currency", hideByDefault: true },
+      {
+        field: "selling_price",
+        headerName: "Selling Price",
+        type: "currency",
+        hideByDefault: true,
+      },
+      {
+        field: "offer_type",
+        headerName: "Offer Type",
+        valueGetter: (params) =>
+          OFFER_TYPE_LABELS[params.data?.offer_type] ?? params.data?.offer_type ?? "-",
+      },
       {
         field: "save_amount",
         headerName: "Save",
-        type: "currency",
-        valueGetter: (params) => {
-          const mrp = Number(params.data?.mrp);
-          const sellingPrice = Number(params.data?.selling_price);
-          if (!Number.isFinite(mrp) || !Number.isFinite(sellingPrice)) return null;
-          return mrp - sellingPrice;
-        },
+        valueGetter: (params) =>
+          params.data?.offer_type === OFFER_TYPES.SAVE
+            ? params.data?.offer_value
+            : null,
       },
       {
         field: "percent_off",
         headerName: "% Off on Mrp",
-        valueGetter: (params) => {
-          const mrp = Number(params.data?.mrp);
-          const sellingPrice = Number(params.data?.selling_price);
-          if (!Number.isFinite(mrp) || !Number.isFinite(sellingPrice) || mrp <= 0) {
-            return null;
-          }
-          return Math.round(((mrp - sellingPrice) / mrp) * 100 * 100) / 100;
-        },
+        valueGetter: (params) =>
+          params.data?.offer_type === OFFER_TYPES.PERCENT_OFF
+            ? params.data?.offer_value
+            : null,
       },
       {
         field: "opening_stock",
@@ -440,7 +471,11 @@ function ProductOffersListing() {
 
   const handleImportMappedData = (mappedRows) => {
     if (!mappedRows?.length) return;
-    setPreviewRows(mappedRows);
+    const normalizedRows = mappedRows.map((row) => ({
+      ...row,
+      offer_type: normalizeOfferType(row.offer_type),
+    }));
+    setPreviewRows(normalizedRows);
     onPreviewOpen();
   };
 

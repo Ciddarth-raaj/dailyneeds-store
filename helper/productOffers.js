@@ -46,12 +46,15 @@ const productOffers = {
   /**
    * Create a single offer.
    * POST /product-offers
-   * Body: { product_id, mrp?, selling_price?, opening_stock?, is_active? }
+   * Body: { product_id, offer_type?, offer_value?, mrp?, selling_price?, opening_stock?, is_active? }
+   * mrp/selling_price are filled in later via Price Checker cross-check, not entered here.
    */
   create: (data) =>
     new Promise((resolve, reject) => {
       API.post("/product-offers", {
         product_id: Number(data.product_id),
+        offer_type: data.offer_type ?? null,
+        offer_value: data.offer_value != null ? Number(data.offer_value) : null,
         mrp: data.mrp != null ? Number(data.mrp) : null,
         selling_price: data.selling_price != null ? Number(data.selling_price) : null,
         opening_stock:
@@ -73,7 +76,7 @@ const productOffers = {
   /**
    * Bulk insert/update offers.
    * POST /product-offers/bulk
-   * Body: [{ product_id, mrp?, selling_price?, opening_stock?, is_active? }, ...]
+   * Body: [{ product_id, offer_type?, offer_value?, mrp?, selling_price?, opening_stock?, is_active? }, ...]
    */
   bulkInsert: (items) =>
     new Promise((resolve, reject) => {
@@ -83,6 +86,8 @@ const productOffers = {
       }
       const payload = items.map((row) => ({
         product_id: Number(row.product_id),
+        offer_type: row.offer_type ?? null,
+        offer_value: row.offer_value != null ? Number(row.offer_value) : null,
         mrp: row.mrp != null ? Number(row.mrp) : null,
         selling_price: row.selling_price != null ? Number(row.selling_price) : null,
         opening_stock:
@@ -113,6 +118,10 @@ const productOffers = {
         return;
       }
       const body = {};
+      if (data.offer_type !== undefined) body.offer_type = data.offer_type;
+      if (data.offer_value !== undefined) {
+        body.offer_value = data.offer_value == null ? null : Number(data.offer_value);
+      }
       if (data.mrp !== undefined) body.mrp = Number(data.mrp);
       if (data.selling_price !== undefined) body.selling_price = Number(data.selling_price);
       if (data.opening_stock !== undefined) {
