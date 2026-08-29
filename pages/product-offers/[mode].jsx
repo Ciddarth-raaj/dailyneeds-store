@@ -35,17 +35,54 @@ const openingStockField = Yup.number()
   .required("Required")
   .transform((v) => (v === "" || Number.isNaN(Number(v)) ? null : Number(v)));
 
+const OFFER_TYPES = {
+  SELLING_PRICE: "selling_price",
+  SAVE: "save",
+  PERCENT_OFF: "percent_off",
+};
+
+const OFFER_TYPE_OPTIONS = [
+  { id: OFFER_TYPES.SELLING_PRICE, value: "Selling Price" },
+  { id: OFFER_TYPES.SAVE, value: "Save (Mrp - Selling)" },
+  { id: OFFER_TYPES.PERCENT_OFF, value: "% Off on Mrp" },
+];
+
+/** Resolves the actual selling_price to persist, based on the chosen offer type. */
+function resolveSellingPrice(values) {
+  const mrp = values.mrp !== "" ? Number(values.mrp) : null;
+  switch (values.offer_type) {
+    case OFFER_TYPES.SAVE: {
+      const save = values.save_amount !== "" ? Number(values.save_amount) : null;
+      if (mrp == null || save == null) return null;
+      return Math.max(0, mrp - save);
+    }
+    case OFFER_TYPES.PERCENT_OFF: {
+      const pct = values.percent_off !== "" ? Number(values.percent_off) : null;
+      if (mrp == null || pct == null) return null;
+      return Math.max(0, mrp - (mrp * pct) / 100);
+    }
+    default:
+      return values.selling_price !== "" ? Number(values.selling_price) : null;
+  }
+}
+
 const initialValuesCreate = {
   product_ids: [],
   mrp: "",
+  offer_type: OFFER_TYPES.SELLING_PRICE,
   selling_price: "",
+  save_amount: "",
+  percent_off: "",
   opening_stock: "",
 };
 
 const initialValuesSingle = {
   product_id: "",
   mrp: "",
+  offer_type: OFFER_TYPES.SELLING_PRICE,
   selling_price: "",
+  save_amount: "",
+  percent_off: "",
   opening_stock: "",
 };
 
@@ -184,6 +221,35 @@ function ProductOffersForm() {
   const [formInitialValues, setFormInitialValues] =
     useState(initialValuesSingle);
 
+  const offerAmountFields = {
+    offer_type: Yup.string().oneOf(Object.values(OFFER_TYPES)).required("Required"),
+    selling_price: sellingPriceField.when("offer_type", {
+      is: OFFER_TYPES.SELLING_PRICE,
+      then: (schema) => schema,
+      otherwise: (schema) => schema.notRequired().nullable(),
+    }),
+    save_amount: Yup.number()
+      .min(0, "Must be ≥ 0")
+      .transform((v) => (v === "" || Number.isNaN(Number(v)) ? null : Number(v)))
+      .when("offer_type", {
+        is: OFFER_TYPES.SAVE,
+        then: (schema) =>
+          schema
+            .required("Required")
+            .max(Yup.ref("mrp"), "Save amount cannot exceed MRP"),
+        otherwise: (schema) => schema.notRequired().nullable(),
+      }),
+    percent_off: Yup.number()
+      .min(0, "Must be ≥ 0")
+      .max(100, "Must be ≤ 100")
+      .transform((v) => (v === "" || Number.isNaN(Number(v)) ? null : Number(v)))
+      .when("offer_type", {
+        is: OFFER_TYPES.PERCENT_OFF,
+        then: (schema) => schema.required("Required"),
+        otherwise: (schema) => schema.notRequired().nullable(),
+      }),
+  };
+
   const validationSchema = useMemo(() => {
     if (createMode) {
       return Yup.object({
@@ -197,7 +263,7 @@ function ProductOffersForm() {
             (arr) => Array.isArray(arr) && arr.length > 0
           ),
         mrp: mrpField,
-        selling_price: sellingPriceField,
+        ...offerAmountFields,
         opening_stock: openingStockField,
       });
     }
@@ -210,7 +276,7 @@ function ProductOffersForm() {
           (v) => v != null && v !== "" && Number(v) > 0
         ),
       mrp: mrpField,
-      selling_price: sellingPriceField,
+      ...offerAmountFields,
       opening_stock: openingStockField,
     });
   }, [createMode]);
@@ -224,8 +290,11 @@ function ProductOffersForm() {
       setFormInitialValues({
         product_id: offer.product_id ?? "",
         mrp: offer.mrp != null ? String(offer.mrp) : "",
+        offer_type: OFFER_TYPES.SELLING_PRICE,
         selling_price:
           offer.selling_price != null ? String(offer.selling_price) : "",
+        save_amount: "",
+        percent_off: "",
         opening_stock:
           offer.opening_stock != null && offer.opening_stock !== ""
             ? String(parseInt(offer.opening_stock))
@@ -245,8 +314,7 @@ function ProductOffersForm() {
         return;
       }
       const mrp = values.mrp !== "" ? Number(values.mrp) : null;
-      const selling_price =
-        values.selling_price !== "" ? Number(values.selling_price) : null;
+      const selling_price = resolveSellingPrice(values);
       const opening_stock =
         values.opening_stock !== "" ? Number(values.opening_stock) : 0;
       const toastId = toast.loading(
@@ -280,8 +348,7 @@ function ProductOffersForm() {
       try {
         await productOffers.update(productId, {
           mrp: values.mrp !== "" ? Number(values.mrp) : null,
-          selling_price:
-            values.selling_price !== "" ? Number(values.selling_price) : null,
+          selling_price: resolveSellingPrice(values),
           opening_stock:
             values.opening_stock !== "" ? Number(values.opening_stock) : 0,
         });
@@ -343,7 +410,7 @@ function ProductOffersForm() {
             validationSchema={validationSchema}
             onSubmit={handleSubmit}
           >
-            {({ handleSubmit: formikSubmit }) => (
+            {({ handleSubmit: formikSubmit, values }) => (
               <form onSubmit={formikSubmit}>
                 <Grid
                   templateColumns={{ base: "1fr", md: "1fr 1fr" }}
@@ -382,12 +449,50 @@ function ProductOffersForm() {
                     editable={!isReadOnly && !formDisabled}
                   />
                   <CustomInput
-                    label="Selling Price"
-                    name="selling_price"
-                    type="number"
-                    placeholder="Selling price"
+                    label="Offer Type"
+                    name="offer_type"
+                    method="switch"
+                    values={OFFER_TYPE_OPTIONS}
                     editable={!isReadOnly && !formDisabled}
                   />
+                  {values.offer_type === OFFER_TYPES.SAVE ? (
+                    <CustomInput
+                      label="Save (Mrp - Selling)"
+                      name="save_amount"
+                      type="number"
+                      placeholder="Amount to save"
+                      editable={!isReadOnly && !formDisabled}
+                    />
+                  ) : values.offer_type === OFFER_TYPES.PERCENT_OFF ? (
+                    <CustomInput
+                      label="% Off on Mrp"
+                      name="percent_off"
+                      type="number"
+                      placeholder="Discount %"
+                      editable={!isReadOnly && !formDisabled}
+                    />
+                  ) : (
+                    <CustomInput
+                      label="Selling Price"
+                      name="selling_price"
+                      type="number"
+                      placeholder="Selling price"
+                      editable={!isReadOnly && !formDisabled}
+                    />
+                  )}
+                  {values.offer_type !== OFFER_TYPES.SELLING_PRICE ? (
+                    <Box>
+                      <Text fontSize="sm" fontWeight={500} mb={1}>
+                        Selling Price (computed)
+                      </Text>
+                      <Text fontSize="sm" color="gray.700">
+                        {(() => {
+                          const price = resolveSellingPrice(values);
+                          return price != null ? `₹${price.toFixed(2)}` : "-";
+                        })()}
+                      </Text>
+                    </Box>
+                  ) : null}
                   <CustomInput
                     label="Opening stock"
                     name="opening_stock"

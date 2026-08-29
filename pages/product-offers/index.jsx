@@ -180,6 +180,29 @@ function ProductOffersListing() {
       { field: "mrp", headerName: "MRP", type: "currency" },
       { field: "selling_price", headerName: "Selling Price", type: "currency" },
       {
+        field: "save_amount",
+        headerName: "Save",
+        type: "currency",
+        valueGetter: (params) => {
+          const mrp = Number(params.data?.mrp);
+          const sellingPrice = Number(params.data?.selling_price);
+          if (!Number.isFinite(mrp) || !Number.isFinite(sellingPrice)) return null;
+          return mrp - sellingPrice;
+        },
+      },
+      {
+        field: "percent_off",
+        headerName: "% Off on Mrp",
+        valueGetter: (params) => {
+          const mrp = Number(params.data?.mrp);
+          const sellingPrice = Number(params.data?.selling_price);
+          if (!Number.isFinite(mrp) || !Number.isFinite(sellingPrice) || mrp <= 0) {
+            return null;
+          }
+          return Math.round(((mrp - sellingPrice) / mrp) * 100 * 100) / 100;
+        },
+      },
+      {
         field: "opening_stock",
         headerName: "Opening Stock",
         hideByDefault: true,
