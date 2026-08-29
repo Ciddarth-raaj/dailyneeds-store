@@ -769,6 +769,12 @@ const WMS_MENU = {
         selected: false,
         location: "/offers-v2",
       },
+      view_offers_v3: {
+        title: "Offers V3",
+        permission: "view_offers_v3",
+        selected: false,
+        location: "/offers-v3",
+      },
     },
   },
   cleaning: {

@@ -130,6 +130,8 @@ export const PERMISSIONS = {
     view_product_offers: "View Product Offers",
     view_hq_offers: "View HQ Offers (V2)",
     add_product_offers: "Add Product Offers",
+    view_offers_v3: "View Offers V3",
+    add_offers_v3: "Add Offers V3",
     view_stock_received: "View Receiving Stock",
     add_stock_received: "Add Receiving Stock",
     delete_stock_received: "Delete Receiving Stock",
