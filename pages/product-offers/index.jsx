@@ -495,11 +495,6 @@ function ProductOffersListing() {
                   Create
                 </Button>
               </Link>
-              <Link href="/product-offers/offerv3" passHref>
-                <Button colorScheme="purple" variant="outline" size="sm" as="a">
-                  Offer V3
-                </Button>
-              </Link>
             </Box>
           ) : null
         }
