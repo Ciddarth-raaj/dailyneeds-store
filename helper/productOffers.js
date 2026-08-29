@@ -1,7 +1,7 @@
 import API from "../util/api";
 
 /**
- * Product Offers API – product_offers (offer_type, offer_value, mrp, selling_price, is_active per product_id).
+ * Product Offers API – product_offers (mrp, selling_price, opening_stock, is_active per product_id).
  * @see dailyneeds-store-backend/docs/product-offers-api.md
  */
 const productOffers = {
@@ -46,17 +46,20 @@ const productOffers = {
   /**
    * Create a single offer.
    * POST /product-offers
-   * Body: { product_id, offer_type?, offer_value?, mrp?, selling_price?, is_active? }
-   * mrp/selling_price are filled in later via Price Checker cross-check, not entered here.
+   * Body: { product_id, mrp?, selling_price?, offer_type?, offer_value?, opening_stock?, is_active? }
    */
   create: (data) =>
     new Promise((resolve, reject) => {
       API.post("/product-offers", {
         product_id: Number(data.product_id),
-        offer_type: data.offer_type ?? null,
-        offer_value: data.offer_value != null ? Number(data.offer_value) : null,
         mrp: data.mrp != null ? Number(data.mrp) : null,
         selling_price: data.selling_price != null ? Number(data.selling_price) : null,
+        offer_type: data.offer_type ?? null,
+        offer_value: data.offer_value != null ? Number(data.offer_value) : null,
+        opening_stock:
+          data.opening_stock != null && data.opening_stock !== ""
+            ? Number(data.opening_stock)
+            : 0,
         is_active: data.is_active !== false,
       })
         .then((res) => {
@@ -72,7 +75,7 @@ const productOffers = {
   /**
    * Bulk insert/update offers.
    * POST /product-offers/bulk
-   * Body: [{ product_id, offer_type?, offer_value?, mrp?, selling_price?, is_active? }, ...]
+   * Body: [{ product_id, mrp?, selling_price?, opening_stock?, is_active? }, ...]
    */
   bulkInsert: (items) =>
     new Promise((resolve, reject) => {
@@ -82,10 +85,12 @@ const productOffers = {
       }
       const payload = items.map((row) => ({
         product_id: Number(row.product_id),
-        offer_type: row.offer_type ?? null,
-        offer_value: row.offer_value != null ? Number(row.offer_value) : null,
         mrp: row.mrp != null ? Number(row.mrp) : null,
         selling_price: row.selling_price != null ? Number(row.selling_price) : null,
+        opening_stock:
+          row.opening_stock != null && row.opening_stock !== ""
+            ? Number(row.opening_stock)
+            : 0,
         is_active: row.is_active !== false,
       }));
       API.post("/product-offers/bulk", payload)
@@ -110,12 +115,18 @@ const productOffers = {
         return;
       }
       const body = {};
+      if (data.mrp !== undefined) body.mrp = Number(data.mrp);
+      if (data.selling_price !== undefined) body.selling_price = Number(data.selling_price);
       if (data.offer_type !== undefined) body.offer_type = data.offer_type;
       if (data.offer_value !== undefined) {
         body.offer_value = data.offer_value == null ? null : Number(data.offer_value);
       }
-      if (data.mrp !== undefined) body.mrp = Number(data.mrp);
-      if (data.selling_price !== undefined) body.selling_price = Number(data.selling_price);
+      if (data.opening_stock !== undefined) {
+        body.opening_stock =
+          data.opening_stock === "" || data.opening_stock == null
+            ? null
+            : Number(data.opening_stock);
+      }
       if (data.is_active !== undefined) body.is_active = Boolean(data.is_active);
       if (Object.keys(body).length === 0) {
         reject(new Error("At least one field required"));

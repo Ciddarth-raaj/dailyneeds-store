@@ -25,55 +25,37 @@ import { useConfirmDelete } from "../../customHooks/useConfirmDelete";
 import toast from "react-hot-toast";
 import productOffers from "../../helper/productOffers";
 import FileUploaderWithColumnMapping from "../../components/FileUploaderWithColumnMapping";
-import { OFFER_TYPES, OFFER_TYPE_OPTIONS } from "../../constants/productOffers";
-
-const OFFER_TYPE_LABELS = OFFER_TYPE_OPTIONS.reduce((acc, opt) => {
-  acc[opt.id] = opt.value;
-  return acc;
-}, {});
 
 const IMPORT_COLUMN_CONFIG = [
   {
     key: "product_id",
-    label: "Item Code",
+    label: "Product ID",
     required: true,
     suggestedKey: "product_id",
     type: "number",
   },
   {
-    key: "item_name",
-    label: "Item Name",
-    required: false,
-    suggestedKey: "item_name",
-    type: "text",
+    key: "mrp",
+    label: "MRP",
+    required: true,
+    suggestedKey: "mrp",
+    type: "number",
   },
   {
-    key: "offer_type",
-    label: "Offer Type",
+    key: "selling_price",
+    label: "Selling Price",
     required: true,
-    suggestedKey: "offer_type",
-    type: "text",
+    suggestedKey: "selling_price",
+    type: "number",
   },
   {
-    key: "offer_value",
-    label: "Value",
+    key: "opening_stock",
+    label: "Opening Stock",
     required: true,
-    suggestedKey: "offer_value",
+    suggestedKey: "opening_stock",
     type: "number",
   },
 ];
-
-function normalizeOfferType(value) {
-  const v = String(value ?? "").trim().toLowerCase();
-  if (["special_price", "special price", "special"].includes(v)) {
-    return OFFER_TYPES.SPECIAL_PRICE;
-  }
-  if (["save", "save amount", "amount"].includes(v)) return OFFER_TYPES.SAVE;
-  if (["percent_off", "percent", "%", "% off", "percentage"].includes(v)) {
-    return OFFER_TYPES.PERCENT_OFF;
-  }
-  return OFFER_TYPES.PERCENT_OFF;
-}
 
 const LIST_FILTER_LABELS = {
   buyer_name: "Buyer",
@@ -141,10 +123,11 @@ function ProductOffersListing() {
         productsMap[Number(row.product_id)];
       return {
         product_id: row.product_id,
-        product_name: p?.de_name ?? row.item_name ?? "-",
+        product_name: p?.de_name ?? "-",
         image_url: p?.image_url ?? null,
-        offer_type: row.offer_type,
-        offer_value: row.offer_value,
+        mrp: row.mrp,
+        selling_price: row.selling_price,
+        opening_stock: row.opening_stock,
       };
     });
   }, [previewRows, productsMap]);
@@ -169,13 +152,9 @@ function ProductOffersListing() {
       { field: "product_id", headerName: "ID", type: "id" },
       { field: "image_url", headerName: "Image", type: "image" },
       { field: "product_name", headerName: "Product Name", flex: 2 },
-      {
-        field: "offer_type",
-        headerName: "Offer Type",
-        valueGetter: (params) =>
-          OFFER_TYPE_LABELS[params.data?.offer_type] ?? params.data?.offer_type,
-      },
-      { field: "offer_value", headerName: "Value" },
+      { field: "mrp", headerName: "MRP", type: "currency" },
+      { field: "selling_price", headerName: "Selling Price", type: "currency" },
+      { field: "opening_stock", headerName: "Opening stock" },
     ],
     []
   );
@@ -198,42 +177,33 @@ function ProductOffersListing() {
         type: "capitalized",
         filterParams: { caseSensitive: true },
       },
-      { field: "mrp", headerName: "MRP", type: "currency", hideByDefault: true },
+      { field: "mrp", headerName: "MRP", type: "currency" },
+      { field: "selling_price", headerName: "Selling Price", type: "currency" },
       {
-        field: "selling_price",
-        headerName: "Selling Price",
-        type: "currency",
+        field: "opening_stock",
+        headerName: "Opening Stock",
         hideByDefault: true,
+        valueGetter: (params) => parseInt(params.data?.opening_stock) ?? 0,
       },
       {
-        field: "offer_type",
-        headerName: "Offer Type",
-        valueGetter: (params) =>
-          OFFER_TYPE_LABELS[params.data?.offer_type] ?? params.data?.offer_type ?? "-",
+        field: "stock_input",
+        headerName: "Inc. Stock",
+        hideByDefault: true,
+        valueGetter: (params) => parseInt(params.data?.stock_input) ?? 0,
       },
       {
-        field: "special_price",
-        headerName: "Special Price",
-        valueGetter: (params) =>
-          params.data?.offer_type === OFFER_TYPES.SPECIAL_PRICE
-            ? params.data?.offer_value
-            : null,
+        field: "stock_input",
+        headerName: "Sold Stock",
+        hideByDefault: true,
+        valueGetter: (params) => parseInt(params.data?.stock_output) ?? 0,
       },
       {
-        field: "save_amount",
-        headerName: "Save",
+        headerName: "Avl. Stock",
+        hideByDefault: true,
         valueGetter: (params) =>
-          params.data?.offer_type === OFFER_TYPES.SAVE
-            ? params.data?.offer_value
-            : null,
-      },
-      {
-        field: "percent_off",
-        headerName: "% Off on Mrp",
-        valueGetter: (params) =>
-          params.data?.offer_type === OFFER_TYPES.PERCENT_OFF
-            ? params.data?.offer_value
-            : null,
+          parseInt(params.data?.opening_stock) +
+            parseInt(params.data?.stock_input) -
+            parseInt(params.data?.stock_output) ?? 0,
       },
       {
         field: "is_active",
@@ -447,11 +417,7 @@ function ProductOffersListing() {
 
   const handleImportMappedData = (mappedRows) => {
     if (!mappedRows?.length) return;
-    const normalizedRows = mappedRows.map((row) => ({
-      ...row,
-      offer_type: normalizeOfferType(row.offer_type),
-    }));
-    setPreviewRows(normalizedRows);
+    setPreviewRows(mappedRows);
     onPreviewOpen();
   };
 
@@ -527,6 +493,11 @@ function ProductOffersListing() {
               <Link href="/product-offers/create" passHref>
                 <Button colorScheme="purple" size="sm" as="a">
                   Create
+                </Button>
+              </Link>
+              <Link href="/product-offers/quick-create" passHref>
+                <Button colorScheme="purple" variant="outline" size="sm" as="a">
+                  Quick Create (Offer Type)
                 </Button>
               </Link>
             </Box>

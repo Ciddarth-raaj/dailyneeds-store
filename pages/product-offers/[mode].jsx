@@ -19,35 +19,34 @@ import productOffers from "../../helper/productOffers";
 import usePermissions from "../../customHooks/usePermissions";
 import { useProducts } from "../../customHooks/useProducts";
 import { useProductOfferByProductId } from "../../customHooks/useProductOfferByProductId";
-import { OFFER_TYPES, OFFER_TYPE_OPTIONS } from "../../constants/productOffers";
 
-const offerValueField = Yup.number()
+const mrpField = Yup.number()
+  .min(0, "Must be ≥ 0")
+  .required("Required")
+  .transform((v) => (v === "" || Number.isNaN(Number(v)) ? null : Number(v)));
+
+const sellingPriceField = Yup.number()
+  .min(0, "Must be ≥ 0")
+  .required("Required")
+  .transform((v) => (v === "" || Number.isNaN(Number(v)) ? null : Number(v)));
+
+const openingStockField = Yup.number()
   .min(0, "Must be ≥ 0")
   .required("Required")
   .transform((v) => (v === "" || Number.isNaN(Number(v)) ? null : Number(v)));
 
 const initialValuesCreate = {
   product_ids: [],
-  offer_type: OFFER_TYPES.PERCENT_OFF,
-  offer_value: "",
+  mrp: "",
+  selling_price: "",
+  opening_stock: "",
 };
 
 const initialValuesSingle = {
   product_id: "",
-  offer_type: OFFER_TYPES.PERCENT_OFF,
-  offer_value: "",
-};
-
-const OFFER_VALUE_LABELS = {
-  [OFFER_TYPES.SPECIAL_PRICE]: "Value (Special Price)",
-  [OFFER_TYPES.SAVE]: "Value (Save Amount)",
-  [OFFER_TYPES.PERCENT_OFF]: "Value (% Off)",
-};
-
-const OFFER_VALUE_PLACEHOLDERS = {
-  [OFFER_TYPES.SPECIAL_PRICE]: "Special price",
-  [OFFER_TYPES.SAVE]: "Amount to save",
-  [OFFER_TYPES.PERCENT_OFF]: "Discount %",
+  mrp: "",
+  selling_price: "",
+  opening_stock: "",
 };
 
 function ProductsFetchProgress({ progress }) {
@@ -185,17 +184,6 @@ function ProductOffersForm() {
   const [formInitialValues, setFormInitialValues] =
     useState(initialValuesSingle);
 
-  const offerFields = {
-    offer_type: Yup.string()
-      .oneOf(Object.values(OFFER_TYPES))
-      .required("Required"),
-    offer_value: offerValueField.when("offer_type", {
-      is: OFFER_TYPES.PERCENT_OFF,
-      then: (schema) => schema.max(100, "Must be ≤ 100"),
-      otherwise: (schema) => schema,
-    }),
-  };
-
   const validationSchema = useMemo(() => {
     if (createMode) {
       return Yup.object({
@@ -208,7 +196,9 @@ function ProductOffersForm() {
             "Select at least one product",
             (arr) => Array.isArray(arr) && arr.length > 0
           ),
-        ...offerFields,
+        mrp: mrpField,
+        selling_price: sellingPriceField,
+        opening_stock: openingStockField,
       });
     }
     return Yup.object({
@@ -219,7 +209,9 @@ function ProductOffersForm() {
           "Select a product",
           (v) => v != null && v !== "" && Number(v) > 0
         ),
-      ...offerFields,
+      mrp: mrpField,
+      selling_price: sellingPriceField,
+      opening_stock: openingStockField,
     });
   }, [createMode]);
 
@@ -231,8 +223,13 @@ function ProductOffersForm() {
     if (offer) {
       setFormInitialValues({
         product_id: offer.product_id ?? "",
-        offer_type: offer.offer_type ?? OFFER_TYPES.PERCENT_OFF,
-        offer_value: offer.offer_value != null ? String(offer.offer_value) : "",
+        mrp: offer.mrp != null ? String(offer.mrp) : "",
+        selling_price:
+          offer.selling_price != null ? String(offer.selling_price) : "",
+        opening_stock:
+          offer.opening_stock != null && offer.opening_stock !== ""
+            ? String(parseInt(offer.opening_stock))
+            : "0",
       });
     }
   }, [createMode, offer]);
@@ -241,15 +238,17 @@ function ProductOffersForm() {
   const formDisabled = productsLoading;
 
   const handleSubmit = async (values) => {
-    const offer_type = values.offer_type;
-    const offer_value = values.offer_value !== "" ? Number(values.offer_value) : null;
-
     if (createMode) {
       const ids = Array.isArray(values.product_ids) ? values.product_ids : [];
       if (ids.length === 0) {
         toast.error("Select at least one product");
         return;
       }
+      const mrp = values.mrp !== "" ? Number(values.mrp) : null;
+      const selling_price =
+        values.selling_price !== "" ? Number(values.selling_price) : null;
+      const opening_stock =
+        values.opening_stock !== "" ? Number(values.opening_stock) : 0;
       const toastId = toast.loading(
         ids.length > 1 ? `Creating ${ids.length} offers…` : "Creating offer…"
       );
@@ -258,8 +257,9 @@ function ProductOffersForm() {
           ids.map((pid) =>
             productOffers.create({
               product_id: Number(pid),
-              offer_type,
-              offer_value,
+              mrp,
+              selling_price,
+              opening_stock,
             })
           )
         );
@@ -279,8 +279,11 @@ function ProductOffersForm() {
     if (editMode && productId) {
       try {
         await productOffers.update(productId, {
-          offer_type,
-          offer_value,
+          mrp: values.mrp !== "" ? Number(values.mrp) : null,
+          selling_price:
+            values.selling_price !== "" ? Number(values.selling_price) : null,
+          opening_stock:
+            values.opening_stock !== "" ? Number(values.opening_stock) : 0,
         });
         toast.success("Offer updated");
         router.push("/product-offers");
@@ -340,7 +343,7 @@ function ProductOffersForm() {
             validationSchema={validationSchema}
             onSubmit={handleSubmit}
           >
-            {({ handleSubmit: formikSubmit, values }) => (
+            {({ handleSubmit: formikSubmit }) => (
               <form onSubmit={formikSubmit}>
                 <Grid
                   templateColumns={{ base: "1fr", md: "1fr 1fr" }}
@@ -372,25 +375,27 @@ function ProductOffersForm() {
                     />
                   )}
                   <CustomInput
-                    label="Offer Type"
-                    name="offer_type"
-                    method="switch"
-                    values={OFFER_TYPE_OPTIONS}
+                    label="MRP"
+                    name="mrp"
+                    type="number"
+                    placeholder="MRP"
                     editable={!isReadOnly && !formDisabled}
                   />
                   <CustomInput
-                    label={OFFER_VALUE_LABELS[values.offer_type] ?? "Value"}
-                    name="offer_value"
+                    label="Selling Price"
+                    name="selling_price"
                     type="number"
-                    placeholder={OFFER_VALUE_PLACEHOLDERS[values.offer_type] ?? "Value"}
+                    placeholder="Selling price"
+                    editable={!isReadOnly && !formDisabled}
+                  />
+                  <CustomInput
+                    label="Opening stock"
+                    name="opening_stock"
+                    type="number"
+                    placeholder="0"
                     editable={!isReadOnly && !formDisabled}
                   />
                 </Grid>
-
-                <Text fontSize="xs" color="gray.500" mt={-4} mb={6}>
-                  MRP and Selling Price are not entered here — Price Checker
-                  cross-checks this offer against MRP data separately.
-                </Text>
 
                 <Flex gap={3} justify="flex-end" mt={6}>
                   {viewMode ? (
