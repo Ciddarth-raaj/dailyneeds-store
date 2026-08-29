@@ -716,6 +716,18 @@ function UntaggedBatchesTab({ canAdd, refreshKey }) {
     [fetchRows]
   );
 
+  const handleDismissAll = useCallback(async () => {
+    if (!rows.length) return;
+    if (!window.confirm(`Dismiss all ${rows.length} untagged batch alert(s)?`)) return;
+    try {
+      const res = await offersV3.untaggedBatches.dismissAll();
+      toast.success(`Dismissed ${res.affectedRows ?? 0} alert(s)`);
+      fetchRows();
+    } catch (err) {
+      toast.error(err?.message ?? "Failed to dismiss all");
+    }
+  }, [rows.length, fetchRows]);
+
   const colDefs = useMemo(
     () => [
       { field: "item_code", headerName: "Item Code", flex: 1 },
@@ -762,12 +774,19 @@ function UntaggedBatchesTab({ canAdd, refreshKey }) {
 
   return (
     <>
-      <Text fontSize="sm" color="gray.600" mb={3}>
-        New batches seen in a stock or price upload for an item that already has an active
-        batch-specific offer elsewhere (items covered by an item-level offer don&apos;t show up
-        here — that offer already applies automatically). Confirm by creating a batch offer for
-        it, or dismiss if it shouldn&apos;t be tagged.
-      </Text>
+      <Flex justify="space-between" align="flex-start" mb={3} gap={3}>
+        <Text fontSize="sm" color="gray.600">
+          New batches seen in a stock or price upload for an item that already has an active
+          batch-specific offer elsewhere (items covered by an item-level offer don&apos;t show up
+          here — that offer already applies automatically). Confirm by creating a batch offer for
+          it, or dismiss if it shouldn&apos;t be tagged.
+        </Text>
+        {canAdd && rows.length ? (
+          <Button size="sm" variant="outline" colorScheme="red" flexShrink={0} onClick={handleDismissAll}>
+            Dismiss All
+          </Button>
+        ) : null}
+      </Flex>
       <AgGrid
         rowData={rows}
         columnDefs={colDefs}

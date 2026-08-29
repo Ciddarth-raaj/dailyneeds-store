@@ -109,6 +109,7 @@ const offersV3 = {
   untaggedBatches: {
     list: () => unwrap(API.get("/offers-v3/untagged-batches"), "Failed to fetch untagged batches").then((d) => d.data ?? []),
     dismiss: (id) => unwrap(API.post(`/offers-v3/untagged-batches/${id}/dismiss`, {}), "Failed to dismiss"),
+    dismissAll: () => unwrap(API.post("/offers-v3/untagged-batches/dismiss-all", {}), "Failed to dismiss all"),
   },
 
   lowStockWarnings: {
