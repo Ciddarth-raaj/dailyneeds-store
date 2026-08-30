@@ -25,6 +25,10 @@ import toast from "react-hot-toast";
 
 const colWidth = 120;
 
+// Older GRNs were flagged against stale/incomplete Price Checker data and
+// are not real issues -- only show mismatches from this date onward.
+const ISSUE_MISMATCH_START_DATE = "2026-08-23";
+
 function queryDate(value) {
   if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
     return null;
@@ -75,14 +79,21 @@ function GrnIssueListing() {
   const viewingMonthDateRange = useMemo(() => {
     const start = moment(viewingMonth).startOf("month");
     const end = moment(viewingMonth).endOf("month");
+    const cutoff = moment(ISSUE_MISMATCH_START_DATE, "YYYY-MM-DD");
+    if (end.isBefore(cutoff, "day")) {
+      return { from_date: null, to_date: null, valid: false };
+    }
+    const from = moment.max(start, cutoff);
     return {
-      from_date: start.format("YYYY-MM-DD"),
+      from_date: from.format("YYYY-MM-DD"),
       to_date: end.format("YYYY-MM-DD"),
+      valid: true,
     };
   }, [viewingMonth]);
 
   const { items, itemsByProductId, loading, error } = useGrnIssues(
-    viewingMonthDateRange
+    viewingMonthDateRange,
+    { enabled: viewingMonthDateRange.valid }
   );
 
   useEffect(() => {
@@ -93,6 +104,10 @@ function GrnIssueListing() {
 
   const allIssueRows = useMemo(() => {
     return (items || [])
+      .filter((item) => {
+        const dayKey = String(item?.mmh_mrc_dt ?? "").slice(0, 10);
+        return dayKey >= ISSUE_MISMATCH_START_DATE;
+      })
       .filter((item) => getGrnLinePriceMismatch(item, itemsByProductId, false))
       .map((item) => ({
         id: `${item.mmh_mrc_refno}-${item.mmd_mrc_sl_no}`,
