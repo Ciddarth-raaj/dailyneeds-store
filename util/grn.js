@@ -12,6 +12,7 @@ export function parseGrnPrice(value) {
 }
 
 export const DISCOUNT_PCT_TOLERANCE = 0.4;
+export const DISCOUNT_AMOUNT_TOLERANCE = 0.01;
 
 export function parseDiscountPct(value) {
   return parseGrnPrice(value);
@@ -24,6 +25,17 @@ export function discountPctWithinTolerance(
 ) {
   const a = parseDiscountPct(left);
   const b = parseDiscountPct(right);
+  if (a == null || b == null) return false;
+  return Math.abs(a - b) <= tolerance;
+}
+
+export function discountAmountWithinTolerance(
+  left,
+  right,
+  tolerance = DISCOUNT_AMOUNT_TOLERANCE
+) {
+  const a = parseGrnPrice(left);
+  const b = parseGrnPrice(right);
   if (a == null || b == null) return false;
   return Math.abs(a - b) <= tolerance;
 }
@@ -48,10 +60,14 @@ export function isPriceCheckerBatchMismatch(
   batch,
   grnMrp,
   grnSp,
-  grnDiscountPct
+  grnDiscountPct,
+  grnDiscountAmount
 ) {
   if (!batch) return true;
-  if (discountPctWithinTolerance(grnDiscountPct, batch.discount_pct)) {
+  if (
+    discountPctWithinTolerance(grnDiscountPct, batch.discount_pct) ||
+    discountAmountWithinTolerance(grnDiscountAmount, batch.discount_amount)
+  ) {
     return false;
   }
   return (
@@ -60,11 +76,19 @@ export function isPriceCheckerBatchMismatch(
   );
 }
 
-export function isGrnRowPriceMismatch(grnMrp, grnSp, grnDiscountPct, batches) {
+export function isGrnRowPriceMismatch(
+  grnMrp,
+  grnSp,
+  grnDiscountPct,
+  grnDiscountAmount,
+  batches
+) {
   if (!Array.isArray(batches) || batches.length === 0) return false;
   if (
-    batches.some((batch) =>
-      discountPctWithinTolerance(grnDiscountPct, batch.discount_pct)
+    batches.some(
+      (batch) =>
+        discountPctWithinTolerance(grnDiscountPct, batch.discount_pct) ||
+        discountAmountWithinTolerance(grnDiscountAmount, batch.discount_amount)
     )
   ) {
     return false;
@@ -78,6 +102,7 @@ export function getGrnLinePriceMismatch(row, itemsByProductId, pcLoading = false
     row.mrp,
     row.mmd_sale_rate,
     row.discount_pct,
+    row.discount_amount,
     itemsByProductId.get(row.product_id) ?? []
   );
 }

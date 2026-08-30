@@ -22,6 +22,7 @@ export default function GrnPriceCheckerItemsModal({
   grnMrp,
   grnSp,
   grnDiscountPct,
+  grnDiscountAmount,
   priceCheckerRows,
   priceCheckerLoading = false,
 }) {
@@ -47,10 +48,16 @@ export default function GrnPriceCheckerItemsModal({
       ...row,
       _priceMismatch:
         !loading &&
-        isPriceCheckerBatchMismatch(row, grnMrp, grnSp, grnDiscountPct),
+        isPriceCheckerBatchMismatch(
+          row,
+          grnMrp,
+          grnSp,
+          grnDiscountPct,
+          grnDiscountAmount
+        ),
     }));
     return sortRowsMismatchFirst(withFlags, (row) => row._priceMismatch);
-  }, [sourceRows, grnMrp, grnSp, grnDiscountPct, loading]);
+  }, [sourceRows, grnMrp, grnSp, grnDiscountPct, grnDiscountAmount, loading]);
 
   const gridOptions = useMemo(
     () => ({
