@@ -145,6 +145,7 @@ function GrnDetailPage() {
             mrp: params.data.mrp,
             sp: params.data.mmd_sale_rate,
             discountPct: params.data.discount_pct,
+            discountAmount: params.data.discount_amount,
           });
         },
       },
@@ -387,6 +388,7 @@ function GrnDetailPage() {
         grnMrp={selectedProduct?.mrp}
         grnSp={selectedProduct?.sp}
         grnDiscountPct={selectedProduct?.discountPct}
+        grnDiscountAmount={selectedProduct?.discountAmount}
         priceCheckerRows={
           selectedProduct?.productId != null
             ? itemsByProductId.get(selectedProduct.productId) ?? []
