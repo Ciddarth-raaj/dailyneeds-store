@@ -61,7 +61,7 @@ export function isPriceCheckerBatchMismatch(
 }
 
 export function isGrnRowPriceMismatch(grnMrp, grnSp, grnDiscountPct, batches) {
-  if (!Array.isArray(batches) || batches.length === 0) return true;
+  if (!Array.isArray(batches) || batches.length === 0) return false;
   if (
     batches.some((batch) =>
       discountPctWithinTolerance(grnDiscountPct, batch.discount_pct)
