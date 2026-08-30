@@ -1,13 +1,20 @@
 import { useEffect, useState, useCallback } from "react";
 import { getGrnIssues } from "../helper/grnList";
 
-export function useGrnIssues({ from_date, to_date } = {}) {
+export function useGrnIssues({ from_date, to_date } = {}, { enabled = true } = {}) {
   const [items, setItems] = useState([]);
   const [itemsByProductId, setItemsByProductId] = useState(() => new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   const fetchIssues = useCallback(async () => {
+    if (!enabled) {
+      setItems([]);
+      setItemsByProductId(new Map());
+      setLoading(false);
+      setError(null);
+      return;
+    }
     try {
       setLoading(true);
       setError(null);
@@ -27,7 +34,7 @@ export function useGrnIssues({ from_date, to_date } = {}) {
     } finally {
       setLoading(false);
     }
-  }, [from_date, to_date]);
+  }, [enabled, from_date, to_date]);
 
   useEffect(() => {
     fetchIssues();
