@@ -107,6 +107,69 @@ export function getGrnLinePriceMismatch(row, itemsByProductId, pcLoading = false
   );
 }
 
+/** Margin between MRP and (Pur. Rate + Tax), as a % of MRP. */
+export function calcBaseMarginMD(purRate, purTaxPct, mrp) {
+  const rate = parseGrnPrice(purRate);
+  const taxPct = parseGrnPrice(purTaxPct);
+  const mrpVal = parseGrnPrice(mrp);
+  if (rate == null || taxPct == null || mrpVal == null || mrpVal === 0) {
+    return null;
+  }
+  const grossRate = rate * (1 + taxPct / 100);
+  return 100 - (grossRate / mrpVal) * 100;
+}
+
+/** Margin between MRP and Net Cost, as a % of MRP. */
+export function calcNetMarginMD(netCost, mrp) {
+  const cost = parseGrnPrice(netCost);
+  const mrpVal = parseGrnPrice(mrp);
+  if (cost == null || mrpVal == null || mrpVal === 0) return null;
+  return 100 - (cost / mrpVal) * 100;
+}
+
+/**
+ * Effective discount %, combining the gap between Net Cost and
+ * (Pur. Rate + Tax) with the recorded discount amount relative to the
+ * gross line value -- quantity basis includes free units.
+ */
+export function calcDiscountInclFree(
+  netCost,
+  purRate,
+  purTaxPct,
+  discountAmt,
+  recdQty,
+  freeQty
+) {
+  const cost = parseGrnPrice(netCost);
+  const rate = parseGrnPrice(purRate);
+  const taxPct = parseGrnPrice(purTaxPct);
+  const discAmt = parseGrnPrice(discountAmt);
+  const qty = (parseGrnPrice(recdQty) ?? 0) + (parseGrnPrice(freeQty) ?? 0);
+  if (
+    cost == null ||
+    rate == null ||
+    taxPct == null ||
+    discAmt == null ||
+    rate === 0 ||
+    qty === 0
+  ) {
+    return null;
+  }
+  const grossRate = rate * (1 + taxPct / 100);
+  if (grossRate === 0) return null;
+  const netVsGrossPct = 100 - (cost / grossRate) * 100;
+  const discOfGrossPct = (discAmt / (rate * qty)) * 100;
+  return netVsGrossPct - discOfGrossPct;
+}
+
+/** Markup of Selling Price over Net Cost, as a %. */
+export function calcMarkupOnSelling(sellingRate, netCost) {
+  const sp = parseGrnPrice(sellingRate);
+  const cost = parseGrnPrice(netCost);
+  if (sp == null || cost == null || cost === 0) return null;
+  return (sp / cost) * 100 - 100;
+}
+
 export function grnDetailHasPriceMismatch(
   items,
   itemsByProductId,

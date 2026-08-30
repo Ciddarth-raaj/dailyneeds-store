@@ -20,6 +20,10 @@ import { useGrnDetail } from "../../customHooks/useGrnDetail";
 import { useGrnPriceCheckerItemsMap } from "../../customHooks/useGrnPriceCheckerItemsMap";
 import { capitalize } from "../../util/string";
 import {
+  calcBaseMarginMD,
+  calcDiscountInclFree,
+  calcMarkupOnSelling,
+  calcNetMarginMD,
   formatDiscountPct,
   getGrnLinePriceMismatch,
   getMismatchRowStyle,
@@ -320,6 +324,68 @@ function GrnDetailPage() {
         minWidth: colWidth,
         width: colWidth,
         maxWidth: colWidth,
+      },
+      {
+        colId: "base_margin_md",
+        headerName: "Base Margin(MD)",
+        flex: 0,
+        minWidth: colWidth,
+        width: colWidth,
+        maxWidth: colWidth,
+        valueGetter: (params) =>
+          calcBaseMarginMD(
+            params.data?.mmd_pur_rate,
+            params.data?.mmd_pur_tax_per,
+            params.data?.mrp
+          ),
+        valueFormatter: (params) => formatDiscountPct(params.value),
+        cellRenderer: (params) => formatDiscountPct(params.value),
+      },
+      {
+        colId: "net_margin_md",
+        headerName: "Net Margin(MD)",
+        flex: 0,
+        minWidth: colWidth,
+        width: colWidth,
+        maxWidth: colWidth,
+        valueGetter: (params) =>
+          calcNetMarginMD(params.data?.mmd_pur_price, params.data?.mrp),
+        valueFormatter: (params) => formatDiscountPct(params.value),
+        cellRenderer: (params) => formatDiscountPct(params.value),
+      },
+      {
+        colId: "discount_incl_free",
+        headerName: "Discount(incl. Free)",
+        flex: 0,
+        minWidth: colWidth,
+        width: colWidth,
+        maxWidth: colWidth,
+        valueGetter: (params) =>
+          calcDiscountInclFree(
+            params.data?.mmd_pur_price,
+            params.data?.mmd_pur_rate,
+            params.data?.mmd_pur_tax_per,
+            params.data?.mmd_disc_amt,
+            params.data?.mmd_recd_qty,
+            params.data?.mmd_free_qty
+          ),
+        valueFormatter: (params) => formatDiscountPct(params.value),
+        cellRenderer: (params) => formatDiscountPct(params.value),
+      },
+      {
+        colId: "markup_on_selling",
+        headerName: "Mark up on Selling",
+        flex: 0,
+        minWidth: colWidth,
+        width: colWidth,
+        maxWidth: colWidth,
+        valueGetter: (params) =>
+          calcMarkupOnSelling(
+            params.data?.mmd_sale_rate,
+            params.data?.mmd_pur_price
+          ),
+        valueFormatter: (params) => formatDiscountPct(params.value),
+        cellRenderer: (params) => formatDiscountPct(params.value),
       },
       {
         field: "discount_amount",
