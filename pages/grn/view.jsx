@@ -313,6 +313,15 @@ function GrnDetailPage() {
         maxWidth: colWidth,
       },
       {
+        field: "mmd_prev_pur_price",
+        headerName: "Prev.N.cost",
+        type: "currency",
+        flex: 0,
+        minWidth: colWidth,
+        width: colWidth,
+        maxWidth: colWidth,
+      },
+      {
         field: "discount_amount",
         headerName: "Discount Amount",
         type: "currency",
