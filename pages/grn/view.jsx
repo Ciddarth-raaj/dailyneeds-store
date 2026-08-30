@@ -207,7 +207,7 @@ function GrnDetailPage() {
         maxWidth: 90,
         valueGetter: (params) =>
           params.data?.is_offer_product
-            ? { label: "Offer", colorScheme: "green" }
+            ? { label: "Offer", colorScheme: "blue" }
             : null,
       },
       {
