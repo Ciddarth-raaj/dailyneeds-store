@@ -197,6 +197,7 @@ export const PERMISSIONS = {
   grn: {
     view_all_grn: "View All GRN",
     view_purchase_uom: "View Purchase UOM",
+    view_issue_grn: "View Issue GRN",
   },
 
   // Purchase Ref
