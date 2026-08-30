@@ -12,6 +12,18 @@ export const getGrnList = ({ from_date, to_date } = {}) => {
   });
 };
 
+export const getGrnIssues = ({ from_date, to_date } = {}) => {
+  const params = {};
+  if (from_date) params.from_date = from_date;
+  if (to_date) params.to_date = to_date;
+
+  return API.get("/grn/issues", { params }).then((res) => {
+    const data = res?.data ?? res;
+    if (data?.code === 200) return data;
+    throw new Error(data?.msg || "Failed to fetch GRN issues");
+  });
+};
+
 export const getGrnDetail = (refno) => {
   return API.get("/grn/detail", {
     params: { refno },

@@ -15,9 +15,7 @@ import AgGrid from "../../components/AgGrid";
 import MonthStatusCalendar from "../../components/calendar/MonthStatusCalendar";
 import GrnHighlightLoader from "../../components/grn/GrnHighlightLoader";
 import GrnPriceCheckerItemsModal from "../../components/grn/GrnPriceCheckerItemsModal";
-import { useGrnList } from "../../customHooks/useGrnList";
-import { useGrnDetailsByRefno } from "../../customHooks/useGrnDetailsByRefno";
-import { useGrnPriceCheckerItemsMap } from "../../customHooks/useGrnPriceCheckerItemsMap";
+import { useGrnIssues } from "../../customHooks/useGrnIssues";
 import {
   formatDiscountPct,
   getGrnLinePriceMismatch,
@@ -83,64 +81,27 @@ function GrnIssueListing() {
     };
   }, [viewingMonth]);
 
-  const { grnList, loading, error } = useGrnList(viewingMonthDateRange);
+  const { items, itemsByProductId, loading, error } = useGrnIssues(
+    viewingMonthDateRange
+  );
 
   useEffect(() => {
     if (error) {
-      toast.error(error?.message || "Failed to load GRN list.");
+      toast.error(error?.message || "Failed to load GRN issues.");
     }
   }, [error]);
 
-  const refnos = useMemo(
-    () => (grnList || []).map((row) => row?.mmh_mrc_refno).filter(Boolean),
-    [grnList]
-  );
-
-  const { detailsByRefno, loading: detailsLoading } = useGrnDetailsByRefno(
-    refnos,
-    { enabled: !loading && refnos.length > 0 }
-  );
-
-  const productIds = useMemo(() => {
-    const ids = new Set();
-    detailsByRefno.forEach((detail) => {
-      (detail?.items ?? []).forEach((item) => {
-        if (item?.product_id != null) ids.add(item.product_id);
-      });
-    });
-    return [...ids];
-  }, [detailsByRefno]);
-
-  const { itemsByProductId, loading: pcLoading } = useGrnPriceCheckerItemsMap(
-    productIds,
-    { enabled: !detailsLoading && productIds.length > 0 }
-  );
-
-  const highlightReady = !detailsLoading && !pcLoading;
-  const highlightLoading =
-    !loading && refnos.length > 0 && (detailsLoading || pcLoading);
-
   const allIssueRows = useMemo(() => {
-    if (!highlightReady) return [];
-    const rows = [];
-    (grnList || []).forEach((header) => {
-      const refno =
-        header?.mmh_mrc_refno != null ? String(header.mmh_mrc_refno) : "";
-      if (!refno) return;
-      const items = detailsByRefno.get(refno)?.items ?? [];
-      items.forEach((item) => {
-        if (!getGrnLinePriceMismatch(item, itemsByProductId, false)) return;
-        rows.push({
-          id: `${refno}-${item.mmd_mrc_sl_no}`,
-          grn_refno: header.mmh_mrc_refno,
-          mrc_date: header.mmh_mrc_dt,
-          supplier_name: header.supplier_name,
-          ...item,
-        });
-      });
-    });
-    return rows;
-  }, [grnList, detailsByRefno, itemsByProductId, highlightReady]);
+    return (items || [])
+      .filter((item) => getGrnLinePriceMismatch(item, itemsByProductId, false))
+      .map((item) => ({
+        id: `${item.mmh_mrc_refno}-${item.mmd_mrc_sl_no}`,
+        grn_refno: item.mmh_mrc_refno,
+        mrc_date: item.mmh_mrc_dt,
+        supplier_name: item.supplier_name,
+        ...item,
+      }));
+  }, [items, itemsByProductId]);
 
   const statsByDay = useMemo(() => {
     const map = {};
@@ -411,14 +372,10 @@ function GrnIssueListing() {
         />
 
         <CustomContainer title={tableTitle} filledHeader>
-          {loading || highlightLoading ? (
+          {loading ? (
             <GrnHighlightLoader
-              label={
-                loading
-                  ? "Loading GRN list..."
-                  : "Checking price mismatches..."
-              }
-              minH={loading ? "120px" : "240px"}
+              label="Loading GRN issues..."
+              minH="240px"
             />
           ) : displayRowData.length === 0 ? (
             <Text color="gray.500" py={6} textAlign="center">
@@ -450,7 +407,7 @@ function GrnIssueListing() {
             ? itemsByProductId.get(selectedProduct.productId) ?? []
             : undefined
         }
-        priceCheckerLoading={pcLoading}
+        priceCheckerLoading={loading}
       />
     </GlobalWrapper>
   );
