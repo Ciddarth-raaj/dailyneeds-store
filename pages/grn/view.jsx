@@ -57,6 +57,7 @@ function SummaryField({ label, value }) {
 function GrnDetailPage() {
   const router = useRouter();
   const refno = queryParam(router.query.refno);
+  const backTo = queryParam(router.query.from);
   const isReady = router.isReady;
   const [selectedProduct, setSelectedProduct] = useState(null);
   const { colorScheme } = useModuleTableTheme();
@@ -312,8 +313,8 @@ function GrnDetailPage() {
             variant="outline"
             colorScheme="purple"
             onClick={() => {
-              if (window.history.state?.idx > 0) {
-                router.back();
+              if (backTo && backTo.startsWith("/") && !backTo.startsWith("//")) {
+                router.push(backTo);
               } else {
                 router.push("/grn");
               }

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useCallback } from "react";
+import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import moment from "moment";
 import { useRouter } from "next/router";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
@@ -17,6 +17,13 @@ import {
 } from "../../util/grn";
 import toast from "react-hot-toast";
 
+function queryDate(value) {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return null;
+  }
+  return moment(value, "YYYY-MM-DD", true).isValid() ? value : null;
+}
+
 function GrnListing() {
   const router = useRouter();
   const [mismatchBg] = useToken("colors", ["red.100"]);
@@ -26,6 +33,28 @@ function GrnListing() {
   const [viewingMonth, setViewingMonth] = useState(() =>
     moment().clone().startOf("month")
   );
+  const hydratedFromQuery = useRef(false);
+
+  useEffect(() => {
+    if (!router.isReady || hydratedFromQuery.current) return;
+    hydratedFromQuery.current = true;
+    const dateFromQuery = queryDate(router.query.date);
+    if (dateFromQuery) {
+      setSelectedDate(dateFromQuery);
+      setViewingMonth(moment(dateFromQuery, "YYYY-MM-DD").startOf("month"));
+    }
+  }, [router.isReady, router.query.date]);
+
+  useEffect(() => {
+    if (!router.isReady || !hydratedFromQuery.current) return;
+    if (router.query.date === selectedDate) return;
+    router.replace(
+      { pathname: "/grn", query: { date: selectedDate } },
+      undefined,
+      { shallow: true }
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDate, router.isReady]);
 
   const viewingMonthDateRange = useMemo(() => {
     const start = moment(viewingMonth).startOf("month");
@@ -166,7 +195,10 @@ function GrnListing() {
     (event) => {
       const refno = event?.data?.mmh_mrc_refno;
       if (refno == null || refno === "") return;
-      router.push(`/grn/view?refno=${encodeURIComponent(String(refno))}`);
+      const from = encodeURIComponent(router.asPath);
+      router.push(
+        `/grn/view?refno=${encodeURIComponent(String(refno))}&from=${from}`
+      );
     },
     [router]
   );
