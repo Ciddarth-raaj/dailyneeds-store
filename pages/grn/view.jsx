@@ -315,9 +315,12 @@ function GrnDetailPage() {
             onClick={() => {
               if (backTo && backTo.startsWith("/") && !backTo.startsWith("//")) {
                 router.push(backTo);
-              } else {
-                router.push("/grn");
+                return;
               }
+              const grnDate = header?.mmh_mrc_dt
+                ? String(header.mmh_mrc_dt).slice(0, 10)
+                : null;
+              router.push(grnDate ? `/grn?date=${grnDate}` : "/grn");
             }}
           >
             Back to All GRN
