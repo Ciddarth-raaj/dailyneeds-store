@@ -651,6 +651,12 @@ const WMS_MENU = {
         selected: false,
         location: "/grn/purchase-uom",
       },
+      view_issue_grn: {
+        title: "Issue GRN",
+        permission: "view_issue_grn",
+        selected: false,
+        location: "/grn/issue",
+      },
     },
   },
   purchase_ref: {
