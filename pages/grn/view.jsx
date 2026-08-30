@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/router";
-import Link from "next/link";
 import moment from "moment";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../components/CustomContainer";
@@ -308,11 +307,20 @@ function GrnDetailPage() {
     <GlobalWrapper title={pageTitle} permissionKey="view_all_grn">
       <Flex flexDirection="column" gap={6}>
         <Flex justify="space-between" align="center" flexWrap="wrap" gap={3}>
-          <Link href="/grn" passHref>
-            <Button as="a" size="sm" variant="outline" colorScheme="purple">
-              Back to All GRN
-            </Button>
-          </Link>
+          <Button
+            size="sm"
+            variant="outline"
+            colorScheme="purple"
+            onClick={() => {
+              if (window.history.state?.idx > 0) {
+                router.back();
+              } else {
+                router.push("/grn");
+              }
+            }}
+          >
+            Back to All GRN
+          </Button>
         </Flex>
 
         <CustomContainer title="GRN Summary" filledHeader size="xs">
