@@ -207,8 +207,8 @@ function GrnDetailPage() {
         maxWidth: 90,
         valueGetter: (params) =>
           params.data?.is_offer_product
-            ? { label: "Yes", colorScheme: "green" }
-            : { label: "No", colorScheme: "gray" },
+            ? { label: "Offer", colorScheme: "green" }
+            : null,
       },
       {
         field: "mmd_recd_qty",
