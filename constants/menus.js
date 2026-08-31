@@ -787,6 +787,12 @@ const WMS_MENU = {
         selected: false,
         location: "/offers-v3/talker-groups",
       },
+      view_talker_print: {
+        title: "Print Talkers",
+        permission: "manage_offers_v3_talker_groups",
+        selected: false,
+        location: "/offers-v3/talker-print",
+      },
     },
   },
   cleaning: {

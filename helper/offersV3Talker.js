@@ -101,6 +101,22 @@ const offersV3Talker = {
       ),
   },
 
+  print: {
+    /** One card per physical sign to print, derived from each group's offer. */
+    cards: (params = {}) =>
+      unwrap(
+        API.get("/offers-v3-talker/print-cards", { params }),
+        "Failed to fetch talkers to print"
+      ).then((d) => d.cards ?? []),
+
+    /** Store what the printed sign says, so the photo check compares to it. */
+    syncText: (group_ids) =>
+      unwrap(
+        API.post("/offers-v3-talker/print-cards/sync-text", { group_ids }),
+        "Failed to save expected sign text"
+      ),
+  },
+
   suggested: {
     resolve: (id, accept) =>
       unwrap(
