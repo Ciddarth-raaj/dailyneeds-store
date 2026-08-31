@@ -12,12 +12,18 @@ import {
   SimpleGrid,
   Spinner,
   Tab,
+  Table,
   TabList,
   TabPanel,
   TabPanels,
   Tabs,
+  Tbody,
+  Td,
   Text,
   Textarea,
+  Th,
+  Thead,
+  Tr,
 } from "@chakra-ui/react";
 import toast from "react-hot-toast";
 import CustomModal from "../../components/CustomModal";
@@ -27,6 +33,18 @@ import { OFFER_TYPE_LABELS } from "../../constants/offersV3";
 
 
 const STATUS_COLORS = { published: "green", ended: "red" };
+
+/**
+ * A value means nothing without its type - 10 is 10% off, Rs10 off MRP, or a
+ * Rs10 price - so the two columns are read together and the unit goes here.
+ */
+function offerValueLabel(offer_type, value) {
+  if (value == null) return "—";
+  const num = Number(value);
+  if (Number.isNaN(num)) return String(value);
+  const text = Number.isInteger(num) ? String(num) : num.toFixed(2);
+  return offer_type === "percentage" ? `${text}%` : `₹${text}`;
+}
 
 /**
  * Add articles to this group, picked from the articles currently on offer -
@@ -185,6 +203,9 @@ export default function TalkerGroups() {
   const [statusFilter, setStatusFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
   const [search, setSearch] = useState("");
+  // The box filters both tabs, so it is typed into faster than a round trip.
+  // Applying it on a pause keeps one request per search, not one per keystroke.
+  const [appliedSearch, setAppliedSearch] = useState("");
 
   const [detail, setDetail] = useState(null);
   const [detailOpen, setDetailOpen] = useState(false);
@@ -201,7 +222,7 @@ export default function TalkerGroups() {
       offersV3Talker.groups.list({
         ...(statusFilter ? { status: statusFilter } : {}),
         ...(typeFilter ? { group_type: typeFilter } : {}),
-        ...(search ? { search } : {}),
+        ...(appliedSearch ? { search: appliedSearch } : {}),
       }),
       offersV3Talker.groups.ungrouped(),
     ])
@@ -215,7 +236,12 @@ export default function TalkerGroups() {
       })
       .catch((err) => toast.error(err.message ?? "Could not load groups"))
       .finally(() => setLoading(false));
-  }, [statusFilter, typeFilter, search]);
+  }, [statusFilter, typeFilter, appliedSearch]);
+
+  useEffect(() => {
+    const t = setTimeout(() => setAppliedSearch(search.trim()), 250);
+    return () => clearTimeout(t);
+  }, [search]);
 
   useEffect(() => {
     fetchAll();
@@ -326,6 +352,20 @@ export default function TalkerGroups() {
    */
   const [pickedCodes, setPickedCodes] = useState(() => new Set());
 
+  /**
+   * The same box filters this tab, client side: the whole pool is already
+   * loaded, and an article is looked for by code as often as by name.
+   */
+  const visibleUngrouped = useMemo(() => {
+    if (!appliedSearch) return ungrouped.data;
+    const q = appliedSearch.toLowerCase();
+    return ungrouped.data.filter((r) =>
+      [r.item_code, r.item_name, r.supplier].some(
+        (field) => field != null && String(field).toLowerCase().includes(q)
+      )
+    );
+  }, [ungrouped.data, appliedSearch]);
+
   const togglePick = (code) =>
     setPickedCodes((prev) => {
       const next = new Set(prev);
@@ -402,7 +442,7 @@ export default function TalkerGroups() {
           <Flex gap={2} mb={4} wrap="wrap">
             <Input
               size="sm"
-              placeholder="Search name or supplier"
+              placeholder="Search name, supplier or item code"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               maxW="260px"
@@ -510,7 +550,7 @@ export default function TalkerGroups() {
                   Articles on offer with no talker. They need one only where
                   you want one — tick what you want a card for.
                 </Text>
-                {canManage && ungrouped.data.length ? (
+                {canManage && visibleUngrouped.length ? (
                   <Flex
                     gap={3}
                     align="center"
@@ -547,36 +587,53 @@ export default function TalkerGroups() {
                   <Box p={6} textAlign="center" bg="gray.50" borderRadius="lg">
                     <Text>Every article on offer already has a talker.</Text>
                   </Box>
+                ) : visibleUngrouped.length === 0 ? (
+                  <Box p={6} textAlign="center" bg="gray.50" borderRadius="lg">
+                    <Text>
+                      No article on offer matches “{appliedSearch}”.
+                    </Text>
+                  </Box>
                 ) : (
-                  <Box borderWidth="1px" borderRadius="lg" overflow="hidden">
-                    {ungrouped.data.slice(0, 200).map((row, i) => (
-                      <Flex
-                        key={row.item_code}
-                        px={3}
-                        py={2}
-                        bg={i % 2 ? "gray.50" : "white"}
-                        justify="space-between"
-                        align="center"
-                        gap={3}
-                      >
-                        {canManage ? (
-                          <Checkbox
-                            isChecked={pickedCodes.has(row.item_code)}
-                            onChange={() => togglePick(row.item_code)}
-                          />
-                        ) : null}
-                        <Text fontSize="sm" flex="1" noOfLines={1}>
-                          {row.item_code} · {row.item_name}
-                        </Text>
-                        <Text fontSize="sm" color="gray.600" flexShrink={0}>
-                          {OFFER_TYPE_LABELS[row.offer_type] ?? row.offer_type}
-                          {row.value != null ? ` ${row.value}` : ""}
-                        </Text>
-                      </Flex>
-                    ))}
-                    {ungrouped.data.length > 200 ? (
+                  <Box borderWidth="1px" borderRadius="lg" overflowX="auto">
+                    <Table size="sm">
+                      <Thead bg="gray.50">
+                        <Tr>
+                          {canManage ? <Th w="1%" /> : null}
+                          <Th>Item Code</Th>
+                          <Th>Item Name</Th>
+                          <Th>Supplier</Th>
+                          <Th>Offer Type</Th>
+                          <Th isNumeric>Value</Th>
+                        </Tr>
+                      </Thead>
+                      <Tbody>
+                        {visibleUngrouped.slice(0, 200).map((row) => (
+                          <Tr key={row.item_code}>
+                            {canManage ? (
+                              <Td>
+                                <Checkbox
+                                  isChecked={pickedCodes.has(row.item_code)}
+                                  onChange={() => togglePick(row.item_code)}
+                                />
+                              </Td>
+                            ) : null}
+                            <Td>{row.item_code}</Td>
+                            <Td>{row.item_name}</Td>
+                            <Td color="gray.600">{row.supplier ?? "—"}</Td>
+                            <Td>
+                              {OFFER_TYPE_LABELS[row.offer_type] ?? row.offer_type}
+                            </Td>
+                            <Td isNumeric>
+                              {offerValueLabel(row.offer_type, row.value)}
+                            </Td>
+                          </Tr>
+                        ))}
+                      </Tbody>
+                    </Table>
+                    {visibleUngrouped.length > 200 ? (
                       <Text p={2} fontSize="xs" color="gray.500">
-                        Showing the first 200 of {ungrouped.data.length}.
+                        Showing the first 200 of {visibleUngrouped.length} —
+                        search to narrow it down.
                       </Text>
                     ) : null}
                   </Box>
