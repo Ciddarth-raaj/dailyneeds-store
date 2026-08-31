@@ -160,6 +160,9 @@ function GroupRow({ group, onOpen }) {
           {group.suggested_count > 0 ? (
             <Badge colorScheme="purple">{group.suggested_count} suggested</Badge>
           ) : null}
+          <Badge colorScheme={group.group_type === "brand" ? "blue" : "gray"}>
+            {group.group_type === "brand" ? "brand" : "individual"}
+          </Badge>
           <Badge colorScheme={STATUS_COLORS[group.status]}>{group.status}</Badge>
         </Flex>
       </Flex>
@@ -175,6 +178,7 @@ export default function TalkerGroups() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [statusFilter, setStatusFilter] = useState("");
+  const [typeFilter, setTypeFilter] = useState("");
   const [search, setSearch] = useState("");
 
   const [detail, setDetail] = useState(null);
@@ -189,6 +193,7 @@ export default function TalkerGroups() {
     Promise.all([
       offersV3Talker.groups.list({
         ...(statusFilter ? { status: statusFilter } : {}),
+        ...(typeFilter ? { group_type: typeFilter } : {}),
         ...(search ? { search } : {}),
       }),
       offersV3Talker.groups.ungrouped(),
@@ -199,7 +204,7 @@ export default function TalkerGroups() {
       })
       .catch((err) => toast.error(err.message ?? "Could not load groups"))
       .finally(() => setLoading(false));
-  }, [statusFilter, search]);
+  }, [statusFilter, typeFilter, search]);
 
   useEffect(() => {
     fetchAll();
@@ -274,7 +279,8 @@ export default function TalkerGroups() {
     try {
       const res = await offersV3Talker.groups.autoDerive();
       toast.success(
-        `${res.createdGroups} group(s) drafted, ${res.suggested} suggestion(s) raised`
+        `${res.createdBrandGroups} brand sign(s) and ${res.createdIndividualGroups} individual sign(s) drafted` +
+          (res.suggested ? `, ${res.suggested} suggestion(s) raised` : "")
       );
       fetchAll();
     } catch (err) {
@@ -341,6 +347,16 @@ export default function TalkerGroups() {
               <option value="draft">Draft</option>
               <option value="published">Published</option>
               <option value="ended">Ended</option>
+            </Select>
+            <Select
+              size="sm"
+              maxW="190px"
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+            >
+              <option value="">Brand &amp; individual</option>
+              <option value="brand">Brand signs only</option>
+              <option value="individual">Individual signs only</option>
             </Select>
             {canManage ? (
               <>
