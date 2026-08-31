@@ -136,7 +136,7 @@ function AddArticles({ existingCodes, disabled, busy, onAdd }) {
   );
 }
 
-function GroupRow({ group, onOpen }) {
+function GroupRow({ group, onOpen, selected, onSelect }) {
   return (
     <Box
       borderWidth="1px"
@@ -144,10 +144,18 @@ function GroupRow({ group, onOpen }) {
       p={3}
       mb={2}
       cursor="pointer"
-      _hover={{ borderColor: "blue.300" }}
+      bg={selected ? "red.50" : undefined}
+      borderColor={selected ? "red.300" : undefined}
+      _hover={{ borderColor: selected ? "red.400" : "blue.300" }}
       onClick={() => onOpen(group.id)}
     >
       <Flex justify="space-between" align="flex-start" gap={3} wrap="wrap">
+        <Checkbox
+          isChecked={selected}
+          /* the row opens the group, so the tick must not also open it */
+          onClick={(e) => e.stopPropagation()}
+          onChange={() => onSelect(group.id)}
+        />
         <Box flex="1" minW={0}>
           <Text fontWeight="bold">{group.label}</Text>
           <Text fontSize="sm" color="gray.600">
@@ -187,6 +195,8 @@ export default function TalkerGroups() {
   const [newGroup, setNewGroup] = useState({ label: "", talker_text: "", expected_pct_off: "" });
   const [splitSelection, setSplitSelection] = useState([]);
   const [mergeTarget, setMergeTarget] = useState("");
+  const [selectedIds, setSelectedIds] = useState(() => new Set());
+  const [deleting, setDeleting] = useState(false);
 
   const fetchAll = useCallback(() => {
     setLoading(true);
@@ -201,6 +211,9 @@ export default function TalkerGroups() {
       .then(([g, u]) => {
         setGroups(g);
         setUngrouped(u);
+        // A tick has to mean the row you can see. Keeping a selection across a
+        // filter change would let a Delete hit groups scrolled out of view.
+        setSelectedIds(new Set());
       })
       .catch((err) => toast.error(err.message ?? "Could not load groups"))
       .finally(() => setLoading(false));
@@ -209,6 +222,65 @@ export default function TalkerGroups() {
   useEffect(() => {
     fetchAll();
   }, [fetchAll]);
+
+  const toggleSelect = (id) =>
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  const allSelected =
+    groups.length > 0 && groups.every((g) => selectedIds.has(g.id));
+
+  const toggleSelectAll = () =>
+    setSelectedIds(allSelected ? new Set() : new Set(groups.map((g) => g.id)));
+
+  /**
+   * Deleting a group takes its per-outlet shelf map and every photo round with
+   * it, and none of that comes back - an outlet's map only exists because staff
+   * walked the aisles. So the server is asked what would go first, and the
+   * confirmation names it.
+   */
+  const deleteSelected = async () => {
+    const ids = [...selectedIds];
+    if (!ids.length) return;
+    setDeleting(true);
+    try {
+      const { counts } = await offersV3Talker.groups.deletePreview(ids);
+      const alsoGoes = [
+        counts.locations
+          ? `${counts.locations} mapped shelf spot${counts.locations === 1 ? "" : "s"}`
+          : null,
+        counts.proofs
+          ? `${counts.proofs} photo round${counts.proofs === 1 ? "" : "s"}`
+          : null,
+      ].filter(Boolean);
+
+      const message =
+        `Delete ${counts.groups} sign${counts.groups === 1 ? "" : "s"}?` +
+        (alsoGoes.length
+          ? `\n\nThis also permanently deletes ${alsoGoes.join(" and ")}. ` +
+            `A store's shelf map cannot be rebuilt except by staff walking the aisles again.`
+          : "") +
+        `\n\nThe offers themselves are not touched, so Auto-derive can rebuild the signs.` +
+        `\n\nThis cannot be undone.`;
+
+      if (!window.confirm(message)) return;
+
+      const res = await offersV3Talker.groups.bulkDelete(ids);
+      toast.success(
+        `Deleted ${res.deleted} sign${res.deleted === 1 ? "" : "s"}`
+      );
+      setSelectedIds(new Set());
+      fetchAll();
+    } catch (err) {
+      toast.error(err.message ?? "Could not delete");
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const openDetail = async (id) => {
     try {
@@ -385,6 +457,36 @@ export default function TalkerGroups() {
 
             <TabPanels>
               <TabPanel px={0}>
+                {canManage && groups.length ? (
+                  <Flex
+                    gap={3}
+                    align="center"
+                    mb={3}
+                    wrap="wrap"
+                    p={2}
+                    borderWidth="1px"
+                    borderRadius="md"
+                    bg={selectedIds.size ? "red.50" : "gray.50"}
+                  >
+                    <Checkbox isChecked={allSelected} onChange={toggleSelectAll}>
+                      Select all ({groups.length})
+                    </Checkbox>
+                    <Text fontSize="sm" color="gray.600" flex="1">
+                      {selectedIds.size
+                        ? `${selectedIds.size} selected`
+                        : "Tick signs to delete them"}
+                    </Text>
+                    <Button
+                      size="sm"
+                      colorScheme="red"
+                      isDisabled={!selectedIds.size}
+                      isLoading={deleting}
+                      onClick={deleteSelected}
+                    >
+                      Delete selected
+                    </Button>
+                  </Flex>
+                ) : null}
                 {loading ? (
                   <Flex justify="center" p={8}>
                     <Spinner />
@@ -395,7 +497,15 @@ export default function TalkerGroups() {
                     from the live offers.
                   </Text>
                 ) : (
-                  groups.map((g) => <GroupRow key={g.id} group={g} onOpen={openDetail} />)
+                  groups.map((g) => (
+                    <GroupRow
+                      key={g.id}
+                      group={g}
+                      onOpen={openDetail}
+                      selected={selectedIds.has(g.id)}
+                      onSelect={toggleSelect}
+                    />
+                  ))
                 )}
               </TabPanel>
 

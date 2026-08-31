@@ -94,6 +94,22 @@ const offersV3Talker = {
         "Failed to split group"
       ),
 
+    /** What deleting these would take with it - counts only, deletes nothing. */
+    deletePreview: (group_ids) =>
+      unwrap(
+        API.post("/offers-v3-talker/groups/bulk-delete", {
+          group_ids,
+          dry_run: true,
+        }),
+        "Failed to check what would be deleted"
+      ),
+
+    bulkDelete: (group_ids) =>
+      unwrap(
+        API.post("/offers-v3-talker/groups/bulk-delete", { group_ids }),
+        "Failed to delete the selected groups"
+      ),
+
     autoDerive: () =>
       unwrap(
         API.post("/offers-v3-talker/groups/auto-derive", {}),
