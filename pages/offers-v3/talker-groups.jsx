@@ -439,42 +439,13 @@ export default function TalkerGroups() {
             until it’s published.
           </Text>
 
-          <Flex gap={2} mb={4} wrap="wrap">
-            <Input
-              size="sm"
-              placeholder="Search name, supplier or item code"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              maxW="260px"
-            />
-            <Select
-              size="sm"
-              maxW="160px"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-            >
-              <option value="">Live & ended</option>
-              <option value="published">Live</option>
-              <option value="ended">Ended</option>
-            </Select>
-            <Select
-              size="sm"
-              maxW="190px"
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-            >
-              <option value="">Brand &amp; individual</option>
-              <option value="group">Group talkers only</option>
-              <option value="individual">Individual talkers only</option>
-            </Select>
-            {canManage ? (
-              <>
-                <Button size="sm" onClick={() => setCreateOpen(true)}>
-                  New talker
-                </Button>
-              </>
-            ) : null}
-          </Flex>
+          {canManage ? (
+            <Flex gap={2} mb={4} wrap="wrap">
+              <Button size="sm" onClick={() => setCreateOpen(true)}>
+                New talker
+              </Button>
+            </Flex>
+          ) : null}
 
           <Tabs colorScheme="purple">
             <TabList>
@@ -493,6 +464,37 @@ export default function TalkerGroups() {
 
             <TabPanels>
               <TabPanel px={0}>
+                {/* Each list carries its own controls: one shared row above the
+                    tabs reads as belonging to whichever tab is open. */}
+                <Flex gap={2} mb={3} wrap="wrap">
+                  <Input
+                    size="sm"
+                    placeholder="Search talkers by name or supplier"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    maxW="280px"
+                  />
+                  <Select
+                    size="sm"
+                    maxW="160px"
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                  >
+                    <option value="">Live &amp; ended</option>
+                    <option value="published">Live</option>
+                    <option value="ended">Ended</option>
+                  </Select>
+                  <Select
+                    size="sm"
+                    maxW="190px"
+                    value={typeFilter}
+                    onChange={(e) => setTypeFilter(e.target.value)}
+                  >
+                    <option value="">Group &amp; individual</option>
+                    <option value="group">Group talkers only</option>
+                    <option value="individual">Individual talkers only</option>
+                  </Select>
+                </Flex>
                 {canManage && groups.length ? (
                   <Flex
                     gap={3}
@@ -550,6 +552,20 @@ export default function TalkerGroups() {
                   Articles on offer with no talker. They need one only where
                   you want one — tick what you want a card for.
                 </Text>
+                <Flex gap={2} mb={3} wrap="wrap" align="center">
+                  <Input
+                    size="sm"
+                    placeholder="Search by item code, name or supplier"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    maxW="320px"
+                  />
+                  <Text fontSize="sm" color="gray.600">
+                    {appliedSearch
+                      ? `${visibleUngrouped.length} of ${ungrouped.data.length} articles`
+                      : `${ungrouped.data.length} article${ungrouped.data.length === 1 ? "" : "s"}`}
+                  </Text>
+                </Flex>
                 {canManage && visibleUngrouped.length ? (
                   <Flex
                     gap={3}
