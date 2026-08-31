@@ -484,6 +484,15 @@ export default function TalkerPrint() {
             </Checkbox>
             <Button
               size="sm"
+              variant="outline"
+              colorScheme="gray"
+              isLoading={loading}
+              onClick={load}
+            >
+              Refresh
+            </Button>
+            <Button
+              size="sm"
               variant={editing ? "solid" : "outline"}
               colorScheme="gray"
               onClick={() => {
