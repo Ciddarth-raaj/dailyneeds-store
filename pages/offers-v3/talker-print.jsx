@@ -17,15 +17,23 @@ import toast from "react-hot-toast";
 import offersV3Talker from "../../helper/offersV3Talker";
 
 /**
- * 8 talkers to an A4 sheet: two columns of 105mm, four rows of 74mm. That is
- * 210 x 296mm, so a sheet fills the page exactly and the cut lines are the
- * card edges - no gutters to measure.
+ * 8 talkers to an A4 sheet: two columns, four rows, cut lines being the card
+ * edges - no gutters to measure.
+ *
+ * 104 x 73mm rather than a full-bleed 105 x 74: two 105mm columns come to
+ * exactly A4's 210mm width, and sub-pixel rounding then spills the row onto a
+ * second page, so every sheet printed a blank one after it. The 2mm of slack
+ * costs nothing - no printer reaches the paper edge anyway.
  */
-const CARD_W = "105mm";
-const CARD_H = "74mm";
+const CARD_W = "104mm";
+const CARD_H = "73mm";
 const PER_SHEET = 8;
 
 const STATUS_COLORS = { draft: "gray", published: "green" };
+
+/** Sampled from public/assets/dnds-logo.png so print matches the brand mark. */
+const BRAND_PURPLE = "#732f8d";
+const BRAND_ORANGE = "#f15a22";
 
 function cardKey(card) {
   return `${card.group_id}-${card.offer_type}-${card.value}`;
@@ -40,8 +48,16 @@ function TalkerCard({ card }) {
   return (
     <div className="talker-card">
       <div className="talker-card-inner">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img className="talker-logo" src="/assets/dnds-logo.png" alt="Daily Needs" />
         <div className="talker-title">{card.title}</div>
-        <div className="talker-headline">{card.headline}</div>
+        {card.lead ? <div className="talker-lead">{card.lead}</div> : null}
+        <div className="talker-headline">
+          {card.big}
+          {card.trail ? (
+            <span className="talker-trail">{card.trail}</span>
+          ) : null}
+        </div>
         {card.subline ? (
           <div className="talker-subline">{card.subline}</div>
         ) : null}
@@ -225,7 +241,13 @@ export default function TalkerPrint() {
           display: grid;
           grid-template-columns: ${CARD_W} ${CARD_W};
           grid-auto-rows: ${CARD_H};
-          width: 210mm;
+          width: 208mm;
+          /* The grid measures 208 x 292mm, well inside A4, yet still spilled a
+             blank page after every sheet - text descenders in the bottom row
+             push the box past its own rows. Pinning the height and clipping is
+             what actually stops it; verified by rendering to PDF. */
+          height: 292mm;
+          overflow: hidden;
         }
         .talker-card {
           width: ${CARD_W};
@@ -248,27 +270,47 @@ export default function TalkerPrint() {
           background: #fff;
           color: #000;
         }
+        .talker-logo {
+          width: 30mm;
+          height: auto;
+          display: block;
+          margin-bottom: 2mm;
+        }
         .talker-title {
-          font-size: 4.6mm;
+          font-size: 4.4mm;
           line-height: 1.15;
           font-weight: 700;
           text-transform: uppercase;
           letter-spacing: 0.02em;
-          max-height: 11mm;
+          color: ${BRAND_PURPLE};
+          max-height: 10mm;
           overflow: hidden;
         }
+        .talker-lead {
+          font-size: 5mm;
+          font-weight: 800;
+          letter-spacing: 0.1em;
+          color: ${BRAND_PURPLE};
+          margin-top: 2mm;
+        }
         .talker-headline {
-          font-size: 14mm;
+          font-size: 17mm;
           line-height: 1.05;
           font-weight: 800;
-          margin-top: 3mm;
+          color: ${BRAND_ORANGE};
+          margin-top: 1mm;
           white-space: nowrap;
         }
+        .talker-trail {
+          font-size: 9mm;
+          margin-left: 2mm;
+        }
         .talker-subline {
-          font-size: 4.6mm;
+          font-size: 4.4mm;
           font-weight: 700;
           letter-spacing: 0.18em;
-          margin-top: 1.5mm;
+          color: ${BRAND_PURPLE};
+          margin-top: 1mm;
         }
         @media print {
           @page {
@@ -291,6 +333,14 @@ export default function TalkerPrint() {
           }
           .talker-card-inner {
             border-color: #bbb;
+          }
+          /* Without this most browsers strip colour on print, and the logo
+             and the discount - the two things the sign exists for - come out
+             grey. */
+          #talker-print-root,
+          #talker-print-root * {
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
           }
         }
       `,
@@ -411,8 +461,7 @@ export default function TalkerPrint() {
                           {card.title}
                         </Text>
                         <Text fontSize="12px" color="gray.600">
-                          {card.headline}
-                          {card.subline ? ` ${card.subline}` : ""} ·{" "}
+                          {card.printed_text} ·{" "}
                           {card.item_count} article
                           {card.item_count === 1 ? "" : "s"}
                         </Text>
