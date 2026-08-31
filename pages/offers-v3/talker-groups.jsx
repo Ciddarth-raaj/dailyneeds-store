@@ -351,7 +351,10 @@ export default function TalkerGroups() {
     try {
       const res = await offersV3Talker.groups.autoDerive();
       toast.success(
-        `${res.createdBrandGroups} brand sign(s) and ${res.createdIndividualGroups} individual sign(s) drafted` +
+        `${res.createdBrandGroups} brand sign(s) drafted` +
+          (res.leftIndividual
+            ? `, ${res.leftIndividual} article(s) left individual`
+            : "") +
           (res.suggested ? `, ${res.suggested} suggestion(s) raised` : "")
       );
       fetchAll();
@@ -446,9 +449,11 @@ export default function TalkerGroups() {
             <TabList>
               <Tab>Groups ({groups.length})</Tab>
               <Tab>
-                Ungrouped{" "}
+                {/* Not an alert: an article on offer is individual by default
+                    and needs no sign, so this is a pool to pick from. */}
+                Not in a group{" "}
                 {ungrouped.count > 0 ? (
-                  <Badge ml={2} colorScheme="red">
+                  <Badge ml={2} colorScheme="gray">
                     {ungrouped.count}
                   </Badge>
                 ) : null}
@@ -514,9 +519,13 @@ export default function TalkerGroups() {
                   Live offer articles with no published sign covering them —
                   these would go unchecked.
                 </Text>
+                <Text fontSize="sm" color="gray.600" mb={3}>
+                  Articles on offer that aren&apos;t in a group. They need no
+                  sign - make one only where you want it.
+                </Text>
                 {ungrouped.data.length === 0 ? (
-                  <Box p={6} textAlign="center" bg="green.50" borderRadius="lg">
-                    <Text>Every live offer article is covered.</Text>
+                  <Box p={6} textAlign="center" bg="gray.50" borderRadius="lg">
+                    <Text>Every article on offer is already in a group.</Text>
                   </Box>
                 ) : (
                   <Box borderWidth="1px" borderRadius="lg" overflow="hidden">
@@ -853,7 +862,7 @@ export default function TalkerGroups() {
                       onClick={() => {
                         if (
                           !window.confirm(
-                            `Delete “${detail.label}”? Its articles go back to Ungrouped.`
+                            `Delete “${detail.label}”? Its articles go back to being individual, with no sign.`
                           )
                         ) {
                           return;
