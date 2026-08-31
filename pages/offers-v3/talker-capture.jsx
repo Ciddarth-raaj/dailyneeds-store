@@ -13,6 +13,7 @@ import {
 } from "@chakra-ui/react";
 import toast from "react-hot-toast";
 import offersV3Talker from "../../helper/offersV3Talker";
+import OutletDropdown from "../../components/MaterialsRequest/OutletDropdown";
 import { useUser } from "../../contexts/UserContext";
 import { prepareTalkerImage } from "../../util/talkerImage";
 import { useTalkerUploadQueue } from "../../customHooks/useTalkerUploadQueue";
@@ -99,7 +100,15 @@ function QueueRow({ row, onShoot, busy, isNext }) {
 
 export default function TalkerCapture() {
   const { userConfig } = useUser();
-  const outletId = userConfig?.storeId ?? userConfig?.fetched?.store_id ?? null;
+
+  // Outlet staff are pinned to their own store and get no picker - they should
+  // never be able to shoot for somewhere they aren't standing. Users with
+  // all_stores have storeId deliberately nulled by UserContext, so they choose
+  // which store they're in.
+  const ownStoreId = userConfig?.storeId ?? userConfig?.fetched?.store_id ?? null;
+  const [pickedOutlet, setPickedOutlet] = useState("");
+  const canPickOutlet = !ownStoreId;
+  const outletId = ownStoreId ?? (pickedOutlet ? Number(pickedOutlet) : null);
 
   const [queue, setQueue] = useState([]);
   const [meta, setMeta] = useState(null);
@@ -226,7 +235,9 @@ export default function TalkerCapture() {
     [queue]
   );
 
-  if (!outletId) {
+  // Only a store-scoped login with no store set is genuinely stuck; an
+  // all-stores user just hasn't picked one yet, and gets the picker below.
+  if (!outletId && !canPickOutlet) {
     return (
       <GlobalWrapper title="Talker Check" permissionKey="add_offers_v3_talker_proofs">
         <CustomContainer title="Talker Check" filledHeader>
@@ -251,6 +262,25 @@ export default function TalkerCapture() {
             onChange={onFileChosen}
             style={{ display: "none" }}
           />
+
+          {canPickOutlet ? (
+            <Box
+              bg="purple.50"
+              borderWidth="1px"
+              borderColor="purple.200"
+              borderRadius="md"
+              p={3}
+              mb={4}
+            >
+              <Text fontSize="sm" fontWeight="medium" mb={2}>
+                You have access to every store — pick the one you’re in.
+              </Text>
+              <OutletDropdown
+                selectedOutlet={pickedOutlet}
+                setSelectedOutlet={setPickedOutlet}
+              />
+            </Box>
+          ) : null}
 
           <Box bg="blue.50" borderRadius="md" p={3} mb={4}>
             <Text fontSize="sm">
@@ -336,7 +366,11 @@ export default function TalkerCapture() {
 
           <Flex justify="space-between" align="center" mb={1}>
             <Text fontWeight="bold">
-              {loading ? "Loading…" : `${queue.length} to check today`}
+              {!outletId
+                ? "No store selected"
+                : loading
+                ? "Loading…"
+                : `${queue.length} to check today`}
             </Text>
             {tier1Count > 0 ? (
               <Badge colorScheme="red">{tier1Count} must-shoot</Badge>
@@ -349,7 +383,13 @@ export default function TalkerCapture() {
             </Text>
           ) : null}
 
-          {loading ? (
+          {!outletId ? (
+            <Box textAlign="center" p={8}>
+              <Text fontSize="sm" color="gray.600">
+                Pick a store above to see what needs checking.
+              </Text>
+            </Box>
+          ) : loading ? (
             <Flex justify="center" p={8}>
               <Spinner />
             </Flex>
