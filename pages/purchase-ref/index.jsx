@@ -23,7 +23,10 @@ function PurchaseRef() {
   const { rows, builtAt, loading, refreshing, error, refetch } =
     usePurchaseRef();
   const [searchQuery, setSearchQuery] = useState("");
-  const debouncedSearchQuery = useDebounce(searchQuery, 300);
+  // Filtering is a couple of ms over ~14k rows and both views now render a
+  // bounded number of them, so the debounce only needs to coalesce a fast
+  // typist's keystrokes rather than hide expensive work.
+  const debouncedSearchQuery = useDebounce(searchQuery, 150);
   const isMobile = useBreakpointValue({ base: true, md: false });
 
   useEffect(() => {
