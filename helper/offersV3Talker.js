@@ -43,6 +43,17 @@ const offersV3Talker = {
         "Failed to fetch offer articles"
       ).then((d) => d.data ?? []),
 
+    /** mode: "individual" (one per article) or "group" (one over all). */
+    bulkCreate: (item_codes, mode, label) =>
+      unwrap(
+        API.post("/offers-v3-talker/talkers/bulk-create", {
+          item_codes,
+          mode,
+          ...(label ? { label } : {}),
+        }),
+        "Failed to create talkers"
+      ),
+
     create: (data) =>
       unwrap(
         API.post("/offers-v3-talker/groups", data),
@@ -59,12 +70,6 @@ const offersV3Talker = {
       unwrap(
         API.put(`/offers-v3-talker/groups/${id}/items`, { add, remove }),
         "Failed to update group articles"
-      ),
-
-    publish: (id) =>
-      unwrap(
-        API.post(`/offers-v3-talker/groups/${id}/publish`, {}),
-        "Failed to publish group"
       ),
 
     end: (id) =>
@@ -110,11 +115,6 @@ const offersV3Talker = {
         "Failed to delete the selected groups"
       ),
 
-    autoDerive: () =>
-      unwrap(
-        API.post("/offers-v3-talker/groups/auto-derive", {}),
-        "Failed to auto-derive groups"
-      ),
   },
 
   print: {
@@ -143,14 +143,6 @@ const offersV3Talker = {
       unwrap(
         API.post("/offers-v3-talker/print-cards/sync-text", { group_ids }),
         "Failed to save expected sign text"
-      ),
-  },
-
-  suggested: {
-    resolve: (id, accept) =>
-      unwrap(
-        API.post(`/offers-v3-talker/suggested/${id}/resolve`, { accept }),
-        "Failed to resolve suggestion"
       ),
   },
 

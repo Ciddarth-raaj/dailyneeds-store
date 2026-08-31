@@ -12,23 +12,28 @@ export const DEFAULT_PRINT_SETTINGS = {
   logo_x: 16,
   logo_y: 10,
 
-  title_mm: 4.6,
+  title_mm: 4.0,
   title_x: 50,
-  title_y: 40,
+  title_y: 33,
 
   lead_mm: 5.2,
   lead_x: 50,
-  lead_y: 55,
+  lead_y: 50,
 
-  big_mm: 18,
+  big_mm: 15,
   big_x: 50,
-  big_y: 71,
+  big_y: 64,
 
   trail_mm: 9,
 
   subline_mm: 4.4,
   subline_x: 50,
-  subline_y: 87,
+  subline_y: 80,
+
+  show_price: true,
+  price_mm: 4.0,
+  price_x: 50,
+  price_y: 92,
 
   brand_color: "#732f8d",
   offer_color: "#f15a22",
@@ -42,6 +47,7 @@ export const ELEMENTS = [
   { key: "lead", label: "Lead word (SAVE, SPL PRICE)", size: "lead_mm" },
   { key: "big", label: "The offer number", size: "big_mm" },
   { key: "subline", label: "ON MRP", size: "subline_mm" },
+  { key: "price", label: "MRP and price line", size: "price_mm" },
 ];
 
 export const PRINT_SETTING_LIMITS = {
@@ -53,6 +59,7 @@ export const PRINT_SETTING_LIMITS = {
   big_mm: { min: 4, max: 45, step: 0.5, label: "The offer number" },
   trail_mm: { min: 2, max: 25, step: 0.5, label: "OFF" },
   subline_mm: { min: 2, max: 14, step: 0.2, label: "ON MRP" },
+  price_mm: { min: 2, max: 14, step: 0.2, label: "MRP and price line" },
 };
 
 /** A4 less the safety margin that stops a sheet spilling a blank page. */

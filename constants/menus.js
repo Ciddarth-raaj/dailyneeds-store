@@ -782,14 +782,16 @@ const WMS_MENU = {
         location: "/offers-v3/talker-board",
       },
       view_talker_groups: {
-        title: "Talker Groups",
+        title: "Talkers",
         permission: "manage_offers_v3_talker_groups",
         selected: false,
         location: "/offers-v3/talker-groups",
       },
       view_talker_print: {
+        // Outlets print; HQ creates. This is the one talker page an outlet
+        // needs, so it hangs off its own permission.
         title: "Print Talkers",
-        permission: "manage_offers_v3_talker_groups",
+        permission: "print_offers_v3_talkers",
         selected: false,
         location: "/offers-v3/talker-print",
       },

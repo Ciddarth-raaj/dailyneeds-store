@@ -7,6 +7,7 @@ import {
   Button,
   Flex,
   Input,
+  Select,
   Spinner,
   Text,
   VStack,
@@ -98,6 +99,13 @@ function QueueRow({ row, onShoot, busy, isNext }) {
   );
 }
 
+const LOCATION_TYPES = [
+  { value: "aisle", label: "Aisle" },
+  { value: "floor_display", label: "Floor display" },
+  { value: "end_cap", label: "End cap" },
+  { value: "other", label: "Somewhere else" },
+];
+
 export default function TalkerCapture() {
   const { userConfig } = useUser();
 
@@ -116,6 +124,7 @@ export default function TalkerCapture() {
   const [loading, setLoading] = useState(true);
   const [activeRow, setActiveRow] = useState(null);
   const [discoveryLabel, setDiscoveryLabel] = useState("");
+  const [discoveryType, setDiscoveryType] = useState("aisle");
   const [lastResult, setLastResult] = useState(null);
   const fileInputRef = useRef(null);
 
@@ -170,10 +179,6 @@ export default function TalkerCapture() {
   };
 
   const onDiscoveryContinue = () => {
-    if (!discoveryLabel.trim()) {
-      toast.error("Say where it is, e.g. “Aisle 3”");
-      return;
-    }
     fileInputRef.current?.click();
   };
 
@@ -192,11 +197,14 @@ export default function TalkerCapture() {
       enqueue({
         file: prepared.file,
         discovery: true,
-        label: `${activeRow.group_label} — ${discoveryLabel}`,
+        label: `${activeRow.group_label} — ${
+          LOCATION_TYPES.find((t) => t.value === discoveryType)?.label ?? ""
+        }${discoveryLabel ? ` ${discoveryLabel}` : ""}`,
         payload: {
           group_id: activeRow.group_id,
           outlet_id: outletId,
           label: discoveryLabel.trim(),
+          location_type: discoveryType,
         },
       });
     } else {
@@ -347,8 +355,22 @@ export default function TalkerCapture() {
               <Text fontSize="sm" color="gray.600" mb={3}>
                 Where in the store is this one?
               </Text>
+              {/* A type rather than free text: "Aisle 3" and "aisle3" used to
+                  be different places, which made it impossible to ask whether
+                  every store had covered its end caps. */}
+              <Select
+                value={discoveryType}
+                onChange={(e) => setDiscoveryType(e.target.value)}
+                mb={2}
+              >
+                {LOCATION_TYPES.map((t) => (
+                  <option key={t.value} value={t.value}>
+                    {t.label}
+                  </option>
+                ))}
+              </Select>
               <Input
-                placeholder="e.g. Aisle 3, Endcap near billing"
+                placeholder="Which one? e.g. Aisle 3 (optional)"
                 value={discoveryLabel}
                 onChange={(e) => setDiscoveryLabel(e.target.value)}
                 mb={3}

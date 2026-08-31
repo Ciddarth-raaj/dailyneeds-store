@@ -93,6 +93,18 @@ export default function talkerCss(s, layout) {
       font-size: ${s.trail_mm}mm;
       margin-left: 2mm;
     }
+    .talker-price {
+      ${place(s.price_x, s.price_y)}
+      font-size: ${s.price_mm}mm;
+      font-weight: 700;
+      color: #000;
+      white-space: nowrap;
+      ${s.show_price ? "" : "display: none;"}
+    }
+    .talker-price .strike {
+      text-decoration: line-through;
+      margin-right: 3mm;
+    }
     .talker-subline {
       ${place(s.subline_x, s.subline_y)}
       font-size: ${s.subline_mm}mm;

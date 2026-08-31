@@ -25,6 +25,9 @@ import {
 } from "@chakra-ui/react";
 import toast from "react-hot-toast";
 import offersV3Talker from "../../helper/offersV3Talker";
+import OutletDropdown from "../../components/MaterialsRequest/OutletDropdown";
+import { useUser } from "../../contexts/UserContext";
+import usePermissions from "../../customHooks/usePermissions";
 import talkerCss from "../../util/talkerCss";
 import {
   DEFAULT_PRINT_SETTINGS,
@@ -33,7 +36,14 @@ import {
   sheetLayout,
 } from "../../constants/talkerPrint";
 
-const STATUS_COLORS = { draft: "gray", published: "green" };
+const STATUS_COLORS = { published: "green", ended: "red" };
+
+/** Prices print as they are read off a shelf label: two decimals, no grouping. */
+function money(v) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return "";
+  return `\u20b9${n.toFixed(2)}`;
+}
 
 /** Stands in for a real sign while the editor is open on an empty selection. */
 const SAMPLE_CARD = {
@@ -43,6 +53,8 @@ const SAMPLE_CARD = {
   big: "\u20b994.50",
   trail: "OFF",
   subline: "ON MRP",
+  mrp: 945,
+  price: 472.5,
 };
 
 function cardKey(card) {
@@ -134,6 +146,12 @@ function TalkerCard({ card, editable = false, onMove }) {
             {card.subline}
           </div>
         ) : null}
+        {card.mrp || card.price ? (
+          <div className={cls("price", "talker-price")} {...handlers("price")}>
+            {card.mrp ? <span className="strike">MRP {money(card.mrp)}</span> : null}
+            {card.price ? <span>Price {money(card.price)}</span> : null}
+          </div>
+        ) : null}
       </div>
     </div>
   );
@@ -168,8 +186,8 @@ function PrintSheets({ cards, perSheet }) {
     <>
       {sheets.map((sheet, i) => (
         <div className="talker-sheet" key={i}>
-          {sheet.map((card) => (
-            <TalkerCard card={card} key={cardKey(card)} />
+          {sheet.map((card, n) => (
+            <TalkerCard card={card} key={`${cardKey(card)}-${n}`} />
           ))}
         </div>
       ))}
@@ -283,6 +301,22 @@ export default function TalkerPrint() {
   const [printing, setPrinting] = useState(false);
   const touched = useRef(false);
 
+  // The card quotes MRP and price, and both are that outlet's - which is why
+  // the outlet prints rather than HQ.
+  const { userConfig } = useUser();
+  const ownStoreId = userConfig?.storeId ?? userConfig?.fetched?.store_id ?? null;
+  const [pickedOutlet, setPickedOutlet] = useState("");
+  const outletId = ownStoreId ?? (pickedOutlet ? Number(pickedOutlet) : null);
+
+  // Outlets print but never edit: the design belongs to HQ, and a store
+  // changing it would make its cards differ from every other store's.
+  const canDesign = usePermissions("manage_offers_v3_talker_groups");
+
+  // How many cards of each talker this store needs - one per spot it sits in.
+  // Per print run, not remembered: next cycle starts at 1 again.
+  const [qty, setQty] = useState({});
+  const qtyFor = (card) => Math.max(1, Number(qty[cardKey(card)]) || 1);
+
   // `settings` is what prints; `draft` is what the editor is showing. Keeping
   // them apart is what lets the preview update on every drag without a save,
   // and lets Cancel put the printed look back.
@@ -310,6 +344,7 @@ export default function TalkerPrint() {
       .cards({
         ...(status ? { status } : {}),
         ...(groupType ? { group_type: groupType } : {}),
+        ...(outletId ? { outlet_id: outletId } : {}),
       })
       .then((rows) => {
         setCards(rows);
@@ -321,7 +356,7 @@ export default function TalkerPrint() {
       })
       .catch((err) => toast.error(err.message ?? "Could not load talkers"))
       .finally(() => setLoading(false));
-  }, [status, groupType]);
+  }, [status, groupType, outletId]);
 
   useEffect(load, [load]);
 
@@ -342,6 +377,18 @@ export default function TalkerPrint() {
   const chosen = useMemo(
     () => visible.filter((c) => selected.has(cardKey(c))),
     [visible, selected],
+  );
+
+  /**
+   * What actually goes on paper: each selected talker repeated as many times as
+   * this store needs it. Copies sit next to each other so a stack of three cuts
+   * off the sheet together rather than being scattered across pages.
+   */
+  const toPrint = useMemo(
+    () =>
+      chosen.flatMap((card) => Array.from({ length: qtyFor(card) }, () => card)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [chosen, qty],
   );
 
   const mixedGroups = useMemo(() => {
@@ -434,14 +481,14 @@ export default function TalkerPrint() {
     }
   };
 
-  const sheetCount = Math.ceil(chosen.length / layout.per_sheet);
+  const sheetCount = Math.ceil(toPrint.length / layout.per_sheet);
   const allOn =
     visible.length > 0 && visible.every((c) => selected.has(cardKey(c)));
 
   return (
     <GlobalWrapper
       title="Print Talkers"
-      permissionKey="manage_offers_v3_talker_groups"
+      permissionKey="print_offers_v3_talkers"
     >
       <style dangerouslySetInnerHTML={{ __html: talkerCss(active, layout) }} />
 
@@ -482,6 +529,16 @@ export default function TalkerPrint() {
             >
               Save this wording as the expected sign text
             </Checkbox>
+            {!ownStoreId ? (
+              <Box maxW="220px">
+                <OutletDropdown
+                  value={pickedOutlet}
+                  onChange={(e) =>
+                    setPickedOutlet(e?.target ? e.target.value : e)
+                  }
+                />
+              </Box>
+            ) : null}
             <Button
               size="sm"
               variant="outline"
@@ -491,24 +548,26 @@ export default function TalkerPrint() {
             >
               Refresh
             </Button>
-            <Button
-              size="sm"
-              variant={editing ? "solid" : "outline"}
-              colorScheme="gray"
-              onClick={() => {
-                setDraft(settings);
-                setEditing((v) => !v);
-              }}
-            >
-              {editing ? "Close design" : "Design"}
-            </Button>
+            {canDesign ? (
+              <Button
+                size="sm"
+                variant={editing ? "solid" : "outline"}
+                colorScheme="gray"
+                onClick={() => {
+                  setDraft(settings);
+                  setEditing((v) => !v);
+                }}
+              >
+                {editing ? "Close design" : "Design"}
+              </Button>
+            ) : null}
             <Button
               size="sm"
               colorScheme="purple"
               isLoading={printing}
               onClick={handlePrint}
             >
-              Print {chosen.length} talker{chosen.length === 1 ? "" : "s"}
+              Print {toPrint.length} card{toPrint.length === 1 ? "" : "s"}
               {sheetCount
                 ? ` (${sheetCount} sheet${sheetCount === 1 ? "" : "s"})`
                 : ""}
@@ -544,6 +603,15 @@ export default function TalkerPrint() {
               <Text fontSize="13px">
                 {droppedCount} article(s) in these groups no longer carry an
                 offer, so they are not printed.
+              </Text>
+            </Box>
+          ) : null}
+
+          {!outletId ? (
+            <Box bg="orange.50" p="10px" borderRadius="6px" mb="10px">
+              <Text fontSize="13px">
+                Choose a store first. MRP and price are that store&apos;s, so
+                cards printed without one carry no price.
               </Text>
             </Box>
           ) : null}
@@ -606,9 +674,28 @@ export default function TalkerPrint() {
                               {card.item_count === 1 ? "" : "s"}
                             </Text>
                           </Box>
+                          <Flex alignItems="center" gap="4px" flexShrink={0}>
+                            <Text fontSize="11px" color="gray.600">
+                              Qty
+                            </Text>
+                            <Input
+                              size="xs"
+                              width="54px"
+                              type="number"
+                              min={1}
+                              max={99}
+                              value={qty[cardKey(card)] ?? 1}
+                              onChange={(e) =>
+                                setQty((prev) => ({
+                                  ...prev,
+                                  [cardKey(card)]: e.target.value,
+                                }))
+                              }
+                            />
+                          </Flex>
                           <Badge
                             colorScheme={
-                              card.group_type === "brand" ? "purple" : "blue"
+                              card.group_type === "group" ? "purple" : "blue"
                             }
                           >
                             {card.group_type}
@@ -643,7 +730,7 @@ export default function TalkerPrint() {
                   {chosen[0] ? "" : " · sample"}
                 </Text>
 
-                {editing ? (
+                {editing && canDesign ? (
                   <Box
                     mt="12px"
                     p="12px"
@@ -777,7 +864,7 @@ export default function TalkerPrint() {
         </Box>
       </CustomContainer>
 
-      <PrintSheets cards={chosen} perSheet={layout.per_sheet} />
+      <PrintSheets cards={toPrint} perSheet={layout.per_sheet} />
     </GlobalWrapper>
   );
 }

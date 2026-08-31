@@ -26,7 +26,7 @@ import usePermissions from "../../customHooks/usePermissions";
 import { OFFER_TYPE_LABELS } from "../../constants/offersV3";
 
 
-const STATUS_COLORS = { draft: "gray", published: "green", ended: "red" };
+const STATUS_COLORS = { published: "green", ended: "red" };
 
 /**
  * Add articles to this group, picked from the articles currently on offer -
@@ -165,9 +165,6 @@ function GroupRow({ group, onOpen, selected, onSelect }) {
           </Text>
         </Box>
         <Flex gap={2} align="center">
-          {group.suggested_count > 0 ? (
-            <Badge colorScheme="purple">{group.suggested_count} suggested</Badge>
-          ) : null}
           <Badge colorScheme={group.group_type === "brand" ? "blue" : "gray"}>
             {group.group_type === "brand" ? "brand" : "individual"}
           </Badge>
@@ -214,6 +211,7 @@ export default function TalkerGroups() {
         // A tick has to mean the row you can see. Keeping a selection across a
         // filter change would let a Delete hit groups scrolled out of view.
         setSelectedIds(new Set());
+        setPickedCodes(new Set());
       })
       .catch((err) => toast.error(err.message ?? "Could not load groups"))
       .finally(() => setLoading(false));
@@ -264,7 +262,7 @@ export default function TalkerGroups() {
           ? `\n\nThis also permanently deletes ${alsoGoes.join(" and ")}. ` +
             `A store's shelf map cannot be rebuilt except by staff walking the aisles again.`
           : "") +
-        `\n\nThe offers themselves are not touched, so Auto-derive can rebuild the signs.` +
+        `\n\nThe offers themselves are not touched.` +
         `\n\nThis cannot be undone.`;
 
       if (!window.confirm(message)) return;
@@ -326,40 +324,37 @@ export default function TalkerGroups() {
    * auto-grouped any more. This makes one for it in a click and opens it, so
    * it doesn't mean building a group by hand every time.
    */
-  const makeSignForArticle = async (row) => {
-    setBusy(true);
-    try {
-      const res = await offersV3Talker.groups.create({
-        label: row.item_name || `Item ${row.item_code}`,
-        group_type: "individual",
-        item_codes: [row.item_code],
-      });
-      toast.success("Draft created — set the sign text, then publish");
-      await fetchAll();
-      if (res?.id) {
-        openDetail(res.id);
-      }
-    } catch (err) {
-      toast.error(err.message ?? "Could not create the sign");
-    } finally {
-      setBusy(false);
-    }
-  };
+  const [pickedCodes, setPickedCodes] = useState(() => new Set());
 
-  const handleAutoDerive = async () => {
+  const togglePick = (code) =>
+    setPickedCodes((prev) => {
+      const next = new Set(prev);
+      if (next.has(code)) next.delete(code);
+      else next.add(code);
+      return next;
+    });
+
+  /**
+   * Two intents over the same selection, so the caller says which rather than
+   * the count deciding: five ticked articles could mean five individual cards
+   * or one card covering all five.
+   */
+  const createTalkers = async (mode) => {
+    const codes = [...pickedCodes];
+    if (!codes.length) return;
     setBusy(true);
     try {
-      const res = await offersV3Talker.groups.autoDerive();
+      const res = await offersV3Talker.groups.bulkCreate(codes, mode);
       toast.success(
-        `${res.createdBrandGroups} brand sign(s) drafted` +
-          (res.leftIndividual
-            ? `, ${res.leftIndividual} article(s) left individual`
-            : "") +
-          (res.suggested ? `, ${res.suggested} suggestion(s) raised` : "")
+        mode === "individual"
+          ? `${res.created} individual talker${res.created === 1 ? "" : "s"} created`
+          : "Group talker created"
       );
-      fetchAll();
+      setPickedCodes(new Set());
+      await fetchAll();
+      if (mode === "group" && res.ids?.[0]) openDetail(res.ids[0]);
     } catch (err) {
-      toast.error(err.message ?? "Auto-grouping failed");
+      toast.error(err.message ?? "Could not create talkers");
     } finally {
       setBusy(false);
     }
@@ -367,7 +362,7 @@ export default function TalkerGroups() {
 
   const handleCreate = async () => {
     if (!newGroup.label.trim()) {
-      toast.error("Give the group a name");
+      toast.error("Give the talker a name");
       return;
     }
     setBusy(true);
@@ -379,12 +374,12 @@ export default function TalkerGroups() {
           ? Number(newGroup.expected_pct_off)
           : null,
       });
-      toast.success("Group created as a draft");
+      toast.success("Talker created");
       setCreateOpen(false);
       setNewGroup({ label: "", talker_text: "", expected_pct_off: "" });
       fetchAll();
     } catch (err) {
-      toast.error(err.message ?? "Could not create the group");
+      toast.error(err.message ?? "Could not create the talker");
     } finally {
       setBusy(false);
     }
@@ -418,9 +413,8 @@ export default function TalkerGroups() {
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
             >
-              <option value="">All statuses</option>
-              <option value="draft">Draft</option>
-              <option value="published">Published</option>
+              <option value="">Live & ended</option>
+              <option value="published">Live</option>
               <option value="ended">Ended</option>
             </Select>
             <Select
@@ -430,16 +424,13 @@ export default function TalkerGroups() {
               onChange={(e) => setTypeFilter(e.target.value)}
             >
               <option value="">Brand &amp; individual</option>
-              <option value="brand">Brand signs only</option>
-              <option value="individual">Individual signs only</option>
+              <option value="group">Group talkers only</option>
+              <option value="individual">Individual talkers only</option>
             </Select>
             {canManage ? (
               <>
                 <Button size="sm" onClick={() => setCreateOpen(true)}>
-                  New group
-                </Button>
-                <Button size="sm" colorScheme="purple" onClick={handleAutoDerive} isLoading={busy}>
-                  Auto-group from offers
+                  New talker
                 </Button>
               </>
             ) : null}
@@ -498,7 +489,7 @@ export default function TalkerGroups() {
                   </Flex>
                 ) : groups.length === 0 ? (
                   <Text p={6} textAlign="center" color="gray.600">
-                    No groups yet. Run “Auto-group from offers” to draft them
+                    No talkers yet. Pick articles on offer and create one
                     from the live offers.
                   </Text>
                 ) : (
@@ -516,16 +507,45 @@ export default function TalkerGroups() {
 
               <TabPanel px={0}>
                 <Text fontSize="sm" color="gray.600" mb={3}>
-                  Live offer articles with no published sign covering them —
-                  these would go unchecked.
+                  Articles on offer with no talker. They need one only where
+                  you want one — tick what you want a card for.
                 </Text>
-                <Text fontSize="sm" color="gray.600" mb={3}>
-                  Articles on offer that aren&apos;t in a group. They need no
-                  sign - make one only where you want it.
-                </Text>
+                {canManage && ungrouped.data.length ? (
+                  <Flex
+                    gap={3}
+                    align="center"
+                    wrap="wrap"
+                    mb={3}
+                    p={2}
+                    borderWidth="1px"
+                    borderRadius="md"
+                    bg={pickedCodes.size ? "purple.50" : "gray.50"}
+                  >
+                    <Text fontSize="sm" flex="1">
+                      {pickedCodes.size
+                        ? `${pickedCodes.size} article${pickedCodes.size === 1 ? "" : "s"} selected`
+                        : "Nothing selected"}
+                    </Text>
+                    <Button
+                      size="sm"
+                      isDisabled={!pickedCodes.size || busy}
+                      onClick={() => createTalkers("individual")}
+                    >
+                      Individual talkers ({pickedCodes.size})
+                    </Button>
+                    <Button
+                      size="sm"
+                      colorScheme="purple"
+                      isDisabled={pickedCodes.size < 2 || busy}
+                      onClick={() => createTalkers("group")}
+                    >
+                      One group talker
+                    </Button>
+                  </Flex>
+                ) : null}
                 {ungrouped.data.length === 0 ? (
                   <Box p={6} textAlign="center" bg="gray.50" borderRadius="lg">
-                    <Text>Every article on offer is already in a group.</Text>
+                    <Text>Every article on offer already has a talker.</Text>
                   </Box>
                 ) : (
                   <Box borderWidth="1px" borderRadius="lg" overflow="hidden">
@@ -539,6 +559,12 @@ export default function TalkerGroups() {
                         align="center"
                         gap={3}
                       >
+                        {canManage ? (
+                          <Checkbox
+                            isChecked={pickedCodes.has(row.item_code)}
+                            onChange={() => togglePick(row.item_code)}
+                          />
+                        ) : null}
                         <Text fontSize="sm" flex="1" noOfLines={1}>
                           {row.item_code} · {row.item_name}
                         </Text>
@@ -546,16 +572,6 @@ export default function TalkerGroups() {
                           {OFFER_TYPE_LABELS[row.offer_type] ?? row.offer_type}
                           {row.value != null ? ` ${row.value}` : ""}
                         </Text>
-                        {canManage ? (
-                          <Button
-                            size="xs"
-                            flexShrink={0}
-                            isDisabled={busy}
-                            onClick={() => makeSignForArticle(row)}
-                          >
-                            Make a sign
-                          </Button>
-                        ) : null}
                       </Flex>
                     ))}
                     {ungrouped.data.length > 200 ? (
@@ -582,7 +598,7 @@ export default function TalkerGroups() {
               Cancel
             </Button>
             <Button colorScheme="purple" onClick={handleCreate} isLoading={busy}>
-              Create draft
+              Create talker
             </Button>
           </Flex>
         }
@@ -683,53 +699,6 @@ export default function TalkerGroups() {
                   Changing the name or sign text doesn’t trigger re-shoots.
                   Changing which articles are in the group does.
                 </Text>
-              </Box>
-            ) : null}
-
-            {detail.suggested?.length ? (
-              <Box borderWidth="1px" borderColor="purple.200" bg="purple.50" borderRadius="md" p={3} mb={4}>
-                <Text fontWeight="bold" fontSize="sm" mb={2}>
-                  Suggested additions ({detail.suggested.length})
-                </Text>
-                <Text fontSize="xs" color="gray.600" mb={2}>
-                  New articles matching this group’s supplier and markdown.
-                  They’re never added on their own.
-                </Text>
-                {detail.suggested.map((s) => (
-                  <Flex key={s.id} justify="space-between" align="center" py={1} gap={2}>
-                    <Text fontSize="sm">
-                      {s.item_code} · {s.item_name}
-                    </Text>
-                    <Flex gap={1}>
-                      <Button
-                        size="xs"
-                        colorScheme="green"
-                        isDisabled={busy}
-                        onClick={() =>
-                          act(
-                            () => offersV3Talker.suggested.resolve(s.id, true),
-                            "Added"
-                          )
-                        }
-                      >
-                        Add
-                      </Button>
-                      <Button
-                        size="xs"
-                        variant="ghost"
-                        isDisabled={busy}
-                        onClick={() =>
-                          act(
-                            () => offersV3Talker.suggested.resolve(s.id, false),
-                            "Dismissed"
-                          )
-                        }
-                      >
-                        No
-                      </Button>
-                    </Flex>
-                  </Flex>
-                ))}
               </Box>
             ) : null}
 
@@ -842,18 +811,8 @@ export default function TalkerGroups() {
 
             {canManage ? (
               <Flex gap={2} wrap="wrap" pt={2} borderTopWidth="1px">
-                {detail.status === "draft" ? (
+                {detail.status === "published" ? (
                   <>
-                    <Button
-                      size="sm"
-                      colorScheme="green"
-                      isDisabled={busy}
-                      onClick={() =>
-                        act(() => offersV3Talker.groups.publish(detail.id), "Published")
-                      }
-                    >
-                      Publish
-                    </Button>
                     <Button
                       size="sm"
                       colorScheme="red"
@@ -873,7 +832,7 @@ export default function TalkerGroups() {
                         }, "Deleted");
                       }}
                     >
-                      Delete draft
+                      Delete talker
                     </Button>
                   </>
                 ) : null}
