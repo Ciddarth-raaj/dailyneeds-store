@@ -217,8 +217,15 @@ export default function TalkerGroups() {
 
   const refreshDetail = async () => {
     if (detail) {
-      const data = await offersV3Talker.groups.getById(detail.id);
-      setDetail(data);
+      try {
+        const data = await offersV3Talker.groups.getById(detail.id);
+        setDetail(data);
+      } catch (err) {
+        // Deleted, or merged away into another group - close rather than
+        // reporting the now-missing group as a failure.
+        setDetail(null);
+        setDetailOpen(false);
+      }
     }
     fetchAll();
   };
@@ -662,16 +669,39 @@ export default function TalkerGroups() {
             {canManage ? (
               <Flex gap={2} wrap="wrap" pt={2} borderTopWidth="1px">
                 {detail.status === "draft" ? (
-                  <Button
-                    size="sm"
-                    colorScheme="green"
-                    isDisabled={busy}
-                    onClick={() =>
-                      act(() => offersV3Talker.groups.publish(detail.id), "Published")
-                    }
-                  >
-                    Publish
-                  </Button>
+                  <>
+                    <Button
+                      size="sm"
+                      colorScheme="green"
+                      isDisabled={busy}
+                      onClick={() =>
+                        act(() => offersV3Talker.groups.publish(detail.id), "Published")
+                      }
+                    >
+                      Publish
+                    </Button>
+                    <Button
+                      size="sm"
+                      colorScheme="red"
+                      variant="ghost"
+                      isDisabled={busy}
+                      onClick={() => {
+                        if (
+                          !window.confirm(
+                            `Delete “${detail.label}”? Its articles go back to Ungrouped.`
+                          )
+                        ) {
+                          return;
+                        }
+                        act(async () => {
+                          await offersV3Talker.groups.remove(detail.id);
+                          setDetailOpen(false);
+                        }, "Deleted");
+                      }}
+                    >
+                      Delete draft
+                    </Button>
+                  </>
                 ) : null}
                 {detail.status === "published" ? (
                   <>
