@@ -1,0 +1,618 @@
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
+import CustomContainer from "../../components/CustomContainer";
+import {
+  Badge,
+  Box,
+  Button,
+  Checkbox,
+  Flex,
+  Input,
+  Select,
+  SimpleGrid,
+  Spinner,
+  Tab,
+  TabList,
+  TabPanel,
+  TabPanels,
+  Tabs,
+  Text,
+  Textarea,
+} from "@chakra-ui/react";
+import toast from "react-hot-toast";
+import CustomModal from "../../components/CustomModal";
+import offersV3Talker from "../../helper/offersV3Talker";
+import usePermissions from "../../customHooks/usePermissions";
+
+const STATUS_COLORS = { draft: "gray", published: "green", ended: "red" };
+
+function GroupRow({ group, onOpen }) {
+  return (
+    <Box
+      borderWidth="1px"
+      borderRadius="lg"
+      p={3}
+      mb={2}
+      cursor="pointer"
+      _hover={{ borderColor: "blue.300" }}
+      onClick={() => onOpen(group.id)}
+    >
+      <Flex justify="space-between" align="flex-start" gap={3} wrap="wrap">
+        <Box flex="1" minW={0}>
+          <Text fontWeight="bold">{group.label}</Text>
+          <Text fontSize="sm" color="gray.600">
+            {group.item_count} article{group.item_count === 1 ? "" : "s"} ·{" "}
+            {group.location_count} spot{group.location_count === 1 ? "" : "s"} mapped
+            {group.supplier ? ` · ${group.supplier}` : ""}
+          </Text>
+        </Box>
+        <Flex gap={2} align="center">
+          {group.suggested_count > 0 ? (
+            <Badge colorScheme="purple">{group.suggested_count} suggested</Badge>
+          ) : null}
+          <Badge colorScheme={STATUS_COLORS[group.status]}>{group.status}</Badge>
+        </Flex>
+      </Flex>
+    </Box>
+  );
+}
+
+export default function TalkerGroups() {
+  const canManage = usePermissions("manage_offers_v3_talker_groups");
+
+  const [groups, setGroups] = useState([]);
+  const [ungrouped, setUngrouped] = useState({ data: [], count: 0 });
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [statusFilter, setStatusFilter] = useState("");
+  const [search, setSearch] = useState("");
+
+  const [detail, setDetail] = useState(null);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [newGroup, setNewGroup] = useState({ label: "", talker_text: "", expected_pct_off: "" });
+  const [splitSelection, setSplitSelection] = useState([]);
+  const [mergeTarget, setMergeTarget] = useState("");
+
+  const fetchAll = useCallback(() => {
+    setLoading(true);
+    Promise.all([
+      offersV3Talker.groups.list({
+        ...(statusFilter ? { status: statusFilter } : {}),
+        ...(search ? { search } : {}),
+      }),
+      offersV3Talker.groups.ungrouped(),
+    ])
+      .then(([g, u]) => {
+        setGroups(g);
+        setUngrouped(u);
+      })
+      .catch((err) => toast.error(err.message ?? "Could not load groups"))
+      .finally(() => setLoading(false));
+  }, [statusFilter, search]);
+
+  useEffect(() => {
+    fetchAll();
+  }, [fetchAll]);
+
+  const openDetail = async (id) => {
+    try {
+      const data = await offersV3Talker.groups.getById(id);
+      setDetail(data);
+      setSplitSelection([]);
+      setDetailOpen(true);
+    } catch (err) {
+      toast.error(err.message ?? "Could not load group");
+    }
+  };
+
+  const refreshDetail = async () => {
+    if (detail) {
+      const data = await offersV3Talker.groups.getById(detail.id);
+      setDetail(data);
+    }
+    fetchAll();
+  };
+
+  const act = async (fn, successMsg) => {
+    setBusy(true);
+    try {
+      await fn();
+      toast.success(successMsg);
+      await refreshDetail();
+    } catch (err) {
+      toast.error(err.message ?? "That didn’t work");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleAutoDerive = async () => {
+    setBusy(true);
+    try {
+      const res = await offersV3Talker.groups.autoDerive();
+      toast.success(
+        `${res.createdGroups} group(s) drafted, ${res.suggested} suggestion(s) raised`
+      );
+      fetchAll();
+    } catch (err) {
+      toast.error(err.message ?? "Auto-grouping failed");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleCreate = async () => {
+    if (!newGroup.label.trim()) {
+      toast.error("Give the group a name");
+      return;
+    }
+    setBusy(true);
+    try {
+      await offersV3Talker.groups.create({
+        label: newGroup.label.trim(),
+        talker_text: newGroup.talker_text || null,
+        expected_pct_off: newGroup.expected_pct_off
+          ? Number(newGroup.expected_pct_off)
+          : null,
+      });
+      toast.success("Group created as a draft");
+      setCreateOpen(false);
+      setNewGroup({ label: "", talker_text: "", expected_pct_off: "" });
+      fetchAll();
+    } catch (err) {
+      toast.error(err.message ?? "Could not create the group");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const publishedGroups = useMemo(
+    () => groups.filter((g) => g.status === "published" && g.id !== detail?.id),
+    [groups, detail]
+  );
+
+  return (
+    <GlobalWrapper title="Talker Groups" permissionKey="manage_offers_v3_talker_groups">
+      <CustomContainer title="Talker Groups" filledHeader>
+        <Box p={4}>
+          <Text fontSize="sm" color="gray.600" mb={4}>
+            One group is one physical sign. Nothing reaches an outlet’s list
+            until it’s published.
+          </Text>
+
+          <Flex gap={2} mb={4} wrap="wrap">
+            <Input
+              size="sm"
+              placeholder="Search name or supplier"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              maxW="260px"
+            />
+            <Select
+              size="sm"
+              maxW="160px"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <option value="">All statuses</option>
+              <option value="draft">Draft</option>
+              <option value="published">Published</option>
+              <option value="ended">Ended</option>
+            </Select>
+            {canManage ? (
+              <>
+                <Button size="sm" onClick={() => setCreateOpen(true)}>
+                  New group
+                </Button>
+                <Button size="sm" colorScheme="purple" onClick={handleAutoDerive} isLoading={busy}>
+                  Auto-group from offers
+                </Button>
+              </>
+            ) : null}
+          </Flex>
+
+          <Tabs colorScheme="purple">
+            <TabList>
+              <Tab>Groups ({groups.length})</Tab>
+              <Tab>
+                Ungrouped{" "}
+                {ungrouped.count > 0 ? (
+                  <Badge ml={2} colorScheme="red">
+                    {ungrouped.count}
+                  </Badge>
+                ) : null}
+              </Tab>
+            </TabList>
+
+            <TabPanels>
+              <TabPanel px={0}>
+                {loading ? (
+                  <Flex justify="center" p={8}>
+                    <Spinner />
+                  </Flex>
+                ) : groups.length === 0 ? (
+                  <Text p={6} textAlign="center" color="gray.600">
+                    No groups yet. Run “Auto-group from offers” to draft them
+                    from the live offers.
+                  </Text>
+                ) : (
+                  groups.map((g) => <GroupRow key={g.id} group={g} onOpen={openDetail} />)
+                )}
+              </TabPanel>
+
+              <TabPanel px={0}>
+                <Text fontSize="sm" color="gray.600" mb={3}>
+                  Live offer articles with no published sign covering them —
+                  these would go unchecked.
+                </Text>
+                {ungrouped.data.length === 0 ? (
+                  <Box p={6} textAlign="center" bg="green.50" borderRadius="lg">
+                    <Text>Every live offer article is covered.</Text>
+                  </Box>
+                ) : (
+                  <Box borderWidth="1px" borderRadius="lg" overflow="hidden">
+                    {ungrouped.data.slice(0, 200).map((row, i) => (
+                      <Flex
+                        key={row.item_code}
+                        px={3}
+                        py={2}
+                        bg={i % 2 ? "gray.50" : "white"}
+                        justify="space-between"
+                      >
+                        <Text fontSize="sm">
+                          {row.item_code} · {row.item_name}
+                        </Text>
+                        <Text fontSize="sm" color="gray.600">
+                          {row.offer_type} {row.value}
+                        </Text>
+                      </Flex>
+                    ))}
+                    {ungrouped.data.length > 200 ? (
+                      <Text p={2} fontSize="xs" color="gray.500">
+                        Showing the first 200 of {ungrouped.data.length}.
+                      </Text>
+                    ) : null}
+                  </Box>
+                )}
+              </TabPanel>
+            </TabPanels>
+          </Tabs>
+        </Box>
+      </CustomContainer>
+
+      {/* Create */}
+      <CustomModal
+        isOpen={createOpen}
+        onClose={() => setCreateOpen(false)}
+        title="New talker group"
+        footer={
+          <Flex gap={2}>
+            <Button variant="ghost" onClick={() => setCreateOpen(false)}>
+              Cancel
+            </Button>
+            <Button colorScheme="purple" onClick={handleCreate} isLoading={busy}>
+              Create draft
+            </Button>
+          </Flex>
+        }
+      >
+        <Box>
+          <Text fontSize="sm" mb={1}>
+            Name (what staff will read)
+          </Text>
+          <Input
+            mb={3}
+            placeholder="e.g. Cadbury — 22% off"
+            value={newGroup.label}
+            onChange={(e) => setNewGroup({ ...newGroup, label: e.target.value })}
+          />
+          <Text fontSize="sm" mb={1}>
+            Text expected on the sign
+          </Text>
+          <Input
+            mb={3}
+            placeholder="e.g. 22% OFF"
+            value={newGroup.talker_text}
+            onChange={(e) => setNewGroup({ ...newGroup, talker_text: e.target.value })}
+          />
+          <Text fontSize="sm" mb={1}>
+            Expected % off (optional)
+          </Text>
+          <Input
+            type="number"
+            value={newGroup.expected_pct_off}
+            onChange={(e) =>
+              setNewGroup({ ...newGroup, expected_pct_off: e.target.value })
+            }
+          />
+        </Box>
+      </CustomModal>
+
+      {/* Detail */}
+      <CustomModal
+        isOpen={detailOpen}
+        onClose={() => setDetailOpen(false)}
+        title={detail?.label ?? "Group"}
+        size="3xl"
+      >
+        {detail ? (
+          <Box>
+            <Flex gap={2} mb={4} wrap="wrap" align="center">
+              <Badge colorScheme={STATUS_COLORS[detail.status]}>{detail.status}</Badge>
+              <Text fontSize="sm" color="gray.600">
+                {detail.items.length} articles · {detail.locations.length} spots
+              </Text>
+            </Flex>
+
+            {detail.status === "ended" ? (
+              <Box bg="gray.100" p={3} borderRadius="md" mb={4}>
+                <Text fontSize="sm">
+                  This group has ended and is frozen — its articles can’t change,
+                  so past photos stay meaningful.
+                </Text>
+              </Box>
+            ) : null}
+
+            {canManage && detail.status !== "ended" ? (
+              <Box mb={4}>
+                <Text fontSize="sm" mb={1}>
+                  Name
+                </Text>
+                <Input
+                  size="sm"
+                  mb={2}
+                  defaultValue={detail.label}
+                  onBlur={(e) =>
+                    e.target.value !== detail.label &&
+                    act(
+                      () => offersV3Talker.groups.update(detail.id, { label: e.target.value }),
+                      "Name updated — no re-shoot needed"
+                    )
+                  }
+                />
+                <Text fontSize="sm" mb={1}>
+                  Text expected on the sign
+                </Text>
+                <Textarea
+                  size="sm"
+                  mb={2}
+                  defaultValue={detail.talker_text ?? ""}
+                  onBlur={(e) =>
+                    e.target.value !== (detail.talker_text ?? "") &&
+                    act(
+                      () =>
+                        offersV3Talker.groups.update(detail.id, {
+                          talker_text: e.target.value,
+                        }),
+                      "Sign text updated — no re-shoot needed"
+                    )
+                  }
+                />
+                <Text fontSize="xs" color="gray.500">
+                  Changing the name or sign text doesn’t trigger re-shoots.
+                  Changing which articles are in the group does.
+                </Text>
+              </Box>
+            ) : null}
+
+            {detail.suggested?.length ? (
+              <Box borderWidth="1px" borderColor="purple.200" bg="purple.50" borderRadius="md" p={3} mb={4}>
+                <Text fontWeight="bold" fontSize="sm" mb={2}>
+                  Suggested additions ({detail.suggested.length})
+                </Text>
+                <Text fontSize="xs" color="gray.600" mb={2}>
+                  New articles matching this group’s supplier and markdown.
+                  They’re never added on their own.
+                </Text>
+                {detail.suggested.map((s) => (
+                  <Flex key={s.id} justify="space-between" align="center" py={1} gap={2}>
+                    <Text fontSize="sm">
+                      {s.item_code} · {s.item_name}
+                    </Text>
+                    <Flex gap={1}>
+                      <Button
+                        size="xs"
+                        colorScheme="green"
+                        isDisabled={busy}
+                        onClick={() =>
+                          act(
+                            () => offersV3Talker.suggested.resolve(s.id, true),
+                            "Added"
+                          )
+                        }
+                      >
+                        Add
+                      </Button>
+                      <Button
+                        size="xs"
+                        variant="ghost"
+                        isDisabled={busy}
+                        onClick={() =>
+                          act(
+                            () => offersV3Talker.suggested.resolve(s.id, false),
+                            "Dismissed"
+                          )
+                        }
+                      >
+                        No
+                      </Button>
+                    </Flex>
+                  </Flex>
+                ))}
+              </Box>
+            ) : null}
+
+            <Text fontWeight="bold" fontSize="sm" mb={2}>
+              Articles
+            </Text>
+            <Box maxH="220px" overflowY="auto" borderWidth="1px" borderRadius="md" mb={4}>
+              {detail.items.map((item, i) => (
+                <Flex key={item.item_code} px={3} py={1} bg={i % 2 ? "gray.50" : "white"} align="center" gap={2}>
+                  {canManage && detail.status !== "ended" ? (
+                    <Checkbox
+                      isChecked={splitSelection.includes(item.item_code)}
+                      onChange={(e) =>
+                        setSplitSelection((prev) =>
+                          e.target.checked
+                            ? [...prev, item.item_code]
+                            : prev.filter((c) => c !== item.item_code)
+                        )
+                      }
+                    />
+                  ) : null}
+                  <Text fontSize="sm" flex="1">
+                    {item.item_code} · {item.item_name}
+                  </Text>
+                  {canManage && detail.status !== "ended" ? (
+                    <Button
+                      size="xs"
+                      variant="ghost"
+                      colorScheme="red"
+                      isDisabled={busy}
+                      onClick={() =>
+                        act(
+                          () =>
+                            offersV3Talker.groups.setItems(detail.id, {
+                              remove: [item.item_code],
+                            }),
+                          "Removed — this group’s spots will be re-shot once"
+                        )
+                      }
+                    >
+                      Remove
+                    </Button>
+                  ) : null}
+                </Flex>
+              ))}
+              {detail.items.length === 0 ? (
+                <Text p={3} fontSize="sm" color="gray.500">
+                  No articles yet.
+                </Text>
+              ) : null}
+            </Box>
+
+            {canManage && detail.status !== "ended" && splitSelection.length > 0 ? (
+              <Button
+                size="sm"
+                mb={4}
+                isDisabled={busy}
+                onClick={() =>
+                  act(
+                    () =>
+                      offersV3Talker.groups.split(detail.id, {
+                        item_codes: splitSelection,
+                      }),
+                    `Split ${splitSelection.length} article(s) into a new group`
+                  )
+                }
+              >
+                Split {splitSelection.length} selected into a new group
+              </Button>
+            ) : null}
+
+            <Text fontWeight="bold" fontSize="sm" mb={2}>
+              Spots by outlet
+            </Text>
+            <SimpleGrid columns={{ base: 1, md: 2 }} spacing={2} mb={4}>
+              {detail.locations.map((loc) => (
+                <Box key={loc.id} borderWidth="1px" borderRadius="md" p={2}>
+                  <Text fontSize="sm" fontWeight="medium">
+                    {loc.outlet_name}
+                  </Text>
+                  <Text fontSize="sm" color="gray.600">
+                    {loc.label}
+                    {!loc.active ? " (gone)" : ""}
+                  </Text>
+                </Box>
+              ))}
+              {detail.locations.length === 0 ? (
+                <Text fontSize="sm" color="gray.500">
+                  None mapped yet — outlet staff add these as they find them.
+                </Text>
+              ) : null}
+            </SimpleGrid>
+
+            {canManage ? (
+              <Flex gap={2} wrap="wrap" pt={2} borderTopWidth="1px">
+                {detail.status === "draft" ? (
+                  <Button
+                    size="sm"
+                    colorScheme="green"
+                    isDisabled={busy}
+                    onClick={() =>
+                      act(() => offersV3Talker.groups.publish(detail.id), "Published")
+                    }
+                  >
+                    Publish
+                  </Button>
+                ) : null}
+                {detail.status === "published" ? (
+                  <>
+                    <Button
+                      size="sm"
+                      colorScheme="red"
+                      variant="outline"
+                      isDisabled={busy}
+                      onClick={() =>
+                        act(() => offersV3Talker.groups.end(detail.id), "Ended")
+                      }
+                    >
+                      End (offer is over)
+                    </Button>
+                    <Button
+                      size="sm"
+                      isDisabled={busy}
+                      onClick={() =>
+                        act(
+                          () => offersV3Talker.pushToQueue(detail.id, null),
+                          "Pushed to the top of every outlet’s list"
+                        )
+                      }
+                    >
+                      Ask all outlets to re-shoot
+                    </Button>
+                  </>
+                ) : null}
+                {detail.status !== "ended" && publishedGroups.length ? (
+                  <Flex gap={1} align="center">
+                    <Select
+                      size="sm"
+                      maxW="200px"
+                      placeholder="Merge into…"
+                      value={mergeTarget}
+                      onChange={(e) => setMergeTarget(e.target.value)}
+                    >
+                      {publishedGroups.map((g) => (
+                        <option key={g.id} value={g.id}>
+                          {g.label}
+                        </option>
+                      ))}
+                    </Select>
+                    <Button
+                      size="sm"
+                      isDisabled={!mergeTarget || busy}
+                      onClick={() =>
+                        act(async () => {
+                          await offersV3Talker.groups.merge(
+                            detail.id,
+                            Number(mergeTarget)
+                          );
+                          setDetailOpen(false);
+                        }, "Merged")
+                      }
+                    >
+                      Merge
+                    </Button>
+                  </Flex>
+                ) : null}
+              </Flex>
+            ) : null}
+          </Box>
+        ) : (
+          <Spinner />
+        )}
+      </CustomModal>
+    </GlobalWrapper>
+  );
+}
