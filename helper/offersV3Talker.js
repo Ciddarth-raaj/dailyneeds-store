@@ -109,6 +109,19 @@ const offersV3Talker = {
         "Failed to fetch talkers to print"
       ).then((d) => d.cards ?? []),
 
+    /** The shared look of the card - always complete, defaults included. */
+    settings: () =>
+      unwrap(
+        API.get("/offers-v3-talker/print-settings"),
+        "Failed to fetch print settings"
+      ),
+
+    saveSettings: (settings) =>
+      unwrap(
+        API.put("/offers-v3-talker/print-settings", settings),
+        "Failed to save print settings"
+      ),
+
     /** Store what the printed sign says, so the photo check compares to it. */
     syncText: (group_ids) =>
       unwrap(
