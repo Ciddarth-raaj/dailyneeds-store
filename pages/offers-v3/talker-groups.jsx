@@ -23,6 +23,7 @@ import toast from "react-hot-toast";
 import CustomModal from "../../components/CustomModal";
 import offersV3Talker from "../../helper/offersV3Talker";
 import usePermissions from "../../customHooks/usePermissions";
+import { OFFER_TYPE_LABELS } from "../../constants/offersV3";
 
 
 const STATUS_COLORS = { draft: "gray", published: "green", ended: "red" };
@@ -243,6 +244,31 @@ export default function TalkerGroups() {
     }
   };
 
+  /**
+   * A single article that didn't cluster still needs a sign - it just isn't
+   * auto-grouped any more. This makes one for it in a click and opens it, so
+   * it doesn't mean building a group by hand every time.
+   */
+  const makeSignForArticle = async (row) => {
+    setBusy(true);
+    try {
+      const res = await offersV3Talker.groups.create({
+        label: row.item_name || `Item ${row.item_code}`,
+        group_type: "individual",
+        item_codes: [row.item_code],
+      });
+      toast.success("Draft created — set the sign text, then publish");
+      await fetchAll();
+      if (res?.id) {
+        openDetail(res.id);
+      }
+    } catch (err) {
+      toast.error(err.message ?? "Could not create the sign");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const handleAutoDerive = async () => {
     setBusy(true);
     try {
@@ -375,13 +401,26 @@ export default function TalkerGroups() {
                         py={2}
                         bg={i % 2 ? "gray.50" : "white"}
                         justify="space-between"
+                        align="center"
+                        gap={3}
                       >
-                        <Text fontSize="sm">
+                        <Text fontSize="sm" flex="1" noOfLines={1}>
                           {row.item_code} · {row.item_name}
                         </Text>
-                        <Text fontSize="sm" color="gray.600">
-                          {row.offer_type} {row.value}
+                        <Text fontSize="sm" color="gray.600" flexShrink={0}>
+                          {OFFER_TYPE_LABELS[row.offer_type] ?? row.offer_type}
+                          {row.value != null ? ` ${row.value}` : ""}
                         </Text>
+                        {canManage ? (
+                          <Button
+                            size="xs"
+                            flexShrink={0}
+                            isDisabled={busy}
+                            onClick={() => makeSignForArticle(row)}
+                          >
+                            Make a sign
+                          </Button>
+                        ) : null}
                       </Flex>
                     ))}
                     {ungrouped.data.length > 200 ? (
