@@ -4,24 +4,16 @@
  * Generated rather than static because the same rules have to drive three
  * things at once - the on-screen preview, the editor, and the print output -
  * and any drift between them means what you approve is not what prints.
+ *
+ * Every element is absolutely placed from a percentage of the card and centred
+ * on that point, so a position set by dragging holds its proportions when the
+ * card size changes, and nothing reflows when a neighbour grows.
  */
-const LOGO_ANCHORS = {
-  "top-left": "top: 3mm; left: 3mm;",
-  "top-center": "top: 3mm; left: 50%; transform: translateX(-50%);",
-  "top-right": "top: 3mm; right: 3mm;",
-};
+function place(x, y) {
+  return `left: ${x}%; top: ${y}%; transform: translate(-50%, -50%);`;
+}
 
 export default function talkerCss(s, layout) {
-  const logo =
-    s.logo_position === "none"
-      ? ".talker-logo { display: none; }"
-      : `.talker-logo {
-          position: absolute;
-          ${LOGO_ANCHORS[s.logo_position] ?? LOGO_ANCHORS["top-left"]}
-          width: ${s.logo_w_mm}mm;
-          height: auto;
-        }`;
-
   return `
     #talker-print-root { display: none; }
 
@@ -50,41 +42,51 @@ export default function talkerCss(s, layout) {
       height: 100%;
       box-sizing: border-box;
       border: ${s.show_border ? "0.4mm dashed #999" : "none"};
-      padding: 4mm 3mm;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
       background: #fff;
       color: #000;
+      overflow: hidden;
     }
-    /* Out of the flow, so it reads as a corner mark and the offer stays
-       centred in the whole card rather than in what is left beside it. */
-    ${logo}
+    .talker-el {
+      position: absolute;
+      text-align: center;
+      max-width: 96%;
+    }
+    .talker-logo {
+      ${s.show_logo ? place(s.logo_x, s.logo_y) : "display: none;"}
+      width: ${s.logo_w_mm}mm;
+      height: auto;
+    }
     .talker-title {
+      ${place(s.title_x, s.title_y)}
       font-size: ${s.title_mm}mm;
       line-height: 1.15;
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.02em;
       color: ${s.brand_color};
-      max-height: ${(s.title_mm * 2.4).toFixed(1)}mm;
+      /* Elements are placed independently, so nothing pushes a neighbour out
+         of the way any more: a four-line product name would simply grow over
+         the offer beneath it. Two lines, then ellipsis - the name identifies
+         the product, the offer is what the sign is for. */
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
       overflow: hidden;
     }
     .talker-lead {
+      ${place(s.lead_x, s.lead_y)}
       font-size: ${s.lead_mm}mm;
       font-weight: 800;
       letter-spacing: 0.1em;
       color: ${s.brand_color};
-      margin-top: 2mm;
+      white-space: nowrap;
     }
     .talker-headline {
+      ${place(s.big_x, s.big_y)}
       font-size: ${s.big_mm}mm;
       line-height: 1.05;
       font-weight: 800;
       color: ${s.offer_color};
-      margin-top: 1mm;
       white-space: nowrap;
     }
     .talker-trail {
@@ -92,11 +94,28 @@ export default function talkerCss(s, layout) {
       margin-left: 2mm;
     }
     .talker-subline {
+      ${place(s.subline_x, s.subline_y)}
       font-size: ${s.subline_mm}mm;
       font-weight: 700;
       letter-spacing: 0.18em;
       color: ${s.brand_color};
-      margin-top: 1mm;
+      white-space: nowrap;
+    }
+
+    /* Editor only - never reaches the printed card. */
+    .talker-card-inner.is-editing .talker-el {
+      cursor: grab;
+      outline: 1px dashed rgba(115, 47, 141, 0.45);
+      outline-offset: 2px;
+    }
+    .talker-card-inner.is-editing .talker-el:hover {
+      outline-color: rgba(115, 47, 141, 0.9);
+      background: rgba(115, 47, 141, 0.06);
+    }
+    .talker-card-inner.is-editing .talker-el.is-dragging {
+      cursor: grabbing;
+      outline-style: solid;
+      outline-color: ${s.offer_color};
     }
 
     @media print {

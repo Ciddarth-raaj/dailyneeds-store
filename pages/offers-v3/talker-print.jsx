@@ -28,7 +28,7 @@ import offersV3Talker from "../../helper/offersV3Talker";
 import talkerCss from "../../util/talkerCss";
 import {
   DEFAULT_PRINT_SETTINGS,
-  LOGO_POSITIONS,
+  ELEMENTS,
   PRINT_SETTING_LIMITS,
   sheetLayout,
 } from "../../constants/talkerPrint";
@@ -41,8 +41,8 @@ const SAMPLE_CARD = {
   title: "CADBURY DAIRY MILK 150G",
   lead: "SPL PRICE",
   big: "\u20b994.50",
-  trail: null,
-  subline: null,
+  trail: "OFF",
+  subline: "ON MRP",
 };
 
 function cardKey(card) {
@@ -54,26 +54,85 @@ function cardKey(card) {
  * size regardless of screen DPI, and shown at that same size on screen so
  * what you preview is what comes out of the printer.
  */
-function TalkerCard({ card }) {
+function TalkerCard({ card, editable = false, onMove }) {
+  const inner = useRef(null);
+  const [dragging, setDragging] = useState(null);
+
+  /**
+   * Dragging reports a position as a percentage of the card rather than
+   * pixels, so what you place on screen lands in the same spot on a card of
+   * any size, at any zoom, on any screen.
+   */
+  const startDrag = (key) => (e) => {
+    if (!editable) return;
+    e.preventDefault();
+    setDragging(key);
+    const box = inner.current.getBoundingClientRect();
+
+    const move = (ev) => {
+      const point = ev.touches ? ev.touches[0] : ev;
+      const x = ((point.clientX - box.left) / box.width) * 100;
+      const y = ((point.clientY - box.top) / box.height) * 100;
+      onMove(key, {
+        x: Math.round(Math.min(100, Math.max(0, x))),
+        y: Math.round(Math.min(100, Math.max(0, y))),
+      });
+    };
+    const stop = () => {
+      setDragging(null);
+      window.removeEventListener("mousemove", move);
+      window.removeEventListener("mouseup", stop);
+      window.removeEventListener("touchmove", move);
+      window.removeEventListener("touchend", stop);
+    };
+    window.addEventListener("mousemove", move);
+    window.addEventListener("mouseup", stop);
+    window.addEventListener("touchmove", move, { passive: false });
+    window.addEventListener("touchend", stop);
+  };
+
+  const cls = (key, base) =>
+    `talker-el ${base}${dragging === key ? " is-dragging" : ""}`;
+  const handlers = (key) =>
+    editable
+      ? { onMouseDown: startDrag(key), onTouchStart: startDrag(key) }
+      : {};
+
   return (
     <div className="talker-card">
-      <div className="talker-card-inner">
+      <div
+        className={`talker-card-inner${editable ? " is-editing" : ""}`}
+        ref={inner}
+      >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          className="talker-logo"
+          className={cls("logo", "talker-logo")}
           src="/assets/dnds-logo.png"
           alt="Daily Needs"
+          draggable={false}
+          {...handlers("logo")}
         />
-        <div className="talker-title">{card.title}</div>
-        {card.lead ? <div className="talker-lead">{card.lead}</div> : null}
-        <div className="talker-headline">
+        <div className={cls("title", "talker-title")} {...handlers("title")}>
+          {card.title}
+        </div>
+        {card.lead ? (
+          <div className={cls("lead", "talker-lead")} {...handlers("lead")}>
+            {card.lead}
+          </div>
+        ) : null}
+        <div className={cls("big", "talker-headline")} {...handlers("big")}>
           {card.big}
           {card.trail ? (
             <span className="talker-trail">{card.trail}</span>
           ) : null}
         </div>
         {card.subline ? (
-          <div className="talker-subline">{card.subline}</div>
+          <div
+            className={cls("subline", "talker-subline")}
+            {...handlers("subline")}
+          >
+            {card.subline}
+          </div>
         ) : null}
       </div>
     </div>
@@ -173,6 +232,43 @@ function ColorControl({ label, value, onChange }) {
         </Text>
       </Box>
     </Flex>
+  );
+}
+
+/**
+ * One element's size and its exact place. Dragging on the card is how a
+ * position is normally set; these nudge buttons exist because a drag lands
+ * close but rarely square, and "put it back 2% left" is otherwise impossible.
+ */
+function PlacementControl({ element, draft, onSet }) {
+  const { key, label, size } = element;
+  const nudge = (axis, by) =>
+    onSet(
+      `${key}_${axis}`,
+      Math.min(100, Math.max(0, draft[`${key}_${axis}`] + by))
+    );
+
+  return (
+    <Box mb="12px" pb="10px" borderBottomWidth="1px">
+      <SizeControl name={size} value={draft[size]} onChange={onSet} />
+      <Flex alignItems="center" gap="6px">
+        <Text fontSize="11px" color="gray.600" flex="1">
+          {label} at {draft[`${key}_x`]}%, {draft[`${key}_y`]}%
+        </Text>
+        <Button size="xs" onClick={() => nudge("x", -1)} aria-label={`Move ${label} left`}>
+          {"\u2190"}
+        </Button>
+        <Button size="xs" onClick={() => nudge("x", 1)} aria-label={`Move ${label} right`}>
+          {"\u2192"}
+        </Button>
+        <Button size="xs" onClick={() => nudge("y", -1)} aria-label={`Move ${label} up`}>
+          {"\u2191"}
+        </Button>
+        <Button size="xs" onClick={() => nudge("y", 1)} aria-label={`Move ${label} down`}>
+          {"\u2193"}
+        </Button>
+      </Flex>
+    </Box>
   );
 }
 
@@ -317,6 +413,9 @@ export default function TalkerPrint() {
 
   const setDesign = (key, value) =>
     setDraft((prev) => ({ ...prev, [key]: value }));
+
+  const moveElement = (key, { x, y }) =>
+    setDraft((prev) => ({ ...prev, [`${key}_x`]: x, [`${key}_y`]: y }));
 
   const saveDesign = async () => {
     setSavingDesign(true);
@@ -524,7 +623,11 @@ export default function TalkerPrint() {
                 <Text fontSize="13px" fontWeight="600" mb="8px">
                   Actual size preview
                 </Text>
-                <TalkerCard card={chosen[0] ?? SAMPLE_CARD} />
+                <TalkerCard
+                  card={chosen[0] ?? SAMPLE_CARD}
+                  editable={editing}
+                  onMove={moveElement}
+                />
                 <Text fontSize="12px" color="gray.600" mt="6px">
                   {active.card_w_mm} x {active.card_h_mm}mm · {layout.per_sheet}{" "}
                   per A4 sheet ({layout.cols} x {layout.rows})
@@ -563,48 +666,54 @@ export default function TalkerPrint() {
                       Show cut lines
                     </Checkbox>
 
-                    <Text fontSize="13px" fontWeight="700" mb="8px">
-                      Logo
-                    </Text>
-                    <Select
+                    <Checkbox
                       size="sm"
-                      mb="10px"
-                      value={draft.logo_position}
-                      onChange={(e) =>
-                        setDesign("logo_position", e.target.value)
-                      }
+                      mb="12px"
+                      isChecked={draft.show_logo}
+                      onChange={(e) => setDesign("show_logo", e.target.checked)}
                     >
-                      {LOGO_POSITIONS.map((o) => (
-                        <option key={o.value} value={o.value}>
-                          {o.label}
-                        </option>
-                      ))}
-                    </Select>
-                    {draft.logo_position === "none" ? null : (
-                      <SizeControl
-                        name="logo_w_mm"
-                        value={draft.logo_w_mm}
-                        onChange={setDesign}
-                      />
-                    )}
+                      Show the logo
+                    </Checkbox>
 
-                    <Text fontSize="13px" fontWeight="700" mb="8px" mt="4px">
-                      Type sizes
+                    <Text fontSize="13px" fontWeight="700" mb="4px">
+                      Position and size
                     </Text>
-                    {[
-                      "title_mm",
-                      "lead_mm",
-                      "big_mm",
-                      "trail_mm",
-                      "subline_mm",
-                    ].map((name) => (
-                      <SizeControl
-                        key={name}
-                        name={name}
-                        value={draft[name]}
-                        onChange={setDesign}
+                    <Text fontSize="11px" color="gray.600" mb="10px">
+                      Drag anything on the card above to move it. The arrows
+                      nudge by 1%, for when a drag lands close but not square.
+                    </Text>
+                    {ELEMENTS.map((el) => (
+                      <PlacementControl
+                        key={el.key}
+                        element={el}
+                        draft={draft}
+                        onSet={setDesign}
                       />
                     ))}
+                    <SizeControl
+                      name="trail_mm"
+                      value={draft.trail_mm}
+                      onChange={setDesign}
+                    />
+                    <Button
+                      size="xs"
+                      variant="ghost"
+                      mb="6px"
+                      onClick={() =>
+                        setDraft((prev) => {
+                          const next = { ...prev };
+                          ELEMENTS.forEach(({ key }) => {
+                            next[`${key}_x`] =
+                              DEFAULT_PRINT_SETTINGS[`${key}_x`];
+                            next[`${key}_y`] =
+                              DEFAULT_PRINT_SETTINGS[`${key}_y`];
+                          });
+                          return next;
+                        })
+                      }
+                    >
+                      Put everything back where it was
+                    </Button>
 
                     <Text fontSize="13px" fontWeight="700" mb="8px" mt="4px">
                       Colours

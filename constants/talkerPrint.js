@@ -6,23 +6,42 @@
 export const DEFAULT_PRINT_SETTINGS = {
   card_w_mm: 104,
   card_h_mm: 73,
-  logo_position: "top-left",
+
+  show_logo: true,
   logo_w_mm: 26,
+  logo_x: 16,
+  logo_y: 10,
+
   title_mm: 4.6,
+  title_x: 50,
+  title_y: 40,
+
   lead_mm: 5.2,
+  lead_x: 50,
+  lead_y: 55,
+
   big_mm: 18,
+  big_x: 50,
+  big_y: 71,
+
   trail_mm: 9,
+
   subline_mm: 4.4,
+  subline_x: 50,
+  subline_y: 87,
+
   brand_color: "#732f8d",
   offer_color: "#f15a22",
   show_border: true,
 };
 
-export const LOGO_POSITIONS = [
-  { value: "top-left", label: "Top left" },
-  { value: "top-center", label: "Top centre" },
-  { value: "top-right", label: "Top right" },
-  { value: "none", label: "No logo" },
+/** The draggable pieces of the card, in the order the editor lists them. */
+export const ELEMENTS = [
+  { key: "logo", label: "Logo", size: "logo_w_mm" },
+  { key: "title", label: "Product / brand name", size: "title_mm" },
+  { key: "lead", label: "Lead word (SAVE, SPL PRICE)", size: "lead_mm" },
+  { key: "big", label: "The offer number", size: "big_mm" },
+  { key: "subline", label: "ON MRP", size: "subline_mm" },
 ];
 
 export const PRINT_SETTING_LIMITS = {
