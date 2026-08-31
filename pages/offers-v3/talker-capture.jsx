@@ -103,6 +103,7 @@ export default function TalkerCapture() {
 
   const [queue, setQueue] = useState([]);
   const [meta, setMeta] = useState(null);
+  const [discoveryLeft, setDiscoveryLeft] = useState(0);
   const [loading, setLoading] = useState(true);
   const [activeRow, setActiveRow] = useState(null);
   const [discoveryLabel, setDiscoveryLabel] = useState("");
@@ -120,6 +121,7 @@ export default function TalkerCapture() {
       .then((res) => {
         setQueue(res.data ?? []);
         setMeta({ round_date: res.round_date, accept_rate: res.accept_rate });
+        setDiscoveryLeft(res.discovery_remaining ?? 0);
       })
       .catch((err) => toast.error(err.message ?? "Could not load your list"))
       .finally(() => setLoading(false));
@@ -196,6 +198,16 @@ export default function TalkerCapture() {
       });
     }
     setActiveRow(null);
+    setDiscoveryLabel("");
+  };
+
+  /**
+   * A brand's stock can sit in more than one place, so a spot can be added at
+   * any time - same flow as first-time discovery, just for a group that
+   * already has one.
+   */
+  const addAnotherSpot = (row) => {
+    setActiveRow({ ...row, discovery: true, location_id: null });
     setDiscoveryLabel("");
   };
 
@@ -322,7 +334,7 @@ export default function TalkerCapture() {
             </Box>
           ) : null}
 
-          <Flex justify="space-between" align="center" mb={3}>
+          <Flex justify="space-between" align="center" mb={1}>
             <Text fontWeight="bold">
               {loading ? "Loading…" : `${queue.length} to check today`}
             </Text>
@@ -330,6 +342,12 @@ export default function TalkerCapture() {
               <Badge colorScheme="red">{tier1Count} must-shoot</Badge>
             ) : null}
           </Flex>
+          {discoveryLeft > 0 ? (
+            <Text fontSize="xs" color="gray.500" mb={3}>
+              {discoveryLeft} more brand{discoveryLeft === 1 ? "" : "s"} to find
+              after today’s — a few each day, no rush.
+            </Text>
+          ) : null}
 
           {loading ? (
             <Flex justify="center" p={8}>
@@ -355,7 +373,15 @@ export default function TalkerCapture() {
                     isNext={index === 0}
                   />
                   {!row.discovery ? (
-                    <Flex justify="flex-end" mt={-2} mb={3}>
+                    <Flex justify="flex-end" mt={-2} mb={3} gap={1}>
+                      <Button
+                        size="xs"
+                        variant="ghost"
+                        colorScheme="blue"
+                        onClick={() => addAnotherSpot(row)}
+                      >
+                        Another spot for this brand
+                      </Button>
                       <Button
                         size="xs"
                         variant="ghost"
