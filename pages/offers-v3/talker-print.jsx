@@ -257,6 +257,7 @@ export default function TalkerPrint() {
           overflow: hidden;
         }
         .talker-card-inner {
+          position: relative;
           width: 100%;
           height: 100%;
           box-sizing: border-box;
@@ -270,14 +271,18 @@ export default function TalkerPrint() {
           background: #fff;
           color: #000;
         }
+        /* Taken out of the flow so it sits in the corner as a mark and the
+           offer stays centred in the whole card, not in what is left under
+           the logo. */
         .talker-logo {
-          width: 30mm;
+          position: absolute;
+          top: 3mm;
+          left: 3mm;
+          width: 26mm;
           height: auto;
-          display: block;
-          margin-bottom: 2mm;
         }
         .talker-title {
-          font-size: 4.4mm;
+          font-size: 4.6mm;
           line-height: 1.15;
           font-weight: 700;
           text-transform: uppercase;
@@ -287,14 +292,14 @@ export default function TalkerPrint() {
           overflow: hidden;
         }
         .talker-lead {
-          font-size: 5mm;
+          font-size: 5.2mm;
           font-weight: 800;
           letter-spacing: 0.1em;
           color: ${BRAND_PURPLE};
           margin-top: 2mm;
         }
         .talker-headline {
-          font-size: 17mm;
+          font-size: 18mm;
           line-height: 1.05;
           font-weight: 800;
           color: ${BRAND_ORANGE};
