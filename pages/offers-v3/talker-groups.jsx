@@ -23,37 +23,48 @@ import toast from "react-hot-toast";
 import CustomModal from "../../components/CustomModal";
 import offersV3Talker from "../../helper/offersV3Talker";
 import usePermissions from "../../customHooks/usePermissions";
-import { useProducts } from "../../customHooks/useProducts";
+
 
 const STATUS_COLORS = { draft: "gray", published: "green", ended: "red" };
 
 /**
- * Search the product master and add articles to this group.
+ * Add articles to this group, picked from the articles currently on offer -
+ * not the whole product master. A talker advertises an offer, so an article
+ * with no live offer has no sign and doesn't belong in a group.
  *
  * An article belongs to exactly one group, so adding one that already sits in
  * another group moves it - that is how "move articles between groups" works.
  */
-function AddArticles({ groupId, existingCodes, disabled, busy, onAdd }) {
+function AddArticles({ existingCodes, disabled, busy, onAdd }) {
   const [search, setSearch] = useState("");
-  const { products, loading } = useProducts({
-    limit: 10000,
-    fetchAll: true,
-    enabled: true,
-  });
+  const [pool, setPool] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    offersV3Talker.groups
+      .offerArticles()
+      .then((rows) => !cancelled && setPool(rows))
+      .catch((err) => toast.error(err.message ?? "Could not load offer articles"))
+      .finally(() => !cancelled && setLoading(false));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const matches = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (q.length < 2) return [];
     const taken = new Set(existingCodes);
-    return (products || [])
-      .filter((p) => !taken.has(p.product_id))
+    return pool
+      .filter((p) => !taken.has(p.item_code))
       .filter(
         (p) =>
-          String(p.product_id).includes(q) ||
-          String(p.de_name ?? "").toLowerCase().includes(q)
+          String(p.item_code).includes(q) ||
+          String(p.item_name ?? "").toLowerCase().includes(q)
       )
       .slice(0, 25);
-  }, [products, search, existingCodes]);
+  }, [pool, search, existingCodes]);
 
   if (disabled) return null;
 
@@ -63,13 +74,16 @@ function AddArticles({ groupId, existingCodes, disabled, busy, onAdd }) {
         Add articles
       </Text>
       <Text fontSize="xs" color="gray.500" mb={2}>
-        Search by name or item code. An article can only be in one group, so
-        adding one here moves it out of any group it&apos;s currently in.
+        Only articles currently on offer can be added — a talker advertises an
+        offer. An article belongs to one group, so adding one already in
+        another group moves it.
       </Text>
       <Input
         size="sm"
         placeholder={
-          loading ? "Loading products…" : "Type at least 2 characters"
+          loading
+            ? "Loading articles on offer…"
+            : `Search ${pool.length} articles on offer (2+ characters)`
         }
         value={search}
         onChange={(e) => setSearch(e.target.value)}
@@ -79,27 +93,36 @@ function AddArticles({ groupId, existingCodes, disabled, busy, onAdd }) {
       {search.trim().length >= 2 ? (
         matches.length === 0 ? (
           <Text fontSize="sm" color="gray.500">
-            {loading ? "Still loading…" : "No matching articles."}
+            {loading
+              ? "Still loading…"
+              : "Nothing on offer matches that. Articles with no live offer can’t be added."}
           </Text>
         ) : (
           <Box maxH="200px" overflowY="auto">
             {matches.map((p, i) => (
               <Flex
-                key={p.product_id}
+                key={p.item_code}
                 px={2}
                 py={1}
                 bg={i % 2 ? "gray.50" : "white"}
                 align="center"
                 gap={2}
               >
-                <Text fontSize="sm" flex="1" noOfLines={1}>
-                  {p.product_id} · {p.de_name}
-                </Text>
+                <Box flex="1" minW={0}>
+                  <Text fontSize="sm" noOfLines={1}>
+                    {p.item_code} · {p.item_name}
+                  </Text>
+                  {p.group_label ? (
+                    <Text fontSize="xs" color="orange.600">
+                      currently in “{p.group_label}” — adding moves it
+                    </Text>
+                  ) : null}
+                </Box>
                 <Button
                   size="xs"
                   colorScheme="green"
                   isDisabled={busy}
-                  onClick={() => onAdd(p.product_id)}
+                  onClick={() => onAdd(p.item_code)}
                 >
                   Add
                 </Button>
@@ -530,7 +553,6 @@ export default function TalkerGroups() {
             ) : null}
 
             <AddArticles
-              groupId={detail.id}
               existingCodes={detail.items.map((i) => i.item_code)}
               disabled={!canManage || detail.status === "ended"}
               busy={busy}

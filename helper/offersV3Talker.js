@@ -36,6 +36,13 @@ const offersV3Talker = {
         "Failed to fetch ungrouped articles"
       ).then((d) => ({ data: d.data ?? [], count: d.meta?.count ?? 0 })),
 
+    /** Articles currently on offer - the only valid pool for group membership. */
+    offerArticles: () =>
+      unwrap(
+        API.get("/offers-v3-talker/offer-articles"),
+        "Failed to fetch offer articles"
+      ).then((d) => d.data ?? []),
+
     create: (data) =>
       unwrap(
         API.post("/offers-v3-talker/groups", data),
