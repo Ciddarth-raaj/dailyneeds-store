@@ -5,13 +5,23 @@ import AgGrid from "../../components/AgGrid";
 import EmptyData from "../../components/EmptyData";
 import PurchaseRefMobileCards from "../../components/purchase-ref/PurchaseRefMobileCards";
 import ProductImageZoom from "../../components/purchase-ref/ProductImageZoom";
-import { Box, Flex, Input, Spinner, useBreakpointValue } from "@chakra-ui/react";
+import {
+  Box,
+  Button,
+  Flex,
+  Input,
+  Spinner,
+  Text,
+  useBreakpointValue,
+} from "@chakra-ui/react";
+import moment from "moment";
 import { usePurchaseRef } from "../../customHooks/usePurchaseRef";
 import useDebounce from "../../customHooks/useDebounce";
 import toast from "react-hot-toast";
 
 function PurchaseRef() {
-  const { rows, loading, error } = usePurchaseRef();
+  const { rows, builtAt, loading, refreshing, error, refetch } =
+    usePurchaseRef();
   const [searchQuery, setSearchQuery] = useState("");
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
   const isMobile = useBreakpointValue({ base: true, md: false });
@@ -116,7 +126,30 @@ function PurchaseRef() {
 
   return (
     <GlobalWrapper title="Purchase Ref" permissionKey="view_purchase_ref">
-      <CustomContainer title="Purchase Ref" filledHeader>
+      <CustomContainer
+        title="Purchase Ref"
+        filledHeader
+        rightSection={
+          <Flex alignItems="center" gap={3}>
+            {builtAt && (
+              <Text fontSize="xs" color="gray.600">
+                Updated {moment(builtAt).fromNow()}
+              </Text>
+            )}
+            <Button
+              size="sm"
+              variant="outline"
+              colorScheme="purple"
+              isLoading={refreshing}
+              loadingText="Refreshing"
+              isDisabled={loading}
+              onClick={() => refetch({ force: true })}
+            >
+              Refresh
+            </Button>
+          </Flex>
+        }
+      >
         {loading ? (
           <Flex w="100%" minH="200px" justifyContent="center" alignItems="center">
             <Spinner size="lg" color="purple.500" thickness="3px" />
