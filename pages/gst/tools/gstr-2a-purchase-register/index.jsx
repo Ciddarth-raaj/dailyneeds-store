@@ -37,6 +37,10 @@ import { useGstB2bInvoices } from "../../../../customHooks/useGstB2bInvoices";
 import { useGstr2aPurchaseRegisterPr } from "../../../../customHooks/useGstr2aPurchaseRegisterPr";
 import { upsertPurchaseGstMatch } from "../../../../helper/purchaseGstMatch";
 import {
+  acceptPurchaseGstNo2a,
+  deletePurchaseGstNo2a,
+} from "../../../../helper/purchaseGstNo2a";
+import {
   financialYearForPeriodRange,
   financialYearPeriodRange,
   formatFinancialYearLabel,
@@ -45,10 +49,12 @@ import {
 import {
   aggregateGstr2aPeriodSummary,
   aggregatePurchasePeriodSummary,
+  buildAcceptedNo2aIds,
   buildAutoMatchPairs,
   buildDocumentViewRows,
   computeTaxDiff,
   enrichDocumentRowsWithMatches,
+  enrichRowsWithNo2aAcceptance,
   enrichVendorRowsWithMatchPct,
   formatPeriodRangeLabel,
   getDocumentMatchStatusBadge,
@@ -204,6 +210,7 @@ export default function GstGstr2aPurchaseRegisterPage() {
   const [filterCtin, setFilterCtin] = useState(null);
   const [matchDocument, setMatchDocument] = useState(null);
   const [autoMatching, setAutoMatching] = useState(false);
+  const [accepting, setAccepting] = useState(false);
   const [autoMatchPreviewOpen, setAutoMatchPreviewOpen] = useState(false);
   const [autoMatchPairs, setAutoMatchPairs] = useState([]);
   const [autoMatchUnmatched, setAutoMatchUnmatched] = useState([]);
@@ -258,6 +265,7 @@ export default function GstGstr2aPurchaseRegisterPage() {
   const {
     purchases,
     matches,
+    acceptedNo2a,
     vendorPrByGstin,
     loading: prLoading,
     error: prError,
@@ -270,20 +278,41 @@ export default function GstGstr2aPurchaseRegisterPage() {
     return enrichVendorRowsWithMatchPct(merged, invoices, matches);
   }, [invoices, vendorPrByGstin, matches]);
 
+  const acceptedNo2aIds = useMemo(
+    () => buildAcceptedNo2aIds(acceptedNo2a),
+    [acceptedNo2a]
+  );
+
   const documentRows = useMemo(() => {
-    const rows = buildDocumentViewRows(
-      enrichDocumentRowsWithMatches(
-        buildDocumentRows(invoices),
+    const rows = enrichRowsWithNo2aAcceptance(
+      buildDocumentViewRows(
+        enrichDocumentRowsWithMatches(
+          buildDocumentRows(invoices),
+          purchases,
+          matches
+        ),
         purchases,
         matches
       ),
-      purchases,
-      matches
+      acceptedNo2aIds
     );
     const f = (filterCtin || "").trim();
     if (!f) return rows;
     return rows.filter((r) => (r.ctin || "").trim() === f);
-  }, [invoices, filterCtin, purchases, matches]);
+  }, [invoices, filterCtin, purchases, matches, acceptedNo2aIds]);
+
+  /** PR-only, zero-tax and not yet accepted - what "Accept zero-tax" would take. */
+  const acceptableRows = useMemo(
+    () =>
+      documentRows.filter(
+        (r) =>
+          r.isPrOnly &&
+          r.isZeroTax &&
+          !r.isNo2aAccepted &&
+          r.gst_tally_purchase_id != null
+      ),
+    [documentRows]
+  );
 
   const summary2A = useMemo(
     () => aggregateGstr2aPeriodSummary(invoices),
@@ -300,6 +329,86 @@ export default function GstGstr2aPurchaseRegisterPage() {
       documentRows.filter((r) => !r.isMatched && r.gst_b2b_invoice_id != null)
         .length,
     [documentRows]
+  );
+
+  const employeeId = useMemo(
+    () => parseInt(String(userConfig?.employeeId ?? ""), 10),
+    [userConfig]
+  );
+
+  const acceptNo2aRows = useCallback(
+    async (rows) => {
+      if (!Number.isFinite(employeeId)) {
+        toast.error("Employee ID not found. Please sign in again.");
+        return;
+      }
+      const ids = rows
+        .map((r) => r.gst_tally_purchase_id)
+        .filter((id) => id != null);
+      if (!ids.length) return;
+
+      setAccepting(true);
+      try {
+        const data = await acceptPurchaseGstNo2a({
+          gst_tally_purchase_ids: ids,
+          accepted_by: employeeId,
+        });
+        if (data.code !== 200) {
+          toast.error(data?.msg || "Could not accept");
+          return;
+        }
+        await refetchPr();
+        const count = data.accepted_count ?? ids.length;
+        const skipped = (data.rejected ?? []).length;
+        toast.success(
+          `Accepted ${count} invoice${count === 1 ? "" : "s"} as not in 2A` +
+            (skipped ? `. ${skipped} skipped - tax is not zero.` : "")
+        );
+      } catch (e) {
+        toast.error(e?.message || "Could not accept");
+      } finally {
+        setAccepting(false);
+      }
+    },
+    [employeeId, refetchPr]
+  );
+
+  const handleAcceptRow = useCallback(
+    (row) => acceptNo2aRows([row]),
+    [acceptNo2aRows]
+  );
+
+  const handleAcceptAllZeroTax = useCallback(() => {
+    if (!acceptableRows.length) return;
+    const ok = window.confirm(
+      `Accept ${acceptableRows.length} zero-tax invoice${
+        acceptableRows.length === 1 ? "" : "s"
+      } as never appearing in GSTR-2A? They stay in this list, badged Accepted, and can be undone one at a time.`
+    );
+    if (!ok) return;
+    acceptNo2aRows(acceptableRows);
+  }, [acceptableRows, acceptNo2aRows]);
+
+  const handleUnacceptRow = useCallback(
+    async (row) => {
+      const id = row?.gst_tally_purchase_id;
+      if (id == null) return;
+      setAccepting(true);
+      try {
+        const data = await deletePurchaseGstNo2a(id);
+        if (data.code !== 200) {
+          toast.error(data?.msg || "Could not undo");
+          return;
+        }
+        await refetchPr();
+        toast.success("Back to unmatched");
+      } catch (e) {
+        toast.error(e?.message || "Could not undo");
+      } finally {
+        setAccepting(false);
+      }
+    },
+    [refetchPr]
   );
 
   const handleOpenAutoMatchPreview = useCallback(() => {
@@ -330,7 +439,6 @@ export default function GstGstr2aPurchaseRegisterPage() {
   }, [autoMatching]);
 
   const handleConfirmAutoMatch = useCallback(async () => {
-    const employeeId = parseInt(String(userConfig?.employeeId ?? ""), 10);
     if (!Number.isFinite(employeeId)) {
       toast.error("Employee ID not found. Please sign in again.");
       return;
@@ -374,7 +482,7 @@ export default function GstGstr2aPurchaseRegisterPage() {
     } finally {
       setAutoMatching(false);
     }
-  }, [autoMatchPairs, userConfig?.employeeId, refetchPr]);
+  }, [autoMatchPairs, employeeId, refetchPr]);
 
   const vendorColDefs = useMemo(
     () => [
@@ -507,8 +615,33 @@ export default function GstGstr2aPurchaseRegisterPage() {
         filter: false,
         sortable: false,
         valueGetter: (params) => {
-          const matched = Boolean(params.data?.isMatched);
-          const prOnly = Boolean(params.data?.isPrOnly);
+          const row = params.data;
+          const matched = Boolean(row?.isMatched);
+          const prOnly = Boolean(row?.isPrOnly);
+
+          // A zero-tax purchase has no 2A document to match, so its action is
+          // to accept that absence rather than to open the match modal.
+          if (prOnly && row?.isNo2aAccepted) {
+            return [
+              {
+                label: "Accepted - undo",
+                icon: "fa-solid fa-rotate-left",
+                colorScheme: "green",
+                onClick: () => handleUnacceptRow(row),
+              },
+            ];
+          }
+          if (prOnly && row?.isZeroTax) {
+            return [
+              {
+                label: "Accept - no 2A expected",
+                icon: "fa-solid fa-circle-check",
+                colorScheme: "green",
+                onClick: () => handleAcceptRow(row),
+              },
+            ];
+          }
+
           return [
             {
               label: matched ? "Matched" : "Match",
@@ -706,7 +839,7 @@ export default function GstGstr2aPurchaseRegisterPage() {
         ],
       },
     ],
-    [onOpenMatch, colorScheme]
+    [onOpenMatch, colorScheme, handleAcceptRow, handleUnacceptRow]
   );
 
   const currentMonth = moment().format("YYYY-MM");
@@ -901,22 +1034,42 @@ export default function GstGstr2aPurchaseRegisterPage() {
                           </Text>
                         ) : null}
                       </Box>
-                      <Button
-                        type="button"
-                        colorScheme={colorScheme}
-                        size="sm"
-                        leftIcon={
-                          <i className="fa-solid fa-wand-magic-sparkles" />
-                        }
-                        onClick={handleOpenAutoMatchPreview}
-                        isLoading={autoMatching && !autoMatchPreviewOpen}
-                        isDisabled={pageLoading || unmatchedDocumentCount === 0}
-                      >
-                        Auto match
-                        {unmatchedDocumentCount > 0
-                          ? ` (${unmatchedDocumentCount} unmatched)`
-                          : ""}
-                      </Button>
+                      <Flex gap={2}>
+                        {acceptableRows.length > 0 ? (
+                          <Button
+                            type="button"
+                            colorScheme="green"
+                            variant="outline"
+                            size="sm"
+                            leftIcon={
+                              <i className="fa-solid fa-circle-check" />
+                            }
+                            onClick={handleAcceptAllZeroTax}
+                            isLoading={accepting}
+                            isDisabled={pageLoading}
+                          >
+                            {`Accept zero-tax (${acceptableRows.length})`}
+                          </Button>
+                        ) : null}
+                        <Button
+                          type="button"
+                          colorScheme={colorScheme}
+                          size="sm"
+                          leftIcon={
+                            <i className="fa-solid fa-wand-magic-sparkles" />
+                          }
+                          onClick={handleOpenAutoMatchPreview}
+                          isLoading={autoMatching && !autoMatchPreviewOpen}
+                          isDisabled={
+                            pageLoading || unmatchedDocumentCount === 0
+                          }
+                        >
+                          Auto match
+                          {unmatchedDocumentCount > 0
+                            ? ` (${unmatchedDocumentCount} unmatched)`
+                            : ""}
+                        </Button>
+                      </Flex>
                     </Flex>
                     <AgGrid
                       rowData={documentRows}
