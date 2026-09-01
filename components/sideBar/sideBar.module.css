@@ -246,7 +246,7 @@
   min-width: 260px;
 }
 
-@media (max-width: 480px) {
+@media (max-width: 767px) {
   .container.minimized {
     width: 260px;
     min-width: 260px;
@@ -533,7 +533,7 @@
   background-color: rgba(226, 153, 255, 0.2);
 } */
 
-@media (max-width: 480px) {
+@media (max-width: 767px) {
   .menuContainer {
     display: inline-block;
     cursor: pointer;
