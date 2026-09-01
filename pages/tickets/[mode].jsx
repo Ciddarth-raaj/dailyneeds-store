@@ -28,6 +28,8 @@ import { useUser } from "../../contexts/UserContext";
 import FilesHelper from "../../helper/asset";
 import { createTicket, updateTicket } from "../../helper/tickets";
 import {
+  ATTACHMENT_ACCEPT,
+  ATTACHMENT_MAX_BYTES,
   ITEM_TYPE_LIST,
   PRIORITY_LIST,
   RECURRENCE_FREQUENCIES,
@@ -531,14 +533,15 @@ function WorkItemPage() {
                 />
 
                 <CustomInput
-                  label="Photos"
+                  label="Photos & videos"
                   name="files"
                   method="file"
                   editable={fieldsEditable}
                   multiple
-                  accept="image/*"
+                  accept={ATTACHMENT_ACCEPT}
+                  maxSize={ATTACHMENT_MAX_BYTES}
                   capture="environment"
-                  filePlaceholder="Take a photo or choose from your gallery"
+                  filePlaceholder="Take a photo or video, or choose from your gallery (up to 50MB each)"
                 />
 
                 {/* Checklist steps are collected locally while creating, then

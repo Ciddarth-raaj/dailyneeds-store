@@ -164,3 +164,19 @@ export const describeRecurrence = (recurrence) => {
 
   return cadence;
 };
+
+const VIDEO_EXTENSIONS = ["mp4", "mov", "m4v", "webm", "avi", "mkv", "3gp"];
+
+/**
+ * Attachments are stored as bare S3 urls with no media-type column, so the
+ * extension is what tells a clip from a photo.
+ */
+export const isVideoUrl = (url) => {
+  if (!url) return false;
+  const path = String(url).split("?")[0].toLowerCase();
+  return VIDEO_EXTENSIONS.some((ext) => path.endsWith(`.${ext}`));
+};
+
+/** What a ticket may carry, and how large. Mirrors the limits the API enforces. */
+export const ATTACHMENT_ACCEPT = "image/*,video/*";
+export const ATTACHMENT_MAX_BYTES = 50 * 1024 * 1024;
