@@ -12,16 +12,17 @@ import {
  * Purchase register (PR) data for GSTR-2A v Purchase Register.
  * Uses Tally GST purchases (`usePurchaseGst`) and purchase-gst matches.
  *
- * @param {string} period - `YYYY-MM` return month
+ * @param {string} fromPeriod - `YYYY-MM` first return month
+ * @param {string} [toPeriod] - `YYYY-MM` last return month; defaults to `fromPeriod`
  */
-export function useGstr2aPurchaseRegisterPr(period) {
+export function useGstr2aPurchaseRegisterPr(fromPeriod, toPeriod) {
   const purchaseFilters = useMemo(
-    () => purchasePeriodFilters(period),
-    [period]
+    () => purchasePeriodFilters(fromPeriod, toPeriod),
+    [fromPeriod, toPeriod]
   );
   const matchFilters = useMemo(
-    () => purchaseMatchPeriodFilters(period),
-    [period]
+    () => purchaseMatchPeriodFilters(fromPeriod, toPeriod),
+    [fromPeriod, toPeriod]
   );
 
   const {

@@ -22,6 +22,7 @@ import {
   buildPurchasesMatchedElsewhere,
   findMatchForDocument,
   findPurchaseByMatch,
+  formatPeriodRangeLabel,
   getPurchaseDisplayTotalAmount,
   getPurchaseMatchIds,
   getPurchaseRegisterRowKey,
@@ -30,6 +31,7 @@ import {
   isPurchaseLockedByOtherMatch,
   normalizeGstin,
   parseDecimal,
+  periodRangeKey,
   stringsMatchInvoice,
 } from "../../util/gstr2aPurchaseRegister";
 import { useModuleTableTheme } from "../../contexts/ModuleTableThemeContext";
@@ -139,7 +141,8 @@ export default function Gstr2aMatchModal({
   isOpen,
   onClose,
   documentRow,
-  period,
+  fromPeriod,
+  toPeriod,
   purchases: allPurchases = [],
   matches = [],
   prLoading = false,
@@ -152,6 +155,15 @@ export default function Gstr2aMatchModal({
   const [selectedPurchase, setSelectedPurchase] = useState(null);
   const [saving, setSaving] = useState(false);
   const [clearing, setClearing] = useState(false);
+
+  const periodLabel = useMemo(
+    () => formatPeriodRangeLabel(fromPeriod, toPeriod),
+    [fromPeriod, toPeriod]
+  );
+  const periodKey = useMemo(
+    () => periodRangeKey(fromPeriod, toPeriod),
+    [fromPeriod, toPeriod]
+  );
 
   const existingMatch = useMemo(() => {
     if (!documentRow) return null;
@@ -228,7 +240,7 @@ export default function Gstr2aMatchModal({
     } else {
       setSelectedPurchase(null);
     }
-  }, [isOpen, documentRow, period, matchedPurchaseInGrid]);
+  }, [isOpen, documentRow, periodKey, matchedPurchaseInGrid]);
 
   useEffect(() => {
     if (!isOpen || !matchedPurchaseInGrid) return;
@@ -527,8 +539,7 @@ export default function Gstr2aMatchModal({
       </Grid>
 
       <Text fontSize="sm" fontWeight="semibold" color={`${cs}.700`} mb={2}>
-        Purchases ({period ? moment(period, "YYYY-MM").format("MMMM YYYY") : ""}
-        )
+        Purchases ({periodLabel})
       </Text>
       <Text fontSize="xs" color="gray.600" mb={3}>
         Showing pushed-to-Tally purchases for GSTIN {documentRow.ctin}. Sorted
@@ -548,14 +559,14 @@ export default function Gstr2aMatchModal({
       ) : purchases.length === 0 ? (
         <Text fontSize="sm" color="gray.600">
           No pushed-to-Tally purchases found for this GSTIN in the selected
-          period.
+          period range.
         </Text>
       ) : (
         <AgGrid
           ref={gridRef}
           rowData={purchases}
           columnDefs={columnDefs}
-          tableKey={`gst-gstr2a-match-${period}`}
+          tableKey={`gst-gstr2a-match-${periodKey}`}
           tableColorScheme={cs}
           selectMode
           isRowSelectable={isRowSelectable}
