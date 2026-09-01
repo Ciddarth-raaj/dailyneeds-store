@@ -221,6 +221,7 @@ export const PERMISSIONS = {
       view_gst_vendors: "View GST Vendors",
       view_gst_filing_dates: "View GST Filing Dates",
       view_tally_purchases: "View Tally Purchases",
+      delete_tally_purchases: "Delete Tally Purchases",
     },
     gst_tools: {
       view_gst_gstr2a_purchase_register: "View GSTR 2A v Purchase Register",
