@@ -15,6 +15,7 @@ import {
   FormControl,
   FormLabel,
   Input,
+  Select,
   Tab,
   TabList,
   TabPanel,
@@ -35,6 +36,12 @@ import { useUser } from "../../../../contexts/UserContext";
 import { useGstB2bInvoices } from "../../../../customHooks/useGstB2bInvoices";
 import { useGstr2aPurchaseRegisterPr } from "../../../../customHooks/useGstr2aPurchaseRegisterPr";
 import { upsertPurchaseGstMatch } from "../../../../helper/purchaseGstMatch";
+import {
+  financialYearForPeriodRange,
+  financialYearPeriodRange,
+  formatFinancialYearLabel,
+  listFinancialYears,
+} from "../../../../util/gstFinancialYear";
 import {
   aggregateGstr2aPeriodSummary,
   aggregatePurchasePeriodSummary,
@@ -704,6 +711,29 @@ export default function GstGstr2aPurchaseRegisterPage() {
 
   const currentMonth = moment().format("YYYY-MM");
 
+  const financialYears = useMemo(
+    () => listFinancialYears(currentMonth),
+    [currentMonth]
+  );
+
+  /** The FY the range covers exactly, or "" while the range is a custom span. */
+  const selectedFinancialYear = useMemo(() => {
+    const fy = financialYearForPeriodRange(fromPeriod, toPeriod, currentMonth);
+    return fy == null ? "" : String(fy);
+  }, [fromPeriod, toPeriod, currentMonth]);
+
+  const handleFinancialYearChange = useCallback(
+    (e) => {
+      const value = e.target.value;
+      if (!value) return;
+      const range = financialYearPeriodRange(Number(value), currentMonth);
+      if (!range) return;
+      setFromPeriod(range.from);
+      setToPeriod(range.to);
+    },
+    [currentMonth]
+  );
+
   /** Keep the range ordered: moving one end past the other drags the other with it. */
   const handleFromPeriodChange = useCallback(
     (e) => {
@@ -738,6 +768,19 @@ export default function GstGstr2aPurchaseRegisterPage() {
       >
         Return period
       </FormLabel>
+      <Select
+        size="sm"
+        maxW="150px"
+        value={selectedFinancialYear}
+        onChange={handleFinancialYearChange}
+        placeholder="Custom"
+      >
+        {financialYears.map((fy) => (
+          <option key={fy} value={fy}>
+            {formatFinancialYearLabel(fy)}
+          </option>
+        ))}
+      </Select>
       <Input
         type="month"
         size="sm"
