@@ -12,9 +12,11 @@ import { Input, Text } from "@chakra-ui/react";
 import toast from "react-hot-toast";
 
 import PurchaseModal from "../../../components/Purchase/PurchaseModal";
+import { useUser } from "../../../contexts/UserContext";
 import FromToDateOutletPicker from "../../../components/DateOutletPicker/FromToDateOutletPicker";
 import { exportToExcel } from "../../../util/exportCSVFile";
 import { getPurchaseTotalTax } from "../../../util/gstr2aPurchaseRegister";
+import { deletePurchaseGst } from "../../../helper/purchaseGst";
 import { capitalize } from "../../../util/string";
 
 function getSourceBadge(item) {
@@ -52,6 +54,17 @@ function AllTallyPurchases() {
   const [selectedOutlet, setSelectedOutlet] = useState(null);
   const [selectedPurchase, setSelectedPurchase] = useState(null);
   const [viewLoading, setViewLoading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const { userConfig } = useUser();
+
+  const canDelete = useMemo(
+    () =>
+      Array.isArray(userConfig?.permissions) &&
+      userConfig.permissions.some(
+        (p) => p?.permission_key === "delete_tally_purchases"
+      ),
+    [userConfig]
+  );
 
   const isOpen = selectedPurchase !== null;
   const onClose = () => setSelectedPurchase(null);
@@ -75,7 +88,12 @@ function AllTallyPurchases() {
     return filterItem;
   }, [selectedOutlet, fromDate, toDate]);
 
-  const { purchaseGst, loading, fetchPurchaseGstById } = usePurchaseGst(filters);
+  const {
+    purchaseGst,
+    loading,
+    fetchPurchaseGstById,
+    refetch,
+  } = usePurchaseGst(filters);
 
   const filteredPurchases = useMemo(() => {
     if (!search.trim()) return purchaseGst ?? [];
@@ -122,6 +140,39 @@ function AllTallyPurchases() {
       }
     },
     [fetchPurchaseGstById]
+  );
+
+  const handleDelete = useCallback(
+    async (row) => {
+      const id = row?.gst_tally_purchase_id;
+      if (id == null) return;
+
+      const label = [row.mmh_mrc_refno, row.supplier_name]
+        .filter(Boolean)
+        .join(" - ");
+      const ok = window.confirm(
+        `Delete ${label || "this purchase"}? It is removed from this list along ` +
+          `with any GSTR-2A match against it. Tally is not touched - if the ` +
+          `voucher still exists there, the next sync brings it back.`
+      );
+      if (!ok) return;
+
+      setDeleting(true);
+      try {
+        const data = await deletePurchaseGst(id);
+        if (data?.code !== 200) {
+          toast.error(data?.msg || "Could not delete");
+          return;
+        }
+        await refetch(true);
+        toast.success("Deleted");
+      } catch (e) {
+        toast.error(e?.message || "Could not delete");
+      } finally {
+        setDeleting(false);
+      }
+    },
+    [refetch]
   );
 
   const columnDefs = useMemo(
@@ -225,7 +276,7 @@ function AllTallyPurchases() {
         valueGetter: (params) => {
           const item = params.data;
           if (!item) return [];
-          return [
+          const actions = [
             {
               label: "View",
               icon: "fa-solid fa-eye",
@@ -233,10 +284,23 @@ function AllTallyPurchases() {
               onClick: () => handleView(item),
             },
           ];
+
+          // A system row is the snapshot of a purchase in our own system;
+          // only what Tally owns can be removed from here.
+          if (canDelete && item.source === "tally") {
+            actions.push({
+              label: "Delete",
+              icon: "fa-solid fa-trash",
+              colorScheme: "red",
+              onClick: () => handleDelete(item),
+            });
+          }
+
+          return actions;
         },
       },
     ],
-    [handleView]
+    [handleView, handleDelete, canDelete]
   );
 
   const exportData = useCallback(() => {
@@ -311,7 +375,7 @@ function AllTallyPurchases() {
               style={{ marginBottom: "22px" }}
             />
 
-            {loading || viewLoading ? (
+            {loading || viewLoading || deleting ? (
               <Text>Loading…</Text>
             ) : (
               <AgGrid

@@ -26,3 +26,17 @@ export const getPurchaseGstById = async (gstTallyPurchaseId) => {
     throw err;
   }
 };
+
+/** Remove a purchase Tally no longer has. Tally-sourced rows only. */
+export const deletePurchaseGst = async (gstTallyPurchaseId) => {
+  try {
+    const response = await API.delete(
+      `/purchase-gst/${encodeURIComponent(String(gstTallyPurchaseId))}`
+    );
+    return response.data;
+  } catch (err) {
+    const body = err?.response?.data;
+    if (body) return body;
+    throw err;
+  }
+};
