@@ -36,6 +36,7 @@ import {
   STATUS_LIST,
   formatDate,
   formatDateTime,
+  isVideoUrl,
   itemTypeMeta,
 } from "../../constants/workItems";
 
@@ -124,7 +125,7 @@ function WorkItemDetail({
         {images.length > 0 && (
           <Box mb="16px">
             <Text fontSize="xs" color="gray.500" mb="6px">
-              Photos ({images.length})
+              Attachments ({images.length})
             </Text>
             <SimpleGrid columns={{ base: 3, sm: 4, md: 6 }} spacing="8px">
               {images.map((image) => (
@@ -139,14 +140,39 @@ function WorkItemDetail({
                   onClick={() => openPreview(image.s3_url)}
                   _focusVisible={{ outline: "2px solid", outlineColor: "purple.400" }}
                 >
-                  <Image
-                    src={image.s3_url}
-                    alt="Attachment"
-                    objectFit="cover"
-                    width="100%"
-                    height="84px"
-                    loading="lazy"
-                  />
+                  {isVideoUrl(image.s3_url) ? (
+                    <Box position="relative" height="84px" bg="gray.900">
+                      <Box
+                        as="video"
+                        src={image.s3_url}
+                        width="100%"
+                        height="84px"
+                        objectFit="cover"
+                        muted
+                        preload="metadata"
+                      />
+                      <Flex
+                        position="absolute"
+                        inset="0"
+                        align="center"
+                        justify="center"
+                        color="white"
+                        fontSize="20px"
+                        textShadow="0 1px 4px rgba(0,0,0,0.6)"
+                      >
+                        <i className="fa fa-play-circle" />
+                      </Flex>
+                    </Box>
+                  ) : (
+                    <Image
+                      src={image.s3_url}
+                      alt="Attachment"
+                      objectFit="cover"
+                      width="100%"
+                      height="84px"
+                      loading="lazy"
+                    />
+                  )}
                 </Box>
               ))}
             </SimpleGrid>
@@ -221,12 +247,24 @@ function WorkItemDetail({
           <ModalCloseButton color="white" bg="blackAlpha.600" borderRadius="full" />
           <ModalBody p={0}>
             {preview ? (
-              <Image
-                src={preview}
-                alt="Attachment"
-                width="100%"
-                borderRadius="8px"
-              />
+              isVideoUrl(preview) ? (
+                <Box
+                  as="video"
+                  src={preview}
+                  controls
+                  autoPlay
+                  width="100%"
+                  borderRadius="8px"
+                  bg="black"
+                />
+              ) : (
+                <Image
+                  src={preview}
+                  alt="Attachment"
+                  width="100%"
+                  borderRadius="8px"
+                />
+              )
             ) : null}
           </ModalBody>
         </ModalContent>
