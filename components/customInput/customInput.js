@@ -77,6 +77,8 @@ const TextFieldBody = ({
   containerStyle,
   editable,
   accept,
+  capture,
+  filePlaceholder,
   maxSize = 5242880,
   floatingLabel = false,
   position = "top",
@@ -654,7 +656,7 @@ const TextFieldBody = ({
                       className={`${styles.dropzone} ${isDragActive ? styles.dragActive : ""
                         }`}
                     >
-                      <input {...getInputProps()} />
+                      <input {...getInputProps(capture ? { capture } : {})} />
                       {multiple ? (
                         <>
                           {Array.isArray(field.value) && field.value.length > 0 ? (
@@ -696,7 +698,8 @@ const TextFieldBody = ({
                               >
                                 {isDragActive
                                   ? "Drop the files here"
-                                  : "Drag & drop files here, or click to select"}
+                                  : filePlaceholder ??
+                                    "Drag & drop files here, or click to select"}
                               </p>
                             </div>
                           )}

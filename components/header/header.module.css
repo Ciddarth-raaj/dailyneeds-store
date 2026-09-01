@@ -214,7 +214,7 @@
   }
 }
 
-@media (max-width: 480px) {
+@media (max-width: 767px) {
   .container {
     padding: 0 12px 0 70px;
     height: 56px;
@@ -359,7 +359,7 @@
 }
 
 /* Additional mobile improvements */
-@media (max-width: 480px) {
+@media (max-width: 767px) {
   /* Ensure dropdown doesn't go off-screen */
   .dropdownContent {
     max-width: calc(100vw - 32px);

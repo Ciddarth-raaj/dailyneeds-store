@@ -539,16 +539,28 @@ const ALL_PAGES_MENU = {
   //   },
   // },
   tickets: {
-    title: "Tickets",
+    title: "Tickets & Tasks",
     selected: false,
     openPage: false,
     icon: "fa-ticket",
     subMenu: {
+      my_work: {
+        title: "My Work",
+        permission: "view_my_tickets",
+        selected: false,
+        location: "/my-work",
+      },
       open_issue: {
-        title: "View All",
+        title: "All Tickets",
         permission: "view_tickets",
         selected: false,
         location: "/tickets",
+      },
+      tasks: {
+        title: "All Tasks",
+        permission: "view_tasks",
+        selected: false,
+        location: "/tasks",
       },
       my_tickets: {
         title: "My Tickets",
