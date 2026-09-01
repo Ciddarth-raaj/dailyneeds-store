@@ -32,11 +32,17 @@ const STAGE_MAP = {
   a3: 4,
 };
 
+// Routes may omit the stage (e.g. the "Create" menu links to
+// /lr-workflow/advance-request/create). Fall back to the first stage so the
+// form renders instead of collapsing to an empty page.
+const DEFAULT_STAGE = "a1";
+
 function AdvanceRequestForm() {
   const router = useRouter();
   // const mode = router.query.params[0];
   const mode = router.query.params?.[0];
-  const stage = router.query.params?.[1];
+  const stageParam = router.query.params?.[1];
+  const stage = STAGE_MAP[stageParam] ? stageParam : DEFAULT_STAGE;
   const viewMode = mode === "view";
   const editMode = mode === "edit";
 
