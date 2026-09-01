@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from "react";
 import { usePurchaseGst } from "./usePurchaseGst";
 import { usePurchaseGstMatch } from "./usePurchaseGstMatch";
+import { usePurchaseGstNo2a } from "./usePurchaseGstNo2a";
 import {
   aggregatePurchasesByVendor,
   normalizeTallyPurchases,
@@ -39,6 +40,13 @@ export function useGstr2aPurchaseRegisterPr(fromPeriod, toPeriod) {
     refetch: refetchMatches,
   } = usePurchaseGstMatch(matchFilters);
 
+  const {
+    accepted: acceptedNo2a,
+    loading: acceptedLoading,
+    error: acceptedError,
+    refetch: refetchAccepted,
+  } = usePurchaseGstNo2a(purchaseFilters ?? {});
+
   const purchases = useMemo(
     () => normalizeTallyPurchases(purchaseGst ?? []),
     [purchaseGst]
@@ -52,7 +60,7 @@ export function useGstr2aPurchaseRegisterPr(fromPeriod, toPeriod) {
   const loading =
     purchaseFilters == null || matchFilters == null
       ? false
-      : purchaseGstLoading || matchLoading;
+      : purchaseGstLoading || matchLoading || acceptedLoading;
 
   const error = useMemo(() => {
     if (purchaseGstError) {
@@ -61,16 +69,24 @@ export function useGstr2aPurchaseRegisterPr(fromPeriod, toPeriod) {
     if (matchError) {
       return matchError?.message ?? String(matchError);
     }
+    if (acceptedError) {
+      return acceptedError?.message ?? String(acceptedError);
+    }
     return null;
-  }, [purchaseGstError, matchError]);
+  }, [purchaseGstError, matchError, acceptedError]);
 
   const refetch = useCallback(async () => {
-    await Promise.all([refetchPurchaseGst(true), refetchMatches(true)]);
-  }, [refetchPurchaseGst, refetchMatches]);
+    await Promise.all([
+      refetchPurchaseGst(true),
+      refetchMatches(true),
+      refetchAccepted(true),
+    ]);
+  }, [refetchPurchaseGst, refetchMatches, refetchAccepted]);
 
   return {
     purchases,
     matches,
+    acceptedNo2a,
     vendorPrByGstin,
     loading,
     error,

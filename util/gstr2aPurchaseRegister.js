@@ -413,6 +413,9 @@ export function getAutoMatchCompareFlags(documentRow, purchase) {
  */
 export function getDocumentMatchStatusBadge(row) {
   if (!row?.isMatched) {
+    if (row?.isNo2aAccepted) {
+      return { label: "Accepted", colorScheme: "green" };
+    }
     return { label: "Unmatched", colorScheme: "gray" };
   }
 
@@ -592,6 +595,9 @@ export function buildPrOnlyDocumentRows(purchases, matches) {
     rows.push({
       _rowId: `pr-only:${rowKey}`,
       gst_b2b_invoice_id: null,
+      gst_tally_purchase_id:
+        purchase.gst_tally_purchase_id ?? purchase.purchase_id ?? null,
+      isZeroTax: isZeroTaxPurchase(purchase),
       isPrOnly: true,
       isMatched: false,
       gst_purchase_match_id: null,
@@ -610,6 +616,41 @@ export function buildPrOnlyDocumentRows(purchases, matches) {
   }
 
   return rows;
+}
+
+/**
+ * A purchase carrying no tax. Its supplier files nothing against it in
+ * GSTR-2A - nil-rated, exempt or composition - so no 2A document will ever
+ * arrive to match it. Same figure as getPurchaseTotalTax, which is also what
+ * the server re-checks before accepting one.
+ */
+export function isZeroTaxPurchase(purchase) {
+  if (!purchase) return false;
+  return getPurchaseTotalTax(purchase) === 0;
+}
+
+/** Purchase ids accepted as never appearing in 2A. */
+export function buildAcceptedNo2aIds(acceptedRows) {
+  const ids = new Set();
+  for (const row of acceptedRows || []) {
+    const id = Number(row?.gst_tally_purchase_id);
+    if (Number.isFinite(id)) ids.add(id);
+  }
+  return ids;
+}
+
+/** Flag PR-only rows the reviewer has accepted as expected to have no 2A. */
+export function enrichRowsWithNo2aAcceptance(rows, acceptedIds) {
+  if (!acceptedIds?.size) {
+    return (rows || []).map((row) => ({ ...row, isNo2aAccepted: false }));
+  }
+  return (rows || []).map((row) => {
+    const id = Number(row?.gst_tally_purchase_id);
+    return {
+      ...row,
+      isNo2aAccepted: Number.isFinite(id) && acceptedIds.has(id),
+    };
+  });
 }
 
 /** 2A document rows plus PR-only rows (no B2B invoice link). */
