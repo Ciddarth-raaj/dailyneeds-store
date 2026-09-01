@@ -9,7 +9,6 @@ import {
   Select,
   IconButton,
 } from "@chakra-ui/react";
-import Badge from "../Badge";
 import { PRIORITY_LIST, STATUS_LIST } from "../../constants/workItems";
 
 /** Quick views, expressed as the filter patch each one applies. */
