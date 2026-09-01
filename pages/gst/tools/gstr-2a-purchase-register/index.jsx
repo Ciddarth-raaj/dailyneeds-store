@@ -15,6 +15,7 @@ import {
   FormControl,
   FormLabel,
   Input,
+  Select,
   Tab,
   TabList,
   TabPanel,
@@ -36,6 +37,12 @@ import { useGstB2bInvoices } from "../../../../customHooks/useGstB2bInvoices";
 import { useGstr2aPurchaseRegisterPr } from "../../../../customHooks/useGstr2aPurchaseRegisterPr";
 import { upsertPurchaseGstMatch } from "../../../../helper/purchaseGstMatch";
 import {
+  financialYearForPeriodRange,
+  financialYearPeriodRange,
+  formatFinancialYearLabel,
+  listFinancialYears,
+} from "../../../../util/gstFinancialYear";
+import {
   aggregateGstr2aPeriodSummary,
   aggregatePurchasePeriodSummary,
   buildAutoMatchPairs,
@@ -43,10 +50,12 @@ import {
   computeTaxDiff,
   enrichDocumentRowsWithMatches,
   enrichVendorRowsWithMatchPct,
+  formatPeriodRangeLabel,
   getDocumentMatchStatusBadge,
   getPurchaseMatchIds,
   isTaxDiffOutOfRange,
   mergeVendorRowsWithPr,
+  periodRangeKey,
 } from "../../../../util/gstr2aPurchaseRegister";
 
 function parseDecimal(v) {
@@ -185,7 +194,10 @@ function buildDocumentRows(invoices) {
 
 export default function GstGstr2aPurchaseRegisterPage() {
   const { colorScheme } = useModuleTableTheme();
-  const [period, setPeriod] = useState(() =>
+  const [fromPeriod, setFromPeriod] = useState(() =>
+    moment().subtract(1, "month").format("YYYY-MM")
+  );
+  const [toPeriod, setToPeriod] = useState(() =>
     moment().subtract(1, "month").format("YYYY-MM")
   );
   const [tabIndex, setTabIndex] = useState(0);
@@ -199,11 +211,24 @@ export default function GstGstr2aPurchaseRegisterPage() {
   const documentTabFromGstinLinkRef = useRef(false);
   const { userConfig } = useUser();
 
-  const { invoices, loading, error } = useGstB2bInvoices(period);
+  const { invoices, loading, error } = useGstB2bInvoices(
+    fromPeriod,
+    toPeriod
+  );
+
+  const periodKey = useMemo(
+    () => periodRangeKey(fromPeriod, toPeriod),
+    [fromPeriod, toPeriod]
+  );
+
+  const periodLabel = useMemo(
+    () => formatPeriodRangeLabel(fromPeriod, toPeriod),
+    [fromPeriod, toPeriod]
+  );
 
   useEffect(() => {
     setFilterCtin(null);
-  }, [period]);
+  }, [periodKey]);
 
   const onGstinNavigate = useCallback((ctin) => {
     const c = (ctin || "").trim();
@@ -237,7 +262,7 @@ export default function GstGstr2aPurchaseRegisterPage() {
     loading: prLoading,
     error: prError,
     refetch: refetchPr,
-  } = useGstr2aPurchaseRegisterPr(period);
+  } = useGstr2aPurchaseRegisterPr(fromPeriod, toPeriod);
 
   const vendorRows = useMemo(() => {
     const from2A = aggregateVendors(invoices);
@@ -684,6 +709,54 @@ export default function GstGstr2aPurchaseRegisterPage() {
     [onOpenMatch, colorScheme]
   );
 
+  const currentMonth = moment().format("YYYY-MM");
+
+  const financialYears = useMemo(
+    () => listFinancialYears(currentMonth),
+    [currentMonth]
+  );
+
+  /** The FY the range covers exactly, or "" while the range is a custom span. */
+  const selectedFinancialYear = useMemo(() => {
+    const fy = financialYearForPeriodRange(fromPeriod, toPeriod, currentMonth);
+    return fy == null ? "" : String(fy);
+  }, [fromPeriod, toPeriod, currentMonth]);
+
+  const handleFinancialYearChange = useCallback(
+    (e) => {
+      const value = e.target.value;
+      if (!value) return;
+      const range = financialYearPeriodRange(Number(value), currentMonth);
+      if (!range) return;
+      setFromPeriod(range.from);
+      setToPeriod(range.to);
+    },
+    [currentMonth]
+  );
+
+  /** Keep the range ordered: moving one end past the other drags the other with it. */
+  const handleFromPeriodChange = useCallback(
+    (e) => {
+      const next = e.target.value;
+      setFromPeriod(next);
+      if (next && toPeriod && next > toPeriod) {
+        setToPeriod(next);
+      }
+    },
+    [toPeriod]
+  );
+
+  const handleToPeriodChange = useCallback(
+    (e) => {
+      const next = e.target.value;
+      setToPeriod(next);
+      if (next && fromPeriod && next < fromPeriod) {
+        setFromPeriod(next);
+      }
+    },
+    [fromPeriod]
+  );
+
   const monthPicker = (
     <FormControl display="flex" alignItems="center" gap={2} w="auto" m={0}>
       <FormLabel
@@ -693,15 +766,40 @@ export default function GstGstr2aPurchaseRegisterPage() {
         color={`${colorScheme}.700`}
         fontWeight="medium"
       >
-        Return month
+        Return period
       </FormLabel>
+      <Select
+        size="sm"
+        maxW="150px"
+        value={selectedFinancialYear}
+        onChange={handleFinancialYearChange}
+        placeholder="Custom"
+      >
+        {financialYears.map((fy) => (
+          <option key={fy} value={fy}>
+            {formatFinancialYearLabel(fy)}
+          </option>
+        ))}
+      </Select>
       <Input
         type="month"
         size="sm"
         maxW="168px"
-        value={period}
-        max={moment().format("YYYY-MM")}
-        onChange={(e) => setPeriod(e.target.value)}
+        value={fromPeriod}
+        max={toPeriod || currentMonth}
+        onChange={handleFromPeriodChange}
+      />
+      <Text fontSize="xs" color="gray.600">
+        to
+      </Text>
+      <Input
+        type="month"
+        size="sm"
+        maxW="168px"
+        value={toPeriod}
+        min={fromPeriod || undefined}
+        max={currentMonth}
+        onChange={handleToPeriodChange}
       />
     </FormControl>
   );
@@ -716,7 +814,8 @@ export default function GstGstr2aPurchaseRegisterPage() {
           isOpen={matchDocument != null}
           onClose={onCloseMatch}
           documentRow={matchDocument}
-          period={period}
+          fromPeriod={fromPeriod}
+          toPeriod={toPeriod}
           purchases={purchases}
           matches={matches}
           prLoading={prLoading}
@@ -745,6 +844,9 @@ export default function GstGstr2aPurchaseRegisterPage() {
             </Alert>
           ) : (
             <>
+              <Text fontSize="xs" color="gray.600" mb={2}>
+                Return period: {periodLabel}
+              </Text>
               <Gstr2aPrSummaryTable
                 summary2A={summary2A}
                 summaryPD={summaryPD}
@@ -765,7 +867,7 @@ export default function GstGstr2aPurchaseRegisterPage() {
                     <AgGrid
                       rowData={vendorRows}
                       columnDefs={vendorColDefs}
-                      tableKey={`gst-gstr2a-pr-vendor-${period}`}
+                      tableKey={`gst-gstr2a-pr-vendor-${periodKey}`}
                       gridOptions={{
                         getRowId: (params) => String(params.data?._rowId ?? ""),
                       }}
@@ -819,7 +921,7 @@ export default function GstGstr2aPurchaseRegisterPage() {
                     <AgGrid
                       rowData={documentRows}
                       columnDefs={documentColDefs}
-                      tableKey={`gst-gstr2a-pr-doc-${period}`}
+                      tableKey={`gst-gstr2a-pr-doc-${periodKey}`}
                       gridOptions={{
                         getRowId: (params) => String(params.data?._rowId ?? ""),
                       }}

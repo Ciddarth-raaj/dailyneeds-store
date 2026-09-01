@@ -10,9 +10,10 @@ export function usePurchaseGstMatch(filters) {
     async (noRefresh = false) => {
       const hasReturnPeriod =
         filters?.year != null && filters?.month != null;
+      const hasPeriodRange = filters?.from_period && filters?.to_period;
       const hasDateRange = filters?.from_date && filters?.to_date;
 
-      if (!hasReturnPeriod && !hasDateRange) {
+      if (!hasReturnPeriod && !hasPeriodRange && !hasDateRange) {
         setMatches([]);
         setLoading(false);
         setError(null);
