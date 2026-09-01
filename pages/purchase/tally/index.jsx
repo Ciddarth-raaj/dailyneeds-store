@@ -8,7 +8,7 @@ import { usePurchaseGst } from "../../../customHooks/usePurchaseGst";
 import moment from "moment";
 import currencyFormatter from "../../../util/currencyFormatter";
 import { Button } from "@chakra-ui/button";
-import { Input, Text } from "@chakra-ui/react";
+import { Flex, Input, Text } from "@chakra-ui/react";
 import toast from "react-hot-toast";
 
 import PurchaseModal from "../../../components/Purchase/PurchaseModal";
@@ -16,7 +16,10 @@ import { useUser } from "../../../contexts/UserContext";
 import FromToDateOutletPicker from "../../../components/DateOutletPicker/FromToDateOutletPicker";
 import { exportToExcel } from "../../../util/exportCSVFile";
 import { getPurchaseTotalTax } from "../../../util/gstr2aPurchaseRegister";
-import { deletePurchaseGst } from "../../../helper/purchaseGst";
+import {
+  bulkDeletePurchaseGst,
+  deletePurchaseGst,
+} from "../../../helper/purchaseGst";
 import { capitalize } from "../../../util/string";
 
 function getSourceBadge(item) {
@@ -55,6 +58,7 @@ function AllTallyPurchases() {
   const [selectedPurchase, setSelectedPurchase] = useState(null);
   const [viewLoading, setViewLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [selectedRows, setSelectedRows] = useState([]);
   const { userConfig } = useUser();
 
   const canDelete = useMemo(
@@ -165,6 +169,7 @@ function AllTallyPurchases() {
           return;
         }
         await refetch(true);
+        setSelectedRows([]);
         toast.success("Deleted");
       } catch (e) {
         toast.error(e?.message || "Could not delete");
@@ -174,6 +179,51 @@ function AllTallyPurchases() {
     },
     [refetch]
   );
+
+  const handleSelectionChanged = useCallback((rows) => {
+    setSelectedRows(Array.isArray(rows) ? rows : []);
+  }, []);
+
+  /** Only what Tally owns can go, so only those rows can be ticked. */
+  const isRowSelectable = useCallback(
+    (node) => canDelete && node?.data?.source === "tally",
+    [canDelete]
+  );
+
+  const handleBulkDelete = useCallback(async () => {
+    const ids = selectedRows
+      .map((r) => r?.gst_tally_purchase_id)
+      .filter((id) => id != null);
+    if (!ids.length) return;
+
+    const ok = window.confirm(
+      `Delete ${ids.length} purchase${ids.length === 1 ? "" : "s"}? They are ` +
+        `removed from this list along with any GSTR-2A match against them. ` +
+        `Tally is not touched - any voucher that still exists there comes ` +
+        `back on the next sync.`
+    );
+    if (!ok) return;
+
+    setDeleting(true);
+    try {
+      const data = await bulkDeletePurchaseGst(ids);
+      if (data?.code !== 200) {
+        toast.error(data?.msg || "Could not delete");
+        return;
+      }
+      await refetch(true);
+      setSelectedRows([]);
+      const skipped = (data.skipped ?? []).length;
+      toast.success(
+        `Deleted ${data.deleted}` +
+          (skipped ? `. ${skipped} skipped - not synced from Tally.` : "")
+      );
+    } catch (e) {
+      toast.error(e?.message || "Could not delete");
+    } finally {
+      setDeleting(false);
+    }
+  }, [selectedRows, refetch]);
 
   const columnDefs = useMemo(
     () => [
@@ -348,14 +398,27 @@ function AllTallyPurchases() {
             filledHeader
             colorScheme="blue"
             rightSection={
-              <Button
-                colorScheme="blue"
-                onClick={exportData}
-                size="sm"
-                isDisabled={viewLoading}
-              >
-                Export
-              </Button>
+              <Flex gap={2}>
+                {canDelete && selectedRows.length > 0 ? (
+                  <Button
+                    colorScheme="red"
+                    variant="outline"
+                    onClick={handleBulkDelete}
+                    size="sm"
+                    isLoading={deleting}
+                  >
+                    {`Delete selected (${selectedRows.length})`}
+                  </Button>
+                ) : null}
+                <Button
+                  colorScheme="blue"
+                  onClick={exportData}
+                  size="sm"
+                  isDisabled={viewLoading || deleting}
+                >
+                  Export
+                </Button>
+              </Flex>
             }
           >
             <Input
@@ -375,13 +438,16 @@ function AllTallyPurchases() {
               style={{ marginBottom: "22px" }}
             />
 
-            {loading || viewLoading || deleting ? (
+            {loading || viewLoading ? (
               <Text>Loading…</Text>
             ) : (
               <AgGrid
                 rowData={filteredPurchases}
                 columnDefs={columnDefs}
                 tableKey="purchase-tally-all"
+                selectMode={canDelete}
+                isRowSelectable={isRowSelectable}
+                onSelectionChanged={handleSelectionChanged}
                 gridOptions={{
                   getRowId: (params) =>
                     String(params.data?.gst_tally_purchase_id ?? ""),

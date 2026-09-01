@@ -40,3 +40,17 @@ export const deletePurchaseGst = async (gstTallyPurchaseId) => {
     throw err;
   }
 };
+
+/** Remove several at once. Tally-sourced rows only; the rest come back skipped. */
+export const bulkDeletePurchaseGst = async (gstTallyPurchaseIds) => {
+  try {
+    const response = await API.post("/purchase-gst/bulk-delete", {
+      gst_tally_purchase_ids: gstTallyPurchaseIds,
+    });
+    return response.data;
+  } catch (err) {
+    const body = err?.response?.data;
+    if (body) return body;
+    throw err;
+  }
+};
