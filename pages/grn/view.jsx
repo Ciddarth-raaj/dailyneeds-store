@@ -211,6 +211,18 @@ function GrnDetailPage() {
             : null,
       },
       {
+        field: "_priceMismatch",
+        headerName: "Status",
+        type: "badge-column",
+        flex: 0,
+        minWidth: 100,
+        maxWidth: 100,
+        valueGetter: (params) =>
+          params.data?._priceMismatch
+            ? { label: "Conflict", colorScheme: "red" }
+            : null,
+      },
+      {
         field: "mmd_recd_qty",
         headerName: "Recd. Qty",
         type: "number",
