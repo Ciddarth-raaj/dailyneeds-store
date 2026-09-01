@@ -14,6 +14,7 @@ import toast from "react-hot-toast";
 import PurchaseModal from "../../../components/Purchase/PurchaseModal";
 import FromToDateOutletPicker from "../../../components/DateOutletPicker/FromToDateOutletPicker";
 import { exportToExcel } from "../../../util/exportCSVFile";
+import { getPurchaseTotalTax } from "../../../util/gstr2aPurchaseRegister";
 import { capitalize } from "../../../util/string";
 
 function getSourceBadge(item) {
@@ -183,6 +184,17 @@ function AllTallyPurchases() {
         minWidth: 120,
       },
       {
+        colId: "totalTax",
+        headerName: "Total Tax",
+        type: "currency",
+        sortable: true,
+        minWidth: 120,
+        // IGST for an interstate supplier, CGST + SGST otherwise - the same
+        // figure the GSTR-2A pages compare against, so the two agree.
+        valueGetter: (params) =>
+          params.data ? getPurchaseTotalTax(params.data) : null,
+      },
+      {
         field: "total_amount",
         headerName: "Total Amount",
         type: "currency",
@@ -237,6 +249,7 @@ function AllTallyPurchases() {
       "Dist Bill Date": moment(item.mmh_dist_bill_dt).format("DD-MM-YYYY"),
       "Dist Bill No": item.mmh_dist_bill_no,
       "MRC Amount": currencyFormatter(item.mmh_mrc_amt),
+      "Total Tax": currencyFormatter(getPurchaseTotalTax(item)),
       "Total Amount": item.total_amount
         ? currencyFormatter(item.total_amount)
         : "-",
