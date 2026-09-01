@@ -118,6 +118,17 @@ export default function GrnPriceCheckerItemsModal({
         flex: 0,
         minWidth: colWidth,
       },
+      {
+        field: "_priceMismatch",
+        headerName: "Status",
+        type: "badge-column",
+        flex: 0,
+        minWidth: colWidth,
+        valueGetter: (params) =>
+          params.data?._priceMismatch
+            ? { label: "Conflict", colorScheme: "red" }
+            : { label: "Match", colorScheme: "green" },
+      },
     ],
     []
   );
