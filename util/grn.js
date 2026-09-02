@@ -126,7 +126,7 @@ export function isGrnRowPriceMismatch(
 }
 
 export function getGrnLinePriceMismatch(row, itemsByProductId, pcLoading = false) {
-  if (pcLoading || !row) return false;
+  if (pcLoading || !row || row.is_ignored) return false;
   return isGrnRowPriceMismatch(
     row.mrp,
     row.mmd_sale_rate,
