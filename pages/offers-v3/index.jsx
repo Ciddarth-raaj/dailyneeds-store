@@ -485,7 +485,9 @@ function PriceUploadTab({ onUploaded }) {
       const res = await offersV3.priceUpload(previewRows);
       setLastResult(res);
       toast.success(
-        `Upserted ${res.upserted} row(s), skipped ${res.skippedInvalidRows ?? 0}. ${res.untagged?.length ?? 0} new untagged batch(es).`
+        `Upserted ${res.upserted} row(s), removed ${res.removedBatches ?? 0} batch(es) not in this sheet, skipped ${
+          res.skippedInvalidRows ?? 0
+        }. ${res.untagged?.length ?? 0} new untagged batch(es).`
       );
       if (res.unresolvedOutlets?.length) {
         toast.error(`Could not resolve outlet(s): ${res.unresolvedOutlets.join(", ")}`);
@@ -512,8 +514,11 @@ function PriceUploadTab({ onUploaded }) {
         Upload the Price Checker-style export (Item Code, Outlet, Batch No, MRP, Selling Price).
         MRP/Selling Price are always read from Old_MRP/Old_Selling_Price — New_MRP/New_Selling_Price
         are blank in this export, so that mapping is fixed, not auto-detected. Only mrp/selling_price
-        are updated for a matching row; stock is untouched. Upload price data before stock each cycle
-        so MRP/Selling Price are current by the time zero-stock and mismatch checks run.
+        are updated for a matching row; stock is untouched. The sheet replaces the batch list rather
+        than adding to it — any batch it leaves out is deleted, so a price you correct and re-upload
+        stops being reported from the row you corrected it from. Upload price data before stock each
+        cycle, so MRP/Selling Price are current by the time zero-stock and mismatch checks run, and
+        so stock lands on the batches this sheet just confirmed.
       </Text>
       <UploadMetaSummary meta={uploadMeta} />
       <FileUploaderWithColumnMapping config={PRICE_UPLOAD_COLUMNS} onMappedData={handleImportMappedData} />
@@ -524,6 +529,9 @@ function PriceUploadTab({ onUploaded }) {
             Last upload summary
           </Text>
           <Text fontSize="sm">Rows upserted: {lastResult.upserted}</Text>
+          <Text fontSize="sm">
+            Batches removed (not in this sheet): {lastResult.removedBatches ?? 0}
+          </Text>
           <Text fontSize="sm">Rows skipped (missing Item Code/Batch No): {lastResult.skippedInvalidRows ?? 0}</Text>
           <Text fontSize="sm">New untagged batches: {lastResult.untagged?.length ?? 0}</Text>
           {lastResult.unresolvedOutlets?.length ? (
