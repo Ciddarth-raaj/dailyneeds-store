@@ -144,6 +144,32 @@ const offersV3 = {
         .catch((err) => reject(err));
     }),
 
+  /**
+   * GET /offers-v3/items-by-product/outlet-breakdown?product_id=&mrp=&selling_price=
+   * Outlet/batch-level breakdown of one merged (mrp, selling_price) row from
+   * getItemsByProduct — drill-down for the GRN Price Checker modal.
+   */
+  getOutletStockBreakdown: (productId, mrp, sellingPrice) =>
+    new Promise((resolve, reject) => {
+      if (productId == null || productId === "" || mrp == null || sellingPrice == null) {
+        reject(new Error("product_id, mrp and selling_price are required"));
+        return;
+      }
+
+      API.get("/offers-v3/items-by-product/outlet-breakdown", {
+        params: { product_id: productId, mrp, selling_price: sellingPrice },
+      })
+        .then((res) => {
+          const data = res?.data ?? res;
+          if (data?.code === 200) {
+            resolve(data);
+            return;
+          }
+          reject(new Error(data?.msg ?? "Failed to fetch outlet stock breakdown"));
+        })
+        .catch((err) => reject(err));
+    }),
+
   uploadMeta: () => unwrap(API.get("/offers-v3/upload-meta"), "Failed to fetch upload meta").then((d) => d.data ?? {}),
 
   import: (rows) => unwrap(API.post("/offers-v3/import", rows), "Failed to import offers"),
