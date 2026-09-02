@@ -92,7 +92,8 @@ export function useGrnPriceCheckerItemsMap(productIds, { enabled = true } = {}) 
     } finally {
       setLoading(false);
     }
-  }, [enabled, idsKey, productIds]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled, idsKey]);
 
   useEffect(() => {
     fetchAll();
