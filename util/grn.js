@@ -78,9 +78,13 @@ export function isPriceCheckerBatchMismatch(
 
 /**
  * True when two or more of the product's own historical batches disagree
- * with each other (discount % and discount amount both outside tolerance) --
- * such batches can't be treated as a reliable reference, no matter which one
- * the GRN happens to land close to.
+ * with each other -- their Selling Price differs, and neither their
+ * discount % nor their discount amount is within tolerance either. A
+ * matching Selling Price is treated as agreement on its own, since MRP and
+ * discount % are derived and can vary while SP -- what was actually
+ * charged -- stays the same. Batches that disagree like this can't be
+ * treated as a reliable reference, no matter which one the GRN happens to
+ * land close to.
  */
 export function batchesDisagree(batches) {
   if (!Array.isArray(batches) || batches.length < 2) return false;
@@ -88,6 +92,7 @@ export function batchesDisagree(batches) {
     for (let j = i + 1; j < batches.length; j++) {
       const a = batches[i];
       const b = batches[j];
+      if (pricesEqual(a?.old_selling_price, b?.old_selling_price)) continue;
       if (
         !discountPctWithinTolerance(a?.discount_pct, b?.discount_pct) &&
         !discountAmountWithinTolerance(a?.discount_amount, b?.discount_amount)
