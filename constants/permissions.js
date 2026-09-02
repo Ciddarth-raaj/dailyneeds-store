@@ -85,6 +85,9 @@ export const PERMISSIONS = {
     view_advance_request: "View Advance Request",
     create_advance_request: "Create Advance Request",
     view_old_balance_check: "View Old Balance Check",
+    approve_advance_request: "Approve Advance Request",
+    pay_advance_request: "Pay Advance Request",
+    edit_advance_request: "Edit Advance Request",
   },
 
   // Accounts
