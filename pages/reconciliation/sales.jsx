@@ -26,6 +26,16 @@ const REQUIRED_SALES_RETURN_HEADERS = [
   "Sales Return Amt",
 ];
 
+// The reports carry paise ("679.50"), and the sales figures they are compared
+// against are read with parseFloat — parseInt on this side silently dropped the
+// decimals and made the two halves of the comparison disagree.
+const parseAmount = (value) => {
+  const amount = parseFloat(value);
+  return Number.isFinite(amount) ? amount : 0;
+};
+
+const roundAmount = (value) => Math.round(value * 100) / 100;
+
 function Sales() {
   const [file, setFile] = useState(null);
   const [salesReturnFile, setSalesReturnFile] = useState(null);
@@ -83,8 +93,8 @@ function Sales() {
   }, [parsedData]);
 
   const mapData = (item, noFormat = false) => {
-    const itemBillAmt = parseInt(item["Bill Amt"] || 0);
-    const itemLoyalty = parseInt(item["Loyalty"] || 0);
+    const itemBillAmt = parseAmount(item["Bill Amt"]);
+    const itemLoyalty = parseAmount(item["Loyalty"]);
     const actualBillAmt = storeSummary[item["Outlet Name"]]?.total_sales ?? 0;
     const actualItemLoyalty = storeSummary[item["Outlet Name"]]?.loyalty ?? 0;
     const storeId = storeSummary[item["Outlet Name"]]?.store_id;
@@ -92,17 +102,18 @@ function Sales() {
     const salesObject = parsedSalesReturnData?.data?.find(
       (salesReturn) => salesReturn["Outlet Name"] === item["Outlet Name"]
     );
+    // null means "no sales return file / no row for this outlet", which is not
+    // the same as a return of zero — only the former should read as a blank.
     const salesReturn = salesObject
-      ? parseInt(salesObject["Sales Return Amt"])
+      ? parseAmount(salesObject["Sales Return Amt"])
       : null;
     const actualSalesReturn =
       storeSummary[item["Outlet Name"]]?.sales_return ?? 0;
 
-    let salesDifference = itemBillAmt - actualBillAmt;
-    let loyaltyDifference = itemLoyalty - actualItemLoyalty;
-    let salesReturnDifference = salesReturn
-      ? salesReturn - actualSalesReturn
-      : "-";
+    let salesDifference = roundAmount(itemBillAmt - actualBillAmt);
+    let loyaltyDifference = roundAmount(itemLoyalty - actualItemLoyalty);
+    let salesReturnDifference =
+      salesReturn === null ? "-" : roundAmount(salesReturn - actualSalesReturn);
 
     if (salesDifference >= -5 && salesDifference <= 5) {
       salesDifference = 0;
@@ -113,7 +124,7 @@ function Sales() {
     }
 
     if (
-      salesReturn &&
+      salesReturn !== null &&
       salesReturnDifference >= -5 &&
       salesReturnDifference <= 5
     ) {
@@ -161,7 +172,8 @@ function Sales() {
         salesReturnDifference === "-"
           ? "-"
           : getWrappedValue(salesReturnDifference),
-      "Sales Return": salesReturn ? wrappedCurrencyFormatter(salesReturn) : "-",
+      "Sales Return":
+        salesReturn === null ? "-" : wrappedCurrencyFormatter(salesReturn),
     };
   };
 
@@ -249,9 +261,11 @@ function Sales() {
   const handleSave = () => {
     if (!parsedData?.data) return [];
 
-    const data = parsedData?.data
+    const mapped = parsedData?.data
       .filter((item) => item["Bill Date"] && item["Outlet Name"])
-      .map((item) => mapData(item, true))
+      .map((item) => mapData(item, true));
+
+    const data = mapped
       .filter((item) => item["storeId"])
       .map((item) => ({
         store_id: item.storeId,
@@ -261,12 +275,28 @@ function Sales() {
         bill_date: new Date(item["Bill Date"].split("-").reverse().join("-")),
       }));
 
+    // Rows whose outlet has no matching store are dropped here. Saving nothing
+    // at all used to still report success.
+    if (data.length === 0) {
+      toast.error(
+        "No outlet in the file could be matched to a store — nothing was saved"
+      );
+      return;
+    }
+
+    const skipped = mapped.length - data.length;
+    if (skipped > 0) {
+      toast.error(
+        `${skipped} outlet(s) could not be matched to a store and were skipped`
+      );
+    }
+
     toast.promise(Promise.all(data.map((item) => saveReconciliation(item))), {
       loading: "Saving Differences",
-      success: () => "Differences saved successfully",
+      success: () => `Saved differences for ${data.length} outlet(s)`,
       error: (err) => {
         console.log(err);
-        return "Failed to save differences";
+        return `Failed to save differences: ${err.message}`;
       },
     });
   };
