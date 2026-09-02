@@ -8,6 +8,7 @@ import {
   Flex,
   Image,
   Text,
+  Tooltip,
   useToken,
 } from "@chakra-ui/react";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
@@ -22,6 +23,7 @@ import { ignoreGrnIssues } from "../../helper/grnList";
 import usePermissions from "../../customHooks/usePermissions";
 import {
   formatDiscountPct,
+  formatOfferDetails,
   getGrnLinePriceMismatch,
 } from "../../util/grn";
 import { capitalize } from "../../util/string";
@@ -321,11 +323,19 @@ function GrnIssueListing() {
             : null,
         cellRenderer: (params) => {
           if (params.value) {
+            const tooltipLabel = formatOfferDetails(params.data?.offer_details);
             return (
               <Flex alignItems="center" h="100%">
-                <Badge colorScheme={params.value.colorScheme}>
-                  {params.value.label}
-                </Badge>
+                <Tooltip
+                  label={tooltipLabel}
+                  whiteSpace="pre-line"
+                  isDisabled={!tooltipLabel}
+                  hasArrow
+                >
+                  <Badge colorScheme={params.value.colorScheme}>
+                    {params.value.label}
+                  </Badge>
+                </Tooltip>
               </Flex>
             );
           }

@@ -1,3 +1,41 @@
+const OFFER_V3_TYPE_LABELS = {
+  percentage: "%",
+  flat: "Flat ₹",
+  fixed_price: "Fixed ₹",
+};
+
+function formatOfferDetailLine(detail) {
+  if (!detail) return null;
+  if (detail.source === "hq") {
+    return detail.offer_name ? `HQ Offer: ${detail.offer_name}` : "HQ Offer";
+  }
+  if (detail.source === "v3") {
+    const scopeLabel = detail.scope === "batch" ? "Batch" : "Item";
+    const typeLabel = OFFER_V3_TYPE_LABELS[detail.offer_type] ?? detail.offer_type;
+    const value = detail.value;
+    if (detail.offer_type === "percentage") {
+      return `${scopeLabel} Offer: ${value}% off`;
+    }
+    if (detail.offer_type === "flat") {
+      return `${scopeLabel} Offer: Flat ₹${value} off`;
+    }
+    if (detail.offer_type === "fixed_price") {
+      return `${scopeLabel} Offer: Fixed ₹${value}`;
+    }
+    return `${scopeLabel} Offer: ${typeLabel}${value ?? ""}`;
+  }
+  return null;
+}
+
+/** Human-readable, newline-joined summary of a product's active offers, for a tooltip. */
+export function formatOfferDetails(offerDetails) {
+  if (!Array.isArray(offerDetails) || offerDetails.length === 0) return "";
+  return offerDetails
+    .map(formatOfferDetailLine)
+    .filter(Boolean)
+    .join("\n");
+}
+
 export function formatDiscountPct(value) {
   if (value == null || value === "") return "—";
   const n = Number(value);
