@@ -119,6 +119,13 @@ export default function GrnPriceCheckerItemsModal({
         minWidth: colWidth,
       },
       {
+        field: "stock_qty",
+        headerName: "Stock",
+        type: "number",
+        flex: 0,
+        minWidth: colWidth,
+      },
+      {
         field: "_priceMismatch",
         headerName: "Status",
         type: "badge-column",
