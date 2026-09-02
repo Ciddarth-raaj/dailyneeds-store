@@ -14,6 +14,7 @@ const HEADINGS = {
   material_request_id: "ID",
   creator_name: "Creator Name",
   outlet_name: "Outlet Name",
+  category: "Category",
   created_at: "Raised On",
   items_count: "Items Count",
   approved: "Approval Status",
@@ -25,6 +26,17 @@ const STATUS_FILTERS = {
   approved: "Approved",
   "": "All",
 };
+
+// A request is raised against one category - the form lists that category's
+// materials and takes quantities - so the items carry the category rather than
+// the request. Distinct names, in case an older request spans more than one.
+function categoryOf(req) {
+  const names = (req.items || [])
+    .map((item) => item.material?.category_name)
+    .filter(Boolean);
+
+  return [...new Set(names)].join(", ") || "-";
+}
 
 function MaterialsRequestPage() {
   const { loading, error, requests } = useMaterialRequests();
@@ -50,6 +62,7 @@ function MaterialsRequestPage() {
         material_request_id: req.material_request_id,
         creator_name: req.creator_data?.employee_name || "-",
         outlet_name: req.outlet?.outlet_name || "-",
+        category: categoryOf(req),
         created_at: req.created_at
           ? moment(req.created_at).format("DD/MM/YYYY hh:mm A")
           : "-",
