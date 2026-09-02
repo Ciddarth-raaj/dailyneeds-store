@@ -13,12 +13,19 @@ const UserIpRestrictionHelper = {
         });
     }),
 
-  /** Replace one user's allow-list. An empty list removes the restriction. */
-  update: (userId, allowedIps) =>
+  /**
+   * Replace one user's IP policy.
+   *
+   * `allowOutsideAccess` is the decision — false confines them to
+   * `allowedIps`. The list is stored either way, so switching someone back
+   * to restricted does not mean retyping the store's addresses.
+   */
+  update: (userId, allowedIps, allowOutsideAccess) =>
     new Promise(function (resolve, reject) {
       API.post("/user/ip-restrictions", {
         user_id: userId,
         allowed_ips: allowedIps,
+        allow_outside_access: allowOutsideAccess,
       })
         .then((res) => {
           if (res.data?.code !== 200) {

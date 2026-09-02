@@ -9,6 +9,7 @@ import {
   FormHelperText,
   FormLabel,
   HStack,
+  Switch,
   Text,
   Textarea,
   Wrap,
@@ -26,11 +27,17 @@ import usePermissions from "../../../customHooks/usePermissions";
 const PERMISSION_KEY = "manage_ip_restrictions";
 
 /**
- * Static IP restriction admin screen.
+ * Per-user IP access admin screen.
  *
- * A user with no entries can sign in from anywhere. Once entries are saved,
- * that account only works from those addresses — both at login and for any
- * session already open.
+ * Two settings per user, deliberately independent:
+ *
+ *   Outside access on   the user works from anywhere; their addresses stay
+ *                       saved but are not enforced
+ *   Outside access off  the user is confined to those addresses, at login
+ *                       and for any session already open
+ *
+ * Keeping the list while access is open is the point: letting someone work
+ * from home for a week should not mean retyping the store's IP afterwards.
  */
 function IpRestrictions() {
   const canManage = usePermissions(PERMISSION_KEY);
@@ -40,6 +47,7 @@ function IpRestrictions() {
   const [myIp, setMyIp] = useState("");
   const [editing, setEditing] = useState(null);
   const [draft, setDraft] = useState("");
+  const [allowOutside, setAllowOutside] = useState(true);
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(() => {
@@ -60,22 +68,24 @@ function IpRestrictions() {
   const openEditor = useCallback((row) => {
     setEditing(row);
     setDraft((row?.allowed_ips || []).join(", "));
+    setAllowOutside(row?.allow_outside_access !== false);
   }, []);
 
   const closeEditor = () => {
     setEditing(null);
     setDraft("");
+    setAllowOutside(true);
   };
 
   const save = async () => {
     if (!editing) return;
     setSaving(true);
     try {
-      await UserIpRestrictionHelper.update(editing.user_id, draft);
+      await UserIpRestrictionHelper.update(editing.user_id, draft, allowOutside);
       toast.success(
-        draft.trim() === ""
-          ? "IP restriction removed"
-          : "IP restriction updated"
+        allowOutside
+          ? "User can now sign in from any network"
+          : "User is now restricted to the allowed addresses"
       );
       closeEditor();
       load();
@@ -85,6 +95,39 @@ function IpRestrictions() {
       setSaving(false);
     }
   };
+
+  /**
+   * Flip one user straight from the grid.
+   *
+   * Turning access off needs addresses to fall back on, so a user with an
+   * empty list is sent to the editor instead of being handed a server error.
+   */
+  const toggleOutsideAccess = useCallback(
+    (row) => {
+      const next = row?.allow_outside_access === false;
+      const list = row?.allowed_ips || [];
+
+      if (!next && list.length === 0) {
+        toast("Add an allowed IP first, otherwise this user could not sign in from anywhere.");
+        openEditor(row);
+        return;
+      }
+
+      toast.promise(
+        UserIpRestrictionHelper.update(row.user_id, list.join(", "), next).then(
+          () => load()
+        ),
+        {
+          loading: "Updating...",
+          success: next
+            ? "Outside access allowed"
+            : "Restricted to allowed addresses",
+          error: (err) => err?.message || "Failed to update",
+        }
+      );
+    },
+    [load, openEditor]
+  );
 
   const colDefs = useMemo(
     () => [
@@ -109,13 +152,13 @@ function IpRestrictions() {
         valueGetter: (params) => params.data?.designation_name || "-",
       },
       {
-        field: "is_restricted",
-        headerName: "Access",
+        field: "allow_outside_access",
+        headerName: "Outside Access",
         type: "badge-column",
         valueGetter: (params) =>
-          params.data?.is_restricted
-            ? { label: "Restricted", colorScheme: "purple" }
-            : { label: "Any network", colorScheme: "gray" },
+          params.data?.allow_outside_access === false
+            ? { label: "Blocked", colorScheme: "red" }
+            : { label: "Allowed", colorScheme: "green" },
       },
       {
         field: "allowed_ips",
@@ -130,18 +173,30 @@ function IpRestrictions() {
         headerName: "Actions",
         valueGetter: (params) => {
           if (!canManage) return [];
+          const row = params.data;
+          const isBlocked = row?.allow_outside_access === false;
           return [
+            {
+              label: isBlocked ? "Allow outside access" : "Block outside access",
+              icon: isBlocked ? "fa-solid fa-lock-open" : "fa-solid fa-lock",
+              colorScheme: isBlocked ? "green" : "red",
+              onClick: () => toggleOutsideAccess(row),
+            },
             {
               label: "Edit",
               icon: "fa-solid fa-pen",
-              onClick: () => openEditor(params.data),
+              onClick: () => openEditor(row),
             },
           ];
         },
       },
     ],
-    [canManage, openEditor]
+    [canManage, openEditor, toggleOutsideAccess]
   );
+
+  const restrictedCount = rows.filter(
+    (row) => row?.allow_outside_access === false
+  ).length;
 
   return (
     <GlobalWrapper title="IP Restrictions" permissionKey={PERMISSION_KEY}>
@@ -151,8 +206,7 @@ function IpRestrictions() {
         rightSection={
           <HStack spacing={3}>
             <Text fontSize="13px">
-              This device:{" "}
-              <Code fontSize="13px">{myIp || "unknown"}</Code>
+              This device: <Code fontSize="13px">{myIp || "unknown"}</Code>
             </Text>
             <Button size="sm" colorScheme="purple" onClick={load}>
               Refresh
@@ -160,11 +214,25 @@ function IpRestrictions() {
           </HStack>
         }
       >
-        <Box marginBottom="12px" fontSize="13px" color="gray.600">
-          Leave a user&apos;s list empty to let them sign in from anywhere. Add
-          one or more addresses to lock the account to those networks — this
-          applies at login and cuts off any session already open elsewhere.
-        </Box>
+        <Flex
+          marginBottom="12px"
+          fontSize="13px"
+          color="gray.600"
+          justifyContent="space-between"
+          alignItems="center"
+          gap="12px"
+          flexWrap="wrap"
+        >
+          <Box>
+            Decide per user whether they may sign in from outside their allowed
+            addresses. Blocking applies at login and cuts off any session
+            already open elsewhere. Addresses stay saved while access is
+            allowed, so you can switch a user back without retyping them.
+          </Box>
+          <Badge colorScheme={restrictedCount > 0 ? "red" : "gray"}>
+            {restrictedCount} restricted
+          </Badge>
+        </Flex>
 
         {loading ? (
           <Text>Loading...</Text>
@@ -183,7 +251,7 @@ function IpRestrictions() {
       <CustomModal
         isOpen={editing !== null}
         onClose={closeEditor}
-        title={`Allowed IPs — ${
+        title={`IP access — ${
           editing?.employee_name || editing?.username || ""
         }`}
         size="lg"
@@ -196,6 +264,7 @@ function IpRestrictions() {
               colorScheme="purple"
               size="sm"
               isLoading={saving}
+              isDisabled={!allowOutside && draft.trim() === ""}
               onClick={save}
             >
               Save
@@ -203,6 +272,29 @@ function IpRestrictions() {
           </HStack>
         }
       >
+        <FormControl
+          display="flex"
+          alignItems="center"
+          justifyContent="space-between"
+          marginBottom="16px"
+        >
+          <Box paddingRight="12px">
+            <FormLabel fontSize="14px" marginBottom="2px">
+              Allow access from outside
+            </FormLabel>
+            <Text fontSize="12px" color="gray.600">
+              {allowOutside
+                ? "This user can sign in from any network."
+                : "This user can only sign in from the addresses below."}
+            </Text>
+          </Box>
+          <Switch
+            colorScheme="purple"
+            isChecked={allowOutside}
+            onChange={(event) => setAllowOutside(event.target.checked)}
+          />
+        </FormControl>
+
         <FormControl>
           <FormLabel fontSize="14px">Allowed addresses</FormLabel>
           <Textarea
@@ -215,8 +307,8 @@ function IpRestrictions() {
           <FormHelperText fontSize="12px">
             Comma separated. Each entry can be an exact address
             (203.0.113.10), a CIDR block (203.0.113.0/24), a wildcard
-            (203.0.113.*) or a last-octet range (203.0.113.10-20). Leave blank
-            to remove the restriction.
+            (203.0.113.*) or a last-octet range (203.0.113.10-20). Kept on
+            file even while outside access is allowed.
           </FormHelperText>
         </FormControl>
 
@@ -244,13 +336,12 @@ function IpRestrictions() {
           </WrapItem>
         </Wrap>
 
-        <Flex marginTop="12px">
-          <Badge colorScheme={draft.trim() === "" ? "gray" : "purple"}>
-            {draft.trim() === ""
-              ? "Can sign in from any network"
-              : "Restricted to the addresses above"}
-          </Badge>
-        </Flex>
+        {!allowOutside && draft.trim() === "" ? (
+          <Text marginTop="12px" fontSize="12px" color="red.500">
+            Add at least one address before blocking outside access —
+            otherwise this user could not sign in from anywhere.
+          </Text>
+        ) : null}
       </CustomModal>
     </GlobalWrapper>
   );
