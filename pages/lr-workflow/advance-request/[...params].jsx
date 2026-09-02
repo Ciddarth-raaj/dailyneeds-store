@@ -16,6 +16,7 @@ import {
   STAGE_MAP,
   getCurrentStage,
   getStatusMeta,
+  isEditableStatus,
   isTerminal,
 } from "../../../constants/advanceRequest";
 import {
@@ -236,7 +237,7 @@ function AdvanceRequestForm() {
   const isEditable = (stage) => {
     if (createMode) return stage === "a1" && canCreate;
     if (editMode) {
-      return stage === "a1" && status === "submitted" && canEdit;
+      return stage === "a1" && isEditableStatus(status) && canEdit;
     }
     if (terminal) return false;
     return stage === currentStage && Boolean(stagePermission[stage]);

@@ -15,7 +15,7 @@ import moment from "moment";
 import {
   STATUS_META,
   getStatusMeta,
-  isTerminal,
+  isEditableStatus,
 } from "../../../constants/advanceRequest";
 
 const HEADINGS = {
@@ -79,7 +79,7 @@ function AdvanceRequest() {
               >
                 View
               </MenuItem>
-              {canEditAdvanceRequest && request.status === "submitted" && (
+              {canEditAdvanceRequest && isEditableStatus(request.status) && (
                 <MenuItem
                   onClick={() =>
                     router.push(

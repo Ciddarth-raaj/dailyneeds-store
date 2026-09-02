@@ -40,6 +40,13 @@ export const STAGE_FOR_STATUS = {
 /** Nothing moves a request out of these. */
 export const TERMINAL_STATUSES = ["rejected", "paid"];
 
+/**
+ * Statuses whose A1 details can still be corrected. A held request is editable
+ * because clarifying it is the way out of a hold - and editing one releases it
+ * to the approver, which the API does on its own.
+ */
+export const EDITABLE_STATUSES = ["submitted", "on_hold"];
+
 /** The permission that lets someone act on each stage. */
 export const STAGE_PERMISSION = {
   a1: "edit_advance_request",
@@ -49,6 +56,8 @@ export const STAGE_PERMISSION = {
 };
 
 export const isTerminal = (status) => TERMINAL_STATUSES.includes(status);
+
+export const isEditableStatus = (status) => EDITABLE_STATUSES.includes(status);
 
 export const getStatusMeta = (status) =>
   STATUS_META[status] || { label: status || "Unknown", colorScheme: "gray" };
