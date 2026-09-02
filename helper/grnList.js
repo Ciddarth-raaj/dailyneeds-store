@@ -24,6 +24,14 @@ export const getGrnIssues = ({ from_date, to_date } = {}) => {
   });
 };
 
+export const ignoreGrnIssues = (items) => {
+  return API.post("/grn/issues/ignore", { items }).then((res) => {
+    const data = res?.data ?? res;
+    if (data?.code === 200) return data;
+    throw new Error(data?.msg || "Failed to ignore GRN issue(s)");
+  });
+};
+
 export const getGrnDetail = (refno) => {
   return API.get("/grn/detail", {
     params: { refno },
