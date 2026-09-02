@@ -1,7 +1,7 @@
 import API from "../util/api";
 
 const UserIpRestrictionHelper = {
-  /** Every active login with its IP allow-list. */
+  /** Every active login with its policy and its branch's rule. */
   getAll: () =>
     new Promise(function (resolve, reject) {
       API.get("/user/ip-restrictions")
@@ -16,16 +16,17 @@ const UserIpRestrictionHelper = {
   /**
    * Replace one user's IP policy.
    *
-   * `allowOutsideAccess` is the decision — false confines them to
-   * `allowedIps`. The list is stored either way, so switching someone back
-   * to restricted does not mean retyping the store's addresses.
+   * `ipPolicy` is the decision: "branch" (follow their branch's rule),
+   * "custom" (their own list, unioned with the branch's) or "unrestricted".
+   * The list is stored under every policy, so moving someone back to
+   * "custom" does not mean retyping their addresses.
    */
-  update: (userId, allowedIps, allowOutsideAccess) =>
+  update: (userId, allowedIps, ipPolicy) =>
     new Promise(function (resolve, reject) {
       API.post("/user/ip-restrictions", {
         user_id: userId,
         allowed_ips: allowedIps,
-        allow_outside_access: allowOutsideAccess,
+        ip_policy: ipPolicy,
       })
         .then((res) => {
           if (res.data?.code !== 200) {
