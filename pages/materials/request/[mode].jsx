@@ -24,6 +24,7 @@ import materialcategory from "../../../helper/materialcategory";
 import { useRouter } from "next/router";
 import EmptyData from "../../../components/EmptyData";
 import OutletDropdown from "../../../components/MaterialsRequest/OutletDropdown";
+import AgGrid from "../../../components/AgGrid";
 import { useUser } from "../../../contexts/UserContext";
 import API from "../../../util/api";
 
@@ -38,6 +39,13 @@ const validation = Yup.object({
     )
     .min(1, "At least one material is required"),
 });
+
+// View mode only: create and edit need the editable Formik inputs below.
+const VIEW_COL_DEFS = [
+  { field: "name", headerName: "Material Name", flex: 2 },
+  { field: "quantity", headerName: "Quantity" },
+  { field: "remark", headerName: "Remark", flex: 2 },
+];
 
 function MaterialRequestForm() {
   const router = useRouter();
@@ -299,7 +307,19 @@ function MaterialRequestForm() {
                       style={{ marginTop: 32, padding: 0 }}
                       noPadding
                     >
-                      {values.items && values.items.length > 0 ? (
+                      {!values.items?.length ? (
+                        <EmptyData />
+                      ) : mode === "view" ? (
+                        <AgGrid
+                          rowData={values.items}
+                          columnDefs={VIEW_COL_DEFS}
+                          tableKey="materials-request-items"
+                          gridOptions={{
+                            getRowId: (params) =>
+                              String(params.data?.material_id ?? ""),
+                          }}
+                        />
+                      ) : (
                         <FieldArray name="items">
                           {() => (
                             <div>
@@ -361,8 +381,6 @@ function MaterialRequestForm() {
                             </div>
                           )}
                         </FieldArray>
-                      ) : (
-                        <EmptyData />
                       )}
                     </CustomContainer>
                   </CustomContainer>
