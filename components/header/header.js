@@ -33,11 +33,6 @@ export default function Header() {
     //   icon: "fa-regular fa-building",
     //   link: "/company-details",
     // },
-    branch: {
-      title: "Branch Details",
-      icon: "fa-solid fa-sitemap",
-      link: "/branch-details",
-    },
     // sms: {
     //   title: "SMS Config",
     //   icon: "fa-regular fa-comment",

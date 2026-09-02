@@ -31,6 +31,8 @@ export const PERMISSIONS = {
 
   // Master
   master: {
+    view_branch: "View Branches",
+    manage_ip_restrictions: "Manage IP Restrictions",
     view_master_list: "View Master List",
     view_product_distributors: "View Product Distributors",
     add_product_distributor: "Assign Product Distributor Buyer",
@@ -247,6 +249,5 @@ export const PERMISSIONS = {
     view_price_checker: "View Price Checker",
     view_images_download_log: "View Image Download Log",
     view_api_logs: "View API Logs",
-    manage_ip_restrictions: "Manage IP Restrictions",
   },
 };

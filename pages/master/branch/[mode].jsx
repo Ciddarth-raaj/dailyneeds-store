@@ -1,23 +1,31 @@
 import React, { useEffect, useState } from "react";
-import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
-import Head from "../../util/head";
-import CustomContainer from "../../components/CustomContainer";
+import GlobalWrapper from "../../../components/globalWrapper/globalWrapper";
+import CustomContainer from "../../../components/CustomContainer";
 import { Formik } from "formik";
-import CustomInput from "../../components/customInput/customInput";
+import CustomInput from "../../../components/customInput/customInput";
 import styles from "./branchModal.module.css";
-import { BranchValidation } from "../../util/validation";
-import useDesignations from "../../customHooks/useDesignations";
+import { BranchValidation } from "../../../util/validation";
+import useDesignations from "../../../customHooks/useDesignations";
+import usePermissions from "../../../customHooks/usePermissions";
 import { Button } from "@chakra-ui/button";
-import { Grid, Input } from "@chakra-ui/react";
-import OutletHelper from "../../helper/outlets";
+import { Grid } from "@chakra-ui/react";
+import OutletHelper from "../../../helper/outlets";
+import BranchIpAccessSection from "../../../components/BranchIpAccess";
 import toast from "react-hot-toast";
 import { useRouter } from "next/router";
+
+const VIEW_PERMISSION = "view_branch";
+const IP_PERMISSION = "manage_ip_restrictions";
 
 function BranchEditor() {
   const router = useRouter();
   const { mode, id: paramId } = router.query;
   const viewMode = mode === "view";
   const editable = !viewMode;
+
+  // The IP section talks to a permission-gated endpoint, and the app treats
+  // any 403 as a dead session, so it must not even mount without the right.
+  const canManageIp = usePermissions(IP_PERMISSION);
 
   const [initialValues, setInitialValues] = useState({
     outlet_name: null,
@@ -115,7 +123,7 @@ function BranchEditor() {
       loading: "Creating new outlet",
       success: (response) => {
         if (response.code === 200) {
-          router.push("/branch-details");
+          router.push("/master/branch");
           return "Outlet Created!";
         } else {
           throw err;
@@ -150,7 +158,7 @@ function BranchEditor() {
       success: (response) => {
         console.log(response);
         if (response.code === 200) {
-          router.push("/branch-details");
+          router.push("/master/branch");
           return "Outlet Updated!";
         } else {
           throw response;
@@ -172,7 +180,7 @@ function BranchEditor() {
   };
 
   return (
-    <GlobalWrapper title="Branch Details">
+    <GlobalWrapper title="Branch Details" permissionKey={VIEW_PERMISSION}>
       <CustomContainer title="Branch Details" filledHeader>
         <Formik
           enableReinitialize
@@ -287,6 +295,10 @@ function BranchEditor() {
             );
           }}
         </Formik>
+
+        {mode !== "create" && paramId && canManageIp ? (
+          <BranchIpAccessSection outletId={paramId} editable={editable} />
+        ) : null}
       </CustomContainer>
     </GlobalWrapper>
   );

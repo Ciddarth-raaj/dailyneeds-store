@@ -137,6 +137,23 @@ const ALL_PAGES_MENU = {
         selected: false,
         location: "/master/remarks",
       },
+      branch_and_restrictions: {
+        title: "Branch and Restrictions",
+        subMenu: {
+          view_branch: {
+            title: "Branches",
+            permission: "view_branch",
+            selected: false,
+            location: "/master/branch",
+          },
+          manage_ip_restrictions: {
+            title: "IP Restrictions",
+            permission: "manage_ip_restrictions",
+            selected: false,
+            location: "/master/ip-restrictions",
+          },
+        },
+      },
     },
   },
   materials: {
@@ -560,12 +577,6 @@ const ALL_PAGES_MENU = {
         permission: "view_api_logs",
         selected: false,
         location: "/misc/api-logs",
-      },
-      ip_restrictions: {
-        title: "IP Restrictions",
-        permission: "manage_ip_restrictions",
-        selected: false,
-        location: "/misc/ip-restrictions",
       },
       stock_checker: {
         title: "Stock Checker",
