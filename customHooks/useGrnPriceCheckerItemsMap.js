@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
-import priceChecker from "../helper/priceChecker";
+import offersV3 from "../helper/offersV3";
 
 function normalizeProductIds(productIds) {
   if (!Array.isArray(productIds)) return [];
@@ -47,7 +47,7 @@ export function useGrnPriceCheckerItemsMap(productIds, { enabled = true } = {}) 
 
       const results = await Promise.allSettled(
         ids.map(async (productId) => {
-          const res = await priceChecker.getItemsByProduct(productId);
+          const res = await offersV3.getItemsByProduct(productId);
           const rows = Array.isArray(res?.data) ? res.data : [];
           return { productId, rows };
         })
