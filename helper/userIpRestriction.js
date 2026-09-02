@@ -39,12 +39,24 @@ const UserIpRestrictionHelper = {
         });
     }),
 
-  /** The address this browser is reaching the API from. */
+  /**
+   * The address this browser is reaching the API from, plus whether that
+   * address is believable.
+   *
+   * Behind a reverse proxy that does not forward the client IP, every
+   * request looks like it came from localhost, so the caller needs the
+   * flags to warn instead of presenting a wrong address as fact.
+   */
   getMyIp: () =>
     new Promise(function (resolve, reject) {
       API.get("/user/my-ip")
         .then((res) => {
-          resolve(res.data?.ip ?? "");
+          resolve({
+            ip: res.data?.ip ?? "",
+            isLoopback: res.data?.is_loopback === true,
+            isPrivate: res.data?.is_private === true,
+            hasForwardedHeader: res.data?.has_forwarded_header === true,
+          });
         })
         .catch((err) => {
           reject(err);
