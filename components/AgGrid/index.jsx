@@ -697,6 +697,12 @@ const AgGrid = React.forwardRef(function AgGrid(
             handler: "badgeFilterHandler",
           },
         },
+        "dropdown-column": {
+          filter: {
+            component: DropdownFilter,
+            handler: "dropdownFilterHandler",
+          },
+        },
       },
     };
     return {
