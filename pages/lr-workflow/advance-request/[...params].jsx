@@ -8,22 +8,94 @@ import CustomInput from "../../../components/customInput/customInput";
 import usePeople from "../../../customHooks/usePeople";
 import * as Yup from "yup";
 
-const validationSchema = Yup.object({
-  purchase_order_number: Yup.string()
-    .required("Purchase Order Number is required")
-    .max(100, "Purchase Order Number cannot exceed 100 characters"),
-  supplier_id: Yup.number()
-    .typeError("Select a Supplier")
-    .required("Supplier is required"),
-  amount: Yup.number()
-    .typeError("Amount must be a number")
-    .required("Amount is required")
-    .min(0.01, "Amount must be greater than 0"),
-  reason: Yup.string()
-    .required("Reason is required")
-    .max(500, "Reason cannot exceed 500 characters"),
-  docs: Yup.mixed().optional(),
-});
+// Each stage collects its own fields, so each needs its own schema and initial
+// values. Validating every stage against A1's schema left A1.1, A2 and A3
+// permanently invalid — they have none of the fields it requires.
+const STAGE_FORMS = {
+  a1: {
+    initialValues: {
+      purchase_order_number: "",
+      supplier_id: null,
+      amount: null,
+      reason: "",
+      docs: null,
+    },
+    validationSchema: Yup.object({
+      purchase_order_number: Yup.string()
+        .required("Purchase Order Number is required")
+        .max(100, "Purchase Order Number cannot exceed 100 characters"),
+      supplier_id: Yup.number()
+        .typeError("Select a Supplier")
+        .required("Supplier is required"),
+      amount: Yup.number()
+        .typeError("Amount must be a number")
+        .required("Amount is required")
+        .min(0.01, "Amount must be greater than 0"),
+      reason: Yup.string()
+        .required("Reason is required")
+        .max(500, "Reason cannot exceed 500 characters"),
+      docs: Yup.mixed().optional(),
+    }),
+  },
+  "a1.1": {
+    initialValues: {
+      pending_bills: null,
+      previous_advance_balance: null,
+      remarks: "",
+    },
+    validationSchema: Yup.object({
+      pending_bills: Yup.number()
+        .typeError("Pending Bills must be a number")
+        .required("Pending Bills is required")
+        .min(0, "Pending Bills cannot be negative"),
+      previous_advance_balance: Yup.number()
+        .typeError("Previous Advance Balance must be a number")
+        .required("Previous Advance Balance is required")
+        .min(0, "Previous Advance Balance cannot be negative"),
+      remarks: Yup.string()
+        .required("Remarks is required")
+        .max(500, "Remarks cannot exceed 500 characters"),
+    }),
+  },
+  a2: {
+    initialValues: {
+      approval_status: null,
+      note: "",
+    },
+    validationSchema: Yup.object({
+      approval_status: Yup.number()
+        .typeError("Select an Approval Status")
+        .required("Approval Status is required")
+        .oneOf([0, 1], "Select an Approval Status"),
+      note: Yup.string().max(500, "Note cannot exceed 500 characters"),
+    }),
+  },
+  a3: {
+    initialValues: {
+      a3_amount: null,
+      utr: "",
+      bank: null,
+      payment_date: null,
+      proof: null,
+    },
+    validationSchema: Yup.object({
+      a3_amount: Yup.number()
+        .typeError("Amount must be a number")
+        .required("Amount is required")
+        .min(0.01, "Amount must be greater than 0"),
+      utr: Yup.string()
+        .required("UTR is required")
+        .max(100, "UTR cannot exceed 100 characters"),
+      bank: Yup.number()
+        .typeError("Select a Bank")
+        .required("Bank is required"),
+      payment_date: Yup.date()
+        .typeError("Select a Payment Date")
+        .required("Payment Date is required"),
+      proof: Yup.mixed().required("Proof of Payment is required"),
+    }),
+  },
+};
 
 const STAGE_MAP = {
   a1: 1,
@@ -91,14 +163,8 @@ function AdvanceRequestForm() {
             <CustomContainer title="Stage - A1" smallHeader>
               <Formik
                 enableReinitialize
-                initialValues={{
-                  purchase_order_number: "",
-                  supplier_id: null,
-                  amount: null,
-                  reason: "",
-                  docs: null,
-                }}
-                validationSchema={validationSchema}
+                initialValues={STAGE_FORMS["a1"].initialValues}
+                validationSchema={STAGE_FORMS["a1"].validationSchema}
                 onSubmit={(values) => {
                   console.log(values);
                 }}
@@ -174,14 +240,8 @@ function AdvanceRequestForm() {
             <CustomContainer title="Stage - A1.1" smallHeader>
               <Formik
                 enableReinitialize
-                initialValues={{
-                  purchase_order_number: "",
-                  supplier_id: null,
-                  amount: null,
-                  reason: "",
-                  docs: null,
-                }}
-                validationSchema={validationSchema}
+                initialValues={STAGE_FORMS["a1.1"].initialValues}
+                validationSchema={STAGE_FORMS["a1.1"].validationSchema}
                 onSubmit={(values) => {
                   console.log(values);
                 }}
@@ -243,14 +303,8 @@ function AdvanceRequestForm() {
             <CustomContainer title="Stage - A2" smallHeader>
               <Formik
                 enableReinitialize
-                initialValues={{
-                  purchase_order_number: "",
-                  supplier_id: null,
-                  amount: null,
-                  reason: "",
-                  docs: null,
-                }}
-                validationSchema={validationSchema}
+                initialValues={STAGE_FORMS["a2"].initialValues}
+                validationSchema={STAGE_FORMS["a2"].validationSchema}
                 onSubmit={(values) => {
                   console.log(values);
                 }}
@@ -310,14 +364,8 @@ function AdvanceRequestForm() {
             <CustomContainer title="Stage - A3" smallHeader>
               <Formik
                 enableReinitialize
-                initialValues={{
-                  purchase_order_number: "",
-                  supplier_id: null,
-                  amount: null,
-                  reason: "",
-                  docs: null,
-                }}
-                validationSchema={validationSchema}
+                initialValues={STAGE_FORMS["a3"].initialValues}
+                validationSchema={STAGE_FORMS["a3"].validationSchema}
                 onSubmit={(values) => {
                   console.log(values);
                 }}
@@ -348,6 +396,7 @@ function AdvanceRequestForm() {
                         <CustomInput
                           label="Bank *"
                           name="bank"
+                          method="switch"
                           values={[
                             { id: 1, value: "Bank 1" },
                             { id: 2, value: "Bank 2" },

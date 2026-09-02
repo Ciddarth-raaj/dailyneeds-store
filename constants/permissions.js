@@ -84,6 +84,7 @@ export const PERMISSIONS = {
   lr_workflow: {
     view_advance_request: "View Advance Request",
     create_advance_request: "Create Advance Request",
+    view_old_balance_check: "View Old Balance Check",
   },
 
   // Accounts
