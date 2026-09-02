@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import moment from "moment";
 import { useRouter } from "next/router";
 import {
@@ -16,6 +16,8 @@ import MonthStatusCalendar from "../../components/calendar/MonthStatusCalendar";
 import GrnHighlightLoader from "../../components/grn/GrnHighlightLoader";
 import GrnPriceCheckerItemsModal from "../../components/grn/GrnPriceCheckerItemsModal";
 import { useGrnIssues } from "../../customHooks/useGrnIssues";
+import { ignoreGrnIssues } from "../../helper/grnList";
+import usePermissions from "../../customHooks/usePermissions";
 import {
   formatDiscountPct,
   getGrnLinePriceMismatch,
@@ -49,6 +51,9 @@ function GrnIssueListing() {
     moment().clone().startOf("month")
   );
   const [selectedProduct, setSelectedProduct] = useState(null);
+  const [selectedRows, setSelectedRows] = useState([]);
+  const [ignoring, setIgnoring] = useState(false);
+  const canIgnore = usePermissions("ignore_grn_issues");
   const hydratedFromQuery = useRef(false);
 
   useEffect(() => {
@@ -91,7 +96,7 @@ function GrnIssueListing() {
     };
   }, [viewingMonth]);
 
-  const { items, itemsByProductId, loading, error } = useGrnIssues(
+  const { items, itemsByProductId, loading, error, refetch } = useGrnIssues(
     viewingMonthDateRange,
     { enabled: viewingMonthDateRange.valid }
   );
@@ -101,6 +106,42 @@ function GrnIssueListing() {
       toast.error(error?.message || "Failed to load GRN issues.");
     }
   }, [error]);
+
+  useEffect(() => {
+    setSelectedRows([]);
+  }, [items]);
+
+  const handleSelectionChanged = useCallback((rows) => {
+    setSelectedRows(rows ?? []);
+  }, []);
+
+  const handleIgnoreRows = useCallback(
+    async (rows) => {
+      if (!Array.isArray(rows) || rows.length === 0) return;
+      setIgnoring(true);
+      try {
+        await ignoreGrnIssues(
+          rows.map((row) => ({
+            refno: row.grn_refno,
+            sl_no: row.mmd_mrc_sl_no,
+            product_id: row.product_id ?? null,
+          }))
+        );
+        toast.success(
+          rows.length === 1
+            ? "Item ignored."
+            : `${rows.length} items ignored.`
+        );
+        setSelectedRows([]);
+        refetch();
+      } catch (err) {
+        toast.error(err?.message || "Failed to ignore item(s).");
+      } finally {
+        setIgnoring(false);
+      }
+    },
+    [refetch]
+  );
 
   const allIssueRows = useMemo(() => {
     return (items || [])
@@ -341,8 +382,31 @@ function GrnIssueListing() {
         valueFormatter: (params) => formatDiscountPct(params.value),
         cellRenderer: (params) => formatDiscountPct(params.value),
       },
+      ...(canIgnore
+        ? [
+            {
+              headerName: "Actions",
+              colId: "actions",
+              flex: 0,
+              minWidth: colWidth,
+              sortable: false,
+              filter: false,
+              cellRenderer: (params) => (
+                <Button
+                  size="xs"
+                  variant="outline"
+                  colorScheme="red"
+                  isLoading={ignoring}
+                  onClick={() => handleIgnoreRows([params.data])}
+                >
+                  Ignore
+                </Button>
+              ),
+            },
+          ]
+        : []),
     ],
-    [linkColor, router]
+    [linkColor, router, canIgnore, ignoring, handleIgnoreRows]
   );
 
   const gridOptions = useMemo(
@@ -386,7 +450,22 @@ function GrnIssueListing() {
           }
         />
 
-        <CustomContainer title={tableTitle} filledHeader>
+        <CustomContainer
+          title={tableTitle}
+          filledHeader
+          rightSection={
+            canIgnore && selectedRows.length > 0 ? (
+              <Button
+                size="sm"
+                colorScheme="red"
+                isLoading={ignoring}
+                onClick={() => handleIgnoreRows(selectedRows)}
+              >
+                Ignore selected ({selectedRows.length})
+              </Button>
+            ) : null
+          }
+        >
           {loading ? (
             <GrnHighlightLoader
               label="Loading GRN issues..."
@@ -402,6 +481,8 @@ function GrnIssueListing() {
               rowData={displayRowData}
               columnDefs={colDefs}
               tableKey="grn-issue-list"
+              selectMode={canIgnore}
+              onSelectionChanged={handleSelectionChanged}
               gridOptions={gridOptions}
             />
           )}
