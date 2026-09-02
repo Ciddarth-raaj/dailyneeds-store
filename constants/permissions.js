@@ -247,5 +247,6 @@ export const PERMISSIONS = {
     view_price_checker: "View Price Checker",
     view_images_download_log: "View Image Download Log",
     view_api_logs: "View API Logs",
+    manage_ip_restrictions: "Manage IP Restrictions",
   },
 };

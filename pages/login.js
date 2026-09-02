@@ -6,11 +6,24 @@ import { toast } from "react-toastify";
 
 import { CloseIcon } from "@chakra-ui/icons";
 import LoginHelper from "../helper/login";
-import { Container, Button, Switch, Flex } from "@chakra-ui/react";
+import {
+  Alert,
+  AlertDescription,
+  AlertIcon,
+  AlertTitle,
+  Box,
+  Container,
+  Button,
+  Switch,
+  Flex,
+} from "@chakra-ui/react";
 import { Formik, Form } from "formik";
 import CustomInput from "../components/customInput/customInput";
 import { BranchValidation } from "../util/validation";
 import { withUser } from "../hocs/withUser";
+
+const IP_BLOCKED_MESSAGE =
+  "This account can only be used from an approved network. Please sign in from your store's connection, or ask an admin to allow this network.";
 
 class LogIn extends React.Component {
   constructor(props) {
@@ -20,7 +33,20 @@ class LogIn extends React.Component {
       isLoading: false,
       show: true,
       token: "",
+      blockedIp: null,
     };
+  }
+
+  componentDidMount() {
+    // A session cut off mid-use lands back here with the reason in the URL;
+    // without this the user just sees an empty form and retries a password
+    // that was never wrong.
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("blocked") === "ip") {
+      this.setState({ blockedIp: params.get("ip") || "" });
+      toast.error(IP_BLOCKED_MESSAGE);
+    }
   }
 
   login(values) {
@@ -30,6 +56,11 @@ class LogIn extends React.Component {
       .then((data) => {
         if (data.code === 400) {
           toast.error(`${data.msg}`);
+        }
+        if (data.code === 403 && data.error === "IP_NOT_ALLOWED") {
+          this.setState({ blockedIp: data.ip || "" });
+          toast.error(data.msg || IP_BLOCKED_MESSAGE);
+          return;
         }
         if (data.data.code === 200) {
           userContext.updateUserConfig({
@@ -53,7 +84,7 @@ class LogIn extends React.Component {
 
   render() {
     const { setVisibility } = this.props;
-    const { toggle, isLoading, show, token } = this.state;
+    const { toggle, isLoading, show, token, blockedIp } = this.state;
     return (
       <Formik
         initialValues={{
@@ -76,6 +107,26 @@ class LogIn extends React.Component {
                   <h3 className={styles.title}>
                     <img src={"/assets/dnds-logo.png"} alt="logo" />
                   </h3>
+
+                  {blockedIp !== null && (
+                    <Alert
+                      status="error"
+                      borderRadius="md"
+                      marginBottom="16px"
+                      alignItems="flex-start"
+                    >
+                      <AlertIcon />
+                      <Box fontSize="13px">
+                        <AlertTitle fontSize="14px">
+                          Network not allowed
+                        </AlertTitle>
+                        <AlertDescription display="block">
+                          {IP_BLOCKED_MESSAGE}
+                          {blockedIp ? ` Your current IP is ${blockedIp}.` : ""}
+                        </AlertDescription>
+                      </Box>
+                    </Alert>
+                  )}
 
                   <div className={styles.inputHolder}>
                     <CustomInput

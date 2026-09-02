@@ -561,6 +561,12 @@ const ALL_PAGES_MENU = {
         selected: false,
         location: "/misc/api-logs",
       },
+      ip_restrictions: {
+        title: "IP Restrictions",
+        permission: "manage_ip_restrictions",
+        selected: false,
+        location: "/misc/ip-restrictions",
+      },
       stock_checker: {
         title: "Stock Checker",
         subMenu: {
