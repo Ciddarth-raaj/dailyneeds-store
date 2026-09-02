@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import moment from "moment";
 import { useRouter } from "next/router";
 import {
+  Badge,
   Box,
   Button,
   Flex,
@@ -15,6 +16,7 @@ import AgGrid from "../../components/AgGrid";
 import MonthStatusCalendar from "../../components/calendar/MonthStatusCalendar";
 import GrnHighlightLoader from "../../components/grn/GrnHighlightLoader";
 import GrnPriceCheckerItemsModal from "../../components/grn/GrnPriceCheckerItemsModal";
+import AddToOfferV3Modal from "../../components/grn/AddToOfferV3Modal";
 import { useGrnIssues } from "../../customHooks/useGrnIssues";
 import { ignoreGrnIssues } from "../../helper/grnList";
 import usePermissions from "../../customHooks/usePermissions";
@@ -51,9 +53,11 @@ function GrnIssueListing() {
     moment().clone().startOf("month")
   );
   const [selectedProduct, setSelectedProduct] = useState(null);
+  const [addOfferProduct, setAddOfferProduct] = useState(null);
   const [selectedRows, setSelectedRows] = useState([]);
   const [ignoring, setIgnoring] = useState(false);
   const canIgnore = usePermissions("ignore_grn_issues");
+  const canAddOfferV3 = usePermissions("add_offers_v3");
   const hydratedFromQuery = useRef(false);
 
   useEffect(() => {
@@ -310,11 +314,38 @@ function GrnIssueListing() {
         type: "badge-column",
         flex: 0,
         minWidth: 90,
-        maxWidth: 90,
+        maxWidth: canAddOfferV3 ? 110 : 90,
         valueGetter: (params) =>
           params.data?.is_offer_product
             ? { label: "Offer", colorScheme: "blue" }
             : null,
+        cellRenderer: (params) => {
+          if (params.value) {
+            return (
+              <Flex alignItems="center" h="100%">
+                <Badge colorScheme={params.value.colorScheme}>
+                  {params.value.label}
+                </Badge>
+              </Flex>
+            );
+          }
+          if (!canAddOfferV3) return null;
+          return (
+            <Button
+              size="xs"
+              variant="link"
+              colorScheme="purple"
+              onClick={() =>
+                setAddOfferProduct({
+                  productId: params.data?.product_id,
+                  productName: productDisplayName(params.data?.product),
+                })
+              }
+            >
+              Add
+            </Button>
+          );
+        },
       },
       {
         field: "mmd_recd_qty",
@@ -418,7 +449,7 @@ function GrnIssueListing() {
           ]
         : []),
     ],
-    [linkColor, router, canIgnore, ignoring, handleIgnoreRows]
+    [linkColor, router, canIgnore, ignoring, handleIgnoreRows, canAddOfferV3]
   );
 
   const gridOptions = useMemo(
@@ -516,6 +547,17 @@ function GrnIssueListing() {
             : undefined
         }
         priceCheckerLoading={loading}
+      />
+
+      <AddToOfferV3Modal
+        isOpen={Boolean(addOfferProduct)}
+        onClose={() => setAddOfferProduct(null)}
+        productId={addOfferProduct?.productId}
+        productName={addOfferProduct?.productName}
+        onCreated={() => {
+          setAddOfferProduct(null);
+          refetch();
+        }}
       />
     </GlobalWrapper>
   );
