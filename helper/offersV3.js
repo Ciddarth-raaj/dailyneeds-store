@@ -120,6 +120,30 @@ const offersV3 = {
 
   mismatches: () => unwrap(API.get("/offers-v3/mismatches"), "Failed to fetch mismatches").then((d) => d.data ?? []),
 
+  /**
+   * GET /offers-v3/items-by-product?product_id= — grouped batches for one
+   * item from the latest Price Upload. Same shape as
+   * priceChecker.getItemsByProduct, used by the GRN Price Checker modal.
+   */
+  getItemsByProduct: (productId) =>
+    new Promise((resolve, reject) => {
+      if (productId == null || productId === "") {
+        reject(new Error("product_id is required"));
+        return;
+      }
+
+      API.get("/offers-v3/items-by-product", { params: { product_id: productId } })
+        .then((res) => {
+          const data = res?.data ?? res;
+          if (data?.code === 200) {
+            resolve(data);
+            return;
+          }
+          reject(new Error(data?.msg ?? "Failed to fetch price upload items"));
+        })
+        .catch((err) => reject(err));
+    }),
+
   uploadMeta: () => unwrap(API.get("/offers-v3/upload-meta"), "Failed to fetch upload meta").then((d) => d.data ?? {}),
 
   import: (rows) => unwrap(API.post("/offers-v3/import", rows), "Failed to import offers"),
