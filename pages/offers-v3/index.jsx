@@ -932,6 +932,10 @@ function MismatchesTab({ refreshKey }) {
       { field: "expected_selling_price", headerName: "Expected SP", type: "currency" },
       { field: "actual_selling_price", headerName: "Actual SP", type: "currency" },
       { field: "stock_qty", headerName: "Stock Qty", type: "number" },
+      /* The price table keeps a batch's last-known price forever, so a row can
+         be checked against a sheet from weeks ago. Show which upload it came
+         from, or a stale row looks like a price nobody ever entered. */
+      { field: "price_uploaded_at", headerName: "Price From", type: "date" },
       { field: "landing_cost", headerName: "Landing Cost", type: "currency" },
     ],
     []
