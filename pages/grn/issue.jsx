@@ -305,6 +305,18 @@ function GrnIssueListing() {
         },
       },
       {
+        field: "is_offer_product",
+        headerName: "Offer",
+        type: "badge-column",
+        flex: 0,
+        minWidth: 90,
+        maxWidth: 90,
+        valueGetter: (params) =>
+          params.data?.is_offer_product
+            ? { label: "Offer", colorScheme: "blue" }
+            : null,
+      },
+      {
         field: "mmd_recd_qty",
         headerName: "Recd. Qty",
         type: "number",
