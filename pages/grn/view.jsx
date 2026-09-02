@@ -17,6 +17,7 @@ import {
   GridItem,
   Image,
   Text,
+  Tooltip,
   useToken,
 } from "@chakra-ui/react";
 import { useGrnDetail } from "../../customHooks/useGrnDetail";
@@ -28,6 +29,7 @@ import {
   calcMarkupOnSelling,
   calcNetMarginMD,
   formatDiscountPct,
+  formatOfferDetails,
   getGrnLinePriceMismatch,
   getMismatchRowStyle,
   sortRowsMismatchFirst,
@@ -217,11 +219,19 @@ function GrnDetailPage() {
             : null,
         cellRenderer: (params) => {
           if (params.value) {
+            const tooltipLabel = formatOfferDetails(params.data?.offer_details);
             return (
               <Flex alignItems="center" h="100%">
-                <Badge colorScheme={params.value.colorScheme}>
-                  {params.value.label}
-                </Badge>
+                <Tooltip
+                  label={tooltipLabel}
+                  whiteSpace="pre-line"
+                  isDisabled={!tooltipLabel}
+                  hasArrow
+                >
+                  <Badge colorScheme={params.value.colorScheme}>
+                    {params.value.label}
+                  </Badge>
+                </Tooltip>
               </Flex>
             );
           }
