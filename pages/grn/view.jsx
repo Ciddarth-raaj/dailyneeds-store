@@ -92,6 +92,7 @@ function GrnDetailPage() {
       ...row,
       _priceMismatch:
         !pcLoading &&
+        !row.is_ignored &&
         getGrnLinePriceMismatch(row, itemsByProductId, false),
     }));
     return sortRowsMismatchFirst(withFlags, (row) => row._priceMismatch);
