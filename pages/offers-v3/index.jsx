@@ -960,7 +960,17 @@ function MismatchesTab({ refreshKey }) {
         rowData={rows}
         columnDefs={colDefs}
         tableKey="offers-v3-mismatches"
-        getRowId={(params) => `${params.data?.scope}-${params.data?.offer_id}`}
+        /* One item-level offer yields a row per outlet and batch, all sharing
+           its offer_id - keyed on that alone the grid drops every row but the
+           first, hiding the other outlets the price is wrong in. */
+        getRowId={(params) =>
+          [
+            params.data?.scope,
+            params.data?.offer_id,
+            params.data?.outlet_id,
+            params.data?.batch_no,
+          ].join("|")
+        }
       />
     </>
   );
