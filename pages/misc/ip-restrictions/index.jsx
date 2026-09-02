@@ -1,5 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  Alert,
+  AlertDescription,
+  AlertIcon,
+  AlertTitle,
   Badge,
   Box,
   Button,
@@ -45,6 +49,7 @@ function IpRestrictions() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [myIp, setMyIp] = useState("");
+  const [ipDiagnostic, setIpDiagnostic] = useState(null);
   const [editing, setEditing] = useState(null);
   const [draft, setDraft] = useState("");
   const [allowOutside, setAllowOutside] = useState(true);
@@ -61,8 +66,14 @@ function IpRestrictions() {
   useEffect(() => {
     load();
     UserIpRestrictionHelper.getMyIp()
-      .then(setMyIp)
-      .catch(() => setMyIp(""));
+      .then((info) => {
+        setMyIp(info?.ip || "");
+        setIpDiagnostic(info || null);
+      })
+      .catch(() => {
+        setMyIp("");
+        setIpDiagnostic(null);
+      });
   }, [load]);
 
   const openEditor = useCallback((row) => {
@@ -198,6 +209,10 @@ function IpRestrictions() {
     (row) => row?.allow_outside_access === false
   ).length;
 
+  // A loopback address is never a real client, so the proxy is at fault
+  // rather than the reading being merely unexpected.
+  const proxyBroken = ipDiagnostic?.isLoopback === true;
+
   return (
     <GlobalWrapper title="IP Restrictions" permissionKey={PERMISSION_KEY}>
       <CustomContainer
@@ -214,6 +229,54 @@ function IpRestrictions() {
           </HStack>
         }
       >
+        {proxyBroken ? (
+          <Alert
+            status="error"
+            borderRadius="md"
+            marginBottom="12px"
+            alignItems="flex-start"
+          >
+            <AlertIcon />
+            <Box fontSize="13px">
+              <AlertTitle fontSize="14px">
+                Restrictions will not work yet
+              </AlertTitle>
+              <AlertDescription display="block">
+                The API sees every request as coming from{" "}
+                <Code fontSize="12px">{myIp}</Code>, which is the server
+                talking to itself — not a real network address. Your reverse
+                proxy is not sending the client&apos;s IP, so every user looks
+                identical and an allow-list here would match all of them.
+                Set <Code fontSize="12px">X-Forwarded-For</Code> on the proxy,
+                then reload this page and check the address below is your real
+                public IP before restricting anyone.
+              </AlertDescription>
+            </Box>
+          </Alert>
+        ) : null}
+
+        {!proxyBroken && ipDiagnostic?.isPrivate ? (
+          <Alert
+            status="warning"
+            borderRadius="md"
+            marginBottom="12px"
+            alignItems="flex-start"
+          >
+            <AlertIcon />
+            <Box fontSize="13px">
+              <AlertTitle fontSize="14px">
+                Check this address is right
+              </AlertTitle>
+              <AlertDescription display="block">
+                <Code fontSize="12px">{myIp}</Code> is a private network
+                address. That is correct if staff reach this app over the
+                local network, but if they come in over the internet it means
+                the proxy is passing the wrong address along.
+              </AlertDescription>
+            </Box>
+          </Alert>
+        ) : null}
+
         <Flex
           marginBottom="12px"
           fontSize="13px"
@@ -313,7 +376,7 @@ function IpRestrictions() {
         </FormControl>
 
         <Wrap marginTop="12px" spacing={2}>
-          {myIp ? (
+          {myIp && !proxyBroken ? (
             <WrapItem>
               <Button
                 size="xs"
