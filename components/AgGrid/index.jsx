@@ -383,6 +383,30 @@ const AgGrid = React.forwardRef(function AgGrid(
     });
   }, [resolvedColumnDefs, isServerSort, sortState]);
 
+  // A colDef's own `sort` is the page's opening order. columnDefsForGrid above
+  // clears `sort` on every column - it has to, or each re-render would re-apply
+  // it and undo the user's own sort click - so the default is applied once
+  // through the API when the grid is ready instead.
+  const defaultSortState = React.useMemo(
+    () =>
+      leafColumnMeta
+        .filter(({ colDef }) => colDef.sort)
+        .map(({ colDef, colId }) => ({
+          colId,
+          sort: colDef.sort,
+          sortIndex: colDef.sortIndex ?? null,
+        })),
+    [leafColumnMeta]
+  );
+
+  const applyDefaultSort = React.useCallback(() => {
+    if (isServerSort || defaultSortState.length === 0) return;
+    gridRef.current?.api?.applyColumnState?.({
+      state: defaultSortState,
+      defaultState: { sort: null },
+    });
+  }, [defaultSortState, isServerSort]);
+
   const handleSortChanged = React.useCallback(() => {
     if (!isServerSort || !onSortChange) return;
     const api = gridRef.current?.api;
@@ -881,6 +905,7 @@ const AgGrid = React.forwardRef(function AgGrid(
             !isServerPagination ? handleClientPaginationChanged : undefined
           }
           onGridReady={() => {
+            applyDefaultSort();
             syncClientPagination();
           }}
           rowSelection={
