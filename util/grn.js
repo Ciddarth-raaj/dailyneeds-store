@@ -101,12 +101,12 @@ export function pricesEqual(a, b) {
   return left === right;
 }
 
+// A matching Selling Price is agreement on its own -- MRP is derived and can
+// vary between suppliers while SP, what was actually charged, stays the
+// same (see batchesDisagree below).
 export function isPriceCheckerBatchMatch(batch, grnMrp, grnSp) {
   if (!batch) return false;
-  return (
-    pricesEqual(batch.old_mrp, grnMrp) &&
-    pricesEqual(batch.old_selling_price, grnSp)
-  );
+  return pricesEqual(batch.old_selling_price, grnSp);
 }
 
 export function isPriceCheckerBatchMismatch(
@@ -137,10 +137,10 @@ export function isPriceCheckerBatchMismatch(
   ) {
     return false;
   }
-  return (
-    !pricesEqual(batch.old_mrp, grnMrp) ||
-    !pricesEqual(batch.old_selling_price, grnSp)
-  );
+  // A matching Selling Price is agreement on its own -- MRP is derived and
+  // can vary between suppliers while SP, what was actually charged, stays
+  // the same.
+  return !pricesEqual(batch.old_selling_price, grnSp);
 }
 
 /**
