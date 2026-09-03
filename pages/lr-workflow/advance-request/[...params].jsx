@@ -79,7 +79,11 @@ const STAGE_SCHEMAS = {
       .nullable(),
   }),
   "a1.2": Yup.object({
+    // .nullable() before .required(): nothing is picked to begin with, and
+    // without it Yup fails the string type check on null and reports that
+    // instead of the message written here.
     balance_action: Yup.string()
+      .nullable()
       .required("Choose what to do about the balance")
       .oneOf(
         BALANCE_ACTIONS.map((item) => item.id),
@@ -91,6 +95,7 @@ const STAGE_SCHEMAS = {
   }),
   a2: Yup.object({
     decision: Yup.string()
+      .nullable()
       .required("Choose approve, hold or reject")
       .oneOf(
         APPROVAL_DECISIONS.map((item) => item.id),
@@ -99,10 +104,13 @@ const STAGE_SCHEMAS = {
     approval_note: Yup.string()
       .max(500, "Note cannot exceed 500 characters")
       .nullable(),
-    // Only offered when releasing a hold, so it is never required.
+    // Only offered when releasing a hold, so it is never required. null has
+    // to be in the list as well as .nullable(): oneOf implicitly allows
+    // undefined but never null, and a request that reached approval with no
+    // balance outstanding carries null here.
     balance_action: Yup.string()
       .oneOf(
-        BALANCE_ACTIONS.map((item) => item.id),
+        [...BALANCE_ACTIONS.map((item) => item.id), null],
         "Choose what to do about the balance"
       )
       .nullable(),
@@ -177,31 +185,54 @@ function StageCard({
         validationSchema={validationSchema}
         onSubmit={onSubmit}
       >
-        {({ handleSubmit, resetForm, isSubmitting, values, setFieldValue }) => (
-          <div>
-            {renderFields({ editable, values, setFieldValue })}
+        {({
+          handleSubmit,
+          resetForm,
+          isSubmitting,
+          values,
+          setFieldValue,
+          validateForm,
+        }) => {
+          /**
+           * A stage carries fields the current status does not render, and
+           * Formik simply declines to submit while one of those is invalid.
+           * With nothing on screen to attach the error to that reads as a
+           * dead button, so say it out loud. handleSubmit still runs, so
+           * visible fields get their inline errors as before.
+           */
+          const submit = async () => {
+            const errors = await validateForm();
+            const [first] = Object.values(errors);
+            if (first) toast.error(first);
+            handleSubmit();
+          };
 
-            {editable && (
-              <Flex mt={8} justify="flex-end" gap="12px">
-                <Button
-                  variant="outline"
-                  colorScheme="red"
-                  onClick={() => resetForm()}
-                  isDisabled={isSubmitting}
-                >
-                  Reset
-                </Button>
-                <Button
-                  colorScheme="purple"
-                  onClick={handleSubmit}
-                  isLoading={isSubmitting}
-                >
-                  {submitLabel}
-                </Button>
-              </Flex>
-            )}
-          </div>
-        )}
+          return (
+            <div>
+              {renderFields({ editable, values, setFieldValue })}
+
+              {editable && (
+                <Flex mt={8} justify="flex-end" gap="12px">
+                  <Button
+                    variant="outline"
+                    colorScheme="red"
+                    onClick={() => resetForm()}
+                    isDisabled={isSubmitting}
+                  >
+                    Reset
+                  </Button>
+                  <Button
+                    colorScheme="purple"
+                    onClick={submit}
+                    isLoading={isSubmitting}
+                  >
+                    {submitLabel}
+                  </Button>
+                </Flex>
+              )}
+            </div>
+          );
+        }}
       </Formik>
     </CustomContainer>
   );
