@@ -6,6 +6,7 @@ import AgGrid from "../AgGrid";
 import GrnOutletStockBreakdownModal from "./GrnOutletStockBreakdownModal";
 import { useGrnPriceCheckerItems } from "../../customHooks/useGrnPriceCheckerItems";
 import {
+  calcMarkupOnSelling,
   formatDiscountPct,
   getMismatchRowStyle,
   isPriceCheckerBatchMismatch,
@@ -49,6 +50,7 @@ export default function GrnPriceCheckerItemsModal({
   const displayRows = useMemo(() => {
     const withFlags = (sourceRows ?? []).map((row) => ({
       ...row,
+      markup_pct: calcMarkupOnSelling(row.old_selling_price, row.purchase_price),
       _priceMismatch:
         !loading &&
         isPriceCheckerBatchMismatch(
@@ -100,6 +102,14 @@ export default function GrnPriceCheckerItemsModal({
         type: "currency",
         flex: 0,
         minWidth: colWidth,
+      },
+      {
+        field: "markup_pct",
+        headerName: "Markup %",
+        flex: 0,
+        minWidth: colWidth,
+        valueFormatter: (params) => formatDiscountPct(params.value),
+        cellRenderer: (params) => formatDiscountPct(params.value),
       },
       {
         field: "old_mrp",
