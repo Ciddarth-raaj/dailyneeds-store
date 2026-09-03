@@ -49,11 +49,24 @@ function PurchaseAckListing() {
     try {
       const result = await syncPurchaseAcknowledgement();
       const n = result?.groups_imported ?? 0;
+      const backfilled = result?.mrc_no_backfilled ?? 0;
+
       if (n > 0) {
         toast.success(`${n} Purchase Acknowledgements imported`);
-        refetch();
       } else {
         toast.success("No Purchase Acknowledgements to import");
+      }
+
+      // An acknowledgement imported before MRC No existed is only filled in
+      // by the backfill - the sync itself never revisits a memo it has read.
+      if (backfilled > 0) {
+        toast.success(`MRC No filled in on ${backfilled} existing records`);
+      } else if (result?.mrc_no_available === false) {
+        toast("MRC No is not available from the source system", { icon: "⚠️" });
+      }
+
+      if (n > 0 || backfilled > 0) {
+        refetch();
       }
     } catch (err) {
       toast.error(err?.message || "Purchase Acknowledgements sync failed");

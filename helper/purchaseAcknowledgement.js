@@ -55,7 +55,8 @@ export const deletePurchaseAcknowledgement = (id) => {
 
 /**
  * POST /purchase-acknowledgement/sync
- * @returns {Promise<{ groups_imported, rows_marked_imported, purchase_acknowledgement_ids, code }>}
+ * @returns {Promise<{ groups_imported, rows_marked_imported, purchase_acknowledgement_ids,
+ *   mrc_no_available, mrc_no_backfilled, code }>}
  */
 export const syncPurchaseAcknowledgement = () => {
   return API.post("/purchase-acknowledgement/sync").then((res) => {
