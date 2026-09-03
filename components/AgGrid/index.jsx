@@ -514,6 +514,19 @@ const AgGrid = React.forwardRef(function AgGrid(
         },
         date: {
           filter: "agDateColumnFilter",
+          // The browser's own calendar, which navigates by month and year
+          // rather than one month at a time.
+          filterParams: { browserDatePicker: true },
+          // Rows with no date stay at the bottom whichever way the column is
+          // sorted, so a newest-first column opens on the newest real date
+          // rather than on the blanks. The grid inverts a comparator's result
+          // for descending, so the null branch has to invert with it.
+          comparator: (a, b, nodeA, nodeB, isDescending) => {
+            if (a == null && b == null) return 0;
+            if (a == null) return isDescending ? -1 : 1;
+            if (b == null) return isDescending ? 1 : -1;
+            return a.getTime() - b.getTime();
+          },
           valueGetter: (params) => {
             const field = params.colDef?.field;
             if (!field || !params.data) return null;
