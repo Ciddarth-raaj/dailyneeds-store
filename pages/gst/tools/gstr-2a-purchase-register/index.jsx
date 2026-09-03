@@ -28,6 +28,7 @@ import GlobalWrapper from "../../../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../../../components/CustomContainer";
 import AgGrid from "../../../../components/AgGrid";
 import GstModuleWrapper from "../../../../components/gst/GstModuleWrapper";
+import Gstr2aAcceptZeroTaxModal from "../../../../components/gst/Gstr2aAcceptZeroTaxModal";
 import Gstr2aAutoMatchPreviewModal from "../../../../components/gst/Gstr2aAutoMatchPreviewModal";
 import Gstr2aMatchModal from "../../../../components/gst/Gstr2aMatchModal";
 import Gstr2aPrSummaryTable from "../../../../components/gst/Gstr2aPrSummaryTable";
@@ -211,6 +212,7 @@ export default function GstGstr2aPurchaseRegisterPage() {
   const [matchDocument, setMatchDocument] = useState(null);
   const [autoMatching, setAutoMatching] = useState(false);
   const [accepting, setAccepting] = useState(false);
+  const [acceptPreviewOpen, setAcceptPreviewOpen] = useState(false);
   const [autoMatchPreviewOpen, setAutoMatchPreviewOpen] = useState(false);
   const [autoMatchPairs, setAutoMatchPairs] = useState([]);
   const [autoMatchUnmatched, setAutoMatchUnmatched] = useState([]);
@@ -378,15 +380,19 @@ export default function GstGstr2aPurchaseRegisterPage() {
     [acceptNo2aRows]
   );
 
-  const handleAcceptAllZeroTax = useCallback(() => {
+  const handleOpenAcceptPreview = useCallback(() => {
     if (!acceptableRows.length) return;
-    const ok = window.confirm(
-      `Accept ${acceptableRows.length} zero-tax invoice${
-        acceptableRows.length === 1 ? "" : "s"
-      } as never appearing in GSTR-2A? They stay in this list, badged Accepted, and can be undone one at a time.`
-    );
-    if (!ok) return;
-    acceptNo2aRows(acceptableRows);
+    setAcceptPreviewOpen(true);
+  }, [acceptableRows]);
+
+  const handleCloseAcceptPreview = useCallback(() => {
+    if (accepting) return;
+    setAcceptPreviewOpen(false);
+  }, [accepting]);
+
+  const handleConfirmAcceptZeroTax = useCallback(async () => {
+    await acceptNo2aRows(acceptableRows);
+    setAcceptPreviewOpen(false);
   }, [acceptableRows, acceptNo2aRows]);
 
   const handleUnacceptRow = useCallback(
@@ -955,6 +961,13 @@ export default function GstGstr2aPurchaseRegisterPage() {
           prError={prError}
           onMatchChanged={refetchPr}
         />
+        <Gstr2aAcceptZeroTaxModal
+          isOpen={acceptPreviewOpen}
+          onClose={handleCloseAcceptPreview}
+          rows={acceptableRows}
+          confirming={accepting}
+          onConfirm={handleConfirmAcceptZeroTax}
+        />
         <Gstr2aAutoMatchPreviewModal
           isOpen={autoMatchPreviewOpen}
           onClose={handleCloseAutoMatchPreview}
@@ -1044,7 +1057,7 @@ export default function GstGstr2aPurchaseRegisterPage() {
                             leftIcon={
                               <i className="fa-solid fa-circle-check" />
                             }
-                            onClick={handleAcceptAllZeroTax}
+                            onClick={handleOpenAcceptPreview}
                             isLoading={accepting}
                             isDisabled={pageLoading}
                           >
