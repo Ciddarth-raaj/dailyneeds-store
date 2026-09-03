@@ -60,6 +60,21 @@ export const STAGE_FOR_STATUS = {
   paid: "a3",
 };
 
+/**
+ * How to tell a stage has actually run: every step stamps its own timestamp on
+ * the request, so this reads the data rather than re-deriving the workflow.
+ */
+export const STAGE_COMPLETED = {
+  a1: () => true, // the request itself
+  "a1.1": (r) => Boolean(r?.balance_checked_at),
+  "a1.2": (r) => Boolean(r?.balance_action_at),
+  a2: (r) => Boolean(r?.approved_at), // approve, hold or reject
+  a3: (r) => Boolean(r?.paid_at),
+};
+
+export const isStageCompleted = (stage, request) =>
+  Boolean(STAGE_COMPLETED[stage] && STAGE_COMPLETED[stage](request));
+
 /** Nothing moves a request out of these. */
 export const TERMINAL_STATUSES = ["rejected", "paid"];
 

@@ -17,11 +17,11 @@ import * as Yup from "yup";
 import {
   APPROVAL_DECISIONS,
   BALANCE_ACTIONS,
-  STAGE_MAP,
   STAGE_PERMISSION,
   getCurrentStage,
   getStatusMeta,
   isEditableStatus,
+  isStageCompleted,
   isTerminal,
 } from "../../../constants/advanceRequest";
 import {
@@ -276,11 +276,20 @@ function AdvanceRequestForm() {
     a3: permissionHeld[STAGE_PERMISSION.a3],
   };
 
-  /** Every stage up to and including the one the request has reached. */
+  /**
+   * What has happened, plus the one step this person can do about it.
+   *
+   * Showing every stage up to the current one meant a purchase user who had
+   * just raised a request landed on the accounts balance-check form - a step
+   * they neither own nor can complete. An empty form reads as something to
+   * fill in, so a stage that has not run yet is shown only to whoever can
+   * actually run it.
+   */
   const isVisible = (stage) => {
     if (createMode) return stage === "a1";
     if (!request) return false;
-    return STAGE_MAP[stage] <= STAGE_MAP[currentStage];
+    if (isStageCompleted(stage, request)) return true;
+    return stage === currentStage && Boolean(stagePermission[stage]);
   };
 
   /**
