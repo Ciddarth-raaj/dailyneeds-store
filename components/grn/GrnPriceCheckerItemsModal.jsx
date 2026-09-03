@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Box, Text, useToken } from "@chakra-ui/react";
+import { Box, Flex, Text, useToken } from "@chakra-ui/react";
 import toast from "react-hot-toast";
 import CustomModal from "../CustomModal";
 import AgGrid from "../AgGrid";
@@ -15,6 +15,12 @@ import {
 import { useModuleTableTheme } from "../../contexts/ModuleTableThemeContext";
 
 const colWidth = 120;
+
+function formatGrnCurrency(value) {
+  if (value == null || value === "") return "—";
+  const n = Number(value);
+  return Number.isFinite(n) ? `₹${n.toFixed(2)}` : "—";
+}
 
 export default function GrnPriceCheckerItemsModal({
   isOpen,
@@ -72,6 +78,11 @@ export default function GrnPriceCheckerItemsModal({
     grnPurchasePrice,
     loading,
   ]);
+
+  const grnMarkupPct = useMemo(
+    () => calcMarkupOnSelling(grnSp, grnPurchasePrice),
+    [grnSp, grnPurchasePrice]
+  );
 
   const gridOptions = useMemo(
     () => ({
@@ -184,6 +195,22 @@ export default function GrnPriceCheckerItemsModal({
         size="6xl"
         colorScheme={colorScheme}
       >
+        <Flex
+          wrap="wrap"
+          gap={4}
+          mb={3}
+          p={2}
+          borderRadius="md"
+          bg="gray.50"
+          fontSize="sm"
+        >
+          <Text fontWeight="semibold">This GRN line:</Text>
+          <Text>Pur. Price: {formatGrnCurrency(grnPurchasePrice)}</Text>
+          <Text>MRP: {formatGrnCurrency(grnMrp)}</Text>
+          <Text>SP: {formatGrnCurrency(grnSp)}</Text>
+          <Text>Discount %: {formatDiscountPct(grnDiscountPct)}</Text>
+          <Text>Markup %: {formatDiscountPct(grnMarkupPct)}</Text>
+        </Flex>
         {loading ? (
           <Text>Loading...</Text>
         ) : displayRows.length === 0 ? (
