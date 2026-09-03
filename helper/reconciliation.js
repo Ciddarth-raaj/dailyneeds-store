@@ -1,5 +1,14 @@
 import API from "../util/api";
 
+// A column with nothing to reconcile reaches this as the placeholder "-", which
+// parseFloat turns into NaN and JSON.stringify then sends as null. The API
+// requires a number, so the whole save was rejected and — because a rejection
+// comes back as {code: 422} inside a 200 response — reported as a success.
+const toNumber = (value) => {
+  const amount = parseFloat(value);
+  return Number.isFinite(amount) ? amount : 0;
+};
+
 export const saveReconciliation = (params) => {
   return new Promise(async (resolve, reject) => {
     try {
@@ -9,12 +18,18 @@ export const saveReconciliation = (params) => {
           typeof params.bill_date === "string"
             ? params.bill_date
             : params.bill_date.toISOString().slice(0, 19).replace("T", " "),
-        loyalty_diff: params.loyalty_diff ? parseFloat(params.loyalty_diff) : 0,
-        sales_diff: params.sales_diff ? parseFloat(params.sales_diff) : 0,
-        return_diff: params.return_diff ? parseFloat(params.return_diff) : 0,
+        loyalty_diff: toNumber(params.loyalty_diff),
+        sales_diff: toNumber(params.sales_diff),
+        return_diff: toNumber(params.return_diff),
       };
 
       const response = await API.post("/reconciliation/sales", formattedParams);
+
+      if (response.data?.code !== 200) {
+        reject(new Error(response.data?.msg ?? "Failed to save reconciliation"));
+        return;
+      }
+
       resolve(response.data);
     } catch (err) {
       reject(err);

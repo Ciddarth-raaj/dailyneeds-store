@@ -1,8 +1,9 @@
-import React, { useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Box, Text, useToken } from "@chakra-ui/react";
 import toast from "react-hot-toast";
 import CustomModal from "../CustomModal";
 import AgGrid from "../AgGrid";
+import GrnOutletStockBreakdownModal from "./GrnOutletStockBreakdownModal";
 import { useGrnPriceCheckerItems } from "../../customHooks/useGrnPriceCheckerItems";
 import {
   formatDiscountPct,
@@ -28,6 +29,7 @@ export default function GrnPriceCheckerItemsModal({
 }) {
   const { colorScheme } = useModuleTableTheme();
   const [mismatchBg] = useToken("colors", ["red.100"]);
+  const [breakdownRow, setBreakdownRow] = useState(null);
   const enabled = isOpen && productId != null && productId !== "";
   const hasPreloadedRows = priceCheckerRows !== undefined;
   const { rows: fetchedRows, loading: fetchLoading, error } =
@@ -67,8 +69,15 @@ export default function GrnPriceCheckerItemsModal({
         `${params.data?.old_mrp ?? "n"}-${
           params.data?.old_selling_price ?? "n"
         }-${params.rowIndex}`,
-      getRowStyle: (params) =>
-        getMismatchRowStyle(params.data?._priceMismatch, mismatchBg),
+      getRowStyle: (params) => ({
+        ...getMismatchRowStyle(params.data?._priceMismatch, mismatchBg),
+        cursor: "pointer",
+      }),
+      onRowClicked: (params) =>
+        setBreakdownRow({
+          mrp: params.data?.old_mrp,
+          selling_price: params.data?.old_selling_price,
+        }),
     }),
     [mismatchBg]
   );
@@ -119,6 +128,13 @@ export default function GrnPriceCheckerItemsModal({
         minWidth: colWidth,
       },
       {
+        field: "stock_qty",
+        headerName: "Stock",
+        type: "number",
+        flex: 0,
+        minWidth: colWidth,
+      },
+      {
         field: "_priceMismatch",
         headerName: "Status",
         type: "badge-column",
@@ -140,27 +156,37 @@ export default function GrnPriceCheckerItemsModal({
   const title = titleParts.filter(Boolean).join(" · ");
 
   return (
-    <CustomModal
-      isOpen={isOpen}
-      onClose={onClose}
-      title={title}
-      size="6xl"
-      colorScheme={colorScheme}
-    >
-      {loading ? (
-        <Text>Loading...</Text>
-      ) : displayRows.length === 0 ? (
-        <Text>No price checker batches found for this item.</Text>
-      ) : (
-        <Box minH="320px">
-          <AgGrid
-            tableKey="grn-price-checker-items-modal"
-            rowData={displayRows}
-            columnDefs={columnDefs}
-            gridOptions={gridOptions}
-          />
-        </Box>
-      )}
-    </CustomModal>
+    <>
+      <CustomModal
+        isOpen={isOpen}
+        onClose={onClose}
+        title={title}
+        size="6xl"
+        colorScheme={colorScheme}
+      >
+        {loading ? (
+          <Text>Loading...</Text>
+        ) : displayRows.length === 0 ? (
+          <Text>No price checker batches found for this item.</Text>
+        ) : (
+          <Box minH="320px">
+            <AgGrid
+              tableKey="grn-price-checker-items-modal"
+              rowData={displayRows}
+              columnDefs={columnDefs}
+              gridOptions={gridOptions}
+            />
+          </Box>
+        )}
+      </CustomModal>
+      <GrnOutletStockBreakdownModal
+        isOpen={breakdownRow != null}
+        onClose={() => setBreakdownRow(null)}
+        productId={productId}
+        productName={productName}
+        mrp={breakdownRow?.mrp}
+        sellingPrice={breakdownRow?.selling_price}
+      />
+    </>
   );
 }

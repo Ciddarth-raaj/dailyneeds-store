@@ -120,6 +120,56 @@ const offersV3 = {
 
   mismatches: () => unwrap(API.get("/offers-v3/mismatches"), "Failed to fetch mismatches").then((d) => d.data ?? []),
 
+  /**
+   * GET /offers-v3/items-by-product?product_id= — grouped batches for one
+   * item from the latest Price Upload. Same shape as
+   * priceChecker.getItemsByProduct, used by the GRN Price Checker modal.
+   */
+  getItemsByProduct: (productId) =>
+    new Promise((resolve, reject) => {
+      if (productId == null || productId === "") {
+        reject(new Error("product_id is required"));
+        return;
+      }
+
+      API.get("/offers-v3/items-by-product", { params: { product_id: productId } })
+        .then((res) => {
+          const data = res?.data ?? res;
+          if (data?.code === 200) {
+            resolve(data);
+            return;
+          }
+          reject(new Error(data?.msg ?? "Failed to fetch price upload items"));
+        })
+        .catch((err) => reject(err));
+    }),
+
+  /**
+   * GET /offers-v3/items-by-product/outlet-breakdown?product_id=&mrp=&selling_price=
+   * Outlet/batch-level breakdown of one merged (mrp, selling_price) row from
+   * getItemsByProduct — drill-down for the GRN Price Checker modal.
+   */
+  getOutletStockBreakdown: (productId, mrp, sellingPrice) =>
+    new Promise((resolve, reject) => {
+      if (productId == null || productId === "" || mrp == null || sellingPrice == null) {
+        reject(new Error("product_id, mrp and selling_price are required"));
+        return;
+      }
+
+      API.get("/offers-v3/items-by-product/outlet-breakdown", {
+        params: { product_id: productId, mrp, selling_price: sellingPrice },
+      })
+        .then((res) => {
+          const data = res?.data ?? res;
+          if (data?.code === 200) {
+            resolve(data);
+            return;
+          }
+          reject(new Error(data?.msg ?? "Failed to fetch outlet stock breakdown"));
+        })
+        .catch((err) => reject(err));
+    }),
+
   uploadMeta: () => unwrap(API.get("/offers-v3/upload-meta"), "Failed to fetch upload meta").then((d) => d.data ?? {}),
 
   import: (rows) => unwrap(API.post("/offers-v3/import", rows), "Failed to import offers"),

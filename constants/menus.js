@@ -14,12 +14,6 @@ const ALL_PAGES_MENU = {
         selected: false,
         location: "/",
       },
-      view_purchase_return_dashboard: {
-        title: "Purchase Return Dashboard",
-        permission: "view_purchase_return_dashboard",
-        selected: false,
-        location: "/dashboard/purchase-return",
-      },
       view_stock_dashboard: {
         title: "Stock Dashboard",
         permission: "view_stock_dashboard",
@@ -136,6 +130,23 @@ const ALL_PAGES_MENU = {
         permission: "view_remarks_master",
         selected: false,
         location: "/master/remarks",
+      },
+      branch_and_restrictions: {
+        title: "Branch and Restrictions",
+        subMenu: {
+          view_branch: {
+            title: "Branches",
+            permission: "view_branch",
+            selected: false,
+            location: "/master/branch",
+          },
+          manage_ip_restrictions: {
+            title: "IP Restrictions",
+            permission: "manage_ip_restrictions",
+            selected: false,
+            location: "/master/ip-restrictions",
+          },
+        },
       },
     },
   },
@@ -601,6 +612,20 @@ const ALL_PAGES_MENU = {
 
 /** Menu tree for the WMS module (module rail → WMS). */
 const WMS_MENU = {
+  dashboard: {
+    title: "Dashboard",
+    selected: false,
+    openPage: false,
+    icon: "fa-pie-chart",
+    subMenu: {
+      view_purchase_return_dashboard: {
+        title: "Purchase Return Dashboard",
+        permission: "view_purchase_return_dashboard",
+        selected: false,
+        location: "/dashboard/purchase-return",
+      },
+    },
+  },
   master: {
     title: "Master",
     selected: false,
