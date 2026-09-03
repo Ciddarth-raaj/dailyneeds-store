@@ -343,10 +343,10 @@ function AdvanceRequestForm() {
         await attachDocuments(values.docs, newId, "a1");
 
         toast.success("Advance request created");
-        // Back to the list rather than into the new request. Opening it would
-        // present the next step - the accounts balance check - to the person
-        // who just raised it, and an admin holds every permission, so no
-        // permission check can tell "my job" from "I can do everything".
+        // Back to the list rather than into the new request. Opening it
+        // would present the next step - the accounts balance check - to the
+        // person who just raised it, and an admin holds every permission, so
+        // no permission check can tell "my job" from "I can do everything".
         router.push("/lr-workflow/advance-request");
         return;
       }
@@ -355,7 +355,9 @@ function AdvanceRequestForm() {
       await attachDocuments(values.docs, id, "a1");
 
       toast.success("Advance request updated");
-      router.push(`/lr-workflow/advance-request/view/${id}`);
+      // The list, for the same reason Create goes there: opening the request
+      // would hand whoever corrected it the next person's step.
+      router.push("/lr-workflow/advance-request");
     } catch (err) {
       reportError(err);
     }
