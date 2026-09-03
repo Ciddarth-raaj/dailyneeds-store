@@ -1,55 +1,27 @@
 //External Dependencies
 import { Formik, Form } from "formik";
-import {
-  Flex,
-  Container,
-  ButtonGroup,
-  Button,
-  CheckboxGroup,
-  Grid,
-  Checkbox,
-  Text,
-  VStack,
-} from "@chakra-ui/react";
+import { Button } from "@chakra-ui/react";
 import React from "react";
 import { toast } from "react-toastify";
 import FormikErrorFocus from "formik-error-focus";
 import { withRouter } from "next/router";
 
 //Styles
-import styles from "../../styles/create.module.css";
+import styles from "../../components/designation/designationForm.module.css";
 
 //Internal Dependencies
-import Head from "../../util/head";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import { DesignationValidation } from "../../util/validation";
 import CustomInput from "../../components/customInput/customInput";
 import DesignationHelper from "../../helper/designation";
 import CustomContainer from "../../components/CustomContainer";
+import PermissionMatrix from "../../components/designation/PermissionMatrix";
 
 //Constants
-import { PERMISSIONS } from "../../constants/permissions";
-import MENUS, { MENU_MODULES } from "../../constants/menus";
-
-function isNestedPermissionGroup(menuPermissions) {
-  const values = Object.values(menuPermissions || {});
-  if (!values.length) return false;
-  return values.every((v) => typeof v === "object" && v !== null);
-}
-
-function renderPermissionCheckboxes(menuPermissions, permissions, handleCheckbox) {
-  return Object.keys(menuPermissions)
-    .filter((key) => menuPermissions[key])
-    .map((key) => (
-      <Checkbox
-        key={key}
-        isChecked={permissions.includes(key)}
-        onChange={(e) => handleCheckbox(key, e.target.checked)}
-      >
-        {menuPermissions[key]}
-      </Checkbox>
-    ));
-}
+import {
+  TOTAL_PERMISSION_COUNT,
+  countEnabledPermissions,
+} from "../../util/permissionCatalog";
 
 class CreateDesignation extends React.Component {
   constructor(props) {
@@ -151,9 +123,25 @@ class CreateDesignation extends React.Component {
     });
   };
 
+  /** Select all / clear all for a single module, keeping every other key intact. */
+  handleModuleCheckbox = (keys, checked) => {
+    this.setState((prev) => {
+      const { permissions } = prev;
+      if (checked) {
+        const missing = keys.filter((key) => !permissions.includes(key));
+        if (!missing.length) return null;
+        return { permissions: [...permissions, ...missing] };
+      }
+      const removable = new Set(keys);
+      if (!permissions.some((key) => removable.has(key))) return null;
+      return { permissions: permissions.filter((key) => !removable.has(key)) };
+    });
+  };
+
   render() {
-    const { loading } = this.state;
-    const { id } = this.state;
+    const { loading, id, permissions } = this.state;
+    const enabledCount = countEnabledPermissions(permissions);
+
     return (
       <GlobalWrapper title="Designation">
         <Formik
@@ -181,38 +169,23 @@ class CreateDesignation extends React.Component {
                   duration={200}
                 />
 
-                <CustomContainer
-                  title={
-                    id !== null ? "Update Designation" : "Add New Designation"
-                  }
-                  filledHeader
-                  smallHeader
-                >
-                  <div className={styles.wrapper}>
-                    <div className={styles.inputHolder}>
+                <div className={styles.formWrapper}>
+                  <CustomContainer
+                    title={
+                      id !== null ? "Update Designation" : "Add New Designation"
+                    }
+                    filledHeader
+                    smallHeader
+                    size="xs"
+                  >
+                    <div className={styles.detailsGrid}>
                       <CustomInput
                         label="Designation Name"
                         name="designation_name"
                         type="text"
+                        containerStyle={{ padding: 0 }}
+                        ignoreMarginBottom
                       />
-                      {/* <CustomInput
-												label="Status"
-												values={[
-													{
-														id: 1,
-														value: "Active",
-													},
-													{
-														id: 0,
-														value: "Inactive",
-													},
-												]}
-												name="status"
-												type="text"
-												method="switch"
-											/> */}
-                    </div>
-                    <div className={styles.inputHolder}>
                       <CustomInput
                         label="Online Access"
                         name="online_portal"
@@ -228,6 +201,8 @@ class CreateDesignation extends React.Component {
                         ]}
                         type="text"
                         method="switch"
+                        containerStyle={{ padding: 0 }}
+                        ignoreMarginBottom
                       />
                       <CustomInput
                         label="Login Access"
@@ -244,111 +219,56 @@ class CreateDesignation extends React.Component {
                         ]}
                         type="text"
                         method="switch"
+                        containerStyle={{ padding: 0 }}
+                        ignoreMarginBottom
                       />
                     </div>
-                    {/* <CheckboxGroup defaultValue={["dashboard"]}> */}
-                    <CheckboxGroup>
-                      {/* <Checkbox></Checkbox> */}
-                      <VStack align="stretch" spacing={10} w="100%">
-                        {Object.keys(PERMISSIONS).flatMap((menuKey) => {
-                          const menuPermissions = PERMISSIONS[menuKey];
-                          const menuTitle =
-                            MENUS[menuKey]?.title ||
-                            (menuKey === "gst" ? "GST" : menuKey);
-                          const nested = isNestedPermissionGroup(menuPermissions);
-                          const sectionColorScheme =
-                            menuKey === "gst" ? "blue" : "purple";
+                  </CustomContainer>
 
-                          if (nested) {
-                            return Object.keys(menuPermissions)
-                              .filter((groupKey) => menuPermissions[groupKey])
-                              .map((groupKey) => {
-                                const groupPerms = menuPermissions[groupKey];
-                                const groupTitle =
-                                  MENU_MODULES[menuKey]?.menu?.[groupKey]
-                                    ?.title || groupKey;
-                                const groupKeys = Object.keys(groupPerms).filter(
-                                  (key) => groupPerms[key]
-                                );
+                  <CustomContainer
+                    title="Permissions"
+                    subtitle="Enable the actions this designation is allowed to perform"
+                    subtleHeader
+                    smallHeader
+                    size="xs"
+                  >
+                    <PermissionMatrix
+                      permissions={permissions}
+                      onToggle={this.handleCheckbox}
+                      onToggleModule={this.handleModuleCheckbox}
+                    />
+                  </CustomContainer>
 
-                                if (!groupKeys.length) return null;
+                  <div className={styles.stickyBar}>
+                    <span className={styles.stickyBarSummary}>
+                      <span className={styles.stickyBarCount}>
+                        {enabledCount} of {TOTAL_PERMISSION_COUNT}
+                      </span>{" "}
+                      permissions enabled
+                    </span>
 
-                                return (
-                                  <CustomContainer
-                                    key={`${menuKey}-${groupKey}`}
-                                    title={`${menuTitle} - ${groupTitle}`}
-                                    subtleHeader
-                                    smallHeader
-                                    colorScheme={sectionColorScheme}
-                                  >
-                                    <Grid
-                                      templateColumns="repeat(3, 1fr)"
-                                      gap={6}
-                                      pl={4}
-                                    >
-                                      {renderPermissionCheckboxes(
-                                        groupPerms,
-                                        this.state.permissions,
-                                        this.handleCheckbox
-                                      )}
-                                    </Grid>
-                                  </CustomContainer>
-                                );
-                              })
-                              .filter(Boolean);
-                          }
-
-                          const permissionKeys = Object.keys(
-                            menuPermissions
-                          ).filter((key) => menuPermissions[key]);
-
-                          if (permissionKeys.length === 0) return [];
-
-                          return [
-                            <CustomContainer
-                              key={menuKey}
-                              title={menuTitle}
-                              subtleHeader
-                              smallHeader
-                              colorScheme={sectionColorScheme}
-                            >
-                              <Grid
-                                templateColumns="repeat(3, 1fr)"
-                                gap={6}
-                                pl={4}
-                              >
-                                {renderPermissionCheckboxes(
-                                  menuPermissions,
-                                  this.state.permissions,
-                                  this.handleCheckbox
-                                )}
-                              </Grid>
-                            </CustomContainer>,
-                          ];
-                        })}
-                      </VStack>
-                    </CheckboxGroup>
-
-                    <ButtonGroup
-                      mt={10}
-                      spacing="6"
-                      style={{
-                        width: "100%",
-                        justifyContent: "flex-end",
-                      }}
-                    >
-                      <Button>Cancel</Button>
+                    <div className={styles.stickyBarActions}>
                       <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => this.props.router.push("/designation")}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
                         isLoading={loading}
                         loadingText="Submitting"
                         colorScheme="purple"
                         onClick={() => handleSubmit()}
                       >
-                        {id !== null ? "Update" : "Create"}
+                        {id !== null ? "Save Changes" : "Create"}
                       </Button>
-                    </ButtonGroup>
+                    </div>
                   </div>
-                </CustomContainer>
+                </div>
               </Form>
             );
           }}
