@@ -101,14 +101,6 @@ export function pricesEqual(a, b) {
   return left === right;
 }
 
-// A matching Selling Price is agreement on its own -- MRP is derived and can
-// vary between suppliers while SP, what was actually charged, stays the
-// same (see batchesDisagree below).
-export function isPriceCheckerBatchMatch(batch, grnMrp, grnSp) {
-  if (!batch) return false;
-  return pricesEqual(batch.old_selling_price, grnSp);
-}
-
 export function isPriceCheckerBatchMismatch(
   batch,
   grnMrp,
@@ -143,34 +135,11 @@ export function isPriceCheckerBatchMismatch(
   return !pricesEqual(batch.old_selling_price, grnSp);
 }
 
-/**
- * True when two or more of the product's own historical batches disagree
- * with each other -- their Selling Price differs, and neither their
- * discount % nor their discount amount is within tolerance either. A
- * matching Selling Price is treated as agreement on its own, since MRP and
- * discount % are derived and can vary while SP -- what was actually
- * charged -- stays the same. Batches that disagree like this can't be
- * treated as a reliable reference, no matter which one the GRN happens to
- * land close to.
- */
-export function batchesDisagree(batches) {
-  if (!Array.isArray(batches) || batches.length < 2) return false;
-  for (let i = 0; i < batches.length; i++) {
-    for (let j = i + 1; j < batches.length; j++) {
-      const a = batches[i];
-      const b = batches[j];
-      if (pricesEqual(a?.old_selling_price, b?.old_selling_price)) continue;
-      if (
-        !discountPctWithinTolerance(a?.discount_pct, b?.discount_pct) &&
-        !discountAmountWithinTolerance(a?.discount_amount, b?.discount_amount)
-      ) {
-        return true;
-      }
-    }
-  }
-  return false;
-}
-
+// A GRN line is a conflict only if every one of its historical batches
+// disagrees with it -- mirrors isPriceCheckerBatchMismatch per batch, so
+// this always agrees with what the Price Checker modal shows for the same
+// batches (a batch the modal reads as Match keeps the whole row out of
+// conflict here too).
 export function isGrnRowPriceMismatch(
   grnMrp,
   grnSp,
@@ -180,22 +149,16 @@ export function isGrnRowPriceMismatch(
   grnPurchasePrice
 ) {
   if (!Array.isArray(batches) || batches.length === 0) return false;
-  if (batchesDisagree(batches)) return true;
-  const grnMarkup = calcMarkupOnSelling(grnSp, grnPurchasePrice);
-  if (
-    batches.some(
-      (batch) =>
-        markupPctWithinTolerance(
-          calcMarkupOnSelling(batch.old_selling_price, batch.purchase_price),
-          grnMarkup
-        ) ||
-        discountPctWithinTolerance(grnDiscountPct, batch.discount_pct) ||
-        discountAmountWithinTolerance(grnDiscountAmount, batch.discount_amount)
+  return batches.every((batch) =>
+    isPriceCheckerBatchMismatch(
+      batch,
+      grnMrp,
+      grnSp,
+      grnDiscountPct,
+      grnDiscountAmount,
+      grnPurchasePrice
     )
-  ) {
-    return false;
-  }
-  return !batches.some((batch) => isPriceCheckerBatchMatch(batch, grnMrp, grnSp));
+  );
 }
 
 export function getGrnLinePriceMismatch(row, itemsByProductId, pcLoading = false) {
