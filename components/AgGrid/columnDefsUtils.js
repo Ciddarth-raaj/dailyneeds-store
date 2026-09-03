@@ -1,6 +1,22 @@
 import currencyFormatter from "../../util/currencyFormatter";
 
 /**
+ * A `date` column's value is a Date, not a string - its valueGetter parses the
+ * raw field. Without this the generic object branch below reads `.label` off it
+ * and every date column exports as an empty cell. Formatted DD/MM/YYYY from the
+ * local parts, matching what the grid shows and how the Date was built.
+ */
+function formatExportDate(value) {
+  const day = String(value.getDate()).padStart(2, "0");
+  const month = String(value.getMonth() + 1).padStart(2, "0");
+  return `${day}/${month}/${value.getFullYear()}`;
+}
+
+function isExportableDate(value) {
+  return value instanceof Date && !Number.isNaN(value.getTime());
+}
+
+/**
  * Helpers for AgGrid column groups (nested `children` column defs).
  */
 
@@ -192,6 +208,8 @@ export function buildExportAoA(
           node,
           column: col,
         });
+      } else if (isExportableDate(value)) {
+        value = formatExportDate(value);
       } else if (value != null && typeof value === "object") {
         value = value.label ?? "";
       } else if (
@@ -230,6 +248,8 @@ function resolveExportCellValue(def, row) {
 
   if (def?.exportRenderer) {
     value = def.exportRenderer({ value, data: row });
+  } else if (isExportableDate(value)) {
+    value = formatExportDate(value);
   } else if (value != null && typeof value === "object") {
     value = value.label ?? "";
   } else if (
