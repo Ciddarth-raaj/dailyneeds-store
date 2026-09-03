@@ -307,6 +307,14 @@ function AdvanceRequestForm() {
     return stage === currentStage && Boolean(stagePermission[stage]);
   };
 
+  /**
+   * Where every completed step lands. Staying on the request would draw the
+   * next stage's form for anyone holding its permission - and an admin holds
+   * all of them - so finishing your step would hand you the next person's.
+   * The listing shows the request with the status saying where it went.
+   */
+  const returnToList = () => router.push("/lr-workflow/advance-request");
+
   const reportError = (err) => {
     toast.error(err.message || "Something went wrong");
     // A conflict means this page is out of date — reload rather than let the
@@ -343,11 +351,7 @@ function AdvanceRequestForm() {
         await attachDocuments(values.docs, newId, "a1");
 
         toast.success("Advance request created");
-        // Back to the list rather than into the new request. Opening it
-        // would present the next step - the accounts balance check - to the
-        // person who just raised it, and an admin holds every permission, so
-        // no permission check can tell "my job" from "I can do everything".
-        router.push("/lr-workflow/advance-request");
+        returnToList();
         return;
       }
 
@@ -355,9 +359,7 @@ function AdvanceRequestForm() {
       await attachDocuments(values.docs, id, "a1");
 
       toast.success("Advance request updated");
-      // The list, for the same reason Create goes there: opening the request
-      // would hand whoever corrected it the next person's step.
-      router.push("/lr-workflow/advance-request");
+      returnToList();
     } catch (err) {
       reportError(err);
     }
@@ -411,7 +413,7 @@ function AdvanceRequestForm() {
           ? "Sent back to purchase to decide on the balance"
           : "No balance outstanding — sent for approval"
       );
-      refetch();
+      returnToList();
     } catch (err) {
       reportError(err);
     }
@@ -437,7 +439,7 @@ function AdvanceRequestForm() {
       );
 
       toast.success("Decision recorded — sent for approval");
-      refetch();
+      returnToList();
     } catch (err) {
       reportError(err);
     }
@@ -478,7 +480,7 @@ function AdvanceRequestForm() {
           reject: "Request rejected",
         }[values.decision] || "Decision recorded"
       );
-      refetch();
+      returnToList();
     } catch (err) {
       reportError(err);
     }
@@ -518,7 +520,7 @@ function AdvanceRequestForm() {
       unwrap(await addAdvanceRequestDocument(id, "a3", proofUrl));
 
       toast.success("Payment recorded");
-      refetch();
+      returnToList();
     } catch (err) {
       reportError(err);
     }
