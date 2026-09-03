@@ -45,6 +45,7 @@ const validationSchema = Yup.object({
     .integer("Must be a whole number")
     .required("Required"),
   mmm_date: Yup.string().trim().required("Required"),
+  mmm_mrc_no: Yup.string().trim().max(50, "Max 50 characters"),
   invoices: Yup.array().of(invoiceItemSchema).min(1, "Required"),
 });
 
@@ -120,6 +121,7 @@ function PurchaseAckForm() {
     distributor_id: "",
     mmm_refno: "",
     mmm_date: "",
+    mmm_mrc_no: "",
     invoices: [defaultInvoiceRow()],
   });
 
@@ -129,6 +131,7 @@ function PurchaseAckForm() {
         distributor_id: "",
         mmm_refno: "",
         mmm_date: "",
+        mmm_mrc_no: "",
         invoices: [defaultInvoiceRow()],
       });
       return;
@@ -155,6 +158,7 @@ function PurchaseAckForm() {
         mmm_date: purchaseAcknowledgement.mmm_date
           ? moment(purchaseAcknowledgement.mmm_date).format("YYYY-MM-DD")
           : "",
+        mmm_mrc_no: purchaseAcknowledgement.mmm_mrc_no ?? "",
         invoices: invoiceRows,
       });
       setSelectedDistributorId(purchaseAcknowledgement.distributor_id ?? "");
@@ -305,6 +309,7 @@ function PurchaseAckForm() {
       mmm_date: values.mmm_date
         ? moment(values.mmm_date).format("YYYY-MM-DD HH:mm:ss")
         : undefined,
+      mmm_mrc_no: String(values.mmm_mrc_no ?? "").trim() || undefined,
       invoices: (values.invoices || []).map((inv) => ({
         invoice_no: String(inv.invoice_no).trim() || undefined,
         invoice_date:
@@ -476,12 +481,22 @@ function PurchaseAckForm() {
                   editable={!isReadOnly && createMode}
                   ignoreMarginBottom
                 />
-                <Grid templateColumns="1fr 1fr" gap={4}>
+                <Grid
+                  templateColumns={{ base: "1fr", md: "repeat(3, 1fr)" }}
+                  gap={4}
+                >
                   <CustomInput
                     label="Ref No"
                     name="mmm_refno"
                     type="number"
                     placeholder="Reference no"
+                    editable={!isReadOnly}
+                    ignoreMarginBottom
+                  />
+                  <CustomInput
+                    label="MRC No"
+                    name="mmm_mrc_no"
+                    placeholder="MRC no"
                     editable={!isReadOnly}
                     ignoreMarginBottom
                   />

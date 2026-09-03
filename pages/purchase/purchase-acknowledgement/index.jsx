@@ -71,6 +71,11 @@ function PurchaseAckListing() {
         sort: "desc",
       },
       {
+        field: "mmm_mrc_no",
+        headerName: "MRC No",
+        type: "id",
+      },
+      {
         field: "purchase_acknowledgement_id",
         headerName: "ID",
         type: "id",
