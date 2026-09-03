@@ -1,0 +1,52 @@
+.formWrapper {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.detailsGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.stickyBar {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+  padding: 10px 16px;
+  border: 1px solid var(--chakra-colors-gray-200);
+  border-radius: 10px;
+  background-color: white;
+  box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.06);
+}
+
+.stickyBarSummary {
+  font-size: 13px;
+  color: var(--chakra-colors-gray-600);
+}
+
+.stickyBarCount {
+  font-weight: 600;
+  color: var(--module-accent-600, var(--chakra-colors-purple-600));
+}
+
+.stickyBarActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+@media (max-width: 900px) {
+  .detailsGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
