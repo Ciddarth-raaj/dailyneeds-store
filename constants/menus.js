@@ -14,12 +14,6 @@ const ALL_PAGES_MENU = {
         selected: false,
         location: "/",
       },
-      view_purchase_return_dashboard: {
-        title: "Purchase Return Dashboard",
-        permission: "view_purchase_return_dashboard",
-        selected: false,
-        location: "/dashboard/purchase-return",
-      },
       view_stock_dashboard: {
         title: "Stock Dashboard",
         permission: "view_stock_dashboard",
@@ -618,6 +612,20 @@ const ALL_PAGES_MENU = {
 
 /** Menu tree for the WMS module (module rail → WMS). */
 const WMS_MENU = {
+  dashboard: {
+    title: "Dashboard",
+    selected: false,
+    openPage: false,
+    icon: "fa-pie-chart",
+    subMenu: {
+      view_purchase_return_dashboard: {
+        title: "Purchase Return Dashboard",
+        permission: "view_purchase_return_dashboard",
+        selected: false,
+        location: "/dashboard/purchase-return",
+      },
+    },
+  },
   master: {
     title: "Master",
     selected: false,
