@@ -262,6 +262,7 @@ function GrnIssueListing() {
             sp: params.data.mmd_sale_rate,
             discountPct: params.data.discount_pct,
             discountAmount: params.data.discount_amount,
+            purchasePrice: params.data.mmd_pur_price,
           });
         },
       },
@@ -551,6 +552,7 @@ function GrnIssueListing() {
         grnSp={selectedProduct?.sp}
         grnDiscountPct={selectedProduct?.discountPct}
         grnDiscountAmount={selectedProduct?.discountAmount}
+        grnPurchasePrice={selectedProduct?.purchasePrice}
         priceCheckerRows={
           selectedProduct?.productId != null
             ? itemsByProductId.get(selectedProduct.productId) ?? []

@@ -51,6 +51,10 @@ export function parseGrnPrice(value) {
 
 export const DISCOUNT_PCT_TOLERANCE = 0.4;
 export const DISCOUNT_AMOUNT_TOLERANCE = 0.01;
+// A markup-% point is a currency-rounding-driven scale, not the MRP-label
+// rounding DISCOUNT_PCT_TOLERANCE is calibrated to, so it gets its own,
+// wider tolerance rather than reusing that constant.
+export const MARKUP_PCT_TOLERANCE = 1.0;
 
 export function parseDiscountPct(value) {
   return parseGrnPrice(value);
@@ -63,6 +67,17 @@ export function discountPctWithinTolerance(
 ) {
   const a = parseDiscountPct(left);
   const b = parseDiscountPct(right);
+  if (a == null || b == null) return false;
+  return Math.abs(a - b) <= tolerance;
+}
+
+export function markupPctWithinTolerance(
+  left,
+  right,
+  tolerance = MARKUP_PCT_TOLERANCE
+) {
+  const a = parseGrnPrice(left);
+  const b = parseGrnPrice(right);
   if (a == null || b == null) return false;
   return Math.abs(a - b) <= tolerance;
 }
@@ -99,9 +114,23 @@ export function isPriceCheckerBatchMismatch(
   grnMrp,
   grnSp,
   grnDiscountPct,
-  grnDiscountAmount
+  grnDiscountAmount,
+  grnPurchasePrice
 ) {
   if (!batch) return true;
+
+  // A batch priced by the same cost-plus markup as the GRN line agrees with
+  // it even when MRP/discount% differ -- different suppliers quote
+  // different MRPs, but the same markup-over-cost pricing policy.
+  if (
+    markupPctWithinTolerance(
+      calcMarkupOnSelling(batch.old_selling_price, batch.purchase_price),
+      calcMarkupOnSelling(grnSp, grnPurchasePrice)
+    )
+  ) {
+    return false;
+  }
+
   if (
     discountPctWithinTolerance(grnDiscountPct, batch.discount_pct) ||
     discountAmountWithinTolerance(grnDiscountAmount, batch.discount_amount)
@@ -147,13 +176,19 @@ export function isGrnRowPriceMismatch(
   grnSp,
   grnDiscountPct,
   grnDiscountAmount,
-  batches
+  batches,
+  grnPurchasePrice
 ) {
   if (!Array.isArray(batches) || batches.length === 0) return false;
   if (batchesDisagree(batches)) return true;
+  const grnMarkup = calcMarkupOnSelling(grnSp, grnPurchasePrice);
   if (
     batches.some(
       (batch) =>
+        markupPctWithinTolerance(
+          calcMarkupOnSelling(batch.old_selling_price, batch.purchase_price),
+          grnMarkup
+        ) ||
         discountPctWithinTolerance(grnDiscountPct, batch.discount_pct) ||
         discountAmountWithinTolerance(grnDiscountAmount, batch.discount_amount)
     )
@@ -170,7 +205,8 @@ export function getGrnLinePriceMismatch(row, itemsByProductId, pcLoading = false
     row.mmd_sale_rate,
     row.discount_pct,
     row.discount_amount,
-    itemsByProductId.get(row.product_id) ?? []
+    itemsByProductId.get(row.product_id) ?? [],
+    row.mmd_pur_price
   );
 }
 
