@@ -343,7 +343,11 @@ function AdvanceRequestForm() {
         await attachDocuments(values.docs, newId, "a1");
 
         toast.success("Advance request created");
-        router.push(`/lr-workflow/advance-request/view/${newId}`);
+        // Back to the list rather than into the new request. Opening it would
+        // present the next step - the accounts balance check - to the person
+        // who just raised it, and an admin holds every permission, so no
+        // permission check can tell "my job" from "I can do everything".
+        router.push("/lr-workflow/advance-request");
         return;
       }
 
