@@ -38,6 +38,21 @@ export const BALANCE_ACTION_LABEL = {
   defer: "Deduct next time",
 };
 
+/**
+ * The admin's decision is not a column of its own - it is the status the
+ * approval left behind, so a finished A2 reads it back from there. A paid
+ * request can only have been approved first.
+ */
+export const DECISION_FOR_STATUS = {
+  approved: "approve",
+  paid: "approve",
+  on_hold: "hold",
+  rejected: "reject",
+};
+
+export const getDecisionForStatus = (status) =>
+  DECISION_FOR_STATUS[status] ?? null;
+
 /** The admin's three ways out of an approval. */
 export const APPROVAL_DECISIONS = [
   { id: "approve", value: "Approve" },

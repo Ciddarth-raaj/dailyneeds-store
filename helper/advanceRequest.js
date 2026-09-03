@@ -57,9 +57,12 @@ export const submitApproval = async (id, params) => {
   return response.data;
 };
 
-/** A3 - record the payment against an approved request. */
-export const submitPayment = async (id, params) => {
-  const response = await API.patch(`/advance-request/${id}/payment`, params);
+/**
+ * A3 - close an approved request. The payment is made in Tally, so there is
+ * nothing to send; the advice goes up through addAdvanceRequestDocument.
+ */
+export const submitPayment = async (id) => {
+  const response = await API.patch(`/advance-request/${id}/payment`, {});
   return response.data;
 };
 

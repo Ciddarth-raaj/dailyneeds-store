@@ -5,7 +5,6 @@ import { Formik } from "formik";
 import { Badge, Button, Flex, Spinner, Text } from "@chakra-ui/react";
 import { useRouter } from "next/router";
 import CustomInput from "../../../components/customInput/customInput";
-import usePeople from "../../../customHooks/usePeople";
 import { useDistributors } from "../../../customHooks/useDistributors";
 import usePermissions from "../../../customHooks/usePermissions";
 import useAdvanceRequestById from "../../../customHooks/useAdvanceRequestById";
@@ -19,6 +18,7 @@ import {
   BALANCE_ACTIONS,
   STAGE_PERMISSION,
   getCurrentStage,
+  getDecisionForStatus,
   getStatusMeta,
   isEditableStatus,
   isStageCompleted,
@@ -33,13 +33,6 @@ import {
   submitPayment,
   addAdvanceRequestDocument,
 } from "../../../helper/advanceRequest";
-
-/**
- * The supplier is a distributor, picked from the same master that
- * /master/distributors maintains. Only the bank still comes from
- * people_list, where person_type 6 lives.
- */
-const BANK_TYPE = 6;
 
 /**
  * Each stage collects its own fields, so each needs its own schema. These
@@ -118,20 +111,9 @@ const STAGE_SCHEMAS = {
       .max(500, "Note cannot exceed 500 characters")
       .nullable(),
   }),
+  // The payment goes through Tally, so its figures live there. Filing the
+  // advice is what closes the request here.
   a3: Yup.object({
-    paid_amount: Yup.number()
-      .typeError("Amount must be a number")
-      .required("Amount is required")
-      .min(0.01, "Amount must be greater than 0"),
-    utr: Yup.string()
-      .required("UTR is required")
-      .max(100, "UTR cannot exceed 100 characters"),
-    bank_id: Yup.number()
-      .typeError("Select a Bank")
-      .required("Bank is required"),
-    payment_date: Yup.date()
-      .typeError("Select a Payment Date")
-      .required("Payment Date is required"),
     proof: Yup.mixed().required("Payment Advice is required"),
   }),
 };
@@ -250,8 +232,6 @@ function AdvanceRequestForm() {
     createMode ? null : id
   );
 
-  const { peopleList } = usePeople();
-
   const { distributors } = useDistributors();
 
   // HQ_DIST_CODE is the master's own primary key, which is what a request
@@ -265,14 +245,6 @@ function AdvanceRequestForm() {
           value: item.MDM_DIST_NAME || String(item.HQ_DIST_CODE),
         })),
     [distributors]
-  );
-
-  const banks = useMemo(
-    () =>
-      peopleList
-        .filter((item) => item.person_type === BANK_TYPE)
-        .map((item) => ({ id: item.person_id, value: item.name })),
-    [peopleList]
   );
 
   const canCreate = usePermissions(["create_advance_request"]);
@@ -478,14 +450,24 @@ function AdvanceRequestForm() {
 
   // ------------------------------------------------------------------ A2
 
+  /**
+   * Blank while the admin still has to decide - a held request is both
+   * finished and outstanding, and pre-selecting Hold would answer for them.
+   * Once decided, the status is where the decision lives.
+   *
+   * Read out here rather than inside the memo because isEditable also closes
+   * over the permission flags, which arrive after the first render.
+   */
+  const a2Decided = !isEditable("a2");
+
   const a2InitialValues = useMemo(
     () => ({
-      decision: null,
+      decision: a2Decided ? getDecisionForStatus(status) : null,
       approval_note: request?.approval_note ?? "",
       balance_action: request?.balance_action ?? null,
       balance_action_note: "",
     }),
-    [request]
+    [request, a2Decided, status]
   );
 
   const handleA2 = async (values) => {
@@ -519,19 +501,8 @@ function AdvanceRequestForm() {
 
   // ------------------------------------------------------------------ A3
 
-  const a3InitialValues = useMemo(
-    () => ({
-      // Defaults to the approved amount, which is what is usually paid.
-      paid_amount: request?.paid_amount ?? request?.amount ?? null,
-      utr: request?.utr ?? "",
-      bank_id: request?.bank_id ?? null,
-      payment_date: request?.payment_date
-        ? new Date(request.payment_date)
-        : null,
-      proof: null,
-    }),
-    [request]
-  );
+  // The payment is made in Tally, so the advice is the whole of this step.
+  const a3InitialValues = useMemo(() => ({ proof: null }), []);
 
   const handleA3 = async (values) => {
     try {
@@ -539,14 +510,7 @@ function AdvanceRequestForm() {
       // the payment is recorded leaves the request cleanly re-payable.
       const proofUrl = await uploadFile(values.proof, id);
 
-      unwrap(
-        await submitPayment(id, {
-          paid_amount: Number(values.paid_amount),
-          utr: values.utr,
-          bank_id: Number(values.bank_id),
-          payment_date: moment(values.payment_date).format("YYYY-MM-DD"),
-        })
-      );
+      unwrap(await submitPayment(id));
 
       unwrap(await addAdvanceRequestDocument(id, "a3", proofUrl));
 
@@ -827,45 +791,21 @@ function AdvanceRequestForm() {
               submitLabel="Record Payment"
               renderFields={({ editable }) => (
                 <>
-                  <Flex gap="12px">
-                    <CustomInput
-                      label="Amount *"
-                      name="paid_amount"
-                      type="number"
-                      editable={editable}
-                    />
-                    <CustomInput
-                      label="UTR *"
-                      name="utr"
-                      type="text"
-                      editable={editable}
-                    />
-                  </Flex>
-
-                  <Flex gap="12px">
-                    <CustomInput
-                      label="Bank *"
-                      name="bank_id"
-                      method="switch"
-                      values={banks}
-                      placeholder="Select Bank"
-                      editable={editable}
-                    />
-                    <CustomInput
-                      label="Payment Date *"
-                      name="payment_date"
-                      method="datepicker"
-                      editable={editable}
-                    />
-                  </Flex>
-
-                  {editable && (
+                  {editable ? (
                     <CustomInput
                       label="Payment Advice *"
                       name="proof"
                       method="file"
                       editable={editable}
                     />
+                  ) : (
+                    <Text fontSize="sm" color="gray.600">
+                      Paid{request?.paid_by_name ? ` by ${request.paid_by_name}` : ""}
+                      {request?.paid_at
+                        ? ` on ${moment(request.paid_at).format("DD-MM-YYYY")}`
+                        : ""}
+                      . The advice is under Documents below.
+                    </Text>
                   )}
                 </>
               )}

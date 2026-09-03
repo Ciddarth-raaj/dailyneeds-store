@@ -48,17 +48,11 @@ function AdvanceRequest() {
     () =>
       requests.map((request) => {
         const meta = getStatusMeta(request.status);
-        // An approved request has been paid a specific amount; before that
-        // the only figure that exists is the one asked for.
-        const settled =
-          request.paid_amount !== null && request.paid_amount !== undefined;
 
         return {
           supplier_name: request.supplier_name || "-",
           invoice_number: request.invoice_number || "-",
-          amount: settled
-            ? `${currencyFormatter(request.paid_amount)} paid`
-            : currencyFormatter(request.amount),
+          amount: currencyFormatter(request.amount),
           balance_action: request.balance_action
             ? BALANCE_ACTION_LABEL[request.balance_action] ||
               request.balance_action
