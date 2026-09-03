@@ -248,23 +248,23 @@ const ALL_PAGES_MENU = {
       },
     },
   },
-  lr_workflow: {
-    title: "LR Workflow",
+  advance_request: {
+    title: "Advance Request",
     selected: false,
     openPage: false,
     icon: "fa-truck",
     subMenu: {
       view_advance_request: {
-        title: "Advance Requests",
+        title: "All Requests",
         permission: "view_advance_request",
         selected: false,
-        location: "/lr-workflow/advance-request",
+        location: "/advance-request",
       },
       create_advance_request: {
-        title: "Create Advance Request",
+        title: "Create Request",
         permission: "create_advance_request",
         selected: false,
-        location: "/lr-workflow/advance-request/create",
+        location: "/advance-request/create",
       },
     },
   },

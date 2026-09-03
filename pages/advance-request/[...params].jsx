@@ -1,17 +1,17 @@
 import React, { useMemo } from "react";
-import GlobalWrapper from "../../../components/globalWrapper/globalWrapper";
-import CustomContainer from "../../../components/CustomContainer";
+import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
+import CustomContainer from "../../components/CustomContainer";
 import { Formik } from "formik";
 import { Badge, Button, Flex, Spinner, Text } from "@chakra-ui/react";
 import { useRouter } from "next/router";
-import CustomInput from "../../../components/customInput/customInput";
-import { useDistributors } from "../../../customHooks/useDistributors";
-import usePermissions from "../../../customHooks/usePermissions";
-import useAdvanceRequestById from "../../../customHooks/useAdvanceRequestById";
-import asset from "../../../helper/asset";
+import CustomInput from "../../components/customInput/customInput";
+import { useDistributors } from "../../customHooks/useDistributors";
+import usePermissions from "../../customHooks/usePermissions";
+import useAdvanceRequestById from "../../customHooks/useAdvanceRequestById";
+import asset from "../../helper/asset";
 import toast from "react-hot-toast";
 import moment from "moment";
-import currencyFormatter from "../../../util/currencyFormatter";
+import currencyFormatter from "../../util/currencyFormatter";
 import * as Yup from "yup";
 import {
   APPROVAL_DECISIONS,
@@ -23,7 +23,7 @@ import {
   isEditableStatus,
   isStageCompleted,
   isTerminal,
-} from "../../../constants/advanceRequest";
+} from "../../constants/advanceRequest";
 import {
   createAdvanceRequest,
   updateAdvanceRequest,
@@ -32,7 +32,7 @@ import {
   submitApproval,
   submitPayment,
   addAdvanceRequestDocument,
-} from "../../../helper/advanceRequest";
+} from "../../helper/advanceRequest";
 
 /**
  * Each stage collects its own fields, so each needs its own schema. These
@@ -137,7 +137,7 @@ const uploadFile = async (file, id) => {
   const result = await asset.upload(
     file,
     file.name,
-    "lr-workflow/advance-request",
+    "advance-request",
     undefined,
     `${id}_${file.name}`
   );
@@ -316,7 +316,7 @@ function AdvanceRequestForm() {
    * all of them - so finishing your step would hand you the next person's.
    * The listing shows the request with the status saying where it went.
    */
-  const returnToList = () => router.push("/lr-workflow/advance-request");
+  const returnToList = () => router.push("/advance-request");
 
   const reportError = (err) => {
     toast.error(err.message || "Something went wrong");
@@ -575,7 +575,7 @@ function AdvanceRequestForm() {
                 colorScheme="purple"
                 variant="outline"
                 onClick={() =>
-                  router.push(`/lr-workflow/advance-request/edit/${id}`)
+                  router.push(`/advance-request/edit/${id}`)
                 }
               >
                 Edit

@@ -1,23 +1,23 @@
 import React, { useMemo, useState } from "react";
-import GlobalWrapper from "../../../components/globalWrapper/globalWrapper";
-import CustomContainer from "../../../components/CustomContainer";
+import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
+import CustomContainer from "../../components/CustomContainer";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { Button, IconButton } from "@chakra-ui/button";
 import { Badge, Flex, Spinner, Select } from "@chakra-ui/react";
 import { Menu, MenuItem } from "@szhsin/react-menu";
-import EmptyData from "../../../components/EmptyData";
-import Table from "../../../components/table/table";
-import usePermissions from "../../../customHooks/usePermissions";
-import useAdvanceRequests from "../../../customHooks/useAdvanceRequests";
-import currencyFormatter from "../../../util/currencyFormatter";
+import EmptyData from "../../components/EmptyData";
+import Table from "../../components/table/table";
+import usePermissions from "../../customHooks/usePermissions";
+import useAdvanceRequests from "../../customHooks/useAdvanceRequests";
+import currencyFormatter from "../../util/currencyFormatter";
 import moment from "moment";
 import {
   BALANCE_ACTION_LABEL,
   STATUS_META,
   getStatusMeta,
   isEditableStatus,
-} from "../../../constants/advanceRequest";
+} from "../../constants/advanceRequest";
 
 // Mirrors the advance payment request note the team already sends, so the
 // listing reads the same way as the message.
@@ -79,7 +79,7 @@ function AdvanceRequest() {
               <MenuItem
                 onClick={() =>
                   router.push(
-                    `/lr-workflow/advance-request/view/${request.advance_request_id}`
+                    `/advance-request/view/${request.advance_request_id}`
                   )
                 }
               >
@@ -89,7 +89,7 @@ function AdvanceRequest() {
                 <MenuItem
                   onClick={() =>
                     router.push(
-                      `/lr-workflow/advance-request/edit/${request.advance_request_id}`
+                      `/advance-request/edit/${request.advance_request_id}`
                     )
                   }
                 >
@@ -128,7 +128,7 @@ function AdvanceRequest() {
             </Select>
 
             {canCreateAdvanceRequest && (
-              <Link href="/lr-workflow/advance-request/create" passHref>
+              <Link href="/advance-request/create" passHref>
                 <Button colorScheme="purple" size="sm">
                   Add
                 </Button>

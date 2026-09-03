@@ -82,8 +82,8 @@ export const PERMISSIONS = {
     add_eb_machine_master: "Add EB Machine Master",
   },
 
-  // LR Workflow
-  lr_workflow: {
+  // Advance Request
+  advance_request: {
     view_advance_request: "View Advance Request",
     create_advance_request: "Create Advance Request",
     view_old_balance_check: "View Old Balance Check",
