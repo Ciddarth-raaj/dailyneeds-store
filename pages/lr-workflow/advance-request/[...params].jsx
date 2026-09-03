@@ -6,6 +6,7 @@ import { Badge, Button, Flex, Spinner, Text } from "@chakra-ui/react";
 import { useRouter } from "next/router";
 import CustomInput from "../../../components/customInput/customInput";
 import usePeople from "../../../customHooks/usePeople";
+import { useDistributors } from "../../../customHooks/useDistributors";
 import usePermissions from "../../../customHooks/usePermissions";
 import useAdvanceRequestById from "../../../customHooks/useAdvanceRequestById";
 import asset from "../../../helper/asset";
@@ -28,8 +29,11 @@ import {
   addAdvanceRequestDocument,
 } from "../../../helper/advanceRequest";
 
-/** person_type 2 is a supplier, 6 is a bank — both live in people_list. */
-const SUPPLIER_TYPE = 2;
+/**
+ * The supplier is a distributor, picked from the same master that
+ * /master/distributors maintains. Only the bank still comes from
+ * people_list, where person_type 6 lives.
+ */
 const BANK_TYPE = 6;
 
 /**
@@ -39,10 +43,13 @@ const BANK_TYPE = 6;
  */
 const STAGE_SCHEMAS = {
   a1: Yup.object({
-    purchase_order_number: Yup.string()
-      .required("Purchase Order Number is required")
-      .max(100, "Purchase Order Number cannot exceed 100 characters"),
-    supplier_id: Yup.number()
+    // An advance is often asked for before any invoice number exists, so the
+    // reference is optional - as is the reason, which the request note the
+    // team sends today does not carry.
+    invoice_number: Yup.string()
+      .max(100, "Invoice No. cannot exceed 100 characters")
+      .nullable(),
+    distributor_code: Yup.number()
       .typeError("Select a Supplier")
       .required("Supplier is required"),
     amount: Yup.number()
@@ -50,8 +57,8 @@ const STAGE_SCHEMAS = {
       .required("Amount is required")
       .min(0.01, "Amount must be greater than 0"),
     reason: Yup.string()
-      .required("Reason is required")
-      .max(500, "Reason cannot exceed 500 characters"),
+      .max(500, "Reason cannot exceed 500 characters")
+      .nullable(),
     docs: Yup.mixed().optional(),
   }),
   "a1.1": Yup.object({
@@ -186,12 +193,19 @@ function AdvanceRequestForm() {
 
   const { peopleList } = usePeople();
 
+  const { distributors } = useDistributors();
+
+  // HQ_DIST_CODE is the master's own primary key, which is what a request
+  // stores; MDM_DIST_NAME is the name the team knows the supplier by.
   const suppliers = useMemo(
     () =>
-      peopleList
-        .filter((item) => item.person_type === SUPPLIER_TYPE)
-        .map((item) => ({ id: item.person_id, value: item.name })),
-    [peopleList]
+      (distributors || [])
+        .filter((item) => item.HQ_DIST_CODE != null)
+        .map((item) => ({
+          id: item.HQ_DIST_CODE,
+          value: item.MDM_DIST_NAME || String(item.HQ_DIST_CODE),
+        })),
+    [distributors]
   );
 
   const banks = useMemo(
@@ -254,8 +268,8 @@ function AdvanceRequestForm() {
 
   const a1InitialValues = useMemo(
     () => ({
-      purchase_order_number: request?.purchase_order_number ?? "",
-      supplier_id: request?.supplier_id ?? null,
+      invoice_number: request?.invoice_number ?? "",
+      distributor_code: request?.distributor_code ?? null,
       amount: request?.amount ?? null,
       reason: request?.reason ?? "",
       docs: null,
@@ -266,10 +280,10 @@ function AdvanceRequestForm() {
   const handleA1 = async (values) => {
     try {
       const payload = {
-        purchase_order_number: values.purchase_order_number,
-        supplier_id: Number(values.supplier_id),
+        invoice_number: values.invoice_number || null,
+        distributor_code: Number(values.distributor_code),
         amount: Number(values.amount),
-        reason: values.reason,
+        reason: values.reason || null,
       };
 
       if (createMode) {
@@ -473,17 +487,17 @@ function AdvanceRequestForm() {
                 <>
                   <Flex gap="12px">
                     <CustomInput
-                      label="Purchase Order Number *"
-                      name="purchase_order_number"
-                      type="text"
+                      label="Supplier Name *"
+                      name="distributor_code"
+                      method="searchable-dropdown"
+                      values={suppliers}
+                      placeholder="Select Supplier"
                       editable={editable}
                     />
                     <CustomInput
-                      label="Supplier Name *"
-                      name="supplier_id"
-                      method="switch"
-                      values={suppliers}
-                      placeholder="Select Supplier"
+                      label="Invoice No. / Proforma Invoice No."
+                      name="invoice_number"
+                      type="text"
                       editable={editable}
                     />
                   </Flex>
@@ -496,7 +510,7 @@ function AdvanceRequestForm() {
                       editable={editable}
                     />
                     <CustomInput
-                      label="Reason *"
+                      label="Reason"
                       name="reason"
                       type="text"
                       editable={editable}

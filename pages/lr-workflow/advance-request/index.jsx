@@ -18,11 +18,15 @@ import {
   isEditableStatus,
 } from "../../../constants/advanceRequest";
 
+// Mirrors the advance payment request note the team already sends, so the
+// listing reads the same way as the message.
 const HEADINGS = {
-  purchase_order_number: "Purchase Order Number",
   supplier_name: "Supplier Name",
+  invoice_number: "Invoice No.",
   amount: "Amount",
-  created_at: "Raised On",
+  created_at: "Date Requested",
+  created_by_name: "Requested By",
+  attachment: "Attachment",
   status: "Status",
   actions: "Actions",
 };
@@ -48,14 +52,16 @@ function AdvanceRequest() {
           request.paid_amount !== null && request.paid_amount !== undefined;
 
         return {
-          purchase_order_number: request.purchase_order_number,
           supplier_name: request.supplier_name || "-",
+          invoice_number: request.invoice_number || "-",
           amount: settled
             ? `${currencyFormatter(request.paid_amount)} paid`
             : currencyFormatter(request.amount),
           created_at: request.created_at
-            ? moment(request.created_at).format("DD/MM/YYYY")
+            ? moment(request.created_at).format("DD-MM-YYYY")
             : "-",
+          created_by_name: request.created_by_name || "-",
+          attachment: Number(request.document_count) > 0 ? "Yes" : "No",
           status: <Badge colorScheme={meta.colorScheme}>{meta.label}</Badge>,
           actions: (
             <Menu
