@@ -542,6 +542,9 @@ const TextFieldBody = ({
                       {...props}
                       selected={(field.value && new Date(field.value)) || null}
                       portalId="root-portal"
+                      showMonthDropdown
+                      showYearDropdown
+                      dropdownMode="select"
                       customInput={
                         <CustomDateTimeInput
                           disabled={props.disabled}

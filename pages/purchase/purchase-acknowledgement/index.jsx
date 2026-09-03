@@ -81,7 +81,6 @@ function PurchaseAckListing() {
         field: "mmm_refno",
         headerName: "Ref No",
         type: "id",
-        sort: "desc",
       },
       {
         field: "mmm_mrc_no",
@@ -110,6 +109,7 @@ function PurchaseAckListing() {
         field: "mmm_date",
         headerName: "Date",
         type: "date",
+        sort: "desc",
       },
       {
         field: "invoices",
