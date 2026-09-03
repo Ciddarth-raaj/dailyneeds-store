@@ -13,6 +13,7 @@ import useAdvanceRequests from "../../../customHooks/useAdvanceRequests";
 import currencyFormatter from "../../../util/currencyFormatter";
 import moment from "moment";
 import {
+  BALANCE_ACTION_LABEL,
   STATUS_META,
   getStatusMeta,
   isEditableStatus,
@@ -24,6 +25,7 @@ const HEADINGS = {
   supplier_name: "Supplier Name",
   invoice_number: "Invoice No.",
   amount: "Amount",
+  balance_action: "Balance",
   created_at: "Date Requested",
   created_by_name: "Requested By",
   attachment: "Attachment",
@@ -57,6 +59,10 @@ function AdvanceRequest() {
           amount: settled
             ? `${currencyFormatter(request.paid_amount)} paid`
             : currencyFormatter(request.amount),
+          balance_action: request.balance_action
+            ? BALANCE_ACTION_LABEL[request.balance_action] ||
+              request.balance_action
+            : "-",
           created_at: request.created_at
             ? moment(request.created_at).format("DD-MM-YYYY")
             : "-",

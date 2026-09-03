@@ -42,7 +42,16 @@ export const submitBalanceCheck = async (id, params) => {
   return response.data;
 };
 
-/** A2 - approve or reject. */
+/** A1.2 - purchase decide what to do about the balance accounts found. */
+export const submitBalanceAction = async (id, params) => {
+  const response = await API.patch(
+    `/advance-request/${id}/balance-action`,
+    params
+  );
+  return response.data;
+};
+
+/** A2 - the admin approves, holds, or rejects. */
 export const submitApproval = async (id, params) => {
   const response = await API.patch(`/advance-request/${id}/approval`, params);
   return response.data;

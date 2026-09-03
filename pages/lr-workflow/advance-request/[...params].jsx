@@ -12,9 +12,13 @@ import useAdvanceRequestById from "../../../customHooks/useAdvanceRequestById";
 import asset from "../../../helper/asset";
 import toast from "react-hot-toast";
 import moment from "moment";
+import currencyFormatter from "../../../util/currencyFormatter";
 import * as Yup from "yup";
 import {
+  APPROVAL_DECISIONS,
+  BALANCE_ACTIONS,
   STAGE_MAP,
+  STAGE_PERMISSION,
   getCurrentStage,
   getStatusMeta,
   isEditableStatus,
@@ -24,6 +28,7 @@ import {
   createAdvanceRequest,
   updateAdvanceRequest,
   submitBalanceCheck,
+  submitBalanceAction,
   submitApproval,
   submitPayment,
   addAdvanceRequestDocument,
@@ -62,25 +67,48 @@ const STAGE_SCHEMAS = {
     docs: Yup.mixed().optional(),
   }),
   "a1.1": Yup.object({
-    pending_bills: Yup.number()
-      .typeError("Pending Bills must be a number")
-      .required("Pending Bills is required")
-      .min(0, "Pending Bills cannot be negative"),
+    // 0 is the "nothing outstanding" answer, and it is what sends the
+    // request straight on to the admin - so it has to be entered, not left
+    // blank.
     previous_advance_balance: Yup.number()
       .typeError("Previous Advance Balance must be a number")
       .required("Previous Advance Balance is required")
       .min(0, "Previous Advance Balance cannot be negative"),
     balance_remarks: Yup.string()
-      .required("Remarks is required")
-      .max(500, "Remarks cannot exceed 500 characters"),
-    on_hold: Yup.boolean().optional(),
+      .max(500, "Remarks cannot exceed 500 characters")
+      .nullable(),
+  }),
+  "a1.2": Yup.object({
+    balance_action: Yup.string()
+      .required("Choose what to do about the balance")
+      .oneOf(
+        BALANCE_ACTIONS.map((item) => item.id),
+        "Choose what to do about the balance"
+      ),
+    balance_action_note: Yup.string()
+      .max(500, "Note cannot exceed 500 characters")
+      .nullable(),
   }),
   a2: Yup.object({
-    approval_status: Yup.number()
-      .typeError("Select an Approval Status")
-      .required("Approval Status is required")
-      .oneOf([0, 1], "Select an Approval Status"),
-    approval_note: Yup.string().max(500, "Note cannot exceed 500 characters"),
+    decision: Yup.string()
+      .required("Choose approve, hold or reject")
+      .oneOf(
+        APPROVAL_DECISIONS.map((item) => item.id),
+        "Choose approve, hold or reject"
+      ),
+    approval_note: Yup.string()
+      .max(500, "Note cannot exceed 500 characters")
+      .nullable(),
+    // Only offered when releasing a hold, so it is never required.
+    balance_action: Yup.string()
+      .oneOf(
+        BALANCE_ACTIONS.map((item) => item.id),
+        "Choose what to do about the balance"
+      )
+      .nullable(),
+    balance_action_note: Yup.string()
+      .max(500, "Note cannot exceed 500 characters")
+      .nullable(),
   }),
   a3: Yup.object({
     paid_amount: Yup.number()
@@ -96,7 +124,7 @@ const STAGE_SCHEMAS = {
     payment_date: Yup.date()
       .typeError("Select a Payment Date")
       .required("Payment Date is required"),
-    proof: Yup.mixed().required("Proof of Payment is required"),
+    proof: Yup.mixed().required("Payment Advice is required"),
   }),
 };
 
@@ -221,18 +249,31 @@ function AdvanceRequestForm() {
   const canCheckBalance = usePermissions(["view_old_balance_check"]);
   const canApprove = usePermissions(["approve_advance_request"]);
   const canPay = usePermissions(["pay_advance_request"]);
+  const canDecideBalance = usePermissions(["create_advance_request"]);
 
   const status = request?.status;
   const terminal = isTerminal(status);
+  const heldByAdmin = status === "on_hold";
 
   // A new request is at A1; an existing one is wherever its status says.
   const currentStage = createMode ? "a1" : getCurrentStage(status);
 
+  // Keyed off the shared STAGE_PERMISSION map so this page and the rest of
+  // the app cannot drift on who may act where. A1 is absent on purpose:
+  // correcting the details is the separate edit route, not a stage action.
+  const permissionHeld = {
+    [STAGE_PERMISSION["a1.1"]]: canCheckBalance,
+    [STAGE_PERMISSION["a1.2"]]: canDecideBalance,
+    [STAGE_PERMISSION.a2]: canApprove,
+    [STAGE_PERMISSION.a3]: canPay,
+  };
+
   const stagePermission = {
     a1: false,
-    "a1.1": canCheckBalance,
-    a2: canApprove,
-    a3: canPay,
+    "a1.1": permissionHeld[STAGE_PERMISSION["a1.1"]],
+    "a1.2": permissionHeld[STAGE_PERMISSION["a1.2"]],
+    a2: permissionHeld[STAGE_PERMISSION.a2],
+    a3: permissionHeld[STAGE_PERMISSION.a3],
   };
 
   /** Every stage up to and including the one the request has reached. */
@@ -331,28 +372,56 @@ function AdvanceRequestForm() {
 
   const a11InitialValues = useMemo(
     () => ({
-      pending_bills: request?.pending_bills ?? null,
       previous_advance_balance: request?.previous_advance_balance ?? null,
       balance_remarks: request?.balance_remarks ?? "",
-      on_hold: status === "on_hold",
     }),
-    [request, status]
+    [request]
   );
 
   const handleA11 = async (values) => {
     try {
+      const balance = Number(values.previous_advance_balance);
+
       unwrap(
         await submitBalanceCheck(id, {
-          pending_bills: Number(values.pending_bills),
-          previous_advance_balance: Number(values.previous_advance_balance),
-          balance_remarks: values.balance_remarks,
-          on_hold: Boolean(values.on_hold),
+          previous_advance_balance: balance,
+          balance_remarks: values.balance_remarks || "",
         })
       );
 
+      // The figure decides where it goes, so say which happened rather than
+      // leaving the user to work it out from the badge.
       toast.success(
-        values.on_hold ? "Request put on hold" : "Balance check recorded"
+        balance > 0
+          ? "Sent back to purchase to decide on the balance"
+          : "No balance outstanding — sent for approval"
       );
+      refetch();
+    } catch (err) {
+      reportError(err);
+    }
+  };
+
+  // ---------------------------------------------------------------- A1.2
+
+  const a12InitialValues = useMemo(
+    () => ({
+      balance_action: request?.balance_action ?? null,
+      balance_action_note: request?.balance_action_note ?? "",
+    }),
+    [request]
+  );
+
+  const handleA12 = async (values) => {
+    try {
+      unwrap(
+        await submitBalanceAction(id, {
+          balance_action: values.balance_action,
+          balance_action_note: values.balance_action_note || "",
+        })
+      );
+
+      toast.success("Decision recorded — sent for approval");
       refetch();
     } catch (err) {
       reportError(err);
@@ -363,23 +432,36 @@ function AdvanceRequestForm() {
 
   const a2InitialValues = useMemo(
     () => ({
-      approval_status: request?.approval_status ?? null,
+      decision: null,
       approval_note: request?.approval_note ?? "",
+      balance_action: request?.balance_action ?? null,
+      balance_action_note: "",
     }),
     [request]
   );
 
   const handleA2 = async (values) => {
     try {
-      unwrap(
-        await submitApproval(id, {
-          approval_status: Number(values.approval_status),
-          approval_note: values.approval_note || "",
-        })
-      );
+      const payload = {
+        decision: values.decision,
+        approval_note: values.approval_note || "",
+      };
+
+      // Only sent when the admin is releasing a hold, which is the one
+      // moment they get to decide about the balance.
+      if (heldByAdmin && values.balance_action) {
+        payload.balance_action = values.balance_action;
+        payload.balance_action_note = values.balance_action_note || "";
+      }
+
+      unwrap(await submitApproval(id, payload));
 
       toast.success(
-        Number(values.approval_status) === 1 ? "Request approved" : "Request rejected"
+        {
+          approve: "Request approved",
+          hold: "Request put on hold",
+          reject: "Request rejected",
+        }[values.decision] || "Decision recorded"
       );
       refetch();
     } catch (err) {
@@ -467,11 +549,27 @@ function AdvanceRequestForm() {
         title={title}
         filledHeader
         rightSection={
-          statusMeta ? (
-            <Badge colorScheme={statusMeta.colorScheme} fontSize="0.8em">
-              {statusMeta.label}
-            </Badge>
-          ) : null
+          <Flex gap="10px" alignItems="center">
+            {statusMeta && (
+              <Badge colorScheme={statusMeta.colorScheme} fontSize="0.8em">
+                {statusMeta.label}
+              </Badge>
+            )}
+            {/* Correcting the details lives on its own route, and nothing
+                on this page linked to it. */}
+            {!createMode && !editMode && canEdit && isEditableStatus(status) && (
+              <Button
+                size="sm"
+                colorScheme="purple"
+                variant="outline"
+                onClick={() =>
+                  router.push(`/lr-workflow/advance-request/edit/${id}`)
+                }
+              >
+                Edit
+              </Button>
+            )}
+          </Flex>
         }
       >
         <Flex gap="22px" flexDirection="column">
@@ -543,12 +641,6 @@ function AdvanceRequestForm() {
                 <>
                   <Flex gap="12px">
                     <CustomInput
-                      label="Pending Bills *"
-                      name="pending_bills"
-                      type="number"
-                      editable={editable}
-                    />
-                    <CustomInput
                       label="Previous Advance Balance *"
                       name="previous_advance_balance"
                       type="number"
@@ -558,7 +650,7 @@ function AdvanceRequestForm() {
 
                   <Flex gap="12px">
                     <CustomInput
-                      label="Remarks *"
+                      label="Remarks"
                       name="balance_remarks"
                       type="text"
                       method="TextArea"
@@ -567,12 +659,54 @@ function AdvanceRequestForm() {
                   </Flex>
 
                   {editable && (
+                    <Text fontSize="sm" color="gray.500" mt="8px">
+                      Enter 0 if the supplier holds nothing. Anything above 0
+                      goes back to the purchase team to decide on.
+                    </Text>
+                  )}
+                </>
+              )}
+            />
+          )}
+
+          {isVisible("a1.2") && (
+            <StageCard
+              title="Stage - A1.2"
+              editable={isEditable("a1.2")}
+              initialValues={a12InitialValues}
+              validationSchema={STAGE_SCHEMAS["a1.2"]}
+              onSubmit={handleA12}
+              submitLabel="Send for Approval"
+              renderFields={({ editable }) => (
+                <>
+                  <Flex gap="12px">
                     <CustomInput
-                      label="Put on hold instead of sending for approval"
-                      name="on_hold"
-                      method="switch_toggle"
+                      label="Balance Decision *"
+                      name="balance_action"
+                      method="switch"
+                      values={BALANCE_ACTIONS}
+                      placeholder="Less and pay, or deduct next time"
                       editable={editable}
                     />
+                  </Flex>
+
+                  <Flex gap="12px">
+                    <CustomInput
+                      label="Note"
+                      name="balance_action_note"
+                      type="text"
+                      method="TextArea"
+                      editable={editable}
+                    />
+                  </Flex>
+
+                  {editable && (
+                    <Text fontSize="sm" color="gray.500" mt="8px">
+                      The supplier already holds{" "}
+                      {currencyFormatter(request?.previous_advance_balance || 0)}
+                      . Less and pay deducts it from this payment; deduct next
+                      time leaves it to settle later.
+                    </Text>
                   )}
                 </>
               )}
@@ -591,16 +725,35 @@ function AdvanceRequestForm() {
                 <>
                   <Flex gap="12px">
                     <CustomInput
-                      label="Approval Status *"
-                      name="approval_status"
+                      label="Decision *"
+                      name="decision"
                       method="switch"
-                      values={[
-                        { id: 1, value: "Approved" },
-                        { id: 0, value: "Rejected" },
-                      ]}
+                      values={APPROVAL_DECISIONS}
+                      placeholder="Approve, hold or reject"
                       editable={editable}
                     />
                   </Flex>
+
+                  {/* Re-clarifying a hold is the moment the admin settles
+                      what happens to the old balance, so both go together. */}
+                  {editable && heldByAdmin && (
+                    <Flex gap="12px">
+                      <CustomInput
+                        label="Balance Decision"
+                        name="balance_action"
+                        method="switch"
+                        values={BALANCE_ACTIONS}
+                        placeholder="Leave as decided by purchase"
+                        editable={editable}
+                      />
+                      <CustomInput
+                        label="Balance Note"
+                        name="balance_action_note"
+                        type="text"
+                        editable={editable}
+                      />
+                    </Flex>
+                  )}
 
                   <Flex gap="12px">
                     <CustomInput
@@ -660,7 +813,7 @@ function AdvanceRequestForm() {
 
                   {editable && (
                     <CustomInput
-                      label="Proof of Payment *"
+                      label="Payment Advice *"
                       name="proof"
                       method="file"
                       editable={editable}
@@ -683,7 +836,7 @@ function AdvanceRequestForm() {
                   >
                     <Text fontSize="sm" color="purple.600">
                       <i className="fa fa-file" />{" "}
-                      {document.stage === "a3" ? "Proof of payment" : "Document"}
+                      {document.stage === "a3" ? "Payment advice" : "Document"}
                       {document.uploaded_by_name
                         ? ` — ${document.uploaded_by_name}`
                         : ""}
