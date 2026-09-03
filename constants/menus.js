@@ -363,12 +363,6 @@ const ALL_PAGES_MENU = {
         selected: false,
         location: "/purchase/purchase-return",
       },
-      view_purchase_acknowledgement: {
-        title: "Purchase Acknowledgement",
-        permission: "view_purchase_acknowledgement",
-        selected: false,
-        location: "/purchase/purchase-acknowledgement",
-      },
     },
   },
   debit_note: {
@@ -693,6 +687,20 @@ const WMS_MENU = {
         permission: "view_issue_grn",
         selected: false,
         location: "/grn/issue",
+      },
+    },
+  },
+  purchase: {
+    title: "Purchase",
+    selected: false,
+    openPage: false,
+    icon: "fa-dollar-sign",
+    subMenu: {
+      view_purchase_acknowledgement: {
+        title: "Purchase Acknowledgement",
+        permission: "view_purchase_acknowledgement",
+        selected: false,
+        location: "/purchase/purchase-acknowledgement",
       },
     },
   },
