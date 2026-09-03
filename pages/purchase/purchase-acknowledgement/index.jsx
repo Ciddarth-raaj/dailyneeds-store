@@ -92,6 +92,11 @@ function PurchaseAckListing() {
         headerName: "ID",
         type: "id",
         hideByDefault: true,
+        // Tie-breaker for the Date sort below. A day's sync lands dozens of
+        // acknowledgements on one date, and the date alone cannot order them;
+        // the id is creation order, so within a date the newest comes first.
+        sort: "desc",
+        sortIndex: 1,
       },
       {
         field: "distributor_id",
@@ -110,6 +115,7 @@ function PurchaseAckListing() {
         headerName: "Date",
         type: "date",
         sort: "desc",
+        sortIndex: 0,
       },
       {
         field: "invoices",
