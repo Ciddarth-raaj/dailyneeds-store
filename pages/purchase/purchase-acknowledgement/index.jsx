@@ -9,6 +9,8 @@ import usePermissions from "../../../customHooks/usePermissions";
 import ConfirmDeleteModal from "../../../components/ConfirmDeleteModal";
 import toast from "react-hot-toast";
 import { useRouter } from "next/router";
+import moment from "moment";
+import MonthStatusCalendar from "../../../components/calendar/MonthStatusCalendar";
 import { syncPurchaseAcknowledgement } from "../../../helper/purchaseAcknowledgement";
 
 function PurchaseAckListing() {
@@ -21,6 +23,76 @@ function PurchaseAckListing() {
   const [deleteItem, setDeleteItem] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [showAllDates, setShowAllDates] = useState(false);
+  const [viewingMonth, setViewingMonth] = useState(() =>
+    moment().startOf("month")
+  );
+
+  /** YYYY-MM-DD -> how many acknowledgements carry that memo date. */
+  const statsByDay = useMemo(() => {
+    const map = {};
+    (purchaseAcknowledgements || []).forEach((row) => {
+      const raw = row?.mmm_date;
+      if (raw == null || raw === "") return;
+      const day = String(raw).slice(0, 10);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return;
+      map[day] = (map[day] ?? 0) + 1;
+    });
+    return map;
+  }, [purchaseAcknowledgements]);
+
+  const getDayVisual = useCallback(
+    (date) => {
+      const count = statsByDay[date.format("YYYY-MM-DD")] ?? 0;
+      if (count === 0) {
+        return {
+          bg: "gray.50",
+          border: "gray.200",
+          text: "gray.500",
+          primary: "0",
+          secondary: "No acknowledgements",
+        };
+      }
+      return {
+        bg: "green.50",
+        border: "green.200",
+        text: "green.700",
+        primary: String(count),
+        secondary: count === 1 ? "Acknowledgement" : "Acknowledgements",
+      };
+    },
+    [statsByDay]
+  );
+
+  // A day if one is picked, else the month on show - unless the user has
+  // asked for everything, which is the only way to reach an acknowledgement
+  // with no memo date, since it belongs to no month.
+  const displayRowData = useMemo(() => {
+    const rows = purchaseAcknowledgements || [];
+    if (showAllDates) return rows;
+    if (selectedDate) {
+      return rows.filter(
+        (row) => String(row?.mmm_date ?? "").slice(0, 10) === selectedDate
+      );
+    }
+    const month = viewingMonth.format("YYYY-MM");
+    return rows.filter(
+      (row) => String(row?.mmm_date ?? "").slice(0, 7) === month
+    );
+  }, [purchaseAcknowledgements, selectedDate, showAllDates, viewingMonth]);
+
+  const handleSelectDate = useCallback((date) => {
+    setShowAllDates(false);
+    // Clicking the selected day again clears it, back to the whole month.
+    setSelectedDate((current) => (current === date ? null : date));
+  }, []);
+
+  const handleViewingMonthChange = useCallback((next) => {
+    setShowAllDates(false);
+    setSelectedDate(null);
+    setViewingMonth(next);
+  }, []);
 
   const handleDeleteClick = useCallback((row) => {
     setDeleteItem(row);
@@ -197,6 +269,12 @@ function PurchaseAckListing() {
     ]
   );
 
+  const tableTitle = showAllDates
+    ? "Purchase Acknowledgement (all dates)"
+    : selectedDate
+    ? `Purchase Acknowledgement (${moment(selectedDate).format("DD/MM/YYYY")})`
+    : `Purchase Acknowledgement (${viewingMonth.format("MMMM YYYY")})`;
+
   return (
     <GlobalWrapper
       title="Purchase Acknowledgement"
@@ -210,50 +288,92 @@ function PurchaseAckListing() {
         title="Delete Purchase Acknowledgement"
         body="Are you sure you want to delete this purchase acknowledgement?"
       />
-      <CustomContainer
-        title="Purchase Acknowledgement"
-        filledHeader
-        rightSection={
-          <Flex gap="12px" alignItems="center">
-            {canAdd && (
+      <Flex flexDirection="column" gap={6}>
+        <MonthStatusCalendar
+          title="Purchase Acknowledgements by date"
+          selectedDate={selectedDate}
+          onSelectDate={handleSelectDate}
+          viewingMonth={viewingMonth}
+          onViewingMonthChange={handleViewingMonthChange}
+          loading={loading}
+          getDayVisual={getDayVisual}
+          headerRight={
+            <Flex gap="8px" alignItems="center">
+              {selectedDate && !showAllDates && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  colorScheme="purple"
+                  onClick={() => setSelectedDate(null)}
+                >
+                  Show whole month
+                </Button>
+              )}
+              <Button
+                size="sm"
+                variant={showAllDates ? "solid" : "outline"}
+                colorScheme="purple"
+                onClick={() => {
+                  setShowAllDates((on) => !on);
+                  setSelectedDate(null);
+                }}
+              >
+                {showAllDates ? "Back to month" : "All dates"}
+              </Button>
+            </Flex>
+          }
+        />
+
+        <CustomContainer
+          title={tableTitle}
+          filledHeader
+          rightSection={
+            <Flex gap="12px" alignItems="center">
+              {canAdd && (
+                <Button
+                  colorScheme="purple"
+                  size="sm"
+                  onClick={() =>
+                    router.push("/purchase/purchase-acknowledgement/create")
+                  }
+                >
+                  Add
+                </Button>
+              )}
+
               <Button
                 colorScheme="purple"
+                variant="outline"
                 size="sm"
-                onClick={() =>
-                  router.push("/purchase/purchase-acknowledgement/create")
-                }
+                onClick={handleSync}
+                isLoading={syncing}
+                loadingText="Syncing..."
               >
-                Add
+                Sync
               </Button>
-            )}
-
-            <Button
-              colorScheme="purple"
-              variant="outline"
-              size="sm"
-              onClick={handleSync}
-              isLoading={syncing}
-              loadingText="Syncing..."
-            >
-              Sync
-            </Button>
-          </Flex>
-        }
-      >
-        {loading ? (
-          <Text>Loading...</Text>
-        ) : (
-          <AgGrid
-            rowData={purchaseAcknowledgements}
-            columnDefs={colDefs}
-            tableKey="purchase-acknowledgement"
-            gridOptions={{
-              getRowId: (params) =>
-                String(params.data?.purchase_acknowledgement_id ?? ""),
-            }}
-          />
-        )}
-      </CustomContainer>
+            </Flex>
+          }
+        >
+          {loading ? (
+            <Text>Loading...</Text>
+          ) : displayRowData.length === 0 ? (
+            <Text color="gray.500" py={6} textAlign="center">
+              No purchase acknowledgements for this{" "}
+              {selectedDate ? "date" : "month"}.
+            </Text>
+          ) : (
+            <AgGrid
+              rowData={displayRowData}
+              columnDefs={colDefs}
+              tableKey="purchase-acknowledgement"
+              gridOptions={{
+                getRowId: (params) =>
+                  String(params.data?.purchase_acknowledgement_id ?? ""),
+              }}
+            />
+          )}
+        </CustomContainer>
+      </Flex>
     </GlobalWrapper>
   );
 }
