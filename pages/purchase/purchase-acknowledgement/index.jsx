@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback, useState } from "react";
+import React, { useMemo, useCallback, useRef, useState } from "react";
 import GlobalWrapper from "../../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../../components/CustomContainer";
 import { Text, Button, Flex } from "@chakra-ui/react";
@@ -82,17 +82,39 @@ function PurchaseAckListing() {
     );
   }, [purchaseAcknowledgements, selectedDate, showAllDates, viewingMonth]);
 
-  const handleSelectDate = useCallback((date) => {
-    setShowAllDates(false);
-    // Clicking the selected day again clears it, back to the whole month.
-    setSelectedDate((current) => (current === date ? null : date));
+  // Changing the filter replaces the rows under the grid, and AG Grid keeps
+  // whatever page you were on as long as it still exists - so asking for a
+  // month while deep in another one would land you in the middle of it.
+  const gridRef = useRef(null);
+  const resetPage = useCallback(() => {
+    gridRef.current?.api?.paginationGoToPage?.(0);
   }, []);
 
-  const handleViewingMonthChange = useCallback((next) => {
-    setShowAllDates(false);
+  const handleSelectDate = useCallback(
+    (date) => {
+      resetPage();
+      setShowAllDates(false);
+      // Clicking the selected day again clears it, back to the whole month.
+      setSelectedDate((current) => (current === date ? null : date));
+    },
+    [resetPage]
+  );
+
+  const handleViewingMonthChange = useCallback(
+    (next) => {
+      resetPage();
+      setShowAllDates(false);
+      setSelectedDate(null);
+      setViewingMonth(next);
+    },
+    [resetPage]
+  );
+
+  const handleToggleAllDates = useCallback(() => {
+    resetPage();
+    setShowAllDates((on) => !on);
     setSelectedDate(null);
-    setViewingMonth(next);
-  }, []);
+  }, [resetPage]);
 
   const handleDeleteClick = useCallback((row) => {
     setDeleteItem(row);
@@ -269,6 +291,20 @@ function PurchaseAckListing() {
     ]
   );
 
+  const gridOptions = useMemo(
+    () => ({
+      getRowId: (params) =>
+        String(params.data?.purchase_acknowledgement_id ?? ""),
+    }),
+    []
+  );
+
+  const emptyMessage = showAllDates
+    ? "No purchase acknowledgements found."
+    : `No purchase acknowledgements for this ${
+        selectedDate ? "date" : "month"
+      }.`;
+
   const tableTitle = showAllDates
     ? "Purchase Acknowledgement (all dates)"
     : selectedDate
@@ -313,10 +349,7 @@ function PurchaseAckListing() {
                 size="sm"
                 variant={showAllDates ? "solid" : "outline"}
                 colorScheme="purple"
-                onClick={() => {
-                  setShowAllDates((on) => !on);
-                  setSelectedDate(null);
-                }}
+                onClick={handleToggleAllDates}
               >
                 {showAllDates ? "Back to month" : "All dates"}
               </Button>
@@ -356,21 +389,24 @@ function PurchaseAckListing() {
         >
           {loading ? (
             <Text>Loading...</Text>
-          ) : displayRowData.length === 0 ? (
-            <Text color="gray.500" py={6} textAlign="center">
-              No purchase acknowledgements for this{" "}
-              {selectedDate ? "date" : "month"}.
-            </Text>
           ) : (
-            <AgGrid
-              rowData={displayRowData}
-              columnDefs={colDefs}
-              tableKey="purchase-acknowledgement"
-              gridOptions={{
-                getRowId: (params) =>
-                  String(params.data?.purchase_acknowledgement_id ?? ""),
-              }}
-            />
+            <>
+              {/* Beside the grid, never instead of it. Swapping the element
+                  out would unmount AG Grid on an empty month and lose the
+                  sort, column filters and page size the user had set. */}
+              {displayRowData.length === 0 && (
+                <Text color="gray.500" py={6} textAlign="center">
+                  {emptyMessage}
+                </Text>
+              )}
+              <AgGrid
+                ref={gridRef}
+                rowData={displayRowData}
+                columnDefs={colDefs}
+                tableKey="purchase-acknowledgement"
+                gridOptions={gridOptions}
+              />
+            </>
           )}
         </CustomContainer>
       </Flex>
