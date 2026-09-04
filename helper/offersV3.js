@@ -52,12 +52,27 @@ const offersV3 = {
       ),
     getById: (id) => unwrap(API.get(`/offers-v3/batches/${id}`), "Failed to fetch batch offer").then((d) => d.data),
 
-    /** The batches on file for an item at an outlet, to pick one rather than type it. */
-    available: (item_code, outlet_id) =>
+    /** The batches on file for an item across the given outlets, to pick rather than type. */
+    available: (item_code, outlet_ids) =>
       unwrap(
-        API.get("/offers-v3/available-batches", { params: { item_code, outlet_id } }),
-        "Failed to fetch batches for this item and outlet"
+        API.get("/offers-v3/available-batches", {
+          params: { item_code, outlet_ids: (outlet_ids ?? []).join(",") },
+        }),
+        "Failed to fetch batches for this item"
       ).then((d) => d.data ?? []),
+
+    /** The same batch offer across several outlets; reports each outlet's outcome. */
+    createForOutlets: (data) =>
+      unwrap(
+        API.post("/offers-v3/batches/bulk", {
+          item_code: Number(data.item_code),
+          outlet_ids: (data.outlet_ids ?? []).map(Number),
+          batch_no: data.batch_no,
+          offer_type: data.offer_type,
+          value: Number(data.value),
+        }),
+        "Failed to create batch offers"
+      ),
     create: (data) =>
       unwrap(
         API.post("/offers-v3/batches", {
