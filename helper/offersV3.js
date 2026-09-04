@@ -51,6 +51,13 @@ const offersV3 = {
         (d) => d.data ?? []
       ),
     getById: (id) => unwrap(API.get(`/offers-v3/batches/${id}`), "Failed to fetch batch offer").then((d) => d.data),
+
+    /** The batches on file for an item at an outlet, to pick one rather than type it. */
+    available: (item_code, outlet_id) =>
+      unwrap(
+        API.get("/offers-v3/available-batches", { params: { item_code, outlet_id } }),
+        "Failed to fetch batches for this item and outlet"
+      ).then((d) => d.data ?? []),
     create: (data) =>
       unwrap(
         API.post("/offers-v3/batches", {

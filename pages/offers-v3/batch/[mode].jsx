@@ -3,7 +3,7 @@ import { useRouter } from "next/router";
 import GlobalWrapper from "../../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../../components/CustomContainer";
 import CustomInput from "../../../components/customInput/customInput";
-import { Button, Flex, Grid, Text, Box, Image } from "@chakra-ui/react";
+import { Button, Flex, Grid, Text, Box, Image, Badge } from "@chakra-ui/react";
 import { Formik } from "formik";
 import * as Yup from "yup";
 import toast from "react-hot-toast";
@@ -36,6 +36,123 @@ const validationSchema = Yup.object({
     .required("Required")
     .transform((v) => (v === "" || Number.isNaN(Number(v)) ? null : Number(v))),
 });
+
+/**
+ * The batch number, picked from the batches actually on file for the chosen
+ * item and outlet rather than typed from memory.
+ *
+ * The list can legitimately be empty - an article can carry an offer before it
+ * has ever been priced at an outlet - so this falls back to a plain field
+ * rather than blocking, and offers that fallback alongside the list too, for a
+ * batch that arrives before the next price upload names it.
+ */
+function BatchNoField({ itemCode, outletId, editable }) {
+  const [batches, setBatches] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [manual, setManual] = useState(false);
+
+  useEffect(() => {
+    if (!editable || !itemCode || !outletId) {
+      setBatches([]);
+      return undefined;
+    }
+    let cancelled = false;
+    setLoading(true);
+    offersV3.batches
+      .available(Number(itemCode), Number(outletId))
+      .then((rows) => !cancelled && setBatches(rows))
+      .catch(() => !cancelled && setBatches([]))
+      .finally(() => !cancelled && setLoading(false));
+    return () => {
+      cancelled = true;
+    };
+  }, [itemCode, outletId, editable]);
+
+  const options = useMemo(
+    () =>
+      batches.map((b) => ({
+        id: b.batch_no,
+        value: b.batch_no,
+        stock_qty: b.stock_qty,
+        mrp: b.mrp,
+        selling_price: b.selling_price,
+        occupied_by_offer_id: b.occupied_by_offer_id,
+      })),
+    [batches]
+  );
+
+  const renderer = useCallback(
+    (option) => (
+      <Flex align="center" gap={3} py={1} justify="space-between">
+        <Flex direction="column" minW={0}>
+          <Text fontSize="sm" fontWeight={500} noOfLines={1}>
+            {option.value}
+          </Text>
+          <Text fontSize="xs" color="gray.500">
+            MRP ₹{option.mrp ?? "—"} · SP ₹{option.selling_price ?? "—"}
+          </Text>
+        </Flex>
+        <Flex align="center" gap={2} flexShrink={0}>
+          {option.occupied_by_offer_id ? (
+            <Badge colorScheme="orange" fontSize="0.65rem">
+              has an offer
+            </Badge>
+          ) : null}
+          <Badge colorScheme={Number(option.stock_qty) > 0 ? "green" : "gray"} fontSize="0.65rem">
+            {Number(option.stock_qty) > 0 ? `${option.stock_qty} in stock` : "no stock"}
+          </Badge>
+        </Flex>
+      </Flex>
+    ),
+    []
+  );
+
+  const bothChosen = Boolean(itemCode && outletId);
+  const useList = editable && bothChosen && options.length > 0 && !manual;
+
+  return (
+    <Box>
+      <CustomInput
+        label="Batch No"
+        name="batch_no"
+        {...(useList
+          ? {
+              method: "searchable-dropdown",
+              values: options,
+              placeholder: "Search and select a batch",
+              customRenderer: renderer,
+            }
+          : { placeholder: "Batch No" })}
+        editable={editable}
+      />
+      {editable && bothChosen ? (
+        <Text fontSize="xs" color="gray.500" mt={1}>
+          {loading ? (
+            "Loading the batches on file…"
+          ) : options.length === 0 ? (
+            "No batches on file for this item at this outlet yet — type the batch number."
+          ) : (
+            <>
+              {options.length} batch{options.length === 1 ? "" : "es"} on file.{" "}
+              <Button
+                variant="link"
+                size="xs"
+                colorScheme="purple"
+                onClick={() => setManual((m) => !m)}
+              >
+                {manual ? "Pick from the list" : "Type it instead"}
+              </Button>
+            </>
+          )}
+        </Text>
+      ) : editable ? (
+        <Text fontSize="xs" color="gray.500" mt={1}>
+          Choose the item and outlet to see the batches on file.
+        </Text>
+      ) : null}
+    </Box>
+  );
+}
 
 function OffersV3BatchForm() {
   const router = useRouter();
@@ -233,7 +350,7 @@ function OffersV3BatchForm() {
             validationSchema={validationSchema}
             onSubmit={handleSubmit}
           >
-            {({ handleSubmit: formikSubmit }) => (
+            {({ handleSubmit: formikSubmit, values }) => (
               <form onSubmit={formikSubmit}>
                 <Grid templateColumns={{ base: "1fr", md: "1fr 1fr" }} gap={4} mb={6}>
                   <CustomInput
@@ -253,10 +370,9 @@ function OffersV3BatchForm() {
                     values={outletOptions}
                     editable={!isReadOnly && !formDisabled && createMode}
                   />
-                  <CustomInput
-                    label="Batch No"
-                    name="batch_no"
-                    placeholder="Batch No"
+                  <BatchNoField
+                    itemCode={values.item_code}
+                    outletId={values.outlet_id}
                     editable={!isReadOnly && !formDisabled && createMode}
                   />
                   <CustomInput
