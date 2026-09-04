@@ -135,11 +135,11 @@ export function isPriceCheckerBatchMismatch(
   return !pricesEqual(batch.old_selling_price, grnSp);
 }
 
-// A GRN line is a conflict only if every one of its historical batches
-// disagrees with it -- mirrors isPriceCheckerBatchMismatch per batch, so
-// this always agrees with what the Price Checker modal shows for the same
-// batches (a batch the modal reads as Match keeps the whole row out of
-// conflict here too).
+// A GRN line is a conflict when ANY of its current batches disagrees with it
+// -- the four agreement criteria (markup, discount %, discount amount, SP)
+// have to hold across every batch for the line to read as clean. Uses
+// isPriceCheckerBatchMismatch per batch, so a batch the Price Checker modal
+// shows as Conflict always puts its GRN line on the Issue GRN list too.
 export function isGrnRowPriceMismatch(
   grnMrp,
   grnSp,
@@ -149,7 +149,7 @@ export function isGrnRowPriceMismatch(
   grnPurchasePrice
 ) {
   if (!Array.isArray(batches) || batches.length === 0) return false;
-  return batches.every((batch) =>
+  return batches.some((batch) =>
     isPriceCheckerBatchMismatch(
       batch,
       grnMrp,
