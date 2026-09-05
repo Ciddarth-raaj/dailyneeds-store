@@ -138,6 +138,9 @@ const offersV3 = {
   lowStockWarnings: {
     list: () => unwrap(API.get("/offers-v3/low-stock-warnings"), "Failed to fetch low-stock warnings").then((d) => d.data ?? []),
     dismiss: (id) => unwrap(API.post(`/offers-v3/low-stock-warnings/${id}/dismiss`, {}), "Failed to dismiss"),
+    /** Re-run the check now rather than waiting for the next stock upload. */
+    recheck: () =>
+      unwrap(API.post("/offers-v3/low-stock-warnings/recheck", {}), "Failed to re-check low stock"),
   },
 
   mismatches: () => unwrap(API.get("/offers-v3/mismatches"), "Failed to fetch mismatches").then((d) => d.data ?? []),

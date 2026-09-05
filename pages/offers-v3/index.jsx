@@ -847,6 +847,24 @@ function LowStockWarningsTab({ refreshKey }) {
     [fetchRows]
   );
 
+  // The check normally runs off the stock upload, so without this the list
+  // cannot answer "is this still true?" until tomorrow's sheet.
+  const [rechecking, setRechecking] = useState(false);
+  const handleRecheck = useCallback(async () => {
+    setRechecking(true);
+    try {
+      const res = await offersV3.lowStockWarnings.recheck();
+      toast.success(
+        `${res.warnings} item${res.warnings === 1 ? "" : "s"} at or below threshold`
+      );
+      await fetchRows();
+    } catch (err) {
+      toast.error(err?.message ?? "Failed to re-check low stock");
+    } finally {
+      setRechecking(false);
+    }
+  }, [fetchRows]);
+
   const colDefs = useMemo(
     () => [
       { field: "item_code", headerName: "Item Code", flex: 1 },
@@ -885,13 +903,26 @@ function LowStockWarningsTab({ refreshKey }) {
 
   return (
     <>
-      <Text fontSize="sm" color="gray.600" mb={3}>
-        Item-level offers only. An item whose stock, summed across every store and batch, is
-        above 0 but at or below its offer&apos;s Threshold Qty — a window to end the offer before
-        the item is replenished at a different cost under the same still-active discount. The
-        offer&apos;s status stays Active. Clears automatically once the total rises back above
-        the threshold, or when the offer is made inactive.
-      </Text>
+      <Flex justify="space-between" align="flex-start" gap={4} mb={3}>
+        <Text fontSize="sm" color="gray.600">
+          Item-level offers only. An item whose stock, summed across every store and batch, is at
+          or below its offer&apos;s Threshold Qty — including an item with no stock left at all,
+          where the offer is live on a shelf nobody can buy from. A window to end the offer before
+          the item is replenished at a different cost under the same still-active discount. The
+          offer&apos;s status stays Active. Clears automatically once the total rises back above
+          the threshold, or when the offer is made inactive.
+        </Text>
+        <Button
+          size="sm"
+          variant="outline"
+          colorScheme="purple"
+          flexShrink={0}
+          isLoading={rechecking}
+          onClick={handleRecheck}
+        >
+          Re-check now
+        </Button>
+      </Flex>
       <AgGrid
         rowData={rows}
         columnDefs={colDefs}
