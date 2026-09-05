@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Box, Flex, Text, useToken } from "@chakra-ui/react";
+import { Badge, Box, Flex, Text, useToken } from "@chakra-ui/react";
 import toast from "react-hot-toast";
 import CustomModal from "../CustomModal";
 import AgGrid from "../AgGrid";
@@ -32,6 +32,7 @@ export default function GrnPriceCheckerItemsModal({
   grnDiscountPct,
   grnDiscountAmount,
   grnPurchasePrice,
+  isIgnored = false,
   priceCheckerRows,
   priceCheckerLoading = false,
 }) {
@@ -210,6 +211,15 @@ export default function GrnPriceCheckerItemsModal({
           <Text>SP: {formatGrnCurrency(grnSp)}</Text>
           <Text>Discount %: {formatDiscountPct(grnDiscountPct)}</Text>
           <Text>Markup %: {formatDiscountPct(grnMarkupPct)}</Text>
+          {isIgnored ? (
+            <Flex alignItems="center" gap={2}>
+              <Badge colorScheme="gray">Ignored</Badge>
+              <Text color="gray.600">
+                Conflicts on this line are hidden on the GRN and Issue GRN
+                lists.
+              </Text>
+            </Flex>
+          ) : null}
         </Flex>
         {loading ? (
           <Text>Loading...</Text>

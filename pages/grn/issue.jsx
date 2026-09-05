@@ -263,6 +263,7 @@ function GrnIssueListing() {
             discountPct: params.data.discount_pct,
             discountAmount: params.data.discount_amount,
             purchasePrice: params.data.mmd_pur_price,
+            isIgnored: Boolean(params.data.is_ignored),
           });
         },
       },
@@ -553,6 +554,7 @@ function GrnIssueListing() {
         grnDiscountPct={selectedProduct?.discountPct}
         grnDiscountAmount={selectedProduct?.discountAmount}
         grnPurchasePrice={selectedProduct?.purchasePrice}
+        isIgnored={selectedProduct?.isIgnored}
         priceCheckerRows={
           selectedProduct?.productId != null
             ? itemsByProductId.get(selectedProduct.productId) ?? []

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/router";
 import moment from "moment";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
@@ -20,6 +20,7 @@ import {
   Tooltip,
   useToken,
 } from "@chakra-ui/react";
+import { unignoreGrnIssues } from "../../helper/grnList";
 import { useGrnDetail } from "../../customHooks/useGrnDetail";
 import { useGrnPriceCheckerItemsMap } from "../../customHooks/useGrnPriceCheckerItemsMap";
 import { capitalize } from "../../util/string";
@@ -70,7 +71,9 @@ function GrnDetailPage() {
   const isReady = router.isReady;
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [addOfferProduct, setAddOfferProduct] = useState(null);
+  const [unignoring, setUnignoring] = useState(false);
   const canAddOfferV3 = usePermissions("add_offers_v3");
+  const canIgnore = usePermissions("ignore_grn_issues");
   const { colorScheme } = useModuleTableTheme();
   const [linkColor] = useToken("colors", [`${colorScheme}.600`]);
   const [mismatchBg] = useToken("colors", ["red.100"]);
@@ -102,6 +105,29 @@ function GrnDetailPage() {
 
   const highlightLoading =
     !loading && productIds.length > 0 && pcLoading;
+
+  // Un-ignoring has to happen here: an ignored line is filtered out of the
+  // Issue GRN list server-side, so this page is the only place it can be
+  // reached. refno comes from the route -- the same value the API keyed the
+  // ignore on.
+  const handleUnignoreRow = useCallback(
+    async (row) => {
+      if (!row || refno == null) return;
+      setUnignoring(true);
+      try {
+        await unignoreGrnIssues([
+          { refno, sl_no: row.mmd_mrc_sl_no, product_id: row.product_id ?? null },
+        ]);
+        toast.success("Item un-ignored.");
+        refetch();
+      } catch (err) {
+        toast.error(err?.message || "Failed to un-ignore item.");
+      } finally {
+        setUnignoring(false);
+      }
+    },
+    [refno, refetch]
+  );
 
   const gridOptions = useMemo(
     () => ({
@@ -159,6 +185,7 @@ function GrnDetailPage() {
             discountPct: params.data.discount_pct,
             discountAmount: params.data.discount_amount,
             purchasePrice: params.data.mmd_pur_price,
+            isIgnored: Boolean(params.data.is_ignored),
           });
         },
       },
@@ -260,11 +287,40 @@ function GrnDetailPage() {
         type: "badge-column",
         flex: 0,
         minWidth: 100,
-        maxWidth: 100,
-        valueGetter: (params) =>
-          params.data?._priceMismatch
-            ? { label: "Conflict", colorScheme: "red" }
-            : null,
+        maxWidth: canIgnore ? 160 : 100,
+        // An ignored line has its conflict suppressed everywhere, so say so
+        // here rather than leaving the cell blank -- otherwise it reads as a
+        // clean line while its Price Checker still shows the batch in red.
+        valueGetter: (params) => {
+          if (params.data?._priceMismatch) {
+            return { label: "Conflict", colorScheme: "red" };
+          }
+          if (params.data?.is_ignored) {
+            return { label: "Ignored", colorScheme: "gray" };
+          }
+          return null;
+        },
+        cellRenderer: (params) => {
+          if (!params.value) return null;
+          return (
+            <Flex alignItems="center" h="100%" gap={2}>
+              <Badge colorScheme={params.value.colorScheme}>
+                {params.value.label}
+              </Badge>
+              {params.data?.is_ignored && canIgnore ? (
+                <Button
+                  size="xs"
+                  variant="link"
+                  colorScheme="blue"
+                  isLoading={unignoring}
+                  onClick={() => handleUnignoreRow(params.data)}
+                >
+                  Undo
+                </Button>
+              ) : null}
+            </Flex>
+          );
+        },
       },
       {
         field: "mmd_recd_qty",
@@ -475,7 +531,7 @@ function GrnDetailPage() {
         cellRenderer: (params) => formatDiscountPct(params.value),
       },
     ],
-    [linkColor, canAddOfferV3]
+    [linkColor, canAddOfferV3, canIgnore, unignoring, handleUnignoreRow]
   );
 
   const pageTitle = header?.mmh_mrc_refno
@@ -582,6 +638,7 @@ function GrnDetailPage() {
         grnDiscountPct={selectedProduct?.discountPct}
         grnDiscountAmount={selectedProduct?.discountAmount}
         grnPurchasePrice={selectedProduct?.purchasePrice}
+        isIgnored={selectedProduct?.isIgnored}
         priceCheckerRows={
           selectedProduct?.productId != null
             ? itemsByProductId.get(selectedProduct.productId) ?? []
