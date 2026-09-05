@@ -160,6 +160,7 @@ function GrnDetailPage() {
       {
         headerName: "SNo",
         colId: "sno",
+        pinned: "left",
         flex: 0,
         minWidth: 56,
         maxWidth: 72,
@@ -173,6 +174,7 @@ function GrnDetailPage() {
         field: "product_id",
         headerName: "Product ID",
         type: "id",
+        pinned: "left",
         flex: 0,
         minWidth: 100,
         cellStyle: {
@@ -198,6 +200,7 @@ function GrnDetailPage() {
       {
         field: "product.image_link",
         headerName: "Image",
+        pinned: "left",
         flex: 0,
         minWidth: 72,
         width: 72,
@@ -233,6 +236,7 @@ function GrnDetailPage() {
       {
         headerName: "Name",
         type: "capitalized",
+        pinned: "left",
         flex: 0,
         minWidth: 220,
         valueGetter: (params) => {
@@ -244,6 +248,7 @@ function GrnDetailPage() {
         field: "is_offer_product",
         headerName: "Offer",
         type: "badge-column",
+        pinned: "left",
         flex: 0,
         minWidth: 90,
         maxWidth: canAddOfferV3 ? 110 : 90,
