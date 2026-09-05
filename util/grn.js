@@ -176,6 +176,24 @@ export function getGrnLinePriceMismatch(row, itemsByProductId, pcLoading = false
   );
 }
 
+// Prices carry two decimals, so anything above half a paisa apart is a real
+// move rather than float noise.
+export const NET_COST_CHANGE_TOLERANCE = 0.005;
+
+/**
+ * Whether this GRN line's Net Cost moved from what the item last cost --
+ * mmd_pur_price against mmd_prev_pur_price, the "Net Cost" and "Prev.N.cost"
+ * columns. A missing or zero Prev.N.cost means there is no earlier purchase to
+ * compare against, which is not a change.
+ */
+export function isGrnNetCostChanged(row) {
+  if (!row) return false;
+  const current = parseGrnPrice(row.mmd_pur_price);
+  const previous = parseGrnPrice(row.mmd_prev_pur_price);
+  if (current == null || previous == null || previous === 0) return false;
+  return Math.abs(current - previous) > NET_COST_CHANGE_TOLERANCE;
+}
+
 /** Margin between MRP and (Pur. Rate + Tax), as a % of MRP. */
 export function calcBaseMarginMD(purRate, purTaxPct, mrp) {
   const rate = parseGrnPrice(purRate);

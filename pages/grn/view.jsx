@@ -33,6 +33,7 @@ import {
   formatOfferDetails,
   getGrnLinePriceMismatch,
   getMismatchRowStyle,
+  isGrnNetCostChanged,
   sortRowsMismatchFirst,
 } from "../../util/grn";
 import currencyFormatter from "../../util/currencyFormatter";
@@ -77,6 +78,7 @@ function GrnDetailPage() {
   const { colorScheme } = useModuleTableTheme();
   const [linkColor] = useToken("colors", [`${colorScheme}.600`]);
   const [mismatchBg] = useToken("colors", ["red.100"]);
+  const [netCostBg] = useToken("colors", ["pink.100"]);
 
   const { header, items, loading, error, refetch } = useGrnDetail(refno, {
     enabled: isReady && Boolean(refno),
@@ -99,6 +101,7 @@ function GrnDetailPage() {
         !pcLoading &&
         !row.is_ignored &&
         getGrnLinePriceMismatch(row, itemsByProductId, false),
+      _netCostChanged: isGrnNetCostChanged(row),
     }));
     return sortRowsMismatchFirst(withFlags, (row) => row._priceMismatch);
   }, [items, itemsByProductId, pcLoading]);
@@ -137,10 +140,13 @@ function GrnDetailPage() {
         suppressSizeToFit: true,
       },
       rowHeight: 56,
+      // A price conflict is the louder signal, so red wins; pink is left for
+      // a line whose Net Cost simply moved from its Prev.N.cost.
       getRowStyle: (params) =>
-        getMismatchRowStyle(params.data?._priceMismatch, mismatchBg),
+        getMismatchRowStyle(params.data?._priceMismatch, mismatchBg) ??
+        getMismatchRowStyle(params.data?._netCostChanged, netCostBg),
     }),
-    [mismatchBg]
+    [mismatchBg, netCostBg]
   );
 
   useEffect(() => {
