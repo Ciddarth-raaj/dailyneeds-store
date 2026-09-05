@@ -49,12 +49,15 @@ export function parseGrnPrice(value) {
   return Number.isFinite(n) ? n : null;
 }
 
-export const DISCOUNT_PCT_TOLERANCE = 0.4;
+// "Same" means same to within rounding, not merely close. Prices carry two
+// decimals, so a genuine policy match lands within a few hundredths of a
+// point, while a real price difference shows up at a quarter point or more:
+// a batch selling at 79.00 against a GRN line at 95.00 sat 1.00 point apart
+// on markup and 0.24 apart on discount %, and read as a match under the
+// wider tolerances these replace.
+export const DISCOUNT_PCT_TOLERANCE = 0.1;
 export const DISCOUNT_AMOUNT_TOLERANCE = 0.01;
-// A markup-% point is a currency-rounding-driven scale, not the MRP-label
-// rounding DISCOUNT_PCT_TOLERANCE is calibrated to, so it gets its own,
-// wider tolerance rather than reusing that constant.
-export const MARKUP_PCT_TOLERANCE = 1.0;
+export const MARKUP_PCT_TOLERANCE = 0.1;
 
 export function parseDiscountPct(value) {
   return parseGrnPrice(value);
