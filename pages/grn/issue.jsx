@@ -211,6 +211,7 @@ function GrnIssueListing() {
         field: "grn_refno",
         headerName: "GRN No",
         type: "id",
+        pinned: "left",
         flex: 0,
         minWidth: colWidth,
         cellStyle: {
@@ -231,6 +232,7 @@ function GrnIssueListing() {
         field: "mrc_date",
         headerName: "MRC Date",
         type: "date",
+        pinned: "left",
         flex: 0,
         maxWidth: 130,
       },
@@ -238,13 +240,16 @@ function GrnIssueListing() {
         field: "supplier_name",
         headerName: "Supplier Name",
         type: "capitalized",
-        flex: 1,
+        pinned: "left",
+        flex: 0,
         minWidth: 180,
+        width: 180,
       },
       {
         field: "product_id",
         headerName: "Product ID",
         type: "id",
+        pinned: "left",
         flex: 0,
         minWidth: 100,
         cellStyle: {
@@ -270,6 +275,7 @@ function GrnIssueListing() {
       {
         field: "product.image_link",
         headerName: "Image",
+        pinned: "left",
         flex: 0,
         minWidth: 72,
         width: 72,
@@ -305,6 +311,7 @@ function GrnIssueListing() {
       {
         headerName: "Name",
         type: "capitalized",
+        pinned: "left",
         flex: 0,
         minWidth: 220,
         valueGetter: (params) => {
@@ -316,6 +323,7 @@ function GrnIssueListing() {
         field: "is_offer_product",
         headerName: "Offer",
         type: "badge-column",
+        pinned: "left",
         flex: 0,
         minWidth: 90,
         maxWidth: canAddOfferV3 ? 110 : 90,
@@ -536,6 +544,7 @@ function GrnIssueListing() {
               rowData={displayRowData}
               columnDefs={colDefs}
               tableKey="grn-issue-list"
+              height="70vh"
               selectMode={canIgnore}
               onSelectionChanged={handleSelectionChanged}
               gridOptions={gridOptions}

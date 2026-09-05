@@ -633,6 +633,7 @@ function GrnDetailPage() {
                 rowData={displayItems}
                 columnDefs={colDefs}
                 tableKey="grn-detail-products"
+                height="70vh"
                 gridOptions={gridOptions}
               />
             </Box>
