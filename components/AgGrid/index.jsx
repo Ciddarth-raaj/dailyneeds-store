@@ -262,6 +262,7 @@ const AgGrid = React.forwardRef(function AgGrid(
     exportLoading = false,
     filterMode = "client",
     onFilterChange,
+    height,
     ...props
   },
   ref
@@ -276,6 +277,17 @@ const AgGrid = React.forwardRef(function AgGrid(
     () => buildAgGridTheme(effectiveColorScheme),
     [effectiveColorScheme]
   );
+
+  // Without a `height` the grid grows to fit every row and the page does the
+  // scrolling -- the long-standing behaviour for every table here. Given one,
+  // the grid scrolls inside itself instead, which is what keeps the header and
+  // any pinned columns in view on a tall table. minHeight 0 lets it shrink
+  // within the flex column rather than pushing the pagination bar out.
+  const scrollsInternally = Boolean(height);
+  const scrollBoxProps = scrollsInternally
+    ? { height, display: "flex", flexDirection: "column" }
+    : {};
+  const gridStyle = scrollsInternally ? { flex: 1, minHeight: 0 } : undefined;
 
   const gridRef = React.useRef(null);
   const onSelectionChangedRef = React.useRef(onSelectionChanged);
@@ -850,6 +862,7 @@ const AgGrid = React.forwardRef(function AgGrid(
         borderRadius="md"
         overflow="hidden"
         bg="white"
+        {...scrollBoxProps}
       >
         <AgGridReact
           ref={combinedRef}
@@ -884,7 +897,8 @@ const AgGrid = React.forwardRef(function AgGrid(
               : undefined
           }
           gridOptions={mergedGridOptions}
-          domLayout="autoHeight"
+          domLayout={scrollsInternally ? "normal" : "autoHeight"}
+          style={gridStyle}
           theme={agGridTheme}
           className={className}
           {...props}
