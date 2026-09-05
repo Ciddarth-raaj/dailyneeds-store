@@ -45,43 +45,19 @@ export function useGrnPriceCheckerItemsMap(productIds, { enabled = true } = {}) 
       setError(null);
       toastShownRef.current = false;
 
-      const results = await Promise.allSettled(
-        ids.map(async (productId) => {
-          const res = await offersV3.getItemsByProduct(productId);
-          const rows = Array.isArray(res?.data) ? res.data : [];
-          return { productId, rows };
-        })
-      );
+      // One request for every product on the GRN. This used to fan out to one
+      // request per product, which on a large GRN dominated the page's load
+      // time -- the browser only runs a handful of them at a time.
+      const res = await offersV3.getItemsByProducts(ids);
+      const byProduct = res?.data ?? {};
 
       const nextMap = new Map();
-      let failedCount = 0;
-
-      for (const result of results) {
-        if (result.status === "fulfilled") {
-          nextMap.set(result.value.productId, result.value.rows);
-        } else {
-          failedCount += 1;
-        }
-      }
-
       for (const productId of ids) {
-        if (!nextMap.has(productId)) {
-          nextMap.set(productId, []);
-        }
+        const rows = byProduct[String(productId)];
+        nextMap.set(productId, Array.isArray(rows) ? rows : []);
       }
 
       setItemsByProductId(nextMap);
-
-      if (failedCount > 0) {
-        const err = new Error(
-          `Failed to load price checker data for ${failedCount} product(s).`
-        );
-        setError(err);
-        if (!toastShownRef.current) {
-          toast.error(err.message);
-          toastShownRef.current = true;
-        }
-      }
     } catch (err) {
       setError(err);
       setItemsByProductId(new Map());
@@ -92,6 +68,8 @@ export function useGrnPriceCheckerItemsMap(productIds, { enabled = true } = {}) 
     } finally {
       setLoading(false);
     }
+    // productIds is read through the ref-stable idsKey on purpose: depending on
+    // the array itself re-runs this on every render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, idsKey]);
 

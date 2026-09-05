@@ -8,8 +8,7 @@ import GrnMonthCalendar from "../../components/grn/GrnMonthCalendar";
 import GrnHighlightLoader from "../../components/grn/GrnHighlightLoader";
 import { Flex, IconButton, Tooltip, useToken } from "@chakra-ui/react";
 import { useGrnList } from "../../customHooks/useGrnList";
-import { useGrnDetailsByRefno } from "../../customHooks/useGrnDetailsByRefno";
-import { useGrnPriceCheckerItemsMap } from "../../customHooks/useGrnPriceCheckerItemsMap";
+import { useGrnIssues } from "../../customHooks/useGrnIssues";
 import {
   getMismatchRowStyle,
   grnDetailHasPriceMismatch,
@@ -82,39 +81,41 @@ function GrnListing() {
     });
   }, [grnList, selectedDate]);
 
-  const refnos = useMemo(
-    () => rowData.map((row) => row?.mmh_mrc_refno).filter(Boolean),
-    [rowData]
+  // The selected day's lines and their price-upload batches in one request --
+  // the same payload the Issue GRN page runs on. Fetching a detail per GRN and
+  // then a batch lookup per product used to cost hundreds of round trips
+  // before this grid could paint.
+  const dayRange = useMemo(
+    () => ({ from_date: selectedDate, to_date: selectedDate }),
+    [selectedDate]
   );
 
-  const { detailsByRefno, loading: detailsLoading } = useGrnDetailsByRefno(
-    refnos,
-    { enabled: !loading && refnos.length > 0 }
-  );
+  const {
+    items: dayItems,
+    itemsByProductId,
+    loading: detailsLoading,
+  } = useGrnIssues(dayRange, { enabled: !loading && rowData.length > 0 });
 
-  const productIds = useMemo(() => {
-    const ids = new Set();
-    detailsByRefno.forEach((detail) => {
-      (detail?.items ?? []).forEach((item) => {
-        if (item?.product_id != null) ids.add(item.product_id);
-      });
+  // listGrnIssues drops ignored lines server-side, which is what the highlight
+  // wants anyway -- getGrnLinePriceMismatch already ignores them too.
+  const itemsByRefno = useMemo(() => {
+    const map = new Map();
+    (dayItems ?? []).forEach((item) => {
+      const key = item?.mmh_mrc_refno != null ? String(item.mmh_mrc_refno) : "";
+      if (!key) return;
+      if (!map.has(key)) map.set(key, []);
+      map.get(key).push(item);
     });
-    return [...ids];
-  }, [detailsByRefno]);
+    return map;
+  }, [dayItems]);
 
-  const { itemsByProductId, loading: pcLoading } = useGrnPriceCheckerItemsMap(
-    productIds,
-    { enabled: !detailsLoading && productIds.length > 0 }
-  );
-
-  const highlightReady = !detailsLoading && !pcLoading;
-  const highlightLoading =
-    !loading && refnos.length > 0 && (detailsLoading || pcLoading);
+  const highlightReady = !detailsLoading;
+  const highlightLoading = !loading && rowData.length > 0 && detailsLoading;
 
   const displayRowData = useMemo(() => {
     const withFlags = rowData.map((row) => {
       const refno = row?.mmh_mrc_refno != null ? String(row.mmh_mrc_refno) : "";
-      const items = detailsByRefno.get(refno)?.items ?? [];
+      const items = itemsByRefno.get(refno) ?? [];
       return {
         ...row,
         _priceMismatch:
@@ -123,7 +124,7 @@ function GrnListing() {
       };
     });
     return sortRowsMismatchFirst(withFlags, (row) => row._priceMismatch);
-  }, [rowData, detailsByRefno, itemsByProductId, highlightReady]);
+  }, [rowData, itemsByRefno, itemsByProductId, highlightReady]);
 
   const colDefs = useMemo(
     () => [

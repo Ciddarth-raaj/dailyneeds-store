@@ -145,6 +145,32 @@ const offersV3 = {
     }),
 
   /**
+   * POST /offers-v3/items-by-product/bulk — the same grouped batches as
+   * getItemsByProduct, for many products in one round trip. Resolves to
+   * { [product_id]: rows }; the GRN pages need every product on a GRN and
+   * one request each was the page's dominant load cost.
+   */
+  getItemsByProducts: (productIds) =>
+    new Promise((resolve, reject) => {
+      const ids = Array.isArray(productIds) ? productIds : [];
+      if (ids.length === 0) {
+        reject(new Error("product_ids is required"));
+        return;
+      }
+
+      API.post("/offers-v3/items-by-product/bulk", { product_ids: ids })
+        .then((res) => {
+          const data = res?.data ?? res;
+          if (data?.code === 200) {
+            resolve(data);
+            return;
+          }
+          reject(new Error(data?.msg ?? "Failed to fetch price upload items"));
+        })
+        .catch((err) => reject(err));
+    }),
+
+  /**
    * GET /offers-v3/items-by-product/outlet-breakdown?product_id=&mrp=&selling_price=
    * Outlet/batch-level breakdown of one merged (mrp, selling_price) row from
    * getItemsByProduct — drill-down for the GRN Price Checker modal.
