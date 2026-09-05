@@ -176,22 +176,29 @@ export function getGrnLinePriceMismatch(row, itemsByProductId, pcLoading = false
   );
 }
 
-// Prices carry two decimals, so anything above half a paisa apart is a real
-// move rather than float noise.
-export const NET_COST_CHANGE_TOLERANCE = 0.005;
+/** A price in whole paise, matching the two decimals the grids display. */
+function toPaise(value) {
+  const n = parseGrnPrice(value);
+  return n == null ? null : Math.round(n * 100);
+}
 
 /**
  * Whether this GRN line's Net Cost moved from what the item last cost --
  * mmd_pur_price against mmd_prev_pur_price, the "Net Cost" and "Prev.N.cost"
  * columns. A missing or zero Prev.N.cost means there is no earlier purchase to
  * compare against, which is not a change.
+ *
+ * Compared in whole paise, the precision the grid renders: GoFrugal carries
+ * more decimals than that, so two costs that both display as 24.38 are the
+ * same cost as far as anyone reading the page is concerned. Comparing the raw
+ * values instead highlighted rows whose two visible numbers were identical.
  */
 export function isGrnNetCostChanged(row) {
   if (!row) return false;
-  const current = parseGrnPrice(row.mmd_pur_price);
-  const previous = parseGrnPrice(row.mmd_prev_pur_price);
+  const current = toPaise(row.mmd_pur_price);
+  const previous = toPaise(row.mmd_prev_pur_price);
   if (current == null || previous == null || previous === 0) return false;
-  return Math.abs(current - previous) > NET_COST_CHANGE_TOLERANCE;
+  return current !== previous;
 }
 
 /** Margin between MRP and (Pur. Rate + Tax), as a % of MRP. */
