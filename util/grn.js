@@ -49,15 +49,15 @@ export function parseGrnPrice(value) {
   return Number.isFinite(n) ? n : null;
 }
 
-// "Same" means same to within rounding, not merely close. Prices carry two
-// decimals, so a genuine policy match lands within a few hundredths of a
-// point, while a real price difference shows up at a quarter point or more:
-// a batch selling at 79.00 against a GRN line at 95.00 sat 1.00 point apart
-// on markup and 0.24 apart on discount %, and read as a match under the
-// wider tolerances these replace.
-export const DISCOUNT_PCT_TOLERANCE = 0.1;
+// The same pricing policy on a different pack size lands a fraction of a
+// point away rather than exactly: a 30.00/28.50 batch against a 35.00/33.30
+// GRN line sits 0.14 apart on discount % and 0.16 on markup. 0.45 and 0.5
+// absorb that, while a genuinely different price -- 1.30 and 3.67 apart on
+// the Neoveer line -- stays well outside. Discount amount is in rupees and
+// stays effectively exact.
+export const DISCOUNT_PCT_TOLERANCE = 0.45;
 export const DISCOUNT_AMOUNT_TOLERANCE = 0.01;
-export const MARKUP_PCT_TOLERANCE = 0.1;
+export const MARKUP_PCT_TOLERANCE = 0.5;
 
 export function parseDiscountPct(value) {
   return parseGrnPrice(value);
