@@ -32,6 +32,14 @@ export const ignoreGrnIssues = (items) => {
   });
 };
 
+export const unignoreGrnIssues = (items) => {
+  return API.post("/grn/issues/unignore", { items }).then((res) => {
+    const data = res?.data ?? res;
+    if (data?.code === 200) return data;
+    throw new Error(data?.msg || "Failed to un-ignore GRN issue(s)");
+  });
+};
+
 export const getGrnDetail = (refno) => {
   return API.get("/grn/detail", {
     params: { refno },
