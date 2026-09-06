@@ -5,6 +5,7 @@ import styles from "./header.module.css";
 import Head from "../../util/head";
 import { useUser } from "../../contexts/UserContext";
 import ChangePasswordModal from "../ChangePassword";
+import TelegramLinkModal from "../TelegramLink";
 import { useBreakpointValue } from "@chakra-ui/react";
 
 /** Menu column widths; rail width comes from `sidebarRailWidth` event (0 or 40). */
@@ -89,6 +90,7 @@ export default function Header() {
   const [loginVisibility, setLoginVisibility] = React.useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+  const [isTelegramLinkOpen, setIsTelegramLinkOpen] = useState(false);
   const isMobile = useBreakpointValue({ base: true, md: false });
   const [isSidebarMinimized, setIsSidebarMinimized] = useState(
     readDesktopSidebarMinimized
@@ -178,9 +180,34 @@ export default function Header() {
     setIsDropdownOpen(false);
   };
 
-  const openChangePassword = () => {
+  /**
+   * Keep the menu up long enough for a press to become a click.
+   *
+   * The menu closes on blur, and pressing an item moves focus off the
+   * wrapper — so without this the menu is already hidden by the time the
+   * click is dispatched, and the click lands on whatever is underneath.
+   * Suppressing the focus shift is enough; the item still receives its click.
+   *
+   * This is why the Log Out item acts on touchstart. That fires before the
+   * blur, but it is the wrong event for anything that opens a dialog: the
+   * dialog appears under the still-down finger and the follow-up click
+   * dismisses it through the overlay, which on a phone looks like a screen
+   * that opens and vanishes.
+   */
+  const keepMenuOpenOnPress = (event) => {
+    event.preventDefault();
+  };
+
+  const openChangePassword = (event) => {
+    event?.stopPropagation();
     setIsDropdownOpen(false);
     setIsChangePasswordOpen(true);
+  };
+
+  const openTelegramLink = (event) => {
+    event?.stopPropagation();
+    setIsDropdownOpen(false);
+    setIsTelegramLinkOpen(true);
   };
 
   const handleKeyDown = (event) => {
@@ -239,13 +266,23 @@ export default function Header() {
           >
             <a
               className={styles.menuItem}
+              onMouseDown={keepMenuOpenOnPress}
               onClick={openChangePassword}
-              onTouchStart={openChangePassword}
               role="button"
               tabIndex={0}
             >
               <i className="fa-solid fa-key" aria-hidden="true" />
               Change Password
+            </a>
+            <a
+              className={styles.menuItem}
+              onMouseDown={keepMenuOpenOnPress}
+              onClick={openTelegramLink}
+              role="button"
+              tabIndex={0}
+            >
+              <i className="fa-brands fa-telegram" aria-hidden="true" />
+              Link Telegram
             </a>
             {Object.keys(settings).map((key) => (
               <React.Fragment key={key}>
@@ -285,6 +322,10 @@ export default function Header() {
       <ChangePasswordModal
         isOpen={isChangePasswordOpen}
         onClose={() => setIsChangePasswordOpen(false)}
+      />
+      <TelegramLinkModal
+        isOpen={isTelegramLinkOpen}
+        onClose={() => setIsTelegramLinkOpen(false)}
       />
     </div>
   );
