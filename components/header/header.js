@@ -172,12 +172,32 @@ export default function Header() {
     setIsDropdownOpen(false);
   };
 
-  const openChangePassword = () => {
+  /**
+   * Keep the menu up long enough for a press to become a click.
+   *
+   * The menu closes on blur, and pressing an item moves focus off the
+   * wrapper — so without this the menu is already hidden by the time the
+   * click is dispatched, and the click lands on whatever is underneath.
+   * Suppressing the focus shift is enough; the item still receives its click.
+   *
+   * This is why the Log Out item acts on touchstart. That fires before the
+   * blur, but it is the wrong event for anything that opens a dialog: the
+   * dialog appears under the still-down finger and the follow-up click
+   * dismisses it through the overlay, which on a phone looks like a screen
+   * that opens and vanishes.
+   */
+  const keepMenuOpenOnPress = (event) => {
+    event.preventDefault();
+  };
+
+  const openChangePassword = (event) => {
+    event?.stopPropagation();
     setIsDropdownOpen(false);
     setIsChangePasswordOpen(true);
   };
 
-  const openTelegramLink = () => {
+  const openTelegramLink = (event) => {
+    event?.stopPropagation();
     setIsDropdownOpen(false);
     setIsTelegramLinkOpen(true);
   };
@@ -238,8 +258,8 @@ export default function Header() {
           >
             <a
               className={styles.menuItem}
+              onMouseDown={keepMenuOpenOnPress}
               onClick={openChangePassword}
-              onTouchStart={openChangePassword}
               role="button"
               tabIndex={0}
             >
@@ -248,8 +268,8 @@ export default function Header() {
             </a>
             <a
               className={styles.menuItem}
+              onMouseDown={keepMenuOpenOnPress}
               onClick={openTelegramLink}
-              onTouchStart={openTelegramLink}
               role="button"
               tabIndex={0}
             >
