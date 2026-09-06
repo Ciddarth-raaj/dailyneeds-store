@@ -21,6 +21,7 @@ import { Formik, Form } from "formik";
 import CustomInput from "../components/customInput/customInput";
 import { BranchValidation } from "../util/validation";
 import { withUser } from "../hocs/withUser";
+import ForgotPasswordModal from "../components/ForgotPassword";
 
 const IP_BLOCKED_MESSAGE =
   "This account can only be used from an approved network. Please sign in from your store's connection, or ask an admin to allow this network.";
@@ -34,6 +35,7 @@ class LogIn extends React.Component {
       show: true,
       token: "",
       blockedIp: null,
+      forgotOpen: false,
     };
   }
 
@@ -84,7 +86,7 @@ class LogIn extends React.Component {
 
   render() {
     const { setVisibility } = this.props;
-    const { toggle, isLoading, show, token, blockedIp } = this.state;
+    const { toggle, isLoading, show, token, blockedIp, forgotOpen } = this.state;
     return (
       <Formik
         initialValues={{
@@ -157,6 +159,26 @@ class LogIn extends React.Component {
                       Login
                     </Button>
                   </Flex>
+
+                  <Flex justifyContent="center" marginTop="12px">
+                    <Button
+                      variant="link"
+                      size="sm"
+                      colorScheme="purple"
+                      type="button"
+                      onClick={() => this.setState({ forgotOpen: true })}
+                    >
+                      Forgot password?
+                    </Button>
+                  </Flex>
+
+                  {/* Seeded with whatever is already typed, so the username
+                      does not have to be entered a second time. */}
+                  <ForgotPasswordModal
+                    isOpen={forgotOpen}
+                    initialUsername={values.username || ""}
+                    onClose={() => this.setState({ forgotOpen: false })}
+                  />
                 </div>
               </Container>
             </Form>

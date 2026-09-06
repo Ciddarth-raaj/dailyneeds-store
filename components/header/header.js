@@ -4,6 +4,7 @@ import styles from "./header.module.css";
 import Head from "../../util/head";
 import { useUser } from "../../contexts/UserContext";
 import ChangePasswordModal from "../ChangePassword";
+import TelegramLinkModal from "../TelegramLink";
 import { useBreakpointValue } from "@chakra-ui/react";
 
 /** Menu column widths; rail width comes from `sidebarRailWidth` event (0 or 40). */
@@ -88,6 +89,7 @@ export default function Header() {
   const [loginVisibility, setLoginVisibility] = React.useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+  const [isTelegramLinkOpen, setIsTelegramLinkOpen] = useState(false);
   const isMobile = useBreakpointValue({ base: true, md: false });
   const [isSidebarMinimized, setIsSidebarMinimized] = useState(
     readDesktopSidebarMinimized
@@ -175,6 +177,11 @@ export default function Header() {
     setIsChangePasswordOpen(true);
   };
 
+  const openTelegramLink = () => {
+    setIsDropdownOpen(false);
+    setIsTelegramLinkOpen(true);
+  };
+
   const handleKeyDown = (event) => {
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
@@ -239,6 +246,16 @@ export default function Header() {
               <i className="fa-solid fa-key" aria-hidden="true" />
               Change Password
             </a>
+            <a
+              className={styles.menuItem}
+              onClick={openTelegramLink}
+              onTouchStart={openTelegramLink}
+              role="button"
+              tabIndex={0}
+            >
+              <i className="fa-brands fa-telegram" aria-hidden="true" />
+              Link Telegram
+            </a>
             {Object.keys(settings).map((key) => (
               <React.Fragment key={key}>
                 {settings[key].title !== "Log In" ? (
@@ -277,6 +294,10 @@ export default function Header() {
       <ChangePasswordModal
         isOpen={isChangePasswordOpen}
         onClose={() => setIsChangePasswordOpen(false)}
+      />
+      <TelegramLinkModal
+        isOpen={isTelegramLinkOpen}
+        onClose={() => setIsTelegramLinkOpen(false)}
       />
     </div>
   );
