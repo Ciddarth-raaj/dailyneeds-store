@@ -76,6 +76,14 @@ class LogIn extends React.Component {
           global.config.designation = data.data.designation;
           global.config.employee_image = data.data.employee_image;
 
+          // Stage 0A: an account flagged for a password change goes straight
+          // to the change screen. The server confines the session to that
+          // screen too once enforcement is on; this just avoids a bounce.
+          if (data.data.must_change_password) {
+            window.location.href = "/change-password?required=1";
+            return;
+          }
+
           window.location.href = "/";
         }
       })

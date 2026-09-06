@@ -1,5 +1,6 @@
 /* eslint-disable @next/next/no-img-element */
 import React, { useEffect, useState } from "react";
+import UserHelper from "../../helper/user";
 import styles from "./header.module.css";
 import Head from "../../util/head";
 import { useUser } from "../../contexts/UserContext";
@@ -142,7 +143,14 @@ export default function Header() {
     }
   }, [isMobile, isDropdownOpen]);
 
-  const logout = () => {
+  const logout = async () => {
+    // Stage 0A / C5: tell the server first so the token stops verifying,
+    // then clear the client. Clearing happens even if the call fails.
+    try {
+      await UserHelper.logout();
+    } catch (err) {
+      // ignore - the client-side clear below still happens
+    }
     localStorage.removeItem("Token");
     localStorage.removeItem("Designation_id");
     localStorage.removeItem("Store_id");

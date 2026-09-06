@@ -56,6 +56,8 @@ const unprotectedPath = {
   //   '/open-issue': true,
   //   '/serviceprovider-list': true
   "/": true,
+  // Stage 0A: redeeming a setup/reset link happens before there is a session.
+  "/setup-password": true,
 };
 
 class MyApp extends React.Component {

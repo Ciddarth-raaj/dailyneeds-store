@@ -15,8 +15,8 @@ import toast from "react-hot-toast";
 import CustomModal from "../CustomModal";
 import UserHelper from "../../helper/user";
 
-/** Must match MIN_PASSWORD_LENGTH in the API, which is what actually enforces it. */
-export const MIN_PASSWORD_LENGTH = 6;
+/** Must match AUTH_PASSWORD_MIN_LENGTH in the API, which is what actually enforces it. */
+export const MIN_PASSWORD_LENGTH = 8;
 
 const EMPTY = { current: "", next: "", confirm: "" };
 
