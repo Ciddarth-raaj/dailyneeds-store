@@ -86,14 +86,13 @@ function TelegramLinkModal({ isOpen, onClose }) {
       );
     }
 
-    // Without a configured bot the deep link cannot be built at all; say so
-    // rather than hand out a link that goes nowhere.
+    // The server names the bot from its own token, so this only happens when
+    // Telegram is unreachable — a wait-and-retry, not something to configure.
     if (status && !status.botConfigured) {
       return (
         <Alert status="warning" borderRadius="md" fontSize="13px">
           <AlertIcon />
-          Telegram is not configured on this server yet. Ask an admin to set
-          TELEGRAM_BOT_USERNAME.
+          Could not reach Telegram just now. Try again in a moment.
         </Alert>
       );
     }
