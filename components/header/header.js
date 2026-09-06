@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import styles from "./header.module.css";
 import Head from "../../util/head";
 import { useUser } from "../../contexts/UserContext";
+import ChangePasswordModal from "../ChangePassword";
 import { useBreakpointValue } from "@chakra-ui/react";
 
 /** Menu column widths; rail width comes from `sidebarRailWidth` event (0 or 40). */
@@ -86,6 +87,7 @@ export default function Header() {
   const [token, setToken] = React.useState(null);
   const [loginVisibility, setLoginVisibility] = React.useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
   const isMobile = useBreakpointValue({ base: true, md: false });
   const [isSidebarMinimized, setIsSidebarMinimized] = useState(
     readDesktopSidebarMinimized
@@ -168,6 +170,11 @@ export default function Header() {
     setIsDropdownOpen(false);
   };
 
+  const openChangePassword = () => {
+    setIsDropdownOpen(false);
+    setIsChangePasswordOpen(true);
+  };
+
   const handleKeyDown = (event) => {
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
@@ -222,6 +229,16 @@ export default function Header() {
               }`}
             style={{ display: isDropdownOpen ? "block" : "none" }}
           >
+            <a
+              className={styles.menuItem}
+              onClick={openChangePassword}
+              onTouchStart={openChangePassword}
+              role="button"
+              tabIndex={0}
+            >
+              <i className="fa-solid fa-key" aria-hidden="true" />
+              Change Password
+            </a>
             {Object.keys(settings).map((key) => (
               <React.Fragment key={key}>
                 {settings[key].title !== "Log In" ? (
@@ -257,6 +274,10 @@ export default function Header() {
           </div>
         </div>
       </div>
+      <ChangePasswordModal
+        isOpen={isChangePasswordOpen}
+        onClose={() => setIsChangePasswordOpen(false)}
+      />
     </div>
   );
 }
