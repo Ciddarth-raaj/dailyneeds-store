@@ -2,6 +2,24 @@ import API from "../util/api";
 import moment from "moment";
 
 const EmployeeHelper = {
+  /**
+   * The operational employee directory: id and name only, active employees of
+   * the caller's own outlet. Unlike `getEmployee` it needs no HR permission,
+   * which is what an outlet screen's name dropdown actually requires.
+   *
+   * The outlet comes from the session on the server; nothing is sent from
+   * here, and a store_id from a normal user would be ignored anyway.
+   */
+  getDirectory: () =>
+    new Promise(function (resolve, reject) {
+      API.get("/employee/directory")
+        .then(async (res) => {
+          resolve(res.data);
+        })
+        .catch((err) => {
+          reject(err);
+        });
+    }),
   getEmployee: (filter) =>
     new Promise(function (resolve, reject) {
       const queryParams = new URLSearchParams();
