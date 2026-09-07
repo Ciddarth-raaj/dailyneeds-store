@@ -14,8 +14,7 @@ import currencyFormatter from "../../../util/currencyFormatter";
 import styles from "../../../styles/master.module.css";
 import { PAYMENT_TYPES_ACCOUNTS } from "../../../constants/values";
 import usePeople from "../../../customHooks/usePeople";
-import { useUser } from "../../../contexts/UserContext";
-import useEmployees from "../../../customHooks/useEmployees";
+import useEmployeeDirectory from "../../../customHooks/useEmployeeDirectory";
 import { CASHIER_DESIGNATION } from "../../../constants/designations";
 
 function AccountForm({ formikProps, isViewMode, isSaved, onDateChange, mode }) {
@@ -24,18 +23,19 @@ function AccountForm({ formikProps, isViewMode, isSaved, onDateChange, mode }) {
 
   // custom hooks
   const { peopleList } = usePeople();
-  const { storeId } = useUser().userConfig;
-  const { employees: allEmployees } = useEmployees({
-    store_ids: storeId === null ? [] : [storeId],
-    designation_ids: [],
-  });
+  // The directory returns id and name for the caller's own outlet and needs
+  // no HR permission. `useEmployees` calls /employee/employees, which B2 gates
+  // on `view_employees` - a permission accounts and outlet staff do not hold,
+  // which is what left this dropdown empty. The outlet is derived from the
+  // session on the server, so nothing is passed from here.
+  const { employees: allEmployees } = useEmployeeDirectory();
 
   const [isDenominationOpen, setIsDenominationOpen] = useState(false);
 
   const differenceAmount = getAmmountDifference(values);
 
+  // Already sorted by name in the hook.
   const EMPLOYEES_MENU = allEmployees
-    .sort((a, b) => ("" + a.employee_name).localeCompare(b.employee_name))
     .map((item) => ({
       id: item.employee_id,
       value: item.employee_name,
