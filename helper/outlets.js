@@ -11,6 +11,21 @@ const outlet = {
           reject(err);
         });
     }),
+  /**
+   * The outlet dropdown list: `outlet_id` and `outlet_name` only, and no
+   * `view_stores` requirement. `/outlet` returns the whole outlet record and
+   * needs that permission; a picker never did.
+   */
+  getOutletDirectory: () =>
+    new Promise(function (resolve, reject) {
+      API.get("/outlet/directory")
+        .then(async (res) => {
+          resolve(res.data);
+        })
+        .catch((err) => {
+          reject(err);
+        });
+    }),
   getOutletById: (outlet_id) =>
     new Promise(function (resolve, reject) {
       API.get("/outlet/outlet_id?outlet_id=" + outlet_id)
