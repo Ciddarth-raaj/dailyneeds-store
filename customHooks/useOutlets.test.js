@@ -72,8 +72,14 @@ test("the default is unchanged, so other consumers keep the full record", () => 
 });
 
 test("no other consumer was switched to the directory", () => {
-  // Only the two pickers opted in. Everything else still gets the full record,
-  // so this change cannot have widened or narrowed anything else by accident.
+  // The opt-in list is explicit, so nothing can start using the directory - or
+  // stop using it - without this test saying so. Everything not listed still
+  // gets the full, permission-gated record.
+  //
+  //   the two pickers          the /purchase outlet hotfix
+  //   the two HR screens       C3: the outlet filter and the Outlet dropdown,
+  //                            both of which need only an id and a name and
+  //                            must work for HR without `view_stores`
   const roots = ["pages", "components", "customHooks"];
   const optedIn = [];
   const walk = (dir) => {
@@ -96,6 +102,9 @@ test("no other consumer was switched to the directory", () => {
   assert.deepEqual(optedIn.sort(), [
     "components/DateOutletPicker/FromToDateOutletPicker.jsx",
     "components/DateOutletPicker/index.jsx",
+    "pages/hr/employees/[id].jsx",
+    "pages/hr/employees/index.jsx",
+    "pages/hr/employees/new.jsx",
   ]);
 });
 
