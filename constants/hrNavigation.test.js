@@ -128,3 +128,47 @@ test("THE SYNC BUTTON AND LAST SYNC ARE GONE FROM THE EMPLOYEE MASTER", () => {
     assert.ok(!/useEmployees\(/.test(c), `${name} must not use the syncing hook`);
   }
 });
+
+/* ================================ one employee PROFILE, as well as one list */
+test("the canonical employee profile appears exactly once as an implementation", () => {
+  const pages = path.join(__dirname, "..", "pages");
+  const profiles = [];
+
+  const walk = (dir) => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        walk(full);
+        continue;
+      }
+      if (!/\.(js|jsx)$/.test(entry.name)) continue;
+      const body = fs.readFileSync(full, "utf8");
+      // A page that fetches an employee's lifecycle IS an employee profile.
+      if (/HrHelper\.getLifecycle\(|EmployeeHelper\.getEmployeeByID\(/.test(body)) {
+        profiles.push(path.relative(pages, full).replace(/\\/g, "/"));
+      }
+    }
+  };
+  walk(pages);
+
+  assert.deepStrictEqual(profiles, ["hr/employees/[id].jsx"], "one profile, in HR");
+});
+
+test("HR navigation still appears exactly once, and still holds the three pages", () => {
+  const modules = code.slice(code.indexOf("export const MENU_MODULES"));
+  assert.strictEqual((modules.match(/\bhr:\s*\{/g) || []).length, 1, "one HR module");
+
+  const hrMenu = treeNamed("HR_MENU");
+  assert.deepStrictEqual(locationsIn(hrMenu).sort(), [
+    "/department",
+    "/designation",
+    "/hr/employees",
+  ]);
+});
+
+test("Attendance and Payroll are still not inside HR", () => {
+  const hrMenu = treeNamed("HR_MENU");
+  for (const notYet of ["attendance", "payroll", "Attendance", "Payroll"]) {
+    assert.ok(!hrMenu.includes(notYet), `HR must not contain ${notYet}`);
+  }
+});
