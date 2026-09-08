@@ -321,3 +321,92 @@ test("the summary carries no sensitive value into the list", () => {
   assert.match(code, /s\.bank_status/);
   assert.match(code, /s\.bank_payroll_ready/);
 });
+
+/* ================================ C3 revision: Card view and the toggle = */
+const card = read("components/hr/EmployeeCard.jsx");
+
+test("the list opens in CARD view by default", () => {
+  const code = codeOf(list);
+  assert.match(code, /useState\("card"\)/, "cards are the default, not the fallback");
+  // And the default is a literal, not read from storage during render - doing
+  // that server-side and client-side gives two different first renders.
+  const initial = code.slice(code.indexOf('useState("card")'), code.indexOf('useState("card")') + 40);
+  assert.ok(!/localStorage/.test(initial), "the first render must not read storage");
+  assert.match(code, /useEffect\(\(\) => \{[\s\S]{0,200}localStorage\.getItem/, "it is read after mount");
+});
+
+test("both views are offered, and the choice is remembered", () => {
+  const code = codeOf(list);
+  assert.match(code, /chooseView\("card"\)/);
+  assert.match(code, /chooseView\("list"\)/);
+  assert.match(code, /localStorage\.setItem\(VIEW_STORAGE_KEY/);
+  // Storage being unavailable must not stop the toggle working.
+  const chooser = code.slice(code.indexOf("const chooseView"), code.indexOf("const [search"));
+  assert.match(chooser, /try \{/);
+  assert.match(chooser, /catch/);
+  assert.ok(chooser.indexOf("setView(next)") < chooser.indexOf("localStorage"), "the view changes first");
+});
+
+test("the two views share one data set, so switching cannot change the answer", () => {
+  const code = codeOf(list);
+  // Both render from `filtered`; neither re-fetches or re-filters.
+  assert.match(code, /filtered\.slice\(0, cardsShown\)\.map/, "cards come from the filtered rows");
+  assert.match(code, /view !== "list" \? \[\] : filtered\.map/, "so does the table");
+  const fetches = (code.match(/EmployeeHelper\.getEmployee\(/g) || []).length;
+  assert.strictEqual(fetches, 1, "one fetch, whichever view is showing");
+});
+
+test("THE CARD SHOWS THE EIGHT THINGS THAT MATTER, AND NOT THE REST", () => {
+  const code = codeOf(card);
+  for (const field of [
+    "employee.employee_name",
+    "employee.designation_name",
+    "employee.store_name",
+    "employee.department_name",
+    "employee.employee_id",
+    "employee.status",
+    "status.aadhaar_status",
+    "status.bank_status",
+  ]) {
+    assert.ok(code.includes(field), `the card must show ${field}`);
+  }
+  // Detail belongs in the list view and on the profile, not on a card meant
+  // to be scanned.
+  for (const notOnACard of ["primary_contact_number", "date_of_joining", "shift", "salary"]) {
+    assert.ok(!code.includes(notOnACard), `${notOnACard} does not belong on the card`);
+  }
+});
+
+test("the card renders nothing sensitive, and reuses the shared badges", () => {
+  const code = codeOf(card);
+  for (const forbidden of [
+    "aadhaar_number", "aadhaar_last4", "account_no", "account_last4",
+    "ifsc", "fingerprint", "ciphertext", "name_at_bank",
+  ]) {
+    assert.ok(!new RegExp(forbidden).test(code), `the card must not render ${forbidden}`);
+  }
+  assert.match(code, /<AadhaarListBadge/);
+  assert.match(code, /<BankListBadge/);
+  assert.match(code, /<EmploymentBadge/);
+});
+
+test("every card opens that employee's profile", () => {
+  assert.match(codeOf(card), /href=\{`\/hr\/employees\/\$\{employee\.employee_id\}`\}/);
+});
+
+test("the list view keeps the detail a card leaves off", () => {
+  const heading = list.slice(list.indexOf("const heading = {"), list.indexOf("const tableRows"));
+  for (const detail of ["primary_contact_number", "date_of_joining"]) {
+    assert.ok(heading.includes(detail), `the table is for bulk scanning; it keeps ${detail}`);
+  }
+  assert.match(heading, /aadhaar: "Aadhaar"/);
+  assert.match(heading, /bank: "Bank"/);
+});
+
+test("the card grid is paged, so 630 employees do not all mount at once", () => {
+  const code = codeOf(list);
+  assert.match(code, /const CARD_PAGE = \d+/);
+  assert.match(code, /Showing \{cardsShown\} of \{filtered\.length\}/, "the true total stays visible");
+  // A new filter is a new question and starts from the first page.
+  assert.match(code, /setCardsShown\(CARD_PAGE\)/);
+});

@@ -439,7 +439,9 @@ class Create extends React.Component {
         .then((data) => {
           if (data === 200) {
             toast.success("Successfully created employee!");
-            router.push("/employee");
+            // The employee master is /hr/employees now; /employee only
+            // redirects there, so going straight to it saves a bounce.
+            router.push("/hr/employees");
           } else {
             toast.error("Error creating Account");
             throw `${data.msg}`;

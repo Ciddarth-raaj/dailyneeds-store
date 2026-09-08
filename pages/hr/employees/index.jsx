@@ -1,9 +1,21 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Button, Input, Select, Stack, Text, Spinner, Alert, AlertIcon } from "@chakra-ui/react";
+import {
+  Button,
+  ButtonGroup,
+  Input,
+  Select,
+  SimpleGrid,
+  Stack,
+  Text,
+  Spinner,
+  Alert,
+  AlertIcon,
+} from "@chakra-ui/react";
 import GlobalWrapper from "../../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../../components/CustomContainer";
 import Table from "../../../components/table/table";
+import EmployeeCard from "../../../components/hr/EmployeeCard";
 import {
   AadhaarListBadge,
   BankListBadge,
@@ -34,10 +46,25 @@ import { statusSummaryIndex } from "../../../util/hrStatus";
  * uses; calling them from here would be 1,260 requests to draw one screen,
  * which is the reason the bulk endpoint exists.
  *
- * IF THE SUMMARY FAILS the list still renders. The two columns fall back to a
+ * IF THE SUMMARY FAILS the list still renders. The two statuses fall back to a
  * neutral dash - "not known" rather than "not verified" - because the list is
  * useful without them and useless if a status request can blank it.
+ *
+ * TWO VIEWS, ONE DATA SET. Cards are the default, because the everyday task is
+ * "find this person and see where they stand", and a card answers that at a
+ * glance. The table is kept for the other task - scanning several hundred rows
+ * for the ones that need chasing - and shows the detail a card deliberately
+ * leaves off. The choice is remembered per browser; the filters, the search
+ * and the data are shared, so switching view never changes what is shown, only
+ * how.
+ *
+ * THERE IS NO SYNC BUTTON, and this is the point of C1/C2 rather than an
+ * omission: dnds.co.in IS the employee master now. Employees are created,
+ * edited, resigned and rejoined here. A "Sync" action and a "Last Sync" line
+ * would describe Digisme owning these records and this screen showing a copy,
+ * which stopped being true.
  */
+const VIEW_STORAGE_KEY = "hr.employees.view";
 function HrEmployeeList() {
   const canView = usePermissions(["view_employees"]);
   const canCreate = usePermissions(["employee_create"]);
@@ -50,6 +77,34 @@ function HrEmployeeList() {
   const [loading, setLoading] = useState(true);
   const [denied, setDenied] = useState(false);
   const [error, setError] = useState(false);
+
+  // Cards by default. Read from localStorage after mount rather than during
+  // the first render, so the server-rendered markup and the client's first
+  // render agree - a mismatch is a hydration error, not a preference.
+  const [view, setView] = useState("card");
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(VIEW_STORAGE_KEY);
+      if (saved === "card" || saved === "list") setView(saved);
+    } catch (err) {
+      // A browser with site data blocked still gets the default.
+    }
+  }, []);
+
+  const chooseView = (next) => {
+    setView(next);
+    try {
+      window.localStorage.setItem(VIEW_STORAGE_KEY, next);
+    } catch (err) {
+      // Not remembering the choice is not a reason to refuse to make it.
+    }
+  };
+
+  // 630 cards at once is a lot of DOM for a screen somebody is scanning the
+  // top of. Shown in pages, with the count always visible so nobody mistakes
+  // the first batch for the whole answer.
+  const CARD_PAGE = 48;
+  const [cardsShown, setCardsShown] = useState(CARD_PAGE);
 
   const [search, setSearch] = useState("");
   const [outlet, setOutlet] = useState("");
@@ -129,6 +184,11 @@ function HrEmployeeList() {
     });
   }, [rows, search, outlet, designation, status]);
 
+  // A new filter is a new question; it starts at the first page of answers.
+  useEffect(() => {
+    setCardsShown(CARD_PAGE);
+  }, [search, outlet, designation, status]);
+
   const heading = {
     employee_id: "ID",
     employee_name: "Name",
@@ -143,7 +203,9 @@ function HrEmployeeList() {
     open: "",
   };
 
-  const tableRows = filtered.map((e) => {
+  // Built only for the view that uses it: in card view this would be several
+  // hundred table cells nobody is going to look at.
+  const tableRows = view !== "list" ? [] : filtered.map((e) => {
     // `undefined` when the summary has not loaded, or was refused. The badges
     // treat that as unknown rather than as Pending.
     const s = statuses[String(e.employee_id)] || {};
@@ -174,13 +236,37 @@ function HrEmployeeList() {
         title="Employees"
         filledHeader
         rightSection={
-          canCreate ? (
-            <Link href="/hr/employees/new" passHref>
-              <Button colorScheme="purple" size="sm">
-                Add Employee
+          <Stack direction="row" spacing={3} align="center">
+            {/* Card / List. Not a setting buried somewhere - the two views
+                serve two different tasks, so the switch sits on both. */}
+            <ButtonGroup size="sm" isAttached variant="outline">
+              <Button
+                onClick={() => chooseView("card")}
+                colorScheme={view === "card" ? "purple" : "gray"}
+                variant={view === "card" ? "solid" : "outline"}
+                aria-pressed={view === "card"}
+                leftIcon={<i className="fa fa-th-large" aria-hidden="true" />}
+              >
+                Cards
               </Button>
-            </Link>
-          ) : null
+              <Button
+                onClick={() => chooseView("list")}
+                colorScheme={view === "list" ? "purple" : "gray"}
+                variant={view === "list" ? "solid" : "outline"}
+                aria-pressed={view === "list"}
+                leftIcon={<i className="fa fa-list" aria-hidden="true" />}
+              >
+                List
+              </Button>
+            </ButtonGroup>
+            {canCreate ? (
+              <Link href="/hr/employees/new" passHref>
+                <Button colorScheme="purple" size="sm">
+                  Add Employee
+                </Button>
+              </Link>
+            ) : null}
+          </Stack>
         }
       >
         {!canView ? (
@@ -250,15 +336,50 @@ function HrEmployeeList() {
                 {statusUnavailable ? (
                   <Alert status="info" fontSize="sm" mb={3}>
                     <AlertIcon />
-                    Aadhaar and bank status could not be loaded, so those two columns show a dash.
-                    Everything else on this page is unaffected, and each employee&apos;s status is on
-                    their profile.
+                    Aadhaar and bank status could not be loaded, so they show a dash. Everything
+                    else on this page is unaffected, and each employee&apos;s status is on their
+                    profile.
                   </Alert>
                 ) : null}
-                <Text fontSize="sm" color="gray.600" mb={2}>
+                <Text fontSize="sm" color="gray.600" mb={3}>
                   {filtered.length} employee{filtered.length === 1 ? "" : "s"}
                 </Text>
-                <Table heading={heading} rows={tableRows} showPagination defaultRowsPerPage={50} />
+
+                {filtered.length === 0 ? (
+                  <Alert status="info" fontSize="sm">
+                    <AlertIcon />
+                    No employee matches these filters.
+                  </Alert>
+                ) : view === "card" ? (
+                  <>
+                    <SimpleGrid columns={{ base: 1, sm: 2, lg: 3, xl: 4 }} spacing={4}>
+                      {filtered.slice(0, cardsShown).map((e) => (
+                        <EmployeeCard
+                          key={e.employee_id}
+                          employee={e}
+                          status={statuses[String(e.employee_id)] || {}}
+                        />
+                      ))}
+                    </SimpleGrid>
+                    {filtered.length > cardsShown ? (
+                      <Stack align="center" mt={5} spacing={2}>
+                        <Text fontSize="sm" color="gray.600">
+                          Showing {cardsShown} of {filtered.length}
+                        </Text>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          colorScheme="purple"
+                          onClick={() => setCardsShown((n) => n + CARD_PAGE)}
+                        >
+                          Show more
+                        </Button>
+                      </Stack>
+                    ) : null}
+                  </>
+                ) : (
+                  <Table heading={heading} rows={tableRows} showPagination defaultRowsPerPage={50} />
+                )}
               </>
             )}
           </>

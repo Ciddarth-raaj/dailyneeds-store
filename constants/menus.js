@@ -28,101 +28,17 @@ const ALL_PAGES_MENU = {
       },
     },
   },
-  employee: {
-    title: "Employees",
-    selected: true,
-    openPage: true,
-    icon: "fa-users",
-    subMenu: {
-      view: {
-        title: "Employee",
-        permission: "view_employees",
-        selected: false,
-        location: "/employee",
-      },
-      // Stage 0C / C3. The HR employee master: join, resign, rejoin, Aadhaar
-      // and bank verification, all under one permanent employee ID. Gated on
-      // view_employees like the list it replaces for HR work; the individual
-      // actions carry their own permissions at the route.
-      hr_employees: {
-        title: "HR Employees",
-        permission: "view_employees",
-        selected: false,
-        location: "/hr/employees",
-      },
-      view_departments: {
-        title: "Department",
-        permission: "view_department",
-        selected: false,
-        location: "/department",
-      },
-      view_designation: {
-        title: "Designation",
-        permission: "view_designation",
-        selected: false,
-        location: "/designation",
-      },
-      // view_shift: {
-      //   title: "Shift",
-      //   permission: "view_shift",
-      //   selected: false,
-      //   location: "/shift",
-      // },
-      // view_family: {
-      //   title: "Family",
-      //   permission: "view_family",
-      //   selected: false,
-      //   location: "/family",
-      // },
-      // // view_adhaar: {
-      // //     title: "View Adhaar",
-      // //     selected: false,
-      // //     location: "/adhaar",
-      // // },
-      // view_documents: {
-      //   title: "Document",
-      //   permission: "view_documents",
-      //   selected: false,
-      //   location: "/document",
-      // },
-      // view_withoutAdhaar: {
-      //   title: "Without Adhaar",
-      //   permission: "view_without_adhaar",
-      //   selected: false,
-      //   location: "/without-adhaar",
-      // },
-      // view_bank: {
-      //   title: "Without Bank Details",
-      //   permission: "view_banks",
-      //   selected: false,
-      //   location: "/bank",
-      // },
-      // view_salary: {
-      //   title: "Salary Advance",
-      //   permission: "view_salary_advance",
-      //   selected: false,
-      //   location: "/salary",
-      // },
-      // view_resignation: {
-      //   title: "Resignation",
-      //   permission: "view_resignation",
-      //   selected: false,
-      //   location: "/resignation",
-      // },
-      // view_storebudget: {
-      //   title: "Employee Count",
-      //   permission: "view_store_budget",
-      //   selected: false,
-      //   location: "/store-budget",
-      // },
-      // view_whatsapporder: {
-      //   title: "Whatsapp Orders",
-      //   permission: "view_whatsapp_order",
-      //   selected: false,
-      //   location: "/whatsapp",
-      // },
-    },
-  },
+  // Stage 0C / C3. Employees, Department and Designation have MOVED to the HR
+  // module (`HR_MENU` below), which is a top-level module on the rail beside
+  // WMS and GST. There is one employee master now, at /hr/employees, and the
+  // old top-level Employees section is gone rather than left beside it - two
+  // employee lists in the navigation is how two employee masters begin.
+  //
+  // /employee still resolves: it redirects to /hr/employees, so a bookmark or
+  // a pasted link keeps working. The commented-out HR entries that used to sit
+  // here (Shift, Family, Documents, Salary Advance, Resignation, ...) were
+  // already switched off before C3 and were removed with the section; they are
+  // in git history if any of them is revived.
   master: {
     title: "Master",
     selected: false,
@@ -927,6 +843,52 @@ const GST_MENU = {
 };
 
 /**
+ * Stage 0C / C3 — HR, the first of three payroll-programme modules.
+ *
+ * The architecture is three SEPARATE top-level modules:
+ *
+ *   HR           who works here, and everything true of them
+ *   Attendance   when they worked            (next)
+ *   Payroll      what they are paid for it   (after Attendance)
+ *
+ * Attendance and Payroll are deliberately NOT nested inside HR and are not
+ * declared here at all: an empty module is a promise the navigation cannot
+ * keep. They arrive with their own screens.
+ *
+ * Employees, Department and Designation moved here from the old top-level
+ * Employees section, which is gone. `/employee` redirects to `/hr/employees`,
+ * so existing links and bookmarks still resolve.
+ */
+const HR_MENU = {
+  employee_master: {
+    title: "Employee Master",
+    selected: true,
+    openPage: true,
+    icon: "fa-users",
+    subMenu: {
+      view_employees: {
+        title: "Employees",
+        permission: "view_employees",
+        selected: false,
+        location: "/hr/employees",
+      },
+      view_departments: {
+        title: "Department",
+        permission: "view_department",
+        selected: false,
+        location: "/department",
+      },
+      view_designation: {
+        title: "Designation",
+        permission: "view_designation",
+        selected: false,
+        location: "/designation",
+      },
+    },
+  },
+};
+
+/**
  * Top-level app modules; each has its own sidebar menu tree.
  * `accent` drives module-rail colors and the main menu panel (see sideBar `data-menu-accent`).
  * Rail icon: set `iconClass` (full FA6 classes, e.g. "fa-solid fa-chart-line") or `icon` (legacy suffix, e.g. "fa-users" → "fa fa-users").
@@ -938,6 +900,14 @@ export const MENU_MODULES = {
     iconClass: "fa-solid fa-layer-group",
     accent: "purple",
     menu: ALL_PAGES_MENU,
+  },
+  // Stage 0C / C3. Purple, like the rest of the application shell - HR is not
+  // a different product, it is where the employee master now lives.
+  hr: {
+    title: "HR",
+    iconClass: "fa-solid fa-users",
+    accent: "purple",
+    menu: HR_MENU,
   },
   wms: {
     title: "WMS",
