@@ -6,40 +6,69 @@ import {
   Button,
   Stack,
   Text,
-  SimpleGrid,
   Alert,
   AlertIcon,
   Spinner,
   Divider,
-  Input,
-  FormControl,
-  FormLabel,
+  SimpleGrid,
   useToast,
 } from "@chakra-ui/react";
 import GlobalWrapper from "../../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../../components/CustomContainer";
-import { AadhaarBadge, EmploymentBadge } from "../../../components/hr/StatusBadges";
+import { AadhaarBadge } from "../../../components/hr/StatusBadges";
 import BankCard from "../../../components/hr/BankCard";
 import LifecycleTimeline from "../../../components/hr/LifecycleTimeline";
 import AadhaarVerifyModal from "../../../components/hr/AadhaarVerifyModal";
 import { ResignModal, RejoinModal } from "../../../components/hr/LifecycleActionModals";
+import { SectionCard } from "../../../components/hr/profile/SectionCard";
+import PersonalSection from "../../../components/hr/profile/PersonalSection";
+import EmploymentSection from "../../../components/hr/profile/EmploymentSection";
+import StatutorySection from "../../../components/hr/profile/StatutorySection";
+import CompensationSection from "../../../components/hr/profile/CompensationSection";
+import EducationSection from "../../../components/hr/profile/EducationSection";
+import DocumentsSection from "../../../components/hr/profile/DocumentsSection";
+import BankDetailsEditor from "../../../components/hr/profile/BankDetailsEditor";
 import usePermissions from "../../../customHooks/usePermissions";
+import useOutlets from "../../../customHooks/useOutlets";
+import useDepartments from "../../../customHooks/useDepartments";
+import useDesignations from "../../../customHooks/useDesignations";
+import useShifts from "../../../customHooks/useShifts";
 import { useUser } from "../../../contexts/UserContext";
 import HrHelper from "../../../helper/hr";
+import EmployeeHelper from "../../../helper/employee";
+import DocumentHelper from "../../../helper/document";
 import { lifecycleActions } from "../../../util/hrStatus";
+import {
+  buildHrPatch,
+  buildSensitivePayload,
+  canEditEmployee,
+  canEditSensitive,
+  canViewDocuments,
+  canViewSensitive,
+  unwrapEmployee,
+} from "../../../util/hrProfile";
 
 /**
- * Stage 0C / C3 — the employee profile.
+ * Stage 0C / C3 — the employee profile. The ONE employee master record.
  *
- * One page for everything about one person, rather than the same employee
- * scattered across five screens: who they are, their Aadhaar, their bank, the
- * lifecycle actions, and the service history that proves the permanent
- * employee ID survived every resignation and rejoin.
+ * Nine sections rather than one long form, because they are governed
+ * differently: Personal and Employment by `employee_edit`; Statutory, Salary
+ * and the bank details by B3's sensitive keys; Aadhaar and Bank by C2's own
+ * permissions; Lifecycle by Resign and Rejoin. A single Save across all of
+ * them would either need the union of every permission or fail as a whole.
  *
- * WHAT IS NEVER RENDERED HERE: a full Aadhaar number, a full bank account
- * number, any fingerprint or ciphertext. `view_aadhaar_full` is granted to
- * nobody by design, so there is no "reveal" affordance at all — building one
- * would be building for a permission that does not exist.
+ * TWO WRITE PATHS, because the backend has two - see `util/hrProfile.js`. The
+ * ordinary editor takes what `EDITABLE_FIELDS` allows; the statutory, salary
+ * and bank columns are deliberately absent from it and go through
+ * /employee/updatedata, which B3 guards.
+ *
+ * NEVER RENDERED HERE: a full Aadhaar number, a full account number, any
+ * fingerprint or ciphertext. `view_aadhaar_full` is granted to nobody by
+ * design, so there is no reveal affordance at all.
+ *
+ * NEVER EDITED HERE: the employee ID, the joining date, the employment
+ * status. The first is allocated by the database; the other two are lifecycle
+ * state that Create, Resign and Rejoin own and record a reason for.
  */
 function EmployeeProfile() {
   const router = useRouter();
@@ -49,72 +78,129 @@ function EmployeeProfile() {
   const { userConfig } = useUser();
   const permissions = userConfig.permissions || [];
   const isAdmin = String(userConfig.userType) === "2";
+  const actor = { permissions, isAdmin };
 
-  const canEdit = usePermissions(["employee_edit"]);
+  const canEdit = canEditEmployee(actor);
+  const mayViewSensitive = canViewSensitive(actor);
+  const mayEditSensitive = canEditSensitive(actor);
+  const mayViewDocuments = canViewDocuments(actor);
   const canViewLifecycle = usePermissions(["view_employee_lifecycle"]);
 
+  const { outlets } = useOutlets({ directory: true });
+  const { departments } = useDepartments();
+  const { designations } = useDesignations();
+  const { shifts } = useShifts();
+
   const [lifecycle, setLifecycle] = useState(null);
+  const [employee, setEmployee] = useState(null);
   const [aadhaar, setAadhaar] = useState(null);
   const [bank, setBank] = useState(null);
+  const [documents, setDocuments] = useState([]);
+  const [documentsError, setDocumentsError] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
+  const [saving, setSaving] = useState(false);
 
   const [aadhaarOpen, setAadhaarOpen] = useState(false);
   const [resignOpen, setResignOpen] = useState(false);
   const [rejoinOpen, setRejoinOpen] = useState(false);
-  const [editing, setEditing] = useState(false);
-  const [edit, setEdit] = useState({});
-  const [saving, setSaving] = useState(false);
+  const [bankEditOpen, setBankEditOpen] = useState(false);
 
   const load = useCallback(async () => {
     if (!id) return;
     setLoading(true);
     setLoadError(null);
     try {
-      // Three independent reads; a permission refusal on one must not blank
-      // the whole page, so each is tolerated separately.
-      const [lc, aa, bk] = await Promise.all([
+      // Independent reads. A permission refusal on any one of them must not
+      // blank the page, so each is tolerated on its own and each section says
+      // for itself what it could not show.
+      const [lc, emp, aa, bk, docs] = await Promise.all([
         HrHelper.getLifecycle(id).catch(() => null),
+        EmployeeHelper.getEmployeeByID(id).catch(() => null),
         HrHelper.getAadhaarStatus(id).catch(() => null),
         HrHelper.getBankStatus(id).catch(() => null),
+        mayViewDocuments ? DocumentHelper.getDocType(id).catch(() => "error") : Promise.resolve([]),
       ]);
-      const denied = (r) => r && r.code === 403;
-      setLifecycle(denied(lc) || !lc || lc.code ? null : lc);
-      setAadhaar(denied(aa) || !aa || aa.code ? null : aa);
-      setBank(denied(bk) || !bk || bk.code ? null : bk);
-      if (!lc || lc.code) setLoadError(lc && lc.msg ? lc.msg : "This employee could not be loaded.");
+      const usable = (r) => (r && !r.code ? r : null);
+      setLifecycle(usable(lc));
+      setEmployee(unwrapEmployee(emp));
+      setAadhaar(usable(aa));
+      setBank(usable(bk));
+      setDocuments(Array.isArray(docs) ? docs : []);
+      setDocumentsError(docs === "error");
+      if (!usable(lc)) {
+        setLoadError(lc && lc.msg ? lc.msg : "This employee could not be loaded.");
+      }
     } catch (err) {
       setLoadError("Could not reach the server.");
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [id, mayViewDocuments]);
 
   useEffect(() => {
     load();
   }, [load]);
 
-  const saveEdit = async () => {
+  /** The backend refuses `{}` with "nothing to change"; say so without a request. */
+  const nothingToSave = () => {
+    toast({ title: "Nothing was changed", status: "info", duration: 2500 });
+    return false;
+  };
+
+  const failed = (res) => res && res.code && res.code !== 200;
+
+  /** Personal, Employment, Education — POST /hr/employee/:id/edit. */
+  const saveOrdinary = async (form) => {
+    const patch = buildHrPatch(employee || {}, form);
+    if (Object.keys(patch).length === 0) return nothingToSave();
+
     setSaving(true);
     try {
-      const patch = Object.fromEntries(
-        Object.entries(edit).filter(([, v]) => v !== undefined && v !== "")
-      );
-      if (Object.keys(patch).length === 0) {
-        setEditing(false);
-        return;
-      }
       const res = await HrHelper.editEmployee(id, patch);
-      if (res && res.code && res.code !== 200) {
-        toast({ title: res.msg || "The change was not saved", status: "error", duration: 6000 });
-        return;
+      if (failed(res)) {
+        toast({ title: res.msg || "The change was not saved", status: "error", duration: 7000 });
+        return false;
       }
-      toast({ title: "Saved", status: "success", duration: 3000 });
-      setEditing(false);
-      setEdit({});
-      load();
+      toast({ title: "Saved", status: "success", duration: 2500 });
+      await load();
+      return true;
     } catch (err) {
       toast({ title: "Could not reach the server", status: "error", duration: 5000 });
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  /** Statutory, Salary, bank details — POST /employee/updatedata, B3-guarded. */
+  const saveSensitive = async (form) => {
+    const payload = buildSensitivePayload(id, employee || {}, form);
+    // Null rather than an empty body on purpose: that endpoint ends in
+    // `UPDATE ... SET ?`, where an empty object is invalid SQL.
+    if (!payload) return nothingToSave();
+
+    setSaving(true);
+    try {
+      const res = await EmployeeHelper.updateEmployeeDetails(payload);
+      if (failed(res)) {
+        toast({
+          title: res.msg || "The change was not saved",
+          description:
+            res.code === 403
+              ? "These fields need sensitive-edit access."
+              : undefined,
+          status: "error",
+          duration: 7000,
+        });
+        return false;
+      }
+      toast({ title: "Saved", status: "success", duration: 2500 });
+      await load();
+      return true;
+    } catch (err) {
+      toast({ title: "Could not reach the server", status: "error", duration: 5000 });
+      return false;
     } finally {
       setSaving(false);
     }
@@ -138,8 +224,7 @@ function EmployeeProfile() {
         <CustomContainer title="Employee" filledHeader>
           <Alert status="warning" fontSize="sm">
             <AlertIcon />
-            {loadError ||
-              "You do not have permission to view this employee, or they do not exist."}
+            {loadError || "You do not have permission to view this employee, or they do not exist."}
           </Alert>
           <Link href="/hr/employees" passHref>
             <Button size="sm" mt={4} variant="outline">
@@ -151,7 +236,6 @@ function EmployeeProfile() {
     );
   }
 
-  const current = lifecycle.current || {};
   const { canResign, canRejoin } = lifecycleActions({
     isActive: lifecycle.is_active,
     permissions,
@@ -178,79 +262,40 @@ function EmployeeProfile() {
           </Stack>
         }
       >
-        <Stack spacing={5}>
-          <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={5}>
-            {/* ------------------------------------------ basic details */}
-            <Box borderWidth="1px" borderRadius="md" p={4}>
-              <Stack direction="row" justify="space-between" align="center" mb={3}>
-                <Text fontWeight="bold">Details</Text>
-                <Stack direction="row" spacing={2} align="center">
-                  <EmploymentBadge status={lifecycle.status} />
-                  {canEdit ? (
-                    <Button size="xs" variant="outline" onClick={() => setEditing(!editing)}>
-                      {editing ? "Cancel" : "Edit"}
-                    </Button>
-                  ) : null}
-                </Stack>
-              </Stack>
+        <Stack spacing={4}>
+          {!employee ? (
+            <Alert status="info" fontSize="sm">
+              <AlertIcon />
+              The full employee record could not be loaded, so only the lifecycle, Aadhaar and bank
+              sections are shown.
+            </Alert>
+          ) : null}
 
-              {editing ? (
-                <Stack spacing={3}>
-                  <FormControl>
-                    <FormLabel fontSize="sm">Name</FormLabel>
-                    <Input
-                      size="sm"
-                      defaultValue={lifecycle.employee_name}
-                      onChange={(e) => setEdit({ ...edit, employee_name: e.target.value })}
-                    />
-                  </FormControl>
-                  <FormControl>
-                    <FormLabel fontSize="sm">Mobile</FormLabel>
-                    <Input
-                      size="sm"
-                      onChange={(e) => setEdit({ ...edit, primary_contact_number: e.target.value })}
-                    />
-                  </FormControl>
-                  <Text fontSize="xs" color="gray.600">
-                    Employee ID, employment status and the lifecycle dates are not editable here — they
-                    are set by the Create, Resign and Rejoin actions.
-                  </Text>
-                  <Button size="sm" colorScheme="purple" isLoading={saving} onClick={saveEdit}>
-                    Save
-                  </Button>
-                </Stack>
-              ) : (
-                <Stack spacing={1} fontSize="sm">
-                  <Text>
-                    <strong>Employee ID</strong> {lifecycle.employee_id}
-                  </Text>
-                  <Text>
-                    <strong>Outlet</strong> {current.outlet_nickname || "—"}
-                  </Text>
-                  <Text>
-                    <strong>Designation</strong> {current.designation_name || "—"}
-                  </Text>
-                  <Text>
-                    <strong>Department</strong> {current.department_name || "—"}
-                  </Text>
-                  <Text>
-                    <strong>Joined</strong> {current.date_of_joining || "not recorded"}
-                  </Text>
-                  {current.resignation_date ? (
-                    <Text>
-                      <strong>Left</strong> {current.resignation_date}
-                    </Text>
-                  ) : null}
-                </Stack>
-              )}
-            </Box>
+          <PersonalSection
+            employee={employee || {}}
+            canEdit={canEdit && Boolean(employee)}
+            onSave={saveOrdinary}
+            saving={saving}
+          />
 
-            {/* ------------------------------------------------ Aadhaar */}
-            <Box borderWidth="1px" borderRadius="md" p={4}>
-              <Stack direction="row" justify="space-between" align="center" mb={3}>
-                <Text fontWeight="bold">Aadhaar</Text>
-                <AadhaarBadge status={aadhaar ? aadhaar.aadhaar_status : "PENDING"} />
-              </Stack>
+          <EmploymentSection
+            employee={employee || {}}
+            lifecycle={lifecycle}
+            outlets={outlets}
+            departments={departments}
+            designations={designations}
+            shifts={shifts}
+            canEdit={canEdit && Boolean(employee)}
+            onSave={saveOrdinary}
+            saving={saving}
+          />
+
+          <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={4}>
+            {/* ------------------------------------------------- Aadhaar */}
+            <SectionCard
+              title="Aadhaar"
+              badge={<AadhaarBadge status={aadhaar ? aadhaar.aadhaar_status : "PENDING"} />}
+            >
               <Stack spacing={3} fontSize="sm">
                 {aadhaar && aadhaar.aadhaar_status === "VERIFIED" ? (
                   <>
@@ -281,18 +326,33 @@ function EmployeeProfile() {
                   </>
                 )}
               </Stack>
-            </Box>
+            </SectionCard>
+
+            <StatutorySection
+              employee={employee || {}}
+              canView={mayViewSensitive}
+              canEdit={mayEditSensitive && Boolean(employee)}
+              onSave={saveSensitive}
+              saving={saving}
+            />
           </SimpleGrid>
 
-          {/* ---------------------------------------------------- bank */}
+          {/* ------------------------------------------------------- bank */}
           {bank ? (
-            <BankCard
-              employeeId={lifecycle.employee_id}
-              bank={bank}
-              permissions={permissions}
-              isAdmin={isAdmin}
-              onChanged={load}
-            />
+            <Box>
+              <BankCard
+                employeeId={lifecycle.employee_id}
+                bank={bank}
+                permissions={permissions}
+                isAdmin={isAdmin}
+                onChanged={load}
+              />
+              {mayEditSensitive ? (
+                <Button size="xs" mt={2} variant="outline" onClick={() => setBankEditOpen(true)}>
+                  {bank.masked_account ? "Change bank details" : "Add bank details"}
+                </Button>
+              ) : null}
+            </Box>
           ) : (
             <Alert status="info" fontSize="sm">
               <AlertIcon />
@@ -300,7 +360,29 @@ function EmployeeProfile() {
             </Alert>
           )}
 
-          {/* ----------------------------------------------- lifecycle */}
+          <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={4}>
+            <CompensationSection
+              employee={employee || {}}
+              canView={mayViewSensitive}
+              canEdit={mayEditSensitive && Boolean(employee)}
+              onSave={saveSensitive}
+              saving={saving}
+            />
+            <DocumentsSection
+              documents={documents}
+              canView={mayViewDocuments}
+              error={documentsError}
+            />
+          </SimpleGrid>
+
+          <EducationSection
+            employee={employee || {}}
+            canEdit={canEdit && Boolean(employee)}
+            onSave={saveOrdinary}
+            saving={saving}
+          />
+
+          {/* -------------------------------------------------- lifecycle */}
           {canViewLifecycle ? <LifecycleTimeline lifecycle={lifecycle} /> : null}
 
           <Divider />
@@ -332,7 +414,7 @@ function EmployeeProfile() {
           }
           try {
             const res = await HrHelper.attachAadhaar(lifecycle.employee_id, decision.verification_id);
-            if (res && res.code && res.code !== 200) {
+            if (failed(res)) {
               toast({
                 title: res.msg || "The Aadhaar could not be attached",
                 description: res.existing_employee_id
@@ -353,6 +435,14 @@ function EmployeeProfile() {
             toast({ title: "Could not reach the server", status: "error", duration: 5000 });
           }
         }}
+      />
+
+      <BankDetailsEditor
+        isOpen={bankEditOpen}
+        onClose={() => setBankEditOpen(false)}
+        bank={bank || {}}
+        onSave={saveSensitive}
+        saving={saving}
       />
 
       <ResignModal

@@ -166,7 +166,10 @@ test("the list and the add screen gate on the permissions they need", () => {
   assert.match(list, /usePermissions\(\["view_employees"\]\)/);
   assert.match(list, /usePermissions\(\["employee_create"\]\)/);
   assert.match(add, /usePermissions\(\["employee_create"\]\)/);
-  assert.match(profile, /usePermissions\(\["employee_edit"\]\)/);
+  // The profile now has several differently-governed sections, so it resolves
+  // its rules through util/hrProfile.js rather than one usePermissions call
+  // per section. The keys those rules check are pinned in hrProfile.test.js.
+  assert.match(profile, /canEditEmployee\(actor\)/);
   assert.match(profile, /usePermissions\(\["view_employee_lifecycle"\]\)/);
 });
 
@@ -409,4 +412,169 @@ test("the card grid is paged, so 630 employees do not all mount at once", () => 
   assert.match(code, /Showing \{cardsShown\} of \{filtered\.length\}/, "the true total stays visible");
   // A new filter is a new question and starts from the first page.
   assert.match(code, /setCardsShown\(CARD_PAGE\)/);
+});
+
+/* ============================== the complete employee master profile ==== */
+const personal = read("components/hr/profile/PersonalSection.jsx");
+const employment = read("components/hr/profile/EmploymentSection.jsx");
+const statutory = read("components/hr/profile/StatutorySection.jsx");
+const compensation = read("components/hr/profile/CompensationSection.jsx");
+const education = read("components/hr/profile/EducationSection.jsx");
+const documents = read("components/hr/profile/DocumentsSection.jsx");
+const bankEditor = read("components/hr/profile/BankDetailsEditor.jsx");
+
+test("THE PROFILE COVERS EVERYTHING THE OLD FORM DID", () => {
+  // The regression this section exists to prevent: the old /employee/[id]
+  // form was the only editor for these, and deleting it removed them.
+  for (const section of [
+    "PersonalSection", "EmploymentSection", "StatutorySection",
+    "CompensationSection", "EducationSection", "DocumentsSection",
+  ]) {
+    assert.ok(profile.includes(`<${section}`), `the profile must render ${section}`);
+  }
+  // And the C2/C3 flows that were already there are untouched.
+  for (const kept of ["<BankCard", "<AadhaarVerifyModal", "<LifecycleTimeline", "<ResignModal", "<RejoinModal"]) {
+    assert.ok(profile.includes(kept), `${kept} must still be rendered`);
+  }
+});
+
+test("each section saves through the path its fields actually belong to", () => {
+  const code = codeOf(profile);
+  // Ordinary fields: the C2 lifecycle-aware editor.
+  assert.match(code, /const saveOrdinary[\s\S]{0,400}HrHelper\.editEmployee\(id, patch\)/);
+  // Sensitive fields: the only route that writes those columns.
+  assert.match(code, /const saveSensitive[\s\S]{0,500}EmployeeHelper\.updateEmployeeDetails\(payload\)/);
+  // The mapping is shared, not restated per section.
+  assert.match(code, /buildHrPatch\(/);
+  assert.match(code, /buildSensitivePayload\(/);
+});
+
+test("AN EMPTY UPDATE IS NEVER SENT", () => {
+  // `UPDATE new_employee SET ?` with {} is invalid SQL, and the HR editor
+  // refuses "nothing to change" - so both are stopped before the request.
+  const code = codeOf(profile);
+  assert.match(code, /if \(Object\.keys\(patch\)\.length === 0\) return nothingToSave\(\)/);
+  assert.match(code, /if \(!payload\) return nothingToSave\(\)/);
+});
+
+test("the sensitive sections are gated on BOTH viewing and editing", () => {
+  const code = codeOf(profile);
+  assert.match(code, /canViewSensitive\(actor\)/);
+  assert.match(code, /canEditSensitive\(actor\)/);
+  for (const section of ["StatutorySection", "CompensationSection"]) {
+    const block = profile.slice(profile.indexOf(`<${section}`), profile.indexOf(`<${section}`) + 320);
+    assert.match(block, /canView=\{mayViewSensitive\}/, `${section} must gate viewing`);
+    assert.match(block, /canEdit=\{mayEditSensitive/, `${section} must gate editing`);
+  }
+});
+
+test("a section the caller may not see says so, rather than looking empty", () => {
+  // B3 removes the keys entirely, so a blank field and a hidden one are
+  // indistinguishable from the data - the UI must not imply "no PAN".
+  const shell = read("components/hr/profile/SectionCard.jsx");
+  assert.match(shell, /\{!canView \? \([\s\S]{0,200}deniedMessage/, "a locked section renders its reason");
+  assert.match(statutory, /deniedMessage="You do not have permission to view this employee's statutory/);
+  assert.match(compensation, /deniedMessage="You do not have permission to view this employee's salary/);
+  assert.match(documents, /deniedMessage="You do not have permission to view this employee's documents/);
+});
+
+test("STATUTORY IDENTIFIERS ARE MASKED WHEN DISPLAYED", () => {
+  assert.match(statutory, /maskIdentifier\(employee\.pan_no\)/);
+  assert.match(statutory, /maskIdentifier\(employee\.uan\)/);
+  assert.match(statutory, /maskIdentifier\(employee\.pf_number\)/);
+  assert.match(statutory, /maskIdentifier\(employee\.esi_number\)/);
+  // The raw value appears only inside the editor, for whoever may change it.
+  const readMode = statutory.slice(statutory.indexOf("} else {") >= 0 ? statutory.indexOf("} else {") : 0);
+  assert.ok(!/value=\{employee\.pan_no\}/.test(readMode), "the full PAN is not rendered as text");
+});
+
+test("employee ID, joining date and status are never editable", () => {
+  const code = codeOf(employment);
+  // They are rendered as read-only Fields, never as EditFields.
+  assert.match(code, /<Field label="Employee ID"/);
+  assert.match(code, /<Field\s+label="Joining date"/);
+  for (const owned of ["employee_id", "date_of_joining", "status"]) {
+    assert.ok(
+      !new RegExp(`EditField[^>]*name="${owned}"`).test(code),
+      `${owned} is lifecycle or database state, not a form field`
+    );
+  }
+});
+
+test("a transfer edits the one record and warns that authorisation changes", () => {
+  const code = codeOf(employment);
+  for (const placement of ["store_id", "department_id", "designation_id", "shift_id"]) {
+    assert.ok(new RegExp(`name="${placement}"`).test(code), `${placement} must be editable`);
+  }
+  assert.ok(!/createEmployee/.test(code), "changing branch must never create an employee");
+  assert.match(employment, /sign in again/, "the re-authorisation is stated before saving");
+});
+
+test("the emergency contact is the existing column, labelled honestly", () => {
+  assert.match(personal, /label="Alternate \/ Emergency Contact"/);
+  assert.match(personal, /name="alternate_contact_number"/);
+  assert.match(personal, /no separate emergency-contact field/);
+  // No invented column.
+  assert.ok(!/emergency_contact/.test(codeOf(personal)), "no field that does not exist");
+});
+
+test("FAMILY IS DEFERRED, AND THE SCREEN SAYS WHY", () => {
+  assert.match(education, /Family details are not shown here/);
+  assert.match(education, /permanent employee ID/);
+  assert.ok(!/FamilyHelper/.test(profile), "the name-keyed family API is not used");
+  // Education itself is safe - plain columns on the employee master.
+  for (const field of ["qualification", "additional_course", "previous_experience"]) {
+    assert.ok(education.includes(field), `${field} belongs in Education`);
+  }
+});
+
+test("bank details can be entered, which is what makes C2 verification possible", () => {
+  assert.match(profile, /<BankDetailsEditor/);
+  assert.match(profile, /mayEditSensitive \? \(/);
+  // Changing the account invalidates the verification, and it says so first.
+  assert.match(bankEditor, /back to <strong>Pending<\/strong>/);
+  assert.match(bankEditor, /account_no/);
+  assert.match(bankEditor, /ifsc/);
+});
+
+test("nothing in the new sections renders a secret", () => {
+  const sections = { personal, employment, statutory, compensation, education, documents, bankEditor };
+  for (const [name, src] of Object.entries(sections)) {
+    const code = codeOf(src);
+    for (const forbidden of [
+      "aadhaar_number", "aadhaar_ciphertext", "aadhaar_fingerprint",
+      "account_fingerprint", "BANK_FINGERPRINT_KEY", "AADHAAR_ENCRYPTION_KEY",
+      "view_aadhaar_full",
+    ]) {
+      assert.ok(!new RegExp(forbidden).test(code), `${name} must not reference ${forbidden}`);
+    }
+  }
+  // The account number is entered in the editor and never displayed back.
+  assert.ok(!/masked_account.*account_no/.test(codeOf(bankEditor)));
+  assert.match(bankEditor, /never shown again in full/);
+});
+
+test("documents rely on B3 rather than re-deciding what to hide", () => {
+  const code = codeOf(documents);
+  assert.ok(!/card_no|card_number/.test(code), "a document number is never printed");
+  assert.match(code, /SENSITIVE_CARD_TYPES/, "Aadhaar and PAN are marked");
+  assert.ok(!/updateStatus|approveDocument/.test(code), "the section is read-only");
+});
+
+test("THE SALARY MASTER STORES A FIGURE; IT DOES NOT CALCULATE PAYROLL", () => {
+  // Prose may name payroll concepts to explain the boundary - the section
+  // says so on screen deliberately. What must not exist is the arithmetic:
+  // no derived amount, no month, no second implementation of a payslip.
+  const code = codeOf(compensation);
+
+  // The only employee fields it touches are the two master columns.
+  const reads = [...code.matchAll(/employee\.(\w+)/g)].map((m) => m[1]);
+  assert.deepStrictEqual([...new Set(reads)].sort(), ["payment_type", "salary"]);
+
+  // No computed money anywhere.
+  for (const derived of ["gross_", "net_pay", "total_deduction", "payslip", "esi_amount", "pf_amount"]) {
+    assert.ok(!new RegExp(derived, "i").test(code), `${derived} belongs to Payroll, not HR`);
+  }
+  assert.ok(!/salary\s*[*+\-/]/.test(code), "the master figure is stored, never arithmetic");
+  assert.match(compensation, /Payroll calculates/i, "and the boundary is stated on screen");
 });
