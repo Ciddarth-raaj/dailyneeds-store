@@ -13,7 +13,10 @@ function DateOutletPicker({
   setSelectedOutlet,
   disabled = false,
 }) {
-  const { outlets } = useOutlets();
+  // The picker needs an id and a name. Asking for the whole outlet record
+  // made this dropdown require `view_stores` - a store-administration
+  // permission - which is why it rendered empty for Accounts Executive.
+  const { outlets } = useOutlets({ directory: true });
   const OUTLETS_LIST = outlets.map((item) => ({
     id: item.outlet_id,
     value: item.outlet_name,

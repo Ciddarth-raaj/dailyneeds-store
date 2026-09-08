@@ -13,14 +13,22 @@ import unwrapList from "../util/apiList";
  * access to branches" rather than showing an empty dropdown, which would hide
  * an authorisation failure as ordinary missing data.
  */
-function useOutlets({ skipIds = [] } = {}) {
+function useOutlets({ skipIds = [], directory = false } = {}) {
   const [outlets, setOutlets] = useState([]);
   const [accessDenied, setAccessDenied] = useState(false);
   const [error, setError] = useState(false);
 
   const init = async () => {
     try {
-      const result = unwrapList(await BranchHelper.getOutlet());
+      // `directory: true` asks for the two-column list behind no permission,
+      // for callers that only render a dropdown. The default is unchanged, so
+      // every existing consumer keeps the full record and the `view_stores`
+      // gate that protects it.
+      const result = unwrapList(
+        directory
+          ? await BranchHelper.getOutletDirectory()
+          : await BranchHelper.getOutlet()
+      );
       setOutlets(result.items);
       setAccessDenied(result.accessDenied);
       setError(result.error);
@@ -35,7 +43,7 @@ function useOutlets({ skipIds = [] } = {}) {
 
   useEffect(() => {
     init();
-  }, []);
+  }, [directory]);
 
   const filteredOutlets = useMemo(() => {
     // Belt and braces: `outlets` can only be an array by now, but this runs
