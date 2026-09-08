@@ -40,6 +40,16 @@ const ALL_PAGES_MENU = {
         selected: false,
         location: "/employee",
       },
+      // Stage 0C / C3. The HR employee master: join, resign, rejoin, Aadhaar
+      // and bank verification, all under one permanent employee ID. Gated on
+      // view_employees like the list it replaces for HR work; the individual
+      // actions carry their own permissions at the route.
+      hr_employees: {
+        title: "HR Employees",
+        permission: "view_employees",
+        selected: false,
+        location: "/hr/employees",
+      },
       view_departments: {
         title: "Department",
         permission: "view_department",
