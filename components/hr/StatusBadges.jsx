@@ -2,7 +2,9 @@ import React from "react";
 import { Badge, Tooltip } from "@chakra-ui/react";
 import {
   aadhaarBadge,
+  aadhaarListBadge,
   bankBadge,
+  bankListBadge,
   employmentBadge,
   confidenceBadge,
 } from "../../util/hrStatus";
@@ -32,6 +34,36 @@ export function BankBadge({ status, tooltip }) {
   );
 }
 
+/**
+ * The compact list versions. Same mappings, shorter labels, and a neutral
+ * dash where the status summary has not arrived - so a row never claims
+ * "Pending" for something it simply does not know yet.
+ */
+export function AadhaarListBadge({ status }) {
+  const b = aadhaarListBadge(status);
+  return (
+    <Badge colorScheme={b.colorScheme} variant={b.unknown ? "outline" : "subtle"}>
+      {b.label}
+    </Badge>
+  );
+}
+
+export function BankListBadge({ status, payrollReady, tooltip }) {
+  const b = bankListBadge(status, payrollReady);
+  const badge = (
+    <Badge colorScheme={b.colorScheme} variant={b.unknown ? "outline" : "subtle"}>
+      {b.label}
+    </Badge>
+  );
+  return tooltip ? (
+    <Tooltip label={tooltip} hasArrow>
+      <span>{badge}</span>
+    </Tooltip>
+  ) : (
+    badge
+  );
+}
+
 export function EmploymentBadge({ status }) {
   const b = employmentBadge(status);
   return <Badge colorScheme={b.colorScheme}>{b.label}</Badge>;
@@ -42,4 +74,11 @@ export function ConfidenceBadge({ confidence }) {
   return <Badge colorScheme={b.colorScheme}>{b.label}</Badge>;
 }
 
-export default { AadhaarBadge, BankBadge, EmploymentBadge, ConfidenceBadge };
+export default {
+  AadhaarBadge,
+  AadhaarListBadge,
+  BankBadge,
+  BankListBadge,
+  EmploymentBadge,
+  ConfidenceBadge,
+};

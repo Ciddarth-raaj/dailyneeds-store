@@ -4,12 +4,18 @@ import { Button, Input, Select, Stack, Text, Spinner, Alert, AlertIcon } from "@
 import GlobalWrapper from "../../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../../components/CustomContainer";
 import Table from "../../../components/table/table";
-import { EmploymentBadge } from "../../../components/hr/StatusBadges";
+import {
+  AadhaarListBadge,
+  BankListBadge,
+  EmploymentBadge,
+} from "../../../components/hr/StatusBadges";
 import usePermissions from "../../../customHooks/usePermissions";
 import useOutlets from "../../../customHooks/useOutlets";
 import useDesignations from "../../../customHooks/useDesignations";
 import EmployeeHelper from "../../../helper/employee";
+import HrHelper from "../../../helper/hr";
 import unwrapList from "../../../util/apiList";
+import { statusSummaryIndex } from "../../../util/hrStatus";
 
 /**
  * Stage 0C / C3 — the HR employee master list.
@@ -22,17 +28,25 @@ import unwrapList from "../../../util/apiList";
  * has B3 stripping salary, bank, PAN and Aadhaar for anyone without
  * `view_employee_sensitive`. There is deliberately no new backend endpoint.
  *
- * NOT SHOWN HERE, and this is a real gap rather than an oversight: Aadhaar and
- * bank status are per-employee reads (`/hr/employee/:id/aadhaar`,
- * `/hr/employee/:id/bank/verification`), so putting them in the list would be
- * 630 extra requests. They are on the profile, one click away. A bulk endpoint
- * would fix this and is reported as a backend gap rather than invented here.
+ * The Aadhaar and Bank columns come from GET /hr/employees/status-summary
+ * (`view_employees`), fetched ONCE for the whole list and merged by
+ * employee_id. The per-employee reads still exist and are what the profile
+ * uses; calling them from here would be 1,260 requests to draw one screen,
+ * which is the reason the bulk endpoint exists.
+ *
+ * IF THE SUMMARY FAILS the list still renders. The two columns fall back to a
+ * neutral dash - "not known" rather than "not verified" - because the list is
+ * useful without them and useless if a status request can blank it.
  */
 function HrEmployeeList() {
   const canView = usePermissions(["view_employees"]);
   const canCreate = usePermissions(["employee_create"]);
 
   const [rows, setRows] = useState([]);
+  // Keyed by employee_id. Empty until it arrives, and empty forever if the
+  // request is refused - neither of which may stop the list rendering.
+  const [statuses, setStatuses] = useState({});
+  const [statusUnavailable, setStatusUnavailable] = useState(false);
   const [loading, setLoading] = useState(true);
   const [denied, setDenied] = useState(false);
   const [error, setError] = useState(false);
@@ -69,6 +83,36 @@ function HrEmployeeList() {
     };
   }, []);
 
+  /**
+   * ONE request for the whole list, never one per employee. It is deliberately
+   * a separate effect from the employee list above: the two are independent,
+   * and a refusal or failure here must not touch `rows`.
+   */
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const summary = await HrHelper.getStatusSummary();
+        if (cancelled) return;
+        if (!Array.isArray(summary)) {
+          // A B2 refusal arrives as `{ code: 403, msg }` rather than a list.
+          setStatuses({});
+          setStatusUnavailable(true);
+          return;
+        }
+        setStatuses(statusSummaryIndex(summary));
+        setStatusUnavailable(false);
+      } catch (err) {
+        if (cancelled) return;
+        setStatuses({});
+        setStatusUnavailable(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const filtered = useMemo(() => {
     const needle = search.trim().toLowerCase();
     return rows.filter((e) => {
@@ -94,26 +138,35 @@ function HrEmployeeList() {
     primary_contact_number: "Mobile",
     date_of_joining: "Joined",
     status: "Status",
+    aadhaar: "Aadhaar",
+    bank: "Bank",
     open: "",
   };
 
-  const tableRows = filtered.map((e) => ({
-    employee_id: e.employee_id,
-    employee_name: e.employee_name,
-    store_name: e.store_name || "—",
-    designation_name: e.designation_name || "—",
-    department_name: e.department_name || "—",
-    primary_contact_number: e.primary_contact_number || "—",
-    date_of_joining: e.date_of_joining || "—",
-    status: <EmploymentBadge status={e.status} />,
-    open: (
-      <Link href={`/hr/employees/${e.employee_id}`} passHref>
-        <Button size="xs" colorScheme="purple" variant="outline">
-          Open
-        </Button>
-      </Link>
-    ),
-  }));
+  const tableRows = filtered.map((e) => {
+    // `undefined` when the summary has not loaded, or was refused. The badges
+    // treat that as unknown rather than as Pending.
+    const s = statuses[String(e.employee_id)] || {};
+    return {
+      employee_id: e.employee_id,
+      employee_name: e.employee_name,
+      store_name: e.store_name || "—",
+      designation_name: e.designation_name || "—",
+      department_name: e.department_name || "—",
+      primary_contact_number: e.primary_contact_number || "—",
+      date_of_joining: e.date_of_joining || "—",
+      status: <EmploymentBadge status={e.status} />,
+      aadhaar: <AadhaarListBadge status={s.aadhaar_status} />,
+      bank: <BankListBadge status={s.bank_status} payrollReady={s.bank_payroll_ready} />,
+      open: (
+        <Link href={`/hr/employees/${e.employee_id}`} passHref>
+          <Button size="xs" colorScheme="purple" variant="outline">
+            Open
+          </Button>
+        </Link>
+      ),
+    };
+  });
 
   return (
     <GlobalWrapper title="Employees">
@@ -194,6 +247,14 @@ function HrEmployeeList() {
               </Alert>
             ) : (
               <>
+                {statusUnavailable ? (
+                  <Alert status="info" fontSize="sm" mb={3}>
+                    <AlertIcon />
+                    Aadhaar and bank status could not be loaded, so those two columns show a dash.
+                    Everything else on this page is unaffected, and each employee&apos;s status is on
+                    their profile.
+                  </Alert>
+                ) : null}
                 <Text fontSize="sm" color="gray.600" mb={2}>
                   {filtered.length} employee{filtered.length === 1 ? "" : "s"}
                 </Text>

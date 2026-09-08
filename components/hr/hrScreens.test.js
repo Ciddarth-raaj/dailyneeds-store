@@ -228,3 +228,96 @@ test("the profile reloads after every action rather than guessing the new state"
     assert.ok(profile.includes(handler), `${handler} must refresh from the server`);
   }
 });
+
+/* ============================ C3: the list's Aadhaar and Bank columns == */
+test("the status summary is fetched ONCE, never once per employee", () => {
+  const code = codeOf(list);
+
+  // Exactly one call site, and it is not inside anything that maps over the
+  // employees. This is the whole reason the bulk endpoint exists.
+  const calls = code.match(/HrHelper\.getStatusSummary\(/g) || [];
+  assert.strictEqual(calls.length, 1, "one call for the whole list");
+
+  // The per-employee reads belong to the profile, not here.
+  for (const perEmployee of ["getAadhaarStatus", "getBankStatus"]) {
+    assert.ok(
+      !new RegExp(`HrHelper\\.${perEmployee}\\(`).test(code),
+      `the list must not call ${perEmployee} - that is 630 requests`
+    );
+  }
+
+  // And the call is not reachable from inside a .map(...) over the rows.
+  const mapBodies = code.split(/\.map\(/).slice(1);
+  for (const body of mapBodies) {
+    assert.ok(
+      !body.slice(0, body.indexOf("})")).includes("getStatusSummary"),
+      "the summary must not be fetched per row"
+    );
+  }
+});
+
+test("the helper's summary path is the one the backend declares", { skip: !backendAvailable }, () => {
+  const router = fs.readFileSync(BACKEND_ROUTER, "utf8");
+  assert.match(helper, /getStatusSummary:/);
+  assert.match(helper, /API\.get\("\/hr\/employees\/status-summary"/);
+  assert.ok(
+    router.includes('"/employees/status-summary"'),
+    "the frontend calls a path the backend does not declare"
+  );
+  // And the backend gates it on the list's own permission.
+  const route = router.slice(router.indexOf('"/employees/status-summary"'));
+  assert.match(route.slice(0, 200), /P\.VIEW_EMPLOYEES/);
+});
+
+test("the statuses are merged by employee_id, through the shared index", () => {
+  const code = codeOf(list);
+  assert.match(code, /statusSummaryIndex\(/, "the merge rule is shared, not re-typed here");
+  assert.match(code, /statuses\[String\(e\.employee_id\)\]/, "merged by id, not by row order");
+});
+
+test("the columns use the shared badges rather than their own mapping", () => {
+  const code = codeOf(list);
+  assert.match(code, /<AadhaarListBadge status=\{s\.aadhaar_status\}/);
+  assert.match(code, /<BankListBadge status=\{s\.bank_status\} payrollReady=\{s\.bank_payroll_ready\}/);
+  // No colour or label decided in the page itself.
+  assert.ok(!/colorScheme="(green|red|orange|yellow)"/.test(code), "badge colours belong in hrStatus");
+});
+
+test("A FAILED SUMMARY LEAVES THE EMPLOYEE LIST INTACT", () => {
+  const code = codeOf(list);
+
+  // The summary lives in its own effect, and its failure path touches only
+  // the status state - never `setRows`, which is what would empty the page.
+  const effect = code.slice(code.indexOf("getStatusSummary"), code.indexOf("const filtered"));
+  assert.ok(!/setRows\(/.test(effect), "a status failure must never touch the employee rows");
+  assert.match(effect, /catch/, "and it must catch");
+  assert.match(effect, /setStatuses\(\{\}\)/, "falling back to no statuses");
+  assert.match(effect, /setStatusUnavailable\(true\)/);
+
+  // A B2 refusal arrives as an object, not a list, and is handled as such.
+  assert.match(effect, /Array\.isArray\(summary\)/, "the 403 shape is not rendered as data");
+});
+
+test("the two new columns are compact, and the list did not become a dashboard", () => {
+  const heading = list.slice(list.indexOf("const heading = {"), list.indexOf("const tableRows"));
+  assert.match(heading, /aadhaar: "Aadhaar"/);
+  assert.match(heading, /bank: "Bank"/);
+  // Two columns added, and no more.
+  const columns = (heading.match(/^\s+\w+:/gm) || []).length;
+  assert.ok(columns <= 11, `the list has ${columns} columns; it is meant to stay compact`);
+});
+
+test("the summary carries no sensitive value into the list", () => {
+  const code = codeOf(list);
+  for (const forbidden of [
+    "aadhaar_number", "aadhaar_last4", "account_no", "account_last4",
+    "account_fingerprint", "aadhaar_fingerprint", "aadhaar_ciphertext",
+    "ifsc", "name_at_bank", "verification_id",
+  ]) {
+    assert.ok(!new RegExp(forbidden).test(code), `the list must not reference ${forbidden}`);
+  }
+  // What it does read is exactly the three status fields.
+  assert.match(code, /s\.aadhaar_status/);
+  assert.match(code, /s\.bank_status/);
+  assert.match(code, /s\.bank_payroll_ready/);
+});

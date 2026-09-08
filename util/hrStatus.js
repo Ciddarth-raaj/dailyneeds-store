@@ -86,6 +86,80 @@ function bankBadge(status) {
   return BANK_BADGES[String(status).toUpperCase()] || BANK_BADGES.PENDING;
 }
 
+/** Shown wherever a status is genuinely not known yet, rather than known-bad. */
+const UNKNOWN_BADGE = { label: "—", colorScheme: "gray", unknown: true };
+
+/**
+ * The employee LIST's version of the bank badge: shorter, and operational
+ * rather than descriptive. On a list of 630 people the question is "can this
+ * person be paid, and if not who do I have to chase", so the labels answer
+ * that in one word.
+ *
+ *   VERIFIED and payroll ready   Ready
+ *   NOT_PROVIDED / PENDING       Pending      HR chases the employee
+ *   NAME_MISMATCH               Review       an authorised user decides
+ *   DUPLICATE_ACCOUNT           Duplicate    probably a typo; an admin decides
+ *   FAILED                      Failed       the bank said no
+ *
+ * `undefined` is not a status. When the summary has not loaded, or could not
+ * be loaded, this says so with a neutral dash instead of guessing Pending -
+ * "not verified" and "not known" are different facts, and only one of them
+ * is somebody's job.
+ *
+ * VERIFIED without readiness cannot happen (the backend derives one from the
+ * other) but is deliberately not rendered as Ready if it ever does: claiming
+ * somebody can be paid is the one mistake worth being cautious about.
+ */
+function bankListBadge(status, payrollReady) {
+  if (status === undefined || status === null || status === "") return UNKNOWN_BADGE;
+
+  switch (String(status).toUpperCase()) {
+    case "VERIFIED":
+      return payrollReady
+        ? { label: "Ready", colorScheme: "green" }
+        : { label: "Review", colorScheme: "yellow" };
+    case "NOT_PROVIDED":
+    case "PENDING":
+      return { label: "Pending", colorScheme: "orange" };
+    case "NAME_MISMATCH":
+      return { label: "Review", colorScheme: "yellow" };
+    case "DUPLICATE_ACCOUNT":
+      return { label: "Duplicate", colorScheme: "red" };
+    case "FAILED":
+      return { label: "Failed", colorScheme: "red" };
+    default:
+      // A status this build has never heard of is not quietly Ready.
+      return { label: "Review", colorScheme: "yellow" };
+  }
+}
+
+/** The list's Aadhaar badge, with the same "not known is not Pending" rule. */
+function aadhaarListBadge(status) {
+  if (status === undefined || status === null || status === "") return UNKNOWN_BADGE;
+  return aadhaarBadge(status);
+}
+
+/**
+ * Index a status-summary response by employee_id, for merging into a list.
+ *
+ * A failed or refused summary is an empty index, never a thrown error: the
+ * employee list is useful without status columns and useless if it does not
+ * render, so the columns degrade and the list does not.
+ */
+function statusSummaryIndex(summary) {
+  const index = {};
+  if (!Array.isArray(summary)) return index;
+  for (const row of summary) {
+    if (!row || row.employee_id === undefined || row.employee_id === null) continue;
+    index[String(row.employee_id)] = {
+      aadhaar_status: row.aadhaar_status,
+      bank_status: row.bank_status,
+      bank_payroll_ready: Boolean(row.bank_payroll_ready),
+    };
+  }
+  return index;
+}
+
 /**
  * A one-line explanation of what HR should do about the current bank state.
  * Deliberately actionable rather than descriptive: "Not verified" tells HR
@@ -217,9 +291,12 @@ const employmentBadge = (status) =>
 
 module.exports = {
   aadhaarBadge,
+  aadhaarListBadge,
   aadhaarBlocksCreate,
   aadhaarOutcome,
   bankBadge,
+  bankListBadge,
+  statusSummaryIndex,
   bankGuidance,
   canConfirmBankName,
   canOverrideDuplicateBank,

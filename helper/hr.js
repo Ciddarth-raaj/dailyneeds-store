@@ -14,6 +14,25 @@ import API from "../util/api";
 const hr = {
   /* ------------------------------------------------------- the employee */
 
+  /**
+   * GET /hr/employees/status-summary — view_employees.
+   *
+   * Aadhaar and bank status for a WHOLE employee list, in one request. It
+   * exists so the list can show those columns without asking per employee;
+   * calling it once per employee would defeat the only reason it is there.
+   *
+   * Returns `[{ employee_id, aadhaar_status, bank_status,
+   * bank_payroll_ready }]` and nothing else - no Aadhaar or account digits,
+   * no fingerprints, no verification ids. It shows exactly the employees
+   * `/employee/employees` shows the same caller.
+   */
+  getStatusSummary: (filters = {}) =>
+    new Promise((resolve, reject) => {
+      API.get("/hr/employees/status-summary", { params: filters })
+        .then((res) => resolve(res.data))
+        .catch(reject);
+    }),
+
   /** POST /hr/employee — employee_create. Never send employee_id: the DB allocates it. */
   createEmployee: (payload) =>
     new Promise((resolve, reject) => {

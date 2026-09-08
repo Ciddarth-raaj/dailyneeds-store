@@ -262,3 +262,94 @@ test("only-active matches say review rather than rejoin", () => {
   assert.strictEqual(s.rejoinable.length, 0);
   assert.match(s.subheading, /still working/);
 });
+
+/* ================================= C3: the list status-summary columns == */
+const { aadhaarListBadge, bankListBadge, statusSummaryIndex } = require("./hrStatus");
+
+test("the bank list badge reads operationally, one word per outcome", () => {
+  assert.strictEqual(bankListBadge("VERIFIED", true).label, "Ready");
+  assert.strictEqual(bankListBadge("NOT_PROVIDED", false).label, "Pending");
+  assert.strictEqual(bankListBadge("PENDING", false).label, "Pending");
+  assert.strictEqual(bankListBadge("NAME_MISMATCH", false).label, "Review");
+  assert.strictEqual(bankListBadge("DUPLICATE_ACCOUNT", false).label, "Duplicate");
+  assert.strictEqual(bankListBadge("FAILED", false).label, "Failed");
+});
+
+test("A DUPLICATE AND A FAILURE READ RED; ONLY A READY ACCOUNT READS GREEN", () => {
+  assert.strictEqual(bankListBadge("DUPLICATE_ACCOUNT", false).colorScheme, "red");
+  assert.strictEqual(bankListBadge("FAILED", false).colorScheme, "red");
+  assert.strictEqual(bankListBadge("VERIFIED", true).colorScheme, "green");
+  for (const s of ["NOT_PROVIDED", "PENDING", "NAME_MISMATCH", "DUPLICATE_ACCOUNT", "FAILED"]) {
+    assert.notStrictEqual(bankListBadge(s, false).colorScheme, "green", `${s} must not read green`);
+  }
+});
+
+test("NOT KNOWN IS NOT THE SAME AS NOT VERIFIED", () => {
+  // The summary has not loaded, or was refused. Saying "Pending" would send
+  // HR chasing 630 employees who may be perfectly fine.
+  for (const missing of [undefined, null, ""]) {
+    assert.strictEqual(bankListBadge(missing, false).label, "—");
+    assert.strictEqual(bankListBadge(missing, false).unknown, true);
+    assert.strictEqual(aadhaarListBadge(missing).label, "—");
+    assert.strictEqual(aadhaarListBadge(missing).unknown, true);
+  }
+});
+
+test("a known Aadhaar status still reads Verified or Pending", () => {
+  assert.strictEqual(aadhaarListBadge("VERIFIED").label, "Verified");
+  assert.strictEqual(aadhaarListBadge("PENDING").label, "Pending");
+});
+
+test("VERIFIED without readiness is never rendered as Ready", () => {
+  // The backend derives one from the other so this should not occur; if it
+  // ever does, the list must not tell anyone they can be paid.
+  const b = bankListBadge("VERIFIED", false);
+  assert.notStrictEqual(b.label, "Ready");
+  assert.notStrictEqual(b.colorScheme, "green");
+});
+
+test("a status this build has never heard of is not quietly Ready", () => {
+  assert.notStrictEqual(bankListBadge("SOMETHING_NEW", true).label, "Ready");
+});
+
+test("the summary merges by employee_id", () => {
+  const index = statusSummaryIndex([
+    { employee_id: 631, aadhaar_status: "VERIFIED", bank_status: "VERIFIED", bank_payroll_ready: true },
+    { employee_id: 632, aadhaar_status: "PENDING", bank_status: "NOT_PROVIDED", bank_payroll_ready: false },
+  ]);
+  assert.strictEqual(index["631"].aadhaar_status, "VERIFIED");
+  assert.strictEqual(index["631"].bank_payroll_ready, true);
+  assert.strictEqual(index["632"].bank_status, "NOT_PROVIDED");
+  assert.strictEqual(index["632"].bank_payroll_ready, false);
+  // An employee the summary did not mention is simply unknown.
+  assert.strictEqual(index["999"], undefined);
+});
+
+test("A REFUSED OR BROKEN SUMMARY IS AN EMPTY INDEX, NEVER A THROW", () => {
+  // The employee list is useful without status columns and useless if a
+  // status request can stop it rendering.
+  for (const bad of [null, undefined, { code: 403, msg: "You do not have permission" }, "nonsense", 42]) {
+    assert.deepStrictEqual(statusSummaryIndex(bad), {});
+  }
+  assert.deepStrictEqual(statusSummaryIndex([null, { no_id: 1 }, { employee_id: null }]), {});
+});
+
+test("the index carries the three status fields and nothing else", () => {
+  const index = statusSummaryIndex([
+    {
+      employee_id: 1,
+      aadhaar_status: "VERIFIED",
+      bank_status: "VERIFIED",
+      bank_payroll_ready: true,
+      // Nothing like this is returned by the endpoint, and if it ever were,
+      // it must not reach a component through here.
+      account_last4: "6789",
+      aadhaar_last4: "4321",
+    },
+  ]);
+  assert.deepStrictEqual(Object.keys(index["1"]).sort(), [
+    "aadhaar_status",
+    "bank_payroll_ready",
+    "bank_status",
+  ]);
+});
