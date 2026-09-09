@@ -239,16 +239,20 @@ test("the object URL is revoked, so a large export is not held in memory", () =>
 
 /* ================================================== navigation ========== */
 
-test("Reports is in the HR menu, behind view_reports", () => {
-  assert.match(menus, /location: "\/reports\/employee-master"/);
-  const section = menus.slice(menus.indexOf("  reports: {"));
-  assert.match(section.slice(0, 600), /permission: "view_reports"/);
+test("Reports is its own top-level module, behind view_reports", () => {
+  // Placement is asserted in full by constants/hrNavigation.test.js; what
+  // matters here is that the screen this file tests is actually reachable,
+  // and reachable only by somebody holding the permission it checks.
+  const reportsMenu = menus.slice(menus.indexOf("const REPORTS_MENU = {"), menus.indexOf("\n};", menus.indexOf("const REPORTS_MENU = {")));
+  assert.match(reportsMenu, /location: "\/reports\/employee-master"/);
+  assert.match(reportsMenu, /permission: "view_reports"/);
+  assert.match(menus, /menu: REPORTS_MENU/);
 });
 
 test("only the dataset that exists is listed", () => {
-  // An empty section is a promise the navigation cannot keep. Attendance and
-  // Payroll reports arrive with their datasets.
-  const section = menus.slice(menus.indexOf("  reports: {"), menus.indexOf("MENU_MODULES"));
-  assert.ok(!/attendance/i.test(section));
-  assert.ok(!/payroll/i.test(section));
+  // An entry that leads nowhere is a promise the navigation cannot keep.
+  // Attendance and Payroll reports arrive with their datasets.
+  const reportsMenu = menus.slice(menus.indexOf("const REPORTS_MENU = {"), menus.indexOf("\n};", menus.indexOf("const REPORTS_MENU = {")));
+  assert.ok(!/attendance/i.test(reportsMenu));
+  assert.ok(!/payroll/i.test(reportsMenu));
 });

@@ -50,11 +50,6 @@ test("Employees, Department and Designation are all inside HR", () => {
     "/department",
     "/designation",
     "/hr/employees",
-    // Reports sits beside the employee master rather than inside it: the
-    // reporting machinery is per-dataset, and Attendance and Payroll reports
-    // will mount next to this one rather than underneath HR's employee
-    // section. Only the dataset that exists is listed.
-    "/reports/employee-master",
   ]);
 });
 
@@ -159,7 +154,7 @@ test("the canonical employee profile appears exactly once as an implementation",
   assert.deepStrictEqual(profiles, ["hr/employees/[id].jsx"], "one profile, in HR");
 });
 
-test("HR navigation still appears exactly once, and still holds its pages", () => {
+test("HR navigation still appears exactly once, and still holds the three pages", () => {
   const modules = code.slice(code.indexOf("export const MENU_MODULES"));
   assert.strictEqual((modules.match(/\bhr:\s*\{/g) || []).length, 1, "one HR module");
 
@@ -168,18 +163,69 @@ test("HR navigation still appears exactly once, and still holds its pages", () =
     "/department",
     "/designation",
     "/hr/employees",
-    "/reports/employee-master",
   ]);
 });
 
-test("the Reports entry is gated on view_reports, and adds no field access", () => {
+/* ============================== Reports is its own module, not HR's ===== */
+test("REPORTS IS A TOP-LEVEL MODULE, BESIDE HR RATHER THAN INSIDE IT", () => {
+  // The reporting machinery is per-dataset and the datasets belong to
+  // different modules: Employee Master is HR's, Attendance and Payroll will be
+  // their own. Nesting the reports under HR would mean an Attendance report
+  // living somewhere nobody would look for it, or Reports existing twice.
+  const modules = code.slice(code.indexOf("export const MENU_MODULES"));
+  assert.strictEqual((modules.match(/\breports:\s*\{/g) || []).length, 1, "one Reports module");
+
+  const reports = modules.slice(modules.indexOf("reports: {"), modules.indexOf("wms: {"));
+  assert.match(reports, /title:\s*"Reports"/);
+  assert.match(reports, /menu:\s*REPORTS_MENU/);
+  // The application shell keeps its purple; Reports is the same product
+  // looked at a different way, not a separate one.
+  assert.match(reports, /accent:\s*"purple"/);
+});
+
+test("HR NO LONGER OWNS REPORTS", () => {
+  const hrMenu = treeNamed("HR_MENU");
+  assert.ok(!/reports/i.test(hrMenu), "HR must not contain a Reports section");
+  assert.ok(
+    !locationsIn(hrMenu).some((l) => l.startsWith("/reports")),
+    "no report page may be reached through the HR menu"
+  );
+});
+
+test("the Reports module contains only Employee Master, for now", () => {
+  const reportsMenu = treeNamed("REPORTS_MENU");
+  assert.deepStrictEqual(locationsIn(reportsMenu), ["/reports/employee-master"]);
+});
+
+test("THERE ARE NO ATTENDANCE OR PAYROLL REPORT PLACEHOLDERS", () => {
+  // An entry that leads nowhere is a promise the navigation cannot keep. They
+  // arrive with their datasets.
+  const reportsMenu = treeNamed("REPORTS_MENU");
+  for (const notYet of ["attendance", "Attendance", "payroll", "Payroll"]) {
+    assert.ok(!reportsMenu.includes(notYet), `Reports must not contain ${notYet}`);
+  }
+  assert.ok(!locationsIn(reportsMenu).some((l) => /attendance|payroll/i.test(l)));
+});
+
+test("the Employee Master report entry is gated on view_reports, and adds no field access", () => {
   // `view_reports` is discovery and preview only. Somebody who reaches the
   // screen still sees exactly the columns their existing permissions allow,
-  // and exporting is the separate `export_reports` decision - so putting this
-  // entry in the menu cannot widen anyone's access to employee data.
-  const hrMenu = treeNamed("HR_MENU");
-  const entry = hrMenu.slice(hrMenu.indexOf("employee_master_report:"));
+  // and exporting is the separate `export_reports` decision - so moving this
+  // entry between modules cannot widen anyone's access to employee data.
+  const reportsMenu = treeNamed("REPORTS_MENU");
+  const entry = reportsMenu.slice(reportsMenu.indexOf("employee_master_report:"));
   assert.match(entry, /permission:\s*"view_reports"/);
+});
+
+test("the report route itself is unchanged by the move", () => {
+  const reportsMenu = treeNamed("REPORTS_MENU");
+  assert.match(reportsMenu, /location:\s*"\/reports\/employee-master"/);
+});
+
+test("the module rail reads All, HR, Reports, WMS, GST", () => {
+  const modules = code.slice(code.indexOf("export const MENU_MODULES"));
+  const ids = (modules.match(/^  (\w+):\s*\{/gm) || []).map((m) => m.trim().replace(/:.*/, ""));
+  assert.deepStrictEqual(ids, ["all", "hr", "reports", "wms", "gst"]);
 });
 
 test("Attendance and Payroll are still not inside HR", () => {

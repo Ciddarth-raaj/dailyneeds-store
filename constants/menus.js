@@ -886,21 +886,31 @@ const HR_MENU = {
       },
     },
   },
-  /**
-   * Reports sits beside the Employee Master rather than inside it, because the
-   * reporting machinery is per-dataset: Attendance and Payroll reports will
-   * mount next to this one when those datasets exist, not underneath HR's
-   * employee section. Only the Employee Master dataset is built today, so only
-   * it is listed - an empty section is a promise the navigation cannot keep.
-   *
-   * `view_reports` is discovery and preview. It confers no field access of its
-   * own: somebody who reaches this screen still sees exactly the columns their
-   * existing permissions allow, and exporting is the separate `export_reports`
-   * decision.
-   */
-  reports: {
-    title: "Reports",
-    selected: false,
+};
+
+/**
+ * Reports — a SHARED top-level module, not a section of HR.
+ *
+ * The reporting machinery is per-dataset and the datasets belong to different
+ * modules: Employee Master is HR's, Attendance and Payroll will be their own.
+ * Putting the reports inside HR would mean an Attendance report either living
+ * under HR - which is not where anyone would look for it - or Reports existing
+ * twice. So Reports is a module on the rail beside HR, and each dataset adds an
+ * entry to it.
+ *
+ * Only the Employee Master dataset is built today, so only it is listed. There
+ * are deliberately no Attendance or Payroll placeholders: an entry that leads
+ * nowhere is a promise the navigation cannot keep.
+ *
+ * `view_reports` is discovery and preview. It confers no field access of its
+ * own - somebody who reaches the screen still sees exactly the columns their
+ * existing permissions allow - and exporting is the separate `export_reports`
+ * decision.
+ */
+const REPORTS_MENU = {
+  employee_master: {
+    title: "Employee Master",
+    selected: true,
     openPage: true,
     icon: "fa-file-text-o",
     subMenu: {
@@ -934,6 +944,16 @@ export const MENU_MODULES = {
     iconClass: "fa-solid fa-users",
     accent: "purple",
     menu: HR_MENU,
+  },
+  // Reports reads across the modules rather than belonging to one, so it sits
+  // beside them on the rail. Purple, like HR and the rest of the application
+  // shell: it is the same product looked at a different way, not a separate
+  // one.
+  reports: {
+    title: "Reports",
+    iconClass: "fa-solid fa-file-lines",
+    accent: "purple",
+    menu: REPORTS_MENU,
   },
   wms: {
     title: "WMS",
