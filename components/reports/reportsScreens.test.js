@@ -81,11 +81,18 @@ test("the filters sent are exactly the five the server accepts", () => {
 
 /* ================================================ permissions on screen == */
 
-test("THE SCREEN IS GATED ON view_reports", () => {
-  assert.match(pageCode, /usePermissions\(\["view_reports"\]\)/);
+test("THE SCREEN IS GATED ON view_reports AND view_employees", () => {
+  // Both, matching what the backend requires with `requireAll`: the reporting
+  // capability AND the dataset it is pointed at. `usePermissions` defaults to
+  // ANY, which would let `view_reports` alone open a screen whose every
+  // request then fails - so the option is not optional here.
+  assert.match(
+    pageCode,
+    /usePermissions\(\["view_reports", "view_employees"\], \{ all: true \}\)/
+  );
   // And it says so rather than rendering an empty report, which would look
   // like there is no data rather than no access.
-  assert.match(page, /You do not have permission to view reports/);
+  assert.match(page, /You do not have permission to view employee reports/);
 });
 
 test("THE EXPORT BUTTONS EXIST ONLY FOR SOMEBODY WHO MAY EXPORT", () => {
@@ -239,13 +246,15 @@ test("the object URL is revoked, so a large export is not held in memory", () =>
 
 /* ================================================== navigation ========== */
 
-test("Reports is its own top-level module, behind view_reports", () => {
+test("Reports is its own top-level module, behind both required keys", () => {
   // Placement is asserted in full by constants/hrNavigation.test.js; what
   // matters here is that the screen this file tests is actually reachable,
   // and reachable only by somebody holding the permission it checks.
   const reportsMenu = menus.slice(menus.indexOf("const REPORTS_MENU = {"), menus.indexOf("\n};", menus.indexOf("const REPORTS_MENU = {")));
   assert.match(reportsMenu, /location: "\/reports\/employee-master"/);
-  assert.match(reportsMenu, /permission: "view_reports"/);
+  // The same pair the screen and the backend require, so the entry cannot
+  // appear on a rail belonging to somebody who would be refused on opening it.
+  assert.match(reportsMenu, /permission: \["view_reports", "view_employees"\]/);
   assert.match(menus, /menu: REPORTS_MENU/);
 });
 

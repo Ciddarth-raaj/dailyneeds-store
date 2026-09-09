@@ -207,14 +207,20 @@ test("THERE ARE NO ATTENDANCE OR PAYROLL REPORT PLACEHOLDERS", () => {
   assert.ok(!locationsIn(reportsMenu).some((l) => /attendance|payroll/i.test(l)));
 });
 
-test("the Employee Master report entry is gated on view_reports, and adds no field access", () => {
-  // `view_reports` is discovery and preview only. Somebody who reaches the
-  // screen still sees exactly the columns their existing permissions allow,
-  // and exporting is the separate `export_reports` decision - so moving this
-  // entry between modules cannot widen anyone's access to employee data.
+test("THE REPORT ENTRY REQUIRES view_reports AND view_employees", () => {
+  // `view_reports` is a reporting capability, not a doorway into a dataset.
+  // The Employee Master dataset is HR's, and the backend requires both keys
+  // with `requireAll`; an entry shown on `view_reports` alone would put a
+  // module on somebody's rail that 403s the moment they open it.
+  //
+  // It still confers no FIELD access: the columns somebody sees are decided by
+  // their existing permissions, and exporting is the separate `export_reports`
+  // decision - so neither the move between modules nor this pair widens
+  // anyone's access to employee data.
   const reportsMenu = treeNamed("REPORTS_MENU");
   const entry = reportsMenu.slice(reportsMenu.indexOf("employee_master_report:"));
-  assert.match(entry, /permission:\s*"view_reports"/);
+  assert.match(entry, /permission:\s*\["view_reports", "view_employees"\]/);
+  assert.ok(!/export_reports/.test(reportsMenu), "the menu does not gate on the export verb");
 });
 
 test("the report route itself is unchanged by the move", () => {

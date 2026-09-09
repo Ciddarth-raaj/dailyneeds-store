@@ -83,7 +83,11 @@ const EMPTY_FILTERS = {
 const isRefusal = (body) => Boolean(body) && typeof body === "object" && body.code >= 400;
 
 function EmployeeMasterReport() {
-  const canView = usePermissions(["view_reports"]);
+  // BOTH keys, matching what the backend requires with `requireAll`: the
+  // reporting capability AND the dataset it is pointed at. The default for
+  // this hook is ANY, which would let `view_reports` alone open a screen whose
+  // every request then fails.
+  const canView = usePermissions(["view_reports", "view_employees"], { all: true });
   const toast = useToast();
 
   const { outlets } = useOutlets({ directory: true });
@@ -316,7 +320,7 @@ function EmployeeMasterReport() {
         <CustomContainer title="Employee Master Report">
           <Alert status="warning" borderRadius="8px">
             <AlertIcon />
-            You do not have permission to view reports.
+            You do not have permission to view employee reports.
           </Alert>
         </CustomContainer>
       </GlobalWrapper>

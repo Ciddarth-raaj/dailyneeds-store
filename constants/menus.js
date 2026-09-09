@@ -916,7 +916,12 @@ const REPORTS_MENU = {
     subMenu: {
       employee_master_report: {
         title: "Employee Master",
-        permission: "view_reports",
+        // BOTH, not either. `view_reports` is a reporting capability; the
+        // Employee Master dataset is HR's, and reaching it needs the same key
+        // that guards the HR directory. The backend requires exactly this pair
+        // with `requireAll`, so showing the entry on `view_reports` alone
+        // would put a module on somebody's rail that 403s when they open it.
+        permission: ["view_reports", "view_employees"],
         selected: false,
         location: "/reports/employee-master",
       },
