@@ -179,7 +179,15 @@ function BankDetailsEditor({
 
     const code_ = res && Number(res.code);
     if (code_ === 200 && res.bank_name && res.branch_name) {
-      setIfscState({ status: "ok", bank_name: res.bank_name, branch_name: res.branch_name });
+      // `stale` means the backend served its cached row because the provider
+      // could not be reached to re-confirm it. It is still the answer - a
+      // branch does not move often - so it fills the form and saves normally.
+      setIfscState({
+        status: "ok",
+        bank_name: res.bank_name,
+        branch_name: res.branch_name,
+        stale: Boolean(res.stale),
+      });
       return;
     }
     if (code_ === 404 || code_ === 422) {
@@ -188,6 +196,11 @@ function BankDetailsEditor({
     }
     // Anything else - provider down, timed out, not configured - leaves the
     // code unjudged, so a correct IFSC is never called wrong.
+    //
+    // Note what reaching here MEANS: the backend serves its cached row when
+    // the provider is unreachable, so this is a code it has never resolved
+    // AND cannot resolve now. There is no bank name to be had, which is why
+    // it holds the save rather than storing the account with a blank one.
     lookedUp.current = null;
     setIfscState({
       status: "unavailable",
@@ -232,8 +245,20 @@ function BankDetailsEditor({
       setError(ifscState.message || "Invalid IFSC — please check the code");
       return null;
     }
-    if (ifscState.status === "checking") {
+    if (ifscState.status === "checking" || ifscState.status === "idle") {
+      // `idle` with a complete code means the debounce has not fired yet -
+      // pasting a code and clicking straight away. Ask for it now rather than
+      // saving an account with no bank name against it.
+      if (ifscState.status === "idle") resolveIfsc(ifsc);
       setError("Still checking that IFSC — one moment.");
+      return null;
+    }
+    if (ifscState.status === "unavailable") {
+      // Saving now would store an account with no bank name against it, and
+      // the record would keep that gap long after the outage ended.
+      setError(
+        "The bank lookup could not be reached, so the bank name is not known yet. Try again in a moment — the details are not saved without it."
+      );
       return null;
     }
 
@@ -301,8 +326,9 @@ function BankDetailsEditor({
       </Text>
     ),
     ok: (
-      <Text as="span" color="green.600">
+      <Text as="span" color={ifscState.stale ? "orange.600" : "green.600"}>
         ✓ {ifscState.bank_name}
+        {ifscState.stale ? " — from the saved branch list; the bank lookup could not be reached to re-check it." : ""}
       </Text>
     ),
     invalid: (
@@ -312,19 +338,30 @@ function BankDetailsEditor({
     ),
     unavailable: (
       <Text as="span" color="orange.600">
-        {ifscState.message || "The bank lookup is unavailable just now."} The IFSC itself has not been
-        checked — you can still save.
+        {ifscState.message || "The bank lookup is unavailable just now."} This is not a problem with the
+        code — please try again in a moment rather than saving without a bank name.
       </Text>
     ),
   }[ifscState.status];
 
   /**
-   * A code the provider says does not exist must not be saved, and a lookup
-   * still in flight is worth the half second. An UNAVAILABLE lookup does not
-   * block: an outage in a reference lookup is no reason HR cannot record an
-   * account, and the code has not been contradicted.
+   * What holds the primary action.
+   *
+   *   invalid      the provider says there is no such branch. An account
+   *                nothing can be paid into is not worth storing.
+   *   checking     worth the half second rather than saving a blank.
+   *   unavailable  nothing to fill the bank name in WITH. The backend serves
+   *                its cached row whenever the provider is unreachable, so
+   *                reaching here means the code has never been resolved and
+   *                cannot be now - and saving would put an account on the
+   *                employee with no bank name against it, which is the one
+   *                outcome worse than asking HR to try again. A cached answer,
+   *                stale or not, arrives as `ok` and saves normally.
    */
-  const ifscBlocks = ifscState.status === "invalid" || ifscState.status === "checking";
+  const ifscBlocks =
+    ifscState.status === "invalid" ||
+    ifscState.status === "checking" ||
+    ifscState.status === "unavailable";
 
   const footer = (
     <>

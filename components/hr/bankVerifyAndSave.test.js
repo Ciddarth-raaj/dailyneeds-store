@@ -165,12 +165,21 @@ test("A CHANGED ACCOUNT CANNOT CARRY THE OLD VERIFIED FORWARD", () => {
   const a = bankActions({ status: "PENDING", hasAccount: true, ...VERIFIER, canEditSensitive: true });
   assert.strictEqual(a.canVerifyExisting, true, "the new account must be verifiable");
 
+  // The rule is about the BANK VERIFICATION's staleness - `bank.stale`, the
+  // fingerprint mismatch the backend has already folded into the status. The
+  // IFSC cache has an unrelated `stale` of its own, meaning "served from the
+  // branch list without re-checking", which decides nothing about a
+  // verification; matching on the bare word would conflate the two.
   for (const src of [cardCode, editorCode, profileCode]) {
     assert.ok(
-      !/stale\s*[?&|=]/.test(src.replace(/bank\.stale \?/g, "")),
-      "no screen may derive an action from staleness itself"
+      !/bank\.stale\s*[&|=]/.test(src),
+      "no screen may derive an action from verification staleness"
     );
   }
+  // The card still SHOWS it, which is different from deciding on it.
+  assert.match(cardCode, /bank\.stale \?/);
+  // And nothing turns the IFSC cache flag into a verification decision.
+  assert.ok(!/ifscState\.stale[\s\S]{0,40}verif/i.test(editorCode));
   // The card still SHOWS it, which is different from deciding on it.
   assert.match(cardCode, /bank\.stale \?/);
 });

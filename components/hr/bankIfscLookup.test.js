@@ -85,10 +85,7 @@ test("a stale answer cannot overwrite a newer one", () => {
 
 test("A VALID IFSC FILLS BANK NAME AND BRANCH", () => {
   const resolve = editorCode.slice(editorCode.indexOf("const resolveIfsc"));
-  assert.match(
-    resolve,
-    /setIfscState\(\{ status: "ok", bank_name: res\.bank_name, branch_name: res\.branch_name \}\)/
-  );
+  assert.match(resolve, /status: "ok",\s*bank_name: res\.bank_name,\s*branch_name: res\.branch_name,/);
   // Both must be present; a half answer is not a fill.
   assert.match(resolve, /code_ === 200 && res\.bank_name && res\.branch_name/);
 });
@@ -147,7 +144,7 @@ test("CHANGING THE IFSC CLEARS THE PREVIOUS BANK AND BRANCH IMMEDIATELY", () => 
 
 test("AN INVALID IFSC BLOCKS SAVE AND VERIFY", () => {
   // An account nothing can ever be paid into is not worth storing.
-  assert.match(editorCode, /const ifscBlocks = ifscState\.status === "invalid" \|\| ifscState\.status === "checking"/);
+  assert.match(editorCode, /const ifscBlocks =\s*ifscState\.status === "invalid" \|\|/);
   assert.match(editorCode, /isDisabled=\{held \|\| ifscBlocks\}/);
 
   // The button is not the only barrier: submit refuses too.
@@ -174,12 +171,52 @@ test("A PROVIDER FAILURE IS NEVER SHOWN AS AN INVALID IFSC", () => {
   assert.match(thrown, /status: "unavailable"/);
   assert.ok(!/invalid/.test(thrown), "a failed request must not judge the code");
 
-  // Unavailable does NOT block saving, and says so.
+  // It says so in those words, and points at the outage rather than the code.
+  assert.match(editor, /This is not a problem with the\s*code — please try again in a moment/);
+});
+
+test("A CACHED ANSWER SURVIVES A PROVIDER OUTAGE, AND STILL SAVES", () => {
+  // The backend serves its cached row whenever the provider is unreachable,
+  // flagged `stale`. That is still the answer - branches do not move often -
+  // so it fills the form and saves normally rather than being thrown away.
+  const resolve = editorCode.slice(editorCode.indexOf("const resolveIfsc"));
+  assert.match(resolve, /stale: Boolean\(res\.stale\)/);
+  assert.match(editorCode, /status: "ok",\s*bank_name: res\.bank_name/);
+
+  // `ok` is never blocked, stale or not: the bank name is known.
   assert.ok(
-    !/ifscBlocks = [^;]*unavailable/.test(editorCode),
-    "an outage in a reference lookup must not stop HR recording an account"
+    !/ifscBlocks =[\s\S]{0,200}"ok"/.test(editorCode),
+    "a known bank name must never hold the save"
   );
-  assert.match(editor, /The IFSC itself has not been\s*checked — you can still save\./);
+  // And the user is told where it came from rather than it passing as fresh.
+  assert.match(editor, /from the saved branch list; the bank lookup could not be reached to re-check it/);
+});
+
+test("A NEVER-SEEN CODE PLUS AN OUTAGE HOLDS THE SAVE INSTEAD OF STORING A BLANK", () => {
+  // Reaching `unavailable` means the backend has never resolved this code AND
+  // cannot now - so there is no bank name to be had. Saving would put an
+  // account on the employee with no bank name against it, and the record
+  // would keep that gap long after the outage ended.
+  assert.match(
+    editorCode,
+    /const ifscBlocks =\s*ifscState\.status === "invalid" \|\|\s*ifscState\.status === "checking" \|\|\s*ifscState\.status === "unavailable";/
+  );
+
+  // submit() refuses too, so the disabled button is not the only barrier.
+  const validated = editorCode.slice(editorCode.indexOf("const validated"), editorCode.indexOf("const submit"));
+  assert.match(validated, /if \(ifscState\.status === "unavailable"\)/);
+  assert.match(validated, /the details are not saved without it/);
+
+  // A blank bank name can therefore never be what gets saved.
+  assert.match(validated, /bank_name: ifscState\.status === "ok" \? ifscState\.bank_name : ""/);
+});
+
+test("pasting a code and clicking at once asks first rather than saving a blank", () => {
+  // `idle` with a complete code means the debounce has not fired yet. The
+  // half second is worth more than a bank name nobody notices is missing.
+  const validated = editorCode.slice(editorCode.indexOf("const validated"), editorCode.indexOf("const submit"));
+  assert.match(validated, /ifscState\.status === "checking" \|\| ifscState\.status === "idle"/);
+  assert.match(validated, /if \(ifscState\.status === "idle"\) resolveIfsc\(ifsc\);/);
 });
 
 test("there is a small loading state while it checks", () => {
