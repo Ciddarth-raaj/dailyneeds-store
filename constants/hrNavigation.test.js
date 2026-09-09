@@ -50,6 +50,11 @@ test("Employees, Department and Designation are all inside HR", () => {
     "/department",
     "/designation",
     "/hr/employees",
+    // Reports sits beside the employee master rather than inside it: the
+    // reporting machinery is per-dataset, and Attendance and Payroll reports
+    // will mount next to this one rather than underneath HR's employee
+    // section. Only the dataset that exists is listed.
+    "/reports/employee-master",
   ]);
 });
 
@@ -154,7 +159,7 @@ test("the canonical employee profile appears exactly once as an implementation",
   assert.deepStrictEqual(profiles, ["hr/employees/[id].jsx"], "one profile, in HR");
 });
 
-test("HR navigation still appears exactly once, and still holds the three pages", () => {
+test("HR navigation still appears exactly once, and still holds its pages", () => {
   const modules = code.slice(code.indexOf("export const MENU_MODULES"));
   assert.strictEqual((modules.match(/\bhr:\s*\{/g) || []).length, 1, "one HR module");
 
@@ -163,7 +168,18 @@ test("HR navigation still appears exactly once, and still holds the three pages"
     "/department",
     "/designation",
     "/hr/employees",
+    "/reports/employee-master",
   ]);
+});
+
+test("the Reports entry is gated on view_reports, and adds no field access", () => {
+  // `view_reports` is discovery and preview only. Somebody who reaches the
+  // screen still sees exactly the columns their existing permissions allow,
+  // and exporting is the separate `export_reports` decision - so putting this
+  // entry in the menu cannot widen anyone's access to employee data.
+  const hrMenu = treeNamed("HR_MENU");
+  const entry = hrMenu.slice(hrMenu.indexOf("employee_master_report:"));
+  assert.match(entry, /permission:\s*"view_reports"/);
 });
 
 test("Attendance and Payroll are still not inside HR", () => {

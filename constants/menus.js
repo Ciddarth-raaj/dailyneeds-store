@@ -886,6 +886,32 @@ const HR_MENU = {
       },
     },
   },
+  /**
+   * Reports sits beside the Employee Master rather than inside it, because the
+   * reporting machinery is per-dataset: Attendance and Payroll reports will
+   * mount next to this one when those datasets exist, not underneath HR's
+   * employee section. Only the Employee Master dataset is built today, so only
+   * it is listed - an empty section is a promise the navigation cannot keep.
+   *
+   * `view_reports` is discovery and preview. It confers no field access of its
+   * own: somebody who reaches this screen still sees exactly the columns their
+   * existing permissions allow, and exporting is the separate `export_reports`
+   * decision.
+   */
+  reports: {
+    title: "Reports",
+    selected: false,
+    openPage: true,
+    icon: "fa-file-text-o",
+    subMenu: {
+      employee_master_report: {
+        title: "Employee Master",
+        permission: "view_reports",
+        selected: false,
+        location: "/reports/employee-master",
+      },
+    },
+  },
 };
 
 /**
