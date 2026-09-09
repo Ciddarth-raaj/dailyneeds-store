@@ -244,6 +244,79 @@ test("a network failure refreshes rather than blindly repeating", () => {
   assert.match(c, /saved: null/);
 });
 
+test("A LOST VERIFY RESPONSE IS RECONCILED, NOT RE-PAID", () => {
+  // The backend stores the provider's answer BEFORE returning it, so losing
+  // the response does not mean losing the check. Reading the status back is
+  // free; running the check again is not.
+  const r = profileCode.slice(
+    profileCode.indexOf("const reconcileLostVerification"),
+    profileCode.indexOf("const saveAndVerifyBank")
+  );
+  assert.ok(r.length > 0, "the verify-phase catch must reconcile");
+
+  // It reads, and the read is the free one - never the paid route.
+  assert.match(r, /HrHelper\.getBankStatus\(id\)/);
+  assert.ok(!/verifyBank/.test(r), "reconciliation must not call the paid route");
+
+  // A stored VERIFIED is a success: the check ran and passed.
+  assert.match(r, /status === "VERIFIED"/);
+  assert.match(r, /return \{ saved: true, verified: true, status \}/);
+
+  // A stored verdict is shown as the real outcome it is.
+  for (const s of ["VERIFIED", "NAME_MISMATCH", "DUPLICATE_ACCOUNT", "FAILED"]) {
+    assert.ok(r.includes(`"${s}"`), `${s} must count as a settled verdict`);
+  }
+  assert.match(r, /settled\(status\)/);
+
+  // And a failed status read must not be mistaken for a verdict.
+  assert.match(r, /fresh && !fresh\.code \? fresh\.status : null/);
+});
+
+test("AN UNDETERMINED OUTCOME DOES NOT OFFER ANOTHER PAID CHECK", () => {
+  const r = profileCode.slice(
+    profileCode.indexOf("const reconcileLostVerification"),
+    profileCode.indexOf("const saveAndVerifyBank")
+  );
+  // PENDING and an unreadable status fall through to a hold - and still say
+  // plainly that the details were saved.
+  assert.match(r, /indeterminate: true/);
+  assert.match(r, /saved: true,\s*verified: false,\s*indeterminate: true/);
+
+  // The editor honours the hold: the submit path refuses, and the button is
+  // disabled rather than merely relabelled.
+  assert.match(editorCode, /const held = Boolean\(outcome && outcome\.indeterminate\)/);
+  assert.match(editorCode, /if \(held\) return;/);
+  assert.match(editorCode, /isDisabled=\{held\}/);
+
+  // Changing the details is the explicit act that lifts it.
+  assert.match(editorCode, /o && o\.indeterminate \? \{ \.\.\.o, indeterminate: false \} : o/);
+
+  // The wording must not claim a check ran and failed, because it may not have.
+  assert.match(editor, /The check did not report back/);
+  const partial = editorCode.slice(editorCode.indexOf("outcome.saved === true"));
+  assert.match(
+    partial.slice(0, 200),
+    /!outcome\.indeterminate/,
+    "the 'did not pass' alert must not render for an unknown outcome"
+  );
+});
+
+test("THE CARD'S VERIFY BUTTON HAS THE SAME HARD DOUBLE-CLICK GUARD", () => {
+  // `busy` only disables the button after a re-render; a fast second click can
+  // land inside that gap and spend a second paid verification.
+  assert.match(cardCode, /const inFlight = useRef\(false\)/);
+  const run = cardCode.slice(cardCode.indexOf("const run = async"));
+  const body = run.slice(0, run.indexOf("\n  };"));
+  const guardAt = body.indexOf("if (inFlight.current) return;");
+  const callAt = body.indexOf("await fn()");
+  assert.ok(guardAt > -1, "run() must refuse a re-entrant call");
+  assert.ok(guardAt < callAt, "the guard must precede the call it protects");
+  // Set synchronously, before any await, and always released.
+  assert.ok(body.indexOf("inFlight.current = true;") < callAt);
+  assert.match(body, /finally \{\s*inFlight\.current = false;/);
+  assert.match(cardCode, /import React, \{ useRef, useState \}/);
+});
+
 /* ================== 7-9. the existing safety model is intact ============= */
 
 test("NAME MISMATCH, DUPLICATE AND OVERRIDE ARE UNCHANGED", () => {

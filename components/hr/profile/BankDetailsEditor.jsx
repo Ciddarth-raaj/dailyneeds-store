@@ -74,7 +74,15 @@ function BankDetailsEditor({
   const [outcome, setOutcome] = useState(null);
   const inFlight = useRef(false);
 
-  const set = (name, value) => setForm((f) => ({ ...f, [name]: value }));
+  const set = (name, value) => {
+    // Changing the details is the explicit act that lifts an indeterminate
+    // hold: whatever may or may not have been checked, it was not this.
+    setOutcome((o) => (o && o.indeterminate ? { ...o, indeterminate: false } : o));
+    setForm((f) => ({ ...f, [name]: value }));
+  };
+
+  /** An outcome that must not lead straight to another paid check. */
+  const held = Boolean(outcome && outcome.indeterminate);
 
   const close = () => {
     setForm({ account_no: "", ifsc: "", bank_name: "" });
@@ -105,6 +113,8 @@ function BankDetailsEditor({
     // paid verification. `saving` disables the button; this refuses anything
     // that gets past it anyway.
     if (inFlight.current) return;
+    // A verification whose fate is unknown must not be repeated on a whim.
+    if (held) return;
 
     setError(null);
     const values = validated();
@@ -141,7 +151,13 @@ function BankDetailsEditor({
       <Button variant="ghost" mr={3} size="sm" onClick={close} isDisabled={saving}>
         {outcome && outcome.saved ? "Done" : "Cancel"}
       </Button>
-      <Button colorScheme="purple" size="sm" onClick={submit} isLoading={saving}>
+      <Button
+        colorScheme="purple"
+        size="sm"
+        onClick={submit}
+        isLoading={saving}
+        isDisabled={held}
+      >
         {outcome && outcome.saved ? "Save & verify again" : primaryLabel}
       </Button>
     </>
@@ -164,8 +180,24 @@ function BankDetailsEditor({
           </Alert>
         ) : null}
 
+        {/* ------------- saved, but whether a check was spent is unknown */}
+        {outcome && outcome.indeterminate ? (
+          <Alert status="warning" fontSize="sm" alignItems="flex-start">
+            <AlertIcon />
+            <Stack spacing={1}>
+              <Text fontWeight="bold">
+                The bank details were saved. The check did not report back.
+              </Text>
+              <Text>{outcome.message}</Text>
+              <Text color="gray.600">
+                Changing the details above re-enables saving.
+              </Text>
+            </Stack>
+          </Alert>
+        ) : null}
+
         {/* ------------------------------------------- a partial success */}
-        {outcome && outcome.saved === true ? (
+        {outcome && outcome.saved === true && !outcome.indeterminate ? (
           <Alert status="warning" fontSize="sm" alignItems="flex-start">
             <AlertIcon />
             <Stack spacing={1}>

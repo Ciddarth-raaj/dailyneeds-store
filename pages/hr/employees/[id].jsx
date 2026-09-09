@@ -226,6 +226,59 @@ function EmployeeProfile() {
    * claiming either way would be a guess. The status is refreshed and the
    * uncertainty is stated.
    */
+  /**
+   * The verification response was lost. Find out whether the check itself was.
+   *
+   * `GET /bank/verification` is a free read of what the backend stored, and the
+   * backend stores the provider's answer before returning it. So a status that
+   * has settled on a real verdict is evidence that the paid check DID run, and
+   * the honest thing - as well as the cheap thing - is to report that verdict
+   * rather than to invite a second one.
+   *
+   * PENDING is the case that stays unknown: it is equally the shape of "the
+   * check never ran" and "it ran but stored nothing we can see yet", and
+   * guessing either way is worse than saying so.
+   */
+  const reconcileLostVerification = async () => {
+    const settled = (status) =>
+      ["VERIFIED", "NAME_MISMATCH", "DUPLICATE_ACCOUNT", "FAILED"].includes(status);
+
+    let fresh = null;
+    try {
+      fresh = await HrHelper.getBankStatus(id);
+    } catch (readErr) {
+      fresh = null;
+    }
+    const status = fresh && !fresh.code ? fresh.status : null;
+
+    if (status === "VERIFIED") {
+      // The check completed and passed. Only the answer went missing.
+      toast({ title: "Bank details saved and verified", status: "success", duration: 4000 });
+      return { saved: true, verified: true, status };
+    }
+    if (settled(status)) {
+      // A real verdict, already paid for. Show it as the outcome it is - the
+      // user corrects the details or deals with it on the card, exactly as if
+      // the response had arrived.
+      return {
+        saved: true,
+        verified: false,
+        status,
+        verdict: (fresh.verification && fresh.verification.name_match_verdict) || null,
+      };
+    }
+    // Genuinely undetermined. The details ARE saved; what is unknown is
+    // whether a check was spent. `indeterminate` stops the editor offering
+    // another one until the user changes the details or goes to the card.
+    return {
+      saved: true,
+      verified: false,
+      indeterminate: true,
+      message:
+        "The details were saved, but the connection dropped before the bank check reported back - it may or may not have run. To avoid paying for a second check, use Verify Bank Details on the bank card once you have looked at the current status there.",
+    };
+  };
+
   const saveAndVerifyBank = async (form) => {
     const payload = buildSensitivePayload(id, employee || {}, form);
     let phase = "save";
@@ -271,18 +324,20 @@ function EmployeeProfile() {
       // Refresh rather than retry: repeating the sequence blind could spend a
       // second paid verification for one HR action.
       await load();
-      return phase === "save"
-        ? {
-            saved: null,
-            message:
-              "The connection failed while saving, so it is not certain whether the details were stored. The bank card has been refreshed - check it before trying again.",
-          }
-        : {
-            saved: true,
-            verified: false,
-            message:
-              "The details were saved, but the verification could not be completed. The bank card has been refreshed; use Verify Bank Details there when you are ready.",
-          };
+      if (phase === "save") {
+        return {
+          saved: null,
+          message:
+            "The connection failed while saving, so it is not certain whether the details were stored. The bank card has been refreshed - check it before trying again.",
+        };
+      }
+      // LOSING THE RESPONSE IS NOT LOSING THE VERIFICATION. The backend
+      // records the provider's answer before it returns it, so a check that
+      // was already paid for may well have completed and been stored while
+      // the response never arrived. Offering "verify again" here would spend
+      // a second one for nothing. So read the status back - a free read - and
+      // let the stored result speak.
+      return reconcileLostVerification();
     } finally {
       setSaving(false);
     }

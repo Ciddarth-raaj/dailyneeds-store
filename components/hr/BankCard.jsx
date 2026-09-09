@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import {
   Box,
   Button,
@@ -47,6 +47,10 @@ function BankCard({
 }) {
   const toast = useToast();
   const [busy, setBusy] = useState(false);
+  // `busy` disables the buttons, but only after a re-render. Verification is
+  // billed per call, so a second click that lands inside that gap must be
+  // refused synchronously - state is too late.
+  const inFlight = useRef(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [overrideOpen, setOverrideOpen] = useState(false);
   const [note, setNote] = useState("");
@@ -72,6 +76,8 @@ function BankCard({
   const mayOverride = canOverrideDuplicateBank({ status, permissions, isAdmin });
 
   const run = async (fn, successTitle) => {
+    if (inFlight.current) return;
+    inFlight.current = true;
     setBusy(true);
     try {
       const res = await fn();
@@ -84,6 +90,7 @@ function BankCard({
     } catch (err) {
       toast({ title: "Could not reach the server", status: "error", duration: 5000 });
     } finally {
+      inFlight.current = false;
       setBusy(false);
       setConfirmOpen(false);
       setOverrideOpen(false);
