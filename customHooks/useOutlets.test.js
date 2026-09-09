@@ -105,6 +105,9 @@ test("no other consumer was switched to the directory", () => {
     "pages/hr/employees/[id].jsx",
     "pages/hr/employees/index.jsx",
     "pages/hr/employees/new.jsx",
+    // Reports: the outlet filter on the Employee Master report, which likewise
+    // needs only an id and a name and must work without `view_stores`.
+    "pages/reports/employee-master.jsx",
   ]);
 });
 

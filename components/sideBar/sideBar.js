@@ -11,6 +11,7 @@ import {
 import { findModuleIdForPath } from "../../util/moduleTableTheme";
 import "../../constants/variables";
 import DesignationHelper from "../../helper/designation";
+import hasMenuPermission from "../../util/menuPermissions";
 
 function buildMenuStateForModule(moduleId) {
   const template = MENU_MODULES[moduleId].menu;
@@ -34,9 +35,7 @@ function buildMenuStateForModule(moduleId) {
 function moduleHasPermittedMenuItem(menuTree, filteredData) {
   if (!menuTree || !Array.isArray(filteredData)) return false;
 
-  const hasPermission = (permission) =>
-    filteredData.find((item) => item.permission_key == permission) !==
-    undefined;
+  const hasPermission = (permission) => hasMenuPermission(permission, filteredData);
 
   for (const key of Object.keys(menuTree)) {
     const entry = menuTree[key];
@@ -52,11 +51,7 @@ function moduleHasPermittedMenuItem(menuTree, filteredData) {
     });
 
     const isDirectMenu = Boolean(entry.isDirect);
-    const hasDirectPermission =
-      !entry.permission ||
-      filteredData.some(
-        (item) => item.permission_key == entry.permission
-      );
+    const hasDirectPermission = hasMenuPermission(entry.permission, filteredData);
 
     if (!isDirectMenu && permittedSubKeys.length > 0) return true;
     if (isDirectMenu && hasDirectPermission) return true;
@@ -314,9 +309,7 @@ export default function Sidebar() {
             {Object.keys(menu).map((key) => {
               const subMenu = menu[key].subMenu || {};
               const hasPermission = (permission) =>
-                filteredData?.find(
-                  (item) => item.permission_key == permission
-                ) !== undefined;
+                hasMenuPermission(permission, filteredData);
               const permittedSubKeys = Object.keys(subMenu).filter((sKey) => {
                 const item = subMenu[sKey];
                 if (item.subMenu) {
@@ -328,11 +321,10 @@ export default function Sidebar() {
               });
 
               const isDirectMenu = Boolean(menu[key].isDirect);
-              const hasDirectPermission =
-                !menu[key].permission ||
-                filteredData?.some(
-                  (item) => item.permission_key == menu[key].permission
-                );
+              const hasDirectPermission = hasMenuPermission(
+                menu[key].permission,
+                filteredData
+              );
 
               if (
                 (!isDirectMenu && permittedSubKeys.length === 0) ||

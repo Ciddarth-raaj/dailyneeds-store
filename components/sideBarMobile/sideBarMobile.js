@@ -6,6 +6,7 @@ import styles from "./sideBarMobile.module.css";
 import Head from "../../util/head";
 import MENU_LIST from "../../constants/menus";
 import DesignationHelper from "../../helper/designation";
+import hasMenuPermission from "../../util/menuPermissions";
 
 export default class SideBarMobile extends React.Component {
   constructor(props) {
@@ -54,9 +55,7 @@ export default class SideBarMobile extends React.Component {
           {Object.keys(menu).map((key) => {
             const subMenu = menu[key].subMenu || {};
             const hasPermission = (permission) =>
-              filteredData?.find(
-                (item) => item.permission_key == permission
-              ) !== undefined;
+              hasMenuPermission(permission, filteredData);
             const permittedSubKeys = Object.keys(subMenu).filter((sKey) => {
               const item = subMenu[sKey];
               if (item.subMenu) {
@@ -68,11 +67,10 @@ export default class SideBarMobile extends React.Component {
             });
 
             const isDirectMenu = Boolean(menu[key].isDirect);
-            const hasDirectPermission =
-              !menu[key].permission ||
-              filteredData?.some(
-                (item) => item.permission_key == menu[key].permission
-              );
+            const hasDirectPermission = hasMenuPermission(
+              menu[key].permission,
+              filteredData
+            );
 
             if (
               (!isDirectMenu && permittedSubKeys.length === 0) ||

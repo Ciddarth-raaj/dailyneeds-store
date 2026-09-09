@@ -889,6 +889,47 @@ const HR_MENU = {
 };
 
 /**
+ * Reports — a SHARED top-level module, not a section of HR.
+ *
+ * The reporting machinery is per-dataset and the datasets belong to different
+ * modules: Employee Master is HR's, Attendance and Payroll will be their own.
+ * Putting the reports inside HR would mean an Attendance report either living
+ * under HR - which is not where anyone would look for it - or Reports existing
+ * twice. So Reports is a module on the rail beside HR, and each dataset adds an
+ * entry to it.
+ *
+ * Only the Employee Master dataset is built today, so only it is listed. There
+ * are deliberately no Attendance or Payroll placeholders: an entry that leads
+ * nowhere is a promise the navigation cannot keep.
+ *
+ * `view_reports` is discovery and preview. It confers no field access of its
+ * own - somebody who reaches the screen still sees exactly the columns their
+ * existing permissions allow - and exporting is the separate `export_reports`
+ * decision.
+ */
+const REPORTS_MENU = {
+  employee_master: {
+    title: "Employee Master",
+    selected: true,
+    openPage: true,
+    icon: "fa-file-text-o",
+    subMenu: {
+      employee_master_report: {
+        title: "Employee Master",
+        // BOTH, not either. `view_reports` is a reporting capability; the
+        // Employee Master dataset is HR's, and reaching it needs the same key
+        // that guards the HR directory. The backend requires exactly this pair
+        // with `requireAll`, so showing the entry on `view_reports` alone
+        // would put a module on somebody's rail that 403s when they open it.
+        permission: ["view_reports", "view_employees"],
+        selected: false,
+        location: "/reports/employee-master",
+      },
+    },
+  },
+};
+
+/**
  * Top-level app modules; each has its own sidebar menu tree.
  * `accent` drives module-rail colors and the main menu panel (see sideBar `data-menu-accent`).
  * Rail icon: set `iconClass` (full FA6 classes, e.g. "fa-solid fa-chart-line") or `icon` (legacy suffix, e.g. "fa-users" → "fa fa-users").
@@ -908,6 +949,16 @@ export const MENU_MODULES = {
     iconClass: "fa-solid fa-users",
     accent: "purple",
     menu: HR_MENU,
+  },
+  // Reports reads across the modules rather than belonging to one, so it sits
+  // beside them on the rail. Purple, like HR and the rest of the application
+  // shell: it is the same product looked at a different way, not a separate
+  // one.
+  reports: {
+    title: "Reports",
+    iconClass: "fa-solid fa-file-lines",
+    accent: "purple",
+    menu: REPORTS_MENU,
   },
   wms: {
     title: "WMS",
