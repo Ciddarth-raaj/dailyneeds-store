@@ -193,8 +193,16 @@ test("HR NO LONGER OWNS REPORTS", () => {
 });
 
 test("the Reports module contains only Employee Master, for now", () => {
+  // Two entries, one dataset. Saved Reports is the catalogue and Create
+  // Report is the builder - the split that took the column picker and the
+  // results off the page somebody uses to CHOOSE a report. Still no
+  // Attendance or Payroll: an entry that leads nowhere is a promise the
+  // navigation cannot keep.
   const reportsMenu = treeNamed("REPORTS_MENU");
-  assert.deepStrictEqual(locationsIn(reportsMenu), ["/reports/employee-master"]);
+  assert.deepStrictEqual(locationsIn(reportsMenu), [
+    "/reports/employee-master",
+    "/reports/employee-master/new",
+  ]);
 });
 
 test("THERE ARE NO ATTENDANCE OR PAYROLL REPORT PLACEHOLDERS", () => {
@@ -218,8 +226,12 @@ test("THE REPORT ENTRY REQUIRES view_reports AND view_employees", () => {
   // decision - so neither the move between modules nor this pair widens
   // anyone's access to employee data.
   const reportsMenu = treeNamed("REPORTS_MENU");
-  const entry = reportsMenu.slice(reportsMenu.indexOf("employee_master_report:"));
-  assert.match(entry, /permission:\s*\["view_reports", "view_employees"\]/);
+  // BOTH entries, not just the first: a route reachable without the pair is
+  // the same hole wherever it is.
+  for (const name of ["saved_reports:", "create_report:"]) {
+    const entry = reportsMenu.slice(reportsMenu.indexOf(name));
+    assert.match(entry.slice(0, 200), /permission:\s*\["view_reports", "view_employees"\]/, name);
+  }
   assert.ok(!/export_reports/.test(reportsMenu), "the menu does not gate on the export verb");
 });
 

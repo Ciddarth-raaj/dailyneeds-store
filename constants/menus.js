@@ -914,16 +914,28 @@ const REPORTS_MENU = {
     openPage: true,
     icon: "fa-file-text-o",
     subMenu: {
-      employee_master_report: {
-        title: "Employee Master",
-        // BOTH, not either. `view_reports` is a reporting capability; the
-        // Employee Master dataset is HR's, and reaching it needs the same key
-        // that guards the HR directory. The backend requires exactly this pair
-        // with `requireAll`, so showing the entry on `view_reports` alone
-        // would put a module on somebody's rail that 403s when they open it.
+      // Two entries, because they are two jobs. Saved Reports is the
+      // catalogue - which reports exist - and it renders no employee data at
+      // all. Create Report is the builder. The old screen was both at once,
+      // plus the results, which is the crowding this splits up.
+      //
+      // BOTH permissions on each, not either. `view_reports` is a reporting
+      // capability; the Employee Master dataset is HR's, and reaching it needs
+      // the same key that guards the HR directory. The backend requires
+      // exactly this pair with `requireAll`, so showing an entry on
+      // `view_reports` alone would put a module on somebody's rail that 403s
+      // when they open it.
+      saved_reports: {
+        title: "Saved Reports",
         permission: ["view_reports", "view_employees"],
         selected: false,
         location: "/reports/employee-master",
+      },
+      create_report: {
+        title: "Create Report",
+        permission: ["view_reports", "view_employees"],
+        selected: false,
+        location: "/reports/employee-master/new",
       },
     },
   },

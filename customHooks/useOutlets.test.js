@@ -111,12 +111,13 @@ test("no other consumer was switched to the directory", () => {
     // prerequisite for CHECKING STOCK in one, so a user holding
     // `view_stock_checker` without it saw an empty list rather than a refusal.
     "components/stock-checker/StockCheckerItemDrawer.jsx",
+    // Reports: the outlet filter, which needs only an id and a name and must
+    // work for HR without `view_stores`. It moved out of the page and into
+    // the shared catalogue hook when the Reports screens were split up.
+    "customHooks/useReportCatalogue.js",
     "pages/hr/employees/[id].jsx",
     "pages/hr/employees/index.jsx",
     "pages/hr/employees/new.jsx",
-    // Reports: the outlet filter on the Employee Master report, which likewise
-    // needs only an id and a name and must work without `view_stores`.
-    "pages/reports/employee-master.jsx",
     "pages/stock-checker/[mode].jsx",
     "pages/stock-checker/assigned-products.jsx",
     "pages/stock-checker/index.jsx",
