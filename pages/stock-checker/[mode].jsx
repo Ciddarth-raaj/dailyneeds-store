@@ -44,7 +44,16 @@ function StockCheckerForm() {
   } = useStockCheckerById(stockCheckerId, {
     enabled: viewMode && !!stockCheckerId,
   });
-  const { outlets } = useOutlets({ skipIds: [1] });
+  // The branch-wise table needs an outlet id and a name and nothing else, so
+  // it reads the directory rather than `/outlet`. The default route is gated on
+  // `view_stores` - administering branches - which was never a prerequisite for
+  // CHECKING STOCK in one: a user holding `view_stock_checker` without it got a
+  // 403, `unwrapList` turned that into an empty array, and the grid rendered
+  // "No Rows To Show" as though there were no branches at all.
+  //
+  // `skipIds` is unchanged and still applied by the hook, to whichever list
+  // comes back.
+  const { outlets } = useOutlets({ skipIds: [1], directory: true });
   const branchesList = useMemo(() => {
     const list = Array.isArray(outlets) ? outlets : outlets?.data;
     return Array.isArray(list) ? list : [];
