@@ -52,11 +52,11 @@ test("ONLY A COMPLETE IFSC IS LOOKED UP", () => {
 
   // The effect refuses outright unless the code is complete.
   const effect = editorCode.slice(editorCode.indexOf("useEffect(() => {"));
-  assert.match(effect, /if \(!isOpen \|\| !ifscComplete \|\| lookedUp\.current === normalIfsc\) return undefined;/);
+  assert.match(effect, /if \(!isOpen \|\| !ifscComplete\) return undefined;/);
 
   // And the lookup itself checks again, so a blur cannot bypass it.
   const resolve = editorCode.slice(editorCode.indexOf("const resolveIfsc"));
-  assert.match(resolve.slice(0, 200), /if \(!IFSC_PATTERN\.test\(code\) \|\| lookedUp\.current === code\) return;/);
+  assert.match(resolve.slice(0, 200), /if \(!IFSC_PATTERN\.test\(code\)\) return;/);
 });
 
 test("NO REQUEST ON EVERY KEYSTROKE - IT IS DEBOUNCED, AND FIRES ON BLUR", () => {
@@ -69,16 +69,21 @@ test("NO REQUEST ON EVERY KEYSTROKE - IT IS DEBOUNCED, AND FIRES ON BLUR", () =>
   assert.match(editorCode, /const onIfscBlur = \(\) => \{\s*if \(ifscComplete\) resolveIfsc\(normalIfsc\);/);
   assert.match(editorCode, /onBlur=\{onIfscBlur\}/);
 
-  // `lookedUp` is what stops the debounce and the blur both asking.
-  assert.match(editorCode, /lookedUp\.current = code;/);
+  // The guard is what stops the debounce and the blur both asking; its own
+  // tests in util/ifscLookupGuard.test.js run that rather than assert it.
+  assert.match(editorCode, /const ticket = guard\.begin\(code\);/);
+  assert.match(editorCode, /if \(ticket === null\) return;/);
 });
 
-test("a stale answer cannot overwrite a newer one", () => {
-  // Two codes typed quickly, the first answering last. Without a sequence
-  // number the form would fill in with the wrong branch.
+test("a stale answer cannot overwrite a newer one, NOR an edited field", () => {
+  // Two codes typed quickly, the first answering last - and the harder case,
+  // a reply arriving after the field was edited but before any new lookup
+  // began. Both are exercised for real in util/ifscLookupGuard.test.js; what
+  // is checked here is that the component actually consults the guard.
   const resolve = editorCode.slice(editorCode.indexOf("const resolveIfsc"));
-  assert.match(resolve, /const seq = \+\+lookupSeq\.current;/);
-  assert.match(resolve, /if \(seq !== lookupSeq\.current\) return;/);
+  assert.match(resolve, /if \(!guard\.isCurrent\(ticket\)\) return;/);
+  assert.match(resolve, /if \(guard\.isCurrent\(ticket\)\) \{\s*guard\.forget\(\);/);
+  assert.match(editorCode, /const guard = useRef\(createLookupGuard\(\)\)\.current;/);
 });
 
 /* ============ 3-4. it fills the two fields, and they are read-only ======= */
@@ -133,11 +138,15 @@ test("CHANGING THE IFSC CLEARS THE PREVIOUS BANK AND BRANCH IMMEDIATELY", () => 
   // a different code is an invitation to save a mismatch.
   const set = editorCode.slice(editorCode.indexOf("const set = (name, value)"), editorCode.indexOf("const held"));
   assert.match(set, /if \(name === "ifsc"\) \{[\s\S]{0,200}setIfscState\(\{ status: "idle" \}\)/);
+  // And the LOOKUP is invalidated too, not only its result - otherwise an
+  // answer for the old code could still land, and retyping a code that had
+  // just resolved would never look it up again.
+  assert.match(set, /guard\.invalidate\(\);/);
 
   // And closing resets everything, so the next employee starts clean.
   const close = editorCode.slice(editorCode.indexOf("const close = () =>"), editorCode.indexOf("const normalIfsc"));
   assert.match(close, /setIfscState\(\{ status: "idle" \}\)/);
-  assert.match(close, /lookedUp\.current = null/);
+  assert.match(close, /guard\.invalidate\(\)/);
 });
 
 /* ============ 6-7. invalid blocks; unavailable does not =================== */
@@ -167,7 +176,7 @@ test("A PROVIDER FAILURE IS NEVER SHOWN AS AN INVALID IFSC", () => {
   assert.match(resolve, /if \(code_ === 404 \|\| code_ === 422\) \{[\s\S]{0,200}status: "invalid"/);
   assert.match(resolve, /setIfscState\(\{\s*status: "unavailable"/);
   // A thrown request is not evidence about the code either.
-  const thrown = resolve.slice(resolve.indexOf("} catch"), resolve.indexOf("if (seq !== lookupSeq.current) return;"));
+  const thrown = resolve.slice(resolve.indexOf("} catch"), resolve.indexOf("if (!guard.isCurrent(ticket)) return;"));
   assert.match(thrown, /status: "unavailable"/);
   assert.ok(!/invalid/.test(thrown), "a failed request must not judge the code");
 

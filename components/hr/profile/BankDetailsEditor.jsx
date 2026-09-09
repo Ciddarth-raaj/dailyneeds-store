@@ -4,6 +4,7 @@ import CustomModal from "../../CustomModal";
 import { EditField, FieldGrid } from "./SectionCard";
 import HrHelper from "../../../helper/hr";
 import { bankGuidance } from "../../../util/hrStatus";
+import { createLookupGuard } from "../../../util/ifscLookupGuard";
 
 /** Four letters, a zero, then six alphanumerics - the backend's rule exactly. */
 const IFSC_PATTERN = /^[A-Z]{4}0[A-Z0-9]{6}$/;
@@ -110,9 +111,12 @@ function BankDetailsEditor({
    *   unavailable  the lookup could not be made. NOT a typo
    */
   const [ifscState, setIfscState] = useState({ status: "idle" });
-  /** The last code actually looked up, so one code is never looked up twice. */
-  const lookedUp = useRef(null);
-  const lookupSeq = useRef(0);
+  /**
+   * Which lookup, if any, the form is currently waiting on. It answers both
+   * "should this be asked?" and "is this reply still wanted?", and an edit
+   * invalidates both at once - see util/ifscLookupGuard.js.
+   */
+  const guard = useRef(createLookupGuard()).current;
 
   const set = (name, value) => {
     // Changing the details is the explicit act that lifts an indeterminate
@@ -123,6 +127,19 @@ function BankDetailsEditor({
       // moment the code changes they are stale, and showing them beside a
       // different code invites saving one bank's name against another's
       // account. They go immediately, not when the next lookup answers.
+      //
+      // EDITING ALSO INVALIDATES THE LOOKUP ITSELF, not merely its result,
+      // and both halves are needed:
+      //
+      // A reply already in flight is orphaned when it lands, and the code
+      // just edited away can be asked about again. Without the first, an
+      // answer for the OLD code could arrive and fill the fields in beside
+      // the new one - a sequence number alone cannot stop that, because
+      // between the edit and the next lookup there is no newer lookup to
+      // compare against. Without the second, retyping a code that had just
+      // resolved was treated as a duplicate for ever: the lookup refused to
+      // run and saving could only ever say "still checking".
+      guard.invalidate();
       setIfscState({ status: "idle" });
     }
     setForm((f) => ({ ...f, [name]: value }));
@@ -136,7 +153,7 @@ function BankDetailsEditor({
     setError(null);
     setOutcome(null);
     setIfscState({ status: "idle" });
-    lookedUp.current = null;
+    guard.invalidate();
     inFlight.current = false;
     onClose();
   };
@@ -154,28 +171,31 @@ function BankDetailsEditor({
    * button. The two must not be confused, which is why nothing here touches
    * `inFlight`.
    *
-   * Guarded by `lookedUp` so that a re-render, a blur after a debounce has
-   * already fired, or a blur on an unchanged field cannot ask twice.
+   * The guard refuses a duplicate, so a re-render, a blur after the debounce
+   * has already fired, or a blur on an unchanged field cannot ask twice.
    */
   const resolveIfsc = useCallback(async (code) => {
-    if (!IFSC_PATTERN.test(code) || lookedUp.current === code) return;
-    lookedUp.current = code;
+    if (!IFSC_PATTERN.test(code)) return;
+    // null means this code is already the one being asked about - the
+    // debounce and the blur both firing, rather than a new question.
+    const ticket = guard.begin(code);
+    if (ticket === null) return;
 
-    const seq = ++lookupSeq.current;
     setIfscState({ status: "checking" });
     let res;
     try {
       res = await HrHelper.lookupIfsc(code);
     } catch (err) {
-      // A failed request is not evidence about the code.
-      if (seq === lookupSeq.current) {
-        lookedUp.current = null;
+      // A failed request is not evidence about the code, and is worth
+      // retrying - so the code is forgotten rather than held as asked.
+      if (guard.isCurrent(ticket)) {
+        guard.forget();
         setIfscState({ status: "unavailable", message: "The bank lookup could not be reached." });
       }
       return;
     }
-    // A slower earlier lookup must not overwrite a later one.
-    if (seq !== lookupSeq.current) return;
+    // Discarded if a newer lookup started OR the field was edited meanwhile.
+    if (!guard.isCurrent(ticket)) return;
 
     const code_ = res && Number(res.code);
     if (code_ === 200 && res.bank_name && res.branch_name) {
@@ -201,12 +221,12 @@ function BankDetailsEditor({
     // the provider is unreachable, so this is a code it has never resolved
     // AND cannot resolve now. There is no bank name to be had, which is why
     // it holds the save rather than storing the account with a blank one.
-    lookedUp.current = null;
+    guard.forget();
     setIfscState({
       status: "unavailable",
       message: (res && res.msg) || "The bank lookup is unavailable just now.",
     });
-  }, []);
+  }, [guard]);
 
   /**
    * Look the code up once it is complete, after a short pause.
@@ -216,7 +236,9 @@ function BankDetailsEditor({
    * about codes nobody entered.
    */
   useEffect(() => {
-    if (!isOpen || !ifscComplete || lookedUp.current === normalIfsc) return undefined;
+    // `resolveIfsc` decides for itself whether this code is already claimed,
+    // so the effect only has to say when it is worth asking.
+    if (!isOpen || !ifscComplete) return undefined;
     const timer = setTimeout(() => resolveIfsc(normalIfsc), IFSC_DEBOUNCE_MS);
     return () => clearTimeout(timer);
   }, [isOpen, ifscComplete, normalIfsc, resolveIfsc]);
