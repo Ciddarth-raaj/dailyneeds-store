@@ -104,10 +104,10 @@ export const DepartmentValidation = Yup.object({
 
 export const DesignationValidation = Yup.object({
   designation_name: Yup.string().required("Fill designation Name"),
-  // designationName: Yup.string().required("Fill department Name"),
-  // status: Yup.string().required("Choose status"),
-  online_portal: Yup.string().nullable().required("Choose Access"),
-  login_access: Yup.string().nullable().required("Require Login Access"),
+  // `online_portal` and `login_access` were required here, which is why the
+  // form could not be submitted without them. Both are legacy and inert -
+  // nothing in the application reads either - so the controls are gone and so
+  // are their rules. The columns remain in the database for compatibility.
 });
 // export const OpenIssueValidation = Yup.object({
 // 	store_id: Yup.string().nullable().required("Choose Store"),

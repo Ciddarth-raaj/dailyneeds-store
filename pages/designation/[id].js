@@ -159,8 +159,6 @@ class CreateDesignation extends React.Component {
                 : Number(this.state.data[0]?.status) === 0
                 ? 0
                 : 1,
-            online_portal: this.state.data[0]?.online_portal,
-            login_access: this.state.data[0]?.login_access,
           }}
           validationSchema={DesignationValidation}
           onSubmit={(values) => {
@@ -196,9 +194,10 @@ class CreateDesignation extends React.Component {
                         containerStyle={{ padding: 0 }}
                         ignoreMarginBottom
                       />
-                      {/* Only when editing: a designation being created is
-                          Active by definition, and the create endpoint does
-                          not take a status. */}
+                      {/* Only when editing. A designation being created is
+                          Active by definition, and `initialValues` already
+                          sends status 1 for a new one, so there is nothing to
+                          choose. */}
                       {id !== null && (
                         <CustomInput
                           label="Status"
@@ -213,42 +212,6 @@ class CreateDesignation extends React.Component {
                           ignoreMarginBottom
                         />
                       )}
-                      <CustomInput
-                        label="Online Access"
-                        name="online_portal"
-                        values={[
-                          {
-                            id: 1,
-                            value: "Grant Access",
-                          },
-                          {
-                            id: 0,
-                            value: "Discard Access",
-                          },
-                        ]}
-                        type="text"
-                        method="switch"
-                        containerStyle={{ padding: 0 }}
-                        ignoreMarginBottom
-                      />
-                      <CustomInput
-                        label="Login Access"
-                        name="login_access"
-                        values={[
-                          {
-                            id: 1,
-                            value: "Grant Access",
-                          },
-                          {
-                            id: 0,
-                            value: "Discard Access",
-                          },
-                        ]}
-                        type="text"
-                        method="switch"
-                        containerStyle={{ padding: 0 }}
-                        ignoreMarginBottom
-                      />
                     </div>
                   </CustomContainer>
 

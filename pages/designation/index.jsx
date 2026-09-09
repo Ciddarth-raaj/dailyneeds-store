@@ -46,23 +46,20 @@ function DesignationView() {
   /**
    * Rename and/or retire, keyed by the designation's own id.
    *
-   * TWO THINGS THIS DELIBERATELY CARRIES, AND ONE IT DELIBERATELY OMITS.
+   * TWO THINGS THIS DELIBERATELY OMITS.
    *
-   * `online_portal` and `login_access` are sent back unchanged, from the row.
-   * The backend requires them and writes `UPDATE designation SET ?` with
-   * whatever it receives, so omitting them would be a validation error and
-   * guessing them would quietly change what the designation can reach.
-   *
-   * `permissions` is NOT sent. The backend deletes and recreates the whole
+   * `permissions` is not sent. The backend deletes and recreates the whole
    * permission set whenever that array is present, so sending one from a screen
    * that never loaded it would revoke everything this designation can do. Left
-   * absent, the permission set is untouched - which is why the route's schema
-   * had to stop requiring it.
+   * absent, the permission set is untouched.
+   *
+   * `online_portal` and `login_access` are not sent either. Both are legacy and
+   * inert - nothing in the application reads either one - and the update route
+   * now accepts a body without them, leaving the stored values exactly as they
+   * are rather than zeroing them. Echoing values nobody reads back through the
+   * browser only creates a way to corrupt them.
    */
   const saveDesignation = async ({ id, name, status }) => {
-    const row = designations.find((d) => Number(d.designation_id) === Number(id));
-    if (!row) return false;
-
     setSaving(true);
     try {
       const res = await DesignationHelper.updateDesignation({
@@ -70,8 +67,6 @@ function DesignationView() {
         designation_details: {
           designation_name: name,
           status: Number(status),
-          online_portal: Number(row.online_portal) || 0,
-          login_access: Number(row.login_access) || 0,
         },
       });
       if (!res || res.code !== 200) {

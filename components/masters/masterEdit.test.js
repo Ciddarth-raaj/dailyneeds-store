@@ -176,14 +176,20 @@ test("DESIGNATION: THE LIST EDIT SENDS NO PERMISSIONS ARRAY", () => {
   assert.ok(!/permissions/.test(body), "the list edit must not send permissions");
 });
 
-test("DESIGNATION: online_portal and login_access are sent back unchanged", () => {
-  // Both are `required` on the backend and are written by `UPDATE ... SET ?`.
-  // Omitting them is a 422; guessing them silently changes what the
-  // designation can reach.
+test("DESIGNATION: THE LEGACY ACCESS FLAGS ARE NOT SENT AT ALL", () => {
+  // They used to be echoed back from the row, because the backend required
+  // them. The audit found neither is read anywhere - not by login, not by the
+  // auth or permission middleware - and the update route now accepts a body
+  // without them, leaving the stored values alone rather than zeroing them.
+  // Round-tripping values nobody reads only creates a way to corrupt them.
   const save = desigListCode.slice(desigListCode.indexOf("const saveDesignation"));
-  assert.match(save, /online_portal: Number\(row\.online_portal\)/);
-  assert.match(save, /login_access: Number\(row\.login_access\)/);
-  assert.match(save, /designations\.find\(/);
+  const body = save.slice(0, save.indexOf("const colDefs"));
+  for (const flag of ["online_portal", "login_access"]) {
+    assert.ok(!body.includes(flag), `the list edit must not send ${flag}`);
+  }
+  // And the modal sends exactly the two fields the master is for.
+  assert.match(body, /designation_name: name/);
+  assert.match(body, /status: Number\(status\)/);
 });
 
 /* ================================ the detail forms no longer hardcode ==== */
@@ -259,5 +265,69 @@ test("THE MASTER EDIT TOUCHES NOTHING OUTSIDE THE TWO MASTERS", () => {
     for (const foreign of [/new_employee/i, /employee_id/i, /\/hr\/employee/, /report/i]) {
       assert.ok(!foreign.test(src), `${name} must not reference ${foreign}`);
     }
+  }
+});
+
+/* ================= the legacy access flags are gone from the UI ========= */
+
+test("THE DESIGNATION FORM NO LONGER SHOWS ONLINE ACCESS OR LOGIN ACCESS", () => {
+  // The audit proved both inert: login gates on the password, `user.status`,
+  // `new_employee.status` and the IP policy, and neither flag is even selected
+  // by the credential query. Showing a control that decides nothing invites
+  // somebody to set it and expect an effect.
+  for (const gone of ["Online Access", "Login Access", "online_portal", "login_access"]) {
+    assert.ok(!desigForm.includes(gone), `the designation form must not mention ${gone}`);
+  }
+});
+
+test("THE FORM STILL EDITS NAME, STATUS AND PERMISSIONS", () => {
+  // What the master is actually for.
+  assert.match(desigForm, /label="Designation Name"/);
+  assert.match(desigForm, /name="designation_name"/);
+  assert.match(desigForm, /label="Status"/);
+  assert.match(desigForm, /name="status"/);
+  assert.match(desigForm, /<PermissionMatrix/);
+  assert.match(desigForm, /permissions=\{permissions\}/);
+  assert.match(desigForm, /onToggle=\{this\.handleCheckbox\}/);
+});
+
+test("THE VALIDATION SCHEMA NO LONGER REQUIRES THE LEGACY FLAGS", () => {
+  // They were `required` here, which is why removing the controls without
+  // removing the rules would have made the form permanently unsubmittable.
+  const validation = read("util/validation.js");
+  const schema = validation.slice(
+    validation.indexOf("export const DesignationValidation"),
+    validation.indexOf("});", validation.indexOf("export const DesignationValidation"))
+  );
+  assert.match(schema, /designation_name: Yup\.string\(\)\.required/);
+  for (const flag of ["online_portal:", "login_access:"]) {
+    assert.ok(!schema.includes(flag), `${flag} must not be required any more`);
+  }
+});
+
+test("NO REPLACEMENT ACCESS CONTROL WAS ADDED", () => {
+  // The task was to prove the flags inert and remove them, not to design an
+  // individual login control.
+  for (const [name, src] of [["form", desigForm], ["list", desigList], ["modal", modal]]) {
+    for (const invented of ["can_login", "login_enabled", "Portal Access", "Disable Login", "user_status"]) {
+      assert.ok(!src.includes(invented), `${name} must not introduce ${invented}`);
+    }
+  }
+});
+
+test("the list Edit modal is still Name and Status only", () => {
+  // Unchanged by this cleanup: the modal never offered the legacy flags.
+  assert.match(modal, /\{noun\} Name/);
+  assert.match(modal, /<FormLabel fontSize="sm">Status<\/FormLabel>/);
+  for (const flag of ["online_portal", "login_access", "Online Access", "Login Access"]) {
+    assert.ok(!modal.includes(flag), `the modal must not mention ${flag}`);
+  }
+});
+
+test("DEPARTMENT IS UNTOUCHED BY THIS CLEANUP", () => {
+  // Scope guard: the department master has no such flags and was not edited.
+  for (const flag of ["online_portal", "login_access"]) {
+    assert.ok(!deptForm.includes(flag), `the department form must not mention ${flag}`);
+    assert.ok(!deptList.includes(flag), `the department list must not mention ${flag}`);
   }
 });
