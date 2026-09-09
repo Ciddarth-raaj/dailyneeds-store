@@ -148,7 +148,17 @@ class CreateDesignation extends React.Component {
           enableReinitialize
           initialValues={{
             designation_name: this.state.data[0]?.designation_name,
-            status: 1,
+            // Read from the record, NOT hardcoded. This was `status: 1`, which
+            // meant saving any designation set it to Active - so editing an
+            // inactive designation silently reactivated it, and there was no
+            // way to make one inactive from here at all. A new designation
+            // still starts Active, matching the column default.
+            status:
+              this.state.id === null
+                ? 1
+                : Number(this.state.data[0]?.status) === 0
+                ? 0
+                : 1,
             online_portal: this.state.data[0]?.online_portal,
             login_access: this.state.data[0]?.login_access,
           }}
@@ -186,6 +196,23 @@ class CreateDesignation extends React.Component {
                         containerStyle={{ padding: 0 }}
                         ignoreMarginBottom
                       />
+                      {/* Only when editing: a designation being created is
+                          Active by definition, and the create endpoint does
+                          not take a status. */}
+                      {id !== null && (
+                        <CustomInput
+                          label="Status"
+                          name="status"
+                          values={[
+                            { id: 1, value: "Active" },
+                            { id: 0, value: "Inactive" },
+                          ]}
+                          type="text"
+                          method="switch"
+                          containerStyle={{ padding: 0 }}
+                          ignoreMarginBottom
+                        />
+                      )}
                       <CustomInput
                         label="Online Access"
                         name="online_portal"
