@@ -37,7 +37,7 @@ import { useUser } from "../../../contexts/UserContext";
 import HrHelper from "../../../helper/hr";
 import EmployeeHelper from "../../../helper/employee";
 import DocumentHelper from "../../../helper/document";
-import { lifecycleActions } from "../../../util/hrStatus";
+import { canVerifyBank, lifecycleActions } from "../../../util/hrStatus";
 import {
   buildHrPatch,
   buildSensitivePayload,
@@ -206,6 +206,89 @@ function EmployeeProfile() {
     }
   };
 
+  /**
+   * Bank: save the details, then verify the STORED account, in that order.
+   *
+   * Two existing backend operations called in sequence rather than one fused
+   * transaction. They have different permissions, different audit entries and
+   * different failure modes, and combining them server-side for one button
+   * would make each harder to reason about. What the sequence buys is a single
+   * HR action; what it costs is a partial outcome, which is reported honestly
+   * rather than hidden.
+   *
+   * THE ENTERED ACCOUNT NUMBER IS NEVER SENT TO THE VERIFY CALL. That route
+   * takes an employee id and reads the stored account itself - which is what
+   * makes the fingerprint, and therefore the staleness protection, mean
+   * anything.
+   *
+   * `phase` matters on a network failure: a connection that dies during the
+   * save leaves it genuinely unknown whether the account was stored, and
+   * claiming either way would be a guess. The status is refreshed and the
+   * uncertainty is stated.
+   */
+  const saveAndVerifyBank = async (form) => {
+    const payload = buildSensitivePayload(id, employee || {}, form);
+    let phase = "save";
+
+    setSaving(true);
+    try {
+      if (payload) {
+        const res = await EmployeeHelper.updateEmployeeDetails(payload);
+        if (failed(res)) {
+          // Nothing was stored, so nothing is verified and no paid call is
+          // spent. The editor keeps what was typed.
+          return { saved: false, message: res && res.msg };
+        }
+      }
+      // No payload means the details on file already match what was typed -
+      // not a failure, and no reason to skip the verification the user asked
+      // for.
+
+      phase = "verify";
+      const verification = await HrHelper.verifyBank(id);
+      await load();
+
+      // A refusal from the route itself: not configured, no account on file,
+      // or a permission the user turns out not to hold.
+      if (verification && verification.code && verification.code !== 200) {
+        return { saved: true, verified: false, message: verification.msg };
+      }
+
+      // A 200 carrying a non-VERIFIED status is the provider's real answer,
+      // not an error. Its own message and status are passed through untouched.
+      const status = verification && verification.status;
+      if (status === "VERIFIED") {
+        toast({ title: "Bank details saved and verified", status: "success", duration: 4000 });
+        return { saved: true, verified: true, status };
+      }
+      return {
+        saved: true,
+        verified: false,
+        status,
+        message: verification && verification.message,
+      };
+    } catch (err) {
+      // Refresh rather than retry: repeating the sequence blind could spend a
+      // second paid verification for one HR action.
+      await load();
+      return phase === "save"
+        ? {
+            saved: null,
+            message:
+              "The connection failed while saving, so it is not certain whether the details were stored. The bank card has been refreshed - check it before trying again.",
+          }
+        : {
+            saved: true,
+            verified: false,
+            message:
+              "The details were saved, but the verification could not be completed. The bank card has been refreshed; use Verify Bank Details there when you are ready.",
+          };
+    } finally {
+      setSaving(false);
+    }
+  };
+
+
   if (loading) {
     return (
       <GlobalWrapper title="Employee">
@@ -340,18 +423,18 @@ function EmployeeProfile() {
           {/* ------------------------------------------------------- bank */}
           {bank ? (
             <Box>
+              {/* Add/Change now lives inside the card's action row, beside
+                  Verify, so the next step is one decision rather than a button
+                  under a card that already had buttons. */}
               <BankCard
                 employeeId={lifecycle.employee_id}
                 bank={bank}
                 permissions={permissions}
                 isAdmin={isAdmin}
                 onChanged={load}
+                canEditSensitive={mayEditSensitive}
+                onEditDetails={() => setBankEditOpen(true)}
               />
-              {mayEditSensitive ? (
-                <Button size="xs" mt={2} variant="outline" onClick={() => setBankEditOpen(true)}>
-                  {bank.masked_account ? "Change bank details" : "Add bank details"}
-                </Button>
-              ) : null}
             </Box>
           ) : (
             <Alert status="info" fontSize="sm">
@@ -442,6 +525,10 @@ function EmployeeProfile() {
         onClose={() => setBankEditOpen(false)}
         bank={bank || {}}
         onSave={saveSensitive}
+        onSaveAndVerify={saveAndVerifyBank}
+        // Both permissions, or the editor saves and stops rather than offering
+        // a button that would predictably 403.
+        canVerify={canVerifyBank({ permissions, isAdmin }) && mayEditSensitive}
         saving={saving}
       />
 

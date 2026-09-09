@@ -149,9 +149,15 @@ test("there is no full-Aadhaar reveal anywhere - the permission is granted to no
 /* ==================================================== permission gating = */
 test("the profile decides actions from the shared rules, not ad hoc checks", () => {
   assert.match(profile, /lifecycleActions\(/);
-  assert.match(bankCard, /canVerifyBank\(/);
+  // The card now asks `bankActions`, which composes `canVerifyBank` rather
+  // than restating it - so the card and the editor cannot disagree about
+  // whether this user may run the paid check.
+  assert.match(bankCard, /bankActions\(/);
   assert.match(bankCard, /canConfirmBankName\(/);
   assert.match(bankCard, /canOverrideDuplicateBank\(/);
+  const rules = read("util/hrStatus.js");
+  const decision = rules.slice(rules.indexOf("function bankActions"));
+  assert.match(decision.slice(0, 900), /canVerifyBank\(\{ permissions, isAdmin \}\)/);
 });
 
 test("the override button is behind the permission check, not the status alone", () => {
@@ -530,7 +536,11 @@ test("FAMILY IS DEFERRED, AND THE SCREEN SAYS WHY", () => {
 
 test("bank details can be entered, which is what makes C2 verification possible", () => {
   assert.match(profile, /<BankDetailsEditor/);
-  assert.match(profile, /mayEditSensitive \? \(/);
+  // Entry is still gated on the B3 sensitive permission; the button moved into
+  // the bank card's action row, so the gate travels as a prop rather than
+  // wrapping a second button under the card.
+  assert.match(profile, /canEditSensitive=\{mayEditSensitive\}/);
+  assert.match(profile, /onEditDetails=\{\(\) => setBankEditOpen\(true\)\}/);
   // Changing the account invalidates the verification, and it says so first.
   assert.match(bankEditor, /back to <strong>Pending<\/strong>/);
   assert.match(bankEditor, /account_no/);
