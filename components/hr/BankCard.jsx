@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import {
   Box,
   Button,
@@ -15,10 +15,10 @@ import CustomModal from "../CustomModal";
 import { BankBadge } from "./StatusBadges";
 import HrHelper from "../../helper/hr";
 import {
+  bankActions,
   bankGuidance,
   canConfirmBankName,
   canOverrideDuplicateBank,
-  canVerifyBank,
 } from "../../util/hrStatus";
 
 /**
@@ -35,9 +35,22 @@ import {
  * No fingerprint is displayed, and the other employee on a duplicate is named
  * by id and name only, never by their account.
  */
-function BankCard({ employeeId, bank, permissions, isAdmin, onChanged }) {
+function BankCard({
+  employeeId,
+  bank,
+  permissions,
+  isAdmin,
+  onChanged,
+  /** Whether this user may edit the B3 bank fields, and how to open the editor. */
+  canEditSensitive = false,
+  onEditDetails,
+}) {
   const toast = useToast();
   const [busy, setBusy] = useState(false);
+  // `busy` disables the buttons, but only after a re-render. Verification is
+  // billed per call, so a second click that lands inside that gap must be
+  // refused synchronously - state is too late.
+  const inFlight = useRef(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [overrideOpen, setOverrideOpen] = useState(false);
   const [note, setNote] = useState("");
@@ -48,11 +61,23 @@ function BankCard({ employeeId, bank, permissions, isAdmin, onChanged }) {
   const status = bank.status;
   const verdict = (bank.verification && bank.verification.name_match_verdict) || null;
 
-  const mayVerify = canVerifyBank({ permissions, isAdmin });
+  // One shared decision, so the card and the editor cannot disagree about what
+  // the next step is. Staleness needs no rule here: a changed account arrives
+  // as PENDING, because `resolveEffectiveStatus` has already refused to let a
+  // verification of the OLD account stand for the new one.
+  const actions = bankActions({
+    status,
+    hasAccount: Boolean(bank.masked_account),
+    permissions,
+    isAdmin,
+    canEditSensitive,
+  });
   const mayConfirm = canConfirmBankName({ status, verdict, permissions });
   const mayOverride = canOverrideDuplicateBank({ status, permissions, isAdmin });
 
   const run = async (fn, successTitle) => {
+    if (inFlight.current) return;
+    inFlight.current = true;
     setBusy(true);
     try {
       const res = await fn();
@@ -65,6 +90,7 @@ function BankCard({ employeeId, bank, permissions, isAdmin, onChanged }) {
     } catch (err) {
       toast({ title: "Could not reach the server", status: "error", duration: 5000 });
     } finally {
+      inFlight.current = false;
       setBusy(false);
       setConfirmOpen(false);
       setOverrideOpen(false);
@@ -131,15 +157,34 @@ function BankCard({ employeeId, bank, permissions, isAdmin, onChanged }) {
         <Divider />
 
         <Stack direction={{ base: "column", sm: "row" }} spacing={2}>
-          {mayVerify ? (
+          {/* VERIFY WHAT IS ALREADY STORED. No account re-entry: the route
+              takes an employee id and reads the account server-side, so an
+              employee whose details predate C2 is verified without anybody
+              retyping a number they cannot even see. Absent for VERIFIED - a
+              healthy account should not invite another paid call - and absent
+              when there is no account, where the next step is to add one. */}
+          {actions.canVerifyExisting ? (
             <Button
               size="sm"
               colorScheme="purple"
               isLoading={busy}
-              isDisabled={status === "NOT_PROVIDED"}
               onClick={() => run(() => HrHelper.verifyBank(employeeId), "Bank verification run")}
             >
-              {status === "VERIFIED" || status === "FAILED" ? "Re-verify" : "Verify account"}
+              {status === "FAILED" ? "Retry Verification" : "Verify Bank Details"}
+            </Button>
+          ) : null}
+
+          {/* Add when there is nothing on file, Change when there is - and for
+              NOT_PROVIDED this is the primary action, so it leads. */}
+          {actions.canEditDetails && onEditDetails ? (
+            <Button
+              size="sm"
+              variant={status === "NOT_PROVIDED" ? "solid" : "outline"}
+              colorScheme={status === "NOT_PROVIDED" ? "purple" : "gray"}
+              isDisabled={busy}
+              onClick={onEditDetails}
+            >
+              {actions.editLabel}
             </Button>
           ) : null}
 

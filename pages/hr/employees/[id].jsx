@@ -37,7 +37,7 @@ import { useUser } from "../../../contexts/UserContext";
 import HrHelper from "../../../helper/hr";
 import EmployeeHelper from "../../../helper/employee";
 import DocumentHelper from "../../../helper/document";
-import { lifecycleActions } from "../../../util/hrStatus";
+import { canVerifyBank, lifecycleActions } from "../../../util/hrStatus";
 import {
   buildHrPatch,
   buildSensitivePayload,
@@ -206,6 +206,144 @@ function EmployeeProfile() {
     }
   };
 
+  /**
+   * Bank: save the details, then verify the STORED account, in that order.
+   *
+   * Two existing backend operations called in sequence rather than one fused
+   * transaction. They have different permissions, different audit entries and
+   * different failure modes, and combining them server-side for one button
+   * would make each harder to reason about. What the sequence buys is a single
+   * HR action; what it costs is a partial outcome, which is reported honestly
+   * rather than hidden.
+   *
+   * THE ENTERED ACCOUNT NUMBER IS NEVER SENT TO THE VERIFY CALL. That route
+   * takes an employee id and reads the stored account itself - which is what
+   * makes the fingerprint, and therefore the staleness protection, mean
+   * anything.
+   *
+   * `phase` matters on a network failure: a connection that dies during the
+   * save leaves it genuinely unknown whether the account was stored, and
+   * claiming either way would be a guess. The status is refreshed and the
+   * uncertainty is stated.
+   */
+  /**
+   * The verification response was lost. Find out whether the check itself was.
+   *
+   * `GET /bank/verification` is a free read of what the backend stored, and the
+   * backend stores the provider's answer before returning it. So a status that
+   * has settled on a real verdict is evidence that the paid check DID run, and
+   * the honest thing - as well as the cheap thing - is to report that verdict
+   * rather than to invite a second one.
+   *
+   * PENDING is the case that stays unknown: it is equally the shape of "the
+   * check never ran" and "it ran but stored nothing we can see yet", and
+   * guessing either way is worse than saying so.
+   */
+  const reconcileLostVerification = async () => {
+    const settled = (status) =>
+      ["VERIFIED", "NAME_MISMATCH", "DUPLICATE_ACCOUNT", "FAILED"].includes(status);
+
+    let fresh = null;
+    try {
+      fresh = await HrHelper.getBankStatus(id);
+    } catch (readErr) {
+      fresh = null;
+    }
+    const status = fresh && !fresh.code ? fresh.status : null;
+
+    if (status === "VERIFIED") {
+      // The check completed and passed. Only the answer went missing.
+      toast({ title: "Bank details saved and verified", status: "success", duration: 4000 });
+      return { saved: true, verified: true, status };
+    }
+    if (settled(status)) {
+      // A real verdict, already paid for. Show it as the outcome it is - the
+      // user corrects the details or deals with it on the card, exactly as if
+      // the response had arrived.
+      return {
+        saved: true,
+        verified: false,
+        status,
+        verdict: (fresh.verification && fresh.verification.name_match_verdict) || null,
+      };
+    }
+    // Genuinely undetermined. The details ARE saved; what is unknown is
+    // whether a check was spent. `indeterminate` stops the editor offering
+    // another one until the user changes the details or goes to the card.
+    return {
+      saved: true,
+      verified: false,
+      indeterminate: true,
+      message:
+        "The details were saved, but the connection dropped before the bank check reported back - it may or may not have run. To avoid paying for a second check, use Verify Bank Details on the bank card once you have looked at the current status there.",
+    };
+  };
+
+  const saveAndVerifyBank = async (form) => {
+    const payload = buildSensitivePayload(id, employee || {}, form);
+    let phase = "save";
+
+    setSaving(true);
+    try {
+      if (payload) {
+        const res = await EmployeeHelper.updateEmployeeDetails(payload);
+        if (failed(res)) {
+          // Nothing was stored, so nothing is verified and no paid call is
+          // spent. The editor keeps what was typed.
+          return { saved: false, message: res && res.msg };
+        }
+      }
+      // No payload means the details on file already match what was typed -
+      // not a failure, and no reason to skip the verification the user asked
+      // for.
+
+      phase = "verify";
+      const verification = await HrHelper.verifyBank(id);
+      await load();
+
+      // A refusal from the route itself: not configured, no account on file,
+      // or a permission the user turns out not to hold.
+      if (verification && verification.code && verification.code !== 200) {
+        return { saved: true, verified: false, message: verification.msg };
+      }
+
+      // A 200 carrying a non-VERIFIED status is the provider's real answer,
+      // not an error. Its own message and status are passed through untouched.
+      const status = verification && verification.status;
+      if (status === "VERIFIED") {
+        toast({ title: "Bank details saved and verified", status: "success", duration: 4000 });
+        return { saved: true, verified: true, status };
+      }
+      return {
+        saved: true,
+        verified: false,
+        status,
+        message: verification && verification.message,
+      };
+    } catch (err) {
+      // Refresh rather than retry: repeating the sequence blind could spend a
+      // second paid verification for one HR action.
+      await load();
+      if (phase === "save") {
+        return {
+          saved: null,
+          message:
+            "The connection failed while saving, so it is not certain whether the details were stored. The bank card has been refreshed - check it before trying again.",
+        };
+      }
+      // LOSING THE RESPONSE IS NOT LOSING THE VERIFICATION. The backend
+      // records the provider's answer before it returns it, so a check that
+      // was already paid for may well have completed and been stored while
+      // the response never arrived. Offering "verify again" here would spend
+      // a second one for nothing. So read the status back - a free read - and
+      // let the stored result speak.
+      return reconcileLostVerification();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+
   if (loading) {
     return (
       <GlobalWrapper title="Employee">
@@ -340,18 +478,18 @@ function EmployeeProfile() {
           {/* ------------------------------------------------------- bank */}
           {bank ? (
             <Box>
+              {/* Add/Change now lives inside the card's action row, beside
+                  Verify, so the next step is one decision rather than a button
+                  under a card that already had buttons. */}
               <BankCard
                 employeeId={lifecycle.employee_id}
                 bank={bank}
                 permissions={permissions}
                 isAdmin={isAdmin}
                 onChanged={load}
+                canEditSensitive={mayEditSensitive}
+                onEditDetails={() => setBankEditOpen(true)}
               />
-              {mayEditSensitive ? (
-                <Button size="xs" mt={2} variant="outline" onClick={() => setBankEditOpen(true)}>
-                  {bank.masked_account ? "Change bank details" : "Add bank details"}
-                </Button>
-              ) : null}
             </Box>
           ) : (
             <Alert status="info" fontSize="sm">
@@ -442,6 +580,10 @@ function EmployeeProfile() {
         onClose={() => setBankEditOpen(false)}
         bank={bank || {}}
         onSave={saveSensitive}
+        onSaveAndVerify={saveAndVerifyBank}
+        // Both permissions, or the editor saves and stops rather than offering
+        // a button that would predictably 403.
+        canVerify={canVerifyBank({ permissions, isAdmin }) && mayEditSensitive}
         saving={saving}
       />
 

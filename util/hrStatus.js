@@ -220,6 +220,56 @@ function canVerifyBank({ permissions = [], isAdmin = false }) {
   return has(permissions, "verify_employee_bank") && has(permissions, "view_employee_sensitive");
 }
 
+/**
+ * Which bank actions to offer, given the backend's own status.
+ *
+ * One place, so the card and the editor cannot disagree about what the next
+ * step is - and so the permission rules are stated once. It composes
+ * `canVerifyBank` rather than restating it.
+ *
+ * THE STATUS IS THE BACKEND'S, AND IS NOT SECOND-GUESSED. In particular
+ * staleness is already folded in: `resolveEffectiveStatus` downgrades a
+ * verification whose fingerprint no longer matches the stored account to
+ * PENDING, with `bank_payroll_ready` false. So "changed account needs
+ * verifying again" needs no rule here - it arrives as PENDING like any other
+ * unverified account, which is exactly why a changed account can never carry
+ * the old VERIFIED forward.
+ *
+ * `canVerifyExisting` is deliberately false for VERIFIED. A healthy verified
+ * account should not invite another paid provider call as part of normal work;
+ * re-verification happens because the account CHANGED, and a changed account is
+ * no longer VERIFIED.
+ */
+function bankActions({
+  status,
+  hasAccount,
+  permissions = [],
+  isAdmin = false,
+  canEditSensitive = false,
+}) {
+  const s = String(status || "").toUpperCase();
+  const mayVerify = canVerifyBank({ permissions, isAdmin });
+  const account = Boolean(hasAccount);
+
+  return {
+    // Adding and changing are the same editor and the same B3 permission; only
+    // the wording differs, because changing an account has consequences that
+    // adding one does not.
+    canEditDetails: Boolean(canEditSensitive),
+    editLabel: account ? "Change Bank Details" : "Add Bank Details",
+
+    // Verify what is already stored - no re-entry. Only where there is
+    // something to verify, only for somebody who may, and never for an account
+    // that is already healthy.
+    canVerifyExisting: mayVerify && account && s !== "NOT_PROVIDED" && s !== "VERIFIED",
+
+    // Inside the editor: save, then verify, in one action. Needs both
+    // permissions; with only the sensitive-edit one the editor saves and stops,
+    // rather than offering a button that would predictably 403.
+    editorVerifies: Boolean(canEditSensitive) && mayVerify,
+  };
+}
+
 /* ----------------------------------------------------------- lifecycle -- */
 
 /** Active employees resign; inactive ones rejoin. Never both. */
@@ -301,6 +351,7 @@ module.exports = {
   canConfirmBankName,
   canOverrideDuplicateBank,
   canVerifyBank,
+  bankActions,
   lifecycleActions,
   rejoinNeedsPreviousEnd,
   confidenceBadge,
