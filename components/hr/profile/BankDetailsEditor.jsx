@@ -1,8 +1,15 @@
-import React, { useRef, useState } from "react";
-import { Alert, AlertIcon, Button, Stack, Text } from "@chakra-ui/react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { Alert, AlertIcon, Button, Spinner, Stack, Text } from "@chakra-ui/react";
 import CustomModal from "../../CustomModal";
 import { EditField, FieldGrid } from "./SectionCard";
+import HrHelper from "../../../helper/hr";
 import { bankGuidance } from "../../../util/hrStatus";
+
+/** Four letters, a zero, then six alphanumerics - the backend's rule exactly. */
+const IFSC_PATTERN = /^[A-Z]{4}0[A-Z0-9]{6}$/;
+
+/** Long enough that typing straight through is one lookup, not eleven. */
+const IFSC_DEBOUNCE_MS = 500;
 
 /**
  * Stage 0C / C3 — entering or changing the account C2 verifies against.
@@ -44,6 +51,25 @@ import { bankGuidance } from "../../../util/hrStatus";
  * offers a correction - which saves the corrected details first, then verifies
  * those.
  *
+ * ===================================== THE BRANCH CODE FILLS THE FORM IN ====
+ *
+ * A complete IFSC is resolved to its bank and branch, and both fields are
+ * READ-ONLY: they are derived from the code rather than typed beside it, so
+ * the bank name stored can never belong to a different branch than the code
+ * stored. Editing the code clears them at once, because a resolved name
+ * belongs to the code it came from.
+ *
+ * That lookup is NOT the paid check. It goes to the local IFSC master, which
+ * the backend answers from its own table for six months at a time; Sandbox is
+ * never called from the browser, and no account number is involved. It is
+ * debounced and fires on blur, so typing eleven characters is one request
+ * rather than eleven.
+ *
+ * An unknown code blocks saving, because an account nothing can be paid into
+ * is not worth storing. A lookup that could not be MADE does not block, and
+ * says so in those words: an outage in a reference lookup is no reason HR
+ * cannot record an account, and a correct IFSC must never be called wrong.
+ *
  * ============================================ THE PAID CALL IS PROTECTED ====
  *
  * Verification costs money per call. The primary button is disabled for the
@@ -68,16 +94,37 @@ function BankDetailsEditor({
   canVerify = false,
   saving,
 }) {
-  const [form, setForm] = useState({ account_no: "", ifsc: "", bank_name: "" });
+  const [form, setForm] = useState({ account_no: "", ifsc: "" });
   const [error, setError] = useState(null);
   /** A save that landed while its verification did not. */
   const [outcome, setOutcome] = useState(null);
   const inFlight = useRef(false);
 
+  /**
+   * What the branch code resolved to.
+   *
+   *   idle         nothing to say yet - too short, or just edited
+   *   checking     a lookup is in flight
+   *   ok           bank_name and branch_name are the provider's or the cache's
+   *   invalid      no such branch code. A typo, and correctable
+   *   unavailable  the lookup could not be made. NOT a typo
+   */
+  const [ifscState, setIfscState] = useState({ status: "idle" });
+  /** The last code actually looked up, so one code is never looked up twice. */
+  const lookedUp = useRef(null);
+  const lookupSeq = useRef(0);
+
   const set = (name, value) => {
     // Changing the details is the explicit act that lifts an indeterminate
     // hold: whatever may or may not have been checked, it was not this.
     setOutcome((o) => (o && o.indeterminate ? { ...o, indeterminate: false } : o));
+    if (name === "ifsc") {
+      // A RESOLVED BANK AND BRANCH BELONG TO THE CODE THEY CAME FROM. The
+      // moment the code changes they are stale, and showing them beside a
+      // different code invites saving one bank's name against another's
+      // account. They go immediately, not when the next lookup answers.
+      setIfscState({ status: "idle" });
+    }
     setForm((f) => ({ ...f, [name]: value }));
   };
 
@@ -85,11 +132,85 @@ function BankDetailsEditor({
   const held = Boolean(outcome && outcome.indeterminate);
 
   const close = () => {
-    setForm({ account_no: "", ifsc: "", bank_name: "" });
+    setForm({ account_no: "", ifsc: "" });
     setError(null);
     setOutcome(null);
+    setIfscState({ status: "idle" });
+    lookedUp.current = null;
     inFlight.current = false;
     onClose();
+  };
+
+  /** Upper-case, no spaces - the shape the backend keys its master on. */
+  const normalIfsc = String(form.ifsc || "").replace(/[\s-]/g, "").toUpperCase();
+  const ifscComplete = IFSC_PATTERN.test(normalIfsc);
+
+  /**
+   * Resolve a complete branch code to its bank and branch.
+   *
+   * NOT THE PAID CALL. This is the IFSC master lookup, which the backend
+   * answers from its own table for six months at a time; the Penny-Less
+   * verification is a different route and is spent only by the primary
+   * button. The two must not be confused, which is why nothing here touches
+   * `inFlight`.
+   *
+   * Guarded by `lookedUp` so that a re-render, a blur after a debounce has
+   * already fired, or a blur on an unchanged field cannot ask twice.
+   */
+  const resolveIfsc = useCallback(async (code) => {
+    if (!IFSC_PATTERN.test(code) || lookedUp.current === code) return;
+    lookedUp.current = code;
+
+    const seq = ++lookupSeq.current;
+    setIfscState({ status: "checking" });
+    let res;
+    try {
+      res = await HrHelper.lookupIfsc(code);
+    } catch (err) {
+      // A failed request is not evidence about the code.
+      if (seq === lookupSeq.current) {
+        lookedUp.current = null;
+        setIfscState({ status: "unavailable", message: "The bank lookup could not be reached." });
+      }
+      return;
+    }
+    // A slower earlier lookup must not overwrite a later one.
+    if (seq !== lookupSeq.current) return;
+
+    const code_ = res && Number(res.code);
+    if (code_ === 200 && res.bank_name && res.branch_name) {
+      setIfscState({ status: "ok", bank_name: res.bank_name, branch_name: res.branch_name });
+      return;
+    }
+    if (code_ === 404 || code_ === 422) {
+      setIfscState({ status: "invalid", message: (res && res.msg) || "Invalid IFSC — please check the code" });
+      return;
+    }
+    // Anything else - provider down, timed out, not configured - leaves the
+    // code unjudged, so a correct IFSC is never called wrong.
+    lookedUp.current = null;
+    setIfscState({
+      status: "unavailable",
+      message: (res && res.msg) || "The bank lookup is unavailable just now.",
+    });
+  }, []);
+
+  /**
+   * Look the code up once it is complete, after a short pause.
+   *
+   * Debounced rather than per keystroke: eleven characters typed straight
+   * through would otherwise be eleven requests, and the first ten of them
+   * about codes nobody entered.
+   */
+  useEffect(() => {
+    if (!isOpen || !ifscComplete || lookedUp.current === normalIfsc) return undefined;
+    const timer = setTimeout(() => resolveIfsc(normalIfsc), IFSC_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [isOpen, ifscComplete, normalIfsc, resolveIfsc]);
+
+  /** Leaving the field asks immediately rather than waiting out the debounce. */
+  const onIfscBlur = () => {
+    if (ifscComplete) resolveIfsc(normalIfsc);
   };
 
   /** Local checks, so a half-entered account never reaches the provider. */
@@ -101,11 +222,30 @@ function BankDetailsEditor({
       setError("Enter the account number as digits only, between 6 and 20 of them.");
       return null;
     }
-    if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(ifsc)) {
+    if (!IFSC_PATTERN.test(ifsc)) {
       setError("That IFSC does not look right. It is 4 letters, a zero, then 6 characters.");
       return null;
     }
-    return { account_no: account, ifsc, bank_name: String(form.bank_name || "").trim() };
+    if (ifscState.status === "invalid") {
+      // The provider says there is no such branch. Saving it would store an
+      // account nothing can ever be paid into.
+      setError(ifscState.message || "Invalid IFSC — please check the code");
+      return null;
+    }
+    if (ifscState.status === "checking") {
+      setError("Still checking that IFSC — one moment.");
+      return null;
+    }
+
+    // `bank_name` is whatever the lookup resolved, never anything typed: the
+    // field is read-only precisely so that the stored bank name is the one
+    // that belongs to the stored branch code. When the lookup could not be
+    // made it is left empty rather than guessed.
+    return {
+      account_no: account,
+      ifsc,
+      bank_name: ifscState.status === "ok" ? ifscState.bank_name : "",
+    };
   };
 
   const submit = async () => {
@@ -146,6 +286,46 @@ function BankDetailsEditor({
 
   const primaryLabel = canVerify ? "Verify & Save Bank Details" : "Save Bank Details";
 
+  /**
+   * The one line under the IFSC field. Small on purpose - the answer is the
+   * two filled fields below it; this only says how they got there.
+   *
+   * "Unavailable" is worded so that nobody reads it as a verdict on the code
+   * they typed.
+   */
+  const ifscHelp = {
+    idle: null,
+    checking: (
+      <Text as="span" color="gray.600">
+        <Spinner size="xs" mr={1} /> Checking IFSC…
+      </Text>
+    ),
+    ok: (
+      <Text as="span" color="green.600">
+        ✓ {ifscState.bank_name}
+      </Text>
+    ),
+    invalid: (
+      <Text as="span" color="red.600">
+        {ifscState.message || "Invalid IFSC — please check the code"}
+      </Text>
+    ),
+    unavailable: (
+      <Text as="span" color="orange.600">
+        {ifscState.message || "The bank lookup is unavailable just now."} The IFSC itself has not been
+        checked — you can still save.
+      </Text>
+    ),
+  }[ifscState.status];
+
+  /**
+   * A code the provider says does not exist must not be saved, and a lookup
+   * still in flight is worth the half second. An UNAVAILABLE lookup does not
+   * block: an outage in a reference lookup is no reason HR cannot record an
+   * account, and the code has not been contradicted.
+   */
+  const ifscBlocks = ifscState.status === "invalid" || ifscState.status === "checking";
+
   const footer = (
     <>
       <Button variant="ghost" mr={3} size="sm" onClick={close} isDisabled={saving}>
@@ -156,7 +336,7 @@ function BankDetailsEditor({
         size="sm"
         onClick={submit}
         isLoading={saving}
-        isDisabled={held}
+        isDisabled={held || ifscBlocks}
       >
         {outcome && outcome.saved ? "Save & verify again" : primaryLabel}
       </Button>
@@ -257,8 +437,31 @@ function BankDetailsEditor({
             onChange={set}
             help="Digits only. Entered once and never shown again in full."
           />
-          <EditField label="IFSC" name="ifsc" value={form.ifsc} onChange={set} />
-          <EditField label="Bank name" name="bank_name" value={form.bank_name} onChange={set} />
+          <EditField
+            label="IFSC"
+            name="ifsc"
+            value={form.ifsc}
+            onChange={set}
+            onBlur={onIfscBlur}
+            help={ifscHelp}
+          />
+          {/* Derived, not entered: both come from the branch code above, so
+              the bank name stored is always the one that belongs to it. */}
+          <EditField
+            label="Bank name"
+            name="bank_name"
+            value={ifscState.status === "ok" ? ifscState.bank_name : ""}
+            onChange={() => {}}
+            isReadOnly
+          />
+          <EditField
+            label="Branch"
+            name="branch_name"
+            value={ifscState.status === "ok" ? ifscState.branch_name : ""}
+            onChange={() => {}}
+            isReadOnly
+            help="From the IFSC. Shown to confirm the branch; not stored on the employee."
+          />
         </FieldGrid>
 
         <Text fontSize="xs" color="gray.600">

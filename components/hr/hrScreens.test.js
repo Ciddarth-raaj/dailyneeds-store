@@ -37,19 +37,29 @@ const backendAvailable = fs.existsSync(BACKEND_ROUTER);
 test("every /hr path the helper calls exists in the backend router", { skip: !backendAvailable }, () => {
   const router = fs.readFileSync(BACKEND_ROUTER, "utf8");
 
-  // What the helper calls, with the :id segments generalised.
+  // Parameters are generalised on BOTH sides rather than assumed to be an
+  // employee id: `/bank/ifsc/:ifsc` is parameterised too, and comparing a
+  // frontend `${code}` against a literal `:employee_id` would either miss a
+  // real route or demand the wrong name for one.
+  const generalise = (p) => p.replace(/\$\{[^}]+\}/g, ":param").replace(/:[A-Za-z_]\w*/g, ":param");
+
   const called = [...helper.matchAll(/API\.(?:get|post)\(`?"?\/hr([^"`,)]*)/g)]
     .map((m) => m[1])
-    .map((p) => p.replace(/\$\{[^}]+\}/g, ":employee_id"))
-    .map((p) => p.replace(/\/$/, ""));
+    .map((p) => p.replace(/\/$/, ""))
+    .map(generalise);
 
   assert.ok(called.length >= 12, `expected the full surface, found ${called.length}`);
+
+  // Every path string the router declares, likewise generalised.
+  const declared = new Set(
+    [...router.matchAll(/router\.(?:get|post|put|delete)\(\s*"([^"]+)"/g)].map((m) => generalise(m[1]))
+  );
 
   for (const p of called) {
     // The router mounts at /hr, so its own paths omit the prefix.
     const routerPath = p === "" ? "/" : p;
     assert.ok(
-      router.includes(`"${routerPath}"`),
+      declared.has(routerPath),
       `${routerPath} is called by the frontend but not declared in employee_master.js`
     );
   }

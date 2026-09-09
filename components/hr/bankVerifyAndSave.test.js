@@ -189,8 +189,11 @@ test("THE REASON SHOWN IS THE BACKEND'S, NOT AN INVENTED ONE", () => {
   // here.
   assert.match(editorCode, /outcome\.message \|\|/);
   assert.match(editorCode, /bankGuidance\(outcome\.status/);
+  // Checked against what the component can RENDER, not against its comments:
+  // the rule is that no provider reason is authored here, and a comment
+  // explaining which call is the paid one is not a reason shown to anybody.
   for (const invented of ["Penny", "provider said", "NEFT", "IMPS", "bank refused"]) {
-    assert.ok(!editor.includes(invented), `must not invent a reason: ${invented}`);
+    assert.ok(!editorCode.includes(invented), `must not invent a reason: ${invented}`);
   }
 });
 
@@ -286,10 +289,13 @@ test("AN UNDETERMINED OUTCOME DOES NOT OFFER ANOTHER PAID CHECK", () => {
   // disabled rather than merely relabelled.
   assert.match(editorCode, /const held = Boolean\(outcome && outcome\.indeterminate\)/);
   assert.match(editorCode, /if \(held\) return;/);
-  assert.match(editorCode, /isDisabled=\{held\}/);
+
 
   // Changing the details is the explicit act that lifts it.
   assert.match(editorCode, /o && o\.indeterminate \? \{ \.\.\.o, indeterminate: false \} : o/);
+  // The button is disabled for this reason as well as for an unresolved IFSC;
+  // both hold the same primary action, and neither may quietly drop the other.
+  assert.match(editorCode, /isDisabled=\{held \|\| ifscBlocks\}/);
 
   // The wording must not claim a check ran and failed, because it may not have.
   assert.match(editor, /The check did not report back/);
@@ -355,7 +361,9 @@ test("THE FULL ACCOUNT NUMBER IS NEVER RENDERED FROM THE BACKEND", () => {
   assert.match(cardCode, /bank\.masked_account/);
   // The editor's field is the one the user typed, cleared on close - never a
   // value read back from the server.
-  assert.match(editorCode, /setForm\(\{ account_no: "", ifsc: "", bank_name: "" \}\)/);
+  // The bank name left the form when it became derived from the IFSC; the
+  // account number and the code are still cleared on close.
+  assert.match(editorCode, /setForm\(\{ account_no: "", ifsc: "" \}\)/);
   assert.ok(
     !/account_no: bank\./.test(editorCode),
     "the editor must never prefill from the stored account"
