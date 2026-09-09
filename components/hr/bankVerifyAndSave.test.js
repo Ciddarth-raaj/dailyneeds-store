@@ -165,12 +165,21 @@ test("A CHANGED ACCOUNT CANNOT CARRY THE OLD VERIFIED FORWARD", () => {
   const a = bankActions({ status: "PENDING", hasAccount: true, ...VERIFIER, canEditSensitive: true });
   assert.strictEqual(a.canVerifyExisting, true, "the new account must be verifiable");
 
+  // The rule is about the BANK VERIFICATION's staleness - `bank.stale`, the
+  // fingerprint mismatch the backend has already folded into the status. The
+  // IFSC cache has an unrelated `stale` of its own, meaning "served from the
+  // branch list without re-checking", which decides nothing about a
+  // verification; matching on the bare word would conflate the two.
   for (const src of [cardCode, editorCode, profileCode]) {
     assert.ok(
-      !/stale\s*[?&|=]/.test(src.replace(/bank\.stale \?/g, "")),
-      "no screen may derive an action from staleness itself"
+      !/bank\.stale\s*[&|=]/.test(src),
+      "no screen may derive an action from verification staleness"
     );
   }
+  // The card still SHOWS it, which is different from deciding on it.
+  assert.match(cardCode, /bank\.stale \?/);
+  // And nothing turns the IFSC cache flag into a verification decision.
+  assert.ok(!/ifscState\.stale[\s\S]{0,40}verif/i.test(editorCode));
   // The card still SHOWS it, which is different from deciding on it.
   assert.match(cardCode, /bank\.stale \?/);
 });
@@ -189,8 +198,11 @@ test("THE REASON SHOWN IS THE BACKEND'S, NOT AN INVENTED ONE", () => {
   // here.
   assert.match(editorCode, /outcome\.message \|\|/);
   assert.match(editorCode, /bankGuidance\(outcome\.status/);
+  // Checked against what the component can RENDER, not against its comments:
+  // the rule is that no provider reason is authored here, and a comment
+  // explaining which call is the paid one is not a reason shown to anybody.
   for (const invented of ["Penny", "provider said", "NEFT", "IMPS", "bank refused"]) {
-    assert.ok(!editor.includes(invented), `must not invent a reason: ${invented}`);
+    assert.ok(!editorCode.includes(invented), `must not invent a reason: ${invented}`);
   }
 });
 
@@ -286,10 +298,13 @@ test("AN UNDETERMINED OUTCOME DOES NOT OFFER ANOTHER PAID CHECK", () => {
   // disabled rather than merely relabelled.
   assert.match(editorCode, /const held = Boolean\(outcome && outcome\.indeterminate\)/);
   assert.match(editorCode, /if \(held\) return;/);
-  assert.match(editorCode, /isDisabled=\{held\}/);
+
 
   // Changing the details is the explicit act that lifts it.
   assert.match(editorCode, /o && o\.indeterminate \? \{ \.\.\.o, indeterminate: false \} : o/);
+  // The button is disabled for this reason as well as for an unresolved IFSC;
+  // both hold the same primary action, and neither may quietly drop the other.
+  assert.match(editorCode, /isDisabled=\{held \|\| ifscBlocks\}/);
 
   // The wording must not claim a check ran and failed, because it may not have.
   assert.match(editor, /The check did not report back/);
@@ -355,7 +370,9 @@ test("THE FULL ACCOUNT NUMBER IS NEVER RENDERED FROM THE BACKEND", () => {
   assert.match(cardCode, /bank\.masked_account/);
   // The editor's field is the one the user typed, cleared on close - never a
   // value read back from the server.
-  assert.match(editorCode, /setForm\(\{ account_no: "", ifsc: "", bank_name: "" \}\)/);
+  // The bank name left the form when it became derived from the IFSC; the
+  // account number and the code are still cleared on close.
+  assert.match(editorCode, /setForm\(\{ account_no: "", ifsc: "" \}\)/);
   assert.ok(
     !/account_no: bank\./.test(editorCode),
     "the editor must never prefill from the stored account"

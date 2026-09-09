@@ -154,6 +154,22 @@ const hr = {
         .catch(reject);
     }),
 
+  /**
+   * GET /hr/bank/ifsc/:ifsc — edit_employee_sensitive AND view_employee_sensitive.
+   *
+   * Resolves a branch code to a bank and a branch name so the form can fill
+   * itself in. NOT a verification: it spends no Penny-Less check, takes no
+   * employee, and the backend answers from its local IFSC master wherever it
+   * can. Sandbox is never called from the browser.
+   */
+  lookupIfsc: (ifsc) =>
+    new Promise((resolve, reject) => {
+      const code = encodeURIComponent(ifsc);
+      API.get(`/hr/bank/ifsc/${code}`)
+        .then((res) => resolve(res.data))
+        .catch(reject);
+    }),
+
   /** POST /hr/employee/:id/bank/confirm-name — confirm_bank_name_mismatch AND view_employee_sensitive. */
   confirmBankName: (employeeId, note) =>
     new Promise((resolve, reject) => {

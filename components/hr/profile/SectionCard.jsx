@@ -112,8 +112,21 @@ export function Field({ label, value, mono = false }) {
 }
 
 /** An editable field. `type` picks the control; options make it a dropdown. */
-export function EditField({ label, name, value, onChange, type = "text", options, help, isDisabled }) {
+export function EditField({
+  label,
+  name,
+  value,
+  onChange,
+  type = "text",
+  options,
+  help,
+  isDisabled,
+  /** Shown but not typed into - a value this form derives rather than accepts. */
+  isReadOnly,
+  onBlur,
+}) {
   const set = (e) => onChange(name, e.target.value);
+  const blur = onBlur ? () => onBlur(name) : undefined;
   return (
     <FormControl>
       <FormLabel fontSize="xs" color="gray.600" mb={1}>
@@ -130,7 +143,18 @@ export function EditField({ label, name, value, onChange, type = "text", options
       ) : type === "textarea" ? (
         <Textarea size="sm" rows={2} value={value ?? ""} onChange={set} isDisabled={isDisabled} />
       ) : (
-        <Input size="sm" type={type} value={value ?? ""} onChange={set} isDisabled={isDisabled} />
+        <Input
+          size="sm"
+          type={type}
+          value={value ?? ""}
+          onChange={set}
+          onBlur={blur}
+          isDisabled={isDisabled}
+          isReadOnly={isReadOnly}
+          // Read-only rather than disabled: the value still matters and is
+          // still readable and selectable, it simply is not typed here.
+          bg={isReadOnly ? "gray.50" : undefined}
+        />
       )}
       {help ? (
         <Text fontSize="10px" color="gray.500" mt={1}>
