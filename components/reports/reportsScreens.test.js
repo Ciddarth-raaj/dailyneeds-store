@@ -18,7 +18,15 @@ const path = require("path");
 
 const read = (rel) => fs.readFileSync(path.join(__dirname, "..", "..", rel), "utf8");
 
-const page = read("pages/reports/employee-master.jsx");
+const saved = read("pages/reports/employee-master/index.jsx");
+const view = read("pages/reports/employee-master/[templateId].jsx");
+const create = read("pages/reports/employee-master/new.jsx");
+const bench = read("components/reports/ReportWorkbench.jsx");
+const drawer = read("components/reports/ColumnsDrawer.jsx");
+const filtersUi = read("components/reports/ReportFilters.jsx");
+// The workbench is the screen these assertions used to make about the single
+// page: it is what runs, exports and paginates a report.
+const page = bench;
 const picker = read("components/reports/FieldPicker.jsx");
 const warnings = read("components/reports/ReportWarnings.jsx");
 const helper = read("helper/report.js");
@@ -59,24 +67,21 @@ test("NO SCREEN SENDS ANYTHING THE SERVER WOULD TREAT AS SQL", () => {
   }
 });
 
-test("the filters sent are exactly the five the server accepts", () => {
-  const declared = pageCode.slice(
-    pageCode.indexOf("const EMPTY_FILTERS"),
-    pageCode.indexOf("};", pageCode.indexOf("const EMPTY_FILTERS"))
-  );
-  for (const key of ["status", "outlet_ids", "department_ids", "designation_ids", "search"]) {
-    assert.ok(declared.includes(key), `missing filter: ${key}`);
+test("the filters sent are only keys the server accepts", () => {
+  // The body carries `search` and `field_filters`, and nothing invented here.
+  // Everything a field filter can express - outlet, department, designation,
+  // employment status included - travels as a catalogue field KEY plus a
+  // value, so there is no second filter vocabulary in the frontend to drift
+  // from the server's.
+  const declared = strip(bench).slice(strip(bench).indexOf("const filters = useMemo"));
+  assert.match(declared.slice(0, 200), /\{ search, field_filters: fieldFilters \}/);
+
+  // And the per-field entries are exactly the four shapes the route validates.
+  const entry = strip(filtersUi);
+  for (const key of ["field", "value", "from", "to"]) {
+    assert.ok(entry.includes(key), `a filter entry must be able to carry ${key}`);
   }
-  // Nothing else. A sixth key would be silently dropped by Joi's strict
-  // validation, which is a control that appears to work and does not.
-  const keys = (declared.match(/^\s*(\w+):/gm) || []).map((k) => k.trim().replace(":", ""));
-  assert.deepStrictEqual(keys.sort(), [
-    "department_ids",
-    "designation_ids",
-    "outlet_ids",
-    "search",
-    "status",
-  ]);
+  assert.ok(!/operator|op:/.test(entry), "no operator may come from the client");
 });
 
 /* ================================================ permissions on screen == */
@@ -86,13 +91,18 @@ test("THE SCREEN IS GATED ON view_reports AND view_employees", () => {
   // capability AND the dataset it is pointed at. `usePermissions` defaults to
   // ANY, which would let `view_reports` alone open a screen whose every
   // request then fails - so the option is not optional here.
-  assert.match(
-    pageCode,
-    /usePermissions\(\["view_reports", "view_employees"\], \{ all: true \}\)/
-  );
-  // And it says so rather than rendering an empty report, which would look
-  // like there is no data rather than no access.
-  assert.match(page, /You do not have permission to view employee reports/);
+  // On every screen, not just one - a route reachable without the check is
+  // the same hole wherever it is.
+  for (const [name, src] of [["saved", saved], ["view", view], ["create", create]]) {
+    assert.match(
+      strip(src),
+      /usePermissions\(\["view_reports", "view_employees"\], \{ all: true \}\)/,
+      `${name} must require both keys`
+    );
+    // And it says so rather than rendering an empty report, which would look
+    // like there is no data rather than no access.
+    assert.match(src, /You do not have permission to view reports/, name);
+  }
 });
 
 test("THE EXPORT BUTTONS EXIST ONLY FOR SOMEBODY WHO MAY EXPORT", () => {
@@ -107,12 +117,25 @@ test("the field list comes from the server, never from a hardcoded catalogue", (
   // A field the caller may not use is ABSENT from what the server returns.
   // Listing fields here would show them columns they cannot have, and would
   // go stale the first time the catalogue changed.
-  assert.match(pageCode, /ReportHelper\.getFields\(\)/);
-  for (const columnish of ["pan_no", "account_no", "uan", "esi_number", "aadhaar"]) {
-    assert.ok(
-      !new RegExp(columnish).test(pageCode),
-      `the screen must not name the '${columnish}' column itself`
-    );
+  const hook = strip(read("customHooks/useReportCatalogue.js"));
+  assert.match(hook, /ReportHelper\.getFields\(\)/);
+
+  // No screen, and no component, names an Employee Master column - including
+  // the filter UI, which renders a control from the server's own metadata
+  // rather than from a list of fields kept here.
+  for (const columnish of ["pan_no", "account_no", "uan", "esi_number", "aadhaar", "bank_name"]) {
+    for (const [name, src] of [
+      ["workbench", pageCode],
+      ["filters", strip(filtersUi)],
+      ["drawer", strip(drawer)],
+      ["picker", strip(picker)],
+      ["catalogue hook", hook],
+    ]) {
+      assert.ok(
+        !new RegExp(columnish).test(src),
+        `${name} must not name the '${columnish}' column itself`
+      );
+    }
   }
 });
 
@@ -126,9 +149,11 @@ test("A WIDENED RESULT MUST BE ACKNOWLEDGED BEFORE EXPORT, NOT BEFORE PREVIEW", 
     pageCode,
     /blockedByAcknowledgement =\s*Boolean\(preview && preview\.requires_acknowledgement\) && !acknowledged/
   );
-  assert.match(pageCode, /isDisabled=\{blockedByAcknowledgement \|\| overRowLimit\}/);
+  assert.match(pageCode, /isDisabled=\{blockedByAcknowledgement \|\| overRowLimit \|\| !preview\}/);
+  // Nothing about running is gated on it - only the two export buttons are.
+  const runBody = pageCode.slice(pageCode.indexOf("const run = useCallback"), pageCode.indexOf("const doExport"));
   assert.ok(
-    !/Run report[\s\S]{0,200}blockedByAcknowledgement/.test(pageCode),
+    !/blockedByAcknowledgement|acknowledged/.test(runBody),
     "preview must not be gated on the acknowledgement"
   );
 });
@@ -136,11 +161,14 @@ test("A WIDENED RESULT MUST BE ACKNOWLEDGED BEFORE EXPORT, NOT BEFORE PREVIEW", 
 test("AN ACKNOWLEDGEMENT DOES NOT SURVIVE A NEW RUN OR AN EDIT", () => {
   // A fresh run is a fresh decision. Carrying a tick over from a previous
   // result would mean somebody acknowledged a different report's widening.
-  const runBody = pageCode.slice(pageCode.indexOf("const run = async"));
+  const runBody = pageCode.slice(pageCode.indexOf("const run = useCallback"));
   assert.match(runBody.slice(0, runBody.indexOf("const doExport")), /setAcknowledged\(false\)/);
 
-  const edit = pageCode.slice(pageCode.indexOf("const editDefinition"));
-  assert.match(edit.slice(0, 240), /setAcknowledged\(false\)/);
+  // And an edit is a fresh decision too - both a column change and a filter
+  // change drop it, or a tick would carry over to a report it never described.
+  const edit = pageCode.slice(pageCode.indexOf("const applyColumns"));
+  assert.match(edit.slice(0, 300), /setAcknowledged\(false\)/);
+  assert.match(pageCode, /setFieldFilters\(next\);\s*setAcknowledged\(false\);/);
 });
 
 test("the widening warning is separated from the harmless ones, and is louder", () => {
@@ -154,29 +182,34 @@ test("the widening warning is separated from the harmless ones, and is louder", 
 
 /* ============================================== templates and ownership == */
 
-test("EDITING THE DEFINITION DETACHES IT FROM THE SAVED REPORT", () => {
-  // Otherwise Update would overwrite a colleague's shared report with
-  // something they never saw.
-  assert.match(pageCode, /if \(templateId\) setTemplateId\(null\)/);
+test("EDITING A BUILT-IN REPORT NEVER WRITES BACK TO IT", () => {
+  // The report view has no update path at all: the only way to keep a change
+  // is Save a Copy, which creates a NEW template. A built-in cannot be
+  // mutated from here even by an administrator.
+  assert.match(strip(view), /ReportHelper\.createTemplate\(/);
+  assert.ok(!/updateTemplate/.test(strip(view)), "the report view must not update a template");
+  assert.ok(!/deleteTemplate/.test(strip(view)), "nor delete one");
 });
 
-test("Update is offered only where the server said it is allowed", () => {
-  assert.match(pageCode, /activeTemplate\.permissions &&\s*activeTemplate\.permissions\.canEdit/);
-  assert.match(pageCode, /permitted\.canDelete && \(/);
-  assert.match(pageCode, /permitted\.canCopy && \(/);
-  // The screen never decides ownership itself - it reads the server's answer.
-  assert.ok(!/is_system === 1 \?/.test(pageCode.replace(/Badge[\s\S]{0,200}/g, "")));
+test("delete is offered only where the server said it is allowed", () => {
+  // The catalogue page never decides ownership itself - it reads the server's
+  // answer, and a built-in carries no such permission.
+  assert.match(strip(saved), /template\.permissions && template\.permissions\.canDelete/);
 });
 
-test("A SAVED REPORT IS RUN BY ID, SO IT IS RECONCILED", () => {
+test("AN UNTOUCHED SAVED REPORT IS RUN BY ID, SO IT IS RECONCILED", () => {
   // Sending the expanded definition instead would skip reconciliation
   // entirely, and with it every stale-value warning - including the one that
-  // silently widens a one-branch report to the whole company.
-  assert.match(pageCode, /templateId\s*\?\s*\{ template_id: templateId, page \}/);
+  // silently widens a one-branch report to the whole company. Once the user
+  // edits it, what they can see must be what ran, so it goes expanded.
+  const code = strip(bench);
+  assert.match(code, /template && !edited\s*\?\s*\{ template_id: template\.template_id, page \}/);
   assert.match(
-    pageCode,
-    /templateId\s*\?\s*\{ template_id: templateId, acknowledge_widened_filters: acknowledged \}/
+    code,
+    /template && !dirty\s*\?\s*\{ template_id: template\.template_id, acknowledge_widened_filters: acknowledged \}/
   );
+  // Editing a column or applying a filter is what makes it dirty.
+  assert.match(code, /setDirty\(true\)/);
 });
 
 /* ================================================== the count on screen == */
@@ -184,7 +217,7 @@ test("A SAVED REPORT IS RUN BY ID, SO IT IS RECONCILED", () => {
 test("THE COUNT SHOWN IS THE WHOLE RESULT, NOT THE PAGE", () => {
   // It is the number somebody checks before sending a file to PF or a bank,
   // and it is the number of rows the export will contain.
-  assert.match(page, /\{preview\.matching_count\} matching employees/);
+  assert.match(page, /\{preview\.matching_count\} employees found/);
   assert.match(page, /showing \{preview\.rows\.length\} on this page/);
 });
 
@@ -252,6 +285,9 @@ test("Reports is its own top-level module, behind both required keys", () => {
   // and reachable only by somebody holding the permission it checks.
   const reportsMenu = menus.slice(menus.indexOf("const REPORTS_MENU = {"), menus.indexOf("\n};", menus.indexOf("const REPORTS_MENU = {")));
   assert.match(reportsMenu, /location: "\/reports\/employee-master"/);
+  assert.match(reportsMenu, /location: "\/reports\/employee-master\/new"/);
+  assert.match(reportsMenu, /title: "Saved Reports"/);
+  assert.match(reportsMenu, /title: "Create Report"/);
   // The same pair the screen and the backend require, so the entry cannot
   // appear on a rail belonging to somebody who would be refused on opening it.
   assert.match(reportsMenu, /permission: \["view_reports", "view_employees"\]/);

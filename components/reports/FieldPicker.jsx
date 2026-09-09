@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo, useState } from "react";
 import {
   Badge,
   Box,
@@ -7,6 +7,7 @@ import {
   Flex,
   HStack,
   IconButton,
+  Input,
   Stack,
   Text,
 } from "@chakra-ui/react";
@@ -30,6 +31,18 @@ import {
  * from the catalogue the server returns, not greyed out. Showing an unusable
  * field would tell them what exists, which is a small disclosure of its own,
  * and would invite a support call about a checkbox that cannot be ticked.
+ *
+ * ============================================ GROUPS COLLAPSE, AND SEARCH ==
+ *
+ * Thirty-odd columns fully expanded is the crowding this redesign exists to
+ * remove. Groups start collapsed EXCEPT those holding a column the report
+ * already uses - which is where somebody looking at an existing report wants
+ * to be - and a search opens whichever groups match, because a filtered list
+ * that is still collapsed helps nobody.
+ *
+ * THIS IS THE ONLY COLUMN CHOOSER. The drawer wraps it rather than
+ * reimplementing it, and the create screen uses the same one, so selection,
+ * ordering and the cap behave identically wherever columns are chosen.
  */
 function FieldPicker({ groups, selected, onChange, maxFields, disabled }) {
   const chosen = Array.isArray(selected) ? selected : [];
@@ -39,6 +52,36 @@ function FieldPicker({ groups, selected, onChange, maxFields, disabled }) {
   );
 
   const atLimit = maxFields > 0 && chosen.length >= maxFields;
+
+  const [search, setSearch] = useState("");
+  const term = search.trim().toLowerCase();
+
+  /** Groups holding a selected column, open on arrival. */
+  const initiallyOpen = useMemo(() => {
+    const open = {};
+    (groups || []).forEach((group) => {
+      open[group.group] = group.fields.some((f) => chosen.includes(f.key));
+    });
+    return open;
+    // Deliberately computed once per mount of the picker: after that, opening
+    // and closing is the user's business, and a re-render must not spring a
+    // group back open under their hands.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const [open, setOpen] = useState(initiallyOpen);
+
+  const visible = (groups || [])
+    .map((group) => ({
+      ...group,
+      fields: term
+        ? group.fields.filter((f) => f.label.toLowerCase().includes(term))
+        : group.fields,
+    }))
+    .filter((group) => group.fields.length > 0);
+
+  // While searching, a matching group is open whatever its collapsed state:
+  // a filtered list that stays shut hides the thing just searched for.
+  const isOpen = (name) => (term ? true : Boolean(open[name]));
 
   const toggle = (key) => {
     if (chosen.includes(key)) {
@@ -72,6 +115,14 @@ function FieldPicker({ groups, selected, onChange, maxFields, disabled }) {
           </Text>
         </Flex>
 
+        <Input
+          size="sm"
+          placeholder="Search columns..."
+          value={search}
+          marginBottom="8px"
+          onChange={(e) => setSearch(e.target.value)}
+        />
+
         <Box
           borderWidth="1px"
           borderRadius="8px"
@@ -80,12 +131,33 @@ function FieldPicker({ groups, selected, onChange, maxFields, disabled }) {
           overflowY="auto"
         >
           <Stack spacing="14px">
-            {(groups || []).map((group) => (
+            {visible.map((group) => (
               <Box key={group.group}>
-                <Text fontSize="12px" fontWeight="bold" color="gray.600" marginBottom="4px">
-                  {group.group.toUpperCase()}
-                </Text>
-                <Stack spacing="4px">
+                <Flex
+                  as="button"
+                  type="button"
+                  width="100%"
+                  align="center"
+                  justify="space-between"
+                  marginBottom="4px"
+                  onClick={() => setOpen((o) => ({ ...o, [group.group]: !isOpen(group.group) }))}
+                  aria-expanded={isOpen(group.group)}
+                >
+                  <HStack spacing="6px">
+                    <Text fontSize="10px" color="gray.500" width="10px">
+                      {isOpen(group.group) ? "\u25BC" : "\u25B6"}
+                    </Text>
+                    <Text fontSize="12px" fontWeight="bold" color="gray.600">
+                      {group.group.toUpperCase()}
+                    </Text>
+                  </HStack>
+                  {/* selected / total, so a collapsed group still says
+                      whether anything in it is in the report. */}
+                  <Text fontSize="11px" color="gray.500">
+                    {group.fields.filter((f) => chosen.includes(f.key)).length}/{group.fields.length}
+                  </Text>
+                </Flex>
+                <Stack spacing="4px" display={isOpen(group.group) ? "flex" : "none"}>
                   {group.fields.map((field) => {
                     const isChosen = chosen.includes(field.key);
                     return (
@@ -116,9 +188,11 @@ function FieldPicker({ groups, selected, onChange, maxFields, disabled }) {
                 </Stack>
               </Box>
             ))}
-            {(groups || []).length === 0 && (
+            {visible.length === 0 && (
               <Text fontSize="13px" color="gray.500">
-                No columns are available to you.
+                {term
+                  ? `No column matches "${search.trim()}".`
+                  : "No columns are available to you."}
               </Text>
             )}
           </Stack>
