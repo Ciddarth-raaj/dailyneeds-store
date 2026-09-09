@@ -21,7 +21,12 @@ import {
   useToast,
 } from "@chakra-ui/react";
 import ColumnsDrawer from "./ColumnsDrawer";
-import ReportFilters, { pruneFilters } from "./ReportFilters";
+import ReportFilters from "./ReportFilters";
+import {
+  pruneFilters,
+  splitSavedFilters,
+  toRequestFilters,
+} from "../../util/reportFilterRules";
 import ReportWarnings from "./ReportWarnings";
 import ReportHelper, { REPORT_ERROR } from "../../helper/report";
 
@@ -46,10 +51,22 @@ import ReportHelper, { REPORT_ERROR } from "../../helper/report";
  *
  * ============================================ COLUMNS AND FILTERS ARE JOINED
  *
- * A selected column is filterable; a removed column takes its filter with it.
- * `pruneFilters` is applied wherever the selection changes, so there is no
- * path by which a filter can go on narrowing a column that is no longer in
- * the report.
+ * A selected column is filterable, and a removed column takes its DYNAMIC
+ * filter with it - `pruneFilters` is applied wherever the selection changes,
+ * so a filter cannot go on narrowing a column that is no longer shown.
+ *
+ * The COMMON filters - employment status, outlet, department, designation,
+ * search - are not joined to any column. They are the report run's own
+ * controls, always available, and removing a column must never take one away.
+ *
+ * ============================================== THE WHOLE DEFINITION IS HELD
+ *
+ * State carries all six parts of a saved report's filters, not just the two
+ * the screen renders as dynamic controls. Holding less meant that the moment
+ * a column changed and the definition went to the server expanded, a saved
+ * outlet or status filter simply disappeared: the report widened without
+ * anybody touching it, and Save a Copy stored something looser than what was
+ * on screen.
  *
  * ==================================================== NOTHING RUNS BY ITSELF
  *
@@ -74,10 +91,12 @@ function ReportWorkbench({
   const drawer = useDisclosure();
 
   const [fieldKeys, setFieldKeys] = useState(initialFieldKeys || []);
-  const [fieldFilters, setFieldFilters] = useState(
-    (initialFilters && initialFilters.field_filters) || []
-  );
-  const [search, setSearch] = useState((initialFilters && initialFilters.search) || "");
+
+  // Split once, on arrival: the four common filters plus search into their own
+  // state, everything else as dynamic filters.
+  const initial = useMemo(() => splitSavedFilters(initialFilters), [initialFilters]);
+  const [common, setCommon] = useState(initial.common);
+  const [fieldFilters, setFieldFilters] = useState(initial.fieldFilters);
 
   /**
    * Whether the definition on screen still IS the saved one.
@@ -101,10 +120,9 @@ function ReportWorkbench({
   const [exporting, setExporting] = useState(null);
   const [acknowledged, setAcknowledged] = useState(false);
 
-  const filters = useMemo(
-    () => ({ search, field_filters: fieldFilters }),
-    [search, fieldFilters]
-  );
+  // The complete definition, assembled in ONE place - so the preview, the
+  // export and Save a Copy cannot describe three different reports.
+  const filters = useMemo(() => toRequestFilters(common, fieldFilters), [common, fieldFilters]);
 
   useEffect(() => {
     if (onDefinitionChange) onDefinitionChange({ field_keys: fieldKeys, filters });
@@ -248,7 +266,11 @@ function ReportWorkbench({
         defaultSelected={defaultColumns}
         onApply={(next) => {
           applyColumns(next);
-          run(1, { field_keys: next, filters: { search, field_filters: pruneFilters(fieldFilters, next) } });
+          // The pruned dynamic filters, and every common filter untouched.
+          run(1, {
+            field_keys: next,
+            filters: toRequestFilters(common, pruneFilters(fieldFilters, next)),
+          });
         }}
       />
 
@@ -258,10 +280,15 @@ function ReportWorkbench({
         fieldFilters={fieldFilters}
         onChange={(next) => {
           setFieldFilters(next);
+          setDirty(true);
           setAcknowledged(false);
         }}
-        search={search}
-        onSearchChange={setSearch}
+        common={common}
+        onCommonChange={(next) => {
+          setCommon(next);
+          setDirty(true);
+          setAcknowledged(false);
+        }}
         masters={masters}
         onApply={() => {
           setDirty(true);

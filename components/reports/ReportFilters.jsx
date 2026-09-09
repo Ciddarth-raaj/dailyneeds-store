@@ -15,46 +15,49 @@ import {
   Wrap,
   WrapItem,
 } from "@chakra-ui/react";
-import { pruneFilters, isEmptyFilter } from "../../util/reportFilterRules";
+import {
+  COMMON_FILTER_FIELDS,
+  isEmptyFilter,
+  pruneFilters,
+} from "../../util/reportFilterRules";
 
 /**
- * Reports — filtering by the columns the report shows.
+ * Reports — the filters on a report.
  *
- * ================================================== SELECTED MEANS FILTERABLE
+ * ================================================== TWO KINDS, NOT ONE =====
  *
- * The rule this file implements: a column in the report is a column you can
- * narrow by. Not a fixed list of five filters that happen to exist, and not
- * every field in the catalogue either - the eligible set is exactly the
- * SELECTED columns, so a Bank/KYC report offers a Bank Name filter and a
- * Contact report does not.
+ * COMMON filters - Employment Status, Outlet, Department, Designation and
+ * Search - are always here, whether or not the matching column is displayed.
+ * They are operational controls belonging to the report run: narrowing a
+ * Bank/KYC report to one branch does not require Outlet to be one of its
+ * columns, and removing a column must never take one of them away. They are
+ * the only Employee Master fields this file knows by name, and it is allowed
+ * to because each maps onto a backend filter key that predates the catalogue.
  *
- * Its corollary matters as much: REMOVING A COLUMN REMOVES ITS FILTER. A
- * filter still narrowing the result on a column nobody can see is the worst
- * outcome here - a count that cannot be explained from the screen - so the
- * pruning happens in `pruneFilters` below and is asserted by a test.
+ * DYNAMIC filters are any other field, offered only while it is a column of
+ * the report - a Bank/KYC report offers a Bank Name filter and a Contact
+ * report does not. Removing the column removes the filter, and the backend
+ * refuses a dynamic filter on an unselected column in any case, so a filter
+ * nobody can see on screen cannot narrow the count.
  *
  * ============================================== THE CONTROLS ARE THE SERVER'S
  *
- * Nothing here knows what an Employee Master field is. Each field carries
- * `filter: { type, options?, master? }` from the catalogue, and this renders a
- * control for that type. There is no second list of fields in React to fall
- * out of step with the backend, and a field the server did not send is a
- * field this cannot offer - which is what makes the UI incapable of
- * requesting something unauthorized in the first place.
+ * Even for the four common ones, the LABEL and the OPTIONS come from the
+ * catalogue entry the server sent. This file names four keys; it does not
+ * describe any field. There is no second list of Employee Master fields in
+ * React to fall out of step with the backend, and a field the server did not
+ * send cannot be rendered at all.
  *
  * ==================================================== AND, AND SAID PLAINLY ==
  *
- * Every filter narrows further; none of them widens. The chips underneath
- * spell out what is currently applied, because "12 employees found" with
- * invisible filters is how somebody exports the wrong spreadsheet.
+ * Every filter narrows further; none widens. The chips underneath spell out
+ * what is applied - common and dynamic alike - because "12 employees found"
+ * with invisible filters is how somebody exports the wrong spreadsheet.
  */
 
-/** The filters shown without asking - the ones nearly every report wants. */
-const COMMON_FIELDS = ["employment_status", "outlet", "department", "designation"];
+/** Order the four are shown in. Their meaning comes from the catalogue. */
+const COMMON_ORDER = ["employment_status", "outlet", "department", "designation"];
 
-// The two rules live in plain JS so they can be RUN rather than read - see
-// util/reportFilterRules.js. Re-exported here because this is where callers
-// expect to find them.
 export { pruneFilters, isEmptyFilter };
 
 function ReportFilters({
@@ -62,11 +65,12 @@ function ReportFilters({
   groups,
   /** The report's currently selected column keys, in order. */
   selectedKeys,
-  /** `[{ field, value }]` / `[{ field, from, to }]`. */
+  /** Dynamic filters: `[{ field, value }]` / `[{ field, from, to }]`. */
   fieldFilters,
   onChange,
-  search,
-  onSearchChange,
+  /** `{ status, outlet_ids, department_ids, designation_ids, search }`. */
+  common,
+  onCommonChange,
   masters,
   onApply,
   applying,
@@ -79,17 +83,20 @@ function ReportFilters({
     return map;
   }, [groups]);
 
-  /**
-   * Eligible = selected AND filterable AND authorized. All three come from the
-   * server's own description; a field it did not send is simply absent here.
-   */
-  const eligible = useMemo(
-    () => (selectedKeys || []).map((k) => byKey.get(k)).filter((f) => f && f.filter),
-    [selectedKeys, byKey]
-  );
-
   const active = fieldFilters || [];
   const valueOf = (key) => active.find((f) => f.field === key) || null;
+
+  /**
+   * Eligible dynamic filters = selected AND filterable AND authorized, minus
+   * the four already shown as common ones - which must never appear twice.
+   */
+  const dynamic = useMemo(
+    () =>
+      (selectedKeys || [])
+        .map((k) => byKey.get(k))
+        .filter((f) => f && f.filter && !COMMON_FILTER_FIELDS[f.key]),
+    [selectedKeys, byKey]
+  );
 
   const setFilter = (key, patch) => {
     const field = byKey.get(key);
@@ -110,23 +117,63 @@ function ReportFilters({
     );
   };
 
-  const clear = (key) => onChange(active.filter((f) => f.field !== key));
-  const clearAll = () => onChange([]);
+  const setCommon = (patch) => onCommonChange({ ...common, ...patch });
 
   const optionsFor = (field) => {
     if (field.filter.type === "enum") return field.filter.options || [];
-    // A master-linked field draws its options from the master already loaded
-    // for this screen, rather than a list invented here.
-    const list = (masters && masters[field.filter.master]) || [];
-    return list;
+    return (masters && masters[field.filter.master]) || [];
   };
+
+  /* ------------------------------------------------------ common controls */
+
+  const commonControl = (key) => {
+    const field = byKey.get(key);
+    // A field the server did not send is not rendered. In practice all four
+    // are ungated, so this is a guard rather than a common path.
+    if (!field || !field.filter) return null;
+
+    const stateKey = COMMON_FILTER_FIELDS[key];
+
+    if (stateKey === "status") {
+      return (
+        <Select
+          size="sm"
+          value={common.status || "active"}
+          onChange={(e) => setCommon({ status: e.target.value })}
+        >
+          {(field.filter.options || []).map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </Select>
+      );
+    }
+
+    const ids = common[stateKey] || [];
+    return (
+      <Select
+        size="sm"
+        value={ids[0] || ""}
+        placeholder={`All ${field.label.toLowerCase()}`}
+        onChange={(e) => setCommon({ [stateKey]: e.target.value ? [Number(e.target.value)] : [] })}
+      >
+        {optionsFor(field).map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </Select>
+    );
+  };
+
+  /* ----------------------------------------------------- dynamic controls */
 
   const control = (field) => {
     const current = valueOf(field.key);
     const type = field.filter.type;
 
     if (type === "enum" || type === "master") {
-      const opts = optionsFor(field);
       const value =
         type === "master"
           ? (current && current.value && current.value[0]) || ""
@@ -138,11 +185,16 @@ function ReportFilters({
           placeholder={type === "master" ? `All ${field.label.toLowerCase()}` : "Any"}
           onChange={(e) =>
             setFilter(field.key, {
-              value: type === "master" ? (e.target.value ? [Number(e.target.value)] : []) : e.target.value,
+              value:
+                type === "master"
+                  ? e.target.value
+                    ? [Number(e.target.value)]
+                    : []
+                  : e.target.value,
             })
           }
         >
-          {opts.map((o) => (
+          {optionsFor(field).map((o) => (
             <option key={o.value} value={o.value}>
               {o.label}
             </option>
@@ -172,7 +224,6 @@ function ReportFilters({
       );
     }
 
-    // text and id
     return (
       <Input
         size="sm"
@@ -183,7 +234,23 @@ function ReportFilters({
     );
   };
 
-  const labelFor = (entry) => {
+  /* ------------------------------------------------------------- the chips */
+
+  const labelOfCommon = (key) => {
+    const field = byKey.get(key);
+    const stateKey = COMMON_FILTER_FIELDS[key];
+    const label = field ? field.label : key;
+
+    if (stateKey === "status") {
+      const opt = field && (field.filter.options || []).find((o) => o.value === common.status);
+      return `${label}: ${opt ? opt.label : common.status}`;
+    }
+    const id = (common[stateKey] || [])[0];
+    const opt = field && optionsFor(field).find((o) => String(o.value) === String(id));
+    return `${label}: ${opt ? opt.label : id}`;
+  };
+
+  const labelOfDynamic = (entry) => {
     const field = byKey.get(entry.field);
     if (!field) return entry.field;
     if (field.filter.type === "date") {
@@ -200,11 +267,31 @@ function ReportFilters({
     return `${field.label}: ${entry.value}`;
   };
 
-  // Common first, then anything the user has already filtered on - a filter
-  // with a value is never hidden behind "More", or it becomes the invisible
-  // narrowing this design exists to prevent.
-  const commonShown = eligible.filter((f) => COMMON_FIELDS.includes(f.key) || valueOf(f.key));
-  const more = eligible.filter((f) => !commonShown.includes(f));
+  // A common filter is "applied" when it narrows: an explicit status other
+  // than the default, a chosen id, or a search term.
+  const commonChips = COMMON_ORDER.filter((key) => {
+    const stateKey = COMMON_FILTER_FIELDS[key];
+    if (stateKey === "status") return common.status && common.status !== "active";
+    return ((common[stateKey] || []).length) > 0;
+  });
+
+  const anyChip = commonChips.length > 0 || active.length > 0 || Boolean(common.search);
+
+  const clearCommon = (key) => {
+    const stateKey = COMMON_FILTER_FIELDS[key];
+    setCommon(stateKey === "status" ? { status: "active" } : { [stateKey]: [] });
+  };
+
+  const clearAll = () => {
+    onCommonChange({
+      status: "active",
+      outlet_ids: [],
+      department_ids: [],
+      designation_ids: [],
+      search: "",
+    });
+    onChange([]);
+  };
 
   return (
     <Box borderWidth="1px" borderRadius="8px" padding="12px">
@@ -219,15 +306,20 @@ function ReportFilters({
         )}
       </Flex>
 
+      {/* ------------------------------------------------ always available */}
       <SimpleGrid columns={{ base: 1, md: 2, xl: 4 }} spacingX="12px" spacingY="8px">
-        {commonShown.map((field) => (
-          <Box key={field.key}>
-            <Text fontSize="11px" color="gray.600" marginBottom="2px">
-              {field.label}
-            </Text>
-            {control(field)}
-          </Box>
-        ))}
+        {COMMON_ORDER.map((key) => {
+          const field = byKey.get(key);
+          if (!field || !field.filter) return null;
+          return (
+            <Box key={key}>
+              <Text fontSize="11px" color="gray.600" marginBottom="2px">
+                {field.label}
+              </Text>
+              {commonControl(key)}
+            </Box>
+          );
+        })}
 
         <Box>
           <Text fontSize="11px" color="gray.600" marginBottom="2px">
@@ -236,16 +328,17 @@ function ReportFilters({
           <Input
             size="sm"
             placeholder="Name or Employee ID"
-            value={search || ""}
-            onChange={(e) => onSearchChange(e.target.value)}
+            value={common.search || ""}
+            onChange={(e) => setCommon({ search: e.target.value })}
           />
         </Box>
       </SimpleGrid>
 
-      {more.length > 0 && (
+      {/* ----------------------------------- the report's own columns */}
+      {dynamic.length > 0 && (
         <Box marginTop="8px">
           <Button size="xs" variant="link" colorScheme="purple" onClick={() => setShowMore((v) => !v)}>
-            {showMore ? "− Fewer filters" : `+ More Filters (${more.length})`}
+            {showMore ? "− Fewer filters" : `+ More Filters (${dynamic.length})`}
           </Button>
           {showMore && (
             <SimpleGrid
@@ -254,7 +347,7 @@ function ReportFilters({
               spacingY="8px"
               marginTop="8px"
             >
-              {more.map((field) => (
+              {dynamic.map((field) => (
                 <Box key={field.key}>
                   <Text fontSize="11px" color="gray.600" marginBottom="2px">
                     {field.label}
@@ -267,19 +360,41 @@ function ReportFilters({
         </Box>
       )}
 
-      {active.length > 0 && (
+      {anyChip && (
         <Stack spacing="4px" marginTop="10px">
           <Text fontSize="11px" color="gray.600">
             Active filters:
           </Text>
           <Wrap spacing="6px">
+            {commonChips.map((key) => (
+              <WrapItem key={key}>
+                <Tag size="sm" colorScheme="gray" borderRadius="full">
+                  <TagLabel>{labelOfCommon(key)}</TagLabel>
+                  <TagCloseButton
+                    aria-label={`Remove ${key} filter`}
+                    onClick={() => clearCommon(key)}
+                  />
+                </Tag>
+              </WrapItem>
+            ))}
+            {common.search ? (
+              <WrapItem>
+                <Tag size="sm" colorScheme="gray" borderRadius="full">
+                  <TagLabel>Search: {common.search}</TagLabel>
+                  <TagCloseButton
+                    aria-label="Remove search filter"
+                    onClick={() => setCommon({ search: "" })}
+                  />
+                </Tag>
+              </WrapItem>
+            ) : null}
             {active.map((entry) => (
               <WrapItem key={entry.field}>
                 <Tag size="sm" colorScheme="purple" borderRadius="full">
-                  <TagLabel>{labelFor(entry)}</TagLabel>
+                  <TagLabel>{labelOfDynamic(entry)}</TagLabel>
                   <TagCloseButton
                     aria-label={`Remove ${entry.field} filter`}
-                    onClick={() => clear(entry.field)}
+                    onClick={() => onChange(active.filter((f) => f.field !== entry.field))}
                   />
                 </Tag>
               </WrapItem>

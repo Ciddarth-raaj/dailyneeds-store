@@ -32,7 +32,13 @@ const drawer = strip(read("components/reports/ColumnsDrawer.jsx"));
 const picker = strip(read("components/reports/FieldPicker.jsx"));
 const filtersUi = strip(read("components/reports/ReportFilters.jsx"));
 
-const { pruneFilters, isEmptyFilter } = require("../../util/reportFilterRules");
+const {
+  pruneFilters,
+  isEmptyFilter,
+  splitSavedFilters,
+  toRequestFilters,
+  COMMON_FILTER_FIELDS,
+} = require("../../util/reportFilterRules");
 
 /* ======================= 1-5. Saved Reports ============================= */
 
@@ -183,18 +189,18 @@ test("REMOVING A COLUMN REMOVES ITS FILTER", () => {
 test("the pruning is wired into the one place columns change", () => {
   assert.match(bench, /setFieldFilters\(\(current\) => pruneFilters\(current, next\)\)/);
   // And into the request that immediately follows, so the run cannot carry a
-  // filter the new column list no longer includes.
-  assert.match(bench, /field_filters: pruneFilters\(fieldFilters, next\)/);
+  // dynamic filter the new column list no longer includes - while every
+  // common filter is passed through untouched.
+  assert.match(bench, /toRequestFilters\(common, pruneFilters\(fieldFilters, next\)\)/);
 });
 
-test("ONLY SELECTED COLUMNS ARE OFFERED AS FILTERS", () => {
-  // Eligible = selected AND filterable AND authorized, all three from the
-  // server's own description. A field the server did not send cannot be
-  // offered, which is what stops the UI requesting something unauthorized.
-  assert.match(
-    filtersUi,
-    /\(selectedKeys \|\| \[\]\)\.map\(\(k\) => byKey\.get\(k\)\)\.filter\(\(f\) => f && f\.filter\)/
-  );
+test("ONLY SELECTED COLUMNS ARE OFFERED AS DYNAMIC FILTERS", () => {
+  // Eligible = selected AND filterable AND authorized AND not one of the four
+  // common ones, all from the server's own description. A field the server
+  // did not send cannot be offered, which is what stops the UI requesting
+  // something unauthorized.
+  assert.match(filtersUi, /const dynamic = useMemo\(/);
+  assert.match(filtersUi, /!COMMON_FILTER_FIELDS\[f\.key\]/);
   // The catalogue is the server's; there is no field list here.
   assert.match(filtersUi, /groups \|\| \[\]\)\.forEach\(\(g\) => g\.fields\.forEach/);
 });
@@ -209,24 +215,29 @@ test("a field the server marks unfilterable is never given a control", () => {
 /* ======================= 15-21. the filter UI ============================ */
 
 test("THE COMMON FILTERS ARE SHOWN AND THE REST ARE BEHIND MORE FILTERS", () => {
-  assert.match(filtersUi, /const COMMON_FIELDS = \["employment_status", "outlet", "department", "designation"\]/);
-  assert.match(filtersUi, /\+ More Filters/);
-  // A filter WITH A VALUE is never hidden behind "More" - that would be the
-  // invisible narrowing this design exists to prevent.
   assert.match(
     filtersUi,
-    /eligible\.filter\(\(f\) => COMMON_FIELDS\.includes\(f\.key\) \|\| valueOf\(f\.key\)\)/
+    /const COMMON_ORDER = \["employment_status", "outlet", "department", "designation"\]/
   );
-  // And nothing is offered twice.
-  assert.match(filtersUi, /eligible\.filter\(\(f\) => !commonShown\.includes\(f\)\)/);
+  assert.match(filtersUi, /\+ More Filters/);
+  // The four are rendered unconditionally, and "More Filters" holds the
+  // report's own dynamic columns - never one of the four again.
+  assert.match(filtersUi, /\{COMMON_ORDER\.map\(\(key\) => \{/);
+  assert.match(filtersUi, /\{dynamic\.map\(\(field\) => \(/);
+  assert.match(filtersUi, /!COMMON_FILTER_FIELDS\[f\.key\]/);
+  // Whatever is applied is on screen as a chip, so nothing narrows invisibly.
+  assert.match(filtersUi, /const commonChips = COMMON_ORDER\.filter/);
 });
 
 test("ACTIVE FILTERS ARE VISIBLE, INDIVIDUALLY REMOVABLE, AND CLEARABLE AT ONCE", () => {
   const src = read("components/reports/ReportFilters.jsx");
   assert.match(src, /Active filters:/);
   assert.match(src, /<TagCloseButton/);
-  assert.match(filtersUi, /const clear = \(key\) => onChange\(active\.filter\(\(f\) => f\.field !== key\)\)/);
-  assert.match(filtersUi, /const clearAll = \(\) => onChange\(\[\]\)/);
+  // Both kinds: a dynamic chip drops just that filter, a common chip resets
+  // just that control, and Clear All resets everything.
+  assert.match(filtersUi, /onChange\(active\.filter\(\(f\) => f\.field !== entry\.field\)\)/);
+  assert.match(filtersUi, /const clearCommon = \(key\) => \{/);
+  assert.match(filtersUi, /const clearAll = \(\) => \{/);
   assert.match(src, /Clear All/);
 });
 
@@ -303,8 +314,11 @@ test("REOPENING A SAVED REPORT RESTORES BOTH", () => {
   assert.match(strip(view), /initialFieldKeys=\{template\.field_keys \|\| \[\]\}/);
   assert.match(strip(view), /initialFilters=\{template\.filters \|\| \{\}\}/);
   assert.match(bench, /useState\(initialFieldKeys \|\| \[\]\)/);
-  assert.match(bench, /\(initialFilters && initialFilters\.field_filters\) \|\| \[\]/);
-  assert.match(bench, /useState\(\(initialFilters && initialFilters\.search\) \|\| ""\)/);
+  // ALL SIX parts, split once on arrival - not just the two the screen
+  // renders as dynamic controls.
+  assert.match(bench, /splitSavedFilters\(initialFilters\)/);
+  assert.match(bench, /useState\(initial\.common\)/);
+  assert.match(bench, /useState\(initial\.fieldFilters\)/);
 });
 
 /* ======================= scope ========================================== */
@@ -320,4 +334,204 @@ test("NOTHING OUTSIDE REPORTS WAS TOUCHED", () => {
       );
     }
   }
+});
+
+/* ============ BLOCKER 1: the whole saved definition survives an edit ===== */
+
+test("A SAVED REPORT'S COMMON FILTERS SURVIVE A COLUMN CHANGE", () => {
+  // The blocker. An untouched saved report ran correctly by id; the moment a
+  // column changed, the definition went expanded - and status, outlet,
+  // department and designation were never in frontend state, so they simply
+  // disappeared. The report widened without anybody touching it.
+  const savedFilters = {
+    status: "active",
+    outlet_ids: [2],
+    department_ids: [7],
+    designation_ids: [15],
+    search: "Ravi",
+    field_filters: [{ field: "bank_name", value: "State Bank of India" }],
+  };
+
+  const { common, fieldFilters } = splitSavedFilters(savedFilters);
+
+  // 1. All four are held, plus search and the dynamic filter.
+  assert.strictEqual(common.status, "active");
+  assert.deepStrictEqual(common.outlet_ids, [2]);
+  assert.deepStrictEqual(common.department_ids, [7]);
+  assert.deepStrictEqual(common.designation_ids, [15]);
+  assert.strictEqual(common.search, "Ravi");
+  assert.deepStrictEqual(fieldFilters, [{ field: "bank_name", value: "State Bank of India" }]);
+
+  // 2. A column changes - `bank_name` is removed from the report.
+  const nextColumns = ["employee_id", "employee_name"];
+  const prunedDynamic = pruneFilters(fieldFilters, nextColumns);
+
+  // 3. The request that follows still carries all four, plus search.
+  const sent = toRequestFilters(common, prunedDynamic);
+  assert.strictEqual(sent.status, "active");
+  assert.deepStrictEqual(sent.outlet_ids, [2]);
+  assert.deepStrictEqual(sent.department_ids, [7]);
+  assert.deepStrictEqual(sent.designation_ids, [15]);
+  assert.strictEqual(sent.search, "Ravi");
+  // ...and the dynamic filter is gone, because its column is.
+  assert.deepStrictEqual(sent.field_filters, []);
+});
+
+test("SAVE A COPY RECEIVES THE COMPLETE DEFINITION TOO", () => {
+  // Same assembly function, so a copy cannot be looser than what ran.
+  const { common, fieldFilters } = splitSavedFilters({
+    status: "inactive",
+    outlet_ids: [3],
+    department_ids: [1],
+    designation_ids: [9],
+    search: "x",
+    field_filters: [{ field: "bank_status", value: "VERIFIED" }],
+  });
+
+  const saved = toRequestFilters(common, fieldFilters);
+  assert.deepStrictEqual(saved, {
+    status: "inactive",
+    outlet_ids: [3],
+    department_ids: [1],
+    designation_ids: [9],
+    search: "x",
+    field_filters: [{ field: "bank_status", value: "VERIFIED" }],
+  });
+
+  // And the workbench hands that exact object up - one assembly, one shape.
+  assert.match(bench, /toRequestFilters\(common, fieldFilters\)/);
+  assert.match(bench, /onDefinitionChange\(\{ field_keys: fieldKeys, filters \}\)/);
+});
+
+test("the workbench holds all six parts, not two", () => {
+  assert.match(bench, /splitSavedFilters\(initialFilters\)/);
+  assert.match(bench, /const \[common, setCommon\] = useState\(initial\.common\)/);
+  assert.match(bench, /const \[fieldFilters, setFieldFilters\] = useState\(initial\.fieldFilters\)/);
+  // And the column-change path rebuilds the request from BOTH.
+  assert.match(bench, /toRequestFilters\(common, pruneFilters\(fieldFilters, next\)\)/);
+});
+
+test("an older template expressing a common filter as a field filter is folded in", () => {
+  // One representation per concept, however it was spelled when saved.
+  const { common, fieldFilters } = splitSavedFilters({
+    field_filters: [
+      { field: "outlet", value: [4] },
+      { field: "employment_status", value: "all" },
+      { field: "bank_name", value: "HDFC" },
+    ],
+  });
+  assert.deepStrictEqual(common.outlet_ids, [4]);
+  assert.strictEqual(common.status, "all");
+  assert.deepStrictEqual(fieldFilters, [{ field: "bank_name", value: "HDFC" }]);
+});
+
+test("splitting is total - a template with no filters at all still works", () => {
+  for (const input of [undefined, null, {}, { field_filters: null }]) {
+    const { common, fieldFilters } = splitSavedFilters(input);
+    assert.strictEqual(common.status, "active");
+    assert.deepStrictEqual(common.outlet_ids, []);
+    assert.deepStrictEqual(fieldFilters, []);
+  }
+});
+
+/* ============ BLOCKER 2: common filters are always available ============= */
+
+test("THE COMMON FILTERS DO NOT DEPEND ON A COLUMN BEING SELECTED", () => {
+  // A Bank/KYC report showing only id, name, bank name and bank status must
+  // still be narrowable to one branch, one department, one designation and
+  // currently-employed staff.
+  const columns = ["employee_id", "employee_name", "bank_name", "bank_status"];
+
+  // They are held apart from the dynamic filters entirely, so `pruneFilters`
+  // - the thing that removes a filter when its column goes - never sees them.
+  const { common } = splitSavedFilters({
+    outlet_ids: [2],
+    department_ids: [7],
+    designation_ids: [15],
+    status: "active",
+  });
+  const sent = toRequestFilters(common, pruneFilters([], columns));
+  assert.deepStrictEqual(sent.outlet_ids, [2]);
+  assert.deepStrictEqual(sent.department_ids, [7]);
+  assert.deepStrictEqual(sent.designation_ids, [15]);
+  assert.strictEqual(sent.status, "active");
+
+  // And they are rendered unconditionally, not from the selected columns.
+  assert.match(
+    filtersUi,
+    /const COMMON_ORDER = \["employment_status", "outlet", "department", "designation"\]/
+  );
+  assert.match(filtersUi, /\{COMMON_ORDER\.map\(\(key\) => \{/);
+  const commonBlock = filtersUi.slice(filtersUi.indexOf("{COMMON_ORDER.map"));
+  assert.ok(
+    !/selectedKeys/.test(commonBlock.slice(0, 400)),
+    "the common filters must not be derived from the selected columns"
+  );
+});
+
+test("A DYNAMIC FILTER STILL DEPENDS ON ITS COLUMN", () => {
+  // The distinction. Only the four common ones are exempt.
+  assert.match(
+    filtersUi,
+    /\(selectedKeys \|\| \[\]\)\s*\.map\(\(k\) => byKey\.get\(k\)\)\s*\.filter\(\(f\) => f && f\.filter && !COMMON_FILTER_FIELDS\[f\.key\]\)/
+  );
+
+  const dynamic = [{ field: "bank_name", value: "SBI" }, { field: "bank_status", value: "VERIFIED" }];
+  assert.deepStrictEqual(
+    pruneFilters(dynamic, ["employee_id", "bank_status"]).map((f) => f.field),
+    ["bank_status"]
+  );
+});
+
+test("a common filter is never offered twice", () => {
+  // Outlet as a COLUMN of the report must not also appear under More Filters:
+  // two controls for one filter is two answers to the same question.
+  assert.match(filtersUi, /!COMMON_FILTER_FIELDS\[f\.key\]/);
+  assert.deepStrictEqual(Object.keys(COMMON_FILTER_FIELDS).sort(), [
+    "department",
+    "designation",
+    "employment_status",
+    "outlet",
+  ]);
+  assert.deepStrictEqual(Object.values(COMMON_FILTER_FIELDS).sort(), [
+    "department_ids",
+    "designation_ids",
+    "outlet_ids",
+    "status",
+  ]);
+});
+
+test("the four common labels and options still come from the server", () => {
+  // The frontend knows four KEYS; it describes no field. Labels and option
+  // lists are the catalogue's, so a rename on the server lands here.
+  assert.match(filtersUi, /const field = byKey\.get\(key\);/);
+  assert.match(filtersUi, /\{field\.label\}/);
+  assert.match(filtersUi, /\(field\.filter\.options \|\| \[\]\)\.map/);
+  // Still no Employee Master field is described here.
+  for (const columnish of ["pan_no", "account_no", "uan", "esi_number", "aadhaar", "bank_name"]) {
+    assert.ok(!new RegExp(columnish).test(filtersUi), `must not name ${columnish}`);
+  }
+});
+
+test("clearing works for both kinds, and Clear All clears both", () => {
+  assert.match(filtersUi, /const clearCommon = \(key\) => \{/);
+  assert.match(filtersUi, /setCommon\(stateKey === "status" \? \{ status: "active" \} : \{ \[stateKey\]: \[\] \}\)/);
+  const clearAll = filtersUi.slice(filtersUi.indexOf("const clearAll"));
+  assert.match(clearAll.slice(0, 300), /onCommonChange\(\{/);
+  assert.match(clearAll.slice(0, 300), /onChange\(\[\]\)/);
+});
+
+test("an applied common filter shows as a chip, so nothing narrows invisibly", () => {
+  assert.match(filtersUi, /const commonChips = COMMON_ORDER\.filter/);
+  assert.match(read("components/reports/ReportFilters.jsx"), /Search: \{common\.search\}/);
+  // The default status is not a chip - it narrows nothing anybody chose.
+  assert.match(filtersUi, /common\.status && common\.status !== "active"/);
+});
+
+test("changing a common filter marks the report edited, and does not run it", () => {
+  // Edited, so the expanded definition is sent from then on; not run, because
+  // a run is a query over the whole employee master.
+  assert.match(bench, /onCommonChange=\{\(next\) => \{\s*setCommon\(next\);\s*setDirty\(true\);/);
+  const onCommon = filtersUi.slice(filtersUi.indexOf("const setCommon ="));
+  assert.ok(!/run\(/.test(onCommon.slice(0, 200)), "changing a control must not run the report");
 });

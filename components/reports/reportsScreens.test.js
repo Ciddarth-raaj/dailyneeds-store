@@ -73,8 +73,20 @@ test("the filters sent are only keys the server accepts", () => {
   // employment status included - travels as a catalogue field KEY plus a
   // value, so there is no second filter vocabulary in the frontend to drift
   // from the server's.
+  // Assembled in one place, from the complete definition - so a preview, an
+  // export and a Save a Copy cannot describe three different reports.
   const declared = strip(bench).slice(strip(bench).indexOf("const filters = useMemo"));
-  assert.match(declared.slice(0, 200), /\{ search, field_filters: fieldFilters \}/);
+  assert.match(declared.slice(0, 200), /toRequestFilters\(common, fieldFilters\)/);
+  // And the shape it produces is exactly the keys the route validates.
+  const { toRequestFilters } = require("../../util/reportFilterRules");
+  assert.deepStrictEqual(Object.keys(toRequestFilters(null, [])).sort(), [
+    "department_ids",
+    "designation_ids",
+    "field_filters",
+    "outlet_ids",
+    "search",
+    "status",
+  ]);
 
   // And the per-field entries are exactly the four shapes the route validates.
   const entry = strip(filtersUi);
@@ -168,7 +180,9 @@ test("AN ACKNOWLEDGEMENT DOES NOT SURVIVE A NEW RUN OR AN EDIT", () => {
   // change drop it, or a tick would carry over to a report it never described.
   const edit = pageCode.slice(pageCode.indexOf("const applyColumns"));
   assert.match(edit.slice(0, 300), /setAcknowledged\(false\)/);
-  assert.match(pageCode, /setFieldFilters\(next\);\s*setAcknowledged\(false\);/);
+  // Both a dynamic filter change and a common one.
+  assert.match(pageCode, /setFieldFilters\(next\);\s*setDirty\(true\);\s*setAcknowledged\(false\);/);
+  assert.match(pageCode, /setCommon\(next\);\s*setDirty\(true\);\s*setAcknowledged\(false\);/);
 });
 
 test("the widening warning is separated from the harmless ones, and is louder", () => {
