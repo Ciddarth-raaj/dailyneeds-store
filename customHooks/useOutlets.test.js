@@ -102,12 +102,24 @@ test("no other consumer was switched to the directory", () => {
   assert.deepEqual(optedIn.sort(), [
     "components/DateOutletPicker/FromToDateOutletPicker.jsx",
     "components/DateOutletPicker/index.jsx",
+    // Stock Checker: all four callers. Listed in sorted position rather than
+    // grouped together, because the assertion compares a sorted array.
+    //
+    // The branch-wise table, the listing's branch count, the assigned-products
+    // rows and the item drawer's dropdown each use an outlet id and name and
+    // nothing else. `view_stores` means administering branches and was never a
+    // prerequisite for CHECKING STOCK in one, so a user holding
+    // `view_stock_checker` without it saw an empty list rather than a refusal.
+    "components/stock-checker/StockCheckerItemDrawer.jsx",
     "pages/hr/employees/[id].jsx",
     "pages/hr/employees/index.jsx",
     "pages/hr/employees/new.jsx",
     // Reports: the outlet filter on the Employee Master report, which likewise
     // needs only an id and a name and must work without `view_stores`.
     "pages/reports/employee-master.jsx",
+    "pages/stock-checker/[mode].jsx",
+    "pages/stock-checker/assigned-products.jsx",
+    "pages/stock-checker/index.jsx",
   ]);
 });
 

@@ -33,7 +33,11 @@ function StockCheckerItemDrawer({
   preselectedBranchId,
 }) {
   const { storeId } = useUser().userConfig;
-  const { outlets } = useOutlets({ skipIds: [1] });
+  // Id and name only, for the branch dropdown's options. This is the OPTION
+  // SOURCE, not the authorization: `preselectedBranchId` still wins, a user
+  // with `storeId` is still pinned to their branch, and the field is still
+  // disabled for them - all decided below and untouched here.
+  const { outlets } = useOutlets({ skipIds: [1], directory: true });
   const prevBranchRef = useRef(null);
 
   const branchesList = useMemo(() => {
