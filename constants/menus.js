@@ -906,6 +906,18 @@ const HR_MENU = {
         selected: false,
         location: "/work-shift",
       },
+      // Where employees are put ONTO those shifts. Two keys, and an array
+      // means ALL of them (see util/menuPermissions.js), matching the
+      // `requireAll(view_employees, view_shift)` the backend's read endpoint
+      // uses - the screen joins the employee master to the shift master, so
+      // showing it to somebody holding only one key would put an entry on
+      // their rail that 403s the moment they open it.
+      employee_shift_assignment: {
+        title: "Employee Shift Assignment",
+        permission: ["view_employees", "view_shift"],
+        selected: false,
+        location: "/employee-shift-assignment",
+      },
     },
   },
 };

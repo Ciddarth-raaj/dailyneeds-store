@@ -115,6 +115,10 @@ test("no other consumer was switched to the directory", () => {
     // work for HR without `view_stores`. It moved out of the page and into
     // the shared catalogue hook when the Reports screens were split up.
     "customHooks/useReportCatalogue.js",
+    // Employee Shift Assignment: the Outlet filter. Same reason as the HR
+    // screens below - an id and a name, for a screen HR reaches on
+    // `view_employees` + `view_shift` and not on `view_stores`.
+    "pages/employee-shift-assignment/index.jsx",
     "pages/hr/employees/[id].jsx",
     "pages/hr/employees/index.jsx",
     "pages/hr/employees/new.jsx",
