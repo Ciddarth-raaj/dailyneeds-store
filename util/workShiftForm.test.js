@@ -47,7 +47,8 @@ function validForm(overrides = {}) {
       is_working_day: true,
       in_time: "09:00",
       out_time: "18:00",
-      attendance_day_cutoff: "",
+      // Mandatory since A1; a following-morning time before the next In.
+      attendance_day_cutoff: "04:00",
       break_hours: "01:00",
       ot_rate: 1,
     })),
@@ -465,4 +466,43 @@ test("search matches on shift code or shift name, either case", () => {
   assert.ok(matchesWorkShiftSearch(shift, "GENERAL"));
   assert.ok(matchesWorkShiftSearch(shift, " shift "));
   assert.ok(!matchesWorkShiftSearch(shift, "night"));
+});
+
+/* ============================================ attendance day cutoff (A1/A2) */
+
+test("a working day without an Attendance Day Cutoff cannot be saved", () => {
+  const f = validForm();
+  f.weekly_schedule[2].attendance_day_cutoff = "";
+  const { rows, messages } = validateWorkShiftForm(f);
+  assert.strictEqual(rows[2].attendance_day_cutoff, "Attendance Day Cutoff is required on a working day");
+  assert.ok(messages.some((m) => m.startsWith("Tuesday:")));
+});
+
+test("a rest day needs no cutoff", () => {
+  const f = validForm();
+  f.weekly_schedule[0] = { day_of_week: 0, is_working_day: false, attendance_day_cutoff: "", ot_rate: 1 };
+  assert.deepStrictEqual(validateWorkShiftForm(f).messages, []);
+});
+
+test("the cutoff must be before the next working day's In time, skipping rest days and wrapping the week", () => {
+  const f = validForm();
+  // Every day works 09:00-18:00; a 09:00 cutoff collides with the next In.
+  f.weekly_schedule[1].attendance_day_cutoff = "09:00";
+  let { rows } = validateWorkShiftForm(f);
+  assert.match(rows[1].attendance_day_cutoff, /before Tuesday's In time 09:00/);
+
+  // Sunday rest: Saturday's next working day is Monday.
+  f.weekly_schedule[1].attendance_day_cutoff = "04:00";
+  f.weekly_schedule[0] = { day_of_week: 0, is_working_day: false, ot_rate: 1 };
+  f.weekly_schedule[6].attendance_day_cutoff = "10:00";
+  ({ rows } = validateWorkShiftForm(f));
+  assert.match(rows[6].attendance_day_cutoff, /before Monday's In time 09:00/);
+
+  f.weekly_schedule[6].attendance_day_cutoff = "08:59";
+  assert.deepStrictEqual(validateWorkShiftForm(f).messages, []);
+});
+
+test("the tooltip says the cutoff is a following-morning time and is required", () => {
+  assert.match(form.ATTENDANCE_DAY_CUTOFF_TOOLTIP, /following morning/);
+  assert.match(form.ATTENDANCE_DAY_CUTOFF_TOOLTIP, /Required on every working day/);
 });

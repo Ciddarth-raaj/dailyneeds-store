@@ -67,7 +67,7 @@ const SHIFT_NAME_MAX_LENGTH = 150;
 
 /** The exact wording the two explained fields were approved with. */
 const ATTENDANCE_DAY_CUTOFF_TOOLTIP =
-  "Day Change is the cutoff time until which an employee can keep clocking against the same day. Clockings before it count as the prior day; after it, as the next day. Recommended: less than 2 hours after Time In and after Time Out.";
+  "Attendance Day Cutoff is a time on the following morning. Punches before it still count towards this day; punches at or after it count towards the next day. It must be earlier than the next working day's In time. Required on every working day. Changing it affects punches received from now on; existing attendance dates are not changed.";
 
 const REQUIRE_EXISTING_PUNCH_TOOLTIP =
   "If enabled, employees can submit an attendance request only when at least one clock-in or clock-out record already exists for the selected date.";
@@ -448,6 +448,22 @@ const isNonNegativeInteger = (value) =>
  *   `rows` are keyed for rendering beside the control that is wrong; `messages`
  *   is the same set flattened, for a summary.
  */
+/**
+ * The next WORKING day after `day` that has a parseable In time, wrapping
+ * Saturday -> Sunday and skipping rest days. Null when there is none.
+ */
+function nextWorkingIn(schedule, day) {
+  for (let step = 1; step <= 7; step += 1) {
+    const candidateDay = (day + step) % 7;
+    const candidate = schedule.find((r) => r && Number(r.day_of_week) === candidateDay);
+    if (!candidate || !toBool(candidate.is_working_day)) continue;
+    const minutes = parseTimeOfDay(candidate.in_time);
+    if (minutes === null) return null;
+    return { day: candidateDay, minutes, in_time: candidate.in_time };
+  }
+  return null;
+}
+
 function validateWorkShiftForm(form) {
   const fields = {};
   const rows = {};
@@ -537,8 +553,20 @@ function validateWorkShiftForm(form) {
       rowErrors.ot_rate = "Choose one of the allowed OT rates";
     }
 
+    // Attendance Day Cutoff is mandatory on a working day (A1) and is a time
+    // on the FOLLOWING morning, so it must be earlier than the next working
+    // day's In time (A2). The backend enforces both; this mirrors them so the
+    // save button tells the user before the round trip.
     if (!isBlank(row.attendance_day_cutoff) && parseTimeOfDay(row.attendance_day_cutoff) === null) {
       rowErrors.attendance_day_cutoff = "Enter the cutoff as a time of day";
+    } else if (toBool(row.is_working_day) && isBlank(row.attendance_day_cutoff)) {
+      rowErrors.attendance_day_cutoff = "Attendance Day Cutoff is required on a working day";
+    } else if (toBool(row.is_working_day)) {
+      const nextIn = nextWorkingIn(schedule, day);
+      const cutoffMinutes = parseTimeOfDay(row.attendance_day_cutoff);
+      if (nextIn && cutoffMinutes !== null && cutoffMinutes >= nextIn.minutes) {
+        rowErrors.attendance_day_cutoff = `Must be before ${DAY_LABELS[nextIn.day]}'s In time ${toTimeInputValue(nextIn.in_time)} (it is a time on the following morning)`;
+      }
     }
 
     if (toBool(row.is_working_day)) {
