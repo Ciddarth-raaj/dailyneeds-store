@@ -23,7 +23,7 @@ function EditWorkShift() {
   const router = useRouter();
   const toast = useToast();
   const { id } = router.query;
-  const canManage = usePermissions(["add_shifts"]);
+  const canManage = usePermissions(["manage_work_shifts"]);
 
   const {
     form,
@@ -91,7 +91,7 @@ function EditWorkShift() {
   };
 
   return (
-    <GlobalWrapper title="Edit Work Shift" permissionKey={["view_shift"]} loading={loading}>
+    <GlobalWrapper title="Edit Work Shift" permissionKey={["view_work_shifts"]} loading={loading}>
       {loadError ? (
         <Alert status="error" fontSize="sm">
           <AlertIcon />

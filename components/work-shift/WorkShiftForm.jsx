@@ -50,8 +50,9 @@ function WorkShiftForm({
   messages = [],
   serverError = null,
   saving = false,
-  /** False for a caller holding `view_shift` but not `add_shifts`: they read
-   *  the configuration, and no Save is offered that the backend would refuse. */
+  /** False for a caller holding `view_work_shifts` but not
+   *  `manage_work_shifts`: they read the configuration, and no Save is
+   *  offered that the backend would refuse. */
   canSubmit = true,
   submitLabel = "Save Work Shift",
   title,

@@ -65,15 +65,38 @@ import {
  * action that empties a payroll input needs its own thinking.
  *
  * Permissions match the backend, which requires BOTH keys on each endpoint:
- * `view_employees` + `view_shift` to see this list, and `employee_edit` on
- * top to assign. `usePermissions(..., { all: true })` is the AND form; the
- * default is ANY, which would let one key open a screen that then 403s.
+ *
+ *   see the list  `view_employees`  + `view_shift_assignments`
+ *   assign one    `employee_edit`   + `assign_employee_shift`
+ *   assign many   `employee_edit`   + `bulk_assign_employee_shift`
+ *
+ * `usePermissions(..., { all: true })` is the AND form; the default is ANY,
+ * which would let one key open a screen that then 403s.
+ *
+ * ONE AND MANY ARE SEPARATE KEYS, so somebody may be allowed to correct one
+ * person's roster without being allowed to re-roster four hundred. The row
+ * checkboxes stay usable for whoever holds either key - the count is what
+ * decides, and `canAssignSelection` is that decision, recomputed as the
+ * selection changes. It mirrors the backend's own rule (the request's
+ * `employee_ids` picks the key), so the button is disabled exactly when the
+ * server would refuse rather than a moment before or after.
  */
 function EmployeeShiftAssignment() {
   const toast = useToast();
 
-  const canView = usePermissions(["view_employees", "view_shift"], { all: true });
-  const canAssign = usePermissions(["employee_edit", "view_shift"], { all: true });
+  const canView = usePermissions(["view_employees", "view_shift_assignments"], {
+    all: true,
+  });
+  const canAssignOne = usePermissions(["employee_edit", "assign_employee_shift"], {
+    all: true,
+  });
+  const canAssignMany = usePermissions(
+    ["employee_edit", "bulk_assign_employee_shift"],
+    { all: true }
+  );
+  // May this caller assign at all? What gates the checkboxes and the
+  // "you can look but not change" note.
+  const canAssign = canAssignOne || canAssignMany;
 
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const [rows, setRows] = useState([]);
@@ -175,6 +198,18 @@ function EmployeeShiftAssignment() {
 
   const everythingTicked = allSelected(selectedIds, rows);
 
+  /**
+   * May THIS selection be assigned?
+   *
+   * One employee needs `assign_employee_shift`, more than one needs
+   * `bulk_assign_employee_shift` — the same rule the backend applies to the
+   * request's own `employee_ids`, so the button is disabled exactly when the
+   * server would refuse. An empty selection is not assignable either way and
+   * the button is already disabled for it.
+   */
+  const canAssignSelection =
+    selectedIds.length === 1 ? canAssignOne : selectedIds.length > 1 && canAssignMany;
+
   const assign = async () => {
     setAssigning(true);
     try {
@@ -264,7 +299,7 @@ function EmployeeShiftAssignment() {
   });
 
   return (
-    <GlobalWrapper title="Employee Shift Assignment" permissionKey={["view_shift"]}>
+    <GlobalWrapper title="Employee Shift Assignment" permissionKey={["view_shift_assignments"]}>
       <CustomContainer
         title="Employee Shift Assignment"
         subtitle="Assign employees to a work shift. The legacy Shift master is unchanged."
@@ -390,7 +425,7 @@ function EmployeeShiftAssignment() {
               <Button
                 size="sm"
                 colorScheme="purple"
-                isDisabled={!canAssign || selectedIds.length === 0 || !targetShiftId}
+                isDisabled={!canAssignSelection || !targetShiftId}
                 onClick={() => setConfirmOpen(true)}
               >
                 Assign to Selected
@@ -401,6 +436,18 @@ function EmployeeShiftAssignment() {
               <Alert status="info" fontSize="sm" mb={3}>
                 <AlertIcon />
                 You can see these assignments but not change them.
+              </Alert>
+            ) : null}
+
+            {/* Held one key but not the other, and picked a selection the
+                other one gates. Said here rather than left as a dead button,
+                so the reason is on screen instead of arriving as a 403. */}
+            {canAssign && !canAssignSelection && selectedIds.length > 0 ? (
+              <Alert status="info" fontSize="sm" mb={3}>
+                <AlertIcon />
+                {selectedIds.length === 1
+                  ? "You do not have permission to assign a single employee's shift."
+                  : "You do not have permission to assign shifts in bulk. Select one employee at a time."}
               </Alert>
             ) : null}
 

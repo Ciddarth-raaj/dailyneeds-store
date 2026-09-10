@@ -30,13 +30,16 @@ import { activeBadge, matchesWorkShiftSearch } from "../../util/workShiftForm";
  * shift that stops being used is switched off and keeps its seven-day
  * schedule. Deleting one would cascade that schedule away.
  *
- * Permissions are the legacy shift master's, unchanged — `view_shift` to
- * look, `add_shifts` to add or edit — which is what the backend routes
- * require. Whoever maintains shifts today maintains work shifts.
+ * Permissions are the Work Shift system's own — `view_work_shifts` to look,
+ * `manage_work_shifts` to add or edit — which is what the backend routes
+ * require. They used to be the legacy shift master's `view_shift` /
+ * `add_shifts`, which are granted to designations with no payroll role at
+ * all; these two are granted to HR and to administrators. /shift keeps the
+ * legacy keys and is unchanged.
  */
 function WorkShiftList() {
   const toast = useToast();
-  const canManage = usePermissions(["add_shifts"]);
+  const canManage = usePermissions(["manage_work_shifts"]);
 
   const [workShifts, setWorkShifts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -155,7 +158,7 @@ function WorkShiftList() {
   ];
 
   return (
-    <GlobalWrapper title="Work Shift Master" permissionKey={["view_shift"]}>
+    <GlobalWrapper title="Work Shift Master" permissionKey={["view_work_shifts"]}>
       <CustomContainer
         title="Work Shift Master"
         subtitle="Attendance and payroll shift configuration. The legacy Shift master is unchanged."

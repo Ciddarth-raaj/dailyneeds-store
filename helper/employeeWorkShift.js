@@ -13,9 +13,11 @@ import API from "../util/api";
  * bulk assignment changes is an employee record. The shifts themselves are
  * still created and edited at /work-shift (`helper/workShift.js`).
  *
- * Both are guarded by TWO existing permissions at once on the server -
- * `view_employees` + `view_shift` to read, `employee_edit` + `view_shift` to
- * assign - so a refusal is a routine answer here, and arrives as
+ * Both are guarded by TWO permissions at once on the server -
+ * `view_employees` + `view_shift_assignments` to read, and `employee_edit`
+ * plus `assign_employee_shift` (one employee) or `bulk_assign_employee_shift`
+ * (more than one) to assign - so a refusal is a routine answer here, and
+ * arrives as
  * `{ code: 403, msg }` like every other helper in this repo rather than as a
  * rejected promise. The screen unwraps it; see `util/apiList.js`.
  */

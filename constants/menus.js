@@ -886,10 +886,15 @@ const HR_MENU = {
       },
     },
   },
-  // The new payroll/attendance shift master, on `work_shift`. Gated on
-  // `view_shift`, the key the backend's /work-shift routes already require and
-  // the same one the legacy shift master uses - whoever maintains shifts today
-  // maintains work shifts, and a permission redesign is not part of this phase.
+  // The new payroll/attendance shift master, on `work_shift`. Gated on the
+  // Work Shift system's OWN keys, which the backend's /work-shift and
+  // /hr/work-shift-assignments routes require.
+  //
+  // These entries used to say `view_shift`, borrowed from the legacy shift
+  // master. That key is granted to designations with no payroll role at all,
+  // so it put the roster on the rail of people who were never meant to see
+  // it. `view_work_shifts` and `view_shift_assignments` are granted to HR and
+  // to administrators, and to nobody else.
   //
   // The legacy /shift screen is untouched and stays unlisted, exactly as it
   // has been since C3. Two shift masters in the navigation would put the
@@ -902,19 +907,19 @@ const HR_MENU = {
     subMenu: {
       view_work_shift: {
         title: "Work Shift Master",
-        permission: "view_shift",
+        permission: "view_work_shifts",
         selected: false,
         location: "/work-shift",
       },
       // Where employees are put ONTO those shifts. Two keys, and an array
       // means ALL of them (see util/menuPermissions.js), matching the
-      // `requireAll(view_employees, view_shift)` the backend's read endpoint
-      // uses - the screen joins the employee master to the shift master, so
-      // showing it to somebody holding only one key would put an entry on
-      // their rail that 403s the moment they open it.
+      // `requireAll(view_employees, view_shift_assignments)` the backend's
+      // read endpoint uses - the screen joins the employee master to the
+      // shift master, so showing it to somebody holding only one key would
+      // put an entry on their rail that 403s the moment they open it.
       employee_shift_assignment: {
         title: "Employee Shift Assignment",
-        permission: ["view_employees", "view_shift"],
+        permission: ["view_employees", "view_shift_assignments"],
         selected: false,
         location: "/employee-shift-assignment",
       },

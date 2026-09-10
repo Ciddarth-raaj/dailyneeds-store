@@ -19,7 +19,7 @@ import { toCreatePayload } from "../../util/workShiftForm";
 function AddWorkShift() {
   const router = useRouter();
   const toast = useToast();
-  const canManage = usePermissions(["add_shifts"]);
+  const canManage = usePermissions(["manage_work_shifts"]);
 
   const { form, errors, rowErrors, messages, change, changeRow, copyDay, validate } =
     useWorkShiftForm();
@@ -51,7 +51,7 @@ function AddWorkShift() {
   };
 
   return (
-    <GlobalWrapper title="Add Work Shift" permissionKey={["view_shift"]}>
+    <GlobalWrapper title="Add Work Shift" permissionKey={["view_work_shifts"]}>
       {!canManage ? (
         <Alert status="warning" fontSize="sm">
           <AlertIcon />

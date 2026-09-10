@@ -5,7 +5,8 @@
  * and three of them look like nothing:
  *
  *   loading      the read has not come back yet
- *   denied       the caller may not see shifts at all (`view_shift`)
+ *   denied       the caller may not see shift assignments at all
+ *                (`view_employees` AND `view_shift_assignments`)
  *   unassigned   nobody has put this employee on a work shift
  *   assigned     the shift, and its hours where they are the same all week
  *

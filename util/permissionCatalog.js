@@ -29,6 +29,7 @@ const MODULE_TITLES = {
 const MODULE_ICONS = {
   dashboard: "fa-chart-pie",
   employee: "fa-users",
+  shifts: "fa-clock",
   master: "fa-database",
   materials: "fa-boxes-stacked",
   purchase_order: "fa-file-signature",

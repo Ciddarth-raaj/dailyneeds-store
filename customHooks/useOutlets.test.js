@@ -117,7 +117,7 @@ test("no other consumer was switched to the directory", () => {
     "customHooks/useReportCatalogue.js",
     // Employee Shift Assignment: the Outlet filter. Same reason as the HR
     // screens below - an id and a name, for a screen HR reaches on
-    // `view_employees` + `view_shift` and not on `view_stores`.
+    // `view_employees` + `view_shift_assignments` and not on `view_stores`.
     "pages/employee-shift-assignment/index.jsx",
     "pages/hr/employees/[id].jsx",
     "pages/hr/employees/index.jsx",

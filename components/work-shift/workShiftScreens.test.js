@@ -57,7 +57,7 @@ test("THERE IS NO DELETE, ON THE LIST OR IN THE HELPER", () => {
 test("the list offers + Add Work Shift, to the people who may add one", () => {
   assert.match(listCode, /\+ Add Work Shift/);
   assert.match(listCode, /canManage\s*\?/);
-  assert.match(listCode, /usePermissions\(\["add_shifts"\]\)/);
+  assert.match(listCode, /usePermissions\(\["manage_work_shifts"\]\)/);
 });
 
 test("status is switched through update-status, which is the deactivate path", () => {
@@ -334,11 +334,42 @@ test("THE LEGACY SHIFT MASTER IS NOT TOUCHED OR REPOINTED", () => {
   assert.ok(!/API\.(get|post)\("\/shift/.test(helper), "the new helper stays on /work-shift");
 });
 
-test("the new screens reuse the legacy shift permissions rather than inventing keys", () => {
+test("the new screens use the Work Shift system's own permission keys", () => {
   for (const code of [listCode, createCode, editCode]) {
-    assert.match(code, /"view_shift"|"add_shifts"/);
+    assert.match(code, /"view_work_shifts"|"manage_work_shifts"/);
   }
-  assert.match(listCode, /permissionKey=\{\["view_shift"\]\}/);
+  assert.match(listCode, /permissionKey=\{\["view_work_shifts"\]\}/);
+});
+
+test("the new screens are NOT gated on the legacy shift master's keys", () => {
+  // `view_shift` and `add_shifts` belong to `shift_master` and are granted to
+  // designations with no payroll role at all, so they must not be what opens
+  // the new master. The legacy /shift screen keeps them and is untouched.
+  for (const [name, code] of [["list", listCode], ["create", createCode], ["edit", editCode]]) {
+    assert.ok(
+      !/usePermissions\(\[[^\]]*"(view_shift|add_shifts)"/.test(code),
+      `the ${name} screen must not check view_shift / add_shifts`
+    );
+    assert.ok(
+      !/permissionKey=\{\[[^\]]*"(view_shift|add_shifts)"/.test(code),
+      `the ${name} screen must not be wrapped in view_shift / add_shifts`
+    );
+  }
+});
+
+test("the five Work Shift keys are grantable from the designation screen", () => {
+  // Declared in the backend migration, but an administrator can only hand one
+  // to another designation if it is listed here.
+  const catalog = read("constants/permissions.js");
+  for (const key of [
+    "view_work_shifts",
+    "manage_work_shifts",
+    "view_shift_assignments",
+    "assign_employee_shift",
+    "bulk_assign_employee_shift",
+  ]) {
+    assert.match(catalog, new RegExp(`^\\s*${key}: "`, "m"), `${key} is listed`);
+  }
 });
 
 /* ============================================= the endpoints consumed == */

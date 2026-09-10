@@ -34,8 +34,10 @@ import { currentShiftLabel } from "../../../util/currentShift";
  *
  * It is read-only because a shift change is a roster decision with attendance
  * and payroll behind it. Employee Shift Assignment is where it belongs, it
- * has its own permission (`employee_edit` AND `view_shift`), and a dropdown
- * here would be a second way to make the same change under a weaker one.
+ * has its own permissions (`employee_edit` AND `assign_employee_shift`, or
+ * `bulk_assign_employee_shift` for many at once), and a dropdown here would
+ * be a second way to make the same change under a weaker one. What appears
+ * here is the READ, gated on `view_shift_assignments`.
  *
  * The legacy column itself is untouched in the database - attendance, Biomax
  * and payroll may still read it, and proving otherwise is not this change.

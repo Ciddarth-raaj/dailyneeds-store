@@ -109,9 +109,12 @@ test("the selection is narrowed whenever the list changes", () => {
 
 test("the button says Assign to Selected and is refused without a shift or a selection", () => {
   assert.match(pageCode, /Assign to Selected/);
+  // `canAssignSelection` carries the empty-selection case as well as the
+  // permission: it is false at zero selected, whichever assign key is held.
+  assert.match(pageCode, /isDisabled=\{!canAssignSelection \|\| !targetShiftId\}/);
   assert.match(
     pageCode,
-    /isDisabled=\{!canAssign \|\| selectedIds\.length === 0 \|\| !targetShiftId\}/
+    /selectedIds\.length === 1\s*\?\s*canAssignOne\s*:\s*selectedIds\.length > 1 && canAssignMany/
   );
 });
 
@@ -172,12 +175,46 @@ test("the screen asks for BOTH keys, not either", () => {
   // every request the backend then refuses.
   assert.match(
     pageCode,
-    /usePermissions\(\["view_employees",\s*"view_shift"\],\s*\{\s*all:\s*true\s*\}\)/
+    /usePermissions\(\["view_employees",\s*"view_shift_assignments"\],\s*\{\s*all:\s*true,?\s*\}\)/
   );
   assert.match(
     pageCode,
-    /usePermissions\(\["employee_edit",\s*"view_shift"\],\s*\{\s*all:\s*true\s*\}\)/
+    /usePermissions\(\["employee_edit",\s*"assign_employee_shift"\],\s*\{\s*all:\s*true,?\s*\}\)/
   );
+  assert.match(
+    pageCode,
+    /usePermissions\(\s*\["employee_edit",\s*"bulk_assign_employee_shift"\],\s*\{\s*all:\s*true\s*\}\s*\)/
+  );
+});
+
+test("the screen is NOT gated on the legacy shift master's key", () => {
+  // `view_shift` is granted to designations with no payroll role at all, so
+  // it must not be what opens the roster.
+  assert.ok(
+    !/usePermissions\(\[[^\]]*"view_shift"[,\]]/.test(pageCode),
+    "view_shift no longer gates this screen"
+  );
+  assert.ok(
+    !/permissionKey=\{\[[^\]]*"view_shift"[,\]]/.test(pageCode),
+    "and does not wrap it either"
+  );
+  assert.match(pageCode, /permissionKey=\{\["view_shift_assignments"\]\}/);
+});
+
+test("one employee and many are separate decisions, decided by the selection", () => {
+  // The backend picks the key from the request's own `employee_ids`; this is
+  // the same rule, so the button is disabled exactly when the server would
+  // refuse rather than a moment before or after.
+  assert.match(
+    pageCode,
+    /selectedIds\.length === 1\s*\?\s*canAssignOne\s*:\s*selectedIds\.length > 1 && canAssignMany/
+  );
+  assert.match(pageCode, /isDisabled=\{!canAssignSelection \|\| !targetShiftId\}/);
+});
+
+test("holding one assign key but not the other says so, rather than dying silently", () => {
+  assert.match(pageCode, /You do not have permission to assign a single employee's shift/);
+  assert.match(pageCode, /You do not have permission to assign shifts in bulk/);
 });
 
 test("someone who may look but not change sees the list, with the actions off", () => {

@@ -9,8 +9,8 @@ import EmployeeWorkShiftHelper from "../helper/employeeWorkShift";
  * point: the profile used to show `shift_master` under "Default shift", and
  * that column, `shift_code` and the Digisme sync have never agreed.
  *
- * The endpoint needs `view_employees` AND `view_shift`, and HR does not
- * necessarily hold the second. A refusal is reported as `denied` rather than
+ * The endpoint needs `view_employees` AND `view_shift_assignments`, and not
+ * everyone holds both. A refusal is reported as `denied` rather than
  * as an empty result, so the field can say why it is blank instead of
  * claiming the employee has no shift - "not permitted" and "not assigned" are
  * different facts, and only one of them is somebody's job to fix.

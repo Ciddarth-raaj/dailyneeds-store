@@ -29,6 +29,32 @@ export const PERMISSIONS = {
     // view_whatsapp_order: "View Whatsapp Order",
   },
 
+  // Shifts — the Work Shift system (the new payroll/attendance shift master
+  // and the employee -> shift mapping), NOT the legacy `shift_master` behind
+  // /shift, whose `view_shift` / `add_shifts` stay commented out above.
+  //
+  // Approved access is HR and administrators. Administrators need no grant -
+  // the backend bypasses the permission table for them - and the migration
+  // grants these five to HR Executive and to nobody else. They are listed
+  // here so an administrator can grant them to another designation
+  // deliberately, on this screen, rather than by inheriting a key that
+  // happened to be lying around.
+  //
+  // Assigning one employee and bulk-assigning many are separate keys because
+  // they are separate decisions: correcting one person's roster is an
+  // everyday fix, re-rostering four hundred people in a click is not.
+  //
+  // The Employee Profile's Current Shift is READ-ONLY and appears here only
+  // through `view_shift_assignments`; the shift is changed on Employee Shift
+  // Assignment and nowhere else.
+  shifts: {
+    view_work_shifts: "View Work Shifts",
+    manage_work_shifts: "Manage Work Shifts",
+    view_shift_assignments: "View Shift Assignments",
+    assign_employee_shift: "Assign Employee Shift",
+    bulk_assign_employee_shift: "Bulk Assign Employee Shift",
+  },
+
   // Master
   master: {
     view_branch: "View Branches",

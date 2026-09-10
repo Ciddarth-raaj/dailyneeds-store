@@ -8,9 +8,11 @@ import API from "../util/api";
  * use; it is untouched and is not repointed here. The two masters coexist on
  * purpose during Phase 1.
  *
- * Reads are guarded by `view_shift` and writes by `add_shifts` on the server —
- * the same keys that guard the legacy shift master, so whoever maintains
- * shifts today maintains work shifts.
+ * Reads are guarded by `view_work_shifts` and writes by `manage_work_shifts`
+ * on the server — the Work Shift system's own keys, granted to HR and to
+ * administrators. The legacy shift master keeps `view_shift` / `add_shifts`,
+ * which are held by designations with no payroll role at all and so cannot be
+ * what opens this one.
  *
  * Every method resolves `res.data` like the other helpers in this repo, which
  * means a caller can receive `{ code: 403, msg }` or `{ code: 422, msg }`
