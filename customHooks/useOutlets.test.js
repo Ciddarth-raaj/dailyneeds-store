@@ -115,6 +115,13 @@ test("no other consumer was switched to the directory", () => {
     // work for HR without `view_stores`. It moved out of the page and into
     // the shared catalogue hook when the Reports screens were split up.
     "customHooks/useReportCatalogue.js",
+    // Attendance (Biomax Part 1): the Home Outlet filter on the Attendance
+    // List, the Punch Location filter on the Punch Audit, and the Location
+    // pickers on the device screens - an id and a name each, reached on the
+    // attendance keys and not on `view_stores`.
+    "pages/attendance/devices/[id].jsx",
+    "pages/attendance/devices/new.jsx",
+    "pages/attendance/list/index.jsx",
     // Employee Shift Assignment: the Outlet filter. Same reason as the HR
     // screens below - an id and a name, for a screen HR reaches on
     // `view_employees` + `view_shift_assignments` and not on `view_stores`.

@@ -260,6 +260,10 @@ const AgGrid = React.forwardRef(function AgGrid(
     onSortChange,
     onExportAll,
     exportLoading = false,
+    // Hide the grid's own CSV/XLSX export. For screens whose export is a
+    // server-side file with the same filters as the query (Attendance), so
+    // there is one export path and one audit trail.
+    hideExport = false,
     filterMode = "client",
     onFilterChange,
     height,
@@ -983,7 +987,8 @@ const AgGrid = React.forwardRef(function AgGrid(
           }
         >
           <Box px={4} pb={4}>
-            <Accordion allowMultiple defaultIndex={[0, 1]}>
+            <Accordion allowMultiple defaultIndex={hideExport ? [0] : [0, 1]}>
+              {hideExport ? null : (
               <AccordionItem
                 border="none"
                 borderBottomWidth="1px"
@@ -1042,6 +1047,7 @@ const AgGrid = React.forwardRef(function AgGrid(
                   </VStack>
                 </AccordionPanel>
               </AccordionItem>
+              )}
 
               <AccordionItem
                 border="none"

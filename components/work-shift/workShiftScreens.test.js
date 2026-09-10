@@ -304,8 +304,10 @@ test("the OT rate dropdown offers only the five approved multipliers", () => {
 });
 
 test("the Attendance Day Cutoff tooltip is the approved sentence, exactly", () => {
+  // Revised with A1/A2 (Biomax Part 1): the cutoff is mandatory, is a time
+  // on the following morning, and must precede the next working day's In.
   const approved =
-    "Day Change is the cutoff time until which an employee can keep clocking against the same day. Clockings before it count as the prior day; after it, as the next day. Recommended: less than 2 hours after Time In and after Time Out.";
+    "Attendance Day Cutoff is a time on the following morning. Punches before it still count towards this day; punches at or after it count towards the next day. It must be earlier than the next working day's In time. Required on every working day. Changing it affects punches received from now on; existing attendance dates are not changed.";
   assert.ok(rules.includes(approved), "the wording lives in util/workShiftForm.js");
   assert.match(tab4, /ATTENDANCE_DAY_CUTOFF_TOOLTIP/);
 });

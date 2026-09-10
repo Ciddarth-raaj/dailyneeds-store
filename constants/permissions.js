@@ -55,6 +55,22 @@ export const PERMISSIONS = {
     bulk_assign_employee_shift: "Bulk Assign Employee Shift",
   },
 
+  // Attendance - Part 1, the raw Biomax punch flow. Granted by the migration
+  // to HR Executive (the three read keys) and to nobody else; device
+  // management is administrators only at go-live and re-derivation gates no
+  // screen yet. Listed so an administrator can grant them deliberately.
+  //
+  // Punch Audit has its own key: reading attendance is not the same decision
+  // as seeing which terminal and IP every punch came from.
+  attendance: {
+    view_raw_attendance: "View Attendance List",
+    export_raw_attendance: "Export Attendance List",
+    view_attendance_punch_audit: "View Attendance Punch Audit",
+    view_biomax_devices: "View Biomax Devices",
+    manage_biomax_devices: "Manage Biomax Devices",
+    rederive_attendance: "Re-derive Attendance Dates (reserved)",
+  },
+
   // Master
   master: {
     view_branch: "View Branches",
