@@ -906,6 +906,21 @@ const HR_MENU = {
         selected: false,
         location: "/work-shift",
       },
+      // Mapping employees onto those shifts, in bulk. Gated on
+      // `view_employees` rather than `view_shift`: the screen's list is
+      // employee master data, and that is the key the backend's
+      // /employee-work-shift/employees route requires.
+      //
+      // It sits beside the master rather than under Employees because it is
+      // shift work - somebody filling in shift assignments comes here, not to
+      // the employee directory - and because the Employee Profile deliberately
+      // does not carry the field in this phase.
+      employee_shift_assignment: {
+        title: "Employee Shift Assignment",
+        permission: "view_employees",
+        selected: false,
+        location: "/employee-shift-assignment",
+      },
     },
   },
 };

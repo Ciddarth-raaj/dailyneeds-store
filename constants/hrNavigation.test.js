@@ -47,11 +47,14 @@ test("HR is a top-level module on the rail, beside WMS and GST", () => {
 test("Employees, Department and Designation are all inside HR", () => {
   const hrMenu = treeNamed("HR_MENU");
   assert.deepStrictEqual(locationsIn(hrMenu).sort(), [
+    // Mapping employees onto work shifts, beside the master that defines
+    // them. Gated on `view_employees`, not `view_shift` - see the entry.
+    "/employee-shift-assignment",
     "/department",
     "/designation",
     "/hr/employees",
     "/work-shift",
-  ]);
+  ].sort());
 });
 
 /* ================================================= the work shift master = */
@@ -177,11 +180,12 @@ test("HR navigation still appears exactly once, and still holds its pages", () =
 
   const hrMenu = treeNamed("HR_MENU");
   assert.deepStrictEqual(locationsIn(hrMenu).sort(), [
+    "/employee-shift-assignment",
     "/department",
     "/designation",
     "/hr/employees",
     "/work-shift",
-  ]);
+  ].sort());
 });
 
 /* ============================== Reports is its own module, not HR's ===== */

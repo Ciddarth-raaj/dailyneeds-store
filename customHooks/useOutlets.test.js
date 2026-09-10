@@ -115,6 +115,12 @@ test("no other consumer was switched to the directory", () => {
     // work for HR without `view_stores`. It moved out of the page and into
     // the shared catalogue hook when the Reports screens were split up.
     "customHooks/useReportCatalogue.js",
+    // Employee Shift Assignment: the Outlet filter. Same reasoning as the HR
+    // screens - it needs an id and a name to draw a dropdown, and assigning a
+    // work shift was never a reason to hold `view_stores`. Without the
+    // directory an HR user lacking that key would get an empty Outlet filter
+    // rather than a refusal, which reads as "there are no outlets".
+    "pages/employee-shift-assignment/index.jsx",
     "pages/hr/employees/[id].jsx",
     "pages/hr/employees/index.jsx",
     "pages/hr/employees/new.jsx",
