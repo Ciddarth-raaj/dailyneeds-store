@@ -886,6 +886,28 @@ const HR_MENU = {
       },
     },
   },
+  // The new payroll/attendance shift master, on `work_shift`. Gated on
+  // `view_shift`, the key the backend's /work-shift routes already require and
+  // the same one the legacy shift master uses - whoever maintains shifts today
+  // maintains work shifts, and a permission redesign is not part of this phase.
+  //
+  // The legacy /shift screen is untouched and stays unlisted, exactly as it
+  // has been since C3. Two shift masters in the navigation would put the
+  // choice of which one to edit in front of people who have no way to make it.
+  shifts: {
+    title: "Shifts",
+    selected: false,
+    openPage: true,
+    icon: "fa-clock",
+    subMenu: {
+      view_work_shift: {
+        title: "Work Shift Master",
+        permission: "view_shift",
+        selected: false,
+        location: "/work-shift",
+      },
+    },
+  },
 };
 
 /**

@@ -50,7 +50,24 @@ test("Employees, Department and Designation are all inside HR", () => {
     "/department",
     "/designation",
     "/hr/employees",
+    "/work-shift",
   ]);
+});
+
+/* ================================================= the work shift master = */
+test("Work Shift Master is in HR, gated on the shift master's own key", () => {
+  const hrMenu = treeNamed("HR_MENU");
+  const entry = hrMenu.slice(hrMenu.indexOf("view_work_shift:"), hrMenu.indexOf("/work-shift") + 20);
+  assert.match(entry, /title:\s*"Work Shift Master"/);
+  // The key the backend's /work-shift routes require, not a new one.
+  assert.match(entry, /permission:\s*"view_shift"/);
+});
+
+test("THE LEGACY SHIFT MASTER IS NOT LISTED BESIDE THE NEW ONE", () => {
+  // /shift still resolves and is deliberately unchanged, but two shift
+  // masters on the rail would ask people to choose between them with nothing
+  // to choose on. Phase 1 runs the old one behind its URL only.
+  assert.ok(!locationsIn(code).includes("/shift"), "the legacy /shift page stays unlisted");
 });
 
 test("the HR employee entry is gated on view_employees", () => {
@@ -154,7 +171,7 @@ test("the canonical employee profile appears exactly once as an implementation",
   assert.deepStrictEqual(profiles, ["hr/employees/[id].jsx"], "one profile, in HR");
 });
 
-test("HR navigation still appears exactly once, and still holds the three pages", () => {
+test("HR navigation still appears exactly once, and still holds its pages", () => {
   const modules = code.slice(code.indexOf("export const MENU_MODULES"));
   assert.strictEqual((modules.match(/\bhr:\s*\{/g) || []).length, 1, "one HR module");
 
@@ -163,6 +180,7 @@ test("HR navigation still appears exactly once, and still holds the three pages"
     "/department",
     "/designation",
     "/hr/employees",
+    "/work-shift",
   ]);
 });
 
