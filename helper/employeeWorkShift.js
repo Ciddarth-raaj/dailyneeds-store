@@ -36,6 +36,24 @@ const employeeWorkShift = {
     }),
 
   /**
+   * GET /hr/work-shift-assignments/employee/:id — ONE employee's current work
+   * shift, for the employee profile.
+   *
+   * Read-only, and the same permission pair as the list. The profile shows
+   * which shift somebody is on; changing it belongs to the assignment screen.
+   *
+   * Resolves `{ code, data: { assigned, work_shift_id, shift_code,
+   * shift_name, shift_active, timing, timings } }`, or a `{ code, msg }`
+   * refusal like every other helper here.
+   */
+  getEmployeeAssignment: (employeeId) =>
+    new Promise((resolve, reject) => {
+      API.get(`/hr/work-shift-assignments/employee/${employeeId}`)
+        .then((res) => resolve(res.data))
+        .catch(reject);
+    }),
+
+  /**
    * POST /hr/work-shift-assignments/bulk — `{ employee_ids, work_shift_id }`.
    *
    * All or nothing. An unknown employee id or an inactive work shift refuses

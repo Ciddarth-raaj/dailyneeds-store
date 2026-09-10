@@ -109,9 +109,15 @@ test("EVERY SENSITIVE FIELD MAPS TO THE KEY THE BACKEND ACTUALLY DECLARES", () =
   for (const field of SENSITIVE_FIELDS) {
     assert.ok(SENSITIVE_FIELD_API_KEY[field], `${field} needs an API key`);
   }
-  for (const expected of ["pan_no", "pf_number", "esi_number", "salary", "payment_type",
+  for (const expected of ["pan_no", "pf_number", "esi_number", "pf_applicable", "esi_applicable",
                           "bank_name", "ifsc", "account_no"]) {
     assert.ok(SENSITIVE_FIELDS.includes(expected), `${expected} must be handled`);
+  }
+  // Salary left this screen with the Salary Master card. Payroll owns the
+  // figure; a second editor for it on the employee profile is exactly the
+  // quiet second place a pay change could be made from.
+  for (const gone of ["salary", "payment_type"]) {
+    assert.ok(!SENSITIVE_FIELDS.includes(gone), `${gone} belongs to Payroll, not this profile`);
   }
 });
 
@@ -175,15 +181,24 @@ test("AN UNCHANGED SECTION PRODUCES NULL, NEVER AN EMPTY BODY", () => {
   assert.strictEqual(buildSensitivePayload(1, {}, {}), null);
 });
 
-test("salary and payment type are sent as numbers", () => {
-  const payload = buildSensitivePayload(1, {}, { salary: "50000", payment_type: "2" });
-  assert.strictEqual(payload.employee_details.salary, 50000);
-  assert.strictEqual(payload.employee_details.payment_type, 2);
+test("the applicability flags are sent as numbers", () => {
+  const payload = buildSensitivePayload(1, {}, { pf_applicable: "1", esi_applicable: "0" });
+  assert.strictEqual(payload.employee_details.pf_applicable, 1);
+  assert.strictEqual(payload.employee_details.esi_applicable, 0);
 });
 
-test("clearing a salary sends null rather than the number zero", () => {
-  const payload = buildSensitivePayload(1, { salary: 50000 }, { salary: "" });
-  assert.strictEqual(payload.employee_details.salary, null);
+test("CLEARING AN APPLICABILITY FLAG SENDS NULL, NEVER ZERO", () => {
+  // The distinction the flags exist for. null is "nobody has said"; 0 is "not
+  // in the scheme", which is a statutory decision. Emptying the dropdown must
+  // not quietly record the second.
+  const payload = buildSensitivePayload(1, { pf_applicable: 1 }, { pf_applicable: "" });
+  assert.strictEqual(payload.employee_details.pf_applicable, null);
+});
+
+test("salary can no longer be sent from this screen at all", () => {
+  // Not merely absent from the UI: the mapping refuses to carry it, so a
+  // stale form or a future component cannot reopen the path by accident.
+  assert.strictEqual(buildSensitivePayload(1, {}, { salary: "50000", payment_type: "2" }), null);
 });
 
 test("bank details travel this path too, which is what makes verification possible", () => {

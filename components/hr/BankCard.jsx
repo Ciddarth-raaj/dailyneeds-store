@@ -17,19 +17,40 @@ import HrHelper from "../../helper/hr";
 import {
   bankActions,
   bankGuidance,
-  canConfirmBankName,
+  bankNameReviewOptions,
+  bankReviewReasonValid,
+  canReviewBankName,
   canOverrideDuplicateBank,
 } from "../../util/hrStatus";
 
 /**
  * Stage 0C / C3 — bank verification on the employee profile.
  *
- * Six states, and the UI has to tell them apart honestly, because two of them
- * look like failure but mean very different things:
+ * Seven states, and the UI has to tell them apart honestly, because several
+ * look like failure and mean very different things:
  *
- *   NAME_MISMATCH with a REVIEW verdict   a human may accept it
- *   NAME_MISMATCH with a MISMATCH verdict nobody may accept it
- *   DUPLICATE_ACCOUNT                     only an administrator, with a reason
+ *   NAME_MISMATCH        an authorised reviewer decides, either way
+ *   DUPLICATE_ACCOUNT    only an administrator, with a reason
+ *   REJECTED             a reviewer already decided: correct the details
+ *   FAILED               the check itself did not complete; retry is sensible
+ *
+ * THE NAME REVIEW, AND WHAT IT REPLACED. A MISMATCH verdict used to render as
+ * a sentence saying it could not be confirmed by anybody - true of the old
+ * endpoint, and a dead end on the screen: an employee who could not be paid,
+ * and nothing to click. A bank returning a maiden name, a joint holder or a
+ * different transliteration all land there and are all resolvable by somebody
+ * looking at the account.
+ *
+ * So both verdicts open the same review, and the review offers the three
+ * things a reviewer can actually decide - approve as the same person with a
+ * reason, change the details, or reject the account. What the verdict still
+ * changes is how firmly the modal warns before an approval, which is
+ * `bankNameReviewOptions`' job rather than this component's.
+ *
+ * NEITHER OUTCOME QUIETLY RELEASES A PAYMENT. An approval is recorded as a
+ * bank-name-mismatch override against the reviewer; a rejection leaves the
+ * account not payroll-ready. The card goes on reporting `bank_payroll_ready`
+ * exactly as the backend computes it.
  *
  * The account number is never rendered - only the masked value the API sends.
  * No fingerprint is displayed, and the other employee on a duplicate is named
@@ -37,6 +58,8 @@ import {
  */
 function BankCard({
   employeeId,
+  /** Shown in the review, so a reviewer compares two names rather than one. */
+  employeeName,
   bank,
   permissions,
   isAdmin,
@@ -51,9 +74,9 @@ function BankCard({
   // billed per call, so a second click that lands inside that gap must be
   // refused synchronously - state is too late.
   const inFlight = useRef(false);
-  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [reviewOpen, setReviewOpen] = useState(false);
   const [overrideOpen, setOverrideOpen] = useState(false);
-  const [note, setNote] = useState("");
+  const [reviewReason, setReviewReason] = useState("");
   const [reason, setReason] = useState("");
 
   if (!bank) return null;
@@ -72,8 +95,9 @@ function BankCard({
     isAdmin,
     canEditSensitive,
   });
-  const mayConfirm = canConfirmBankName({ status, verdict, permissions });
+  const mayReview = canReviewBankName({ status, permissions, isAdmin });
   const mayOverride = canOverrideDuplicateBank({ status, permissions, isAdmin });
+  const review = bankNameReviewOptions({ employeeName, bank });
 
   const run = async (fn, successTitle) => {
     if (inFlight.current) return;
@@ -92,9 +116,9 @@ function BankCard({
     } finally {
       inFlight.current = false;
       setBusy(false);
-      setConfirmOpen(false);
+      setReviewOpen(false);
       setOverrideOpen(false);
-      setNote("");
+      setReviewReason("");
       setReason("");
     }
   };
@@ -188,9 +212,12 @@ function BankCard({
             </Button>
           ) : null}
 
-          {mayConfirm ? (
-            <Button size="sm" variant="outline" colorScheme="yellow" onClick={() => setConfirmOpen(true)}>
-              Confirm the name
+          {/* The way OUT of a name mismatch, for either verdict. Solid rather
+              than outline: on a NAME_MISMATCH this is the next step, and the
+              employee cannot be paid until somebody takes it. */}
+          {mayReview ? (
+            <Button size="sm" colorScheme="yellow" isDisabled={busy} onClick={() => setReviewOpen(true)}>
+              Review Name Mismatch
             </Button>
           ) : null}
 
@@ -201,47 +228,124 @@ function BankCard({
           ) : null}
         </Stack>
 
-        {status === "NAME_MISMATCH" && verdict === "MISMATCH" ? (
-          <Text fontSize="xs" color="red.600">
-            This one cannot be confirmed by anybody — the bank named a different person.
+        {/* A mismatch nobody on this screen may review is still not a dead
+            end - it is somebody else's decision, and saying whose is more
+            use than saying it cannot be done. */}
+        {status === "NAME_MISMATCH" && !mayReview ? (
+          <Text fontSize="xs" color="orange.700">
+            This needs an authorised reviewer — Admin or Payroll — before this employee can be paid
+            by bank transfer.
           </Text>
         ) : null}
       </Stack>
 
+      {/* ------------------------------------------- the name-mismatch review
+          Everything a reviewer needs in order to decide, on one screen: the
+          two names side by side, the account they belong to, and what the
+          comparison actually concluded. The old dialog showed the bank's name
+          alone and asked for an optional note, which is not enough to decide
+          on and not enough to answer for afterwards.
+
+          Three ways out, and Change Bank Details is one of them: a mismatch
+          is at least as often a mistyped account as a genuinely different
+          person, and sending somebody back to the card to find that button
+          would be the same dead end in a smaller form. */}
       <CustomModal
-        isOpen={confirmOpen}
-        onClose={() => setConfirmOpen(false)}
-        title="Confirm the name at the bank"
-        size="md"
+        isOpen={reviewOpen}
+        onClose={() => setReviewOpen(false)}
+        title="Review the name at the bank"
+        size="lg"
         isCentered
         footer={
-          <>
-            <Button variant="ghost" mr={3} size="sm" onClick={() => setConfirmOpen(false)}>
+          <Stack direction={{ base: "column", sm: "row" }} spacing={2} w="100%" justify="flex-end">
+            <Button variant="ghost" size="sm" onClick={() => setReviewOpen(false)}>
               Cancel
             </Button>
+            {actions.canEditDetails && onEditDetails ? (
+              <Button
+                size="sm"
+                variant="outline"
+                isDisabled={busy}
+                onClick={() => {
+                  setReviewOpen(false);
+                  onEditDetails();
+                }}
+              >
+                Change Bank Details
+              </Button>
+            ) : null}
             <Button
-              colorScheme="yellow"
               size="sm"
+              variant="outline"
+              colorScheme="red"
               isLoading={busy}
-              onClick={() => run(() => HrHelper.confirmBankName(employeeId, note), "Name confirmed")}
+              isDisabled={!bankReviewReasonValid(reviewReason)}
+              onClick={() =>
+                run(
+                  () => HrHelper.reviewBankName(employeeId, "REJECT_ACCOUNT", reviewReason.trim()),
+                  "Bank account rejected"
+                )
+              }
             >
-              Confirm
+              Reject Bank Account
             </Button>
-          </>
+            <Button
+              size="sm"
+              colorScheme="yellow"
+              isLoading={busy}
+              isDisabled={!bankReviewReasonValid(reviewReason)}
+              onClick={() =>
+                run(
+                  () => HrHelper.reviewBankName(employeeId, "APPROVE_SAME_PERSON", reviewReason.trim()),
+                  "Approved as the same person"
+                )
+              }
+            >
+              Approve as Same Person
+            </Button>
+          </Stack>
         }
       >
         <Stack spacing={3} fontSize="sm">
-          <Text>
-            The bank returned <strong>{bank.verification && bank.verification.name_at_bank}</strong>, which
-            is close to but not identical with this employee&apos;s name. Confirm only if you are satisfied
-            the account is theirs.
+          <Stack spacing={1}>
+            <Text>
+              Employee name: <strong>{review.employeeName || "not recorded"}</strong>
+            </Text>
+            <Text>
+              Name at bank: <strong>{review.nameAtBank || "not returned"}</strong>
+            </Text>
+            <Text color="gray.600">
+              Account {review.maskedAccount || "not on file"}
+              {review.ifsc ? ` · ${review.ifsc}` : ""}
+              {review.bankName ? ` · ${review.bankName}` : ""}
+            </Text>
+            <Text color={review.severe ? "red.600" : "orange.700"}>
+              Result: {review.verdictLabel}
+              {review.verdict ? ` (${review.verdict})` : ""}
+            </Text>
+          </Stack>
+
+          <Alert status={review.severe ? "error" : "warning"} fontSize="sm" alignItems="flex-start">
+            <AlertIcon />
+            <Text>{review.approveWarning}</Text>
+          </Alert>
+
+          <Text color="gray.600">
+            Whichever you choose is recorded against your name with the date, the time and the
+            reason below. Approving is recorded as a bank-name-mismatch override.
           </Text>
+
           <Textarea
             size="sm"
-            placeholder="Optional note — what did you check?"
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
+            placeholder="Reason (required) — what did you check, and what did it show?"
+            value={reviewReason}
+            onChange={(e) => setReviewReason(e.target.value)}
           />
+          {!bankReviewReasonValid(reviewReason) ? (
+            <Text fontSize="xs" color="gray.500">
+              A reason is required before either decision.
+            </Text>
+          ) : null}
         </Stack>
       </CustomModal>
 

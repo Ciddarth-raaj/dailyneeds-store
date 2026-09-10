@@ -1,22 +1,22 @@
 import React, { useState } from "react";
-import { Alert, AlertIcon, Stack, Text } from "@chakra-ui/react";
 import { SectionCard, Field, EditField, FieldGrid } from "./SectionCard";
 
 /**
  * Stage 0C / C3 — education and previous experience.
  *
  * These are three plain columns on the employee master, in the backend's
- * `EDITABLE_FIELDS`, so they save through the ordinary HR editor and carry
- * none of the ambiguity that made Family defer.
+ * `EDITABLE_FIELDS`, so they save through the ordinary HR editor.
  *
- * FAMILY IS DEFERRED, and the note below says so on the screen rather than
- * leaving a gap somebody has to ask about. `employee_family` is keyed by
- * `employee_name`, a VARCHAR - not by the permanent employee ID - so two
- * employees who share a name share family records, and a name correction
- * silently detaches them. Showing that data against one employee would be
- * asserting something the schema cannot support. Fixing it is a migration and
- * a backfill, which is a separate piece of work rather than something to
- * improvise inside C3.
+ * FAMILY IS STILL DEFERRED, and this section no longer says so on screen.
+ * `employee_family` being keyed by `employee_name` rather than the permanent
+ * employee ID is a real reason not to show family records here, and it was
+ * explained in a blue panel on the profile - which put a schema defect in
+ * front of HR, who cannot act on it and did not ask. The reason belongs in
+ * this comment and in the tracked work; the screen simply does not offer
+ * family details.
+ *
+ * Nothing about the deferral changed: no family data is read, written or
+ * linked here, and `FamilyHelper` is not used by the profile.
  */
 function EducationSection({ employee = {}, canEdit, onSave, saving }) {
   const [editing, setEditing] = useState(false);
@@ -47,19 +47,6 @@ function EducationSection({ employee = {}, canEdit, onSave, saving }) {
       onCancel={() => setEditing(false)}
       onSave={save}
       saving={saving}
-      footer={
-        <Stack mt={4}>
-          <Alert status="info" fontSize="xs" alignItems="flex-start">
-            <AlertIcon />
-            <Text>
-              <strong>Family details are not shown here.</strong> They are stored against the
-              employee&apos;s <em>name</em> rather than their permanent employee ID, so two people
-              with the same name would share records and a name correction would detach them.
-              Linking them properly needs a schema change, which is being tracked separately.
-            </Text>
-          </Alert>
-        </Stack>
-      }
     >
       {editing ? (
         <FieldGrid columns={{ base: 1 }}>

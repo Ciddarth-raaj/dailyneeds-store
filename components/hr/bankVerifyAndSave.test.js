@@ -334,15 +334,39 @@ test("THE CARD'S VERIFY BUTTON HAS THE SAME HARD DOUBLE-CLICK GUARD", () => {
 
 /* ================== 7-9. the existing safety model is intact ============= */
 
-test("NAME MISMATCH, DUPLICATE AND OVERRIDE ARE UNCHANGED", () => {
-  assert.match(cardCode, /canConfirmBankName\(\{ status, verdict, permissions \}\)/);
+test("THE NAME MISMATCH NOW HAS A WAY OUT; DUPLICATE AND OVERRIDE ARE UNCHANGED", () => {
+  assert.match(cardCode, /canReviewBankName\(\{ status, permissions, isAdmin \}\)/);
   assert.match(cardCode, /canOverrideDuplicateBank\(\{ status, permissions, isAdmin \}\)/);
-  // A hard mismatch is still acceptable by nobody.
-  assert.match(card, /cannot be confirmed by anybody/);
+
+  // THE REGRESSION THIS GUARDS. A hard mismatch used to render a sentence
+  // saying nobody could confirm it, beside no action - an employee who could
+  // not be paid and nothing to click.
+  assert.ok(!/cannot be confirmed by anybody/.test(card), "the dead end must not come back");
+  assert.match(card, /Review Name Mismatch/, "there is an action instead");
+  for (const outcome of ["Approve as Same Person", "Change Bank Details", "Reject Bank Account"]) {
+    assert.match(card, new RegExp(outcome), `the review must offer ${outcome}`);
+  }
+  // Neither decision goes through without a stated reason.
+  assert.match(cardCode, /isDisabled=\{!bankReviewReasonValid\(reviewReason\)\}/);
+
   // The override still demands a reason.
   assert.match(cardCode, /reason\.trim\(\)\.length < 3/);
   // And the duplicate warning still names the other employee by id and name.
   assert.match(cardCode, /bank\.duplicate_of\.map/);
+});
+
+test("THE REVIEW SHOWS WHAT IT TAKES TO DECIDE, AND NEVER AN ACCOUNT NUMBER", () => {
+  // Two names, the account, and the comparison's own result - the facts the
+  // old dialog left out, which is why it could only ask for an optional note.
+  assert.match(card, /Employee name:/);
+  assert.match(card, /Name at bank:/);
+  assert.match(cardCode, /review\.maskedAccount/);
+  assert.match(cardCode, /review\.verdictLabel/);
+  // The masked value the API sent, and nothing that could be a full number.
+  assert.ok(!/account_no/.test(cardCode), "the card never touches a raw account number");
+  // The audit is stated on the screen before the decision, not after it.
+  assert.match(card, /recorded against your name/);
+  assert.match(card, /bank-name-mismatch override/);
 });
 
 test("every existing status still renders", () => {
@@ -353,6 +377,7 @@ test("every existing status still renders", () => {
     "VERIFIED",
     "NAME_MISMATCH",
     "DUPLICATE_ACCOUNT",
+    "REJECTED",
     "FAILED",
   ]) {
     assert.match(badges, new RegExp(s), `${s} must still be a known status`);

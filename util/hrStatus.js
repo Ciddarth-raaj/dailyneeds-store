@@ -79,6 +79,9 @@ const BANK_BADGES = {
   VERIFIED: { label: "Verified", colorScheme: "green" },
   NAME_MISMATCH: { label: "Name needs review", colorScheme: "yellow" },
   DUPLICATE_ACCOUNT: { label: "Duplicate account", colorScheme: "red" },
+  // A reviewer looked at the mismatch and turned the account down. Red, and
+  // not "Failed": the check itself succeeded, a person decided against it.
+  REJECTED: { label: "Rejected", colorScheme: "red" },
   FAILED: { label: "Failed", colorScheme: "red" },
 };
 
@@ -99,6 +102,7 @@ const UNKNOWN_BADGE = { label: "—", colorScheme: "gray", unknown: true };
  *   NOT_PROVIDED / PENDING       Pending      HR chases the employee
  *   NAME_MISMATCH               Review       an authorised user decides
  *   DUPLICATE_ACCOUNT           Duplicate    probably a typo; an admin decides
+ *   REJECTED                    Rejected     a reviewer turned the account down
  *   FAILED                      Failed       the bank said no
  *
  * `undefined` is not a status. When the summary has not loaded, or could not
@@ -125,6 +129,8 @@ function bankListBadge(status, payrollReady) {
       return { label: "Review", colorScheme: "yellow" };
     case "DUPLICATE_ACCOUNT":
       return { label: "Duplicate", colorScheme: "red" };
+    case "REJECTED":
+      return { label: "Rejected", colorScheme: "red" };
     case "FAILED":
       return { label: "Failed", colorScheme: "red" };
     default:
@@ -174,11 +180,17 @@ function bankGuidance(status, verdict) {
     case "VERIFIED":
       return "The account exists and the name matches. Ready for payroll.";
     case "NAME_MISMATCH":
+      // BOTH VERDICTS SEND THE READER TO THE SAME PLACE: Review. Saying "it
+      // cannot be accepted" beside no action was the old dead end, and a hard
+      // mismatch is routinely a maiden name or a joint account rather than
+      // the wrong person.
       return verdict === "MISMATCH"
-        ? "The bank says this account belongs to someone else. It cannot be accepted - correct the details, or check the account really is theirs."
-        : "The name is close but not identical. An authorised user must confirm it.";
+        ? "The bank returned a different name. Review it: approve it as the same person with a reason, correct the details, or reject the account."
+        : "The name is close but not identical. Review it before this employee can be paid by bank transfer.";
     case "DUPLICATE_ACCOUNT":
       return "Another employee who is still working is already verified against this same account. Check for a typo before an administrator allows it.";
+    case "REJECTED":
+      return "A reviewer rejected this account, so it cannot be paid to. Enter the correct details and verify again.";
     case "FAILED":
       return "The last check did not succeed. Review the details and try again.";
     default:
@@ -187,16 +199,73 @@ function bankGuidance(status, verdict) {
 }
 
 /**
- * May THIS user be offered the "confirm the name" action?
+ * May THIS user be offered the name-mismatch REVIEW?
  *
- * Three things must all hold, and the verdict one is the important one: a
- * MISMATCH means the bank named a different person, and the backend refuses
- * to confirm it at all. Offering the button would be offering a dead end.
+ * BOTH VERDICTS QUALIFY, and that is the change. The old rule excluded a
+ * MISMATCH because the backend refused to confirm one - which was true, and
+ * left the screen stating a rule beside no action at all for exactly the
+ * employees who most needed one. A bank returning a maiden name, a joint
+ * holder's name, or a different transliteration all arrive as MISMATCH.
+ *
+ * The review is the way out for both: approve as the same person with a
+ * stated reason, correct the details, or reject the account. What the verdict
+ * still changes is how loudly the screen says to be careful - see
+ * `bankNameReviewOptions` - not whether anybody may look.
+ *
+ * An admin reaches this through the `user_type = 2` bypass the backend
+ * applies, the same as everywhere else.
  */
-function canConfirmBankName({ status, verdict, permissions = [] }) {
+function canReviewBankName({ status, permissions = [], isAdmin = false }) {
   if (String(status).toUpperCase() !== "NAME_MISMATCH") return false;
-  if (String(verdict).toUpperCase() === "MISMATCH") return false;
+  if (isAdmin) return true;
   return has(permissions, "confirm_bank_name_mismatch") && has(permissions, "view_employee_sensitive");
+}
+
+/**
+ * What the review modal shows, and what it must ask for.
+ *
+ * The facts a reviewer needs in order to decide are the ones the old
+ * confirmation dialog left out: who the employee is according to HR, who the
+ * bank says the account belongs to, which account is being talked about, and
+ * what the comparison actually concluded. Everything here is already on the
+ * status response - no account number is reconstructed, and the masked value
+ * is passed through exactly as the API sent it.
+ *
+ * `severe` is the one thing the verdict still decides. A hard MISMATCH is not
+ * blocked, but a reviewer approving one should be told plainly that the bank
+ * named a different person, rather than being walked through the same wording
+ * as a near-miss spelling.
+ */
+function bankNameReviewOptions({ employeeName, bank = {} } = {}) {
+  const verification = bank.verification || {};
+  const verdict = String(verification.name_match_verdict || "").toUpperCase();
+  const severe = verdict === "MISMATCH";
+  return {
+    employeeName: employeeName || null,
+    nameAtBank: verification.name_at_bank || null,
+    maskedAccount: bank.masked_account || null,
+    ifsc: bank.ifsc || null,
+    bankName: bank.bank_name || null,
+    verdict: verdict || null,
+    severe,
+    verdictLabel: severe
+      ? "The bank returned a different name"
+      : "The name is close but not identical",
+    approveWarning: severe
+      ? "The bank named a different person, not a different spelling. Approve this only if you have seen evidence that the account is genuinely theirs - a passbook, a cheque leaf, or a bank letter."
+      : "Approve only if you are satisfied the account belongs to this employee.",
+  };
+}
+
+/**
+ * A review reason has to be a reason.
+ *
+ * The backend requires three characters for either decision; asking for the
+ * same thing here means the modal refuses before spending a request, and
+ * means the two cannot drift into disagreeing about what counts as stated.
+ */
+function bankReviewReasonValid(reason) {
+  return String(reason === null || reason === undefined ? "" : reason).trim().length >= 3;
 }
 
 /**
@@ -261,7 +330,14 @@ function bankActions({
     // Verify what is already stored - no re-entry. Only where there is
     // something to verify, only for somebody who may, and never for an account
     // that is already healthy.
-    canVerifyExisting: mayVerify && account && s !== "NOT_PROVIDED" && s !== "VERIFIED",
+    //
+    // REJECTED is excluded for the opposite reason to VERIFIED: a reviewer
+    // has already looked at this exact account and turned it down, so another
+    // paid call would buy the same answer. The way out of REJECTED is to
+    // enter the correct details, which re-fingerprints the account and brings
+    // Verify back on its own.
+    canVerifyExisting:
+      mayVerify && account && s !== "NOT_PROVIDED" && s !== "VERIFIED" && s !== "REJECTED",
 
     // Inside the editor: save, then verify, in one action. Needs both
     // permissions; with only the sensitive-edit one the editor saves and stops,
@@ -348,7 +424,9 @@ module.exports = {
   bankListBadge,
   statusSummaryIndex,
   bankGuidance,
-  canConfirmBankName,
+  canReviewBankName,
+  bankNameReviewOptions,
+  bankReviewReasonValid,
   canOverrideDuplicateBank,
   canVerifyBank,
   bankActions,

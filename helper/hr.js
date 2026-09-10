@@ -170,7 +170,36 @@ const hr = {
         .catch(reject);
     }),
 
-  /** POST /hr/employee/:id/bank/confirm-name — confirm_bank_name_mismatch AND view_employee_sensitive. */
+  /**
+   * POST /hr/employee/:id/bank/name-review — confirm_bank_name_mismatch AND
+   * view_employee_sensitive.
+   *
+   * The authorised review of a name the bank did not agree with, and the
+   * action the bank card offers in place of the message that said nobody
+   * could confirm it. `decision` is APPROVE_SAME_PERSON or REJECT_ACCOUNT,
+   * and a reason is required for both - it is what the backend records
+   * against the reviewer.
+   *
+   * Approving is stored as a bank-name-mismatch override; rejecting leaves
+   * the account not payroll-ready. Neither lets a bank transfer through
+   * unnoticed.
+   */
+  reviewBankName: (employeeId, decision, reason) =>
+    new Promise((resolve, reject) => {
+      API.post(`/hr/employee/${employeeId}/bank/name-review`, { decision, reason })
+        .then((res) => resolve(res.data))
+        .catch(reject);
+    }),
+
+  /**
+   * POST /hr/employee/:id/bank/confirm-name — confirm_bank_name_mismatch AND
+   * view_employee_sensitive.
+   *
+   * The older, narrower action: a REVIEW verdict only, with an optional note.
+   * `reviewBankName` above supersedes it on this screen. Kept because it is a
+   * live endpoint with its own audit columns, and removing a caller is not a
+   * reason to assume nothing else calls it.
+   */
   confirmBankName: (employeeId, note) =>
     new Promise((resolve, reject) => {
       API.post(`/hr/employee/${employeeId}/bank/confirm-name`, { note })

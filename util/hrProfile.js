@@ -116,8 +116,11 @@ const SENSITIVE_FIELD_API_KEY = {
   uan: "UAN",
   pf_number: "pf_number",
   esi_number: "esi_number",
-  salary: "salary",
-  payment_type: "payment_type",
+  // Whether the employee is in the scheme at all, which is a different fact
+  // from whether the number has been typed in yet. Sensitive alongside the
+  // numbers they qualify, and written by the same Statutory section.
+  pf_applicable: "pf_applicable",
+  esi_applicable: "esi_applicable",
   bank_name: "bank_name",
   ifsc: "ifsc",
   account_no: "account_no",
@@ -125,8 +128,16 @@ const SENSITIVE_FIELD_API_KEY = {
 
 const SENSITIVE_FIELDS = Object.keys(SENSITIVE_FIELD_API_KEY);
 
-/** `salary` and `payment_type` are `Joi.number()` on the backend. */
-const NUMERIC_SENSITIVE_FIELDS = ["salary", "payment_type"];
+/**
+ * Sent as numbers, not strings, because the backend's Joi schema says so.
+ *
+ * The two applicability flags are 1 or 0 - and an emptied dropdown becomes
+ * null rather than 0, which matters more here than anywhere else on this
+ * screen: null means "nobody has said", 0 means "not in the scheme", and
+ * collapsing the first into the second would record a statutory decision
+ * nobody made.
+ */
+const NUMERIC_SENSITIVE_FIELDS = ["pf_applicable", "esi_applicable"];
 
 /* --------------------------------------------------------------- patching */
 
@@ -209,6 +220,49 @@ function maskIdentifier(value, visible = 4) {
 /** "not recorded" is a fact worth stating; an empty cell is ambiguous. */
 const orNotRecorded = (value) => (blank(value) ? "not recorded" : String(value));
 
+/* ------------------------------------------------- PF / ESI applicability */
+
+/**
+ * Yes, No, or nothing said yet.
+ *
+ * Three states, not two, and the third is the honest one for every employee
+ * on file today: nobody has ever been asked whether they are in the scheme,
+ * so nothing may answer on their behalf. The dropdown's own empty option is
+ * what puts a flag back to "not recorded" - see `NUMERIC_SENSITIVE_FIELDS`,
+ * which sends it as null rather than 0.
+ */
+const APPLICABILITY_OPTIONS = [
+  { value: 1, label: "Yes" },
+  { value: 0, label: "No" },
+];
+
+/** True only for an explicit 0. `null` is "not said", which is not "No". */
+const isNotApplicable = (flag) => !blank(flag) && Number(flag) === 0;
+
+/** "Yes", "No", or null for a flag nobody has set. */
+function applicabilityLabel(flag) {
+  if (blank(flag)) return null;
+  return Number(flag) === 1 ? "Yes" : "No";
+}
+
+/**
+ * What a statutory identifier reads as, given the scheme flag beside it.
+ *
+ * THE DISTINCTION THIS EXISTS FOR: "not recorded" means somebody still has to
+ * go and find the number; "Not applicable" means nobody does, because this
+ * employee is not in the scheme. Running the two together - which is all the
+ * screen could do before the flags existed - turns a finished record into a
+ * permanent chase.
+ *
+ * A number is NEVER required by a Yes. An employee can be in the PF scheme
+ * with the UAN still pending, and that reads as "not recorded", which is
+ * exactly right: it is outstanding, and saying so is the point.
+ */
+function statutoryValue(flag, value) {
+  if (isNotApplicable(flag)) return "Not applicable";
+  return maskIdentifier(value);
+}
+
 /**
  * The employee row as the profile reads it. `getEmployeeByID` returns an
  * array, and B3 has already removed whatever the caller may not see - so a
@@ -235,5 +289,9 @@ module.exports = {
   changesPlacement,
   maskIdentifier,
   orNotRecorded,
+  APPLICABILITY_OPTIONS,
+  isNotApplicable,
+  applicabilityLabel,
+  statutoryValue,
   unwrapEmployee,
 };

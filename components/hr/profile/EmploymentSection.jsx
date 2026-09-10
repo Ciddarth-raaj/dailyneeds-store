@@ -1,16 +1,17 @@
 import React, { useState } from "react";
-import { Badge, Text, Stack } from "@chakra-ui/react";
+import { Text, Stack } from "@chakra-ui/react";
 import { SectionCard, Field, EditField, FieldGrid } from "./SectionCard";
 import { EmploymentBadge } from "../StatusBadges";
+import { currentShiftLabel } from "../../../util/currentShift";
 
 /**
  * Stage 0C / C3 — where the employee works.
  *
- * BRANCH, DEPARTMENT, DESIGNATION AND SHIFT ARE COLUMNS ON THE ONE PERMANENT
- * RECORD. Moving somebody between branches edits those columns; it never
- * creates a second employee, and the employee ID does not change. That is the
- * whole point of C1's permanent code, and it is why a transfer is an ordinary
- * edit rather than a new joiner.
+ * BRANCH, DEPARTMENT AND DESIGNATION ARE COLUMNS ON THE ONE PERMANENT RECORD.
+ * Moving somebody between branches edits those columns; it never creates a
+ * second employee, and the employee ID does not change. That is the whole
+ * point of C1's permanent code, and it is why a transfer is an ordinary edit
+ * rather than a new joiner.
  *
  * READ-ONLY HERE, AND DELIBERATELY:
  *
@@ -21,6 +22,23 @@ import { EmploymentBadge } from "../StatusBadges";
  *                    editable joining date is a silently rewritten service
  *                    history.
  *   Status           moves through Resign and Rejoin, never a dropdown.
+ *   Current shift    see below.
+ *
+ * THE SHIFT IS THE NEW ONE, AND IT IS NOT EDITED HERE.
+ * This card used to show and edit "Default shift" - `new_employee.shift_id`,
+ * pointing at the legacy `shift_master`, which the nightly Digisme sync and
+ * a third column (`shift_code`) already disagree with. Employee Shift
+ * Assignment replaced that mapping with `default_work_shift_id` on the new
+ * `work_shift` master, and this now reads THAT and only that: the legacy
+ * column is not read, written or mentioned on this screen.
+ *
+ * It is read-only because a shift change is a roster decision with attendance
+ * and payroll behind it. Employee Shift Assignment is where it belongs, it
+ * has its own permission (`employee_edit` AND `view_shift`), and a dropdown
+ * here would be a second way to make the same change under a weaker one.
+ *
+ * The legacy column itself is untouched in the database - attendance, Biomax
+ * and payroll may still read it, and proving otherwise is not this change.
  *
  * Changing branch or designation re-issues the employee's authorisation on
  * the backend, so the section says so before it is saved rather than after
@@ -32,7 +50,8 @@ function EmploymentSection({
   outlets = [],
   departments = [],
   designations = [],
-  shifts = [],
+  /** `{ loading, denied, shift }` from `useCurrentWorkShift`. */
+  currentShift = {},
   canEdit,
   onSave,
   saving,
@@ -45,7 +64,6 @@ function EmploymentSection({
       store_id: employee.store_id ?? "",
       department_id: employee.department_id ?? "",
       designation_id: employee.designation_id ?? "",
-      shift_id: employee.shift_id ?? "",
     });
     setEditing(true);
   };
@@ -61,8 +79,6 @@ function EmploymentSection({
     (rows || []).map((r) => ({ value: r[idKey], label: r[labelKey] }));
 
   const current = lifecycle.current || {};
-  const periods = Array.isArray(lifecycle.periods) ? lifecycle.periods : [];
-  const openPeriod = periods.find((p) => p.period_state === "open");
 
   return (
     <SectionCard
@@ -109,13 +125,6 @@ function EmploymentSection({
                 onChange={set}
                 options={opts(designations, "designation_id", "designation_name")}
               />
-              <EditField
-                label="Default shift"
-                name="shift_id"
-                value={form.shift_id}
-                onChange={set}
-                options={opts(shifts, "shift_id", "shift_name")}
-              />
             </FieldGrid>
             <Text fontSize="xs" color="orange.700">
               Changing branch or designation changes what this employee is allowed to do, so they
@@ -123,27 +132,17 @@ function EmploymentSection({
             </Text>
           </>
         ) : (
-          <FieldGrid>
-            <Field label="Branch / Outlet" value={current.outlet_nickname || employee.outlet_name} />
-            <Field label="Department" value={current.department_name || employee.department_name} />
-            <Field label="Designation" value={current.designation_name || employee.designation_name} />
-            <Field label="Default shift" value={employee.shift_name || employee.shift_code} />
-          </FieldGrid>
-        )}
-      </Stack>
-
-      <Stack direction="row" spacing={4} mt={4} align="center" flexWrap="wrap">
-        <Badge colorScheme="purple" variant="subtle">
-          {periods.length} employment period{periods.length === 1 ? "" : "s"}
-        </Badge>
-        {openPeriod ? (
-          <Text fontSize="xs" color="gray.600">
-            Current period began {openPeriod.joined_on || "on a date that was not recorded"}
-          </Text>
-        ) : (
-          <Text fontSize="xs" color="gray.600">
-            No open period — this employee has left.
-          </Text>
+          <>
+            <FieldGrid>
+              <Field label="Branch / Outlet" value={current.outlet_nickname || employee.outlet_name} />
+              <Field label="Department" value={current.department_name || employee.department_name} />
+              <Field label="Designation" value={current.designation_name || employee.designation_name} />
+              <Field label="Current shift" value={currentShiftLabel(currentShift)} />
+            </FieldGrid>
+            <Text fontSize="xs" color="gray.500">
+              The shift comes from Employee Shift Assignment, and is changed there.
+            </Text>
+          </>
         )}
       </Stack>
     </SectionCard>

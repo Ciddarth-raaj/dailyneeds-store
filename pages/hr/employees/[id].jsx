@@ -24,26 +24,22 @@ import { SectionCard } from "../../../components/hr/profile/SectionCard";
 import PersonalSection from "../../../components/hr/profile/PersonalSection";
 import EmploymentSection from "../../../components/hr/profile/EmploymentSection";
 import StatutorySection from "../../../components/hr/profile/StatutorySection";
-import CompensationSection from "../../../components/hr/profile/CompensationSection";
 import EducationSection from "../../../components/hr/profile/EducationSection";
-import DocumentsSection from "../../../components/hr/profile/DocumentsSection";
 import BankDetailsEditor from "../../../components/hr/profile/BankDetailsEditor";
 import usePermissions from "../../../customHooks/usePermissions";
 import useOutlets from "../../../customHooks/useOutlets";
 import useDepartments from "../../../customHooks/useDepartments";
 import useDesignations from "../../../customHooks/useDesignations";
-import useShifts from "../../../customHooks/useShifts";
+import useCurrentWorkShift from "../../../customHooks/useCurrentWorkShift";
 import { useUser } from "../../../contexts/UserContext";
 import HrHelper from "../../../helper/hr";
 import EmployeeHelper from "../../../helper/employee";
-import DocumentHelper from "../../../helper/document";
 import { canVerifyBank, lifecycleActions } from "../../../util/hrStatus";
 import {
   buildHrPatch,
   buildSensitivePayload,
   canEditEmployee,
   canEditSensitive,
-  canViewDocuments,
   canViewSensitive,
   unwrapEmployee,
 } from "../../../util/hrProfile";
@@ -51,15 +47,28 @@ import {
 /**
  * Stage 0C / C3 — the employee profile. The ONE employee master record.
  *
- * Nine sections rather than one long form, because they are governed
- * differently: Personal and Employment by `employee_edit`; Statutory, Salary
- * and the bank details by B3's sensitive keys; Aadhaar and Bank by C2's own
+ * Separate sections rather than one long form, because they are governed
+ * differently: Personal and Employment by `employee_edit`; Statutory and the
+ * bank details by B3's sensitive keys; Aadhaar and Bank by C2's own
  * permissions; Lifecycle by Resign and Rejoin. A single Save across all of
  * them would either need the union of every permission or fail as a whole.
  *
+ * WHAT IS DELIBERATELY NOT HERE ANY MORE:
+ *
+ *   Salary Master        pay belongs to Payroll, which owns the structure,
+ *                        the periods and the payslip. One editable figure on
+ *                        the employee master was a second, quieter place for
+ *                        the same fact to be changed.
+ *   Documents            proof documents are verified elsewhere, so uploading
+ *                        Aadhaar and PAN scans against the profile duplicated
+ *                        that at the cost of holding the scans. A separate
+ *                        Employee Documents / HR Letters module will cover
+ *                        what HR actually needs; nothing here anticipates it.
+ *   Employment History   shown only where there IS a history - see below.
+ *
  * TWO WRITE PATHS, because the backend has two - see `util/hrProfile.js`. The
- * ordinary editor takes what `EDITABLE_FIELDS` allows; the statutory, salary
- * and bank columns are deliberately absent from it and go through
+ * ordinary editor takes what `EDITABLE_FIELDS` allows; the statutory and bank
+ * columns are deliberately absent from it and go through
  * /employee/updatedata, which B3 guards.
  *
  * NEVER RENDERED HERE: a full Aadhaar number, a full account number, any
@@ -67,8 +76,10 @@ import {
  * design, so there is no reveal affordance at all.
  *
  * NEVER EDITED HERE: the employee ID, the joining date, the employment
- * status. The first is allocated by the database; the other two are lifecycle
- * state that Create, Resign and Rejoin own and record a reason for.
+ * status, the work shift. The first is allocated by the database; the next
+ * two are lifecycle state that Create, Resign and Rejoin own and record a
+ * reason for; the shift belongs to Employee Shift Assignment, which has its
+ * own permission and its own screen.
  */
 function EmployeeProfile() {
   const router = useRouter();
@@ -83,20 +94,19 @@ function EmployeeProfile() {
   const canEdit = canEditEmployee(actor);
   const mayViewSensitive = canViewSensitive(actor);
   const mayEditSensitive = canEditSensitive(actor);
-  const mayViewDocuments = canViewDocuments(actor);
   const canViewLifecycle = usePermissions(["view_employee_lifecycle"]);
 
   const { outlets } = useOutlets({ directory: true });
   const { departments } = useDepartments();
   const { designations } = useDesignations();
-  const { shifts } = useShifts();
+  // The NEW shift mapping, read-only. `useShifts` - the legacy `/shift`
+  // master - is deliberately not used on this screen any more.
+  const currentShift = useCurrentWorkShift(id);
 
   const [lifecycle, setLifecycle] = useState(null);
   const [employee, setEmployee] = useState(null);
   const [aadhaar, setAadhaar] = useState(null);
   const [bank, setBank] = useState(null);
-  const [documents, setDocuments] = useState([]);
-  const [documentsError, setDocumentsError] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -114,20 +124,17 @@ function EmployeeProfile() {
       // Independent reads. A permission refusal on any one of them must not
       // blank the page, so each is tolerated on its own and each section says
       // for itself what it could not show.
-      const [lc, emp, aa, bk, docs] = await Promise.all([
+      const [lc, emp, aa, bk] = await Promise.all([
         HrHelper.getLifecycle(id).catch(() => null),
         EmployeeHelper.getEmployeeByID(id).catch(() => null),
         HrHelper.getAadhaarStatus(id).catch(() => null),
         HrHelper.getBankStatus(id).catch(() => null),
-        mayViewDocuments ? DocumentHelper.getDocType(id).catch(() => "error") : Promise.resolve([]),
       ]);
       const usable = (r) => (r && !r.code ? r : null);
       setLifecycle(usable(lc));
       setEmployee(unwrapEmployee(emp));
       setAadhaar(usable(aa));
       setBank(usable(bk));
-      setDocuments(Array.isArray(docs) ? docs : []);
-      setDocumentsError(docs === "error");
       if (!usable(lc)) {
         setLoadError(lc && lc.msg ? lc.msg : "This employee could not be loaded.");
       }
@@ -136,7 +143,7 @@ function EmployeeProfile() {
     } finally {
       setLoading(false);
     }
-  }, [id, mayViewDocuments]);
+  }, [id]);
 
   useEffect(() => {
     load();
@@ -374,6 +381,12 @@ function EmployeeProfile() {
     );
   }
 
+  // More than one employment period means a resign and a rejoin: a real
+  // service history, and the only case where the timeline says anything the
+  // Employment card does not.
+  const periodCount = Array.isArray(lifecycle.periods) ? lifecycle.periods.length : 0;
+  const hasEmploymentHistory = periodCount > 1;
+
   const { canResign, canRejoin } = lifecycleActions({
     isActive: lifecycle.is_active,
     permissions,
@@ -422,7 +435,7 @@ function EmployeeProfile() {
             outlets={outlets}
             departments={departments}
             designations={designations}
-            shifts={shifts}
+            currentShift={currentShift}
             canEdit={canEdit && Boolean(employee)}
             onSave={saveOrdinary}
             saving={saving}
@@ -483,6 +496,9 @@ function EmployeeProfile() {
                   under a card that already had buttons. */}
               <BankCard
                 employeeId={lifecycle.employee_id}
+                // The review compares two names, so it needs both. HR's own
+                // record of the name, not the bank's.
+                employeeName={lifecycle.employee_name}
                 bank={bank}
                 permissions={permissions}
                 isAdmin={isAdmin}
@@ -498,21 +514,6 @@ function EmployeeProfile() {
             </Alert>
           )}
 
-          <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={4}>
-            <CompensationSection
-              employee={employee || {}}
-              canView={mayViewSensitive}
-              canEdit={mayEditSensitive && Boolean(employee)}
-              onSave={saveSensitive}
-              saving={saving}
-            />
-            <DocumentsSection
-              documents={documents}
-              canView={mayViewDocuments}
-              error={documentsError}
-            />
-          </SimpleGrid>
-
           <EducationSection
             employee={employee || {}}
             canEdit={canEdit && Boolean(employee)}
@@ -520,8 +521,21 @@ function EmployeeProfile() {
             saving={saving}
           />
 
-          {/* -------------------------------------------------- lifecycle */}
-          {canViewLifecycle ? <LifecycleTimeline lifecycle={lifecycle} /> : null}
+          {/* -------------------------------------------------- lifecycle
+              ONLY WHERE THERE IS A HISTORY TO SHOW. For the great majority of
+              employees the timeline was one period, repeating the joining
+              date the Employment card already carries - so the screen said
+              the same thing twice and implied there was something to compare.
+              A second period means a resign and a rejoin, which is exactly
+              the service record this panel exists for.
+
+              A MISSING JOINING DATE IS A DATA PROBLEM, NOT A REASON TO SHOW
+              THIS. The old card leaned on the timeline to admit an undated
+              period; that is a row to fix in the lifecycle review, and
+              showing a redundant panel to 600 people is not how to say it. */}
+          {canViewLifecycle && hasEmploymentHistory ? (
+            <LifecycleTimeline lifecycle={lifecycle} />
+          ) : null}
 
           <Divider />
           <Link href="/hr/employees" passHref>
