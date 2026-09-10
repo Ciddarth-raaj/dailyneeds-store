@@ -10,7 +10,7 @@
  *   HR is a module beside WMS and GST, not a section inside another module
  *   Employees, Department and Designation live in it
  *   the old top-level Employees section is GONE, not merely renamed
- *   Attendance and Payroll are not inside HR
+ *   Attendance is a section of HR; Payroll is not declared yet and will be too
  *   /employee still resolves
  */
 const test = require("node:test");
@@ -47,6 +47,9 @@ test("HR is a top-level module on the rail, beside WMS and GST", () => {
 test("Employees, Department and Designation are all inside HR", () => {
   const hrMenu = treeNamed("HR_MENU");
   assert.deepStrictEqual(locationsIn(hrMenu).sort(), [
+    "/attendance/devices",
+    "/attendance/list",
+    "/attendance/list?tab=audit",
     "/department",
     "/designation",
     "/employee-shift-assignment",
@@ -127,29 +130,36 @@ test("Department and Designation moved rather than being duplicated", () => {
   }
 });
 
-/* ================================= HR is HR, not HR-and-everything-else = */
-test("ATTENDANCE AND PAYROLL ARE NOT INSIDE HR", () => {
-  // Three separate top-level modules is the fixed architecture. Attendance
-  // now has its screens (Part 1, the raw Biomax punch flow) and is its own
-  // module on the rail; Payroll is still not declared, because an empty
-  // module is a promise the navigation cannot keep.
+/* ============================ HR is the one people module: Attendance in it = */
+test("ATTENDANCE IS A SECTION OF HR, AND THERE IS NO ATTENDANCE MODULE ON THE RAIL", () => {
+  // HR is the single top-level module for employee, attendance and payroll
+  // screens. Attendance is a section inside it, built exactly like Employee
+  // Master and Shifts; Payroll is still not declared, because an empty
+  // section is a promise the navigation cannot keep, and when it arrives it
+  // will be a section here too, never a module of its own.
   const hrMenu = treeNamed("HR_MENU");
-  for (const notYet of ["attendance", "payroll", "Attendance", "Payroll"]) {
+  assert.match(hrMenu, /\battendance:\s*\{/, "HR must contain an `attendance` section");
+  const att = hrMenu.slice(hrMenu.indexOf("attendance: {"));
+  assert.match(att, /title:\s*"Attendance"/);
+  assert.match(att, /subMenu:\s*\{/, "same section-with-subMenu shape as Employee Master and Shifts");
+  for (const notYet of ["payroll", "Payroll"]) {
     assert.ok(!hrMenu.includes(notYet), `HR must not contain ${notYet}`);
   }
   const modules = code.slice(code.indexOf("export const MENU_MODULES"));
-  assert.ok(/\battendance:\s*\{/.test(modules), "Attendance is its own module now that it has screens");
-  assert.ok(!/\bpayroll:\s*\{/.test(modules), "Payroll arrives after Attendance");
+  assert.ok(!/\battendance:\s*\{/.test(modules), "Attendance is not a module of its own any more");
+  assert.ok(!/\bpayroll:\s*\{/.test(modules), "Payroll is never a module of its own");
+  assert.strictEqual(code.indexOf("const ATTENDANCE_MENU"), -1, "no separate Attendance menu tree");
 });
 
-test("Attendance module: list, punch audit and devices, each behind its own key", () => {
-  const menu = treeNamed("ATTENDANCE_MENU");
-  assert.deepStrictEqual(locationsIn(menu).sort(), ["/attendance/devices", "/attendance/list", "/attendance/list?tab=audit"]);
-  assert.match(menu, /permission:\s*"view_raw_attendance"/);
-  assert.match(menu, /permission:\s*"view_attendance_punch_audit"/);
-  assert.match(menu, /permission:\s*"view_biomax_devices"/);
+test("HR > Attendance: list, punch audit and devices, on the same routes behind the same keys", () => {
+  const hrMenu = treeNamed("HR_MENU");
+  const att = hrMenu.slice(hrMenu.indexOf("attendance: {"));
+  assert.deepStrictEqual(locationsIn(att).sort(), ["/attendance/devices", "/attendance/list", "/attendance/list?tab=audit"]);
+  assert.match(att, /title:\s*"Attendance List"[\s\S]*?permission:\s*"view_raw_attendance"/);
+  assert.match(att, /title:\s*"Punch Audit"[\s\S]*?permission:\s*"view_attendance_punch_audit"/);
+  assert.match(att, /title:\s*"Biomax Devices"[\s\S]*?permission:\s*"view_biomax_devices"/);
   // No Part 2 screens: nothing that calculates.
-  assert.ok(!/payroll|overtime|late|regulari/i.test(menu));
+  assert.ok(!/payroll|overtime|late|regulari/i.test(att));
 });
 
 /* ==================================================== nothing 404s now = */
@@ -215,6 +225,9 @@ test("HR navigation still appears exactly once, and still holds its pages", () =
 
   const hrMenu = treeNamed("HR_MENU");
   assert.deepStrictEqual(locationsIn(hrMenu).sort(), [
+    "/attendance/devices",
+    "/attendance/list",
+    "/attendance/list?tab=audit",
     "/department",
     "/designation",
     "/employee-shift-assignment",
@@ -297,18 +310,16 @@ test("the report route itself is unchanged by the move", () => {
   assert.match(reportsMenu, /location:\s*"\/reports\/employee-master"/);
 });
 
-test("the module rail reads All, HR, Reports, Attendance, WMS, GST", () => {
+test("the module rail reads All, HR, Reports, WMS, GST", () => {
   const modules = code.slice(code.indexOf("export const MENU_MODULES"));
   const ids = (modules.match(/^  (\w+):\s*\{/gm) || []).map((m) => m.trim().replace(/:.*/, ""));
-  assert.deepStrictEqual(ids, ["all", "hr", "reports", "attendance", "wms", "gst"]);
-  const att = modules.slice(modules.indexOf("attendance: {"), modules.indexOf("wms: {"));
-  assert.match(att, /accent:\s*"purple"/);
-  assert.match(att, /menu:\s*ATTENDANCE_MENU/);
+  assert.deepStrictEqual(ids, ["all", "hr", "reports", "wms", "gst"]);
 });
 
-test("Attendance and Payroll are still not inside HR", () => {
+test("Payroll is still not inside HR, and Attendance is", () => {
   const hrMenu = treeNamed("HR_MENU");
-  for (const notYet of ["attendance", "payroll", "Attendance", "Payroll"]) {
+  for (const notYet of ["payroll", "Payroll"]) {
     assert.ok(!hrMenu.includes(notYet), `HR must not contain ${notYet}`);
   }
+  assert.ok(hrMenu.includes("Attendance"), "HR must contain Attendance");
 });

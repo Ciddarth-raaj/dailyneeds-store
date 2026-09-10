@@ -843,17 +843,22 @@ const GST_MENU = {
 };
 
 /**
- * Stage 0C / C3 — HR, the first of three payroll-programme modules.
+ * Stage 0C / C3 — HR, the single top-level module for everything about the
+ * people who work here: who they are, when they worked, and (later) what they
+ * are paid for it.
  *
- * The architecture is three SEPARATE top-level modules:
+ *   Employee Master   who works here, and everything true of them
+ *   Shifts            the roster they are expected to keep
+ *   Attendance        when they worked (Part 1: the raw Biomax punch flow)
+ *   Payroll           what they are paid for it - NOT declared yet; it will be
+ *                     a section here, never a module of its own. An empty
+ *                     section is a promise the navigation cannot keep.
  *
- *   HR           who works here, and everything true of them
- *   Attendance   when they worked            (Part 1 raw flow: ATTENDANCE_MENU below)
- *   Payroll      what they are paid for it   (after Attendance)
- *
- * Attendance and Payroll are deliberately NOT nested inside HR. Payroll is
- * not declared at all: an empty module is a promise the navigation cannot
- * keep. Attendance arrived with its own screens.
+ * Attendance used to be a module beside HR on the rail. It is a section of HR
+ * now so that employee, attendance and payroll screens are found in one
+ * place. Its routes and permissions did not move: /attendance/list,
+ * /attendance/list?tab=audit and /attendance/devices, each behind the same
+ * key as before.
  *
  * Employees, Department and Designation moved here from the old top-level
  * Employees section, which is gone. `/employee` redirects to `/hr/employees`,
@@ -925,6 +930,49 @@ const HR_MENU = {
       },
     },
   },
+  // Attendance - Part 1, the raw Biomax punch flow. Same three screens, same
+  // routes and same permission keys as when this was a module of its own.
+  //
+  //   Attendance List   one row per employee per attendance date, every punch
+  //                     of the day merged whichever terminal recorded it.
+  //                     Filtered by HOME outlet, never by device.
+  //   Punch Audit       one row per physical punch, filtered by device / punch
+  //                     location. Its own permission (D7), because seeing
+  //                     which terminal and IP every punch came from is a
+  //                     different decision from reading attendance.
+  //   Biomax Devices    the terminal registry with effective-dated locations.
+  //                     Administrators only at go-live: the backend grants
+  //                     `view_biomax_devices` / `manage_biomax_devices` to no
+  //                     designation, and administrators bypass the table.
+  //
+  // Nothing here calculates attendance. IN/OUT, hours, lateness, OT, status
+  // and payroll are Part 2 and have no entry until they have screens.
+  attendance: {
+    title: "Attendance",
+    selected: false,
+    openPage: true,
+    icon: "fa-clock-o",
+    subMenu: {
+      attendance_list: {
+        title: "Attendance List",
+        permission: "view_raw_attendance",
+        selected: false,
+        location: "/attendance/list",
+      },
+      punch_audit: {
+        title: "Punch Audit",
+        permission: "view_attendance_punch_audit",
+        selected: false,
+        location: "/attendance/list?tab=audit",
+      },
+      biomax_devices: {
+        title: "Biomax Devices",
+        permission: "view_biomax_devices",
+        selected: false,
+        location: "/attendance/devices",
+      },
+    },
+  },
 };
 
 /**
@@ -981,54 +1029,6 @@ const REPORTS_MENU = {
 };
 
 /**
- * Attendance - the second of the three payroll-programme modules, arriving
- * now that it has screens (Part 1: the raw Biomax punch flow).
- *
- *   Attendance List   one row per employee per attendance date, every punch of
- *                     the day merged whichever terminal recorded it. Filtered
- *                     by HOME outlet, never by device.
- *   Punch Audit       one row per physical punch, filtered by device / punch
- *                     location. Its own permission (D7), because seeing which
- *                     terminal and IP every punch came from is a different
- *                     decision from reading attendance.
- *   Devices           the Biomax terminal registry with effective-dated
- *                     locations. Administrators only at go-live: the backend
- *                     grants `view_biomax_devices` / `manage_biomax_devices`
- *                     to no designation, and administrators bypass the table.
- *
- * Nothing here calculates attendance. IN/OUT, hours, lateness, OT, status and
- * payroll are Part 2 and have no entry until they have screens.
- */
-const ATTENDANCE_MENU = {
-  attendance: {
-    title: "Attendance",
-    selected: true,
-    openPage: true,
-    icon: "fa-clock-o",
-    subMenu: {
-      attendance_list: {
-        title: "Attendance List",
-        permission: "view_raw_attendance",
-        selected: false,
-        location: "/attendance/list",
-      },
-      punch_audit: {
-        title: "Punch Audit",
-        permission: "view_attendance_punch_audit",
-        selected: false,
-        location: "/attendance/list?tab=audit",
-      },
-      biomax_devices: {
-        title: "Biomax Devices",
-        permission: "view_biomax_devices",
-        selected: false,
-        location: "/attendance/devices",
-      },
-    },
-  },
-};
-
-/**
  * Top-level app modules; each has its own sidebar menu tree.
  * `accent` drives module-rail colors and the main menu panel (see sideBar `data-menu-accent`).
  * Rail icon: set `iconClass` (full FA6 classes, e.g. "fa-solid fa-chart-line") or `icon` (legacy suffix, e.g. "fa-users" → "fa fa-users").
@@ -1058,14 +1058,6 @@ export const MENU_MODULES = {
     iconClass: "fa-solid fa-file-lines",
     accent: "purple",
     menu: REPORTS_MENU,
-  },
-  // Attendance: the second payroll-programme module, beside HR rather than
-  // inside it, exactly as planned above. Purple, like HR and Reports.
-  attendance: {
-    title: "Attendance",
-    iconClass: "fa-solid fa-clock",
-    accent: "purple",
-    menu: ATTENDANCE_MENU,
   },
   wms: {
     title: "WMS",
