@@ -18,10 +18,18 @@ import API from "../util/api";
  * the screens unwrap it rather than assuming success.
  */
 const workShift = {
-  /** GET /work-shift — every work shift, configuration only: `{ code, data }`. */
-  getWorkShifts: () =>
+  /**
+   * GET /work-shift — every work shift, configuration only: `{ code, data }`.
+   *
+   * `{ active: true }` narrows to active shifts, for a dropdown that must
+   * offer only those. Called with nothing, the answer is unchanged - the Work
+   * Shift Master list needs the inactive ones too, since the switch in its
+   * Status column is the only way to bring one back.
+   */
+  getWorkShifts: ({ active } = {}) =>
     new Promise((resolve, reject) => {
-      API.get("/work-shift")
+      const params = active === undefined ? undefined : { active: active ? 1 : 0 };
+      API.get("/work-shift", params ? { params } : undefined)
         .then((res) => resolve(res.data))
         .catch(reject);
     }),

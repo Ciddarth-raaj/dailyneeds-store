@@ -1,0 +1,56 @@
+import API from "../util/api";
+
+/**
+ * The Employee Shift Assignment API, as `routes/employee_work_shift.js`
+ * defines it.
+ *
+ * THIS IS THE NEW MAPPING. It reads and writes
+ * `new_employee.default_work_shift_id` and nothing else. The legacy
+ * `shift_id` / `shift_code` pair behind /shift is untouched, and there is no
+ * call here that could reach it.
+ *
+ * The endpoints live at /hr, with the other employee writes, because what a
+ * bulk assignment changes is an employee record. The shifts themselves are
+ * still created and edited at /work-shift (`helper/workShift.js`).
+ *
+ * Both are guarded by TWO existing permissions at once on the server -
+ * `view_employees` + `view_shift` to read, `employee_edit` + `view_shift` to
+ * assign - so a refusal is a routine answer here, and arrives as
+ * `{ code: 403, msg }` like every other helper in this repo rather than as a
+ * rejected promise. The screen unwraps it; see `util/apiList.js`.
+ */
+const employeeWorkShift = {
+  /**
+   * GET /hr/work-shift-assignments — the assignment list, filtered on the
+   * SERVER. Filters: `store_ids`, `department_ids`, `designation_ids`
+   * (comma lists), `search`, `assignment_status` (ALL/ASSIGNED/UNASSIGNED)
+   * and `employment_status` (ACTIVE/INACTIVE/ALL, ACTIVE by default).
+   *
+   * Resolves `{ code, data: [...] }`.
+   */
+  getAssignments: (params = {}) =>
+    new Promise((resolve, reject) => {
+      API.get("/hr/work-shift-assignments", { params })
+        .then((res) => resolve(res.data))
+        .catch(reject);
+    }),
+
+  /**
+   * POST /hr/work-shift-assignments/bulk — `{ employee_ids, work_shift_id }`.
+   *
+   * All or nothing. An unknown employee id or an inactive work shift refuses
+   * the whole request; nothing partial is ever written, so a failure leaves
+   * the selection exactly as it was and it can be retried.
+   */
+  assignWorkShift: (employeeIds, workShiftId) =>
+    new Promise((resolve, reject) => {
+      API.post("/hr/work-shift-assignments/bulk", {
+        employee_ids: employeeIds,
+        work_shift_id: workShiftId,
+      })
+        .then((res) => resolve(res.data))
+        .catch(reject);
+    }),
+};
+
+export default employeeWorkShift;

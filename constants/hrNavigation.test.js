@@ -49,6 +49,7 @@ test("Employees, Department and Designation are all inside HR", () => {
   assert.deepStrictEqual(locationsIn(hrMenu).sort(), [
     "/department",
     "/designation",
+    "/employee-shift-assignment",
     "/hr/employees",
     "/work-shift",
   ]);
@@ -61,6 +62,19 @@ test("Work Shift Master is in HR, gated on the shift master's own key", () => {
   assert.match(entry, /title:\s*"Work Shift Master"/);
   // The key the backend's /work-shift routes require, not a new one.
   assert.match(entry, /permission:\s*"view_shift"/);
+});
+
+test("Employee Shift Assignment sits with the shift master, and needs BOTH keys", () => {
+  const hrMenu = treeNamed("HR_MENU");
+  const entry = hrMenu.slice(
+    hrMenu.indexOf("employee_shift_assignment:"),
+    hrMenu.indexOf("/employee-shift-assignment") + 30
+  );
+  assert.match(entry, /title:\s*"Employee Shift Assignment"/);
+  // An array is ALL of them (util/menuPermissions.js), matching the
+  // `requireAll(view_employees, view_shift)` on the backend's read endpoint.
+  // A single key here would put an entry on a rail that 403s when opened.
+  assert.match(entry, /permission:\s*\["view_employees",\s*"view_shift"\]/);
 });
 
 test("THE LEGACY SHIFT MASTER IS NOT LISTED BESIDE THE NEW ONE", () => {
@@ -179,6 +193,7 @@ test("HR navigation still appears exactly once, and still holds its pages", () =
   assert.deepStrictEqual(locationsIn(hrMenu).sort(), [
     "/department",
     "/designation",
+    "/employee-shift-assignment",
     "/hr/employees",
     "/work-shift",
   ]);
