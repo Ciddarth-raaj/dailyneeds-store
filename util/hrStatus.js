@@ -157,11 +157,23 @@ function statusSummaryIndex(summary) {
   if (!Array.isArray(summary)) return index;
   for (const row of summary) {
     if (!row || row.employee_id === undefined || row.employee_id === null) continue;
-    index[String(row.employee_id)] = {
+    const entry = {
       aadhaar_status: row.aadhaar_status,
       bank_status: row.bank_status,
       bank_payroll_ready: Boolean(row.bank_payroll_ready),
     };
+    // The HR-onboarding flag is DERIVED by the backend from the statutory and
+    // bank sections, and a server that cannot derive it omits it. Carried
+    // through only when it is actually there, so "not answered" stays
+    // distinguishable from "nothing outstanding" - the badge shows nothing at
+    // all for the first and "Complete" for the second.
+    if (row.hr_onboarding_pending !== undefined && row.hr_onboarding_pending !== null) {
+      entry.hr_onboarding_pending = Boolean(row.hr_onboarding_pending);
+      entry.hr_onboarding_missing = Array.isArray(row.hr_onboarding_missing)
+        ? row.hr_onboarding_missing
+        : [];
+    }
+    index[String(row.employee_id)] = entry;
   }
   return index;
 }

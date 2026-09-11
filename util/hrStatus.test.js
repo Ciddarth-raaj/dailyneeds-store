@@ -428,3 +428,24 @@ test("the index carries the three status fields and nothing else", () => {
     "bank_status",
   ]);
 });
+
+test("the HR-onboarding flag is carried through only when the server sent one", () => {
+  // An older server, or one that cannot derive it, omits the key. That must
+  // read as "not known" and never as "nothing outstanding" - the badge shows
+  // nothing at all for the first and "Complete" for the second.
+  const index = statusSummaryIndex([
+    {
+      employee_id: 1,
+      aadhaar_status: "PENDING",
+      bank_status: "NOT_PROVIDED",
+      bank_payroll_ready: false,
+      hr_onboarding_pending: true,
+      hr_onboarding_missing: ["statutory", "bank"],
+    },
+    { employee_id: 2, aadhaar_status: "VERIFIED", bank_status: "VERIFIED", bank_payroll_ready: true },
+  ]);
+  assert.strictEqual(index["1"].hr_onboarding_pending, true);
+  assert.deepStrictEqual(index["1"].hr_onboarding_missing, ["statutory", "bank"]);
+  assert.ok(!("hr_onboarding_pending" in index["2"]), "an absent flag is absent, not false");
+  assert.ok(!("hr_onboarding_missing" in index["2"]));
+});
