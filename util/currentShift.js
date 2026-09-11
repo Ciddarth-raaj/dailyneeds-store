@@ -5,8 +5,10 @@
  * and three of them look like nothing:
  *
  *   loading      the read has not come back yet
- *   denied       the caller may not see shift assignments at all
- *                (`view_employees` AND `view_shift_assignments`)
+ *   denied       the caller may not see this employee at all
+ *                (`view_employees` - M1 review fix; the read no longer
+ *                demands `view_shift_assignments`, so anyone who can open
+ *                the profile sees the shift)
  *   unassigned   nobody has put this employee on a work shift
  *   assigned     the shift, and its hours where they are the same all week
  *

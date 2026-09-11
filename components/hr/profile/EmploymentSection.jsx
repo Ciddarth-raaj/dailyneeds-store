@@ -25,9 +25,13 @@ import { currentShiftLabel } from "../../../util/currentShift";
  *
  * THE SHIFT IS THE NEW ONE. What this card shows is `default_work_shift_id`
  * on the NEW `work_shift` master, read through Employee Shift Assignment's
- * own endpoint and gated on `view_shift_assignments`. The legacy
- * `new_employee.shift_id` / `shift_code` pair is not read, written or
- * mentioned here.
+ * own endpoint. The legacy `new_employee.shift_id` / `shift_code` pair is not
+ * read, written or mentioned here.
+ *
+ * M1 review fix: that read is gated on `view_employees` alone. Shift belongs
+ * to Employment Details, so seeing it is part of seeing the employee - it no
+ * longer demands `view_shift_assignments`, which is the roster's key and left
+ * the field unreadable for most profile viewers.
  *
  * CHANGING IT FROM HERE IS THE SAME ACT AS ASSIGNING IT THERE, under the same
  * keys: `employee_edit` AND `assign_employee_shift`, through the same

@@ -14,12 +14,20 @@
  *                                 designation changes. Everything ordinary
  *                                 goes here.
  *
- *   POST /employee/updatedata     the older path, needing `add_employees`.
- *                                 It is the ONLY route that writes the
- *                                 statutory, compensation and bank columns -
+ *   POST /employee/updatedata     the older path. It is the ONLY route that
+ *                                 writes the statutory and bank columns -
  *                                 they are deliberately absent from
  *                                 `EDITABLE_FIELDS` - and B3 refuses the body
  *                                 outright without `edit_employee_sensitive`.
+ *                                 M1 review fix: it demands `add_employees`
+ *                                 for the fields Add Employee owns, and NOT
+ *                                 for a body of only Payment Details and /
+ *                                 or Statutory Details columns, which take
+ *                                 their own section keys instead.
+ *                                 SALARY IS NOT ON THIS PATH AT ALL - the
+ *                                 route's schema no longer accepts it, and
+ *                                 the Payroll section is read-only until the
+ *                                 dedicated salary system exists.
  *
  * Sending a field down the wrong path is a 422 at best and a silent no-op at
  * worst, so the split is declared here once rather than remembered in six
@@ -41,14 +49,23 @@ function canViewSensitive({ permissions = [], isAdmin = false } = {}) {
 }
 
 /**
- * Writing them takes BOTH keys. `edit_employee_sensitive` is what B3's
- * `guardWrite` checks; `add_employees` is what the route itself requires.
- * Offering an Edit button to somebody holding only one produces a refusal
- * they cannot act on.
+ * Writing them takes `edit_employee_sensitive`, which is what B3's
+ * `guardWrite` checks.
+ *
+ * M1 REVIEW FIX - `add_employees` IS NOT PART OF THIS ANY MORE. It used to
+ * be, because /employee/updatedata demanded it for the whole route; the
+ * backend now demands it only for the fields Add Employee has always owned,
+ * and NOT for a body that writes just Payment Details and / or Statutory
+ * Details. Add Employee covers onboarding screens 1-4 and stops at Education;
+ * the sections after it are controlled by their own designation rights.
+ *
+ * Keeping it here would defeat the backend change from the other end: a
+ * designation granted Edit Payment Details would still be shown a read-only
+ * card, so the permission would remain ungrantable in practice.
  */
 function canEditSensitive({ permissions = [], isAdmin = false } = {}) {
   if (isAdminUser(isAdmin)) return true;
-  return has(permissions, "edit_employee_sensitive") && has(permissions, "add_employees");
+  return has(permissions, "edit_employee_sensitive");
 }
 
 /**

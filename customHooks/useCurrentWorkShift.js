@@ -9,11 +9,17 @@ import EmployeeWorkShiftHelper from "../helper/employeeWorkShift";
  * point: the profile used to show `shift_master` under "Default shift", and
  * that column, `shift_code` and the Digisme sync have never agreed.
  *
- * The endpoint needs `view_employees` AND `view_shift_assignments`, and not
- * everyone holds both. A refusal is reported as `denied` rather than
- * as an empty result, so the field can say why it is blank instead of
- * claiming the employee has no shift - "not permitted" and "not assigned" are
- * different facts, and only one of them is somebody's job to fix.
+ * M1 REVIEW FIX - the endpoint needs `view_employees` and nothing else. Shift
+ * is part of Employment Details now, so whoever may open the profile may see
+ * which shift the employee is on. It used to demand `view_shift_assignments`
+ * too - an HR/administrator key - which left this field reading "not
+ * permitted" for most of the people the section was built for. CHANGING the
+ * shift is untouched and still takes `employee_edit` + `assign_employee_shift`.
+ *
+ * `denied` is still reported rather than an empty result, because the caller
+ * may hold no `view_employees` at all: the field can then say why it is blank
+ * instead of claiming the employee has no shift - "not permitted" and "not
+ * assigned" are different facts, and only one of them is somebody's job.
  *
  * A failure here never affects anything else on the profile: the caller
  * renders one field from it and nothing depends on it loading.

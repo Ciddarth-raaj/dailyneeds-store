@@ -150,9 +150,23 @@ test("THERE IS NO UNASSIGN", () => {
   assert.ok(!/unassign/i.test(helperCode), "and none in the helper");
 });
 
-test("THE EMPLOYEE PROFILE IS UNTOUCHED — the field is not on it yet", () => {
-  assert.ok(!/default_work_shift_id/.test(profile), "not on the profile screen");
-  assert.ok(!/default_work_shift_id/.test(employeeForm), "not on the create form");
+test("THE ASSIGNMENT SCREEN DOES NOT OWN THE COLUMN THE EMPLOYEE MASTER NOW SHOWS", () => {
+  // This assertion used to read "the field is not on it yet", from the phase
+  // where the mapping existed only on this screen. M1 moved Shift onto
+  // Employment Details, so the Add Employee wizard now sends an OPTIONAL
+  // initial `default_work_shift_id` with the create, and the profile reads
+  // the current one through `useCurrentWorkShift`. Both are approved M1
+  // behaviour, so what is worth pinning is narrower and still true:
+  //
+  //   - the profile never names the raw column; it goes through the hook, so
+  //     there is one reader of the mapping rather than two;
+  //   - the create form carries it as a plain form value only - it never
+  //     posts to this screen's assign endpoint to set an initial shift.
+  assert.ok(!/default_work_shift_id/.test(profile), "the profile reads it through the hook, not raw");
+  assert.ok(
+    !/work-shift-assignments\/bulk/.test(employeeForm),
+    "the create form never reaches the assign endpoint - the initial shift rides with the create"
+  );
 });
 
 test("THE LEGACY SHIFT IS NEVER READ OR WRITTEN BY THIS SCREEN", () => {

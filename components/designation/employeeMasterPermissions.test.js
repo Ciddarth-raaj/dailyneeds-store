@@ -140,11 +140,19 @@ test("the ordinary editor is gated on employee_edit alone", () => {
     /function canEditEmployee[\s\S]*?has\(permissions,\s*"employee_edit"\)/,
     "canEditEmployee should read employee_edit"
   );
-  // Writing the sensitive fields stays a strictly higher bar.
+  // Writing the sensitive fields stays a strictly higher bar. M1 review fix:
+  // the bar is `edit_employee_sensitive` and no longer `add_employees` with
+  // it - the backend stopped demanding Add Employee for the post-onboarding
+  // sections, and keeping it here would leave the section keys ungrantable
+  // from the other end. The sensitive key itself is not negotiable.
   assert.match(
     hrProfileUtil,
-    /function canEditSensitive[\s\S]*?has\(permissions,\s*"edit_employee_sensitive"\)\s*&&/,
+    /function canEditSensitive[\s\S]*?has\(permissions,\s*"edit_employee_sensitive"\)/,
     "canEditSensitive must keep requiring the sensitive key"
+  );
+  assert.ok(
+    !/function canEditSensitive[\s\S]*?has\(permissions,\s*"add_employees"\)/.test(hrProfileUtil),
+    "canEditSensitive must NOT require add_employees any more"
   );
 });
 

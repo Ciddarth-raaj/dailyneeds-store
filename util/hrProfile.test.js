@@ -41,14 +41,16 @@ test("seeing sensitive fields takes the key, or admin", () => {
   assert.strictEqual(canViewSensitive(), false);
 });
 
-test("EDITING SENSITIVE FIELDS TAKES BOTH KEYS", () => {
-  // `edit_employee_sensitive` is what B3's guardWrite checks; `add_employees`
-  // is what the route itself requires. Offering Edit to somebody holding one
-  // produces a refusal they cannot act on.
+test("M1 review fix: EDITING SENSITIVE FIELDS TAKES edit_employee_sensitive, NOT Add Employee", () => {
+  // `edit_employee_sensitive` is what B3's guardWrite checks, and it is now
+  // the whole bar. The backend stopped demanding `add_employees` for the
+  // post-onboarding sections - Add Employee covers onboarding screens 1-4 and
+  // stops at Education - so requiring it here would show a read-only card to
+  // exactly the designation the section keys were created for.
   assert.strictEqual(
     canEditSensitive({ permissions: perms("edit_employee_sensitive") }),
-    false,
-    "the route permission is missing"
+    true,
+    "the sensitive key alone is the bar now"
   );
   assert.strictEqual(
     canEditSensitive({ permissions: perms("add_employees") }),
@@ -56,8 +58,9 @@ test("EDITING SENSITIVE FIELDS TAKES BOTH KEYS", () => {
     "B3 would refuse the body"
   );
   assert.strictEqual(
-    canEditSensitive({ permissions: perms("edit_employee_sensitive", "add_employees") }),
-    true
+    canEditSensitive({ permissions: perms("employee_create", "employee_edit") }),
+    false,
+    "the onboarding and editor keys open nothing sensitive"
   );
   assert.strictEqual(canEditSensitive({ permissions: [], isAdmin: true }), true);
 });
@@ -131,24 +134,46 @@ test("THE EMPLOYEE MASTER IS ONE ORDER, FOR ADD AND EDIT ALIKE", () => {
   assert.strictEqual(EMPLOYEE_MASTER_SECTIONS[7].key, "documents", "Documents is LAST");
 });
 
-test("M1: payment and statutory sections have their own keys ON TOP OF the sensitive pair", () => {
+test("M1: payment and statutory sections have their own keys ON TOP OF the sensitive key", () => {
   const { canEditPaymentDetails, canEditStatutoryDetails } = require("./hrProfile");
-  const pair = ["edit_employee_sensitive", "add_employees"];
-  // The pair alone opens neither section any more.
-  assert.strictEqual(canEditPaymentDetails({ permissions: pair }), false);
-  assert.strictEqual(canEditStatutoryDetails({ permissions: pair }), false);
+  const sensitive = ["edit_employee_sensitive"];
+  // The sensitive key alone opens neither section.
+  assert.strictEqual(canEditPaymentDetails({ permissions: sensitive }), false);
+  assert.strictEqual(canEditStatutoryDetails({ permissions: sensitive }), false);
   // The section key alone opens nothing either: the columns stay sensitive.
   assert.strictEqual(canEditPaymentDetails({ permissions: ["edit_payment_details"] }), false);
   assert.strictEqual(canEditStatutoryDetails({ permissions: ["edit_statutory_details"] }), false);
-  // Pair + section key.
-  assert.strictEqual(canEditPaymentDetails({ permissions: [...pair, "edit_payment_details"] }), true);
-  assert.strictEqual(canEditStatutoryDetails({ permissions: [...pair, "edit_payment_details"] }), false);
-  assert.strictEqual(canEditStatutoryDetails({ permissions: [...pair, "edit_statutory_details"] }), true);
+  // Sensitive + section key.
+  assert.strictEqual(canEditPaymentDetails({ permissions: [...sensitive, "edit_payment_details"] }), true);
+  assert.strictEqual(canEditStatutoryDetails({ permissions: [...sensitive, "edit_payment_details"] }), false);
+  assert.strictEqual(canEditStatutoryDetails({ permissions: [...sensitive, "edit_statutory_details"] }), true);
   // Admin bypass, as everywhere.
   assert.strictEqual(canEditPaymentDetails({ isAdmin: true }), true);
   // `employee_create` - the onboarding key - opens neither.
   assert.strictEqual(canEditPaymentDetails({ permissions: ["employee_create", "employee_edit"] }), false);
   assert.strictEqual(canEditStatutoryDetails({ permissions: ["employee_create", "employee_edit"] }), false);
+});
+
+test("M1 review fix: a section can be edited WITHOUT Add Employee", () => {
+  // The review issue in one assertion: a designation holding the sensitive
+  // key and one section key - and NOT `add_employees` - must be offered the
+  // editor for that section, because the backend now accepts the write.
+  const { canEditPaymentDetails, canEditStatutoryDetails } = require("./hrProfile");
+  const payment = { permissions: perms("edit_employee_sensitive", "edit_payment_details") };
+  const statutory = { permissions: perms("edit_employee_sensitive", "edit_statutory_details") };
+
+  assert.strictEqual(canEditPaymentDetails(payment), true, "Payment Details without Add Employee");
+  assert.strictEqual(canEditStatutoryDetails(statutory), true, "Statutory Details without Add Employee");
+
+  // And still not each other's section.
+  assert.strictEqual(canEditStatutoryDetails(payment), false);
+  assert.strictEqual(canEditPaymentDetails(statutory), false);
+
+  // Adding Add Employee changes nothing either way - it is simply not part of
+  // this decision any more.
+  const withAdd = { permissions: perms("edit_employee_sensitive", "edit_payment_details", "add_employees") };
+  assert.strictEqual(canEditPaymentDetails(withAdd), true);
+  assert.strictEqual(canEditStatutoryDetails(withAdd), false);
 });
 
 test("M1: changing a shift from the profile takes the assignment pair, and employee_create is not it", () => {

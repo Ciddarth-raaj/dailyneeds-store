@@ -918,3 +918,45 @@ test("NO PAY AND NO DOCUMENT WORKFLOW LIVES ON THIS PROFILE", () => {
   const map = rules.slice(rules.indexOf("const SENSITIVE_FIELD_API_KEY"));
   assert.ok(!/salary/.test(map.slice(0, 600)), "salary has no sensitive-field mapping any more");
 });
+
+test("M1 review fix: NO Employee Master screen can write salary, anywhere on the surface", () => {
+  // The backend removed `salary` from /employee/updatedata's schema, so the
+  // column is not writable through the Employee Master at all - it belongs to
+  // the dedicated Payroll / Salary Revision system. This sweeps the WHOLE M1
+  // surface rather than the profile alone, so a new section or a new stage
+  // cannot quietly reintroduce the field.
+  const surface = [
+    "pages/hr/employees/[id].jsx",
+    "pages/hr/employees/new.jsx",
+    "util/hrProfile.js",
+    "util/hrOnboarding.js",
+    "helper/hr.js",
+    ...fs
+      .readdirSync(path.join(ROOT, "components/hr/profile"))
+      .filter((f) => f.endsWith(".jsx"))
+      .map((f) => `components/hr/profile/${f}`),
+  ];
+
+  for (const file of surface) {
+    const code = codeOf(read(file));
+    // A payload key, an assignment or a form field - the three shapes a write
+    // would actually take. Prose about Payroll is fine and is stripped by
+    // `codeOf` anyway.
+    assert.ok(
+      !/\bsalary\b\s*[:=]/.test(code),
+      `${file} must not put salary into a payload or form state`
+    );
+    assert.ok(
+      !/name=["']salary["']/.test(code),
+      `${file} must not render an editable salary field`
+    );
+  }
+
+  // And the editable-field contract itself never names it.
+  const rules = read("util/hrProfile.js");
+  const editable = rules.slice(
+    rules.indexOf("const HR_EDITABLE_FIELDS"),
+    rules.indexOf("const NUMERIC_HR_FIELDS")
+  );
+  assert.ok(!/"salary"/.test(editable), "salary is not an HR-editable field");
+});
