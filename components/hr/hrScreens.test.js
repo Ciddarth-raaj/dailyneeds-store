@@ -1038,6 +1038,105 @@ test("M2 — Previous PF Member is sent as a tri-state number, under the statuto
   );
 });
 
+/* --------------------- M2 review fix. Previous EPS Member ----------------- */
+
+test("M2 review fix — Previous EPS Member is its OWN tri-state field", () => {
+  // Official EPFO Form 11 asks about previous EPF membership and previous EPS
+  // membership separately, because the answers differ: somebody can have been
+  // in a previous employer's provident fund without ever having been in the
+  // pension scheme. Two fields, not one reused.
+  assert.match(statutory, /name="previous_eps_member"/, "it is editable");
+  assert.match(
+    statutory,
+    /label="Existing \/ Previous EPS member"/,
+    "labelled as the approved rule names it"
+  );
+  assert.match(statutory, /name="previous_pf_member"/, "and the PF fact is still there");
+
+  const block = statutory.slice(statutory.indexOf('name="previous_eps_member"'));
+  assert.match(block.slice(0, 400), /options=\{APPLICABILITY_OPTIONS\}/);
+
+  // Read mode shows Yes / No / not recorded, as its own answer.
+  assert.match(
+    statutory,
+    /applicabilityLabel\(employee\.previous_eps_member\)/,
+    "displayed as a standalone fact"
+  );
+
+  // NOT through `statutoryValue`, for the same reason as its neighbour: that
+  // reads "Not applicable" the moment the PF flag is off.
+  assert.ok(
+    !/statutoryValue\([^)]*employee\.previous_eps_member\)/.test(statutory),
+    "it is a history, not an identifier waiting on this employer"
+  );
+
+  // AND IT IS NEVER FILLED IN FROM THE PF ANSWER. The whole point of the fix:
+  // the screen may not quietly copy one answer into the other field.
+  assert.ok(
+    !/previous_eps_member:\s*(employee|form)\.previous_pf_member/.test(statutory),
+    "the EPS answer is never seeded from the PF one"
+  );
+  assert.ok(
+    !/previous_pf_member:\s*(employee|form)\.previous_eps_member/.test(statutory),
+    "nor the other way round"
+  );
+});
+
+test("M2 review fix — Previous EPS Member is sent as a tri-state number, under the statutory right", () => {
+  const {
+    buildSensitivePayload,
+  } = require(path.join(ROOT, "util/hrProfile.js"));
+
+  assert.deepStrictEqual(
+    buildSensitivePayload(5, { previous_eps_member: null }, { previous_eps_member: 1 }),
+    { employee_id: 5, employee_details: { previous_eps_member: 1 } }
+  );
+  assert.deepStrictEqual(
+    buildSensitivePayload(5, { previous_eps_member: 1 }, { previous_eps_member: 0 }),
+    { employee_id: 5, employee_details: { previous_eps_member: 0 } }
+  );
+
+  // AN EMPTIED DROPDOWN CLEARS IT TO null, NOT TO 0. 0 means "never an EPS
+  // member", which files a third of the employer contribution; null means
+  // nobody has said, and the backend keeps reporting the split as unresolved.
+  assert.deepStrictEqual(
+    buildSensitivePayload(5, { previous_eps_member: 1 }, { previous_eps_member: "" }),
+    { employee_id: 5, employee_details: { previous_eps_member: null } }
+  );
+
+  assert.strictEqual(
+    buildSensitivePayload(5, { previous_eps_member: 1 }, { previous_eps_member: 1 }),
+    null
+  );
+
+  // THE TWO FACTS TRAVEL INDEPENDENTLY. Changing one must not send the other,
+  // and both may be sent together with different answers.
+  assert.deepStrictEqual(
+    buildSensitivePayload(
+      5,
+      { previous_pf_member: 1, previous_eps_member: 1 },
+      { previous_pf_member: 1, previous_eps_member: 0 }
+    ),
+    { employee_id: 5, employee_details: { previous_eps_member: 0 } }
+  );
+  assert.deepStrictEqual(
+    buildSensitivePayload(
+      5,
+      { previous_pf_member: null, previous_eps_member: null },
+      { previous_pf_member: 1, previous_eps_member: 0 }
+    ),
+    { employee_id: 5, employee_details: { previous_pf_member: 1, previous_eps_member: 0 } }
+  );
+
+  // It travels on the SENSITIVE path, never on the ordinary HR editor patch.
+  const rules = read("util/hrProfile.js");
+  const editable = rules.slice(rules.indexOf("HR_EDITABLE_FIELDS"), rules.indexOf("NUMERIC_HR_FIELDS"));
+  assert.ok(
+    !/previous_eps_member/.test(editable),
+    "it must not be in the ordinary editable list - it is sensitive"
+  );
+});
+
 test("M2 — the Payroll section is still an untouched M1 placeholder", () => {
   // Rule 14: the frontend scope is the new field and nothing else. No Salary
   // Revision, Approval or Bulk Upload UI, and no salary figure on the profile.

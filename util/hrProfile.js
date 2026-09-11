@@ -207,12 +207,19 @@ const SENSITIVE_FIELD_API_KEY = {
   esi_applicable: "esi_applicable",
   // M2. Whether the employee was already a provident fund member before they
   // joined — a THIRD statutory fact, separate from PF applicable, the UAN and
-  // the PF number, and deliberately not the legacy free-text `pf` column.
-  //
-  // It is not decoration: it decides whether the employer's 12% splits into
-  // EPF and EPS or goes wholly to EPF, so an unanswered one is a contribution
-  // the backend reports as unresolved rather than guessing at.
+  // the PF number, and deliberately not the legacy free-text `pf` column. It
+  // is the EPF half of the Form 11 declaration.
   previous_pf_member: "previous_pf_member",
+  // M2 review fix. The EPS half, asked and stored separately because Form 11
+  // asks it separately and the answers differ — somebody can have been in a
+  // previous employer's provident fund without ever having been in the pension
+  // scheme.
+  //
+  // It is not decoration: THIS is the answer that decides whether the
+  // employer's 12% splits into EPF and EPS or goes wholly to EPF, so an
+  // unanswered one is a contribution the backend reports as unresolved rather
+  // than guessing at — and it never guesses it from the field above.
+  previous_eps_member: "previous_eps_member",
   // M1. Cash or Bank, on the Payment Details section beside the account it
   // qualifies. Sensitive under B3 already; the route takes it as a number.
   payment_type: "payment_type",
@@ -240,6 +247,11 @@ const NUMERIC_SENSITIVE_FIELDS = [
   // unresolved, so an emptied dropdown must arrive as null. Sending 0 would
   // record "first-time member" — a statutory position nobody took.
   "previous_pf_member",
+  // M2 review fix. The same, and it is this one the EPS split actually reads:
+  // an emptied dropdown must arrive as null so the backend keeps reporting the
+  // pension split as unresolved. Sending 0 would record "never an EPS member"
+  // and file a third of the employer contribution on nobody's say-so.
+  "previous_eps_member",
   "payment_type",
 ];
 

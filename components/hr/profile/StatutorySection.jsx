@@ -54,6 +54,7 @@ function StatutorySection({ employee = {}, canView, canEdit, onSave, saving }) {
       uan: employee.uan ?? "",
       pf_applicable: employee.pf_applicable ?? "",
       previous_pf_member: employee.previous_pf_member ?? "",
+      previous_eps_member: employee.previous_eps_member ?? "",
       pf_number: employee.pf_number ?? "",
       esi_applicable: employee.esi_applicable ?? "",
       esi_number: employee.esi_number ?? "",
@@ -96,17 +97,32 @@ function StatutorySection({ employee = {}, canView, canEdit, onSave, saving }) {
             />
             {/* M2. A SEPARATE FACT from PF applicable, and from both numbers.
                 "Is this employee in the scheme now" and "had they ever been in
-                it before they joined us" are different questions, and only the
-                second decides whether the employer's share splits into EPF and
-                EPS. Placed directly under PF applicable because that is the
-                order the question gets asked in. */}
+                it before they joined us" are different questions. Placed
+                directly under PF applicable because that is the order the
+                question gets asked in. */}
             <EditField
               label="Existing / Previous PF member"
               name="previous_pf_member"
               value={form.previous_pf_member}
               onChange={set}
               options={APPLICABILITY_OPTIONS}
-              help="Was the employee already a PF member before joining? Leave blank if it is not known."
+              help="Was the employee already a PF (EPF) member before joining? Leave blank if it is not known."
+            />
+            {/* M2 review fix. TWO QUESTIONS, NOT ONE. Official EPFO Form 11
+                asks about previous EPF membership and previous EPS (pension)
+                membership separately, because the answers differ - somebody
+                can have been in a previous employer's provident fund without
+                ever having been in the pension scheme. Only THIS answer
+                decides whether the employer's share splits into EPF and EPS,
+                so it is asked here rather than inferred from the field above
+                it. */}
+            <EditField
+              label="Existing / Previous EPS member"
+              name="previous_eps_member"
+              value={form.previous_eps_member}
+              onChange={set}
+              options={APPLICABILITY_OPTIONS}
+              help="Was the employee already an EPS (pension scheme) member before joining? Leave blank if it is not known — it is not assumed from the PF answer above."
             />
             <EditField label="UAN" name="uan" value={form.uan} onChange={set} />
             {/* `pf_number` IS the PF member id - the one column production has
@@ -143,6 +159,16 @@ function StatutorySection({ employee = {}, canView, canEdit, onSave, saving }) {
             <Field
               label="Existing / Previous PF member"
               value={applicabilityLabel(employee.previous_pf_member)}
+            />
+            {/* M2 review fix. Shown as its OWN answer, never as an echo of the
+                line above it: "not recorded" here means the pension question
+                has not been answered, which is exactly what payroll needs to
+                see, because the backend reports the EPS split as unresolved
+                until it is. Same `applicabilityLabel` treatment and for the
+                same reason as its neighbour. */}
+            <Field
+              label="Existing / Previous EPS member"
+              value={applicabilityLabel(employee.previous_eps_member)}
             />
             {/* The UAN is the provident-fund identifier, so it answers to the
                 PF flag: an employee not in the scheme has no UAN to chase. */}
