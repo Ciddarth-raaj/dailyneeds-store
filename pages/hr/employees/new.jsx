@@ -52,8 +52,11 @@ function AddEmployee() {
   const canCreate = usePermissions(["employee_create"]);
 
   const { outlets } = useOutlets({ directory: true });
-  const { designations } = useDesignations();
-  const { departments } = useDepartments();
+  // Pickers only. `employee_create` is this screen's permission; the
+  // designation and department master permissions are not a prerequisite for
+  // choosing one, any more than `view_stores` is for choosing a branch.
+  const { designations } = useDesignations({ directory: true });
+  const { departments } = useDepartments({ directory: true });
 
   const [form, setForm] = useState({
     employee_name: "",

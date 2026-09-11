@@ -9,14 +9,24 @@ import unwrapList from "../util/apiList";
  * authorisation failure as "there are no designations". `accessDenied` makes
  * the difference visible to the screen.
  */
-function useDesignations() {
+function useDesignations({ directory = false } = {}) {
   const [designations, setDesignations] = useState([]);
   const [accessDenied, setAccessDenied] = useState(false);
   const [error, setError] = useState(false);
 
   const init = async () => {
     try {
-      const result = unwrapList(await DesignationHelper.getDesignation());
+      // `directory: true` asks for the id-and-name list behind no permission,
+      // for callers that only render a dropdown - the Employee Master screens,
+      // where `employee_edit` is the permission that matters and
+      // `view_designation` is not held. The default is unchanged, so every
+      // existing consumer keeps the full record and its `view_designation`
+      // gate. Modelled on the same option in `useOutlets`.
+      const result = unwrapList(
+        directory
+          ? await DesignationHelper.getDesignationDirectory()
+          : await DesignationHelper.getDesignation()
+      );
       setDesignations(result.items);
       setAccessDenied(result.accessDenied);
       setError(result.error);
@@ -29,7 +39,7 @@ function useDesignations() {
 
   useEffect(() => {
     init();
-  }, []);
+  }, [directory]);
 
   return { designations, accessDenied, error };
 }

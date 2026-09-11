@@ -220,7 +220,11 @@ test("Skip for now is a real choice, and Aadhaar is not required to create", () 
 });
 
 test("verifying later attaches to the same employee, and never creates one", () => {
-  assert.match(profile, /HrHelper\.attachAadhaar\(lifecycle\.employee_id/);
+  // `identity` is the profile's own name for "who this employee is", resolved
+  // from the lifecycle read where the caller may make it and from the employee
+  // record where they may not. What this test is about is unchanged: the
+  // attach targets the employee ALREADY ON THE SCREEN, never a fresh one.
+  assert.match(profile, /HrHelper\.attachAadhaar\(identity\.employee_id/);
   assert.ok(!/createEmployee/.test(profile), "the profile must never create an employee");
   assert.match(profile, /already belongs to employee/, "a clash names the holder");
 });

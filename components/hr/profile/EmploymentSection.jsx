@@ -92,7 +92,20 @@ function EmploymentSection({
       onCancel={() => setEditing(false)}
       onSave={save}
       saving={saving}
-      badge={<EmploymentBadge status={lifecycle.status ?? employee.status} />}
+      // THE LIFECYCLE IS THE AUTHORITY ON EMPLOYMENT STATUS, and the only one.
+      // `employee.status` used to be the fallback, and cannot be: the profile's
+      // employee read is a `SELECT *` joined across department, designation and
+      // shift_master, each of which has a `status` column of its own, so the
+      // key that survives is whichever the driver kept last - a shift's status,
+      // not an employment one. It never fired while the lifecycle was always
+      // present; now that a caller holding `view_employees` alone reaches this
+      // screen without it, a wrong Active/Resigned badge is a real outcome.
+      // No badge beats a guessed one.
+      badge={
+        lifecycle.status === undefined || lifecycle.status === null ? null : (
+          <EmploymentBadge status={lifecycle.status} />
+        )
+      }
     >
       <FieldGrid>
         <Field label="Employee ID" value={employee.employee_id ?? lifecycle.employee_id} mono />

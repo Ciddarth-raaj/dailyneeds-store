@@ -8,8 +8,49 @@ export const PERMISSIONS = {
   },
 
   // Employees
+  //
+  // EMPLOYEE MASTER. The five keys after `view_employees` are the ones the
+  // backend has enforced since Stage 0C / C2 — `routes/employee_master.js`
+  // gates every lifecycle route on them and the C2 migration declared them in
+  // `all_permissions` — but they were never listed here, and this file is the
+  // ONLY source the Designation screen builds its checkboxes from
+  // (`util/permissionCatalog.js`). So the keys existed, the enforcement
+  // existed, and there was no way to grant them: a Store Manager who needed to
+  // correct a phone number could only be given `add_employees`, which carries
+  // the whole HR surface with it. Nothing is renamed or invented here; the
+  // keys are exactly the ones the routes already require.
+  //
+  // They are FOUR SEPARATE DECISIONS on purpose, so one can be granted without
+  // the others:
+  //
+  //   view_employees           open and read employee profiles
+  //   employee_create          create a new employee
+  //   employee_edit            edit the permitted employee master fields
+  //   employee_resign/_rejoin  move somebody's employment status
+  //
+  // `employee_edit` DOES NOT CARRY SALARY, BANK, AADHAAR, PAN, UAN, PF OR ESI.
+  // Those are B3 sensitive fields on a different write path entirely
+  // (`view_employee_sensitive` / `edit_employee_sensitive`, plus
+  // `add_employees` on the route), and `middlewares/sensitive.js` refuses a
+  // body that so much as mentions one of them. Granting Edit Employee to a
+  // manager therefore cannot reach payroll data.
+  //
+  // Resign and Rejoin stay two keys rather than being fused into one "change
+  // status" key, because that is what the backend enforces and what the audit
+  // trail records. They are labelled as the pair they are so the intent is
+  // legible on the Designation screen.
   employee: {
     view_employees: "View Employees",
+    employee_create: "Add Employee",
+    employee_edit: "Edit Employee",
+    employee_resign: "Change Employee Status — Resign",
+    employee_rejoin: "Change Employee Status — Rejoin",
+    // Service history, and the Aadhaar / bank VERIFICATION STATUS panels on
+    // the profile - not the values, which stay behind the sensitive keys.
+    // Listed because the profile's lifecycle, Aadhaar-status and bank-status
+    // reads are all gated on it, so without it an administrator has no way to
+    // give a manager the complete profile view.
+    view_employee_lifecycle: "View Employee Lifecycle & Verification Status",
     view_department: "View Departments",
     view_designation: "View Designation",
     // view_shift: "View Shifts",

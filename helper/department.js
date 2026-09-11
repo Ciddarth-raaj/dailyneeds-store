@@ -11,6 +11,21 @@ const department = {
           reject(err);
         });
     }),
+  /**
+   * `{ department_id, department_name }` for a dropdown, behind no permission.
+   * The counterpart of `getDesignationDirectory` - see
+   * `GET /department/directory` on the backend.
+   */
+  getDepartmentDirectory: () =>
+    new Promise(function (resolve, reject) {
+      API.get("/department/directory")
+        .then(async (res) => {
+          resolve(res.data);
+        })
+        .catch((err) => {
+          reject(err);
+        });
+    }),
   formatBrand: (data) => {
     const formattedData = [];
     for (const d of data) {

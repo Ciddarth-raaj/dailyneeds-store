@@ -112,7 +112,11 @@ function HrEmployeeList() {
   const [status, setStatus] = useState("active");
 
   const { outlets } = useOutlets({ directory: true });
-  const { designations } = useDesignations();
+  // The designation FILTER, so it is populated for anyone who may see the
+  // list. `view_employees` is this screen's permission; `view_designation` is
+  // for administering designations and was never meant to be a prerequisite
+  // for filtering by one - the same reasoning as the outlet directory above.
+  const { designations } = useDesignations({ directory: true });
 
   useEffect(() => {
     let cancelled = false;

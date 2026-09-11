@@ -11,6 +11,22 @@ const designation = {
           reject(err);
         });
     }),
+  /**
+   * `{ designation_id, designation_name }` for a dropdown, behind no
+   * permission. `getDesignation` above stays on the `view_designation`-gated
+   * route and keeps the full record; this is for callers that only render a
+   * picker - see `GET /designation/directory` on the backend.
+   */
+  getDesignationDirectory: () =>
+    new Promise(function (resolve, reject) {
+      API.get("/designation/directory")
+        .then(async (res) => {
+          resolve(res.data);
+        })
+        .catch((err) => {
+          reject(err);
+        });
+    }),
   formatBrand: (data) => {
     const formattedData = [];
     for (const d of data) {

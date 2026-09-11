@@ -97,8 +97,13 @@ function EmployeeProfile() {
   const canViewLifecycle = usePermissions(["view_employee_lifecycle"]);
 
   const { outlets } = useOutlets({ directory: true });
-  const { departments } = useDepartments();
-  const { designations } = useDesignations();
+  // The id-and-name lists, not the `view_department` / `view_designation`
+  // reads. They fill the Employment editor's dropdowns and nothing else, and a
+  // manager holding `employee_edit` does not hold the master permissions - so
+  // asking for the gated route here made the field editable and unusable at
+  // the same time.
+  const { departments } = useDepartments({ directory: true });
+  const { designations } = useDesignations({ directory: true });
   // The NEW shift mapping, read-only. `useShifts` - the legacy `/shift`
   // master - is deliberately not used on this screen any more.
   const currentShift = useCurrentWorkShift(id);
@@ -363,7 +368,43 @@ function EmployeeProfile() {
     );
   }
 
-  if (!lifecycle) {
+  /**
+   * WHO THIS EMPLOYEE IS, from whichever read the caller was allowed.
+   *
+   * `view_employee_lifecycle` is a SEPARATE grant from `view_employees`, so a
+   * manager given View Employee alone gets a 403 from the lifecycle read while
+   * `GET /employee/employee_id` succeeds. This page used to treat that one
+   * refusal as fatal and render the backend's own
+   * "You do not have permission to perform this action" across the whole
+   * screen - telling somebody who may read this employee that they may not.
+   *
+   * The lifecycle response is still preferred where it exists; it is the
+   * authority on employment periods. Where it was refused, identity falls back
+   * to the employee record for the two facts that record states plainly - who
+   * this is, and which id they hold. What genuinely needs the lifecycle - the
+   * service timeline, the Aadhaar and bank verification panels - is absent
+   * rather than faked, and says so.
+   *
+   * EMPLOYMENT STATUS IS DELIBERATELY NOT CARRIED OVER. `employee.status`
+   * comes from a `SELECT *` joined across department, designation and
+   * shift_master, all three of which have a `status` column, so the value that
+   * survives is not reliably the employment one. Resign and Rejoin turn on
+   * exactly that fact, so without the lifecycle neither is offered - see
+   * below.
+   */
+  const identity =
+    lifecycle ||
+    (employee
+      ? {
+          employee_id: employee.employee_id,
+          employee_name: employee.employee_name,
+          periods: [],
+        }
+      : null);
+
+  // Neither read succeeded: no view permission at all, or no such employee.
+  // THIS is the case that is genuinely blocked, and the only one.
+  if (!identity) {
     return (
       <GlobalWrapper title="Employee">
         <CustomContainer title="Employee" filledHeader>
@@ -384,19 +425,23 @@ function EmployeeProfile() {
   // More than one employment period means a resign and a rejoin: a real
   // service history, and the only case where the timeline says anything the
   // Employment card does not.
-  const periodCount = Array.isArray(lifecycle.periods) ? lifecycle.periods.length : 0;
+  const periodCount =
+    lifecycle && Array.isArray(lifecycle.periods) ? lifecycle.periods.length : 0;
   const hasEmploymentHistory = periodCount > 1;
 
-  const { canResign, canRejoin } = lifecycleActions({
-    isActive: lifecycle.is_active,
-    permissions,
-    isAdmin,
-  });
+  // Resign applies to somebody employed and Rejoin to somebody who has left,
+  // so both need to know WHICH - and only the lifecycle says so reliably.
+  // Without it, offer neither rather than guess: a Rejoin button on a serving
+  // employee is a worse failure than a missing one, and the backend would
+  // refuse it anyway.
+  const { canResign, canRejoin } = lifecycle
+    ? lifecycleActions({ isActive: lifecycle.is_active, permissions, isAdmin })
+    : { canResign: false, canRejoin: false };
 
   return (
-    <GlobalWrapper title={lifecycle.employee_name || "Employee"}>
+    <GlobalWrapper title={identity.employee_name || "Employee"}>
       <CustomContainer
-        title={`${lifecycle.employee_name} · ID ${lifecycle.employee_id}`}
+        title={`${identity.employee_name} · ID ${identity.employee_id}`}
         filledHeader
         rightSection={
           <Stack direction="row" spacing={2}>
@@ -422,6 +467,17 @@ function EmployeeProfile() {
             </Alert>
           ) : null}
 
+          {/* The mirror case: the employee record read, the lifecycle did not.
+              Said once, at the top, rather than left for the reader to infer
+              from three panels that quietly are not there. */}
+          {!lifecycle ? (
+            <Alert status="info" fontSize="sm">
+              <AlertIcon />
+              Service history and the Aadhaar and bank verification status are not shown — they need
+              the Employee Lifecycle permission. Everything else on this employee is below.
+            </Alert>
+          ) : null}
+
           <PersonalSection
             employee={employee || {}}
             canEdit={canEdit && Boolean(employee)}
@@ -431,7 +487,9 @@ function EmployeeProfile() {
 
           <EmploymentSection
             employee={employee || {}}
-            lifecycle={lifecycle}
+            // `|| {}` rather than the raw state: the default parameter only
+            // covers `undefined`, and a refused lifecycle read is `null`.
+            lifecycle={lifecycle || {}}
             outlets={outlets}
             departments={departments}
             designations={designations}
@@ -495,10 +553,10 @@ function EmployeeProfile() {
                   Verify, so the next step is one decision rather than a button
                   under a card that already had buttons. */}
               <BankCard
-                employeeId={lifecycle.employee_id}
+                employeeId={identity.employee_id}
                 // The review compares two names, so it needs both. HR's own
                 // record of the name, not the bank's.
-                employeeName={lifecycle.employee_name}
+                employeeName={identity.employee_name}
                 bank={bank}
                 permissions={permissions}
                 isAdmin={isAdmin}
@@ -549,7 +607,7 @@ function EmployeeProfile() {
       <AadhaarVerifyModal
         isOpen={aadhaarOpen}
         onClose={() => setAadhaarOpen(false)}
-        employeeName={lifecycle.employee_name}
+        employeeName={identity.employee_name}
         onVerified={async (decision, outcome) => {
           setAadhaarOpen(false);
           if (!outcome) return;
@@ -565,7 +623,7 @@ function EmployeeProfile() {
             return;
           }
           try {
-            const res = await HrHelper.attachAadhaar(lifecycle.employee_id, decision.verification_id);
+            const res = await HrHelper.attachAadhaar(identity.employee_id, decision.verification_id);
             if (failed(res)) {
               toast({
                 title: res.msg || "The Aadhaar could not be attached",
@@ -578,7 +636,7 @@ function EmployeeProfile() {
               return;
             }
             toast({
-              title: `Aadhaar attached to employee ${lifecycle.employee_id}`,
+              title: `Aadhaar attached to employee ${identity.employee_id}`,
               status: "success",
               duration: 4000,
             });
@@ -604,13 +662,13 @@ function EmployeeProfile() {
       <ResignModal
         isOpen={resignOpen}
         onClose={() => setResignOpen(false)}
-        employee={lifecycle}
+        employee={identity}
         onDone={load}
       />
       <RejoinModal
         isOpen={rejoinOpen}
         onClose={() => setRejoinOpen(false)}
-        employee={lifecycle}
+        employee={identity}
         lifecycle={lifecycle}
         onDone={load}
       />

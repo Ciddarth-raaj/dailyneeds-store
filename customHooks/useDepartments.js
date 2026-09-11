@@ -8,7 +8,7 @@ import unwrapList from "../util/apiList";
  * rather than as an empty list, so a screen can say "you cannot see
  * departments" instead of implying there are none.
  */
-function useDepartments() {
+function useDepartments({ directory = false } = {}) {
   const [departments, setDepartments] = useState([]);
   const [accessDenied, setAccessDenied] = useState(false);
   const [error, setError] = useState(false);
@@ -17,7 +17,13 @@ function useDepartments() {
     let cancelled = false;
     (async () => {
       try {
-        const result = unwrapList(await DepartmentHelper.getDepartment());
+        // See `useDesignations`: `directory: true` is the id-and-name list for
+        // a dropdown, and the default is the unchanged `view_department` read.
+        const result = unwrapList(
+          directory
+            ? await DepartmentHelper.getDepartmentDirectory()
+            : await DepartmentHelper.getDepartment()
+        );
         if (cancelled) return;
         setDepartments(result.items);
         setAccessDenied(result.accessDenied);
@@ -32,7 +38,7 @@ function useDepartments() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [directory]);
 
   return { departments, accessDenied, error };
 }
