@@ -34,9 +34,9 @@ const ONBOARDING_STAGES = [
   {
     key: "aadhaar",
     label: "Aadhaar",
-    title: "Aadhaar verification",
+    title: "Aadhaar Verification",
     blurb:
-      "Verifying first is how a rejoining employee keeps their original ID instead of getting a second one.",
+      "Verify Aadhaar to identify existing/rejoining employees and avoid duplicate Employee IDs.",
   },
   {
     key: "personal",

@@ -219,9 +219,49 @@ test("an inactive duplicate is offered as a Rejoin", () => {
 
 test("Skip for now is a real choice, and Aadhaar is not required to create", () => {
   assert.match(add, /Skip for now/);
-  assert.match(add, /Preferred, but not required/);
+  assert.match(add, /Aadhaar can be completed later if skipped/);
   // The required-fields gate is name and joining date. Nothing Aadhaar.
   assert.match(add, /const required = form\.employee_name\.trim\(\) && form\.date_of_joining/);
+});
+
+/**
+ * Stage 1 is two actions and nothing else. The long explanation that used to
+ * sit above them - why verification matters, and what skipping does not hold
+ * up - is what made the screen heavy for a store manager, and the decision it
+ * asks for was being confirmed twice: once on an action, once on a Next.
+ */
+test("STAGE 1 IS A DECISION, AND THE DECISION IS WHAT MOVES THE MANAGER ON", () => {
+  const code = codeOf(add);
+
+  // Both answers advance by themselves.
+  assert.match(code, /const leaveAadhaar = \(\) => goTo\(stage \+ 1\)/);
+  assert.match(code, /const skipAadhaar = \(\) => \{[\s\S]{0,120}setAadhaarSkipped\(true\);[\s\S]{0,80}leaveAadhaar\(\)/);
+  assert.match(code, /applyVerifiedDemographics\(f, decision\)\);[\s\S]{0,200}leaveAadhaar\(\)/);
+
+  // So stage 1 offers no generic Next of its own.
+  assert.match(code, /stageKey === "aadhaar" \? null : \(/);
+
+  // Skipping still means Aadhaar Pending, and is still never required.
+  assert.match(add, /Aadhaar Pending/);
+  assert.ok(!/isDisabled=\{!verification/.test(code), "Aadhaar must not gate anything");
+});
+
+test("the heavy stage 1 copy is gone, and the concise copy is what is left", () => {
+  const stages = read("util/hrOnboarding.js");
+  const stage1 = stages.slice(stages.indexOf('key: "aadhaar"'), stages.indexOf('key: "personal"'));
+  assert.match(stage1, /title: "Aadhaar Verification"/);
+  assert.match(stage1, /identify existing\/rejoining employees and avoid duplicate Employee IDs/);
+
+  // The two paragraphs the managers were reading past.
+  assert.ok(!/Preferred, but not required/.test(add), "the preamble is gone");
+  assert.ok(!/attendance or payroll/.test(add), "the bank/attendance/payroll paragraph is gone");
+  assert.ok(
+    !/keeps their original ID instead of getting a second one/.test(stages),
+    "the rejoining explanation is gone from the stage blurb"
+  );
+
+  // Cancel is still there.
+  assert.match(add, /<Button variant="ghost">\s*Cancel/);
 });
 
 /* ================================= the manager's onboarding wizard ====== */

@@ -63,7 +63,8 @@ import {
  * warning that is read and overruled. And it will not require an Aadhaar:
  * "Skip for now" is a first-class choice, not a nag, because a new hire whose
  * Aadhaar is not to hand still needs to be paid. What stage 1 asks for is a
- * decision, not an Aadhaar.
+ * decision, not an Aadhaar - and either answer moves straight on to stage 2,
+ * which is why that stage has no Next button of its own.
  *
  * ONE EMPLOYEE, CREATED ONCE, at the end of stage 3. Nothing is written
  * before it - there is no draft record, no temporary id and no second
@@ -158,6 +159,25 @@ function AddEmployee() {
     }
   };
 
+  /** Move to a stage, remembering how far the manager got so Back loses nothing. */
+  const goTo = (target) => {
+    setErrors({});
+    setStage(target);
+    setFurthest((f) => Math.max(f, target));
+  };
+
+  /**
+   * STAGE 1 HAS NO NEXT OF ITS OWN. Verifying or skipping IS the answer it
+   * asks for, so either one moves the manager on rather than being confirmed a
+   * second time on a button that says nothing.
+   */
+  const leaveAadhaar = () => goTo(stage + 1);
+
+  const skipAadhaar = () => {
+    setAadhaarSkipped(true);
+    leaveAadhaar();
+  };
+
   const next = async () => {
     const found = validateStage(stageKey, form, stageContext);
     if (Object.keys(found).length > 0) {
@@ -171,9 +191,7 @@ function AddEmployee() {
     // created. It never blocks: the answer is shown on the next stage, beside
     // the button that would create the second record.
     if (stageKey === "personal") await runDuplicateCheck();
-    const target = stage + 1;
-    setStage(target);
-    setFurthest((f) => Math.max(f, target));
+    goTo(stage + 1);
   };
 
   const back = () => {
@@ -312,40 +330,20 @@ function AddEmployee() {
           {/* ============================================= 1. Aadhaar ==== */}
           {stageKey === "aadhaar" ? (
             <Stack spacing={4}>
-              <Text fontSize="sm" color="gray.600">
-                Preferred, but not required. Skipping does not hold up joining, bank setup,
-                attendance or payroll — the employee simply shows as Aadhaar Pending until it is
-                done.
-              </Text>
-
+              {/* Only shown on a RETURN to stage 1 - a fresh decision moves the
+                  manager straight on, so there is nothing to report yet. */}
               {verification ? (
                 <Alert status="success" fontSize="sm">
                   <AlertIcon />
-                  <Stack spacing={0}>
-                    <Text fontWeight="bold">
-                      Aadhaar verified{" "}
-                      <Badge colorScheme="green">ending {verification.aadhaar_last4}</Badge>
-                    </Text>
-                    <Text>It will be attached to this employee when they are created at stage 3.</Text>
-                  </Stack>
+                  <Text fontWeight="bold">
+                    Aadhaar verified{" "}
+                    <Badge colorScheme="green">ending {verification.aadhaar_last4}</Badge>
+                  </Text>
                 </Alert>
               ) : aadhaarSkipped ? (
                 <Alert status="info" fontSize="sm">
                   <AlertIcon />
-                  <Stack spacing={0}>
-                    <Text fontWeight="bold">Continuing without an Aadhaar</Text>
-                    <Text>
-                      The employee will show as Aadhaar Pending. It can be verified later from
-                      their profile, against the same Employee ID.
-                    </Text>
-                  </Stack>
-                </Alert>
-              ) : null}
-
-              {errors.aadhaar ? (
-                <Alert status="warning" fontSize="sm">
-                  <AlertIcon />
-                  {errors.aadhaar}
+                  <Text>Aadhaar Pending.</Text>
                 </Alert>
               ) : null}
 
@@ -358,21 +356,24 @@ function AddEmployee() {
                     setAadhaarOpen(true);
                   }}
                 >
-                  {verification ? "Verify a different Aadhaar" : "Verify Aadhaar now"}
+                  {verification ? "Verify a different Aadhaar" : "Verify Aadhaar"}
                 </Button>
-                {verification ? null : (
-                  <Button
-                    size="sm"
-                    variant={aadhaarSkipped ? "solid" : "ghost"}
-                    onClick={() => {
-                      setAadhaarSkipped(true);
-                      setErrors({});
-                    }}
-                  >
+                {verification ? (
+                  // A verified Aadhaar has no Skip to offer, and coming back to
+                  // this stage must not be a dead end.
+                  <Button size="sm" variant="outline" onClick={leaveAadhaar}>
+                    Continue
+                  </Button>
+                ) : (
+                  <Button size="sm" variant="ghost" onClick={skipAadhaar}>
                     Skip for now
                   </Button>
                 )}
               </Stack>
+
+              <Text fontSize="xs" color="gray.600">
+                Aadhaar can be completed later if skipped.
+              </Text>
             </Stack>
           ) : null}
 
@@ -600,7 +601,7 @@ function AddEmployee() {
               <Button colorScheme="purple" isLoading={busy} isDisabled={!required} onClick={create}>
                 Create employee &amp; generate ID
               </Button>
-            ) : (
+            ) : stageKey === "aadhaar" ? null : (
               <Button colorScheme="purple" isLoading={checking} onClick={next}>
                 Next
               </Button>
@@ -635,6 +636,8 @@ function AddEmployee() {
             // The verified name and date of birth are better than anything
             // typed by hand, so they fill what is still blank.
             setForm((f) => applyVerifiedDemographics(f, decision));
+            // The decision has been made, so stage 1 is finished with.
+            leaveAadhaar();
             return;
           }
           // Already employed, or should be rejoined: this is not a create, and
