@@ -8,8 +8,47 @@ export const PERMISSIONS = {
   },
 
   // Employees
+  //
+  // The Employee Master keys. `view_employees` opens the directory and the
+  // profile; the four action keys below are what Stage 0C / C2 split out of
+  // the old catch-all `add_employees`, and each gates exactly the route it
+  // names (`employee_edit` -> POST /hr/employee/:id/edit, and so on).
+  //
+  // They existed in `all_permissions` and guarded those routes from the day
+  // C2 shipped, but were never listed here - and this file is what the
+  // Permission Matrix renders, so there was no way for an administrator to
+  // GRANT them. In practice that meant edit access could only be given as
+  // `add_employees`, which also confers create and status change. Listing
+  // them makes the split usable: a Store Manager can hold View and Edit and
+  // nothing else.
+  //
+  // Reading is separate from editing, and both are separate from the
+  // lifecycle actions:
+  //
+  //   view_employees           the directory and the profile (read)
+  //   view_employee_lifecycle  the employment-period history the profile
+  //                            reads; granted alongside View so the profile
+  //                            opens, read-only, without Edit
+  //   employee_edit            the ordinary editor - Personal, Employment,
+  //                            Education. NOT salary, bank, Aadhaar, PAN,
+  //                            UAN, PF or ESI: those stay behind
+  //                            `view_employee_sensitive` /
+  //                            `edit_employee_sensitive`, which are
+  //                            deliberately absent from this screen, so Edit
+  //                            can never become a way to reach them.
+  //   employee_create          hire somebody new
+  //   employee_resign          record that somebody has left
+  //   employee_rejoin          bring a former employee back
+  //
+  // Resign and Rejoin are the two halves of "change employee status" and stay
+  // two keys because they are the two keys the backend already checks.
   employee: {
     view_employees: "View Employees",
+    view_employee_lifecycle: "View Employee Employment History",
+    employee_edit: "Edit Employee",
+    employee_create: "Add Employee",
+    employee_resign: "Change Employee Status — Resign",
+    employee_rejoin: "Change Employee Status — Rejoin",
     view_department: "View Departments",
     view_designation: "View Designation",
     // view_shift: "View Shifts",
