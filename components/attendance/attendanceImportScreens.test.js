@@ -113,9 +113,9 @@ test("Preview Import is the only action before a preview exists - no import butt
 
 test("preview posts the file as multipart to the preview endpoint and cannot be double submitted", () => {
   assert.match(helper, /previewDigiSmeImport: \(file\) => \{[\s\S]*?new FormData\(\)[\s\S]*?formData\.append\("file", file, file\.name\)[\s\S]*?\/attendance\/imports\/digisme\/preview/);
-  assert.match(newImport, /if \(previewing\) return;/);
+  assert.match(newImport, /if \(previewing \|\| committing\) return;/);
   assert.match(newImport, /isLoading=\{previewing\}/);
-  assert.match(newImport, /isDisabled=\{!file \|\| previewing\}/);
+  assert.match(newImport, /isDisabled=\{!file \|\| previewing \|\| committing\}/);
 });
 
 test("the browser never parses the workbook: no Excel library reaches this screen", () => {
@@ -124,10 +124,48 @@ test("the browser never parses the workbook: no Excel library reaches this scree
   assert.doesNotMatch(page, /XLSX\.|FileReader|arrayBuffer\(\)|readAsArrayBuffer/);
 });
 
-test("choosing a different file clears the preview before it can be committed", () => {
-  assert.match(newImport, /selectionInvalidatesPreview\(file, next\)/);
-  const guard = newImport.slice(newImport.indexOf("selectionInvalidatesPreview"));
-  assert.match(guard.slice(0, 200), /setPreview\(null\)/);
+test("ANY new file selection clears the preview - same name and size included", () => {
+  const handler = newImport.slice(newImport.indexOf("const onChooseFile"), newImport.indexOf("const reset"));
+  // Unconditional: no comparison of the old file with the new one decides it.
+  assert.match(handler, /setPreview\(null\);/);
+  assert.match(handler, /setFilterFromCard\(""\);/);
+  assert.doesNotMatch(handler, /selectionInvalidatesPreview|file\.name ===|file\.size ===|!==/);
+  // And the clear is not nested inside a condition on the file itself.
+  const clearAt = handler.indexOf("setPreview(null)");
+  const guardAt = handler.indexOf("if (committing) return;");
+  assert.ok(guardAt !== -1 && guardAt < clearAt, "the only guard before the clear is the commit lock");
+  assert.strictEqual(handler.slice(guardAt + 24, clearAt).includes("if ("), false, "no further condition");
+});
+
+test("the browser never compares files to decide: no hashing or byte reading of the workbook", () => {
+  assert.doesNotMatch(page, /createHash|sha256|crypto\.subtle|lastModified/i);
+});
+
+/* ------------------------------------------------------- locked on commit */
+
+test("the file input is disabled while a batch is being committed", () => {
+  assert.match(newImport, /type="file"[\s\S]{0,200}disabled=\{previewing \|\| committing\}/);
+});
+
+test("file selection is ignored outright during a commit, not merely visually disabled", () => {
+  const handler = newImport.slice(newImport.indexOf("const onChooseFile"), newImport.indexOf("const reset"));
+  assert.match(handler, /if \(committing\) return;/);
+  assert.ok(handler.indexOf("if (committing) return;") < handler.indexOf("e.target.files"), "before the file is even read");
+});
+
+test("Preview Import is disabled during a commit and runPreview refuses to start", () => {
+  assert.match(newImport, /isDisabled=\{!file \|\| previewing \|\| committing\}/);
+  const run = newImport.slice(newImport.indexOf("const runPreview"), newImport.indexOf("const refreshDetails"));
+  assert.match(run, /if \(previewing \|\| committing\) return;/);
+  // The guard is the first thing in the function, before any request.
+  assert.ok(run.indexOf("previewing || committing") < run.indexOf("previewDigiSmeImport"));
+});
+
+test("Start Over is disabled during a commit and refuses to clear state if called", () => {
+  assert.match(newImport, /onClick=\{reset\} isDisabled=\{previewing \|\| committing\}/);
+  const reset = newImport.slice(newImport.indexOf("const reset ="), newImport.indexOf("const runPreview"));
+  assert.match(reset, /if \(committing\) return;/);
+  assert.ok(reset.indexOf("if (committing) return;") < reset.indexOf("setFile(null)"));
 });
 
 /* -------------------------------------------------------------- summary */
@@ -142,6 +180,16 @@ test("the preview shows the batch facts and the five counts from the server", ()
 test("counts and classifications come from the server, never recomputed on screen", () => {
   assert.doesNotMatch(page, /valid_count \+|\+ unmatched_count|reduce\(/);
   assert.match(page, /commitPlan\(batch\)/);
+});
+
+test("the screen never claims the Excel data is or emulates terminal/protocol data", () => {
+  assert.doesNotMatch(page, /as a terminal would have sent|exactly as a terminal|emulat|BM70W|protocol|as if from a device/i);
+  // What it says instead: what a cell becomes, where it is stored, and that
+  // nothing is calculated.
+  const flat = page.replace(/\s+/g, " ");
+  assert.match(flat, /Every non-empty Clock Time cell becomes one attendance punch\./);
+  assert.match(flat, /stored in the same attendance punch store with source DigiSME Import/);
+  assert.match(flat, /No attendance calculation is performed here\./);
 });
 
 test("nothing on the screen calculates attendance", () => {

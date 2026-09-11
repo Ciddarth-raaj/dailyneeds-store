@@ -46,7 +46,6 @@ import {
   outcomeRows,
   pageCount,
   requestErrorMessage,
-  selectionInvalidatesPreview,
   summaryCards,
   validateSelectedFile,
 } from "../../../util/attendanceImport";
@@ -327,18 +326,24 @@ function NewImportTab({ onCommitted }) {
   const committed = Boolean(batch) && batch.status !== "PREVIEWED";
 
   const onChooseFile = (e) => {
+    // While a staged batch is being committed the choice is ignored outright:
+    // the operator must not be able to swap the file under a commit in
+    // flight. The input is disabled too; this is the guard behind it.
+    if (committing) return;
     const next = (e.target.files && e.target.files[0]) || null;
-    // Changing the file invalidates what is on screen: the staged batch
-    // belongs to the file that was uploaded, never to the one now chosen.
-    if (selectionInvalidatesPreview(file, next)) {
-      setPreview(null);
-      setFilterFromCard("");
-    }
+    // ANY new selection invalidates what is on screen, even a file with the
+    // same name and size. Two different workbooks can agree on both, and the
+    // staged batch belongs to the bytes that were actually uploaded - which
+    // the browser deliberately does not read to compare. So the preview is
+    // cleared and the operator previews again.
+    setPreview(null);
+    setFilterFromCard("");
     setFile(next);
     setError(null);
   };
 
   const reset = () => {
+    if (committing) return;
     setFile(null);
     setPreview(null);
     setError(null);
@@ -347,12 +352,13 @@ function NewImportTab({ onCommitted }) {
   };
 
   const runPreview = async () => {
+    // No new preview while a batch is being committed, and never twice at once.
+    if (previewing || committing) return;
     const check = validateSelectedFile(file);
     if (!check.ok) {
       setError(check.error);
       return;
     }
-    if (previewing) return;
     setPreviewing(true);
     setError(null);
     try {
@@ -419,8 +425,9 @@ function NewImportTab({ onCommitted }) {
           <Box>
             <Text fontWeight="semibold">Accepted file: DigiSME &mdash; ATD Daily Attendance (.xlsx)</Text>
             <Text color="gray.600">
-              Every non-empty Clock Time cell becomes one punch. Punches are read from the file exactly as
-              a terminal would have sent them and are stored beside live punches. Nothing is calculated here.
+              Every non-empty Clock Time cell becomes one attendance punch. Imported punches are stored in
+              the same attendance punch store with source DigiSME Import. No attendance calculation is
+              performed here.
             </Text>
           </Box>
         </Alert>
@@ -430,7 +437,13 @@ function NewImportTab({ onCommitted }) {
             <Text fontSize="sm" fontWeight="medium" mb={1}>
               Choose Excel File
             </Text>
-            <input ref={fileInputRef} type="file" accept=".xlsx" onChange={onChooseFile} disabled={previewing} />
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".xlsx"
+              onChange={onChooseFile}
+              disabled={previewing || committing}
+            />
           </Box>
           {file ? (
             <Box fontSize="sm">
@@ -445,7 +458,7 @@ function NewImportTab({ onCommitted }) {
               onClick={runPreview}
               isLoading={previewing}
               loadingText="Previewing"
-              isDisabled={!file || previewing}
+              isDisabled={!file || previewing || committing}
             >
               Preview Import
             </Button>

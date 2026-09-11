@@ -158,20 +158,6 @@ function validateSelectedFile(file) {
   return { ok: true, error: null };
 }
 
-/**
- * Does choosing this file invalidate the preview on screen?
- *
- * Any different file does: the staged batch belongs to the file that was
- * uploaded, and committing it after the operator has picked another one would
- * import something they are no longer looking at. Re-picking the identical
- * file (same name and size) is not a change.
- */
-function selectionInvalidatesPreview(previousFile, nextFile) {
-  if (!previousFile) return false;
-  if (!nextFile) return true;
-  return String(previousFile.name) !== String(nextFile.name) || Number(previousFile.size) !== Number(nextFile.size);
-}
-
 /* ----------------------------------------------------------- the summary */
 
 /** File Name / Sheet / Excel Rows / Employees / Punches Found / Date Range. */
@@ -373,7 +359,6 @@ module.exports = {
   displayPunchTime,
   dateRangeText,
   validateSelectedFile,
-  selectionInvalidatesPreview,
   batchFacts,
   summaryCards,
   commitPlan,

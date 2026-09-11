@@ -177,14 +177,18 @@ test("only .xlsx is accepted, and an empty or oversized file is refused before a
   assert.strictEqual(u.validateSelectedFile({ name: "A.XLSX", size: 10 }).ok, true);
 });
 
-test("choosing a DIFFERENT file invalidates the preview on screen; re-choosing the same one does not", () => {
-  const first = { name: "ATDDailyAttendance.xlsx", size: 90000 };
-  assert.strictEqual(u.selectionInvalidatesPreview(first, { name: "August.xlsx", size: 90000 }), true);
-  assert.strictEqual(u.selectionInvalidatesPreview(first, { name: "ATDDailyAttendance.xlsx", size: 91000 }), true);
-  assert.strictEqual(u.selectionInvalidatesPreview(first, null), true);
-  assert.strictEqual(u.selectionInvalidatesPreview(first, { name: "ATDDailyAttendance.xlsx", size: 90000 }), false);
-  // Nothing to invalidate before the first preview.
-  assert.strictEqual(u.selectionInvalidatesPreview(null, first), false);
+/*
+ * There is deliberately NO "did the file change?" helper any more. Comparing
+ * name and size was not strong enough - two different workbooks can agree on
+ * both - and the browser must not read the bytes to do better. The screen
+ * clears the preview on ANY new selection instead; that rule is defended in
+ * components/attendance/attendanceImportScreens.test.js.
+ */
+test("the util offers no name-and-size comparison that could weaken the clear-on-any-selection rule", () => {
+  assert.strictEqual(u.selectionInvalidatesPreview, undefined);
+  for (const key of Object.keys(u)) {
+    assert.doesNotMatch(key, /invalidat|sameFile|fileChanged/i, key);
+  }
 });
 
 /* ------------------------------------------------------------ item views */
