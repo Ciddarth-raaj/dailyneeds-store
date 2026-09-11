@@ -87,9 +87,14 @@ test("the helper covers the whole workflow", () => {
 });
 
 test("the create never sends an employee_id - the database allocates it", () => {
-  const payload = add.slice(add.indexOf("const payload = {"), add.indexOf("const res = await HrHelper.createEmployee"));
-  assert.ok(!/employee_id:/.test(payload), "a client-supplied employee_id is refused by the backend");
-  assert.match(payload, /aadhaar_verification_id/, "a verified Aadhaar is attached at create time");
+  // The body is built by `util/hrOnboarding.js` rather than inline, so that
+  // what it contains can be asserted directly - see hrOnboarding.test.js,
+  // which pins both halves of this: no employee_id, and nothing sensitive.
+  const payload = read("util/hrOnboarding.js");
+  const builder = payload.slice(payload.indexOf("function buildCreatePayload"));
+  assert.ok(!/employee_id:/.test(builder), "a client-supplied employee_id is refused by the backend");
+  assert.match(builder, /aadhaar_verification_id/, "a verified Aadhaar is attached at create time");
+  assert.match(add, /buildCreatePayload\(form, verification\)/, "the screen builds it no other way");
 });
 
 /* ================================================= nothing secret leaks = */
@@ -219,6 +224,79 @@ test("Skip for now is a real choice, and Aadhaar is not required to create", () 
   assert.match(add, /const required = form\.employee_name\.trim\(\) && form\.date_of_joining/);
 });
 
+/* ================================= the manager's onboarding wizard ====== */
+/**
+ * Add Employee is a staged flow, not one long form. What these defend is the
+ * division of labour it exists to express: the manager does three stages and
+ * stops, and HR's sections are somewhere else entirely.
+ */
+test("Add Employee is the three manager stages, Aadhaar first", () => {
+  const stages = read("util/hrOnboarding.js");
+  assert.match(stages, /key: "aadhaar"[\s\S]*key: "personal"[\s\S]*key: "employment"/);
+  assert.match(add, /OnboardingStepper/, "the stages are shown as a stepper");
+  // Each stage renders on its own, so this is not the old single long form
+  // with Aadhaar at the bottom of it.
+  assert.match(add, /stageKey === "aadhaar"/);
+  assert.match(add, /stageKey === "personal"/);
+  assert.match(add, /stageKey === "employment"/);
+});
+
+test("A STORE MANAGER IS NEVER SHOWN AN HR-ONLY SECTION HERE, not even disabled", () => {
+  // Statutory, bank and documents are HR's, and are completed afterwards on
+  // the employee profile against the same employee_id.
+  const code = codeOf(add);
+  for (const forbidden of [
+    "StatutorySection",
+    "BankDetailsEditor",
+    "BankCard",
+    "pf_applicable",
+    "esi_applicable",
+    "pf_number",
+    "esi_number",
+    "pan_no",
+    "salary",
+    "bank_name",
+  ]) {
+    assert.ok(!new RegExp(`\\b${forbidden}\\b`).test(code), `${forbidden} is not the manager's to see`);
+  }
+});
+
+test("exactly one employee is created, and only on the last stage", () => {
+  const code = codeOf(add);
+  const creates = code.match(/HrHelper\.createEmployee\(/g) || [];
+  assert.strictEqual(creates.length, 1, "one create, at one point in the flow");
+  // The create button exists only inside the final-stage branch.
+  assert.match(code, /isFinalStage\(stage\)[\s\S]{0,400}onClick=\{create\}/);
+  assert.match(add, /Create employee &amp; generate ID/, "and it says what it does");
+  // Nothing is written on the way there: no draft, no placeholder record.
+  for (const forbidden of ["editEmployee", "attachAadhaar", "draft"]) {
+    assert.ok(!new RegExp(`\\b${forbidden}\\b`).test(code), `${forbidden} has no business in a create flow`);
+  }
+});
+
+test("Back preserves what was entered - it moves the stage and nothing else", () => {
+  const code = codeOf(add);
+  const backFn = code.slice(code.indexOf("const back = ()"), code.indexOf("const create = async"));
+  assert.match(backFn, /setStage\(/);
+  assert.ok(!/setForm\(/.test(backFn), "going back must never clear the form");
+  assert.ok(!/setVerification\(/.test(backFn), "nor throw away a verified Aadhaar");
+});
+
+test("Next validates the stage in front of the manager, and only that one", () => {
+  const code = codeOf(add);
+  assert.match(code, /validateStage\(stageKey, form, stageContext\)/);
+  // The create re-checks its own stage rather than trusting the walk here.
+  assert.match(code, /validateStage\("employment", form, stageContext\)/);
+});
+
+test("the success state shows the Employee ID and says HR onboarding is pending", () => {
+  assert.match(add, /createdSummary\(created\)/);
+  assert.match(add, /Employee ID <strong>\{success\.employeeId\}<\/strong>/);
+  const rules = read("util/hrOnboarding.js");
+  const summary = rules.slice(rules.indexOf("function createdSummary"));
+  assert.match(summary.slice(0, 900), /HR onboarding pending/);
+});
+
 test("verifying later attaches to the same employee, and never creates one", () => {
   assert.match(profile, /HrHelper\.attachAadhaar\(lifecycle\.employee_id/);
   assert.ok(!/createEmployee/.test(profile), "the profile must never create an employee");
@@ -317,13 +395,25 @@ test("A FAILED SUMMARY LEAVES THE EMPLOYEE LIST INTACT", () => {
   assert.match(effect, /Array\.isArray\(summary\)/, "the 403 shape is not rendered as data");
 });
 
-test("the two new columns are compact, and the list did not become a dashboard", () => {
+test("the status columns are compact, and the list did not become a dashboard", () => {
   const heading = list.slice(list.indexOf("const heading = {"), list.indexOf("const tableRows"));
   assert.match(heading, /aadhaar: "Aadhaar"/);
   assert.match(heading, /bank: "Bank"/);
-  // Two columns added, and no more.
+  // The third is the HR-onboarding one, and it is headed with two letters for
+  // the same reason the other two are one word: this is a list to scan.
+  assert.match(heading, /hr_onboarding: "HR"/);
   const columns = (heading.match(/^\s+\w+:/gm) || []).length;
-  assert.ok(columns <= 11, `the list has ${columns} columns; it is meant to stay compact`);
+  assert.ok(columns <= 12, `the list has ${columns} columns; it is meant to stay compact`);
+});
+
+test("the HR column says a section is outstanding, never anything in one", () => {
+  const code = codeOf(list);
+  assert.match(code, /<HrOnboardingBadge pending=\{s\.hr_onboarding_pending\}/);
+  // The flag and the section names are all the list receives; the values
+  // behind them are sensitive and stay on the server.
+  for (const forbidden of ["pf_applicable", "esi_applicable", "pf_number", "esi_number", "uan", "pan_no"]) {
+    assert.ok(!new RegExp(`\\b${forbidden}\\b`).test(code), `the list must not reference ${forbidden}`);
+  }
 });
 
 test("the summary carries no sensitive value into the list", () => {

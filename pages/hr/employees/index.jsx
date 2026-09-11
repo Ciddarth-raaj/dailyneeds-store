@@ -20,6 +20,7 @@ import {
   AadhaarListBadge,
   BankListBadge,
   EmploymentBadge,
+  HrOnboardingBadge,
 } from "../../../components/hr/StatusBadges";
 import usePermissions from "../../../customHooks/usePermissions";
 import useOutlets from "../../../customHooks/useOutlets";
@@ -40,11 +41,18 @@ import { statusSummaryIndex } from "../../../util/hrStatus";
  * has B3 stripping salary, bank, PAN and Aadhaar for anyone without
  * `view_employee_sensitive`. There is deliberately no new backend endpoint.
  *
- * The Aadhaar and Bank columns come from GET /hr/employees/status-summary
+ * The Aadhaar, Bank and HR columns come from GET /hr/employees/status-summary
  * (`view_employees`), fetched ONCE for the whole list and merged by
  * employee_id. The per-employee reads still exist and are what the profile
  * uses; calling them from here would be 1,260 requests to draw one screen,
  * which is the reason the bulk endpoint exists.
+ *
+ * THE HR COLUMN is the other half of the manager's Add Employee wizard: a
+ * store manager creates the employee and stops at stage 3, so somebody has to
+ * be able to see which records HR has not finished. It is DERIVED by the
+ * backend from the statutory and bank sections themselves - there is no new
+ * status column and nothing to backfill - and it says only that a section is
+ * outstanding, never anything in one.
  *
  * IF THE SUMMARY FAILS the list still renders. The two statuses fall back to a
  * neutral dash - "not known" rather than "not verified" - because the list is
@@ -110,6 +118,9 @@ function HrEmployeeList() {
   const [outlet, setOutlet] = useState("");
   const [designation, setDesignation] = useState("");
   const [status, setStatus] = useState("active");
+  // "Who is HR still to finish?" is a real question about several hundred
+  // rows, so the derived flag is filterable rather than only visible.
+  const [hrOnboarding, setHrOnboarding] = useState("all");
 
   const { outlets } = useOutlets({ directory: true });
   const { designations } = useDesignations();
@@ -175,6 +186,14 @@ function HrEmployeeList() {
       if (status === "inactive" && Number(e.status) === 1) return false;
       if (outlet && String(e.store_id) !== String(outlet)) return false;
       if (designation && String(e.designation_id) !== String(designation)) return false;
+      if (hrOnboarding !== "all") {
+        const pending = (statuses[String(e.employee_id)] || {}).hr_onboarding_pending;
+        // Unknown is never matched by either filter: an employee whose state
+        // this server does not derive must not be presented as an answer to a
+        // question about it.
+        if (hrOnboarding === "pending" && pending !== true) return false;
+        if (hrOnboarding === "complete" && pending !== false) return false;
+      }
       if (!needle) return true;
       return (
         String(e.employee_id).includes(needle) ||
@@ -182,12 +201,12 @@ function HrEmployeeList() {
         String(e.primary_contact_number || "").includes(needle)
       );
     });
-  }, [rows, search, outlet, designation, status]);
+  }, [rows, search, outlet, designation, status, hrOnboarding, statuses]);
 
   // A new filter is a new question; it starts at the first page of answers.
   useEffect(() => {
     setCardsShown(CARD_PAGE);
-  }, [search, outlet, designation, status]);
+  }, [search, outlet, designation, status, hrOnboarding]);
 
   const heading = {
     employee_id: "ID",
@@ -200,6 +219,7 @@ function HrEmployeeList() {
     status: "Status",
     aadhaar: "Aadhaar",
     bank: "Bank",
+    hr_onboarding: "HR",
     open: "",
   };
 
@@ -220,6 +240,12 @@ function HrEmployeeList() {
       status: <EmploymentBadge status={e.status} />,
       aadhaar: <AadhaarListBadge status={s.aadhaar_status} />,
       bank: <BankListBadge status={s.bank_status} payrollReady={s.bank_payroll_ready} />,
+      // Blank where the server does not derive it, rather than a dash: unlike
+      // the two beside it, this is not a column every employee has an answer
+      // for, and it exists to be scanned for the ones that do.
+      hr_onboarding: (
+        <HrOnboardingBadge pending={s.hr_onboarding_pending} missing={s.hr_onboarding_missing} />
+      ),
       open: (
         <Link href={`/hr/employees/${e.employee_id}`} passHref>
           <Button size="xs" colorScheme="purple" variant="outline">
@@ -301,6 +327,17 @@ function HrEmployeeList() {
                     {o.outlet_name}
                   </option>
                 ))}
+              </Select>
+              <Select
+                size="sm"
+                value={hrOnboarding}
+                onChange={(e) => setHrOnboarding(e.target.value)}
+                maxW={{ md: "190px" }}
+                aria-label="HR onboarding"
+              >
+                <option value="all">Any HR status</option>
+                <option value="pending">HR onboarding pending</option>
+                <option value="complete">HR onboarding complete</option>
               </Select>
               <Select
                 size="sm"

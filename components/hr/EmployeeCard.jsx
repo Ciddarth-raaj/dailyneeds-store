@@ -1,7 +1,12 @@
 import React from "react";
 import Link from "next/link";
 import { Badge, Box, Divider, Stack, Text, Wrap, WrapItem } from "@chakra-ui/react";
-import { AadhaarListBadge, BankListBadge, EmploymentBadge } from "./StatusBadges";
+import {
+  AadhaarListBadge,
+  BankListBadge,
+  EmploymentBadge,
+  HrOnboardingBadge,
+} from "./StatusBadges";
 
 /**
  * Stage 0C / C3 — one employee, as a card.
@@ -96,6 +101,17 @@ function EmployeeCard({ employee, status = {} }) {
                 />
               </Stack>
             </WrapItem>
+            {/* Only where HR has something left to do. An employee whose
+                record is finished says nothing here rather than carrying a
+                third badge on every card. */}
+            {status.hr_onboarding_pending ? (
+              <WrapItem>
+                <HrOnboardingBadge
+                  pending={status.hr_onboarding_pending}
+                  missing={status.hr_onboarding_missing}
+                />
+              </WrapItem>
+            ) : null}
           </Wrap>
         </Stack>
       </Box>

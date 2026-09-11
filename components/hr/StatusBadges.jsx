@@ -8,13 +8,15 @@ import {
   employmentBadge,
   confidenceBadge,
 } from "../../util/hrStatus";
+import { hrOnboardingBadge, hrOnboardingMissingLabel } from "../../util/hrOnboarding";
 
 /**
  * Stage 0C / C3 — the status badges, in one place.
  *
  * The list and the profile must never disagree about what "Pending" looks
- * like, and every mapping lives in `util/hrStatus.js` so it can be tested
- * without a React runner.
+ * like, and every mapping lives in a plain module - `util/hrStatus.js`, and
+ * `util/hrOnboarding.js` for the onboarding one - so it can be tested without
+ * a React runner.
  */
 
 export function AadhaarBadge({ status }) {
@@ -64,6 +66,28 @@ export function BankListBadge({ status, payrollReady, tooltip }) {
   );
 }
 
+/**
+ * Whether HR has finished onboarding this employee - the statutory and bank
+ * sections a store manager does not complete and cannot see.
+ *
+ * Renders NOTHING when the state is not known, rather than a dash: unlike
+ * Aadhaar and Bank this is not a column every employee has an answer for, and
+ * an outline dash in every row would be noise.
+ */
+export function HrOnboardingBadge({ pending, missing }) {
+  const b = hrOnboardingBadge(pending);
+  if (!b) return null;
+  const label = pending ? hrOnboardingMissingLabel(missing) : "";
+  const badge = <Badge colorScheme={b.colorScheme}>{b.label}</Badge>;
+  return label ? (
+    <Tooltip label={label} hasArrow>
+      <span>{badge}</span>
+    </Tooltip>
+  ) : (
+    badge
+  );
+}
+
 export function EmploymentBadge({ status }) {
   const b = employmentBadge(status);
   return <Badge colorScheme={b.colorScheme}>{b.label}</Badge>;
@@ -79,6 +103,7 @@ export default {
   AadhaarListBadge,
   BankBadge,
   BankListBadge,
+  HrOnboardingBadge,
   EmploymentBadge,
   ConfidenceBadge,
 };
