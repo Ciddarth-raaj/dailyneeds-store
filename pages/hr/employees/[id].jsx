@@ -2,84 +2,99 @@ import React, { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import Link from "next/link";
 import {
-  Box,
   Button,
   Stack,
-  Text,
   Alert,
   AlertIcon,
   Spinner,
   Divider,
-  SimpleGrid,
   useToast,
 } from "@chakra-ui/react";
 import GlobalWrapper from "../../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../../components/CustomContainer";
-import { AadhaarBadge } from "../../../components/hr/StatusBadges";
-import BankCard from "../../../components/hr/BankCard";
 import LifecycleTimeline from "../../../components/hr/LifecycleTimeline";
 import AadhaarVerifyModal from "../../../components/hr/AadhaarVerifyModal";
 import { ResignModal, RejoinModal } from "../../../components/hr/LifecycleActionModals";
-import { SectionCard } from "../../../components/hr/profile/SectionCard";
+import AadhaarSection from "../../../components/hr/profile/AadhaarSection";
 import PersonalSection from "../../../components/hr/profile/PersonalSection";
 import EmploymentSection from "../../../components/hr/profile/EmploymentSection";
-import StatutorySection from "../../../components/hr/profile/StatutorySection";
 import EducationSection from "../../../components/hr/profile/EducationSection";
+import PaymentDetailsSection from "../../../components/hr/profile/PaymentDetailsSection";
+import StatutorySection from "../../../components/hr/profile/StatutorySection";
+import PayrollSection from "../../../components/hr/profile/PayrollSection";
+import DocumentsSection from "../../../components/hr/profile/DocumentsSection";
 import BankDetailsEditor from "../../../components/hr/profile/BankDetailsEditor";
 import usePermissions from "../../../customHooks/usePermissions";
 import useOutlets from "../../../customHooks/useOutlets";
 import useDepartments from "../../../customHooks/useDepartments";
 import useDesignations from "../../../customHooks/useDesignations";
 import useCurrentWorkShift from "../../../customHooks/useCurrentWorkShift";
+import useWorkShiftOptions from "../../../customHooks/useWorkShiftOptions";
 import { useUser } from "../../../contexts/UserContext";
 import HrHelper from "../../../helper/hr";
 import EmployeeHelper from "../../../helper/employee";
+import EmployeeWorkShiftHelper from "../../../helper/employeeWorkShift";
 import { canVerifyBank, lifecycleActions } from "../../../util/hrStatus";
 import {
   buildHrPatch,
   buildSensitivePayload,
+  canAssignShift,
   canEditEmployee,
-  canEditSensitive,
+  canEditPaymentDetails,
+  canEditStatutoryDetails,
+  canViewDocuments,
   canViewSensitive,
   unwrapEmployee,
 } from "../../../util/hrProfile";
 
 /**
- * Stage 0C / C3 — the employee profile. The ONE employee master record.
+ * The employee profile. The ONE employee master record, in the ONE order.
+ *
+ * M1: the sections are the same eight, in the same sequence, that Add
+ * Employee walks a store manager through - the wizard is the first four of
+ * them and stops; the profile shows all eight. There is no separate layout
+ * for editing an existing employee.
+ *
+ *   1 Aadhaar Verification   Aadhaar status; Verify now under `employee_edit`
+ *   2 Personal Details       `employee_edit`
+ *   3 Employment Details     `employee_edit`; the shift from the NEW work
+ *                            shift master, changed here only under
+ *                            `employee_edit` + `assign_employee_shift`
+ *   4 Education              `employee_edit`
+ *   5 Payment Details        Cash / Bank and the bank card, under the
+ *                            sensitive pair + `edit_payment_details`
+ *   6 Statutory Details      PAN / PF / ESI, sensitive pair +
+ *                            `edit_statutory_details`
+ *   7 Payroll                position only until M2/M3 - nothing is shown
+ *                            and nothing can be typed
+ *   8 Documents              read-only, `view_documents`
  *
  * Separate sections rather than one long form, because they are governed
- * differently: Personal and Employment by `employee_edit`; Statutory and the
- * bank details by B3's sensitive keys; Aadhaar and Bank by C2's own
- * permissions; Lifecycle by Resign and Rejoin. A single Save across all of
- * them would either need the union of every permission or fail as a whole.
+ * differently, and a single Save across all of them would either need the
+ * union of every permission or fail as a whole. `employee_create` alone
+ * opens NOTHING on this page beyond what `employee_edit` opens: it is the
+ * onboarding key, and onboarding is over once the ID exists.
  *
- * WHAT IS DELIBERATELY NOT HERE ANY MORE:
+ * WHAT IS DELIBERATELY NOT HERE:
  *
- *   Salary Master        pay belongs to Payroll, which owns the structure,
- *                        the periods and the payslip. One editable figure on
- *                        the employee master was a second, quieter place for
- *                        the same fact to be changed.
- *   Documents            proof documents are verified elsewhere, so uploading
- *                        Aadhaar and PAN scans against the profile duplicated
- *                        that at the cost of holding the scans. A separate
- *                        Employee Documents / HR Letters module will cover
- *                        what HR actually needs; nothing here anticipates it.
+ *   Salary               pay belongs to Payroll, which owns the structure,
+ *                        the revisions, the approvals and the history. The
+ *                        Payroll section will show the currently effective
+ *                        approved salary (M3) and never edit it.
  *   Employment History   shown only where there IS a history - see below.
  *
  * TWO WRITE PATHS, because the backend has two - see `util/hrProfile.js`. The
- * ordinary editor takes what `EDITABLE_FIELDS` allows; the statutory and bank
- * columns are deliberately absent from it and go through
- * /employee/updatedata, which B3 guards.
+ * ordinary editor takes what `EDITABLE_FIELDS` allows; the payment and
+ * statutory columns are deliberately absent from it and go through
+ * /employee/updatedata, which B3 and the M1 section keys guard.
  *
  * NEVER RENDERED HERE: a full Aadhaar number, a full account number, any
  * fingerprint or ciphertext. `view_aadhaar_full` is granted to nobody by
  * design, so there is no reveal affordance at all.
  *
  * NEVER EDITED HERE: the employee ID, the joining date, the employment
- * status, the work shift. The first is allocated by the database; the next
- * two are lifecycle state that Create, Resign and Rejoin own and record a
- * reason for; the shift belongs to Employee Shift Assignment, which has its
- * own permission and its own screen.
+ * status. The first is allocated by the database; the other two are
+ * lifecycle state that Create, Resign and Rejoin own and record a reason for.
  */
 function EmployeeProfile() {
   const router = useRouter();
@@ -93,15 +108,23 @@ function EmployeeProfile() {
 
   const canEdit = canEditEmployee(actor);
   const mayViewSensitive = canViewSensitive(actor);
-  const mayEditSensitive = canEditSensitive(actor);
+  const mayEditPayment = canEditPaymentDetails(actor);
+  const mayEditStatutory = canEditStatutoryDetails(actor);
+  const mayAssignShift = canAssignShift(actor);
+  const mayViewDocuments = canViewDocuments(actor);
   const canViewLifecycle = usePermissions(["view_employee_lifecycle"]);
 
   const { outlets } = useOutlets({ directory: true });
   const { departments } = useDepartments();
   const { designations } = useDesignations();
-  // The NEW shift mapping, read-only. `useShifts` - the legacy `/shift`
-  // master - is deliberately not used on this screen any more.
-  const currentShift = useCurrentWorkShift(id);
+  // Bumped after a shift assignment so the current-shift read runs again.
+  const [shiftVersion, setShiftVersion] = useState(0);
+  // The NEW shift mapping. `useShifts` - the legacy `/shift` master - is
+  // deliberately not used on this screen.
+  const currentShift = useCurrentWorkShift(id, shiftVersion);
+  // The active shifts for the Employment dropdown. Fetched only for somebody
+  // who may assign; everyone else sees the current shift as text.
+  const { options: shiftOptions } = useWorkShiftOptions(mayAssignShift);
 
   const [lifecycle, setLifecycle] = useState(null);
   const [employee, setEmployee] = useState(null);
@@ -204,6 +227,33 @@ function EmployeeProfile() {
       }
       toast({ title: "Saved", status: "success", duration: 2500 });
       await load();
+      return true;
+    } catch (err) {
+      toast({ title: "Could not reach the server", status: "error", duration: 5000 });
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  /**
+   * The shift, through Employee Shift Assignment's own single assign - the
+   * same endpoint, the same all-or-nothing rule, the same permission pair.
+   * Nothing here writes the legacy `shift_id`.
+   */
+  const assignShift = async (workShiftId) => {
+    setSaving(true);
+    try {
+      const res = await EmployeeWorkShiftHelper.assignWorkShift([Number(id)], workShiftId);
+      if (failed(res)) {
+        toast({ title: res.msg || "The shift was not changed", status: "error", duration: 7000 });
+        return false;
+      }
+      toast({ title: "Shift assigned", status: "success", duration: 2500 });
+      // The shift read is its own hook; a reload of the page data refreshes
+      // the rest, and the hook re-reads on the next render of the id.
+      await load();
+      setShiftVersion((v) => v + 1);
       return true;
     } catch (err) {
       toast({ title: "Could not reach the server", status: "error", duration: 5000 });
@@ -417,11 +467,19 @@ function EmployeeProfile() {
           {!employee ? (
             <Alert status="info" fontSize="sm">
               <AlertIcon />
-              The full employee record could not be loaded, so only the lifecycle, Aadhaar and bank
-              sections are shown.
+              The full employee record could not be loaded, so only the lifecycle, Aadhaar, bank and
+              document sections are shown.
             </Alert>
           ) : null}
 
+          {/* ============================ 1. Aadhaar Verification ==== */}
+          <AadhaarSection
+            aadhaar={aadhaar}
+            canVerify={canEdit}
+            onVerify={() => setAadhaarOpen(true)}
+          />
+
+          {/* ================================ 2. Personal Details ==== */}
           <PersonalSection
             employee={employee || {}}
             canEdit={canEdit && Boolean(employee)}
@@ -429,6 +487,7 @@ function EmployeeProfile() {
             saving={saving}
           />
 
+          {/* ============================== 3. Employment Details ==== */}
           <EmploymentSection
             employee={employee || {}}
             lifecycle={lifecycle}
@@ -436,90 +495,52 @@ function EmployeeProfile() {
             departments={departments}
             designations={designations}
             currentShift={currentShift}
+            shiftOptions={shiftOptions}
             canEdit={canEdit && Boolean(employee)}
+            canAssignShift={mayAssignShift}
             onSave={saveOrdinary}
+            onAssignShift={assignShift}
             saving={saving}
           />
 
-          <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={4}>
-            {/* ------------------------------------------------- Aadhaar */}
-            <SectionCard
-              title="Aadhaar"
-              badge={<AadhaarBadge status={aadhaar ? aadhaar.aadhaar_status : "PENDING"} />}
-            >
-              <Stack spacing={3} fontSize="sm">
-                {aadhaar && aadhaar.aadhaar_status === "VERIFIED" ? (
-                  <>
-                    <Text>
-                      Verified, ending <strong>{aadhaar.aadhaar_last4}</strong>.
-                    </Text>
-                    <Text color="gray.600">
-                      The full number is encrypted and is not shown anywhere in this application.
-                    </Text>
-                  </>
-                ) : (
-                  <>
-                    <Text color="gray.600">
-                      {aadhaar && aadhaar.message
-                        ? aadhaar.message
-                        : "No Aadhaar on record. This does not hold up anything else."}
-                    </Text>
-                    {canEdit && aadhaar && aadhaar.can_verify_now ? (
-                      <Button
-                        size="sm"
-                        colorScheme="purple"
-                        alignSelf="flex-start"
-                        onClick={() => setAadhaarOpen(true)}
-                      >
-                        Verify now
-                      </Button>
-                    ) : null}
-                  </>
-                )}
-              </Stack>
-            </SectionCard>
-
-            <StatutorySection
-              employee={employee || {}}
-              canView={mayViewSensitive}
-              canEdit={mayEditSensitive && Boolean(employee)}
-              onSave={saveSensitive}
-              saving={saving}
-            />
-          </SimpleGrid>
-
-          {/* ------------------------------------------------------- bank */}
-          {bank ? (
-            <Box>
-              {/* Add/Change now lives inside the card's action row, beside
-                  Verify, so the next step is one decision rather than a button
-                  under a card that already had buttons. */}
-              <BankCard
-                employeeId={lifecycle.employee_id}
-                // The review compares two names, so it needs both. HR's own
-                // record of the name, not the bank's.
-                employeeName={lifecycle.employee_name}
-                bank={bank}
-                permissions={permissions}
-                isAdmin={isAdmin}
-                onChanged={load}
-                canEditSensitive={mayEditSensitive}
-                onEditDetails={() => setBankEditOpen(true)}
-              />
-            </Box>
-          ) : (
-            <Alert status="info" fontSize="sm">
-              <AlertIcon />
-              You do not have permission to see this employee&apos;s bank verification.
-            </Alert>
-          )}
-
+          {/* ======================================= 4. Education ==== */}
           <EducationSection
             employee={employee || {}}
             canEdit={canEdit && Boolean(employee)}
             onSave={saveOrdinary}
             saving={saving}
           />
+
+          {/* ================================= 5. Payment Details ==== */}
+          <PaymentDetailsSection
+            employee={employee || {}}
+            bank={bank}
+            lifecycle={lifecycle}
+            permissions={permissions}
+            isAdmin={isAdmin}
+            canView={mayViewSensitive}
+            canEdit={mayEditPayment && Boolean(employee)}
+            canEditBank={mayEditPayment}
+            onSave={saveSensitive}
+            onEditBankDetails={() => setBankEditOpen(true)}
+            onBankChanged={load}
+            saving={saving}
+          />
+
+          {/* =============================== 6. Statutory Details ==== */}
+          <StatutorySection
+            employee={employee || {}}
+            canView={mayViewSensitive}
+            canEdit={mayEditStatutory && Boolean(employee)}
+            onSave={saveSensitive}
+            saving={saving}
+          />
+
+          {/* ========================================= 7. Payroll ==== */}
+          <PayrollSection />
+
+          {/* ======================================= 8. Documents ==== */}
+          <DocumentsSection employeeId={lifecycle.employee_id} canView={mayViewDocuments} />
 
           {/* -------------------------------------------------- lifecycle
               ONLY WHERE THERE IS A HISTORY TO SHOW. For the great majority of
@@ -597,7 +618,7 @@ function EmployeeProfile() {
         onSaveAndVerify={saveAndVerifyBank}
         // Both permissions, or the editor saves and stops rather than offering
         // a button that would predictably 403.
-        canVerify={canVerifyBank({ permissions, isAdmin }) && mayEditSensitive}
+        canVerify={canVerifyBank({ permissions, isAdmin }) && mayEditPayment}
         saving={saving}
       />
 

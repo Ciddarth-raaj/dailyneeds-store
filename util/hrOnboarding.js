@@ -1,15 +1,17 @@
 /**
- * New Employee onboarding — the three stages a STORE MANAGER completes, and
+ * New Employee onboarding — the FOUR stages a STORE MANAGER completes, and
  * the rules each one is judged by.
  *
  * WHY THIS IS A SEPARATE MODULE. There is no React test runner in this repo,
  * so logic left inside the screen is logic that cannot be tested. Everything
  * here is a pure function over the form, which is what lets
- * `hrOnboarding.test.js` pin the two rules that would be real defects if they
- * drifted: what the create sends to the backend, and what each stage is
- * allowed to insist on.
+ * `hrOnboarding.test.js` pin the rules that would be real defects if they
+ * drifted: what the create sends to the backend, what each stage is allowed
+ * to insist on, and at which stage the employee is created.
  *
- * THE FLOW, and why it is in this order:
+ * THE FLOW, and why it is in this order (M1 - it is the same order the
+ * profile shows an existing employee in; there is ONE employee master
+ * information architecture, not one for Add and another for Edit):
  *
  *   1  Aadhaar      identity FIRST, because the cheapest moment to discover
  *                   that somebody already has an employee ID is before a
@@ -18,18 +20,23 @@
  *                   `aadhaarOutcome` in util/hrStatus.js - so asking here
  *                   turns a permanent duplicate into a redirect.
  *   2  Personal     who they are.
- *   3  Employment   where they work - and the ONLY point at which an employee
- *                   record is created and an Employee ID allocated.
+ *   3  Employment   where they work, and on which shift - and the ONLY point
+ *                   at which an employee record is created and an Employee
+ *                   ID allocated. THE ID IS CREATED HERE, NOT AFTER STAGE 4.
+ *   4  Education    completed against the Employee ID that now exists, by the
+ *                   same `employee_create` holder, through the onboarding
+ *                   education endpoint (not the profile's `employee_edit`).
  *
- * WHAT A MANAGER NEVER SEES: statutory details, bank details and documents.
- * Those are HR's, they are completed afterwards on the employee profile, and
- * they are not in this file even as a disabled future step - a step somebody
- * cannot take is a step they will ask to be given.
+ * WHAT A MANAGER NEVER SEES: Payment Details, Statutory Details, Payroll and
+ * Documents. Those are sections 5-8 of the employee master, each behind its
+ * own designation right, completed on the employee profile - and they are not
+ * in this file even as a disabled future step: a step somebody cannot take is
+ * a step they will ask to be given.
  *
  * SALARY IS NOT PART OF THE EMPLOYEE MASTER and appears nowhere here.
  */
 
-/** The manager's three stages, in order. Nothing else is a stage. */
+/** The manager's four stages, in order. Nothing else is a stage. */
 const ONBOARDING_STAGES = [
   {
     key: "aadhaar",
@@ -48,15 +55,27 @@ const ONBOARDING_STAGES = [
     key: "employment",
     label: "Employment",
     title: "Employment details",
-    blurb: "Where they work. Finishing this stage creates the employee and allocates the Employee ID.",
+    blurb:
+      "Where they work and their shift. Finishing this stage creates the employee and allocates the Employee ID.",
+  },
+  {
+    key: "education",
+    label: "Education",
+    title: "Education & Experience",
+    blurb: "Qualification and previous experience, recorded against the new Employee ID. Optional.",
   },
 ];
 
 const STAGE_KEYS = ONBOARDING_STAGES.map((s) => s.key);
 
+/** The stage whose completion creates the employee. NOT the last one. */
+const CREATE_STAGE_KEY = "employment";
+
 const stageAt = (index) => ONBOARDING_STAGES[index] || null;
 const stageIndex = (key) => STAGE_KEYS.indexOf(key);
 const isFinalStage = (index) => index === ONBOARDING_STAGES.length - 1;
+/** True for the stage that creates the employee and allocates the ID. */
+const isCreateStage = (index) => index === stageIndex(CREATE_STAGE_KEY);
 
 /* ------------------------------------------------------------ validation */
 
@@ -133,6 +152,18 @@ function validateStage(key, form = {}, context = {}) {
     if (!text(form.store_id)) errors.store_id = "Choose the outlet they work at.";
     if (!text(form.designation_id)) errors.designation_id = "Choose a designation.";
     if (!text(form.department_id)) errors.department_id = "Choose a department.";
+    // The shift is OPTIONAL at create - a new hire can be put on a shift from
+    // Employee Shift Assignment later - but when one is chosen it must be a
+    // real id from the work shift options.
+    if (text(form.default_work_shift_id) && !/^\d+$/.test(text(form.default_work_shift_id))) {
+      errors.default_work_shift_id = "Choose a shift from the list.";
+    }
+    return errors;
+  }
+
+  if (key === "education") {
+    // Nothing is required. Education is recorded when it is known, and a
+    // blank stage 4 is a finished onboarding, not a failed one.
     return errors;
   }
 
@@ -169,6 +200,16 @@ const PERSONAL_FIELDS = [
 const EMPLOYMENT_IDS = ["store_id", "designation_id", "department_id"];
 
 /**
+ * The NEW work shift master's id, sent as a number when chosen and omitted
+ * when not. Never `shift_id`: that is the legacy `shift_master` column, which
+ * this screen does not read or write.
+ */
+const WORK_SHIFT_FIELD = "default_work_shift_id";
+
+/** The three education columns, stage 4's whole vocabulary. */
+const EDUCATION_FIELDS = ["qualification", "additional_course", "previous_experience"];
+
+/**
  * The body of POST /hr/employee.
  *
  * `employee_id` IS DELIBERATELY ABSENT AND MUST STAY ABSENT. The database
@@ -196,10 +237,26 @@ function buildCreatePayload(form = {}, verification = null) {
     const value = text(form[field]);
     if (value) payload[field] = Number(value);
   }
+  const shift = text(form[WORK_SHIFT_FIELD]);
+  if (shift) payload[WORK_SHIFT_FIELD] = Number(shift);
   if (verification && verification.verification_id) {
     payload.aadhaar_verification_id = verification.verification_id;
   }
   return payload;
+}
+
+/**
+ * The body of POST /hr/employee/:id/onboarding-education, or null when the
+ * manager typed nothing - in which case there is nothing to send and stage 4
+ * simply finishes. Only the three education columns, ever.
+ */
+function buildEducationPayload(form = {}) {
+  const payload = {};
+  for (const field of EDUCATION_FIELDS) {
+    const value = text(form[field]);
+    if (value) payload[field] = value;
+  }
+  return Object.keys(payload).length === 0 ? null : payload;
 }
 
 /**
@@ -240,7 +297,7 @@ function createdSummary(result) {
       ? "Aadhaar verified and attached."
       : "Aadhaar is pending. It can be verified later from the employee's profile, and holds nothing up.",
     hrNote:
-      "HR completes the statutory and bank details on this same employee record. Nothing further is needed from the store.",
+      "Payment, statutory, payroll and document details are completed on this same employee record by whoever holds those rights. Nothing further is needed from the store.",
   };
 }
 
@@ -259,7 +316,7 @@ function hrOnboardingBadge(pending) {
 
 /** The outstanding sections, in words, for a tooltip or a profile line. */
 function hrOnboardingMissingLabel(missing) {
-  const names = { statutory: "statutory details", bank: "bank details" };
+  const names = { statutory: "statutory details", bank: "payment details" };
   const parts = (Array.isArray(missing) ? missing : []).map((m) => names[m] || m);
   if (parts.length === 0) return "";
   if (parts.length === 1) return `HR still has to record the ${parts[0]}.`;
@@ -269,9 +326,14 @@ function hrOnboardingMissingLabel(missing) {
 module.exports = {
   ONBOARDING_STAGES,
   STAGE_KEYS,
+  CREATE_STAGE_KEY,
   stageAt,
   stageIndex,
   isFinalStage,
+  isCreateStage,
+  buildEducationPayload,
+  EDUCATION_FIELDS,
+  WORK_SHIFT_FIELD,
   validateStage,
   stageIsComplete,
   buildCreatePayload,

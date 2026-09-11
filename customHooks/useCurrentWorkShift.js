@@ -18,7 +18,7 @@ import EmployeeWorkShiftHelper from "../helper/employeeWorkShift";
  * A failure here never affects anything else on the profile: the caller
  * renders one field from it and nothing depends on it loading.
  */
-function useCurrentWorkShift(employeeId) {
+function useCurrentWorkShift(employeeId, version = 0) {
   const [shift, setShift] = useState(null);
   const [loading, setLoading] = useState(true);
   const [denied, setDenied] = useState(false);
@@ -56,7 +56,9 @@ function useCurrentWorkShift(employeeId) {
     return () => {
       cancelled = true;
     };
-  }, [employeeId]);
+    // `version` is bumped by the profile after it assigns a shift, so the
+    // field re-reads what was stored rather than what was chosen.
+  }, [employeeId, version]);
 
   return { shift, loading, denied, error };
 }

@@ -51,6 +51,73 @@ function canEditSensitive({ permissions = [], isAdmin = false } = {}) {
   return has(permissions, "edit_employee_sensitive") && has(permissions, "add_employees");
 }
 
+/**
+ * M1. Sections 5 and 6 of the employee master each have a key of their own
+ * ON TOP OF the sensitive pair: the backend's /employee/updatedata refuses a
+ * body naming a payment column without `edit_payment_details`, and one
+ * naming a statutory column without `edit_statutory_details`. Neither key
+ * alone opens anything - the columns stay sensitive under B3.
+ */
+function canEditPaymentDetails(actor = {}) {
+  if (isAdminUser(actor.isAdmin)) return true;
+  return canEditSensitive(actor) && has(actor.permissions, "edit_payment_details");
+}
+
+function canEditStatutoryDetails(actor = {}) {
+  if (isAdminUser(actor.isAdmin)) return true;
+  return canEditSensitive(actor) && has(actor.permissions, "edit_statutory_details");
+}
+
+/**
+ * Changing a shift from the profile is the SAME act as Employee Shift
+ * Assignment's single assign, and takes the same pair: `employee_edit` AND
+ * `assign_employee_shift`. `employee_create` is not enough - choosing an
+ * initial shift on a new hire is not authority to re-roster an existing one.
+ */
+function canAssignShift({ permissions = [], isAdmin = false } = {}) {
+  if (isAdminUser(isAdmin)) return true;
+  return has(permissions, "employee_edit") && has(permissions, "assign_employee_shift");
+}
+
+/**
+ * M1 - THE ONE EMPLOYEE MASTER ORDER. The profile renders its sections in
+ * exactly this sequence and the Add Employee wizard's four stages are its
+ * first four entries; `hrProfile.test.js` and `hrScreens.test.js` pin both
+ * to this list so Add and Edit cannot drift apart again.
+ */
+const EMPLOYEE_MASTER_SECTIONS = [
+  { key: "aadhaar", title: "Aadhaar Verification" },
+  { key: "personal", title: "Personal Details" },
+  { key: "employment", title: "Employment Details" },
+  { key: "education", title: "Education" },
+  { key: "payment", title: "Payment Details" },
+  { key: "statutory", title: "Statutory Details" },
+  { key: "payroll", title: "Payroll" },
+  { key: "documents", title: "Documents" },
+];
+
+/* --------------------------------------------------------- payment type */
+
+/**
+ * `new_employee.payment_type`, exactly as the legacy screens stored it:
+ * 1 Bank, 2 Cash. Reused, not redefined - a third spelling of the same fact
+ * would leave every historical row reading as "not recorded".
+ */
+const PAYMENT_TYPE_OPTIONS = [
+  { value: 1, label: "Bank" },
+  { value: 2, label: "Cash" },
+];
+
+const isBankPayment = (paymentType) => !blank(paymentType) && Number(paymentType) === 1;
+const isCashPayment = (paymentType) => !blank(paymentType) && Number(paymentType) === 2;
+
+/** "Bank", "Cash", or null when nobody has said. */
+function paymentTypeLabel(paymentType) {
+  if (blank(paymentType)) return null;
+  const found = PAYMENT_TYPE_OPTIONS.find((o) => o.value === Number(paymentType));
+  return found ? found.label : null;
+}
+
 /** The ordinary editor. */
 function canEditEmployee({ permissions = [], isAdmin = false } = {}) {
   return isAdminUser(isAdmin) || has(permissions, "employee_edit");
@@ -121,6 +188,9 @@ const SENSITIVE_FIELD_API_KEY = {
   // numbers they qualify, and written by the same Statutory section.
   pf_applicable: "pf_applicable",
   esi_applicable: "esi_applicable",
+  // M1. Cash or Bank, on the Payment Details section beside the account it
+  // qualifies. Sensitive under B3 already; the route takes it as a number.
+  payment_type: "payment_type",
   bank_name: "bank_name",
   ifsc: "ifsc",
   account_no: "account_no",
@@ -137,7 +207,7 @@ const SENSITIVE_FIELDS = Object.keys(SENSITIVE_FIELD_API_KEY);
  * collapsing the first into the second would record a statutory decision
  * nobody made.
  */
-const NUMERIC_SENSITIVE_FIELDS = ["pf_applicable", "esi_applicable"];
+const NUMERIC_SENSITIVE_FIELDS = ["pf_applicable", "esi_applicable", "payment_type"];
 
 /* --------------------------------------------------------------- patching */
 
@@ -278,8 +348,16 @@ module.exports = {
   has,
   canViewSensitive,
   canEditSensitive,
+  canEditPaymentDetails,
+  canEditStatutoryDetails,
+  canAssignShift,
   canEditEmployee,
   canViewDocuments,
+  EMPLOYEE_MASTER_SECTIONS,
+  PAYMENT_TYPE_OPTIONS,
+  isBankPayment,
+  isCashPayment,
+  paymentTypeLabel,
   HR_EDITABLE_FIELDS,
   NUMERIC_HR_FIELDS,
   SENSITIVE_FIELDS,

@@ -38,6 +38,20 @@ const employeeWorkShift = {
     }),
 
   /**
+   * GET /hr/work-shift-assignments/options — the ACTIVE work shifts as a
+   * dropdown: `{ code, data: [{ work_shift_id, shift_code, shift_name,
+   * timing }] }`. Identity and timing only, no configuration, which is why
+   * it is open to `employee_create` as well as the shift keys - a store
+   * manager chooses a new hire's initial shift from it (M1).
+   */
+  getShiftOptions: () =>
+    new Promise((resolve, reject) => {
+      API.get("/hr/work-shift-assignments/options")
+        .then((res) => resolve(res.data))
+        .catch(reject);
+    }),
+
+  /**
    * GET /hr/work-shift-assignments/employee/:id — ONE employee's current work
    * shift, for the employee profile.
    *

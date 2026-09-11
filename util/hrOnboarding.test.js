@@ -47,13 +47,19 @@ const employment = {
 };
 
 /* ================================================== the stages themselves */
-test("the manager has exactly three stages, in this order", () => {
+test("M1: the manager has exactly four stages, in this order, and they are the first four profile sections", () => {
   assert.deepStrictEqual(
     ONBOARDING_STAGES.map((s) => s.key),
-    ["aadhaar", "personal", "employment"]
+    ["aadhaar", "personal", "employment", "education"]
   );
-  assert.ok(isFinalStage(2));
-  assert.ok(!isFinalStage(1));
+  const { EMPLOYEE_MASTER_SECTIONS } = require("./hrProfile");
+  assert.deepStrictEqual(
+    ONBOARDING_STAGES.map((s) => s.key),
+    EMPLOYEE_MASTER_SECTIONS.slice(0, 4).map((s) => s.key),
+    "Add and Edit follow ONE order"
+  );
+  assert.ok(isFinalStage(3));
+  assert.ok(!isFinalStage(2));
 });
 
 test("NO HR-ONLY STAGE IS IN THE MANAGER'S WIZARD, not even as a future step", () => {
@@ -61,9 +67,52 @@ test("NO HR-ONLY STAGE IS IN THE MANAGER'S WIZARD, not even as a future step", (
   // employee profile. A disabled step here would be a permission request
   // waiting to happen.
   const serialised = JSON.stringify(ONBOARDING_STAGES).toLowerCase();
-  for (const forbidden of ["statutory", "bank", "document", "salary", "payroll", "pf", "esi", "uan"]) {
+  for (const forbidden of ["statutory", "bank", "payment", "document", "salary", "payroll", "pf", "esi", "uan"]) {
     assert.ok(!serialised.includes(forbidden), `${forbidden} must not be a stage of this wizard`);
   }
+});
+
+/* ============================================== M1: create at stage 3 == */
+test("THE EMPLOYEE IS CREATED AT THE END OF EMPLOYMENT (STAGE 3), NOT AFTER EDUCATION", () => {
+  const { isCreateStage, CREATE_STAGE_KEY, stageIndex } = require("./hrOnboarding");
+  assert.strictEqual(CREATE_STAGE_KEY, "employment");
+  assert.ok(isCreateStage(stageIndex("employment")));
+  assert.ok(!isCreateStage(stageIndex("education")));
+  assert.ok(!isFinalStage(stageIndex("employment")), "the create stage is not the last stage");
+});
+
+test("stage 4 (education) requires nothing - a blank education is a finished onboarding", () => {
+  assert.ok(stageIsComplete("education", {}, ctx()));
+});
+
+test("the education payload carries the three education columns and nothing else, or null", () => {
+  const { buildEducationPayload, EDUCATION_FIELDS } = require("./hrOnboarding");
+  assert.deepStrictEqual(EDUCATION_FIELDS, ["qualification", "additional_course", "previous_experience"]);
+  assert.strictEqual(buildEducationPayload({}), null);
+  assert.strictEqual(buildEducationPayload({ qualification: "  " }), null);
+  assert.deepStrictEqual(
+    buildEducationPayload({ qualification: " B.Com ", previous_experience: "2 yrs", salary: "1", pan_no: "x" }),
+    { qualification: "B.Com", previous_experience: "2 yrs" }
+  );
+});
+
+/* =================================================== M1: the initial shift */
+test("the initial shift is the NEW master's id, sent as a number, and omitted when not chosen", () => {
+  const { WORK_SHIFT_FIELD } = require("./hrOnboarding");
+  assert.strictEqual(WORK_SHIFT_FIELD, "default_work_shift_id");
+  const form = { ...personal, ...employment, default_work_shift_id: "4" };
+  const payload = buildCreatePayload(form, null);
+  assert.strictEqual(payload.default_work_shift_id, 4);
+  assert.ok(!("shift_id" in payload), "the legacy shift_id is never sent");
+  const none = buildCreatePayload({ ...personal, ...employment, default_work_shift_id: "" }, null);
+  assert.ok(!("default_work_shift_id" in none));
+});
+
+test("a shift is optional at create, but a non-id value is refused on stage 3", () => {
+  assert.ok(stageIsComplete("employment", { ...personal, ...employment }, ctx()));
+  assert.ok(stageIsComplete("employment", { ...personal, ...employment, default_work_shift_id: "12" }, ctx()));
+  const errors = validateStage("employment", { ...personal, ...employment, default_work_shift_id: "GS1" }, ctx());
+  assert.ok(errors.default_work_shift_id);
 });
 
 /* ============================================================= 1 Aadhaar */
@@ -232,7 +281,7 @@ test("the success state leads with the Employee ID and says HR is not finished",
   assert.match(summary.title, /631/);
   assert.match(summary.title, /HR onboarding pending/i);
   assert.match(summary.aadhaarNote, /pending/i);
-  assert.match(summary.hrNote, /statutory and bank/i);
+  assert.match(summary.hrNote, /payment, statutory, payroll and document/i);
 
   const verified = createdSummary({ employee_id: 632, aadhaar_status: "VERIFIED" });
   assert.match(verified.aadhaarNote, /verified/i);
@@ -253,7 +302,7 @@ test("NOT KNOWN IS NOT THE SAME AS COMPLETE", () => {
 
 test("the outstanding sections read as a sentence, and an empty list says nothing", () => {
   assert.strictEqual(hrOnboardingMissingLabel([]), "");
-  assert.match(hrOnboardingMissingLabel(["bank"]), /bank details/);
-  assert.match(hrOnboardingMissingLabel(["statutory", "bank"]), /statutory details and bank details/);
+  assert.match(hrOnboardingMissingLabel(["bank"]), /payment details/);
+  assert.match(hrOnboardingMissingLabel(["statutory", "bank"]), /statutory details and payment details/);
   assert.strictEqual(hrOnboardingMissingLabel(undefined), "");
 });

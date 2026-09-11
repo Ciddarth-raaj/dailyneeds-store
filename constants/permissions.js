@@ -49,6 +49,11 @@ export const PERMISSIONS = {
     employee_create: "Add Employee",
     employee_resign: "Change Employee Status — Resign",
     employee_rejoin: "Change Employee Status — Rejoin",
+    // M1. The two employee-master sections after a store manager's four
+    // onboarding stages, each grantable on its own. Both sit on top of the
+    // sensitive-edit pair, which stays out of this matrix on purpose.
+    edit_payment_details: "Edit Payment Details (Cash / Bank)",
+    edit_statutory_details: "Edit Statutory Details (PAN / PF / ESI)",
     view_department: "View Departments",
     view_designation: "View Designation",
     // view_shift: "View Shifts",

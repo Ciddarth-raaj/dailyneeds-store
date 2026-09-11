@@ -69,7 +69,7 @@ function StatutorySection({ employee = {}, canView, canEdit, onSave, saving }) {
 
   return (
     <SectionCard
-      title="Statutory"
+      title="Statutory Details"
       subtitle="PAN, provident fund and ESI. Used by payroll and statutory filing."
       badge={<SensitiveBadge />}
       canView={canView}
@@ -94,7 +94,9 @@ function StatutorySection({ employee = {}, canView, canEdit, onSave, saving }) {
               help="Leave blank if it has not been decided yet."
             />
             <EditField label="UAN" name="uan" value={form.uan} onChange={set} />
-            <EditField label="PF number" name="pf_number" value={form.pf_number} onChange={set} />
+            {/* `pf_number` IS the PF member id - the one column production has
+                for it; no second "member id" field is invented (M1). */}
+            <EditField label="PF number (member ID)" name="pf_number" value={form.pf_number} onChange={set} />
             <EditField
               label="ESI applicable"
               name="esi_applicable"
@@ -103,7 +105,7 @@ function StatutorySection({ employee = {}, canView, canEdit, onSave, saving }) {
               options={APPLICABILITY_OPTIONS}
               help="Leave blank if it has not been decided yet."
             />
-            <EditField label="ESI number" name="esi_number" value={form.esi_number} onChange={set} />
+            <EditField label="ESI number (IP number)" name="esi_number" value={form.esi_number} onChange={set} />
           </FieldGrid>
           <Text fontSize="xs" color="gray.500" mt={3}>
             A number is not required to record that somebody is in a scheme — a UAN or an ESI
@@ -120,13 +122,13 @@ function StatutorySection({ employee = {}, canView, canEdit, onSave, saving }) {
                 PF flag: an employee not in the scheme has no UAN to chase. */}
             <Field label="UAN" value={statutoryValue(employee.pf_applicable, employee.uan)} mono />
             <Field
-              label="PF number"
+              label="PF number (member ID)"
               value={statutoryValue(employee.pf_applicable, employee.pf_number)}
               mono
             />
             <Field label="ESI applicable" value={applicabilityLabel(employee.esi_applicable)} />
             <Field
-              label="ESI number"
+              label="ESI number (IP number)"
               value={statutoryValue(employee.esi_applicable, employee.esi_number)}
               mono
             />

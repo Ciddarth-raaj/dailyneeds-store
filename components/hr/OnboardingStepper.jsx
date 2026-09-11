@@ -2,10 +2,10 @@ import React from "react";
 import { Box, Flex, Text, Stack } from "@chakra-ui/react";
 
 /**
- * New Employee onboarding — the manager's progress through the three stages.
+ * New Employee onboarding — the manager's progress through the four stages.
  *
- * IT SHOWS THREE STEPS BECAUSE THERE ARE THREE. The statutory, bank and
- * document sections are HR's and are completed on the employee profile
+ * IT SHOWS FOUR STEPS BECAUSE THERE ARE FOUR (M1). The payment, statutory,
+ * payroll and document sections are completed on the employee profile
  * afterwards; showing them here as greyed-out future steps would tell a store
  * manager they have six steps and are being prevented from taking three of
  * them, which is both untrue and an invitation to ask for the permission.

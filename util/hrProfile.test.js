@@ -110,15 +110,73 @@ test("EVERY SENSITIVE FIELD MAPS TO THE KEY THE BACKEND ACTUALLY DECLARES", () =
     assert.ok(SENSITIVE_FIELD_API_KEY[field], `${field} needs an API key`);
   }
   for (const expected of ["pan_no", "pf_number", "esi_number", "pf_applicable", "esi_applicable",
-                          "bank_name", "ifsc", "account_no"]) {
+                          "bank_name", "ifsc", "account_no", "payment_type"]) {
     assert.ok(SENSITIVE_FIELDS.includes(expected), `${expected} must be handled`);
   }
   // Salary left this screen with the Salary Master card. Payroll owns the
   // figure; a second editor for it on the employee profile is exactly the
-  // quiet second place a pay change could be made from.
-  for (const gone of ["salary", "payment_type"]) {
-    assert.ok(!SENSITIVE_FIELDS.includes(gone), `${gone} belongs to Payroll, not this profile`);
-  }
+  // quiet second place a pay change could be made from. PAYMENT TYPE IS NOT
+  // SALARY: Cash/Bank is Payment Details (M1), and it stays.
+  assert.ok(!SENSITIVE_FIELDS.includes("salary"), "salary belongs to Payroll, not this profile");
+});
+
+/* ============================================ M1: the eight sections == */
+test("THE EMPLOYEE MASTER IS ONE ORDER, FOR ADD AND EDIT ALIKE", () => {
+  const { EMPLOYEE_MASTER_SECTIONS } = require("./hrProfile");
+  assert.deepStrictEqual(
+    EMPLOYEE_MASTER_SECTIONS.map((s) => s.key),
+    ["aadhaar", "personal", "employment", "education", "payment", "statutory", "payroll", "documents"]
+  );
+  assert.strictEqual(EMPLOYEE_MASTER_SECTIONS[4].title, "Payment Details");
+  assert.strictEqual(EMPLOYEE_MASTER_SECTIONS[7].key, "documents", "Documents is LAST");
+});
+
+test("M1: payment and statutory sections have their own keys ON TOP OF the sensitive pair", () => {
+  const { canEditPaymentDetails, canEditStatutoryDetails } = require("./hrProfile");
+  const pair = ["edit_employee_sensitive", "add_employees"];
+  // The pair alone opens neither section any more.
+  assert.strictEqual(canEditPaymentDetails({ permissions: pair }), false);
+  assert.strictEqual(canEditStatutoryDetails({ permissions: pair }), false);
+  // The section key alone opens nothing either: the columns stay sensitive.
+  assert.strictEqual(canEditPaymentDetails({ permissions: ["edit_payment_details"] }), false);
+  assert.strictEqual(canEditStatutoryDetails({ permissions: ["edit_statutory_details"] }), false);
+  // Pair + section key.
+  assert.strictEqual(canEditPaymentDetails({ permissions: [...pair, "edit_payment_details"] }), true);
+  assert.strictEqual(canEditStatutoryDetails({ permissions: [...pair, "edit_payment_details"] }), false);
+  assert.strictEqual(canEditStatutoryDetails({ permissions: [...pair, "edit_statutory_details"] }), true);
+  // Admin bypass, as everywhere.
+  assert.strictEqual(canEditPaymentDetails({ isAdmin: true }), true);
+  // `employee_create` - the onboarding key - opens neither.
+  assert.strictEqual(canEditPaymentDetails({ permissions: ["employee_create", "employee_edit"] }), false);
+  assert.strictEqual(canEditStatutoryDetails({ permissions: ["employee_create", "employee_edit"] }), false);
+});
+
+test("M1: changing a shift from the profile takes the assignment pair, and employee_create is not it", () => {
+  const { canAssignShift } = require("./hrProfile");
+  assert.strictEqual(canAssignShift({ permissions: ["employee_edit", "assign_employee_shift"] }), true);
+  assert.strictEqual(canAssignShift({ permissions: ["employee_edit"] }), false);
+  assert.strictEqual(canAssignShift({ permissions: ["assign_employee_shift"] }), false);
+  assert.strictEqual(canAssignShift({ permissions: ["employee_create", "assign_employee_shift"] }), false);
+  assert.strictEqual(canAssignShift({ isAdmin: true }), true);
+});
+
+test("M1: payment type reuses the legacy values - 1 Bank, 2 Cash - and is sent as a number", () => {
+  const { PAYMENT_TYPE_OPTIONS, paymentTypeLabel, isBankPayment, isCashPayment } = require("./hrProfile");
+  assert.deepStrictEqual(PAYMENT_TYPE_OPTIONS.map((o) => [o.value, o.label]), [[1, "Bank"], [2, "Cash"]]);
+  assert.strictEqual(paymentTypeLabel("1"), "Bank");
+  assert.strictEqual(paymentTypeLabel(2), "Cash");
+  assert.strictEqual(paymentTypeLabel(null), null);
+  assert.strictEqual(paymentTypeLabel(""), null);
+  assert.ok(isBankPayment("1") && !isBankPayment(2) && isCashPayment(2) && !isCashPayment(null));
+  assert.deepStrictEqual(buildSensitivePayload(9, { payment_type: 1 }, { payment_type: "2" }), {
+    employee_id: 9,
+    employee_details: { payment_type: 2 },
+  });
+  // Clearing sends null, as the applicability flags do.
+  assert.deepStrictEqual(buildSensitivePayload(9, { payment_type: 1 }, { payment_type: "" }), {
+    employee_id: 9,
+    employee_details: { payment_type: null },
+  });
 });
 
 /* ================================================== the ordinary edit path */
@@ -198,7 +256,7 @@ test("CLEARING AN APPLICABILITY FLAG SENDS NULL, NEVER ZERO", () => {
 test("salary can no longer be sent from this screen at all", () => {
   // Not merely absent from the UI: the mapping refuses to carry it, so a
   // stale form or a future component cannot reopen the path by accident.
-  assert.strictEqual(buildSensitivePayload(1, {}, { salary: "50000", payment_type: "2" }), null);
+  assert.strictEqual(buildSensitivePayload(1, {}, { salary: "50000" }), null);
 });
 
 test("bank details travel this path too, which is what makes verification possible", () => {

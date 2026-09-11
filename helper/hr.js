@@ -41,6 +41,19 @@ const hr = {
         .catch(reject);
     }),
 
+  /**
+   * POST /hr/employee/:id/onboarding-education — employee_create.
+   * M1: stage 4 of Add Employee, written against the Employee ID stage 3
+   * allocated, by the same manager, without needing `employee_edit`. The
+   * body is the three education columns and nothing else.
+   */
+  saveOnboardingEducation: (employeeId, payload) =>
+    new Promise((resolve, reject) => {
+      API.post(`/hr/employee/${employeeId}/onboarding-education`, payload)
+        .then((res) => resolve(res.data))
+        .catch(reject);
+    }),
+
   /** POST /hr/employee/:id/edit — employee_edit. */
   editEmployee: (employeeId, patch) =>
     new Promise((resolve, reject) => {

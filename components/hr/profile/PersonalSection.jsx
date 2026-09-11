@@ -60,7 +60,7 @@ function PersonalSection({ employee = {}, canEdit, onSave, saving }) {
 
   return (
     <SectionCard
-      title="Personal"
+      title="Personal Details"
       canEdit={canEdit}
       editing={editing}
       onEdit={start}
