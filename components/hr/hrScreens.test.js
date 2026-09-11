@@ -960,3 +960,108 @@ test("M1 review fix: NO Employee Master screen can write salary, anywhere on the
   );
   assert.ok(!/"salary"/.test(editable), "salary is not an HR-editable field");
 });
+
+/* ---------------------- M2. Existing / Previous PF Member ----------------- */
+
+test("M2 — Previous PF Member is on Statutory Details, as a tri-state", () => {
+  // The ONLY frontend change in M2. It is a third statutory fact, not a
+  // rewording of PF applicable and not the legacy free-text `pf` column.
+  assert.match(statutory, /name="previous_pf_member"/, "it is editable");
+  assert.match(
+    statutory,
+    /label="Existing \/ Previous PF member"/,
+    "labelled as the approved rule names it"
+  );
+
+  // Yes / No / blank, through the same dropdown the other two flags use. The
+  // blank option is what records "not known" - and the backend depends on it,
+  // because it reports an unrecorded membership as an UNRESOLVED EPS split
+  // rather than guessing. A two-state control would force an answer nobody has.
+  const block = statutory.slice(statutory.indexOf('name="previous_pf_member"'));
+  assert.match(block.slice(0, 400), /options=\{APPLICABILITY_OPTIONS\}/);
+
+  // Read mode shows Yes / No / not recorded.
+  assert.match(
+    statutory,
+    /applicabilityLabel\(employee\.previous_pf_member\)/,
+    "displayed as a standalone fact"
+  );
+
+  // NOT through `statutoryValue`: that reads "Not applicable" the moment the
+  // PF flag is off, which would erase an answer somebody actually gave about
+  // a previous employer's scheme.
+  assert.ok(
+    !/statutoryValue\([^)]*employee\.previous_pf_member\)/.test(statutory),
+    "it is a history, not an identifier waiting on this employer"
+  );
+});
+
+test("M2 — Previous PF Member is sent as a tri-state number, under the statutory right", () => {
+  const {
+    buildSensitivePayload,
+    canEditStatutoryDetails,
+  } = require(path.join(ROOT, "util/hrProfile.js"));
+
+  // Yes and No go as numbers, because the backend's Joi schema says so.
+  assert.deepStrictEqual(
+    buildSensitivePayload(5, { previous_pf_member: null }, { previous_pf_member: 1 }),
+    { employee_id: 5, employee_details: { previous_pf_member: 1 } }
+  );
+  assert.deepStrictEqual(
+    buildSensitivePayload(5, { previous_pf_member: 1 }, { previous_pf_member: 0 }),
+    { employee_id: 5, employee_details: { previous_pf_member: 0 } }
+  );
+
+  // AN EMPTIED DROPDOWN CLEARS IT TO null, NOT TO 0. This is the assertion
+  // that matters most on this field: 0 means "first-time member", which is a
+  // statutory position, and null means nobody has said.
+  assert.deepStrictEqual(
+    buildSensitivePayload(5, { previous_pf_member: 1 }, { previous_pf_member: "" }),
+    { employee_id: 5, employee_details: { previous_pf_member: null } }
+  );
+
+  // Unchanged means nothing is sent - that endpoint turns an empty body into
+  // invalid SQL, and resending rewrites an audit trail for an edit nobody made.
+  assert.strictEqual(
+    buildSensitivePayload(5, { previous_pf_member: 1 }, { previous_pf_member: 1 }),
+    null
+  );
+
+  // It travels on the SENSITIVE path (so B3 and the section key apply), never
+  // on the ordinary HR editor patch.
+  assert.strictEqual(typeof canEditStatutoryDetails, "function");
+  const rules = read("util/hrProfile.js");
+  const editable = rules.slice(rules.indexOf("HR_EDITABLE_FIELDS"), rules.indexOf("NUMERIC_HR_FIELDS"));
+  assert.ok(
+    !/previous_pf_member/.test(editable),
+    "it must not be in the ordinary editable list - it is sensitive"
+  );
+});
+
+test("M2 — the Payroll section is still an untouched M1 placeholder", () => {
+  // Rule 14: the frontend scope is the new field and nothing else. No Salary
+  // Revision, Approval or Bulk Upload UI, and no salary figure on the profile.
+  const payroll = read("components/hr/profile/PayrollSection.jsx");
+  // Checked against FUNCTIONALITY, not against the card's prose - it already
+  // explains that salary is revised and approved elsewhere, and that sentence
+  // is the placeholder doing its job.
+  const code = payroll.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\{\/\*[\s\S]*?\*\/\}/g, "");
+  for (const forbidden of [
+    "monthly_gross",
+    "employee_pf",
+    "employer_epf",
+    "monthly_ctc",
+    "EditField",
+    "useState",
+    "onSave",
+    "/hr/salary",
+  ]) {
+    assert.ok(
+      !new RegExp(forbidden.replace(/[/]/g, "\\/"), "i").test(code),
+      `the Payroll card must not carry ${forbidden} yet`
+    );
+  }
+  // It renders no salary figure at all: no editor, no fetch, no second place
+  // for a salary to be typed.
+  assert.ok(!/fetch\(|axios|helper\//.test(code), "the placeholder calls nothing");
+});

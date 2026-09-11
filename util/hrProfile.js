@@ -205,6 +205,14 @@ const SENSITIVE_FIELD_API_KEY = {
   // numbers they qualify, and written by the same Statutory section.
   pf_applicable: "pf_applicable",
   esi_applicable: "esi_applicable",
+  // M2. Whether the employee was already a provident fund member before they
+  // joined — a THIRD statutory fact, separate from PF applicable, the UAN and
+  // the PF number, and deliberately not the legacy free-text `pf` column.
+  //
+  // It is not decoration: it decides whether the employer's 12% splits into
+  // EPF and EPS or goes wholly to EPF, so an unanswered one is a contribution
+  // the backend reports as unresolved rather than guessing at.
+  previous_pf_member: "previous_pf_member",
   // M1. Cash or Bank, on the Payment Details section beside the account it
   // qualifies. Sensitive under B3 already; the route takes it as a number.
   payment_type: "payment_type",
@@ -224,7 +232,16 @@ const SENSITIVE_FIELDS = Object.keys(SENSITIVE_FIELD_API_KEY);
  * collapsing the first into the second would record a statutory decision
  * nobody made.
  */
-const NUMERIC_SENSITIVE_FIELDS = ["pf_applicable", "esi_applicable", "payment_type"];
+const NUMERIC_SENSITIVE_FIELDS = [
+  "pf_applicable",
+  "esi_applicable",
+  // M2. Tri-state like the two flags above, and for a sharper reason: the
+  // backend treats null as "not recorded" and reports the EPS split as
+  // unresolved, so an emptied dropdown must arrive as null. Sending 0 would
+  // record "first-time member" — a statutory position nobody took.
+  "previous_pf_member",
+  "payment_type",
+];
 
 /* --------------------------------------------------------------- patching */
 

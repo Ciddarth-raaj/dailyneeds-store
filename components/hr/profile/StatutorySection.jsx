@@ -53,6 +53,7 @@ function StatutorySection({ employee = {}, canView, canEdit, onSave, saving }) {
       pan_no: employee.pan_no ?? "",
       uan: employee.uan ?? "",
       pf_applicable: employee.pf_applicable ?? "",
+      previous_pf_member: employee.previous_pf_member ?? "",
       pf_number: employee.pf_number ?? "",
       esi_applicable: employee.esi_applicable ?? "",
       esi_number: employee.esi_number ?? "",
@@ -93,6 +94,20 @@ function StatutorySection({ employee = {}, canView, canEdit, onSave, saving }) {
               options={APPLICABILITY_OPTIONS}
               help="Leave blank if it has not been decided yet."
             />
+            {/* M2. A SEPARATE FACT from PF applicable, and from both numbers.
+                "Is this employee in the scheme now" and "had they ever been in
+                it before they joined us" are different questions, and only the
+                second decides whether the employer's share splits into EPF and
+                EPS. Placed directly under PF applicable because that is the
+                order the question gets asked in. */}
+            <EditField
+              label="Existing / Previous PF member"
+              name="previous_pf_member"
+              value={form.previous_pf_member}
+              onChange={set}
+              options={APPLICABILITY_OPTIONS}
+              help="Was the employee already a PF member before joining? Leave blank if it is not known."
+            />
             <EditField label="UAN" name="uan" value={form.uan} onChange={set} />
             {/* `pf_number` IS the PF member id - the one column production has
                 for it; no second "member id" field is invented (M1). */}
@@ -118,6 +133,17 @@ function StatutorySection({ employee = {}, canView, canEdit, onSave, saving }) {
             {/* PAN answers to neither flag - everybody has one. */}
             <Field label="PAN" value={maskIdentifier(employee.pan_no)} mono />
             <Field label="PF applicable" value={applicabilityLabel(employee.pf_applicable)} />
+            {/* M2. Shown with `applicabilityLabel` and NOT with
+                `statutoryValue`, deliberately. The identifiers below answer to
+                the PF flag - somebody outside the scheme has no UAN to chase -
+                but whether they were a member of a PREVIOUS employer's scheme
+                is a fact about their history, not an identifier this employer
+                is waiting on. Reading it as "Not applicable" the moment PF is
+                switched off would erase an answer somebody gave. */}
+            <Field
+              label="Existing / Previous PF member"
+              value={applicabilityLabel(employee.previous_pf_member)}
+            />
             {/* The UAN is the provident-fund identifier, so it answers to the
                 PF flag: an employee not in the scheme has no UAN to chase. */}
             <Field label="UAN" value={statutoryValue(employee.pf_applicable, employee.uan)} mono />
