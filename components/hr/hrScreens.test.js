@@ -681,9 +681,14 @@ test("M1: Payment Details is Cash / Bank, asks for the bank only when Bank, and 
   assert.match(rules, /\{ value: 2, label: "Cash" \}/);
 });
 
-test("M1: Payroll holds its place and shows nothing; Documents is last and read-only", () => {
+test("M3: Payroll holds its place and is READ-ONLY; Documents is last and read-only", () => {
+  // M1 put the section in the order and left it empty; M3 fills it with the
+  // current approved salary and NOTHING ELSE. What is defended here is the
+  // half that did not change: it still offers no way to write pay.
+  // The figures themselves are pinned in components/hr/payrollSection.test.js.
   const payroll = codeOf(read("components/hr/profile/PayrollSection.jsx"));
-  assert.ok(!/salary_|gross|ctc|EditField|onSave|HrHelper|EmployeeHelper|useEffect/.test(payroll), "no figure, no editor, no request");
+  assert.ok(!/EditField|onSave|onEdit|canEdit|editing/.test(payroll), "no editor of any kind");
+  assert.ok(!/HrHelper|EmployeeHelper|updateEmployeeDetails/.test(payroll), "no employee write path");
   const documents = read("components/hr/profile/DocumentsSection.jsx");
   assert.match(documents, /DocumentHelper\.getDocType\(employeeId\)/, "the existing read is reused");
   assert.ok(!/upload|approveDocument|updateStatus|EditField|onSave/.test(codeOf(documents)), "read-only");
@@ -1137,30 +1142,29 @@ test("M2 review fix — Previous EPS Member is sent as a tri-state number, under
   );
 });
 
-test("M2 — the Payroll section is still an untouched M1 placeholder", () => {
-  // Rule 14: the frontend scope is the new field and nothing else. No Salary
-  // Revision, Approval or Bulk Upload UI, and no salary figure on the profile.
+test("M3 — the Payroll section is the ONLY salary surface, and it is a read", () => {
+  // M2's rule 14 kept the card a placeholder because the view was M3's. Now
+  // that it exists, what still has to hold is the boundary either side of it:
+  // no Salary Revision, Approval or Bulk Upload UI anywhere, and no second
+  // place for a salary to be typed.
   const payroll = read("components/hr/profile/PayrollSection.jsx");
-  // Checked against FUNCTIONALITY, not against the card's prose - it already
-  // explains that salary is revised and approved elsewhere, and that sentence
-  // is the placeholder doing its job.
   const code = payroll.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\{\/\*[\s\S]*?\*\/\}/g, "");
   for (const forbidden of [
-    "monthly_gross",
-    "employee_pf",
-    "employer_epf",
-    "monthly_ctc",
     "EditField",
-    "useState",
     "onSave",
-    "/hr/salary",
+    "Save",
+    "revision",
+    "approve",
+    "reject",
+    "preview",
+    "upload",
   ]) {
     assert.ok(
-      !new RegExp(forbidden.replace(/[/]/g, "\\/"), "i").test(code),
-      `the Payroll card must not carry ${forbidden} yet`
+      !new RegExp(`\\b${forbidden}\\b`, "i").test(code),
+      `the Payroll card must not carry ${forbidden}`
     );
   }
-  // It renders no salary figure at all: no editor, no fetch, no second place
-  // for a salary to be typed.
-  assert.ok(!/fetch\(|axios|helper\//.test(code), "the placeholder calls nothing");
+  // It reads through the one hook, which calls the one endpoint.
+  assert.match(code, /useCurrentSalary\(employeeId, canView\)/);
+  assert.ok(!/axios|API\./.test(code), "the card does not call the API itself");
 });

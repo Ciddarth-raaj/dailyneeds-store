@@ -43,6 +43,7 @@ import {
   canEditPaymentDetails,
   canEditStatutoryDetails,
   canViewDocuments,
+  canViewSalary,
   canViewSensitive,
   unwrapEmployee,
 } from "../../../util/hrProfile";
@@ -65,8 +66,9 @@ import {
  *                            sensitive pair + `edit_payment_details`
  *   6 Statutory Details      PAN / PF / ESI, sensitive pair +
  *                            `edit_statutory_details`
- *   7 Payroll                position only until M2/M3 - nothing is shown
- *                            and nothing can be typed
+ *   7 Payroll                M3: the current approved salary, READ-ONLY,
+ *                            under `view_employees` + `view_salary`. Nothing
+ *                            can be typed here and nothing is calculated here
  *   8 Documents              read-only, `view_documents`
  *
  * Separate sections rather than one long form, because they are governed
@@ -77,10 +79,11 @@ import {
  *
  * WHAT IS DELIBERATELY NOT HERE:
  *
- *   Salary               pay belongs to Payroll, which owns the structure,
- *                        the revisions, the approvals and the history. The
- *                        Payroll section will show the currently effective
- *                        approved salary (M3) and never edit it.
+ *   Salary entry         pay belongs to Payroll, which owns the structure,
+ *                        the revisions, the approvals and the history. M3
+ *                        SHOWS the currently effective approved salary on the
+ *                        Payroll section and never edits it: no Edit button,
+ *                        no Save, no revision or approval control.
  *   Employment History   shown only where there IS a history - see below.
  *
  * TWO WRITE PATHS, because the backend has two - see `util/hrProfile.js`. The
@@ -112,6 +115,10 @@ function EmployeeProfile() {
   const mayEditStatutory = canEditStatutoryDetails(actor);
   const mayAssignShift = canAssignShift(actor);
   const mayViewDocuments = canViewDocuments(actor);
+  // M3. The Payroll section's own right, and the one the salary resolver
+  // demands: `view_employees` AND `view_salary`. Without it the section
+  // renders a no-access line and makes no request at all.
+  const mayViewSalary = canViewSalary(actor);
   const canViewLifecycle = usePermissions(["view_employee_lifecycle"]);
 
   const { outlets } = useOutlets({ directory: true });
@@ -536,8 +543,13 @@ function EmployeeProfile() {
             saving={saving}
           />
 
-          {/* ========================================= 7. Payroll ==== */}
-          <PayrollSection />
+          {/* ========================================= 7. Payroll ====
+              M3. READ-ONLY. The currently effective approved salary, resolved
+              by the M2 API and never recalculated here. No Edit, no Save: pay
+              is entered, revised and approved on Payroll's own screens. The
+              id comes from the lifecycle read, which is the one record this
+              page is certain of - a missing one means no request is made. */}
+          <PayrollSection employeeId={lifecycle.employee_id} canView={mayViewSalary} />
 
           {/* ======================================= 8. Documents ==== */}
           <DocumentsSection employeeId={lifecycle.employee_id} canView={mayViewDocuments} />

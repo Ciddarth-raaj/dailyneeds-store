@@ -54,6 +54,20 @@ export const PERMISSIONS = {
     // sensitive-edit pair, which stays out of this matrix on purpose.
     edit_payment_details: "Edit Payment Details (Cash / Bank)",
     edit_statutory_details: "Edit Statutory Details (PAN / PF / ESI)",
+    // M3. Seeing the Payroll section's figures on the employee profile - the
+    // current approved salary, its breakup, the statutory contributions and
+    // the CTC. READ ONLY: this key opens no editor anywhere, and the salary
+    // lifecycle keys M2 created (`add_salary`, `edit_salary`,
+    // `approve_salary_revision`, `manual_salary_component_override`) are
+    // deliberately NOT listed - the screens they gate are later modules, and a
+    // key that can be granted before its screen exists is a key that grants
+    // nothing and is remembered as if it did.
+    //
+    // It is listed here for the same reason `employee_edit` was: the backend
+    // has checked it since M2, and this file is what the Permission Matrix
+    // renders, so without an entry the permission cannot be granted at all and
+    // the section would be visible to administrators alone.
+    view_salary: "View Salary (Employee Master, read-only)",
     view_department: "View Departments",
     view_designation: "View Designation",
     // view_shift: "View Shifts",

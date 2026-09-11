@@ -144,6 +144,29 @@ function canViewDocuments({ permissions = [], isAdmin = false } = {}) {
   return isAdminUser(isAdmin) || has(permissions, "view_documents");
 }
 
+/**
+ * M3 — who may see the Payroll section's figures.
+ *
+ * THE SAME PAIR THE BACKEND DEMANDS, and demanded as a conjunction for the
+ * same reason: `GET /hr/salary/employee/:id/current` is guarded by
+ * `requireAll(VIEW_EMPLOYEES, VIEW_SALARY)`, so anything weaker here would
+ * only produce a section that renders and then 403s.
+ *
+ * `view_employee_sensitive` IS DELIBERATELY NOT PART OF THIS. `view_salary` is
+ * the approved salary permission, and requiring the B3 key on top of it would
+ * make the Payroll section ungrantable in practice - exactly the trap the M1
+ * review fix pulled `add_employees` out of on the sections above. B3 is not
+ * weakened by leaving it out: the salary router mounts `filterResponse` and
+ * `guardWrite` like every other /hr route, and none of the keys this section
+ * renders is a sensitive employee column.
+ *
+ * Admins reach it through the existing `user_type = 2` bypass, unchanged.
+ */
+function canViewSalary({ permissions = [], isAdmin = false } = {}) {
+  if (isAdminUser(isAdmin)) return true;
+  return has(permissions, "view_employees") && has(permissions, "view_salary");
+}
+
 /* ------------------------------------------------------------- the fields */
 
 /**
@@ -399,6 +422,7 @@ module.exports = {
   canAssignShift,
   canEditEmployee,
   canViewDocuments,
+  canViewSalary,
   EMPLOYEE_MASTER_SECTIONS,
   PAYMENT_TYPE_OPTIONS,
   isBankPayment,
