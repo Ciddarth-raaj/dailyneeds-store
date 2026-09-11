@@ -48,6 +48,7 @@ test("Employees, Department and Designation are all inside HR", () => {
   const hrMenu = treeNamed("HR_MENU");
   assert.deepStrictEqual(locationsIn(hrMenu).sort(), [
     "/attendance/devices",
+    "/attendance/imports",
     "/attendance/list",
     "/attendance/list?tab=audit",
     "/department",
@@ -151,10 +152,11 @@ test("ATTENDANCE IS A SECTION OF HR, AND THERE IS NO ATTENDANCE MODULE ON THE RA
   assert.strictEqual(code.indexOf("const ATTENDANCE_MENU"), -1, "no separate Attendance menu tree");
 });
 
-test("HR > Attendance: list, punch audit and devices, on the same routes behind the same keys", () => {
+test("HR > Attendance: list, punch audit, devices and the DigiSME import, on the same routes behind the same keys", () => {
   const hrMenu = treeNamed("HR_MENU");
   const att = hrMenu.slice(hrMenu.indexOf("attendance: {"));
-  assert.deepStrictEqual(locationsIn(att).sort(), ["/attendance/devices", "/attendance/list", "/attendance/list?tab=audit"]);
+  assert.deepStrictEqual(locationsIn(att).sort(), ["/attendance/devices", "/attendance/imports", "/attendance/list", "/attendance/list?tab=audit"]);
+  assert.match(att, /title:\s*"Import Attendance"[\s\S]*?permission:\s*"manage_attendance_import"/);
   assert.match(att, /title:\s*"Attendance List"[\s\S]*?permission:\s*"view_raw_attendance"/);
   assert.match(att, /title:\s*"Punch Audit"[\s\S]*?permission:\s*"view_attendance_punch_audit"/);
   assert.match(att, /title:\s*"Biomax Devices"[\s\S]*?permission:\s*"view_biomax_devices"/);
@@ -226,6 +228,7 @@ test("HR navigation still appears exactly once, and still holds its pages", () =
   const hrMenu = treeNamed("HR_MENU");
   assert.deepStrictEqual(locationsIn(hrMenu).sort(), [
     "/attendance/devices",
+    "/attendance/imports",
     "/attendance/list",
     "/attendance/list?tab=audit",
     "/department",

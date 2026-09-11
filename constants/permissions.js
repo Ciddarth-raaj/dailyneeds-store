@@ -108,6 +108,7 @@ export const PERMISSIONS = {
     view_biomax_devices: "View Biomax Devices",
     manage_biomax_devices: "Manage Biomax Devices",
     rederive_attendance: "Re-derive Attendance Dates (reserved)",
+    manage_attendance_import: "Import Attendance from DigiSME Excel",
   },
 
   // Master

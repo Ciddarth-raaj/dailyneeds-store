@@ -971,6 +971,16 @@ const HR_MENU = {
         selected: false,
         location: "/attendance/devices",
       },
+      // The permanent DigiSME fallback: an Excel export of the same punches,
+      // imported into the same table. Administrators only - the backend
+      // grants `manage_attendance_import` to no designation - so this entry
+      // is invisible to everyone else, like Biomax Devices beside it.
+      import_attendance: {
+        title: "Import Attendance",
+        permission: "manage_attendance_import",
+        selected: false,
+        location: "/attendance/imports",
+      },
     },
   },
 };

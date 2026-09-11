@@ -116,6 +116,43 @@ const attendance = {
   deactivateDevice: (body) => post("/attendance/devices/deactivate", body),
   /** `{ biomax_device_id, dev_id, reason }` - audited; refused once the device has punched */
   correctCloudId: (body) => post("/attendance/devices/correct-cloud-id", body),
+
+  /* ------------------------------------------------- DigiSME Excel import */
+  /*
+   * `routes/attendance_import.js`, mounted at /attendance/imports, every
+   * endpoint behind `manage_attendance_import`. Preview stages a batch and
+   * writes no punch; only commit writes, and only a PREVIEWED batch.
+   *
+   * preview and commit answer `{ code, batch, classification_counts,
+   * outcome_counts, unmatched_employee_codes }`; the three reads answer
+   * `{ code, data }`. A refusal or a conflict arrives as `{ code, msg }`
+   * like every other helper - 409 means the batch was already committed.
+   */
+
+  /**
+   * One .xlsx, multipart, as the server's formidable reader expects it. The
+   * browser never parses the workbook: the server is the only thing that
+   * reads a punch out of it.
+   */
+  previewDigiSmeImport: (file) => {
+    const formData = new FormData();
+    formData.append("file", file, file.name);
+    return post("/attendance/imports/digisme/preview", formData);
+  },
+
+  /** Import history, newest batch first. `{ limit? }`. */
+  listAttendanceImports: (params) => get("/attendance/imports", params),
+
+  /** One batch: the batch row, both count maps, and the unmatched codes. */
+  getAttendanceImportDetails: (import_batch_id) =>
+    get("/attendance/imports/details", { import_batch_id }),
+
+  /** `{ import_batch_id, classification?, outcome?, limit?, offset? }` -> `{ rows, total, limit, offset }`. */
+  getAttendanceImportItems: (params) => get("/attendance/imports/items", params),
+
+  /** Commit a PREVIEWED batch. Answers the refreshed details, or 409. */
+  commitAttendanceImport: (import_batch_id) =>
+    post("/attendance/imports/commit", { import_batch_id }),
 };
 
 export default attendance;
