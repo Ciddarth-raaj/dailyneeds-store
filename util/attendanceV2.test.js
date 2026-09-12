@@ -401,7 +401,7 @@ test("OT hover explains the 2 Sep case: 39 minutes after out-time, minimum met",
   );
   assert.deepEqual(lines, [
     "Worked 9h 9m against NRM 8h 30m: 39m over",
-    "After shift out-time 39m",
+    "After out-time 39m",
     "Minimum OT 20m met",
     "OT 39m",
   ]);
@@ -430,4 +430,23 @@ test("OT hover shows the excluded minimum arithmetic when the shift excludes it"
   );
   assert.ok(lines.includes("Minimum 20m excluded: 39m − 20m = 19m"), lines.join(" | "));
   assert.equal(lines[lines.length - 1], "OT 19m");
+});
+
+test("OT hover walks the engine's chain: surplus, pre-shift dropped, minimum excluded (2 Sep, Saravanan)", () => {
+  const lines = otExplanation(
+    day({
+      shift_snapshot: snap({ overtime_minimum_excluded: true, pre_shift_overtime_allowed: false }),
+      punch_count: 4,
+      nrm_minutes: 510, worked_minutes: 678,
+      pre_shift_minutes: 12, post_shift_minutes: 152,
+      raw_ot_minutes: 168, ot_offset_minutes: 0, candidate_ot_minutes: 136,
+    })
+  );
+  assert.deepEqual(lines, [
+    "Worked 11h 18m against NRM 8h 30m: 2h 48m over",
+    "Before in-time 12m dropped (pre-shift OT off): 2h 36m",
+    "After out-time 2h 32m",
+    "Minimum 20m excluded: 2h 36m − 20m = 2h 16m",
+    "OT 2h 16m",
+  ]);
 });

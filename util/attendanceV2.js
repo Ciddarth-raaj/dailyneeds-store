@@ -563,41 +563,54 @@ function otExplanation(day) {
 
   const pre = n0(day.pre_shift_minutes);
   const post = n0(day.post_shift_minutes);
+  const raw = n0(day.raw_ot_minutes);
+
+  // The engine's chain, as a running figure: the surplus, less the part
+  // before in-time (its own rules, or dropped), less the offsets, then the
+  // minimum, rounding and cap.
+  if (punches === 2 && worked > nrm && raw < worked - nrm) {
+    lines.push(`Two punches only: OT counts time after out-time, not an unused break: ${formatMinutes(raw)}`);
+  }
+  let running = raw;
   if (pre > 0) {
-    lines.push(
-      `Before shift in-time ${formatMinutes(pre)}` +
-        (snap.pre_shift_overtime_allowed ? "" : " (pre-shift OT not allowed on this shift)")
-    );
+    const prePart = Math.min(pre, running);
+    running -= prePart;
     const preMin = n0(snap.pre_shift_overtime_minimum_minutes);
-    if (snap.pre_shift_overtime_allowed && preMin > 0) {
-      if (pre < preMin) lines.push(`Below the ${formatMinutes(preMin)} pre-shift minimum: no early OT`);
-      else if (snap.pre_shift_overtime_minimum_excluded) lines.push(`Pre-shift minimum ${formatMinutes(preMin)} excluded: ${formatMinutes(pre - preMin)}`);
+    if (!snap.pre_shift_overtime_allowed) {
+      lines.push(`Before in-time ${formatMinutes(prePart)} dropped (pre-shift OT off): ${formatMinutes(running)}`);
+    } else if (prePart < preMin) {
+      lines.push(`Before in-time ${formatMinutes(prePart)}: below the ${formatMinutes(preMin)} pre-shift minimum, not paid`);
+    } else if (snap.pre_shift_overtime_minimum_excluded && preMin > 0) {
+      lines.push(`Before in-time ${formatMinutes(prePart)}, minimum ${formatMinutes(preMin)} excluded: ${formatMinutes(prePart - preMin)} pre-shift OT`);
+    } else {
+      lines.push(`Before in-time ${formatMinutes(prePart)} pre-shift OT`);
     }
   }
-  if (post > 0) lines.push(`After shift out-time ${formatMinutes(post)}`);
-  if (punches === 2 && worked > nrm && post < worked - nrm) {
-    lines.push("Two punches only: OT counts time after out-time, not an unused break");
-  }
+  if (post > 0 && running > 0) lines.push(`After out-time ${formatMinutes(post)}`);
 
   if (!snap.overtime_allowed) {
     lines.push("OT not allowed on this shift");
-  } else {
-    const raw = n0(day.raw_ot_minutes);
+  } else if (running > 0) {
     const offset = n0(day.ot_offset_minutes);
-    if (offset > 0) lines.push(`Late / early-out offset –${formatMinutes(offset)}`);
+    if (offset > 0) {
+      running = Math.max(0, running - offset);
+      lines.push(`Late / early-out offset −${formatMinutes(offset)}: ${formatMinutes(running)}`);
+    }
     const min = n0(snap.overtime_minimum_minutes);
-    if (raw > 0 && min > 0) {
-      if (raw - offset < min) {
+    if (min > 0) {
+      if (running < min) {
         lines.push(`Below the ${formatMinutes(min)} minimum: no OT`);
+        running = 0;
       } else if (snap.overtime_minimum_excluded) {
-        lines.push(`Minimum ${formatMinutes(min)} excluded: ${formatMinutes(raw - offset)} − ${formatMinutes(min)} = ${formatMinutes(raw - offset - min)}`);
+        lines.push(`Minimum ${formatMinutes(min)} excluded: ${formatMinutes(running)} − ${formatMinutes(min)} = ${formatMinutes(running - min)}`);
+        running -= min;
       } else {
         lines.push(`Minimum OT ${formatMinutes(min)} met`);
       }
     }
     const method = String(snap.overtime_rounding_method || "NONE").toUpperCase();
     const interval = n0(snap.overtime_rounding_interval_minutes);
-    if (method !== "NONE" && interval > 1) lines.push(`Rounded ${method.toLowerCase()} to ${formatMinutes(interval)}`);
+    if (running > 0 && method !== "NONE" && interval > 1) lines.push(`Rounded ${method.toLowerCase()} to ${formatMinutes(interval)}`);
     if (snap.maximum_ot_minutes_per_day !== null && snap.maximum_ot_minutes_per_day !== undefined) {
       lines.push(`Daily cap ${formatMinutes(snap.maximum_ot_minutes_per_day)}`);
     }
