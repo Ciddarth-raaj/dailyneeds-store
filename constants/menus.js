@@ -1020,6 +1020,16 @@ const HR_MENU = {
         selected: false,
         location: "/attendance/recalculate",
       },
+      // The employee-level approver chain (First / Second / Final) that
+      // governs Attendance Regularization and OT approvals. Behind the key
+      // the backend grants to nobody; it is never handed to HR or managers
+      // by any rule here.
+      attendance_approver_setup: {
+        title: "Attendance Approver Setup",
+        permission: "manage_attendance_approvers",
+        selected: false,
+        location: "/attendance/approver-setup",
+      },
     },
   },
   // M4 — Payroll. A SECTION OF HR, never a module of its own, exactly as the

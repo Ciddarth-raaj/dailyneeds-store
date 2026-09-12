@@ -173,6 +173,10 @@ export const PERMISSIONS = {
     view_attendance_approvals: "View Attendance / OT Approvals",
     approve_attendance_regularization: "Approve / Reject Attendance and OT Requests",
     recalculate_attendance: "Recalculate Attendance",
+    // The Attendance Approver Setup screen and every mutation behind it:
+    // per-employee First / Second / Final approvers, Bulk Set, Replace
+    // Approver. Granted by migration to nobody.
+    manage_attendance_approvers: "Manage Attendance Approvers (Approver Setup)",
   },
 
   // Master

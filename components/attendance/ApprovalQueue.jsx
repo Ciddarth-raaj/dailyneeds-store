@@ -24,6 +24,7 @@ import {
   displayDateTime,
   formatMinutes,
   formatOtClock,
+  levelLabel,
   roleLabel,
   stageLabel,
   weekday,
@@ -75,6 +76,16 @@ function Field({ label, children }) {
   );
 }
 
+/**
+ * Who a stage is addressed to. An employee-level stage (Attendance Approver
+ * Setup) names the snapshotted person and their level; a role-based stage,
+ * historical or fallback, names the role as before.
+ */
+const stageApproverLabel = (st) =>
+  st.approver_employee_id !== null && st.approver_employee_id !== undefined
+    ? `${st.approver_name || `Employee ${st.approver_employee_id}`}${st.approval_level ? ` · ${levelLabel(st.approval_level)}` : ""}`
+    : roleLabel(st.approver_role);
+
 function Chain({ chain, current }) {
   return (
     <Stack spacing={1}>
@@ -86,7 +97,7 @@ function Chain({ chain, current }) {
           >
             {st.stage_no}
           </Badge>
-          <Text>{roleLabel(st.approver_role)}</Text>
+          <Text>{stageApproverLabel(st)}</Text>
           <Text color="gray.500">{st.decision === "PENDING" ? (Number(st.stage_no) === Number(current) ? "current" : "waiting") : st.decision.toLowerCase()}</Text>
           {st.decided_by_name ? <Text color="gray.600">by {st.decided_by_name}</Text> : null}
           {st.decided_at ? <Text color="gray.500">{displayDateTime(st.decided_at)}</Text> : null}

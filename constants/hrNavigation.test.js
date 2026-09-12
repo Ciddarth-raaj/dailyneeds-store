@@ -66,6 +66,7 @@ test("Employees, Department and Designation are all inside HR", () => {
     // Attendance v2: the HR/Admin view of a calculated month, and every
     // employee's own.
     "/attendance/approval",
+    "/attendance/approver-setup",
     "/attendance/calculated",
     "/attendance/devices",
     "/attendance/imports",
@@ -189,6 +190,7 @@ test("HR > Attendance: list, punch audit, devices and the DigiSME import, on the
   const att = sectionOf(hrMenu, "attendance");
   assert.deepStrictEqual(locationsIn(att).sort(), [
     "/attendance/approval",
+    "/attendance/approver-setup",
     "/attendance/calculated",
     "/attendance/devices",
     "/attendance/imports",
@@ -201,6 +203,7 @@ test("HR > Attendance: list, punch audit, devices and the DigiSME import, on the
   assert.match(att, /title:\s*"Attendance Approval"[\s\S]*?permission:\s*"view_attendance_approvals"/);
   assert.match(att, /title:\s*"OT Approval"[\s\S]*?permission:\s*"view_attendance_approvals"/);
   assert.match(att, /title:\s*"Recalculate Attendance"[\s\S]*?permission:\s*"recalculate_attendance"/);
+  assert.match(att, /title:\s*"Attendance Approver Setup"[\s\S]*?permission:\s*"manage_attendance_approvers"/);
   assert.match(att, /title:\s*"Import Attendance"[\s\S]*?permission:\s*"manage_attendance_import"/);
   assert.match(att, /title:\s*"Attendance List"[\s\S]*?permission:\s*"view_raw_attendance"/);
   assert.match(att, /title:\s*"Punch Audit"[\s\S]*?permission:\s*"view_attendance_punch_audit"/);
@@ -281,6 +284,7 @@ test("HR navigation still appears exactly once, and still holds its pages", () =
     // Attendance v2: the HR/Admin view of a calculated month, and every
     // employee's own.
     "/attendance/approval",
+    "/attendance/approver-setup",
     "/attendance/calculated",
     "/attendance/devices",
     "/attendance/imports",

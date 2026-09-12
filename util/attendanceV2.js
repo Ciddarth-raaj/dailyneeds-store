@@ -294,11 +294,24 @@ function displayDateTime(value) {
   return `${displayDate(m[1])} ${m[2]}`;
 }
 
-/** `Stage 2 of 3 · Operations Manager`. */
+const LEVEL_LABEL = Object.freeze({ FIRST: "First Level", SECOND: "Second Level", FINAL: "Final Approver" });
+function levelLabel(level) {
+  return LEVEL_LABEL[level] || String(level || "—");
+}
+
+/**
+ * `Stage 2 of 3 · Operations Manager` for a role-based chain, or
+ * `Stage 2 of 3 · Priya (Final Approver)` when the stage carries a
+ * snapshotted employee-level approver.
+ */
 function stageLabel(row) {
   if (!row) return "—";
   if (row.status !== "PENDING") return row.status === "APPROVED" ? "Approved" : row.status === "REJECTED" ? "Rejected" : String(row.status);
-  return `Stage ${row.current_stage_no} of ${row.total_stages} · ${roleLabel(row.current_stage_role)}`;
+  const who =
+    row.current_stage_approver_employee_id !== null && row.current_stage_approver_employee_id !== undefined
+      ? `${row.current_stage_approver_name || `Employee ${row.current_stage_approver_employee_id}`}${row.current_stage_approval_level ? ` (${levelLabel(row.current_stage_approval_level)})` : ""}`
+      : roleLabel(row.current_stage_role);
+  return `Stage ${row.current_stage_no} of ${row.total_stages} · ${who}`;
 }
 
 /**
@@ -355,6 +368,7 @@ function runFilterLabel(run) {
 module.exports = {
   STATUS,
   roleLabel,
+  levelLabel,
   displayDateTime,
   stageLabel,
   decisionLabel,
