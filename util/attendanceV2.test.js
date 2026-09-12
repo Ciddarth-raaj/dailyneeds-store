@@ -377,6 +377,9 @@ test("Short hover hides the one-for-one 'rule' (1m per 1m) as it is just the sho
   );
   assert.ok(!lines.some((l) => /Deduction rule/.test(l)), lines.join(" | "));
   assert.equal(lines[lines.length - 1], "Short 4h 13m");
+  const noLunch = shortExplanation(day({ shift_snapshot: snap(), punch_count: 2, nrm_minutes: 510, span_minutes: 247, break_allowance_minutes: 30, worked_minutes: 247, late_minutes: 27, early_exit_minutes: 266, grace_forgiven_minutes: 10, break_credit_withheld: true, shortage_minutes: 283 }));
+  assert.ok(noLunch.includes("Left before 15:00: no lunch taken, break not credited"));
+  assert.equal(noLunch[noLunch.length - 1], "Short 4h 43m");
 });
 
 test("Short and OT hovers say when a punch is missing or the day is absent", () => {
