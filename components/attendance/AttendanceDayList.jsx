@@ -13,6 +13,7 @@ import {
   Text,
   Th,
   Thead,
+  Tooltip,
   Tr,
   useBreakpointValue,
 } from "@chakra-ui/react";
@@ -21,10 +22,46 @@ import {
   otClaim,
   displayDate,
   formatMinutes,
+  otExplanation,
   punchSummary,
   shiftLabel,
+  shortExplanation,
   weekday,
 } from "../../util/attendanceV2";
+
+/**
+ * Hover on Short or OT: how the engine arrived at the figure, one line per
+ * step, from the pure explanation helpers. The same lines appear on the Day
+ * Detail, so the hover never disagrees with the detail.
+ */
+export function ExplainTooltip({ lines, children }) {
+  if (!lines || lines.length === 0) return children;
+  return (
+    <Tooltip
+      hasArrow
+      placement="left"
+      bg="gray.800"
+      color="white"
+      fontSize="xs"
+      px={3}
+      py={2}
+      borderRadius="md"
+      label={
+        <Stack spacing={0.5}>
+          {lines.map((line, i) => (
+            <Text key={i} as="span" whiteSpace="nowrap">
+              {line}
+            </Text>
+          ))}
+        </Stack>
+      }
+    >
+      <Box as="span" cursor="help" borderBottomWidth="1px" borderBottomStyle="dotted" borderColor="gray.400">
+        {children}
+      </Box>
+    </Tooltip>
+  );
+}
 
 /**
  * The month, one entry per date: cards on a phone, a compact table on a
@@ -125,12 +162,16 @@ function DayCard({ day, onSelect }) {
           <Metric label="Worked" value={formatMinutes(day.worked_minutes)} />
           <Metric
             label="Short"
-            value={formatMinutes(day.shortage_minutes)}
+            value={
+              <ExplainTooltip lines={shortExplanation(day)}>{formatMinutes(day.shortage_minutes)}</ExplainTooltip>
+            }
             accent={Number(day.shortage_minutes) > 0 ? "red.600" : undefined}
           />
           <Metric
             label="OT"
-            value={formatMinutes(day.candidate_ot_minutes)}
+            value={
+              <ExplainTooltip lines={otExplanation(day)}>{formatMinutes(day.candidate_ot_minutes)}</ExplainTooltip>
+            }
             accent={Number(day.candidate_ot_minutes) > 0 ? "blue.600" : undefined}
           />
         </SimpleGrid>
@@ -184,12 +225,12 @@ function DayTable({ days, onSelect }) {
               <Td isNumeric fontSize="xs" whiteSpace="nowrap">{formatMinutes(day.nrm_minutes)}</Td>
               <Td isNumeric fontSize="xs" whiteSpace="nowrap">{formatMinutes(day.worked_minutes)}</Td>
               <Td isNumeric fontSize="xs" whiteSpace="nowrap" color={Number(day.shortage_minutes) > 0 ? "red.600" : undefined}>
-                {formatMinutes(day.shortage_minutes)}
+                <ExplainTooltip lines={shortExplanation(day)}>{formatMinutes(day.shortage_minutes)}</ExplainTooltip>
               </Td>
               {/* OT: the engine's minutes, with the CLAIM state under them -
                   never folded into the Status badge. */}
               <Td isNumeric fontSize="xs" whiteSpace="nowrap" color={Number(day.candidate_ot_minutes) > 0 ? "blue.600" : undefined}>
-                {formatMinutes(day.candidate_ot_minutes)}
+                <ExplainTooltip lines={otExplanation(day)}>{formatMinutes(day.candidate_ot_minutes)}</ExplainTooltip>
                 <OtLine day={day} />
               </Td>
               <Td>

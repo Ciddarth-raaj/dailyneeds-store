@@ -256,7 +256,7 @@ test("28. the OT claim stays out of the attendance Status badge", () => {
   const statusStart = table.indexOf("<IssueBadge day={day} />", table.indexOf("<Tbody>"));
   const statusCell = table.slice(statusStart, table.indexOf('<Td textAlign="right">', statusStart));
   assert.ok(!/OtLine/.test(statusCell), "no OT in the Status cell");
-  assert.match(table, /formatMinutes\(day\.candidate_ot_minutes\)\}\s*\n\s*<OtLine day=\{day\} \/>/);
+  assert.match(table, /formatMinutes\(day\.candidate_ot_minutes\)\}(<\/ExplainTooltip>)?\s*\n\s*<OtLine day=\{day\} \/>/);
   assert.match(list, /function OtLine/);
   assert.match(list, /const ot = otClaim\(day\)/);
   const issue = strip(util.slice(util.indexOf("function dayIssue"), util.indexOf("const OT_CLOSURE_LABEL")));

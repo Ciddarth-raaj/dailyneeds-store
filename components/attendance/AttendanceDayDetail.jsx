@@ -1,6 +1,7 @@
 import React from "react";
 import { Badge, Box, Button, Flex, SimpleGrid, Stack, Text } from "@chakra-ui/react";
 import CustomModal from "../CustomModal";
+import { ExplainTooltip } from "./AttendanceDayList";
 import {
   PUNCH_STATUS,
   PUNCH_STATUS_COLOR,
@@ -14,6 +15,8 @@ import {
   formatMinutes,
   shiftLabel,
   weekday,
+  shortExplanation,
+  otExplanation,
 } from "../../util/attendanceV2";
 
 /**
@@ -223,12 +226,16 @@ export default function AttendanceDayDetail({
           <Row label="Worked" value={formatMinutes(day.worked_minutes)} />
           <Row
             label="Short"
-            value={formatMinutes(day.shortage_minutes)}
+            value={
+              <ExplainTooltip lines={shortExplanation(day)}>{formatMinutes(day.shortage_minutes)}</ExplainTooltip>
+            }
             accent={Number(day.shortage_minutes) > 0 ? "red.600" : undefined}
           />
           <Row
             label="OT"
-            value={formatMinutes(day.candidate_ot_minutes)}
+            value={
+              <ExplainTooltip lines={otExplanation(day)}>{formatMinutes(day.candidate_ot_minutes)}</ExplainTooltip>
+            }
             accent={Number(day.candidate_ot_minutes) > 0 ? "blue.600" : undefined}
           />
           {approvedOt > 0 ? (
