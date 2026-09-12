@@ -588,6 +588,7 @@ function shortExplanation(day) {
     lines.push(`Left early ${formatMinutes(early)} (grace ${formatMinutes(snap.early_exit_grace_minutes)})`);
   }
   if (forgiven > 0) lines.push(`Grace forgave ${formatMinutes(forgiven)}`);
+  if (day.break_credit_withheld) lines.push("Left before 15:00: no lunch taken, break not credited");
 
   const lateCharged = n0(day.late_charged_minutes);
   const earlyCharged = n0(day.early_exit_charged_minutes);
