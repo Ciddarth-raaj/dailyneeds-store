@@ -17,11 +17,15 @@ import { currentShiftLabel } from "../../../util/currentShift";
  *
  *   Employee ID      allocated by AUTO_INCREMENT at create. HR never types
  *                    one, and it is never reused or resequenced.
- *   Joining date     lifecycle state. It is set by Create and moved only by
- *                    Resign and Rejoin, which record WHY it changed. An
- *                    editable joining date is a silently rewritten service
- *                    history.
  *   Status           moves through Resign and Rejoin, never a dropdown.
+ *
+ * THE JOINING DATE IS EDITABLE, BUT NOT THROUGH THE ORDINARY EDIT. It is
+ * lifecycle state - set by Create, moved by Rejoin - so a correction goes
+ * through its own endpoint (`onSaveJoiningDate`, `employee_edit`), which moves
+ * the current employment period with it and records the old and new value on
+ * the timeline. A silently rewritten service history is what that avoids;
+ * a wrongly typed date that nobody can fix is what this section used to be.
+ * The same `canEdit` gates it as the rest of the card.
  *
  * THE SHIFT IS THE NEW ONE. What this card shows is `default_work_shift_id`
  * on the NEW `work_shift` master, read through Employee Shift Assignment's
@@ -58,6 +62,8 @@ function EmploymentSection({
   /** `employee_edit` AND `assign_employee_shift`: may change the shift from here. */
   canAssignShift = false,
   onSave,
+  /** `(dateOfJoining) => Promise<boolean>` - the audited joining-date correction. */
+  onSaveJoiningDate,
   /** `(workShiftId) => Promise<boolean>` - the existing single assign. */
   onAssignShift,
   saving,
@@ -70,8 +76,12 @@ function EmploymentSection({
       ? currentShift.shift.work_shift_id
       : "";
 
+  const current = lifecycle.current || {};
+  const joiningDate = String(current.date_of_joining || employee.date_of_joining || "").slice(0, 10);
+
   const start = () => {
     setForm({
+      date_of_joining: joiningDate,
       store_id: employee.store_id ?? "",
       department_id: employee.department_id ?? "",
       designation_id: employee.designation_id ?? "",
@@ -86,18 +96,27 @@ function EmploymentSection({
     // Two writes, two permissions, two endpoints - kept apart on purpose.
     // The placement edit goes through the ordinary HR editor; the shift goes
     // through the assign endpoint, and only if it changed and may be changed.
-    const { work_shift_id, ...placement } = form;
+    // The joining date is the third: its own audited action, only if changed.
+    const { work_shift_id, date_of_joining, ...placement } = form;
     const placementChanged = Object.keys(placement).some(
       (k) => String(placement[k] ?? "") !== String(employee[k] ?? "")
     );
     const shiftChanged = Boolean(
       canAssignShift && work_shift_id && String(work_shift_id) !== String(currentShiftId || "")
     );
-    // A shift-only change must not be stopped by the editor's own "nothing
-    // was changed" guard, and a placement-only change must not call assign.
-    if (placementChanged || !shiftChanged) {
+    const joiningChanged = Boolean(
+      typeof onSaveJoiningDate === "function" && date_of_joining && date_of_joining !== joiningDate
+    );
+    // A shift-only or date-only change must not be stopped by the editor's
+    // own "nothing was changed" guard, and a placement-only change must not
+    // call the other two.
+    if (placementChanged || (!shiftChanged && !joiningChanged)) {
       const ok = await onSave(placement);
       if (!ok) return;
+    }
+    if (joiningChanged) {
+      const corrected = await onSaveJoiningDate(date_of_joining);
+      if (!corrected) return;
     }
     if (shiftChanged && typeof onAssignShift === "function") {
       const assigned = await onAssignShift(Number(work_shift_id));
@@ -114,12 +133,10 @@ function EmploymentSection({
   const opts = (rows, idKey, labelKey) =>
     (rows || []).map((r) => ({ value: r[idKey], label: r[labelKey] }));
 
-  const current = lifecycle.current || {};
-
   return (
     <SectionCard
       title="Employment Details"
-      subtitle="Employee ID and the lifecycle dates are set by Create, Resign and Rejoin."
+      subtitle="Employee ID is permanent; status moves through Resign and Rejoin. A wrongly recorded joining date can be corrected here."
       canEdit={canEdit}
       editing={editing}
       onEdit={start}
@@ -130,10 +147,18 @@ function EmploymentSection({
     >
       <FieldGrid>
         <Field label="Employee ID" value={employee.employee_id ?? lifecycle.employee_id} mono />
-        <Field
-          label="Joining date"
-          value={current.date_of_joining || (employee.date_of_joining ? String(employee.date_of_joining).slice(0, 10) : "")}
-        />
+        {editing && typeof onSaveJoiningDate === "function" ? (
+          <EditField
+            label="Joining date"
+            name="date_of_joining"
+            type="date"
+            value={form.date_of_joining}
+            onChange={set}
+            help="Corrects the start of the current spell of employment. The change is recorded on the timeline."
+          />
+        ) : (
+          <Field label="Joining date" value={joiningDate} />
+        )}
       </FieldGrid>
 
       <Stack mt={3} spacing={3}>

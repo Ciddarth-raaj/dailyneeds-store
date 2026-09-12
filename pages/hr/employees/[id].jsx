@@ -107,9 +107,12 @@ import {
  * fingerprint or ciphertext. `view_aadhaar_full` is granted to nobody by
  * design, so there is no reveal affordance at all.
  *
- * NEVER EDITED HERE: the employee ID, the joining date, the employment
- * status. The first is allocated by the database; the other two are
- * lifecycle state that Create, Resign and Rejoin own and record a reason for.
+ * NEVER EDITED HERE: the employee ID and the employment status. The first is
+ * allocated by the database; the second is lifecycle state that Resign and
+ * Rejoin own and record a reason for. The joining date is lifecycle state too,
+ * so it is NOT on the ordinary edit body: a wrongly recorded one is corrected
+ * through its own audited action (`correctJoiningDate`), behind the same
+ * `employee_edit` right as the rest of the record.
  */
 function EmployeeProfile() {
   const router = useRouter();
@@ -259,6 +262,30 @@ function EmployeeProfile() {
         return false;
       }
       toast({ title: "Saved", status: "success", duration: 2500 });
+      await load();
+      return true;
+    } catch (err) {
+      toast({ title: "Could not reach the server", status: "error", duration: 5000 });
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  /**
+   * The joining date, through its own action - POST /hr/employee/:id/joining-date,
+   * `employee_edit`. The backend moves the current employment period with it
+   * and writes the correction to the timeline, so the reload refreshes both.
+   */
+  const saveJoiningDate = async (dateOfJoining) => {
+    setSaving(true);
+    try {
+      const res = await HrHelper.correctJoiningDate(id, dateOfJoining);
+      if (failed(res)) {
+        toast({ title: res.msg || "The joining date was not changed", status: "error", duration: 7000 });
+        return false;
+      }
+      toast({ title: "Joining date corrected", status: "success", duration: 2500 });
       await load();
       return true;
     } catch (err) {
@@ -532,6 +559,7 @@ function EmployeeProfile() {
             canEdit={canEdit && Boolean(employee)}
             canAssignShift={mayAssignShift}
             onSave={saveOrdinary}
+            onSaveJoiningDate={saveJoiningDate}
             onAssignShift={assignShift}
             saving={saving}
           />

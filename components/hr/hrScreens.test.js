@@ -826,17 +826,27 @@ test("NOT APPLICABLE AND NOT RECORDED ARE DIFFERENT ANSWERS", () => {
   assert.match(statutory, /options=\{APPLICABILITY_OPTIONS\}/);
 });
 
-test("employee ID, joining date and status are never editable", () => {
+test("employee ID and status are never editable; the joining date only through its own action", () => {
   const code = codeOf(employment);
-  // They are rendered as read-only Fields, never as EditFields.
   assert.match(code, /<Field label="Employee ID"/);
-  assert.match(code, /<Field\s+label="Joining date"/);
-  for (const owned of ["employee_id", "date_of_joining", "status"]) {
+  for (const owned of ["employee_id", "status"]) {
     assert.ok(
       !new RegExp(`EditField[^>]*name="${owned}"`).test(code),
       `${owned} is lifecycle or database state, not a form field`
     );
   }
+  // The joining date is corrected through POST /hr/employee/:id/joining-date,
+  // behind employee_edit, never folded into the ordinary edit body.
+  assert.match(code, /name="date_of_joining"/, "the joining date is editable");
+  assert.match(code, /onSaveJoiningDate\(date_of_joining\)/, "through its own action");
+  assert.match(code, /const \{ work_shift_id, date_of_joining, \.\.\.placement \} = form/, "and never in the ordinary edit body");
+  const { HR_EDITABLE_FIELDS } = require("../../util/hrProfile");
+  assert.ok(!HR_EDITABLE_FIELDS.includes("date_of_joining"));
+  assert.match(read("helper/hr.js"), /\/hr\/employee\/\$\{employeeId\}\/joining-date/);
+  assert.match(profile, /onSaveJoiningDate=\{saveJoiningDate\}/);
+  // The same user-based right as the rest of the card gates it.
+  const section = profile.slice(profile.indexOf("<EmploymentSection"), profile.indexOf("<EmploymentSection") + 700);
+  assert.match(section, /canEdit=\{canEdit && Boolean\(employee\)\}/);
 });
 
 test("a transfer edits the one record and warns that authorisation changes", () => {

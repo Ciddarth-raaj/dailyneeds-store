@@ -62,6 +62,21 @@ const hr = {
         .catch(reject);
     }),
 
+  /**
+   * POST /hr/employee/:id/joining-date — employee_edit.
+   *
+   * Corrects a wrongly recorded joining date. The backend moves the master
+   * date and the current employment period's date together and records the
+   * old and new value on the lifecycle timeline. `date_of_joining` is
+   * YYYY-MM-DD, not in the future.
+   */
+  correctJoiningDate: (employeeId, dateOfJoining) =>
+    new Promise((resolve, reject) => {
+      API.post(`/hr/employee/${employeeId}/joining-date`, { date_of_joining: dateOfJoining })
+        .then((res) => resolve(res.data))
+        .catch(reject);
+    }),
+
   /** POST /hr/employee/:id/resign — employee_resign. */
   resignEmployee: (employeeId, payload) =>
     new Promise((resolve, reject) => {
