@@ -153,6 +153,14 @@ const attendance = {
   /** Commit a PREVIEWED batch. Answers the refreshed details, or 409. */
   commitAttendanceImport: (import_batch_id) =>
     post("/attendance/imports/commit", { import_batch_id }),
+
+  /**
+   * Attach identity to every stored punch that was UNMATCHED at ingest and
+   * whose Employee Code is now in the master. `{ employee_id? }` narrows it
+   * to one employee. Answers `{ code, scanned, rematched, still_unmatched,
+   * employees: [{ employee_id, user_id, punches }] }`.
+   */
+  rematchUnmatchedPunches: (body) => post("/attendance/imports/rematch", body || {}),
 };
 
 export default attendance;

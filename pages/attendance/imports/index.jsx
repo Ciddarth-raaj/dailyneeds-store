@@ -148,13 +148,53 @@ function SummaryCards({ batch, onPick, active }) {
   );
 }
 
-function UnmatchedCodes({ codes }) {
+/**
+ * Unmatched codes, with the one action that resolves them: once HR has
+ * created the missing employee (that happens automatically on create, and
+ * this button covers the case where the employee already existed under a
+ * different code or the automatic pass failed), re-match asks the server
+ * to attach identity to every stored punch whose code is now known. The
+ * screen still never maps a code to an employee itself.
+ */
+function UnmatchedCodes({ codes, onRematched }) {
+  const toast = useToast();
+  const [rematching, setRematching] = useState(false);
   if (!codes || codes.length === 0) return null;
+
+  const runRematch = async () => {
+    if (rematching) return;
+    setRematching(true);
+    try {
+      const res = await AttendanceHelper.rematchUnmatchedPunches();
+      if (res && res.code === 200) {
+        toast({
+          title: res.rematched > 0 ? `${formatCount(res.rematched)} punches attached to ${formatCount(res.employees.length)} employees` : "No unmatched punch matches an employee yet",
+          description: res.still_unmatched > 0 ? `${formatCount(res.still_unmatched)} punches still have no employee. Add those employees to the master and re-match again.` : undefined,
+          status: res.rematched > 0 ? "success" : "info",
+          duration: 7000,
+        });
+        if (onRematched) await onRematched();
+      } else {
+        toast({ title: requestErrorMessage(res, "Re-match could not be run"), status: "error", duration: 7000 });
+      }
+    } catch (err) {
+      console.log(err);
+      toast({ title: "Could not reach the server", status: "error", duration: 5000 });
+    } finally {
+      setRematching(false);
+    }
+  };
+
   return (
     <CustomContainer
       title="Unmatched Employee Codes"
-      subtitle="These Employee Codes are not in the employee master on dnds.co.in. Their punches are still imported and kept, with the code recorded, exactly as a live punch from an unknown code is. Nothing on this screen changes employee identity."
+      subtitle="These Employee Codes are not in the employee master on dnds.co.in. Their punches are still imported and kept, with the code recorded, exactly as a live punch from an unknown code is. Add the employee to the master (their punches attach automatically), or re-match now if they were added since this import."
       filledHeader
+      rightSection={
+        <Button size="sm" colorScheme="purple" variant="outline" isLoading={rematching} onClick={runRematch}>
+          Re-match now
+        </Button>
+      }
     >
       <Box overflowX="auto">
         <Box as="table" width="100%" fontSize="sm">
@@ -546,7 +586,7 @@ function NewImportTab({ onCommitted }) {
         </CustomContainer>
       ) : null}
 
-      {preview ? <UnmatchedCodes codes={preview.unmatched_employee_codes} /> : null}
+      {preview ? <UnmatchedCodes codes={preview.unmatched_employee_codes} onRematched={committed ? () => refreshDetails(batch.import_batch_id) : null} /> : null}
       {preview ? <ItemsSection importBatchId={batch.import_batch_id} initialFilter={filterFromCard} /> : null}
 
       <CustomModal
@@ -764,7 +804,7 @@ function ImportHistoryTab({ refreshToken, openBatchId, onOpenBatch }) {
               </Heading>
               <SummaryCards batch={details.batch} />
             </CustomContainer>
-            <UnmatchedCodes codes={details.unmatched_employee_codes} />
+            <UnmatchedCodes codes={details.unmatched_employee_codes} onRematched={() => openBatch(details.batch.import_batch_id)} />
             <ItemsSection importBatchId={details.batch.import_batch_id} initialFilter="" />
           </>
         ) : (
