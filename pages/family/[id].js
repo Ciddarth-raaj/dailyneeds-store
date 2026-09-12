@@ -29,6 +29,10 @@ class Family extends React.Component {
             editFamily: false,
             employeeDet: [],
             hoverElement: false,
+            // The employee this record belongs to. The picker below fills
+            // both: the id is what the record is keyed on now, the name is
+            // still sent because the rest of the app still reads it.
+            employee_id: null,
             employee_name: "",
             name: '',
             data: [],
@@ -70,10 +74,17 @@ class Family extends React.Component {
     }
     createFamily(values) {
         const { router } = this.props;
-        const { employee_name } = this.state;
+        const { employee_id, employee_name } = this.state;
         this.setState({ loadingFamily: true });
         values.dob = moment(values.dob).format("YYYY-MM-DD");
         values.employee_name = employee_name;
+        // Sent when the employee was picked from the list, which is the only
+        // way this form offers. The server resolves one from the name if it
+        // is missing, and refuses to guess between two employees sharing a
+        // name - so sending it is what makes a namesake unambiguous.
+        if (employee_id) {
+            values.employee_id = employee_id;
+        }
         FamilyHelper.createFamily(values)
             .then((data) => {
                 if (data == 200) {
@@ -89,9 +100,20 @@ class Family extends React.Component {
         }
     updateFamily(values) {
         const { family_id } = this.state.data[0];
-        const { employee_name } = this.state;
+        const { employee_id, employee_name } = this.state;
         this.setState({ loading: true });
-        values.employee_name = employee_name ? employee_name : "";
+        // Only overwrite the employee when one was actually re-picked. This
+        // used to send "" whenever the picker had not been touched, which the
+        // route's schema refuses (Joi.string() disallows the empty string), so
+        // editing a relation or a remark without re-selecting the employee
+        // failed with a 422. Leaving the form's own value in place edits the
+        // record without moving it.
+        if (employee_name) {
+            values.employee_name = employee_name;
+        }
+        if (employee_id) {
+            values.employee_id = employee_id;
+        }
         values.dob = moment(values.dob).format("YYYY-MM-DD");
         values.remarks = values.remarks === null ? "" : values.remarks;  
         FamilyHelper.updateFamily({
@@ -214,7 +236,7 @@ class Family extends React.Component {
                                                  className={styles.dropbtn} />
                                                 <div className={styles.dropdowncontent} style={hoverElement === false ? {color: "black"} : {display: "none"}}>
                                                     {employeeDet.filter(({employee_name}) => employee_name.indexOf(name.toLowerCase()) > -1).map((m) => (
-                                                    <a onClick={() => (this.setState({ employee_name: m.employee_name, hoverElement: true}))}>
+                                                    <a onClick={() => (this.setState({ employee_id: m.employee_id, employee_name: m.employee_name, hoverElement: true}))}>
                                                         <img src={m.employee_image} width="30" height="25" className={styles.dropdownImg} />{m.employee_name}<br/>{`# ${m.employee_id}`}</a>
                                                     ))}
                                                 </div>
