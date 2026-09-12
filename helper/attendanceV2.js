@@ -20,6 +20,10 @@ import API from "../util/api";
  *                        the missing punch time and a reason. Existing
  *                        punches are not sent and cannot be: the body has no
  *                        field for one.
+ *   Request OT           POST /attendance/me/ot-request       self only
+ *                        a date and a reason. The OT minutes are the
+ *                        engine's and are not sent: the body has no field
+ *                        for them, and the backend refuses one.
  *   Edit Shift           POST /attendance/calculated/date-shift
  *                        edit_attendance_date_shift; one employee, one date,
  *                        one shift. The options for its dropdown come from
@@ -47,6 +51,14 @@ const attendanceV2 = {
   raiseMyRegularization: (body) =>
     new Promise((resolve, reject) => {
       API.post("/attendance/me/regularization", body)
+        .then((res) => resolve(res.data))
+        .catch(reject);
+    }),
+
+  /** `{ attendance_date, reason }`. Never minutes, never an employee id. */
+  raiseMyOtRequest: ({ attendance_date, reason }) =>
+    new Promise((resolve, reject) => {
+      API.post("/attendance/me/ot-request", { attendance_date, reason })
         .then((res) => resolve(res.data))
         .catch(reject);
     }),

@@ -17,6 +17,7 @@ import {
 } from "@chakra-ui/react";
 import {
   dayIssue,
+  otClaim,
   displayDate,
   formatMinutes,
   punchSummary,
@@ -42,6 +43,17 @@ function IssueBadge({ day }) {
     <Badge colorScheme={issue.color} fontSize="10px" whiteSpace="nowrap">
       {issue.label}
     </Badge>
+  );
+}
+
+/** The OT claim, from the OT request state - not an attendance issue. */
+function OtLine({ day }) {
+  const ot = otClaim(day);
+  if (!ot) return null;
+  return (
+    <Text fontSize="xs" fontWeight="600" color={`${ot.color}.700`}>
+      {ot.label}
+    </Text>
   );
 }
 
@@ -93,6 +105,7 @@ function DayCard({ day, onSelect }) {
         <Text fontSize="xs" color="gray.600">
           {shiftLabel(day)}
         </Text>
+        <OtLine day={day} />
         <SimpleGrid columns={4} spacing={2}>
           <Metric label="NRM" value={formatMinutes(day.nrm_minutes)} />
           <Metric label="Worked" value={formatMinutes(day.worked_minutes)} />
@@ -160,7 +173,10 @@ function DayTable({ days, onSelect }) {
                 {formatMinutes(day.candidate_ot_minutes)}
               </Td>
               <Td>
-                <IssueBadge day={day} />
+                <Stack spacing={1} align="flex-start">
+                  <IssueBadge day={day} />
+                  <OtLine day={day} />
+                </Stack>
               </Td>
             </Tr>
           ))}

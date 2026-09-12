@@ -9,6 +9,8 @@ const {
   LABEL,
   REGULARIZED_PUNCH_LABEL,
   dayIssue,
+  otClaim,
+  formatOtClock,
   canRegularize,
   positionalPunches,
   punchSummary,
@@ -37,7 +39,6 @@ const day = (overrides = {}) => ({
 test("backend statuses map to exactly the agreed labels", () => {
   assert.equal(dayIssue(day({ status: "REVIEW_REQUIRED", review_reasons: ["MISSING_PUNCH"], punch_count: 1 })).label, LABEL.MISSING_PUNCH);
   assert.equal(dayIssue(day({ status: "REGULARIZATION_PENDING" })).label, LABEL.REGULARIZATION_PENDING);
-  assert.equal(dayIssue(day({ status: "OT_PENDING" })).label, LABEL.OT_PENDING);
   assert.equal(dayIssue(day({ status: "NO_SHIFT_FOR_DATE" })).label, LABEL.NO_SHIFT);
   assert.equal(dayIssue(day({ status: "NO_SCHEDULE_ROW" })).label, LABEL.SHIFT_SETUP);
   assert.equal(dayIssue(day({ status: "ABSENT" })).label, LABEL.ABSENT);
@@ -48,22 +49,74 @@ test("the labels are the exact agreed wording", () => {
     "Absent",
     "Missing Punch",
     "No Shift Assigned",
-    "OT Approval Pending",
     "Regularization Pending",
     "Shift Setup Issue",
   ]);
   assert.equal(REGULARIZED_PUNCH_LABEL, "Missed Punch – Regularized");
 });
 
-test("a FINAL day has no badge at all", () => {
+test("a FINAL day has no badge at all, and OT is never an attendance issue", () => {
   assert.equal(dayIssue(day()), null);
   assert.equal(dayIssue(day({ status: "FINAL", candidate_ot_minutes: 30, approved_ot_minutes: 30 })), null);
+  assert.equal(dayIssue(day({ status: "FINAL", candidate_ot_minutes: 30, ot_claim_state: "AVAILABLE" })), null);
+  assert.equal(dayIssue(day({ status: "FINAL", ot_claim_state: "REQUEST_PENDING" })), null);
+  // A legacy stored OT_PENDING row is a normal day: no "OT Approval Pending" label exists any more.
+  assert.equal(dayIssue(day({ status: "OT_PENDING" })), null);
+  assert.equal(LABEL.OT_PENDING, undefined);
+});
+
+/* ===================================================== OT claim ==== */
+
+test("1. candidate OT with no request -> OT Available with a Request OT action", () => {
+  const ot = otClaim(day({ candidate_ot_minutes: 28, ot_claim_state: "AVAILABLE" }));
+  assert.equal(ot.label, "OT Available: 00:28");
+  assert.equal(ot.canRequest, true);
+  assert.equal(ot.minutes, 28);
+});
+
+test("5. a pending request -> OT Request Pending, no Request OT action", () => {
+  const ot = otClaim(day({ candidate_ot_minutes: 28, ot_claim_state: "REQUEST_PENDING", ot_requested_minutes: 28, ot_reason: "Stock count" }));
+  assert.equal(ot.label, "OT Request Pending: 00:28");
+  assert.equal(ot.canRequest, false);
+  assert.equal(ot.detail, "Stock count");
+});
+
+test("6. approved -> OT Approved with the approved minutes", () => {
+  const ot = otClaim(day({ candidate_ot_minutes: 150, approved_ot_minutes: 150, ot_claim_state: "APPROVED" }));
+  assert.equal(ot.label, "OT Approved: 02:30");
+  assert.equal(ot.canRequest, false);
+});
+
+test("7. rejected -> OT Rejected; closed at payroll lock says exactly why", () => {
+  assert.equal(otClaim(day({ ot_claim_state: "REJECTED", ot_requested_minutes: 28 })).label, "OT Rejected");
+  assert.equal(otClaim(day({ ot_claim_state: "REJECTED" })).canRequest, false);
+  const closed = otClaim(day({ ot_claim_state: "CLOSED_AT_PAYROLL_LOCK", ot_closure_reason: "NOT_REQUESTED_BEFORE_PAYROLL_LOCK" }));
+  assert.equal(closed.label, "OT Rejected");
+  assert.equal(closed.detail, "Rejected – Not Requested Before Payroll Lock");
+  assert.equal(closed.canRequest, false);
+  const late = otClaim(day({ ot_claim_state: "CLOSED_AT_PAYROLL_LOCK", ot_closure_reason: "NOT_APPROVED_BEFORE_PAYROLL_LOCK" }));
+  assert.equal(late.detail, "Rejected – Not Approved Before Payroll Lock");
+});
+
+test("8. no OT -> no OT line and no Request OT action", () => {
+  assert.equal(otClaim(day({ candidate_ot_minutes: 0, ot_claim_state: "NONE" })), null);
+  assert.equal(otClaim(day({ candidate_ot_minutes: 0 })), null);
+  assert.equal(otClaim(day({ candidate_ot_minutes: 45, status: "REVIEW_REQUIRED", punch_count: 1, ot_claim_state: "NONE" })), null, "a missing-punch day offers no OT");
+});
+
+test("9. the OT minutes shown are the engine's; the claim never takes a client figure", () => {
+  // The claim is built from the day's own fields only; there is no input.
+  const ot = otClaim(day({ candidate_ot_minutes: 28, ot_claim_state: "AVAILABLE" }));
+  assert.equal(ot.minutes, 28);
+  assert.equal(formatOtClock(28), "00:28");
+  assert.equal(formatOtClock(150), "02:30");
+  assert.equal(formatOtClock(null), "00:00");
 });
 
 test("REVIEW_REQUIRED from an odd punch count is Missing Punch, never a generic Review Required", () => {
   const odd = day({ status: "REVIEW_REQUIRED", review_reasons: [], punch_count: 3, effective_punches: punches("09:00", "14:00", "15:00") });
   assert.equal(dayIssue(odd).label, "Missing Punch");
-  for (const status of ["FINAL", "ABSENT", "REVIEW_REQUIRED", "REGULARIZATION_PENDING", "OT_PENDING", "NO_SHIFT_FOR_DATE", "NO_SCHEDULE_ROW"]) {
+  for (const status of ["FINAL", "ABSENT", "REVIEW_REQUIRED", "REGULARIZATION_PENDING", "NO_SHIFT_FOR_DATE", "NO_SCHEDULE_ROW"]) {
     const issue = dayIssue(day({ status, punch_count: 1, review_reasons: ["MISSING_PUNCH"] }));
     assert.ok(!issue || !/review required/i.test(issue.label), status);
   }
@@ -74,7 +127,7 @@ test("only a Missing Punch day can be regularized; a pending one cannot be regul
   assert.equal(canRegularize(day({ status: "REGULARIZATION_PENDING", punch_count: 1 })), false);
   assert.equal(canRegularize(day()), false);
   assert.equal(canRegularize(day({ status: "ABSENT", punch_count: 0, effective_punches: [] })), false);
-  assert.equal(canRegularize(day({ status: "OT_PENDING" })), false);
+  assert.equal(canRegularize(day({ status: "FINAL", ot_claim_state: "AVAILABLE", candidate_ot_minutes: 30 })), false, "OT is never regularized");
 });
 
 /* ================================================= dynamic punches ==== */

@@ -21,6 +21,7 @@ const list = strip(read("components/attendance/AttendanceDayList.jsx"));
 const detail = strip(read("components/attendance/AttendanceDayDetail.jsx"));
 const form = strip(read("components/attendance/RegularizationForm.jsx"));
 const editShift = strip(read("components/attendance/EditShiftModal.jsx"));
+const otForm = strip(read("components/attendance/OtRequestForm.jsx"));
 const helper = strip(read("helper/attendanceV2.js"));
 const permissions = read("constants/permissions.js");
 
@@ -155,6 +156,60 @@ test("Edit Shift is current shift, a dropdown, Save - and nothing else", () => {
   assert.match(body, /attendance_date: day\.attendance_date/);
   assert.match(body, /work_shift_id: Number\(shiftId\)/);
   assert.match(helper, /"\/attendance\/calculated\/date-shift"/);
+});
+
+/* ================================================= the OT request ==== */
+
+test("2. Request OT opens the reason form from the Day Detail, only while the OT is Available, and only on My Attendance", () => {
+  assert.match(detail, /const ot = otClaim\(day\)/);
+  assert.match(detail, /const showRequestOt = !!onRequestOt && !!ot && ot\.canRequest/);
+  assert.match(detail, /\{showRequestOt \? \([\s\S]*?Request OT/);
+  assert.match(myPage, /onRequestOt=\{\(day\) => setRequestingOt\(day\)\}/);
+  assert.match(myPage, /<OtRequestForm/);
+  assert.ok(!/onRequestOt|OtRequestForm/.test(hrPage), "HR does not request OT on somebody's behalf");
+});
+
+test("the OT status on cards, rows and the detail comes from the OT claim state, not the attendance status", () => {
+  assert.match(list, /otClaim\(day\)/);
+  assert.match(list, /function OtLine/);
+  assert.match(list, /<OtLine day=\{day\} \/>/);
+  assert.match(detail, /\{ot\.label\}/);
+  for (const src of [list, detail, myPage, hrPage, otForm]) {
+    assert.ok(!/OT_PENDING|OT Approval Pending/.test(src), "the old automatic-queue status is gone");
+  }
+});
+
+test("3. the OT minutes are read-only and 9. the employee cannot enter or change them", () => {
+  assert.match(otForm, /Calculated OT \(read only\)/);
+  assert.match(otForm, /formatOtClock\(day\.candidate_ot_minutes\)/);
+  assert.ok(!/<Input|<NumberInput|type="number"|type="time"/.test(otForm), "no input for a duration or a time");
+  assert.ok(!/candidate_ot_minutes:|approved_ot_minutes:|ot_minutes:/.test(otForm), "no minutes in the request");
+});
+
+test("4. submit sends the date and the reason only", () => {
+  assert.match(otForm, /raiseMyOtRequest\(\{[\s\S]*?attendance_date: date,[\s\S]*?reason: reason\.trim\(\),[\s\S]*?\}\)/);
+  assert.ok(!/employee/.test(otForm), "never names an employee");
+  const fn = helper.slice(helper.indexOf("raiseMyOtRequest"), helper.indexOf("getDateShiftOptions"));
+  assert.match(fn, /"\/attendance\/me\/ot-request"/);
+  assert.match(fn, /\{ attendance_date, reason \}/);
+  assert.ok(!/minutes|employee_id/.test(fn));
+});
+
+test("the OT form shows Date, Shift, Punches, Calculated OT, Reason, Submit", () => {
+  for (const label of [/>\s*Date\s*</, />\s*Shift\s*</, />\s*Punches\s*</, /Calculated OT/, />\s*Reason\s*</, />\s*Submit\s*</]) {
+    assert.match(otForm, label, String(label));
+  }
+  assert.match(otForm, /<Textarea/);
+  assert.match(otForm, /setError\(apiMessage\(res\)\)/);
+});
+
+test("10. Missing Punch stays a separate action and a separate request from OT", () => {
+  assert.match(detail, /const showRegularize = !!onRegularize && canRegularize\(day\)/);
+  assert.match(detail, /const showRequestOt = /);
+  assert.match(myPage, /<RegularizationForm/);
+  assert.match(myPage, /<OtRequestForm/);
+  assert.ok(!/ot|OT/.test(form.slice(form.indexOf("const body = {"), form.indexOf("};", form.indexOf("const body = {")))), "the regularization body carries no OT");
+  assert.ok(!/punch_time/.test(otForm), "the OT body carries no punch");
 });
 
 test("the two new keys are in the permission matrix so they can be granted", () => {

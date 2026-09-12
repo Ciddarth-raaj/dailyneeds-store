@@ -29,7 +29,6 @@ const STATUS = Object.freeze({
 const LABEL = Object.freeze({
   MISSING_PUNCH: "Missing Punch",
   REGULARIZATION_PENDING: "Regularization Pending",
-  OT_PENDING: "OT Approval Pending",
   ABSENT: "Absent",
   NO_SHIFT: "No Shift Assigned",
   SHIFT_SETUP: "Shift Setup Issue",
@@ -52,7 +51,10 @@ function dayIssue(day) {
     case STATUS.REGULARIZATION_PENDING:
       return { key: "REGULARIZATION_PENDING", label: LABEL.REGULARIZATION_PENDING, color: "orange" };
     case STATUS.OT_PENDING:
-      return { key: "OT_PENDING", label: LABEL.OT_PENDING, color: "blue" };
+      // Legacy stored rows only: the engine no longer produces it, and the OT
+      // claim is shown from `ot_claim_state` (see `otClaim`), never as an
+      // attendance issue. A day like this is treated as a normal day.
+      return null;
     case STATUS.ABSENT:
       return { key: "ABSENT", label: LABEL.ABSENT, color: "red" };
     case STATUS.NO_SHIFT_FOR_DATE:
@@ -77,6 +79,65 @@ function dayIssue(day) {
     default:
       return null;
   }
+}
+
+/**
+ * THE OT CLAIM, separate from the attendance status.
+ *
+ * Comes from the actual OT request state the backend derives beside each day
+ * (`ot_claim_state`), never from the attendance status. The minutes shown are
+ * the engine's: the employee never enters or edits them.
+ *
+ *   AVAILABLE               "OT Available: 00:28"        + Request OT
+ *   REQUEST_PENDING         "OT Request Pending: 00:28"
+ *   APPROVED                "OT Approved: 00:28"
+ *   REJECTED                "OT Rejected"
+ *   CLOSED_AT_PAYROLL_LOCK  "OT Rejected" + the closure wording in the detail
+ *
+ * @returns {{state:string, label:string, minutes:number, canRequest:boolean,
+ *   color:string, detail:string|null}|null} null when the day has no OT at all
+ */
+const OT_CLOSURE_LABEL = Object.freeze({
+  NOT_REQUESTED_BEFORE_PAYROLL_LOCK: "Rejected – Not Requested Before Payroll Lock",
+  NOT_APPROVED_BEFORE_PAYROLL_LOCK: "Rejected – Not Approved Before Payroll Lock",
+});
+
+function otClaim(day) {
+  if (!day) return null;
+  const state = day.ot_claim_state || "NONE";
+  const candidate = Math.max(0, Math.trunc(Number(day.candidate_ot_minutes) || 0));
+  const requested = day.ot_requested_minutes === null || day.ot_requested_minutes === undefined
+    ? candidate
+    : Math.max(0, Math.trunc(Number(day.ot_requested_minutes) || 0));
+  const approved = Math.max(0, Math.trunc(Number(day.approved_ot_minutes) || 0));
+
+  switch (state) {
+    case "AVAILABLE":
+      return { state, label: `OT Available: ${formatOtClock(candidate)}`, minutes: candidate, canRequest: true, color: "blue", detail: null };
+    case "REQUEST_PENDING":
+      return { state, label: `OT Request Pending: ${formatOtClock(requested)}`, minutes: requested, canRequest: false, color: "orange", detail: day.ot_reason || null };
+    case "APPROVED":
+      return { state, label: `OT Approved: ${formatOtClock(approved)}`, minutes: approved, canRequest: false, color: "green", detail: null };
+    case "REJECTED":
+      return { state, label: "OT Rejected", minutes: requested, canRequest: false, color: "red", detail: null };
+    case "CLOSED_AT_PAYROLL_LOCK":
+      return {
+        state,
+        label: "OT Rejected",
+        minutes: requested,
+        canRequest: false,
+        color: "red",
+        detail: OT_CLOSURE_LABEL[day.ot_closure_reason] || "Closed at payroll lock",
+      };
+    default:
+      return null;
+  }
+}
+
+/** `00:28`, `02:30`: the hh:mm form the OT labels use. */
+function formatOtClock(minutes) {
+  const total = Math.max(0, Math.trunc(Number(minutes) || 0));
+  return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
 }
 
 /** Only a Missing Punch day may be regularized, and only while nothing is pending. */
@@ -217,7 +278,10 @@ module.exports = {
   STATUS,
   LABEL,
   REGULARIZED_PUNCH_LABEL,
+  OT_CLOSURE_LABEL,
   dayIssue,
+  otClaim,
+  formatOtClock,
   canRegularize,
   clock,
   positionalPunches,

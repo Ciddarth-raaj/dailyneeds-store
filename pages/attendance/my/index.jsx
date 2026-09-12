@@ -5,6 +5,7 @@ import CustomContainer from "../../../components/CustomContainer";
 import AttendanceDayList from "../../../components/attendance/AttendanceDayList";
 import AttendanceDayDetail from "../../../components/attendance/AttendanceDayDetail";
 import RegularizationForm from "../../../components/attendance/RegularizationForm";
+import OtRequestForm from "../../../components/attendance/OtRequestForm";
 import AttendanceV2Helper from "../../../helper/attendanceV2";
 import { apiMessage, currentMonth, isOk, monthBounds } from "../../../util/attendanceV2";
 
@@ -20,7 +21,9 @@ import { apiMessage, currentMonth, isOk, monthBounds } from "../../../util/atten
  *
  * Mobile-first: cards on a phone, a compact table on a desktop. Tapping a
  * day opens the Day Detail; a Missing Punch day offers Regularize from
- * there. The shift is read-only here - there is no Edit Shift on this page,
+ * there, and a day whose OT is Available offers Request OT - two separate
+ * requests, never combined. The OT minutes are the engine's and the form
+ * has no field for them. The shift is read-only here - there is no Edit Shift on this page,
  * and the backend would refuse it anyway.
  */
 export default function MyAttendancePage() {
@@ -31,6 +34,7 @@ export default function MyAttendancePage() {
   const [error, setError] = useState(null);
   const [selected, setSelected] = useState(null);
   const [regularizing, setRegularizing] = useState(null);
+  const [requestingOt, setRequestingOt] = useState(null);
 
   const load = useCallback(async () => {
     const bounds = monthBounds(month);
@@ -69,6 +73,18 @@ export default function MyAttendancePage() {
     await load();
   };
 
+  const onOtSubmitted = async () => {
+    setRequestingOt(null);
+    setSelected(null);
+    toast({
+      title: "OT request submitted",
+      description: "The day now shows OT Request Pending until it is approved.",
+      status: "success",
+      duration: 5000,
+    });
+    await load();
+  };
+
   return (
     <GlobalWrapper title="My Attendance">
       <CustomContainer title="My Attendance" filledHeader>
@@ -99,6 +115,13 @@ export default function MyAttendancePage() {
         isOpen={!!selected}
         onClose={() => setSelected(null)}
         onRegularize={(day) => setRegularizing(day)}
+        onRequestOt={(day) => setRequestingOt(day)}
+      />
+      <OtRequestForm
+        day={requestingOt}
+        isOpen={!!requestingOt}
+        onClose={() => setRequestingOt(null)}
+        onSubmitted={onOtSubmitted}
       />
       <RegularizationForm
         day={regularizing}

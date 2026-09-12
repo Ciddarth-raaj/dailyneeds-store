@@ -5,6 +5,7 @@ import {
   REGULARIZED_PUNCH_LABEL,
   canRegularize,
   dayIssue,
+  otClaim,
   displayDate,
   formatMinutes,
   positionalPunches,
@@ -19,6 +20,13 @@ import {
  * (1 — 09:08 IN, 2 — 14:12 OUT, ...), then NRM / Worked / Short / OT, and
  * Approved OT only where there is any. A punch that came from an approved
  * regularization is marked "Missed Punch – Regularized".
+ *
+ * THE OT CLAIM is its own line, from the OT request state (never from the
+ * attendance status): OT Available with a Request OT button, OT Request
+ * Pending, OT Approved, or OT Rejected. `onRequestOt` is passed by My
+ * Attendance only - an employee requests their own OT - and the button
+ * appears only while the OT is AVAILABLE. Missing Punch stays a separate
+ * action (Regularize) and a separate request.
  *
  * What is NOT here, on purpose: fixed Clk1-Clk4, separate In/Out fields,
  * late or early penalties, OT10/15/20/30, a lock, or a generic "Review
@@ -43,12 +51,14 @@ function Row({ label, value, accent }) {
   );
 }
 
-export default function AttendanceDayDetail({ day, isOpen, onClose, onRegularize, onEditShift }) {
+export default function AttendanceDayDetail({ day, isOpen, onClose, onRegularize, onRequestOt, onEditShift }) {
   if (!day) return null;
   const issue = dayIssue(day);
   const punches = positionalPunches(day);
   const approvedOt = Number(day.approved_ot_minutes) || 0;
   const showRegularize = !!onRegularize && canRegularize(day);
+  const ot = otClaim(day);
+  const showRequestOt = !!onRequestOt && !!ot && ot.canRequest;
 
   return (
     <CustomModal
@@ -67,6 +77,11 @@ export default function AttendanceDayDetail({ day, isOpen, onClose, onRegularize
           {showRegularize ? (
             <Button size="sm" colorScheme="purple" onClick={() => onRegularize(day)}>
               Regularize
+            </Button>
+          ) : null}
+          {showRequestOt ? (
+            <Button size="sm" colorScheme="blue" onClick={() => onRequestOt(day)}>
+              Request OT
             </Button>
           ) : null}
           <Button size="sm" variant="ghost" onClick={onClose}>
@@ -140,6 +155,19 @@ export default function AttendanceDayDetail({ day, isOpen, onClose, onRegularize
             <Row label="Approved OT" value={formatMinutes(approvedOt)} accent="green.600" />
           ) : null}
         </SimpleGrid>
+
+        {ot ? (
+          <Box borderWidth="1px" borderColor={`${ot.color}.100`} bg={`${ot.color}.50`} borderRadius="md" px={3} py={2}>
+            <Text fontSize="sm" fontWeight="600" color={`${ot.color}.700`}>
+              {ot.label}
+            </Text>
+            {ot.detail ? (
+              <Text fontSize="xs" color="gray.600">
+                {ot.detail}
+              </Text>
+            ) : null}
+          </Box>
+        ) : null}
       </Stack>
     </CustomModal>
   );
