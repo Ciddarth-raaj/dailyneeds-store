@@ -158,6 +158,12 @@ export const PERMISSIONS = {
     manage_biomax_devices: "Manage Biomax Devices",
     rederive_attendance: "Re-derive Attendance Dates (reserved)",
     manage_attendance_import: "Import Attendance from DigiSME Excel",
+    // Attendance v2. Reading a colleague's calculated month is the HR
+    // operational role; changing the shift ONE attendance date is calculated
+    // under changes that date's pay, so it is its own key, granted by
+    // migration to nobody. Reading your OWN month needs neither.
+    view_calculated_attendance: "View Employee Attendance (calculated)",
+    edit_attendance_date_shift: "Edit Shift for a Single Attendance Date",
   },
 
   // Master

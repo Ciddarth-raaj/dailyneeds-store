@@ -983,6 +983,22 @@ const HR_MENU = {
         selected: false,
         location: "/attendance/imports",
       },
+      // Attendance v2, the first calculated screens. My Attendance has NO
+      // permission: it is every employee's own month, and the backend takes
+      // the employee from the session rather than from the page. Employee
+      // Attendance is the HR/Admin view of somebody else's month, behind the
+      // key the backend checks on that read.
+      my_attendance: {
+        title: "My Attendance",
+        selected: false,
+        location: "/attendance/my",
+      },
+      employee_attendance: {
+        title: "Employee Attendance",
+        permission: "view_calculated_attendance",
+        selected: false,
+        location: "/attendance/calculated",
+      },
     },
   },
   // M4 — Payroll. A SECTION OF HR, never a module of its own, exactly as the

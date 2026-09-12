@@ -63,10 +63,14 @@ test("HR is a top-level module on the rail, beside WMS and GST", () => {
 test("Employees, Department and Designation are all inside HR", () => {
   const hrMenu = treeNamed("HR_MENU");
   assert.deepStrictEqual(locationsIn(hrMenu).sort(), [
+    // Attendance v2: the HR/Admin view of a calculated month, and every
+    // employee's own.
+    "/attendance/calculated",
     "/attendance/devices",
     "/attendance/imports",
     "/attendance/list",
     "/attendance/list?tab=audit",
+    "/attendance/my",
     "/department",
     "/designation",
     "/employee-shift-assignment",
@@ -180,13 +184,26 @@ test("ATTENDANCE AND PAYROLL ARE SECTIONS OF HR, NOT MODULES ON THE RAIL", () =>
 test("HR > Attendance: list, punch audit, devices and the DigiSME import, on the same routes behind the same keys", () => {
   const hrMenu = treeNamed("HR_MENU");
   const att = sectionOf(hrMenu, "attendance");
-  assert.deepStrictEqual(locationsIn(att).sort(), ["/attendance/devices", "/attendance/imports", "/attendance/list", "/attendance/list?tab=audit"]);
+  assert.deepStrictEqual(locationsIn(att).sort(), [
+    "/attendance/calculated",
+    "/attendance/devices",
+    "/attendance/imports",
+    "/attendance/list",
+    "/attendance/list?tab=audit",
+    "/attendance/my",
+  ]);
   assert.match(att, /title:\s*"Import Attendance"[\s\S]*?permission:\s*"manage_attendance_import"/);
   assert.match(att, /title:\s*"Attendance List"[\s\S]*?permission:\s*"view_raw_attendance"/);
   assert.match(att, /title:\s*"Punch Audit"[\s\S]*?permission:\s*"view_attendance_punch_audit"/);
   assert.match(att, /title:\s*"Biomax Devices"[\s\S]*?permission:\s*"view_biomax_devices"/);
-  // No Part 2 screens: nothing that calculates.
-  assert.ok(!/payroll|overtime|late|regulari/i.test(att));
+  // Attendance v2's first screens. My Attendance carries NO permission - it
+  // is the employee's own month and the backend derives the employee from
+  // the session; Employee Attendance is behind the read key the backend
+  // checks. Neither is payroll, and nothing here is a payroll screen.
+  assert.match(att, /my_attendance:\s*\{[^}]*title:\s*"My Attendance"/);
+  assert.ok(!/my_attendance:\s*\{[^}]*permission:/.test(att), "My Attendance has no permission key");
+  assert.match(att, /title:\s*"Employee Attendance"[\s\S]*?permission:\s*"view_calculated_attendance"/);
+  assert.ok(!/\bpayroll\b|\bovertime\b|\blate\b/i.test(att));
 });
 
 /* ==================================================== nothing 404s now = */
@@ -252,10 +269,14 @@ test("HR navigation still appears exactly once, and still holds its pages", () =
 
   const hrMenu = treeNamed("HR_MENU");
   assert.deepStrictEqual(locationsIn(hrMenu).sort(), [
+    // Attendance v2: the HR/Admin view of a calculated month, and every
+    // employee's own.
+    "/attendance/calculated",
     "/attendance/devices",
     "/attendance/imports",
     "/attendance/list",
     "/attendance/list?tab=audit",
+    "/attendance/my",
     "/department",
     "/designation",
     "/employee-shift-assignment",
