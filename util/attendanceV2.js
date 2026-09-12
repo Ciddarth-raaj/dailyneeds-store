@@ -490,8 +490,8 @@ function shortExplanation(day) {
     const gaps = n0(day.actual_gap_minutes);
     const allowed = n0(day.break_allowance_minutes);
     lines.push(
-      `Breaks between punches ${formatMinutes(gaps)} against ${formatMinutes(allowed)} allowed` +
-        (gaps > allowed ? ` – ${formatMinutes(gaps - allowed)} over` : "")
+      `Lunch ${formatMinutes(gaps)} against ${formatMinutes(allowed)} allowed` +
+        (gaps > allowed ? ` – ${formatMinutes(gaps - allowed)} over` : gaps < allowed ? ` – ${formatMinutes(allowed - gaps)} under, counted as worked` : "")
     );
   }
   lines.push(`Worked ${formatMinutes(day.worked_minutes)}`);
@@ -559,6 +559,19 @@ function otExplanation(day) {
     lines.push(`Worked ${formatMinutes(worked)} against NRM ${formatMinutes(nrm)}: ${formatMinutes(worked - nrm)} over`);
   } else {
     lines.push(`Worked ${formatMinutes(worked)} against NRM ${formatMinutes(nrm)}: nothing over`);
+  }
+
+  // The break, so a short lunch that fed the surplus is visible.
+  if (punches >= 4) {
+    const gaps = n0(day.actual_gap_minutes);
+    const allowed = n0(day.break_allowance_minutes);
+    if (gaps < allowed) {
+      lines.push(`Lunch ${formatMinutes(gaps)} against ${formatMinutes(allowed)} allowed: ${formatMinutes(allowed - gaps)} under, counted as worked`);
+    } else if (gaps > allowed) {
+      lines.push(`Lunch ${formatMinutes(gaps)} against ${formatMinutes(allowed)} allowed: ${formatMinutes(gaps - allowed)} over`);
+    } else {
+      lines.push(`Lunch ${formatMinutes(gaps)}, exactly the allowance`);
+    }
   }
 
   const pre = n0(day.pre_shift_minutes);

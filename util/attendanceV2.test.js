@@ -349,7 +349,7 @@ test("Short hover names a long break on a four-punch day", () => {
       shortage_minutes: 7,
     })
   );
-  assert.ok(lines.includes("Breaks between punches 52m against 30m allowed – 22m over"));
+  assert.ok(lines.includes("Lunch 52m against 30m allowed – 22m over"));
   assert.equal(lines[lines.length - 1], "Short 7m");
 });
 
@@ -438,12 +438,14 @@ test("OT hover walks the engine's chain: surplus, pre-shift dropped, minimum exc
       shift_snapshot: snap({ overtime_minimum_excluded: true, pre_shift_overtime_allowed: false }),
       punch_count: 4,
       nrm_minutes: 510, worked_minutes: 678,
+      actual_gap_minutes: 86, break_allowance_minutes: 90,
       pre_shift_minutes: 12, post_shift_minutes: 152,
       raw_ot_minutes: 168, ot_offset_minutes: 0, candidate_ot_minutes: 136,
     })
   );
   assert.deepEqual(lines, [
     "Worked 11h 18m against NRM 8h 30m: 2h 48m over",
+    "Lunch 1h 26m against 1h 30m allowed: 4m under, counted as worked",
     "Before in-time 12m dropped (pre-shift OT off): 2h 36m",
     "After out-time 2h 32m",
     "Minimum 20m excluded: 2h 36m − 20m = 2h 16m",
