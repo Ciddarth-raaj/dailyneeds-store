@@ -63,6 +63,37 @@ const attendanceV2 = {
         .catch(reject);
     }),
 
+  /* ---------------------------------------------- the approval screens */
+
+  /** `{ request_type, status, limit, offset }` - one type per call. */
+  getApprovals: ({ request_type, status = "PENDING", limit = 200, offset = 0 }) =>
+    call("get", "/attendance/approvals", { params: { request_type, status, limit, offset } }),
+
+  /** "Pending with me", counted on the server for one type. */
+  getApprovalCount: (request_type) =>
+    call("get", "/attendance/approvals/count", { params: { request_type } }),
+
+  /** Decide the current stage. Takes NO minutes: an approver cannot change OT. */
+  decideApproval: (request_id, { decision, remarks }) =>
+    new Promise((resolve, reject) => {
+      API.post(`/attendance/regularization/${request_id}/decision`, { decision, remarks: remarks || "" })
+        .then((res) => resolve(res.data))
+        .catch(reject);
+    }),
+
+  /* ---------------------------------------------- bulk recalculation */
+
+  /** `{ from_date, to_date, employee_id?, store_id?, designation_id? }` - only the filters set. */
+  recalculateBulk: (body) =>
+    new Promise((resolve, reject) => {
+      API.post("/attendance/calculated/recalculate-bulk", body)
+        .then((res) => resolve(res.data))
+        .catch(reject);
+    }),
+
+  getRecalculationRuns: (limit = 20) =>
+    call("get", "/attendance/calculated/recalculate-runs", { params: { limit } }),
+
   getDateShiftOptions: () => call("get", "/attendance/calculated/date-shift/options", {}),
 
   /** `{ employee_id, attendance_date, work_shift_id }`. */

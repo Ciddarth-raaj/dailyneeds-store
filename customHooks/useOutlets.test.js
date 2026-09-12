@@ -127,6 +127,9 @@ test("no other consumer was switched to the directory", () => {
     "pages/attendance/devices/[id].jsx",
     "pages/attendance/devices/new.jsx",
     "pages/attendance/list/index.jsx",
+    // Recalculate Attendance: the Store filter - an id and a name, for a
+    // screen reached on `recalculate_attendance` and not on `view_stores`.
+    "pages/attendance/recalculate/index.jsx",
     // Employee Shift Assignment: the Outlet filter. Same reason as the HR
     // screens below - an id and a name, for a screen HR reaches on
     // `view_employees` + `view_shift_assignments` and not on `view_stores`.

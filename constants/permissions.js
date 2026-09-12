@@ -164,6 +164,15 @@ export const PERMISSIONS = {
     // migration to nobody. Reading your OWN month needs neither.
     view_calculated_attendance: "View Employee Attendance (calculated)",
     edit_attendance_date_shift: "Edit Shift for a Single Attendance Date",
+    // The approval and recalculation screens. `view_attendance_approvals`
+    // opens Attendance Approval and OT Approval - what each person sees
+    // there is decided by their approval role and outlet on the server;
+    // `approve_attendance_regularization` is the decision itself.
+    // `recalculate_attendance` re-runs the engine and rewrites the rows
+    // payroll reads, and is granted by migration to nobody.
+    view_attendance_approvals: "View Attendance / OT Approvals",
+    approve_attendance_regularization: "Approve / Reject Attendance and OT Requests",
+    recalculate_attendance: "Recalculate Attendance",
   },
 
   // Master

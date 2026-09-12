@@ -274,8 +274,93 @@ function isOk(body) {
   return !!body && typeof body === "object" && Number(body.code) === 200;
 }
 
+/* ============================================ approval screens ==== */
+
+const ROLE_LABEL = Object.freeze({
+  STORE_MANAGER: "Store Manager",
+  OPERATIONS_MANAGER: "Operations Manager",
+  HR: "HR",
+  ADMIN: "Admin",
+});
+function roleLabel(role) {
+  return ROLE_LABEL[role] || String(role || "—");
+}
+
+/** `15 Sep 2026 09:00` from `YYYY-MM-DD HH:MM:SS`; a dash for nothing. */
+function displayDateTime(value) {
+  if (!value) return "—";
+  const m = /^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2})/.exec(String(value));
+  if (!m) return String(value);
+  return `${displayDate(m[1])} ${m[2]}`;
+}
+
+/** `Stage 2 of 3 · Operations Manager`. */
+function stageLabel(row) {
+  if (!row) return "—";
+  if (row.status !== "PENDING") return row.status === "APPROVED" ? "Approved" : row.status === "REJECTED" ? "Rejected" : String(row.status);
+  return `Stage ${row.current_stage_no} of ${row.total_stages} · ${roleLabel(row.current_stage_role)}`;
+}
+
+/**
+ * What a history row says was decided: the payroll-lock closure wording
+ * where the lock closed it, otherwise the plain status.
+ */
+function decisionLabel(row) {
+  if (!row) return "—";
+  if (row.closure_label) return row.closure_label;
+  if (row.status === "REJECTED") return "Rejected";
+  if (row.status === "APPROVED") return "Approved";
+  return stageLabel(row);
+}
+
+/* ============================================= recalculation ==== */
+
+const RECALC_STATUS_LABEL = Object.freeze({
+  READY: "Ready",
+  RUNNING: "Recalculating",
+  COMPLETED: "Completed",
+  COMPLETED_WITH_ERRORS: "Completed with errors",
+  FAILED: "Failed",
+});
+function recalcStatusLabel(status) {
+  return RECALC_STATUS_LABEL[status] || String(status || "Ready");
+}
+
+/**
+ * The request body for a bulk recalculation: the date range, plus ONLY the
+ * optional filters that were actually chosen. Returns `{ error }` when the
+ * range is missing or inverted, so the screen never sends a bad range.
+ */
+function buildRecalcBody({ from_date, to_date, employee_id, store_id, designation_id }) {
+  const dateRe = /^\d{4}-\d{2}-\d{2}$/;
+  if (!dateRe.test(String(from_date || "")) || !dateRe.test(String(to_date || ""))) {
+    return { error: "Choose a From and To date" };
+  }
+  if (from_date > to_date) return { error: "From must not be after To" };
+  const body = { from_date, to_date };
+  if (employee_id) body.employee_id = Number(employee_id);
+  if (store_id) body.store_id = Number(store_id);
+  if (designation_id) body.designation_id = Number(designation_id);
+  return { body };
+}
+
+/** `Employee 42` / `Store DN1` / `Designation Cashier` / `All employees`, from a run row. */
+function runFilterLabel(run) {
+  if (!run) return "—";
+  const parts = [];
+  if (run.employee_id) parts.push(run.employee_name ? `${run.employee_name} (${run.employee_id})` : `Employee ${run.employee_id}`);
+  return parts.length ? parts.join(" · ") : "All employees";
+}
+
 module.exports = {
   STATUS,
+  roleLabel,
+  displayDateTime,
+  stageLabel,
+  decisionLabel,
+  recalcStatusLabel,
+  buildRecalcBody,
+  runFilterLabel,
   LABEL,
   REGULARIZED_PUNCH_LABEL,
   OT_CLOSURE_LABEL,

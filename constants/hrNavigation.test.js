@@ -65,12 +65,15 @@ test("Employees, Department and Designation are all inside HR", () => {
   assert.deepStrictEqual(locationsIn(hrMenu).sort(), [
     // Attendance v2: the HR/Admin view of a calculated month, and every
     // employee's own.
+    "/attendance/approval",
     "/attendance/calculated",
     "/attendance/devices",
     "/attendance/imports",
     "/attendance/list",
     "/attendance/list?tab=audit",
     "/attendance/my",
+    "/attendance/ot-approval",
+    "/attendance/recalculate",
     "/department",
     "/designation",
     "/employee-shift-assignment",
@@ -185,13 +188,19 @@ test("HR > Attendance: list, punch audit, devices and the DigiSME import, on the
   const hrMenu = treeNamed("HR_MENU");
   const att = sectionOf(hrMenu, "attendance");
   assert.deepStrictEqual(locationsIn(att).sort(), [
+    "/attendance/approval",
     "/attendance/calculated",
     "/attendance/devices",
     "/attendance/imports",
     "/attendance/list",
     "/attendance/list?tab=audit",
     "/attendance/my",
+    "/attendance/ot-approval",
+    "/attendance/recalculate",
   ]);
+  assert.match(att, /title:\s*"Attendance Approval"[\s\S]*?permission:\s*"view_attendance_approvals"/);
+  assert.match(att, /title:\s*"OT Approval"[\s\S]*?permission:\s*"view_attendance_approvals"/);
+  assert.match(att, /title:\s*"Recalculate Attendance"[\s\S]*?permission:\s*"recalculate_attendance"/);
   assert.match(att, /title:\s*"Import Attendance"[\s\S]*?permission:\s*"manage_attendance_import"/);
   assert.match(att, /title:\s*"Attendance List"[\s\S]*?permission:\s*"view_raw_attendance"/);
   assert.match(att, /title:\s*"Punch Audit"[\s\S]*?permission:\s*"view_attendance_punch_audit"/);
@@ -203,7 +212,7 @@ test("HR > Attendance: list, punch audit, devices and the DigiSME import, on the
   assert.match(att, /my_attendance:\s*\{[^}]*title:\s*"My Attendance"/);
   assert.ok(!/my_attendance:\s*\{[^}]*permission:/.test(att), "My Attendance has no permission key");
   assert.match(att, /title:\s*"Employee Attendance"[\s\S]*?permission:\s*"view_calculated_attendance"/);
-  assert.ok(!/\bpayroll\b|\bovertime\b|\blate\b/i.test(att));
+  assert.ok(!/\bpayroll\b|\bsalary\b|\block payroll\b/i.test(att), "no payroll screen in Attendance");
 });
 
 /* ==================================================== nothing 404s now = */
@@ -271,12 +280,15 @@ test("HR navigation still appears exactly once, and still holds its pages", () =
   assert.deepStrictEqual(locationsIn(hrMenu).sort(), [
     // Attendance v2: the HR/Admin view of a calculated month, and every
     // employee's own.
+    "/attendance/approval",
     "/attendance/calculated",
     "/attendance/devices",
     "/attendance/imports",
     "/attendance/list",
     "/attendance/list?tab=audit",
     "/attendance/my",
+    "/attendance/ot-approval",
+    "/attendance/recalculate",
     "/department",
     "/designation",
     "/employee-shift-assignment",

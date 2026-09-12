@@ -999,6 +999,27 @@ const HR_MENU = {
         selected: false,
         location: "/attendance/calculated",
       },
+      // The approval screens share one read key; what each approver sees is
+      // their own role's and outlet's, decided on the server. Recalculate is
+      // behind the key the backend grants to nobody by migration.
+      attendance_approval: {
+        title: "Attendance Approval",
+        permission: "view_attendance_approvals",
+        selected: false,
+        location: "/attendance/approval",
+      },
+      ot_approval: {
+        title: "OT Approval",
+        permission: "view_attendance_approvals",
+        selected: false,
+        location: "/attendance/ot-approval",
+      },
+      recalculate_attendance: {
+        title: "Recalculate Attendance",
+        permission: "recalculate_attendance",
+        selected: false,
+        location: "/attendance/recalculate",
+      },
     },
   },
   // M4 — Payroll. A SECTION OF HR, never a module of its own, exactly as the
