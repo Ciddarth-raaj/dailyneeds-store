@@ -22,6 +22,8 @@ const detail = strip(read("components/attendance/AttendanceDayDetail.jsx"));
 const form = strip(read("components/attendance/RegularizationForm.jsx"));
 const editShift = strip(read("components/attendance/EditShiftModal.jsx"));
 const otForm = strip(read("components/attendance/OtRequestForm.jsx"));
+const voidModal = strip(read("components/attendance/VoidPunchModal.jsx"));
+const rawHelper = strip(read("helper/attendance.js"));
 const helper = strip(read("helper/attendanceV2.js"));
 const permissions = read("constants/permissions.js");
 
@@ -90,8 +92,11 @@ test("only the exact issue labels are rendered, through the shared mapping; a FI
 /* ============================================ the day detail ==== */
 
 test("the Day Detail shows positional punches, NRM/Worked/Short/OT, Approved OT only when there is any", () => {
-  assert.match(detail, /positionalPunches\(day\)/);
-  assert.match(detail, /\{p\.position\}/);
+  // `dayPunchRows` is `positionalPunches` plus the excluded punches; the
+  // position is still the positional one, and only a USED/REGULARIZED punch
+  // has one.
+  assert.match(detail, /dayPunchRows\(day\)/);
+  assert.match(detail, /p\.position === null \? "–" : p\.position/);
   assert.match(detail, /p\.direction === "IN"/);
   for (const label of ['label="NRM"', 'label="Worked"', 'label="Short"', 'label="OT"']) assert.match(detail, new RegExp(label));
   assert.match(detail, /approvedOt > 0 \?[\s\S]*?label="Approved OT"/);
@@ -215,4 +220,80 @@ test("10. Missing Punch stays a separate action and a separate request from OT",
 test("the two new keys are in the permission matrix so they can be granted", () => {
   assert.match(permissions, /view_calculated_attendance:/);
   assert.match(permissions, /edit_attendance_date_shift:/);
+});
+
+
+/* ============================================ Void Punch ==== */
+
+test("1/2. Void Punch is hidden without void_attendance_punch and shown with it, on the HR page only", () => {
+  assert.match(hrPage, /usePermissions\(\["void_attendance_punch"\]\)/);
+  assert.match(hrPage, /onVoidPunch=\{canVoidPunch \? \(punch\) => setVoiding\(punch\) : null\}/);
+  assert.match(hrPage, /\{canVoidPunch \? \([\s\S]*?<VoidPunchModal/);
+  assert.ok(!/onVoidPunch|VoidPunchModal|void_attendance_punch/.test(myPage), "an employee never voids their own punches");
+  assert.match(detail, /\{onVoidPunch && p\.void_able \? \(/, "the button needs both the permission-gated callback and a void-able punch");
+});
+
+test("3/4/5. the action is shown only on a raw BIOMAX/IMPORT punch, never on a REGULARIZED or an already VOIDED one", () => {
+  const util = strip(read("util/attendanceV2.js"));
+  const fn = util.slice(util.indexOf("function canVoidPunch"), util.indexOf("}", util.indexOf("return true;", util.indexOf("function canVoidPunch"))));
+  assert.match(fn, /punch\.source !== "BIOMAX" && punch\.source !== "IMPORT"\) return false/);
+  assert.match(fn, /punch\.effective_status === PUNCH_STATUS\.VOIDED\) return false/);
+  assert.match(detail, /dayPunchRows\(day\)/);
+  assert.match(detail, /void_able: canVoidPunch|p\.void_able/);
+});
+
+test("6. the confirmation identifies the punch: employee, date/time, source, punch id - all read-only", () => {
+  for (const label of [/>\s*Employee\s*</, /Date \/ Time/, />\s*Source\s*</, /Punch ID/, />\s*Reason\s*</]) {
+    assert.match(voidModal, label, String(label));
+  }
+  assert.match(voidModal, /\{displayDate\(date\)\} \{time\}/);
+  assert.match(voidModal, /#\{punch\.biomax_punch_id\}/);
+  assert.match(voidModal, /\{punch\.source\}/);
+  assert.ok(!/<Input type="time"|<Input type="date"/.test(voidModal), "nothing about the punch is editable");
+  assert.match(detail, /onVoidPunch\(\{[\s\S]*?biomax_punch_id: p\.punch_id,[\s\S]*?io_time: p\.io_time,[\s\S]*?source: p\.source,/);
+});
+
+test("7. the reason is mandatory: blank or whitespace is refused before anything is sent", () => {
+  assert.match(voidModal, /const trimmed = reason\.trim\(\);/);
+  assert.match(voidModal, /if \(trimmed\.length < MIN_REASON\)/);
+  assert.match(voidModal, /<FormControl isRequired>[\s\S]*?<FormLabel fontSize="sm">Reason<\/FormLabel>[\s\S]*?<Textarea/);
+  assert.match(voidModal, /reason: trimmed,/);
+});
+
+test("the request carries the punch id in the path, the reason and the source, and never the employee, the actor or a time", () => {
+  const fn = rawHelper.slice(rawHelper.indexOf("voidPunch:"), rawHelper.indexOf("getDevices:"));
+  assert.match(fn, /`\/attendance\/raw\/punches\/\$\{biomax_punch_id\}\/void`/);
+  assert.match(fn, /\{ reason, source \}/);
+  assert.ok(!/employee_id|voided_by|io_time|punch_time/.test(fn));
+});
+
+test("8. a successful void closes the detail and reloads the day; 9. backend validation is shown as it is", () => {
+  assert.match(hrPage, /const onPunchVoided = async \(res\) => \{[\s\S]*?setVoiding\(null\);[\s\S]*?setSelected\(null\);[\s\S]*?await load\(\);/);
+  assert.match(voidModal, /setError\(apiMessage\(res, "The punch could not be voided"\)\)/);
+  assert.match(voidModal, /<Alert status="error"[\s\S]*?\{error\}/);
+});
+
+test("10. a void whose recalculation failed is reported as a warning, not as success", () => {
+  assert.match(hrPage, /res\.recalculated \? "Punch voided" : "Punch voided, but the date was not recalculated"/);
+  assert.match(hrPage, /status: res\.recalculated \? "success" : "warning"/);
+});
+
+test("11/12/13. the Day Detail shows every punch with a clear status: ignored duplicate, voided and regularized each distinct", () => {
+  assert.match(detail, /PUNCH_STATUS_LABEL\[punch\.effective_status\]/);
+  assert.match(detail, /PUNCH_STATUS_COLOR\[punch\.effective_status\]/);
+  assert.match(detail, /textDecoration=\{p\.effective_status === PUNCH_STATUS\.VOIDED \? "line-through" : "none"\}/);
+  assert.match(detail, /opacity=\{p\.excluded \? 0\.6 : 1\}/);
+  assert.match(detail, /\{p\.position === null \? "–" : p\.position\}/, "an excluded punch has no position");
+  assert.match(detail, /REGULARIZED_PUNCH_LABEL/);
+  assert.match(detail, /Ignored and voided punches are kept for audit and do not count towards the day/);
+});
+
+test("16. the punch rows wrap on a narrow screen and the void action is compact", () => {
+  assert.match(detail, /wrap="wrap"/);
+  assert.match(detail, /<Button\s+size="xs"[\s\S]*?Void Punch/);
+  assert.match(voidModal, /columns=\{\{ base: 1, sm: 2 \}\}/);
+});
+
+test("void_attendance_punch is in the permission matrix so it can be granted", () => {
+  assert.match(permissions, /void_attendance_punch:/);
 });

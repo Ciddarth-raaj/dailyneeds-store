@@ -2,13 +2,16 @@ import React from "react";
 import { Badge, Box, Button, Flex, SimpleGrid, Stack, Text } from "@chakra-ui/react";
 import CustomModal from "../CustomModal";
 import {
+  PUNCH_STATUS,
+  PUNCH_STATUS_COLOR,
+  PUNCH_STATUS_LABEL,
   REGULARIZED_PUNCH_LABEL,
   canRegularize,
   dayIssue,
+  dayPunchRows,
   otClaim,
   displayDate,
   formatMinutes,
-  positionalPunches,
   shiftLabel,
   weekday,
 } from "../../util/attendanceV2";
@@ -20,6 +23,14 @@ import {
  * (1 — 09:08 IN, 2 — 14:12 OUT, ...), then NRM / Worked / Short / OT, and
  * Approved OT only where there is any. A punch that came from an approved
  * regularization is marked "Missed Punch – Regularized".
+ *
+ * EVERY RAW PUNCH IS SHOWN, counted or not. A punch the engine ignored as a
+ * duplicate within ten minutes, or that an authorized person voided, stays
+ * in the list - visually distinct, with no position (it is not paired) and
+ * its status and reason - because the audit trail is the point: a manager
+ * looking at a day must be able to see what the device recorded and what
+ * was excluded from it. Only the USED and REGULARIZED punches carry a
+ * position and take part in NRM / Worked / Short / OT.
  *
  * THE OT CLAIM is its own line, from the OT request state (never from the
  * attendance status): OT Available with a Request OT button, OT Request
@@ -37,6 +48,12 @@ import {
  * the HR/Admin screen, and only when the caller holds
  * `edit_attendance_date_shift` - and the backend checks that key again on
  * the request, so this prop is presentation, not security.
+ *
+ * VOID PUNCH is the same shape: `onVoidPunch` is passed only by the HR/Admin
+ * screen, only when the caller holds `void_attendance_punch`, and the
+ * compact action appears beside a raw BIOMAX / IMPORT punch only - never on
+ * a REGULARIZED punch (that is the approval workflow's) and never on a punch
+ * that is already VOIDED. The backend checks the key again.
  */
 function Row({ label, value, accent }) {
   return (
@@ -51,10 +68,34 @@ function Row({ label, value, accent }) {
   );
 }
 
-export default function AttendanceDayDetail({ day, isOpen, onClose, onRegularize, onRequestOt, onEditShift }) {
+function PunchStatusBadge({ punch }) {
+  if (punch.regularized) {
+    return (
+      <Text fontSize="xs" color="orange.700">
+        {REGULARIZED_PUNCH_LABEL}
+      </Text>
+    );
+  }
+  if (!punch.excluded) return null;
+  return (
+    <Badge colorScheme={PUNCH_STATUS_COLOR[punch.effective_status] || "gray"} fontSize="10px" title={punch.reason || ""}>
+      {PUNCH_STATUS_LABEL[punch.effective_status] || punch.effective_status}
+    </Badge>
+  );
+}
+
+export default function AttendanceDayDetail({
+  day,
+  isOpen,
+  onClose,
+  onRegularize,
+  onRequestOt,
+  onEditShift,
+  onVoidPunch,
+}) {
   if (!day) return null;
   const issue = dayIssue(day);
-  const punches = positionalPunches(day);
+  const punches = dayPunchRows(day);
   const approvedOt = Number(day.approved_ot_minutes) || 0;
   const showRegularize = !!onRegularize && canRegularize(day);
   const ot = otClaim(day);
@@ -117,25 +158,64 @@ export default function AttendanceDayDetail({ day, isOpen, onClose, onRegularize
           ) : (
             <Stack spacing={1}>
               {punches.map((p) => (
-                <Flex key={p.position} align="center" gap={3} fontSize="sm">
+                <Flex
+                  key={`${p.effective_status}-${p.punch_id}-${p.io_time}`}
+                  align="center"
+                  gap={3}
+                  fontSize="sm"
+                  wrap="wrap"
+                  opacity={p.excluded ? 0.6 : 1}
+                >
                   <Text color="gray.500" w="1.5em" textAlign="right">
-                    {p.position}
+                    {p.position === null ? "–" : p.position}
                   </Text>
-                  <Text fontFamily="mono" fontWeight="600">
+                  <Text
+                    fontFamily="mono"
+                    fontWeight="600"
+                    textDecoration={p.effective_status === PUNCH_STATUS.VOIDED ? "line-through" : "none"}
+                    color={p.excluded ? "gray.500" : undefined}
+                  >
                     {p.time}
                   </Text>
-                  <Badge colorScheme={p.direction === "IN" ? "green" : "gray"} fontSize="10px">
-                    {p.direction}
-                  </Badge>
-                  {p.regularized ? (
-                    <Text fontSize="xs" color="orange.700">
-                      {REGULARIZED_PUNCH_LABEL}
+                  {p.direction ? (
+                    <Badge colorScheme={p.direction === "IN" ? "green" : "gray"} fontSize="10px">
+                      {p.direction}
+                    </Badge>
+                  ) : null}
+                  <PunchStatusBadge punch={p} />
+                  {p.excluded && p.reason && p.effective_status === PUNCH_STATUS.VOIDED ? (
+                    <Text fontSize="xs" color="gray.500" title={p.void && p.void.voided_at ? `Voided ${p.void.voided_at}` : ""}>
+                      {p.reason}
                     </Text>
+                  ) : null}
+                  {onVoidPunch && p.void_able ? (
+                    <Button
+                      size="xs"
+                      variant="ghost"
+                      colorScheme="red"
+                      ml="auto"
+                      onClick={() =>
+                        onVoidPunch({
+                          biomax_punch_id: p.punch_id,
+                          io_time: p.io_time,
+                          source: p.source,
+                          attendance_date: day.attendance_date,
+                          employee_id: day.employee_id,
+                        })
+                      }
+                    >
+                      Void Punch
+                    </Button>
                   ) : null}
                 </Flex>
               ))}
             </Stack>
           )}
+          {punches.some((p) => p.excluded) ? (
+            <Text fontSize="xs" color="gray.500" mt={1}>
+              Ignored and voided punches are kept for audit and do not count towards the day.
+            </Text>
+          ) : null}
         </Box>
 
         <SimpleGrid columns={1} spacing={1} borderTopWidth="1px" borderColor="gray.100" pt={3}>
