@@ -35,7 +35,9 @@ export default function LocationPanel({ rows, isOpenDay, onOpenLocation }) {
           <Table size="sm" variant="simple">
             <Thead>
               <Tr>
-                <Th fontSize="10px">Location</Th>
+                <Th fontSize="10px" w="46%">
+                  Location
+                </Th>
                 <Th fontSize="10px" isNumeric>
                   In
                 </Th>
@@ -48,9 +50,6 @@ export default function LocationPanel({ rows, isOpenDay, onOpenLocation }) {
                 <Th fontSize="10px" isNumeric>
                   {isOpenDay ? "Not in" : "Absent"}
                 </Th>
-                <Th fontSize="10px" isNumeric>
-                  Action
-                </Th>
               </Tr>
             </Thead>
             <Tbody>
@@ -60,8 +59,10 @@ export default function LocationPanel({ rows, isOpenDay, onOpenLocation }) {
                   _hover={{ bg: "gray.50", cursor: "pointer" }}
                   onClick={() => onOpenLocation(row)}
                 >
-                  <Td fontSize="xs" maxW="150px">
-                    <Text noOfLines={1}>{row.outlet_name}</Text>
+                  <Td fontSize="xs">
+                    <Text noOfLines={3} lineHeight="1.25">
+                      {row.outlet_name}
+                    </Text>
                     <Box mt="3px" h="3px" bg="gray.100" borderRadius="full" overflow="hidden">
                       <Box
                         h="100%"
@@ -86,16 +87,14 @@ export default function LocationPanel({ rows, isOpenDay, onOpenLocation }) {
                   <Td fontSize="xs" isNumeric color={isOpenDay ? "orange.600" : PALETTE.red.fg}>
                     {isOpenDay ? row.not_yet_checked_in : row.absent}
                   </Td>
-                  <Td fontSize="xs" isNumeric color="orange.600">
-                    {row.need_action}
-                  </Td>
                 </Tr>
               ))}
             </Tbody>
           </Table>
           <Text fontSize="10px" color="gray.500" mt={2}>
             Rate = Checked In ÷ applicable employees at that location for this date. The denominator
-            is the “Of” column.
+            is the “Of” column. Items needing action are counted on the Need Action card and in
+            Attention Required; tap a row here for that location&rsquo;s employees.
             {isOpenDay
               ? " While the day is open, the fifth column is “Not in” (shift started, no punch yet) rather than confirmed absence."
               : ""}

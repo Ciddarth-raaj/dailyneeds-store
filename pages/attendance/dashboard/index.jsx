@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/router";
 import { Alert, AlertIcon, Box, Flex, SimpleGrid, Spinner, Text } from "@chakra-ui/react";
 import GlobalWrapper from "../../../components/globalWrapper/globalWrapper";
@@ -79,6 +79,19 @@ export default function AttendanceDashboardPage() {
     search: null,
   });
   const [options, setOptions] = useState({ outlets: [], designations: [], shifts: [], today: null });
+  /**
+   * Has the user chosen a date themselves yet?
+   *
+   * The date starts at the browser's idea of today in IST so the page is
+   * useful on the first paint, but the SERVER's IST today is the authoritative
+   * business date - it is the clock every stored attendance figure was written
+   * against. So when the filter options arrive, the server's date replaces the
+   * browser's UNLESS the user has already picked one, in which case their
+   * choice obviously wins. Without this flag the server's answer could never
+   * apply (the field is never empty) and a browser with a wrong clock would
+   * quietly ask for the wrong day.
+   */
+  const dateChosen = useRef(false);
   const [overview, setOverview] = useState(null);
   const [trend, setTrend] = useState(null);
   const [trendDays, setTrendDays] = useState(14);
@@ -140,7 +153,11 @@ export default function AttendanceDashboardPage() {
           // The server's own IST today, so the default date is the business
           // day rather than the browser's idea of it.
           if (res.today) {
-            setFilters((f) => ({ ...f, attendance_date: f.attendance_date || res.today }));
+            // A REF, not state: this effect runs once on mount, so a state
+            // value read here would be the mount-time closure for ever. The
+            // ref reads the CURRENT answer, which matters if the filters
+            // request is slow enough for somebody to pick a date first.
+            setFilters((f) => (dateChosen.current ? f : { ...f, attendance_date: res.today }));
           }
         }
       } catch (err) {
@@ -287,7 +304,10 @@ export default function AttendanceDashboardPage() {
             <DashboardFilters
               filters={filters}
               options={options}
-              onChange={setFilters}
+              onChange={(next) => {
+                if (next.attendance_date !== filters.attendance_date) dateChosen.current = true;
+                setFilters(next);
+              }}
               onRefresh={() => {
                 loadOverview();
                 loadTrend();

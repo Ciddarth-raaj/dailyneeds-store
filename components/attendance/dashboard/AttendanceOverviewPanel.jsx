@@ -38,7 +38,7 @@ export default function AttendanceOverviewPanel({ overview, isOpenDay, onOpenSli
         </Flex>
       ) : (
         <Flex direction={{ base: "column", md: "row" }} align="center" gap={3}>
-          <Box h="180px" w={{ base: "100%", md: "180px" }} flexShrink={0}>
+          <Box h="170px" w={{ base: "100%", md: "150px" }} flexShrink={0}>
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
@@ -79,7 +79,10 @@ export default function AttendanceOverviewPanel({ overview, isOpenDay, onOpenSli
               >
                 <Flex align="center" gap={2} minW={0}>
                   <Box w="8px" h="8px" borderRadius="full" bg={tone(row.color).chart} flexShrink={0} />
-                  <Text fontSize="xs" color="gray.700" noOfLines={1}>
+                  {/* Two lines, not one: "Not Yet Checked In" clipped to
+                      "Not Yet Checke..." stops being a category anybody can
+                      read, and the label IS the meaning of the slice. */}
+                  <Text fontSize="xs" color="gray.700" noOfLines={2} textAlign="left" lineHeight="1.25">
                     {row.name}
                   </Text>
                 </Flex>

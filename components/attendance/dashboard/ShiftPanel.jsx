@@ -37,7 +37,9 @@ export default function ShiftPanel({ rows, total, isOpenDay, onOpenShift }) {
           <Table size="sm" variant="simple">
             <Thead>
               <Tr>
-                <Th fontSize="10px">Shift</Th>
+                <Th fontSize="10px" w="42%">
+                  Shift
+                </Th>
                 <Th fontSize="10px" isNumeric>
                   Expected
                 </Th>
@@ -60,9 +62,14 @@ export default function ShiftPanel({ rows, total, isOpenDay, onOpenShift }) {
                   onClick={() => onOpenShift(row)}
                   bg={row.setup_gap ? "orange.50" : undefined}
                 >
-                  <Td fontSize="xs" maxW="180px">
+                  <Td fontSize="xs">
                     <Flex align="center" gap={1} wrap="wrap">
-                      <Text noOfLines={1}>{row.shift_label}</Text>
+                      {/* The gap rows carry the whole explanation of the fault
+                          ("2-10 - no schedule row for this weekday"), so they
+                          wrap rather than truncate. */}
+                      <Text noOfLines={3} lineHeight="1.25">
+                        {row.shift_label}
+                      </Text>
                       {row.setup_gap ? (
                         <Badge colorScheme="orange" fontSize="9px">
                           setup gap
