@@ -509,9 +509,10 @@ function shortExplanation(day) {
 
   const lateCharged = n0(day.late_charged_minutes);
   const earlyCharged = n0(day.early_exit_charged_minutes);
-  const ruleLate = n0(snap.late_deduction_interval_minutes) > 0 && n0(snap.late_deduct_minutes) > 0;
-  const ruleEarly =
-    n0(snap.early_exit_deduction_interval_minutes) > 0 && n0(snap.early_exit_deduct_minutes) > 0;
+  // "1m per 1m" is the plain one-for-one shortage, not a rule worth a line.
+  const isRule = (interval, deduct) => n0(interval) > 0 && n0(deduct) > 0 && !(n0(interval) === 1 && n0(deduct) === 1);
+  const ruleLate = isRule(snap.late_deduction_interval_minutes, snap.late_deduct_minutes);
+  const ruleEarly = isRule(snap.early_exit_deduction_interval_minutes, snap.early_exit_deduct_minutes);
   if (ruleLate && lateCharged > 0) {
     lines.push(
       `Deduction rule: ${formatMinutes(snap.late_deduct_minutes)} per ${formatMinutes(
