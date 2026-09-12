@@ -127,6 +127,20 @@ function formatTimestamp(value) {
  * - a deleted or renamed actor leaves an id rather than an empty cell, because
  * "employee 41" is still an answer and a blank is not. Only the steps that
  * actually happened appear: an approved record has no rejection line.
+ *
+ * THE FOUR STEPS ARE CREATED, CHANGED, APPROVED, REJECTED, in the order they
+ * can happen. CHANGED is the amendment of a proposal while it was still
+ * pending, and it appears ONLY where one actually took place - which is why it
+ * reads `changed_at`/`changed_by` and NOT `updated_at`.
+ *
+ * `updated_at` WOULD BE WRONG, AND SILENTLY SO. It is the row's generic
+ * last-touched timestamp: it moves when a proposal is approved and when it is
+ * rejected, exactly as readily as when somebody amends it, and it names
+ * nobody. A Changed line built from it would appear on every approved revision
+ * in the company, reporting an amendment that never happened and attributing
+ * it to no one. The server writes the two dedicated columns from the one path
+ * that amends a proposal, and leaves them alone on approval and rejection, so
+ * their being set is itself the fact that an amendment occurred.
  */
 function auditTrail(record) {
   if (!record) return [];
@@ -144,6 +158,20 @@ function auditTrail(record) {
     who: person(record.created_by_name, record.created_by),
     at: formatTimestamp(record.created_at),
   });
+
+  /*
+   * ONLY IF IT ACTUALLY HAPPENED. Both columns are NULL on a proposal nobody
+   * ever amended - including every record created before they existed - and
+   * NULL here means "never amended", not "not recorded".
+   */
+  if (record.changed_at || record.changed_by) {
+    trail.push({
+      key: "changed",
+      label: "Changed by",
+      who: person(record.changed_by_name, record.changed_by),
+      at: formatTimestamp(record.changed_at),
+    });
+  }
 
   if (record.status === "APPROVED" || record.approved_at || record.approved_by) {
     trail.push({
@@ -207,10 +235,18 @@ function presentHistory(records, current) {
 /**
  * The pending record an `edit_salary` holder may amend, if any.
  *
- * AT MOST ONE, because that is what the schema allows: a unique index permits
- * one non-rejected revision per employee per effective date, and the usecase
- * refuses a second outstanding future one. Returning the first pending row
- * rather than a list keeps the screen from implying a queue it cannot have.
+ * AT MOST ONE, AND THAT IS A SERVER INVARIANT RATHER THAN AN ASSUMPTION THIS
+ * FILE MAKES. An employee may hold ONE pending salary proposal at a time,
+ * whatever its effective date: `usecase/employee_salary.js` refuses a second
+ * one before anything is written, and `uq_salary_pending_proposal` - a unique
+ * key on the employee and a marker generated to be non-NULL only while a row
+ * is PENDING - is the backstop that makes it true under a race rather than
+ * usually true.
+ *
+ * So returning ONE record is not a simplification of a list. There is no
+ * second pending row for this to be hiding, and a screen built to handle a
+ * queue of them would be a screen built around a state the database does not
+ * permit.
  */
 function pendingRecord(records) {
   if (!Array.isArray(records)) return null;

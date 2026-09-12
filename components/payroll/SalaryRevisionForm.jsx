@@ -60,10 +60,23 @@ import { formatMoney, formatEffectiveFrom } from "../../util/salaryView";
  *                     only when the override is on.
  *   Rejection Reason  the approver's, written on the Approval screen.
  *
- * A PENDING PROPOSAL IS AMENDED, NEVER DUPLICATED. Where one exists, the
- * default is to amend it (`edit_salary`), because proposing a second one at
- * the same date is the conflict the server refuses. Approved and rejected
- * history is not editable from here or from anywhere.
+ * A PENDING PROPOSAL IS AMENDED, NEVER DUPLICATED, AND THERE IS NO SECOND
+ * OPTION. An employee may have AT MOST ONE pending salary proposal, whatever
+ * its effective date - a salary proposal is one decision at a time, and the
+ * server refuses a second one outright. So where a proposal is outstanding
+ * this screen offers exactly one thing to do with it:
+ *
+ *   with `edit_salary`     amend THAT proposal - the form is it, prefilled
+ *   without `edit_salary`  read it, and wait for somebody to decide it
+ *
+ * There is deliberately no "propose a new revision" affordance while a
+ * proposal is pending. Offering it would be the screen inviting a request the
+ * server is going to refuse, and - worse - implying the business rule is
+ * "one per effective date" when it is "one at a time". Once the outstanding
+ * proposal is approved or rejected, the refreshed history has no pending row
+ * and the form is a create form again.
+ *
+ * Approved and rejected history is not editable from here or from anywhere.
  *
  * EVERY REFUSAL IS SHOWN AS THE SERVER WORDED IT. A same-date conflict, a
  * queued future revision, a locked period - each carries the sentence that
@@ -78,6 +91,12 @@ const EMPTY_COMPONENTS = {
   special_allowance: "",
 };
 
+/*
+ * THE MODE IS DERIVED, NOT CHOSEN. It follows the one fact that decides it -
+ * whether this employee has an outstanding proposal - so there is no state to
+ * get out of step with the history and no control that can put the form into
+ * a mode the server would refuse.
+ */
 const MODE = { CREATE: "create", AMEND: "amend" };
 
 function SalaryRevisionForm({
@@ -90,7 +109,7 @@ function SalaryRevisionForm({
   canOverride,
   onSaved,
 }) {
-  const [mode, setMode] = useState(MODE.CREATE);
+  const mode = pending ? MODE.AMEND : MODE.CREATE;
 
   const [monthlyGross, setMonthlyGross] = useState("");
   const [effectiveFrom, setEffectiveFrom] = useState("");
@@ -106,14 +125,12 @@ function SalaryRevisionForm({
   const [errors, setErrors] = useState({});
 
   /*
-   * A PENDING PROPOSAL IS THE DEFAULT SUBJECT WHERE THERE IS ONE. Somebody
-   * arriving at a screen that already has an undecided proposal on it almost
-   * always means to change that, and proposing a second at the same date is
-   * exactly what the server refuses.
+   * A PENDING PROPOSAL IS THE ONLY SUBJECT WHERE THERE IS ONE. An employee may
+   * hold one proposal at a time, so the form IS that proposal, prefilled from
+   * it - there is nothing else this screen could be offering to do.
    */
   useEffect(() => {
     if (pending && canEdit) {
-      setMode(MODE.AMEND);
       setMonthlyGross(pending.monthly_gross != null ? String(pending.monthly_gross) : "");
       setEffectiveFrom(pending.effective_from || "");
       setRevisionReason(pending.revision_reason || "");
@@ -127,7 +144,6 @@ function SalaryRevisionForm({
       });
       setOverrideReason(pending.override_reason || "");
     } else {
-      setMode(MODE.CREATE);
       setMonthlyGross("");
       setEffectiveFrom("");
       setRevisionReason("");
@@ -268,8 +284,40 @@ function SalaryRevisionForm({
 
   /* ------------------------------------------------------- what is allowed */
 
-  const mayAmend = Boolean(pending) && canEdit;
-  const mayCreate = canAdd;
+  /*
+   * WHAT THIS SCREEN MAY DO, AND IT IS ONE THING OR THE OTHER.
+   *
+   * With a proposal outstanding, the only action is amending THAT proposal -
+   * `add_salary` does not open a create form beside it, because the server
+   * would refuse a second pending proposal whoever asked.
+   */
+  const hasPending = Boolean(pending);
+  const mayAmend = hasPending && canEdit;
+  const mayCreate = !hasPending && canAdd;
+
+  if (hasPending && !mayAmend) {
+    /*
+     * READ IT AND WAIT. Somebody without `edit_salary` has nothing to do here
+     * until an approver decides the outstanding proposal - and showing them an
+     * empty create form would be offering a request that cannot succeed.
+     */
+    return (
+      <Alert status="warning" fontSize="sm">
+        <AlertIcon />
+        <Box>
+          <Text fontWeight="bold">
+            A proposal of {formatMoney(pending.monthly_gross)} effective{" "}
+            {formatEffectiveFrom(pending.effective_from)} is waiting for approval.
+          </Text>
+          <Text>
+            An employee may have only one salary proposal at a time. It has to be approved or
+            rejected on Salary Approval before another can be raised, and you do not have
+            permission to amend a pending proposal.
+          </Text>
+        </Box>
+      </Alert>
+    );
+  }
 
   if (!mayCreate && !mayAmend) {
     return (
@@ -305,57 +353,17 @@ function SalaryRevisionForm({
           <AlertIcon />
           <Box>
             <Text fontWeight="bold">
-              There is already a pending proposal effective{" "}
+              This employee has a pending proposal effective{" "}
               {formatEffectiveFrom(pending.effective_from)} of{" "}
               {formatMoney(pending.monthly_gross)}.
             </Text>
             <Text>
-              {canEdit
-                ? "It can be amended below until somebody approves or rejects it."
-                : "It must be approved or rejected before it can change. You do not have permission to amend a pending proposal."}
+              An employee may have only one salary proposal at a time, so this is the one being
+              amended below. It keeps its effective date; approving or rejecting it on Salary
+              Approval is what frees the employee for a new proposal.
             </Text>
           </Box>
         </Alert>
-      ) : null}
-
-      {pending && canEdit && canAdd ? (
-        <Stack direction="row" spacing={2}>
-          <Button
-            size="xs"
-            variant={mode === MODE.AMEND ? "solid" : "outline"}
-            colorScheme="purple"
-            onClick={() => {
-              setMode(MODE.AMEND);
-              setPreview(null);
-              setProblem(null);
-            }}
-          >
-            Amend the pending proposal
-          </Button>
-          <Button
-            size="xs"
-            variant={mode === MODE.CREATE ? "solid" : "outline"}
-            colorScheme="purple"
-            onClick={() => {
-              // A NEW proposal starts empty rather than prefilled from the
-              // pending one. Carrying the old revision reason across would
-              // attach one proposal's justification to a different proposal,
-              // which is the kind of audit trail nobody can read later.
-              setMode(MODE.CREATE);
-              setPreview(null);
-              setProblem(null);
-              setErrors({});
-              setEffectiveFrom("");
-              setMonthlyGross("");
-              setRevisionReason("");
-              setManualOverride(false);
-              setComponents(EMPTY_COMPONENTS);
-              setOverrideReason("");
-            }}
-          >
-            Propose a new revision
-          </Button>
-        </Stack>
       ) : null}
 
       {/* ------------------------------------------------------- the inputs -- */}

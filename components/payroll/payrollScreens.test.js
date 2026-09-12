@@ -465,3 +465,100 @@ test("money is Indian-formatted, through the one shared formatter", () => {
     assert.ok(!/₹/.test(code), "the rupee sign comes from the formatter");
   }
 });
+
+/* ========= M4 review fix — ONE PENDING PROPOSAL, AS THE SCREEN OFFERS IT == */
+
+/*
+ * The business rule is one decision at a time: an employee may have AT MOST
+ * ONE pending salary proposal, whatever its effective date. The server refuses
+ * a second one before anything is written and the database carries a unique
+ * key behind that. The screen's job is to stop offering an action that cannot
+ * succeed - and to stop implying the rule is "one per effective date".
+ */
+
+test("THERE IS NO 'PROPOSE A NEW REVISION' WHILE A PROPOSAL IS PENDING", () => {
+  // The affordance is gone from the source entirely, not hidden behind a
+  // condition: a control that exists is a control somebody reaches.
+  // Read off the CODE, not the raw file: the comment above the component names
+  // the affordance in order to explain why it is absent, which is exactly the
+  // distinction `codeOf` exists to draw.
+  assert.ok(
+    !/Propose a new revision/i.test(revisionFormCode),
+    "the screen must not offer a second proposal at all"
+  );
+  assert.ok(
+    !/Amend the pending proposal/i.test(revisionFormCode),
+    "and with nothing to switch between, there is no mode switcher either"
+  );
+});
+
+test("THE FORM'S MODE IS DERIVED FROM THE PENDING RECORD, NOT CHOSEN", () => {
+  // No `setMode`, so no control and no state that can disagree with the
+  // history the server sent.
+  assert.match(revisionFormCode, /const mode = pending \? MODE\.AMEND : MODE\.CREATE;/);
+  assert.ok(!/setMode/.test(revisionFormCode), "there is nothing to set it to");
+  assert.ok(
+    !/useState\(MODE\./.test(revisionFormCode),
+    "the mode is not state at all"
+  );
+});
+
+test("AN edit_salary HOLDER AMENDS THE ONE PENDING PROPOSAL", () => {
+  // The form IS that proposal, prefilled from it, and it submits through the
+  // amend endpoint with the proposal's own id.
+  assert.match(revisionFormCode, /if \(pending && canEdit\) \{/);
+  assert.match(revisionFormCode, /const mayAmend = hasPending && canEdit;/);
+  assert.match(
+    revisionFormCode,
+    /PayrollSalaryHelper\.amendPending\(pending\.salary_id, body\)/
+  );
+});
+
+test("A NON-EDITOR SEES THE WAITING STATE AND GETS NO CREATE FORM", () => {
+  // `add_salary` does not open a create form beside an outstanding proposal:
+  // the server would refuse the request whoever made it.
+  assert.match(revisionFormCode, /const mayCreate = !hasPending && canAdd;/);
+  assert.match(revisionFormCode, /if \(hasPending && !mayAmend\) \{/);
+  assert.match(revisionFormCode, /is waiting for approval\./);
+  assert.match(revisionFormCode, /only one salary proposal at a time/);
+});
+
+test("THE SCREEN SAYS THE RULE IS ONE AT A TIME, NOT ONE PER DATE", () => {
+  // The wording is the actionable part. "Already a pending proposal effective
+  // <date>" invites somebody to try a different date, which is the request the
+  // server now refuses.
+  assert.ok(
+    !/pending proposal at the same date|second one at the same date/i.test(revisionFormCode),
+    "the screen must not describe the old per-date rule"
+  );
+  assert.match(revisionPageCode, /one salary proposal at a time/);
+});
+
+test("THE HISTORY TABLE RENDERS WHATEVER AUDIT STEPS THE RECORD HAS", () => {
+  // Created, Changed, Approved, Rejected are decided by
+  // `util/salaryHistoryView.js#auditTrail` and rendered generically here, so a
+  // Changed line appears exactly when an amendment actually happened and the
+  // table needs no rule of its own.
+  assert.match(historyTableCode, /row\.audit\.map\(\(step\) =>/);
+  assert.ok(
+    !/changed_at|changed_by|updated_at/.test(historyTableCode),
+    "the table reads no audit column directly"
+  );
+});
+
+test("NO M5 — NO BULK UPLOAD, NO PAYROLL RUN, NO PAYSLIP", () => {
+  // M4 builds two screens on M2's lifecycle. Nothing here anticipates monthly
+  // payroll, and this fix adds nothing that does.
+  for (const [file, code] of [
+    ["helper/payrollSalary.js", helperCode],
+    ["pages/payroll/salary-revision.jsx", revisionPageCode],
+    ["pages/payroll/salary-approval.jsx", approvalPageCode],
+    ["components/payroll/SalaryRevisionForm.jsx", revisionFormCode],
+    ["components/payroll/PendingProposalCard.jsx", proposalCardCode],
+    ["components/payroll/SalaryHistoryTable.jsx", historyTableCode],
+  ]) {
+    for (const notYet of ["bulk", "Payslip", "payslip", "payroll_run", "processPayroll"]) {
+      assert.ok(!new RegExp(notYet, "i").test(code), `${file} must not reach into M5 (${notYet})`);
+    }
+  }
+});

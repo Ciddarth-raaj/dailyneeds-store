@@ -156,16 +156,31 @@ function SalaryRevisionAndHistory() {
                   <Text fontSize="10px" textTransform="uppercase" color="gray.500">
                     Next proposal
                   </Text>
-                  <Badge colorScheme={isOpening ? "blue" : "purple"} fontSize="9px">
-                    {isOpening ? "Opening Salary" : "Revision"}
+                  {/* One proposal at a time: while one is outstanding, the next
+                      thing that happens is that somebody decides it. */}
+                  <Badge
+                    colorScheme={pending ? "orange" : isOpening ? "blue" : "purple"}
+                    fontSize="9px"
+                  >
+                    {pending ? "Awaiting decision" : isOpening ? "Opening Salary" : "Revision"}
                   </Badge>
                 </Box>
               </SimpleGrid>
             </Box>
 
             <CustomContainer
-              title={isOpening ? "Opening Salary" : "Propose a Revision"}
-              subtitle="Calculated by the server. Everything proposed here is created as Pending and needs a separate approval."
+              title={
+                pending
+                  ? "Pending Proposal"
+                  : isOpening
+                  ? "Opening Salary"
+                  : "Propose a Revision"
+              }
+              subtitle={
+                pending
+                  ? "An employee may have one salary proposal at a time. This one is amended, approved or rejected before another can be raised."
+                  : "Calculated by the server. Everything proposed here is created as Pending and needs a separate approval."
+              }
               smallHeader
             >
               <SalaryRevisionForm

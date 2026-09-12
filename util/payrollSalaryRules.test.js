@@ -441,12 +441,150 @@ test("the three reason fields stay three fields on a presented row", () => {
   assert.ok(row.figures, "and the full breakup travels with it");
 });
 
-test("at most one pending record, because that is what the schema allows", () => {
+test("at most one pending record, because that is what the SERVER GUARANTEES", () => {
   assert.strictEqual(history.pendingRecord([{ status: "APPROVED" }]), null);
   assert.strictEqual(
     history.pendingRecord([{ status: "APPROVED" }, { salary_id: 4, status: "PENDING" }]).salary_id,
     4
   );
+});
+
+/* ------------------------------- the one-pending invariant, as the UI reads it */
+
+test("A HISTORY NEVER CARRIES TWO PENDING ROWS — the backend refuses to make one", () => {
+  /*
+   * This is an assertion about the CONTRACT, not about this function's
+   * tolerance. An employee may hold ONE pending salary proposal at a time,
+   * whatever its effective date: `usecase/employee_salary.js` refuses a second
+   * before anything is written, and `uq_salary_pending_proposal` is the
+   * database backstop under a race. So a screen that handled a queue of
+   * pending proposals would be built around a state that cannot exist - and
+   * `pendingRecord` returning one record is the correct shape, not a
+   * simplification of a list.
+   */
+  const history_rows = [
+    { salary_id: 1, status: "APPROVED", effective_from: "2026-04-01" },
+    { salary_id: 2, status: "REJECTED", effective_from: "2026-07-01" },
+    { salary_id: 3, status: "PENDING", effective_from: "2026-10-01" },
+    { salary_id: 4, status: "REJECTED", effective_from: "2026-11-01" },
+  ];
+  assert.strictEqual(
+    history_rows.filter((r) => r.status === "PENDING").length,
+    1,
+    "one undecided proposal; any number of decided rows"
+  );
+  assert.strictEqual(history.pendingRecord(history_rows).salary_id, 3);
+});
+
+test("A REJECTED PROPOSAL LEAVES NOTHING PENDING, so a new one may be raised", () => {
+  // Rejected rows never block, on the server or here. With none pending the
+  // screen is a create screen again.
+  assert.strictEqual(
+    history.pendingRecord([
+      { salary_id: 1, status: "APPROVED" },
+      { salary_id: 2, status: "REJECTED" },
+    ]),
+    null
+  );
+});
+
+/* -------------------------------------------- the CHANGED audit step (M4 fix) */
+
+test("CHANGED BY / CHANGED AT APPEARS ONLY AFTER AN ACTUAL AMENDMENT", () => {
+  // A proposal nobody amended has NULL in both columns, and NULL means "never
+  // amended". No Changed line is rendered for it at all.
+  const untouched = history.auditTrail({
+    status: "APPROVED",
+    created_by: 7,
+    created_by_name: "Asha",
+    created_at: "2026-09-10T09:00:00.000Z",
+    changed_by: null,
+    changed_at: null,
+    approved_by: 9,
+    approved_at: "2026-09-11T10:30:00.000Z",
+    // The generic row timestamp moved on the approval, as it always does. It
+    // must not produce a Changed line.
+    updated_at: "2026-09-11T10:30:00.000Z",
+  });
+  assert.deepStrictEqual(untouched.map((s) => s.key), ["created", "approved"]);
+
+  const amended = history.auditTrail({
+    status: "APPROVED",
+    created_by: 7,
+    created_by_name: "Asha",
+    created_at: "2026-09-10T09:00:00.000Z",
+    changed_by: 41,
+    changed_by_name: "Meera",
+    changed_at: "2026-09-10T15:05:00.000Z",
+    approved_by: 9,
+    approved_by_name: "Ravi",
+    approved_at: "2026-09-11T10:30:00.000Z",
+  });
+  assert.deepStrictEqual(amended.map((s) => s.key), ["created", "changed", "approved"]);
+  const changed = amended.find((s) => s.key === "changed");
+  assert.strictEqual(changed.label, "Changed by");
+  assert.strictEqual(changed.who, "Meera");
+  assert.ok(changed.at, "and when it was amended");
+});
+
+test("THE CHANGED LINE IS NEVER BUILT FROM `updated_at`", () => {
+  /*
+   * `updated_at` is ON UPDATE CURRENT_TIMESTAMP: it moves on approval and on
+   * rejection as readily as on an amendment, and it names nobody. A Changed
+   * line built from it would appear on every approved revision in the company,
+   * reporting an amendment that never happened.
+   */
+  const trail = history.auditTrail({
+    status: "REJECTED",
+    created_by: 7,
+    created_at: "2026-09-10T09:00:00.000Z",
+    rejected_by: 9,
+    rejected_at: "2026-09-11T10:30:00.000Z",
+    updated_at: "2026-09-11T10:30:00.000Z",
+  });
+  assert.ok(!trail.some((s) => s.key === "changed"), "a rejection is not an amendment");
+
+  const src = require("fs").readFileSync(require.resolve("./salaryHistoryView"), "utf8");
+  const code = src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  assert.ok(!/updated_at/.test(code), "the generic timestamp is not read anywhere");
+});
+
+test("THE AMENDER'S NAME IS THE SERVER'S, AND FALLS BACK TO THE ID", () => {
+  // Resolved by a LEFT JOIN in the history query, exactly like the other three
+  // actor names - no per-row employee lookup from the browser. Where the join
+  // found nobody, the id is still an answer.
+  const named = history.auditTrail({
+    status: "PENDING",
+    created_by: 7,
+    changed_by: 41,
+    changed_by_name: "Meera",
+    changed_at: "2026-09-10T15:05:00.000Z",
+  });
+  assert.strictEqual(named.find((s) => s.key === "changed").who, "Meera");
+
+  const unnamed = history.auditTrail({
+    status: "PENDING",
+    created_by: 7,
+    changed_by: 41,
+    changed_by_name: null,
+    changed_at: "2026-09-10T15:05:00.000Z",
+  });
+  assert.strictEqual(unnamed.find((s) => s.key === "changed").who, "Employee 41");
+});
+
+test("the four audit steps read in the order they can happen", () => {
+  const trail = history.auditTrail({
+    status: "REJECTED",
+    created_by: 7,
+    created_at: "2026-09-10T09:00:00.000Z",
+    changed_by: 41,
+    changed_at: "2026-09-10T15:05:00.000Z",
+    rejected_by: 9,
+    rejected_at: "2026-09-11T10:30:00.000Z",
+    rejection_reason: "Budget not approved",
+  });
+  assert.deepStrictEqual(trail.map((s) => s.key), ["created", "changed", "rejected"]);
+  assert.strictEqual(trail[2].note, "Budget not approved", "the rejection keeps its reason");
 });
 
 /* ================================================ D. the approval queue = */
