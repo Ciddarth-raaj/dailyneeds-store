@@ -228,7 +228,14 @@ test("25. the loading states stay small and inline", () => {
 
 test("26. with no employee chosen the screen says so instead of rendering an empty table", () => {
   assert.match(hrPage, /Select an employee to view attendance\./);
-  assert.match(hrPage, /\{employeeId \? \(\s*<AttendanceDayList/);
+  // The guard still wraps the whole month view; the summary cards now sit
+  // inside it, ahead of the table (see attendanceSummaryCards.test.js).
+  assert.match(hrPage, /\{employeeId \? \([\s\S]*?<AttendanceDayList/);
+  const guarded = hrPage.slice(hrPage.indexOf("{employeeId ? ("));
+  assert.ok(
+    guarded.indexOf("<AttendanceDayList") < guarded.indexOf("Select an employee to view attendance."),
+    "the table is the chosen-employee branch, the message the other one"
+  );
 });
 
 test("27. the attendance status labels are preserved, and no generic status leaks in", () => {

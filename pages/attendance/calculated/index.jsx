@@ -4,12 +4,22 @@ import GlobalWrapper from "../../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../../components/CustomContainer";
 import SearchableEmployeePicker from "../../../components/attendance/SearchableEmployeePicker";
 import AttendanceDayList from "../../../components/attendance/AttendanceDayList";
+import AttendanceSummaryCards from "../../../components/attendance/AttendanceSummaryCards";
 import AttendanceDayDetail from "../../../components/attendance/AttendanceDayDetail";
 import EditShiftModal from "../../../components/attendance/EditShiftModal";
 import VoidPunchModal from "../../../components/attendance/VoidPunchModal";
 import usePermissions from "../../../customHooks/usePermissions";
 import AttendanceV2Helper from "../../../helper/attendanceV2";
-import { apiMessage, currentMonth, isOk, monthBounds } from "../../../util/attendanceV2";
+import {
+  SUMMARY_FILTER,
+  apiMessage,
+  attendanceSummary,
+  currentMonth,
+  filterDaysBySummary,
+  isOk,
+  monthBounds,
+  summaryEmptyMessage,
+} from "../../../util/attendanceV2";
 
 /**
  * Employee Attendance - the HR/Admin view of one employee's calculated month.
@@ -27,6 +37,13 @@ import { apiMessage, currentMonth, isOk, monthBounds } from "../../../util/atten
  * NOTHING IS RENDERED UNTIL SOMEBODY IS CHOSEN. An empty attendance table
  * for nobody reads like an employee with no attendance, so the screen says
  * what it wants instead.
+ *
+ * THE SUMMARY CARDS ARE THE FILTER: All | Present Days | Absent Days | Need
+ * Action, between the chosen employee and the table. They count the rows
+ * already loaded and filter them in the browser - switching cards makes no
+ * request - and a new employee or month resets to All, so a count from the
+ * last month never silently hides this one. Classification is the attendance
+ * status alone; the OT claim moves no day between cards.
  *
  * Edit Shift appears - on the Day Detail - only for a caller holding
  * `edit_attendance_date_shift`, and the backend requires that key again on
@@ -51,6 +68,7 @@ export default function EmployeeAttendancePage() {
   const [selected, setSelected] = useState(null);
   const [editing, setEditing] = useState(null);
   const [voiding, setVoiding] = useState(null);
+  const [summaryFilter, setSummaryFilter] = useState(SUMMARY_FILTER.ALL);
 
   const load = useCallback(async () => {
     const bounds = monthBounds(month);
@@ -80,6 +98,13 @@ export default function EmployeeAttendancePage() {
     load();
   }, [load]);
 
+  /* A FILTER BELONGS TO THE MONTH IT WAS CHOSEN IN. Another employee, another
+     month - or an outlet change that cleared the employee - starts at All
+     rather than carrying "Need Action" onto rows nobody has looked at. */
+  useEffect(() => {
+    setSummaryFilter(SUMMARY_FILTER.ALL);
+  }, [employeeId, month]);
+
   const onShiftSaved = async (res) => {
     setEditing(null);
     setSelected(null);
@@ -106,6 +131,10 @@ export default function EmployeeAttendancePage() {
     });
     await load();
   };
+
+  /* Counted and filtered from the rows already in hand - no second request. */
+  const counts = attendanceSummary(days);
+  const visibleDays = filterDaysBySummary(days, summaryFilter);
 
   return (
     <GlobalWrapper title="Employee Attendance" permissionKey={["view_calculated_attendance"]}>
@@ -138,7 +167,21 @@ export default function EmployeeAttendancePage() {
           ) : null}
 
           {employeeId ? (
-            <AttendanceDayList days={days} loading={loading} onSelect={setSelected} />
+            <>
+              {!loading ? (
+                <AttendanceSummaryCards
+                  counts={counts}
+                  filter={summaryFilter}
+                  onFilterChange={setSummaryFilter}
+                />
+              ) : null}
+              <AttendanceDayList
+                days={visibleDays}
+                loading={loading}
+                onSelect={setSelected}
+                emptyMessage={summaryEmptyMessage(summaryFilter)}
+              />
+            </>
           ) : (
             <Text fontSize="sm" color="gray.600" py={4}>
               Select an employee to view attendance.

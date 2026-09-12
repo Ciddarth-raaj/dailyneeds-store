@@ -220,7 +220,7 @@ function DayTable({ days, onSelect }) {
   );
 }
 
-export default function AttendanceDayList({ days, loading, onSelect }) {
+export default function AttendanceDayList({ days, loading, onSelect, emptyMessage }) {
   const isMobile = useBreakpointValue({ base: true, md: false });
 
   if (loading) {
@@ -233,10 +233,12 @@ export default function AttendanceDayList({ days, loading, onSelect }) {
       </Flex>
     );
   }
+  /* The empty line is the summary filter's words when one is on - "No absent
+     days in this month." rather than a bordered table with nothing in it. */
   if (!days || days.length === 0) {
     return (
       <Text fontSize="sm" color="gray.600" py={4}>
-        No attendance for this period.
+        {emptyMessage || "No attendance for this period."}
       </Text>
     );
   }

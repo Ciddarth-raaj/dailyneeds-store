@@ -174,6 +174,88 @@ function formatOtClock(minutes) {
   return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
 }
 
+/**
+ * THE MONTH SUMMARY: Present / Absent / Need Action, and the filter they drive.
+ *
+ * CLASSIFICATION READS THE ATTENDANCE STATUS ONLY - through `dayIssue`, the
+ * same mapping the badges use, so a day is bucketed exactly as it is labelled.
+ * IT NEVER READS THE OT CLAIM. `ot_claim_state` decides OT Available / Request
+ * Pending / Approved / Rejected and nothing else; a good day with OT waiting on
+ * somebody is still a Present day, because OT is a claim on a day that was
+ * worked, not a defect in it. Mixing the two would make a Present count drop
+ * when an employee asked for overtime, which is the opposite of the truth.
+ *
+ *   PRESENT      no issue at all - a complete, final day
+ *   ABSENT       the Absent status, and only that
+ *   NEED_ACTION  Missing Punch, Regularization Pending, No Shift Assigned,
+ *                Shift Setup Issue - the days somebody has to do something about
+ *
+ * Missing Punch is NEED_ACTION, never ABSENT: the employee was here and a
+ * punch is missing, which is a correction to make, not a day off.
+ */
+const SUMMARY_FILTER = Object.freeze({
+  ALL: "ALL",
+  PRESENT: "PRESENT",
+  ABSENT: "ABSENT",
+  NEED_ACTION: "NEED_ACTION",
+});
+
+/** The issue keys that mean somebody has to act. */
+const NEED_ACTION_ISSUE_KEYS = Object.freeze([
+  "MISSING_PUNCH",
+  "REGULARIZATION_PENDING",
+  "NO_SHIFT",
+  "SHIFT_SETUP",
+]);
+
+/**
+ * Which summary bucket a day falls in: PRESENT, ABSENT or NEED_ACTION.
+ *
+ * An issue key that is not one of the five known ones counts as NEED_ACTION
+ * rather than PRESENT - an unrecognised problem is still a problem, and
+ * counting it as a good day would hide it.
+ */
+function daySummaryBucket(day) {
+  const issue = dayIssue(day);
+  if (!issue) return SUMMARY_FILTER.PRESENT;
+  if (issue.key === "ABSENT") return SUMMARY_FILTER.ABSENT;
+  return SUMMARY_FILTER.NEED_ACTION;
+}
+
+/** The four counts for a loaded month. No second request: this is the rows. */
+function attendanceSummary(days) {
+  const rows = Array.isArray(days) ? days : [];
+  const counts = {
+    [SUMMARY_FILTER.ALL]: rows.length,
+    [SUMMARY_FILTER.PRESENT]: 0,
+    [SUMMARY_FILTER.ABSENT]: 0,
+    [SUMMARY_FILTER.NEED_ACTION]: 0,
+  };
+  rows.forEach((day) => {
+    counts[daySummaryBucket(day)] += 1;
+  });
+  return counts;
+}
+
+/** The loaded rows a filter shows. ALL - or anything unknown - is every row. */
+function filterDaysBySummary(days, filter) {
+  const rows = Array.isArray(days) ? days : [];
+  if (!filter || filter === SUMMARY_FILTER.ALL) return rows;
+  return rows.filter((day) => daySummaryBucket(day) === filter);
+}
+
+/** What an empty table says, in the words of the filter that emptied it. */
+const SUMMARY_EMPTY_MESSAGE = Object.freeze({
+  ALL: "No attendance for this period.",
+  PRESENT: "No present days in this month.",
+  ABSENT: "No absent days in this month.",
+  NEED_ACTION: "No attendance items need action.",
+});
+
+function summaryEmptyMessage(filter) {
+  return SUMMARY_EMPTY_MESSAGE[filter] || SUMMARY_EMPTY_MESSAGE.ALL;
+}
+
 /** Only a Missing Punch day may be regularized, and only while nothing is pending. */
 function canRegularize(day) {
   const issue = dayIssue(day);
@@ -466,6 +548,13 @@ module.exports = {
   dayPunchRows,
   OT_CLOSURE_LABEL,
   dayIssue,
+  SUMMARY_FILTER,
+  NEED_ACTION_ISSUE_KEYS,
+  daySummaryBucket,
+  attendanceSummary,
+  filterDaysBySummary,
+  SUMMARY_EMPTY_MESSAGE,
+  summaryEmptyMessage,
   otClaim,
   formatOtClock,
   canRegularize,
