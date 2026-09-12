@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/router";
 import { Alert, AlertIcon, FormControl, FormLabel, Input, Stack, Text, useToast } from "@chakra-ui/react";
 import GlobalWrapper from "../../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../../components/CustomContainer";
@@ -55,9 +56,28 @@ import {
  * requires that key again. It records the exclusion with a reason and
  * recalculates the date; the day is then reloaded so the punch shows as
  * VOIDED and the numbers reflect the effective punches.
+ *
+ * DEEP LINK SUPPORT: `?employee_id=42&date=2026-09-12`.
+ *
+ * The Attendance Dashboard links here for one employee on one date, so those
+ * two parameters PRESELECT the employee and the month, and open that date's
+ * Day Detail once the month has loaded. Deliberately narrow:
+ *
+ *   - They are a PRESELECTION, not a mode. Every control still works exactly
+ *     as it did - changing employee or month from here is ordinary browsing,
+ *     and nothing re-applies the parameters afterwards.
+ *   - They are read ONCE, on arrival. A later edit of the URL is not watched,
+ *     and picking a different employee does not rewrite the address, so the
+ *     link cannot fight the user for control of the screen.
+ *   - They grant NOTHING. `view_calculated_attendance` is still required on
+ *     the page and on the request; an employee id in a URL is not authority to
+ *     read that employee, and the backend decides as it always did.
+ *   - A malformed or unknown parameter is ignored rather than erroring: the
+ *     screen simply opens as it normally does.
  */
 export default function EmployeeAttendancePage() {
   const toast = useToast();
+  const router = useRouter();
   const canEditShift = usePermissions(["edit_attendance_date_shift"]);
   const canVoidPunch = usePermissions(["void_attendance_punch"]);
   const [employeeId, setEmployeeId] = useState(null);
@@ -69,6 +89,31 @@ export default function EmployeeAttendancePage() {
   const [editing, setEditing] = useState(null);
   const [voiding, setVoiding] = useState(null);
   const [summaryFilter, setSummaryFilter] = useState(SUMMARY_FILTER.ALL);
+  /* The date a deep link asked to open, consumed once the month has loaded. */
+  const [pendingDate, setPendingDate] = useState(null);
+  const [linkApplied, setLinkApplied] = useState(false);
+
+  /* THE DEEP LINK, read ONCE on arrival. `router.isReady` is what makes that
+     safe on Next 11: query parameters are empty on the first render of a
+     statically optimized page, so reading them earlier would see nothing and
+     conclude there was no link. After this runs, `linkApplied` stops it ever
+     running again, so the parameters can never re-assert themselves over a
+     choice the user has since made. */
+  useEffect(() => {
+    if (!router.isReady || linkApplied) return;
+    setLinkApplied(true);
+
+    const rawId = router.query.employee_id;
+    const rawDate = router.query.date;
+    const id = Number(Array.isArray(rawId) ? rawId[0] : rawId);
+    const date = Array.isArray(rawDate) ? rawDate[0] : rawDate;
+
+    if (Number.isInteger(id) && id > 0) setEmployeeId(id);
+    if (typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      setMonth(date.slice(0, 7));
+      setPendingDate(date);
+    }
+  }, [router.isReady, router.query, linkApplied]);
 
   const load = useCallback(async () => {
     const bounds = monthBounds(month);
@@ -104,6 +149,17 @@ export default function EmployeeAttendancePage() {
   useEffect(() => {
     setSummaryFilter(SUMMARY_FILTER.ALL);
   }, [employeeId, month]);
+
+  /* A deep-linked DATE opens that day's detail once its month is in hand, then
+     clears itself - so it happens exactly once and the Day Detail can be
+     closed like any other. A date with no row (nothing was calculated for it)
+     simply does not open, and the month is still shown. */
+  useEffect(() => {
+    if (!pendingDate || loading) return;
+    const day = days.find((d) => d.attendance_date === pendingDate);
+    setPendingDate(null);
+    if (day) setSelected(day);
+  }, [pendingDate, loading, days]);
 
   const onShiftSaved = async (res) => {
     setEditing(null);

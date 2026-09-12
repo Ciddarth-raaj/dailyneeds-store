@@ -163,6 +163,11 @@ export const PERMISSIONS = {
     // under changes that date's pay, so it is its own key, granted by
     // migration to nobody. Reading your OWN month needs neither.
     view_calculated_attendance: "View Employee Attendance (calculated)",
+    // The management overview of ONE attendance date across the company. Its
+    // own key, and a read-only one: it aggregates figures this designation may
+    // already read one employee at a time, and it grants no approval, edit or
+    // recalculation - every action it links to keeps its own key.
+    view_attendance_dashboard: "View Attendance Dashboard",
     edit_attendance_date_shift: "Edit Shift for a Single Attendance Date",
     // The approval and recalculation screens. `view_attendance_approvals`
     // opens Attendance Approval and OT Approval - what each person sees

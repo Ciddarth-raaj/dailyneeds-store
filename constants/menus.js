@@ -988,6 +988,18 @@ const HR_MENU = {
       // the employee from the session rather than from the page. Employee
       // Attendance is the HR/Admin view of somebody else's month, behind the
       // key the backend checks on that read.
+      // The management overview of one attendance date across the company.
+      // FIRST in the Attendance section because it is the screen a manager
+      // opens to decide where to look; the per-employee screens below it are
+      // where they then look. Behind its own read-only key, which the backend
+      // grants only to designations that already hold
+      // `view_calculated_attendance`.
+      attendance_dashboard: {
+        title: "Attendance Dashboard",
+        permission: "view_attendance_dashboard",
+        selected: false,
+        location: "/attendance/dashboard",
+      },
       my_attendance: {
         title: "My Attendance",
         selected: false,
