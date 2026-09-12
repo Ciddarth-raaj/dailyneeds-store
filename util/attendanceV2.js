@@ -37,6 +37,40 @@ const LABEL = Object.freeze({
 const REGULARIZED_PUNCH_LABEL = "Missed Punch – Regularized";
 
 /**
+ * The effective status of a raw punch on a day, as the backend derives it
+ * (`utils/attendance_effective_punches.js` there). A day's
+ * `effective_punches` are all USED (plus REGULARIZED ones); its
+ * `excluded_punches` are IGNORED_DUPLICATE or VOIDED and count for nothing.
+ */
+const PUNCH_STATUS = Object.freeze({
+  USED: "USED",
+  IGNORED_DUPLICATE: "IGNORED_DUPLICATE",
+  VOIDED: "VOIDED",
+});
+
+const PUNCH_STATUS_LABEL = Object.freeze({
+  USED: "Used",
+  IGNORED_DUPLICATE: "Ignored – Duplicate within 10 min",
+  VOIDED: "Voided",
+});
+
+/** The colour scheme a status badge takes. */
+const PUNCH_STATUS_COLOR = Object.freeze({
+  USED: "green",
+  IGNORED_DUPLICATE: "yellow",
+  VOIDED: "red",
+});
+
+/** Only a raw BIOMAX / IMPORT punch that is not already voided may be voided. */
+function canVoidPunch(punch) {
+  if (!punch) return false;
+  if (punch.source !== "BIOMAX" && punch.source !== "IMPORT") return false;
+  if (punch.effective_status === PUNCH_STATUS.VOIDED) return false;
+  if (punch.attendance_punch_void_id) return false;
+  return true;
+}
+
+/**
  * The one issue a day shows, or null for a normal day.
  *
  * @returns {{key: string, label: string, color: string}|null}
@@ -168,6 +202,54 @@ function positionalPunches(day) {
     direction: i % 2 === 0 ? "IN" : "OUT",
     regularized: p.source === "REGULARIZED",
   }));
+}
+
+/**
+ * EVERY punch of a day, effective and excluded, chronological, for the Day
+ * Detail. An effective punch carries its position and direction; an
+ * excluded one carries no position (it is not paired) and its status and
+ * reason instead. A raw punch is `void_able` when the caller may void it.
+ *
+ * @returns {Array<{punch_id, time, io_time, source, effective_status,
+ *   position:number|null, direction:"IN"|"OUT"|null, regularized:boolean,
+ *   excluded:boolean, reason:string|null, void:object|null, void_able:boolean}>}
+ */
+function dayPunchRows(day) {
+  const effective = positionalPunches(day).map((p, i) => {
+    const raw = day.effective_punches[i] || {};
+    return {
+      punch_id: raw.punch_id === undefined ? null : raw.punch_id,
+      time: p.time,
+      io_time: p.io_time,
+      source: raw.source || "BIOMAX",
+      effective_status: raw.source === "REGULARIZED" ? "REGULARIZED" : PUNCH_STATUS.USED,
+      position: p.position,
+      direction: p.direction,
+      regularized: p.regularized,
+      excluded: false,
+      reason: null,
+      void: null,
+      void_able: canVoidPunch({ source: raw.source, effective_status: PUNCH_STATUS.USED }),
+    };
+  });
+  const excluded = (day && Array.isArray(day.excluded_punches) ? day.excluded_punches : []).map((p) => ({
+    punch_id: p.punch_id === undefined ? null : p.punch_id,
+    time: clock(p.io_time),
+    io_time: p.io_time,
+    source: p.source || "BIOMAX",
+    effective_status: p.effective_status || PUNCH_STATUS.IGNORED_DUPLICATE,
+    position: null,
+    direction: null,
+    regularized: false,
+    excluded: true,
+    reason: p.exclusion_reason || null,
+    void: p.void || null,
+    void_able: canVoidPunch({ source: p.source, effective_status: p.effective_status }),
+  }));
+  return [...effective, ...excluded].sort((a, b) => {
+    if (a.io_time !== b.io_time) return String(a.io_time) < String(b.io_time) ? -1 : 1;
+    return Number(a.punch_id || 0) - Number(b.punch_id || 0);
+  });
 }
 
 /** `09:18 → 14:23 → 15:49 → 22:02`, however many there are. Empty for none. */
@@ -377,6 +459,11 @@ module.exports = {
   runFilterLabel,
   LABEL,
   REGULARIZED_PUNCH_LABEL,
+  PUNCH_STATUS,
+  PUNCH_STATUS_LABEL,
+  PUNCH_STATUS_COLOR,
+  canVoidPunch,
+  dayPunchRows,
   OT_CLOSURE_LABEL,
   dayIssue,
   otClaim,

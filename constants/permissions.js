@@ -177,6 +177,10 @@ export const PERMISSIONS = {
     // per-employee First / Second / Final approvers, Bulk Set, Replace
     // Approver. Granted by migration to nobody.
     manage_attendance_approvers: "Manage Attendance Approvers (Approver Setup)",
+    // Void Punch: exclude ONE raw BIOMAX / IMPORT punch from calculation with
+    // a reason, on the record, without deleting it. Granted by migration to
+    // nobody; the action is hidden without it and the server checks it again.
+    void_attendance_punch: "Void a Raw Attendance Punch",
   },
 
   // Master

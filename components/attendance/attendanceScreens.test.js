@@ -198,3 +198,36 @@ test("the six attendance keys are in the permission catalogue under their own gr
     assert.ok(block.includes(key), key);
   }
 });
+
+
+/* ================================================ effective status & void ==== */
+
+test("14. the Punch Audit shows Used / Ignored Duplicate / Voided through the shared labels, plus the void's reason, who and when", () => {
+  assert.match(auditTab, /field: "effective_status"/);
+  assert.match(auditTab, /PUNCH_STATUS_LABEL\[p\.data\.effective_status\]/);
+  assert.match(auditTab, /PUNCH_STATUS_COLOR\[status\]/);
+  for (const field of ['field: "punch_source"', 'field: "void_reason"', 'field: "voided_by_name"', 'field: "voided_at"']) {
+    assert.match(auditTab, new RegExp(field), field);
+  }
+  assert.match(page, /import \{ PUNCH_STATUS_COLOR, PUNCH_STATUS_LABEL, canVoidPunch \} from "\.\.\/\.\.\/\.\.\/util\/attendanceV2"/);
+});
+
+test("15. the Punch Audit void action is permission-controlled: the column and the modal exist only with void_attendance_punch, and only on a void-able raw punch", () => {
+  assert.match(page, /const canVoid = usePermissions\(\["void_attendance_punch"\]\);/);
+  assert.match(page, /<PunchAuditTab[\s\S]*?canVoid=\{canVoid\}/);
+  assert.match(auditTab, /\.\.\.\(canVoid\s*\? \[/, "the Void column is added only for a holder");
+  assert.match(auditTab, /canVoidPunch\(\{ source: p\.data\.punch_source, effective_status: p\.data\.effective_status, attendance_punch_void_id: p\.data\.attendance_punch_void_id \}\)/);
+  assert.match(auditTab, /p\.data\.employee_id && canVoidPunch/, "an unmatched punch cannot be voided");
+  assert.match(auditTab, /\{canVoid \? \([\s\S]*?<VoidPunchModal/);
+  assert.match(auditTab, /await load\(filters\);/, "a successful void reloads the audit");
+});
+
+test("the Punch Audit still calculates nothing: the effective status is a fact about the punch, not hours or lateness", () => {
+  assert.ok(!/worked|hours|late_minutes|shortage|overtime/i.test(auditTab));
+});
+
+test("the void key is in the attendance permission group", () => {
+  const start = permissions.indexOf("attendance: {");
+  const block = permissions.slice(start, permissions.indexOf("},", start));
+  assert.ok(block.includes("void_attendance_punch"));
+});

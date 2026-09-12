@@ -6,6 +6,7 @@ import EmployeePicker from "../../../components/payroll/EmployeePicker";
 import AttendanceDayList from "../../../components/attendance/AttendanceDayList";
 import AttendanceDayDetail from "../../../components/attendance/AttendanceDayDetail";
 import EditShiftModal from "../../../components/attendance/EditShiftModal";
+import VoidPunchModal from "../../../components/attendance/VoidPunchModal";
 import usePermissions from "../../../customHooks/usePermissions";
 import AttendanceV2Helper from "../../../helper/attendanceV2";
 import { apiMessage, currentMonth, isOk, monthBounds } from "../../../util/attendanceV2";
@@ -21,10 +22,17 @@ import { apiMessage, currentMonth, isOk, monthBounds } from "../../../util/atten
  * `edit_attendance_date_shift`, and the backend requires that key again on
  * the save. It changes that ONE date. Nothing here regularizes on somebody
  * else's behalf; that stays with the existing HR regularization route.
+ *
+ * Void Punch appears - beside a raw BIOMAX / IMPORT punch on the Day Detail
+ * - only for a caller holding `void_attendance_punch`, and the backend
+ * requires that key again. It records the exclusion with a reason and
+ * recalculates the date; the day is then reloaded so the punch shows as
+ * VOIDED and the numbers reflect the effective punches.
  */
 export default function EmployeeAttendancePage() {
   const toast = useToast();
   const canEditShift = usePermissions(["edit_attendance_date_shift"]);
+  const canVoidPunch = usePermissions(["void_attendance_punch"]);
   const [employeeId, setEmployeeId] = useState(null);
   const [month, setMonth] = useState(currentMonth());
   const [days, setDays] = useState([]);
@@ -32,6 +40,7 @@ export default function EmployeeAttendancePage() {
   const [error, setError] = useState(null);
   const [selected, setSelected] = useState(null);
   const [editing, setEditing] = useState(null);
+  const [voiding, setVoiding] = useState(null);
 
   const load = useCallback(async () => {
     const bounds = monthBounds(month);
@@ -75,6 +84,19 @@ export default function EmployeeAttendancePage() {
     await load();
   };
 
+  const onPunchVoided = async (res) => {
+    setVoiding(null);
+    setSelected(null);
+    toast({
+      title: res.recalculated ? "Punch voided" : "Punch voided, but the date was not recalculated",
+      description: res.msg,
+      status: res.recalculated ? "success" : "warning",
+      duration: res.recalculated ? 5000 : 10000,
+      isClosable: true,
+    });
+    await load();
+  };
+
   return (
     <GlobalWrapper title="Employee Attendance" permissionKey={["view_calculated_attendance"]}>
       <CustomContainer title="Employee Attendance" filledHeader>
@@ -108,7 +130,16 @@ export default function EmployeeAttendancePage() {
         isOpen={!!selected}
         onClose={() => setSelected(null)}
         onEditShift={canEditShift ? (day) => setEditing(day) : null}
+        onVoidPunch={canVoidPunch ? (punch) => setVoiding(punch) : null}
       />
+      {canVoidPunch ? (
+        <VoidPunchModal
+          punch={voiding ? { ...voiding, employee_name: selected ? selected.employee_name : null } : null}
+          isOpen={!!voiding}
+          onClose={() => setVoiding(null)}
+          onVoided={onPunchVoided}
+        />
+      ) : null}
       {canEditShift ? (
         <EditShiftModal
           day={editing}

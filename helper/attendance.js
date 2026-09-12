@@ -100,6 +100,18 @@ const attendance = {
   exportPunchAudit: (params) =>
     downloadCsv("/attendance/raw/punches/export.csv", params, "punch-audit.csv"),
 
+  /**
+   * Void Punch - `POST /attendance/raw/punches/:id/void`, behind
+   * `void_attendance_punch`. `{ biomax_punch_id, reason, source? }`: the
+   * reason is mandatory; `source` (BIOMAX / IMPORT) only says what the screen
+   * believes the punch is, and the server refuses a mismatch. Nothing else is
+   * sent - the employee, the time and the actor are the server's to decide.
+   * Answers `{ code, recalculated, msg, ... }`; `recalculated: false` means
+   * the void was saved but the date could not be recalculated.
+   */
+  voidPunch: ({ biomax_punch_id, reason, source }) =>
+    post(`/attendance/raw/punches/${biomax_punch_id}/void`, source ? { reason, source } : { reason }),
+
   /* --------------------------------------------------------------- Devices */
 
   getDevices: () => get("/attendance/devices"),

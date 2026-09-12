@@ -26,6 +26,7 @@ import AgGrid from "../../../components/AgGrid";
 import { DateRangeFilter } from "../../../components/DateRangeFilter";
 import PunchTimeCell from "../../../components/attendance/PunchTimeCell";
 import AttendanceBanners from "../../../components/attendance/AttendanceBanners";
+import VoidPunchModal from "../../../components/attendance/VoidPunchModal";
 import usePermissions from "../../../customHooks/usePermissions";
 import useOutlets from "../../../customHooks/useOutlets";
 import useDepartments from "../../../customHooks/useDepartments";
@@ -43,6 +44,7 @@ import {
   DERIVATION_STATUS_LABEL,
   DEVICE_STATUS_LABEL,
 } from "../../../util/attendanceRaw";
+import { PUNCH_STATUS_COLOR, PUNCH_STATUS_LABEL, canVoidPunch } from "../../../util/attendanceV2";
 
 /**
  * Attendance - Part 1: the raw Biomax punch flow, presented.
@@ -71,6 +73,13 @@ import {
  * either tab. A day with one punch and a day with nine are both just rows.
  * Clock Time columns are as many as the widest row in the result.
  *
+ * The Punch Audit does show each punch's EFFECTIVE status - Used, Ignored
+ * (duplicate within 10 min) or Voided, with the void's reason, who and when -
+ * because that is an audit fact about the punch, not a calculation of the
+ * day. A caller holding `void_attendance_punch` gets a Void action on raw
+ * BIOMAX / IMPORT punches that are not already voided; everybody else with
+ * `view_attendance_punch_audit` sees the status and nothing more.
+ *
  * Punch location is shown under each time in the SAME neutral style for
  * every punch; cross-outlet movement is not a warning.
  */
@@ -79,6 +88,7 @@ export default function AttendanceListPage() {
   const toast = useToast();
   const canAudit = usePermissions(["view_attendance_punch_audit"]);
   const canExport = usePermissions(["export_raw_attendance"]);
+  const canVoid = usePermissions(["void_attendance_punch"]);
   const { outlets } = useOutlets({ directory: true });
   const { departments } = useDepartments();
 
@@ -122,7 +132,7 @@ export default function AttendanceListPage() {
           </TabPanel>
           {canAudit ? (
             <TabPanel p={0}>
-              <PunchAuditTab today={today} outlets={outlets} initial={q} toast={toast} />
+              <PunchAuditTab today={today} outlets={outlets} initial={q} toast={toast} canVoid={canVoid} />
             </TabPanel>
           ) : null}
         </TabPanels>
@@ -336,8 +346,9 @@ function AttendanceListTab({ today, outlets, departments, canExport, toast, onOp
 
 /* ========================================================== Punch Audit */
 
-function PunchAuditTab({ today, outlets, initial, toast }) {
+function PunchAuditTab({ today, outlets, initial, toast, canVoid }) {
   const [devices, setDevices] = useState([]);
+  const [voiding, setVoiding] = useState(null);
   const [filters, setFilters] = useState({
     from: initial.from || today,
     to: initial.to || today,
@@ -432,6 +443,25 @@ function PunchAuditTab({ today, outlets, initial, toast }) {
         },
       },
       {
+        field: "effective_status",
+        headerName: "Effective",
+        minWidth: 200,
+        valueGetter: (p) => (p.data && p.data.effective_status ? PUNCH_STATUS_LABEL[p.data.effective_status] || p.data.effective_status : ""),
+        cellRenderer: (p) => {
+          if (!p.data || !p.data.effective_status) return null;
+          const status = p.data.effective_status;
+          return (
+            <Badge colorScheme={PUNCH_STATUS_COLOR[status] || "gray"} title={p.data.effective_reason || ""}>
+              {PUNCH_STATUS_LABEL[status] || status}
+            </Badge>
+          );
+        },
+      },
+      { field: "punch_source", headerName: "Source", minWidth: 100, valueGetter: (p) => (p.data ? p.data.punch_source || "" : "") },
+      { field: "void_reason", headerName: "Void Reason", minWidth: 180, valueGetter: (p) => (p.data ? p.data.void_reason || "" : "") },
+      { field: "voided_by_name", headerName: "Voided By", minWidth: 140, valueGetter: (p) => (p.data ? p.data.voided_by_name || "" : "") },
+      { field: "voided_at", headerName: "Voided At", minWidth: 150, valueGetter: (p) => (p.data ? p.data.voided_at || "" : "") },
+      {
         field: "biomax_punch_id",
         headerName: "Day",
         minWidth: 110,
@@ -443,9 +473,52 @@ function PunchAuditTab({ today, outlets, initial, toast }) {
             </Link>
           ) : null,
       },
+      ...(canVoid
+        ? [
+            {
+              field: "void_action",
+              headerName: "Void",
+              minWidth: 120,
+              valueGetter: (p) => (p.data && p.data.employee_id && canVoidPunch({ source: p.data.punch_source, effective_status: p.data.effective_status, attendance_punch_void_id: p.data.attendance_punch_void_id }) ? "Void Punch" : ""),
+              cellRenderer: (p) =>
+                p.data && p.data.employee_id && canVoidPunch({ source: p.data.punch_source, effective_status: p.data.effective_status, attendance_punch_void_id: p.data.attendance_punch_void_id }) ? (
+                  <Button
+                    size="xs"
+                    variant="ghost"
+                    colorScheme="red"
+                    onClick={() =>
+                      setVoiding({
+                        biomax_punch_id: p.data.biomax_punch_id,
+                        io_time: p.data.io_time,
+                        source: p.data.punch_source,
+                        attendance_date: p.data.attendance_date,
+                        employee_id: p.data.employee_id,
+                        employee_name: p.data.employee_name,
+                        user_id: p.data.user_id,
+                      })
+                    }
+                  >
+                    Void Punch
+                  </Button>
+                ) : null,
+            },
+          ]
+        : []),
     ],
-    []
+    [canVoid]
   );
+
+  const onPunchVoided = async (res) => {
+    setVoiding(null);
+    toast({
+      title: res.recalculated ? "Punch voided" : "Punch voided, but the date was not recalculated",
+      description: res.msg,
+      status: res.recalculated ? "success" : "warning",
+      duration: res.recalculated ? 5000 : 10000,
+      isClosable: true,
+    });
+    await load(filters);
+  };
 
   const exportCsv = async () => {
     setExporting(true);
@@ -545,6 +618,9 @@ function PunchAuditTab({ today, outlets, initial, toast }) {
           </>
         )}
       </CustomContainer>
+      {canVoid ? (
+        <VoidPunchModal punch={voiding} isOpen={!!voiding} onClose={() => setVoiding(null)} onVoided={onPunchVoided} />
+      ) : null}
     </>
   );
 }

@@ -8,6 +8,10 @@ const assert = require("node:assert/strict");
 const {
   LABEL,
   REGULARIZED_PUNCH_LABEL,
+  PUNCH_STATUS,
+  PUNCH_STATUS_LABEL,
+  canVoidPunch,
+  dayPunchRows,
   dayIssue,
   otClaim,
   formatOtClock,
@@ -220,4 +224,59 @@ test("backend validation and conflict messages are shown as they are", () => {
   assert.equal(apiMessage(null, "fallback"), "fallback");
   assert.equal(isOk({ code: 200 }), true);
   assert.equal(isOk({ code: 403 }), false);
+});
+
+
+/* ============================================ effective punch status ==== */
+
+test("11/12. the effective statuses carry the exact agreed wording", () => {
+  assert.deepEqual(PUNCH_STATUS, { USED: "USED", IGNORED_DUPLICATE: "IGNORED_DUPLICATE", VOIDED: "VOIDED" });
+  assert.equal(PUNCH_STATUS_LABEL.USED, "Used");
+  assert.equal(PUNCH_STATUS_LABEL.IGNORED_DUPLICATE, "Ignored – Duplicate within 10 min");
+  assert.equal(PUNCH_STATUS_LABEL.VOIDED, "Voided");
+});
+
+test("3/4/5. only a raw BIOMAX / IMPORT punch that is not already voided may be voided", () => {
+  assert.equal(canVoidPunch({ source: "BIOMAX", effective_status: "USED" }), true);
+  assert.equal(canVoidPunch({ source: "IMPORT", effective_status: "USED" }), true);
+  assert.equal(canVoidPunch({ source: "BIOMAX", effective_status: "IGNORED_DUPLICATE" }), true, "an ignored duplicate is still a raw punch");
+  assert.equal(canVoidPunch({ source: "REGULARIZED", effective_status: "USED" }), false, "never a regularized punch");
+  assert.equal(canVoidPunch({ source: "BIOMAX", effective_status: "VOIDED" }), false, "never twice");
+  assert.equal(canVoidPunch({ source: "BIOMAX", attendance_punch_void_id: 5 }), false, "the audit row's void id counts too");
+  assert.equal(canVoidPunch(null), false);
+});
+
+test("the Day Detail rows list every punch chronologically: used ones positioned, excluded ones unpositioned with status and reason", () => {
+  const d = day({
+    effective_punches: [
+      { punch_id: 1, source: "BIOMAX", io_time: "2026-09-14 09:00:00", effective_status: "USED" },
+      { punch_id: 3, source: "IMPORT", io_time: "2026-09-14 13:00:00", effective_status: "USED" },
+      { punch_id: 4, source: "BIOMAX", io_time: "2026-09-14 14:00:00", effective_status: "USED" },
+      { punch_id: null, source: "REGULARIZED", io_time: "2026-09-14 21:00:00", effective_status: "USED" },
+    ],
+    excluded_punches: [
+      { punch_id: 2, source: "BIOMAX", io_time: "2026-09-14 09:03:00", effective_status: "IGNORED_DUPLICATE", exclusion_reason: "Duplicate punch within 10 minutes", duplicate_of_punch_id: 1 },
+      { punch_id: 5, source: "BIOMAX", io_time: "2026-09-14 16:30:00", effective_status: "VOIDED", exclusion_reason: "Accidental terminal scan", void: { voided_at: "2026-09-15 10:00:00", voided_by_name: "HR" } },
+    ],
+  });
+  const rows = dayPunchRows(d);
+  assert.deepEqual(rows.map((r) => r.time), ["09:00", "09:03", "13:00", "14:00", "16:30", "21:00"]);
+  assert.deepEqual(rows.map((r) => r.position), [1, null, 2, 3, null, 4]);
+  assert.deepEqual(rows.map((r) => r.direction), ["IN", null, "OUT", "IN", null, "OUT"]);
+  assert.deepEqual(rows.map((r) => r.effective_status), ["USED", "IGNORED_DUPLICATE", "USED", "USED", "VOIDED", "REGULARIZED"]);
+  assert.deepEqual(rows.map((r) => r.excluded), [false, true, false, false, true, false]);
+  assert.equal(rows[1].reason, "Duplicate punch within 10 minutes");
+  assert.equal(rows[4].reason, "Accidental terminal scan");
+  assert.equal(rows[4].void.voided_by_name, "HR");
+  // who may be voided: raw and not already voided
+  assert.deepEqual(rows.map((r) => r.void_able), [true, true, true, true, false, false]);
+  assert.equal(rows[5].regularized, true, "13. the regularized punch keeps its tag");
+  // and the positional summary is unchanged by excluded punches
+  assert.equal(punchSummary(d), "09:00 → 13:00 → 14:00 → 21:00");
+});
+
+test("a day without excluded punches renders exactly as before", () => {
+  const d = day();
+  assert.deepEqual(dayPunchRows(d).map((r) => [r.position, r.time, r.excluded]), positionalPunches(d).map((p) => [p.position, p.time, false]));
+  assert.deepEqual(dayPunchRows({ attendance_date: "2026-09-14" }), []);
 });
