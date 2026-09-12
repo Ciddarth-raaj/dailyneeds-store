@@ -71,7 +71,9 @@ test("Employees, Department and Designation are all inside HR", () => {
     "/designation",
     "/employee-shift-assignment",
     "/hr/employees",
-    // M4: Payroll, a section of HR like the three above it.
+    // M4: Payroll, a section of HR like the three above it. M5 adds the third
+    // entry - a faster way to raise the proposals the first one raises singly.
+    "/payroll/bulk-salary-upload",
     "/payroll/salary-approval",
     "/payroll/salary-revision",
     "/work-shift",
@@ -258,7 +260,9 @@ test("HR navigation still appears exactly once, and still holds its pages", () =
     "/designation",
     "/employee-shift-assignment",
     "/hr/employees",
-    // M4: Payroll, a section of HR like the three above it.
+    // M4: Payroll, a section of HR like the three above it. M5 adds the third
+    // entry - a faster way to raise the proposals the first one raises singly.
+    "/payroll/bulk-salary-upload",
     "/payroll/salary-approval",
     "/payroll/salary-revision",
     "/work-shift",
@@ -345,16 +349,18 @@ test("the module rail reads All, HR, Reports, WMS, GST", () => {
   assert.deepStrictEqual(ids, ["all", "hr", "reports", "wms", "gst"]);
 });
 
-test("M4: HR > Payroll is the two salary screens, each behind ALL of its keys", () => {
+test("M4/M5: HR > Payroll is the three salary screens, each behind ALL of its keys", () => {
   const hrMenu = treeNamed("HR_MENU");
   const pay = sectionOf(hrMenu, "payroll");
 
   assert.deepStrictEqual(locationsIn(pay).sort(), [
+    "/payroll/bulk-salary-upload",
     "/payroll/salary-approval",
     "/payroll/salary-revision",
   ]);
   assert.match(pay, /title:\s*"Salary Revision & History"/);
   assert.match(pay, /title:\s*"Salary Approval"/);
+  assert.match(pay, /title:\s*"Bulk Salary Upload"/);
 
   // ARRAYS MEAN ALL OF THESE KEYS (util/menuPermissions.js), matching the
   // `requireAll(...)` each backend route uses. An entry shown to somebody
@@ -372,16 +378,31 @@ test("M4: HR > Payroll is the two salary screens, each behind ALL of its keys", 
     /title:\s*"Salary Approval"[\s\S]*?permission:\s*\["view_employees", "view_salary", "approve_salary_revision"\]/
   );
 
-  // NO M5 AND NO MONTHLY PAYROLL. Bulk upload, payroll runs, payslips and bank
-  // payment are later modules, and an entry that leads nowhere is a promise
-  // the navigation cannot keep - the same rule that kept Payroll itself off
-  // the rail until M4.
-  for (const notYet of ["Bulk", "bulk", "Payslip", "payslip", "Payroll Run", "payroll_run", "Bank Payment"]) {
+  // M5's entry takes `add_salary` on top of the reading pair, matching the two
+  // /hr/salary/bulk endpoints exactly - and NOT a bulk key of its own, because
+  // uploading a hundred proposals and typing a hundred proposals are the same
+  // authority at different speeds.
+  assert.match(
+    pay,
+    /title:\s*"Bulk Salary Upload"[\s\S]*?permission:\s*\["view_employees", "view_salary", "add_salary"\]/
+  );
+  assert.ok(!/bulk_salary_upload"/.test(pay), "no bulk-specific permission key was invented");
+  // Bulk upload PROPOSES; it never decides. The approver's key opens nothing
+  // here, which is why it is not among this entry's three.
+  assert.ok(
+    !/title:\s*"Bulk Salary Upload"[\s\S]*?approve_salary_revision/.test(pay),
+    "bulk upload is not an approval screen"
+  );
+
+  // STILL NO MONTHLY PAYROLL. Payroll runs, payslips and bank payment are
+  // later modules, and an entry that leads nowhere is a promise the navigation
+  // cannot keep - the same rule that kept Payroll itself off the rail until M4.
+  for (const notYet of ["Payslip", "payslip", "Payroll Run", "payroll_run", "Bank Payment"]) {
     assert.ok(!pay.includes(notYet), `Payroll must not list ${notYet} yet`);
   }
   // And it is not gated on the monthly-payroll keys it does not use.
   for (const unrelated of ["process_payroll", "hr_reports"]) {
-    assert.ok(!pay.includes(unrelated), `${unrelated} is not what M4 needs`);
+    assert.ok(!pay.includes(unrelated), `${unrelated} is not what these screens need`);
   }
 
   assert.ok(hrMenu.includes("Attendance"), "HR must still contain Attendance");

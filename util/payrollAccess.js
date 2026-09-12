@@ -139,9 +139,33 @@ function canRejectProposal(actor) {
   return canApproveSalaryRevision(actor);
 }
 
+/**
+ * M5 — open Bulk Salary Upload.
+ *
+ * THREE KEYS, ALL OF THEM, matching what the two `/hr/salary/bulk` endpoints
+ * demand exactly: `view_employees`, `view_salary` and `add_salary`. Reading is
+ * not enough - the screen's whole purpose is to create proposals, and a
+ * read-only version of it would be a file picker that leads nowhere.
+ *
+ * `add_salary` AND NOT A BULK KEY OF ITS OWN. Uploading a hundred proposals
+ * and typing a hundred proposals are the same authority exercised at different
+ * speeds; a `bulk_salary_upload` permission would be a second place to grant
+ * the same thing, and the one people forget.
+ *
+ * `approve_salary_revision` is NOT part of this and would not help: every row
+ * a bulk upload creates lands PENDING and is decided on Salary Approval.
+ */
+function canOpenBulkSalaryUpload(actor) {
+  return canViewSalary(actor) && canAddSalary(actor);
+}
+
 /** Is any Payroll screen reachable at all? Decides the menu section. */
 function canSeePayrollMenu(actor) {
-  return canOpenRevisionScreen(actor) || canOpenApprovalScreen(actor);
+  return (
+    canOpenRevisionScreen(actor) ||
+    canOpenApprovalScreen(actor) ||
+    canOpenBulkSalaryUpload(actor)
+  );
 }
 
 module.exports = {
@@ -152,6 +176,7 @@ module.exports = {
   canApproveSalaryRevision,
   canOpenRevisionScreen,
   canOpenApprovalScreen,
+  canOpenBulkSalaryUpload,
   canApproveProposal,
   canRejectProposal,
   canSeePayrollMenu,

@@ -681,13 +681,17 @@ test("M1: Payment Details is Cash / Bank, asks for the bank only when Bank, and 
   assert.match(rules, /\{ value: 2, label: "Cash" \}/);
 });
 
-test("M3: Payroll holds its place and is READ-ONLY; Documents is last and read-only", () => {
-  // M1 put the section in the order and left it empty; M3 fills it with the
-  // current approved salary and NOTHING ELSE. What is defended here is the
-  // half that did not change: it still offers no way to write pay.
-  // The figures themselves are pinned in components/hr/payrollSection.test.js.
+test("M3/M5: Payroll holds its place and edits no employee field; Documents is last and read-only", () => {
+  // M1 put the section in the order and left it empty; M3 filled it with the
+  // current approved salary; M5 adds the OPENING salary entry, which is the one
+  // moment an employee has no salary at all.
+  //
+  // What is defended here is the half that did not change. The card is not a
+  // field editor: it does not edit the employee record, and it does not revise
+  // a salary that already exists - see the surface test further down, which
+  // pins the endpoints it may and may not call.
   const payroll = codeOf(read("components/hr/profile/PayrollSection.jsx"));
-  assert.ok(!/EditField|onSave|onEdit|canEdit|editing/.test(payroll), "no editor of any kind");
+  assert.ok(!/EditField|onSave|onEdit|editing/.test(payroll), "no employee-field editor");
   assert.ok(!/HrHelper|EmployeeHelper|updateEmployeeDetails/.test(payroll), "no employee write path");
   const documents = read("components/hr/profile/DocumentsSection.jsx");
   assert.match(documents, /DocumentHelper\.getDocType\(employeeId\)/, "the existing read is reused");
@@ -1142,29 +1146,68 @@ test("M2 review fix — Previous EPS Member is sent as a tri-state number, under
   );
 });
 
-test("M3 — the Payroll section is the ONLY salary surface, and it is a read", () => {
-  // M2's rule 14 kept the card a placeholder because the view was M3's. Now
-  // that it exists, what still has to hold is the boundary either side of it:
-  // no Salary Revision, Approval or Bulk Upload UI anywhere, and no second
-  // place for a salary to be typed.
+test("M5 — the Payroll section enters the FIRST salary and never revises one", () => {
+  // The product rule, as a test. Employee Master is where an employee's opening
+  // salary is entered during onboarding, because the person filling in their
+  // record is the person who knows what they are being paid. It is never a
+  // second salary-revision screen: once a proposal exists, this card displays
+  // and signposts, and every later change happens on Payroll > Salary Revision
+  // & History.
   const payroll = read("components/hr/profile/PayrollSection.jsx");
   const code = payroll.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\{\/\*[\s\S]*?\*\/\}/g, "");
+
+  // The card itself renders the states and holds no form. Checked as
+  // CAPABILITIES rather than as words: the card legitimately says "amend it
+  // there" in the sentence that points at the revision screen, and a blacklist
+  // of nouns would forbid explaining the rule while permitting breaking it.
   for (const forbidden of [
     "EditField",
     "onSave",
-    "Save",
-    "revision",
-    "approve",
-    "reject",
-    "preview",
-    "upload",
+    "amendPending",
+    "PayrollSalaryHelper",
+    "payrollSalary",
+    "salaryApprovalQueue",
+    "BulkSalary",
+    "bulkValidate",
+    "bulkSubmit",
   ]) {
+    assert.ok(!code.includes(forbidden), `the Payroll card must not carry ${forbidden}`);
+  }
+  // Its only route to the revision screen is a LINK, and there is exactly one.
+  assert.match(code, /REVISION_SCREEN_PATH/);
+  assert.ok(!/<Button/.test(code), "the card presses nothing itself");
+  assert.match(code, /<OpeningSalaryForm/, "the opening-salary entry is rendered");
+  assert.match(
+    code,
+    /resolved\.state === STATE\.NO_SALARY[\s\S]{0,200}<OpeningSalaryForm/,
+    "and ONLY in the state where the employee has no salary at all"
+  );
+
+  // It reads through the one hook, and makes no request of its own.
+  assert.match(code, /useEmployeeMasterSalary\(\s*employeeId,\s*canView\s*\)/);
+  assert.ok(!/axios|API\./.test(code), "the card does not call the API itself");
+
+  // The form beside it may preview and create. It may not amend, approve or
+  // reject, and it offers no effective date: an opening salary is dated by the
+  // server.
+  const form = read("components/hr/profile/OpeningSalaryForm.jsx");
+  const formCode = form.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\{\/\*[\s\S]*?\*\/\}/g, "");
+  for (const forbidden of ["amendPending", "approve", "reject", "bulk", "PayrollSalaryHelper"]) {
     assert.ok(
-      !new RegExp(`\\b${forbidden}\\b`, "i").test(code),
-      `the Payroll card must not carry ${forbidden}`
+      !new RegExp(forbidden, "i").test(formCode),
+      `the opening-salary form must not carry ${forbidden}`
     );
   }
-  // It reads through the one hook, which calls the one endpoint.
-  assert.match(code, /useCurrentSalary\(employeeId, canView\)/);
-  assert.ok(!/axios|API\./.test(code), "the card does not call the API itself");
+  assert.match(formCode, /EmployeeSalaryHelper\.preview/);
+  assert.match(formCode, /EmployeeSalaryHelper\.createOpeningSalary/);
+  assert.match(formCode, /is_opening: true/, "the shared validator is told which this is");
+
+  // NO DATE INPUT. An opening salary is dated by the server - the later of the
+  // opening floor and the date of joining - and it ignores any date sent with
+  // the request, so a field here would be a box somebody typed into and watched
+  // be disregarded. The form holds a blank `effective_from`, which is what
+  // `toRequestBody` reads to decide to send none at all.
+  assert.ok(!/type="date"/.test(formCode), "there is no effective-date picker");
+  assert.match(formCode, /effective_from: ""/);
+  assert.match(formCode, /previewEffectiveFrom\(preview\)/, "the server's date is displayed");
 });

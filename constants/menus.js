@@ -1011,9 +1011,14 @@ const HR_MENU = {
   // screen on their rail that 403s the moment they open it.
   //
   // The monthly-payroll keys `process_payroll` and `hr_reports` are
-  // deliberately NOT used here: M4 runs no payroll period and produces no
-  // report, and gating these screens on a key they do not need would make them
-  // ungrantable without handing out one that opens nothing.
+  // deliberately NOT used here: nothing in this section runs a payroll period
+  // or produces a report, and gating these screens on a key they do not need
+  // would make them ungrantable without handing out one that opens nothing.
+  //
+  // M5 ADDS A THIRD ENTRY AND STILL NO FOURTH. Bulk Salary Upload is a faster
+  // way to raise the proposals the first entry raises one at a time; it is not
+  // a payroll run, a payslip, a report or a bank payment, none of which have an
+  // entry here because none of them has a screen.
   payroll: {
     title: "Payroll",
     selected: false,
@@ -1034,6 +1039,21 @@ const HR_MENU = {
         permission: ["view_employees", "view_salary", "approve_salary_revision"],
         selected: false,
         location: "/payroll/salary-approval",
+      },
+      // M5 - Bulk Salary Upload, beside the screen where one salary is typed.
+      // It PROPOSES faster and decides nothing: every row it creates lands
+      // Pending and is approved or rejected on Salary Approval above.
+      //
+      // `add_salary` on top of the reading pair, matching the two
+      // /hr/salary/bulk endpoints exactly. Not a `bulk_salary_upload` key of
+      // its own: uploading a hundred proposals and typing a hundred proposals
+      // are the same authority at different speeds, and a second key to grant
+      // is the one somebody forgets.
+      bulk_salary_upload: {
+        title: "Bulk Salary Upload",
+        permission: ["view_employees", "view_salary", "add_salary"],
+        selected: false,
+        location: "/payroll/bulk-salary-upload",
       },
     },
   },

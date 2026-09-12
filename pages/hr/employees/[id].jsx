@@ -47,6 +47,18 @@ import {
   canViewSensitive,
   unwrapEmployee,
 } from "../../../util/hrProfile";
+/*
+ * The salary permission rules, from the ONE module that holds them. They are
+ * the same conjunctions `routes/employee_salary.js` demands, and importing
+ * them rather than restating them here is what keeps the Employee Master's
+ * opening-salary entry and Payroll's revision screen agreeing about who may do
+ * what. NOTE what is NOT imported: nothing that approves, amends or rejects.
+ */
+import {
+  canAddSalary,
+  canEditPendingSalary,
+  canOverrideComponents,
+} from "../../../util/payrollAccess";
 
 /**
  * The employee profile. The ONE employee master record, in the ONE order.
@@ -119,6 +131,20 @@ function EmployeeProfile() {
   // demands: `view_employees` AND `view_salary`. Without it the section
   // renders a no-access line and makes no request at all.
   const mayViewSalary = canViewSalary(actor);
+  /*
+   * ONBOARDING. The Payroll section is where an employee's FIRST salary is
+   * entered, so it needs the create right as well as the read one - and the
+   * override right, which is its own decision because moving Basic moves the
+   * PF wage.
+   *
+   * `mayEditSalary` does NOT open a form here. It decides only whether the
+   * card offers a LINK to Payroll > Salary Revision & History for amending an
+   * outstanding proposal: the Employee Master never becomes a second
+   * salary-revision screen.
+   */
+  const mayAddSalary = canAddSalary(actor);
+  const mayEditSalary = canEditPendingSalary(actor);
+  const mayOverrideSalary = canOverrideComponents(actor);
   const canViewLifecycle = usePermissions(["view_employee_lifecycle"]);
 
   const { outlets } = useOutlets({ directory: true });
@@ -544,12 +570,23 @@ function EmployeeProfile() {
           />
 
           {/* ========================================= 7. Payroll ====
-              M3. READ-ONLY. The currently effective approved salary, resolved
-              by the M2 API and never recalculated here. No Edit, no Save: pay
-              is entered, revised and approved on Payroll's own screens. The
-              id comes from the lifecycle read, which is the one record this
-              page is certain of - a missing one means no request is made. */}
-          <PayrollSection employeeId={lifecycle.employee_id} canView={mayViewSalary} />
+              THE OPENING SALARY, AND NOTHING ELSE. This is where an employee's
+              FIRST salary is entered during onboarding - the one moment they
+              have no salary at all, and the moment the person filling in their
+              record knows what they should be on. Every later change is a
+              revision made on Payroll > Salary Revision & History; this card
+              displays and signposts, and holds no amend, approve or reject.
+              Every figure is resolved by the salary API and never recalculated
+              here. The id comes from the lifecycle read, which is the one
+              record this page is certain of - a missing one means no request
+              is made. */}
+          <PayrollSection
+            employeeId={lifecycle.employee_id}
+            canView={mayViewSalary}
+            canAdd={mayAddSalary}
+            canEdit={mayEditSalary}
+            canOverride={mayOverrideSalary}
+          />
 
           {/* ======================================= 8. Documents ==== */}
           <DocumentsSection employeeId={lifecycle.employee_id} canView={mayViewDocuments} />

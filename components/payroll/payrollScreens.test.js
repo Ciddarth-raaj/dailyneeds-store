@@ -40,6 +40,9 @@ const proposalCard = read("components/payroll/PendingProposalCard.jsx");
 const proposalCardCode = codeOf(proposalCard);
 const historyTable = read("components/payroll/SalaryHistoryTable.jsx");
 const historyTableCode = codeOf(historyTable);
+/* M5 — the third Payroll screen. */
+const bulkPage = read("pages/payroll/bulk-salary-upload.jsx");
+const bulkPageCode = codeOf(bulkPage);
 const queueHook = codeOf(read("customHooks/usePendingSalaryQueue.js"));
 const recordHook = codeOf(read("customHooks/useEmployeeSalaryRecord.js"));
 
@@ -53,6 +56,11 @@ const backendAvailable = fs.existsSync(BACKEND_ROUTER);
 test("THE HELPER CALLS EXACTLY THE SALARY ENDPOINTS THAT EXIST", () => {
   const paths = [...helperCode.matchAll(/\/hr\/salary[^"`)]*/g)].map((m) => m[0]);
   assert.deepStrictEqual(paths.sort(), [
+    // M5's batch pair. They are a faster route to the same create path, not a
+    // new one: every row they make is a PENDING proposal priced by the same
+    // engine, and neither of them can approve anything.
+    "/hr/salary/bulk/submit",
+    "/hr/salary/bulk/validate",
     "/hr/salary/employee/${employeeId}",
     "/hr/salary/employee/${employeeId}/current",
     "/hr/salary/employee/${employeeId}/history",
@@ -75,6 +83,8 @@ test("every path the helper calls is one the backend declares", { skip: !backend
     '"/salary/revision/:salary_id/approve"',
     '"/salary/revision/:salary_id/reject"',
     '"/salary/pending"',
+    '"/salary/bulk/validate"',
+    '"/salary/bulk/submit"',
   ]) {
     assert.ok(router.includes(declared), `the backend must declare ${declared}`);
   }
@@ -546,19 +556,187 @@ test("THE HISTORY TABLE RENDERS WHATEVER AUDIT STEPS THE RECORD HAS", () => {
   );
 });
 
-test("NO M5 — NO BULK UPLOAD, NO PAYROLL RUN, NO PAYSLIP", () => {
-  // M4 builds two screens on M2's lifecycle. Nothing here anticipates monthly
-  // payroll, and this fix adds nothing that does.
+test("NO M6 — NO PAYROLL RUN, NO PAYSLIP, NO BANK PAYMENT", () => {
+  // M4 built two screens on M2's lifecycle and M5 adds a third. Not one of
+  // them anticipates MONTHLY payroll: there is no period, no payslip, no net
+  // pay and no bank file anywhere in this module.
+  //
+  // `bulk` is no longer forbidden - it is built - but it is confined to the
+  // files that are it, which the next test pins.
   for (const [file, code] of [
     ["helper/payrollSalary.js", helperCode],
     ["pages/payroll/salary-revision.jsx", revisionPageCode],
     ["pages/payroll/salary-approval.jsx", approvalPageCode],
+    ["pages/payroll/bulk-salary-upload.jsx", bulkPageCode],
     ["components/payroll/SalaryRevisionForm.jsx", revisionFormCode],
     ["components/payroll/PendingProposalCard.jsx", proposalCardCode],
     ["components/payroll/SalaryHistoryTable.jsx", historyTableCode],
   ]) {
-    for (const notYet of ["bulk", "Payslip", "payslip", "payroll_run", "processPayroll"]) {
-      assert.ok(!new RegExp(notYet, "i").test(code), `${file} must not reach into M5 (${notYet})`);
+    for (const notYet of [
+      "Payslip", "payslip", "payroll_run", "processPayroll", "net_pay", "bank_payment", "annual_ctc",
+    ]) {
+      assert.ok(!new RegExp(notYet, "i").test(code), `${file} must not reach into M6 (${notYet})`);
     }
   }
 });
+
+/* ===================================================== M5: bulk upload == */
+
+test("M5: THE BULK SCREEN SENDS THREE CELLS AND CALCULATES NOTHING", () => {
+  // The whole screen's relationship with a salary: it reads a spreadsheet into
+  // three named fields and posts them. Every amount, every classification,
+  // every effective date and every error sentence it shows came back from the
+  // server.
+  assert.match(bulkPageCode, /PayrollSalaryHelper\.bulkValidate/);
+  assert.match(bulkPageCode, /PayrollSalaryHelper\.bulkSubmit/);
+  for (const forbidden of [
+    "basic", "monthly_ctc", "employee_pf", "employer_epf", "manual_components",
+    "manual_override", "revision_reason", "effective_from",
+  ]) {
+    assert.ok(
+      !new RegExp(`\\b${forbidden}\\b`).test(bulkPageCode),
+      `the bulk screen must not name ${forbidden}`
+    );
+  }
+  // The rows it posts are the ones the SERVER called valid, stripped back to
+  // the three cells - never the priced row it got back.
+  assert.match(bulkPageCode, /const rows = validRowsFor\(validation\)/);
+  assert.match(bulkPageCode, /bulkSubmit\(rows\)/);
+  // NO MANUAL COMPONENT OVERRIDE IN BULK. Departing from the automatic breakup
+  // is a per-employee statutory decision that needs its own reason, and it is
+  // made where that reason can be written and read.
+  assert.ok(!/canOverride|manual/i.test(bulkPageCode), "no override control in bulk");
+  // And no approval: bulk PROPOSES. Checked as a CAPABILITY, because the screen
+  // legitimately says "waiting for approval on Salary Approval" and offers a
+  // "Download rejected rows" button - explaining the rule is not breaking it.
+  for (const forbidden of [
+    "PayrollSalaryHelper.approve",
+    "PayrollSalaryHelper.reject",
+    "PayrollSalaryHelper.amendPending",
+    "canApproveProposal",
+    "canApproveSalaryRevision",
+  ]) {
+    assert.ok(!bulkPageCode.includes(forbidden), `the bulk screen must not carry ${forbidden}`);
+  }
+});
+
+test("M5: THE TEMPLATE IS EXACTLY THREE COLUMNS, AND THE REJECT EXPORT IS THOSE THREE PLUS ONE", () => {
+  const bulk = require("../../util/bulkSalaryUpload");
+  assert.deepStrictEqual(bulk.TEMPLATE_COLUMNS, [
+    "Employee ID",
+    "Monthly Gross Salary",
+    "Effective From",
+  ]);
+  assert.strictEqual(bulk.templateCsv(), "Employee ID,Monthly Gross Salary,Effective From\n");
+
+  const csv = bulk.rejectedRowsCsv([
+    { employee_id: "42", monthly_gross: "25000", effective_from: "2026-05-01", valid: false,
+      error_reason: "Opening salary Effective From must be 2026-04-01" },
+    { employee_id: "43", monthly_gross: "30000", effective_from: "2026-04-01", valid: true,
+      calculated: { monthly_gross: 30000 } },
+  ]);
+  const lines = csv.trim().split("\n");
+  assert.strictEqual(lines[0], "Employee ID,Monthly Gross Salary,Effective From,Error Reason");
+  assert.strictEqual(lines.length, 2, "only the refused row is exported");
+  assert.strictEqual(
+    lines[1],
+    "42,25000,2026-05-01,Opening salary Effective From must be 2026-04-01"
+  );
+  // NO CALCULATED COLUMNS. The file is one somebody corrects and uploads
+  // again, so it carries the three columns the template defines and the reason
+  // - not a breakup the refused row never had.
+  for (const forbidden of ["Basic", "HRA", "CTC", "Conveyance", "Status", "Type"]) {
+    assert.ok(!csv.includes(forbidden), `the rejected export must not carry ${forbidden}`);
+  }
+});
+
+test("M5: ONLY THE THREE CELLS ARE SENT, WHATEVER ELSE THE FILE HAS", () => {
+  const { toApiRows, missingColumns, extraColumns } = require("../../util/bulkSalaryUpload");
+
+  const rows = toApiRows([
+    {
+      "Employee ID": " 42 ",
+      "Monthly Gross Salary": "25000",
+      "Effective From": "2026-04-01",
+      Remarks: "please approve",
+      Basic: "99999",
+    },
+    { "Employee ID": "", "Monthly Gross Salary": "", "Effective From": "" },
+  ]);
+  // The wholly blank row is dropped; a spreadsheet's trailing lines are not
+  // six hundred complaints.
+  assert.deepStrictEqual(rows, [
+    { employee_id: "42", monthly_gross: "25000", effective_from: "2026-04-01" },
+  ]);
+
+  // The headings are matched case- and spacing-insensitively, because that is
+  // a spreadsheet's business; a MISSING one is caught before anything is sent.
+  assert.deepStrictEqual(
+    toApiRows([{ "employee  id": "7", "MONTHLY GROSS SALARY": "1", "effective from": "2026-04-01" }]),
+    [{ employee_id: "7", monthly_gross: "1", effective_from: "2026-04-01" }]
+  );
+  assert.deepStrictEqual(missingColumns(["Employee ID", "Gross"]), [
+    "Monthly Gross Salary",
+    "Effective From",
+  ]);
+  assert.deepStrictEqual(extraColumns(["Employee ID", "Remarks"]), ["Remarks"]);
+});
+
+test("M5: SUBMIT SENDS ONLY THE ROWS THE SERVER CALLED VALID", () => {
+  const { validRowsFor, summarize } = require("../../util/bulkSalaryUpload");
+
+  const validation = {
+    rows: [
+      { employee_id: "42", monthly_gross: "25000", effective_from: "2026-04-01", valid: true },
+      { employee_id: "43", monthly_gross: "30000", effective_from: "2026-05-01", valid: false,
+        error_reason: "Opening salary Effective From must be 2026-04-01" },
+    ],
+  };
+
+  assert.deepStrictEqual(validRowsFor(validation), [
+    { employee_id: "42", monthly_gross: "25000", effective_from: "2026-04-01" },
+  ]);
+  assert.deepStrictEqual(summarize(validation), { total: 2, valid: 1, invalid: 1, created: 0 });
+
+  // And it sends the three CELLS, never the priced row it got back - the
+  // server revalidates and reprices from the same three inputs.
+  const [sent] = validRowsFor({
+    rows: [{ employee_id: "42", monthly_gross: "25000", effective_from: "2026-04-01", valid: true,
+      calculated: { components: { basic: 1 } }, type: "OPENING_SALARY" }],
+  });
+  assert.deepStrictEqual(Object.keys(sent), ["employee_id", "monthly_gross", "effective_from"]);
+});
+
+test("M5: THE BULK SCREEN IS BEHIND ALL THREE KEYS, AND add_salary IS ONE OF THEM", () => {
+  const { canOpenBulkSalaryUpload } = require("../../util/payrollAccess");
+
+  assert.equal(canOpenBulkSalaryUpload({ permissions: [], isAdmin: true }), true);
+  assert.equal(
+    canOpenBulkSalaryUpload({ permissions: ["view_employees", "view_salary", "add_salary"] }),
+    true
+  );
+  // Reading is not enough: the screen exists to create proposals.
+  assert.equal(canOpenBulkSalaryUpload({ permissions: ["view_employees", "view_salary"] }), false);
+  assert.equal(canOpenBulkSalaryUpload({ permissions: ["view_employees", "add_salary"] }), false);
+  assert.equal(canOpenBulkSalaryUpload({ permissions: ["view_salary", "add_salary"] }), false);
+  // And the approver's key opens nothing here.
+  assert.equal(
+    canOpenBulkSalaryUpload({ permissions: ["view_employees", "view_salary", "approve_salary_revision"] }),
+    false
+  );
+
+  assert.match(bulkPageCode, /canOpenBulkSalaryUpload\(actor\)/);
+});
+
+test("M5: THE BULK ENDPOINTS ARE GUARDED ON THE SAME THREE KEYS ON THE SERVER",
+  { skip: !backendAvailable }, () => {
+    const router = fs.readFileSync(BACKEND_ROUTER, "utf8");
+    for (const declared of ['"/salary/bulk/validate"', '"/salary/bulk/submit"']) {
+      const route = router.slice(router.indexOf(declared));
+      assert.match(
+        route.slice(0, 300),
+        /requireAll\(P\.VIEW_EMPLOYEES, P\.VIEW_SALARY, P\.ADD_SALARY\)/,
+        `${declared} must demand all three`
+      );
+    }
+  });

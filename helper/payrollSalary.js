@@ -3,13 +3,19 @@ import API from "../util/api";
 /**
  * M4 — Payroll's own salary helper.
  *
- * SEPARATE FROM `helper/employeeSalary.js` ON PURPOSE, and that separation is
- * the M3 rule rather than a filing preference. The Employee Master reads the
- * current approved salary and can do nothing else: one endpoint, one GET, no
- * write path anywhere near the profile. Adding a create or an approve call to
- * that helper would put the salary lifecycle one import away from a screen
- * that must never have it - so Payroll's calls live here, and the Employee
- * Master's helper stays exactly as read-only as it was.
+ * SEPARATE FROM `helper/employeeSalary.js` ON PURPOSE, and the line between
+ * them is the product rule rather than a filing preference. The Employee
+ * Master reads a salary and enters the FIRST one during onboarding - four
+ * calls, none of which can change a salary that already exists. Everything
+ * that REVISES pay lives here: amend, approve, reject and the bulk pair.
+ * Putting any of those into the profile's helper would make the Employee
+ * Master a second salary-revision screen one import at a time, and a second
+ * place to revise a salary is a second answer to what somebody is paid.
+ *
+ * M5 ADDS THE BULK PAIR. Validate and submit are a BATCH over the same
+ * lifecycle - same engine, same one-pending rule, same PENDING outcome - and
+ * they exist because a file of six hundred rows must not become twelve hundred
+ * requests from this file.
  *
  * THE ENDPOINTS ARE M2'S, PLUS THE ONE READ M4 ADDED. Nothing here is a new
  * concept: the lifecycle - propose, amend while pending, approve, reject - was
@@ -115,6 +121,38 @@ const payrollSalary = {
   approve: (salaryId) =>
     new Promise((resolve, reject) => {
       API.post(`/hr/salary/revision/${salaryId}/approve`, {})
+        .then((res) => resolve(res.data))
+        .catch(reject);
+    }),
+
+  /**
+   * POST /hr/salary/bulk/validate — a whole file, priced and checked.
+   *
+   * SAVES NOTHING. `rows` is the three template cells per row, as text. Every
+   * verdict comes back from the server: whether each row is an opening salary
+   * or a revision, what effective date the rule resolves to, the full breakup
+   * it would create, and - for a refused row - the one sentence saying why.
+   * The browser classifies nothing and prices nothing.
+   */
+  bulkValidate: (rows) =>
+    new Promise((resolve, reject) => {
+      API.post("/hr/salary/bulk/validate", { rows })
+        .then((res) => resolve(res.data))
+        .catch(reject);
+    }),
+
+  /**
+   * POST /hr/salary/bulk/submit — create the rows that passed, as PENDING.
+   *
+   * THE ROWS ARE SENT AGAIN AND CHECKED AGAIN. There is no validation token to
+   * hand back: a proposal can be raised for one of these employees between the
+   * preview and the click, so the server revalidates and a row that has since
+   * become invalid comes back as a per-row failure. Nothing is created on the
+   * strength of a check that has expired, and nothing is ever auto-approved.
+   */
+  bulkSubmit: (rows) =>
+    new Promise((resolve, reject) => {
+      API.post("/hr/salary/bulk/submit", { rows })
         .then((res) => resolve(res.data))
         .catch(reject);
     }),
