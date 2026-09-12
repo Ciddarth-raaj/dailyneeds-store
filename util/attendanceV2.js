@@ -529,6 +529,160 @@ function runFilterLabel(run) {
   return parts.length ? parts.join(" · ") : "All employees";
 }
 
+/* ============================================ hover explanations ==== */
+
+const n0 = (v) => {
+  const n = Number(v);
+  return Number.isFinite(n) ? Math.max(0, Math.trunc(n)) : 0;
+};
+
+/**
+ * Why the Short figure is what it is, one short line per step, in the order
+ * the engine settles it: the shift's NRM, what was punched, the break
+ * charged, worked, then the late/early-out grace and deduction rule. Pure,
+ * so the tooltip on the list and on the Day Detail say the same thing.
+ *
+ * @returns {string[]} empty when the day has no calculation to explain
+ */
+function shortExplanation(day) {
+  if (!day || !day.shift_snapshot) return [];
+  const snap = day.shift_snapshot;
+  const lines = [];
+  const punches = n0(day.punch_count);
+
+  lines.push(
+    `Shift ${clock(snap.in_time)}–${clock(snap.out_time)}: ${formatMinutes(snap.shift_span_minutes)} minus ${formatMinutes(
+      day.break_allowance_minutes
+    )} break = NRM ${formatMinutes(day.nrm_minutes)}`
+  );
+
+  if (punches === 0) {
+    lines.push("No punches: absent, nothing owed");
+    return lines;
+  }
+  if (punches % 2 === 1) {
+    lines.push("A punch is missing, so the day is not settled yet");
+    return lines;
+  }
+
+  lines.push(`Punched ${formatMinutes(day.span_minutes)} from first to last punch`);
+  if (punches === 2) {
+    lines.push(`Break charged ${formatMinutes(day.break_charged_minutes)} (the shift's allowance)`);
+  } else {
+    const gaps = n0(day.actual_gap_minutes);
+    const allowed = n0(day.break_allowance_minutes);
+    lines.push(
+      `Breaks between punches ${formatMinutes(gaps)} against ${formatMinutes(allowed)} allowed` +
+        (gaps > allowed ? ` – ${formatMinutes(gaps - allowed)} over` : "")
+    );
+  }
+  lines.push(`Worked ${formatMinutes(day.worked_minutes)}`);
+
+  const late = n0(day.late_minutes);
+  const early = n0(day.early_exit_minutes);
+  const forgiven = n0(day.grace_forgiven_minutes);
+  if (late > 0) {
+    lines.push(`Late ${formatMinutes(late)} (grace ${formatMinutes(snap.late_grace_minutes)})`);
+  }
+  if (early > 0) {
+    lines.push(`Left early ${formatMinutes(early)} (grace ${formatMinutes(snap.early_exit_grace_minutes)})`);
+  }
+  if (forgiven > 0) lines.push(`Grace forgave ${formatMinutes(forgiven)}`);
+
+  const lateCharged = n0(day.late_charged_minutes);
+  const earlyCharged = n0(day.early_exit_charged_minutes);
+  const ruleLate = n0(snap.late_deduction_interval_minutes) > 0 && n0(snap.late_deduct_minutes) > 0;
+  const ruleEarly =
+    n0(snap.early_exit_deduction_interval_minutes) > 0 && n0(snap.early_exit_deduct_minutes) > 0;
+  if (ruleLate && lateCharged > 0) {
+    lines.push(
+      `Deduction rule: ${formatMinutes(snap.late_deduct_minutes)} per ${formatMinutes(
+        snap.late_deduction_interval_minutes
+      )} late → ${formatMinutes(lateCharged)} charged`
+    );
+  }
+  if (ruleEarly && earlyCharged > 0) {
+    lines.push(
+      `Deduction rule: ${formatMinutes(snap.early_exit_deduct_minutes)} per ${formatMinutes(
+        snap.early_exit_deduction_interval_minutes
+      )} early → ${formatMinutes(earlyCharged)} charged`
+    );
+  }
+
+  const short = n0(day.shortage_minutes);
+  if (short === 0) {
+    lines.push(n0(day.worked_minutes) >= n0(day.nrm_minutes) ? "Worked the full NRM: nothing short" : "Nothing short after grace");
+  } else {
+    lines.push(`Short ${formatMinutes(short)}`);
+  }
+  return lines;
+}
+
+/**
+ * Why the OT figure is what it is: worked against NRM, pre/post-shift time,
+ * the offsets, the shift's minimum, rounding and cap, then the candidate.
+ *
+ * @returns {string[]} empty when the day has no calculation to explain
+ */
+function otExplanation(day) {
+  if (!day || !day.shift_snapshot) return [];
+  const snap = day.shift_snapshot;
+  const lines = [];
+  const punches = n0(day.punch_count);
+
+  if (punches === 0) return ["No punches: no OT"];
+  if (punches % 2 === 1) return ["A punch is missing, so OT is not settled yet"];
+
+  const worked = n0(day.worked_minutes);
+  const nrm = n0(day.nrm_minutes);
+  if (worked > nrm) {
+    lines.push(`Worked ${formatMinutes(worked)} against NRM ${formatMinutes(nrm)}: ${formatMinutes(worked - nrm)} over`);
+  } else {
+    lines.push(`Worked ${formatMinutes(worked)} against NRM ${formatMinutes(nrm)}: nothing over`);
+  }
+
+  const pre = n0(day.pre_shift_minutes);
+  const post = n0(day.post_shift_minutes);
+  if (pre > 0) {
+    lines.push(
+      `Before shift in-time ${formatMinutes(pre)}` +
+        (snap.pre_shift_overtime_allowed ? "" : " (pre-shift OT not allowed on this shift)")
+    );
+  }
+  if (post > 0) lines.push(`After shift out-time ${formatMinutes(post)}`);
+  if (punches === 2 && worked > nrm && post < worked - nrm) {
+    lines.push("Two punches only: OT counts time after out-time, not an unused break");
+  }
+
+  if (!snap.overtime_allowed) {
+    lines.push("OT not allowed on this shift");
+  } else {
+    const raw = n0(day.raw_ot_minutes);
+    const offset = n0(day.ot_offset_minutes);
+    if (offset > 0) lines.push(`Late / early-out offset –${formatMinutes(offset)}`);
+    const min = n0(snap.overtime_minimum_minutes);
+    if (raw > 0 && min > 0) {
+      lines.push(
+        raw - offset < min
+          ? `Below the ${formatMinutes(min)} minimum: no OT`
+          : `Minimum OT ${formatMinutes(min)} met`
+      );
+    }
+    const method = String(snap.overtime_rounding_method || "NONE").toUpperCase();
+    const interval = n0(snap.overtime_rounding_interval_minutes);
+    if (method !== "NONE" && interval > 1) lines.push(`Rounded ${method.toLowerCase()} to ${formatMinutes(interval)}`);
+    if (snap.maximum_ot_minutes_per_day !== null && snap.maximum_ot_minutes_per_day !== undefined) {
+      lines.push(`Daily cap ${formatMinutes(snap.maximum_ot_minutes_per_day)}`);
+    }
+  }
+
+  const candidate = n0(day.candidate_ot_minutes);
+  lines.push(candidate > 0 ? `OT ${formatMinutes(candidate)}` : "OT 0m");
+  const approved = n0(day.approved_ot_minutes);
+  if (approved > 0) lines.push(`Approved ${formatMinutes(approved)}`);
+  return lines;
+}
+
 module.exports = {
   STATUS,
   roleLabel,
@@ -571,4 +725,6 @@ module.exports = {
   shiftLabel,
   apiMessage,
   isOk,
+  shortExplanation,
+  otExplanation,
 };

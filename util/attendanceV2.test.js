@@ -280,3 +280,124 @@ test("a day without excluded punches renders exactly as before", () => {
   assert.deepEqual(dayPunchRows(d).map((r) => [r.position, r.time, r.excluded]), positionalPunches(d).map((p) => [p.position, p.time, false]));
   assert.deepEqual(dayPunchRows({ attendance_date: "2026-09-14" }), []);
 });
+
+/* ======================================= hover explanations ==== */
+
+const { shortExplanation, otExplanation } = require("./attendanceV2");
+
+const snap = (o = {}) => ({
+  in_time: "09:30:00",
+  out_time: "18:30:00",
+  shift_span_minutes: 540,
+  late_grace_minutes: 10,
+  early_exit_grace_minutes: 10,
+  late_deduction_interval_minutes: 1,
+  late_deduct_minutes: 1,
+  early_exit_deduction_interval_minutes: 1,
+  early_exit_deduct_minutes: 1,
+  overtime_allowed: true,
+  overtime_minimum_minutes: 20,
+  overtime_rounding_method: "UP",
+  overtime_rounding_interval_minutes: 1,
+  maximum_ot_minutes_per_day: null,
+  pre_shift_overtime_allowed: false,
+  ...o,
+});
+
+test("Short hover explains the 5 Sep case: late inside grace, nothing short", () => {
+  const lines = shortExplanation(
+    day({
+      shift_snapshot: snap(),
+      punch_count: 2,
+      nrm_minutes: 510,
+      span_minutes: 538,
+      break_allowance_minutes: 30,
+      break_charged_minutes: 30,
+      worked_minutes: 508,
+      late_minutes: 2,
+      early_exit_minutes: 0,
+      grace_forgiven_minutes: 2,
+      late_charged_minutes: 0,
+      shortage_minutes: 0,
+    })
+  );
+  assert.deepEqual(lines, [
+    "Shift 09:30–18:30: 9h minus 30m break = NRM 8h 30m",
+    "Punched 8h 58m from first to last punch",
+    "Break charged 30m (the shift's allowance)",
+    "Worked 8h 28m",
+    "Late 2m (grace 10m)",
+    "Grace forgave 2m",
+    "Nothing short after grace",
+  ]);
+});
+
+test("Short hover names a long break on a four-punch day", () => {
+  const lines = shortExplanation(
+    day({
+      shift_snapshot: snap(),
+      punch_count: 4,
+      nrm_minutes: 510,
+      span_minutes: 555,
+      break_allowance_minutes: 30,
+      actual_gap_minutes: 52,
+      break_charged_minutes: 52,
+      worked_minutes: 503,
+      late_minutes: 0,
+      early_exit_minutes: 0,
+      grace_forgiven_minutes: 0,
+      shortage_minutes: 7,
+    })
+  );
+  assert.ok(lines.includes("Breaks between punches 52m against 30m allowed – 22m over"));
+  assert.equal(lines[lines.length - 1], "Short 7m");
+});
+
+test("Short hover shows the deduction rule only when the shift configures one", () => {
+  const lines = shortExplanation(
+    day({
+      shift_snapshot: snap({ late_deduction_interval_minutes: 15, late_deduct_minutes: 30 }),
+      punch_count: 2,
+      nrm_minutes: 510, span_minutes: 515, break_allowance_minutes: 30, break_charged_minutes: 30,
+      worked_minutes: 485, late_minutes: 25, grace_forgiven_minutes: 10, late_charged_minutes: 30, shortage_minutes: 30,
+    })
+  );
+  assert.ok(lines.includes("Deduction rule: 30m per 15m late → 30m charged"));
+});
+
+test("Short and OT hovers say when a punch is missing or the day is absent", () => {
+  assert.deepEqual(shortExplanation(day({ shift_snapshot: snap(), punch_count: 0, nrm_minutes: 510, break_allowance_minutes: 30 }))[1], "No punches: absent, nothing owed");
+  assert.deepEqual(otExplanation(day({ shift_snapshot: snap(), punch_count: 3 })), ["A punch is missing, so OT is not settled yet"]);
+  assert.deepEqual(shortExplanation(null), []);
+  assert.deepEqual(otExplanation({ punch_count: 2 }), []);
+});
+
+test("OT hover explains the 2 Sep case: 39 minutes after out-time, minimum met", () => {
+  const lines = otExplanation(
+    day({
+      shift_snapshot: snap(),
+      punch_count: 2,
+      nrm_minutes: 510, worked_minutes: 549,
+      pre_shift_minutes: 0, post_shift_minutes: 39,
+      raw_ot_minutes: 39, ot_offset_minutes: 0, candidate_ot_minutes: 39, approved_ot_minutes: 0,
+    })
+  );
+  assert.deepEqual(lines, [
+    "Worked 9h 9m against NRM 8h 30m: 39m over",
+    "After shift out-time 39m",
+    "Minimum OT 20m met",
+    "OT 39m",
+  ]);
+});
+
+test("OT hover explains a day under the minimum, and a shift with OT off", () => {
+  const under = otExplanation(
+    day({ shift_snapshot: snap(), punch_count: 2, nrm_minutes: 510, worked_minutes: 520, post_shift_minutes: 10, raw_ot_minutes: 10, candidate_ot_minutes: 0 })
+  );
+  assert.ok(under.includes("Below the 20m minimum: no OT"));
+  assert.equal(under[under.length - 1], "OT 0m");
+  const off = otExplanation(
+    day({ shift_snapshot: snap({ overtime_allowed: false }), punch_count: 2, nrm_minutes: 510, worked_minutes: 600, post_shift_minutes: 60, candidate_ot_minutes: 0 })
+  );
+  assert.ok(off.includes("OT not allowed on this shift"));
+});
