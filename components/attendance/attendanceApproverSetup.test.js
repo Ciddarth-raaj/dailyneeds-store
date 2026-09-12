@@ -74,13 +74,18 @@ test("6. Final Approver is required; 7. First and Second are optional", () => {
   assert.match(picker, /\{isRequired \? "Select…" : "— None —"\}/);
 });
 
-test("8. self-approval is refused next to the field, for one employee and for a bulk selection", () => {
+test("8. self-approval is refused next to the field for one employee, warned (not blocked) for a bulk selection, and the three approvers must be distinct", () => {
   const one = validateApproverForm({ final_approver_employee_id: 1 }, [1]);
   assert.strictEqual(one.errors.final_approver_employee_id, "An employee cannot be their own approver");
+  // Bulk: the Store Manager (2) is selected AND is everybody else's First Level.
   const many = validateApproverForm({ first_level_approver_employee_id: 2, final_approver_employee_id: 33 }, [1, 2, 3]);
-  assert.match(many.errors.first_level_approver_employee_id, /Employee 2 is among the selected employees/);
+  assert.strictEqual(many.ok, true, "the bulk save goes ahead; the server skips employee 2's own row");
+  assert.match(many.warnings[0], /Employee 2 is among the selected employees; they will be skipped/);
+  const dup = validateApproverForm({ first_level_approver_employee_id: 11, second_level_approver_employee_id: 11, final_approver_employee_id: 33 }, [1]);
+  assert.match(dup.errors.second_level_approver_employee_id, /must be different people/);
   assert.match(setModal, /error=\{errors\[key\] \|\| null\}/);
-  assert.match(setModal, /excludeIds=\{employeeIds\}/);
+  assert.match(setModal, /excludeIds=\{single \? employeeIds : \[\]\}/, "only a single edit hides the employee from the pickers");
+  assert.match(setModal, /warnings\.map\(\(w\) =>/);
   assert.match(picker, /<FormErrorMessage fontSize="xs">\{error\}<\/FormErrorMessage>/);
 });
 

@@ -28,16 +28,24 @@ const toId = (v) => {
 
 /**
  * Field-level errors for the Set Approvers form, for the employees it is
- * about. `employeeIds` is one id for a single edit and many for a bulk set;
- * the self-approval check names the employee(s) it would affect so a bulk
- * user can untick them.
+ * about.
  *
- * @returns {{ok: boolean, errors: {[fieldKey]: string}, body: object|null}}
+ * `employeeIds` is one id for a single edit and many for a bulk set. For a
+ * single edit, choosing the employee as their own approver is an ERROR. For
+ * a bulk set it is a WARNING instead: the Store Manager may well be among
+ * the selected staff and still be everybody else's First Level Approver,
+ * so the save goes ahead and the server refuses only that one employee's
+ * row and reports it by name. The three non-blank approvers must be
+ * different people, which is an error in both modes.
+ *
+ * @returns {{ok: boolean, errors: {[fieldKey]: string}, warnings: string[], body: object|null}}
  */
 function validateApproverForm(values, employeeIds = []) {
   const errors = {};
+  const warnings = [];
   const ids = (employeeIds || []).map(Number);
   const body = {};
+  const seen = new Map();
   LEVELS.forEach(({ key, label, required }) => {
     const id = toId(values ? values[key] : null);
     if (Number.isNaN(id)) {
@@ -49,14 +57,16 @@ function validateApproverForm(values, employeeIds = []) {
       if (required) errors[key] = "Final Approver is required";
       return;
     }
+    if (seen.has(id)) {
+      errors[key] = `Already chosen as ${seen.get(id)} - the three approvers must be different people`;
+    } else seen.set(id, label);
     if (ids.includes(id)) {
-      errors[key] = ids.length === 1
-        ? "An employee cannot be their own approver"
-        : `Employee ${id} is among the selected employees and cannot be their own approver`;
+      if (ids.length === 1) errors[key] = "An employee cannot be their own approver";
+      else warnings.push(`Employee ${id} is among the selected employees; they will be skipped as their own ${label} and reported.`);
     }
   });
   const ok = Object.keys(errors).length === 0;
-  return { ok, errors, body: ok ? body : null };
+  return { ok, errors, warnings, body: ok ? body : null };
 }
 
 /** Errors for the Replace Approver form. */

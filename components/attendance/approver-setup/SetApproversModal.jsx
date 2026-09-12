@@ -11,8 +11,10 @@ import { LEVELS, validateApproverForm } from "../../../util/attendanceApproverSe
  * Approver. Final is required; the other two may be left blank and stay
  * visible as blanks. `employees` are the SELECTED employees (one for an
  * edit, many for a bulk set) so the self-approval rule can be checked here
- * before the server checks it again; the selected employees are also kept
- * out of the pickers.
+ * before the server checks it again. On a SINGLE edit the employee is kept
+ * out of the pickers; on a BULK set they are not, because a selected Store
+ * Manager may still be First Level Approver for the rest of the selection -
+ * the server skips that one employee's own row and reports it.
  *
  * `onSave(body)` resolves with the server's answer; a bulk answer with
  * failures is shown in full here rather than summarised as success.
@@ -20,6 +22,7 @@ import { LEVELS, validateApproverForm } from "../../../util/attendanceApproverSe
 export default function SetApproversModal({ isOpen, onClose, employees, initial, approverOptions, onSave, mode = "bulk" }) {
   const [values, setValues] = useState({});
   const [errors, setErrors] = useState({});
+  const [warnings, setWarnings] = useState([]);
   const [saving, setSaving] = useState(false);
   const [result, setResult] = useState(null);
   const [serverError, setServerError] = useState(null);
@@ -32,6 +35,7 @@ export default function SetApproversModal({ isOpen, onClose, employees, initial,
       final_approver_employee_id: initial ? initial.final_approver_employee_id : null,
     });
     setErrors({});
+    setWarnings([]);
     setResult(null);
     setServerError(null);
   }, [isOpen, initial]);
@@ -42,6 +46,7 @@ export default function SetApproversModal({ isOpen, onClose, employees, initial,
   const save = async () => {
     const verdict = validateApproverForm(values, employeeIds);
     setErrors(verdict.errors);
+    setWarnings(verdict.warnings || []);
     if (!verdict.ok) return;
     setSaving(true);
     setServerError(null);
@@ -99,13 +104,17 @@ export default function SetApproversModal({ isOpen, onClose, employees, initial,
                 value={values[key]}
                 onChange={(id) => setValues((v) => ({ ...v, [key]: id }))}
                 employees={approverOptions}
-                excludeIds={employeeIds}
+                excludeIds={single ? employeeIds : []}
                 error={errors[key] || null}
                 helper={required ? "The final authority. Only this approval fully approves a request." : "Optional. Leave blank to skip this level."}
                 isDisabled={saving}
               />
             ))}
           </SimpleGrid>
+        ) : null}
+
+        {!done && warnings.length > 0 ? (
+          <Alert status="warning" fontSize="xs" borderRadius="md" alignItems="flex-start"><AlertIcon /><Stack spacing={0}>{warnings.map((w) => <Text key={w}>{w}</Text>)}</Stack></Alert>
         ) : null}
 
         {serverError ? <Alert status="error" fontSize="sm" borderRadius="md"><AlertIcon />{serverError}</Alert> : null}
