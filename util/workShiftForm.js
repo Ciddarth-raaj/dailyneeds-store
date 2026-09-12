@@ -235,12 +235,14 @@ function newWorkShiftForm() {
     overtime_rounding_method: "NONE",
     overtime_rounding_interval_minutes: "0",
     overtime_minimum_threshold_only: false,
+    overtime_minimum_excluded: false,
     maximum_ot_minutes_per_day: "",
 
     pre_shift_overtime_allowed: false,
     pre_shift_overtime_minimum_minutes: "0",
     pre_shift_overtime_rounding_method: "NONE",
     pre_shift_overtime_rounding_interval_minutes: "0",
+    pre_shift_overtime_minimum_excluded: false,
 
     missed_clock_in_rule_enabled: false,
     missed_clock_in_treatment: "HALF_DAY",
@@ -314,6 +316,7 @@ function fromApiWorkShift(data) {
     overtime_rounding_method: toText(data.overtime_rounding_method) || "NONE",
     overtime_rounding_interval_minutes: toText(data.overtime_rounding_interval_minutes),
     overtime_minimum_threshold_only: toBool(data.overtime_minimum_threshold_only),
+    overtime_minimum_excluded: toBool(data.overtime_minimum_excluded),
     // NULL is "no cap" and must stay an empty box, not a 0 that would cap the
     // day at nothing the moment somebody saves the form untouched.
     maximum_ot_minutes_per_day: toText(data.maximum_ot_minutes_per_day),
@@ -325,6 +328,7 @@ function fromApiWorkShift(data) {
     pre_shift_overtime_rounding_interval_minutes: toText(
       data.pre_shift_overtime_rounding_interval_minutes
     ),
+    pre_shift_overtime_minimum_excluded: toBool(data.pre_shift_overtime_minimum_excluded),
 
     missed_clock_in_rule_enabled: toBool(data.missed_clock_in_rule_enabled),
     missed_clock_in_treatment: toText(data.missed_clock_in_treatment) || "HALF_DAY",
@@ -374,6 +378,7 @@ function toConfigPayload(form) {
     overtime_rounding_method: form.overtime_rounding_method || "NONE",
     overtime_rounding_interval_minutes: minutes(form.overtime_rounding_interval_minutes),
     overtime_minimum_threshold_only: flag(form.overtime_minimum_threshold_only),
+    overtime_minimum_excluded: flag(form.overtime_minimum_excluded),
     maximum_ot_minutes_per_day: nullableMinutes(form.maximum_ot_minutes_per_day),
 
     pre_shift_overtime_allowed: flag(form.pre_shift_overtime_allowed),
@@ -382,6 +387,7 @@ function toConfigPayload(form) {
     pre_shift_overtime_rounding_interval_minutes: minutes(
       form.pre_shift_overtime_rounding_interval_minutes
     ),
+    pre_shift_overtime_minimum_excluded: flag(form.pre_shift_overtime_minimum_excluded),
 
     missed_clock_in_rule_enabled: flag(form.missed_clock_in_rule_enabled),
     missed_clock_in_treatment: form.missed_clock_in_treatment || "HALF_DAY",

@@ -160,12 +160,20 @@ function LatenessOvertimeTab({ form, errors = {}, onChange }) {
             />
           </FieldGrid>
           <ToggleField
+            label="Exclude Minimum OT"
+            name="overtime_minimum_excluded"
+            value={form.overtime_minimum_excluded}
+            onChange={onChange}
+            isDisabled={otOff}
+            help="The minimum is not paid: only the minutes beyond it count. 39 minutes on a 20-minute minimum pays 19; under 20 pays nothing."
+          />
+          <ToggleField
             label="Minimum OT Threshold Only"
             name="overtime_minimum_threshold_only"
             value={form.overtime_minimum_threshold_only}
             onChange={onChange}
-            isDisabled={otOff}
-            help="The minimum decides whether OT qualifies, rather than acting as a floor on the amount paid."
+            isDisabled={otOff || Boolean(form.overtime_minimum_excluded)}
+            help="With Exclude Minimum OT off: the minimum decides whether OT qualifies, rather than acting as a floor on the amount paid."
           />
         </Stack>
       </FieldGroup>
@@ -209,6 +217,14 @@ function LatenessOvertimeTab({ form, errors = {}, onChange }) {
               isDisabled={preOtOff}
             />
           </FieldGrid>
+          <ToggleField
+            label="Exclude Minimum OT"
+            name="pre_shift_overtime_minimum_excluded"
+            value={form.pre_shift_overtime_minimum_excluded}
+            onChange={onChange}
+            isDisabled={preOtOff}
+            help="Only the early minutes beyond the minimum count: 25 minutes early on a 10-minute minimum pays 15."
+          />
         </Stack>
       </FieldGroup>
     </Stack>
