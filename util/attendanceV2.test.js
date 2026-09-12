@@ -365,6 +365,20 @@ test("Short hover shows the deduction rule only when the shift configures one", 
   assert.ok(lines.includes("Deduction rule: 30m per 15m late → 30m charged"));
 });
 
+test("Short hover hides the one-for-one 'rule' (1m per 1m) as it is just the shortage", () => {
+  const lines = shortExplanation(
+    day({
+      shift_snapshot: snap(),
+      punch_count: 2,
+      nrm_minutes: 510, span_minutes: 247, break_allowance_minutes: 30, break_charged_minutes: 0,
+      worked_minutes: 247, late_minutes: 27, early_exit_minutes: 266, grace_forgiven_minutes: 10,
+      late_charged_minutes: 17, early_exit_charged_minutes: 236, shortage_minutes: 253,
+    })
+  );
+  assert.ok(!lines.some((l) => /Deduction rule/.test(l)), lines.join(" | "));
+  assert.equal(lines[lines.length - 1], "Short 4h 13m");
+});
+
 test("Short and OT hovers say when a punch is missing or the day is absent", () => {
   assert.deepEqual(shortExplanation(day({ shift_snapshot: snap(), punch_count: 0, nrm_minutes: 510, break_allowance_minutes: 30 }))[1], "No punches: absent, nothing owed");
   assert.deepEqual(otExplanation(day({ shift_snapshot: snap(), punch_count: 3 })), ["A punch is missing, so OT is not settled yet"]);
