@@ -102,6 +102,11 @@ test("no other consumer was switched to the directory", () => {
   assert.deepEqual(optedIn.sort(), [
     "components/DateOutletPicker/FromToDateOutletPicker.jsx",
     "components/DateOutletPicker/index.jsx",
+    // M4 Payroll: the Outlet filter on the employee picker (Salary Revision &
+    // History) and on the approval queue (Salary Approval). An id and a name
+    // each, for screens reached on `view_salary` / `approve_salary_revision`
+    // and never on `view_stores` - the same reason as the HR screens below.
+    "components/payroll/EmployeePicker.jsx",
     // Stock Checker: all four callers. Listed in sorted position rather than
     // grouped together, because the assertion compares a sorted array.
     //
@@ -129,6 +134,7 @@ test("no other consumer was switched to the directory", () => {
     "pages/hr/employees/[id].jsx",
     "pages/hr/employees/index.jsx",
     "pages/hr/employees/new.jsx",
+    "pages/payroll/salary-approval.jsx",
     "pages/stock-checker/[mode].jsx",
     "pages/stock-checker/assigned-products.jsx",
     "pages/stock-checker/index.jsx",

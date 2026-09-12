@@ -54,20 +54,50 @@ export const PERMISSIONS = {
     // sensitive-edit pair, which stays out of this matrix on purpose.
     edit_payment_details: "Edit Payment Details (Cash / Bank)",
     edit_statutory_details: "Edit Statutory Details (PAN / PF / ESI)",
-    // M3. Seeing the Payroll section's figures on the employee profile - the
-    // current approved salary, its breakup, the statutory contributions and
-    // the CTC. READ ONLY: this key opens no editor anywhere, and the salary
-    // lifecycle keys M2 created (`add_salary`, `edit_salary`,
-    // `approve_salary_revision`, `manual_salary_component_override`) are
-    // deliberately NOT listed - the screens they gate are later modules, and a
-    // key that can be granted before its screen exists is a key that grants
-    // nothing and is remembered as if it did.
+    // M3 / M4. Seeing salary figures: the Payroll section on the employee
+    // profile (read-only, M3) and the Payroll screens where salary is entered
+    // and decided (M4).
     //
     // It is listed here for the same reason `employee_edit` was: the backend
     // has checked it since M2, and this file is what the Permission Matrix
     // renders, so without an entry the permission cannot be granted at all and
     // the section would be visible to administrators alone.
-    view_salary: "View Salary (Employee Master, read-only)",
+    //
+    // THE FOUR ACTION KEYS BESIDE IT ARE M4'S, AND THEY ARE LISTED NOW BECAUSE
+    // THEIR SCREENS EXIST. M3 deliberately left them off: a key that can be
+    // granted before its screen exists grants nothing while being remembered
+    // as if it did. Salary Revision & History and Salary Approval are those
+    // screens.
+    //
+    // FOUR KEYS AND NOT ONE, because they are four decisions that are given to
+    // four different sets of people:
+    //
+    //   add_salary                        propose a salary or a revision
+    //   edit_salary                       amend a proposal that is still
+    //                                     PENDING. Approved and rejected
+    //                                     history is immutable and this key
+    //                                     does not change that.
+    //   manual_salary_component_override  depart from the automatic breakup.
+    //                                     Moving Basic moves the PF wage, so
+    //                                     it is a statutory change and goes to
+    //                                     far fewer people than entering a
+    //                                     salary does.
+    //   approve_salary_revision           agree to it - the money decision,
+    //                                     and also the right to reject.
+    //
+    // ADD AND APPROVE ARE SEPARATE ON PURPOSE, and granting both to one
+    // designation is a decision somebody should have to make deliberately on
+    // this screen. Nothing is ever created APPROVED, including by an
+    // administrator, and the server refuses an approval of a proposal the same
+    // person raised.
+    //
+    // `process_payroll` and `hr_reports` stay OFF this screen: monthly payroll
+    // and payroll reporting are not built, and M4 requires neither.
+    view_salary: "View Salary (Employee Master and Payroll screens)",
+    add_salary: "Add Salary (propose an opening salary or revision)",
+    edit_salary: "Edit Salary (amend a pending proposal)",
+    manual_salary_component_override: "Manual Salary Component Override",
+    approve_salary_revision: "Approve / Reject Salary Revision",
     view_department: "View Departments",
     view_designation: "View Designation",
     // view_shift: "View Shifts",

@@ -243,9 +243,13 @@ test("THE SECTION IS READ-ONLY: NO EDIT, NO SAVE, NO REVISION, NO APPROVAL", () 
   assert.ok(!/<Button/.test(sectionCode), "the card has no button at all");
 });
 
-test("NO M4 / M5 SCREEN IS INTRODUCED ANYWHERE", () => {
-  // Salary Revision & History, Salary Approval, Bulk Salary Upload and monthly
-  // payroll are later modules. M3 is one card and one read.
+test("THE M3 SURFACE STAYS OUT OF M4 ENTIRELY", () => {
+  // M4 built Salary Revision & History and Salary Approval. It built them
+  // SOMEWHERE ELSE - under pages/payroll, on helper/payrollSalary.js - and
+  // this assertion is what keeps the Employee Master's five files from
+  // acquiring a salary workflow by degrees. The profile shows the current
+  // approved figure and can do nothing else; a second place to type a salary
+  // is a second salary.
   const surface = [
     "components/hr/profile/PayrollSection.jsx",
     "customHooks/useCurrentSalary.js",
@@ -258,18 +262,56 @@ test("NO M4 / M5 SCREEN IS INTRODUCED ANYWHERE", () => {
     for (const forbidden of [
       "salary_history", "SalaryHistory", "SalaryRevision", "SalaryApproval",
       "BulkSalary", "payroll_run", "payslip", "net_pay", "FileUpload",
+      // M4's own modules are off limits to these files too: importing the
+      // payroll helper here would be the first half of building the workflow
+      // on the profile by accident.
+      "payrollSalary", "salaryRevisionForm", "salaryApprovalQueue",
     ]) {
       assert.ok(
         !new RegExp(forbidden, "i").test(code),
-        `${file} must not reach into ${forbidden} - that is a later module`
+        `${file} must not reach into ${forbidden} - that belongs to Payroll`
       );
     }
   }
 
-  // No new page was added under Payroll either.
+  // No salary screen was added under the Employee Master's own routes.
   const pages = path.join(ROOT, "pages");
-  assert.ok(!fs.existsSync(path.join(pages, "hr", "salary")), "no salary screens in M3");
-  assert.ok(!fs.existsSync(path.join(pages, "payroll")), "no payroll section in M3");
+  assert.ok(!fs.existsSync(path.join(pages, "hr", "salary")), "salary is not an Employee Master screen");
+});
+
+test("M4's SCREENS EXIST, AND THERE IS STILL NO M5", () => {
+  // The other half of the rule above: Payroll is a real section now, with
+  // exactly two screens.
+  const payroll = path.join(ROOT, "pages", "payroll");
+  assert.ok(fs.existsSync(payroll), "M4 builds the Payroll screens");
+  assert.deepStrictEqual(fs.readdirSync(payroll).sort(), [
+    "salary-approval.jsx",
+    "salary-revision.jsx",
+  ]);
+
+  // Bulk Salary Upload, payroll runs, payslips, attendance calculation and
+  // bank payment are M5 and later. Not started, not stubbed, not linked.
+  const m4Files = [
+    "pages/payroll/salary-revision.jsx",
+    "pages/payroll/salary-approval.jsx",
+    "helper/payrollSalary.js",
+    "util/salaryRevisionForm.js",
+    "util/salaryApprovalQueue.js",
+    "util/salaryHistoryView.js",
+    "util/payrollAccess.js",
+  ];
+  for (const file of m4Files) {
+    const code = codeOf(read(file));
+    for (const forbidden of [
+      "BulkSalary", "bulk_salary", "payroll_run", "payslip", "net_pay",
+      "process_payroll", "hr_reports", "bank_payment", "FileUpload",
+    ]) {
+      assert.ok(
+        !new RegExp(forbidden, "i").test(code),
+        `${file} must not reach into ${forbidden} - that is M5 or later`
+      );
+    }
+  }
 });
 
 test("THE LEGACY new_employee.salary COLUMN IS NOT READ ANYWHERE", () => {
@@ -379,24 +421,42 @@ test("the profile still renders the eight sections, with Payroll seventh", () =>
 
 /* ============================================ the permission is grantable = */
 
-test("view_salary is offered on the Permission Matrix, and the write keys are not", () => {
-  // The backend has checked `view_salary` since M2, but `constants/permissions.js`
-  // is what the matrix renders - so without an entry the section would be
-  // visible to administrators and to nobody else.
+test("M4: the five salary keys are all grantable on the Permission Matrix", () => {
+  // The backend has checked these since M2, but `constants/permissions.js` is
+  // what the matrix renders - so without an entry a permission cannot be
+  // granted at all and its screen is visible to administrators and to nobody
+  // else.
+  //
+  // M3 deliberately listed only `view_salary`, because the four action keys
+  // gated screens that did not exist and a key granted before its screen is a
+  // key that grants nothing while being remembered as if it did. M4 is those
+  // screens, so the keys are offered now.
   const permissions = read("constants/permissions.js");
   const strip = permissions.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
   assert.match(strip, /view_salary:\s*"View Salary/);
 
-  // The salary LIFECYCLE keys stay off the screen: their screens are later
-  // modules, and a key granted before its screen exists grants nothing while
-  // being remembered as if it did.
-  for (const later of [
+  for (const key of [
     "add_salary", "edit_salary", "approve_salary_revision",
     "manual_salary_component_override",
   ]) {
     assert.ok(
+      new RegExp(`\\b${key}\\s*:`).test(strip),
+      `${key} gates an M4 screen and must be grantable`
+    );
+  }
+
+  // ADD AND APPROVE ARE STILL TWO ENTRIES. Collapsing them into one label
+  // would let somebody grant both without meaning to, which is the four-eyes
+  // rule given away by a checkbox.
+  assert.ok(!/add_salary:[^\n]*[Aa]pprove/.test(strip), "adding is not approving");
+
+  // AND THE MONTHLY-PAYROLL KEYS STAY OFF IT. `process_payroll` and
+  // `hr_reports` gate nothing that exists; M4 requires neither, and offering
+  // them would be the same mistake M3 avoided with these four.
+  for (const later of ["process_payroll", "hr_reports", "view_payroll"]) {
+    assert.ok(
       !new RegExp(`\\b${later}\\s*:`).test(strip),
-      `${later} belongs to a later module and must not be offered yet`
+      `${later} gates no screen yet and must not be offered`
     );
   }
 });

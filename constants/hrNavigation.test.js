@@ -10,7 +10,7 @@
  *   HR is a module beside WMS and GST, not a section inside another module
  *   Employees, Department and Designation live in it
  *   the old top-level Employees section is GONE, not merely renamed
- *   Attendance is a section of HR; Payroll is not declared yet and will be too
+ *   Attendance and (M4) Payroll are sections of HR, never modules of their own
  *   /employee still resolves
  */
 const test = require("node:test");
@@ -31,6 +31,22 @@ const treeNamed = (name) => {
   assert.notStrictEqual(start, -1, `${name} must exist`);
   const end = code.indexOf("\n};", start);
   return code.slice(start, end);
+};
+
+/**
+ * ONE SECTION of a tree - `attendance: {` up to the start of the next
+ * top-level section, or the end of the tree.
+ *
+ * Slicing to the end of the tree used to be the same thing, because Attendance
+ * was last. M4 puts Payroll after it, so a slice that ran to the end would
+ * read Payroll's entries as Attendance's and quietly assert the wrong thing.
+ */
+const sectionOf = (tree, name) => {
+  const start = tree.indexOf(`${name}: {`);
+  assert.notStrictEqual(start, -1, `${name} must be a section`);
+  const rest = tree.slice(start + name.length + 4);
+  const next = rest.search(/^ {2}\w+:\s*\{/m);
+  return next === -1 ? tree.slice(start) : tree.slice(start, start + name.length + 4 + next);
 };
 
 /* ================================================= HR is a real module == */
@@ -55,6 +71,9 @@ test("Employees, Department and Designation are all inside HR", () => {
     "/designation",
     "/employee-shift-assignment",
     "/hr/employees",
+    // M4: Payroll, a section of HR like the three above it.
+    "/payroll/salary-approval",
+    "/payroll/salary-revision",
     "/work-shift",
   ]);
 });
@@ -132,29 +151,33 @@ test("Department and Designation moved rather than being duplicated", () => {
 });
 
 /* ============================ HR is the one people module: Attendance in it = */
-test("ATTENDANCE IS A SECTION OF HR, AND THERE IS NO ATTENDANCE MODULE ON THE RAIL", () => {
+test("ATTENDANCE AND PAYROLL ARE SECTIONS OF HR, NOT MODULES ON THE RAIL", () => {
   // HR is the single top-level module for employee, attendance and payroll
-  // screens. Attendance is a section inside it, built exactly like Employee
-  // Master and Shifts; Payroll is still not declared, because an empty
-  // section is a promise the navigation cannot keep, and when it arrives it
-  // will be a section here too, never a module of its own.
+  // screens, and each of them is a section inside it built exactly like
+  // Employee Master: a title, an icon and a subMenu.
   const hrMenu = treeNamed("HR_MENU");
   assert.match(hrMenu, /\battendance:\s*\{/, "HR must contain an `attendance` section");
-  const att = hrMenu.slice(hrMenu.indexOf("attendance: {"));
+  const att = sectionOf(hrMenu, "attendance");
   assert.match(att, /title:\s*"Attendance"/);
   assert.match(att, /subMenu:\s*\{/, "same section-with-subMenu shape as Employee Master and Shifts");
-  for (const notYet of ["payroll", "Payroll"]) {
-    assert.ok(!hrMenu.includes(notYet), `HR must not contain ${notYet}`);
-  }
+
+  // M4. Payroll waited for screens rather than being declared empty, and it
+  // arrived HERE - a section of HR - exactly as C3 said it would.
+  assert.match(hrMenu, /\bpayroll:\s*\{/, "HR must contain a `payroll` section");
+  const pay = sectionOf(hrMenu, "payroll");
+  assert.match(pay, /title:\s*"Payroll"/);
+  assert.match(pay, /subMenu:\s*\{/);
+
   const modules = code.slice(code.indexOf("export const MENU_MODULES"));
   assert.ok(!/\battendance:\s*\{/.test(modules), "Attendance is not a module of its own any more");
   assert.ok(!/\bpayroll:\s*\{/.test(modules), "Payroll is never a module of its own");
   assert.strictEqual(code.indexOf("const ATTENDANCE_MENU"), -1, "no separate Attendance menu tree");
+  assert.strictEqual(code.indexOf("const PAYROLL_MENU"), -1, "nor a separate Payroll one");
 });
 
 test("HR > Attendance: list, punch audit, devices and the DigiSME import, on the same routes behind the same keys", () => {
   const hrMenu = treeNamed("HR_MENU");
-  const att = hrMenu.slice(hrMenu.indexOf("attendance: {"));
+  const att = sectionOf(hrMenu, "attendance");
   assert.deepStrictEqual(locationsIn(att).sort(), ["/attendance/devices", "/attendance/imports", "/attendance/list", "/attendance/list?tab=audit"]);
   assert.match(att, /title:\s*"Import Attendance"[\s\S]*?permission:\s*"manage_attendance_import"/);
   assert.match(att, /title:\s*"Attendance List"[\s\S]*?permission:\s*"view_raw_attendance"/);
@@ -235,6 +258,9 @@ test("HR navigation still appears exactly once, and still holds its pages", () =
     "/designation",
     "/employee-shift-assignment",
     "/hr/employees",
+    // M4: Payroll, a section of HR like the three above it.
+    "/payroll/salary-approval",
+    "/payroll/salary-revision",
     "/work-shift",
   ]);
 });
@@ -319,10 +345,55 @@ test("the module rail reads All, HR, Reports, WMS, GST", () => {
   assert.deepStrictEqual(ids, ["all", "hr", "reports", "wms", "gst"]);
 });
 
-test("Payroll is still not inside HR, and Attendance is", () => {
+test("M4: HR > Payroll is the two salary screens, each behind ALL of its keys", () => {
   const hrMenu = treeNamed("HR_MENU");
-  for (const notYet of ["payroll", "Payroll"]) {
-    assert.ok(!hrMenu.includes(notYet), `HR must not contain ${notYet}`);
+  const pay = sectionOf(hrMenu, "payroll");
+
+  assert.deepStrictEqual(locationsIn(pay).sort(), [
+    "/payroll/salary-approval",
+    "/payroll/salary-revision",
+  ]);
+  assert.match(pay, /title:\s*"Salary Revision & History"/);
+  assert.match(pay, /title:\s*"Salary Approval"/);
+
+  // ARRAYS MEAN ALL OF THESE KEYS (util/menuPermissions.js), matching the
+  // `requireAll(...)` each backend route uses. An entry shown to somebody
+  // holding only one key would put a screen on their rail that 403s the moment
+  // they open it.
+  assert.match(
+    pay,
+    /title:\s*"Salary Revision & History"[\s\S]*?permission:\s*\["view_employees", "view_salary"\]/
+  );
+  // The approver's worklist takes the approver's key as well as the two that
+  // open the screen beside it: it lists every outstanding pay proposal in the
+  // company, which is a different disclosure from one employee's structure.
+  assert.match(
+    pay,
+    /title:\s*"Salary Approval"[\s\S]*?permission:\s*\["view_employees", "view_salary", "approve_salary_revision"\]/
+  );
+
+  // NO M5 AND NO MONTHLY PAYROLL. Bulk upload, payroll runs, payslips and bank
+  // payment are later modules, and an entry that leads nowhere is a promise
+  // the navigation cannot keep - the same rule that kept Payroll itself off
+  // the rail until M4.
+  for (const notYet of ["Bulk", "bulk", "Payslip", "payslip", "Payroll Run", "payroll_run", "Bank Payment"]) {
+    assert.ok(!pay.includes(notYet), `Payroll must not list ${notYet} yet`);
   }
-  assert.ok(hrMenu.includes("Attendance"), "HR must contain Attendance");
+  // And it is not gated on the monthly-payroll keys it does not use.
+  for (const unrelated of ["process_payroll", "hr_reports"]) {
+    assert.ok(!pay.includes(unrelated), `${unrelated} is not what M4 needs`);
+  }
+
+  assert.ok(hrMenu.includes("Attendance"), "HR must still contain Attendance");
+});
+
+test("SALARY IS ENTERED FROM PAYROLL, AND THE EMPLOYEE MASTER STILL LINKS NOWHERE NEAR IT", () => {
+  // Employee Master keeps its three entries. A salary screen listed under it
+  // would be the second place to type a salary that M3 exists to prevent.
+  const hrMenu = treeNamed("HR_MENU");
+  const master = sectionOf(hrMenu, "employee_master");
+  assert.deepStrictEqual(locationsIn(master).sort(), ["/department", "/designation", "/hr/employees"]);
+  for (const forbidden of ["salary", "Salary", "payroll"]) {
+    assert.ok(!master.includes(forbidden), `Employee Master must not list ${forbidden}`);
+  }
 });

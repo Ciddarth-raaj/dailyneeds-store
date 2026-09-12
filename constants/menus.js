@@ -850,9 +850,11 @@ const GST_MENU = {
  *   Employee Master   who works here, and everything true of them
  *   Shifts            the roster they are expected to keep
  *   Attendance        when they worked (Part 1: the raw Biomax punch flow)
- *   Payroll           what they are paid for it - NOT declared yet; it will be
- *                     a section here, never a module of its own. An empty
- *                     section is a promise the navigation cannot keep.
+ *   Payroll           what they are paid for it. M4: Salary Revision &
+ *                     History, and Salary Approval. A SECTION here, never a
+ *                     module of its own - and it waited until it had screens,
+ *                     because an empty section is a promise the navigation
+ *                     cannot keep.
  *
  * Attendance used to be a module beside HR on the rail. It is a section of HR
  * now so that employee, attendance and payroll screens are found in one
@@ -980,6 +982,58 @@ const HR_MENU = {
         permission: "manage_attendance_import",
         selected: false,
         location: "/attendance/imports",
+      },
+    },
+  },
+  // M4 — Payroll. A SECTION OF HR, never a module of its own, exactly as the
+  // note above this tree has said since C3: employee, attendance and payroll
+  // screens are found in one place.
+  //
+  // It is declared NOW because it now has screens. The rule it waited for was
+  // "an empty section is a promise the navigation cannot keep" - M2 built the
+  // salary engine with no screens at all and M3 built a read-only card on the
+  // employee profile, so there was nothing to list. M4 builds the two screens
+  // where salary is entered and decided, and they are listed.
+  //
+  // TWO ENTRIES, AND THEY ARE TWO DECISIONS. Proposing a pay change and
+  // agreeing to it are separate permissions on the server and separate screens
+  // here; one screen doing both would make `approve_salary_revision`
+  // decorative.
+  //
+  // SEPARATE FROM EMPLOYEE MASTER, which is the approved rule and not a filing
+  // preference. The profile's Payroll section stays READ-ONLY and shows the
+  // current approved figure; a second place to type a salary is a second
+  // salary.
+  //
+  // BOTH ENTRIES CARRY ARRAYS, WHICH MEAN *ALL* OF THESE KEYS (see
+  // util/menuPermissions.js), matching the `requireAll(...)` each backend
+  // route uses. An entry shown to somebody holding only one key would put a
+  // screen on their rail that 403s the moment they open it.
+  //
+  // The monthly-payroll keys `process_payroll` and `hr_reports` are
+  // deliberately NOT used here: M4 runs no payroll period and produces no
+  // report, and gating these screens on a key they do not need would make them
+  // ungrantable without handing out one that opens nothing.
+  payroll: {
+    title: "Payroll",
+    selected: false,
+    openPage: true,
+    icon: "fa-money",
+    subMenu: {
+      salary_revision: {
+        title: "Salary Revision & History",
+        permission: ["view_employees", "view_salary"],
+        selected: false,
+        location: "/payroll/salary-revision",
+      },
+      // The approver's worklist: every outstanding pay proposal in the
+      // company, which is why it takes the approver's key on top of the two
+      // that open the screen beside it.
+      salary_approval: {
+        title: "Salary Approval",
+        permission: ["view_employees", "view_salary", "approve_salary_revision"],
+        selected: false,
+        location: "/payroll/salary-approval",
       },
     },
   },
