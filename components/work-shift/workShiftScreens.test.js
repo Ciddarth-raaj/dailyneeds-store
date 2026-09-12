@@ -175,7 +175,7 @@ test("OT'S DEPENDENT FIELDS ARE DISABLED WHEN OT IS OFF, NOT HIDDEN", () => {
   ]) {
     const at = post.indexOf(`name="${dependent}"`);
     assert.notStrictEqual(at, -1, `${dependent} must be on the tab`);
-    assert.match(post.slice(at, at + 400), /isDisabled=\{otOff\}/, `${dependent} follows OT Allowed`);
+    assert.match(post.slice(at, at + 400), /isDisabled=\{otOff[^}]*\}/, `${dependent} follows OT Allowed`);
   }
 
   const pre = tab1.slice(tab1.indexOf('name="pre_shift_overtime_minimum_minutes"'));

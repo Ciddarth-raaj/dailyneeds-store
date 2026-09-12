@@ -283,6 +283,8 @@ test("every config key the payload sends is one work_shift actually has", () => 
     "overtime_rounding_method",
     "overtime_rounding_interval_minutes",
     "overtime_minimum_threshold_only",
+    "overtime_minimum_excluded",
+    "pre_shift_overtime_minimum_excluded",
     "maximum_ot_minutes_per_day",
     "pre_shift_overtime_allowed",
     "pre_shift_overtime_minimum_minutes",

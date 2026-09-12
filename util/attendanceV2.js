@@ -568,6 +568,11 @@ function otExplanation(day) {
       `Before shift in-time ${formatMinutes(pre)}` +
         (snap.pre_shift_overtime_allowed ? "" : " (pre-shift OT not allowed on this shift)")
     );
+    const preMin = n0(snap.pre_shift_overtime_minimum_minutes);
+    if (snap.pre_shift_overtime_allowed && preMin > 0) {
+      if (pre < preMin) lines.push(`Below the ${formatMinutes(preMin)} pre-shift minimum: no early OT`);
+      else if (snap.pre_shift_overtime_minimum_excluded) lines.push(`Pre-shift minimum ${formatMinutes(preMin)} excluded: ${formatMinutes(pre - preMin)}`);
+    }
   }
   if (post > 0) lines.push(`After shift out-time ${formatMinutes(post)}`);
   if (punches === 2 && worked > nrm && post < worked - nrm) {
@@ -582,11 +587,13 @@ function otExplanation(day) {
     if (offset > 0) lines.push(`Late / early-out offset –${formatMinutes(offset)}`);
     const min = n0(snap.overtime_minimum_minutes);
     if (raw > 0 && min > 0) {
-      lines.push(
-        raw - offset < min
-          ? `Below the ${formatMinutes(min)} minimum: no OT`
-          : `Minimum OT ${formatMinutes(min)} met`
-      );
+      if (raw - offset < min) {
+        lines.push(`Below the ${formatMinutes(min)} minimum: no OT`);
+      } else if (snap.overtime_minimum_excluded) {
+        lines.push(`Minimum ${formatMinutes(min)} excluded: ${formatMinutes(raw - offset)} − ${formatMinutes(min)} = ${formatMinutes(raw - offset - min)}`);
+      } else {
+        lines.push(`Minimum OT ${formatMinutes(min)} met`);
+      }
     }
     const method = String(snap.overtime_rounding_method || "NONE").toUpperCase();
     const interval = n0(snap.overtime_rounding_interval_minutes);

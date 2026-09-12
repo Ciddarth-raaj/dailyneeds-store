@@ -418,3 +418,16 @@ test("OT hover explains a day under the minimum, and a shift with OT off", () =>
   );
   assert.ok(off.includes("OT not allowed on this shift"));
 });
+
+test("OT hover shows the excluded minimum arithmetic when the shift excludes it", () => {
+  const lines = otExplanation(
+    day({
+      shift_snapshot: snap({ overtime_minimum_excluded: true }),
+      punch_count: 2,
+      nrm_minutes: 510, worked_minutes: 549, post_shift_minutes: 39,
+      raw_ot_minutes: 39, ot_offset_minutes: 0, candidate_ot_minutes: 19,
+    })
+  );
+  assert.ok(lines.includes("Minimum 20m excluded: 39m − 20m = 19m"), lines.join(" | "));
+  assert.equal(lines[lines.length - 1], "OT 19m");
+});
