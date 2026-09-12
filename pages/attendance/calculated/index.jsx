@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Alert, AlertIcon, Flex, FormControl, FormLabel, Input, Stack, Text, useToast } from "@chakra-ui/react";
+import { Alert, AlertIcon, FormControl, FormLabel, Input, Stack, Text, useToast } from "@chakra-ui/react";
 import GlobalWrapper from "../../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../../components/CustomContainer";
-import EmployeePicker from "../../../components/payroll/EmployeePicker";
+import SearchableEmployeePicker from "../../../components/attendance/SearchableEmployeePicker";
 import AttendanceDayList from "../../../components/attendance/AttendanceDayList";
 import AttendanceDayDetail from "../../../components/attendance/AttendanceDayDetail";
 import EditShiftModal from "../../../components/attendance/EditShiftModal";
@@ -16,7 +16,17 @@ import { apiMessage, currentMonth, isOk, monthBounds } from "../../../util/atten
  *
  * Behind `view_calculated_attendance`, on the page and on every request it
  * makes (`GET /attendance/calculated`). The same cards, rows and Day Detail
- * as My Attendance, over an employee chosen with the existing picker.
+ * as My Attendance, over an employee chosen with the searchable picker.
+ *
+ * ONE FILTER ROW, ONE EMPLOYEE CONTROL: Employee | Outlet | Month. The
+ * employee combobox is searched by id or by name and picking a result IS the
+ * selection - there is no separate search box and no second employee
+ * dropdown for the same choice. Month sits in that same row rather than in a
+ * date control of its own further down.
+ *
+ * NOTHING IS RENDERED UNTIL SOMEBODY IS CHOSEN. An empty attendance table
+ * for nobody reads like an employee with no attendance, so the screen says
+ * what it wants instead.
  *
  * Edit Shift appears - on the Day Detail - only for a caller holding
  * `edit_attendance_date_shift`, and the backend requires that key again on
@@ -101,18 +111,24 @@ export default function EmployeeAttendancePage() {
     <GlobalWrapper title="Employee Attendance" permissionKey={["view_calculated_attendance"]}>
       <CustomContainer title="Employee Attendance" filledHeader>
         <Stack spacing={4}>
-          <EmployeePicker selectedId={employeeId} onSelect={setEmployeeId} />
-          <Flex gap={3} align="flex-end" wrap="wrap">
-            <FormControl maxW="220px">
-              <FormLabel fontSize="sm">Month</FormLabel>
-              <Input type="month" size="sm" value={month} onChange={(e) => setMonth(e.target.value)} />
-            </FormControl>
-            {!employeeId ? (
-              <Text fontSize="xs" color="gray.500" pb={2}>
-                Select an employee to see their attendance.
-              </Text>
-            ) : null}
-          </Flex>
+          <SearchableEmployeePicker
+            selectedId={employeeId}
+            onSelect={setEmployeeId}
+            trailingControl={
+              <FormControl>
+                <FormLabel fontSize="sm" mb={1}>
+                  Month
+                </FormLabel>
+                <Input
+                  type="month"
+                  size="sm"
+                  aria-label="Month"
+                  value={month}
+                  onChange={(e) => setMonth(e.target.value)}
+                />
+              </FormControl>
+            }
+          />
 
           {error ? (
             <Alert status="error" fontSize="sm" borderRadius="md">
@@ -121,7 +137,13 @@ export default function EmployeeAttendancePage() {
             </Alert>
           ) : null}
 
-          {employeeId ? <AttendanceDayList days={days} loading={loading} onSelect={setSelected} /> : null}
+          {employeeId ? (
+            <AttendanceDayList days={days} loading={loading} onSelect={setSelected} />
+          ) : (
+            <Text fontSize="sm" color="gray.600" py={4}>
+              Select an employee to view attendance.
+            </Text>
+          )}
         </Stack>
       </CustomContainer>
 

@@ -102,6 +102,10 @@ test("no other consumer was switched to the directory", () => {
   assert.deepEqual(optedIn.sort(), [
     "components/DateOutletPicker/FromToDateOutletPicker.jsx",
     "components/DateOutletPicker/index.jsx",
+    // Attendance: the Outlet filter on the searchable employee picker for
+    // Employee Attendance - an id and a name, on a screen reached on
+    // `view_calculated_attendance` and never on `view_stores`.
+    "components/attendance/SearchableEmployeePicker.jsx",
     // M4 Payroll: the Outlet filter on the employee picker (Salary Revision &
     // History) and on the approval queue (Salary Approval). An id and a name
     // each, for screens reached on `view_salary` / `approve_salary_revision`

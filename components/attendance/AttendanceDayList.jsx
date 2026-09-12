@@ -2,6 +2,7 @@ import React from "react";
 import {
   Badge,
   Box,
+  Button,
   Flex,
   SimpleGrid,
   Spinner,
@@ -27,8 +28,21 @@ import {
 
 /**
  * The month, one entry per date: cards on a phone, a compact table on a
- * desktop. Both are the SAME data and the same tap: the whole card or row
- * opens the Day Detail. There is no separate View button.
+ * desktop. Both are the SAME data and the same target: the whole card or row
+ * opens the Day Detail.
+ *
+ * THE DESKTOP ROW SAYS SO. A row that is only implicitly clickable leaves
+ * people guessing, so the table ends in a labelled Action column carrying a
+ * ghost `View Details →`. The row stays clickable - the button is the visible
+ * affordance, not a second route in - and the button stops the click from
+ * reaching the row so one tap opens the detail once. A phone card needs no
+ * such button: the whole card is plainly the tap target.
+ *
+ * STATUS AND OT ARE TWO COLUMNS, not one badge. Status carries only the
+ * agreed attendance issues (Missing Punch, Regularization Pending, Absent,
+ * No Shift Assigned, Shift Setup Issue) and stays empty on a normal day -
+ * there is no "Review Required" and no generic FINAL. The OT claim is its own
+ * state and lives under OT.
  *
  * Punches are rendered dynamically - `09:18 → 14:23 → 15:49 → 22:02` - from
  * the day's effective punch list, however long it is. No Clk1-Clk4 columns.
@@ -51,7 +65,7 @@ function OtLine({ day }) {
   const ot = otClaim(day);
   if (!ot) return null;
   return (
-    <Text fontSize="xs" fontWeight="600" color={`${ot.color}.700`}>
+    <Text fontSize="10px" fontWeight="600" color={`${ot.color}.700`} whiteSpace="nowrap">
       {ot.label}
     </Text>
   );
@@ -128,18 +142,19 @@ function DayCard({ day, onSelect }) {
 function DayTable({ days, onSelect }) {
   return (
     <Box overflowX="auto" borderWidth="1px" borderColor="gray.200" borderRadius="md" bg="white">
-      <Table size="sm" variant="simple">
+      <Table size="sm" variant="simple" sx={{ "th, td": { px: 2, py: 1.5 } }}>
         <Thead bg="gray.50">
           <Tr>
-            <Th>Date</Th>
-            <Th>Day</Th>
-            <Th>Punches</Th>
-            <Th>Shift</Th>
-            <Th isNumeric>NRM</Th>
-            <Th isNumeric>Worked</Th>
-            <Th isNumeric>Short</Th>
-            <Th isNumeric>OT</Th>
-            <Th />
+            <Th fontSize="10px">Date</Th>
+            <Th fontSize="10px">Day</Th>
+            <Th fontSize="10px">Punches</Th>
+            <Th fontSize="10px">Shift</Th>
+            <Th fontSize="10px" isNumeric>NRM</Th>
+            <Th fontSize="10px" isNumeric>Worked</Th>
+            <Th fontSize="10px" isNumeric>Short</Th>
+            <Th fontSize="10px" isNumeric>OT</Th>
+            <Th fontSize="10px">Status</Th>
+            <Th fontSize="10px" textAlign="right">Action</Th>
           </Tr>
         </Thead>
         <Tbody>
@@ -158,25 +173,44 @@ function DayTable({ days, onSelect }) {
                 }
               }}
             >
-              <Td whiteSpace="nowrap">{displayDate(day.attendance_date)}</Td>
-              <Td>{weekday(day.attendance_date)}</Td>
+              <Td whiteSpace="nowrap" fontSize="xs">{displayDate(day.attendance_date)}</Td>
+              <Td fontSize="xs" color="gray.600">{weekday(day.attendance_date)}</Td>
               <Td fontFamily="mono" fontSize="xs" whiteSpace="nowrap">
                 {punchSummary(day) || <Text as="span" color="gray.400">—</Text>}
               </Td>
-              <Td fontSize="xs">{shiftLabel(day)}</Td>
-              <Td isNumeric>{formatMinutes(day.nrm_minutes)}</Td>
-              <Td isNumeric>{formatMinutes(day.worked_minutes)}</Td>
-              <Td isNumeric color={Number(day.shortage_minutes) > 0 ? "red.600" : undefined}>
+              <Td fontSize="xs" color="gray.600" maxW="160px" isTruncated title={shiftLabel(day)}>
+                {shiftLabel(day)}
+              </Td>
+              <Td isNumeric fontSize="xs" whiteSpace="nowrap">{formatMinutes(day.nrm_minutes)}</Td>
+              <Td isNumeric fontSize="xs" whiteSpace="nowrap">{formatMinutes(day.worked_minutes)}</Td>
+              <Td isNumeric fontSize="xs" whiteSpace="nowrap" color={Number(day.shortage_minutes) > 0 ? "red.600" : undefined}>
                 {formatMinutes(day.shortage_minutes)}
               </Td>
-              <Td isNumeric color={Number(day.candidate_ot_minutes) > 0 ? "blue.600" : undefined}>
+              {/* OT: the engine's minutes, with the CLAIM state under them -
+                  never folded into the Status badge. */}
+              <Td isNumeric fontSize="xs" whiteSpace="nowrap" color={Number(day.candidate_ot_minutes) > 0 ? "blue.600" : undefined}>
                 {formatMinutes(day.candidate_ot_minutes)}
+                <OtLine day={day} />
               </Td>
               <Td>
-                <Stack spacing={1} align="flex-start">
-                  <IssueBadge day={day} />
-                  <OtLine day={day} />
-                </Stack>
+                <IssueBadge day={day} />
+              </Td>
+              <Td textAlign="right">
+                {/* The row is clickable too; stopping propagation here keeps
+                    one click from opening the Day Detail twice. */}
+                <Button
+                  size="xs"
+                  variant="ghost"
+                  colorScheme="purple"
+                  fontWeight="600"
+                  whiteSpace="nowrap"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSelect(day);
+                  }}
+                >
+                  View Details →
+                </Button>
               </Td>
             </Tr>
           ))}

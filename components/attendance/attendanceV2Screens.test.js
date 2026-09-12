@@ -39,7 +39,7 @@ test("My Attendance has no employee selector and sends no employee id", () => {
 test("My Attendance needs no permission key; Employee Attendance is behind view_calculated_attendance", () => {
   assert.match(myPage, /<GlobalWrapper title="My Attendance">/);
   assert.match(hrPage, /permissionKey=\{\["view_calculated_attendance"\]\}/);
-  assert.match(hrPage, /<EmployeePicker/);
+  assert.match(hrPage, /<SearchableEmployeePicker/);
 });
 
 test("the self read hits /attendance/me with dates only", () => {
@@ -78,7 +78,11 @@ test("the list is responsive: cards on mobile, a compact table otherwise, and th
   assert.match(list, /function DayTable/);
   assert.match(list, /as="button"[\s\S]*?onClick=\{\(\) => onSelect\(day\)\}/);
   assert.match(list, /<Tr[\s\S]*?onClick=\{\(\) => onSelect\(day\)\}/);
-  assert.ok(!/>\s*View\s*</.test(list), "no View button on a card or row");
+  // The desktop row carries a visible `View Details →` in its Action column
+  // (see attendanceEmployeeSelector.test.js); a phone card does not - the
+  // whole card is the tap target.
+  const card = list.slice(list.indexOf("function DayCard"), list.indexOf("function DayTable"));
+  assert.ok(!/>\s*View\s*</.test(card), "no View button on a card");
 });
 
 test("only the exact issue labels are rendered, through the shared mapping; a FINAL day gets no badge", () => {
