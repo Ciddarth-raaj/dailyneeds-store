@@ -46,7 +46,7 @@ const PRIMARY_CARDS = Object.freeze([
   {
     key: "recorded_in",
     label: "Recorded IN",
-    bucket: "COVERED",
+    bucket: "RECORDED_IN_EXPECTED_LOCATION",
     color: "green",
     help:
       "Expected employees whose latest punch state as of now is an IN, at their expected location. Recorded IN does not mean actively working, at a counter, or not on a break.",
@@ -61,13 +61,97 @@ const PRIMARY_CARDS = Object.freeze([
   },
 ]);
 
-/** The four gap reasons, in the order they are shown. Mutually exclusive. */
+/**
+ * THE GAP REASONS, in the order they are shown. Mutually exclusive, and they
+ * sum back to Gap.
+ *
+ * TWO OF THEM ARE ABOUT LOCATION CERTAINTY, and they exist because knowing that
+ * somebody's latest punch opened a session is a different fact from knowing
+ * WHERE it happened. An IN at an unmapped terminal used to count as cover of the
+ * scheduled outlet, which quietly reduced a real location's gap on the strength
+ * of a place nobody could name. It no longer does - but it is not "recorded
+ * elsewhere" either, because unknown is not somewhere else. Both say
+ * "verification needed" and neither says anything about the employee.
+ */
 const GAP_REASONS = Object.freeze([
   { key: "NO_CHECK_IN", label: "No check-in received", color: "amber" },
   { key: "RECORDED_OUT", label: "Recorded OUT during the shift", color: "orange" },
   { key: "IN_ELSEWHERE", label: "Recorded IN at another location", color: "blue" },
-  { key: "INDETERMINATE", label: "Punch state or location unclear", color: "gray" },
+  {
+    key: "IN_LOCATION_UNKNOWN",
+    label: "Recorded IN, location not verified",
+    color: "purple",
+  },
+  {
+    key: "EXPECTED_LOCATION_UNKNOWN",
+    label: "No expected location on record",
+    color: "purple",
+  },
+  { key: "INDETERMINATE", label: "Punch state cannot be determined", color: "gray" },
 ]);
+
+/**
+ * The reasons where the person IS recorded IN somewhere and the place is the
+ * open question. Shown together as a company-wide figure, and credited to no
+ * outlet - which is the whole point of separating them.
+ */
+const LOCATION_UNVERIFIED_REASONS = Object.freeze([
+  "IN_ELSEWHERE",
+  "IN_LOCATION_UNKNOWN",
+  "EXPECTED_LOCATION_UNKNOWN",
+]);
+
+/**
+ * NEEDS ATTENTION NOW - what each reason means and where the work is done.
+ *
+ * The dashboard only points; every target screen keeps its own permission, and
+ * a user without it simply cannot follow the link. Nothing is approved,
+ * rejected or regularized from here.
+ */
+const ATTENTION_TARGETS = Object.freeze({
+  ATTENDANCE_DETAIL: { label: "Open attendance detail", href: "/attendance/calculated" },
+  APPROVAL_QUEUE: { label: "Open approval queue", href: "/attendance/approval" },
+  OT_APPROVAL_QUEUE: { label: "Open OT approvals", href: "/attendance/ot-approval" },
+  SHIFT_ASSIGNMENT: { label: "Open shift assignment", href: "/employee-shift-assignment" },
+});
+
+/** The tone each attention reason is drawn in. None of them is a verdict. */
+const ATTENTION_TONE = Object.freeze({
+  SHIFT_SETUP: "purple",
+  NO_CHECK_IN: "amber",
+  IN_ELSEWHERE: "blue",
+  IN_LOCATION_UNKNOWN: "purple",
+  EXPECTED_LOCATION_UNKNOWN: "purple",
+  INDETERMINATE: "gray",
+  REGULARIZATION_PENDING: "orange",
+  OT_PENDING: "blue",
+  MISSING_PUNCH: "orange",
+});
+
+/**
+ * Where an attention item links to, with the employee and date it is about.
+ *
+ * A deep link is a PRESELECTION and never an authorization: the target route
+ * checks its own key exactly as it does when reached from the menu.
+ */
+function attentionLink(item) {
+  const target = ATTENTION_TARGETS[item && item.target];
+  if (!target) return null;
+  if (item.target === "ATTENDANCE_DETAIL" && item.employee_id) {
+    const date = item.attendance_date ? `&date=${item.attendance_date}` : "";
+    return { ...target, href: `${target.href}?employee_id=${item.employee_id}${date}` };
+  }
+  return target;
+}
+
+/** Minutes as a short "2h 15m" for an elapsed or waiting time. Never a penalty. */
+function elapsedLabel(minutes) {
+  if (minutes === null || minutes === undefined || !Number.isFinite(Number(minutes))) return null;
+  const m = Math.max(0, Math.trunc(Number(minutes)));
+  if (m < 60) return `${m}m`;
+  const h = Math.floor(m / 60);
+  return m % 60 === 0 ? `${h}h` : `${h}h ${m % 60}m`;
+}
 
 /** The historical view's cards, unchanged apart from the absence rename. */
 const CARDS = Object.freeze([
@@ -505,6 +589,11 @@ module.exports = {
   ISSUE_LINK,
   PRIMARY_CARDS,
   GAP_REASONS,
+  LOCATION_UNVERIFIED_REASONS,
+  ATTENTION_TARGETS,
+  ATTENTION_TONE,
+  attentionLink,
+  elapsedLabel,
   DELIVERY_BADGE,
   DELIVERY_STANDING_NOTE,
   deliveryBadge,

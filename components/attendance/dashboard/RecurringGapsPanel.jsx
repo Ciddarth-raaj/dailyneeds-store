@@ -41,7 +41,15 @@ export default function RecurringGapsPanel({ data, loading, error, onLoad }) {
       ) : patterns.length === 0 ? (
         <Box px={1} py={3}>
           <Text fontSize="sm" color="gray.600">
-            {data.available === false
+            {/* THE REASONS ARE DIFFERENT AND ARE SAID DIFFERENTLY. "Retrieval
+                status could not be read" is not "no pattern found": the first
+                means nothing here is evidence, and reporting it as the second
+                would be exactly the optimism this panel must not show. */}
+            {data.reason === "PULL_STATUS_UNREADABLE"
+              ? "Punch retrieval status could not be read, so none of these days can be used as evidence. Nothing is reported rather than assuming the days were clean."
+              : data.reason === "NO_UNDISTURBED_DAYS"
+              ? "Every comparable day had an unfinished or failed punch retrieval, so none of them can be used as evidence."
+              : data.available === false
               ? "Not enough usable history to say anything about repeated gaps."
               : "No location and role shows a repeated gap across the days compared."}
           </Text>

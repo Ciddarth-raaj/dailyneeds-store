@@ -13,11 +13,14 @@ const { describe, it } = require("node:test");
 const assert = require("node:assert/strict");
 
 const {
+  ATTENTION_TONE,
   CARDS,
   DELIVERY_BADGE,
   DELIVERY_STANDING_NOTE,
   GAP_REASONS,
+  ATTENTION_TARGETS,
   ISSUE_LINK,
+  LOCATION_UNVERIFIED_REASONS,
   PRIMARY_CARDS,
   SLICE_TONE,
   clock,
@@ -28,6 +31,8 @@ const {
   feedWarning,
   formatAge,
   formatMinutes,
+  attentionLink,
+  elapsedLabel,
   isForbidden,
   isOk,
   istToday,
@@ -141,12 +146,43 @@ describe("the three primary cards", () => {
   });
 });
 
-describe("the four gap reasons", () => {
+describe("the gap reasons", () => {
   it("are the mutually exclusive ones the server sends", () => {
+    // SIX, not four. Two of them separate "recorded IN somewhere" from
+    // "recorded IN here", which the server used to collapse into coverage.
     assert.deepEqual(
       GAP_REASONS.map((r) => r.key),
-      ["NO_CHECK_IN", "RECORDED_OUT", "IN_ELSEWHERE", "INDETERMINATE"]
+      [
+        "NO_CHECK_IN",
+        "RECORDED_OUT",
+        "IN_ELSEWHERE",
+        "IN_LOCATION_UNKNOWN",
+        "EXPECTED_LOCATION_UNKNOWN",
+        "INDETERMINATE",
+      ]
     );
+  });
+
+  it("name the location-uncertain reasons as questions about the RECORD", () => {
+    const unknown = GAP_REASONS.find((r) => r.key === "IN_LOCATION_UNKNOWN");
+    const noOutlet = GAP_REASONS.find((r) => r.key === "EXPECTED_LOCATION_UNKNOWN");
+    assert.match(unknown.label, /location not verified/i);
+    assert.match(noOutlet.label, /no expected location on record/i);
+    // Neither says anything about the employee, and neither claims they are
+    // somewhere else - unknown is not "elsewhere".
+    [unknown, noOutlet].forEach((r) => {
+      assert.doesNotMatch(r.label, /another location|elsewhere|absent|missing\b/i);
+    });
+  });
+
+  it("mark exactly the three where the person IS recorded IN but the place is not", () => {
+    assert.deepEqual([...LOCATION_UNVERIFIED_REASONS].sort(), [
+      "EXPECTED_LOCATION_UNKNOWN",
+      "IN_ELSEWHERE",
+      "IN_LOCATION_UNKNOWN",
+    ]);
+    assert.ok(!LOCATION_UNVERIFIED_REASONS.includes("NO_CHECK_IN"));
+    assert.ok(!LOCATION_UNVERIFIED_REASONS.includes("COVERED"));
   });
 
   it("never interpret an OUT as lunch or an early departure", () => {
@@ -505,3 +541,68 @@ describe("a trend day without confirmed delivery is a gap, not a zero", () => {
 });
 
 
+
+/* ==================================================================== */
+/* NEEDS ATTENTION NOW - links out, never acts.                          */
+/* ==================================================================== */
+
+describe("the needs-attention layer", () => {
+  it("gives every reason a tone, and none of them is a verdict colour", () => {
+    const keys = Object.keys(ATTENTION_TONE);
+    [
+      "SHIFT_SETUP",
+      "NO_CHECK_IN",
+      "IN_ELSEWHERE",
+      "IN_LOCATION_UNKNOWN",
+      "EXPECTED_LOCATION_UNKNOWN",
+      "INDETERMINATE",
+      "REGULARIZATION_PENDING",
+      "OT_PENDING",
+      "MISSING_PUNCH",
+    ].forEach((k) => assert.ok(keys.includes(k), `${k} has no tone`));
+    // Nothing is drawn in red: none of these is an established fault by a
+    // person, and a red row reads as one.
+    assert.ok(!Object.values(ATTENTION_TONE).includes("red"));
+  });
+
+  it("links an operational item to the employee's own attendance detail", () => {
+    const link = attentionLink({
+      target: "ATTENDANCE_DETAIL",
+      employee_id: 42,
+      attendance_date: "2026-09-12",
+    });
+    assert.equal(link.href, "/attendance/calculated?employee_id=42&date=2026-09-12");
+  });
+
+  it("links a waiting approval to the queue that owns it", () => {
+    assert.equal(attentionLink({ target: "APPROVAL_QUEUE" }).href, "/attendance/approval");
+    assert.equal(attentionLink({ target: "OT_APPROVAL_QUEUE" }).href, "/attendance/ot-approval");
+    assert.equal(
+      attentionLink({ target: "SHIFT_SETUP" }) || attentionLink({ target: "SHIFT_ASSIGNMENT" }).href,
+      "/employee-shift-assignment"
+    );
+  });
+
+  it("EVERY TARGET IS AN EXISTING SCREEN - nothing new, and nothing that decides", () => {
+    Object.values(ATTENTION_TARGETS).forEach((t) => {
+      assert.match(t.href, /^\/(attendance|employee-shift-assignment)/);
+      // No approve/reject/regularize action is reachable from this panel: the
+      // links are reads, and the target screen re-checks its own permission.
+      assert.doesNotMatch(t.href, /approve\b|reject|regularize\?/i);
+    });
+  });
+
+  it("refuses to invent a link for a target it does not know", () => {
+    assert.equal(attentionLink({ target: "SOMETHING_NEW" }), null);
+    assert.equal(attentionLink(null), null);
+  });
+
+  it("formats an elapsed time for ordering, and nothing when unknown", () => {
+    assert.equal(elapsedLabel(45), "45m");
+    assert.equal(elapsedLabel(60), "1h");
+    assert.equal(elapsedLabel(135), "2h 15m");
+    assert.equal(elapsedLabel(0), "0m");
+    assert.equal(elapsedLabel(null), null);
+    assert.equal(elapsedLabel(undefined), null);
+  });
+});

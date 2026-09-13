@@ -61,6 +61,8 @@ const gapDetailPanel = strip(read("components/attendance/dashboard/GapDetailPane
 const crossLocationPanel = strip(read("components/attendance/dashboard/CrossLocationPanel.jsx"));
 const recurringPanel = strip(read("components/attendance/dashboard/RecurringGapsPanel.jsx"));
 const staffingModal = strip(read("components/attendance/dashboard/StaffingListModal.jsx"));
+const attentionNowPanel = strip(read("components/attendance/dashboard/AttentionNowPanel.jsx"));
+const attentionNowRaw = read("components/attendance/dashboard/AttentionNowPanel.jsx");
 const staffingModalRaw = read("components/attendance/dashboard/StaffingListModal.jsx");
 const gapDetailRaw = read("components/attendance/dashboard/GapDetailPanel.jsx");
 const staffingUtil = read("util/attendanceDashboard.js");
@@ -73,6 +75,7 @@ const STAFFING_PANELS = [
   crossLocationPanel,
   recurringPanel,
   staffingModal,
+  attentionNowPanel,
 ];
 
 const ALL_PANELS = [
@@ -525,7 +528,12 @@ test("an OUT is never interpreted as lunch, lateness or a departure", () => {
   // The gap panel is the one place these words legitimately appear - in the
   // sentence that REFUSES the interpretation - so it is checked separately
   // rather than exempted.
-  const others = STAFFING_PANELS.filter((src) => src !== gapDetailPanel);
+  // The gap panel and the attention panel both name these words only inside the
+  // sentences that REFUSE the interpretation, so they are checked separately
+  // rather than exempted.
+  const others = STAFFING_PANELS.filter(
+    (src) => src !== gapDetailPanel && src !== attentionNowPanel
+  );
   others.forEach((src, i) => {
     assert.ok(
       !/\blunch\b|unauthoris|unauthoriz|early departure|misconduct|penalt/i.test(src),
@@ -594,9 +602,34 @@ test("recurring gaps show their evidence and their limitation", () => {
   assert.match(recurringPanel, /observations/);
 });
 
-test("the staffing lists come from the snapshot, not a second request", () => {
-  assert.match(page, /staffing\.expected_detail/);
-  assert.match(prose(staffingModalRaw), /not from a second request/i);
+test("THE STAFFING LISTS ARE PAGED FROM THE SERVER, not sliced from the snapshot", () => {
+  // The defect this replaces: the list was built by filtering the snapshot's
+  // own array, which the server cut at 200 rows without saying so - a screen
+  // that showed 200 people under a card reading 250.
+  assert.match(page, /getStaffingDrilldown/);
+  assert.ok(
+    !/staffing\.expected_detail|staffing\.gap_detail/.test(page),
+    "the silently truncated fields are gone from the page"
+  );
+  assert.match(prose(staffingModalRaw), /paged from the server/i);
+  assert.match(prose(staffingModalRaw), /cut at 200 rows/i);
+});
+
+test("the modal shows a total, a page window and its OWN as_of", () => {
+  assert.match(staffingModalRaw, /result\.total|const total = result/);
+  assert.match(flat(staffingModalRaw), /Showing \$\{from\}–\$\{to\} of \$\{total\}/);
+  assert.match(flat(staffingModalRaw), /as of/i);
+  // When the list was read at a different moment from the card, it SAYS SO
+  // rather than implying the two are the same instant.
+  assert.match(staffingModalRaw, /drifted/);
+  assert.match(flat(staffingModalRaw), /Punches that\s*\n?\s*arrived in between are included here/);
+});
+
+test("the previews on the snapshot are labelled as previews, with a way to see all", () => {
+  assert.match(page, /attention_preview_truncated/);
+  assert.match(page, /gap_preview_truncated/);
+  assert.match(flat(gapDetailPanel), /This is a preview, not the whole list/i);
+  assert.match(flat(gapDetailPanel), /See all/);
 });
 
 test("the delivery standing note replaces any confirmed-delivery claim", () => {
@@ -623,5 +656,121 @@ test("no salary, bank or identity field is rendered in the staffing view", () =>
   const sensitive = [/\bsalary\b/i, /\bbank\b/i, /\baadhaar\b/i, /\bpan\b/i, /\bifsc\b/i];
   STAFFING_PANELS.forEach((src, i) => {
     sensitive.forEach((re) => assert.ok(!re.test(src), `staffing source ${i} matches ${re}`));
+  });
+});
+
+/* ==================================================================== */
+/* NEEDS ATTENTION NOW on the operational view.                          */
+/* ==================================================================== */
+
+test("the Now view carries a Needs attention now panel", () => {
+  assert.match(page, /AttentionNowPanel/);
+  assert.match(page, /attention_preview/);
+  assert.match(flat(attentionNowPanel), /Needs attention now/);
+});
+
+test("IT DECIDES NOTHING - every row opens the screen that already owns the action", () => {
+  assert.match(attentionNowPanel, /attentionLink/);
+  assert.match(flat(attentionNowPanel), /opens the screen that owns it; nothing is decided here/i);
+  // No approve/reject control exists on this panel at all.
+  assert.ok(
+    !/onApprove|onReject|onRegularize|handleApprove/.test(attentionNowPanel),
+    "the panel must have no decision handler"
+  );
+  assert.match(prose(attentionNowRaw), /Nothing is approved, rejected, regularized or\s+edited here/i);
+});
+
+test("a link is a preselection and never an authorization", () => {
+  assert.match(
+    prose(attentionNowRaw),
+    /checks its own permission exactly as it does\s+when reached from the menu/i
+  );
+  assert.match(
+    read("util/attendanceDashboard.js").replace(/\s+/g, " "),
+    /A deep link is a PRESELECTION and never an authorization/i
+  );
+});
+
+test("AN OWNER IS SHOWN ONLY WHERE THE SYSTEM NAMES ONE", () => {
+  assert.match(attentionNowPanel, /item\.owner_name \? \(/);
+  assert.match(prose(attentionNowRaw), /nobody is shown/i);
+  assert.match(prose(attentionNowRaw), /an invented owner is how a real person gets chased/i);
+});
+
+test("the elapsed time is for ordering, and says so", () => {
+  assert.match(attentionNowPanel, /elapsedLabel/);
+  assert.match(prose(attentionNowRaw), /for ordering, not a penalty/i);
+  assert.match(prose(attentionNowRaw), /not lateness, misconduct or a deduction/i);
+});
+
+test("the panel carries no payroll-readiness row, because no readiness state exists", () => {
+  assert.ok(!/payroll|readiness/i.test(attentionNowPanel));
+});
+
+/* ==================================================================== */
+/* THE FIVE CORRECTED DEFECTS, as the screens present them.              */
+/* ==================================================================== */
+
+test("the next-60-minutes panel explains that starters now appear", () => {
+  assert.match(prose(read("components/attendance/dashboard/NextHourPanel.jsx")), /a starter shows up before they start/i);
+  assert.match(nextHourPanel, /starting_by_location/);
+  assert.match(nextHourPanel, /finishing_by_location/);
+  assert.match(nextHourPanel, /remaining_by_role/);
+});
+
+test("the next-60-minutes panel still refuses to judge whether cover is enough", () => {
+  assert.match(flat(nextHourPanel), /makes no judgement about whether the\s*remaining cover is enough/i);
+  assert.ok(!/understaffed|short of|too few|required staff/i.test(nextHourPanel));
+});
+
+test("LOCATION CERTAINTY IS SHOWN SEPARATELY FROM COVER", () => {
+  // The cards report it as its own figure, allocated to no outlet.
+  assert.match(staffingCards, /recorded_in_location_unverified/);
+  assert.match(flat(staffingCards), /counted at no location/i);
+  // And the coverage table shows it beside a location's IN, never inside it.
+  assert.match(coveragePanel, /recorded_in_location_unverified/);
+  assert.match(flat(coveragePanel), /not counted as cover of this location/i);
+  assert.match(flat(coveragePanel), /only where the punch location is established/i);
+});
+
+test("an unverified location is described as a question about the RECORD", () => {
+  assert.match(flat(gapDetailPanel), /is a question about\s*the punch record, never about the employee/i);
+});
+
+test("a failed punch-location read is stated on the page, not swallowed", () => {
+  assert.match(page, /punch_locations_available/);
+  assert.match(flat(page), /Punch locations could not be read/i);
+  assert.match(flat(page), /no recorded IN can be confirmed at its\s*expected location/i);
+});
+
+test("the recurring panel distinguishes 'cannot read the evidence' from 'no pattern'", () => {
+  assert.match(recurringPanel, /PULL_STATUS_UNREADABLE/);
+  assert.match(flat(recurringPanel), /none of these days can be used as evidence/i);
+  assert.match(flat(recurringPanel), /rather than assuming the days were clean/i);
+  assert.match(recurringPanel, /NO_UNDISTURBED_DAYS/);
+});
+
+test("the recurring panel is narrowed by the same filters as the cards", () => {
+  assert.match(page, /getRecurringGaps\(\{[\s\S]*?work_shift_id: apiFilters\.work_shift_id/);
+});
+
+test("the cross-location panel counts the full figures, not its preview length", () => {
+  assert.match(crossLocationPanel, /early_total/);
+  assert.match(crossLocationPanel, /no_active_shift_total/);
+  assert.match(crossLocationPanel, /location_unverified_total/);
+  assert.match(flat(crossLocationPanel), /Counts are the full\s*figures; the rows above them are a preview/i);
+});
+
+test("the cross-location panel still transfers and credits nobody", () => {
+  assert.match(flat(crossLocationPanel), /Nobody is transferred, credited twice or reassigned/i);
+});
+
+test("the Now view has no date control and no budgeting language anywhere", () => {
+  assert.match(page, /hideDate=\{isNow\}/);
+  STAFFING_PANELS.concat([page]).forEach((src, i) => {
+    assert.ok(
+      !/budget|headcount target|required staffing|recruit|cost per|salary budget/i.test(src),
+      `staffing source ${i} strays into budgeting`
+    );
   });
 });

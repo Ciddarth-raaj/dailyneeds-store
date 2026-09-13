@@ -9,6 +9,7 @@ import StaffingCards from "../../../components/attendance/dashboard/StaffingCard
 import CoveragePanel from "../../../components/attendance/dashboard/CoveragePanel";
 import NextHourPanel from "../../../components/attendance/dashboard/NextHourPanel";
 import GapDetailPanel from "../../../components/attendance/dashboard/GapDetailPanel";
+import AttentionNowPanel from "../../../components/attendance/dashboard/AttentionNowPanel";
 import CrossLocationPanel from "../../../components/attendance/dashboard/CrossLocationPanel";
 import RecurringGapsPanel from "../../../components/attendance/dashboard/RecurringGapsPanel";
 import AttendanceOverviewPanel from "../../../components/attendance/dashboard/AttendanceOverviewPanel";
@@ -117,7 +118,20 @@ export default function AttendanceDashboardPage() {
   const [staffing, setStaffing] = useState(null);
   const [staffingError, setStaffingError] = useState(null);
   const [staffingLoading, setStaffingLoading] = useState(true);
+  /**
+   * THE NOW LIST is a REQUEST, not a slice of the snapshot.
+   *
+   * It used to be built by filtering the snapshot's own array, which was safe
+   * only while that array held everyone - and it never did: the server cut it at
+   * 200 rows silently, so above 200 employees the list disagreed with the card
+   * that opened it. `staffingList` now names a bucket and an offset, and the
+   * result comes back from the drilldown endpoint with its own total.
+   */
   const [staffingList, setStaffingList] = useState(null);
+  const [staffingListResult, setStaffingListResult] = useState(null);
+  const [staffingListLoading, setStaffingListLoading] = useState(false);
+  const [staffingListError, setStaffingListError] = useState(null);
+  const staffingListSeq = useRef(0);
   const [recurring, setRecurring] = useState(null);
   const [recurringLoading, setRecurringLoading] = useState(false);
   const [recurringError, setRecurringError] = useState(null);
@@ -267,6 +281,10 @@ export default function AttendanceDashboardPage() {
       const res = await AttendanceDashboardHelper.getRecurringGaps({
         store_ids: apiFilters.store_ids,
         designation_id: apiFilters.designation_id,
+        // THE SAME NARROWING AS THE CARDS ABOVE IT, the effective shift
+        // included. A pattern panel filtered differently from the figures it
+        // sits under is a different question wearing the same heading.
+        work_shift_id: apiFilters.work_shift_id,
         search: apiFilters.search,
       });
       if (isOk(res)) setRecurring(res);
@@ -376,43 +394,100 @@ export default function AttendanceDashboardPage() {
   };
 
   /**
-   * The NOW view's lists come from the snapshot itself, not from the dated
-   * drilldown endpoint - they are as-of figures and the dated endpoint would
-   * answer a different question. Each opens the matching employee list in a
-   * modal built from the snapshot rows already in hand.
+   * The NOW view's lists come from the STAFFING drilldown, not the dated one -
+   * they are as-of figures and the dated endpoint answers a different question.
+   * Each opens a bucket of the current snapshot, paged by the server, with its
+   * own `as_of` shown in the modal.
    */
   const openStaffingBucket = (bucket) => {
-    if (!staffing) return;
-    const all = staffing.expected_detail || [];
-    if (bucket === "EXPECTED") {
-      setStaffingList({ title: "Expected now", rows: all });
-    } else if (bucket === "COVERED") {
-      setStaffingList({
-        title: "Recorded IN at the expected location",
-        rows: all.filter((r) => r.gap_class === "COVERED"),
-      });
-    } else {
-      setStaffingList({ title: "Gaps to check", rows: staffing.gap_detail || [] });
-    }
+    const titles = {
+      EXPECTED: "Expected now",
+      RECORDED_IN_EXPECTED_LOCATION: "Recorded IN at the expected location",
+      GAP: "Not recorded IN against schedule",
+      NEEDS_ATTENTION: "Needs attention now",
+      UNKNOWN_EXPECTATION: "Expected coverage unknown — shift setup required",
+    };
+    setStaffingList({ bucket, title: titles[bucket] || bucket, offset: 0 });
   };
 
+  const openGapReason = (gapClass, label) =>
+    setStaffingList({ bucket: "GAP", gap_class: gapClass, title: label, offset: 0 });
+
   const openCoverageRow = (row) => {
-    if (!staffing) return;
     setStaffingList({
+      bucket: "EXPECTED",
+      store_id: row.store_id,
+      designation_id: row.designation_id,
       title: `${row.outlet_name} — ${row.designation_name}`,
-      rows: (staffing.expected_detail || []).filter(
-        (g) =>
-          String(g.store_id) === String(row.store_id) &&
-          String(g.designation_id) === String(row.designation_id)
-      ),
+      offset: 0,
       summary: row,
     });
   };
 
   const openEmployeeNow = (row) => {
-    const href = employeeDayHref(row.employee_id, row.attendance_date || staffing.business_date);
+    const href = employeeDayHref(
+      row.employee_id,
+      row.attendance_date || (staffing ? staffing.business_date : null)
+    );
     if (href) router.push(href);
   };
+
+  /**
+   * An attention row opens the screen that OWNS its action.
+   *
+   * The link is a preselection and never an authorization: every target route
+   * checks its own permission exactly as it does when reached from the menu, so
+   * a user without it sees that screen's own refusal rather than anything here.
+   */
+  const openAttentionItem = (item, link) => {
+    if (link && link.href) router.push(link.href);
+  };
+
+  /**
+   * THE PAGED NOW LIST. One request per bucket-and-offset, with the usual stale
+   * guard: a slow first page must never overwrite a newer second one.
+   */
+  useEffect(() => {
+    if (!staffingList) {
+      setStaffingListResult(null);
+      setStaffingListError(null);
+      return undefined;
+    }
+    let cancelled = false;
+    const ticket = ++staffingListSeq.current;
+    (async () => {
+      setStaffingListLoading(true);
+      setStaffingListError(null);
+      try {
+        const res = await AttendanceDashboardHelper.getStaffingDrilldown({
+          bucket: staffingList.bucket,
+          gap_class: staffingList.gap_class,
+          store_id: staffingList.store_id,
+          store_ids: apiFilters.store_ids,
+          designation_id: staffingList.designation_id || apiFilters.designation_id,
+          work_shift_id: apiFilters.work_shift_id,
+          search: apiFilters.search,
+          limit: 50,
+          offset: staffingList.offset || 0,
+        });
+        if (cancelled || ticket !== staffingListSeq.current) return;
+        if (isOk(res)) setStaffingListResult(res);
+        else {
+          setStaffingListResult(null);
+          setStaffingListError(apiMessage(res, "The list could not be loaded"));
+        }
+      } catch (err) {
+        if (cancelled || ticket !== staffingListSeq.current) return;
+        setStaffingListResult(null);
+        setStaffingListError("The list could not be loaded.");
+      } finally {
+        if (!cancelled && ticket === staffingListSeq.current) setStaffingListLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [staffingList, apiFilters]);
 
   useEffect(() => {
     if (!drilldown) {
@@ -579,18 +654,42 @@ export default function AttendanceDashboardPage() {
                       </Alert>
                     ) : null}
 
-                    {staffing.unknown_expectation && staffing.unknown_expectation.length > 0 ? (
+                    {staffing.unknown_expectation_total > 0 ? (
                       <Alert status="warning" fontSize="xs" borderRadius="md" py={2}>
                         <AlertIcon boxSize="14px" />
-                        Expected coverage unknown for {staffing.unknown_expectation.length}{" "}
-                        {staffing.unknown_expectation.length === 1 ? "employee" : "employees"} —
+                        Expected coverage unknown for {staffing.unknown_expectation_total}{" "}
+                        {staffing.unknown_expectation_total === 1 ? "employee" : "employees"} —
                         shift setup required. They are not counted in Expected Now.
+                      </Alert>
+                    ) : null}
+
+                    {/* THE PUNCH LOCATIONS COULD NOT BE READ AT ALL. Said plainly,
+                        because it is why every recorded IN is showing as
+                        unverified rather than as cover. */}
+                    {staffing.punch_locations_available === false ? (
+                      <Alert status="warning" fontSize="xs" borderRadius="md" py={2}>
+                        <AlertIcon boxSize="14px" />
+                        Punch locations could not be read, so no recorded IN can be confirmed at its
+                        expected location. The punch states below are unaffected.
                       </Alert>
                     ) : null}
 
                     <SimpleGrid columns={{ base: 1, lg: 2, xl: 3 }} spacing={3}>
                       <CoveragePanel rows={staffing.coverage} onOpen={openCoverageRow} />
-                      <GapDetailPanel rows={staffing.gap_detail} onOpenEmployee={openEmployeeNow} />
+                      <AttentionNowPanel
+                        items={staffing.attention_preview}
+                        total={staffing.attention_total}
+                        truncated={staffing.attention_preview_truncated}
+                        onOpenAll={() => openStaffingBucket("NEEDS_ATTENTION")}
+                        onOpenEmployee={openAttentionItem}
+                      />
+                      <GapDetailPanel
+                        rows={staffing.gap_preview}
+                        total={staffing.gap}
+                        truncated={staffing.gap_preview_truncated}
+                        onOpenAll={() => openStaffingBucket("GAP")}
+                        onOpenEmployee={openEmployeeNow}
+                      />
                       <NextHourPanel nextHour={staffing.next_hour} />
                     </SimpleGrid>
 
@@ -721,10 +820,14 @@ export default function AttendanceDashboardPage() {
       </Box>
 
       <StaffingListModal
-        list={staffingList}
-        asOf={staffing ? staffing.as_of : ""}
+        request={staffingList}
+        result={staffingListResult}
+        loading={staffingListLoading}
+        error={staffingListError}
+        cardAsOf={staffing ? staffing.as_of : ""}
         isOpen={!!staffingList}
         onClose={() => setStaffingList(null)}
+        onPage={(offset) => setStaffingList((prev) => (prev ? { ...prev, offset } : prev))}
         onOpenEmployee={openEmployeeNow}
       />
 

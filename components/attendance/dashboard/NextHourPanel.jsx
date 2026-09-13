@@ -9,6 +9,13 @@ import CustomContainer from "../../CustomContainer";
  * afterwards. It does not predict who will actually arrive, and it never says
  * the remaining cover is too thin: that would need an approved staffing
  * requirement, which does not exist and belongs to the budgeting phase.
+ *
+ * IT SHOWS STARTERS, WHICH IT PREVIOUSLY COULD NOT. The server built this view
+ * from the Expected Now population alone, so somebody whose shift began in
+ * twenty minutes was missing — at 09:30 the 10-10 staff simply did not appear.
+ * It is now built from every relevant shift on one timeline, running or not, so
+ * a starter shows up before they start, which is the only reason to look at a
+ * "next 60 minutes" panel at all.
  */
 export default function NextHourPanel({ nextHour }) {
   const transitions = (nextHour && nextHour.transitions) || [];
@@ -35,6 +42,16 @@ export default function NextHourPanel({ nextHour }) {
                   {t.starting > 0 ? `${t.starting} starting` : null}
                 </Text>
               </Flex>
+              {t.starting > 0 && t.starting_by_location && t.starting_by_location.length ? (
+                <Text fontSize="10px" color="gray.600" mt="2px">
+                  Starting: {t.starting_by_location.map((r) => `${r.count} at ${r.location}`).join(", ")}
+                </Text>
+              ) : null}
+              {t.finishing > 0 && t.finishing_by_location && t.finishing_by_location.length ? (
+                <Text fontSize="10px" color="gray.600" mt="2px">
+                  Finishing: {t.finishing_by_location.map((r) => `${r.count} at ${r.location}`).join(", ")}
+                </Text>
+              ) : null}
               <Text fontSize="11px" color="gray.600" mt="2px">
                 {t.remaining} scheduled after this
                 {t.remaining_by_role && t.remaining_by_role.length
@@ -44,9 +61,10 @@ export default function NextHourPanel({ nextHour }) {
             </Box>
           ))}
           <Text fontSize="10px" color="gray.500" mt={2}>
-            Scheduled shift changes only. This is what the roster says, not a prediction of who
-            will arrive or leave, and it makes no judgement about whether the remaining cover is
-            enough.
+            Scheduled shift changes only, from every shift relevant to this window — running,
+            starting, finishing, and one that began yesterday. This is what the roster says, not a
+            prediction of who will arrive or leave, and it makes no judgement about whether the
+            remaining cover is enough.
           </Text>
         </Box>
       )}

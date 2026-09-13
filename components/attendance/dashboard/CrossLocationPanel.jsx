@@ -16,8 +16,17 @@ export default function CrossLocationPanel({ arrivals, additional }) {
   const rows = Array.isArray(arrivals) ? arrivals : [];
   const early = (additional && additional.early) || [];
   const noShift = (additional && additional.no_active_shift) || [];
+  // The snapshot sends previews with their totals beside them. The COUNT is the
+  // total; the rows are the sample. Using the sample's length as the count is
+  // how a "3" appears under a figure of 40.
+  const totalOf = (sample, total) =>
+    total === undefined || total === null ? sample.length : Number(total) || 0;
+  const earlyTotal = totalOf(early, additional && additional.early_total);
+  const noShiftTotal = totalOf(noShift, additional && additional.no_active_shift_total);
+  const crossTotal = totalOf(rows, additional && additional.cross_location_total);
+  const unverifiedTotal = Number((additional && additional.location_unverified_total) || 0);
 
-  const empty = rows.length === 0 && early.length === 0 && noShift.length === 0;
+  const empty = crossTotal === 0 && earlyTotal === 0 && noShiftTotal === 0 && unverifiedTotal === 0;
 
   return (
     <CustomContainer title="Cross-location and additional arrivals" filledHeader size="xs">
@@ -63,22 +72,34 @@ export default function CrossLocationPanel({ arrivals, additional }) {
             </Box>
           ) : null}
 
-          {early.length > 0 ? (
+          {crossTotal > rows.length ? (
+            <Text fontSize="10px" color="gray.500" mb={1}>
+              Showing {rows.length} of {crossTotal} recorded at another location.
+            </Text>
+          ) : null}
+          {earlyTotal > 0 ? (
             <Text fontSize="11px" color="gray.700" mb={1}>
-              <strong>{early.length}</strong> recorded IN before their shift starts
+              <strong>{earlyTotal}</strong> recorded IN before their shift starts
               {early[0] && early[0].scheduled_start ? ` (earliest starts ${early[0].scheduled_start})` : ""}
             </Text>
           ) : null}
-          {noShift.length > 0 ? (
+          {noShiftTotal > 0 ? (
             <Text fontSize="11px" color="gray.700">
-              <strong>{noShift.length}</strong> still recorded IN with no active shift
+              <strong>{noShiftTotal}</strong> still recorded IN with no active shift
+            </Text>
+          ) : null}
+          {unverifiedTotal > 0 ? (
+            <Text fontSize="11px" color="gray.700" mt={1}>
+              <strong>{unverifiedTotal}</strong> recorded IN whose location is not verified —
+              counted at no outlet
             </Text>
           ) : null}
 
           <Text fontSize="10px" color="gray.500" mt={2}>
             Nobody is transferred, credited twice or reassigned here — these rows are for
             verification. Somebody still recorded IN after their shift is a follow-up item, not
-            proof that they are present or that overtime has been approved.
+            proof that they are present or that overtime has been approved. Counts are the full
+            figures; the rows above them are a preview.
           </Text>
         </Box>
       )}

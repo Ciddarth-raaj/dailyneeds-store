@@ -1,5 +1,5 @@
 import React from "react";
-import { Badge, Box, Flex, Text } from "@chakra-ui/react";
+import { Badge, Box, Button, Flex, Text } from "@chakra-ui/react";
 import CustomContainer from "../../CustomContainer";
 import { GAP_REASONS, tone } from "../../../util/attendanceDashboard";
 
@@ -17,8 +17,9 @@ const REASON = GAP_REASONS.reduce((acc, r) => {
  * reported as an OUT; it is not described as lunch or an early departure,
  * because this data cannot tell those apart.
  */
-export default function GapDetailPanel({ rows, onOpenEmployee }) {
+export default function GapDetailPanel({ rows, total, truncated, onOpenAll, onOpenEmployee }) {
   const data = Array.isArray(rows) ? rows : [];
+  const count = total === undefined || total === null ? data.length : total;
 
   return (
     <CustomContainer title="Gaps to check" filledHeader size="xs">
@@ -75,10 +76,21 @@ export default function GapDetailPanel({ rows, onOpenEmployee }) {
           </Box>
           {/* OUTSIDE the scroll box: a caption clipped by its own container is
               a caption nobody reads, and this one carries the disclaimer. */}
+          {truncated ? (
+            <Flex align="center" justify="space-between" gap={2} mt={2} wrap="wrap">
+              <Text fontSize="10px" color="gray.500">
+                Showing {data.length} of {count}. This is a preview, not the whole list.
+              </Text>
+              <Button size="xs" variant="outline" onClick={onOpenAll}>
+                See all {count}
+              </Button>
+            </Flex>
+          ) : null}
           <Text fontSize="10px" color="gray.500" mt={2}>
             Elapsed times are for follow-up order only — they are not lateness penalties. A
             recorded OUT is exactly that: it is not described as lunch, an early departure or
-            anything else this data cannot establish.
+            anything else this data cannot establish. “Location not verified” is a question about
+            the punch record, never about the employee.
           </Text>
         </Box>
       )}

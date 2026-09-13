@@ -58,11 +58,49 @@ const attendanceDashboard = {
     return call("/attendance/dashboard/staffing", params);
   },
 
-  /** Repeated shortfalls against the schedule, with the evidence behind them. */
-  getRecurringGaps: ({ store_ids, designation_id, search, comparable_days } = {}) => {
+  /**
+   * ONE BUCKET OF THE CURRENT SNAPSHOT, PAGED.
+   *
+   * The snapshot itself carries only previews, so every full list on the NOW
+   * view comes from here: the total this returns is the same number the card
+   * shows, because both are produced by one server-side classification. It takes
+   * no date for the same reason the snapshot does not, and it returns its OWN
+   * `as_of` - a list opened a minute after the card is a new observation, and
+   * the screen shows that rather than implying they are the same instant.
+   */
+  getStaffingDrilldown: ({
+    bucket,
+    store_ids,
+    store_id,
+    designation_id,
+    work_shift_id,
+    search,
+    gap_class,
+    limit = 50,
+    offset = 0,
+  } = {}) => {
+    const params = { bucket, limit, offset };
+    if (Array.isArray(store_ids) && store_ids.length > 0) params.store_ids = store_ids.join(",");
+    if (store_id) params.store_id = store_id;
+    if (designation_id) params.designation_id = designation_id;
+    if (work_shift_id) params.work_shift_id = work_shift_id;
+    if (search) params.search = search;
+    if (gap_class) params.gap_class = gap_class;
+    return call("/attendance/dashboard/staffing/drilldown", params);
+  },
+
+  /**
+   * Repeated shortfalls against the schedule, with the evidence behind them.
+   *
+   * IT TAKES THE SAME FILTERS AS THE CARDS, the effective shift included. A
+   * pattern panel narrowed differently from the figures above it is a different
+   * question wearing the same heading.
+   */
+  getRecurringGaps: ({ store_ids, designation_id, work_shift_id, search, comparable_days } = {}) => {
     const params = {};
     if (Array.isArray(store_ids) && store_ids.length > 0) params.store_ids = store_ids.join(",");
     if (designation_id) params.designation_id = designation_id;
+    if (work_shift_id) params.work_shift_id = work_shift_id;
     if (search) params.search = search;
     if (comparable_days) params.comparable_days = comparable_days;
     return call("/attendance/dashboard/recurring-gaps", params);

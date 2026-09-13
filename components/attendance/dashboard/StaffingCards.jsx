@@ -8,10 +8,17 @@ import { GAP_REASONS, PRIMARY_CARDS, tone } from "../../../util/attendanceDashbo
  * The Gap card carries its reasons inline, because the number on its own
  * invites the wrong reading. "4" means four schedules not covered by a
  * recorded IN; the breakdown says how many of those are somebody who punched
- * out, somebody at another branch, and somebody whose punch data needs
+ * out, somebody at another branch, and somebody whose punch record needs
  * checking. None of them is an absence.
  *
- * Every card opens the exact employee list behind it.
+ * TWO OF THOSE REASONS ARE ABOUT THE RECORD, NOT THE PERSON. "Recorded IN,
+ * location not verified" means the punch opened a session at a terminal nobody
+ * has mapped to an outlet, or the location could not be read; "No expected
+ * location on record" means the employee has no outlet on their own record.
+ * Both used to count silently as cover of the scheduled outlet, which reduced a
+ * real location's gap on the strength of a place nobody could name.
+ *
+ * Every card opens the exact employee list behind it, and so does every reason.
  */
 export default function StaffingCards({ snapshot, onOpen }) {
   if (!snapshot) return null;
@@ -66,9 +73,20 @@ export default function StaffingCards({ snapshot, onOpen }) {
               ) : null}
 
               {card.key === "recorded_in" ? (
-                <Text fontSize="10px" color="gray.500" noOfLines={1}>
-                  at their expected location
-                </Text>
+                <>
+                  <Text fontSize="10px" color="gray.500" noOfLines={1}>
+                    at their expected location
+                  </Text>
+                  {/* COUNTED SEPARATELY AND ALLOCATED TO NO OUTLET. These people
+                      are recorded IN somewhere; nothing establishes where, so
+                      their scheduled location stays unverified. */}
+                  {Number(snapshot.recorded_in_location_unverified) > 0 ? (
+                    <Text fontSize="10px" color="gray.600" noOfLines={2} lineHeight="1.3">
+                      + {snapshot.recorded_in_location_unverified} recorded IN, location not
+                      verified — counted at no location
+                    </Text>
+                  ) : null}
+                </>
               ) : null}
               {card.key === "expected_now" ? (
                 <Text fontSize="10px" color="gray.500" noOfLines={1}>

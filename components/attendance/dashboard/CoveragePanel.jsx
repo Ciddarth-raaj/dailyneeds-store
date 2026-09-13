@@ -70,6 +70,19 @@ export default function CoveragePanel({ rows, onOpen }) {
                     </Td>
                     <Td fontSize="xs" isNumeric fontWeight="600" color={PALETTE.green.fg}>
                       {row.recorded_in}
+                      {/* RECORDED IN SOMEWHERE, BUT NOT HERE. Shown beside this
+                          location's figure and never inside it: an IN whose place
+                          nobody can establish is not cover of this outlet. */}
+                      {Number(row.recorded_in_location_unverified) > 0 ? (
+                        <Tooltip
+                          label="Recorded IN, but the punch location is not established — not counted as cover of this location."
+                          hasArrow
+                        >
+                          <Text fontSize="9px" color="gray.500" fontWeight="400">
+                            +{row.recorded_in_location_unverified} unverified
+                          </Text>
+                        </Tooltip>
+                      ) : null}
                     </Td>
                     <Td
                       fontSize="xs"
@@ -94,9 +107,9 @@ export default function CoveragePanel({ rows, onOpen }) {
 
           <Text fontSize="10px" color="gray.500" mt={2}>
             Expected = employees whose shift interval contains this moment. In = recorded IN at
-            that location. Gap = the rest, broken down in the detail list — it is “not recorded IN
-            against schedule”, not absence and not a confirmed shortage. A recorded IN does not
-            mean somebody is at a counter.
+            that location, and only where the punch location is established. Gap = the rest,
+            broken down in the detail list — it is “not recorded IN against schedule”, not absence
+            and not a confirmed shortage. A recorded IN does not mean somebody is at a counter.
           </Text>
         </Box>
       )}
