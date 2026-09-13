@@ -774,3 +774,24 @@ test("the Now view has no date control and no budgeting language anywhere", () =
     );
   });
 });
+
+test("THE SCREEN NEVER DECIDES COVERAGE ITSELF - it renders the server's class", () => {
+  // The regularization-location correction is a server rule. It only holds if
+  // the browser has no rule of its own: nothing here may promote a recorded IN
+  // to coverage, infer a location from the employee's own outlet, or treat an
+  // approved regularization as proof of a place.
+  STAFFING_PANELS.forEach((src, i) => {
+    assert.ok(
+      !/gap_class\s*=\s*["']COVERED|location_basis\s*===/.test(src),
+      `staffing source ${i} decides a classification of its own`
+    );
+    assert.ok(
+      !/APPROVED_REGULARIZATION/.test(src),
+      `staffing source ${i} reads the regularization basis as if it settled a location`
+    );
+  });
+  // Coverage is read, never computed: the panels compare against the class the
+  // server sent and nothing else.
+  assert.match(coveragePanel, /row\.recorded_in/);
+  assert.match(staffingCards, /snapshot\.recorded_in_location_unverified/);
+});
