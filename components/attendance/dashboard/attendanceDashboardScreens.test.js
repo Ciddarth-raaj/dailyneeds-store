@@ -795,3 +795,100 @@ test("THE SCREEN NEVER DECIDES COVERAGE ITSELF - it renders the server's class",
   assert.match(coveragePanel, /row\.recorded_in/);
   assert.match(staffingCards, /snapshot\.recorded_in_location_unverified/);
 });
+
+/* ==================================================================== */
+/* GLOBAL DASHBOARD SCOPE, as the screen presents it.                    */
+/*                                                                      */
+/* All of it is presentation. The server re-resolves the scope on every  */
+/* endpoint, so nothing here is a security control - these assert that   */
+/* the screen does not MISLEAD, not that it protects.                    */
+/* ==================================================================== */
+
+const dashboardFilters = strip(read("components/attendance/dashboard/DashboardFilters.jsx"));
+const dashboardFiltersRaw = read("components/attendance/dashboard/DashboardFilters.jsx");
+const permissionConstants = read("constants/permissions.js");
+
+test("AN OWN STORE VIEWER IS NOT OFFERED A COMPANY-WIDE OUTLET PICKER", () => {
+  assert.match(dashboardFilters, /scope && scope\.can_choose_outlet === false/);
+  assert.match(dashboardFilters, /isReadOnly/);
+  assert.match(flat(dashboardFilters), /aria-label="Your branch"/);
+  assert.match(
+    prose(dashboardFiltersRaw),
+    /a company-wide picker would be a lie/i
+  );
+});
+
+test("an All Stores viewer keeps the normal picker", () => {
+  assert.match(dashboardFilters, /placeholder="All locations"/);
+  assert.match(dashboardFilters, /options\.outlets \|\| \[\]/);
+});
+
+test("the active branch is stated plainly on the page", () => {
+  assert.match(page, /scope\.can_choose_outlet === false/);
+  assert.match(flat(page), /you are\s*authorized for this branch/i);
+});
+
+test("THE SCOPE IS PRESENTATION, AND THE PAGE SAYS SO", () => {
+  assert.match(prose(read("pages/attendance/dashboard/index.jsx")), /It is NOT authorization/i);
+  assert.match(
+    prose(read("pages/attendance/dashboard/index.jsx")),
+    /every endpoint re-resolves the scope on the server/i
+  );
+  // The browser never decides a scope of its own: no localStorage, no default
+  // outlet, nothing derived from the user context.
+  assert.ok(
+    !/localStorage[\s\S]{0,40}store/i.test(page),
+    "the page must not read a store from browser storage"
+  );
+  assert.ok(!/can_choose_outlet\s*=\s*true/.test(page), "the page never sets its own scope");
+});
+
+test("no scope-management UI lives inside the dashboard", () => {
+  // Scope belongs in permissions/admin settings. The dashboard displays it and
+  // offers no way to change it.
+  STAFFING_PANELS.concat([page, dashboardFilters]).forEach((src, i) => {
+    assert.ok(
+      !/dashboard_scope_own_store|dashboard_scope_all_stores/.test(src),
+      `source ${i} exposes a scope key`
+    );
+    assert.ok(!/Grant|Assign scope|Change scope/i.test(src), `source ${i} offers scope management`);
+  });
+});
+
+test("the rights screen groups the dashboard keys and the one store scope", () => {
+  assert.match(permissionConstants, /view_attendance_dashboard: "View Attendance & Staffing Dashboard"/);
+  assert.match(permissionConstants, /view_hr_dashboard: "View HR Dashboard \(not built yet\)"/);
+  assert.match(permissionConstants, /view_sales_dashboard: "View Sales Dashboard \(not built yet\)"/);
+  assert.match(permissionConstants, /view_my_dashboard: "View My Dashboard \(not built yet\)"/);
+  assert.match(permissionConstants, /dashboard_scope_own_store: "Dashboard Store Scope: Own Store"/);
+  assert.match(permissionConstants, /dashboard_scope_all_stores: "Dashboard Store Scope: All Stores"/);
+  // Each key appears exactly once, so the matrix cannot render a duplicate.
+  ["view_attendance_dashboard", "dashboard_scope_own_store", "dashboard_scope_all_stores"].forEach(
+    (key) => {
+      assert.equal(
+        (permissionConstants.match(new RegExp(`${key}:`, "g")) || []).length,
+        1,
+        `${key} is listed more than once`
+      );
+    }
+  );
+});
+
+test("THE UNBUILT DASHBOARDS GET NO MENU ENTRY", () => {
+  // Declaring a key so the scope can be configured is free. A navigation entry
+  // to a screen that does not exist is not.
+  const menus = read("constants/menus.js");
+  ["view_hr_dashboard", "view_sales_dashboard", "view_my_dashboard"].forEach((key) =>
+    assert.ok(!menus.includes(key), `${key} has a menu entry but no screen`)
+  );
+  assert.ok(!/hr\/dashboard|sales\/dashboard|my\/dashboard/.test(menus));
+});
+
+test("THE TWO SCOPE RIGHTS CANNOT BOTH BE TICKED ON THE RIGHTS SCREEN", () => {
+  assert.match(permissionConstants, /EXCLUSIVE_PERMISSION_GROUPS/);
+  assert.match(permissionConstants, /\["dashboard_scope_own_store", "dashboard_scope_all_stores"\]/);
+  const designationPage = read("pages/designation/[id].js");
+  assert.match(designationPage, /applyExclusive\(prev\.permissions, key, checked\)/);
+  // And the screen is explicit that the server is the real guarantee.
+  assert.match(prose(permissionConstants), /the server enforces it/i);
+});

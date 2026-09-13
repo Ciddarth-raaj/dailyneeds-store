@@ -606,3 +606,57 @@ describe("the needs-attention layer", () => {
     assert.equal(elapsedLabel(undefined), null);
   });
 });
+
+/* ==================================================================== */
+/* THE RIGHTS SCREEN'S MUTUALLY EXCLUSIVE SCOPE.                         */
+/* ==================================================================== */
+
+describe("the exclusive dashboard store scope on the rights screen", () => {
+  const { applyExclusive, EXCLUSIVE_PERMISSION_GROUPS } = require("../constants/permissions");
+  const OWN = "dashboard_scope_own_store";
+  const ALL = "dashboard_scope_all_stores";
+
+  it("names the two scope keys as the one exclusive group", () => {
+    assert.deepEqual(EXCLUSIVE_PERMISSION_GROUPS, [[OWN, ALL]]);
+  });
+
+  it("TICKING ONE UNTICKS THE OTHER", () => {
+    assert.deepEqual(applyExclusive([OWN], ALL, true).sort(), [ALL]);
+    assert.deepEqual(applyExclusive([ALL], OWN, true).sort(), [OWN]);
+  });
+
+  it("leaves every other right alone", () => {
+    const before = ["view_attendance_dashboard", "view_employees", OWN];
+    const after = applyExclusive(before, ALL, true);
+    assert.ok(after.includes("view_attendance_dashboard"));
+    assert.ok(after.includes("view_employees"));
+    assert.ok(after.includes(ALL));
+    assert.ok(!after.includes(OWN));
+  });
+
+  it("unticking removes only that key", () => {
+    assert.deepEqual(applyExclusive([OWN, "view_employees"], OWN, false), ["view_employees"]);
+  });
+
+  it("a right outside any group behaves exactly as before", () => {
+    assert.deepEqual(applyExclusive(["a"], "b", true).sort(), ["a", "b"]);
+    assert.deepEqual(applyExclusive(["a", "b"], "b", false), ["a"]);
+  });
+
+  it("handles an empty or missing selection without inventing one", () => {
+    assert.deepEqual(applyExclusive([], OWN, true), [OWN]);
+    assert.deepEqual(applyExclusive(undefined, OWN, true), [OWN]);
+    assert.deepEqual(applyExclusive(undefined, OWN, false), []);
+  });
+
+  it("IS A CONVENIENCE, NOT THE GUARANTEE - the server refuses both anyway", () => {
+    // Stated in the constant's own comment so nobody later reads this helper as
+    // the thing that keeps the two exclusive.
+    const src = require("fs").readFileSync(
+      require("path").join(__dirname, "..", "constants", "permissions.js"),
+      "utf8"
+    );
+    assert.match(src, /refuses a designation holding both/i);
+    assert.match(src, /It is a convenience, not the guarantee/i);
+  });
+});

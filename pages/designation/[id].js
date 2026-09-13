@@ -22,6 +22,7 @@ import {
   TOTAL_PERMISSION_COUNT,
   countEnabledPermissions,
 } from "../../util/permissionCatalog";
+import { applyExclusive } from "../../constants/permissions";
 
 class CreateDesignation extends React.Component {
   constructor(props) {
@@ -111,15 +112,21 @@ class CreateDesignation extends React.Component {
       .finally(() => this.setState({ loading: false }));
   }
 
+  /**
+   * Toggle one right, honouring any MUTUALLY EXCLUSIVE group it belongs to.
+   *
+   * The dashboard store scope is one value - Own Store or All Stores - and the
+   * rights table stores booleans, so ticking one unticks the other here. The
+   * server refuses a designation holding both independently of this; the screen
+   * simply stops anybody producing the state that would be refused.
+   */
   handleCheckbox = (key, checked) => {
     this.setState((prev) => {
-      const { permissions } = prev;
-      if (checked) {
-        if (permissions.includes(key)) return null;
-        return { permissions: [...permissions, key] };
+      const next = applyExclusive(prev.permissions, key, checked);
+      if (next.length === prev.permissions.length && next.every((k) => prev.permissions.includes(k))) {
+        return null;
       }
-      if (!permissions.includes(key)) return null;
-      return { permissions: permissions.filter((v) => v !== key) };
+      return { permissions: next };
     });
   };
 

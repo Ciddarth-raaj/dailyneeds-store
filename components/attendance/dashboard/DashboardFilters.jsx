@@ -43,7 +43,19 @@ export default function DashboardFilters({
   loading,
   fetchedAt,
   hideDate = false,
+  scope = null,
 }) {
+  /**
+   * The branch an Own Store viewer is pinned to.
+   *
+   * Named from the scope the server sent, falling back to the single outlet in
+   * the option list - which for an Own Store viewer is the only one the server
+   * returned. If neither is available it says so plainly rather than showing a
+   * blank box or, worse, "All locations".
+   */
+  const pinnedOutletName =
+    (scope && scope.outlet_name) ||
+    (((options.outlets || []).length === 1 && options.outlets[0].outlet_name) || "Your branch");
   const set = (key) => (event) => {
     const raw = event.target.value;
     onChange({ ...filters, [key]: raw === "" ? null : raw });
@@ -69,23 +81,42 @@ export default function DashboardFilters({
           />
         </FormControl>
 
+        {/* THE OUTLET FILTER EXISTS ONLY FOR A CALLER WHO HAS A CHOICE.
+            An Own Store user is authorized for exactly one branch, so a
+            company-wide picker would be a lie: every option but one would
+            either be refused by the server or silently return their own
+            branch's figures under somebody else's heading. They are shown the
+            branch they are pinned to instead, as a read-only statement of
+            fact. The scope comes from the server on every filters load and is
+            never decided here - this is presentation. */}
         <FormControl w={{ base: "48%", sm: "180px" }}>
           <FormLabel fontSize="xs" mb={1} color="gray.600">
             Outlet / Warehouse
           </FormLabel>
-          <Select
-            size="sm"
-            aria-label="Outlet or warehouse"
-            placeholder="All locations"
-            value={filters.store_id || ""}
-            onChange={set("store_id")}
-          >
-            {(options.outlets || []).map((o) => (
-              <option key={o.store_id} value={o.store_id}>
-                {o.outlet_name}
-              </option>
-            ))}
-          </Select>
+          {scope && scope.can_choose_outlet === false ? (
+            <Input
+              size="sm"
+              aria-label="Your branch"
+              isReadOnly
+              value={pinnedOutletName}
+              bg="gray.50"
+              title="You are authorized for this branch only."
+            />
+          ) : (
+            <Select
+              size="sm"
+              aria-label="Outlet or warehouse"
+              placeholder="All locations"
+              value={filters.store_id || ""}
+              onChange={set("store_id")}
+            >
+              {(options.outlets || []).map((o) => (
+                <option key={o.store_id} value={o.store_id}>
+                  {o.outlet_name}
+                </option>
+              ))}
+            </Select>
+          )}
         </FormControl>
 
         <FormControl w={{ base: "48%", sm: "150px" }}>

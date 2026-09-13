@@ -102,6 +102,16 @@ export default function AttendanceDashboardPage() {
   });
   const [options, setOptions] = useState({ outlets: [], designations: [], shifts: [], today: null });
   /**
+   * THE CALLER'S DASHBOARD SCOPE, as the server reports it.
+   *
+   * Presentation input only - it decides whether an outlet picker is offered
+   * and which branch an Own Store viewer is pinned to. It is NOT authorization:
+   * every endpoint re-resolves the scope on the server, so nothing a browser
+   * does to this value widens anything. A caller who edited it would simply get
+   * the same refusals from a screen that looked different.
+   */
+  const [scope, setScope] = useState(null);
+  /**
    * Has the user chosen a date themselves yet?
    *
    * The date starts at the browser's idea of today in IST so the page is
@@ -211,6 +221,7 @@ export default function AttendanceDashboardPage() {
             shifts: res.shifts || [],
             today: res.today || null,
           });
+          setScope(res.dashboard_scope || null);
           // The server's own IST today, so the default date is the business
           // day rather than the browser's idea of it.
           if (res.today) {
@@ -610,7 +621,19 @@ export default function AttendanceDashboardPage() {
               loading={isNow ? staffingLoading : loading}
               fetchedAt={isNow ? null : overview ? overview.fetched_at : null}
               hideDate={isNow}
+              scope={scope}
             />
+
+            {/* THE ACTIVE BRANCH, stated plainly. An Own Store viewer is
+                looking at one branch and every figure on the screen is that
+                branch's; saying so once is what stops a reader taking a
+                company-wide reading from a branch-wide number. */}
+            {scope && scope.can_choose_outlet === false ? (
+              <Text fontSize="xs" color="gray.600">
+                Showing <strong>{scope.outlet_name || "your branch"}</strong> only — you are
+                authorized for this branch.
+              </Text>
+            ) : null}
 
             {filtersError ? (
               <Alert status="warning" fontSize="xs" borderRadius="md" py={2}>

@@ -1,10 +1,33 @@
 export const PERMISSIONS = {
   // Dashboard
+  //
+  // GLOBAL DASHBOARD ACCESS. Two kinds of right live here and they answer two
+  // different questions:
+  //
+  //   a FEATURE key per dashboard - may this person open that screen
+  //   the STORE SCOPE, shared by every dashboard - which branches may they see
+  //
+  // A feature key permits a screen and never widens a location. Only
+  // Attendance is wired to a screen today; the other three are listed so the
+  // scope can be configured for them in advance and are inert until their
+  // module exists - granting one builds nothing and shows nothing.
+  //
+  // THE SCOPE IS EXACTLY ONE OF THE TWO. They are rendered as ordinary
+  // checkboxes like every other right, but `EXCLUSIVE_PERMISSION_GROUPS` below
+  // makes ticking one untick the other, so the confusing both-ticked state
+  // cannot be produced here. The server refuses it too, independently: this is
+  // the convenience, that is the guarantee.
   dashboard: {
     dashboard: "View Dashboard",
     view_purchase_return_dashboard: "View Purchase Return Dashboard",
     view_stock_dashboard: "View Stock Dashboard",
     view_stock_holding_dashboard: "View Stock Holding Dashboard",
+    view_attendance_dashboard: "View Attendance & Staffing Dashboard",
+    view_hr_dashboard: "View HR Dashboard (not built yet)",
+    view_sales_dashboard: "View Sales Dashboard (not built yet)",
+    view_my_dashboard: "View My Dashboard (not built yet)",
+    dashboard_scope_own_store: "Dashboard Store Scope: Own Store",
+    dashboard_scope_all_stores: "Dashboard Store Scope: All Stores",
   },
 
   // Employees
@@ -163,11 +186,11 @@ export const PERMISSIONS = {
     // under changes that date's pay, so it is its own key, granted by
     // migration to nobody. Reading your OWN month needs neither.
     view_calculated_attendance: "View Employee Attendance (calculated)",
-    // The management overview of ONE attendance date across the company. Its
-    // own key, and a read-only one: it aggregates figures this designation may
-    // already read one employee at a time, and it grants no approval, edit or
-    // recalculation - every action it links to keeps its own key.
-    view_attendance_dashboard: "View Attendance & Staffing Dashboard",
+    // The management overview of ONE attendance date across the company is
+    // `view_attendance_dashboard`, and it is listed under DASHBOARD rather than
+    // here: it is one of four dashboard feature keys that share one store
+    // scope, and keeping them together is what makes the scope configurable in
+    // one place. It is read-only and grants no approval, edit or recalculation.
     edit_attendance_date_shift: "Edit Shift for a Single Attendance Date",
     // The approval and recalculation screens. `view_attendance_approvals`
     // opens Attendance Approval and OT Approval - what each person sees
@@ -410,3 +433,35 @@ export const PERMISSIONS = {
     view_api_logs: "View API Logs",
   },
 };
+
+/**
+ * RIGHTS THAT ARE MUTUALLY EXCLUSIVE - ticking one unticks the others.
+ *
+ * The dashboard store scope is ONE value: Own Store or All Stores. The rights
+ * table stores booleans and cannot express that, so the server enforces it
+ * (`utils/dashboard_scope.js` refuses a designation holding both) and this
+ * makes the screen agree, so nobody can produce the state that would be
+ * refused. It is a convenience, not the guarantee: the server decides whether
+ * both keys were saved anyway, by any other route.
+ */
+export const EXCLUSIVE_PERMISSION_GROUPS = [
+  ["dashboard_scope_own_store", "dashboard_scope_all_stores"],
+];
+
+/**
+ * The selection after toggling `key`, with any mutually exclusive sibling
+ * turned off. Pure: it takes the current keys and returns the next ones.
+ */
+export function applyExclusive(selectedKeys, key, checked) {
+  const next = new Set(selectedKeys || []);
+  if (!checked) {
+    next.delete(key);
+    return [...next];
+  }
+  next.add(key);
+  EXCLUSIVE_PERMISSION_GROUPS.forEach((group) => {
+    if (!group.includes(key)) return;
+    group.filter((sibling) => sibling !== key).forEach((sibling) => next.delete(sibling));
+  });
+  return [...next];
+}
