@@ -54,6 +54,26 @@ const pageRaw = read("pages/attendance/dashboard/index.jsx");
 const overviewRaw = read("components/attendance/dashboard/AttendanceOverviewPanel.jsx");
 const drilldownRaw = read("components/attendance/dashboard/DrilldownModal.jsx");
 const trendRaw = read("components/attendance/dashboard/TrendPanel.jsx");
+const staffingCards = strip(read("components/attendance/dashboard/StaffingCards.jsx"));
+const coveragePanel = strip(read("components/attendance/dashboard/CoveragePanel.jsx"));
+const nextHourPanel = strip(read("components/attendance/dashboard/NextHourPanel.jsx"));
+const gapDetailPanel = strip(read("components/attendance/dashboard/GapDetailPanel.jsx"));
+const crossLocationPanel = strip(read("components/attendance/dashboard/CrossLocationPanel.jsx"));
+const recurringPanel = strip(read("components/attendance/dashboard/RecurringGapsPanel.jsx"));
+const staffingModal = strip(read("components/attendance/dashboard/StaffingListModal.jsx"));
+const staffingModalRaw = read("components/attendance/dashboard/StaffingListModal.jsx");
+const gapDetailRaw = read("components/attendance/dashboard/GapDetailPanel.jsx");
+const staffingUtil = read("util/attendanceDashboard.js");
+
+const STAFFING_PANELS = [
+  staffingCards,
+  coveragePanel,
+  nextHourPanel,
+  gapDetailPanel,
+  crossLocationPanel,
+  recurringPanel,
+  staffingModal,
+];
 
 const ALL_PANELS = [
   overviewPanel,
@@ -71,7 +91,7 @@ test("the page is behind view_attendance_dashboard", () => {
 });
 
 test("the permission is declared for the designation rights screen", () => {
-  assert.match(permissions, /view_attendance_dashboard: "View Attendance Dashboard"/);
+  assert.match(permissions, /view_attendance_dashboard: "View Attendance & Staffing Dashboard"/);
 });
 
 test("the menu entry carries the same key and points at the page", () => {
@@ -444,5 +464,164 @@ test("no salary, bank, Aadhaar or statutory field is rendered", () => {
 test("no late or early-departure penalty is introduced", () => {
   ALL_PANELS.concat([page, cards]).forEach((src) => {
     assert.ok(!/penalt/i.test(src), "v2 has no monetary late or early-exit penalty");
+  });
+});
+
+
+/* ============================== Attendance & Staffing (new phase) ==== */
+
+test("the title and route are the approved ones", () => {
+  assert.match(page, /title="Attendance & Staffing Dashboard"/);
+  assert.match(menus, /location: "\/attendance\/dashboard"/, "the route is unchanged");
+  assert.match(menus, /permission: "view_attendance_dashboard"/, "the key is unchanged");
+});
+
+test("Now and By-date are separate views, so a past date never sits under 'Now'", () => {
+  assert.match(page, /view === "NOW"/);
+  assert.match(page, /setView/);
+  assert.match(prose(pageRaw), /a past date's figures under a "Now" heading/i);
+});
+
+test("the Now view has no date control at all", () => {
+  assert.match(page, /hideDate=\{isNow\}/);
+  assert.match(filters, /hideDate \? "none" : undefined/);
+});
+
+test("the staffing request sends no date: the server decides 'now'", () => {
+  const helperSrc = strip(read("helper/attendanceDashboard.js"));
+  assert.match(helperSrc, /getStaffing/);
+  assert.ok(
+    !/getStaffing[\s\S]{0,400}attendance_date/.test(helperSrc),
+    "sending a date would let a past day masquerade as now"
+  );
+});
+
+test("the three primary cards replace the six", () => {
+  assert.match(page, /<StaffingCards/);
+  assert.match(staffingCards, /PRIMARY_CARDS/);
+  assert.match(staffingCards, /Expected Now|expected_now/);
+});
+
+test("the as-of stamp is the server's and is shown", () => {
+  assert.match(page, /staffing\.as_of/);
+  assert.match(page, /As of/);
+  assert.match(page, /not a live stream/);
+});
+
+test("nothing claims live streaming or adds background work", () => {
+  STAFFING_PANELS.concat([page]).forEach((src, i) => {
+    assert.ok(!/setInterval|WebSocket|EventSource|Notification/.test(src), `source ${i} polls`);
+    assert.ok(!/real-?time|live feed/i.test(src), `source ${i} claims live data`);
+  });
+});
+
+test("the word 'absent' appears nowhere in the staffing view", () => {
+  STAFFING_PANELS.forEach((src, i) => {
+    assert.ok(!/\babsent\b/i.test(src), `staffing source ${i} says absent`);
+  });
+});
+
+test("an OUT is never interpreted as lunch, lateness or a departure", () => {
+  // The gap panel is the one place these words legitimately appear - in the
+  // sentence that REFUSES the interpretation - so it is checked separately
+  // rather than exempted.
+  const others = STAFFING_PANELS.filter((src) => src !== gapDetailPanel);
+  others.forEach((src, i) => {
+    assert.ok(
+      !/\blunch\b|unauthoris|unauthoriz|early departure|misconduct|penalt/i.test(src),
+      `staffing source ${i} interprets a punch`
+    );
+  });
+
+  // And the gap panel says outright that it does not interpret one.
+  assert.match(
+    flat(gapDetailPanel),
+    /not described as lunch, an early departure or anything else this data cannot establish/i
+  );
+  assert.match(flat(gapDetailPanel), /not lateness penalties/i);
+  assert.match(prose(gapDetailRaw), /not a lateness penalty, a break limit or a misconduct record/i);
+});
+
+test("recorded IN is never described as present, working or at a counter", () => {
+  assert.match(prose(staffingUtil), /does not mean actively working/i);
+  assert.match(flat(coveragePanel), /does not mean somebody is at a counter/i);
+  STAFFING_PANELS.forEach((src, i) => {
+    assert.ok(!/billing counter/i.test(src), `staffing source ${i} claims counter activity`);
+  });
+});
+
+test("the next-hour panel never judges whether cover is sufficient", () => {
+  assert.match(flat(nextHourPanel), /makes no judgement about whether the remaining cover is enough/i);
+  assert.ok(
+    !/understaffed|insufficient|required|target|budget/i.test(nextHourPanel),
+    "staffing requirements belong to the budgeting phase"
+  );
+});
+
+test("no budgeting, targets, rankings or recruitment appear", () => {
+  STAFFING_PANELS.concat([page]).forEach((src, i) => {
+    assert.ok(
+      !/\bbudget|staffing target|recruit|ranking|score\b/i.test(src),
+      `source ${i} strays into the next phase`
+    );
+  });
+});
+
+test("the gap reconciliation is asserted on screen, not assumed", () => {
+  assert.match(page, /staffing\.reconciles === false/);
+  assert.match(coveragePanel, /reconciles === false/);
+});
+
+test("unknown expectation is surfaced, never folded into zero", () => {
+  assert.match(page, /unknown_expectation/);
+  assert.match(flat(page), /Expected coverage unknown/i);
+  assert.match(flat(page), /not counted in Expected Now/i);
+});
+
+test("cross-location arrivals are for verification and transfer nobody", () => {
+  assert.match(flat(crossLocationPanel), /Nobody is transferred, credited twice or reassigned/i);
+  assert.match(crossLocationPanel, /verification/i);
+});
+
+test("still recorded IN after a shift is a follow-up, not proof of presence", () => {
+  assert.match(flat(crossLocationPanel), /not proof that they are present/i);
+  assert.match(flat(crossLocationPanel), /overtime has been approved/i);
+});
+
+test("recurring gaps show their evidence and their limitation", () => {
+  assert.match(recurringPanel, /data\.basis/);
+  assert.match(recurringPanel, /data\.limitation/);
+  assert.match(recurringPanel, /observations/);
+});
+
+test("the staffing lists come from the snapshot, not a second request", () => {
+  assert.match(page, /staffing\.expected_detail/);
+  assert.match(prose(staffingModalRaw), /not from a second request/i);
+});
+
+test("the delivery standing note replaces any confirmed-delivery claim", () => {
+  assert.match(page, /DELIVERY_STANDING_NOTE/);
+  assert.ok(
+    !/Delivery confirmed/.test(staffingUtil),
+    "nothing can confirm delivery in this system"
+  );
+});
+
+test("loading, empty, error and permission states are distinct in the Now view", () => {
+  assert.match(page, /staffingError/);
+  assert.match(page, /staffingLoading/);
+  assert.match(flat(coveragePanel), /No employees are scheduled right now/i);
+  assert.match(flat(gapDetailPanel), /Every scheduled employee is recorded IN/i);
+  assert.match(flat(nextHourPanel), /No scheduled shift changes/i);
+});
+
+test("stale staffing responses cannot overwrite newer ones", () => {
+  assert.match(page, /staffingSeq/);
+});
+
+test("no salary, bank or identity field is rendered in the staffing view", () => {
+  const sensitive = [/\bsalary\b/i, /\bbank\b/i, /\baadhaar\b/i, /\bpan\b/i, /\bifsc\b/i];
+  STAFFING_PANELS.forEach((src, i) => {
+    sensitive.forEach((re) => assert.ok(!re.test(src), `staffing source ${i} matches ${re}`));
   });
 });

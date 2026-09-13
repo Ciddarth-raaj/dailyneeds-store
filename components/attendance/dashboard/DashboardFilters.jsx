@@ -42,6 +42,7 @@ export default function DashboardFilters({
   onRefresh,
   loading,
   fetchedAt,
+  hideDate = false,
 }) {
   const set = (key) => (event) => {
     const raw = event.target.value;
@@ -51,7 +52,10 @@ export default function DashboardFilters({
   return (
     <Flex direction="column" gap={2}>
       <Flex gap={2} wrap="wrap" align="flex-end">
-        <FormControl w={{ base: "100%", sm: "170px" }}>
+        {/* THE NOW VIEW HAS NO DATE CONTROL. "Now" is the server's, and a date
+            picker beside it would invite a past day's figures under a live
+            heading - the one thing this screen must not show. */}
+        <FormControl w={{ base: "100%", sm: "170px" }} display={hideDate ? "none" : undefined}>
           <FormLabel fontSize="xs" mb={1} color="gray.600">
             Attendance Date
           </FormLabel>
@@ -147,16 +151,20 @@ export default function DashboardFilters({
         </Button>
       </Flex>
 
-      <Tooltip
-        label="When this page last fetched the figures. This is NOT a device sync time - terminal freshness is shown in Recent Punches & Device Sync."
-        hasArrow
-        placement="bottom-start"
-      >
-        <Text fontSize="11px" color="gray.500" alignSelf="flex-start">
-          {filters.attendance_date ? `Showing ${displayDate(filters.attendance_date)}` : "Choose a date"}
-          {fetchedAt ? ` · fetched ${fetchedAt}` : ""}
-        </Text>
-      </Tooltip>
+      {hideDate ? null : (
+        <Tooltip
+          label="When this page last fetched the figures. This is NOT a device sync time - terminal freshness is shown in Recent Punches & Device Sync."
+          hasArrow
+          placement="bottom-start"
+        >
+          <Text fontSize="11px" color="gray.500" alignSelf="flex-start">
+            {filters.attendance_date
+              ? `Showing ${displayDate(filters.attendance_date)}`
+              : "Choose a date"}
+            {fetchedAt ? ` · fetched ${fetchedAt}` : ""}
+          </Text>
+        </Tooltip>
+      )}
     </Flex>
   );
 }

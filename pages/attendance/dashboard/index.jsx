@@ -1,10 +1,16 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/router";
-import { Alert, AlertIcon, Box, Flex, SimpleGrid, Spinner, Text } from "@chakra-ui/react";
+import { Alert, AlertIcon, Box, Button, Flex, SimpleGrid, Spinner, Text } from "@chakra-ui/react";
 import GlobalWrapper from "../../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../../components/CustomContainer";
 import DashboardFilters from "../../../components/attendance/dashboard/DashboardFilters";
 import DashboardCards from "../../../components/attendance/dashboard/DashboardCards";
+import StaffingCards from "../../../components/attendance/dashboard/StaffingCards";
+import CoveragePanel from "../../../components/attendance/dashboard/CoveragePanel";
+import NextHourPanel from "../../../components/attendance/dashboard/NextHourPanel";
+import GapDetailPanel from "../../../components/attendance/dashboard/GapDetailPanel";
+import CrossLocationPanel from "../../../components/attendance/dashboard/CrossLocationPanel";
+import RecurringGapsPanel from "../../../components/attendance/dashboard/RecurringGapsPanel";
 import AttendanceOverviewPanel from "../../../components/attendance/dashboard/AttendanceOverviewPanel";
 import LocationPanel from "../../../components/attendance/dashboard/LocationPanel";
 import ShiftPanel from "../../../components/attendance/dashboard/ShiftPanel";
@@ -12,10 +18,13 @@ import TrendPanel from "../../../components/attendance/dashboard/TrendPanel";
 import AttentionPanel from "../../../components/attendance/dashboard/AttentionPanel";
 import RecentPunchesPanel from "../../../components/attendance/dashboard/RecentPunchesPanel";
 import DrilldownModal from "../../../components/attendance/dashboard/DrilldownModal";
+import StaffingListModal from "../../../components/attendance/dashboard/StaffingListModal";
 import usePermissions from "../../../customHooks/usePermissions";
 import AttendanceDashboardHelper from "../../../helper/attendanceDashboard";
 import {
+  DELIVERY_STANDING_NOTE,
   apiMessage,
+  displayDate,
   employeeDayHref,
   isForbidden,
   isOk,
@@ -23,14 +32,26 @@ import {
 } from "../../../util/attendanceDashboard";
 
 /**
- * The Attendance Dashboard - the management overview of ONE attendance date.
+ * The Attendance & Staffing Dashboard.
+ *
+ * TWO VIEWS, AND THEY ANSWER DIFFERENT QUESTIONS.
+ *
+ *   NOW        "how many should be on duty, how many are recorded IN, where
+ *              are the gaps, and what changes in the next hour" - the
+ *              operational default, built on a server-issued `as_of`.
+ *   HISTORICAL the existing dated view of one attendance date, unchanged.
+ *
+ * They are deliberately separate tabs rather than one screen with a date
+ * picker, because a past date's figures under a "Now" heading is the single
+ * most misleading thing this dashboard could show. "Recorded IN as of now" and
+ * "checked in at some point that day" are different metrics and neither
+ * borrows the other's wording.
  *
  * AN ADDITIONAL OVERVIEW, NOT A REPLACEMENT. The per-employee monthly screen
  * at `/attendance/calculated` is untouched and remains where a day is
- * examined, corrected and approved. This screen answers "how is today going,
- * across the company" and then LINKS there; it holds no approve, reject,
- * regularize, edit or recalculate control of any kind, and the API behind it
- * has no route that could perform one.
+ * examined, corrected and approved. This screen LINKS there; it holds no
+ * approve, reject, regularize, edit or recalculate control of any kind, and
+ * the API behind it has no route that could perform one.
  *
  * BEHIND `view_attendance_dashboard`, on the page AND on every request it
  * makes. `GlobalWrapper` hides the page, which is presentation; the backend
@@ -92,6 +113,14 @@ export default function AttendanceDashboardPage() {
    * quietly ask for the wrong day.
    */
   const dateChosen = useRef(false);
+  const [view, setView] = useState("NOW");
+  const [staffing, setStaffing] = useState(null);
+  const [staffingError, setStaffingError] = useState(null);
+  const [staffingLoading, setStaffingLoading] = useState(true);
+  const [staffingList, setStaffingList] = useState(null);
+  const [recurring, setRecurring] = useState(null);
+  const [recurringLoading, setRecurringLoading] = useState(false);
+  const [recurringError, setRecurringError] = useState(null);
   const [overview, setOverview] = useState(null);
   const [trend, setTrend] = useState(null);
   const [trendDays, setTrendDays] = useState(14);
@@ -115,6 +144,7 @@ export default function AttendanceDashboardPage() {
    * because everything looks fine. Each load takes a ticket; only the newest
    * ticket may write state.
    */
+  const staffingSeq = useRef(0);
   const overviewSeq = useRef(0);
   const trendSeq = useRef(0);
   const drilldownSeq = useRef(0);
@@ -193,6 +223,65 @@ export default function AttendanceDashboardPage() {
     };
   }, []);
 
+  /**
+   * THE OPERATIONAL SNAPSHOT. No date is sent: the server decides what "now"
+   * is and returns the `as_of` shown on screen.
+   */
+  const loadStaffing = useCallback(async () => {
+    const ticket = ++staffingSeq.current;
+    const isCurrent = () => ticket === staffingSeq.current;
+    setStaffingLoading(true);
+    setStaffingError(null);
+    try {
+      const res = await AttendanceDashboardHelper.getStaffing({
+        store_ids: apiFilters.store_ids,
+        designation_id: apiFilters.designation_id,
+        work_shift_id: apiFilters.work_shift_id,
+        search: apiFilters.search,
+      });
+      if (!isCurrent()) return;
+      if (isForbidden(res)) {
+        setForbidden(apiMessage(res, "You do not have permission to view this dashboard."));
+        setStaffing(null);
+        return;
+      }
+      if (!isOk(res)) {
+        setStaffing(null);
+        setStaffingError(apiMessage(res, "The staffing snapshot could not be loaded"));
+        return;
+      }
+      setStaffing(res);
+    } catch (err) {
+      if (!isCurrent()) return;
+      setStaffing(null);
+      setStaffingError("Could not reach the server. Please try again.");
+    } finally {
+      if (isCurrent()) setStaffingLoading(false);
+    }
+  }, [apiFilters]);
+
+  const loadRecurring = useCallback(async () => {
+    setRecurringLoading(true);
+    setRecurringError(null);
+    try {
+      const res = await AttendanceDashboardHelper.getRecurringGaps({
+        store_ids: apiFilters.store_ids,
+        designation_id: apiFilters.designation_id,
+        search: apiFilters.search,
+      });
+      if (isOk(res)) setRecurring(res);
+      else {
+        setRecurring(null);
+        setRecurringError(apiMessage(res, "The pattern analysis could not be loaded"));
+      }
+    } catch (err) {
+      setRecurring(null);
+      setRecurringError("The pattern analysis could not be loaded.");
+    } finally {
+      setRecurringLoading(false);
+    }
+  }, [apiFilters]);
+
   const loadOverview = useCallback(async () => {
     if (!filters.attendance_date) return;
     const ticket = ++overviewSeq.current;
@@ -269,17 +358,60 @@ export default function AttendanceDashboardPage() {
   }, [apiFilters, trendDays, filters.attendance_date]);
 
   useEffect(() => {
-    loadOverview();
-  }, [loadOverview]);
+    if (view === "NOW") loadStaffing();
+  }, [view, loadStaffing]);
 
   useEffect(() => {
-    loadTrend();
-  }, [loadTrend]);
+    if (view === "HISTORY") loadOverview();
+  }, [view, loadOverview]);
+
+  useEffect(() => {
+    if (view === "HISTORY") loadTrend();
+  }, [view, loadTrend]);
 
   /* ------------------------------------------------------- drilldown */
 
   const openBucket = (bucket, overrides = null) => {
     setDrilldown({ bucket, offset: 0, overrides });
+  };
+
+  /**
+   * The NOW view's lists come from the snapshot itself, not from the dated
+   * drilldown endpoint - they are as-of figures and the dated endpoint would
+   * answer a different question. Each opens the matching employee list in a
+   * modal built from the snapshot rows already in hand.
+   */
+  const openStaffingBucket = (bucket) => {
+    if (!staffing) return;
+    const all = staffing.expected_detail || [];
+    if (bucket === "EXPECTED") {
+      setStaffingList({ title: "Expected now", rows: all });
+    } else if (bucket === "COVERED") {
+      setStaffingList({
+        title: "Recorded IN at the expected location",
+        rows: all.filter((r) => r.gap_class === "COVERED"),
+      });
+    } else {
+      setStaffingList({ title: "Gaps to check", rows: staffing.gap_detail || [] });
+    }
+  };
+
+  const openCoverageRow = (row) => {
+    if (!staffing) return;
+    setStaffingList({
+      title: `${row.outlet_name} — ${row.designation_name}`,
+      rows: (staffing.expected_detail || []).filter(
+        (g) =>
+          String(g.store_id) === String(row.store_id) &&
+          String(g.designation_id) === String(row.designation_id)
+      ),
+      summary: row,
+    });
+  };
+
+  const openEmployeeNow = (row) => {
+    const href = employeeDayHref(row.employee_id, row.attendance_date || staffing.business_date);
+    if (href) router.push(href);
   };
 
   useEffect(() => {
@@ -358,11 +490,33 @@ export default function AttendanceDashboardPage() {
   }
 
   const isOpenDay = !!(overview && overview.is_open_day);
+  const isNow = view === "NOW";
 
   return (
-    <GlobalWrapper title="Attendance Dashboard" permissionKey={["view_attendance_dashboard"]}>
+    <GlobalWrapper title="Attendance & Staffing Dashboard" permissionKey={["view_attendance_dashboard"]}>
       <Box bg="#F7F8FB" minH="100%" pb={4}>
-        <CustomContainer title="Attendance Dashboard" filledHeader>
+        <CustomContainer
+          title="Attendance & Staffing Dashboard"
+          filledHeader
+          rightSection={
+            <Flex gap={1}>
+              {[
+                { key: "NOW", label: "Now" },
+                { key: "HISTORY", label: "By date" },
+              ].map((tab) => (
+                <Button
+                  key={tab.key}
+                  size="xs"
+                  variant={view === tab.key ? "solid" : "outline"}
+                  colorScheme="purple"
+                  onClick={() => setView(tab.key)}
+                >
+                  {tab.label}
+                </Button>
+              ))}
+            </Flex>
+          }
+        >
           <Flex direction="column" gap={3}>
             <DashboardFilters
               filters={filters}
@@ -372,19 +526,16 @@ export default function AttendanceDashboardPage() {
                 setFilters(next);
               }}
               onRefresh={() => {
-                loadOverview();
-                loadTrend();
+                if (isNow) loadStaffing();
+                else {
+                  loadOverview();
+                  loadTrend();
+                }
               }}
-              loading={loading}
-              fetchedAt={overview ? overview.fetched_at : null}
+              loading={isNow ? staffingLoading : loading}
+              fetchedAt={isNow ? null : overview ? overview.fetched_at : null}
+              hideDate={isNow}
             />
-
-            {error ? (
-              <Alert status="error" fontSize="sm" borderRadius="md">
-                <AlertIcon />
-                {error}
-              </Alert>
-            ) : null}
 
             {filtersError ? (
               <Alert status="warning" fontSize="xs" borderRadius="md" py={2}>
@@ -393,113 +544,189 @@ export default function AttendanceDashboardPage() {
               </Alert>
             ) : null}
 
-            {overview && isOpenDay ? (
-              <Alert status="info" fontSize="xs" borderRadius="md" py={2}>
-                <AlertIcon boxSize="14px" />
-                {overview.day_state_note}
-              </Alert>
-            ) : null}
-
-            {loading && !overview ? (
-              <Flex minH="220px" align="center" justify="center">
-                <Spinner size="lg" color="purple.500" thickness="3px" />
-              </Flex>
-            ) : !overview ? (
-              !error ? (
-                <Text fontSize="sm" color="gray.600" py={6} textAlign="center">
-                  Choose an attendance date to see the overview.
-                </Text>
-              ) : null
-            ) : (
+            {/* ============================================= NOW ==== */}
+            {isNow ? (
               <>
-                <DashboardCards
-                  cards={overview.cards}
-                  isOpenDay={isOpenDay}
-                  onOpenBucket={openBucket}
-                />
+                {staffingError ? (
+                  <Alert status="error" fontSize="sm" borderRadius="md">
+                    <AlertIcon />
+                    {staffingError}
+                  </Alert>
+                ) : null}
 
-                {/* Three columns on the desktop, stacked on a phone. */}
-                <SimpleGrid columns={{ base: 1, lg: 2, xl: 3 }} spacing={3}>
-                  <AttendanceOverviewPanel
-                    overview={overview.overview}
-                    isOpenDay={isOpenDay}
-                    onOpenSlice={openBucket}
-                  />
-                  <LocationPanel
-                    rows={overview.by_location}
-                    isOpenDay={isOpenDay}
-                    onOpenLocation={(row) =>
-                      // Scoped to THAT location for this list only; the filter
-                      // bar and the other panels are left alone. The
-                      // "no outlet on record" row is selected EXPLICITLY -
-                      // omitting the filter, which is what this used to do,
-                      // returns everybody.
-                      openBucket(
-                        "TOTAL",
-                        row.store_id === null
-                          ? { store_unassigned: true }
-                          : { store_ids: [row.store_id] }
-                      )
-                    }
-                  />
-                  <ShiftPanel
-                    rows={overview.by_shift}
-                    total={overview.cards.total_employees.count}
-                    isOpenDay={isOpenDay}
-                    onOpenShift={(row) =>
-                      // THE EXACT GROUP THE ROW STANDS FOR. A setup-gap row
-                      // opens its own ISSUE - No Shift Assigned or Shift Setup
-                      // Issue - narrowed to that row's shift where it has one.
-                      // Opening the whole UNRESOLVED population instead, which
-                      // is what this did, listed unrelated problems AND missed
-                      // the employee who matters most: somebody who punched
-                      // normally on a shift with no schedule row is Checked In,
-                      // so no slice-based list could contain them.
-                      row.setup_gap
-                        ? openBucket(
-                            row.issue_key || "SHIFT_SETUP",
-                            row.work_shift_id === null
-                              ? null
-                              : { work_shift_id: row.work_shift_id }
-                          )
-                        : openBucket(
+                {staffingLoading && !staffing ? (
+                  <Flex minH="220px" align="center" justify="center">
+                    <Spinner size="lg" color="purple.500" thickness="3px" />
+                  </Flex>
+                ) : !staffing ? null : (
+                  <>
+                    <Flex align="baseline" gap={2} wrap="wrap">
+                      <Text fontSize="xs" color="gray.600">
+                        As of <strong>{staffing.as_of}</strong> ({displayDate(staffing.business_date)})
+                      </Text>
+                      <Text fontSize="10px" color="gray.500">
+                        · manual refresh · not a live stream
+                      </Text>
+                    </Flex>
+
+                    <StaffingCards snapshot={staffing} onOpen={openStaffingBucket} />
+
+                    {staffing.reconciles === false ? (
+                      <Alert status="error" fontSize="xs" borderRadius="md" py={2}>
+                        <AlertIcon boxSize="14px" />
+                        The gap breakdown does not add up to the expected headcount. Please report
+                        this.
+                      </Alert>
+                    ) : null}
+
+                    {staffing.unknown_expectation && staffing.unknown_expectation.length > 0 ? (
+                      <Alert status="warning" fontSize="xs" borderRadius="md" py={2}>
+                        <AlertIcon boxSize="14px" />
+                        Expected coverage unknown for {staffing.unknown_expectation.length}{" "}
+                        {staffing.unknown_expectation.length === 1 ? "employee" : "employees"} —
+                        shift setup required. They are not counted in Expected Now.
+                      </Alert>
+                    ) : null}
+
+                    <SimpleGrid columns={{ base: 1, lg: 2, xl: 3 }} spacing={3}>
+                      <CoveragePanel rows={staffing.coverage} onOpen={openCoverageRow} />
+                      <GapDetailPanel rows={staffing.gap_detail} onOpenEmployee={openEmployeeNow} />
+                      <NextHourPanel nextHour={staffing.next_hour} />
+                    </SimpleGrid>
+
+                    <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={3}>
+                      <CrossLocationPanel
+                        arrivals={staffing.additional && staffing.additional.cross_location_arrivals}
+                        additional={staffing.additional}
+                      />
+                      <RecurringGapsPanel
+                        data={recurring}
+                        loading={recurringLoading}
+                        error={recurringError}
+                        onLoad={loadRecurring}
+                      />
+                    </SimpleGrid>
+
+                    <Text fontSize="10px" color="gray.500">
+                      {DELIVERY_STANDING_NOTE} Recorded IN means a punch opened a session — not
+                      that somebody is at a counter or not on a break. Opening this page changes no
+                      attendance or payroll record.
+                    </Text>
+                  </>
+                )}
+              </>
+            ) : (
+              /* ========================================= BY DATE ==== */
+              <>
+                {error ? (
+                  <Alert status="error" fontSize="sm" borderRadius="md">
+                    <AlertIcon />
+                    {error}
+                  </Alert>
+                ) : null}
+
+                {overview && isOpenDay ? (
+                  <Alert status="info" fontSize="xs" borderRadius="md" py={2}>
+                    <AlertIcon boxSize="14px" />
+                    {overview.day_state_note}
+                  </Alert>
+                ) : null}
+
+                {loading && !overview ? (
+                  <Flex minH="220px" align="center" justify="center">
+                    <Spinner size="lg" color="purple.500" thickness="3px" />
+                  </Flex>
+                ) : !overview ? (
+                  !error ? (
+                    <Text fontSize="sm" color="gray.600" py={6} textAlign="center">
+                      Choose an attendance date to see the overview.
+                    </Text>
+                  ) : null
+                ) : (
+                  <>
+                    <DashboardCards
+                      cards={overview.cards}
+                      isOpenDay={isOpenDay}
+                      onOpenBucket={openBucket}
+                    />
+
+                    <SimpleGrid columns={{ base: 1, lg: 2, xl: 3 }} spacing={3}>
+                      <AttendanceOverviewPanel
+                        overview={overview.overview}
+                        isOpenDay={isOpenDay}
+                        onOpenSlice={openBucket}
+                      />
+                      <LocationPanel
+                        rows={overview.by_location}
+                        isOpenDay={isOpenDay}
+                        onOpenLocation={(row) =>
+                          openBucket(
                             "TOTAL",
-                            row.work_shift_id === null
-                              ? null
-                              : { work_shift_id: row.work_shift_id }
+                            row.store_id === null
+                              ? { store_unassigned: true }
+                              : { store_ids: [row.store_id] }
                           )
-                    }
-                  />
-                  <TrendPanel
-                    trend={trend}
-                    error={trendError}
-                    days={trendDays}
-                    onDaysChange={setTrendDays}
-                    loading={trendLoading}
-                  />
-                  <AttentionPanel
-                    issues={overview.attention}
-                    canFor={canFor}
-                    onOpenIssue={openBucket}
-                    onNavigate={(href) => router.push(href)}
-                  />
-                  <RecentPunchesPanel
-                    data={punches}
-                    error={punchesError}
-                    onOpenEmployee={openEmployee}
-                  />
-                </SimpleGrid>
+                        }
+                      />
+                      <ShiftPanel
+                        rows={overview.by_shift}
+                        total={overview.cards.total_employees.count}
+                        isOpenDay={isOpenDay}
+                        onOpenShift={(row) =>
+                          row.setup_gap
+                            ? openBucket(
+                                row.issue_key || "SHIFT_SETUP",
+                                row.work_shift_id === null
+                                  ? null
+                                  : { work_shift_id: row.work_shift_id }
+                              )
+                            : openBucket(
+                                "TOTAL",
+                                row.work_shift_id === null
+                                  ? null
+                                  : { work_shift_id: row.work_shift_id }
+                              )
+                        }
+                      />
+                      <TrendPanel
+                        trend={trend}
+                        error={trendError}
+                        days={trendDays}
+                        onDaysChange={setTrendDays}
+                        loading={trendLoading}
+                      />
+                      <AttentionPanel
+                        issues={overview.attention}
+                        canFor={canFor}
+                        onOpenIssue={openBucket}
+                        onNavigate={(href) => router.push(href)}
+                      />
+                      <RecentPunchesPanel
+                        data={punches}
+                        error={punchesError}
+                        onOpenEmployee={openEmployee}
+                      />
+                    </SimpleGrid>
 
-                <Text fontSize="10px" color="gray.500">
-                  Figures come from the attendance engine, the same calculation the employee’s own
-                  attendance screen shows. Opening this page changes no attendance or payroll record
-                  and triggers no recalculation.
-                </Text>
+                    <Text fontSize="10px" color="gray.500">
+                      Figures come from the attendance engine, the same calculation the
+                      employee&rsquo;s own attendance screen shows. {DELIVERY_STANDING_NOTE}
+                    </Text>
+                  </>
+                )}
               </>
             )}
           </Flex>
         </CustomContainer>
       </Box>
+
+      <StaffingListModal
+        list={staffingList}
+        asOf={staffing ? staffing.as_of : ""}
+        isOpen={!!staffingList}
+        onClose={() => setStaffingList(null)}
+        onOpenEmployee={openEmployeeNow}
+      />
 
       <DrilldownModal
         isOpen={!!drilldown}

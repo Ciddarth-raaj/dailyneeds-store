@@ -167,7 +167,7 @@ export const PERMISSIONS = {
     // own key, and a read-only one: it aggregates figures this designation may
     // already read one employee at a time, and it grants no approval, edit or
     // recalculation - every action it links to keeps its own key.
-    view_attendance_dashboard: "View Attendance Dashboard",
+    view_attendance_dashboard: "View Attendance & Staffing Dashboard",
     edit_attendance_date_shift: "Edit Shift for a Single Attendance Date",
     // The approval and recalculation screens. `view_attendance_approvals`
     // opens Attendance Approval and OT Approval - what each person sees

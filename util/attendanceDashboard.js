@@ -21,7 +21,55 @@
  * means somebody turned up, and if it is red it means a settled absence.
  */
 
-/** The six top cards, in the approved order, each with its meaning fixed. */
+/**
+ * THE THREE PRIMARY CARDS: Expected Now, Recorded IN, Gap.
+ *
+ * These replace the six absence-focused cards. The question the screen answers
+ * changed - from "who was absent" to "who should be on duty and who is
+ * recorded IN" - and the primary presentation follows it.
+ *
+ * The wording is load-bearing. "Recorded IN" is not "present": several Daily
+ * Needs employees eat on the premises and punch twice a day, so a recorded IN
+ * says a punch opened a session, not that somebody is at a counter. "Gap" is
+ * not "absent" and not "shortage": it is schedule minus recorded cover, and
+ * every one of its reasons is something to check rather than a finding.
+ */
+const PRIMARY_CARDS = Object.freeze([
+  {
+    key: "expected_now",
+    label: "Expected Now",
+    bucket: "EXPECTED",
+    color: "navy",
+    help:
+      "Employees whose assigned shift interval contains this moment: start ≤ now < end. The interval is the shift's own in-time to out-time — not normal hours, and not reduced by a break allowance.",
+  },
+  {
+    key: "recorded_in",
+    label: "Recorded IN",
+    bucket: "COVERED",
+    color: "green",
+    help:
+      "Expected employees whose latest punch state as of now is an IN, at their expected location. Recorded IN does not mean actively working, at a counter, or not on a break.",
+  },
+  {
+    key: "gap",
+    label: "Gap",
+    bucket: "GAP",
+    color: "amber",
+    help:
+      "Expected Now minus Recorded IN at the expected location — 'not recorded IN against schedule'. Not absence, and not a confirmed staff shortage.",
+  },
+]);
+
+/** The four gap reasons, in the order they are shown. Mutually exclusive. */
+const GAP_REASONS = Object.freeze([
+  { key: "NO_CHECK_IN", label: "No check-in received", color: "amber" },
+  { key: "RECORDED_OUT", label: "Recorded OUT during the shift", color: "orange" },
+  { key: "IN_ELSEWHERE", label: "Recorded IN at another location", color: "blue" },
+  { key: "INDETERMINATE", label: "Punch state or location unclear", color: "gray" },
+]);
+
+/** The historical view's cards, unchanged apart from the absence rename. */
 const CARDS = Object.freeze([
   {
     key: "total_employees",
@@ -37,7 +85,7 @@ const CARDS = Object.freeze([
     bucket: "CHECKED_IN",
     color: "green",
     help:
-      "At least one valid punch during this attendance day. Not 'currently inside', and not a finalized payable Present Day.",
+      "At least one valid punch during this attendance day. This is 'punched at some point', not 'recorded IN now' — the operational view uses the second.",
   },
   {
     key: "not_yet_checked_in",
@@ -48,12 +96,12 @@ const CARDS = Object.freeze([
       "Shift has started, the attendance day is still open, and no valid punch has arrived. Employees whose shift has not started are not counted here.",
   },
   {
-    key: "absent",
-    label: "Absent",
-    bucket: "ABSENT",
+    key: "no_record",
+    label: "No Punches Recorded",
+    bucket: "NO_RECORD",
     color: "red",
     help:
-      "Confirmed absence from the attendance engine, reported only after this attendance day has closed under the employee's own shift cutoff.",
+      "A finished attendance day with no punches. Not a confirmed absence: the terminals give no end-of-transfer acknowledgement, so undelivered punches look identical.",
   },
   {
     key: "need_action",
@@ -95,7 +143,7 @@ const SLICE_TONE = Object.freeze({
   CHECKED_IN: "green",
   NOT_YET_CHECKED_IN: "amber",
   SHIFT_NOT_STARTED: "blue",
-  ABSENT: "red",
+  NO_RECORD: "red",
   UNRESOLVED: "gray",
 });
 
@@ -218,14 +266,19 @@ function shortDate(dateOnly) {
  * actually reached us" by comparing each terminal's last contact with that
  * attendance day's own close instant. That verdict is what the screen shows.
  */
-const COVERAGE_BADGE = Object.freeze({
-  COMPLETE: { label: "Delivery confirmed", color: "green", warn: false },
-  INCOMPLETE: { label: "Punches still arriving", color: "amber", warn: true },
-  UNKNOWN: { label: "Delivery not confirmed", color: "gray", warn: true },
+/**
+ * Delivery badges. There is deliberately no "confirmed" state: the terminals
+ * give no end-of-transfer acknowledgement and nothing ever marks a historical
+ * pull complete, so the server can never send one.
+ */
+const DELIVERY_BADGE = Object.freeze({
+  UNVERIFIED: { label: "Delivery not verified", color: "gray", warn: false },
+  IN_PROGRESS: { label: "Punches still arriving", color: "amber", warn: true },
+  PULL_FAILED: { label: "A punch retrieval failed", color: "orange", warn: true },
 });
 
-function coverageBadge(coverage) {
-  return COVERAGE_BADGE[coverage] || COVERAGE_BADGE.UNKNOWN;
+function deliveryBadge(delivery) {
+  return DELIVERY_BADGE[delivery] || DELIVERY_BADGE.UNVERIFIED;
 }
 
 /**
@@ -248,20 +301,22 @@ function coverageBadge(coverage) {
 function deviceFreshness(device) {
   if (!device || device.sync_known !== true) {
     return {
-      state: "UNKNOWN",
-      label: "Sync unknown",
+      state: "UNVERIFIED",
+      label: "No contact on record",
       color: "gray",
       warn: true,
       detail: "The receiver has no record of this terminal ever being in contact.",
     };
   }
-  const badge = coverageBadge(device.coverage);
+  const badge = deliveryBadge(device.delivery);
   return {
-    state: device.coverage || "UNKNOWN",
+    state: device.delivery || "UNVERIFIED",
     label: badge.label,
     color: badge.color,
     warn: badge.warn,
-    detail: `Last contact ${formatAge(device.last_seen_age_minutes)}.`,
+    // Contact time is information, never evidence of delivery: an idle poll
+    // updates it and proves nothing about buffered punches.
+    detail: `Last contact ${formatAge(device.last_seen_age_minutes)} (a contact is not a delivery).`,
   };
 }
 
@@ -275,29 +330,33 @@ function deviceFreshness(device) {
  * @param {Array} coverage `[{store_id, coverage, label}]` for the date
  * @param {boolean} available false when the device read itself failed
  */
-function feedWarning(coverage, available = true) {
+function feedWarning(delivery, available = true) {
   if (available === false) {
-    return "Terminal health could not be read, so punch delivery for this day cannot be confirmed. Absences are being withheld rather than reported.";
+    return "Punch retrieval state could not be read for this day.";
   }
-  const rows = Array.isArray(coverage) ? coverage : [];
-  if (rows.length === 0) return null;
-  const incomplete = rows.filter((c) => c.coverage === "INCOMPLETE").length;
-  const unknown = rows.filter((c) => c.coverage === "UNKNOWN").length;
-  if (incomplete === 0 && unknown === 0) return null;
+  const rows = Array.isArray(delivery) ? delivery : [];
+  const arriving = rows.filter((c) => c.delivery === "IN_PROGRESS").length;
+  const failed = rows.filter((c) => c.delivery === "PULL_FAILED").length;
+  if (arriving === 0 && failed === 0) return null;
 
   const parts = [];
-  if (incomplete > 0) {
-    parts.push(
-      `${incomplete} location${incomplete === 1 ? " is" : "s are"} still receiving punches for this day`
-    );
+  if (arriving > 0) {
+    parts.push(`${arriving} location${arriving === 1 ? " is" : "s are"} still receiving punches for this day`);
   }
-  if (unknown > 0) {
-    parts.push(
-      `${unknown} location${unknown === 1 ? "'s terminal has" : "s' terminals have"} not been in contact since this attendance day closed`
-    );
+  if (failed > 0) {
+    parts.push(`${failed} location${failed === 1 ? " had a" : "s had"} punch retrieval fail`);
   }
-  return `${parts.join(", and ")}. Absence is withheld for those locations rather than reported, because an undelivered punch and an absence look the same from here.`;
+  return `${parts.join(", and ")}. Figures for those locations understate attendance.`;
 }
+
+/**
+ * The standing note about delivery, shown once rather than on every panel.
+ *
+ * It is not a warning about a fault - it is the permanent condition of this
+ * feed, and the reason nothing on this screen says "absent".
+ */
+const DELIVERY_STANDING_NOTE =
+  "Punches received are shown as they arrive. The terminals give no end-of-transfer acknowledgement, so this screen never reports a confirmed absence.";
 
 /**
  * The Attendance Overview slices as chart data, dropping the empty ones from
@@ -356,7 +415,7 @@ function trendMessage(trend) {
     if (trend.reason === "NO_POPULATION") {
       return "No employees match these filters, so there is no trend to show.";
     }
-    if (trend.reason === "NO_CONFIRMED_DELIVERY") {
+    if (trend.reason === "NO_PLOTTABLE_DAYS") {
       return "Punch delivery is not confirmed for any completed day in this range, so no rate is plotted — it would be a lower bound rather than a measurement.";
     }
     return "No completed attendance days yet for these filters. The selected day is still open and is not plotted.";
@@ -375,7 +434,7 @@ const BUCKET_TITLE = Object.freeze({
   CHECKED_IN: "Checked in",
   NOT_YET_CHECKED_IN: "Not yet checked in",
   SHIFT_NOT_STARTED: "Shift not started",
-  ABSENT: "Absent",
+  NO_RECORD: "No punches recorded",
   UNRESOLVED: "Unresolved / data pending",
   NEED_ACTION: "Need action",
   OT_PENDING: "OT requests pending",
@@ -444,8 +503,11 @@ module.exports = {
   tone,
   SLICE_TONE,
   ISSUE_LINK,
-  COVERAGE_BADGE,
-  coverageBadge,
+  PRIMARY_CARDS,
+  GAP_REASONS,
+  DELIVERY_BADGE,
+  DELIVERY_STANDING_NOTE,
+  deliveryBadge,
   ratePercent,
   rateCounts,
   rateDetail,

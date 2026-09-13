@@ -14,10 +14,14 @@ const assert = require("node:assert/strict");
 
 const {
   CARDS,
+  DELIVERY_BADGE,
+  DELIVERY_STANDING_NOTE,
+  GAP_REASONS,
   ISSUE_LINK,
+  PRIMARY_CARDS,
   SLICE_TONE,
   clock,
-  coverageBadge,
+  deliveryBadge,
   deviceFreshness,
   displayDate,
   employeeDayHref,
@@ -99,37 +103,92 @@ describe("the shared status -> issue table", () => {
   });
 });
 
-describe("the six cards", () => {
-  it("are the six approved ones, in order, each with its own drilldown bucket", () => {
+describe("the three primary cards", () => {
+  it("are Expected Now, Recorded IN and Gap, in that order", () => {
+    assert.deepEqual(
+      PRIMARY_CARDS.map((c) => c.key),
+      ["expected_now", "recorded_in", "gap"]
+    );
+  });
+
+  it("each opens its own list", () => {
+    assert.equal(new Set(PRIMARY_CARDS.map((c) => c.bucket)).size, 3);
+  });
+
+  it("the Expected Now help says the interval is not normal hours or a break", () => {
+    const help = PRIMARY_CARDS.find((c) => c.key === "expected_now").help;
+    assert.match(help, /start ≤ now < end/);
+    assert.match(help, /not normal hours/i);
+    assert.match(help, /not reduced by a break/i);
+  });
+
+  it("the Recorded IN help refuses to claim presence", () => {
+    const help = PRIMARY_CARDS.find((c) => c.key === "recorded_in").help;
+    assert.match(help, /does not mean actively working/i);
+    assert.match(help, /not on a break/i);
+  });
+
+  it("the Gap help says it is not absence and not a shortage", () => {
+    const help = PRIMARY_CARDS.find((c) => c.key === "gap").help;
+    assert.match(help, /not absence/i);
+    assert.match(help, /not a confirmed staff shortage/i);
+  });
+
+  it("no primary card mentions absence at all", () => {
+    PRIMARY_CARDS.forEach((c) => {
+      assert.doesNotMatch(c.label, /absent/i, `${c.key} label`);
+    });
+  });
+});
+
+describe("the four gap reasons", () => {
+  it("are the mutually exclusive ones the server sends", () => {
+    assert.deepEqual(
+      GAP_REASONS.map((r) => r.key),
+      ["NO_CHECK_IN", "RECORDED_OUT", "IN_ELSEWHERE", "INDETERMINATE"]
+    );
+  });
+
+  it("never interpret an OUT as lunch or an early departure", () => {
+    const out = GAP_REASONS.find((r) => r.key === "RECORDED_OUT");
+    assert.equal(out.label, "Recorded OUT during the shift");
+    GAP_REASONS.forEach((r) =>
+      assert.doesNotMatch(r.label, /lunch|absent|unauthoris|early departure|late/i)
+    );
+  });
+});
+
+describe("the historical cards", () => {
+  it("keep the six, with absence renamed to what the data supports", () => {
     assert.deepEqual(
       CARDS.map((c) => c.key),
       [
         "total_employees",
         "checked_in",
         "not_yet_checked_in",
-        "absent",
+        "no_record",
         "need_action",
         "ot_requests_pending",
       ]
     );
-    assert.equal(new Set(CARDS.map((c) => c.bucket)).size, CARDS.length, "no two cards share a bucket");
-    assert.equal(new Set(CARDS.map((c) => c.color)).size, CARDS.length, "six differently coloured cards");
+    assert.equal(CARDS.find((c) => c.key === "no_record").label, "No Punches Recorded");
   });
 
-  it("uses green for check-ins and red for confirmed absence", () => {
+  it("say plainly that no-record is not a confirmed absence", () => {
+    assert.match(CARDS.find((c) => c.key === "no_record").help, /Not a confirmed absence/i);
+  });
+
+  it("distinguish 'checked in at some point' from 'recorded IN now'", () => {
+    assert.match(
+      CARDS.find((c) => c.key === "checked_in").help,
+      /not 'recorded IN now'/i,
+      "the two metrics must never borrow each other's wording"
+    );
+  });
+
+  it("uses green for check-ins and red for the no-record card", () => {
     assert.equal(CARDS.find((c) => c.key === "checked_in").color, "green");
-    assert.equal(CARDS.find((c) => c.key === "absent").color, "red");
-    assert.equal(CARDS.find((c) => c.key === "not_yet_checked_in").color, "amber");
-  });
-
-  it("every card explains what it counts", () => {
-    CARDS.forEach((c) => assert.ok(c.help && c.help.length > 20, `${c.key} has no explanation`));
-  });
-
-  it("the Checked In help says it is not 'currently inside' and not a payable day", () => {
-    const help = CARDS.find((c) => c.key === "checked_in").help;
-    assert.match(help, /not 'currently inside'/i);
-    assert.match(help, /not a finalized payable Present Day/i);
+    assert.equal(CARDS.find((c) => c.key === "no_record").color, "red");
   });
 });
 
@@ -160,104 +219,87 @@ describe("a rate never overstates itself", () => {
   });
 });
 
-describe("device freshness never says offline, and invents no threshold", () => {
-  it("shows the server's confirmed-delivery verdict", () => {
-    const f = deviceFreshness({ sync_known: true, coverage: "COMPLETE", last_seen_age_minutes: 4 });
-    assert.equal(f.state, "COMPLETE");
-    assert.equal(f.warn, false);
-    assert.match(f.label, /Delivery confirmed/);
-    assert.match(f.detail, /4m ago/);
+describe("the terminal badge shows the server's verdict, never 'confirmed'", () => {
+  it("has no confirmed state to show", () => {
+    assert.deepEqual(Object.keys(DELIVERY_BADGE).sort(), [
+      "IN_PROGRESS",
+      "PULL_FAILED",
+      "UNVERIFIED",
+    ]);
+    Object.values(DELIVERY_BADGE).forEach((b) =>
+      assert.doesNotMatch(b.label, /^Delivery confirmed$/i)
+    );
   });
 
-  it("warns when the server could not confirm delivery, without calling it down", () => {
-    const f = deviceFreshness({
-      sync_known: true,
-      coverage: "UNKNOWN",
-      last_seen_age_minutes: 900,
-    });
-    assert.equal(f.warn, true);
-    assert.match(f.label, /not confirmed/i);
-    assert.doesNotMatch(f.label, /offline|down/i);
+  it("unverified is the normal state and is not an alarm", () => {
+    const f = deviceFreshness({ sync_known: true, delivery: "UNVERIFIED", last_seen_age_minutes: 4 });
+    assert.equal(f.state, "UNVERIFIED");
+    assert.equal(f.warn, false, "the normal condition of this feed is not a fault");
+    assert.match(f.label, /not verified/i);
   });
 
-  it("says punches are still arriving for an open historical pull", () => {
-    const f = deviceFreshness({ sync_known: true, coverage: "INCOMPLETE", last_seen_age_minutes: 2 });
+  it("a running retrieval warns that punches are still arriving", () => {
+    const f = deviceFreshness({ sync_known: true, delivery: "IN_PROGRESS", last_seen_age_minutes: 2 });
     assert.match(f.label, /still arriving/i);
     assert.equal(f.warn, true);
   });
 
-  it("an unrecorded contact is UNKNOWN, not offline", () => {
-    const f = deviceFreshness({ sync_known: false, last_seen_age_minutes: null });
-    assert.equal(f.state, "UNKNOWN");
-    assert.equal(f.label, "Sync unknown");
+  it("a failed retrieval warns, and is not treated as finished", () => {
+    const f = deviceFreshness({ sync_known: true, delivery: "PULL_FAILED", last_seen_age_minutes: 2 });
+    assert.match(f.label, /failed/i);
+    assert.equal(f.warn, true);
+  });
+
+  it("no contact on record is said plainly, never 'offline'", () => {
+    const f = deviceFreshness({ sync_known: false });
+    assert.match(f.label, /No contact on record/i);
     assert.doesNotMatch(f.label, /offline|down/i);
   });
 
-  it("NO time threshold decides the badge - the server's verdict does", () => {
-    // A terminal silent for a day is CONFIRMED when the server says delivery
-    // for the selected date was confirmed; a terminal seen a minute ago is not
-    // confirmed when the server says it is not. An invented "stale after N
-    // minutes" rule would get both of these backwards.
-    const quietButConfirmed = deviceFreshness({
-      sync_known: true,
-      coverage: "COMPLETE",
-      last_seen_age_minutes: 60 * 24,
-    });
-    assert.equal(quietButConfirmed.warn, false);
-
-    const freshButUnconfirmed = deviceFreshness({
-      sync_known: true,
-      coverage: "UNKNOWN",
-      last_seen_age_minutes: 1,
-    });
-    assert.equal(freshButUnconfirmed.warn, true);
+  it("says outright that a contact is not a delivery", () => {
+    const f = deviceFreshness({ sync_known: true, delivery: "UNVERIFIED", last_seen_age_minutes: 1 });
+    assert.match(f.detail, /a contact is not a delivery/i);
   });
 
-  it("never reads last_punch_at: a quiet terminal is not an absent one", () => {
-    const f = deviceFreshness({
-      sync_known: true,
-      coverage: "COMPLETE",
-      last_seen_age_minutes: 2,
-      last_punch_age_minutes: 900,
-    });
-    assert.equal(f.warn, false, "nobody punching does not make a terminal unhealthy");
+  it("an unknown verdict falls back to unverified, never to confirmed", () => {
+    assert.equal(deliveryBadge("SOMETHING_NEW").label, DELIVERY_BADGE.UNVERIFIED.label);
+    assert.equal(deliveryBadge(undefined).label, DELIVERY_BADGE.UNVERIFIED.label);
   });
 });
 
-describe("the feed warning comes from the server's verdicts", () => {
-  it("says nothing when every location is confirmed", () => {
+describe("the feed warning reports only what is positively known", () => {
+  it("says nothing when no retrieval is running or failed", () => {
     assert.equal(
       feedWarning([
-        { store_id: 1, coverage: "COMPLETE" },
-        { store_id: 2, coverage: "COMPLETE" },
+        { store_id: 1, delivery: "UNVERIFIED" },
+        { store_id: 2, delivery: "UNVERIFIED" },
       ]),
-      null
+      null,
+      "unverified is the permanent condition, not news"
     );
   });
 
-  it("names how many locations are unconfirmed, and what it means for the numbers", () => {
-    const w = feedWarning([
-      { store_id: 1, coverage: "COMPLETE" },
-      { store_id: 2, coverage: "UNKNOWN" },
-    ]);
-    assert.match(w, /1 location's terminal has not been in contact/);
-    assert.match(w, /Absence is withheld/);
-  });
-
   it("names locations still receiving punches", () => {
-    const w = feedWarning([{ store_id: 1, coverage: "INCOMPLETE" }]);
-    assert.match(w, /still receiving punches/);
+    assert.match(feedWarning([{ store_id: 1, delivery: "IN_PROGRESS" }]), /still receiving punches/);
   });
 
-  it("says so when the device read itself failed", () => {
-    const w = feedWarning([], false);
-    assert.match(w, /could not be read/);
-    assert.match(w, /withheld rather than reported/);
+  it("names locations whose retrieval failed", () => {
+    assert.match(feedWarning([{ store_id: 1, delivery: "PULL_FAILED" }]), /retrieval fail/);
   });
 
-  it("says nothing when there is nothing to report", () => {
-    assert.equal(feedWarning([]), null);
-    assert.equal(feedWarning(null), null);
+  it("says figures understate attendance, never that people were absent", () => {
+    const w = feedWarning([{ store_id: 1, delivery: "IN_PROGRESS" }]);
+    assert.match(w, /understate attendance/);
+    assert.doesNotMatch(w, /absent/i);
+  });
+
+  it("reports a failed read of the retrieval state", () => {
+    assert.match(feedWarning([], false), /could not be read/);
+  });
+
+  it("the standing note explains why nothing here says absent", () => {
+    assert.match(DELIVERY_STANDING_NOTE, /no end-of-transfer acknowledgement/i);
+    assert.match(DELIVERY_STANDING_NOTE, /never reports a confirmed absence/i);
   });
 });
 
@@ -268,7 +310,7 @@ describe("the overview chart and legend", () => {
       { slice: "CHECKED_IN", label: "Checked In", count: 6 },
       { slice: "NOT_YET_CHECKED_IN", label: "Not Yet Checked In", count: 2 },
       { slice: "SHIFT_NOT_STARTED", label: "Shift Not Started", count: 0 },
-      { slice: "ABSENT", label: "Absent (day closed)", count: 1 },
+      { slice: "NO_RECORD", label: "No punches recorded", count: 1 },
       { slice: "UNRESOLVED", label: "Unresolved / Data Pending", count: 1 },
     ],
   };
@@ -299,7 +341,7 @@ describe("the overview chart and legend", () => {
   it("every slice has a declared colour, and check-in is green", () => {
     overview.slices.forEach((s) => assert.ok(SLICE_TONE[s.slice], `${s.slice} has no colour`));
     assert.equal(SLICE_TONE.CHECKED_IN, "green");
-    assert.equal(SLICE_TONE.ABSENT, "red");
+    assert.equal(SLICE_TONE.NO_RECORD, "red");
   });
 
   it("survives a missing overview without throwing", () => {
@@ -454,25 +496,12 @@ describe("a trend day without confirmed delivery is a gap, not a zero", () => {
     assert.equal(rows[0].applicable, 10);
   });
 
-  it("says so when no completed day has confirmed delivery", () => {
+  it("says so when no completed day can be plotted", () => {
     assert.match(
-      trendMessage({ available: false, reason: "NO_CONFIRMED_DELIVERY", days: [{}] }),
+      trendMessage({ available: false, reason: "NO_PLOTTABLE_DAYS", days: [{}] }),
       /lower bound rather than a measurement/
     );
   });
 });
 
-describe("coverage badges", () => {
-  it("has a badge for every verdict the server can send", () => {
-    ["COMPLETE", "INCOMPLETE", "UNKNOWN"].forEach((c) => {
-      const b = coverageBadge(c);
-      assert.ok(b.label, `${c} has no label`);
-      assert.ok(["green", "amber", "gray"].includes(b.color));
-    });
-  });
 
-  it("an unrecognised verdict falls back to UNKNOWN, never to confirmed", () => {
-    assert.equal(coverageBadge("SOMETHING_NEW").label, coverageBadge("UNKNOWN").label);
-    assert.equal(coverageBadge(undefined).warn, true, "unknown must warn, not reassure");
-  });
-});

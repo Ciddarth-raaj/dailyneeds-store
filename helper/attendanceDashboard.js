@@ -43,6 +43,31 @@ const queryFor = ({ attendance_date, store_ids, designation_id, work_shift_id, s
 const attendanceDashboard = {
   getFilters: () => call("/attendance/dashboard/filters"),
 
+  /**
+   * THE OPERATIONAL SNAPSHOT. Takes no date: the server decides what "now" is
+   * and returns one `as_of`. A caller-supplied date would put a past day's
+   * figures under a "Now" heading, which is the one thing this view must not
+   * do - historical figures keep their own dated view.
+   */
+  getStaffing: ({ store_ids, designation_id, work_shift_id, search } = {}) => {
+    const params = {};
+    if (Array.isArray(store_ids) && store_ids.length > 0) params.store_ids = store_ids.join(",");
+    if (designation_id) params.designation_id = designation_id;
+    if (work_shift_id) params.work_shift_id = work_shift_id;
+    if (search) params.search = search;
+    return call("/attendance/dashboard/staffing", params);
+  },
+
+  /** Repeated shortfalls against the schedule, with the evidence behind them. */
+  getRecurringGaps: ({ store_ids, designation_id, search, comparable_days } = {}) => {
+    const params = {};
+    if (Array.isArray(store_ids) && store_ids.length > 0) params.store_ids = store_ids.join(",");
+    if (designation_id) params.designation_id = designation_id;
+    if (search) params.search = search;
+    if (comparable_days) params.comparable_days = comparable_days;
+    return call("/attendance/dashboard/recurring-gaps", params);
+  },
+
   getOverview: (filters) => call("/attendance/dashboard/overview", queryFor(filters)),
 
   /**

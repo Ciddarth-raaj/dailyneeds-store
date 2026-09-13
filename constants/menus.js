@@ -995,7 +995,7 @@ const HR_MENU = {
       // grants only to designations that already hold
       // `view_calculated_attendance`.
       attendance_dashboard: {
-        title: "Attendance Dashboard",
+        title: "Attendance & Staffing",
         permission: "view_attendance_dashboard",
         selected: false,
         location: "/attendance/dashboard",
