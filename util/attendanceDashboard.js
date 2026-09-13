@@ -212,18 +212,39 @@ function shortDate(dateOnly) {
 }
 
 /**
- * THE DEVICE FRESHNESS BADGE - and it never says "offline".
+ * DELIVERY COVERAGE, as the server decides it, rendered.
  *
- * A terminal is quiet when nobody punches, which is not the same as a terminal
- * that has stopped talking to the receiver. So this reads `last_seen_at` (any
- * contact, including the device's own polls) and NEVER `last_punch_at`, and
- * where the receiver has no record of a contact at all the answer is UNKNOWN
- * with a warning - not a claim that the device is down.
- *
- * @returns {{state:string, label:string, color:string, warn:boolean}}
+ * The server answers "have this location's punches for the SELECTED DATE
+ * actually reached us" by comparing each terminal's last contact with that
+ * attendance day's own close instant. That verdict is what the screen shows.
  */
-const STALE_AFTER_MINUTES = 60;
+const COVERAGE_BADGE = Object.freeze({
+  COMPLETE: { label: "Delivery confirmed", color: "green", warn: false },
+  INCOMPLETE: { label: "Punches still arriving", color: "amber", warn: true },
+  UNKNOWN: { label: "Delivery not confirmed", color: "gray", warn: true },
+});
 
+function coverageBadge(coverage) {
+  return COVERAGE_BADGE[coverage] || COVERAGE_BADGE.UNKNOWN;
+}
+
+/**
+ * THE TERMINAL BADGE - and it never says "offline", and it no longer invents
+ * a staleness threshold.
+ *
+ * An earlier version called a terminal STALE after sixty minutes of silence.
+ * That number was invented here: nothing in the system defines it, no approved
+ * setting carries it, and it made the badge depend on when somebody happened
+ * to open the page rather than on anything about the data. It is gone.
+ *
+ * What is shown instead is the SERVER'S per-date delivery verdict, which is
+ * derived from the attendance day's own cutoff and no threshold at all, plus
+ * the last contact time as plain unjudged information. Where the receiver has
+ * never recorded a contact the answer is "Sync unknown" - never a claim that
+ * the device is down, which nothing in the data supports.
+ *
+ * @returns {{state:string, label:string, color:string, warn:boolean, detail:string}}
+ */
 function deviceFreshness(device) {
   if (!device || device.sync_known !== true) {
     return {
@@ -231,50 +252,51 @@ function deviceFreshness(device) {
       label: "Sync unknown",
       color: "gray",
       warn: true,
+      detail: "The receiver has no record of this terminal ever being in contact.",
     };
   }
-  const age = device.last_seen_age_minutes;
-  if (age === null || age === undefined) {
-    return { state: "UNKNOWN", label: "Sync unknown", color: "gray", warn: true };
-  }
-  if (age > STALE_AFTER_MINUTES) {
-    return {
-      state: "STALE",
-      label: `Last contact ${formatAge(age)}`,
-      color: "amber",
-      warn: true,
-    };
-  }
+  const badge = coverageBadge(device.coverage);
   return {
-    state: "RECENT",
-    label: `Last contact ${formatAge(age)}`,
-    color: "green",
-    warn: false,
+    state: device.coverage || "UNKNOWN",
+    label: badge.label,
+    color: badge.color,
+    warn: badge.warn,
+    detail: `Last contact ${formatAge(device.last_seen_age_minutes)}.`,
   };
 }
 
 /**
- * Is the feed fresh enough to trust an assertion about absence?
+ * The warning the panel shows when the feed cannot vouch for this day.
  *
- * If NO device has been heard from recently, the screen must say so rather
- * than presenting "nobody checked in" as a fact about people - it may be a
- * fact about the feed. Returns a warning when there are devices and none of
- * them is recent, and when there are no devices on record at all.
+ * Built from the SERVER'S coverage verdicts rather than from ages measured in
+ * the browser, so the screen and the counts agree about which locations are
+ * unconfirmed - and the wording says what it means for the numbers.
+ *
+ * @param {Array} coverage `[{store_id, coverage, label}]` for the date
+ * @param {boolean} available false when the device read itself failed
  */
-function feedWarning(devices) {
-  const rows = Array.isArray(devices) ? devices : [];
-  if (rows.length === 0) {
-    return "No attendance terminals are on record, so device freshness cannot be established for this view.";
+function feedWarning(coverage, available = true) {
+  if (available === false) {
+    return "Terminal health could not be read, so punch delivery for this day cannot be confirmed. Absences are being withheld rather than reported.";
   }
-  const known = rows.filter((d) => d.sync_known === true && d.last_seen_age_minutes !== null);
-  if (known.length === 0) {
-    return "No terminal has a recorded last contact, so the freshness of this attendance feed cannot be established. Treat missing check-ins with caution.";
+  const rows = Array.isArray(coverage) ? coverage : [];
+  if (rows.length === 0) return null;
+  const incomplete = rows.filter((c) => c.coverage === "INCOMPLETE").length;
+  const unknown = rows.filter((c) => c.coverage === "UNKNOWN").length;
+  if (incomplete === 0 && unknown === 0) return null;
+
+  const parts = [];
+  if (incomplete > 0) {
+    parts.push(
+      `${incomplete} location${incomplete === 1 ? " is" : "s are"} still receiving punches for this day`
+    );
   }
-  const freshest = Math.min(...known.map((d) => Number(d.last_seen_age_minutes)));
-  if (freshest > STALE_AFTER_MINUTES) {
-    return `No terminal has been heard from for ${formatAge(freshest)}. Missing check-ins may be a feed problem rather than an absence.`;
+  if (unknown > 0) {
+    parts.push(
+      `${unknown} location${unknown === 1 ? "'s terminal has" : "s' terminals have"} not been in contact since this attendance day closed`
+    );
   }
-  return null;
+  return `${parts.join(", and ")}. Absence is withheld for those locations rather than reported, because an undelivered punch and an absence look the same from here.`;
 }
 
 /**
@@ -317,8 +339,11 @@ function trendChartData(trend) {
   return days.map((d) => ({
     date: d.attendance_date,
     label: shortDate(d.attendance_date),
-    // A day with no applicable population plots a GAP, not a zero.
+    // A day with no applicable population - or whose punch delivery is not
+    // confirmed - plots a GAP, not a zero. Both are "we cannot say", and a
+    // zero would draw a collapse that never happened.
     percent: d.check_in_rate && d.check_in_rate.available ? d.check_in_rate.percent : null,
+    delivery_confirmed: d.delivery_confirmed !== false,
     checked_in: Number(d.checked_in) || 0,
     applicable: Number(d.applicable) || 0,
   }));
@@ -330,6 +355,9 @@ function trendMessage(trend) {
   if (trend.available !== true) {
     if (trend.reason === "NO_POPULATION") {
       return "No employees match these filters, so there is no trend to show.";
+    }
+    if (trend.reason === "NO_CONFIRMED_DELIVERY") {
+      return "Punch delivery is not confirmed for any completed day in this range, so no rate is plotted — it would be a lower bound rather than a measurement.";
     }
     return "No completed attendance days yet for these filters. The selected day is still open and is not plotted.";
   }
@@ -416,7 +444,8 @@ module.exports = {
   tone,
   SLICE_TONE,
   ISSUE_LINK,
-  STALE_AFTER_MINUTES,
+  COVERAGE_BADGE,
+  coverageBadge,
   ratePercent,
   rateCounts,
   rateDetail,

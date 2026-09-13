@@ -16,8 +16,8 @@ const {
   CARDS,
   ISSUE_LINK,
   SLICE_TONE,
-  STALE_AFTER_MINUTES,
   clock,
+  coverageBadge,
   deviceFreshness,
   displayDate,
   employeeDayHref,
@@ -160,19 +160,30 @@ describe("a rate never overstates itself", () => {
   });
 });
 
-describe("device freshness never says offline", () => {
-  it("reports a recent contact as recent", () => {
-    const f = deviceFreshness({ sync_known: true, last_seen_age_minutes: 4 });
-    assert.equal(f.state, "RECENT");
+describe("device freshness never says offline, and invents no threshold", () => {
+  it("shows the server's confirmed-delivery verdict", () => {
+    const f = deviceFreshness({ sync_known: true, coverage: "COMPLETE", last_seen_age_minutes: 4 });
+    assert.equal(f.state, "COMPLETE");
     assert.equal(f.warn, false);
-    assert.match(f.label, /4m ago/);
+    assert.match(f.label, /Delivery confirmed/);
+    assert.match(f.detail, /4m ago/);
   });
 
-  it("reports a long silence as STALE, with a warning, not as down", () => {
-    const f = deviceFreshness({ sync_known: true, last_seen_age_minutes: STALE_AFTER_MINUTES + 1 });
-    assert.equal(f.state, "STALE");
+  it("warns when the server could not confirm delivery, without calling it down", () => {
+    const f = deviceFreshness({
+      sync_known: true,
+      coverage: "UNKNOWN",
+      last_seen_age_minutes: 900,
+    });
     assert.equal(f.warn, true);
+    assert.match(f.label, /not confirmed/i);
     assert.doesNotMatch(f.label, /offline|down/i);
+  });
+
+  it("says punches are still arriving for an open historical pull", () => {
+    const f = deviceFreshness({ sync_known: true, coverage: "INCOMPLETE", last_seen_age_minutes: 2 });
+    assert.match(f.label, /still arriving/i);
+    assert.equal(f.warn, true);
   });
 
   it("an unrecorded contact is UNKNOWN, not offline", () => {
@@ -182,45 +193,71 @@ describe("device freshness never says offline", () => {
     assert.doesNotMatch(f.label, /offline|down/i);
   });
 
-  it("reads last_seen_at and NEVER last_punch_at", () => {
-    // A terminal nobody has punched on all day, but which is talking to the
-    // receiver, is fresh. Deriving freshness from punches would call it stale.
+  it("NO time threshold decides the badge - the server's verdict does", () => {
+    // A terminal silent for a day is CONFIRMED when the server says delivery
+    // for the selected date was confirmed; a terminal seen a minute ago is not
+    // confirmed when the server says it is not. An invented "stale after N
+    // minutes" rule would get both of these backwards.
+    const quietButConfirmed = deviceFreshness({
+      sync_known: true,
+      coverage: "COMPLETE",
+      last_seen_age_minutes: 60 * 24,
+    });
+    assert.equal(quietButConfirmed.warn, false);
+
+    const freshButUnconfirmed = deviceFreshness({
+      sync_known: true,
+      coverage: "UNKNOWN",
+      last_seen_age_minutes: 1,
+    });
+    assert.equal(freshButUnconfirmed.warn, true);
+  });
+
+  it("never reads last_punch_at: a quiet terminal is not an absent one", () => {
     const f = deviceFreshness({
       sync_known: true,
+      coverage: "COMPLETE",
       last_seen_age_minutes: 2,
       last_punch_age_minutes: 900,
     });
-    assert.equal(f.state, "RECENT", "a quiet terminal that is still reporting in is not stale");
+    assert.equal(f.warn, false, "nobody punching does not make a terminal unhealthy");
   });
 });
 
-describe("the feed freshness warning", () => {
-  it("warns when no terminal is on record", () => {
-    assert.match(feedWarning([]), /No attendance terminals are on record/);
-  });
-
-  it("warns when no terminal has a recorded contact", () => {
-    const w = feedWarning([{ sync_known: false, last_seen_age_minutes: null }]);
-    assert.match(w, /cannot be established/);
-    assert.match(w, /caution/);
-  });
-
-  it("warns when every terminal has gone quiet, so absence is not asserted", () => {
-    const w = feedWarning([
-      { sync_known: true, last_seen_age_minutes: 300 },
-      { sync_known: true, last_seen_age_minutes: 400 },
-    ]);
-    assert.match(w, /may be a feed problem rather than an absence/);
-  });
-
-  it("says nothing when at least one terminal is fresh", () => {
+describe("the feed warning comes from the server's verdicts", () => {
+  it("says nothing when every location is confirmed", () => {
     assert.equal(
       feedWarning([
-        { sync_known: true, last_seen_age_minutes: 5 },
-        { sync_known: true, last_seen_age_minutes: 900 },
+        { store_id: 1, coverage: "COMPLETE" },
+        { store_id: 2, coverage: "COMPLETE" },
       ]),
       null
     );
+  });
+
+  it("names how many locations are unconfirmed, and what it means for the numbers", () => {
+    const w = feedWarning([
+      { store_id: 1, coverage: "COMPLETE" },
+      { store_id: 2, coverage: "UNKNOWN" },
+    ]);
+    assert.match(w, /1 location's terminal has not been in contact/);
+    assert.match(w, /Absence is withheld/);
+  });
+
+  it("names locations still receiving punches", () => {
+    const w = feedWarning([{ store_id: 1, coverage: "INCOMPLETE" }]);
+    assert.match(w, /still receiving punches/);
+  });
+
+  it("says so when the device read itself failed", () => {
+    const w = feedWarning([], false);
+    assert.match(w, /could not be read/);
+    assert.match(w, /withheld rather than reported/);
+  });
+
+  it("says nothing when there is nothing to report", () => {
+    assert.equal(feedWarning([]), null);
+    assert.equal(feedWarning(null), null);
   });
 });
 
@@ -394,5 +431,48 @@ describe("a refusal is told apart from a failure", () => {
       false,
       "a 403 shown as 'something went wrong' sends somebody to report a bug about a screen they are simply not entitled to"
     );
+  });
+});
+
+describe("a trend day without confirmed delivery is a gap, not a zero", () => {
+  it("plots nothing for a day whose delivery is unconfirmed", () => {
+    const rows = trendChartData({
+      days: [
+        {
+          attendance_date: "2026-09-10",
+          checked_in: 8,
+          applicable: 10,
+          delivery_confirmed: false,
+          check_in_rate: { percent: null, available: false, numerator: 8, denominator: 10 },
+        },
+      ],
+    });
+    assert.equal(rows[0].percent, null, "a lower bound must not be drawn as a measurement");
+    assert.equal(rows[0].delivery_confirmed, false);
+    // The counts are still carried, because they are not in doubt.
+    assert.equal(rows[0].checked_in, 8);
+    assert.equal(rows[0].applicable, 10);
+  });
+
+  it("says so when no completed day has confirmed delivery", () => {
+    assert.match(
+      trendMessage({ available: false, reason: "NO_CONFIRMED_DELIVERY", days: [{}] }),
+      /lower bound rather than a measurement/
+    );
+  });
+});
+
+describe("coverage badges", () => {
+  it("has a badge for every verdict the server can send", () => {
+    ["COMPLETE", "INCOMPLETE", "UNKNOWN"].forEach((c) => {
+      const b = coverageBadge(c);
+      assert.ok(b.label, `${c} has no label`);
+      assert.ok(["green", "amber", "gray"].includes(b.color));
+    });
+  });
+
+  it("an unrecognised verdict falls back to UNKNOWN, never to confirmed", () => {
+    assert.equal(coverageBadge("SOMETHING_NEW").label, coverageBadge("UNKNOWN").label);
+    assert.equal(coverageBadge(undefined).warn, true, "unknown must warn, not reassure");
   });
 });

@@ -19,6 +19,14 @@ import { PALETTE, ratePercent, rateDetail } from "../../../util/attendanceDashbo
  * grouping them under a shift's own name would list them beside colleagues
  * whose roster is fine and hide the problem. The columns therefore still add
  * up to the whole population, which is asserted under the table.
+ *
+ * EACH ROW OPENS ITS OWN GROUP, not an approximation of it. A setup-gap row
+ * carries the ISSUE it represents (`No Shift Assigned` or `Shift Setup Issue`)
+ * and the shift it belongs to, so the drilldown lists exactly those people.
+ * Opening the whole unresolved population instead - which is what this used to
+ * do - both padded the list with unrelated problems and MISSED the employee
+ * who matters most here: somebody who punched normally on a shift with no
+ * schedule row is Checked In, so no slice-based list could ever contain them.
  */
 export default function ShiftPanel({ rows, total, isOpenDay, onOpenShift }) {
   const data = Array.isArray(rows) ? rows : [];
@@ -59,7 +67,17 @@ export default function ShiftPanel({ rows, total, isOpenDay, onOpenShift }) {
                 <Tr
                   key={`${row.work_shift_id}-${row.shift_label}`}
                   _hover={{ bg: "gray.50", cursor: "pointer" }}
-                  onClick={() => onOpenShift(row)}
+                  onClick={() =>
+                    onOpenShift({
+                      ...row,
+                      // The exact group this row stands for.
+                      issue_key: row.setup_gap
+                        ? row.work_shift_id === null
+                          ? "NO_SHIFT"
+                          : "SHIFT_SETUP"
+                        : null,
+                    })
+                  }
                   bg={row.setup_gap ? "orange.50" : undefined}
                 >
                   <Td fontSize="xs">

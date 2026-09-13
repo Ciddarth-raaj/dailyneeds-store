@@ -26,13 +26,20 @@ import { PALETTE, displayDate, trendChartData, trendMessage } from "../../../uti
  * than dropping to the floor and inventing a catastrophe.
  *
  * INSUFFICIENT HISTORY IS SAID OUT LOUD. `trendMessage` turns "no completed
- * days yet" and "only 3 of 14 available" into a sentence, so a short line is
- * never mistaken for a complete one.
+ * days yet", "only 3 of 14 available" and "delivery for these days is not
+ * confirmed" into a sentence, so a short line is never mistaken for a complete
+ * one - and a FAILED request is shown as an error rather than as an empty
+ * chart, which would read as "no attendance".
+ *
+ * EACH DATE HAS ITS OWN APPLICABLE POPULATION, resolved on the server: a
+ * mid-window joiner is not counted before they joined, and a mid-window leaver
+ * is still counted on the days they worked. The tooltip's two numbers are that
+ * date's own.
  *
  * The Y axis is fixed to 0-100 because it is a percentage, and an
  * auto-scaled axis would make a 4-point variation look like a cliff.
  */
-export default function TrendPanel({ trend, days, onDaysChange, loading }) {
+export default function TrendPanel({ trend, error, days, onDaysChange, loading }) {
   const data = trendChartData(trend);
   const message = trendMessage(trend);
 
@@ -61,7 +68,14 @@ export default function TrendPanel({ trend, days, onDaysChange, loading }) {
         </Flex>
       }
     >
-      {data.length === 0 ? (
+      {/* A FAILED TREND IS AN ERROR, NOT AN EMPTY CHART. */}
+      {error ? (
+        <Flex minH="180px" align="center" justify="center" px={4}>
+          <Text fontSize="sm" color="red.600" textAlign="center">
+            {error}
+          </Text>
+        </Flex>
+      ) : data.length === 0 ? (
         <Flex minH="180px" align="center" justify="center" px={4}>
           <Text fontSize="sm" color="gray.500" textAlign="center">
             {message || "No trend to show."}

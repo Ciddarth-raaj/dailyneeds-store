@@ -45,22 +45,38 @@ const attendanceDashboard = {
 
   getOverview: (filters) => call("/attendance/dashboard/overview", queryFor(filters)),
 
-  getDrilldown: ({ bucket, limit = 50, offset = 0, ...filters }) =>
-    call("/attendance/dashboard/drilldown", { ...queryFor(filters), bucket, limit, offset }),
+  /**
+   * `store_unassigned` selects the "no outlet on record" group explicitly.
+   * An employee with no store cannot be named by a store filter, and omitting
+   * the filter would quietly return everybody.
+   */
+  getDrilldown: ({ bucket, limit = 50, offset = 0, store_unassigned = false, ...filters }) => {
+    const params = { ...queryFor(filters), bucket, limit, offset };
+    if (store_unassigned) params.store_unassigned = true;
+    return call("/attendance/dashboard/drilldown", params);
+  },
 
-  /** The trend takes no `search`: it is an aggregate over days, not people. */
+  /**
+   * THE TREND TAKES THE SAME FILTERS AS EVERYTHING ELSE, SEARCH INCLUDED.
+   * This helper used to `delete params.search` and the route used to forbid
+   * it, so the chart quietly described a different population from the cards
+   * above it. The server applies it per date, against each date's own
+   * applicable population.
+   */
   getTrend: ({ days, ...filters }) => {
     const params = queryFor(filters);
-    delete params.search;
     if (days) params.days = days;
     return call("/attendance/dashboard/trend", params);
   },
 
-  getRecentPunches: ({ store_ids, limit = 25 } = {}) => {
-    const params = { limit };
-    if (Array.isArray(store_ids) && store_ids.length > 0) params.store_ids = store_ids.join(",");
-    return call("/attendance/dashboard/recent-punches", params);
-  },
+  /**
+   * The punches the engine dated to the SELECTED attendance day, for the
+   * selected filters - not the latest punches company-wide. Takes the same
+   * filter set, because a feed showing another day under these cards is not
+   * evidence about anything.
+   */
+  getRecentPunches: ({ limit = 25, ...filters }) =>
+    call("/attendance/dashboard/recent-punches", { ...queryFor(filters), limit }),
 };
 
 export default attendanceDashboard;

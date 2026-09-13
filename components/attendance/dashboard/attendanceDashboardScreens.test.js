@@ -27,6 +27,12 @@ const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm,
  * quote the sentence as a reader would see it.
  */
 const flat = (s) => s.replace(/\s+/g, " ");
+/**
+ * Comment prose as a reader sees it: `flat` alone leaves the ` * ` that
+ * continues a block comment, so a sentence wrapped across two comment lines
+ * comes out as "may not * have reached". This drops those markers first.
+ */
+const prose = (s) => flat(s.replace(/^\s*\*\s?/gm, " "));
 
 const page = strip(read("pages/attendance/dashboard/index.jsx"));
 const helper = strip(read("helper/attendanceDashboard.js"));
@@ -47,6 +53,7 @@ const menus = read("constants/menus.js");
 const pageRaw = read("pages/attendance/dashboard/index.jsx");
 const overviewRaw = read("components/attendance/dashboard/AttendanceOverviewPanel.jsx");
 const drilldownRaw = read("components/attendance/dashboard/DrilldownModal.jsx");
+const trendRaw = read("components/attendance/dashboard/TrendPanel.jsx");
 
 const ALL_PANELS = [
   overviewPanel,
@@ -215,7 +222,7 @@ test("the fetch time is labelled as a fetch time, not a device sync time", () =>
 test("a failed request clears the panels and shows an error - never zero", () => {
   assert.match(page, /setOverview\(null\);\s*\n\s*setError\(/);
   // The reasoning is recorded where the code is, so read the unstripped file.
-  assert.match(flat(pageRaw), /A FAILED REQUEST IS NOT ZERO EMPLOYEES/i);
+  assert.match(prose(pageRaw), /A FAILED REQUEST IS NOT ZERO EMPLOYEES/i);
 });
 
 test("loading, empty, error and permission-denied are distinct states", () => {
@@ -229,7 +236,7 @@ test("loading, empty, error and permission-denied are distinct states", () => {
   assert.match(flat(locationPanel), /No locations to show/);
   assert.match(flat(shiftPanel), /No shifts to show/);
   assert.match(flat(attentionPanel), /Nothing needs action/);
-  assert.match(flat(punchesPanel), /No punches have been received/);
+  assert.match(flat(punchesPanel), /No punches were recorded for this attendance day/);
   assert.match(flat(drilldown), /No employees in this group/);
   // PARTIAL data: the trend says how short its history is rather than
   // presenting three days as if they were fourteen.
@@ -246,12 +253,72 @@ test("an open day is labelled as open and withholds Absent", () => {
 test("the overview panel says the slices are mutually exclusive and checks they add up", () => {
   assert.match(overviewPanel, /reconciles === false/);
   assert.match(flat(overviewPanel), /do not add up to the applicable population/i);
-  assert.match(flat(overviewRaw), /MUTUALLY EXCLUSIVE/i);
+  assert.match(prose(overviewRaw), /MUTUALLY EXCLUSIVE/i);
 });
 
-test("the overview panel reports rest days rather than calling them absence", () => {
-  assert.match(overviewPanel, /rest_day_no_punch/);
-  assert.match(overviewPanel, /rather than absent/i);
+test("the dashboard-only rest-day rule is gone from the UI", () => {
+  // It was a weekly-off policy that made this screen disagree with the
+  // employee's own attendance for the same date.
+  assert.ok(!/rest_day_no_punch/.test(overviewPanel), "the rest-day count is removed");
+  ALL_PANELS.concat([page, cards]).forEach((src, i) => {
+    assert.ok(!/rest.?day/i.test(src), `source ${i} still carries a rest-day concept`);
+  });
+});
+
+test("the overview names unconfirmed absence, so Unresolved is explicable", () => {
+  assert.match(overviewPanel, /unconfirmed_absence/);
+  assert.match(flat(overviewPanel), /punch delivery is unconfirmed/i);
+});
+
+test("closure and completeness are separate, and both gate absence", () => {
+  assert.match(prose(overviewRaw), /may not have reached us yet/i);
+  assert.match(prose(punchesPanel), /whether delivery for that day could be confirmed/i);
+});
+
+test("no freshness threshold is invented in the browser", () => {
+  const utilSrc = read("util/attendanceDashboard.js");
+  assert.ok(!/STALE_AFTER_MINUTES/.test(utilSrc), "the invented 60-minute rule is gone");
+  ALL_PANELS.forEach((src, i) => {
+    assert.ok(
+      !/>\s*\d+\s*\)\s*return.*stale/i.test(src),
+      `source ${i} still judges staleness locally`
+    );
+  });
+});
+
+test("the trend and the punch feed report failures instead of rendering empty", () => {
+  assert.match(trendRaw, /A FAILED TREND IS AN ERROR, NOT AN EMPTY CHART/i);
+  assert.match(punchesPanel, /punches_available === false/);
+  assert.match(page, /setTrendError/);
+  assert.match(page, /setPunchesError/);
+  assert.match(page, /setFiltersError/);
+});
+
+test("stale responses cannot overwrite newer ones", () => {
+  assert.match(page, /overviewSeq/);
+  assert.match(page, /trendSeq/);
+  assert.match(page, /drilldownSeq/);
+  assert.match(prose(pageRaw), /STALE RESPONSES MUST NOT OVERWRITE NEWER ONES/i);
+});
+
+test("the punch feed is asked for the selected date and the same filters", () => {
+  assert.match(page, /getRecentPunches\(\{ \.\.\.apiFilters/);
+  const helperSrc = strip(read("helper/attendanceDashboard.js"));
+  assert.ok(!/delete params\.search/.test(helperSrc), "the trend keeps the employee search");
+});
+
+test("a setup-gap row opens its own issue, not the whole unresolved population", () => {
+  assert.match(page, /row\.issue_key \|\| "SHIFT_SETUP"/);
+  assert.match(shiftPanel, /issue_key: row\.setup_gap/);
+});
+
+test("the no-outlet row is selected explicitly", () => {
+  assert.match(page, /store_unassigned: true/);
+});
+
+test("a refusal shows the server's own reason, so the two refusals differ", () => {
+  assert.match(page, /\{forbidden\}/);
+  assert.match(prose(pageRaw), /A REFUSAL EXPLAINS ITSELF/i);
 });
 
 test("percentages travel with their denominator", () => {
@@ -298,7 +365,7 @@ test("a feed whose freshness cannot be established raises a warning", () => {
 test("every card opens a drilldown, and the drilldown is the server's list", () => {
   assert.match(cards, /onOpenBucket/);
   assert.match(page, /getDrilldown/);
-  assert.match(flat(drilldownRaw), /THE LIST IS THE SERVER'S, NOT A CLIENT-SIDE FILTER/i);
+  assert.match(prose(drilldownRaw), /THE LIST IS THE SERVER'S, NOT A CLIENT-SIDE FILTER/i);
 });
 
 test("the drilldown is paginated rather than unbounded", () => {

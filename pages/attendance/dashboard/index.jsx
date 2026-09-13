@@ -100,7 +100,24 @@ export default function AttendanceDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [trendLoading, setTrendLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [forbidden, setForbidden] = useState(false);
+  const [trendError, setTrendError] = useState(null);
+  const [punchesError, setPunchesError] = useState(null);
+  const [filtersError, setFiltersError] = useState(null);
+  const [forbidden, setForbidden] = useState(null);
+
+  /**
+   * STALE RESPONSES MUST NOT OVERWRITE NEWER ONES.
+   *
+   * Changing a filter fires a request and leaves the previous one in flight.
+   * They can come back in either order, and without a guard a slow response
+   * for LAST WEEK can land after a fast one for today and repaint the screen
+   * with figures that do not match the filter bar - the worst kind of wrong,
+   * because everything looks fine. Each load takes a ticket; only the newest
+   * ticket may write state.
+   */
+  const overviewSeq = useRef(0);
+  const trendSeq = useRef(0);
+  const drilldownSeq = useRef(0);
 
   /**
    * The open drilldown: `{ bucket, offset, overrides }`.
@@ -160,8 +177,15 @@ export default function AttendanceDashboardPage() {
             setFilters((f) => (dateChosen.current ? f : { ...f, attendance_date: res.today }));
           }
         }
+        if (!isOk(res)) {
+          setFiltersError(
+            apiMessage(res, "The filter options could not be loaded; the selectors may be empty")
+          );
+        }
       } catch (err) {
-        /* The overview load below reports the failure; no need to say it twice. */
+        if (!cancelled) {
+          setFiltersError("The filter options could not be loaded; the selectors may be empty.");
+        }
       }
     })();
     return () => {
@@ -171,16 +195,23 @@ export default function AttendanceDashboardPage() {
 
   const loadOverview = useCallback(async () => {
     if (!filters.attendance_date) return;
+    const ticket = ++overviewSeq.current;
+    const isCurrent = () => ticket === overviewSeq.current;
+
     setLoading(true);
     setError(null);
+    setPunchesError(null);
     try {
+      // THE PUNCH FEED TAKES THE SAME FILTERS, the selected date included, so
+      // it describes the same day and the same people as the cards above it.
       const [ov, rp] = await Promise.all([
         AttendanceDashboardHelper.getOverview(apiFilters),
-        AttendanceDashboardHelper.getRecentPunches({ store_ids: apiFilters.store_ids, limit: 25 }),
+        AttendanceDashboardHelper.getRecentPunches({ ...apiFilters, limit: 25 }),
       ]);
+      if (!isCurrent()) return;
 
       if (isForbidden(ov)) {
-        setForbidden(true);
+        setForbidden(apiMessage(ov, "You do not have permission to view the Attendance Dashboard."));
         setOverview(null);
         return;
       }
@@ -193,25 +224,47 @@ export default function AttendanceDashboardPage() {
         return;
       }
       setOverview(ov);
-      setPunches(isOk(rp) ? rp : null);
+
+      if (isOk(rp)) {
+        setPunches(rp);
+      } else {
+        setPunches(null);
+        setPunchesError(apiMessage(rp, "The punch feed could not be loaded"));
+      }
     } catch (err) {
+      if (!isCurrent()) return;
       setOverview(null);
+      setPunches(null);
       setError("Could not reach the server. Please try again.");
     } finally {
-      setLoading(false);
+      if (isCurrent()) setLoading(false);
     }
   }, [apiFilters, filters.attendance_date]);
 
   const loadTrend = useCallback(async () => {
     if (!filters.attendance_date) return;
+    const ticket = ++trendSeq.current;
+    const isCurrent = () => ticket === trendSeq.current;
+
     setTrendLoading(true);
+    setTrendError(null);
     try {
+      // The employee search goes with it: the chart must describe the same
+      // population as the cards.
       const res = await AttendanceDashboardHelper.getTrend({ ...apiFilters, days: trendDays });
-      setTrend(isOk(res) ? res : null);
+      if (!isCurrent()) return;
+      if (isOk(res)) {
+        setTrend(res);
+      } else {
+        setTrend(null);
+        setTrendError(apiMessage(res, "The trend could not be loaded"));
+      }
     } catch (err) {
+      if (!isCurrent()) return;
       setTrend(null);
+      setTrendError("The trend could not be loaded. Please try again.");
     } finally {
-      setTrendLoading(false);
+      if (isCurrent()) setTrendLoading(false);
     }
   }, [apiFilters, trendDays, filters.attendance_date]);
 
@@ -236,6 +289,7 @@ export default function AttendanceDashboardPage() {
       return;
     }
     let cancelled = false;
+    const ticket = ++drilldownSeq.current;
     (async () => {
       setDrilldownLoading(true);
       setDrilldownError(null);
@@ -247,7 +301,7 @@ export default function AttendanceDashboardPage() {
           limit: 50,
           offset: drilldown.offset,
         });
-        if (cancelled) return;
+        if (cancelled || ticket !== drilldownSeq.current) return;
         if (!isOk(res)) {
           setDrilldownResult(null);
           setDrilldownError(apiMessage(res, "The list could not be loaded"));
@@ -281,13 +335,22 @@ export default function AttendanceDashboardPage() {
 
   /* ---------------------------------------------------------- render */
 
+  /**
+   * A REFUSAL EXPLAINS ITSELF.
+   *
+   * There are two different refusals behind this screen and they need
+   * different answers from whoever reads it: not holding the dashboard
+   * permission, and holding it but having no branch authorization. The server
+   * says which in its message, so it is shown rather than replaced with a
+   * generic line that would send somebody to ask the wrong question.
+   */
   if (forbidden) {
     return (
       <GlobalWrapper title="Attendance Dashboard" permissionKey={["view_attendance_dashboard"]}>
         <CustomContainer title="Attendance Dashboard" filledHeader>
           <Alert status="warning" fontSize="sm" borderRadius="md">
             <AlertIcon />
-            You do not have permission to view the Attendance Dashboard.
+            {forbidden}
           </Alert>
         </CustomContainer>
       </GlobalWrapper>
@@ -320,6 +383,13 @@ export default function AttendanceDashboardPage() {
               <Alert status="error" fontSize="sm" borderRadius="md">
                 <AlertIcon />
                 {error}
+              </Alert>
+            ) : null}
+
+            {filtersError ? (
+              <Alert status="warning" fontSize="xs" borderRadius="md" py={2}>
+                <AlertIcon boxSize="14px" />
+                {filtersError}
               </Alert>
             ) : null}
 
@@ -360,10 +430,15 @@ export default function AttendanceDashboardPage() {
                     isOpenDay={isOpenDay}
                     onOpenLocation={(row) =>
                       // Scoped to THAT location for this list only; the filter
-                      // bar and the other panels are left alone.
+                      // bar and the other panels are left alone. The
+                      // "no outlet on record" row is selected EXPLICITLY -
+                      // omitting the filter, which is what this used to do,
+                      // returns everybody.
                       openBucket(
                         "TOTAL",
-                        row.store_id === null ? null : { store_ids: [row.store_id] }
+                        row.store_id === null
+                          ? { store_unassigned: true }
+                          : { store_ids: [row.store_id] }
                       )
                     }
                   />
@@ -372,12 +447,21 @@ export default function AttendanceDashboardPage() {
                     total={overview.cards.total_employees.count}
                     isOpenDay={isOpenDay}
                     onOpenShift={(row) =>
+                      // THE EXACT GROUP THE ROW STANDS FOR. A setup-gap row
+                      // opens its own ISSUE - No Shift Assigned or Shift Setup
+                      // Issue - narrowed to that row's shift where it has one.
+                      // Opening the whole UNRESOLVED population instead, which
+                      // is what this did, listed unrelated problems AND missed
+                      // the employee who matters most: somebody who punched
+                      // normally on a shift with no schedule row is Checked In,
+                      // so no slice-based list could contain them.
                       row.setup_gap
-                        ? // A setup gap has no resolvable shift to filter BY, so
-                          // its list is the unresolved bucket over the current
-                          // scope - filtering by the shift id would ask the
-                          // server for people it could not resolve onto it.
-                          openBucket("UNRESOLVED")
+                        ? openBucket(
+                            row.issue_key || "SHIFT_SETUP",
+                            row.work_shift_id === null
+                              ? null
+                              : { work_shift_id: row.work_shift_id }
+                          )
                         : openBucket(
                             "TOTAL",
                             row.work_shift_id === null
@@ -388,6 +472,7 @@ export default function AttendanceDashboardPage() {
                   />
                   <TrendPanel
                     trend={trend}
+                    error={trendError}
                     days={trendDays}
                     onDaysChange={setTrendDays}
                     loading={trendLoading}
@@ -398,7 +483,11 @@ export default function AttendanceDashboardPage() {
                     onOpenIssue={openBucket}
                     onNavigate={(href) => router.push(href)}
                   />
-                  <RecentPunchesPanel data={punches} onOpenEmployee={openEmployee} />
+                  <RecentPunchesPanel
+                    data={punches}
+                    error={punchesError}
+                    onOpenEmployee={openEmployee}
+                  />
                 </SimpleGrid>
 
                 <Text fontSize="10px" color="gray.500">

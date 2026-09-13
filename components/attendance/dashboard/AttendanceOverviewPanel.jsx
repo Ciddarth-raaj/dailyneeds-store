@@ -18,10 +18,16 @@ import { overviewChartData, overviewLegend, tone } from "../../../util/attendanc
  * have their own card and their own panel.
  *
  * UNKNOWN IS NOT ZERO. Coverage this screen cannot settle - an unresolvable
- * shift, a closed day with a missing punch, a rostered rest day - is its own
- * explicitly labelled slice rather than being folded into Absent or quietly
- * dropped. The rest-day count is named under the chart, because v2 has no
- * weekly-off rule and this screen is not the place to invent one.
+ * shift, a closed day with a missing punch, or a day whose punches may not
+ * have reached us yet - is its own explicitly labelled slice rather than being
+ * folded into Absent or quietly dropped.
+ *
+ * `unconfirmed_absence` is named under the chart because it is the part of
+ * Unresolved a reader would otherwise find inexplicable: people with no punch
+ * on a finished day, held out of Absent only because their location's terminal
+ * has not confirmed delivery. There is NO rest-day count here any more - the
+ * dashboard-only rest-day rule it belonged to has been removed, and rest days
+ * now follow the engine like every other date.
  */
 export default function AttendanceOverviewPanel({ overview, isOpenDay, onOpenSlice }) {
   const data = overviewChartData(overview);
@@ -95,8 +101,8 @@ export default function AttendanceOverviewPanel({ overview, isOpenDay, onOpenSli
 
             <Text fontSize="10px" color="gray.500" mt={2}>
               {total} applicable {total === 1 ? "employee" : "employees"}
-              {overview.rest_day_no_punch > 0
-                ? ` · includes ${overview.rest_day_no_punch} on a rostered rest day with no punch, reported as unresolved rather than absent`
+              {overview.unconfirmed_absence > 0
+                ? ` · ${overview.unconfirmed_absence} with no punch on a finished day held out of Absent because their location's punch delivery is unconfirmed`
                 : ""}
             </Text>
             {isOpenDay ? (

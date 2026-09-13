@@ -34,24 +34,48 @@ import { clock, deviceFreshness, feedWarning, formatAge, tone } from "../../../u
  * for diagnosis with a strikethrough and a badge; it takes no part in any
  * check-in figure on this screen.
  *
- * A QUIET DEVICE IS NOT AN OFFLINE DEVICE. Freshness is read from the
- * terminal's `last_seen_at` - any contact with the receiver, including its own
- * polls - and never from whether employees happened to punch. Where the
- * receiver has no record of a contact at all, the badge says "Sync unknown";
- * it never claims a device is down, because nothing in the data supports that.
+ * A QUIET DEVICE IS NOT AN OFFLINE DEVICE. Freshness is the terminal's contact
+ * with the receiver - any contact, including its own polls - and never whether
+ * employees happened to punch. Where there is no recorded contact the badge
+ * says "Sync unknown"; it never claims a device is down.
  *
- * WHEN THE FEED CANNOT BE VOUCHED FOR, THE PANEL SAYS SO. If no terminal has
- * been heard from recently, a warning appears - because in that case a missing
- * check-in may be a fact about the feed rather than about a person, and the
- * rest of this dashboard should be read with that in mind.
+ * THE BADGE IS THE SERVER'S PER-DATE VERDICT, NOT A BROWSER TIMER. An earlier
+ * version called a terminal stale after sixty minutes of silence - a threshold
+ * invented in this file, which nothing in the system defines and which made
+ * the badge depend on when the page happened to be opened. It now shows
+ * whether the SERVER could confirm delivery for the selected attendance day,
+ * decided against that day's own cutoff, with the last contact time beside it
+ * as plain information.
+ *
+ * TWO TIMESTAMPS, TWO MEANINGS, NEVER CONFLATED. `observed_at` is when the
+ * terminal readings were taken - NOW - and today's contact is not evidence
+ * that a punch from three weeks ago was delivered. The claim about the
+ * selected date is the coverage verdict, and it is labelled as such.
+ *
+ * WHEN THE FEED CANNOT BE VOUCHED FOR, THE PANEL SAYS SO, and says what it
+ * means for the numbers: absence is being withheld for those locations rather
+ * than reported.
  */
-export default function RecentPunchesPanel({ data, onOpenEmployee }) {
+export default function RecentPunchesPanel({ data, error, onOpenEmployee }) {
   const punches = (data && data.punches) || [];
   const devices = (data && data.devices) || [];
-  const warning = feedWarning(devices);
+  const warning = data ? feedWarning(data.coverage, data.coverage_available) : null;
 
   return (
     <CustomContainer title="Recent Punches & Device Sync" filledHeader size="xs">
+      {/* A FAILED REQUEST IS NOT AN EMPTY FEED. */}
+      {error ? (
+        <Alert status="error" fontSize="11px" borderRadius="md" mb={2} py={2}>
+          <AlertIcon boxSize="14px" />
+          {error}
+        </Alert>
+      ) : null}
+      {data && data.punches_available === false ? (
+        <Alert status="error" fontSize="11px" borderRadius="md" mb={2} py={2}>
+          <AlertIcon boxSize="14px" />
+          The punches for this day could not be read. This is not an empty feed.
+        </Alert>
+      ) : null}
       {warning ? (
         <Alert status="warning" fontSize="11px" borderRadius="md" mb={2} py={2}>
           <AlertIcon boxSize="14px" />
@@ -62,8 +86,10 @@ export default function RecentPunchesPanel({ data, onOpenEmployee }) {
       <Box overflowX="auto" maxH="220px" overflowY="auto">
         {punches.length === 0 ? (
           <Flex minH="90px" align="center" justify="center">
-            <Text fontSize="sm" color="gray.500">
-              No punches have been received for this view.
+            <Text fontSize="sm" color="gray.500" textAlign="center" px={3}>
+              {error || (data && data.punches_available === false)
+                ? "Punches could not be loaded for this day."
+                : "No punches were recorded for this attendance day and these filters."}
             </Text>
           </Flex>
         ) : (
@@ -143,11 +169,11 @@ export default function RecentPunchesPanel({ data, onOpenEmployee }) {
                   </Text>
                 </Flex>
                 <Tooltip
-                  label={`Last contact with the receiver: ${
+                  label={`${f.detail} Last contact with the receiver: ${
                     d.last_seen_at || "never recorded"
                   }. Last punch received: ${
                     d.last_punch_at || "never recorded"
-                  } (${formatAge(d.last_punch_age_minutes)}). A terminal with no punches is not necessarily offline.`}
+                  }. These are observed NOW; the badge is whether delivery for the SELECTED attendance day could be confirmed. A terminal with no punches is not necessarily offline.`}
                   hasArrow
                 >
                   <Text fontSize="10px" color={f.warn ? "orange.600" : "gray.500"} flexShrink={0}>
@@ -160,8 +186,12 @@ export default function RecentPunchesPanel({ data, onOpenEmployee }) {
         </Flex>
       )}
       <Text fontSize="10px" color="gray.500" mt={2}>
-        Freshness is the terminal&rsquo;s last contact with the receiver, not whether anybody
-        punched. No online/offline status is inferred from an absence of employee punches.
+        Punches are the ones the attendance engine dated to this attendance day, so an overnight
+        punch appears under the shift date it belongs to. The badge is whether delivery for that
+        day could be confirmed, decided against the day&rsquo;s own cutoff and not a timer; terminal
+        readings are observed now{data && data.observed_at ? ` (${data.observed_at})` : ""} and are
+        not evidence about a past date. No online/offline status is inferred from an absence of
+        employee punches.
       </Text>
     </CustomContainer>
   );
