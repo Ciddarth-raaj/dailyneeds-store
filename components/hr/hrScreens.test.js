@@ -1445,3 +1445,61 @@ test("the two screens point at each other", () => {
   assert.match(codeOf(list), /href="\/hr\/onboarding"/);
   assert.match(codeOf(queue), /href="\/hr\/employees"/);
 });
+
+/* ========== the Onboarding queue is HR and administrators only ========== */
+/**
+ * A work queue for HR, company-wide. A store manager is refused outright -
+ * there is deliberately no branch-scoped version of this screen - and the
+ * refusal must reach them BEFORE any data is requested, not as a dashboard
+ * of zeroes after it arrives.
+ */
+
+test("THE QUEUE IS GATED ON COMPANY-WIDE EMPLOYEE SCOPE, NOT A NEW KEY", () => {
+  const code = codeOf(queue);
+  assert.match(code, /canViewOnboardingQueue\(actor\)/, "it reads the shared rule");
+  assert.match(code, /usePayrollActor\(\)/, "from the shared actor");
+  // The rule itself lives in the tested module; the screen invents nothing.
+  assert.ok(
+    !/employee_scope_all_branches/.test(code),
+    "the screen must not restate the permission key - the rule module owns it"
+  );
+  // And it is NOT the sensitive key: that still gates only the cash route.
+  assert.match(code, /canSeePaymentRoute = usePermissions\(\["view_employee_sensitive"\]\)/);
+});
+
+test("A DENIED USER CAUSES NO REQUEST AND SEES NO ZEROES", () => {
+  const code = codeOf(queue);
+  // Both fetch effects return before asking for anything.
+  const guards = code.match(/if \(!canOpenQueue\)/g) || [];
+  assert.ok(guards.length >= 2, `both loaders must bail out early, found ${guards.length}`);
+  assert.match(code, /if \(!canOpenQueue\) return undefined;/);
+  // The refusal is the FIRST branch, ahead of loading and ahead of the cards.
+  const refusal = code.indexOf("!canOpenQueue ? (");
+  const loading = code.indexOf("loading ? (");
+  const cards = code.indexOf("cards.map(");
+  assert.ok(refusal > -1, "there is a refusal branch");
+  assert.ok(refusal < loading, "refusal is decided before loading");
+  assert.ok(refusal < cards, "refusal is decided before any card renders");
+  assert.match(code, /You do not have permission to view the HR onboarding dashboard\./);
+});
+
+test("EMPLOYEE MASTER HIDES THE QUEUE LINK FROM A STORE MANAGER", () => {
+  const code = codeOf(list);
+  // The same rule as the screen, so a button cannot offer a screen that will
+  // turn the user away.
+  assert.match(code, /canViewOnboardingQueue\(usePayrollActor\(\)\)/);
+  assert.match(code, /\{canOpenQueue \? \(/, "the link is conditional");
+  // The link is still there for those who may use it.
+  assert.match(code, /href="\/hr\/onboarding"/);
+});
+
+test("THE EMPLOYEE MASTER LIST ITSELF IS NOT RESTRICTED BY THIS", () => {
+  const code = codeOf(list);
+  // Employee Master stays exactly as it was - branch-scoped on the server for
+  // managers, and gated here on `view_employees`. Only the LINK is HR's.
+  assert.match(code, /usePermissions\(\["view_employees"\]\)/);
+  assert.ok(
+    !/if \(!canOpenQueue\)/.test(code),
+    "the queue rule must not gate the employee list's own data"
+  );
+});

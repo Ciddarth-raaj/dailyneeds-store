@@ -23,6 +23,8 @@ import {
   HrOnboardingBadge,
 } from "../../../components/hr/StatusBadges";
 import usePermissions from "../../../customHooks/usePermissions";
+import usePayrollActor from "../../../customHooks/usePayrollActor";
+import { canViewOnboardingQueue } from "../../../util/hrProfile";
 import useOutlets from "../../../customHooks/useOutlets";
 import useDesignations from "../../../customHooks/useDesignations";
 import EmployeeHelper from "../../../helper/employee";
@@ -81,6 +83,9 @@ const VIEW_STORAGE_KEY = "hr.employees.view";
 function HrEmployeeList() {
   const canView = usePermissions(["view_employees"]);
   const canCreate = usePermissions(["employee_create"]);
+  // The Onboarding / Pending HR queue is HR and administrators only, so the
+  // link to it is too. Same rule the screen itself enforces.
+  const canOpenQueue = canViewOnboardingQueue(usePayrollActor());
 
   const [rows, setRows] = useState([]);
   // Keyed by employee_id. Empty until it arrives, and empty forever if the
@@ -290,14 +295,18 @@ function HrEmployeeList() {
                 List
               </Button>
             </ButtonGroup>
-            {/* The compliance half of this screen, where it now lives. Same
-                permission as this list: it is the same data, asked a
-                different question. */}
-            <Link href="/hr/onboarding" passHref>
-              <Button size="sm" variant="outline" colorScheme="purple">
-                Onboarding / Pending HR
-              </Button>
-            </Link>
+            {/* The compliance half of this screen, where it now lives - and
+                HR's alone. That queue is company-wide by design, so a store
+                manager is refused it; offering them a button to a screen that
+                will turn them away is worse than not offering it. The link
+                and the screen read the ONE rule, so they cannot disagree. */}
+            {canOpenQueue ? (
+              <Link href="/hr/onboarding" passHref>
+                <Button size="sm" variant="outline" colorScheme="purple">
+                  Onboarding / Pending HR
+                </Button>
+              </Link>
+            ) : null}
             {canCreate ? (
               <Link href="/hr/employees/new" passHref>
                 <Button colorScheme="purple" size="sm">

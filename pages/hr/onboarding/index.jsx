@@ -18,6 +18,7 @@ import GlobalWrapper from "../../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../../components/CustomContainer";
 import Table from "../../../components/table/table";
 import usePermissions from "../../../customHooks/usePermissions";
+import usePayrollActor from "../../../customHooks/usePayrollActor";
 import useOutlets from "../../../customHooks/useOutlets";
 import useDepartments from "../../../customHooks/useDepartments";
 import EmployeeHelper from "../../../helper/employee";
@@ -33,9 +34,27 @@ import {
   statusBadge,
 } from "../../../util/hrOnboardingQueue";
 import OnboardingQueueCard from "../../../components/hr/OnboardingQueueCard";
+import { canViewOnboardingQueue } from "../../../util/hrProfile";
 
 /**
  * Onboarding / Pending HR — the compliance work queue.
+ *
+ * HR AND ADMINISTRATORS ONLY, AND COMPANY-WIDE. This is HR's follow-up list,
+ * so a store manager is refused outright rather than shown the same queue
+ * narrowed to their own branch - the counts would mean nothing at one outlet
+ * and there is no follow-up for a manager to do on them. The rule is the
+ * company-wide employee scope the backend already decides (`user_type` admin,
+ * or `employee_scope_all_branches`, which is HR's key), read here through
+ * `canViewOnboardingQueue`; no new permission and no branch-scoped variant of
+ * this screen exists.
+ *
+ * IT IS NOT THE SENSITIVE KEY. Opening this queue and being told how somebody
+ * is paid stay separate questions: `view_employee_sensitive` still decides
+ * the Cash -> Bank card and the Paid by column on its own, so an HR user
+ * without it gets the dashboard with those two withheld.
+ *
+ * EMPLOYEE MASTER IS UNCHANGED AND STILL BRANCH-SCOPED for the managers who
+ * use it. Nothing here loosens that; this screen simply is not theirs.
  *
  * THE OTHER HALF OF THE EMPLOYEE MASTER. `/hr/employees` answers "who is this
  * person and where do they work" and is now clean of compliance badges; this
@@ -103,6 +122,15 @@ import OnboardingQueueCard from "../../../components/hr/OnboardingQueueCard";
 const CARD_PAGE = 24;
 
 function OnboardingQueue() {
+  /**
+   * HR AND ADMINISTRATORS ONLY, COMPANY-WIDE - the rule lives in
+   * `util/hrProfile.js#canViewOnboardingQueue` and is the company-wide
+   * employee scope the backend already decides. A store manager is REFUSED
+   * here rather than shown a branch-narrowed version of the queue: this
+   * screen is HR's follow-up list, and a manager has no follow-up to do on it.
+   */
+  const actor = usePayrollActor();
+  const canOpenQueue = canViewOnboardingQueue(actor);
   const canView = usePermissions(["view_employees"]);
   /**
    * MAY THIS USER BE TOLD HOW AN EMPLOYEE IS PAID?
@@ -138,6 +166,13 @@ function OnboardingQueue() {
   const { departments } = useDepartments();
 
   useEffect(() => {
+    // NOTHING IS REQUESTED FOR SOMEBODY WHO MAY NOT SEE THE SCREEN. The
+    // refusal is not a rendering decision taken after the data arrives - a
+    // user who is denied never causes a request at all.
+    if (!canOpenQueue) {
+      setLoading(false);
+      return undefined;
+    }
     let cancelled = false;
     (async () => {
       setLoading(true);
@@ -159,10 +194,11 @@ function OnboardingQueue() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [canOpenQueue]);
 
   /** ONE request for the whole queue, exactly as the employee list does it. */
   useEffect(() => {
+    if (!canOpenQueue) return undefined;
     let cancelled = false;
     (async () => {
       try {
@@ -185,7 +221,7 @@ function OnboardingQueue() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [canOpenQueue]);
 
   /** Employee + status, merged by id into the one shape every rule reads. */
   const queue = useMemo(
@@ -353,7 +389,17 @@ function OnboardingQueue() {
           </Link>
         }
       >
-        {!canView ? (
+        {/* THE REFUSAL COMES FIRST, BEFORE LOADING AND BEFORE ANY DATA. A
+            denied user must never see a dashboard of zeroes: seven cards
+            reading 0 would state, as a fact, that nothing is outstanding
+            anywhere in the company. Absence of the screen is the honest
+            answer; an empty one is a wrong answer. */}
+        {!canOpenQueue ? (
+          <Alert status="warning" fontSize="sm">
+            <AlertIcon />
+            You do not have permission to view the HR onboarding dashboard.
+          </Alert>
+        ) : !canView ? (
           <Alert status="warning" fontSize="sm">
             <AlertIcon />
             You do not have permission to view employees.

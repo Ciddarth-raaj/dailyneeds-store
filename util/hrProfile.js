@@ -43,6 +43,40 @@ const has = (permissions, key) =>
 /** Admins reach everything through the existing `user_type = 2` bypass. */
 const isAdminUser = (isAdmin) => isAdmin === true;
 
+/**
+ * MAY THIS USER OPEN THE ONBOARDING / PENDING HR QUEUE?
+ *
+ * IT IS AN HR AND ADMINISTRATOR WORK QUEUE, COMPANY-WIDE, AND THAT IS THE
+ * WHOLE RULE. The screen exists so HR can chase unfinished records across
+ * every outlet; a store manager has no follow-up to do on it and the counts
+ * would mean nothing narrowed to one branch. So there is no branch-scoped
+ * version of it - a manager is refused outright rather than shown a smaller
+ * dashboard.
+ *
+ * NO NEW PERMISSION, AND DELIBERATELY SO. This is exactly the company-wide
+ * employee scope the backend already decides in
+ * `utils/employee_branch_scope.js#decideScope`: an administrator by
+ * `user_type`, or the holder of `employee_scope_all_branches`, which is the
+ * key HR is granted. Inventing a second key would create two answers to "is
+ * this person HR" that could disagree, and the screen would still be reading
+ * the wrong one.
+ *
+ * IT IS NOT `view_employee_sensitive`, AND MUST NEVER BECOME IT. Opening the
+ * queue and being told how somebody is paid are different questions:
+ * `canViewSensitive` below still decides the Cash -> Bank card and the Paid
+ * by column on its own, so an HR user without the sensitive key gets the
+ * dashboard with those two withheld. Collapsing the two would silently widen
+ * sensitive disclosure to everybody who can open the screen.
+ *
+ * NOT A SECURITY BOUNDARY. This decides what to draw and whether to ask for
+ * data at all. The endpoints behind it re-check the caller on every request
+ * and are branch-scoped independently - Employee Master still narrows to a
+ * manager's own branches, and nothing here changes that.
+ */
+function canViewOnboardingQueue({ permissions = [], isAdmin = false } = {}) {
+  return isAdminUser(isAdmin) || has(permissions, "employee_scope_all_branches");
+}
+
 /** B3 hides these fields entirely from a caller without the key. */
 function canViewSensitive({ permissions = [], isAdmin = false } = {}) {
   return isAdminUser(isAdmin) || has(permissions, "view_employee_sensitive");
@@ -432,6 +466,7 @@ module.exports = {
   canEditPaymentDetails,
   canEditStatutoryDetails,
   canAssignShift,
+  canViewOnboardingQueue,
   canEditEmployee,
   canViewDocuments,
   canViewSalary,

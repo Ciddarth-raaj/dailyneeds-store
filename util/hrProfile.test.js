@@ -17,6 +17,7 @@ const assert = require("node:assert");
 
 const {
   canViewSensitive,
+  canViewOnboardingQueue,
   canEditSensitive,
   canEditEmployee,
   canViewDocuments,
@@ -327,4 +328,60 @@ test("the employee read is unwrapped, and a refusal is not mistaken for a record
   assert.strictEqual(unwrapEmployee([]), null);
   assert.strictEqual(unwrapEmployee({ code: 403, msg: "denied" }), null);
   assert.strictEqual(unwrapEmployee(null), null);
+});
+
+/* ============== who may open the Onboarding / Pending HR queue ========== */
+/**
+ * It is an HR and administrator work queue, company-wide. There is no
+ * branch-scoped version of it: a store manager is refused outright rather
+ * than shown the same dashboard narrowed to their outlet.
+ */
+
+test("AN ADMINISTRATOR MAY OPEN THE ONBOARDING QUEUE", () => {
+  assert.strictEqual(canViewOnboardingQueue({ permissions: [], isAdmin: true }), true);
+});
+
+test("HR MAY OPEN IT, THROUGH THE COMPANY-WIDE SCOPE KEY IT ALREADY HOLDS", () => {
+  // The same key `utils/employee_branch_scope.js#decideScope` reads to give HR
+  // ALL_BRANCHES on the server. No second permission was invented for this.
+  assert.strictEqual(
+    canViewOnboardingQueue({ permissions: perms("employee_scope_all_branches") }),
+    true
+  );
+});
+
+test("A STORE MANAGER MAY NOT - AND NOT BECAUSE THEY LACK A NEW KEY", () => {
+  // A manager typically holds view_employees, and may hold plenty else. None
+  // of it opens this screen; only company-wide employee scope does.
+  assert.strictEqual(canViewOnboardingQueue({ permissions: perms("view_employees") }), false);
+  assert.strictEqual(
+    canViewOnboardingQueue({
+      permissions: perms("view_employees", "employee_create", "employee_edit"),
+    }),
+    false
+  );
+  assert.strictEqual(canViewOnboardingQueue({ permissions: [] }), false);
+  assert.strictEqual(canViewOnboardingQueue(), false);
+});
+
+test("OPENING THE QUEUE IS NOT THE SENSITIVE KEY, IN EITHER DIRECTION", () => {
+  // The two must stay independent: an HR user without the sensitive key gets
+  // the dashboard with Cash -> Bank and Paid by withheld, and holding the
+  // sensitive key alone does not open the screen.
+  const hrNoSensitive = { permissions: perms("employee_scope_all_branches") };
+  assert.strictEqual(canViewOnboardingQueue(hrNoSensitive), true, "dashboard: allowed");
+  assert.strictEqual(canViewSensitive(hrNoSensitive), false, "sensitive route: withheld");
+
+  const sensitiveOnly = { permissions: perms("view_employee_sensitive") };
+  assert.strictEqual(canViewSensitive(sensitiveOnly), true);
+  assert.strictEqual(
+    canViewOnboardingQueue(sensitiveOnly),
+    false,
+    "the sensitive key must not become a way into the dashboard"
+  );
+
+  // An administrator holds both, which is the existing user_type bypass and
+  // not these two rules being merged.
+  assert.strictEqual(canViewOnboardingQueue({ permissions: [], isAdmin: true }), true);
+  assert.strictEqual(canViewSensitive({ permissions: [], isAdmin: true }), true);
 });
