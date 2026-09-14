@@ -176,6 +176,9 @@ function EmployeeProfile() {
   // The whole load OUTCOME, not just a payload - the Aadhaar card must be
   // able to tell "no Aadhaar on record" from "you may not read this".
   const [aadhaarOutcome, setAadhaarOutcome] = useState(null);
+  // The whole load OUTCOME as well as the payload: the Payment card must be
+  // able to tell "you may not see this" from "this could not be loaded".
+  const [bankOutcome, setBankOutcome] = useState(null);
   const [bank, setBank] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
@@ -214,6 +217,7 @@ function EmployeeProfile() {
       // The whole OUTCOME, not the payload: the card needs the reason.
       setAadhaarOutcome(aa);
       setBank(dataOf(bk));
+      setBankOutcome(bk);
 
       // ONLY when NEITHER read produced anything. A refused lifecycle is an
       // ordinary outcome for a store manager and must not read as an error;
@@ -689,6 +693,7 @@ function EmployeeProfile() {
           <PaymentDetailsSection
             employee={employee || {}}
             bank={bank}
+            bankOutcome={bankOutcome}
             lifecycle={lifecycle || {}}
             permissions={permissions}
             isAdmin={isAdmin}

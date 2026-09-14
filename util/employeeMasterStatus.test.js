@@ -22,9 +22,15 @@
  * `repository/employee_detail_columns.test.js` in the API repository.
  */
 const test = require("node:test");
+const { describe, it } = require("node:test");
 const assert = require("node:assert/strict");
 
-const { currentEmploymentStatus, employmentBadge, aadhaarSectionView } = require("./hrStatus");
+const {
+  currentEmploymentStatus,
+  currentPlacement,
+  employmentBadge,
+  aadhaarSectionView,
+} = require("./hrStatus");
 const { SECTION_STATE, classifyBody, classifyError, loadSection, dataOf } = require("./sectionLoad");
 
 /* ===================================================================== */
@@ -244,4 +250,103 @@ test("NO AADHAAR DETAIL LEAKS ON A REFUSAL, checked against the whole view", () 
   for (const secret of ["4321", "Secret Name"]) {
     assert.ok(!text.includes(secret), `a refusal must not carry ${secret}`);
   }
+});
+
+/* ===================================================================== */
+/*  CURRENT PLACEMENT - the same rule as the status badge                */
+/* ===================================================================== */
+
+/**
+ * The status badge was made master-first; the four fields beside it were not.
+ * Which value they displayed therefore depended on whether the viewer held
+ * `view_employee_lifecycle`, and for two of them the two sides are not even
+ * the same fact.
+ */
+describe("current placement", () => {
+  // The master carries BOTH outlet spellings; lifecycle carries only the
+  // nickname, and its joining date is the CURRENT PERIOD's start.
+  const MASTER = {
+    date_of_joining: "2013-06-08",
+    outlet_nickname: "KTM",
+    outlet_name: "Kathirkamam",
+    department_name: "Operations",
+    designation_name: "Cashier",
+  };
+  const LIFECYCLE = {
+    current: {
+      date_of_joining: "2021-04-01",
+      outlet_nickname: "KTM",
+      department_name: "Operations",
+      designation_name: "Cashier",
+    },
+  };
+
+  it("6. HR AND A STORE MANAGER SEE THE SAME PLACEMENT", () => {
+    // The whole defect in one assertion: the answer must not move with the
+    // reader's permissions.
+    assert.deepEqual(
+      currentPlacement(MASTER, LIFECYCLE),   // HR: lifecycle loaded
+      currentPlacement(MASTER, {})           // store manager: lifecycle refused
+    );
+  });
+
+  it("6. the branch label is one label, not two spellings", () => {
+    // HR used to see the nickname and a store manager the full name.
+    assert.equal(currentPlacement(MASTER, LIFECYCLE).outlet, "KTM");
+    assert.equal(currentPlacement(MASTER, {}).outlet, "KTM");
+    // With no nickname recorded, both fall to the same full name.
+    const noNickname = { ...MASTER, outlet_nickname: null };
+    assert.equal(currentPlacement(noNickname, LIFECYCLE).outlet, "Kathirkamam");
+    assert.equal(currentPlacement(noNickname, {}).outlet, "Kathirkamam");
+  });
+
+  it("6. THE JOINING DATE IS THE MASTER'S, not the current period's", () => {
+    // These genuinely differ for anybody who resigned and rejoined, so the
+    // date used to move with the reader.
+    assert.equal(currentPlacement(MASTER, LIFECYCLE).date_of_joining, "2013-06-08");
+    assert.equal(currentPlacement(MASTER, {}).date_of_joining, "2013-06-08");
+  });
+
+  it("6. department and designation come from the master", () => {
+    const drifted = {
+      current: { department_name: "Stale Dept", designation_name: "Stale Desig" },
+    };
+    const p = currentPlacement(MASTER, drifted);
+    assert.equal(p.department_name, "Operations");
+    assert.equal(p.designation_name, "Cashier");
+  });
+
+  it("lifecycle is used ONLY where the master has nothing", () => {
+    const p = currentPlacement({}, LIFECYCLE);
+    assert.equal(p.outlet, "KTM");
+    assert.equal(p.department_name, "Operations");
+    assert.equal(p.date_of_joining, "2021-04-01");
+  });
+
+  it("2 & 3. A DENIED OR FAILED LIFECYCLE CHANGES NOTHING", () => {
+    for (const outcome of [
+      classifyBody({ code: 403 }),                 // denied
+      classifyBody({ code: 500 }),                 // server error
+      classifyError(new Error("socket hang up")),  // network
+    ]) {
+      const lifecycle = dataOf(outcome);
+      assert.deepEqual(currentPlacement(MASTER, lifecycle), currentPlacement(MASTER, LIFECYCLE));
+      // and the status beside it is still ACTIVE, not Resigned
+      assert.equal(employmentBadge(currentEmploymentStatus({ status: 1 }, lifecycle)).label, "Active");
+    }
+  });
+
+  it("neither read is blank rather than wrong", () => {
+    assert.deepEqual(currentPlacement(null, null), {
+      date_of_joining: "",
+      outlet: null,
+      department_name: null,
+      designation_name: null,
+    });
+  });
+
+  it("an empty string in the master is not an answer", () => {
+    const blank = { ...MASTER, department_name: "   " };
+    assert.equal(currentPlacement(blank, LIFECYCLE).department_name, "Operations");
+  });
 });

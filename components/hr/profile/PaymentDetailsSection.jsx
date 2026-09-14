@@ -29,6 +29,9 @@ import { PAYMENT_TYPE_OPTIONS, isBankPayment, isCashPayment, paymentTypeLabel } 
 function PaymentDetailsSection({
   employee = {},
   bank,
+  // The `util/sectionLoad.js` OUTCOME for the bank read, so an unavailable
+  // card can say WHY. Optional: without it the card behaves exactly as before.
+  bankOutcome = null,
   lifecycle = {},
   permissions = [],
   isAdmin = false,
@@ -99,10 +102,16 @@ function PaymentDetailsSection({
           bank ? (
             <Box>
               {/* The existing bank card, unchanged: status, verification,
-                  name review and the Add/Change account editor. */}
+                  name review and the Add/Change account editor.
+
+                  ITS IDENTITY COMES FROM THE EMPLOYEE MASTER FIRST. Both
+                  props used to come from the lifecycle read, which a store
+                  manager is refused - so the card was handed `undefined` for
+                  the employee it acts on whenever that read failed and the
+                  bank read did not. */}
               <BankCard
-                employeeId={lifecycle.employee_id}
-                employeeName={lifecycle.employee_name}
+                employeeId={employee.employee_id ?? lifecycle.employee_id}
+                employeeName={employee.employee_name ?? lifecycle.employee_name}
                 bank={bank}
                 permissions={permissions}
                 isAdmin={isAdmin}
@@ -112,9 +121,22 @@ function PaymentDetailsSection({
               />
             </Box>
           ) : (
+            /*
+             * A FAILED READ IS NOT NECESSARILY A REFUSED ONE.
+             *
+             * This said "You do not have permission" for EVERY absent bank
+             * payload - a 500, a dropped connection and a genuine refusal
+             * alike - so a transient outage was reported to the user as a
+             * permissions problem they would go and ask an administrator to
+             * fix. The reason comes from the read's own outcome now; where no
+             * outcome was passed the wording stays neutral rather than
+             * guessing.
+             */
             <Alert status="info" fontSize="sm">
               <AlertIcon />
-              You do not have permission to see this employee&apos;s bank verification.
+              {bankOutcome && bankOutcome.denied
+                ? "You do not have permission to see this employee's bank verification."
+                : "This employee's bank verification could not be loaded. Try again shortly."}
             </Alert>
           )
         ) : null}

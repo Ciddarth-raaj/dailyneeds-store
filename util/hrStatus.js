@@ -585,6 +585,70 @@ function currentEmploymentStatus(employee, lifecycle) {
   return null;
 }
 
+/**
+ * THE EMPLOYEE'S CURRENT PLACEMENT - branch, department, designation and the
+ * joining date - from the same authoritative source as their status.
+ *
+ * ============================== THE DEFECT THIS FIXES =====================
+ *
+ * `currentEmploymentStatus` made the STATUS badge read the employee master
+ * first. The four fields beside it were left reading lifecycle first:
+ *
+ *     current.date_of_joining   || employee.date_of_joining
+ *     current.outlet_nickname   || employee.outlet_name
+ *     current.department_name   || employee.department_name
+ *     current.designation_name  || employee.designation_name
+ *
+ * where `current` is `lifecycle.current`, and the lifecycle read is gated on
+ * `view_employee_lifecycle`. So which value was displayed depended on the
+ * VIEWER'S PERMISSIONS, and for two of the fields the two sides are not even
+ * the same fact:
+ *
+ *   BRANCH   HR holds lifecycle and saw `outlet_nickname` - "KTM". A store
+ *            manager does not, fell through, and saw `outlet_name` -
+ *            "Kathirkamam". The same employee's branch, labelled differently
+ *            depending on who opened the profile.
+ *   JOINING  lifecycle carries the CURRENT PERIOD's start; the master carries
+ *            the employee's own column. For anybody who has resigned and
+ *            rejoined these genuinely differ, so the date shown moved with
+ *            the reader.
+ *
+ * Fixing the badge and leaving these was fixing one column and leaving the
+ * same ambiguity in the others.
+ *
+ * ============================== THE RULE ==================================
+ *
+ * The employee master is authoritative for CURRENT placement, exactly as it is
+ * for current status. Lifecycle is history and is consulted only where the
+ * master could not be read at all, so a caller allowed the timeline and not
+ * the record still sees something true rather than nothing.
+ *
+ * The branch label prefers the master's own nickname and falls back to its
+ * full name, so every viewer sees the SAME label for the same employee.
+ *
+ * @param employee  the employee-master record, or null/{} if unreadable
+ * @param lifecycle the lifecycle record, or null/{} if unreadable or refused
+ */
+function currentPlacement(employee, lifecycle) {
+  const e = employee || {};
+  const current = (lifecycle && lifecycle.current) || {};
+
+  const firstOf = (...values) => {
+    for (const v of values) {
+      if (v !== undefined && v !== null && String(v).trim() !== "") return v;
+    }
+    return null;
+  };
+
+  return {
+    // Master first, every time.
+    date_of_joining: String(firstOf(e.date_of_joining, current.date_of_joining) || "").slice(0, 10),
+    outlet: firstOf(e.outlet_nickname, e.outlet_name, current.outlet_nickname),
+    department_name: firstOf(e.department_name, current.department_name),
+    designation_name: firstOf(e.designation_name, current.designation_name),
+  };
+}
+
 /** Employment status as the list and profile show it. */
 const employmentBadge = (status) => {
   // UNKNOWN IS NOT RESIGNED. `null`/`undefined` means no read told us, and
@@ -600,6 +664,7 @@ const employmentBadge = (status) => {
 
 module.exports = {
   currentEmploymentStatus,
+  currentPlacement,
   aadhaarSectionView,
   aadhaarBadge,
   aadhaarListBadge,

@@ -54,6 +54,53 @@ test("the list and the profile read the same field of the same record", () => {
   assert.match(employmentCard, /currentEmploymentStatus/);
 });
 
+test("the Employment card resolves PLACEMENT through the shared rule too", () => {
+  assert.match(employmentCard, /currentPlacement\(employee, lifecycle\)/);
+  for (const field of ["placement.outlet", "placement.department_name", "placement.designation_name"]) {
+    assert.ok(employmentCard.includes(field), `${field} must come from the shared rule`);
+  }
+  assert.match(employmentCard, /const joiningDate = placement\.date_of_joining/);
+});
+
+test("THE LIFECYCLE-FIRST PLACEMENT READS ARE GONE", () => {
+  // Fixing the status badge and leaving these was fixing one column and
+  // leaving the same ambiguity in the others: HR saw the outlet NICKNAME and
+  // a store manager the full NAME, and a rejoined employee's joining date
+  // moved between the current period's start and their master column.
+  const code = codeOf(employmentCard);
+  for (const inverted of [
+    /current\.outlet_nickname \|\| employee\.outlet_name/,
+    /current\.department_name \|\| employee\.department_name/,
+    /current\.designation_name \|\| employee\.designation_name/,
+    /current\.date_of_joining \|\| employee\.date_of_joining/,
+  ]) {
+    assert.ok(!inverted.test(code), `${inverted} reads the lifecycle before the master`);
+  }
+  assert.ok(
+    !/const current = lifecycle\.current/.test(code),
+    "the card no longer keeps a lifecycle-first shorthand to fall back into"
+  );
+});
+
+/* --------------------------------------------------------------- bank --- */
+
+test("the Payment card can tell a refusal from an outage", () => {
+  const payment = read("components/hr/profile/PaymentDetailsSection.jsx");
+  assert.match(payment, /bankOutcome/);
+  assert.match(payment, /bankOutcome && bankOutcome\.denied/);
+  assert.match(payment, /could not be loaded/);
+  assert.match(page, /bankOutcome=\{bankOutcome\}/);
+  assert.match(page, /setBankOutcome\(bk\)/);
+});
+
+test("the bank card's identity comes from the employee master", () => {
+  // Both props came from the lifecycle read, which a store manager is
+  // refused - so the card was handed `undefined` for the employee it acts on.
+  const payment = codeOf(read("components/hr/profile/PaymentDetailsSection.jsx"));
+  assert.match(payment, /employeeId=\{employee\.employee_id \?\? lifecycle\.employee_id\}/);
+  assert.match(payment, /employeeName=\{employee\.employee_name \?\? lifecycle\.employee_name\}/);
+});
+
 /* ------------------------------------------------------------ Aadhaar --- */
 
 test("the Aadhaar card is handed the OUTCOME, not a bare payload", () => {

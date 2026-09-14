@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Text, Stack } from "@chakra-ui/react";
 import { SectionCard, Field, EditField, FieldGrid } from "./SectionCard";
 import { EmploymentBadge } from "../StatusBadges";
-import { currentEmploymentStatus } from "../../../util/hrStatus";
+import { currentEmploymentStatus, currentPlacement } from "../../../util/hrStatus";
 import { currentShiftLabel } from "../../../util/currentShift";
 import { displayDate } from "../../../util/displayDate";
 
@@ -86,8 +86,18 @@ function EmploymentSection({
       ? currentShift.shift.work_shift_id
       : "";
 
-  const current = lifecycle.current || {};
-  const joiningDate = String(current.date_of_joining || employee.date_of_joining || "").slice(0, 10);
+  /*
+   * CURRENT PLACEMENT COMES FROM THE EMPLOYEE MASTER, like the status badge.
+   *
+   * These four fields used to read `lifecycle.current` first, so what they
+   * displayed depended on whether the viewer held `view_employee_lifecycle` -
+   * and for Branch and Joining date the two sides are not the same fact. HR
+   * saw the outlet NICKNAME and a store manager the full NAME; a rejoined
+   * employee's joining date moved between the current period's start and
+   * their master column. See `currentPlacement`.
+   */
+  const placement = currentPlacement(employee, lifecycle);
+  const joiningDate = placement.date_of_joining;
 
   const start = () => {
     setForm({
@@ -242,9 +252,9 @@ function EmploymentSection({
         ) : (
           <>
             <FieldGrid>
-              <Field label="Branch / Outlet" value={current.outlet_nickname || employee.outlet_name} />
-              <Field label="Department" value={current.department_name || employee.department_name} />
-              <Field label="Designation" value={current.designation_name || employee.designation_name} />
+              <Field label="Branch / Outlet" value={placement.outlet} />
+              <Field label="Department" value={placement.department_name} />
+              <Field label="Designation" value={placement.designation_name} />
               <Field label="Shift" value={currentShiftLabel(currentShift)} />
             </FieldGrid>
             <Text fontSize="xs" color="gray.500">
