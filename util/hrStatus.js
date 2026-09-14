@@ -26,6 +26,87 @@ function aadhaarBadge(status) {
     : { label: "Pending", colorScheme: "orange" };
 }
 
+/**
+ * WHAT THE AADHAAR CARD MAY SAY, given how its read actually went.
+ *
+ * ============================== THE DEFECT THIS FIXES =====================
+ *
+ * The card did this:
+ *
+ *     badge={<AadhaarBadge status={aadhaar ? aadhaar.aadhaar_status : "PENDING"} />}
+ *     "No Aadhaar on record."
+ *
+ * `aadhaar` was `null` whenever the read failed for ANY reason, and the
+ * commonest reason was a permission refusal: `/hr/employee/:id/aadhaar` is
+ * gated on `view_employee_lifecycle`, which a store manager does not hold. So
+ * the profile told them, as a fact about that person, that no Aadhaar was on
+ * record - when the truth was only that they were not allowed to ask.
+ *
+ * ============================== THE RULE ==================================
+ *
+ * PENDING IS A BUSINESS CONCLUSION AND MAY ONLY COME FROM THE SERVER. The
+ * backend says `aadhaar_status: "PENDING"` explicitly when no identity exists,
+ * so a real "no Aadhaar on record" is always distinguishable from a failure -
+ * once the failure stops being flattened into `null`.
+ *
+ * Four outcomes, four different things on screen:
+ *
+ *   VERIFIED     the identity exists; show it, with the last four digits and
+ *                the verified name the caller is already entitled to.
+ *   PENDING      the SERVER said there is none. The only case that may read
+ *                "No Aadhaar on record".
+ *   DENIED       neutral wording. Discloses nothing about the employee, and
+ *                nothing about the Aadhaar - not the number, not the last
+ *                four, not the verified name, not whether one exists at all.
+ *   UNAVAILABLE  the read failed. Also neutral, and explicitly not PENDING.
+ *
+ * @param outcome a `util/sectionLoad.js` result for the Aadhaar read
+ */
+function aadhaarSectionView(outcome) {
+  const state = outcome && outcome.state;
+
+  if (state === "DENIED") {
+    return {
+      kind: "DENIED",
+      badge: { label: "Not available", colorScheme: "gray" },
+      message: "Aadhaar status not available with your access.",
+      showIdentity: false,
+      canOfferVerify: false,
+    };
+  }
+
+  if (!outcome || !outcome.ok || !outcome.data) {
+    return {
+      kind: "UNAVAILABLE",
+      badge: { label: "Not available", colorScheme: "gray" },
+      message: "Aadhaar status could not be loaded. Try again shortly.",
+      showIdentity: false,
+      canOfferVerify: false,
+    };
+  }
+
+  const data = outcome.data;
+  if (String(data.aadhaar_status).toUpperCase() === "VERIFIED") {
+    return {
+      kind: "VERIFIED",
+      badge: { label: "Verified", colorScheme: "green" },
+      message: null,
+      showIdentity: true,
+      canOfferVerify: false,
+    };
+  }
+
+  // The server said so. This is the ONE path that may claim there is none.
+  return {
+    kind: "PENDING",
+    badge: { label: "Pending", colorScheme: "orange" },
+    message:
+      data.message || "No Aadhaar on record. This does not hold up anything else.",
+    showIdentity: false,
+    canOfferVerify: data.can_verify_now === true,
+  };
+}
+
 /** Aadhaar is preferred, never required: creation is never blocked by it. */
 const aadhaarBlocksCreate = () => false;
 
@@ -450,13 +531,76 @@ function duplicateSummary(result) {
 const has = (permissions, key) =>
   Array.isArray(permissions) && permissions.some((p) => (p && p.permission_key) === key);
 
+/**
+ * THE EMPLOYEE'S CURRENT EMPLOYMENT STATE, from ONE authoritative source.
+ *
+ * ============================== THE DEFECT THIS FIXES =====================
+ *
+ * The Employment card read `lifecycle.status ?? employee.status`, so the
+ * answer depended on which reads the caller was allowed to make:
+ *
+ *   HR              lifecycle loads, `lifecycle.status` is used, correct.
+ *   Store Manager   lifecycle is REFUSED (`view_employee_lifecycle` gates it),
+ *                   so it fell through to `employee.status` - which
+ *                   `GET /employee/employee_id` was returning from the JOINED
+ *                   `shift_master` table because of a `SELECT *` collision,
+ *                   and `shift_master.status` defaults to 0.
+ *
+ * The result was an employee who works here, shown as ACTIVE on the list and
+ * RESIGNED on their own profile, for one class of user only.
+ *
+ * The backend collision is fixed at source (`repository/employee.js`). This
+ * fixes the second half: WHICH FIELD IS AUTHORITATIVE.
+ *
+ * ============================== THE RULE ==================================
+ *
+ * `new_employee.status` - carried on the employee-master record - is the
+ * source of truth for whether somebody currently works here. Lifecycle is
+ * HISTORY: periods, resignations, rejoins, the timeline. It may supplement,
+ * and it is used as a FALLBACK only when the employee record itself could not
+ * be read at all, so a caller who is allowed the timeline and not the record
+ * still sees something true rather than nothing.
+ *
+ * ABSENCE OF LIFECYCLE NEVER CHANGES THE ANSWER. That is the property that
+ * broke, and `employeeMasterStatus.test.js` pins it.
+ *
+ * @param employee  the employee-master record, or null/{} if unreadable
+ * @param lifecycle the lifecycle record, or null/{} if unreadable or refused
+ * @returns {number|null} the status, or null when genuinely unknown
+ */
+function currentEmploymentStatus(employee, lifecycle) {
+  const fromMaster = employee ? employee.status : undefined;
+  if (fromMaster !== undefined && fromMaster !== null && fromMaster !== "") {
+    return Number(fromMaster);
+  }
+
+  // Only now - the employee record was not readable at all.
+  const fromLifecycle = lifecycle ? lifecycle.status : undefined;
+  if (fromLifecycle !== undefined && fromLifecycle !== null && fromLifecycle !== "") {
+    return Number(fromLifecycle);
+  }
+
+  // Neither read succeeded. UNKNOWN, and callers must not draw "Resigned"
+  // from it - that is the whole failure this replaces.
+  return null;
+}
+
 /** Employment status as the list and profile show it. */
-const employmentBadge = (status) =>
-  Number(status) === 1
+const employmentBadge = (status) => {
+  // UNKNOWN IS NOT RESIGNED. `null`/`undefined` means no read told us, and
+  // asserting somebody has left because a permission check refused a request
+  // is exactly the bug this file's `currentEmploymentStatus` exists to end.
+  if (status === null || status === undefined || status === "") {
+    return { label: "Status unavailable", colorScheme: "gray" };
+  }
+  return Number(status) === 1
     ? { label: "Active", colorScheme: "green" }
     : { label: "Resigned", colorScheme: "gray" };
+};
 
 module.exports = {
+  currentEmploymentStatus,
+  aadhaarSectionView,
   aadhaarBadge,
   aadhaarListBadge,
   aadhaarBlocksCreate,

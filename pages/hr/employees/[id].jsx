@@ -37,6 +37,7 @@ import HrHelper from "../../../helper/hr";
 import EmployeeHelper from "../../../helper/employee";
 import EmployeeWorkShiftHelper from "../../../helper/employeeWorkShift";
 import { canVerifyBank, lifecycleActions } from "../../../util/hrStatus";
+import { loadSection, dataOf } from "../../../util/sectionLoad";
 import {
   buildHrPatch,
   buildSensitivePayload,
@@ -172,7 +173,9 @@ function EmployeeProfile() {
 
   const [lifecycle, setLifecycle] = useState(null);
   const [employee, setEmployee] = useState(null);
-  const [aadhaar, setAadhaar] = useState(null);
+  // The whole load OUTCOME, not just a payload - the Aadhaar card must be
+  // able to tell "no Aadhaar on record" from "you may not read this".
+  const [aadhaarOutcome, setAadhaarOutcome] = useState(null);
   const [bank, setBank] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
@@ -191,19 +194,36 @@ function EmployeeProfile() {
       // Independent reads. A permission refusal on any one of them must not
       // blank the page, so each is tolerated on its own and each section says
       // for itself what it could not show.
+      //
+      // EACH OUTCOME KEEPS ITS REASON. `loadSection` classifies every read as
+      // OK / DENIED / MISSING / ERROR instead of the old `.catch(() => null)`,
+      // which flattened a permission refusal, a 404, a server error and a
+      // dropped connection into one indistinguishable `null` - and let a
+      // section render that null as a fact about the employee. That is how a
+      // store manager without `view_employee_lifecycle` was told an employee
+      // had no Aadhaar on record.
       const [lc, emp, aa, bk] = await Promise.all([
-        HrHelper.getLifecycle(id).catch(() => null),
-        EmployeeHelper.getEmployeeByID(id).catch(() => null),
-        HrHelper.getAadhaarStatus(id).catch(() => null),
-        HrHelper.getBankStatus(id).catch(() => null),
+        loadSection(HrHelper.getLifecycle(id)),
+        loadSection(EmployeeHelper.getEmployeeByID(id)),
+        loadSection(HrHelper.getAadhaarStatus(id)),
+        loadSection(HrHelper.getBankStatus(id)),
       ]);
-      const usable = (r) => (r && !r.code ? r : null);
-      setLifecycle(usable(lc));
-      setEmployee(unwrapEmployee(emp));
-      setAadhaar(usable(aa));
-      setBank(usable(bk));
-      if (!usable(lc)) {
-        setLoadError(lc && lc.msg ? lc.msg : "This employee could not be loaded.");
+
+      setLifecycle(dataOf(lc));
+      setEmployee(unwrapEmployee(dataOf(emp)));
+      // The whole OUTCOME, not the payload: the card needs the reason.
+      setAadhaarOutcome(aa);
+      setBank(dataOf(bk));
+
+      // ONLY when NEITHER read produced anything. A refused lifecycle is an
+      // ordinary outcome for a store manager and must not read as an error;
+      // it used to set this message on every such load.
+      if (!lc.ok && !emp.ok) {
+        setLoadError(
+          lc.denied && emp.denied
+            ? "You do not have permission to view this employee."
+            : emp.message || lc.message || "This employee could not be loaded."
+        );
       }
     } catch (err) {
       setLoadError("Could not reach the server.");
@@ -617,7 +637,7 @@ function EmployeeProfile() {
 
           {/* ============================ 1. Aadhaar Verification ==== */}
           <AadhaarSection
-            aadhaar={aadhaar}
+            aadhaarOutcome={aadhaarOutcome}
             canVerify={canEdit}
             onVerify={() => setAadhaarOpen(true)}
           />
@@ -625,7 +645,7 @@ function EmployeeProfile() {
           {/* ================================ 2. Personal Details ==== */}
           <PersonalSection
             employee={employee || {}}
-            aadhaar={aadhaar}
+            aadhaar={dataOf(aadhaarOutcome)}
             canEdit={canEdit && Boolean(employee)}
             onSave={saveOrdinary}
             saving={saving}
