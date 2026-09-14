@@ -1341,7 +1341,13 @@ test("THE QUEUE ADDS NO ENDPOINT, NO PERMISSION AND NO SOURCE OF TRUTH", () => {
 
 test("the queue shows what HR needs to act, and nothing sensitive", () => {
   const code = codeOf(queue);
-  for (const shown of ["employee_id", "employee_image", "employee_name", "store_name", "row.aadhaar", "row.bank", "row.pf", "row.esi", "row.hr", "row.overall"]) {
+  // The five statuses the dashboard is specified on. PF and ESI are ONE
+  // Statutory column here now - which of the two is outstanding is a filter
+  // and a fact on the employee's own profile, not a column on this screen.
+  for (const shown of [
+    "employee_id", "employee_image", "employee_name", "store_name",
+    "row.aadhaar", "row.bank", "row.statutory", "row.payroll", "row.hr",
+  ]) {
     assert.ok(code.includes(shown), `the queue must show ${shown}`);
   }
   for (const forbidden of [
@@ -1362,11 +1368,38 @@ test("NOTHING IS MARKED DONE ON THE QUEUE - the work is done on the profile", ()
 
 test("the counts are derived and no example number is hardcoded", () => {
   const code = codeOf(queue);
-  for (const key of ["counts.active", "counts.pending", "counts.aadhaar", "counts.bank", "counts.pf", "counts.esi", "counts.hr"]) {
-    assert.ok(code.includes(key), `the queue must show ${key}`);
-  }
+  // The six cards are rendered FROM `QUEUE_CARDS`, each reading the count it
+  // names - so the screen cannot pair a card with the wrong number, and
+  // adding a card cannot mean forgetting to render one.
+  assert.match(code, /QUEUE_CARDS\.map\(/, "the cards come from the shared definition");
+  assert.match(code, /value=\{counts\[card\.count\]\}/, "each card shows its own count");
   assert.match(code, /queueCounts\(queue, \{ outlet, department \}\)/, "counts ignore the work filter");
   assert.ok(!/value=\{\d+\}/.test(code), "no count is a literal");
+});
+
+test("EVERY CARD IS CLICKABLE, AND SETS THE SAME FILTER THE DROPDOWN SETS", () => {
+  const code = codeOf(queue);
+  // One piece of state, two controls - which is what stops the page showing
+  // a selected card beside a dropdown that contradicts it.
+  assert.match(code, /onSelect=\{\(\) => setFilter\(card\.filter\)\}/, "a card selects its filter");
+  assert.match(code, /selected=\{filter === card\.filter\}/, "and reports that it is selected");
+  assert.match(code, /value=\{filter\}[\s\S]{0,120}onChange=\{\(e\) => setFilter\(e\.target\.value\)\}/,
+    "the dropdown reads and writes that same filter");
+  // Reachable and announced, not a div with a click handler.
+  assert.match(code, /as="button"/);
+  assert.match(code, /aria-pressed=\{selected\}/);
+});
+
+test("THE QUEUE IS READABLE ON A PHONE - cards, not a squeezed table", () => {
+  const code = codeOf(queue);
+  // The same rows either way; the breakpoint chooses in CSS so the server and
+  // the first client render agree.
+  assert.match(code, /display=\{\{ base: "none", lg: "block" \}\}/, "the table is desktop only");
+  assert.match(code, /display=\{\{ base: "block", lg: "none" \}\}/, "the cards are mobile only");
+  assert.match(code, /OnboardingQueueCard/, "mobile renders the employee card");
+  assert.ok(code.includes("visible.slice(0, cardsShown)"), "and pages them rather than rendering hundreds");
+  // Two cards per row on a phone keeps each summary card a real tap target.
+  assert.match(code, /columns=\{\{ base: 2,/);
 });
 
 test("a failed summary shows dashes, never a queue of invented work", () => {

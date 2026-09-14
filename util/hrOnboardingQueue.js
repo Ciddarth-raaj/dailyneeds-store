@@ -19,19 +19,28 @@
  *              records. PENDING means nobody has been asked yet; a missing
  *              UAN or PF number is NOT pending - that has always been treated
  *              as ordinary, because a UAN routinely takes weeks
- *   HR         the existing `hr_onboarding_pending` flag - the ONE definition
- *              of HR completion, derived on the server: a verified Aadhaar,
- *              both statutory decisions recorded, and a payroll-ready bank
- *              account
+ *   Statutory  PF and ESI as ONE section, which is how HR completes them -
+ *              `statutory_pending`, derived on the server from the very same
+ *              two decisions the PF and ESI columns are
+ *   Payroll    whether the employee is actually set up to be paid: a live,
+ *              costed salary in effect today and a recorded way to pay it.
+ *              Derived on the server from the payroll module's own rules,
+ *              NOT from the bank column - an employee can have a verified
+ *              account and no salary, or a salary and no account
+ *   HR         the `hr_onboarding_pending` flag - the ONE definition of HR
+ *              completion, derived on the server as the union of the four:
+ *              Aadhaar, Bank, Statutory and Payroll. An employee is HR
+ *              complete only when all four are
  *
  * WHAT "PENDING" MEANS - AND WHERE THAT IS DECIDED.
  *
  * ON THE SERVER, AND ONLY THERE. `hr_onboarding_pending` is true when a
- * verified Aadhaar, either statutory decision, or a payroll-ready bank
- * account is outstanding, and `hr_onboarding_missing` names which. Overall
- * onboarding IS that flag - this module does not compose a second answer out
- * of the columns beside it, because two definitions of "finished" is exactly
- * how a queue and a badge start disagreeing about the same employee.
+ * verified Aadhaar, either statutory decision, a payroll-ready bank account,
+ * or the payroll setup itself is outstanding, and `hr_onboarding_missing`
+ * names which. Overall onboarding IS that flag - this module does not compose
+ * a second answer out of the columns beside it, because two definitions of
+ * "finished" is exactly how a queue and a badge start disagreeing about the
+ * same employee.
  *
  * AADHAAR IS HR'S ONCE THE FIRST ATTEMPT IS OVER. The store manager attempts
  * it at stage 1 of onboarding; if it is left unverified for any reason -
@@ -126,6 +135,41 @@ function queueRow(employee = {}, status = {}) {
   const esi = scheme(status.esi_status);
 
   /**
+   * STATUTORY IS PF AND ESI AS ONE SECTION - which is how HR does the work.
+   *
+   * They are one section of the profile, completed in one edit, and the
+   * backend already reports `statutory_pending` for exactly this card. It is
+   * read here rather than recomposed from the two columns beside it, for the
+   * same reason `overall` is the server's flag: two definitions of the same
+   * thing is how a card and a badge start disagreeing.
+   *
+   * The per-scheme columns stay, because "which one" is still the question
+   * somebody clearing PF is asking.
+   */
+  const statutory =
+    status.statutory_pending === undefined || status.statutory_pending === null
+      ? UNKNOWN
+      : status.statutory_pending
+      ? PENDING
+      : COMPLETE;
+
+  /**
+   * PAYROLL - the fourth item, and NOT the bank column restated.
+   *
+   * Bank asks whether an account can receive a transfer; payroll asks whether
+   * there is anything to transfer - an agreed, costed salary in effect today,
+   * and a recorded way to pay it. Derived on the server from the payroll
+   * module's own rules (`getCurrentSalary`, `utils/salary_engine.js`), so this
+   * screen composes nothing and cannot drift from what payroll believes.
+   */
+  const payroll =
+    status.payroll_pending === undefined || status.payroll_pending === null
+      ? UNKNOWN
+      : status.payroll_pending
+      ? PENDING
+      : COMPLETE;
+
+  /**
    * OVERALL ONBOARDING IS THE SERVER'S FLAG, NOT A SECOND OPINION ABOUT IT.
    *
    * `hr_onboarding_pending` already means "a verified Aadhaar, both statutory
@@ -154,11 +198,14 @@ function queueRow(employee = {}, status = {}) {
     bank,
     pf,
     esi,
+    statutory,
+    payroll,
     hr,
     overall,
     hr_onboarding_missing: Array.isArray(status.hr_onboarding_missing)
       ? status.hr_onboarding_missing
       : [],
+    payroll_missing: Array.isArray(status.payroll_missing) ? status.payroll_missing : [],
   };
 }
 
@@ -179,35 +226,67 @@ const isActive = (employee = {}) => Number(employee.status) === 1;
  * derived from exactly these items.
  */
 const QUEUE_FILTERS = [
-  { value: "all_pending", label: "All Pending" },
+  { value: "all", label: "Active Employees" },
   { value: "aadhaar", label: "Aadhaar Pending" },
   { value: "bank", label: "Bank Pending" },
-  { value: "pf", label: "PF Pending" },
-  { value: "esi", label: "ESI Pending" },
+  { value: "statutory", label: "Statutory Pending" },
+  { value: "payroll", label: "Payroll Pending" },
   { value: "hr", label: "HR Pending" },
-  { value: "all", label: "Everyone (including complete)" },
+  // The per-scheme halves. NOT cards - the dashboard counts PF and ESI as one
+  // Statutory section - but kept as filters because the person clearing PF is
+  // not the person chasing ESI numbers, and that is still a real day's work.
+  { value: "pf", label: "PF Pending (within Statutory)" },
+  { value: "esi", label: "ESI Pending (within Statutory)" },
 ];
 
 const QUEUE_FILTER_VALUES = QUEUE_FILTERS.map((f) => f.value);
 
+/**
+ * THE CARDS, AND THE ONE FILTER EACH ONE SELECTS.
+ *
+ * A card and the dropdown are two controls for ONE piece of state, so they
+ * are defined together here rather than wired up twice on the screen: that is
+ * what makes it impossible for the page to show a selected card and a
+ * dropdown that disagrees with it.
+ *
+ * `count` names the key on `queueCounts` the card displays - every one of
+ * which is computed over the whole active population, never over the rows the
+ * current filter left on screen.
+ */
+const QUEUE_CARDS = [
+  { filter: "all", label: "Active employees", count: "active" },
+  { filter: "aadhaar", label: "Aadhaar pending", count: "aadhaar" },
+  { filter: "bank", label: "Bank pending", count: "bank" },
+  { filter: "statutory", label: "Statutory pending", count: "statutory" },
+  { filter: "payroll", label: "Payroll pending", count: "payroll" },
+  // The overall answer, and the one HR works from, so it is the accented one.
+  { filter: "hr", label: "HR pending", count: "hr", accent: true },
+];
+
 /** Does one row belong under `filter`? */
 function matchesFilter(row, filter) {
   switch (filter) {
+    // EVERY ACTIVE EMPLOYEE. `filterQueue` has already dropped the inactive
+    // ones, so "all" here is exactly the population the Active card counts -
+    // which is what makes clicking that card show precisely its own number.
     case "all":
       return true;
     case "aadhaar":
       return isPending(row.aadhaar);
     case "bank":
       return isPending(row.bank);
+    case "statutory":
+      return isPending(row.statutory);
+    case "payroll":
+      return isPending(row.payroll);
     case "pf":
       return isPending(row.pf);
     case "esi":
       return isPending(row.esi);
     case "hr":
-      return isPending(row.hr);
-    case "all_pending":
+    case "all_pending": // the old name for this filter, still honoured
     default:
-      return isPending(row.overall);
+      return isPending(row.hr);
   }
 }
 
@@ -219,7 +298,7 @@ function matchesFilter(row, filter) {
  * HR to record their PF applicability, and leaving them in would fill the
  * screen with work nobody will ever do.
  */
-function filterQueue(rows, { filter = "all_pending", outlet = "", department = "", search = "" } = {}) {
+function filterQueue(rows, { filter = "hr", outlet = "", department = "", search = "" } = {}) {
   const needle = String(search || "").trim().toLowerCase();
   return (rows || []).filter((row) => {
     if (Number(row.status) !== 1) return false;
@@ -239,8 +318,15 @@ function filterQueue(rows, { filter = "all_pending", outlet = "", department = "
 
 /**
  * The live counts across the top, over ACTIVE employees only and over the
- * outlet / department narrowing but NOT the work filter - a count that moved
- * when you clicked the thing it is counting would be useless.
+ * outlet / department narrowing but NOT the work filter.
+ *
+ * EVERY COUNT IS EVALUATED AGAINST THE WHOLE ACTIVE POPULATION, AND NEVER
+ * AGAINST ANOTHER CARD'S RESULT. `scoped` is built once, from every active
+ * row, and each card counts its own predicate over it independently - so
+ * Payroll pending is measured against all active employees rather than
+ * against the employees some other card left on screen, and clicking a card
+ * cannot change any number including its own. A count that moved when you
+ * clicked the thing it counts would be useless for deciding what to click.
  *
  * Every number is derived from the rows on screen. Nothing here is a
  * constant, and there is no example data anywhere in this module.
@@ -257,12 +343,18 @@ function queueCounts(rows, { outlet = "", department = "" } = {}) {
 
   return {
     active: scoped.length,
-    pending: count((r) => isPending(r.overall)),
     aadhaar: count((r) => isPending(r.aadhaar)),
     bank: count((r) => isPending(r.bank)),
+    statutory: count((r) => isPending(r.statutory)),
+    payroll: count((r) => isPending(r.payroll)),
+    hr: count((r) => isPending(r.hr)),
+    // The per-scheme halves, for the two filters that still name them. Not
+    // cards, and counted the same way as everything else here.
     pf: count((r) => isPending(r.pf)),
     esi: count((r) => isPending(r.esi)),
-    hr: count((r) => isPending(r.hr)),
+    // The old name for the HR count. Identical by construction - `overall` IS
+    // `hr` - and kept so nothing reading it silently becomes undefined.
+    pending: count((r) => isPending(r.overall)),
   };
 }
 
@@ -288,6 +380,7 @@ module.exports = {
   UNKNOWN,
   QUEUE_FILTERS,
   QUEUE_FILTER_VALUES,
+  QUEUE_CARDS,
   queueRow,
   isPending,
   isActive,

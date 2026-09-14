@@ -179,6 +179,18 @@ function statusSummaryIndex(summary) {
     // the decision must not read as "nothing outstanding".
     if (row.pf_status) entry.pf_status = row.pf_status;
     if (row.esi_status) entry.esi_status = row.esi_status;
+    // PF and ESI as ONE section, which is how the dashboard counts them, and
+    // PAYROLL - the fourth HR item. Both are derived on the server from the
+    // sections they describe and both follow the same rule as everything
+    // above: carried through only when the server actually sent them, so a
+    // server that cannot derive one never reads as "nothing outstanding".
+    if (row.statutory_pending !== undefined && row.statutory_pending !== null) {
+      entry.statutory_pending = Boolean(row.statutory_pending);
+    }
+    if (row.payroll_pending !== undefined && row.payroll_pending !== null) {
+      entry.payroll_pending = Boolean(row.payroll_pending);
+      entry.payroll_missing = Array.isArray(row.payroll_missing) ? row.payroll_missing : [];
+    }
     index[String(row.employee_id)] = entry;
   }
   return index;
