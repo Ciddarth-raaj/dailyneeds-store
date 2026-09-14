@@ -25,12 +25,27 @@ import { aadhaarOutcome } from "../../util/hrStatus";
  * The two differ only in what happens after a successful verification, so the
  * caller supplies `onVerified(decision)` and this component stays the same.
  *
+ * THEY NO LONGER SHARE ONE PAIR OF ENDPOINTS, and that is the fix this prop
+ * carries. `employeeId` is the whole difference:
+ *
+ *   absent   Add Employee. The onboarding endpoints, unchanged:
+ *            `employee_create` plus `edit_employee_sensitive`, because the
+ *            body carries an Aadhaar number and B3 guards that write.
+ *   present  An employee who already exists. The existing-employee endpoints,
+ *            which require `verify_employee_aadhaar` + branch scope and refuse
+ *            an Aadhaar that is already VERIFIED.
+ *
+ * A store manager holds the second set and not the first, which is why the
+ * profile's "Verify now" used to end in "You do not have permission to perform
+ * this action". Nothing about Add Employee changes: with no `employeeId` this
+ * component calls exactly what it always called.
+ *
  * WHAT NEVER LEAVES THIS COMPONENT: the Aadhaar number is held in local state
  * only long enough to POST it, and the OTP likewise. Neither is logged, stored
  * or put in a URL, and the backend never sends either back. What comes back is
  * an opaque token, the last four digits, and a decision.
  */
-function AadhaarVerifyModal({ isOpen, onClose, onVerified, employeeName }) {
+function AadhaarVerifyModal({ isOpen, onClose, onVerified, employeeName, employeeId = null }) {
   const toast = useToast();
 
   const [step, setStep] = useState("enter"); // enter -> otp -> outcome
@@ -69,10 +84,10 @@ function AadhaarVerifyModal({ isOpen, onClose, onVerified, employeeName }) {
     }
     setBusy(true);
     try {
-      const res = await HrHelper.initiateAadhaar({
-        aadhaar_number: aadhaar.replace(/\s/g, ""),
-        consent_given: true,
-      });
+      const payload = { aadhaar_number: aadhaar.replace(/\s/g, ""), consent_given: true };
+      const res = employeeId
+        ? await HrHelper.initiateAadhaarForEmployee(employeeId, payload)
+        : await HrHelper.initiateAadhaar(payload);
       if (failed(res)) {
         setError(res.msg || "Could not send the OTP.");
         return;
@@ -93,10 +108,10 @@ function AadhaarVerifyModal({ isOpen, onClose, onVerified, employeeName }) {
     setError(null);
     setBusy(true);
     try {
-      const res = await HrHelper.verifyAadhaarOtp({
-        verification_token: session.verification_token,
-        otp: otp.trim(),
-      });
+      const payload = { verification_token: session.verification_token, otp: otp.trim() };
+      const res = employeeId
+        ? await HrHelper.verifyAadhaarOtpForEmployee(employeeId, payload)
+        : await HrHelper.verifyAadhaarOtp(payload);
       if (failed(res)) {
         // A wrong digit is retryable and the session survives; anything else
         // means starting again, and the message says which.

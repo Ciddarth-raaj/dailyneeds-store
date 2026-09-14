@@ -168,7 +168,37 @@ const hr = {
         .catch(reject);
     }),
 
-  /** GET /hr/employee/:id/aadhaar — view_employee_lifecycle. VERIFIED or PENDING; never the number. */
+  /**
+   * POST /hr/employee/:id/aadhaar/initiate — the EXISTING-EMPLOYEE path.
+   *
+   * `verify_employee_aadhaar` + branch scope, and the employee's Aadhaar must
+   * still be PENDING. Deliberately NOT the onboarding endpoint above: that one
+   * is gated on `employee_create` and, because the body carries an Aadhaar
+   * number, on `edit_employee_sensitive` through B3's write guard - which is
+   * why "Verify now" used to fail for a store manager. This one accepts the
+   * number after a narrower check and writes nothing to the employee record;
+   * attaching the result is still `employee_edit`.
+   */
+  initiateAadhaarForEmployee: (employeeId, { aadhaar_number, consent_given }) =>
+    new Promise((resolve, reject) => {
+      API.post(`/hr/employee/${employeeId}/aadhaar/initiate`, { aadhaar_number, consent_given })
+        .then((res) => resolve(res.data))
+        .catch(reject);
+    }),
+
+  /**
+   * POST /hr/employee/:id/aadhaar/verify-otp — the EXISTING-EMPLOYEE path.
+   * The same narrow authorization as the step above; the OTP is sent once and
+   * is never stored, logged or echoed back.
+   */
+  verifyAadhaarOtpForEmployee: (employeeId, { verification_token, otp }) =>
+    new Promise((resolve, reject) => {
+      API.post(`/hr/employee/${employeeId}/aadhaar/verify-otp`, { verification_token, otp })
+        .then((res) => resolve(res.data))
+        .catch(reject);
+    }),
+
+  /** GET /hr/employee/:id/aadhaar — view_employee_aadhaar. VERIFIED or PENDING; never the number. */
   getAadhaarStatus: (employeeId) =>
     new Promise((resolve, reject) => {
       API.get(`/hr/employee/${employeeId}/aadhaar`)

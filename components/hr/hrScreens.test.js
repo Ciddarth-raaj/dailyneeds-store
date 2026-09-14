@@ -31,11 +31,20 @@ const lifecycleModals = read("components/hr/LifecycleActionModals.jsx");
 const timeline = read("components/hr/LifecycleTimeline.jsx");
 
 /* ============================================== the contracts are real == */
-const BACKEND_ROUTER = path.join(ROOT, "..", "dailyneeds-store-backend", "routes", "employee_master.js");
-const backendAvailable = fs.existsSync(BACKEND_ROUTER);
+const BACKEND_ROUTES = path.join(ROOT, "..", "dailyneeds-store-backend", "routes");
+// BOTH /hr routers, because the surface is genuinely split across two of them:
+// the existing-employee Aadhaar verification pair lives on its own router,
+// mounted ahead of the master one so that B3's blanket `guardWrite` - which
+// the master router applies to everything entering it - does not refuse the
+// one request that legitimately carries an Aadhaar number.
+const BACKEND_ROUTERS = [
+  path.join(BACKEND_ROUTES, "employee_master.js"),
+  path.join(BACKEND_ROUTES, "employee_aadhaar_verification.js"),
+];
+const backendAvailable = BACKEND_ROUTERS.every((f) => fs.existsSync(f));
 
 test("every /hr path the helper calls exists in the backend router", { skip: !backendAvailable }, () => {
-  const router = fs.readFileSync(BACKEND_ROUTER, "utf8");
+  const router = BACKEND_ROUTERS.map((f) => fs.readFileSync(f, "utf8")).join("\n");
 
   // Parameters are generalised on BOTH sides rather than assumed to be an
   // employee id: `/bank/ifsc/:ifsc` is parameterised too, and comparing a
@@ -60,7 +69,7 @@ test("every /hr path the helper calls exists in the backend router", { skip: !ba
     const routerPath = p === "" ? "/" : p;
     assert.ok(
       declared.has(routerPath),
-      `${routerPath} is called by the frontend but not declared in employee_master.js`
+      `${routerPath} is called by the frontend but is declared by no /hr router`
     );
   }
 });
@@ -426,7 +435,7 @@ test("the status summary is fetched ONCE, never once per employee", () => {
 });
 
 test("the helper's summary path is the one the backend declares", { skip: !backendAvailable }, () => {
-  const router = fs.readFileSync(BACKEND_ROUTER, "utf8");
+  const router = fs.readFileSync(BACKEND_ROUTERS[0], "utf8");
   assert.match(helper, /getStatusSummary:/);
   assert.match(helper, /API\.get\("\/hr\/employees\/status-summary"/);
   assert.ok(

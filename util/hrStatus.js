@@ -405,6 +405,42 @@ function canOverrideDuplicateBank({ status, permissions = [], isAdmin = false })
   );
 }
 
+/**
+ * MAY THIS USER VERIFY THE AADHAAR OF AN EMPLOYEE WHO ALREADY EXISTS?
+ *
+ * THREE KEYS, AND ALL THREE, because the workflow has three steps on the
+ * server and offering a button that can only get halfway is worse than
+ * offering none. Read the badge, run the OTP check, attach the result:
+ *
+ *   view_employee_aadhaar     GET  /hr/employee/:id/aadhaar
+ *   verify_employee_aadhaar   POST /hr/employee/:id/aadhaar/initiate
+ *                             POST /hr/employee/:id/aadhaar/verify-otp
+ *   employee_edit             POST /hr/employee/:id/aadhaar/attach
+ *
+ * A caller missing the last one would send an OTP to somebody's phone,
+ * complete the verification and then be refused at the attach - having spent
+ * a real provider call and learnt nothing. So the button appears only for a
+ * caller who can finish.
+ *
+ * BRANCH SCOPE IS NOT ASKED ABOUT HERE, and cannot be: it is the server's
+ * answer, resolved from the caller's live employee record, and this screen is
+ * only ever showing an employee the server already let them read.
+ *
+ * THE STATE RULE IS NOT HERE EITHER. Whether the Aadhaar is PENDING is the
+ * status payload's business - `aadhaarSectionView` above sets
+ * `canOfferVerify`, and a VERIFIED or unreadable status never offers it.
+ * Both must agree before "Verify now" is drawn, and the server refuses a
+ * verified employee regardless of what either says.
+ */
+function canVerifyExistingAadhaar({ permissions = [], isAdmin = false } = {}) {
+  if (isAdmin) return true;
+  return (
+    has(permissions, "view_employee_aadhaar") &&
+    has(permissions, "verify_employee_aadhaar") &&
+    has(permissions, "employee_edit")
+  );
+}
+
 /** May this user run the paid Penny-Less check? */
 function canVerifyBank({ permissions = [], isAdmin = false }) {
   if (isAdmin) return true;
@@ -684,6 +720,7 @@ module.exports = {
   bankReviewReasonValid,
   canOverrideDuplicateBank,
   canVerifyBank,
+  canVerifyExistingAadhaar,
   bankActions,
   lifecycleActions,
   rejoinNeedsPreviousEnd,

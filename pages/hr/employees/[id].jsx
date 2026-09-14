@@ -36,7 +36,11 @@ import { useUser } from "../../../contexts/UserContext";
 import HrHelper from "../../../helper/hr";
 import EmployeeHelper from "../../../helper/employee";
 import EmployeeWorkShiftHelper from "../../../helper/employeeWorkShift";
-import { canVerifyBank, lifecycleActions } from "../../../util/hrStatus";
+import {
+  canVerifyBank,
+  canVerifyExistingAadhaar,
+  lifecycleActions,
+} from "../../../util/hrStatus";
 import { loadSection, dataOf } from "../../../util/sectionLoad";
 import {
   buildHrPatch,
@@ -640,9 +644,18 @@ function EmployeeProfile() {
           />
 
           {/* ============================ 1. Aadhaar Verification ==== */}
+          {/* "Verify now" needs the WHOLE workflow, not just Edit. It was
+              offered on `canEdit` alone, so a store manager was shown a button
+              that sent an OTP and then 403'd - the initiate call went to the
+              ONBOARDING endpoint, which wants `employee_create` and
+              `edit_employee_sensitive`. The existing-employee endpoints want
+              `verify_employee_aadhaar` instead, and attaching the result still
+              wants `employee_edit`, so all three are asked for here. Whether
+              the Aadhaar is PENDING is the section's own rule and is applied
+              on top of this; a VERIFIED or unreadable status offers nothing. */}
           <AadhaarSection
             aadhaarOutcome={aadhaarOutcome}
-            canVerify={canEdit}
+            canVerify={canVerifyExistingAadhaar(actor)}
             onVerify={() => setAadhaarOpen(true)}
           />
 
@@ -766,6 +779,9 @@ function EmployeeProfile() {
         isOpen={aadhaarOpen}
         onClose={() => setAadhaarOpen(false)}
         employeeName={identity.employee_name}
+        // THE EMPLOYEE ALREADY EXISTS, so the modal uses the
+        // existing-employee endpoints rather than onboarding's.
+        employeeId={identity.employee_id}
         onVerified={async (decision, outcome) => {
           setAadhaarOpen(false);
           if (!outcome) return;
