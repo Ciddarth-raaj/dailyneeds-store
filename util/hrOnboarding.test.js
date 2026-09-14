@@ -317,3 +317,24 @@ test("the outstanding sections read as a sentence, and an empty list says nothin
   assert.match(hrOnboardingMissingLabel(["statutory", "bank"]), /statutory details and payment details/);
   assert.strictEqual(hrOnboardingMissingLabel(undefined), "");
 });
+
+test("AN UNVERIFIED AADHAAR IS SOMETHING HR GETS VERIFIED, NOT SOMETHING IT RECORDS", () => {
+  // A different verb from the other two, because it is a different task:
+  // statutory and bank details are typed in, an Aadhaar means going back to
+  // the employee. "Record the Aadhaar verification" would describe the wrong
+  // job to whoever is chasing it.
+  assert.match(hrOnboardingMissingLabel(["aadhaar"]), /get the Aadhaar verified/);
+  assert.ok(!/record the Aadhaar/.test(hrOnboardingMissingLabel(["aadhaar"])));
+
+  // Combined, each reason is said once, and the Aadhaar leads - it is the
+  // order the backend sends them in.
+  const both = hrOnboardingMissingLabel(["aadhaar", "statutory"]);
+  assert.match(both, /get the Aadhaar verified/);
+  assert.match(both, /record the statutory details/);
+  assert.ok(both.indexOf("Aadhaar") < both.indexOf("statutory"));
+
+  const all = hrOnboardingMissingLabel(["aadhaar", "statutory", "bank"]);
+  assert.match(all, /get the Aadhaar verified/);
+  assert.match(all, /statutory details and payment details/);
+  assert.strictEqual((all.match(/Aadhaar/g) || []).length, 1, "no reason is said twice");
+});

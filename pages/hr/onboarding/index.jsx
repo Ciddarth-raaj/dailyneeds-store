@@ -54,11 +54,12 @@ import {
  * impossible for this queue and the badge on an employee's profile to
  * disagree, and why nothing had to be backfilled for it.
  *
- * TWO RULES ARE STRICTER HERE THAN THE SERVER'S `hr_onboarding_pending`, and
- * both are stated in `util/hrOnboardingQueue.js` with the reasoning: Aadhaar
- * pending means not fully onboarded, and a bank account is complete only once
- * it has passed its check. Neither invents a value - both read existing ones
- * (`aadhaar_status`, `bank_payroll_ready`) the server already derives.
+ * ONE DEFINITION OF FINISHED, AND IT IS THE SERVER'S. `hr_onboarding_pending`
+ * covers a verified Aadhaar, both statutory decisions and a payroll-ready
+ * bank account, so the HR column and the Overall column are that flag and
+ * this screen composes nothing of its own. The per-item columns beside them
+ * exist to say WHICH item is outstanding and to be filtered on - they are
+ * read from the same summary, so they cannot disagree with it.
  *
  * NOTHING IS MARKED DONE HERE. There is no action on this screen but "Open" -
  * the work is done on the employee's profile, in the section that owns it,
@@ -348,14 +349,13 @@ function OnboardingQueue() {
             )}
 
             <Text fontSize="xs" color="gray.500" mt={4}>
-              Onboarding is pending while any column is. Aadhaar verification is stage 1, so an
-              employee whose Aadhaar is still pending is not fully onboarded. Bank is complete only
-              once the account has passed its check — an account that failed, clashed or is still
-              being checked is an employee who cannot be paid, and stays here. PF and ESI recorded
-              as not applicable count as complete. The HR column is the server&apos;s own flag for
-              the two sections HR records, so it can read Complete beside a bank account that has
-              not passed. Every status is derived from the employee&apos;s own sections, so a record
-              stops appearing as soon as it is finished.
+              HR is pending while any of Aadhaar, Bank, PF or ESI is, and overall onboarding says
+              the same thing. The store manager attempts the Aadhaar during onboarding; if it is
+              left unverified for any reason, getting it verified is HR&apos;s follow-up. Bank is
+              complete only once the account has passed its check — an account that failed, clashed
+              or is still being checked is an employee who cannot be paid. PF and ESI recorded as
+              not applicable count as complete. Every status is derived from the employee&apos;s own
+              sections, so a record stops appearing as soon as it is finished.
             </Text>
           </>
         )}

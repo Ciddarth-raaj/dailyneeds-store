@@ -19,33 +19,38 @@
  *              records. PENDING means nobody has been asked yet; a missing
  *              UAN or PF number is NOT pending - that has always been treated
  *              as ordinary, because a UAN routinely takes weeks
- *   HR         the existing `hr_onboarding_pending` flag: statutory decided
- *              for BOTH schemes, and a bank account on file
+ *   HR         the existing `hr_onboarding_pending` flag - the ONE definition
+ *              of HR completion, derived on the server: a verified Aadhaar,
+ *              both statutory decisions recorded, and a payroll-ready bank
+ *              account
  *
- * WHAT "PENDING" MEANS.
+ * WHAT "PENDING" MEANS - AND WHERE THAT IS DECIDED.
  *
- * Overall onboarding is outstanding when ANY of the five columns is - Aadhaar,
- * bank, PF, ESI or the HR flag. Two of those deserve saying out loud, because
- * they are stricter than the server's own `hr_onboarding_pending`:
+ * ON THE SERVER, AND ONLY THERE. `hr_onboarding_pending` is true when a
+ * verified Aadhaar, either statutory decision, or a payroll-ready bank
+ * account is outstanding, and `hr_onboarding_missing` names which. Overall
+ * onboarding IS that flag - this module does not compose a second answer out
+ * of the columns beside it, because two definitions of "finished" is exactly
+ * how a queue and a badge start disagreeing about the same employee.
  *
- *   AADHAAR COUNTS. It is stage 1 of the onboarding flow, so an active
- *   employee whose Aadhaar is still pending is not a finished record. The
- *   server's flag excludes it because that flag means "has HR completed ITS
- *   two sections", and Aadhaar is the store manager's stage, not HR's - so the
- *   `hr` column keeps the flag exactly as derived, and the overall answer is
- *   composed here from every column the row shows.
+ * AADHAAR IS HR'S ONCE THE FIRST ATTEMPT IS OVER. The store manager attempts
+ * it at stage 1 of onboarding; if it is left unverified for any reason -
+ * failure, mismatch, a technical problem, a skip, or simply not finished -
+ * chasing it is HR's follow-up. So Aadhaar pending means HR pending, and the
+ * employee list's HR column says so too. It is the same flag.
  *
- *   A BANK ACCOUNT MUST HAVE PASSED ITS CHECK. Entering an account number is
- *   not finishing the section: an employee whose verification failed, is
- *   awaiting a result, came back a name mismatch or clashes with somebody
- *   else's account still cannot be paid, and that is still work. Complete
- *   means `bank_payroll_ready`, the existing flag that is true for VERIFIED
- *   and nothing else.
+ * A BANK ACCOUNT MUST HAVE PASSED ITS CHECK. Entering an account number is
+ * not finishing the section: an employee whose verification failed, is
+ * awaiting a result, came back a name mismatch or clashes with somebody
+ * else's account still cannot be paid. Complete means `bank_payroll_ready`,
+ * true for VERIFIED and nothing else - the same value the server's flag is
+ * built on and the list's Bank badge is drawn from.
  *
- * Neither is a new definition of compliance - both are existing values
- * (`aadhaar_status`, `bank_payroll_ready`) the server already derives and the
- * list already renders. What the queue decides is only which of them make an
- * employee still outstanding.
+ * THE PER-ITEM COLUMNS EXIST TO SAY WHY, NOT TO DECIDE. Aadhaar, Bank, PF and
+ * ESI are rendered so somebody can see which item is holding an employee up
+ * and filter to the one they are clearing. Each is read from the same summary
+ * the flag is derived from, so `hr` is Pending exactly when at least one of
+ * them is - and the tests pin that agreement rather than trusting it.
  *
  * NOT APPLICABLE IS DONE. An employee whose PF or ESI is recorded as "not in
  * the scheme" has nothing outstanding for it. That falls out of the rule
@@ -55,8 +60,9 @@
  *
  * SO THE QUEUE EMPTIES ITSELF. Every column is derived at its source from the
  * sections themselves, so the moment the last one is filled in on the profile
- * the employee drops out of All Pending on the next load. Nothing is marked
- * done here and there is no state to clear.
+ * - the Aadhaar verified, the decision recorded, the account passing its
+ * check - the employee drops out of All Pending on the next load. Nothing is
+ * marked done here and there is no state to clear.
  *
  * UNKNOWN IS NOT PENDING. Where the summary did not load, or a server does
  * not derive a flag, the row reads "—" and is not counted as outstanding.
@@ -93,14 +99,9 @@ function queueRow(employee = {}, status = {}) {
   // came back NAME_MISMATCH, FAILED, or DUPLICATE_ACCOUNT all read Pending -
   // they are all an employee who cannot be paid, and all of them are work.
   //
-  // This is deliberately STRICTER than the backend's `hr_onboarding_pending`,
-  // which counts only NOT_PROVIDED: that flag answers "has HR recorded the
-  // section", and this column answers "is the section finished". The two are
-  // different questions and the queue shows both, so `bank` Pending beside
-  // `hr` Complete is not a contradiction - it reads "HR has entered an
-  // account, and it has not passed". The rule is not invented here either:
-  // `bank_payroll_ready` is the same flag the list's Bank badge is drawn
-  // from, computed once on the server by the shared C2 rule.
+  // THE SAME VALUE THE SERVER'S HR FLAG IS BUILT ON, so this column and `hr`
+  // cannot disagree: `bank_payroll_ready` is computed once, by the shared C2
+  // rule, and is what the list's Bank badge is drawn from as well.
   const bank =
     status.bank_status === undefined || status.bank_status === null
       ? UNKNOWN
@@ -125,30 +126,19 @@ function queueRow(employee = {}, status = {}) {
   const esi = scheme(status.esi_status);
 
   /**
-   * OVERALL ONBOARDING - outstanding if ANY stage of it is.
+   * OVERALL ONBOARDING IS THE SERVER'S FLAG, NOT A SECOND OPINION ABOUT IT.
    *
-   * Aadhaar verification is stage 1 of onboarding, so an active employee
-   * whose Aadhaar is still pending is not a finished record and must not read
-   * as one. That is a change from the backend's `hr_onboarding_pending`,
-   * which deliberately excludes Aadhaar - and rightly so for what IT means:
-   * it is the flag for "has HR completed the two sections it owns", and
-   * Aadhaar is verified by the store manager at stage 1, not by HR. The `hr`
-   * column above still carries that flag exactly as the server derives it.
+   * `hr_onboarding_pending` already means "a verified Aadhaar, both statutory
+   * decisions, or a payroll-ready bank account is outstanding" - which is the
+   * whole of what this queue asks. Recomposing it here from the four columns
+   * would produce a second definition of "finished" that could drift from the
+   * one the employee list renders, for no gain: the columns are read from the
+   * same summary, so they already agree with it.
    *
-   * So this is not a redefinition of the HR flag; it is the wider question
-   * the queue exists to ask, composed from the columns beside it. Every one
-   * of them is shown on the row, which is what lets somebody see WHY an
-   * employee is still here.
-   *
-   * UNKNOWN NEVER MAKES SOMEBODY PENDING. A status that did not load is not
-   * evidence of outstanding work, so it contributes nothing - the same rule
-   * every column follows.
+   * UNKNOWN stays UNKNOWN. A flag the server did not send is not evidence of
+   * outstanding work, and `hr` above already reads that way.
    */
-  const overall = [aadhaar, bank, pf, esi, hr].some((v) => v === PENDING)
-    ? PENDING
-    : [aadhaar, bank, pf, esi, hr].every((v) => v === UNKNOWN)
-    ? UNKNOWN
-    : COMPLETE;
+  const overall = hr;
 
   return {
     employee_id: employee.employee_id,
@@ -184,9 +174,9 @@ const isActive = (employee = {}) => Number(employee.status) === 1;
  * The work filters, each naming exactly one outstanding thing - because the
  * person clearing PF is not the person chasing bank details.
  *
- * `all_pending` is the default and is the overall answer, so it is the queue
- * proper - and every other filter here is a subset of it, because overall is
- * composed from exactly these columns.
+ * `all_pending` is the default and is the server's flag, so it is the queue
+ * proper - and every other work filter is a subset of it, because the flag is
+ * derived from exactly these items.
  */
 const QUEUE_FILTERS = [
   { value: "all_pending", label: "All Pending" },

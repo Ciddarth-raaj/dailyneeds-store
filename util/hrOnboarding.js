@@ -113,8 +113,13 @@ function validateStage(key, form = {}, context = {}) {
     // Aadhaar is NOT required to create an employee, and this does not make
     // it so: what stage 1 asks for is a DECISION - verified, or explicitly
     // skipped - so that skipping is a choice somebody made rather than a
-    // question that scrolled past. "Aadhaar Pending" is unchanged, and holds
-    // up nothing downstream.
+    // question that scrolled past. The manager is never blocked here.
+    //
+    // SKIPPING HANDS THE JOB ON, IT DOES NOT CLOSE IT. An Aadhaar left
+    // unverified for any reason is HR follow-up from this point: the employee
+    // reads HR Pending until it is verified, and appears in the Onboarding /
+    // Pending HR queue. The store manager owns the first attempt; HR owns
+    // what is left.
     if (!context.verification && !context.aadhaarSkipped) {
       errors.aadhaar = "Verify the Aadhaar, or choose Skip for now to carry on without it.";
     }
@@ -295,7 +300,7 @@ function createdSummary(result) {
     title: `Employee ${result.employee_id} created — HR onboarding pending`,
     aadhaarNote: verified
       ? "Aadhaar verified and attached."
-      : "Aadhaar is pending. It can be verified later from the employee's profile, and holds nothing up.",
+      : "Aadhaar is pending, so HR will follow it up - the employee shows as HR pending until it is verified. Nothing here is blocked in the meantime, and it can be verified from the employee's profile at any time.",
     hrNote:
       "Payment, statutory, payroll and document details are completed on this same employee record by whoever holds those rights. Nothing further is needed from the store.",
   };
@@ -314,13 +319,33 @@ function hrOnboardingBadge(pending) {
     : { label: "Complete", colorScheme: "green" };
 }
 
-/** The outstanding sections, in words, for a tooltip or a profile line. */
+/**
+ * The outstanding items, in words, for a tooltip or a profile line.
+ *
+ * AADHAAR IS SAID SEPARATELY, because it is a different verb. The other two
+ * are things HR has to RECORD - type in a number, enter an account. An
+ * unverified Aadhaar is something HR has to GET VERIFIED, which usually means
+ * going back to the employee, and "record the Aadhaar verification" would
+ * describe the wrong task. The store manager attempted it; HR now owns
+ * whatever is left, for whatever reason.
+ */
 function hrOnboardingMissingLabel(missing) {
+  const items = Array.isArray(missing) ? missing : [];
+  if (items.length === 0) return "";
+
   const names = { statutory: "statutory details", bank: "payment details" };
-  const parts = (Array.isArray(missing) ? missing : []).map((m) => names[m] || m);
-  if (parts.length === 0) return "";
-  if (parts.length === 1) return `HR still has to record the ${parts[0]}.`;
-  return `HR still has to record the ${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}.`;
+  const toRecord = items.filter((m) => m !== "aadhaar").map((m) => names[m] || m);
+
+  const sentences = [];
+  if (items.includes("aadhaar")) sentences.push("HR still has to get the Aadhaar verified.");
+  if (toRecord.length === 1) {
+    sentences.push(`HR still has to record the ${toRecord[0]}.`);
+  } else if (toRecord.length > 1) {
+    sentences.push(
+      `HR still has to record the ${toRecord.slice(0, -1).join(", ")} and ${toRecord[toRecord.length - 1]}.`
+    );
+  }
+  return sentences.join(" ");
 }
 
 module.exports = {
