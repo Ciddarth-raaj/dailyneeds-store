@@ -84,6 +84,24 @@ export const PERMISSIONS = {
     // this key AND the employee branch scope, so a holder still reads only
     // employees in the branches they are assigned to.
     view_employee_aadhaar: "View Employee Aadhaar Status",
+    // VERIFYING the Aadhaar of an employee who ALREADY EXISTS and whose
+    // Aadhaar is still PENDING - the OTP flow behind "Verify now" on the
+    // employee profile. Its own box, and a deliberately temporary one: it is
+    // here so that store managers can clear the old-employee backlog and so
+    // that, when the backlog is done, an administrator can take the ability
+    // away again by unticking exactly this one thing.
+    //
+    // IT IS NOT THE BOX ABOVE IT. Reading the badge is not running the check.
+    // It is not Edit Employee either, which is still what ATTACHING the
+    // verified identity requires - the whole workflow needs the status read,
+    // this key, and Edit, which is what `canVerifyExistingAadhaar` asks for
+    // before the button is drawn.
+    //
+    // AND IT REACHES NOTHING ELSE. No sensitive edit, no full Aadhaar number,
+    // no employment history, no branch: the backend applies this key AND the
+    // employee branch scope, and refuses outright for an employee whose
+    // Aadhaar is already VERIFIED, so it can never replace a verified one.
+    verify_employee_aadhaar: "Verify Employee Aadhaar",
     employee_edit: "Edit Employee",
     employee_create: "Add Employee",
     employee_resign: "Change Employee Status — Resign",
