@@ -68,6 +68,22 @@ export const PERMISSIONS = {
   employee: {
     view_employees: "View Employees",
     view_employee_lifecycle: "View Employee Employment History",
+    // The Aadhaar VERIFICATION STATUS on the employee profile - verified or
+    // pending, the last four digits and the verified name. Listed here for
+    // the reason the four C2 action keys above it were: the backend has
+    // required it since the Aadhaar-status migration, and this file is what
+    // the Permission Matrix renders, so without an entry there was no
+    // checkbox and the permission could not be granted at all. An
+    // administrator ticks it deliberately; nothing grants it automatically.
+    //
+    // IT IS THE STATUS AND NOTHING ELSE. Not `view_aadhaar_full`, which reads
+    // the twelve digits back and is granted to nobody and stays off this
+    // screen. Not the employment history beside it - separating the two is
+    // exactly why this key exists. Not the sensitive fields, which are
+    // deliberately absent here. And it grants no branch: the backend applies
+    // this key AND the employee branch scope, so a holder still reads only
+    // employees in the branches they are assigned to.
+    view_employee_aadhaar: "View Employee Aadhaar Status",
     employee_edit: "Edit Employee",
     employee_create: "Add Employee",
     employee_resign: "Change Employee Status — Resign",

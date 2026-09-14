@@ -172,3 +172,111 @@ test("a missing Edit does not blank the profile - it renders read-only", () => {
     "canEdit should reach the sections so they render read-only"
   );
 });
+
+/* ===================================================================== */
+/*  THE AADHAAR STATUS KEY                                               */
+/* ===================================================================== */
+
+/**
+ * `view_employee_aadhaar` was deployed to the backend - the Aadhaar status
+ * route requires it - but was never listed here. This file is what the
+ * Permission Matrix renders, so the checkbox did not exist and an
+ * administrator could not grant it however correctly the backend gated it.
+ * The same omission the C2 action keys above suffered, on a newer key.
+ */
+test("1 & 3. THE AADHAAR STATUS KEY IS OFFERED, under the key the backend checks", () => {
+  assert.ok(
+    employeeKeys.includes("view_employee_aadhaar"),
+    "without this entry the Permission Matrix has no checkbox to grant it"
+  );
+  // The submitted value is the key itself; a renamed key would be silently
+  // ungrantable again.
+  assert.match(employee, /view_employee_aadhaar:/);
+});
+
+test("2. its label is exactly the approved wording", () => {
+  assert.match(
+    employee,
+    /view_employee_aadhaar:\s*"View Employee Aadhaar Status"/,
+    "the label must read View Employee Aadhaar Status"
+  );
+});
+
+test("4 & 5. every key that was offered before is still offered, unrenamed", () => {
+  // The fifteen the screen carried before this key was added.
+  for (const key of [
+    "view_employees",
+    "view_employee_lifecycle",
+    "employee_edit",
+    "employee_create",
+    "employee_resign",
+    "employee_rejoin",
+    "edit_payment_details",
+    "edit_statutory_details",
+    "view_salary",
+    "add_salary",
+    "edit_salary",
+    "manual_salary_component_override",
+    "approve_salary_revision",
+    "view_department",
+    "view_designation",
+  ]) {
+    assert.ok(employeeKeys.includes(key), `${key} must still be grantable`);
+  }
+});
+
+test("7. the Employee module offers exactly one more permission than before", () => {
+  assert.strictEqual(
+    employeeKeys.length,
+    16,
+    "fifteen before, sixteen after - one key added and none removed"
+  );
+  assert.strictEqual(
+    employeeKeys.filter((k) => k === "view_employee_aadhaar").length,
+    1,
+    "and it is listed once"
+  );
+});
+
+test("6. IT IS AN ORDINARY CHECKBOX - no mutual-exclusion rule", () => {
+  // `EXCLUSIVE_PERMISSION_GROUPS` makes ticking one key untick its siblings.
+  // Aadhaar status is nobody's sibling: it must save like any other box.
+  // Anchored on the DECLARATION, not the first mention: the file discusses
+  // the constant in a comment near the top, and slicing from there would take
+  // in the whole catalogue and match every key in it.
+  const declaration = "export const EXCLUSIVE_PERMISSION_GROUPS = [";
+  const start = permissionsSrc.indexOf(declaration);
+  assert.ok(start !== -1, "the exclusivity list must be findable");
+  const list = permissionsSrc.slice(start, permissionsSrc.indexOf("];", start));
+
+  assert.ok(
+    !list.includes("view_employee_aadhaar"),
+    "an exclusivity rule would make this key untick something else when granted"
+  );
+  // Sanity: the slice really is the list, so the assertion above can fail.
+  assert.ok(list.includes("dashboard_scope_own_store"), "the slice covers the real list");
+});
+
+test("IT DRAGS NOTHING ELSE ONTO THE SCREEN", () => {
+  // The whole point of a separate key: it is the STATUS, and it must not
+  // arrive beside the things it was separated from.
+  for (const forbidden of [
+    "view_aadhaar_full",        // the twelve digits, granted to nobody
+    "view_employee_sensitive",  // salary, bank, PAN
+    "edit_employee_sensitive",
+    "employee_scope_all_branches", // the branch scope is not a checkbox here
+  ]) {
+    assert.ok(
+      !employeeKeys.includes(forbidden),
+      `${forbidden} must not appear on this screen beside the Aadhaar status key`
+    );
+  }
+});
+
+test("8. nothing about this key is special-cased by the matrix", () => {
+  // The screen renders whatever the catalog lists and submits the key; a
+  // key handled by name somewhere would not behave like an ordinary box.
+  const matrix = strip(read("constants/permissions.js"));
+  const mentions = (matrix.match(/view_employee_aadhaar/g) || []).length;
+  assert.strictEqual(mentions, 1, "the key appears once, as a catalog entry and nothing more");
+});
