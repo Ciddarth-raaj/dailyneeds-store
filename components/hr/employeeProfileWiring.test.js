@@ -74,6 +74,36 @@ test("THE HARDCODED PENDING FALLBACK IS GONE", () => {
   );
 });
 
+/**
+ * THE EDIT CONTROL IS GATED ON THE EDIT PERMISSION, NOT ON THE SECTION
+ * LOADING.
+ *
+ * This became load-bearing when the Aadhaar STATUS read moved off
+ * `view_employee_lifecycle` onto its own `view_employee_aadhaar`: a store
+ * manager can now SEE the section who previously could not, so "the section
+ * rendered" must not be mistaken for "you may change it".
+ *
+ * The page passes `canEdit` - `employee_edit`, which is exactly the key the
+ * backend's attach route demands - and the card additionally requires the
+ * SERVER's `can_verify_now`. Backend remains authoritative either way: a
+ * button rendered in error still meets a 403.
+ */
+test("the Verify action is gated on employee_edit, not on the section loading", () => {
+  assert.match(page, /<AadhaarSection\s+aadhaarOutcome=\{aadhaarOutcome\}\s+canVerify=\{canEdit\}/);
+  // `canEdit` is the employee_edit decision, and nothing looser.
+  assert.match(page, /const canEdit = canEditEmployee\(actor\)/);
+  const profileUtil = read("util/hrProfile.js");
+  const rule = profileUtil.slice(profileUtil.indexOf("function canEditEmployee"));
+  assert.match(rule.slice(0, 200), /has\(permissions, "employee_edit"\)/);
+
+  // And the card will not offer it on the strength of having rendered.
+  assert.match(aadhaarCard, /canVerify && view\.canOfferVerify/);
+  assert.ok(
+    !/view\.showIdentity \? \(?\s*<Button/.test(aadhaarCard),
+    "the button must not hang off the section having loaded"
+  );
+});
+
 test("the card renders only what the view rule allows", () => {
   // Identity fields sit behind `view.showIdentity`, which is false for every
   // non-OK outcome, so a refusal cannot reach them.
