@@ -35,10 +35,13 @@ const employee = (over = {}) => ({
   ...over,
 });
 
-/** A summary entry for somebody HR has finished with. */
+/** A summary entry for somebody whose onboarding is finished. */
 const done = (over = {}) => ({
   aadhaar_status: "VERIFIED",
   bank_status: "VERIFIED",
+  // Only VERIFIED is payroll ready, and only payroll ready is a finished
+  // bank section - see the bank tests below.
+  bank_payroll_ready: true,
   pf_status: "COMPLETE",
   esi_status: "COMPLETE",
   hr_onboarding_pending: false,
@@ -55,8 +58,27 @@ test("every status is read from the summary, never recomputed", () => {
   assert.strictEqual(row.pf, COMPLETE);
   assert.strictEqual(row.esi, COMPLETE);
   assert.strictEqual(row.hr, COMPLETE);
-  // The overall answer IS the HR flag, not a second opinion about it.
-  assert.strictEqual(row.overall, row.hr);
+  // Everything done means done.
+  assert.strictEqual(row.overall, COMPLETE);
+});
+
+test("OVERALL IS OUTSTANDING IF ANY COLUMN IS", () => {
+  // Each column on its own is enough to keep somebody in the queue, and the
+  // row shows which one it was.
+  const cases = [
+    ["aadhaar", { aadhaar_status: "PENDING" }],
+    ["bank", { bank_status: "FAILED", bank_payroll_ready: false }],
+    ["pf", { pf_status: "PENDING" }],
+    ["esi", { esi_status: "PENDING" }],
+    ["hr", { hr_onboarding_pending: true, hr_onboarding_missing: ["statutory"] }],
+  ];
+  for (const [column, over] of cases) {
+    const row = queueRow(employee(), done(over));
+    assert.strictEqual(row[column], PENDING, `${column} should be pending`);
+    assert.strictEqual(row.overall, PENDING, `${column} alone must keep them in the queue`);
+    assert.strictEqual(matchesFilter(row, "all_pending"), true, column);
+    assert.strictEqual(matchesFilter(row, column), true, column);
+  }
 });
 
 test("the row carries what the screen shows and nothing sensitive", () => {
@@ -90,13 +112,35 @@ test("a server that does not derive PF/ESI says so rather than 'complete'", () =
   assert.strictEqual(row.bank, PENDING);
 });
 
-test("a bank account on file but unverified is not this queue's work", () => {
-  // NOT_PROVIDED is outstanding; a stored account that failed its check is a
-  // different job, shown by the bank badge, and must not be counted twice.
-  assert.strictEqual(queueRow(employee(), done({ bank_status: "NOT_PROVIDED" })).bank, PENDING);
-  for (const status of ["VERIFIED", "PENDING_VERIFICATION", "NAME_MISMATCH", "FAILED"]) {
-    assert.strictEqual(queueRow(employee(), done({ bank_status: status })).bank, COMPLETE, status);
+test("AN ACCOUNT THAT HAS NOT PASSED ITS CHECK IS STILL HR WORK", () => {
+  // Entering an account number is not finishing the section. Everything that
+  // is not payroll ready is an employee who cannot be paid, and all of it is
+  // work: no account, an unfinished check, a name mismatch, an outright
+  // failure, or a clash with somebody else's account.
+  for (const status of [
+    "NOT_PROVIDED", "PENDING", "NAME_MISMATCH", "FAILED", "DUPLICATE_ACCOUNT",
+  ]) {
+    const row = queueRow(employee(), done({ bank_status: status, bank_payroll_ready: false }));
+    assert.strictEqual(row.bank, PENDING, status);
+    assert.strictEqual(row.overall, PENDING, `${status} must keep them in the queue`);
+    assert.strictEqual(matchesFilter(row, "bank"), true, status);
   }
+  // Only a verified account - the one `bank_payroll_ready` is true for - is
+  // a finished bank section.
+  const ok = queueRow(employee(), done({ bank_status: "VERIFIED", bank_payroll_ready: true }));
+  assert.strictEqual(ok.bank, COMPLETE);
+  assert.strictEqual(ok.overall, COMPLETE);
+});
+
+test("the bank column is stricter than the server's HR flag, and that is not a contradiction", () => {
+  // `hr_onboarding_pending` asks "has HR RECORDED its two sections"; the bank
+  // column asks "is the section FINISHED". An entered account that failed its
+  // check is Complete for the first and Pending for the second, and the row
+  // shows both so the reader can see exactly that.
+  const row = queueRow(employee(), done({ bank_status: "FAILED", bank_payroll_ready: false }));
+  assert.strictEqual(row.hr, COMPLETE, "the server's flag is carried through untouched");
+  assert.strictEqual(row.bank, PENDING);
+  assert.strictEqual(row.overall, PENDING, "and the wider question is what the queue runs on");
 });
 
 /* ------------------------------------------------ Not Applicable is done - */
@@ -108,6 +152,7 @@ test("NOT APPLICABLE IS NOT OUTSTANDING", () => {
   assert.strictEqual(matchesFilter(row, "pf"), false);
   assert.strictEqual(matchesFilter(row, "esi"), false);
   assert.strictEqual(matchesFilter(row, "all_pending"), false, "and they do not hold up the queue");
+  assert.strictEqual(row.overall, COMPLETE);
   assert.strictEqual(statusBadge(row.pf).label, "Not applicable");
 });
 
@@ -117,16 +162,22 @@ test("A FINISHED EMPLOYEE LEAVES THE QUEUE", () => {
   const rows = [queueRow(employee(), done())];
   assert.deepStrictEqual(filterQueue(rows, { filter: "all_pending" }), []);
   // And while something is outstanding, they are in it.
-  const outstanding = [queueRow(employee(), done({ hr_onboarding_pending: true, hr_onboarding_missing: ["bank"], bank_status: "NOT_PROVIDED" }))];
+  const outstanding = [queueRow(employee(), done({ hr_onboarding_pending: true, hr_onboarding_missing: ["bank"], bank_status: "NOT_PROVIDED", bank_payroll_ready: false }))];
   assert.strictEqual(filterQueue(outstanding, { filter: "all_pending" }).length, 1);
 });
 
-test("Aadhaar does not decide whether somebody is done - and is still chaseable", () => {
-  // The existing backend flag deliberately excludes Aadhaar; this screen does
-  // not add it. But it has its own filter, so the work is not lost.
+test("AADHAAR PENDING MEANS NOT FULLY ONBOARDED", () => {
+  // Aadhaar verification is stage 1 of onboarding, so an active employee
+  // whose Aadhaar is still pending is not a finished record - even with every
+  // HR section complete.
   const row = queueRow(employee(), done({ aadhaar_status: "PENDING" }));
-  assert.strictEqual(matchesFilter(row, "all_pending"), false);
+  assert.strictEqual(row.aadhaar, PENDING);
+  assert.strictEqual(row.overall, PENDING);
+  assert.strictEqual(matchesFilter(row, "all_pending"), true);
   assert.strictEqual(matchesFilter(row, "aadhaar"), true);
+  // The server's HR flag is about HR's OWN two sections and is untouched by
+  // this: Aadhaar is the store manager's stage, not HR's.
+  assert.strictEqual(row.hr, COMPLETE);
 });
 
 /* -------------------------------------------------------------- filtering */
@@ -154,7 +205,7 @@ test("THE COUNTS ARE DERIVED, AND AGREE WITH THE LIST", () => {
   const rows = [
     queueRow(employee({ employee_id: 1 }), done()),
     queueRow(employee({ employee_id: 2 }), done({ aadhaar_status: "PENDING" })),
-    queueRow(employee({ employee_id: 3 }), done({ bank_status: "NOT_PROVIDED", hr_onboarding_pending: true, hr_onboarding_missing: ["bank"] })),
+    queueRow(employee({ employee_id: 3 }), done({ bank_status: "NOT_PROVIDED", bank_payroll_ready: false, hr_onboarding_pending: true, hr_onboarding_missing: ["bank"] })),
     queueRow(employee({ employee_id: 4 }), done({ pf_status: "PENDING", hr_onboarding_pending: true, hr_onboarding_missing: ["statutory"] })),
     queueRow(employee({ employee_id: 5 }), done({ esi_status: "PENDING", hr_onboarding_pending: true, hr_onboarding_missing: ["statutory"] })),
     queueRow(employee({ employee_id: 6, status: 0 }), done({ hr_onboarding_pending: true })),
@@ -166,7 +217,8 @@ test("THE COUNTS ARE DERIVED, AND AGREE WITH THE LIST", () => {
   assert.strictEqual(counts.pf, 1);
   assert.strictEqual(counts.esi, 1);
   assert.strictEqual(counts.hr, 3);
-  assert.strictEqual(counts.pending, 3);
+  // Four outstanding employees, not three: the Aadhaar-only one counts now.
+  assert.strictEqual(counts.pending, 4);
   // Every count is exactly the length of the list its filter produces.
   for (const [key, filter] of [["pending", "all_pending"], ["aadhaar", "aadhaar"], ["bank", "bank"], ["pf", "pf"], ["esi", "esi"], ["hr", "hr"]]) {
     assert.strictEqual(counts[key], filterQueue(rows, { filter }).length, `${key} must match its own filter`);

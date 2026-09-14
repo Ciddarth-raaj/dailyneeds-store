@@ -54,6 +54,12 @@ import {
  * impossible for this queue and the badge on an employee's profile to
  * disagree, and why nothing had to be backfilled for it.
  *
+ * TWO RULES ARE STRICTER HERE THAN THE SERVER'S `hr_onboarding_pending`, and
+ * both are stated in `util/hrOnboardingQueue.js` with the reasoning: Aadhaar
+ * pending means not fully onboarded, and a bank account is complete only once
+ * it has passed its check. Neither invents a value - both read existing ones
+ * (`aadhaar_status`, `bank_payroll_ready`) the server already derives.
+ *
  * NOTHING IS MARKED DONE HERE. There is no action on this screen but "Open" -
  * the work is done on the employee's profile, in the section that owns it,
  * under that section's own permission. An employee leaves the queue when the
@@ -191,7 +197,7 @@ function OnboardingQueue() {
     ),
     store_name: row.store_name || "—",
     aadhaar: badge(row.aadhaar, { completeLabel: "Verified" }),
-    bank: badge(row.bank, { completeLabel: "Ready" }),
+    bank: badge(row.bank, { completeLabel: "Verified" }),
     pf: badge(row.pf),
     esi: badge(row.esi),
     hr: badge(row.hr),
@@ -342,10 +348,14 @@ function OnboardingQueue() {
             )}
 
             <Text fontSize="xs" color="gray.500" mt={4}>
-              Aadhaar is shown and filterable but does not decide whether onboarding is complete: it
-              can be verified at any time and holds nothing up. PF and ESI recorded as not
-              applicable count as complete. Every status here is derived from the employee&apos;s own
-              sections, so a record stops appearing as soon as it is finished.
+              Onboarding is pending while any column is. Aadhaar verification is stage 1, so an
+              employee whose Aadhaar is still pending is not fully onboarded. Bank is complete only
+              once the account has passed its check — an account that failed, clashed or is still
+              being checked is an employee who cannot be paid, and stays here. PF and ESI recorded
+              as not applicable count as complete. The HR column is the server&apos;s own flag for
+              the two sections HR records, so it can read Complete beside a bank account that has
+              not passed. Every status is derived from the employee&apos;s own sections, so a record
+              stops appearing as soon as it is finished.
             </Text>
           </>
         )}
