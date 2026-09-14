@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Text, Stack } from "@chakra-ui/react";
 import { SectionCard, Field, EditField, FieldGrid } from "./SectionCard";
 import { EmploymentBadge } from "../StatusBadges";
+import { currentEmploymentStatus } from "../../../util/hrStatus";
 import { currentShiftLabel } from "../../../util/currentShift";
 import { displayDate } from "../../../util/displayDate";
 
@@ -142,6 +143,24 @@ function EmploymentSection({
   const opts = (rows, idKey, labelKey) =>
     (rows || []).map((r) => ({ value: r[idKey], label: r[labelKey] }));
 
+  /*
+   * CURRENT EMPLOYMENT STATE COMES FROM THE EMPLOYEE MASTER.
+   *
+   * This used to be `lifecycle.status ?? employee.status`, which made the
+   * answer depend on which reads the caller was allowed: HR got the lifecycle
+   * and the right answer, while a store manager - who does not hold
+   * `view_employee_lifecycle` - fell through to the employee record, which
+   * `GET /employee/employee_id` was returning with `status` overwritten by the
+   * joined `shift_master` table. The same person read ACTIVE on the list and
+   * RESIGNED here.
+   *
+   * `currentEmploymentStatus` states the rule: the employee master is
+   * authoritative, lifecycle is only a fallback for a caller who could not
+   * read the record at all, and neither read succeeding is UNKNOWN rather
+   * than Resigned.
+   */
+  const employmentStatus = currentEmploymentStatus(employee, lifecycle);
+
   return (
     <SectionCard
       title="Employment Details"
@@ -152,7 +171,7 @@ function EmploymentSection({
       onCancel={() => setEditing(false)}
       onSave={save}
       saving={saving}
-      badge={<EmploymentBadge status={lifecycle.status ?? employee.status} />}
+      badge={<EmploymentBadge status={employmentStatus} />}
     >
       <FieldGrid>
         <Field label="Employee ID" value={employee.employee_id ?? lifecycle.employee_id} mono />
