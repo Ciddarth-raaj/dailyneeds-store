@@ -12,8 +12,13 @@
  * them from the sections themselves:
  *
  *   Aadhaar    VERIFIED when an Aadhaar identity is attached, else PENDING
- *   Bank       the shared C2 rule; NOT_PROVIDED means nobody has entered an
- *              account
+ *   Bank       route-aware: Pending only for somebody paid BY BANK whose
+ *              account is not payroll ready. A cash-paid employee's bank
+ *              section is Not Applicable - there is no account to finish -
+ *              and an unrecorded payment route is Unknown, not Pending
+ *   Cash->Bank whether the employee is STILL PAID IN CASH. An operational
+ *              migration HR is running, counted on its own card and
+ *              deliberately NOT part of HR completion
  *   PF / ESI   COMPLETE / PENDING / NOT_APPLICABLE, from the `pf_applicable`
  *              and `esi_applicable` decision the profile's Statutory section
  *              records. PENDING means nobody has been asked yet; a missing
@@ -30,7 +35,10 @@
  *   HR         the `hr_onboarding_pending` flag - the ONE definition of HR
  *              completion, derived on the server as the union of the four:
  *              Aadhaar, Bank, Statutory and Payroll. An employee is HR
- *              complete only when all four are
+ *              complete only when all four are. Cash->Bank is NOT one of
+ *              them: being paid in cash is a route payroll accepts, not an
+ *              unfinished record, so an employee can be HR complete, payroll
+ *              complete and still on the cash list
  *
  * WHAT "PENDING" MEANS - AND WHERE THAT IS DECIDED.
  *
@@ -48,12 +56,18 @@
  * chasing it is HR's follow-up. So Aadhaar pending means HR pending, and the
  * employee list's HR column says so too. It is the same flag.
  *
- * A BANK ACCOUNT MUST HAVE PASSED ITS CHECK. Entering an account number is
- * not finishing the section: an employee whose verification failed, is
- * awaiting a result, came back a name mismatch or clashes with somebody
- * else's account still cannot be paid. Complete means `bank_payroll_ready`,
- * true for VERIFIED and nothing else - the same value the server's flag is
- * built on and the list's Bank badge is drawn from.
+ * A BANK ACCOUNT MUST HAVE PASSED ITS CHECK - FOR SOMEBODY PAID BY BANK.
+ * Entering an account number is not finishing the section: an employee whose
+ * verification failed, is awaiting a result, came back a name mismatch or
+ * clashes with somebody else's account still cannot be paid. Complete means
+ * `bank_payroll_ready`, true for VERIFIED and nothing else.
+ *
+ * BUT IT IS ONLY ASKED OF SOMEBODY IT APPLIES TO. A cash-paid employee has no
+ * account to verify and nobody is ever going to verify one, so reporting them
+ * as Bank Pending is a chase that can never be closed - the reason that card
+ * used to be permanently inflated. Their bank section is Not Applicable, and
+ * the fact HR actually wants about them, that they are still on cash, is its
+ * own card.
  *
  * THE PER-ITEM COLUMNS EXIST TO SAY WHY, NOT TO DECIDE. Aadhaar, Bank, PF and
  * ESI are rendered so somebody can see which item is holding an employee up
@@ -100,29 +114,62 @@ function queueRow(employee = {}, status = {}) {
       : PENDING
     : UNKNOWN;
 
-  // BANK IS COMPLETE ONLY WHEN THE ACCOUNT HAS ACTUALLY PASSED ITS CHECK.
-  //
-  // `bank_payroll_ready` is the existing answer to "are these details good
-  // enough to pay somebody with", and it is true for VERIFIED and nothing
-  // else. So an account nobody has entered, one awaiting its check, one that
-  // came back NAME_MISMATCH, FAILED, or DUPLICATE_ACCOUNT all read Pending -
-  // they are all an employee who cannot be paid, and all of them are work.
-  //
-  // THE SAME VALUE THE SERVER'S HR FLAG IS BUILT ON, so this column and `hr`
-  // cannot disagree: `bank_payroll_ready` is computed once, by the shared C2
-  // rule, and is what the list's Bank badge is drawn from as well.
-  const bank =
-    status.bank_status === undefined || status.bank_status === null
-      ? UNKNOWN
-      : status.bank_payroll_ready
-      ? COMPLETE
-      : PENDING;
-
   const scheme = (value) => {
     if (!value) return UNKNOWN;
     if (value === PENDING || value === COMPLETE || value === NOT_APPLICABLE) return value;
     return UNKNOWN;
   };
+  /** The same, for a server string that may also say UNKNOWN in as many words. */
+  const scheme3 = (value) => (value === UNKNOWN ? UNKNOWN : scheme(value));
+
+  // BANK DEPENDS ON HOW THE EMPLOYEE IS ACTUALLY PAID.
+  //
+  // The dashboard's Bank card asks "is there an account that still has to be
+  // finished for this employee", and that has no answer until somebody has
+  // said they are paid by bank transfer at all:
+  //
+  //   paid by bank     Complete once the account is payroll ready, Pending
+  //                    until then - an account nobody has entered, one
+  //                    awaiting its check, or one that came back
+  //                    NAME_MISMATCH, FAILED or DUPLICATE_ACCOUNT is an
+  //                    employee who cannot be paid, and all of it is work.
+  //   paid in cash     NOT APPLICABLE. There is no account to verify and
+  //                    nobody will ever verify one, so counting them as Bank
+  //                    Pending is a chase that can never be closed. They are
+  //                    counted on the separate cash-migration card instead.
+  //   nobody has said  UNKNOWN, and NOT pending. What is outstanding for them
+  //                    is the unrecorded payment type, which `payroll`
+  //                    already reports - naming it twice would double-count
+  //                    one piece of work.
+  //
+  // DERIVED ON THE SERVER, READ HERE. `bank_section_status` is computed once,
+  // beside the HR flag that is built on it, so this column and `hr` cannot
+  // disagree. Where the server does not send it - an older build - the row
+  // falls back to the raw account answer, which is what it has always meant.
+  const bank = status.bank_section_status
+    ? scheme3(status.bank_section_status)
+    : status.bank_status === undefined || status.bank_status === null
+    ? UNKNOWN
+    : status.bank_payroll_ready
+    ? COMPLETE
+    : PENDING;
+
+  /**
+   * CASH -> BANK: is this employee still paid in cash?
+   *
+   * AN OPERATIONAL MIGRATION, NOT A COMPLIANCE FAILURE, so Pending here means
+   * "still to be moved onto a bank account" and nothing about the employee's
+   * record being unfinished. It is deliberately NOT part of `hr` - see the
+   * note on `overall` below - and an unrecorded payment type is not cash, so
+   * it counts towards neither side.
+   */
+  const cashToBank =
+    status.cash_to_bank_pending === undefined || status.cash_to_bank_pending === null
+      ? UNKNOWN
+      : status.cash_to_bank_pending
+      ? PENDING
+      : COMPLETE;
+
 
   const hr =
     status.hr_onboarding_pending === undefined || status.hr_onboarding_pending === null
@@ -181,6 +228,13 @@ function queueRow(employee = {}, status = {}) {
    *
    * UNKNOWN stays UNKNOWN. A flag the server did not send is not evidence of
    * outstanding work, and `hr` above already reads that way.
+   *
+   * AND `cashToBank` IS NOT PART OF IT, deliberately. Cash is a payment route
+   * payroll accepts, so an employee on it is not an unfinished record; moving
+   * them onto a bank account is an operational migration with its own card
+   * and its own count. An employee can be HR complete, payroll complete, and
+   * still be on that list - which is the intended outcome, not a
+   * contradiction between two cards.
    */
   const overall = hr;
 
@@ -200,6 +254,7 @@ function queueRow(employee = {}, status = {}) {
     esi,
     statutory,
     payroll,
+    cashToBank,
     hr,
     overall,
     hr_onboarding_missing: Array.isArray(status.hr_onboarding_missing)
@@ -231,6 +286,7 @@ const QUEUE_FILTERS = [
   { value: "bank", label: "Bank Pending" },
   { value: "statutory", label: "Statutory Pending" },
   { value: "payroll", label: "Payroll Pending" },
+  { value: "cash_to_bank", label: "Cash → Bank Pending" },
   { value: "hr", label: "HR Pending" },
   // The per-scheme halves. NOT cards - the dashboard counts PF and ESI as one
   // Statutory section - but kept as filters because the person clearing PF is
@@ -259,6 +315,9 @@ const QUEUE_CARDS = [
   { filter: "bank", label: "Bank pending", count: "bank" },
   { filter: "statutory", label: "Statutory pending", count: "statutory" },
   { filter: "payroll", label: "Payroll pending", count: "payroll" },
+  // NOT one of the four, and placed after them for that reason: an
+  // operational migration HR is running, not a record that is unfinished.
+  { filter: "cash_to_bank", label: "Cash → Bank pending", count: "cashToBank" },
   // The overall answer, and the one HR works from, so it is the accented one.
   { filter: "hr", label: "HR pending", count: "hr", accent: true },
 ];
@@ -279,6 +338,10 @@ function matchesFilter(row, filter) {
       return isPending(row.statutory);
     case "payroll":
       return isPending(row.payroll);
+    // Everyone still paid in cash. Not a subset of "all_pending": a finished
+    // employee can be on this list, which is the whole point of it.
+    case "cash_to_bank":
+      return isPending(row.cashToBank);
     case "pf":
       return isPending(row.pf);
     case "esi":
@@ -347,6 +410,9 @@ function queueCounts(rows, { outlet = "", department = "" } = {}) {
     bank: count((r) => isPending(r.bank)),
     statutory: count((r) => isPending(r.statutory)),
     payroll: count((r) => isPending(r.payroll)),
+    // Counted over the same whole active population as everything else, and
+    // NOT a subset of `hr` - an HR-complete employee can be on it.
+    cashToBank: count((r) => isPending(r.cashToBank)),
     hr: count((r) => isPending(r.hr)),
     // The per-scheme halves, for the two filters that still name them. Not
     // cards, and counted the same way as everything else here.

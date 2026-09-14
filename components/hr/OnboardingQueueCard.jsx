@@ -26,15 +26,25 @@ import { statusBadge } from "../../util/hrOnboardingQueue";
  */
 function OnboardingQueueCard({ row }) {
   /**
-   * The five statuses, in the order the work actually happens: identity,
-   * then the account, then the statutory decision, then payroll - and the
-   * overall answer last, because it is the summary of the four before it.
+   * The four statuses in the order the work actually happens - identity, the
+   * account, the statutory decision, payroll - then how the employee is paid,
+   * and the overall answer last, because it is the summary of the four.
+   *
+   * "Paid by" sits between them and HR on purpose: it explains the Bank chip
+   * above it and is visibly not part of the HR answer below it.
    */
   const chips = [
     { label: "Aadhaar", value: row.aadhaar, labels: { completeLabel: "Verified" } },
     { label: "Bank", value: row.bank, labels: { completeLabel: "Verified" } },
     { label: "Statutory", value: row.statutory },
     { label: "Payroll", value: row.payroll },
+    // THE PAYMENT ROUTE, NOT A FIFTH OUTSTANDING ITEM. Bank reads "Not
+    // applicable" for anybody paid in cash, and on a phone - where there is no
+    // column header to explain it - that would be a puzzle without this chip
+    // beside it. Labelled by the route rather than by Pending/Complete,
+    // because "still on cash" is a migration somebody is running and not a
+    // fault in this employee's record.
+    { label: "Paid by", value: row.cashToBank, labels: { pendingLabel: "Cash", completeLabel: "Bank" } },
     { label: "HR", value: row.hr },
   ];
 

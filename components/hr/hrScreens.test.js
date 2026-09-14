@@ -1347,6 +1347,9 @@ test("the queue shows what HR needs to act, and nothing sensitive", () => {
   for (const shown of [
     "employee_id", "employee_image", "employee_name", "store_name",
     "row.aadhaar", "row.bank", "row.statutory", "row.payroll", "row.hr",
+    // How they are paid, so a Bank chip reading "Not applicable" is legible
+    // as "they are on cash" rather than as something failing to load.
+    "row.cashToBank",
   ]) {
     assert.ok(code.includes(shown), `the queue must show ${shown}`);
   }
@@ -1388,6 +1391,22 @@ test("EVERY CARD IS CLICKABLE, AND SETS THE SAME FILTER THE DROPDOWN SETS", () =
   // Reachable and announced, not a div with a click handler.
   assert.match(code, /as="button"/);
   assert.match(code, /aria-pressed=\{selected\}/);
+});
+
+test("CASH IS A ROUTE ON THIS SCREEN, NEVER AN HR FAILURE", () => {
+  const code = codeOf(queue);
+  const card = codeOf(require("fs").readFileSync(__dirname + "/OnboardingQueueCard.jsx", "utf8"));
+  // Labelled by the route on both layouts - "Cash" / "Bank", not
+  // "Pending" / "Complete" - because it is a migration, not an outstanding
+  // item on this employee's record.
+  for (const src of [code, card]) {
+    assert.match(src, /pendingLabel: "Cash", completeLabel: "Bank"/);
+  }
+  // And the raw payment column never reaches the browser: the screen reads
+  // the derived flag, not `payment_type`.
+  for (const src of [code, card]) {
+    assert.ok(!/\bpayment_type\b/.test(src), "the screen must not reference payment_type");
+  }
 });
 
 test("THE QUEUE IS READABLE ON A PHONE - cards, not a squeezed table", () => {

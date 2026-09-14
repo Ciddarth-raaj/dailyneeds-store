@@ -191,6 +191,17 @@ function statusSummaryIndex(summary) {
       entry.payroll_pending = Boolean(row.payroll_pending);
       entry.payroll_missing = Array.isArray(row.payroll_missing) ? row.payroll_missing : [];
     }
+    // THE BANK SECTION AS THE DASHBOARD ASKS IT - route-aware, and a
+    // different question from `bank_status` above, which is the raw answer
+    // about the account itself and is what the profile and the employee list
+    // render. `bank_section_status` is COMPLETE / PENDING / NOT_APPLICABLE
+    // (the employee is paid in cash) / UNKNOWN (nobody has said how they are
+    // paid), so the two cannot be confused for one another.
+    if (row.bank_section_status) entry.bank_section_status = row.bank_section_status;
+    // Still paid in cash: an operational migration, never an HR failure.
+    if (row.cash_to_bank_pending !== undefined && row.cash_to_bank_pending !== null) {
+      entry.cash_to_bank_pending = Boolean(row.cash_to_bank_pending);
+    }
     index[String(row.employee_id)] = entry;
   }
   return index;

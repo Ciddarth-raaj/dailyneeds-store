@@ -59,6 +59,11 @@ const done = (over = {}) => {
     esi_status: "COMPLETE",
     // The fourth item: a live, costed salary and a recorded way to pay it.
     payroll_pending: false,
+    // Paid BY BANK unless a test says otherwise - the route under which the
+    // bank section means anything at all. `route` is the fixture's shorthand
+    // and never reaches the row; the server sends the two derived keys below,
+    // not the payment type itself.
+    route: "BANK",
     ...over,
   };
   const decided = (v) => v === "COMPLETE" || v === "NOT_APPLICABLE";
@@ -67,11 +72,25 @@ const done = (over = {}) => {
   if (!("statutory_pending" in row)) {
     row.statutory_pending = !decided(row.pf_status) || !decided(row.esi_status);
   }
+  // The route-aware bank section and the cash migration, derived exactly as
+  // `bankState` and `cashToBankState` derive them on the server.
+  const { route } = row;
+  delete row.route;
+  if (!("bank_section_status" in row)) {
+    row.bank_section_status =
+      route === "CASH" ? "NOT_APPLICABLE"
+      : route === "BANK" ? (row.bank_payroll_ready ? "COMPLETE" : "PENDING")
+      : "UNKNOWN";
+  }
+  if (!("cash_to_bank_pending" in row) && route) {
+    row.cash_to_bank_pending = route === "CASH";
+  }
   if ("hr_onboarding_pending" in row) return row;
   const missing = [];
   if (row.aadhaar_status !== "VERIFIED") missing.push("aadhaar");
   if (row.statutory_pending) missing.push("statutory");
-  if (!row.bank_payroll_ready) missing.push("bank");
+  // The route-aware rule, and cash is never one of the reasons.
+  if (row.bank_section_status === "PENDING") missing.push("bank");
   if (row.payroll_pending) missing.push("payroll");
   return { ...row, hr_onboarding_pending: missing.length > 0, hr_onboarding_missing: missing };
 };
@@ -313,7 +332,7 @@ test("the counts follow outlet and department, but not the work filter", () => {
 
 test("no count is ever a hardcoded example", () => {
   assert.deepStrictEqual(queueCounts([]), {
-    active: 0, aadhaar: 0, bank: 0, statutory: 0, payroll: 0, hr: 0,
+    active: 0, aadhaar: 0, bank: 0, statutory: 0, payroll: 0, cashToBank: 0, hr: 0,
     pf: 0, esi: 0, pending: 0,
   });
 });
@@ -330,10 +349,10 @@ test("a badge never says Pending for something unknown", () => {
 
 /* ------------------------------------------------- the dashboard's cards */
 
-test("THERE ARE SIX CARDS, AND EACH ONE SELECTS A REAL FILTER", () => {
+test("THERE ARE SEVEN CARDS, AND EACH ONE SELECTS A REAL FILTER", () => {
   assert.deepStrictEqual(
     QUEUE_CARDS.map((c) => c.filter),
-    ["all", "aadhaar", "bank", "statutory", "payroll", "hr"]
+    ["all", "aadhaar", "bank", "statutory", "payroll", "cash_to_bank", "hr"]
   );
   // A card whose filter did not exist would select nothing and silently show
   // the whole list, so the two definitions are checked against each other.
@@ -473,4 +492,149 @@ test("the HR card and the old All Pending filter are the same question", () => {
   assert.strictEqual(matchesFilter(pending, "hr"), matchesFilter(pending, "all_pending"));
   assert.strictEqual(matchesFilter(finished, "hr"), matchesFilter(finished, "all_pending"));
   assert.strictEqual(matchesFilter(finished, "hr"), false);
+});
+
+/* ------------------------------------- the payment route: bank vs cash --- */
+
+test("A CASH EMPLOYEE IS NOT BANK PENDING - the chase that could never close", () => {
+  const row = queueRow(employee(), done({
+    route: "CASH",
+    bank_status: "NOT_PROVIDED",
+    bank_payroll_ready: false,
+  }));
+  assert.strictEqual(row.bank, NOT_APPLICABLE, "there is no account to finish");
+  assert.strictEqual(matchesFilter(row, "bank"), false, "and they are not on the Bank card");
+  assert.strictEqual(row.cashToBank, PENDING, "they are on the cash card instead");
+  assert.strictEqual(row.hr, COMPLETE, "and being on cash does not make them HR pending");
+});
+
+test("CASH -> BANK IS NOT PART OF HR PENDING, EVER", () => {
+  // The specified outcome: HR complete, payroll complete, still on the cash
+  // list. A card that contradicted this would put every cash employee
+  // permanently in the HR queue.
+  const row = queueRow(employee(), done({ route: "CASH" }));
+  assert.strictEqual(row.cashToBank, PENDING);
+  assert.strictEqual(row.payroll, COMPLETE);
+  assert.strictEqual(row.hr, COMPLETE);
+  assert.strictEqual(matchesFilter(row, "hr"), false);
+  assert.strictEqual(matchesFilter(row, "cash_to_bank"), true);
+  // And the cash card is not a subset of the pending queue, unlike the four.
+  const counts = queueCounts([row]);
+  assert.strictEqual(counts.cashToBank, 1);
+  assert.strictEqual(counts.hr, 0);
+});
+
+test("AN UNRECORDED PAYMENT ROUTE IS NEITHER BANK PENDING NOR CASH", () => {
+  const row = queueRow(employee(), done({ route: null, payroll_pending: true }));
+  assert.strictEqual(row.bank, UNKNOWN, "there is no way to say yet");
+  assert.strictEqual(row.cashToBank, UNKNOWN, "nobody said cash");
+  assert.strictEqual(matchesFilter(row, "bank"), false);
+  assert.strictEqual(matchesFilter(row, "cash_to_bank"), false);
+  // The thing that IS outstanding is reported once, by payroll.
+  assert.strictEqual(row.payroll, PENDING);
+  assert.strictEqual(row.hr, PENDING);
+});
+
+/* ---------------------------------- the five specified semantic cases --- */
+
+test("THE FIVE SPECIFIED CASES, EXACTLY AS SPECIFIED", () => {
+  const cases = [
+    {
+      name: "1 - bank route, account not verified",
+      status: done({ route: "BANK", bank_status: "FAILED", bank_payroll_ready: false, payroll_pending: true }),
+      bank: PENDING, cash: COMPLETE, payroll: PENDING, hr: PENDING,
+    },
+    {
+      name: "2 - cash route, everything ready",
+      status: done({ route: "CASH", bank_status: "NOT_PROVIDED", bank_payroll_ready: false }),
+      bank: NOT_APPLICABLE, cash: PENDING, payroll: COMPLETE, hr: COMPLETE,
+    },
+    {
+      name: "3 - cash route, no salary",
+      status: done({ route: "CASH", bank_status: "NOT_PROVIDED", bank_payroll_ready: false, payroll_pending: true }),
+      bank: NOT_APPLICABLE, cash: PENDING, payroll: PENDING, hr: PENDING,
+    },
+    {
+      name: "4 - payment type not recorded",
+      status: done({ route: null, payroll_pending: true }),
+      bank: UNKNOWN, cash: UNKNOWN, payroll: PENDING, hr: PENDING,
+    },
+    {
+      name: "5 - bank route, verified, everything complete",
+      status: done({ route: "BANK" }),
+      bank: COMPLETE, cash: COMPLETE, payroll: COMPLETE, hr: COMPLETE,
+    },
+  ];
+
+  for (const c of cases) {
+    const row = queueRow(employee(), c.status);
+    assert.strictEqual(row.bank, c.bank, `${c.name}: bank`);
+    assert.strictEqual(row.cashToBank, c.cash, `${c.name}: cash to bank`);
+    assert.strictEqual(row.payroll, c.payroll, `${c.name}: payroll`);
+    assert.strictEqual(row.hr, c.hr, `${c.name}: hr`);
+    // Each card shows exactly what it counts, for this employee.
+    assert.strictEqual(matchesFilter(row, "bank"), c.bank === PENDING, `${c.name}: Bank card`);
+    assert.strictEqual(matchesFilter(row, "cash_to_bank"), c.cash === PENDING, `${c.name}: Cash card`);
+    assert.strictEqual(matchesFilter(row, "payroll"), c.payroll === PENDING, `${c.name}: Payroll card`);
+    assert.strictEqual(matchesFilter(row, "hr"), c.hr === PENDING, `${c.name}: HR card`);
+  }
+});
+
+test("HR IS THE UNION OF THE FOUR ACROSS EVERY ROUTE, AND CASH IS NOT ONE OF THEM", () => {
+  for (const route of ["BANK", "CASH", null]) {
+    for (const aadhaar of [true, false]) {
+      for (const ready of [true, false]) {
+        for (const statutory of [true, false]) {
+          for (const payroll of [true, false]) {
+            const row = queueRow(
+              employee(),
+              done({
+                route,
+                aadhaar_status: aadhaar ? "VERIFIED" : "PENDING",
+                bank_status: ready ? "VERIFIED" : "FAILED",
+                bank_payroll_ready: ready,
+                pf_status: statutory ? "COMPLETE" : "PENDING",
+                esi_status: statutory ? "COMPLETE" : "PENDING",
+                payroll_pending: !payroll,
+              })
+            );
+            const four = [row.aadhaar, row.bank, row.statutory, row.payroll];
+            const label = `route=${route} aadhaar=${aadhaar} bank=${ready} statutory=${statutory} payroll=${payroll}`;
+            assert.strictEqual(row.hr === PENDING, four.some((v) => v === PENDING), label);
+            // NOT_APPLICABLE and UNKNOWN are both "nothing outstanding here",
+            // so HR complete means every one of the four is non-pending.
+            assert.strictEqual(row.hr === COMPLETE, four.every((v) => v !== PENDING), label);
+            // The cash flag follows the route alone and never the other four.
+            assert.strictEqual(
+              row.cashToBank,
+              route === "CASH" ? PENDING : route === "BANK" ? COMPLETE : UNKNOWN,
+              label
+            );
+          }
+        }
+      }
+    }
+  }
+});
+
+test("THE CASH CARD COUNTS ALL ACTIVE CASH EMPLOYEES, FINISHED OR NOT", () => {
+  const rows = [
+    queueRow(employee({ employee_id: 1 }), done({ route: "CASH" })),                        // complete, on cash
+    queueRow(employee({ employee_id: 2 }), done({ route: "CASH", payroll_pending: true })), // pending, on cash
+    queueRow(employee({ employee_id: 3 }), done({ route: "BANK" })),                        // on bank
+    queueRow(employee({ employee_id: 4 }), done({ route: null, payroll_pending: true })),   // unrecorded
+    queueRow(employee({ employee_id: 5, status: 0 }), done({ route: "CASH" })),             // resigned
+  ];
+  const counts = queueCounts(rows);
+  assert.strictEqual(counts.cashToBank, 2, "both active cash employees, resigned excluded");
+  assert.deepStrictEqual(
+    filterQueue(rows, { filter: "cash_to_bank" }).map((r) => r.employee_id),
+    [1, 2]
+  );
+  // Independent of every other card, as all of them are.
+  assert.strictEqual(counts.bank, 0, "nobody is a bank employee with a bad account");
+  // Employees 2 and 4: the cash employee with no payroll, and the one whose
+  // payment route was never recorded. Employee 1 is on cash and HR complete.
+  assert.strictEqual(counts.hr, 2, "the two with payroll outstanding");
+  assert.strictEqual(counts.active, 4);
 });

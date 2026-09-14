@@ -64,10 +64,19 @@ import OnboardingQueueCard from "../../../components/hr/OnboardingQueueCard";
  * it exist to say WHICH item is outstanding and to be filtered on; they are
  * read from the same summary, so they cannot disagree with it.
  *
- * SIX CARDS, AND EVERY ONE OF THEM IS A FILTER. Clicking a card sets the one
- * `filter` the dropdown also sets, so the two controls cannot contradict each
- * other, and `QUEUE_CARDS` in the rules module is the single place that says
- * which card selects which filter and shows which count.
+ * SEVEN CARDS, AND EVERY ONE OF THEM IS A FILTER. Clicking a card sets the
+ * one `filter` the dropdown also sets, so the two controls cannot contradict
+ * each other, and `QUEUE_CARDS` in the rules module is the single place that
+ * says which card selects which filter and shows which count.
+ *
+ * SIX OF THEM ARE COMPLIANCE; THE SEVENTH IS A MIGRATION. Cash -> Bank counts
+ * the employees still paid in cash so HR can work through moving them onto
+ * accounts. It is deliberately NOT part of HR pending - cash is a route
+ * payroll accepts, not an unfinished record - so an employee can be HR
+ * complete, payroll complete, and still on that card. The Bank card is the
+ * other half of the same correction: it now asks only about employees who are
+ * actually paid by bank transfer, because chasing a cash employee for an
+ * account nobody will ever verify is a chase that cannot be closed.
  *
  * THE COUNTS ARE NOT COMPUTED FROM EACH OTHER, OR FROM THE ROWS ON SCREEN.
  * `queueCounts` is handed the whole merged queue and takes no filter at all:
@@ -204,6 +213,11 @@ function OnboardingQueue() {
     // still available as a filter, and on the employee's own profile.
     statutory: "Statutory",
     payroll: "Payroll",
+    // WHY THE ROUTE IS A COLUMN. Bank now reads "Not applicable" for anybody
+    // paid in cash, and a dash-like badge with no explanation beside it is a
+    // puzzle. This says which route they are on, so an N/A is obviously "they
+    // are paid in cash" rather than "something failed to load".
+    cash: "Paid by",
     hr: "HR",
     open: "",
   };
@@ -229,6 +243,9 @@ function OnboardingQueue() {
     bank: badge(row.bank, { completeLabel: "Verified" }),
     statutory: badge(row.statutory),
     payroll: badge(row.payroll),
+    // Pending here means "still on cash", so it is labelled as the route
+    // rather than as an outstanding item - it is not one of the four.
+    cash: badge(row.cashToBank, { pendingLabel: "Cash", completeLabel: "Bank" }),
     hr: badge(row.hr),
     open: (
       <Link href={`/hr/employees/${row.employee_id}`} passHref>
@@ -339,12 +356,12 @@ function OnboardingQueue() {
               </Alert>
             ) : null}
 
-            {/* SIX CARDS, EACH ONE A FILTER. Two per row on a phone so each
-                stays a comfortable tap target, six across on a wide screen.
+            {/* SEVEN CARDS, EACH ONE A FILTER. Two per row on a phone so each
+                stays a comfortable tap target, seven across on a wide screen.
                 `QUEUE_CARDS` is the single definition of which card selects
                 which filter and displays which count - the screen does not
                 get to pair them up its own way. */}
-            <SimpleGrid columns={{ base: 2, md: 3, xl: 6 }} spacing={3} mb={4}>
+            <SimpleGrid columns={{ base: 2, md: 4, xl: 7 }} spacing={3} mb={4}>
               {QUEUE_CARDS.map((card) => (
                 <Count
                   key={card.filter}
