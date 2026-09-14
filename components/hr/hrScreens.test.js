@@ -1454,14 +1454,19 @@ test("the two screens point at each other", () => {
  * of zeroes after it arrives.
  */
 
-test("THE QUEUE IS GATED ON COMPANY-WIDE EMPLOYEE SCOPE, NOT A NEW KEY", () => {
+test("THE QUEUE IS GATED ON ITS OWN DEDICATED PERMISSION", () => {
   const code = codeOf(queue);
   assert.match(code, /canViewOnboardingQueue\(actor\)/, "it reads the shared rule");
   assert.match(code, /usePayrollActor\(\)/, "from the shared actor");
-  // The rule itself lives in the tested module; the screen invents nothing.
+  // The rule itself lives in the tested module; the screen invents nothing,
+  // and in particular names neither the dashboard key nor the scope key.
+  assert.ok(
+    !/view_hr_onboarding_dashboard/.test(code),
+    "the screen must not restate the permission key - the rule module owns it"
+  );
   assert.ok(
     !/employee_scope_all_branches/.test(code),
-    "the screen must not restate the permission key - the rule module owns it"
+    "and the screen must never be gated on company-wide employee scope"
   );
   // And it is NOT the sensitive key: that still gates only the cash route.
   assert.match(code, /canSeePaymentRoute = usePermissions\(\["view_employee_sensitive"\]\)/);
@@ -1485,9 +1490,18 @@ test("A DENIED USER CAUSES NO REQUEST AND SEES NO ZEROES", () => {
 
 test("EMPLOYEE MASTER HIDES THE QUEUE LINK FROM A STORE MANAGER", () => {
   const code = codeOf(list);
+  // Gated on the dedicated key, through the shared rule - so a manager with
+  // view_employees, employee_edit and branch access still sees no button.
+  assert.ok(
+    !/employee_scope_all_branches/.test(code),
+    "the link must not be gated on company-wide employee scope"
+  );
   // The same rule as the screen, so a button cannot offer a screen that will
   // turn the user away.
   assert.match(code, /canViewOnboardingQueue\(usePayrollActor\(\)\)/);
+  // One rule, one key, read from the module that owns it.
+  const rule = require("fs").readFileSync(__dirname + "/../../util/hrProfile.js", "utf8");
+  assert.match(rule, /has\(permissions, "view_hr_onboarding_dashboard"\)/);
   assert.match(code, /\{canOpenQueue \? \(/, "the link is conditional");
   // The link is still there for those who may use it.
   assert.match(code, /href="\/hr\/onboarding"/);

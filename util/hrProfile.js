@@ -53,13 +53,24 @@ const isAdminUser = (isAdmin) => isAdmin === true;
  * version of it - a manager is refused outright rather than shown a smaller
  * dashboard.
  *
- * NO NEW PERMISSION, AND DELIBERATELY SO. This is exactly the company-wide
- * employee scope the backend already decides in
- * `utils/employee_branch_scope.js#decideScope`: an administrator by
- * `user_type`, or the holder of `employee_scope_all_branches`, which is the
- * key HR is granted. Inventing a second key would create two answers to "is
- * this person HR" that could disagree, and the screen would still be reading
- * the wrong one.
+ * A KEY OF ITS OWN - `view_hr_onboarding_dashboard` - AND NOT THE BRANCH-SCOPE
+ * ONE. This used to read `employee_scope_all_branches`, which worked because
+ * HR holds it, but that key means company-wide EMPLOYEE SCOPE: which
+ * employees a caller may be shown. Tying the screen to it meant that the day
+ * company-wide employee access was granted to some other designation - an
+ * Operations lead, an auditor, a second HR role - that designation would
+ * silently acquire HR's work queue too. Nobody would have decided that and
+ * nobody would have noticed.
+ *
+ * SO THE TWO ARE INDEPENDENT, IN BOTH DIRECTIONS:
+ *
+ *   this key alone        opens the screen; the employees it then shows are
+ *                         still whatever the caller's branch scope allows
+ *   the scope key alone   company-wide employee reads, and no work queue
+ *
+ * HR is granted both, separately, because HR genuinely needs both. An
+ * administrator needs neither: `user_type = 2` bypasses the permission table
+ * on the server, and `isAdminUser` is that same bypass here.
  *
  * IT IS NOT `view_employee_sensitive`, AND MUST NEVER BECOME IT. Opening the
  * queue and being told how somebody is paid are different questions:
@@ -74,7 +85,7 @@ const isAdminUser = (isAdmin) => isAdmin === true;
  * manager's own branches, and nothing here changes that.
  */
 function canViewOnboardingQueue({ permissions = [], isAdmin = false } = {}) {
-  return isAdminUser(isAdmin) || has(permissions, "employee_scope_all_branches");
+  return isAdminUser(isAdmin) || has(permissions, "view_hr_onboarding_dashboard");
 }
 
 /** B3 hides these fields entirely from a caller without the key. */
