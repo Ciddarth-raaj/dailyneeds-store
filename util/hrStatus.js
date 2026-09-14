@@ -623,8 +623,13 @@ function currentEmploymentStatus(employee, lifecycle) {
  * master could not be read at all, so a caller allowed the timeline and not
  * the record still sees something true rather than nothing.
  *
- * The branch label prefers the master's own nickname and falls back to its
- * full name, so every viewer sees the SAME label for the same employee.
+ * THE BRANCH LABEL IS THE FULL OUTLET NAME, falling back to the nickname and
+ * only then to the lifecycle's. Consistency was the goal, but it must not be
+ * bought by CHANGING what most people see: a store manager reads
+ * "Kathirkamam" today, and resolving the nickname first would have quietly
+ * turned that into "KTM" for them the moment this shipped. The full name is
+ * the label already in front of the larger audience, so HR moves to it rather
+ * than everybody else moving to the abbreviation.
  *
  * @param employee  the employee-master record, or null/{} if unreadable
  * @param lifecycle the lifecycle record, or null/{} if unreadable or refused
@@ -643,7 +648,7 @@ function currentPlacement(employee, lifecycle) {
   return {
     // Master first, every time.
     date_of_joining: String(firstOf(e.date_of_joining, current.date_of_joining) || "").slice(0, 10),
-    outlet: firstOf(e.outlet_nickname, e.outlet_name, current.outlet_nickname),
+    outlet: firstOf(e.outlet_name, e.outlet_nickname, current.outlet_nickname),
     department_name: firstOf(e.department_name, current.department_name),
     designation_name: firstOf(e.designation_name, current.designation_name),
   };

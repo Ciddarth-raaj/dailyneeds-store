@@ -290,14 +290,23 @@ describe("current placement", () => {
     );
   });
 
-  it("6. the branch label is one label, not two spellings", () => {
-    // HR used to see the nickname and a store manager the full name.
-    assert.equal(currentPlacement(MASTER, LIFECYCLE).outlet, "KTM");
-    assert.equal(currentPlacement(MASTER, {}).outlet, "KTM");
-    // With no nickname recorded, both fall to the same full name.
-    const noNickname = { ...MASTER, outlet_nickname: null };
-    assert.equal(currentPlacement(noNickname, LIFECYCLE).outlet, "Kathirkamam");
-    assert.equal(currentPlacement(noNickname, {}).outlet, "Kathirkamam");
+  it("6. THE BRANCH LABEL IS THE FULL NAME, for everybody", () => {
+    // HR used to see the nickname and a store manager the full name. They
+    // agree now - and they agree on the FULL NAME, because consistency must
+    // not be bought by changing what the larger audience already reads.
+    // Resolving the nickname first would have turned "Kathirkamam" into "KTM"
+    // for every store manager the moment this shipped.
+    assert.equal(currentPlacement(MASTER, LIFECYCLE).outlet, "Kathirkamam");
+    assert.equal(currentPlacement(MASTER, {}).outlet, "Kathirkamam");
+  });
+
+  it("6. the nickname is the FALLBACK, not the preference", () => {
+    // Only where no full name is recorded on the master.
+    const noFullName = { ...MASTER, outlet_name: null };
+    assert.equal(currentPlacement(noFullName, LIFECYCLE).outlet, "KTM");
+    assert.equal(currentPlacement(noFullName, {}).outlet, "KTM");
+    // And the lifecycle's nickname only where the master had neither.
+    assert.equal(currentPlacement({}, LIFECYCLE).outlet, "KTM");
   });
 
   it("6. THE JOINING DATE IS THE MASTER'S, not the current period's", () => {
@@ -318,7 +327,7 @@ describe("current placement", () => {
 
   it("lifecycle is used ONLY where the master has nothing", () => {
     const p = currentPlacement({}, LIFECYCLE);
-    assert.equal(p.outlet, "KTM");
+    assert.equal(p.outlet, "KTM", "the lifecycle carries only the nickname");
     assert.equal(p.department_name, "Operations");
     assert.equal(p.date_of_joining, "2021-04-01");
   });
