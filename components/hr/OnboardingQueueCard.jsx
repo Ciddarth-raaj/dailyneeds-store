@@ -24,7 +24,7 @@ import { statusBadge } from "../../util/hrOnboardingQueue";
  * PAN, UAN, PF or ESI number, no salary and no CTC. Only whether a section is
  * outstanding, which is all the row carries.
  */
-function OnboardingQueueCard({ row }) {
+function OnboardingQueueCard({ row, canSeePaymentRoute = false }) {
   /**
    * The four statuses in the order the work actually happens - identity, the
    * account, the statutory decision, payroll - then how the employee is paid,
@@ -44,7 +44,11 @@ function OnboardingQueueCard({ row }) {
     // beside it. Labelled by the route rather than by Pending/Complete,
     // because "still on cash" is a migration somebody is running and not a
     // fault in this employee's record.
-    { label: "Paid by", value: row.cashToBank, labels: { pendingLabel: "Cash", completeLabel: "Bank" } },
+    // Absent, not blank, without `view_employee_sensitive` - the route names
+    // a sensitive fact, and a chip reading "—" for everyone would be noise.
+    ...(canSeePaymentRoute
+      ? [{ label: "Paid by", value: row.cashToBank, labels: { pendingLabel: "Cash", completeLabel: "Bank" } }]
+      : []),
     { label: "HR", value: row.hr },
   ];
 

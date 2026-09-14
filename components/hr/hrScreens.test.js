@@ -1330,11 +1330,23 @@ test("THE QUEUE ADDS NO ENDPOINT, NO PERMISSION AND NO SOURCE OF TRUTH", () => {
   assert.strictEqual((code.match(/HrHelper\.getStatusSummary\(/g) || []).length, 1);
   assert.ok(!/getAadhaarStatus|getBankStatus/.test(code), "no per-employee reads");
   // The list's own permission - it is the same data, asked a different
-  // question - and no new key invented for it.
+  // question.
   assert.match(code, /usePermissions\(\["view_employees"\]\)/);
+  // Plus ONE existing key, for the one sensitive fact on the screen: whether
+  // an employee is paid in cash. `payment_type` is sensitive under B3, so the
+  // route reuses `view_employee_sensitive` rather than inventing a key.
+  assert.match(code, /usePermissions\(\["view_employee_sensitive"\]\)/);
+  const invented = code.match(/usePermissions\(\[([^\]]*)\]/g) || [];
+  assert.strictEqual(invented.length, 2, "exactly two permission reads, both existing keys");
+  for (const call of invented) {
+    assert.ok(
+      /"view_employees"|"view_employee_sensitive"/.test(call),
+      `no new permission key may be invented: ${call}`
+    );
+  }
   // Every rule lives in the tested module, not in the screen.
   assert.match(code, /from "\.\.\/\.\.\/\.\.\/util\/hrOnboardingQueue"/);
-  for (const rule of ["queueRow", "queueCounts", "filterQueue", "statusBadge", "QUEUE_FILTERS"]) {
+  for (const rule of ["queueRow", "queueCounts", "filterQueue", "statusBadge", "queueFilters"]) {
     assert.ok(code.includes(rule), `the screen must use the shared ${rule}`);
   }
 });
@@ -1374,7 +1386,8 @@ test("the counts are derived and no example number is hardcoded", () => {
   // The six cards are rendered FROM `QUEUE_CARDS`, each reading the count it
   // names - so the screen cannot pair a card with the wrong number, and
   // adding a card cannot mean forgetting to render one.
-  assert.match(code, /QUEUE_CARDS\.map\(/, "the cards come from the shared definition");
+  assert.match(code, /cards\.map\(/, "the cards come from the shared definition");
+  assert.match(code, /queueCards\(\{ canSeePaymentRoute \}\)/, "and are gated in one place");
   assert.match(code, /value=\{counts\[card\.count\]\}/, "each card shows its own count");
   assert.match(code, /queueCounts\(queue, \{ outlet, department \}\)/, "counts ignore the work filter");
   assert.ok(!/value=\{\d+\}/.test(code), "no count is a literal");

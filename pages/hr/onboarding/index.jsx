@@ -25,10 +25,10 @@ import HrHelper from "../../../helper/hr";
 import unwrapList from "../../../util/apiList";
 import { statusSummaryIndex } from "../../../util/hrStatus";
 import {
-  QUEUE_CARDS,
-  QUEUE_FILTERS,
   filterQueue,
+  queueCards,
   queueCounts,
+  queueFilters,
   queueRow,
   statusBadge,
 } from "../../../util/hrOnboardingQueue";
@@ -104,6 +104,19 @@ const CARD_PAGE = 24;
 
 function OnboardingQueue() {
   const canView = usePermissions(["view_employees"]);
+  /**
+   * MAY THIS USER BE TOLD HOW AN EMPLOYEE IS PAID?
+   *
+   * `payment_type` is sensitive under B3, and "paid in cash" is a value of
+   * it, so the Cash -> Bank card, its filter and the "Paid by" column exist
+   * only for a holder of `view_employee_sensitive`. They are ABSENT for
+   * everybody else rather than showing zero: a zero would state as a fact
+   * that nobody is on cash, which is worse than not answering.
+   *
+   * The backend withholds `cash_to_bank_pending` from the same callers on its
+   * own, so this decides what to OFFER and is not the boundary.
+   */
+  const canSeePaymentRoute = usePermissions(["view_employee_sensitive"]);
 
   const [rows, setRows] = useState([]);
   const [statuses, setStatuses] = useState({});
@@ -183,6 +196,9 @@ function OnboardingQueue() {
   // The counts follow the outlet and department narrowing but NOT the work
   // filter: a number that moved when you clicked the thing it counts would be
   // useless for deciding what to click.
+  const cards = useMemo(() => queueCards({ canSeePaymentRoute }), [canSeePaymentRoute]);
+  const filters = useMemo(() => queueFilters({ canSeePaymentRoute }), [canSeePaymentRoute]);
+
   const counts = useMemo(() => queueCounts(queue, { outlet, department }), [queue, outlet, department]);
   const visible = useMemo(
     () => filterQueue(queue, { filter, outlet, department, search }),
@@ -193,6 +209,13 @@ function OnboardingQueue() {
   useEffect(() => {
     setCardsShown(CARD_PAGE);
   }, [filter, outlet, department, search]);
+
+  // A filter this user may not use cannot stay selected - there would be no
+  // card to draw the selection on, and no data behind it either. It cannot
+  // normally be reached; this is the belt to that pair of braces.
+  useEffect(() => {
+    if (!filters.some((f) => f.value === filter)) setFilter("hr");
+  }, [filters, filter]);
 
   const badge = (value, labels) => {
     const b = statusBadge(value, labels);
@@ -213,11 +236,13 @@ function OnboardingQueue() {
     // still available as a filter, and on the employee's own profile.
     statutory: "Statutory",
     payroll: "Payroll",
-    // WHY THE ROUTE IS A COLUMN. Bank now reads "Not applicable" for anybody
-    // paid in cash, and a dash-like badge with no explanation beside it is a
-    // puzzle. This says which route they are on, so an N/A is obviously "they
-    // are paid in cash" rather than "something failed to load".
-    cash: "Paid by",
+    // WHY THE ROUTE IS A COLUMN, AND WHY IT IS CONDITIONAL. Bank reads "Not
+    // applicable" for anybody paid in cash, and a dash-like badge with no
+    // explanation beside it is a puzzle - this says which route they are on.
+    // It names a sensitive fact, so it is absent, not blank, for a user
+    // without `view_employee_sensitive`; that user sees no N/A either, since
+    // the backend collapses it to a dash for them.
+    ...(canSeePaymentRoute ? { cash: "Paid by" } : {}),
     hr: "HR",
     open: "",
   };
@@ -245,7 +270,9 @@ function OnboardingQueue() {
     payroll: badge(row.payroll),
     // Pending here means "still on cash", so it is labelled as the route
     // rather than as an outstanding item - it is not one of the four.
-    cash: badge(row.cashToBank, { pendingLabel: "Cash", completeLabel: "Bank" }),
+    ...(canSeePaymentRoute
+      ? { cash: badge(row.cashToBank, { pendingLabel: "Cash", completeLabel: "Bank" }) }
+      : {}),
     hr: badge(row.hr),
     open: (
       <Link href={`/hr/employees/${row.employee_id}`} passHref>
@@ -362,7 +389,7 @@ function OnboardingQueue() {
                 which filter and displays which count - the screen does not
                 get to pair them up its own way. */}
             <SimpleGrid columns={{ base: 2, md: 4, xl: 7 }} spacing={3} mb={4}>
-              {QUEUE_CARDS.map((card) => (
+              {cards.map((card) => (
                 <Count
                   key={card.filter}
                   label={card.label}
@@ -388,7 +415,7 @@ function OnboardingQueue() {
                 maxW={{ md: "260px" }}
                 aria-label="Pending filter"
               >
-                {QUEUE_FILTERS.map((f) => (
+                {filters.map((f) => (
                   <option key={f.value} value={f.value}>
                     {f.label}
                   </option>
@@ -453,7 +480,11 @@ function OnboardingQueue() {
                 <Box display={{ base: "block", lg: "none" }}>
                   <Stack spacing={3}>
                     {visible.slice(0, cardsShown).map((row) => (
-                      <OnboardingQueueCard key={row.employee_id} row={row} />
+                      <OnboardingQueueCard
+                        key={row.employee_id}
+                        row={row}
+                        canSeePaymentRoute={canSeePaymentRoute}
+                      />
                     ))}
                   </Stack>
                   {visible.length > cardsShown ? (

@@ -17,6 +17,9 @@ const {
   UNKNOWN,
   QUEUE_FILTER_VALUES,
   QUEUE_CARDS,
+  queueCards,
+  queueFilters,
+  revealsPaymentRoute,
   filterQueue,
   matchesFilter,
   queueCounts,
@@ -637,4 +640,68 @@ test("THE CASH CARD COUNTS ALL ACTIVE CASH EMPLOYEES, FINISHED OR NOT", () => {
   // payment route was never recorded. Employee 1 is on cash and HR complete.
   assert.strictEqual(counts.hr, 2, "the two with payroll outstanding");
   assert.strictEqual(counts.active, 4);
+});
+
+/* ------------------- the payment route is gated, in one place ----------- */
+/**
+ * "Paid in cash" is a value of `payment_type`, sensitive under B3, so the
+ * card, its filter and the column that render it exist only for a holder of
+ * `view_employee_sensitive`. The backend withholds the data from the same
+ * callers on its own; this is what the screen may OFFER.
+ */
+
+test("WITHOUT THE PERMISSION THE CASH CARD IS ABSENT, NOT ZERO", () => {
+  const cards = queueCards({ canSeePaymentRoute: false });
+  assert.ok(!cards.some((c) => c.filter === "cash_to_bank"), "no card to draw a zero on");
+  // A zero would say, as a fact, that nobody is on cash. Absence says nothing.
+  assert.deepStrictEqual(
+    cards.map((c) => c.filter),
+    ["all", "aadhaar", "bank", "statutory", "payroll", "hr"]
+  );
+  // The filter goes with it, or the page could reach a state it cannot draw.
+  assert.ok(!queueFilters({ canSeePaymentRoute: false }).some((f) => f.value === "cash_to_bank"));
+});
+
+test("WITH THE PERMISSION ALL SEVEN CARDS ARE OFFERED", () => {
+  assert.deepStrictEqual(
+    queueCards({ canSeePaymentRoute: true }).map((c) => c.filter),
+    ["all", "aadhaar", "bank", "statutory", "payroll", "cash_to_bank", "hr"]
+  );
+  assert.ok(queueFilters({ canSeePaymentRoute: true }).some((f) => f.value === "cash_to_bank"));
+});
+
+test("THE GATE TOUCHES NOTHING BUT THE ROUTE", () => {
+  // Bank, Statutory, Payroll and HR are the same cards, in the same order,
+  // for both users - the permission withholds one card, never a count.
+  const withRoute = queueCards({ canSeePaymentRoute: true }).filter((c) => c.filter !== "cash_to_bank");
+  assert.deepStrictEqual(withRoute, queueCards({ canSeePaymentRoute: false }));
+  assert.strictEqual(revealsPaymentRoute("cash_to_bank"), true);
+  for (const other of ["all", "aadhaar", "bank", "statutory", "payroll", "hr", "pf", "esi"]) {
+    assert.strictEqual(revealsPaymentRoute(other), false, `${other} reveals no route`);
+  }
+});
+
+test("AN UNPRIVILEGED CALLER'S ROWS STILL COUNT THE SAME EVERYWHERE ELSE", () => {
+  // The server sends a cash employee no `cash_to_bank_pending` and collapses
+  // their bank section to UNKNOWN. Bank, payroll and HR must be unchanged -
+  // two people looking at one dashboard cannot see different numbers.
+  const cashSeen = done({ route: "CASH", bank_status: "NOT_PROVIDED", bank_payroll_ready: false });
+  const cashHidden = { ...cashSeen, bank_section_status: UNKNOWN };
+  delete cashHidden.cash_to_bank_pending;
+
+  const seen = queueRow(employee(), cashSeen);
+  const hidden = queueRow(employee(), cashHidden);
+
+  assert.strictEqual(seen.hr, hidden.hr, "HR is identical");
+  assert.strictEqual(seen.payroll, hidden.payroll, "payroll is identical");
+  assert.strictEqual(matchesFilter(seen, "bank"), matchesFilter(hidden, "bank"), "Bank card is identical");
+  assert.strictEqual(queueCounts([seen]).bank, queueCounts([hidden]).bank);
+  assert.strictEqual(queueCounts([seen]).hr, queueCounts([hidden]).hr);
+  assert.strictEqual(queueCounts([seen]).payroll, queueCounts([hidden]).payroll);
+
+  // Only the route itself differs: named for one caller, a dash for the other.
+  assert.strictEqual(seen.cashToBank, PENDING);
+  assert.strictEqual(hidden.cashToBank, UNKNOWN);
+  assert.strictEqual(seen.bank, NOT_APPLICABLE);
+  assert.strictEqual(hidden.bank, UNKNOWN, "and neither reads Pending");
 });

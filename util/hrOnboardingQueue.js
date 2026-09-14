@@ -297,18 +297,6 @@ const QUEUE_FILTERS = [
 
 const QUEUE_FILTER_VALUES = QUEUE_FILTERS.map((f) => f.value);
 
-/**
- * THE CARDS, AND THE ONE FILTER EACH ONE SELECTS.
- *
- * A card and the dropdown are two controls for ONE piece of state, so they
- * are defined together here rather than wired up twice on the screen: that is
- * what makes it impossible for the page to show a selected card and a
- * dropdown that disagrees with it.
- *
- * `count` names the key on `queueCounts` the card displays - every one of
- * which is computed over the whole active population, never over the rows the
- * current filter left on screen.
- */
 const QUEUE_CARDS = [
   { filter: "all", label: "Active employees", count: "active" },
   { filter: "aadhaar", label: "Aadhaar pending", count: "aadhaar" },
@@ -322,6 +310,51 @@ const QUEUE_CARDS = [
   { filter: "hr", label: "HR pending", count: "hr", accent: true },
 ];
 
+/**
+ * THE ONE FILTER THAT NAMES A SENSITIVE FACT.
+ *
+ * "Paid in cash" is a value of `payment_type`, which is sensitive under B3,
+ * so the backend sends `cash_to_bank_pending` only to a caller holding
+ * `view_employee_sensitive`. The card, the filter and the column that render
+ * it are hidden from everybody else - not shown reading zero, which would
+ * state as a fact that nobody is on cash.
+ */
+const PAYMENT_ROUTE_FILTERS = ["cash_to_bank"];
+
+/** Does this filter reveal how an employee is paid? */
+const revealsPaymentRoute = (value) => PAYMENT_ROUTE_FILTERS.includes(value);
+
+/**
+ * The cards this user may actually see, and the filters behind them.
+ *
+ * ONE GATE, APPLIED IN ONE PLACE, so the card and its filter cannot get out
+ * of step - a hidden card whose filter was still selectable would put the
+ * page into a state it could not draw a selection for.
+ *
+ * `canSeePaymentRoute` is the screen's answer to "does this user hold
+ * `view_employee_sensitive`". It decides what to OFFER; the backend withholds
+ * the data regardless, so a wrong answer here cannot disclose anything.
+ */
+function queueCards({ canSeePaymentRoute = false } = {}) {
+  return QUEUE_CARDS.filter((card) => canSeePaymentRoute || !revealsPaymentRoute(card.filter));
+}
+
+function queueFilters({ canSeePaymentRoute = false } = {}) {
+  return QUEUE_FILTERS.filter((f) => canSeePaymentRoute || !revealsPaymentRoute(f.value));
+}
+
+/**
+ * THE CARDS, AND THE ONE FILTER EACH ONE SELECTS.
+ *
+ * A card and the dropdown are two controls for ONE piece of state, so they
+ * are defined together here rather than wired up twice on the screen: that is
+ * what makes it impossible for the page to show a selected card and a
+ * dropdown that disagrees with it.
+ *
+ * `count` names the key on `queueCounts` the card displays - every one of
+ * which is computed over the whole active population, never over the rows the
+ * current filter left on screen.
+ */
 /** Does one row belong under `filter`? */
 function matchesFilter(row, filter) {
   switch (filter) {
@@ -447,6 +480,9 @@ module.exports = {
   QUEUE_FILTERS,
   QUEUE_FILTER_VALUES,
   QUEUE_CARDS,
+  queueCards,
+  queueFilters,
+  revealsPaymentRoute,
   queueRow,
   isPending,
   isActive,
