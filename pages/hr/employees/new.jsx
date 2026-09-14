@@ -445,11 +445,12 @@ function AddEmployee() {
                   <Input size="sm" value={form.employee_name} onChange={set("employee_name")} />
                   <FormErrorMessage fontSize="xs">{errors.employee_name}</FormErrorMessage>
                 </FormControl>
-                <FormControl>
+                <FormControl isRequired isInvalid={Boolean(errors.father_name)}>
                   <FormLabel fontSize="sm">Father&apos;s name</FormLabel>
                   <Input size="sm" value={form.father_name} onChange={set("father_name")} />
+                  <FormErrorMessage fontSize="xs">{errors.father_name}</FormErrorMessage>
                 </FormControl>
-                <FormControl isInvalid={Boolean(errors.primary_contact_number)}>
+                <FormControl isRequired isInvalid={Boolean(errors.primary_contact_number)}>
                   <FormLabel fontSize="sm">Mobile</FormLabel>
                   <Input
                     size="sm"
@@ -459,7 +460,7 @@ function AddEmployee() {
                   />
                   <FormErrorMessage fontSize="xs">{errors.primary_contact_number}</FormErrorMessage>
                 </FormControl>
-                <FormControl>
+                <FormControl isRequired isInvalid={Boolean(errors.alternate_contact_number)}>
                   <FormLabel fontSize="sm">Alternate contact</FormLabel>
                   <Input
                     size="sm"
@@ -467,22 +468,27 @@ function AddEmployee() {
                     value={form.alternate_contact_number}
                     onChange={set("alternate_contact_number")}
                   />
-                  <FormHelperText fontSize="xs">Used as the emergency contact.</FormHelperText>
+                  {errors.alternate_contact_number ? (
+                    <FormErrorMessage fontSize="xs">{errors.alternate_contact_number}</FormErrorMessage>
+                  ) : (
+                    <FormHelperText fontSize="xs">Used as the emergency contact.</FormHelperText>
+                  )}
                 </FormControl>
-                <FormControl isInvalid={Boolean(errors.dob)}>
+                <FormControl isRequired isInvalid={Boolean(errors.dob)}>
                   <FormLabel fontSize="sm">Date of birth</FormLabel>
                   <Input type="date" size="sm" value={form.dob} onChange={set("dob")} />
                   <FormErrorMessage fontSize="xs">{errors.dob}</FormErrorMessage>
                 </FormControl>
-                <FormControl>
+                <FormControl isRequired isInvalid={Boolean(errors.gender)}>
                   <FormLabel fontSize="sm">Gender</FormLabel>
                   <Select size="sm" placeholder="Not recorded" value={form.gender} onChange={set("gender")}>
                     <option value="M">Male</option>
                     <option value="F">Female</option>
                     <option value="O">Other</option>
                   </Select>
+                  <FormErrorMessage fontSize="xs">{errors.gender}</FormErrorMessage>
                 </FormControl>
-                <FormControl>
+                <FormControl isRequired isInvalid={Boolean(errors.marital_status)}>
                   <FormLabel fontSize="sm">Marital status</FormLabel>
                   <Select
                     size="sm"
@@ -495,18 +501,23 @@ function AddEmployee() {
                     <option value="Widowed">Widowed</option>
                     <option value="Divorced">Divorced</option>
                   </Select>
+                  <FormErrorMessage fontSize="xs">{errors.marital_status}</FormErrorMessage>
                 </FormControl>
+                {/* Blood group and email are OPTIONAL, and are the two
+                    fields on this stage that carry no required marker. */}
                 <FormControl>
                   <FormLabel fontSize="sm">Blood group</FormLabel>
                   <Input size="sm" value={form.blood_group} onChange={set("blood_group")} />
+                  <FormHelperText fontSize="xs">Optional.</FormHelperText>
                 </FormControl>
                 {form.marital_status === "Married" ? (
                   <>
-                    <FormControl>
+                    <FormControl isRequired isInvalid={Boolean(errors.spouse_name)}>
                       <FormLabel fontSize="sm">Spouse&apos;s name</FormLabel>
                       <Input size="sm" value={form.spouse_name} onChange={set("spouse_name")} />
+                      <FormErrorMessage fontSize="xs">{errors.spouse_name}</FormErrorMessage>
                     </FormControl>
-                    <FormControl isInvalid={Boolean(errors.marriage_date)}>
+                    <FormControl isRequired isInvalid={Boolean(errors.marriage_date)}>
                       <FormLabel fontSize="sm">Marriage date</FormLabel>
                       <Input
                         type="date"
@@ -521,26 +532,49 @@ function AddEmployee() {
                 <FormControl isInvalid={Boolean(errors.email_id)}>
                   <FormLabel fontSize="sm">Email</FormLabel>
                   <Input size="sm" type="email" value={form.email_id} onChange={set("email_id")} />
-                  <FormErrorMessage fontSize="xs">{errors.email_id}</FormErrorMessage>
+                  {errors.email_id ? (
+                    <FormErrorMessage fontSize="xs">{errors.email_id}</FormErrorMessage>
+                  ) : (
+                    <FormHelperText fontSize="xs">Optional.</FormHelperText>
+                  )}
                 </FormControl>
               </SimpleGrid>
 
               <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
-                <FormControl>
-                  <FormLabel fontSize="sm">Residential address</FormLabel>
-                  <Input
-                    size="sm"
-                    value={form.residential_address}
-                    onChange={set("residential_address")}
-                  />
-                </FormControl>
-                <FormControl>
+                <FormControl isRequired isInvalid={Boolean(errors.permanent_address)}>
                   <FormLabel fontSize="sm">Permanent address</FormLabel>
                   <Input
                     size="sm"
                     value={form.permanent_address}
                     onChange={set("permanent_address")}
                   />
+                  <FormErrorMessage fontSize="xs">{errors.permanent_address}</FormErrorMessage>
+                </FormControl>
+                <FormControl isRequired isInvalid={Boolean(errors.residential_address)}>
+                  <Stack direction="row" justify="space-between" align="baseline" spacing={2}>
+                    <FormLabel fontSize="sm">Residential address</FormLabel>
+                    {/* A ONE-OFF COPY, never a binding: changing the
+                        permanent address later must not silently rewrite
+                        where somebody actually lives. */}
+                    <Button
+                      size="xs"
+                      variant="link"
+                      colorScheme="purple"
+                      fontSize="10px"
+                      isDisabled={!form.permanent_address.trim()}
+                      onClick={() =>
+                        setForm((f) => ({ ...f, residential_address: f.permanent_address }))
+                      }
+                    >
+                      Same as Permanent Address
+                    </Button>
+                  </Stack>
+                  <Input
+                    size="sm"
+                    value={form.residential_address}
+                    onChange={set("residential_address")}
+                  />
+                  <FormErrorMessage fontSize="xs">{errors.residential_address}</FormErrorMessage>
                 </FormControl>
               </SimpleGrid>
 

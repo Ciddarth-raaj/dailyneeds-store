@@ -208,6 +208,10 @@ const HR_EDITABLE_FIELDS = [
   "blood_group",
   "permanent_address",
   "residential_address",
+  // The employee photo. A small JPEG data URI produced by
+  // `util/employeePhoto.js`; the column and the backend allowlist already
+  // carried it, and the profile header is the one place that writes it.
+  "employee_image",
   // education and experience - plain columns on the employee master, so they
   // need no separate API and carry none of the ambiguity family records do
   "qualification",

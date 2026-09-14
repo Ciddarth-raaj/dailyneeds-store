@@ -36,6 +36,8 @@
  * SALARY IS NOT PART OF THE EMPLOYEE MASTER and appears nowhere here.
  */
 
+const { validatePersonalDetails } = require("./personalDetails");
+
 /** The manager's four stages, in order. Nothing else is a stage. */
 const ONBOARDING_STAGES = [
   {
@@ -49,7 +51,8 @@ const ONBOARDING_STAGES = [
     key: "personal",
     label: "Personal",
     title: "Personal details",
-    blurb: "Who the employee is. Only a name is required to go on.",
+    blurb:
+      "Who the employee is. Name, father's name, date of birth, gender, marital status, both contact numbers and both addresses are required; blood group and email are not.",
   },
   {
     key: "employment",
@@ -127,7 +130,16 @@ function validateStage(key, form = {}, context = {}) {
   }
 
   if (key === "personal") {
-    if (!text(form.employee_name)) errors.employee_name = "A name is required.";
+    // THE PERSONAL DETAILS MANDATORY RULES, from the one place they are
+    // written (`util/personalDetails.js`), which the server re-checks on
+    // the create itself. This stage IS the Personal Details section being
+    // created, so it is judged by exactly the same rules the profile's
+    // Personal Details card is judged by - including the Married pair, and
+    // including Blood Group and Email being optional.
+    Object.assign(errors, validatePersonalDetails(form));
+
+    // The format checks below are this wizard's own and are additional to
+    // the presence rules: a field can be filled in and still be wrong.
     const mobile = digitsOf(form.primary_contact_number);
     if (mobile && (mobile.length < 10 || mobile.length > 15)) {
       errors.primary_contact_number = "A mobile number is 10 digits.";

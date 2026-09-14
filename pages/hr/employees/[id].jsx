@@ -17,6 +17,8 @@ import AadhaarVerifyModal from "../../../components/hr/AadhaarVerifyModal";
 import { ResignModal, RejoinModal } from "../../../components/hr/LifecycleActionModals";
 import AadhaarSection from "../../../components/hr/profile/AadhaarSection";
 import PersonalSection from "../../../components/hr/profile/PersonalSection";
+import EmployeePhotoHeader from "../../../components/hr/profile/EmployeePhotoHeader";
+import AttendanceRequiredSection from "../../../components/hr/profile/AttendanceRequiredSection";
 import EmploymentSection from "../../../components/hr/profile/EmploymentSection";
 import EducationSection from "../../../components/hr/profile/EducationSection";
 import PaymentDetailsSection from "../../../components/hr/profile/PaymentDetailsSection";
@@ -235,6 +237,39 @@ function EmployeeProfile() {
         return false;
       }
       toast({ title: "Saved", status: "success", duration: 2500 });
+      await load();
+      return true;
+    } catch (err) {
+      toast({ title: "Could not reach the server", status: "error", duration: 5000 });
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  /**
+   * Attendance Required — POST /hr/employee/:id/attendance-required.
+   *
+   * Its own endpoint and not part of the ordinary edit, because it is the
+   * one field on this page that HR may see and may not change. The server
+   * checks `user_type = 2` itself; the card only offers the control to an
+   * administrator so that nobody is invited into a 403.
+   */
+  const saveAttendanceRequired = async (required) => {
+    setSaving(true);
+    try {
+      const res = await HrHelper.setAttendanceRequired(id, required);
+      if (failed(res)) {
+        toast({ title: res.msg || "The change was not saved", status: "error", duration: 7000 });
+        return false;
+      }
+      toast({
+        title: required
+          ? "Biometric attendance is now required for this employee"
+          : "This employee is now exempt from biometric attendance",
+        status: "success",
+        duration: 3500,
+      });
       await load();
       return true;
     } catch (err) {
@@ -571,6 +606,15 @@ function EmployeeProfile() {
             </Alert>
           ) : null}
 
+          {/* ================================= 0. photo and name ==== */}
+          <EmployeePhotoHeader
+            employee={employee || identity}
+            canEdit={canEdit && Boolean(employee)}
+            onSave={saveOrdinary}
+            saving={saving}
+            toast={toast}
+          />
+
           {/* ============================ 1. Aadhaar Verification ==== */}
           <AadhaarSection
             aadhaar={aadhaar}
@@ -581,8 +625,18 @@ function EmployeeProfile() {
           {/* ================================ 2. Personal Details ==== */}
           <PersonalSection
             employee={employee || {}}
+            aadhaar={aadhaar}
             canEdit={canEdit && Boolean(employee)}
             onSave={saveOrdinary}
+            saving={saving}
+            toast={toast}
+          />
+
+          {/* ============================= 2b. Attendance Required ==== */}
+          <AttendanceRequiredSection
+            value={employee ? employee.attendance_required !== 0 : true}
+            isAdmin={isAdmin}
+            onChange={saveAttendanceRequired}
             saving={saving}
           />
 

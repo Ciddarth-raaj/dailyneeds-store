@@ -5,6 +5,7 @@
  *   node --test util/attendanceRaw.test.js
  */
 const test = require("node:test");
+const { describe, it } = test;
 const assert = require("node:assert");
 
 const u = require("./attendanceRaw");
@@ -89,4 +90,123 @@ test("status labels are neutral wording - no colours, no judgement", () => {
   for (const label of Object.values(u.DERIVATION_STATUS_LABEL).concat(Object.values(u.DEVICE_STATUS_LABEL))) {
     assert.ok(!/late|absent|present|error|warning|invalid/i.test(label), label);
   }
+});
+
+/* ================================ Review Only, and the deep links to it */
+
+describe("the Punch Audit's opening review filter", () => {
+  it("defaults to Review Only", () => {
+    assert.equal(u.initialReviewFilter({}), "needs_review");
+    assert.equal(u.initialReviewFilter({ tab: "audit" }), "needs_review");
+    assert.equal(u.initialReviewFilter(), "needs_review");
+  });
+
+  it("lets a deep link override it, which is the whole point", () => {
+    assert.equal(u.initialReviewFilter({ review: "ok" }), "ok");
+    assert.equal(u.initialReviewFilter({ review: "needs_review" }), "needs_review");
+  });
+
+  it("honours an EXPLICIT request for everything, which an absent parameter cannot express", () => {
+    assert.equal(u.initialReviewFilter({ review: "all" }), "");
+    assert.equal(u.initialReviewFilter({ review: "ALL" }), "");
+  });
+
+  it("falls back to the default rather than sending something the API would refuse", () => {
+    assert.equal(u.initialReviewFilter({ review: "nonsense" }), "needs_review");
+  });
+});
+
+describe("the issue filter", () => {
+  it("accepts the agreed issue types, case-insensitively", () => {
+    assert.equal(u.initialIssueFilter({ issue: "NO_SHIFT" }), "NO_SHIFT");
+    assert.equal(u.initialIssueFilter({ issue: "no_shift" }), "NO_SHIFT");
+    assert.equal(u.initialIssueFilter({ issue: "UNKNOWN_EMPLOYEE" }), "UNKNOWN_EMPLOYEE");
+  });
+
+  it("drops anything else, so a stale link cannot 422 the screen", () => {
+    assert.equal(u.initialIssueFilter({ issue: "WHATEVER" }), "");
+    assert.equal(u.initialIssueFilter({}), "");
+    assert.equal(u.initialIssueFilter(), "");
+  });
+
+  it("travels on the API query only when set", () => {
+    const q = u.buildAuditQuery({ from: "2026-09-15", to: "2026-09-15", issue: "NO_SHIFT" });
+    assert.equal(q.issue, "NO_SHIFT");
+    assert.equal(u.buildAuditQuery({ from: "2026-09-15", to: "2026-09-15" }).issue, undefined);
+  });
+
+  it("has a label for every issue it offers", () => {
+    for (const issue of u.AUDIT_ISSUES) {
+      assert.ok(u.AUDIT_ISSUE_LABEL[issue], `${issue} has no wording`);
+    }
+  });
+});
+
+describe("reviewQueueLink", () => {
+  it("lands in Review Only, on the audit tab, filtered to the issue and the range", () => {
+    const href = u.reviewQueueLink({ issue: "NO_SHIFT", from: "2026-09-01", to: "2026-09-15" });
+    const q = new URLSearchParams(href.split("?")[1]);
+    assert.equal(href.split("?")[0], "/attendance/list");
+    assert.equal(q.get("tab"), "audit");
+    assert.equal(q.get("review"), "needs_review");
+    assert.equal(q.get("issue"), "NO_SHIFT");
+    assert.equal(q.get("from"), "2026-09-01");
+    assert.equal(q.get("to"), "2026-09-15");
+  });
+
+  it("survives its own round trip: the link's filters are what the screen starts with", () => {
+    const href = u.reviewQueueLink({ issue: "UNKNOWN_EMPLOYEE", from: "2026-09-01", to: "2026-09-15" });
+    const query = Object.fromEntries(new URLSearchParams(href.split("?")[1]));
+    assert.equal(u.initialReviewFilter(query), "needs_review");
+    assert.equal(u.initialIssueFilter(query), "UNKNOWN_EMPLOYEE");
+  });
+
+  it("omits what it was not given rather than sending blanks", () => {
+    const q = new URLSearchParams(u.reviewQueueLink({}).split("?")[1]);
+    assert.equal(q.get("issue"), null);
+    assert.equal(q.get("from"), null);
+  });
+});
+
+describe("the Attendance List warnings", () => {
+  const meta = {
+    from: "2026-09-01",
+    to: "2026-09-15",
+    no_shift_punches: 4,
+    unmatched_punches: 2,
+    no_schedule_row_punches: 1,
+    unregistered_device_punches: 3,
+    unregistered_devices: ["C269"],
+    inactive_device_punches: 5,
+  };
+
+  it("gives EVERY warning a Review Queue link, each to its own issue", () => {
+    const items = u.bannerItems(meta);
+    assert.equal(items.length, 5);
+    for (const item of items) {
+      assert.ok(item.reviewHref, `${item.key} has no review-queue link`);
+      assert.match(item.reviewHref, /review=needs_review/);
+      assert.match(item.reviewHref, new RegExp(`issue=${item.issue}`));
+    }
+  });
+
+  it("maps the No Shift and Unknown Employee warnings to the right queues", () => {
+    const byKey = Object.fromEntries(u.bannerItems(meta).map((i) => [i.key, i]));
+    assert.equal(byKey.no_shift.issue, "NO_SHIFT");
+    assert.equal(byKey.unmatched.issue, "UNKNOWN_EMPLOYEE");
+    assert.equal(byKey.config.issue, "SHIFT_SETUP");
+  });
+
+  it("carries the list's own date range, so the queue adds up to the number quoted", () => {
+    const href = u.bannerItems(meta)[0].reviewHref;
+    assert.match(href, /from=2026-09-01/);
+    assert.match(href, /to=2026-09-15/);
+  });
+
+  it("still points at the screen that FIXES the cause, not only at the queue", () => {
+    const byKey = Object.fromEntries(u.bannerItems(meta).map((i) => [i.key, i]));
+    assert.equal(byKey.no_shift.href, "/employee-shift-assignment");
+    assert.equal(byKey.config.href, "/work-shift");
+    assert.equal(byKey.unmatched.href, "/hr/employees");
+  });
 });

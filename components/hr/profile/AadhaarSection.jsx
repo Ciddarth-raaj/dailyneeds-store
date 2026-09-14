@@ -12,6 +12,12 @@ import { AadhaarBadge } from "../StatusBadges";
  * Statutory; it is now the first full-width section, in the same order a
  * store manager met it.
  *
+ * THE VERIFIED NAME IS SHOWN, and is not the same field as the employee's
+ * name. `Name as per Aadhaar` is the verified legal identity; the Employee
+ * Name on Personal Details is the operational one and stays editable.
+ * Keeping the two apart is what stops a later rename losing the verified
+ * name, which is exactly what used to happen.
+ *
  * NEVER RENDERED: the full number, any ciphertext or fingerprint. The status
  * read returns VERIFIED/PENDING and the last four digits, and that is all
  * this section has to show. `view_aadhaar_full` is granted to nobody, so
@@ -30,6 +36,11 @@ function AadhaarSection({ aadhaar, canVerify, onVerify }) {
             <Text>
               Verified, ending <strong>{aadhaar.aadhaar_last4}</strong>.
             </Text>
+            {aadhaar.name_as_per_aadhaar ? (
+              <Text>
+                Name as per Aadhaar: <strong>{aadhaar.name_as_per_aadhaar}</strong>
+              </Text>
+            ) : null}
             <Text color="gray.600">
               The full number is encrypted and is not shown anywhere in this application.
             </Text>

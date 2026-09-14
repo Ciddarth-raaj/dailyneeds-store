@@ -63,6 +63,37 @@ const hr = {
     }),
 
   /**
+   * GET /hr/employee/:id/attendance-required — view_employees.
+   *
+   * Whether biometric attendance is expected of this employee. Anybody who
+   * may see the profile may see the value; only an administrator may change
+   * it, and the server enforces that on `user_type = 2` directly rather
+   * than on a grantable permission key.
+   */
+  getAttendanceRequired: (employeeId) =>
+    new Promise((resolve, reject) => {
+      API.get(`/hr/employee/${employeeId}/attendance-required`)
+        .then((res) => resolve(res.data))
+        .catch(reject);
+    }),
+
+  /**
+   * POST /hr/employee/:id/attendance-required — ADMINISTRATORS ONLY.
+   *
+   * A non-administrator gets a 403 from the server whether or not the web
+   * app offered the control, which is the point: hiding the button is a
+   * courtesy and this endpoint is the boundary.
+   */
+  setAttendanceRequired: (employeeId, attendanceRequired) =>
+    new Promise((resolve, reject) => {
+      API.post(`/hr/employee/${employeeId}/attendance-required`, {
+        attendance_required: Boolean(attendanceRequired),
+      })
+        .then((res) => resolve(res.data))
+        .catch(reject);
+    }),
+
+  /**
    * POST /hr/employee/:id/joining-date — employee_edit.
    *
    * Corrects a wrongly recorded joining date. The backend moves the master

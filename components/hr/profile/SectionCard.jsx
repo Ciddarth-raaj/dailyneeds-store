@@ -9,6 +9,7 @@ import {
   SimpleGrid,
   FormControl,
   FormLabel,
+  FormErrorMessage,
   Input,
   Select,
   Textarea,
@@ -124,14 +125,23 @@ export function EditField({
   /** Shown but not typed into - a value this form derives rather than accepts. */
   isReadOnly,
   onBlur,
+  /** Marks the label. The rule lives in `util/personalDetails.js`, not here. */
+  isRequired,
+  /** The one sentence saying what is wrong, shown under the control. */
+  error,
+  /** An action beside the label - "Copy from Aadhaar Name", and the like. */
+  action,
 }) {
   const set = (e) => onChange(name, e.target.value);
   const blur = onBlur ? () => onBlur(name) : undefined;
   return (
-    <FormControl>
-      <FormLabel fontSize="xs" color="gray.600" mb={1}>
-        {label}
-      </FormLabel>
+    <FormControl isInvalid={Boolean(error)} isRequired={Boolean(isRequired)}>
+      <Stack direction="row" justify="space-between" align="baseline" spacing={2}>
+        <FormLabel fontSize="xs" color="gray.600" mb={1}>
+          {label}
+        </FormLabel>
+        {action}
+      </Stack>
       {options ? (
         <Select size="sm" value={value ?? ""} onChange={set} placeholder="—" isDisabled={isDisabled}>
           {options.map((o) => (
@@ -156,7 +166,11 @@ export function EditField({
           bg={isReadOnly ? "gray.50" : undefined}
         />
       )}
-      {help ? (
+      {error ? (
+        <FormErrorMessage fontSize="10px" mt={1}>
+          {error}
+        </FormErrorMessage>
+      ) : help ? (
         <Text fontSize="10px" color="gray.500" mt={1}>
           {help}
         </Text>

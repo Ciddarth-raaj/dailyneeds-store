@@ -35,10 +35,21 @@ const {
 const TODAY = "2026-09-11";
 const ctx = (over = {}) => ({ today: TODAY, ...over });
 
+/**
+ * A Personal stage that satisfies the mandatory rules. Blood group, email,
+ * spouse name and marriage date are deliberately absent - the first two are
+ * optional outright, and the second two only apply to a married employee.
+ */
 const personal = {
   employee_name: "Ramesh Kumar",
+  father_name: "Kumar S",
   primary_contact_number: "9876543210",
+  alternate_contact_number: "9876500000",
   dob: "1994-02-11",
+  gender: "M",
+  marital_status: "Single",
+  permanent_address: "14 Bazaar Street",
+  residential_address: "14 Bazaar Street",
 };
 const employment = {
   date_of_joining: "2026-09-01",
@@ -146,20 +157,51 @@ test("skipping the Aadhaar never blocks the create", () => {
 });
 
 /* ============================================================ 2 Personal */
-test("stage 2 requires a name and judges nothing it did not ask for", () => {
+test("stage 2 applies the Personal Details mandatory rules, and judges nothing it did not ask for", () => {
   const errors = validateStage("personal", {}, ctx());
-  assert.match(errors.employee_name, /name/i);
+  assert.match(errors.employee_name, /required/i);
+  assert.match(errors.father_name, /required/i);
+  assert.match(errors.dob, /required/i);
+  assert.match(errors.gender, /required/i);
+  assert.match(errors.marital_status, /required/i);
+  assert.match(errors.primary_contact_number, /required/i);
+  assert.match(errors.alternate_contact_number, /required/i);
+  assert.match(errors.permanent_address, /required/i);
+  assert.match(errors.residential_address, /required/i);
   // Not its business: the manager has not reached the employment stage.
   assert.ok(!("date_of_joining" in errors));
   assert.ok(!("store_id" in errors));
   assert.deepStrictEqual(validateStage("personal", personal, ctx()), {});
 });
 
-test("an optional field is only judged once it has been filled in", () => {
-  assert.deepStrictEqual(validateStage("personal", { employee_name: "A" }, ctx()), {});
+test("blood group and email are NOT mandatory", () => {
+  assert.deepStrictEqual(
+    validateStage("personal", { ...personal, blood_group: "", email_id: "" }, ctx()),
+    {}
+  );
+});
+
+test("a married employee must give a spouse name and a marriage date; nobody else must", () => {
+  const married = validateStage("personal", { ...personal, marital_status: "Married" }, ctx());
+  assert.match(married.spouse_name, /required/i);
+  assert.match(married.marriage_date, /required/i);
+  assert.deepStrictEqual(
+    validateStage(
+      "personal",
+      { ...personal, marital_status: "Married", spouse_name: "Anitha", marriage_date: "2019-05-02" },
+      ctx()
+    ),
+    {}
+  );
+  for (const status of ["Single", "Widowed", "Divorced"]) {
+    assert.deepStrictEqual(validateStage("personal", { ...personal, marital_status: status }, ctx()), {}, status);
+  }
+});
+
+test("a field that is filled in is still judged on its FORMAT, not only its presence", () => {
   const bad = validateStage(
     "personal",
-    { employee_name: "A", primary_contact_number: "98765", dob: "2030-01-01", email_id: "nope" },
+    { ...personal, primary_contact_number: "98765", dob: "2030-01-01", email_id: "nope" },
     ctx()
   );
   assert.match(bad.primary_contact_number, /10 digits/);
@@ -170,7 +212,7 @@ test("an optional field is only judged once it has been filled in", () => {
 test("a mobile typed with spaces or dashes is judged on its digits", () => {
   const errors = validateStage(
     "personal",
-    { employee_name: "A", primary_contact_number: "98765 43210" },
+    { ...personal, primary_contact_number: "98765 43210" },
     ctx()
   );
   assert.deepStrictEqual(errors, {});

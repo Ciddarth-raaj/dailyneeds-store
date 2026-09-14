@@ -36,6 +36,10 @@ import {
   attendanceListColumns,
   auditLinkFor,
   buildAuditQuery,
+  initialReviewFilter,
+  initialIssueFilter,
+  AUDIT_ISSUES,
+  AUDIT_ISSUE_LABEL,
   buildListQuery,
   clockTimeColumnCount,
   displayDate,
@@ -101,6 +105,25 @@ export default function AttendanceListPage() {
     setTab(router.query.tab === "audit" ? 1 : 0);
   }, [router.isReady, router.query.tab]);
 
+  /**
+   * DEEP-LINKED FILTERS MUST SURVIVE THE FIRST PAINT.
+   *
+   * On Next's first render `router.query` is empty, so a tab that seeded its
+   * filter state from it would capture nothing and then apply its own
+   * default - silently discarding the very filter the link asked for. That
+   * was the Review Queue bug from the other end. Nothing below is rendered
+   * until the query is real.
+   */
+  if (!router.isReady) {
+    return (
+      <GlobalWrapper title="Attendance" permissionKey={["view_raw_attendance"]}>
+        <Stack align="center" py={10}>
+          <Spinner color="purple.500" />
+        </Stack>
+      </GlobalWrapper>
+    );
+  }
+
   return (
     <GlobalWrapper title="Attendance" permissionKey={["view_raw_attendance"]}>
       <Tabs
@@ -127,7 +150,7 @@ export default function AttendanceListPage() {
               departments={departments}
               canExport={canExport}
               toast={toast}
-              onOpenAudit={canAudit ? () => setTab(1) : null}
+              canAudit={canAudit}
             />
           </TabPanel>
           {canAudit ? (
@@ -143,7 +166,7 @@ export default function AttendanceListPage() {
 
 /* ======================================================= Attendance List */
 
-function AttendanceListTab({ today, outlets, departments, canExport, toast, onOpenAudit }) {
+function AttendanceListTab({ today, outlets, departments, canExport, canAudit, toast }) {
   const [filters, setFilters] = useState({ from: today, to: today, home_outlet_id: "", department_id: "", search: "" });
   const [rows, setRows] = useState([]);
   const [meta, setMeta] = useState(null);
@@ -316,7 +339,7 @@ function AttendanceListTab({ today, outlets, departments, canExport, toast, onOp
               </Button>
             </Stack>
 
-            <AttendanceBanners meta={meta} onOpenAudit={onOpenAudit} />
+            <AttendanceBanners meta={meta} canAudit={canAudit} />
 
             {error ? (
               <Alert status="error" fontSize="sm" mb={3}>
@@ -355,7 +378,10 @@ function PunchAuditTab({ today, outlets, initial, toast, canVoid }) {
     dev_id: initial.dev_id || "",
     punch_outlet_id: initial.punch_outlet_id || "",
     device_status: initial.device_status || "",
-    review: initial.review || "",
+    // REVIEW ONLY by default; a deep link that states `review` - including
+    // `review=all` - wins. See `util/attendanceRaw.js#initialReviewFilter`.
+    review: initialReviewFilter(initial),
+    issue: initialIssueFilter(initial),
     source_ip: "",
     search: initial.search || "",
     employee_id: initial.employee_id || "",
@@ -591,9 +617,20 @@ function PunchAuditTab({ today, outlets, initial, toast, canVoid }) {
               <FormControl maxW="180px">
                 <FormLabel fontSize="sm">Review</FormLabel>
                 <Select size="sm" value={filters.review} onChange={(e) => setFilters((f) => ({ ...f, review: e.target.value }))}>
+                  <option value="needs_review">Review only</option>
                   <option value="">All punches</option>
-                  <option value="needs_review">Needs review</option>
                   <option value="ok">Dated and registered</option>
+                </Select>
+              </FormControl>
+              <FormControl maxW="200px">
+                <FormLabel fontSize="sm">Issue</FormLabel>
+                <Select size="sm" value={filters.issue} onChange={(e) => setFilters((f) => ({ ...f, issue: e.target.value }))}>
+                  <option value="">Any issue</option>
+                  {AUDIT_ISSUES.map((issue) => (
+                    <option key={issue} value={issue}>
+                      {AUDIT_ISSUE_LABEL[issue]}
+                    </option>
+                  ))}
                 </Select>
               </FormControl>
               <FormControl maxW="200px">

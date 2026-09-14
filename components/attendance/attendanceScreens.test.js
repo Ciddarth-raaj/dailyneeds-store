@@ -61,6 +61,7 @@ test("the Punch Audit tab has Punch Location, Device, Device status and Review f
   assert.match(auditTab, /<FormLabel fontSize="sm">Device<\/FormLabel>/);
   assert.match(auditTab, /<FormLabel fontSize="sm">Device status<\/FormLabel>/);
   assert.match(auditTab, /<FormLabel fontSize="sm">Review<\/FormLabel>/);
+  assert.match(auditTab, /<FormLabel fontSize="sm">Issue<\/FormLabel>/);
   assert.ok(!/Home Outlet<\/FormLabel>/.test(auditTab));
   assert.match(auditTab, /buildAuditQuery\(/);
 });
@@ -230,4 +231,39 @@ test("the void key is in the attendance permission group", () => {
   const start = permissions.indexOf("attendance: {");
   const block = permissions.slice(start, permissions.indexOf("},", start));
   assert.ok(block.includes("void_attendance_punch"));
+});
+
+
+/* ============================================ Punch Audit: Review Only */
+
+test("the Punch Audit seeds its review filter from the shared rule, never from a literal", () => {
+  // A literal "" here is the bug: the audit is a queue, and opening it on
+  // every punch ever recorded buries the handful that need attention.
+  assert.match(auditTab, /review: initialReviewFilter\(initial\)/);
+  assert.match(auditTab, /issue: initialIssueFilter\(initial\)/);
+  assert.ok(!/review: initial\.review \|\| ""/.test(auditTab), "the old unfiltered default is gone");
+});
+
+test("Review Only is the first option offered, and All Punches remains available", () => {
+  const select = auditTab.slice(auditTab.indexOf('>Review<'));
+  const options = [...select.matchAll(/<option value="([^"]*)">([^<]+)<\/option>/g)].slice(0, 3);
+  assert.deepEqual(options.map((m) => [m[1], m[2]]), [
+    ["needs_review", "Review only"],
+    ["", "All punches"],
+    ["ok", "Dated and registered"],
+  ]);
+});
+
+test("a deep link cannot be lost to the first paint", () => {
+  // Next's first render has an empty router.query; seeding filter state from
+  // it would capture nothing and then apply the default, discarding the very
+  // filter the link asked for.
+  assert.match(page, /if \(!router\.isReady\)/);
+});
+
+test("the Review Queue link is an href, not an in-page tab switch", () => {
+  const banners = read("components/attendance/AttendanceBanners.jsx");
+  assert.match(banners, /item\.reviewHref/);
+  assert.ok(!/onOpenAudit/.test(banners), "the handler that passed no filters is gone");
+  assert.ok(!/onOpenAudit/.test(page), "and the page no longer supplies one");
 });
