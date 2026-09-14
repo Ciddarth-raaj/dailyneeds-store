@@ -17,6 +17,7 @@ const assert = require("node:assert");
 
 const {
   canViewSensitive,
+  canViewOnboardingQueue,
   canEditSensitive,
   canEditEmployee,
   canViewDocuments,
@@ -327,4 +328,137 @@ test("the employee read is unwrapped, and a refusal is not mistaken for a record
   assert.strictEqual(unwrapEmployee([]), null);
   assert.strictEqual(unwrapEmployee({ code: 403, msg: "denied" }), null);
   assert.strictEqual(unwrapEmployee(null), null);
+});
+
+/* ============== who may open the Onboarding / Pending HR queue ========== */
+/**
+ * It is an HR and administrator work queue, company-wide. There is no
+ * branch-scoped version of it: a store manager is refused outright rather
+ * than shown the same dashboard narrowed to their outlet.
+ *
+ * IT HAS A KEY OF ITS OWN, and the tests that matter most below are the ones
+ * proving that key is independent of `employee_scope_all_branches`. The
+ * screen used to be gated on the scope key; the defect was that granting
+ * company-wide employee access to any future designation would have handed
+ * them the work queue as a side effect.
+ */
+
+test("AN ADMINISTRATOR MAY OPEN THE ONBOARDING QUEUE, WITHOUT THE KEY", () => {
+  // `user_type = 2` bypasses the permission table on the server; this is that
+  // same bypass, so an administrator needs no grant at all.
+  assert.strictEqual(canViewOnboardingQueue({ permissions: [], isAdmin: true }), true);
+});
+
+test("HR WITH THE DEDICATED KEY MAY OPEN IT", () => {
+  assert.strictEqual(
+    canViewOnboardingQueue({ permissions: perms("view_hr_onboarding_dashboard") }),
+    true
+  );
+});
+
+test("HR WITHOUT THE DEDICATED KEY MAY NOT", () => {
+  // Holding every other HR key, including company-wide employee scope, is not
+  // enough. The screen has its own grant.
+  assert.strictEqual(
+    canViewOnboardingQueue({
+      permissions: perms(
+        "view_employees",
+        "employee_edit",
+        "employee_create",
+        "view_employee_sensitive"
+      ),
+    }),
+    false
+  );
+});
+
+test("THE SCOPE KEY ALONE DOES NOT OPEN THE DASHBOARD", () => {
+  // THE TEST THIS CHANGE EXISTS FOR. `employee_scope_all_branches` means
+  // company-wide employee reads and nothing else; a designation granted it
+  // tomorrow must not acquire HR's work queue with it.
+  assert.strictEqual(
+    canViewOnboardingQueue({ permissions: perms("employee_scope_all_branches") }),
+    false,
+    "company-wide employee scope must not grant the dashboard"
+  );
+  // Including a store manager who has somehow been given company-wide scope.
+  assert.strictEqual(
+    canViewOnboardingQueue({
+      permissions: perms("view_employees", "employee_edit", "employee_scope_all_branches"),
+    }),
+    false
+  );
+});
+
+test("AND THE DASHBOARD KEY ALONE GRANTS NO EMPLOYEE REACH", () => {
+  // The other direction: this key opens a screen. It says nothing about which
+  // employees the backend may return - that stays with the scope key, which
+  // the backend resolves on its own and this module never consults.
+  const dashboardOnly = { permissions: perms("view_hr_onboarding_dashboard") };
+  assert.strictEqual(canViewOnboardingQueue(dashboardOnly), true);
+  const source = require("fs").readFileSync(__dirname + "/hrProfile.js", "utf8");
+  const rule = source.slice(
+    source.indexOf("function canViewOnboardingQueue"),
+    source.indexOf("function canViewSensitive")
+  );
+  assert.ok(
+    !/employee_scope_all_branches/.test(rule),
+    "the dashboard rule must not read, or imply, the scope key"
+  );
+});
+
+test("A STORE MANAGER MAY NOT - WHATEVER ELSE THEY HOLD", () => {
+  assert.strictEqual(canViewOnboardingQueue({ permissions: perms("view_employees") }), false);
+  assert.strictEqual(
+    canViewOnboardingQueue({
+      permissions: perms("view_employees", "employee_create", "employee_edit"),
+    }),
+    false
+  );
+  assert.strictEqual(canViewOnboardingQueue({ permissions: [] }), false);
+  assert.strictEqual(canViewOnboardingQueue(), false);
+});
+
+test("OPENING THE QUEUE IS NOT THE SENSITIVE KEY, IN EITHER DIRECTION", () => {
+  // The two must stay independent: an HR user without the sensitive key gets
+  // the dashboard with Cash -> Bank and Paid by withheld, and holding the
+  // sensitive key alone does not open the screen.
+  const hrNoSensitive = { permissions: perms("view_hr_onboarding_dashboard") };
+  assert.strictEqual(canViewOnboardingQueue(hrNoSensitive), true, "dashboard: allowed");
+  assert.strictEqual(canViewSensitive(hrNoSensitive), false, "sensitive route: withheld");
+
+  const sensitiveOnly = { permissions: perms("view_employee_sensitive") };
+  assert.strictEqual(canViewSensitive(sensitiveOnly), true);
+  assert.strictEqual(
+    canViewOnboardingQueue(sensitiveOnly),
+    false,
+    "the sensitive key must not become a way into the dashboard"
+  );
+
+  // An administrator holds both, which is the existing user_type bypass and
+  // not these two rules being merged.
+  assert.strictEqual(canViewOnboardingQueue({ permissions: [], isAdmin: true }), true);
+  assert.strictEqual(canViewSensitive({ permissions: [], isAdmin: true }), true);
+});
+
+test("ALL THREE DECISIONS ARE SEPARATE, ACROSS EVERY COMBINATION", () => {
+  // Dashboard access, employee scope and sensitive disclosure are three
+  // independent grants. Checked as a truth table so no pair can quietly
+  // become coupled again.
+  const KEYS = ["view_hr_onboarding_dashboard", "employee_scope_all_branches", "view_employee_sensitive"];
+  for (let mask = 0; mask < 8; mask += 1) {
+    const held = KEYS.filter((_, i) => mask & (1 << i));
+    const actor = { permissions: perms(...held) };
+    const label = held.join("+") || "(none)";
+    assert.strictEqual(
+      canViewOnboardingQueue(actor),
+      held.includes("view_hr_onboarding_dashboard"),
+      `dashboard follows only its own key: ${label}`
+    );
+    assert.strictEqual(
+      canViewSensitive(actor),
+      held.includes("view_employee_sensitive"),
+      `sensitive follows only its own key: ${label}`
+    );
+  }
 });

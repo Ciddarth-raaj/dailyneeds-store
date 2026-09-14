@@ -125,9 +125,31 @@ test("what is SAVED is the resolved bank name, never a typed one", () => {
   assert.match(validated, /bank_name: ifscState\.status === "ok" \? ifscState\.bank_name : ""/);
   // Branch is display only - it is not part of what the employee record gets.
   assert.ok(!/branch_name:/.test(validated), "branch_name must not be saved");
+  // NARROWED TO WHAT IT MEANS: no branch FIELD in the employee payload.
+  //
+  // This used to forbid the substring "branch" anywhere in `hrProfile.js`,
+  // which caught the payload it is guarding and also anything else that
+  // happened to contain the word - `employee_scope_all_branches`, the
+  // company-wide permission key the Onboarding queue's access rule reads,
+  // is not a payload field and has nothing to do with a bank branch.
+  //
+  // So the check now covers the region that actually builds the payload -
+  // the editable-field lists, the API key map and both builders - where a
+  // stray `branch_name` would do the damage, and separately forbids the
+  // bank-branch field by name anywhere in the file.
+  const profile = strip(read("util/hrProfile.js"));
+  const payloadRegion = profile.slice(
+    profile.indexOf("const HR_EDITABLE_FIELDS"),
+    profile.indexOf("function changesPlacement")
+  );
+  assert.ok(payloadRegion.length > 0, "the payload region must be found");
   assert.ok(
-    !/branch/i.test(strip(read("util/hrProfile.js"))),
+    !/branch/i.test(payloadRegion),
     "no branch field may be added to the employee payload"
+  );
+  assert.ok(
+    !/branch_name/i.test(profile),
+    "the bank's branch name is display only and must never be saved"
   );
 });
 

@@ -1330,18 +1330,39 @@ test("THE QUEUE ADDS NO ENDPOINT, NO PERMISSION AND NO SOURCE OF TRUTH", () => {
   assert.strictEqual((code.match(/HrHelper\.getStatusSummary\(/g) || []).length, 1);
   assert.ok(!/getAadhaarStatus|getBankStatus/.test(code), "no per-employee reads");
   // The list's own permission - it is the same data, asked a different
-  // question - and no new key invented for it.
+  // question.
   assert.match(code, /usePermissions\(\["view_employees"\]\)/);
+  // Plus ONE existing key, for the one sensitive fact on the screen: whether
+  // an employee is paid in cash. `payment_type` is sensitive under B3, so the
+  // route reuses `view_employee_sensitive` rather than inventing a key.
+  assert.match(code, /usePermissions\(\["view_employee_sensitive"\]\)/);
+  const invented = code.match(/usePermissions\(\[([^\]]*)\]/g) || [];
+  assert.strictEqual(invented.length, 2, "exactly two permission reads, both existing keys");
+  for (const call of invented) {
+    assert.ok(
+      /"view_employees"|"view_employee_sensitive"/.test(call),
+      `no new permission key may be invented: ${call}`
+    );
+  }
   // Every rule lives in the tested module, not in the screen.
   assert.match(code, /from "\.\.\/\.\.\/\.\.\/util\/hrOnboardingQueue"/);
-  for (const rule of ["queueRow", "queueCounts", "filterQueue", "statusBadge", "QUEUE_FILTERS"]) {
+  for (const rule of ["queueRow", "queueCounts", "filterQueue", "statusBadge", "queueFilters"]) {
     assert.ok(code.includes(rule), `the screen must use the shared ${rule}`);
   }
 });
 
 test("the queue shows what HR needs to act, and nothing sensitive", () => {
   const code = codeOf(queue);
-  for (const shown of ["employee_id", "employee_image", "employee_name", "store_name", "row.aadhaar", "row.bank", "row.pf", "row.esi", "row.hr", "row.overall"]) {
+  // The five statuses the dashboard is specified on. PF and ESI are ONE
+  // Statutory column here now - which of the two is outstanding is a filter
+  // and a fact on the employee's own profile, not a column on this screen.
+  for (const shown of [
+    "employee_id", "employee_image", "employee_name", "store_name",
+    "row.aadhaar", "row.bank", "row.statutory", "row.payroll", "row.hr",
+    // How they are paid, so a Bank chip reading "Not applicable" is legible
+    // as "they are on cash" rather than as something failing to load.
+    "row.cashToBank",
+  ]) {
     assert.ok(code.includes(shown), `the queue must show ${shown}`);
   }
   for (const forbidden of [
@@ -1362,11 +1383,55 @@ test("NOTHING IS MARKED DONE ON THE QUEUE - the work is done on the profile", ()
 
 test("the counts are derived and no example number is hardcoded", () => {
   const code = codeOf(queue);
-  for (const key of ["counts.active", "counts.pending", "counts.aadhaar", "counts.bank", "counts.pf", "counts.esi", "counts.hr"]) {
-    assert.ok(code.includes(key), `the queue must show ${key}`);
-  }
+  // The six cards are rendered FROM `QUEUE_CARDS`, each reading the count it
+  // names - so the screen cannot pair a card with the wrong number, and
+  // adding a card cannot mean forgetting to render one.
+  assert.match(code, /cards\.map\(/, "the cards come from the shared definition");
+  assert.match(code, /queueCards\(\{ canSeePaymentRoute \}\)/, "and are gated in one place");
+  assert.match(code, /value=\{counts\[card\.count\]\}/, "each card shows its own count");
   assert.match(code, /queueCounts\(queue, \{ outlet, department \}\)/, "counts ignore the work filter");
   assert.ok(!/value=\{\d+\}/.test(code), "no count is a literal");
+});
+
+test("EVERY CARD IS CLICKABLE, AND SETS THE SAME FILTER THE DROPDOWN SETS", () => {
+  const code = codeOf(queue);
+  // One piece of state, two controls - which is what stops the page showing
+  // a selected card beside a dropdown that contradicts it.
+  assert.match(code, /onSelect=\{\(\) => setFilter\(card\.filter\)\}/, "a card selects its filter");
+  assert.match(code, /selected=\{filter === card\.filter\}/, "and reports that it is selected");
+  assert.match(code, /value=\{filter\}[\s\S]{0,120}onChange=\{\(e\) => setFilter\(e\.target\.value\)\}/,
+    "the dropdown reads and writes that same filter");
+  // Reachable and announced, not a div with a click handler.
+  assert.match(code, /as="button"/);
+  assert.match(code, /aria-pressed=\{selected\}/);
+});
+
+test("CASH IS A ROUTE ON THIS SCREEN, NEVER AN HR FAILURE", () => {
+  const code = codeOf(queue);
+  const card = codeOf(require("fs").readFileSync(__dirname + "/OnboardingQueueCard.jsx", "utf8"));
+  // Labelled by the route on both layouts - "Cash" / "Bank", not
+  // "Pending" / "Complete" - because it is a migration, not an outstanding
+  // item on this employee's record.
+  for (const src of [code, card]) {
+    assert.match(src, /pendingLabel: "Cash", completeLabel: "Bank"/);
+  }
+  // And the raw payment column never reaches the browser: the screen reads
+  // the derived flag, not `payment_type`.
+  for (const src of [code, card]) {
+    assert.ok(!/\bpayment_type\b/.test(src), "the screen must not reference payment_type");
+  }
+});
+
+test("THE QUEUE IS READABLE ON A PHONE - cards, not a squeezed table", () => {
+  const code = codeOf(queue);
+  // The same rows either way; the breakpoint chooses in CSS so the server and
+  // the first client render agree.
+  assert.match(code, /display=\{\{ base: "none", lg: "block" \}\}/, "the table is desktop only");
+  assert.match(code, /display=\{\{ base: "block", lg: "none" \}\}/, "the cards are mobile only");
+  assert.match(code, /OnboardingQueueCard/, "mobile renders the employee card");
+  assert.ok(code.includes("visible.slice(0, cardsShown)"), "and pages them rather than rendering hundreds");
+  // Two cards per row on a phone keeps each summary card a real tap target.
+  assert.match(code, /columns=\{\{ base: 2,/);
 });
 
 test("a failed summary shows dashes, never a queue of invented work", () => {
@@ -1379,4 +1444,76 @@ test("a failed summary shows dashes, never a queue of invented work", () => {
 test("the two screens point at each other", () => {
   assert.match(codeOf(list), /href="\/hr\/onboarding"/);
   assert.match(codeOf(queue), /href="\/hr\/employees"/);
+});
+
+/* ========== the Onboarding queue is HR and administrators only ========== */
+/**
+ * A work queue for HR, company-wide. A store manager is refused outright -
+ * there is deliberately no branch-scoped version of this screen - and the
+ * refusal must reach them BEFORE any data is requested, not as a dashboard
+ * of zeroes after it arrives.
+ */
+
+test("THE QUEUE IS GATED ON ITS OWN DEDICATED PERMISSION", () => {
+  const code = codeOf(queue);
+  assert.match(code, /canViewOnboardingQueue\(actor\)/, "it reads the shared rule");
+  assert.match(code, /usePayrollActor\(\)/, "from the shared actor");
+  // The rule itself lives in the tested module; the screen invents nothing,
+  // and in particular names neither the dashboard key nor the scope key.
+  assert.ok(
+    !/view_hr_onboarding_dashboard/.test(code),
+    "the screen must not restate the permission key - the rule module owns it"
+  );
+  assert.ok(
+    !/employee_scope_all_branches/.test(code),
+    "and the screen must never be gated on company-wide employee scope"
+  );
+  // And it is NOT the sensitive key: that still gates only the cash route.
+  assert.match(code, /canSeePaymentRoute = usePermissions\(\["view_employee_sensitive"\]\)/);
+});
+
+test("A DENIED USER CAUSES NO REQUEST AND SEES NO ZEROES", () => {
+  const code = codeOf(queue);
+  // Both fetch effects return before asking for anything.
+  const guards = code.match(/if \(!canOpenQueue\)/g) || [];
+  assert.ok(guards.length >= 2, `both loaders must bail out early, found ${guards.length}`);
+  assert.match(code, /if \(!canOpenQueue\) return undefined;/);
+  // The refusal is the FIRST branch, ahead of loading and ahead of the cards.
+  const refusal = code.indexOf("!canOpenQueue ? (");
+  const loading = code.indexOf("loading ? (");
+  const cards = code.indexOf("cards.map(");
+  assert.ok(refusal > -1, "there is a refusal branch");
+  assert.ok(refusal < loading, "refusal is decided before loading");
+  assert.ok(refusal < cards, "refusal is decided before any card renders");
+  assert.match(code, /You do not have permission to view the HR onboarding dashboard\./);
+});
+
+test("EMPLOYEE MASTER HIDES THE QUEUE LINK FROM A STORE MANAGER", () => {
+  const code = codeOf(list);
+  // Gated on the dedicated key, through the shared rule - so a manager with
+  // view_employees, employee_edit and branch access still sees no button.
+  assert.ok(
+    !/employee_scope_all_branches/.test(code),
+    "the link must not be gated on company-wide employee scope"
+  );
+  // The same rule as the screen, so a button cannot offer a screen that will
+  // turn the user away.
+  assert.match(code, /canViewOnboardingQueue\(usePayrollActor\(\)\)/);
+  // One rule, one key, read from the module that owns it.
+  const rule = require("fs").readFileSync(__dirname + "/../../util/hrProfile.js", "utf8");
+  assert.match(rule, /has\(permissions, "view_hr_onboarding_dashboard"\)/);
+  assert.match(code, /\{canOpenQueue \? \(/, "the link is conditional");
+  // The link is still there for those who may use it.
+  assert.match(code, /href="\/hr\/onboarding"/);
+});
+
+test("THE EMPLOYEE MASTER LIST ITSELF IS NOT RESTRICTED BY THIS", () => {
+  const code = codeOf(list);
+  // Employee Master stays exactly as it was - branch-scoped on the server for
+  // managers, and gated here on `view_employees`. Only the LINK is HR's.
+  assert.match(code, /usePermissions\(\["view_employees"\]\)/);
+  assert.ok(
+    !/if \(!canOpenQueue\)/.test(code),
+    "the queue rule must not gate the employee list's own data"
+  );
 });

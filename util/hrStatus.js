@@ -179,6 +179,29 @@ function statusSummaryIndex(summary) {
     // the decision must not read as "nothing outstanding".
     if (row.pf_status) entry.pf_status = row.pf_status;
     if (row.esi_status) entry.esi_status = row.esi_status;
+    // PF and ESI as ONE section, which is how the dashboard counts them, and
+    // PAYROLL - the fourth HR item. Both are derived on the server from the
+    // sections they describe and both follow the same rule as everything
+    // above: carried through only when the server actually sent them, so a
+    // server that cannot derive one never reads as "nothing outstanding".
+    if (row.statutory_pending !== undefined && row.statutory_pending !== null) {
+      entry.statutory_pending = Boolean(row.statutory_pending);
+    }
+    if (row.payroll_pending !== undefined && row.payroll_pending !== null) {
+      entry.payroll_pending = Boolean(row.payroll_pending);
+      entry.payroll_missing = Array.isArray(row.payroll_missing) ? row.payroll_missing : [];
+    }
+    // THE BANK SECTION AS THE DASHBOARD ASKS IT - route-aware, and a
+    // different question from `bank_status` above, which is the raw answer
+    // about the account itself and is what the profile and the employee list
+    // render. `bank_section_status` is COMPLETE / PENDING / NOT_APPLICABLE
+    // (the employee is paid in cash) / UNKNOWN (nobody has said how they are
+    // paid), so the two cannot be confused for one another.
+    if (row.bank_section_status) entry.bank_section_status = row.bank_section_status;
+    // Still paid in cash: an operational migration, never an HR failure.
+    if (row.cash_to_bank_pending !== undefined && row.cash_to_bank_pending !== null) {
+      entry.cash_to_bank_pending = Boolean(row.cash_to_bank_pending);
+    }
     index[String(row.employee_id)] = entry;
   }
   return index;
