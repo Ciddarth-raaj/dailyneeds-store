@@ -80,6 +80,8 @@ test("Employees, Department and Designation are all inside HR", () => {
     "/designation",
     "/employee-shift-assignment",
     "/hr/employees",
+    // The compliance work queue beside the employee master, on the same key.
+    "/hr/onboarding",
     // M4: Payroll, a section of HR like the three above it. M5 adds the third
     // entry - a faster way to raise the proposals the first one raises singly.
     "/payroll/bulk-salary-upload",
@@ -300,6 +302,8 @@ test("HR navigation still appears exactly once, and still holds its pages", () =
     "/designation",
     "/employee-shift-assignment",
     "/hr/employees",
+    // The compliance work queue beside the employee master, on the same key.
+    "/hr/onboarding",
     // M4: Payroll, a section of HR like the three above it. M5 adds the third
     // entry - a faster way to raise the proposals the first one raises singly.
     "/payroll/bulk-salary-upload",
@@ -449,11 +453,17 @@ test("M4/M5: HR > Payroll is the three salary screens, each behind ALL of its ke
 });
 
 test("SALARY IS ENTERED FROM PAYROLL, AND THE EMPLOYEE MASTER STILL LINKS NOWHERE NEAR IT", () => {
-  // Employee Master keeps its three entries. A salary screen listed under it
-  // would be the second place to type a salary that M3 exists to prevent.
+  // Employee Master keeps its own entries - the list, its compliance queue,
+  // Department and Designation. A salary screen listed under it would be the
+  // second place to type a salary that M3 exists to prevent.
   const hrMenu = treeNamed("HR_MENU");
   const master = sectionOf(hrMenu, "employee_master");
-  assert.deepStrictEqual(locationsIn(master).sort(), ["/department", "/designation", "/hr/employees"]);
+  assert.deepStrictEqual(locationsIn(master).sort(), [
+    "/department",
+    "/designation",
+    "/hr/employees",
+    "/hr/onboarding",
+  ]);
   for (const forbidden of ["salary", "Salary", "payroll"]) {
     assert.ok(!master.includes(forbidden), `Employee Master must not list ${forbidden}`);
   }

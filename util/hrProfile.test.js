@@ -124,12 +124,14 @@ test("EVERY SENSITIVE FIELD MAPS TO THE KEY THE BACKEND ACTUALLY DECLARES", () =
 });
 
 /* ============================================ M1: the eight sections == */
-test("THE EMPLOYEE MASTER IS ONE ORDER, FOR ADD AND EDIT ALIKE", () => {
+test("THE EMPLOYEE MASTER IS ONE ORDER, AND EDUCATION COMES BEFORE EMPLOYMENT", () => {
   const { EMPLOYEE_MASTER_SECTIONS } = require("./hrProfile");
   assert.deepStrictEqual(
     EMPLOYEE_MASTER_SECTIONS.map((s) => s.key),
-    ["aadhaar", "personal", "employment", "education", "payment", "statutory", "payroll", "documents"]
+    ["aadhaar", "personal", "education", "employment", "payment", "statutory", "payroll", "documents"]
   );
+  assert.strictEqual(EMPLOYEE_MASTER_SECTIONS[2].title, "Education & Experience");
+  assert.strictEqual(EMPLOYEE_MASTER_SECTIONS[3].title, "Employment Details");
   assert.strictEqual(EMPLOYEE_MASTER_SECTIONS[4].title, "Payment Details");
   assert.strictEqual(EMPLOYEE_MASTER_SECTIONS[7].key, "documents", "Documents is LAST");
 });

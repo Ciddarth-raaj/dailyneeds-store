@@ -59,12 +59,17 @@ import { statusSummaryIndex } from "../../../util/hrStatus";
  * useful without them and useless if a status request can blank it.
  *
  * TWO VIEWS, ONE DATA SET. Cards are the default, because the everyday task is
- * "find this person and see where they stand", and a card answers that at a
- * glance. The table is kept for the other task - scanning several hundred rows
- * for the ones that need chasing - and shows the detail a card deliberately
- * leaves off. The choice is remembered per browser; the filters, the search
- * and the data are shared, so switching view never changes what is shown, only
- * how.
+ * "find this person", and a card answers that at a glance. The table is kept
+ * for the other task - scanning several hundred rows for the ones that need
+ * chasing - and shows the detail a card deliberately leaves off. The choice is
+ * remembered per browser; the filters, the search and the data are shared, so
+ * switching view never changes what is shown, only how.
+ *
+ * THE CARD CARRIES NO COMPLIANCE BADGES. Aadhaar, Bank and HR status are still
+ * fetched here - the table's columns and the HR filter below are built from
+ * them, and nothing about the data changed - but the card is for finding
+ * somebody, not for chasing them. Chasing has a screen of its own now:
+ * Onboarding / Pending HR at `/hr/onboarding`, built from this very summary.
  *
  * THERE IS NO SYNC BUTTON, and this is the point of C1/C2 rather than an
  * omission: dnds.co.in IS the employee master now. Employees are created,
@@ -285,6 +290,14 @@ function HrEmployeeList() {
                 List
               </Button>
             </ButtonGroup>
+            {/* The compliance half of this screen, where it now lives. Same
+                permission as this list: it is the same data, asked a
+                different question. */}
+            <Link href="/hr/onboarding" passHref>
+              <Button size="sm" variant="outline" colorScheme="purple">
+                Onboarding / Pending HR
+              </Button>
+            </Link>
             {canCreate ? (
               <Link href="/hr/employees/new" passHref>
                 <Button colorScheme="purple" size="sm">
@@ -391,11 +404,7 @@ function HrEmployeeList() {
                   <>
                     <SimpleGrid columns={{ base: 1, sm: 2, lg: 3, xl: 4 }} spacing={4}>
                       {filtered.slice(0, cardsShown).map((e) => (
-                        <EmployeeCard
-                          key={e.employee_id}
-                          employee={e}
-                          status={statuses[String(e.employee_id)] || {}}
-                        />
+                        <EmployeeCard key={e.employee_id} employee={e} />
                       ))}
                     </SimpleGrid>
                     {filtered.length > cardsShown ? (

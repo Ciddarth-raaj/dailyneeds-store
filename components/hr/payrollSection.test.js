@@ -284,7 +284,10 @@ test("NO EMPLOYEE ID MEANS NO REQUEST", () => {
   assert.match(hookCode, /if \(!employeeId \|\| !canView\)/);
   // The id the profile passes is the lifecycle's, which is the record the page
   // is certain of - `router.query.id` is a string that may not be there yet.
-  assert.match(profile, /<PayrollSection\s*\n\s*employeeId=\{lifecycle\.employee_id\}/);
+  // The id the profile passes is `identity.employee_id` - the lifecycle
+  // record's where that read succeeded, and the employee record's otherwise.
+  // It is never `router.query.id`, which is a string that may not be there yet.
+  assert.match(profile, /<PayrollSection\s*\n\s*employeeId=\{identity\.employee_id\}/);
 });
 
 /* ============================== four read states, and they are told apart = */
@@ -689,7 +692,7 @@ test("the card follows the existing profile conventions and stays compact", () =
 
 test("the profile still renders the eight sections, with Payroll seventh", () => {
   const order = [
-    "<AadhaarSection", "<PersonalSection", "<EmploymentSection", "<EducationSection",
+    "<AadhaarSection", "<PersonalSection", "<EducationSection", "<EmploymentSection",
     "<PaymentDetailsSection", "<StatutorySection", "<PayrollSection", "<DocumentsSection",
   ];
   const positions = order.map((tag) => profile.indexOf(tag));

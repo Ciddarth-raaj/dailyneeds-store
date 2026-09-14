@@ -77,9 +77,11 @@ test("no other consumer was switched to the directory", () => {
   // gets the full, permission-gated record.
   //
   //   the two pickers          the /purchase outlet hotfix
-  //   the two HR screens       C3: the outlet filter and the Outlet dropdown,
-  //                            both of which need only an id and a name and
-  //                            must work for HR without `view_stores`
+  //   the HR screens           C3: the outlet filter and the Outlet dropdown
+  //                            on the employee list, the employee profile and
+  //                            the Onboarding / Pending HR queue - all of
+  //                            which need only an id and a name, and must
+  //                            work for HR without `view_stores`
   const roots = ["pages", "components", "customHooks"];
   const optedIn = [];
   const walk = (dir) => {
@@ -145,6 +147,9 @@ test("no other consumer was switched to the directory", () => {
     "pages/hr/employees/[id].jsx",
     "pages/hr/employees/index.jsx",
     "pages/hr/employees/new.jsx",
+    // The Onboarding / Pending HR queue's outlet filter: the same id and name,
+    // on the same `view_employees` as the employee list beside it.
+    "pages/hr/onboarding/index.jsx",
     "pages/payroll/salary-approval.jsx",
     "pages/stock-checker/[mode].jsx",
     "pages/stock-checker/assigned-products.jsx",

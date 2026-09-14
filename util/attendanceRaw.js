@@ -12,18 +12,14 @@ function clockTimeColumnCount(meta, rows) {
   return (rows || []).reduce((max, r) => Math.max(max, (r.punches || []).length), 0);
 }
 
-/** 'YYYY-MM-DD' -> 'DD/MM/YYYY' (the app's display convention). */
-function displayDate(iso) {
-  if (!iso || !/^\d{4}-\d{2}-\d{2}/.test(iso)) return iso || "";
-  return `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`;
-}
-
-/** 'YYYY-MM-DD HH:MM:SS' -> 'DD/MM/YYYY HH:MM:SS'. */
-function displayDateTime(value) {
-  if (!value) return "";
-  const [d, t] = String(value).split(" ");
-  return t ? `${displayDate(d)} ${t}` : displayDate(d);
-}
+/**
+ * 'YYYY-MM-DD' -> 'DD/MM/YYYY', and the timestamp form beside it.
+ *
+ * Moved to `util/displayDate.js` and re-exported here: the employee master
+ * needs the same convention, and two copies of a formatting rule is how a
+ * screen ends up showing 2013-06-08 next to 08/06/2013.
+ */
+const { displayDate, displayDateTime } = require("./displayDate");
 
 /** The fixed part of the Attendance List, then Clock Time-1..N, then the count. */
 function attendanceListColumns(n) {

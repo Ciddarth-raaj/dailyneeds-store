@@ -20,6 +20,7 @@ const test = require("node:test");
 const assert = require("node:assert");
 
 const {
+  CREATE_STAGE_KEY,
   ONBOARDING_STAGES,
   applyVerifiedDemographics,
   buildCreatePayload,
@@ -47,17 +48,27 @@ const employment = {
 };
 
 /* ================================================== the stages themselves */
-test("M1: the manager has exactly four stages, in this order, and they are the first four profile sections", () => {
+test("the manager has exactly four stages, and they are the first four profile sections", () => {
   assert.deepStrictEqual(
     ONBOARDING_STAGES.map((s) => s.key),
     ["aadhaar", "personal", "employment", "education"]
   );
+  // THE SAME FOUR SECTIONS AS THE PROFILE - checked as a SET.
+  //
+  // The profile shows Education & Experience before Employment Details. The
+  // wizard cannot: its Employment stage is the one that CREATES the employee
+  // and allocates the Employee ID, and its Education stage is recorded
+  // against that ID through the onboarding education endpoint, so Education
+  // first would be education recorded against a record that does not exist.
+  // Add and Edit are still ONE employee master - one constraint, and only
+  // that constraint, separates their order.
   const { EMPLOYEE_MASTER_SECTIONS } = require("./hrProfile");
   assert.deepStrictEqual(
-    ONBOARDING_STAGES.map((s) => s.key),
-    EMPLOYEE_MASTER_SECTIONS.slice(0, 4).map((s) => s.key),
-    "Add and Edit follow ONE order"
+    ONBOARDING_STAGES.map((s) => s.key).sort(),
+    EMPLOYEE_MASTER_SECTIONS.slice(0, 4).map((s) => s.key).sort(),
+    "Add and Edit cover the same four sections"
   );
+  assert.strictEqual(CREATE_STAGE_KEY, "employment", "and this is why the wizard's order differs");
   assert.ok(isFinalStage(3));
   assert.ok(!isFinalStage(2));
 });

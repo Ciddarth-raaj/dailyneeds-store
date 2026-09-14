@@ -879,6 +879,16 @@ const HR_MENU = {
         selected: false,
         location: "/hr/employees",
       },
+      // The compliance half of the employee master: whose record HR has not
+      // finished, and what is missing. Same data and same permission as the
+      // list above - it is that list asked a different question - which is why
+      // it takes `view_employees` and not a key of its own.
+      hr_onboarding: {
+        title: "Onboarding / Pending HR",
+        permission: "view_employees",
+        selected: false,
+        location: "/hr/onboarding",
+      },
       view_departments: {
         title: "Department",
         permission: "view_department",

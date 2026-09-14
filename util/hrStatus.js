@@ -173,6 +173,12 @@ function statusSummaryIndex(summary) {
         ? row.hr_onboarding_missing
         : [];
     }
+    // The per-scheme halves of the same statutory decision, for the
+    // Onboarding / Pending HR queue. Carried through only when the server
+    // sent them, for exactly the reason above: a server that cannot derive
+    // the decision must not read as "nothing outstanding".
+    if (row.pf_status) entry.pf_status = row.pf_status;
+    if (row.esi_status) entry.esi_status = row.esi_status;
     index[String(row.employee_id)] = entry;
   }
   return index;

@@ -97,16 +97,28 @@ function canAssignShift({ permissions = [], isAdmin = false } = {}) {
 }
 
 /**
- * M1 - THE ONE EMPLOYEE MASTER ORDER. The profile renders its sections in
- * exactly this sequence and the Add Employee wizard's four stages are its
- * first four entries; `hrProfile.test.js` and `hrScreens.test.js` pin both
- * to this list so Add and Edit cannot drift apart again.
+ * THE ONE EMPLOYEE MASTER ORDER. The profile renders its sections in exactly
+ * this sequence; `hrProfile.test.js` and `hrScreens.test.js` pin it.
+ *
+ * EDUCATION & EXPERIENCE COMES BEFORE EMPLOYMENT DETAILS. Read top to bottom,
+ * the profile now says who somebody is, what they bring, and only then where
+ * they work - which is the order the information is gathered in and the order
+ * HR asks for it back.
+ *
+ * THE ADD EMPLOYEE WIZARD KEEPS EMPLOYMENT THIRD, AND THAT IS NOT A DRIFT.
+ * Its stage 3 is the stage that CREATES the employee and allocates the
+ * Employee ID, and stage 4 records education against that ID through the
+ * onboarding education endpoint - so Education cannot precede it there
+ * without inventing a record to attach to. The two orders are the same four
+ * sections; only the create constraint separates them, and
+ * `hrScreens.test.js` checks the SET rather than the sequence for that
+ * reason.
  */
 const EMPLOYEE_MASTER_SECTIONS = [
   { key: "aadhaar", title: "Aadhaar Verification" },
   { key: "personal", title: "Personal Details" },
+  { key: "education", title: "Education & Experience" },
   { key: "employment", title: "Employment Details" },
-  { key: "education", title: "Education" },
   { key: "payment", title: "Payment Details" },
   { key: "statutory", title: "Statutory Details" },
   { key: "payroll", title: "Payroll" },

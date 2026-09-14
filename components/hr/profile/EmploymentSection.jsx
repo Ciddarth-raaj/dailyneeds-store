@@ -3,9 +3,10 @@ import { Text, Stack } from "@chakra-ui/react";
 import { SectionCard, Field, EditField, FieldGrid } from "./SectionCard";
 import { EmploymentBadge } from "../StatusBadges";
 import { currentShiftLabel } from "../../../util/currentShift";
+import { displayDate } from "../../../util/displayDate";
 
 /**
- * M1 — section 3 of the employee master: Employment Details.
+ * Section 4 of the employee master: Employment Details.
  *
  * BRANCH, DEPARTMENT AND DESIGNATION ARE COLUMNS ON THE ONE PERMANENT RECORD.
  * Moving somebody between branches edits those columns; it never creates a
@@ -18,6 +19,14 @@ import { currentShiftLabel } from "../../../util/currentShift";
  *   Employee ID      allocated by AUTO_INCREMENT at create. HR never types
  *                    one, and it is never reused or resequenced.
  *   Status           moves through Resign and Rejoin, never a dropdown.
+ *
+ * THE JOINING DATE IS SHOWN AS DD/MM/YYYY AND HELD AS ISO. `joiningDate` is
+ * the `YYYY-MM-DD` string the backend sent, and it stays that shape
+ * everywhere it is used as a value: it seeds the form, it is what the date
+ * input binds to, it is what the change is compared against, and it is what
+ * `onSaveJoiningDate` sends. `displayDate` is applied at the single point the
+ * READ-ONLY field is rendered, and nowhere else - which is why the date now
+ * reads 08/06/2013 without anything about editing or storing it changing.
  *
  * THE JOINING DATE IS EDITABLE, BUT NOT THROUGH THE ORDINARY EDIT. It is
  * lifecycle state - set by Create, moved by Rejoin - so a correction goes
@@ -157,7 +166,7 @@ function EmploymentSection({
             help="Corrects the start of the current spell of employment. The change is recorded on the timeline."
           />
         ) : (
-          <Field label="Joining date" value={joiningDate} />
+          <Field label="Joining date" value={displayDate(joiningDate)} />
         )}
       </FieldGrid>
 

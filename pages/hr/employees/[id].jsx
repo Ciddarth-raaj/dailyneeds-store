@@ -63,17 +63,23 @@ import {
 /**
  * The employee profile. The ONE employee master record, in the ONE order.
  *
- * M1: the sections are the same eight, in the same sequence, that Add
- * Employee walks a store manager through - the wizard is the first four of
- * them and stops; the profile shows all eight. There is no separate layout
- * for editing an existing employee.
+ * The sections are the same eight, in the sequence `EMPLOYEE_MASTER_SECTIONS`
+ * declares. The Add Employee wizard walks a store manager through the first
+ * four of them and stops; the profile shows all eight. There is no separate
+ * layout for editing an existing employee.
+ *
+ * EDUCATION & EXPERIENCE PRECEDES EMPLOYMENT DETAILS HERE and follows it in
+ * the wizard - the same four sections, ordered by the one constraint the
+ * wizard has and the profile does not: its Employment stage is what creates
+ * the employee and allocates the ID that Education is then recorded against.
+ * `util/hrProfile.js` holds that reasoning and the list itself.
  *
  *   1 Aadhaar Verification   Aadhaar status; Verify now under `employee_edit`
  *   2 Personal Details       `employee_edit`
- *   3 Employment Details     `employee_edit`; the shift from the NEW work
+ *   3 Education & Experience `employee_edit`
+ *   4 Employment Details     `employee_edit`; the shift from the NEW work
  *                            shift master, changed here only under
  *                            `employee_edit` + `assign_employee_shift`
- *   4 Education              `employee_edit`
  *   5 Payment Details        Cash / Bank and the bank card, under the
  *                            sensitive pair + `edit_payment_details`
  *   6 Statutory Details      PAN / PF / ESI, sensitive pair +
@@ -473,7 +479,36 @@ function EmployeeProfile() {
     );
   }
 
-  if (!lifecycle) {
+  /**
+   * WHO THIS PAGE IS ABOUT, from whichever read the caller was allowed.
+   *
+   * THE BUG THIS FIXES. The page used to refuse to render at all unless the
+   * LIFECYCLE read succeeded, and that read is gated on
+   * `view_employee_lifecycle` - a permission about employment history, not
+   * about the employee record. So a designation granted View Employees AND
+   * Edit Employee, but not the history key, could open the list, click an
+   * employee, and be told "You do not have permission to view this employee".
+   * Edit Employee was granted, checked correctly everywhere, enforced
+   * correctly by the backend - and completely unreachable, because an
+   * unrelated permission stood in front of the screen that uses it.
+   *
+   * The employee record itself comes from `GET /employee/employee_id`, under
+   * `view_employees`, and that is what the profile is: identity, personal,
+   * education, employment, and the sections each guarded by their own right.
+   * The lifecycle read adds the employment TIMELINE, which is already gated
+   * separately (`canViewLifecycle`) and already rendered only where there is
+   * a history to show.
+   *
+   * So EITHER read is enough to open the page, each section says for itself
+   * what it could not load, and nothing here is widened: every field and
+   * every action below is behind exactly the permission it was behind before.
+   */
+  const identity = {
+    employee_id: (lifecycle && lifecycle.employee_id) || (employee && employee.employee_id) || id,
+    employee_name: (lifecycle && lifecycle.employee_name) || (employee && employee.employee_name) || "",
+  };
+
+  if (!lifecycle && !employee) {
     return (
       <GlobalWrapper title="Employee">
         <CustomContainer title="Employee" filledHeader>
@@ -494,19 +529,23 @@ function EmployeeProfile() {
   // More than one employment period means a resign and a rejoin: a real
   // service history, and the only case where the timeline says anything the
   // Employment card does not.
-  const periodCount = Array.isArray(lifecycle.periods) ? lifecycle.periods.length : 0;
+  const periodCount = lifecycle && Array.isArray(lifecycle.periods) ? lifecycle.periods.length : 0;
   const hasEmploymentHistory = periodCount > 1;
 
-  const { canResign, canRejoin } = lifecycleActions({
-    isActive: lifecycle.is_active,
-    permissions,
-    isAdmin,
-  });
+  /*
+   * Resign and Rejoin need the lifecycle record itself - the modals are handed
+   * it, and the decision is made from `is_active`. Without it they are simply
+   * not offered, rather than offered against a guess: their own permissions
+   * are unchanged and are still what the backend enforces.
+   */
+  const { canResign, canRejoin } = lifecycle
+    ? lifecycleActions({ isActive: lifecycle.is_active, permissions, isAdmin })
+    : { canResign: false, canRejoin: false };
 
   return (
-    <GlobalWrapper title={lifecycle.employee_name || "Employee"}>
+    <GlobalWrapper title={identity.employee_name || "Employee"}>
       <CustomContainer
-        title={`${lifecycle.employee_name} · ID ${lifecycle.employee_id}`}
+        title={`${identity.employee_name} · ID ${identity.employee_id}`}
         filledHeader
         rightSection={
           <Stack direction="row" spacing={2}>
@@ -547,10 +586,18 @@ function EmployeeProfile() {
             saving={saving}
           />
 
-          {/* ============================== 3. Employment Details ==== */}
+          {/* ========================= 3. Education & Experience ==== */}
+          <EducationSection
+            employee={employee || {}}
+            canEdit={canEdit && Boolean(employee)}
+            onSave={saveOrdinary}
+            saving={saving}
+          />
+
+          {/* ============================== 4. Employment Details ==== */}
           <EmploymentSection
             employee={employee || {}}
-            lifecycle={lifecycle}
+            lifecycle={lifecycle || {}}
             outlets={outlets}
             departments={departments}
             designations={designations}
@@ -564,19 +611,11 @@ function EmployeeProfile() {
             saving={saving}
           />
 
-          {/* ======================================= 4. Education ==== */}
-          <EducationSection
-            employee={employee || {}}
-            canEdit={canEdit && Boolean(employee)}
-            onSave={saveOrdinary}
-            saving={saving}
-          />
-
           {/* ================================= 5. Payment Details ==== */}
           <PaymentDetailsSection
             employee={employee || {}}
             bank={bank}
-            lifecycle={lifecycle}
+            lifecycle={lifecycle || {}}
             permissions={permissions}
             isAdmin={isAdmin}
             canView={mayViewSensitive}
@@ -609,7 +648,7 @@ function EmployeeProfile() {
               record this page is certain of - a missing one means no request
               is made. */}
           <PayrollSection
-            employeeId={lifecycle.employee_id}
+            employeeId={identity.employee_id}
             canView={mayViewSalary}
             canAdd={mayAddSalary}
             canEdit={mayEditSalary}
@@ -617,7 +656,7 @@ function EmployeeProfile() {
           />
 
           {/* ======================================= 8. Documents ==== */}
-          <DocumentsSection employeeId={lifecycle.employee_id} canView={mayViewDocuments} />
+          <DocumentsSection employeeId={identity.employee_id} canView={mayViewDocuments} />
 
           {/* -------------------------------------------------- lifecycle
               ONLY WHERE THERE IS A HISTORY TO SHOW. For the great majority of
@@ -647,7 +686,7 @@ function EmployeeProfile() {
       <AadhaarVerifyModal
         isOpen={aadhaarOpen}
         onClose={() => setAadhaarOpen(false)}
-        employeeName={lifecycle.employee_name}
+        employeeName={identity.employee_name}
         onVerified={async (decision, outcome) => {
           setAadhaarOpen(false);
           if (!outcome) return;
@@ -663,7 +702,7 @@ function EmployeeProfile() {
             return;
           }
           try {
-            const res = await HrHelper.attachAadhaar(lifecycle.employee_id, decision.verification_id);
+            const res = await HrHelper.attachAadhaar(identity.employee_id, decision.verification_id);
             if (failed(res)) {
               toast({
                 title: res.msg || "The Aadhaar could not be attached",
@@ -676,7 +715,7 @@ function EmployeeProfile() {
               return;
             }
             toast({
-              title: `Aadhaar attached to employee ${lifecycle.employee_id}`,
+              title: `Aadhaar attached to employee ${identity.employee_id}`,
               status: "success",
               duration: 4000,
             });
@@ -699,19 +738,26 @@ function EmployeeProfile() {
         saving={saving}
       />
 
-      <ResignModal
-        isOpen={resignOpen}
-        onClose={() => setResignOpen(false)}
-        employee={lifecycle}
-        onDone={load}
-      />
-      <RejoinModal
-        isOpen={rejoinOpen}
-        onClose={() => setRejoinOpen(false)}
-        employee={lifecycle}
-        lifecycle={lifecycle}
-        onDone={load}
-      />
+      {/* Only mounted where the lifecycle record they act on was actually
+          read. `canResign` / `canRejoin` are already false without it, so this
+          removes a modal that could never open rather than an action. */}
+      {lifecycle ? (
+        <>
+          <ResignModal
+            isOpen={resignOpen}
+            onClose={() => setResignOpen(false)}
+            employee={lifecycle}
+            onDone={load}
+          />
+          <RejoinModal
+            isOpen={rejoinOpen}
+            onClose={() => setRejoinOpen(false)}
+            employee={lifecycle}
+            lifecycle={lifecycle}
+            onDone={load}
+          />
+        </>
+      ) : null}
     </GlobalWrapper>
   );
 }

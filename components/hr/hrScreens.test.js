@@ -370,7 +370,7 @@ test("the success state shows the Employee ID and says HR onboarding is pending"
 });
 
 test("verifying later attaches to the same employee, and never creates one", () => {
-  assert.match(profile, /HrHelper\.attachAadhaar\(lifecycle\.employee_id/);
+  assert.match(profile, /HrHelper\.attachAadhaar\(identity\.employee_id/);
   assert.ok(!/createEmployee/.test(profile), "the profile must never create an employee");
   assert.match(profile, /already belongs to employee/, "a clash names the holder");
 });
@@ -537,20 +537,26 @@ test("the two views share one data set, so switching cannot change the answer", 
   assert.strictEqual(fetches, 1, "one fetch, whichever view is showing");
 });
 
-test("THE CARD SHOWS THE EIGHT THINGS THAT MATTER, AND NOT THE REST", () => {
+test("THE CARD IS FOR FINDING SOMEBODY: ID FIRST, THEN PHOTO, NAME AND PLACEMENT", () => {
   const code = codeOf(card);
   for (const field of [
+    "employee.employee_id",
+    "employee.employee_image",
     "employee.employee_name",
-    "employee.designation_name",
     "employee.store_name",
     "employee.department_name",
-    "employee.employee_id",
+    "employee.designation_name",
     "employee.status",
-    "status.aadhaar_status",
-    "status.bank_status",
   ]) {
     assert.ok(code.includes(field), `the card must show ${field}`);
   }
+  // The Employee ID leads the card and is the most prominent thing on it -
+  // it is what everybody refers to an employee by.
+  assert.ok(
+    code.indexOf("employee.employee_id") < code.indexOf("employee.employee_name"),
+    "the Employee ID comes before the name"
+  );
+  assert.match(code, /fontWeight="bold"[\s\S]{0,80}fontSize="xl"/, "and is bold and large");
   // Detail belongs in the list view and on the profile, not on a card meant
   // to be scanned.
   for (const notOnACard of ["primary_contact_number", "date_of_joining", "shift", "salary"]) {
@@ -558,7 +564,36 @@ test("THE CARD SHOWS THE EIGHT THINGS THAT MATTER, AND NOT THE REST", () => {
   }
 });
 
-test("the card renders nothing sensitive, and reuses the shared badges", () => {
+test("THE CARD SHOWS NO ROLE", () => {
+  // Designation is what the employee master records and what the rest of the
+  // application is organised by. A "role" beside it is a second answer to the
+  // same question.
+  const code = codeOf(card);
+  assert.ok(!/\brole\b/i.test(code), "the card must not show a role");
+});
+
+test("THE COMPLIANCE BADGES ARE OFF THE CARD, AND NOT OUT OF THE SYSTEM", () => {
+  const code = codeOf(card);
+  // Nothing about Aadhaar, bank or HR onboarding is on the card any more, and
+  // the card is not even handed the statuses.
+  for (const gone of [
+    "AadhaarListBadge", "BankListBadge", "HrOnboardingBadge",
+    "aadhaar_status", "bank_status", "hr_onboarding_pending",
+  ]) {
+    assert.ok(!code.includes(gone), `${gone} does not belong on the employee card`);
+  }
+  assert.match(codeOf(list), /<EmployeeCard key=\{e\.employee_id\} employee=\{e\} \/>/);
+  // They are still derived, still fetched, still rendered - by the list view's
+  // columns and by the work queue that exists for them.
+  const listCode = codeOf(list);
+  assert.match(listCode, /HrHelper\.getStatusSummary\(/);
+  assert.match(listCode, /<AadhaarListBadge status=\{s\.aadhaar_status\}/);
+  assert.ok(fs.existsSync(path.join(ROOT, "pages/hr/onboarding/index.jsx")), "the queue exists");
+  // And the employment status stays: it is who the person is, not a chase.
+  assert.match(code, /<EmploymentBadge/);
+});
+
+test("the card renders nothing sensitive", () => {
   const code = codeOf(card);
   for (const forbidden of [
     "aadhaar_number", "aadhaar_last4", "account_no", "account_last4",
@@ -566,9 +601,6 @@ test("the card renders nothing sensitive, and reuses the shared badges", () => {
   ]) {
     assert.ok(!new RegExp(forbidden).test(code), `the card must not render ${forbidden}`);
   }
-  assert.match(code, /<AadhaarListBadge/);
-  assert.match(code, /<BankListBadge/);
-  assert.match(code, /<EmploymentBadge/);
 });
 
 test("every card opens that employee's profile", () => {
@@ -620,8 +652,8 @@ test("M1: THE PROFILE RENDERS THE EIGHT SECTIONS IN THE ONE ORDER, AND NO LEGACY
   const order = [
     "<AadhaarSection",
     "<PersonalSection",
-    "<EmploymentSection",
     "<EducationSection",
+    "<EmploymentSection",
     "<PaymentDetailsSection",
     "<StatutorySection",
     "<PayrollSection",
@@ -632,10 +664,23 @@ test("M1: THE PROFILE RENDERS THE EIGHT SECTIONS IN THE ONE ORDER, AND NO LEGACY
     assert.ok(positions[i] >= 0, `${order[i]} must be rendered`);
     if (i > 0) assert.ok(positions[i] > positions[i - 1], `${order[i]} must come after ${order[i - 1]}`);
   }
-  // Same order as the wizard's stages, which are the first four.
+  // The rendered order IS the declared one.
   const { EMPLOYEE_MASTER_SECTIONS } = require("../../util/hrProfile");
   const { ONBOARDING_STAGES } = require("../../util/hrOnboarding");
-  assert.deepStrictEqual(ONBOARDING_STAGES.map((s) => s.key), EMPLOYEE_MASTER_SECTIONS.slice(0, 4).map((s) => s.key));
+  assert.deepStrictEqual(
+    EMPLOYEE_MASTER_SECTIONS.slice(0, 4).map((s) => s.key),
+    ["aadhaar", "personal", "education", "employment"]
+  );
+  // THE WIZARD COVERS THE SAME FOUR SECTIONS - checked as a SET, not a
+  // sequence. Its Employment stage is the one that creates the employee and
+  // allocates the ID, and its Education stage records against that ID, so it
+  // cannot put Education first without inventing a record to attach to. Add
+  // and Edit are still the same employee master; only that constraint
+  // separates their order.
+  assert.deepStrictEqual(
+    ONBOARDING_STAGES.map((s) => s.key).sort(),
+    EMPLOYEE_MASTER_SECTIONS.slice(0, 4).map((s) => s.key).sort()
+  );
   // Aadhaar is a full-width first section, not a half-width card beside Statutory.
   assert.ok(!/SimpleGrid/.test(codeOf(profile)), "no side-by-side grid on the profile");
   // The old /employee/[id] form is not resurrected as an edit layout: that
@@ -1220,4 +1265,118 @@ test("M5 — the Payroll section enters the FIRST salary and never revises one",
   assert.ok(!/type="date"/.test(formCode), "there is no effective-date picker");
   assert.match(formCode, /effective_from: ""/);
   assert.match(formCode, /previewEffectiveFrom\(preview\)/, "the server's date is displayed");
+});
+
+/* ================== the joining date reads DD/MM/YYYY and still saves == */
+test("THE JOINING DATE IS DISPLAYED DD/MM/YYYY AND HELD AS ISO", () => {
+  const code = codeOf(employment);
+  // Rendered through the shared formatter, at the read-only field only.
+  assert.match(code, /import \{ displayDate \} from "\.\.\/\.\.\/\.\.\/util\/displayDate"/);
+  assert.match(code, /<Field label="Joining date" value=\{displayDate\(joiningDate\)\} \/>/);
+  const uses = code.match(/displayDate\(/g) || [];
+  assert.strictEqual(uses.length, 1, "formatting happens once, at the point of display");
+
+  // EDITING AND SAVING ARE UNTOUCHED: the input is still a native date input
+  // bound to the ISO string, the change is still compared against the ISO
+  // string, and the ISO string is what is sent.
+  assert.match(code, /type="date"/);
+  assert.match(code, /value=\{form\.date_of_joining\}/);
+  assert.match(code, /date_of_joining: joiningDate/, "the form is seeded with the ISO value");
+  assert.match(code, /date_of_joining !== joiningDate/, "compared as ISO");
+  assert.match(code, /onSaveJoiningDate\(date_of_joining\)/, "and sent as ISO");
+  // The single `displayDate(` above is on the READ-ONLY <Field>, so nothing
+  // formatted can reach a form value, a comparison or a request body.
+  assert.ok(!/EditField[\s\S]{0,200}displayDate\(/.test(code), "an edit field never binds a formatted date");
+});
+
+test("the display convention is one module, not a copy per screen", () => {
+  const shared = read("util/displayDate.js");
+  assert.match(shared, /function displayDate\(iso\)/);
+  // The attendance screens take it from the same place.
+  assert.match(read("util/attendanceRaw.js"), /require\("\.\/displayDate"\)/);
+});
+
+/* ============ the profile opens for anyone who may see the employee ==== */
+test("EDIT EMPLOYEE IS NOT BLOCKED BY THE EMPLOYMENT-HISTORY PERMISSION", () => {
+  const code = codeOf(profile);
+  // THE BUG: the page used to return a permission wall unless the LIFECYCLE
+  // read succeeded, and that read is gated on `view_employee_lifecycle`. A
+  // designation with View Employees + Edit Employee, and not that key, could
+  // never reach the editor its permission was for.
+  assert.match(code, /if \(!lifecycle && !employee\)/, "either read opens the page");
+  assert.ok(!/if \(!lifecycle\) \{/.test(code), "the lifecycle read is no longer a gate");
+  // The header no longer reads from the lifecycle record alone.
+  assert.match(code, /const identity = \{/);
+  assert.match(code, /employee_id: \(lifecycle && lifecycle\.employee_id\) \|\| \(employee && employee\.employee_id\)/);
+  // NOTHING IS WIDENED. Edit is still `employee_edit` and nothing else, the
+  // timeline is still behind its own key, and the sections still carry the
+  // permissions they carried before.
+  assert.match(code, /const canEdit = canEditEmployee\(actor\)/);
+  assert.match(code, /usePermissions\(\["view_employee_lifecycle"\]\)/);
+  assert.match(code, /canViewLifecycle && hasEmploymentHistory \? \(/);
+  // Resign and Rejoin act on the lifecycle record, so without it they are not
+  // offered rather than offered against a guess.
+  assert.match(code, /lifecycle\s*\n?\s*\? lifecycleActions\(/);
+  assert.match(code, /\{ canResign: false, canRejoin: false \}/);
+});
+
+/* ================== Onboarding / Pending HR: the work queue ============ */
+const queue = read("pages/hr/onboarding/index.jsx");
+
+test("THE QUEUE ADDS NO ENDPOINT, NO PERMISSION AND NO SOURCE OF TRUTH", () => {
+  const code = codeOf(queue);
+  // Exactly the two reads the employee list already makes, each once.
+  assert.strictEqual((code.match(/EmployeeHelper\.getEmployee\(/g) || []).length, 1);
+  assert.strictEqual((code.match(/HrHelper\.getStatusSummary\(/g) || []).length, 1);
+  assert.ok(!/getAadhaarStatus|getBankStatus/.test(code), "no per-employee reads");
+  // The list's own permission - it is the same data, asked a different
+  // question - and no new key invented for it.
+  assert.match(code, /usePermissions\(\["view_employees"\]\)/);
+  // Every rule lives in the tested module, not in the screen.
+  assert.match(code, /from "\.\.\/\.\.\/\.\.\/util\/hrOnboardingQueue"/);
+  for (const rule of ["queueRow", "queueCounts", "filterQueue", "statusBadge", "QUEUE_FILTERS"]) {
+    assert.ok(code.includes(rule), `the screen must use the shared ${rule}`);
+  }
+});
+
+test("the queue shows what HR needs to act, and nothing sensitive", () => {
+  const code = codeOf(queue);
+  for (const shown of ["employee_id", "employee_image", "employee_name", "store_name", "row.aadhaar", "row.bank", "row.pf", "row.esi", "row.hr", "row.overall"]) {
+    assert.ok(code.includes(shown), `the queue must show ${shown}`);
+  }
+  for (const forbidden of [
+    "aadhaar_number", "aadhaar_last4", "account_no", "account_last4", "ifsc",
+    "pan_no", "uan", "pf_number", "esi_number", "salary", "pf_applicable", "esi_applicable",
+  ]) {
+    assert.ok(!new RegExp(`\\b${forbidden}\\b`).test(code), `the queue must not reference ${forbidden}`);
+  }
+});
+
+test("NOTHING IS MARKED DONE ON THE QUEUE - the work is done on the profile", () => {
+  const code = codeOf(queue);
+  for (const write of ["editEmployee", "updateEmployeeDetails", "attachAadhaar", "verifyBank", "onSave"]) {
+    assert.ok(!code.includes(write), `the queue must not ${write}`);
+  }
+  assert.match(code, /href=\{`\/hr\/employees\/\$\{row\.employee_id\}`\}/, "it links to the profile");
+});
+
+test("the counts are derived and no example number is hardcoded", () => {
+  const code = codeOf(queue);
+  for (const key of ["counts.active", "counts.pending", "counts.aadhaar", "counts.bank", "counts.pf", "counts.esi", "counts.hr"]) {
+    assert.ok(code.includes(key), `the queue must show ${key}`);
+  }
+  assert.match(code, /queueCounts\(queue, \{ outlet, department \}\)/, "counts ignore the work filter");
+  assert.ok(!/value=\{\d+\}/.test(code), "no count is a literal");
+});
+
+test("a failed summary shows dashes, never a queue of invented work", () => {
+  const code = codeOf(queue);
+  assert.match(code, /Array\.isArray\(summary\)/, "a 403 is not rendered as data");
+  assert.match(code, /setStatusUnavailable\(true\)/);
+  assert.match(code, /every row reads a dash/);
+});
+
+test("the two screens point at each other", () => {
+  assert.match(codeOf(list), /href="\/hr\/onboarding"/);
+  assert.match(codeOf(queue), /href="\/hr\/employees"/);
 });
