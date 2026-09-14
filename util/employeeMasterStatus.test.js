@@ -346,8 +346,12 @@ describe("current placement", () => {
   });
 
   it("neither read is blank rather than wrong", () => {
+    // NULL, like every other field here: "no date I can read" is a different
+    // thing from a date, and the empty string this used to return was a
+    // truncation artefact of `String(undefined).slice(0, 10)`. The edit field
+    // turns null into "" at the point it binds it - see `util/joiningDate.js`.
     assert.deepEqual(currentPlacement(null, null), {
-      date_of_joining: "",
+      date_of_joining: null,
       outlet: null,
       department_name: null,
       designation_name: null,

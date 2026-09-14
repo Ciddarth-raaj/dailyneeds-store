@@ -5,6 +5,7 @@ import { EmploymentBadge } from "../StatusBadges";
 import { currentEmploymentStatus, currentPlacement } from "../../../util/hrStatus";
 import { currentShiftLabel } from "../../../util/currentShift";
 import { displayDate } from "../../../util/displayDate";
+import { toDateInputValue, joiningDateChanged } from "../../../util/joiningDate";
 
 /**
  * Section 4 of the employee master: Employment Details.
@@ -22,12 +23,28 @@ import { displayDate } from "../../../util/displayDate";
  *   Status           moves through Resign and Rejoin, never a dropdown.
  *
  * THE JOINING DATE IS SHOWN AS DD/MM/YYYY AND HELD AS ISO. `joiningDate` is
- * the `YYYY-MM-DD` string the backend sent, and it stays that shape
- * everywhere it is used as a value: it seeds the form, it is what the date
- * input binds to, it is what the change is compared against, and it is what
- * `onSaveJoiningDate` sends. `displayDate` is applied at the single point the
- * READ-ONLY field is rendered, and nowhere else - which is why the date now
- * reads 08/06/2013 without anything about editing or storing it changing.
+ * `YYYY-MM-DD`, and it stays that shape everywhere it is used as a value: it
+ * seeds the form, it is what the date input binds to, it is what the change
+ * is compared against, and it is what `onSaveJoiningDate` sends. `displayDate`
+ * is applied at the single point the READ-ONLY field is rendered, and nowhere
+ * else - which is why the date reads 08/06/2013 without anything about
+ * editing or storing it changing.
+ *
+ * IT IS PARSED ON THE WAY IN, NOT TRUNCATED. `currentPlacement` now reads it
+ * through `util/joiningDate.js#toIsoDate`, and the edit field binds
+ * `toDateInputValue`. That is the fix for "the Joining Date disappears when
+ * Employment Details enters Edit mode": a native `<input type="date">`
+ * renders EMPTY for anything that is not exactly `YYYY-MM-DD`, and the old
+ * `String(value).slice(0, 10)` turned the legacy "16 September 2022" into
+ * "16 Septemb" - which the read-only field showed unchanged and the input
+ * refused. The value was never lost; it was never in the shape the control
+ * accepts.
+ *
+ * AN UNTOUCHED DATE IS NEVER SUBMITTED. `joiningDateChanged` compares the two
+ * as PARSED dates and is false for an empty or unreadable edit, so Edit ->
+ * Save without going near the field calls the correction endpoint not at all
+ * and the stored date survives exactly. Correcting it deliberately still goes
+ * through the same audited endpoint and the same employment-history move.
  *
  * THE JOINING DATE IS EDITABLE, BUT NOT THROUGH THE ORDINARY EDIT. It is
  * lifecycle state - set by Create, moved by Rejoin - so a correction goes
@@ -101,7 +118,9 @@ function EmploymentSection({
 
   const start = () => {
     setForm({
-      date_of_joining: joiningDate,
+      // The ISO the native date input requires, or "" when there is genuinely
+      // no readable date to show. Never a truncation of one.
+      date_of_joining: toDateInputValue(joiningDate),
       store_id: employee.store_id ?? "",
       department_id: employee.department_id ?? "",
       designation_id: employee.designation_id ?? "",
@@ -125,7 +144,7 @@ function EmploymentSection({
       canAssignShift && work_shift_id && String(work_shift_id) !== String(currentShiftId || "")
     );
     const joiningChanged = Boolean(
-      typeof onSaveJoiningDate === "function" && date_of_joining && date_of_joining !== joiningDate
+      typeof onSaveJoiningDate === "function" && joiningDateChanged(date_of_joining, joiningDate)
     );
     // A shift-only or date-only change must not be stopped by the editor's
     // own "nothing was changed" guard, and a placement-only change must not
@@ -135,7 +154,9 @@ function EmploymentSection({
       if (!ok) return;
     }
     if (joiningChanged) {
-      const corrected = await onSaveJoiningDate(date_of_joining);
+      // The PARSED date, so the endpoint - which accepts YYYY-MM-DD and
+      // nothing else - is never handed whatever shape the control produced.
+      const corrected = await onSaveJoiningDate(toDateInputValue(date_of_joining));
       if (!corrected) return;
     }
     if (shiftChanged && typeof onAssignShift === "function") {
@@ -190,7 +211,7 @@ function EmploymentSection({
             label="Joining date"
             name="date_of_joining"
             type="date"
-            value={form.date_of_joining}
+            value={toDateInputValue(form.date_of_joining)}
             onChange={set}
             help="Corrects the start of the current spell of employment. The change is recorded on the timeline."
           />

@@ -892,7 +892,7 @@ test("employee ID and status are never editable; the joining date only through i
   // The joining date is corrected through POST /hr/employee/:id/joining-date,
   // behind employee_edit, never folded into the ordinary edit body.
   assert.match(code, /name="date_of_joining"/, "the joining date is editable");
-  assert.match(code, /onSaveJoiningDate\(date_of_joining\)/, "through its own action");
+  assert.match(code, /onSaveJoiningDate\(toDateInputValue\(date_of_joining\)\)/, "through its own action");
   assert.match(code, /const \{ work_shift_id, date_of_joining, \.\.\.placement \} = form/, "and never in the ordinary edit body");
   const { HR_EDITABLE_FIELDS } = require("../../util/hrProfile");
   assert.ok(!HR_EDITABLE_FIELDS.includes("date_of_joining"));
@@ -1285,14 +1285,22 @@ test("THE JOINING DATE IS DISPLAYED DD/MM/YYYY AND HELD AS ISO", () => {
   const uses = code.match(/displayDate\(/g) || [];
   assert.strictEqual(uses.length, 1, "formatting happens once, at the point of display");
 
-  // EDITING AND SAVING ARE UNTOUCHED: the input is still a native date input
-  // bound to the ISO string, the change is still compared against the ISO
-  // string, and the ISO string is what is sent.
+  // EDITING AND SAVING: the input is a native date input, and everything it
+  // touches is ISO - because a native date input renders EMPTY for anything
+  // else, which is exactly how the joining date came to "disappear" the
+  // moment Employment Details entered Edit mode. `toDateInputValue` parses;
+  // it never truncates, which is what `slice(0, 10)` did.
   assert.match(code, /type="date"/);
-  assert.match(code, /value=\{form\.date_of_joining\}/);
-  assert.match(code, /date_of_joining: joiningDate/, "the form is seeded with the ISO value");
-  assert.match(code, /date_of_joining !== joiningDate/, "compared as ISO");
-  assert.match(code, /onSaveJoiningDate\(date_of_joining\)/, "and sent as ISO");
+  assert.match(code, /value=\{toDateInputValue\(form\.date_of_joining\)\}/);
+  assert.match(code, /date_of_joining: toDateInputValue\(joiningDate\)/, "the form is seeded with the ISO value");
+  assert.match(code, /joiningDateChanged\(date_of_joining, joiningDate\)/, "compared as parsed dates");
+  assert.match(code, /onSaveJoiningDate\(toDateInputValue\(date_of_joining\)\)/, "and sent as ISO");
+  assert.match(
+    code,
+    /import \{ toDateInputValue, joiningDateChanged \} from "\.\.\/\.\.\/\.\.\/util\/joiningDate"/,
+    "one parser, shared with currentPlacement"
+  );
+  assert.ok(!/slice\(0, ?10\)/.test(code), "ten characters of a date is not a date");
   // The single `displayDate(` above is on the READ-ONLY <Field>, so nothing
   // formatted can reach a form value, a comparison or a request body.
   assert.ok(!/EditField[\s\S]{0,200}displayDate\(/.test(code), "an edit field never binds a formatted date");

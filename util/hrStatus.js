@@ -13,6 +13,8 @@
  * is certain to fail.
  */
 
+const { toIsoDate } = require("./joiningDate");
+
 /* ------------------------------------------------------------- Aadhaar -- */
 
 /**
@@ -683,7 +685,13 @@ function currentPlacement(employee, lifecycle) {
 
   return {
     // Master first, every time.
-    date_of_joining: String(firstOf(e.date_of_joining, current.date_of_joining) || "").slice(0, 10),
+    // PARSED, NOT TRUNCATED. `slice(0, 10)` was here, and on a legacy
+    // long-form value ("16 September 2022") it produced "16 Septemb" - which
+    // a read-only field renders unchanged and a native date input rejects,
+    // which is exactly why Employment Details went blank on Edit. `toIsoDate`
+    // returns `YYYY-MM-DD` or null, and null means "no date I can read"
+    // rather than ten characters of one. See `util/joiningDate.js`.
+    date_of_joining: toIsoDate(firstOf(e.date_of_joining, current.date_of_joining)),
     outlet: firstOf(e.outlet_name, e.outlet_nickname, current.outlet_nickname),
     department_name: firstOf(e.department_name, current.department_name),
     designation_name: firstOf(e.designation_name, current.designation_name),
