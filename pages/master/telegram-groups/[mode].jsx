@@ -161,7 +161,10 @@ export default function TelegramGroupMode() {
     setServerError(null);
     const body = {
       group_name: values.group_name.trim(),
-      chat_id: String(values.chat_id).trim(),
+      // NOT trimmed: the Chat ID is sent exactly as validated. Trimming here
+      // would repair a value the rule refuses - and that the server refuses
+      // too - into one that saves, which is the mismatch this avoids.
+      chat_id: String(values.chat_id),
       category: values.category,
       used_for: values.used_for.trim(),
       outlet_id: values.outlet_id === "" ? null : Number(values.outlet_id),

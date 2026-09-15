@@ -33,12 +33,21 @@ export const TELEGRAM_GROUP_MESSAGES = {
     "Bot is not an admin in this group. Member-removal functionality will not work.",
 };
 
+/**
+ * A leading minus and digits, NOTHING ELSE - applied to the value exactly as
+ * it was typed or pasted, never to a trimmed copy.
+ *
+ * `" -1001234567890 "` does not satisfy this rule. Trimming before checking
+ * would turn a value the rule refuses into one it accepts, the form would
+ * pass judgement on a string the user never entered, and the field would
+ * disagree with the server, which refuses the padded value.
+ */
 const GROUP_CHAT_ID_RE = /^-\d+$/;
 /** `-0`, `-00`, … pass the rule by shape but are zero with a sign, not a chat. */
 const ALL_ZEROS_RE = /^-0+$/;
 const SUPERGROUP_PREFIX = "-100";
 
-const text = (value) => String(value === undefined || value === null ? "" : value).trim();
+const text = (value) => String(value === undefined || value === null ? "" : value);
 
 export function isValidGroupChatId(value) {
   const chatId = text(value);
@@ -70,6 +79,9 @@ export function isBasicGroup(chatId) {
  * pasted.
  */
 export function chatIdError(value) {
+  // `text` no longer trims, so whitespace reaches the format check and is
+  // refused there rather than being silently removed. A whitespace-only
+  // value is malformed, not absent, and is told so.
   const chatId = text(value);
   if (!chatId) return TELEGRAM_GROUP_MESSAGES.CHAT_ID_REQUIRED;
   if (/^\+?\d+$/.test(chatId)) return TELEGRAM_GROUP_MESSAGES.CHAT_ID_POSITIVE;

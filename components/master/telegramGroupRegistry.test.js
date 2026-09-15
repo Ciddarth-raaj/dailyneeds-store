@@ -91,6 +91,61 @@ test("letters, mixed strings, spaces and decimals are refused", () => {
   assert.strictEqual(rules.deriveGroupType("-100abc"), null, "no confident type for rubbish");
 });
 
+test("LEADING OR TRAILING WHITESPACE IS REFUSED - never trimmed into a valid id", () => {
+  // The approved rule is `^-\d+$` applied to the value as typed. Trimming
+  // first would accept a string the rule refuses, and the form would then
+  // disagree with the server, which refuses the padded value.
+  for (const padded of [
+    " -1001234567890",
+    "-1001234567890 ",
+    " -1001234567890 ",
+    "\t-1001234567890",
+    "-1001234567890\n",
+    " -4800060153 ",
+  ]) {
+    assert.strictEqual(rules.isValidGroupChatId(padded), false, JSON.stringify(padded));
+    assert.strictEqual(
+      rules.chatIdError(padded),
+      rules.TELEGRAM_GROUP_MESSAGES.CHAT_ID_FORMAT,
+      JSON.stringify(padded)
+    );
+    assert.strictEqual(rules.deriveGroupType(padded), null, "no type is derived for a padded id");
+  }
+});
+
+test("whitespace INSIDE the id is refused", () => {
+  for (const spaced of ["-100 1234567890", "-100\t1234567890"]) {
+    assert.strictEqual(rules.isValidGroupChatId(spaced), false, spaced);
+    assert.strictEqual(rules.chatIdError(spaced), rules.TELEGRAM_GROUP_MESSAGES.CHAT_ID_FORMAT);
+  }
+});
+
+test("a whitespace-only Chat ID is malformed, not missing", () => {
+  assert.strictEqual(rules.chatIdError("   "), rules.TELEGRAM_GROUP_MESSAGES.CHAT_ID_FORMAT);
+});
+
+test("a padded Chat ID keeps Save disabled, because the button asks the same rule", () => {
+  assert.match(formPage, /isDisabled=\{[^}]*isValidGroupChatId\(values\.chat_id\)/);
+  assert.strictEqual(rules.isValidGroupChatId(" -1001234567890 "), false);
+});
+
+test("THE CHAT ID IS SENT EXACTLY AS VALIDATED - the form does not trim it", () => {
+  assert.match(formPage, /chat_id: String\(values\.chat_id\),/);
+  assert.ok(
+    !/chat_id: String\(values\.chat_id\)\.trim\(\)/.test(formPage),
+    "trimming here would repair a value the rule refuses"
+  );
+});
+
+test("the rules module never trims a Chat ID", () => {
+  // Cheap guard against the trim coming back: the shared `text` helper feeds
+  // every Chat ID check, and a `.trim()` on it would re-open the whole gap.
+  assert.ok(
+    !/const text = \(value\)[^;]*\.trim\(\)/.test(rulesSource),
+    "the Chat ID helper must not trim"
+  );
+});
+
 test("an empty Chat ID asks for one rather than calling it malformed", () => {
   assert.strictEqual(rules.chatIdError(""), rules.TELEGRAM_GROUP_MESSAGES.CHAT_ID_REQUIRED);
   assert.strictEqual(rules.chatIdError(null), rules.TELEGRAM_GROUP_MESSAGES.CHAT_ID_REQUIRED);
