@@ -7,6 +7,7 @@ import toast from "react-hot-toast";
 import GlobalWrapper from "../../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../../components/CustomContainer";
 import CustomInput from "../../../components/customInput/customInput";
+import styles from "../../../styles/master.module.css";
 import useOutlets from "../../../customHooks/useOutlets";
 import usePermissions from "../../../customHooks/usePermissions";
 import { useTelegramGroupById } from "../../../customHooks/useTelegramGroupById";
@@ -253,63 +254,66 @@ export default function TelegramGroupMode() {
         >
           {({ handleSubmit: formikSubmit, values, isSubmitting }) => (
             <form onSubmit={formikSubmit}>
-              <Flex flexDirection="column" gap={4} mb={2}>
-                <CustomInput
-                  label="Group Name *"
-                  name="group_name"
-                  type="text"
-                  placeholder="e.g. Attendance Alerts"
-                  editable={!viewMode}
-                />
-                <CustomInput
-                  label="Group Chat ID *"
-                  name="chat_id"
-                  type="text"
-                  placeholder="-1001234567890"
-                  editable={!viewMode}
-                />
-                <CustomInput
-                  label="Category *"
-                  name="category"
-                  type="text"
-                  method="switch"
-                  values={categoryOptions}
-                  editable={!viewMode}
-                />
-                <CustomInput
-                  label="Used For *"
-                  name="used_for"
-                  type="text"
-                  placeholder="e.g. Daily missing-punch alerts"
-                  editable={!viewMode}
-                />
-                <CustomInput
-                  label="Outlet"
-                  name="outlet_id"
-                  type="text"
-                  method="switch"
-                  values={outletOptions}
-                  editable={!viewMode}
-                />
-                <CustomInput
-                  label="Bot Is Admin *"
-                  name="bot_is_admin"
-                  type="text"
-                  method="switch"
-                  values={YES_NO}
-                  editable={!viewMode}
-                />
-              </Flex>
+              <div className={styles.inputContainer}>
+                <div className={styles.inputSubContainer}>
+                  <CustomInput
+                    label="Group Name *"
+                    name="group_name"
+                    type="text"
+                    placeholder="e.g. Attendance Alerts"
+                    editable={!viewMode}
+                  />
+                  <CustomInput
+                    label="Group Chat ID *"
+                    name="chat_id"
+                    type="text"
+                    placeholder="-1001234567890"
+                    editable={!viewMode}
+                  />
+                </div>
+                <div className={styles.inputSubContainer}>
+                  <CustomInput
+                    label="Category *"
+                    name="category"
+                    type="text"
+                    method="switch"
+                    values={categoryOptions}
+                    editable={!viewMode}
+                  />
+                  <CustomInput
+                    label="Used For *"
+                    name="used_for"
+                    type="text"
+                    placeholder="e.g. Daily missing-punch alerts"
+                    editable={!viewMode}
+                  />
+                </div>
+                <div className={styles.inputSubContainer}>
+                  <CustomInput
+                    label="Outlet"
+                    name="outlet_id"
+                    type="text"
+                    method="switch"
+                    values={outletOptions}
+                    editable={!viewMode}
+                    // A group with no outlet reads as "All Outlets", not the
+                    // "N/A" the read-only renderer shows for an empty value.
+                    {...(viewMode ? { value: displayOutlet(group) } : {})}
+                  />
+                  <CustomInput
+                    label="Bot Is Admin *"
+                    name="bot_is_admin"
+                    type="text"
+                    method="switch"
+                    values={YES_NO}
+                    editable={!viewMode}
+                  />
+                </div>
+              </div>
 
               <GroupTypeNotice chatId={values.chat_id} botIsAdmin={values.bot_is_admin} />
 
-              {viewMode ? (
-                <Flex direction="column" gap={1} mb={4} fontSize="sm" color="gray.600">
-                  <Text>Outlet: {displayOutlet(group)}</Text>
-                </Flex>
-              ) : null}
-
-              <Flex gap={3} justify="flex-end" mt={6}>
+              <div className={styles.buttonContainer}>
                 {viewMode ? (
                   <>
                     {canManage && groupId ? (
@@ -352,7 +356,7 @@ export default function TelegramGroupMode() {
                     </Button>
                   </>
                 )}
-              </Flex>
+              </div>
             </form>
           )}
         </Formik>
