@@ -27,6 +27,7 @@ const listPage = strip(read("pages/master/telegram-groups/index.jsx"));
 const formPage = strip(read("pages/master/telegram-groups/[mode].jsx"));
 const helper = strip(read("helper/telegramGroups.js"));
 const listHook = strip(read("customHooks/useTelegramGroups.js"));
+const guide = strip(read("components/master/TelegramGroupSetupGuide.jsx"));
 const menus = read("constants/menus.js");
 const permissions = read("constants/permissions.js");
 
@@ -449,8 +450,8 @@ test("Status is sent as a boolean, and read back from one", () => {
 });
 
 test("the form shows the guidance panel while editing, and not on the read-only view", () => {
-  assert.match(formPage, /function GuidancePanel\(\)/);
-  assert.match(formPage, /\{!viewMode \? <GuidancePanel \/> : null\}/);
+  assert.match(formPage, /function GuidancePanel\(/);
+  assert.match(formPage, /\{!viewMode \? <GuidancePanel[\s\S]*?\/> : null\}/);
   assert.match(formPage, /Chat ID guidelines/);
   assert.match(formPage, /Bot admin requirement/);
   assert.match(formPage, /How to get the Chat ID/);
@@ -463,4 +464,94 @@ test("STATUS IS NOT THE BOT-ADMIN FLAG - they are separate fields", () => {
     rules.rowStatus({ is_active: true, bot_is_admin: false, chat_id: SUPERGROUP }).label,
     "Inactive"
   );
+});
+
+
+/* ================================================= the in-app setup guide = */
+
+test("the setup guide is reachable from the list and from the form", () => {
+  assert.match(listPage, /<TelegramGroupSetupGuide isOpen=\{guideOpen\}/);
+  assert.match(listPage, /Setup guide/);
+  assert.match(formPage, /<TelegramGroupSetupGuide isOpen=\{guideOpen\}/);
+  assert.match(formPage, /Full setup guide/);
+});
+
+test("reading the guide needs no permission to manage groups", () => {
+  // Knowing how a group is set up is not authority to register one, so the
+  // button sits outside the canManage branch.
+  const rightSection = /rightSection=\{([\s\S]*?)\n        \}/.exec(listPage);
+  assert.ok(rightSection, "the header has a rightSection");
+  const guideAt = rightSection[1].indexOf("Setup guide");
+  const canManageAt = rightSection[1].indexOf("canManage");
+  assert.ok(guideAt !== -1 && (canManageAt === -1 || guideAt < canManageAt));
+});
+
+test("the guide covers all six steps, verification and the warnings", () => {
+  for (const step of [
+    "Create the Telegram group",
+    "Convert it to a Supergroup",
+    "Add the Daily Needs bot",
+    "Send a test message",
+    "Get the group Chat ID",
+    "Add it on this screen",
+  ]) {
+    assert.match(guide, new RegExp(step), step);
+  }
+  assert.match(guide, /How to verify/);
+  assert.match(guide, /Important/);
+});
+
+test("THE GUIDE CANNOT DRIFT FROM THE FORM - it reads the shared lists", () => {
+  // The defect this prevents: adding a category and leaving a hard-coded
+  // guide quietly telling people the old set.
+  assert.match(guide, /TELEGRAM_GROUP_CATEGORIES\.join/);
+  assert.match(guide, /GROUP_TYPE\.SUPERGROUP/);
+  assert.match(guide, /GROUP_TYPE\.BASIC_GROUP/);
+  assert.ok(
+    !/"Attendance"|'Attendance'/.test(guide),
+    "no category is typed out again in the guide"
+  );
+});
+
+test("the guide's field list matches what the form actually asks for", () => {
+  // Every field named in Step 6 exists on the form, Status included - the
+  // gap that made the original written guide wrong the moment Status shipped.
+  const listed = [...guide.matchAll(/\{ label: "([^"]+)", note:/g)].map((m) => m[1]);
+  assert.deepStrictEqual(listed, [
+    "Group Name",
+    "Group Chat ID",
+    "Category",
+    "Used For",
+    "Outlet",
+    "Bot Is Admin",
+    "Status",
+  ]);
+  for (const [label, field] of [
+    ["Group Name", "group_name"],
+    ["Group Chat ID", "chat_id"],
+    ["Category", "category"],
+    ["Used For", "used_for"],
+    ["Outlet", "outlet_id"],
+    ["Bot Is Admin", "bot_is_admin"],
+    ["Status", "is_active"],
+  ]) {
+    assert.match(formPage, new RegExp(`name="${field}"`), `${label} -> ${field}`);
+  }
+});
+
+test("the guide states the rules the form and server actually enforce", () => {
+  // JSX wraps prose across lines, so these match on collapsed whitespace
+  // rather than on however Prettier happened to break the sentence.
+  const prose = guide.replace(/\s+/g, " ");
+  assert.match(prose, /positive and is rejected/);
+  assert.match(prose, /Do not add spaces before or after the Chat ID/);
+  assert.match(prose, /rejected, not tidied up/);
+  assert.match(prose, /registered only once/);
+  assert.match(prose, /detected from the Chat ID/);
+});
+
+test("the guide explains but does not enforce - it holds no validation of its own", () => {
+  // Enforcement lives in the form and again on the server. A second copy of
+  // a rule here is a copy that can disagree.
+  assert.ok(!/\^-\\d\+\$|isValidGroupChatId|chatIdError/.test(guide));
 });

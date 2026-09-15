@@ -19,6 +19,7 @@ import toast from "react-hot-toast";
 import GlobalWrapper from "../../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../../components/CustomContainer";
 import CustomInput from "../../../components/customInput/customInput";
+import TelegramGroupSetupGuide from "../../../components/master/TelegramGroupSetupGuide";
 import styles from "../../../styles/master.module.css";
 import useOutlets from "../../../customHooks/useOutlets";
 import usePermissions from "../../../customHooks/usePermissions";
@@ -136,9 +137,20 @@ function GroupTypeNotice({ chatId, botIsAdmin }) {
  * Read-only: nothing here is a control, and the rules it states are enforced
  * by the form and again by the server.
  */
-function GuidancePanel() {
+function GuidancePanel({ onOpenGuide }) {
   return (
     <Stack spacing={4} flex="1" minW={{ xl: "320px" }} maxW={{ xl: "420px" }}>
+      <Button
+        size="sm"
+        variant="outline"
+        colorScheme="purple"
+        onClick={onOpenGuide}
+        leftIcon={<i className="fa-solid fa-circle-question" />}
+        alignSelf="flex-start"
+      >
+        Full setup guide
+      </Button>
+
       <Alert status="info" borderRadius="md" alignItems="flex-start" fontSize="sm">
         <AlertIcon />
         <Box>
@@ -206,6 +218,7 @@ export default function TelegramGroupMode() {
 
   const [formInitialValues, setFormInitialValues] = useState(EMPTY);
   const [serverError, setServerError] = useState(null);
+  const [guideOpen, setGuideOpen] = useState(false);
 
   useEffect(() => {
     if (createMode) {
@@ -316,6 +329,7 @@ export default function TelegramGroupMode() {
       permissionKey={viewMode ? ["view_telegram_groups"] : ["manage_telegram_groups"]}
     >
       <CustomContainer title={title} filledHeader>
+        <TelegramGroupSetupGuide isOpen={guideOpen} onClose={() => setGuideOpen(false)} />
         {!viewMode && !canManage ? (
           <Alert status="warning" fontSize="sm" mb={4}>
             <AlertIcon />
@@ -420,7 +434,7 @@ export default function TelegramGroupMode() {
 
                 {/* The guidance is for somebody filling the form in, so it is
                     not shown on the read-only view. */}
-                {!viewMode ? <GuidancePanel /> : null}
+                {!viewMode ? <GuidancePanel onOpenGuide={() => setGuideOpen(true)} /> : null}
               </Flex>
 
               <div className={styles.buttonContainer}>

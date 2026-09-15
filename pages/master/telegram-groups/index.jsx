@@ -24,6 +24,7 @@ import useDebounce from "../../../customHooks/useDebounce";
 import { useConfirmDelete } from "../../../customHooks/useConfirmDelete";
 import { useTelegramGroups } from "../../../customHooks/useTelegramGroups";
 import useOutlets from "../../../customHooks/useOutlets";
+import TelegramGroupSetupGuide from "../../../components/master/TelegramGroupSetupGuide";
 import {
   TELEGRAM_GROUP_CATEGORIES,
   TELEGRAM_GROUP_MESSAGES,
@@ -68,6 +69,7 @@ export default function TelegramGroupRegistryPage() {
   const [outletId, setOutletId] = useState("");
   const [botIsAdmin, setBotIsAdmin] = useState("");
   const [status, setStatus] = useState("");
+  const [guideOpen, setGuideOpen] = useState(false);
   const debouncedSearch = useDebounce(search, 400);
 
   const { groups, loading, error, deleteGroup } = useTelegramGroups({
@@ -214,20 +216,34 @@ export default function TelegramGroupRegistryPage() {
       permissionKey={["view_telegram_groups"]}
     >
       <ConfirmDeleteDialog />
+      <TelegramGroupSetupGuide isOpen={guideOpen} onClose={() => setGuideOpen(false)} />
       <CustomContainer
         title="Telegram Group Registry"
         subtitle="Every Telegram group the Daily Needs bot posts to, what each one is used for, and whether the bot can act in it."
         filledHeader
         rightSection={
-          canManage ? (
+          <Flex gap={2}>
+            {/* Available to everyone who can see the screen: reading how a
+                group is set up is not a permission to register one. */}
             <Button
-              colorScheme="purple"
               size="sm"
-              onClick={() => router.push("/master/telegram-groups/create")}
+              variant="outline"
+              colorScheme="purple"
+              onClick={() => setGuideOpen(true)}
+              leftIcon={<i className="fa-solid fa-circle-question" />}
             >
-              Add
+              Setup guide
             </Button>
-          ) : null
+            {canManage ? (
+              <Button
+                colorScheme="purple"
+                size="sm"
+                onClick={() => router.push("/master/telegram-groups/create")}
+              >
+                Add
+              </Button>
+            ) : null}
+          </Flex>
         }
       >
         <Flex
