@@ -1,6 +1,18 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/router";
-import { Alert, AlertIcon, Badge, Button, Flex, Stack, Text } from "@chakra-ui/react";
+import {
+  Alert,
+  AlertIcon,
+  Badge,
+  Box,
+  Button,
+  Flex,
+  ListItem,
+  OrderedList,
+  Stack,
+  Text,
+  UnorderedList,
+} from "@chakra-ui/react";
 import { Formik } from "formik";
 import * as Yup from "yup";
 import toast from "react-hot-toast";
@@ -18,6 +30,7 @@ import {
 import {
   TELEGRAM_GROUP_CATEGORIES,
   TELEGRAM_GROUP_MESSAGES,
+  STATUS_OPTIONS,
   GROUP_TYPE,
   chatIdError,
   deriveGroupType,
@@ -59,6 +72,7 @@ const validationSchema = Yup.object({
   used_for: Yup.string().trim().required("Used For is required").max(255),
   outlet_id: Yup.mixed().nullable(),
   bot_is_admin: Yup.string().required("Bot Is Admin is required").oneOf(["1", "0"]),
+  is_active: Yup.string().required("Status is required").oneOf(["Active", "Inactive"]),
 });
 
 const EMPTY = {
@@ -68,6 +82,8 @@ const EMPTY = {
   used_for: "",
   outlet_id: "",
   bot_is_admin: "",
+  // A group somebody is registering is one they are about to use.
+  is_active: "Active",
 };
 
 const YES_NO = [
@@ -108,6 +124,71 @@ function GroupTypeNotice({ chatId, botIsAdmin }) {
   );
 }
 
+/**
+ * The guidance beside the form: what a Chat ID must look like, why the bot
+ * needs to be an admin, and how to find the id in Telegram.
+ *
+ * It sits next to the fields rather than under them because it is reference
+ * material somebody reads WHILE typing - underneath, it would be below the
+ * fold on the one screen where it is needed. On a narrow screen it stacks
+ * below the form, where it is still reachable.
+ *
+ * Read-only: nothing here is a control, and the rules it states are enforced
+ * by the form and again by the server.
+ */
+function GuidancePanel() {
+  return (
+    <Stack spacing={4} flex="1" minW={{ xl: "320px" }} maxW={{ xl: "420px" }}>
+      <Alert status="info" borderRadius="md" alignItems="flex-start" fontSize="sm">
+        <AlertIcon />
+        <Box>
+          <Text fontWeight="600" mb={1}>
+            Chat ID guidelines
+          </Text>
+          <UnorderedList spacing={1}>
+            <ListItem>Must be a negative number, e.g. -1001234567890.</ListItem>
+            <ListItem>A positive number is an individual user, not a group, and is rejected.</ListItem>
+            <ListItem>IDs starting with -100 are supergroups (recommended).</ListItem>
+            <ListItem>
+              Other negative IDs are basic groups - accepted, but consider converting to a
+              supergroup for invite links and member removal.
+            </ListItem>
+            <ListItem>No spaces, decimals or letters, and it must be unique.</ListItem>
+          </UnorderedList>
+        </Box>
+      </Alert>
+
+      <Alert status="warning" borderRadius="md" alignItems="flex-start" fontSize="sm">
+        <AlertIcon />
+        <Box>
+          <Text fontWeight="600" mb={1}>
+            Bot admin requirement
+          </Text>
+          <Text>
+            Add the bot as an admin in the group. Groups where it is not an admin are saved
+            and flagged, but cannot be used for member management.
+          </Text>
+        </Box>
+      </Alert>
+
+      <Alert status="success" borderRadius="md" alignItems="flex-start" fontSize="sm">
+        <AlertIcon />
+        <Box>
+          <Text fontWeight="600" mb={1}>
+            How to get the Chat ID
+          </Text>
+          <OrderedList spacing={1}>
+            <ListItem>Add the bot to your Telegram group as an admin.</ListItem>
+            <ListItem>Send any message in the group.</ListItem>
+            <ListItem>Use a tool such as @userinfobot to read the group chat ID.</ListItem>
+            <ListItem>Or check your existing bot integration logs.</ListItem>
+          </OrderedList>
+        </Box>
+      </Alert>
+    </Stack>
+  );
+}
+
 export default function TelegramGroupMode() {
   const router = useRouter();
   const { mode, id } = router.query;
@@ -139,6 +220,7 @@ export default function TelegramGroupMode() {
         used_for: group.used_for || "",
         outlet_id: group.outlet_id == null ? "" : String(group.outlet_id),
         bot_is_admin: group.bot_is_admin ? "1" : "0",
+        is_active: group.is_active === false ? "Inactive" : "Active",
       });
     }
   }, [createMode, group]);
@@ -170,6 +252,7 @@ export default function TelegramGroupMode() {
       used_for: values.used_for.trim(),
       outlet_id: values.outlet_id === "" ? null : Number(values.outlet_id),
       bot_is_admin: values.bot_is_admin === "1",
+      is_active: values.is_active === "Active",
     };
 
     try {
@@ -254,6 +337,14 @@ export default function TelegramGroupMode() {
         >
           {({ handleSubmit: formikSubmit, values, isSubmitting }) => (
             <form onSubmit={formikSubmit}>
+              {/* Fields on the left, reference material on the right; it
+                  stacks on a narrow screen. */}
+              <Flex
+                direction={{ base: "column", xl: "row" }}
+                gap={{ base: 4, xl: 8 }}
+                align="flex-start"
+              >
+                <Box flex="2" minW={0} w="100%">
               <div className={styles.inputContainer}>
                 <div className={styles.inputSubContainer}>
                   <CustomInput
@@ -309,9 +400,28 @@ export default function TelegramGroupMode() {
                     editable={!viewMode}
                   />
                 </div>
+                <div className={styles.inputSubContainer}>
+                  <CustomInput
+                    label="Status *"
+                    name="is_active"
+                    type="text"
+                    method="switch"
+                    values={STATUS_OPTIONS}
+                    editable={!viewMode}
+                  />
+                  {/* Keeps the last row two columns wide so Status lines up
+                      with the fields above it rather than stretching. */}
+                  <div style={{ width: "100%" }} />
+                </div>
               </div>
 
               <GroupTypeNotice chatId={values.chat_id} botIsAdmin={values.bot_is_admin} />
+                </Box>
+
+                {/* The guidance is for somebody filling the form in, so it is
+                    not shown on the read-only view. */}
+                {!viewMode ? <GuidancePanel /> : null}
+              </Flex>
 
               <div className={styles.buttonContainer}>
                 {viewMode ? (

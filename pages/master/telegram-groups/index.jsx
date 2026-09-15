@@ -4,12 +4,14 @@ import {
   Alert,
   AlertIcon,
   Badge,
+  Box,
   Button,
   Flex,
   FormControl,
   FormLabel,
   Input,
   Select,
+  Stack,
   Text,
   Tooltip,
 } from "@chakra-ui/react";
@@ -21,12 +23,17 @@ import usePermissions from "../../../customHooks/usePermissions";
 import useDebounce from "../../../customHooks/useDebounce";
 import { useConfirmDelete } from "../../../customHooks/useConfirmDelete";
 import { useTelegramGroups } from "../../../customHooks/useTelegramGroups";
+import useOutlets from "../../../customHooks/useOutlets";
 import {
   TELEGRAM_GROUP_CATEGORIES,
   TELEGRAM_GROUP_MESSAGES,
+  BOT_ADMIN_OPTIONS,
+  STATUS_OPTIONS,
+  OUTLET_FILTER_NONE,
   GROUP_TYPE,
   deriveGroupType,
   displayOutlet,
+  rowStatus,
 } from "../../../util/telegramGroup";
 
 /**
@@ -54,14 +61,33 @@ export default function TelegramGroupRegistryPage() {
   const canManage = usePermissions(["manage_telegram_groups"]);
   const { confirmDelete, ConfirmDeleteDialog } = useConfirmDelete();
 
+  const { outlets } = useOutlets({ directory: true });
+
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("");
+  const [outletId, setOutletId] = useState("");
+  const [botIsAdmin, setBotIsAdmin] = useState("");
+  const [status, setStatus] = useState("");
   const debouncedSearch = useDebounce(search, 400);
 
   const { groups, loading, error, deleteGroup } = useTelegramGroups({
     search: debouncedSearch,
     category,
+    outlet_id: outletId,
+    bot_is_admin: botIsAdmin,
+    is_active: status,
   });
+
+  const filtersApplied =
+    Boolean(search) || Boolean(category) || Boolean(outletId) || Boolean(botIsAdmin) || Boolean(status);
+
+  const resetFilters = useCallback(() => {
+    setSearch("");
+    setCategory("");
+    setOutletId("");
+    setBotIsAdmin("");
+    setStatus("");
+  }, []);
 
   const notAdminCount = useMemo(
     () => groups.filter((g) => !g.bot_is_admin).length,
@@ -136,6 +162,16 @@ export default function TelegramGroupRegistryPage() {
         },
       },
       {
+        field: "status",
+        headerName: "Status",
+        minWidth: 120,
+        type: "badge-column",
+        // Three states, and the third is the point: an active group carrying
+        // a warning reads "Warning" so the rows that need chasing are visible
+        // without opening anything. See util/telegramGroup#rowStatus.
+        valueGetter: (params) => (params.data ? rowStatus(params.data) : null),
+      },
+      {
         field: "actions",
         headerName: "Actions",
         type: "action-icons",
@@ -195,10 +231,11 @@ export default function TelegramGroupRegistryPage() {
         }
       >
         <Flex
-          gap={4}
+          gap={3}
           mb={4}
           direction={{ base: "column", md: "row" }}
           align={{ md: "flex-end" }}
+          wrap="wrap"
         >
           <FormControl maxW={{ md: "320px" }}>
             <FormLabel fontSize="sm">Search</FormLabel>
@@ -209,7 +246,7 @@ export default function TelegramGroupRegistryPage() {
               placeholder="Group name, Chat ID or purpose"
             />
           </FormControl>
-          <FormControl maxW={{ md: "220px" }}>
+          <FormControl maxW={{ md: "200px" }}>
             <FormLabel fontSize="sm">Category</FormLabel>
             <Select
               size="sm"
@@ -224,7 +261,93 @@ export default function TelegramGroupRegistryPage() {
               ))}
             </Select>
           </FormControl>
+          <FormControl maxW={{ md: "200px" }}>
+            <FormLabel fontSize="sm">Outlet</FormLabel>
+            <Select
+              size="sm"
+              value={outletId}
+              onChange={(e) => setOutletId(e.target.value)}
+              placeholder="All outlets"
+            >
+              {/* A filter an outlet id cannot express: the groups that
+                  belong to no outlet at all. */}
+              <option value={OUTLET_FILTER_NONE}>All Outlets (no specific outlet)</option>
+              {outlets.map((o) => (
+                <option key={o.outlet_id} value={o.outlet_id}>
+                  {o.outlet_name}
+                </option>
+              ))}
+            </Select>
+          </FormControl>
+          <FormControl maxW={{ md: "200px" }}>
+            <FormLabel fontSize="sm">Bot Admin</FormLabel>
+            <Select
+              size="sm"
+              value={botIsAdmin}
+              onChange={(e) => setBotIsAdmin(e.target.value)}
+              placeholder="All admin status"
+            >
+              {BOT_ADMIN_OPTIONS.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.value}
+                </option>
+              ))}
+            </Select>
+          </FormControl>
+          <FormControl maxW={{ md: "170px" }}>
+            <FormLabel fontSize="sm">Status</FormLabel>
+            <Select
+              size="sm"
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              placeholder="All statuses"
+            >
+              {STATUS_OPTIONS.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.value}
+                </option>
+              ))}
+            </Select>
+          </FormControl>
+          <Button
+            size="sm"
+            variant="outline"
+            colorScheme="purple"
+            onClick={resetFilters}
+            isDisabled={!filtersApplied}
+            leftIcon={<i className="fa-solid fa-rotate-left" />}
+          >
+            Reset
+          </Button>
         </Flex>
+
+        <Stack
+          direction={{ base: "column", lg: "row" }}
+          spacing={3}
+          mb={3}
+          align="stretch"
+        >
+          <Alert status="info" fontSize="sm" borderRadius="md" alignItems="flex-start">
+            <AlertIcon />
+            <Box>
+              <Text fontWeight="600">Chat ID format</Text>
+              <Text>
+                Telegram group chat IDs are negative numbers (e.g. -1001234567890). A
+                positive number is an individual user, not a group, and is rejected.
+              </Text>
+            </Box>
+          </Alert>
+          <Alert status="warning" fontSize="sm" borderRadius="md" alignItems="flex-start">
+            <AlertIcon />
+            <Box>
+              <Text fontWeight="600">Basic Groups</Text>
+              <Text>
+                IDs not starting with -100 are basic groups. They cannot create invite
+                links or remove members until converted to a supergroup.
+              </Text>
+            </Box>
+          </Alert>
+        </Stack>
 
         {notAdminCount > 0 ? (
           <Alert status="error" fontSize="sm" mb={3}>

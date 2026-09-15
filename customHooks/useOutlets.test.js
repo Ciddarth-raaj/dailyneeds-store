@@ -155,6 +155,9 @@ test("no other consumer was switched to the directory", () => {
     // never on `view_stores`. The registry stores the outlet_id only and
     // joins the name back on read, so it needs no more of the record.
     "pages/master/telegram-groups/[mode].jsx",
+    // Telegram Group Registry list: the Outlet FILTER - an id and a name,
+    // behind `view_telegram_groups` and never `view_stores`.
+    "pages/master/telegram-groups/index.jsx",
     "pages/payroll/salary-approval.jsx",
     "pages/stock-checker/[mode].jsx",
     "pages/stock-checker/assigned-products.jsx",

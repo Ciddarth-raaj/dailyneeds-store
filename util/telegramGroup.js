@@ -13,8 +13,33 @@
  * the test asserts the shared sentences character for character.
  */
 
-/** The only categories a group may carry. Order is display order. */
-export const TELEGRAM_GROUP_CATEGORIES = ["Attendance", "Maintenance", "HR", "Other"];
+/**
+ * The only categories a group may carry. ORDER HERE IS DISPLAY ORDER: the
+ * schema appends "Marketing" last because appending an ENUM value rewrites
+ * no row, while "Other" reads last in a dropdown. The two orders differ on
+ * purpose and the backend compares them as a set.
+ */
+export const TELEGRAM_GROUP_CATEGORIES = [
+  "Attendance",
+  "Maintenance",
+  "HR",
+  "Marketing",
+  "Other",
+];
+
+/** The Bot Admin and Status filters, and the Yes/No and Active/Inactive fields. */
+export const BOT_ADMIN_OPTIONS = [
+  { id: "Yes", value: "Bot is admin" },
+  { id: "No", value: "Bot is not admin" },
+];
+
+export const STATUS_OPTIONS = [
+  { id: "Active", value: "Active" },
+  { id: "Inactive", value: "Inactive" },
+];
+
+/** The outlet filter's one value an outlet id cannot express. */
+export const OUTLET_FILTER_NONE = "none";
 
 export const GROUP_TYPE = {
   SUPERGROUP: "Supergroup",
@@ -99,6 +124,28 @@ export function telegramGroupWarnings({ chat_id, bot_is_admin }) {
   if (isBasicGroup(chat_id)) warnings.push(TELEGRAM_GROUP_MESSAGES.BASIC_GROUP_WARNING);
   if (!bot_is_admin) warnings.push(TELEGRAM_GROUP_MESSAGES.BOT_NOT_ADMIN_WARNING);
   return warnings;
+}
+
+/**
+ * The Status column.
+ *
+ * THREE STATES, NOT TWO, and the third is why this is a function rather than
+ * a boolean read. A retired group is Inactive. An active group that carries a
+ * warning - a non-admin bot, or a Basic Group - reads "Warning", because the
+ * whole point of the registry is that those rows are visible at a glance
+ * without opening anything. Everything else is Active.
+ *
+ * Inactive WINS over a warning: a group nobody uses any more does not need
+ * chasing, and showing it as a problem would bury the ones that do.
+ */
+export function rowStatus(row) {
+  if (row && row.is_active === false) {
+    return { label: "Inactive", colorScheme: "gray" };
+  }
+  if (telegramGroupWarnings(row || {}).length > 0) {
+    return { label: "Warning", colorScheme: "orange" };
+  }
+  return { label: "Active", colorScheme: "green" };
 }
 
 /** The registry never shows a blank cell for a group with no outlet. */

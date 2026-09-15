@@ -46,6 +46,10 @@ const rules = (() => {
     "chatIdError",
     "telegramGroupWarnings",
     "displayOutlet",
+    "rowStatus",
+    "STATUS_OPTIONS",
+    "BOT_ADMIN_OPTIONS",
+    "OUTLET_FILTER_NONE",
   ];
   // eslint-disable-next-line no-new-func
   return new Function(`${cjs}\nreturn { ${names.join(", ")} };`)();
@@ -153,11 +157,15 @@ test("an empty Chat ID asks for one rather than calling it malformed", () => {
 
 /* ======================================================== category ======= */
 
-test("the four categories, and only those, are offered", () => {
+test("the approved categories, and only those, are offered", () => {
+  // Display order, which is deliberately not the schema's: the ENUM appends
+  // Marketing last (appending rewrites no row), while "Other" reads last in
+  // a dropdown. The backend compares the two as a set.
   assert.deepStrictEqual(rules.TELEGRAM_GROUP_CATEGORIES, [
     "Attendance",
     "Maintenance",
     "HR",
+    "Marketing",
     "Other",
   ]);
 });
@@ -335,7 +343,124 @@ test("a duplicate Chat ID is shown as the server worded it, not as a generic fai
 /* ==================================================== scope control ====== */
 
 test("these screens do not reach into member management or invite links", () => {
+  // Scope control, and it is about CAPABILITY, not vocabulary. The approved
+  // warnings say the words "invite-link" and "member-removal" out loud -
+  // that is the whole point of them - so matching on the words flagged the
+  // guidance banner that exists to set expectations. What must be absent is
+  // any call that could actually do those things.
   for (const page of [listPage, formPage, helper]) {
-    assert.ok(!/invite|kickChatMember|banChatMember|removeMember/i.test(page));
+    for (const capability of [
+      "kickChatMember",
+      "banChatMember",
+      "unbanChatMember",
+      "removeMember",
+      "createChatInviteLink",
+      "exportChatInviteLink",
+      "api.telegram.org",
+    ]) {
+      assert.ok(!page.includes(capability), `${capability} must not appear`);
+    }
   }
+  // And the helper talks to this registry's endpoints and nothing else.
+  const endpoints = [...helper.matchAll(/API\.\w+\(`?"?([^`",)]+)/g)].map((m) => m[1]);
+  for (const endpoint of endpoints) {
+    assert.ok(endpoint.startsWith("/telegram-groups"), `unexpected endpoint ${endpoint}`);
+  }
+});
+
+
+/* ============================================ status, filters, guidance == */
+
+test("the Status column has THREE states, and a warning row says so", () => {
+  // The third state is the point: an active group carrying a warning must be
+  // visible in the list without opening anything.
+  assert.strictEqual(
+    rules.rowStatus({ is_active: true, bot_is_admin: true, chat_id: SUPERGROUP }).label,
+    "Active"
+  );
+  assert.strictEqual(
+    rules.rowStatus({ is_active: true, bot_is_admin: false, chat_id: SUPERGROUP }).label,
+    "Warning"
+  );
+  assert.strictEqual(
+    rules.rowStatus({ is_active: true, bot_is_admin: true, chat_id: BASIC }).label,
+    "Warning"
+  );
+});
+
+test("Inactive WINS over a warning - a retired group is not a problem to chase", () => {
+  assert.strictEqual(
+    rules.rowStatus({ is_active: false, bot_is_admin: false, chat_id: BASIC }).label,
+    "Inactive"
+  );
+});
+
+test("a row with no is_active (an older response) reads as Active, not Inactive", () => {
+  // Defensive: the column defaults to 1 in the database, so absent must not
+  // render as retired.
+  assert.strictEqual(rules.rowStatus({ bot_is_admin: true, chat_id: SUPERGROUP }).label, "Active");
+});
+
+test("the list shows a Status column and derives it from rowStatus", () => {
+  assert.match(listPage, /field: "status"/);
+  assert.match(listPage, /headerName: "Status"/);
+  assert.match(listPage, /rowStatus\(params\.data\)/);
+});
+
+test("the list offers the Outlet, Bot Admin and Status filters, and a Reset", () => {
+  for (const label of ["Search", "Category", "Outlet", "Bot Admin", "Status"]) {
+    assert.match(listPage, new RegExp(`<FormLabel fontSize="sm">${label}</FormLabel>`), label);
+  }
+  assert.match(listPage, /resetFilters/);
+  assert.match(listPage, /isDisabled=\{!filtersApplied\}/);
+});
+
+test("the new filters are SERVER-SIDE, like search and category", () => {
+  assert.match(listPage, /outlet_id: outletId/);
+  assert.match(listPage, /bot_is_admin: botIsAdmin/);
+  assert.match(listPage, /is_active: status/);
+  assert.match(listHook, /if \(outlet_id\) params\.outlet_id = outlet_id;/);
+  assert.match(listHook, /if \(bot_is_admin\) params\.bot_is_admin = bot_is_admin;/);
+  assert.match(listHook, /if \(is_active\) params\.is_active = is_active;/);
+  assert.match(listHook, /\[search, category, outlet_id, bot_is_admin, is_active\]/);
+});
+
+test("the outlet filter can ask for the groups that belong to no outlet", () => {
+  assert.strictEqual(rules.OUTLET_FILTER_NONE, "none");
+  assert.match(listPage, /value=\{OUTLET_FILTER_NONE\}/);
+});
+
+test("the list carries the Chat ID and Basic Group guidance banners", () => {
+  assert.match(listPage, /Chat ID format/);
+  assert.match(listPage, /negative numbers/);
+  assert.match(listPage, /Basic Groups/);
+});
+
+test("the form has a Status field defaulting to Active", () => {
+  assert.match(formPage, /name="is_active"/);
+  assert.match(formPage, /values=\{STATUS_OPTIONS\}/);
+  assert.match(formPage, /is_active: "Active"/);
+  assert.match(formPage, /\.oneOf\(\["Active", "Inactive"\]\)/);
+});
+
+test("Status is sent as a boolean, and read back from one", () => {
+  assert.match(formPage, /is_active: values\.is_active === "Active"/);
+  assert.match(formPage, /group\.is_active === false \? "Inactive" : "Active"/);
+});
+
+test("the form shows the guidance panel while editing, and not on the read-only view", () => {
+  assert.match(formPage, /function GuidancePanel\(\)/);
+  assert.match(formPage, /\{!viewMode \? <GuidancePanel \/> : null\}/);
+  assert.match(formPage, /Chat ID guidelines/);
+  assert.match(formPage, /Bot admin requirement/);
+  assert.match(formPage, /How to get the Chat ID/);
+});
+
+test("STATUS IS NOT THE BOT-ADMIN FLAG - they are separate fields", () => {
+  assert.match(formPage, /name="bot_is_admin"/);
+  assert.match(formPage, /name="is_active"/);
+  assert.notStrictEqual(
+    rules.rowStatus({ is_active: true, bot_is_admin: false, chat_id: SUPERGROUP }).label,
+    "Inactive"
+  );
 });
