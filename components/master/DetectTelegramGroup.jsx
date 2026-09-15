@@ -33,8 +33,19 @@ import { GROUP_TYPE, deriveGroupType } from "../../util/telegramGroup";
  * exactly as it is everywhere else.
  */
 
+/**
+ * The wait is REAL and worth naming. Telegram updates are read by one
+ * once-a-minute poller (the same one that handles account linking - see
+ * `usecase/telegram_group_detection.js` for why there is only one), so a
+ * `/setup` sent five seconds ago genuinely will not be here yet. Without
+ * that sentence the honest answer "nothing yet" reads as "this is broken",
+ * and somebody goes back to hunting for the Chat ID by hand.
+ */
 const EMPTY_STATE =
-  "No Telegram group detected yet. Add the Daily Needs bot to the group and send /setup, then try again.";
+  "No Telegram group detected yet. Add the Daily Needs bot to the group and send /setup there.";
+
+const EMPTY_STATE_WAIT =
+  "It may take up to 1 minute after sending /setup. Click Check again.";
 
 /** "2 minutes ago", from the ISO timestamp the API returns. */
 export function detectedAgo(iso, now = new Date()) {
@@ -129,9 +140,14 @@ export default function DetectTelegramGroup({
           {error.message || "Could not check for detected Telegram groups."}
         </Alert>
       ) : groups.length === 0 ? (
-        <Alert status="info" fontSize="sm" borderRadius="md">
+        <Alert status="info" fontSize="sm" borderRadius="md" alignItems="flex-start">
           <AlertIcon />
-          {EMPTY_STATE}
+          <Box>
+            <Text>{EMPTY_STATE}</Text>
+            <Text mt={1} color="gray.600">
+              {EMPTY_STATE_WAIT}
+            </Text>
+          </Box>
         </Alert>
       ) : (
         <Stack spacing={4}>
@@ -177,4 +193,4 @@ export default function DetectTelegramGroup({
   );
 }
 
-export { EMPTY_STATE };
+export { EMPTY_STATE, EMPTY_STATE_WAIT };

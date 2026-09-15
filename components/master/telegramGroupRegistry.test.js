@@ -456,7 +456,7 @@ test("Status is sent as a boolean, and read back from one", () => {
 
 test("the form shows the guidance panel while editing, and not on the read-only view", () => {
   assert.match(formPage, /function GuidancePanel\(/);
-  assert.match(formPage, /\{!viewMode \? <GuidancePanel[\s\S]*?\/> : null\}/);
+  assert.match(formPage, /\{!viewMode \? \(\s*<GuidancePanel/);
   assert.match(formPage, /Chat ID guidelines/);
   assert.match(formPage, /Bot admin requirement/);
   assert.match(formPage, /How to get the Chat ID/);
@@ -579,9 +579,12 @@ test("the Add form has a Detect Group action", () => {
   assert.match(formPage, /useDetectedTelegramGroups/);
 });
 
-test("Detect Group is on the editable form only, never the read-only view", () => {
-  const detectBlock = /\{!viewMode \? \(\s*<>\s*<DetectTelegramGroup([\s\S]*?)\) : null\}/.exec(formPage);
-  assert.ok(detectBlock, "the detect action is inside a !viewMode branch");
+test("Detect Group is on the Add form only - not Edit, not the read-only view", () => {
+  // Superseded the original `!viewMode` assertion: that was satisfied by Edit
+  // too, which is exactly the defect. The create-only guard is asserted in
+  // full by "DETECT GROUP IS CREATE-ONLY" below.
+  const detectBlock = /\{createMode \? \(\s*<>\s*<DetectTelegramGroup([\s\S]*?)\) : null\}/.exec(formPage);
+  assert.ok(detectBlock, "the detect action is inside a createMode branch");
 });
 
 test("DETECTION IS NOT FETCHED ON MOUNT - it is an action somebody takes", () => {
@@ -598,10 +601,16 @@ test("'not asked yet' and 'asked, found nothing' are different states", () => {
   assert.match(detectModal, /Array\.isArray\(detected\) \? detected : \[\]/);
 });
 
-test("the empty state tells the user exactly what to do", () => {
+test("the empty state tells the user exactly what to do, AND that it takes a minute", () => {
+  // Telegram updates are read by one once-a-minute poller, so a /setup sent
+  // seconds ago genuinely is not here yet. Without saying so, the honest
+  // "nothing yet" reads as "broken" and people go back to hunting the Chat
+  // ID by hand - which is the entire thing this feature removes.
   const prose = detectModal.replace(/\s+/g, " ");
   assert.match(prose, /No Telegram group detected yet/);
-  assert.match(prose, /send \/setup, then try again/);
+  assert.match(prose, /send \/setup there/);
+  assert.match(prose, /may take up to 1 minute after sending \/setup/);
+  assert.match(prose, /Click Check again/);
 });
 
 test("loading and API-failure states are handled separately from empty", () => {
@@ -695,4 +704,67 @@ test("the guide still says Group Name and Chat ID come from detection", () => {
   const prose = guide.replace(/\s+/g, " ");
   assert.match(prose, /filled in by Detect Group/);
   assert.match(prose, /arrive from Detect Group/);
+});
+
+
+/* ============================== review corrections, pinned as regressions = */
+
+test("DETECT GROUP IS CREATE-ONLY - it must never appear on Edit", () => {
+  // On Edit this is the identity of a row that already exists. Selecting a
+  // detected group there would silently repoint an existing record at a
+  // different Telegram group: same category, purpose and history, pointing
+  // somewhere else entirely. `!viewMode` would include Edit, so this pins
+  // the narrower condition.
+  assert.match(formPage, /\{createMode \? \(\s*<>\s*<DetectTelegramGroup/);
+  const detectAt = formPage.indexOf("<DetectTelegramGroup");
+  const guardWindow = formPage.slice(Math.max(0, detectAt - 700), detectAt);
+  assert.ok(
+    !/\{!viewMode \? \(\s*<>\s*$/.test(guardWindow),
+    "the detect block must not be guarded by !viewMode"
+  );
+});
+
+test("NO SUPERSEDED CHAT-ID INSTRUCTIONS SURVIVE ANYWHERE ON THE SCREEN", () => {
+  // The drawer guide was updated to /setup + Detect Group while the inline
+  // GuidancePanel still told people to send any message, use @userinfobot
+  // and read the bot logs. Two sets of instructions on one screen, saying
+  // opposite things. This asserts the whole screen, not one component.
+  for (const [name, source] of [
+    ["the form", formPage],
+    ["the setup guide", guide],
+    ["the detect modal", detectModal],
+  ]) {
+    for (const stale of [
+      "@userinfobot",
+      "Send any message",
+      "bot integration logs",
+      "integration logs",
+    ]) {
+      assert.ok(!source.includes(stale), `${name} still says "${stale}"`);
+    }
+  }
+});
+
+test("the guidance panel teaches /setup and Detect Group instead", () => {
+  const prose = formPage.replace(/\s+/g, " ");
+  assert.match(prose, /Add the Daily Needs bot to your Telegram group as an admin/);
+  assert.match(prose, /Click Detect Group above/);
+  assert.match(prose, /No third-party bot and no log lookup is needed/);
+});
+
+test("the 'click Detect Group above' panel is itself create-only", () => {
+  // Otherwise Edit would be telling somebody to click a button that is
+  // deliberately not there - the same contradiction in a new place.
+  assert.match(formPage, /function GuidancePanel\(\{ onOpenGuide, createMode \}\)/);
+  assert.match(formPage, /\{createMode \? \(\s*<Alert status="success"/);
+  assert.match(formPage, /createMode=\{createMode\}/);
+});
+
+test("Edit still keeps the Chat ID rules, which apply to a typed id", () => {
+  // Narrowing the how-to must not take the validation rules with it: Edit
+  // can still change a Chat ID by hand.
+  const panel = /function GuidancePanel\([\s\S]*?\n\}/.exec(formPage)[0];
+  const createOnlyAt = panel.indexOf("{createMode ? (");
+  assert.ok(panel.indexOf("Chat ID guidelines") < createOnlyAt, "guidelines are unconditional");
+  assert.ok(panel.indexOf("Bot admin requirement") < createOnlyAt, "bot admin note is unconditional");
 });

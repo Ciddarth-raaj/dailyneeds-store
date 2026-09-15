@@ -140,7 +140,7 @@ function GroupTypeNotice({ chatId, botIsAdmin }) {
  * Read-only: nothing here is a control, and the rules it states are enforced
  * by the form and again by the server.
  */
-function GuidancePanel({ onOpenGuide }) {
+function GuidancePanel({ onOpenGuide, createMode }) {
   return (
     <Stack spacing={4} flex="1" minW={{ xl: "320px" }} maxW={{ xl: "420px" }}>
       <Button
@@ -186,6 +186,9 @@ function GuidancePanel({ onOpenGuide }) {
         </Box>
       </Alert>
 
+      {/* Only where Detect Group exists. On Edit this would be telling
+          somebody to click a button that is deliberately not there. */}
+      {createMode ? (
       <Alert status="success" borderRadius="md" alignItems="flex-start" fontSize="sm">
         <AlertIcon />
         <Box>
@@ -193,13 +196,18 @@ function GuidancePanel({ onOpenGuide }) {
             How to get the Chat ID
           </Text>
           <OrderedList spacing={1}>
-            <ListItem>Add the bot to your Telegram group as an admin.</ListItem>
-            <ListItem>Send any message in the group.</ListItem>
-            <ListItem>Use a tool such as @userinfobot to read the group chat ID.</ListItem>
-            <ListItem>Or check your existing bot integration logs.</ListItem>
+            <ListItem>Add the Daily Needs bot to your Telegram group as an admin.</ListItem>
+            <ListItem>
+              Send <Code fontSize="xs">/setup</Code> in the group.
+            </ListItem>
+            <ListItem>Click Detect Group above — the Chat ID is filled in for you.</ListItem>
           </OrderedList>
+          <Text mt={2} color="gray.600">
+            No third-party bot and no log lookup is needed.
+          </Text>
         </Box>
       </Alert>
+      ) : null}
     </Stack>
   );
 }
@@ -358,8 +366,16 @@ export default function TelegramGroupMode() {
             <form onSubmit={formikSubmit}>
               {/* Detect Group: the Chat ID comes from Telegram itself rather
                   than from somebody reading it out of the logs. Nothing is
-                  filled in until a group is explicitly selected. */}
-              {!viewMode ? (
+                  filled in until a group is explicitly selected.
+
+                  CREATE ONLY, not `!viewMode`. On Edit this is the identity
+                  of a registry row that already exists, and selecting a
+                  detected group there would silently repoint an existing
+                  record at a different Telegram group - the row would keep
+                  its category, purpose and history while pointing somewhere
+                  else entirely. Changing which group a record refers to is
+                  deleting it and registering the other one. */}
+              {createMode ? (
                 <>
                   <DetectTelegramGroup
                     isOpen={detectOpen}
@@ -495,7 +511,12 @@ export default function TelegramGroupMode() {
 
                 {/* The guidance is for somebody filling the form in, so it is
                     not shown on the read-only view. */}
-                {!viewMode ? <GuidancePanel onOpenGuide={() => setGuideOpen(true)} /> : null}
+                {!viewMode ? (
+                  <GuidancePanel
+                    onOpenGuide={() => setGuideOpen(true)}
+                    createMode={createMode}
+                  />
+                ) : null}
               </Flex>
 
               <div className={styles.buttonContainer}>
