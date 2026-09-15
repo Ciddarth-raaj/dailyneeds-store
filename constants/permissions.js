@@ -254,6 +254,13 @@ export const PERMISSIONS = {
     add_product_distributor: "Assign Product Distributor Buyer",
     view_remarks_master: "View Remarks Master",
     add_remarks_master: "Add Remarks Master",
+    // Telegram Group Registry. Read and write are separate keys, and the
+    // write key is `manage_*` rather than `add_*` because it also covers
+    // editing and deleting a registered group. Both are declared by the
+    // registry migration and granted to nobody, so an administrator ticks
+    // them here for whoever should maintain the list.
+    view_telegram_groups: "View Telegram Group Registry",
+    manage_telegram_groups: "Manage Telegram Group Registry",
   },
 
   // Materials

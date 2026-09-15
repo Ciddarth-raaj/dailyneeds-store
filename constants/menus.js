@@ -57,6 +57,17 @@ const ALL_PAGES_MENU = {
         selected: false,
         location: "/master/remarks",
       },
+      // The Telegram Group Registry: which Telegram groups the bot posts to,
+      // what each is for, and whether the bot can act in them. Behind
+      // `view_telegram_groups`, which the migration grants to NO designation,
+      // so it is invisible to everyone but administrators until somebody is
+      // given the key deliberately - the same posture as Biomax Devices.
+      view_telegram_groups: {
+        title: "Telegram Groups",
+        permission: "view_telegram_groups",
+        selected: false,
+        location: "/master/telegram-groups",
+      },
       branch_and_restrictions: {
         title: "Branch and Restrictions",
         subMenu: {

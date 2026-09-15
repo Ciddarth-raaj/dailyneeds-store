@@ -150,6 +150,11 @@ test("no other consumer was switched to the directory", () => {
     // The Onboarding / Pending HR queue's outlet filter: the same id and name,
     // on the same `view_employees` as the employee list beside it.
     "pages/hr/onboarding/index.jsx",
+    // Telegram Group Registry: the OPTIONAL Outlet on the add/edit form - an
+    // id and a name, on a screen reached on `manage_telegram_groups` and
+    // never on `view_stores`. The registry stores the outlet_id only and
+    // joins the name back on read, so it needs no more of the record.
+    "pages/master/telegram-groups/[mode].jsx",
     "pages/payroll/salary-approval.jsx",
     "pages/stock-checker/[mode].jsx",
     "pages/stock-checker/assigned-products.jsx",
