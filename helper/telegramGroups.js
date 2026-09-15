@@ -32,6 +32,18 @@ export const getTelegramGroupById = (id) =>
     return fail(res, "Failed to fetch the Telegram group");
   });
 
+/**
+ * Groups that sent `/setup` and are not yet registered.
+ *
+ * Behind `manage_telegram_groups`, so a view-only user gets the ordinary
+ * 403 here rather than a list of groups they cannot register.
+ */
+export const getDetectedTelegramGroups = () =>
+  API.get("/telegram-groups/detected").then((res) => {
+    if (res.data?.code === 200) return Array.isArray(res.data.data) ? res.data.data : [];
+    return fail(res, "Could not check for detected Telegram groups");
+  });
+
 export const createTelegramGroup = (body) =>
   API.post("/telegram-groups", body).then((res) => {
     if (res.data?.code === 200) return res.data;

@@ -6,6 +6,7 @@ import {
   Badge,
   Box,
   Button,
+  Code,
   Flex,
   ListItem,
   OrderedList,
@@ -20,6 +21,8 @@ import GlobalWrapper from "../../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../../components/CustomContainer";
 import CustomInput from "../../../components/customInput/customInput";
 import TelegramGroupSetupGuide from "../../../components/master/TelegramGroupSetupGuide";
+import DetectTelegramGroup from "../../../components/master/DetectTelegramGroup";
+import { useDetectedTelegramGroups } from "../../../customHooks/useDetectedTelegramGroups";
 import styles from "../../../styles/master.module.css";
 import useOutlets from "../../../customHooks/useOutlets";
 import usePermissions from "../../../customHooks/usePermissions";
@@ -219,6 +222,8 @@ export default function TelegramGroupMode() {
   const [formInitialValues, setFormInitialValues] = useState(EMPTY);
   const [serverError, setServerError] = useState(null);
   const [guideOpen, setGuideOpen] = useState(false);
+  const [detectOpen, setDetectOpen] = useState(false);
+  const { detected, loading: detecting, error: detectError, detect } = useDetectedTelegramGroups();
 
   useEffect(() => {
     if (createMode) {
@@ -349,8 +354,64 @@ export default function TelegramGroupMode() {
           validationSchema={validationSchema}
           onSubmit={handleSubmit}
         >
-          {({ handleSubmit: formikSubmit, values, isSubmitting }) => (
+          {({ handleSubmit: formikSubmit, values, setFieldValue, isSubmitting }) => (
             <form onSubmit={formikSubmit}>
+              {/* Detect Group: the Chat ID comes from Telegram itself rather
+                  than from somebody reading it out of the logs. Nothing is
+                  filled in until a group is explicitly selected. */}
+              {!viewMode ? (
+                <>
+                  <DetectTelegramGroup
+                    isOpen={detectOpen}
+                    onClose={() => setDetectOpen(false)}
+                    detected={detected}
+                    loading={detecting}
+                    error={detectError}
+                    onRetry={detect}
+                    willOverwrite={Boolean(values.group_name || values.chat_id)}
+                    onSelect={(group) => {
+                      setFieldValue("group_name", group.group_name);
+                      setFieldValue("chat_id", group.chat_id);
+                      setDetectOpen(false);
+                      setServerError(null);
+                      toast.success(`Using "${group.group_name}"`);
+                    }}
+                  />
+                  <Flex
+                    align={{ md: "center" }}
+                    justify="space-between"
+                    gap={3}
+                    mb={4}
+                    direction={{ base: "column", md: "row" }}
+                    borderWidth="1px"
+                    borderRadius="md"
+                    borderColor="purple.100"
+                    bg="purple.50"
+                    p={3}
+                  >
+                    <Text fontSize="sm" color="gray.700">
+                      Add the Daily Needs bot to the group and send{" "}
+                      <Code fontSize="xs">/setup</Code> there, then detect it
+                      here instead of typing the Chat ID.
+                    </Text>
+                    <Button
+                      size="sm"
+                      colorScheme="purple"
+                      isDisabled={!canManage}
+                      isLoading={detecting}
+                      leftIcon={<i className="fa-solid fa-satellite-dish" />}
+                      onClick={async () => {
+                        setDetectOpen(true);
+                        await detect();
+                      }}
+                      flexShrink={0}
+                    >
+                      Detect Group
+                    </Button>
+                  </Flex>
+                </>
+              ) : null}
+
               {/* Fields on the left, reference material on the right; it
                   stacks on a narrow screen. */}
               <Flex

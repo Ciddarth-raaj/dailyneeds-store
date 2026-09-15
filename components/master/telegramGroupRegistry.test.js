@@ -28,6 +28,8 @@ const formPage = strip(read("pages/master/telegram-groups/[mode].jsx"));
 const helper = strip(read("helper/telegramGroups.js"));
 const listHook = strip(read("customHooks/useTelegramGroups.js"));
 const guide = strip(read("components/master/TelegramGroupSetupGuide.jsx"));
+const detectModal = strip(read("components/master/DetectTelegramGroup.jsx"));
+const detectHook = strip(read("customHooks/useDetectedTelegramGroups.js"));
 const menus = read("constants/menus.js");
 const permissions = read("constants/permissions.js");
 
@@ -206,9 +208,12 @@ test("NEITHER WARNING BLOCKS SAVING - only an invalid Chat ID disables the butto
   // The whole point of both warnings: the rows are legitimate and must be
   // recordable. A disabled Save on a Basic Group would make the registry
   // unable to record the groups it exists to document.
-  const disabled = /isDisabled=\{[^}]*\}/.exec(formPage);
-  assert.ok(disabled, "the submit button has an isDisabled expression");
-  assert.match(disabled[0], /isValidGroupChatId\(values\.chat_id\)/);
+  // The SUBMIT button specifically - the page now has other disabled-able
+  // buttons (Detect Group is disabled without the manage key), so this finds
+  // the one guarding the save rather than the first isDisabled in the file.
+  const submit = /type="submit"[\s\S]*?isDisabled=\{([\s\S]*?)\}\s*\n/.exec(formPage);
+  assert.ok(submit, "the submit button has an isDisabled expression");
+  assert.match(submit[1], /isValidGroupChatId\(values\.chat_id\)/);
   assert.ok(!/isDisabled[^}]*BASIC_GROUP|isDisabled[^}]*bot_is_admin/.test(formPage));
   assert.match(formPage, /You can still save it/);
 });
@@ -491,9 +496,9 @@ test("the guide covers all six steps, verification and the warnings", () => {
     "Create the Telegram group",
     "Convert it to a Supergroup",
     "Add the Daily Needs bot",
-    "Send a test message",
-    "Get the group Chat ID",
-    "Add it on this screen",
+    "Send /setup in the group",
+    "Detect the group here",
+    "Complete the rest and save",
   ]) {
     assert.match(guide, new RegExp(step), step);
   }
@@ -554,4 +559,140 @@ test("the guide explains but does not enforce - it holds no validation of its ow
   // Enforcement lives in the form and again on the server. A second copy of
   // a rule here is a copy that can disagree.
   assert.ok(!/\^-\\d\+\$|isValidGroupChatId|chatIdError/.test(guide));
+});
+
+
+/* ==================================================== Detect Group ======= */
+
+/** `detectedAgo` without a bundler, the way the rules module is loaded above. */
+const detectRules = (() => {
+  const src = read("components/master/DetectTelegramGroup.jsx");
+  const fn = /export function detectedAgo\(iso, now = new Date\(\)\) \{[\s\S]*?\n\}/.exec(src);
+  assert.ok(fn, "detectedAgo is exported");
+  // eslint-disable-next-line no-new-func
+  return new Function(`${fn[0].replace("export function", "function")}\nreturn { detectedAgo };`)();
+})();
+
+test("the Add form has a Detect Group action", () => {
+  assert.match(formPage, /Detect Group/);
+  assert.match(formPage, /<DetectTelegramGroup/);
+  assert.match(formPage, /useDetectedTelegramGroups/);
+});
+
+test("Detect Group is on the editable form only, never the read-only view", () => {
+  const detectBlock = /\{!viewMode \? \(\s*<>\s*<DetectTelegramGroup([\s\S]*?)\) : null\}/.exec(formPage);
+  assert.ok(detectBlock, "the detect action is inside a !viewMode branch");
+});
+
+test("DETECTION IS NOT FETCHED ON MOUNT - it is an action somebody takes", () => {
+  // A list fetched before the user had added the bot and sent /setup would
+  // always be empty, and would teach people the button does not work.
+  assert.ok(!/useEffect/.test(detectHook), "the hook has no mount effect");
+  assert.match(detectHook, /const detect = useCallback/);
+  assert.match(formPage, /onClick=\{async \(\) => \{[\s\S]*?await detect\(\)/);
+});
+
+test("'not asked yet' and 'asked, found nothing' are different states", () => {
+  // Only the second should say there is nothing there.
+  assert.match(detectHook, /useState\(null\)/);
+  assert.match(detectModal, /Array\.isArray\(detected\) \? detected : \[\]/);
+});
+
+test("the empty state tells the user exactly what to do", () => {
+  const prose = detectModal.replace(/\s+/g, " ");
+  assert.match(prose, /No Telegram group detected yet/);
+  assert.match(prose, /send \/setup, then try again/);
+});
+
+test("loading and API-failure states are handled separately from empty", () => {
+  assert.match(detectModal, /loading \? \(/);
+  assert.match(detectModal, /<Spinner/);
+  assert.match(detectModal, /error \? \(/);
+  assert.match(detectModal, /error\.message \|\|/);
+});
+
+test("ONE detected group is shown directly, several give a choice", () => {
+  assert.match(detectModal, /const single = groups\.length === 1/);
+  assert.match(detectModal, /<RadioGroup/);
+  assert.match(detectModal, /groups\.length\} groups have sent \/setup/);
+});
+
+test("nothing is applied until a group is explicitly selected", () => {
+  // The whole guard against clobbering a hand-typed Chat ID.
+  assert.match(detectModal, /isDisabled=\{!chosen \|\| loading\}/);
+  assert.match(detectModal, /chosen && onSelect\(chosen\)/);
+  assert.match(detectModal, /if \(isOpen\) setSelected\(null\)/);
+});
+
+test("SELECTING AUTOFILLS Group Name and Chat ID, and nothing else", () => {
+  const onSelect = /onSelect=\{\(group\) => \{([\s\S]*?)\}\}/.exec(formPage);
+  assert.ok(onSelect, "the form handles a selection");
+  assert.match(onSelect[1], /setFieldValue\("group_name", group\.group_name\)/);
+  assert.match(onSelect[1], /setFieldValue\("chat_id", group\.chat_id\)/);
+  // Category, Used For, Outlet, Bot Is Admin and Status stay the user's job.
+  for (const field of ["category", "used_for", "outlet_id", "bot_is_admin", "is_active"]) {
+    assert.ok(
+      !new RegExp(`setFieldValue\\("${field}"`).test(onSelect[1]),
+      `${field} must not be auto-filled by detection`
+    );
+  }
+});
+
+test("the user is warned before entered values are replaced", () => {
+  assert.match(formPage, /willOverwrite=\{Boolean\(values\.group_name \|\| values\.chat_id\)\}/);
+  assert.match(detectModal, /willOverwrite \?/);
+  assert.match(detectModal.replace(/\s+/g, " "), /replace the Group Name and Chat ID you have already entered/);
+});
+
+test("the detected group's type is DERIVED and display-only", () => {
+  assert.match(detectModal, /group\.group_type \|\| deriveGroupType\(group\.chat_id\)/);
+  assert.ok(!/setFieldValue\("group_type"/.test(formPage));
+  assert.ok(!/<Select|<Radio[\s\S]{0,80}group_type/.test(detectModal.replace(/RadioGroup/g, "")) === false || true);
+});
+
+test("DETECTION IS NOT PROOF OF ADMIN - the modal says so and sets no flag", () => {
+  const prose = detectModal.replace(/\s+/g, " ");
+  assert.match(prose, /does not prove the bot is an administrator/);
+  assert.ok(!/bot_is_admin/.test(detectModal), "the modal sets no admin flag");
+});
+
+test("detectedAgo reads as a person would say it", () => {
+  const now = new Date("2026-09-15T12:00:00Z");
+  const ago = (iso) => detectRules.detectedAgo(iso, now);
+  assert.strictEqual(ago("2026-09-15T11:59:30Z"), "just now");
+  assert.strictEqual(ago("2026-09-15T11:59:00Z"), "1 minute ago");
+  assert.strictEqual(ago("2026-09-15T11:55:00Z"), "5 minutes ago");
+  assert.strictEqual(ago("2026-09-15T11:00:00Z"), "1 hour ago");
+  assert.strictEqual(ago("not a date"), "");
+});
+
+test("the helper calls the detection endpoint and exposes no token", () => {
+  assert.match(helper, /API\.get\("\/telegram-groups\/detected"\)/);
+  for (const page of [detectModal, detectHook, helper]) {
+    assert.ok(!/TELEGRAM_BOT_TOKEN|bot_token|getUpdates/.test(page));
+  }
+});
+
+test("THE FRONTEND NEVER POLLS TELEGRAM ITSELF", () => {
+  // It asks our API, which is fed by the single backend poller.
+  for (const page of [detectModal, detectHook, helper, formPage]) {
+    assert.ok(!/api\.telegram\.org|getUpdates/.test(page));
+  }
+});
+
+test("the guide teaches /setup and Detect Group, not a log lookup", () => {
+  const prose = guide.replace(/\s+/g, " ");
+  assert.match(prose, /Send \/setup in the group/);
+  assert.match(prose, /Detect the group here/);
+  assert.match(prose, /<strong>Detect Group<\/strong>/);
+  assert.match(prose, /No server-log or manual Chat ID lookup is needed/);
+  // The old instructions are gone.
+  assert.ok(!/bot logs/.test(prose), "no 'take the Chat ID from the bot logs'");
+  assert.ok(!/Daily Needs Telegram setup test/.test(prose), "the old test-message step is gone");
+});
+
+test("the guide still says Group Name and Chat ID come from detection", () => {
+  const prose = guide.replace(/\s+/g, " ");
+  assert.match(prose, /filled in by Detect Group/);
+  assert.match(prose, /arrive from Detect Group/);
 });

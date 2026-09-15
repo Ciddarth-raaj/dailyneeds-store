@@ -34,8 +34,8 @@ import { TELEGRAM_GROUP_CATEGORIES, GROUP_TYPE } from "../../util/telegramGroup"
 
 /** The fields the form asks for, in the order it asks for them. */
 const FORM_FIELDS = [
-  { label: "Group Name", note: "required" },
-  { label: "Group Chat ID", note: "required, unique" },
+  { label: "Group Name", note: "filled in by Detect Group" },
+  { label: "Group Chat ID", note: "filled in by Detect Group, and unique" },
   { label: "Category", note: "required" },
   { label: "Used For", note: "required - what this specific group is for" },
   { label: "Outlet", note: "optional - leave blank for a company-wide group" },
@@ -75,6 +75,15 @@ export default function TelegramGroupSetupGuide({ isOpen, onClose }) {
           </Text>
         </Alert>
 
+        <Alert status="success" fontSize="sm" borderRadius="md" alignItems="flex-start">
+          <AlertIcon />
+          <Text>
+            Steps 4 and 5 replace the old way of finding a Chat ID. Send{" "}
+            <Code fontSize="xs">/setup</Code> in the group, then click{" "}
+            <strong>Detect Group</strong> on the Add form.
+          </Text>
+        </Alert>
+
         <Step number="1" title="Create the Telegram group">
           <OrderedList spacing={1}>
             <ListItem>Open Telegram.</ListItem>
@@ -104,7 +113,10 @@ export default function TelegramGroupSetupGuide({ isOpen, onClose }) {
             <ListItem>Open the group.</ListItem>
             <ListItem>Go to Group Info → Administrators.</ListItem>
             <ListItem>Choose Add Administrator.</ListItem>
-            <ListItem>Select the Daily Needs Telegram bot.</ListItem>
+            <ListItem>
+              Select the Daily Needs Telegram bot — the one dnds.co.in already
+              uses.
+            </ListItem>
             <ListItem>Give it the permissions Daily Needs automation needs.</ListItem>
             <ListItem>Save.</ListItem>
           </OrderedList>
@@ -113,24 +125,32 @@ export default function TelegramGroupSetupGuide({ isOpen, onClose }) {
           </Text>
         </Step>
 
-        <Step number="4" title="Send a test message">
+        <Step number="4" title="Send /setup in the group">
           <Text>
-            Send any message in the group, for example{" "}
-            <Code fontSize="xs">Daily Needs Telegram setup test</Code>. This helps
-            the integration identify the group.
+            Send <Code fontSize="xs">/setup</Code> inside the Telegram group.
+            That is what tells Daily Needs which group you mean — there is no
+            Chat ID to look up and nothing to copy out of a log.
           </Text>
         </Step>
 
-        <Step number="5" title="Get the group Chat ID">
+        <Step number="5" title="Detect the group here">
           <Text>
-            Take the Chat ID from the Daily Needs Telegram integration or bot
-            logs. A Supergroup Chat ID looks like{" "}
-            <Code fontSize="xs">-1001234567890</Code>.
+            Open Master → Telegram Groups → Add Group and click{" "}
+            <strong>Detect Group</strong>. The group name and Chat ID are
+            filled in for you.
+          </Text>
+          <Text mt={2} color="gray.600">
+            Nothing detected? Check the bot is in the group and send{" "}
+            <Code fontSize="xs">/setup</Code> again — a detection is only
+            offered for a little while.
           </Text>
         </Step>
 
-        <Step number="6" title="Add it on this screen">
-          <Text mb={2}>Enter:</Text>
+        <Step number="6" title="Complete the rest and save">
+          <Text mb={2}>
+            Group Name and Group Chat ID arrive from Detect Group. Complete
+            the rest:
+          </Text>
           <UnorderedList spacing={1}>
             {FORM_FIELDS.map((field) => (
               <ListItem key={field.label}>
@@ -165,6 +185,9 @@ export default function TelegramGroupSetupGuide({ isOpen, onClose }) {
               Any other valid negative Chat ID shows as{" "}
               <Badge colorScheme="orange">{GROUP_TYPE.BASIC_GROUP}</Badge>
             </Text>
+            <Text color="gray.600">
+              No server-log or manual Chat ID lookup is needed.
+            </Text>
           </Stack>
         </Box>
 
@@ -175,6 +198,10 @@ export default function TelegramGroupSetupGuide({ isOpen, onClose }) {
               Important
             </Text>
             <UnorderedList spacing={1}>
+              <ListItem>
+                Detect Group is the reliable way to get the Chat ID. If you do
+                type one by hand, the rules below still apply.
+              </ListItem>
               <ListItem>
                 Do not enter a personal Telegram user ID. A personal ID is
                 positive and is rejected.
