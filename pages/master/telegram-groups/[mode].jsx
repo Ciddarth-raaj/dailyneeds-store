@@ -85,10 +85,12 @@ const EMPTY = {
   category: "",
   used_for: "",
   outlet_id: "",
-  // OFF until somebody says otherwise: claiming the bot is an admin when
-  // nobody has checked is the one wrong default here, and the list flags
-  // the row so a mistaken No is visible rather than silent.
-  bot_is_admin: false,
+  // ON, because step 3 of the guide directly above this form tells the user
+  // to make the bot an administrator - so by the time they reach this field
+  // they have already done it, and the default matches what they just did.
+  // Anyone whose bot genuinely is not an admin switches it off, and the
+  // registry flags that row.
+  bot_is_admin: true,
   // A group somebody is registering is one they are about to use.
   is_active: true,
 };
@@ -96,16 +98,18 @@ const EMPTY = {
 /**
  * The derived type, and the warnings, for whatever is currently in the form.
  *
- * BOTH WARNINGS WAIT UNTIL THEY MEAN SOMETHING. The type notice needs a Chat
- * ID to derive anything from, and the bot warning is held back until there
- * is one too: Bot Is Admin now starts OFF, so without that gate an untouched
- * Add form would open with a red warning about a group nobody has named yet.
- * A warning that is always on is a warning nobody reads.
+ * BOTH WARNINGS ARE PURELY CONTEXTUAL. The type notice needs a Chat ID to
+ * derive anything from, and the bot warning appears exactly when somebody
+ * has turned Bot Is Admin off - which, now that the field defaults to Yes,
+ * is a deliberate act rather than the state an untouched form opens in. The
+ * earlier gate on "has a Chat ID yet" existed only to stop a default-OFF
+ * toggle shouting at an empty form, and is no longer needed; keeping it
+ * would suppress a real warning for somebody who switches the toggle off
+ * before pasting the id.
  */
 function GroupTypeNotice({ chatId, botIsAdmin }) {
   const type = deriveGroupType(chatId);
-  const hasChatId = Boolean(String(chatId === undefined || chatId === null ? "" : chatId).length);
-  const showBotWarning = hasChatId && botIsAdmin === false;
+  const showBotWarning = botIsAdmin === false;
   return (
     <Stack spacing={3} mb={4}>
       {type ? (
@@ -288,6 +292,14 @@ export default function TelegramGroupMode() {
         >
           {({ handleSubmit: formikSubmit, values, setFieldValue, isSubmitting }) => (
             <form onSubmit={formikSubmit}>
+              {/* The app's page content width - `container.xl`, as
+                  pages/shift/[id].js, salary, department and the rest use.
+                  The guide, the Detect Group bar and the fields all take the
+                  available width up to it, so nothing is boxed into a narrow
+                  column and nothing stretches across an ultrawide monitor.
+                  The fields stay ONE PER ROW; this widens them, it does not
+                  reinstate the two-column grid. */}
+              <Box maxW="container.xl">
               {/* THE GUIDE IS THE PAGE'S MAIN INSTRUCTION, and it is on the
                   page rather than behind a button: the people who need it
                   are setting up their first group, and a guide you have to
@@ -301,7 +313,6 @@ export default function TelegramGroupMode() {
                   borderRadius="md"
                   borderColor="gray.200"
                   bg="gray.50"
-                  maxW="640px"
                 >
                   <Text fontWeight="600" mb={4}>
                     Setup guide
@@ -378,7 +389,7 @@ export default function TelegramGroupMode() {
                   the form read as a dense grid rather than a sequence of
                   questions; one field per row is slower to scan and far
                   easier to fill in correctly. */}
-              <Stack spacing={0} maxW="640px">
+              <Stack spacing={0}>
                 <CustomInput
                   label="Group Name *"
                   name="group_name"
@@ -443,6 +454,8 @@ export default function TelegramGroupMode() {
               {/* Contextual only: these appear when the entered Chat ID is
                   actually a Basic Group, or Bot Is Admin is actually No. */}
               <GroupTypeNotice chatId={values.chat_id} botIsAdmin={values.bot_is_admin} />
+
+              </Box>
 
               <div className={styles.buttonContainer}>
                 {viewMode ? (

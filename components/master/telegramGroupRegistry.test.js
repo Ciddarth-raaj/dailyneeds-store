@@ -770,7 +770,7 @@ test("THE FORM IS A SINGLE COLUMN in the approved field order", () => {
     "is_active",
   ]);
   // The old grid put two fields per row; the Stack puts one.
-  assert.match(formPage, /<Stack spacing=\{0\} maxW="640px">/);
+  assert.match(formPage, /<Stack spacing=\{0\}>/);
   assert.ok(!/inputSubContainer/.test(formPage), "the two-column rows are gone");
 });
 
@@ -826,11 +826,26 @@ test("a required BOOLEAN must still accept false", () => {
   assert.ok(!/is_active: Yup\.string\(\)/.test(formPage));
 });
 
-test("Bot Is Admin defaults to No, which the list then flags", () => {
-  // Claiming the bot is an admin when nobody has checked is the one wrong
-  // default here; a mistaken No is visible in the registry, a mistaken Yes
-  // is silent.
-  assert.match(formPage, /bot_is_admin: false/);
+test("BOT IS ADMIN DEFAULTS TO YES, matching step 3 of the guide above it", () => {
+  // The guide directly above the form tells the user to make the bot an
+  // administrator, so by the time they reach this field they have already
+  // done it. Anyone whose bot genuinely is not an admin switches it off.
+  assert.match(formPage, /bot_is_admin: true/);
+  assert.ok(!/bot_is_admin: false/.test(formPage), "the old OFF default is gone");
+});
+
+test("Status still defaults to Active on create", () => {
+  assert.match(formPage, /is_active: true/);
+});
+
+test("EDIT STILL LOADS THE STORED VALUES - the defaults are create-only", () => {
+  // The defaults live in the EMPTY initial-values object; edit overwrites
+  // both from the record, so a saved "No" must not be shown as Yes.
+  assert.match(formPage, /bot_is_admin: Boolean\(group\.bot_is_admin\)/);
+  assert.match(formPage, /is_active: group\.is_active !== false/);
+  const effect = /if \(createMode\) \{[\s\S]*?\n  \}, \[createMode, group\]\);/.exec(formPage);
+  assert.ok(effect, "create resets to defaults, edit hydrates from the group");
+  assert.match(effect[0], /setFormInitialValues\(EMPTY\)/);
 });
 
 test("the dynamic warnings survive the redesign and stay contextual", () => {
@@ -838,7 +853,7 @@ test("the dynamic warnings survive the redesign and stay contextual", () => {
   // The Basic Group notice is keyed on the derived type of what was typed.
   assert.match(formPage, /type === GROUP_TYPE\.BASIC_GROUP \? \(/);
   // The bot warning is keyed on the toggle being off - a boolean now.
-  assert.match(formPage, /showBotWarning = hasChatId && botIsAdmin === false/);
+  assert.match(formPage, /showBotWarning = botIsAdmin === false/);
 });
 
 test("the Detect Group hint is one line, not another explanation", () => {
@@ -865,10 +880,22 @@ test("step 2 does not assume Telegram shows a Convert button", () => {
 });
 
 
-test("the bot warning waits for a Chat ID, so an untouched form is not pre-warned", () => {
-  // Bot Is Admin now starts OFF, so without this gate the Add page would
-  // open with a red warning about a group nobody has named yet.
-  assert.match(formPage, /const hasChatId = Boolean\(/);
-  assert.match(formPage, /showBotWarning = hasChatId && botIsAdmin === false/);
+test("the bot warning fires on a deliberate No, and not on an untouched form", () => {
+  // With the field defaulting to Yes, turning it off IS the deliberate act,
+  // so the warning needs no extra gate. The earlier "has a Chat ID yet"
+  // guard existed only to stop a default-OFF toggle shouting at an empty
+  // form, and would now suppress a real warning for somebody who switches
+  // the toggle off before pasting the id.
+  assert.match(formPage, /showBotWarning = botIsAdmin === false/);
+  assert.ok(!/hasChatId/.test(formPage), "the gate is gone with the OFF default");
   assert.ok(!/botIsAdmin === "0"/.test(formPage), "the old string encoding is gone");
+});
+
+test("THE ADD PAGE IS NOT BOXED INTO A NARROW COLUMN", () => {
+  // It uses the app's page content width - the same `container.xl` that
+  // pages/shift/[id].js, salary, department and the rest use - so the guide,
+  // the Detect Group bar and the fields all take the available width, and
+  // nothing stretches across an ultrawide monitor.
+  assert.ok(!/maxW="640px"/.test(formPage), "the 640px cap is gone");
+  assert.match(formPage, /<Box maxW="container\.xl">/);
 });
