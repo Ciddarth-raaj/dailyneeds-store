@@ -6,8 +6,8 @@ import {
   Box,
   Code,
   Divider,
+  Flex,
   ListItem,
-  OrderedList,
   Stack,
   Text,
   UnorderedList,
@@ -16,20 +16,21 @@ import Drawer from "../Drawer";
 import { TELEGRAM_GROUP_CATEGORIES, GROUP_TYPE } from "../../util/telegramGroup";
 
 /**
- * "How to set up a Telegram group" - the operational guide, in the app.
+ * "How to set up a Telegram group" - the operational guide.
  *
- * WHY IT LIVES HERE RATHER THAN IN A DOC. Every step of it ends at this
- * screen: create the group, convert it, add the bot, find the Chat ID, then
- * type those values into the form behind this drawer. A guide somebody has
- * to go and find is a guide read once; this one is a click away at the
- * moment it is needed.
+ * TWO PRESENTATIONS, ONE COPY. `TelegramGroupSetupSteps` is the content and
+ * is rendered INLINE on the Add page, where it is the main instruction and
+ * must be readable without clicking anything. The default export wraps the
+ * same component in the shared Drawer for the registry list, where the guide
+ * is a reference somebody occasionally opens rather than the point of the
+ * screen. Two copies of this wording is how one of them quietly goes stale -
+ * which has already happened once on this feature.
  *
  * IT MUST NOT DRIFT FROM THE FORM. The field list and the category list are
- * read from `util/telegramGroup.js` rather than typed out again, so adding a
- * category cannot leave this page quietly telling people the old set. The
- * rules it states - negative-only Chat ID, no spaces, uniqueness, the derived
- * group type - are enforced by the form and again by the server; nothing here
- * is the enforcement, only the explanation.
+ * read from `util/telegramGroup.js` rather than typed out again, and the
+ * tests assert the field list against the form's own inputs. The rules it
+ * states are enforced by the form and again by the server; nothing here is
+ * the enforcement, only the explanation.
  */
 
 /** The fields the form asks for, in the order it asks for them. */
@@ -45,17 +46,122 @@ const FORM_FIELDS = [
 
 function Step({ number, title, children }) {
   return (
-    <Box>
-      <Text fontWeight="600" fontSize="sm" mb={1}>
-        Step {number} — {title}
-      </Text>
-      <Box fontSize="sm" color="gray.700" pl={1}>
-        {children}
+    <Flex gap={3} align="flex-start">
+      <Flex
+        flexShrink={0}
+        align="center"
+        justify="center"
+        w="24px"
+        h="24px"
+        borderRadius="full"
+        bg="purple.500"
+        color="white"
+        fontSize="xs"
+        fontWeight="700"
+        mt="1px"
+      >
+        {number}
+      </Flex>
+      <Box>
+        <Text fontWeight="600" fontSize="sm" mb={1}>
+          {title}
+        </Text>
+        <Box fontSize="sm" color="gray.700">
+          {children}
+        </Box>
       </Box>
-    </Box>
+    </Flex>
   );
 }
 
+/**
+ * The steps themselves. `compact` drops the closing field checklist, which
+ * the Add page does not need: the form is directly below it.
+ */
+export function TelegramGroupSetupSteps({ compact = false }) {
+  return (
+    <Stack spacing={5}>
+      <Step number="1" title="Create a Telegram group">
+        <Text>Create the group in Telegram with the required team members.</Text>
+      </Step>
+
+      <Step number="2" title="Convert it to a Supergroup">
+        <Text>
+          If Telegram shows <strong>Convert to Supergroup</strong> or{" "}
+          <strong>Upgrade to Supergroup</strong>, use it.
+        </Text>
+        <Text mt={2}>
+          If that option is not visible, open the group settings and turn on a
+          feature that needs a Supergroup — such as{" "}
+          <strong>Chat history visible for new members</strong> or{" "}
+          <strong>Topics</strong>. Telegram may then upgrade the group for you.
+        </Text>
+      </Step>
+
+      <Step number="3" title="Add the Daily Needs bot">
+        <Text>
+          Add the Daily Needs Telegram bot — the one dnds.co.in already uses —
+          and make it an administrator.
+        </Text>
+      </Step>
+
+      <Step number="4" title="Send /setup">
+        <Text>
+          Send <Code fontSize="xs">/setup</Code> inside the Telegram group.
+        </Text>
+      </Step>
+
+      <Step number="5" title="Detect the group">
+        <Text>
+          Click <strong>Detect Group</strong> on this page. The Group Name and
+          Group Chat ID are filled in once you select the detected group.
+        </Text>
+      </Step>
+
+      <Step number="6" title="Complete and save">
+        <Text>Complete the remaining fields and click Create.</Text>
+        {compact ? null : (
+          <>
+            <Text mt={2} mb={1}>
+              The form asks for:
+            </Text>
+            <UnorderedList spacing={1}>
+              {FORM_FIELDS.map((field) => (
+                <ListItem key={field.label}>
+                  {field.label}{" "}
+                  <Text as="span" color="gray.500">
+                    — {field.note}
+                  </Text>
+                </ListItem>
+              ))}
+            </UnorderedList>
+            <Text mt={2} color="gray.600">
+              Categories: {TELEGRAM_GROUP_CATEGORIES.join(", ")}.
+            </Text>
+          </>
+        )}
+      </Step>
+
+      <Divider />
+
+      {/* Small and closing on purpose. Everything actionable is in the steps
+          above; this is the handful of facts worth carrying away, not a
+          second instruction block. */}
+      <Stack spacing={1} fontSize="sm" color="gray.600">
+        <Text>
+          <Badge colorScheme="green" mr={2}>
+            {GROUP_TYPE.SUPERGROUP}
+          </Badge>
+          Chat IDs normally start with <Code fontSize="xs">-100</Code>.
+        </Text>
+        <Text>Detect Group is the preferred method.</Text>
+        <Text>No third-party bot or server-log lookup is required.</Text>
+      </Stack>
+    </Stack>
+  );
+}
+
+/** The same guide as a drawer, for the registry list screen. */
 export default function TelegramGroupSetupGuide({ isOpen, onClose }) {
   return (
     <Drawer
@@ -64,161 +170,18 @@ export default function TelegramGroupSetupGuide({ isOpen, onClose }) {
       title="How to set up a Telegram group"
       size="md"
     >
-      <Stack spacing={5} pb={4}>
-        <Alert status="info" fontSize="sm" borderRadius="md" alignItems="flex-start">
+      <Box pb={4}>
+        <Alert status="info" fontSize="sm" borderRadius="md" mb={5} alignItems="flex-start">
           <AlertIcon />
           <Text>
             For Daily Needs operational groups we recommend a{" "}
-            <strong>{GROUP_TYPE.SUPERGROUP}</strong>. A{" "}
-            {GROUP_TYPE.BASIC_GROUP} can be registered, but invite links and
-            member removal need it converted first.
+            <strong>{GROUP_TYPE.SUPERGROUP}</strong>. A {GROUP_TYPE.BASIC_GROUP} can
+            be registered, but invite links and member removal need it converted
+            first.
           </Text>
         </Alert>
-
-        <Alert status="success" fontSize="sm" borderRadius="md" alignItems="flex-start">
-          <AlertIcon />
-          <Text>
-            Steps 4 and 5 replace the old way of finding a Chat ID. Send{" "}
-            <Code fontSize="xs">/setup</Code> in the group, then click{" "}
-            <strong>Detect Group</strong> on the Add form.
-          </Text>
-        </Alert>
-
-        <Step number="1" title="Create the Telegram group">
-          <OrderedList spacing={1}>
-            <ListItem>Open Telegram.</ListItem>
-            <ListItem>Tap New Group.</ListItem>
-            <ListItem>Add the required members.</ListItem>
-            <ListItem>Enter the group name.</ListItem>
-            <ListItem>Create the group.</ListItem>
-          </OrderedList>
-        </Step>
-
-        <Step number="2" title="Convert it to a Supergroup">
-          <OrderedList spacing={1}>
-            <ListItem>Open the group.</ListItem>
-            <ListItem>Tap the group name at the top.</ListItem>
-            <ListItem>Open Edit / Manage Group.</ListItem>
-            <ListItem>Look for Convert to Supergroup / Upgrade to Supergroup.</ListItem>
-            <ListItem>Confirm the conversion.</ListItem>
-          </OrderedList>
-          <Text mt={2} color="gray.600">
-            Telegram may upgrade a basic group automatically when you enable a
-            feature that requires a Supergroup.
-          </Text>
-        </Step>
-
-        <Step number="3" title="Add the Daily Needs bot">
-          <OrderedList spacing={1}>
-            <ListItem>Open the group.</ListItem>
-            <ListItem>Go to Group Info → Administrators.</ListItem>
-            <ListItem>Choose Add Administrator.</ListItem>
-            <ListItem>
-              Select the Daily Needs Telegram bot — the one dnds.co.in already
-              uses.
-            </ListItem>
-            <ListItem>Give it the permissions Daily Needs automation needs.</ListItem>
-            <ListItem>Save.</ListItem>
-          </OrderedList>
-          <Text mt={2} color="gray.600">
-            Keep the bot as an administrator.
-          </Text>
-        </Step>
-
-        <Step number="4" title="Send /setup in the group">
-          <Text>
-            Send <Code fontSize="xs">/setup</Code> inside the Telegram group.
-            That is what tells Daily Needs which group you mean — there is no
-            Chat ID to look up and nothing to copy out of a log.
-          </Text>
-        </Step>
-
-        <Step number="5" title="Detect the group here">
-          <Text>
-            Open Master → Telegram Groups → Add Group and click{" "}
-            <strong>Detect Group</strong>. The group name and Chat ID are
-            filled in for you.
-          </Text>
-          <Text mt={2} color="gray.600">
-            Nothing detected? Check the bot is in the group and send{" "}
-            <Code fontSize="xs">/setup</Code> again — a detection is only
-            offered for a little while.
-          </Text>
-        </Step>
-
-        <Step number="6" title="Complete the rest and save">
-          <Text mb={2}>
-            Group Name and Group Chat ID arrive from Detect Group. Complete
-            the rest:
-          </Text>
-          <UnorderedList spacing={1}>
-            {FORM_FIELDS.map((field) => (
-              <ListItem key={field.label}>
-                {field.label}{" "}
-                <Text as="span" color="gray.500">
-                  — {field.note}
-                </Text>
-              </ListItem>
-            ))}
-          </UnorderedList>
-          <Text mt={2} color="gray.600">
-            Categories: {TELEGRAM_GROUP_CATEGORIES.join(", ")}.
-          </Text>
-          <Text mt={1} color="gray.600">
-            The Group Type is detected from the Chat ID — there is nothing to
-            choose.
-          </Text>
-        </Step>
-
-        <Divider />
-
-        <Box>
-          <Text fontWeight="600" fontSize="sm" mb={2}>
-            How to verify
-          </Text>
-          <Stack spacing={2} fontSize="sm">
-            <Text>
-              A Chat ID starting <Code fontSize="xs">-100</Code> shows as{" "}
-              <Badge colorScheme="green">{GROUP_TYPE.SUPERGROUP}</Badge>
-            </Text>
-            <Text>
-              Any other valid negative Chat ID shows as{" "}
-              <Badge colorScheme="orange">{GROUP_TYPE.BASIC_GROUP}</Badge>
-            </Text>
-            <Text color="gray.600">
-              No server-log or manual Chat ID lookup is needed.
-            </Text>
-          </Stack>
-        </Box>
-
-        <Alert status="warning" fontSize="sm" borderRadius="md" alignItems="flex-start">
-          <AlertIcon />
-          <Box>
-            <Text fontWeight="600" mb={1}>
-              Important
-            </Text>
-            <UnorderedList spacing={1}>
-              <ListItem>
-                Detect Group is the reliable way to get the Chat ID. If you do
-                type one by hand, the rules below still apply.
-              </ListItem>
-              <ListItem>
-                Do not enter a personal Telegram user ID. A personal ID is
-                positive and is rejected.
-              </ListItem>
-              <ListItem>
-                Do not add spaces before or after the Chat ID — it is rejected,
-                not tidied up.
-              </ListItem>
-              <ListItem>Each Chat ID can be registered only once.</ListItem>
-              <ListItem>
-                If the bot is not an administrator, group-management automation
-                will not work. The group is still saved, and flagged.
-              </ListItem>
-            </UnorderedList>
-          </Box>
-        </Alert>
-      </Stack>
+        <TelegramGroupSetupSteps />
+      </Box>
     </Drawer>
   );
 }

@@ -8,11 +8,8 @@ import {
   Button,
   Code,
   Flex,
-  ListItem,
-  OrderedList,
   Stack,
   Text,
-  UnorderedList,
 } from "@chakra-ui/react";
 import { Formik } from "formik";
 import * as Yup from "yup";
@@ -20,7 +17,7 @@ import toast from "react-hot-toast";
 import GlobalWrapper from "../../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../../components/CustomContainer";
 import CustomInput from "../../../components/customInput/customInput";
-import TelegramGroupSetupGuide from "../../../components/master/TelegramGroupSetupGuide";
+import { TelegramGroupSetupSteps } from "../../../components/master/TelegramGroupSetupGuide";
 import DetectTelegramGroup from "../../../components/master/DetectTelegramGroup";
 import { useDetectedTelegramGroups } from "../../../customHooks/useDetectedTelegramGroups";
 import styles from "../../../styles/master.module.css";
@@ -75,8 +72,11 @@ const validationSchema = Yup.object({
     .oneOf(TELEGRAM_GROUP_CATEGORIES, "Category is not supported"),
   used_for: Yup.string().trim().required("Used For is required").max(255),
   outlet_id: Yup.mixed().nullable(),
-  bot_is_admin: Yup.string().required("Bot Is Admin is required").oneOf(["1", "0"]),
-  is_active: Yup.string().required("Status is required").oneOf(["Active", "Inactive"]),
+  // Both are TOGGLES, so the form value is already the boolean the API
+  // wants. `required` would reject a legitimate `false`, so the rule is
+  // "must be a boolean", not "must be truthy".
+  bot_is_admin: Yup.boolean().typeError("Bot Is Admin is required").required("Bot Is Admin is required"),
+  is_active: Yup.boolean().typeError("Status is required").required("Status is required"),
 });
 
 const EMPTY = {
@@ -85,20 +85,27 @@ const EMPTY = {
   category: "",
   used_for: "",
   outlet_id: "",
-  bot_is_admin: "",
+  // OFF until somebody says otherwise: claiming the bot is an admin when
+  // nobody has checked is the one wrong default here, and the list flags
+  // the row so a mistaken No is visible rather than silent.
+  bot_is_admin: false,
   // A group somebody is registering is one they are about to use.
-  is_active: "Active",
+  is_active: true,
 };
 
-const YES_NO = [
-  { id: "1", value: "Yes" },
-  { id: "0", value: "No" },
-];
-
-/** The derived type, and the warnings, for whatever is currently in the form. */
+/**
+ * The derived type, and the warnings, for whatever is currently in the form.
+ *
+ * BOTH WARNINGS WAIT UNTIL THEY MEAN SOMETHING. The type notice needs a Chat
+ * ID to derive anything from, and the bot warning is held back until there
+ * is one too: Bot Is Admin now starts OFF, so without that gate an untouched
+ * Add form would open with a red warning about a group nobody has named yet.
+ * A warning that is always on is a warning nobody reads.
+ */
 function GroupTypeNotice({ chatId, botIsAdmin }) {
   const type = deriveGroupType(chatId);
-  const showBotWarning = botIsAdmin === "0" || botIsAdmin === false;
+  const hasChatId = Boolean(String(chatId === undefined || chatId === null ? "" : chatId).length);
+  const showBotWarning = hasChatId && botIsAdmin === false;
   return (
     <Stack spacing={3} mb={4}>
       {type ? (
@@ -128,89 +135,6 @@ function GroupTypeNotice({ chatId, botIsAdmin }) {
   );
 }
 
-/**
- * The guidance beside the form: what a Chat ID must look like, why the bot
- * needs to be an admin, and how to find the id in Telegram.
- *
- * It sits next to the fields rather than under them because it is reference
- * material somebody reads WHILE typing - underneath, it would be below the
- * fold on the one screen where it is needed. On a narrow screen it stacks
- * below the form, where it is still reachable.
- *
- * Read-only: nothing here is a control, and the rules it states are enforced
- * by the form and again by the server.
- */
-function GuidancePanel({ onOpenGuide, createMode }) {
-  return (
-    <Stack spacing={4} flex="1" minW={{ xl: "320px" }} maxW={{ xl: "420px" }}>
-      <Button
-        size="sm"
-        variant="outline"
-        colorScheme="purple"
-        onClick={onOpenGuide}
-        leftIcon={<i className="fa-solid fa-circle-question" />}
-        alignSelf="flex-start"
-      >
-        Full setup guide
-      </Button>
-
-      <Alert status="info" borderRadius="md" alignItems="flex-start" fontSize="sm">
-        <AlertIcon />
-        <Box>
-          <Text fontWeight="600" mb={1}>
-            Chat ID guidelines
-          </Text>
-          <UnorderedList spacing={1}>
-            <ListItem>Must be a negative number, e.g. -1001234567890.</ListItem>
-            <ListItem>A positive number is an individual user, not a group, and is rejected.</ListItem>
-            <ListItem>IDs starting with -100 are supergroups (recommended).</ListItem>
-            <ListItem>
-              Other negative IDs are basic groups - accepted, but consider converting to a
-              supergroup for invite links and member removal.
-            </ListItem>
-            <ListItem>No spaces, decimals or letters, and it must be unique.</ListItem>
-          </UnorderedList>
-        </Box>
-      </Alert>
-
-      <Alert status="warning" borderRadius="md" alignItems="flex-start" fontSize="sm">
-        <AlertIcon />
-        <Box>
-          <Text fontWeight="600" mb={1}>
-            Bot admin requirement
-          </Text>
-          <Text>
-            Add the bot as an admin in the group. Groups where it is not an admin are saved
-            and flagged, but cannot be used for member management.
-          </Text>
-        </Box>
-      </Alert>
-
-      {/* Only where Detect Group exists. On Edit this would be telling
-          somebody to click a button that is deliberately not there. */}
-      {createMode ? (
-      <Alert status="success" borderRadius="md" alignItems="flex-start" fontSize="sm">
-        <AlertIcon />
-        <Box>
-          <Text fontWeight="600" mb={1}>
-            How to get the Chat ID
-          </Text>
-          <OrderedList spacing={1}>
-            <ListItem>Add the Daily Needs bot to your Telegram group as an admin.</ListItem>
-            <ListItem>
-              Send <Code fontSize="xs">/setup</Code> in the group.
-            </ListItem>
-            <ListItem>Click Detect Group above — the Chat ID is filled in for you.</ListItem>
-          </OrderedList>
-          <Text mt={2} color="gray.600">
-            No third-party bot and no log lookup is needed.
-          </Text>
-        </Box>
-      </Alert>
-      ) : null}
-    </Stack>
-  );
-}
 
 export default function TelegramGroupMode() {
   const router = useRouter();
@@ -229,7 +153,6 @@ export default function TelegramGroupMode() {
 
   const [formInitialValues, setFormInitialValues] = useState(EMPTY);
   const [serverError, setServerError] = useState(null);
-  const [guideOpen, setGuideOpen] = useState(false);
   const [detectOpen, setDetectOpen] = useState(false);
   const { detected, loading: detecting, error: detectError, detect } = useDetectedTelegramGroups();
 
@@ -245,8 +168,8 @@ export default function TelegramGroupMode() {
         category: group.category || "",
         used_for: group.used_for || "",
         outlet_id: group.outlet_id == null ? "" : String(group.outlet_id),
-        bot_is_admin: group.bot_is_admin ? "1" : "0",
-        is_active: group.is_active === false ? "Inactive" : "Active",
+        bot_is_admin: Boolean(group.bot_is_admin),
+        is_active: group.is_active !== false,
       });
     }
   }, [createMode, group]);
@@ -277,8 +200,10 @@ export default function TelegramGroupMode() {
       category: values.category,
       used_for: values.used_for.trim(),
       outlet_id: values.outlet_id === "" ? null : Number(values.outlet_id),
-      bot_is_admin: values.bot_is_admin === "1",
-      is_active: values.is_active === "Active",
+      // Already booleans - the toggles hold exactly what the API expects,
+      // so nothing is translated on the way out.
+      bot_is_admin: Boolean(values.bot_is_admin),
+      is_active: Boolean(values.is_active),
     };
 
     try {
@@ -342,7 +267,6 @@ export default function TelegramGroupMode() {
       permissionKey={viewMode ? ["view_telegram_groups"] : ["manage_telegram_groups"]}
     >
       <CustomContainer title={title} filledHeader>
-        <TelegramGroupSetupGuide isOpen={guideOpen} onClose={() => setGuideOpen(false)} />
         {!viewMode && !canManage ? (
           <Alert status="warning" fontSize="sm" mb={4}>
             <AlertIcon />
@@ -364,6 +288,28 @@ export default function TelegramGroupMode() {
         >
           {({ handleSubmit: formikSubmit, values, setFieldValue, isSubmitting }) => (
             <form onSubmit={formikSubmit}>
+              {/* THE GUIDE IS THE PAGE'S MAIN INSTRUCTION, and it is on the
+                  page rather than behind a button: the people who need it
+                  are setting up their first group, and a guide you have to
+                  know to ask for is a guide they never see. Create only -
+                  Edit is changing a group that is already set up. */}
+              {createMode ? (
+                <Box
+                  mb={6}
+                  p={{ base: 4, md: 5 }}
+                  borderWidth="1px"
+                  borderRadius="md"
+                  borderColor="gray.200"
+                  bg="gray.50"
+                  maxW="640px"
+                >
+                  <Text fontWeight="600" mb={4}>
+                    Setup guide
+                  </Text>
+                  <TelegramGroupSetupSteps compact />
+                </Box>
+              ) : null}
+
               {/* Detect Group: the Chat ID comes from Telegram itself rather
                   than from somebody reading it out of the logs. Nothing is
                   filled in until a group is explicitly selected.
@@ -406,9 +352,8 @@ export default function TelegramGroupMode() {
                     p={3}
                   >
                     <Text fontSize="sm" color="gray.700">
-                      Add the Daily Needs bot to the group and send{" "}
-                      <Code fontSize="xs">/setup</Code> there, then detect it
-                      here instead of typing the Chat ID.
+                      Send <Code fontSize="xs">/setup</Code> in your Telegram
+                      group first, then click Detect Group.
                     </Text>
                     <Button
                       size="sm"
@@ -428,96 +373,76 @@ export default function TelegramGroupMode() {
                 </>
               ) : null}
 
-              {/* Fields on the left, reference material on the right; it
-                  stacks on a narrow screen. */}
-              <Flex
-                direction={{ base: "column", xl: "row" }}
-                gap={{ base: 4, xl: 8 }}
-                align="flex-start"
-              >
-                <Box flex="2" minW={0} w="100%">
-              <div className={styles.inputContainer}>
-                <div className={styles.inputSubContainer}>
-                  <CustomInput
-                    label="Group Name *"
-                    name="group_name"
-                    type="text"
-                    placeholder="e.g. Attendance Alerts"
-                    editable={!viewMode}
-                  />
-                  <CustomInput
-                    label="Group Chat ID *"
-                    name="chat_id"
-                    type="text"
-                    placeholder="-1001234567890"
-                    editable={!viewMode}
-                  />
-                </div>
-                <div className={styles.inputSubContainer}>
-                  <CustomInput
-                    label="Category *"
-                    name="category"
-                    type="text"
-                    method="switch"
-                    values={categoryOptions}
-                    editable={!viewMode}
-                  />
-                  <CustomInput
-                    label="Used For *"
-                    name="used_for"
-                    type="text"
-                    placeholder="e.g. Daily missing-punch alerts"
-                    editable={!viewMode}
-                  />
-                </div>
-                <div className={styles.inputSubContainer}>
-                  <CustomInput
-                    label="Outlet"
-                    name="outlet_id"
-                    type="text"
-                    method="switch"
-                    values={outletOptions}
-                    editable={!viewMode}
-                    // A group with no outlet reads as "All Outlets", not the
-                    // "N/A" the read-only renderer shows for an empty value.
-                    {...(viewMode ? { value: displayOutlet(group) } : {})}
-                  />
-                  <CustomInput
-                    label="Bot Is Admin *"
-                    name="bot_is_admin"
-                    type="text"
-                    method="switch"
-                    values={YES_NO}
-                    editable={!viewMode}
-                  />
-                </div>
-                <div className={styles.inputSubContainer}>
-                  <CustomInput
-                    label="Status *"
-                    name="is_active"
-                    type="text"
-                    method="switch"
-                    values={STATUS_OPTIONS}
-                    editable={!viewMode}
-                  />
-                  {/* Keeps the last row two columns wide so Status lines up
-                      with the fields above it rather than stretching. */}
-                  <div style={{ width: "100%" }} />
-                </div>
-              </div>
+              {/* SINGLE COLUMN, in the order the guide names them. The
+                  two-column grid packed related fields side by side and made
+                  the form read as a dense grid rather than a sequence of
+                  questions; one field per row is slower to scan and far
+                  easier to fill in correctly. */}
+              <Stack spacing={0} maxW="640px">
+                <CustomInput
+                  label="Group Name *"
+                  name="group_name"
+                  type="text"
+                  placeholder="e.g. Attendance Alerts"
+                  editable={!viewMode}
+                />
+                <CustomInput
+                  label="Group Chat ID *"
+                  name="chat_id"
+                  type="text"
+                  placeholder="-1001234567890"
+                  editable={!viewMode}
+                />
+                <CustomInput
+                  label="Category *"
+                  name="category"
+                  type="text"
+                  method="switch"
+                  values={categoryOptions}
+                  editable={!viewMode}
+                />
+                <CustomInput
+                  label="Used For *"
+                  name="used_for"
+                  type="text"
+                  placeholder="e.g. Daily missing-punch alerts"
+                  editable={!viewMode}
+                />
+                <CustomInput
+                  label="Outlet"
+                  name="outlet_id"
+                  type="text"
+                  method="switch"
+                  values={outletOptions}
+                  editable={!viewMode}
+                  // A group with no outlet reads as "All Outlets", not the
+                  // "N/A" the read-only renderer shows for an empty value.
+                  {...(viewMode ? { value: displayOutlet(group) } : {})}
+                />
+                {/* Two-state answers, so the repo's switch_toggle rather
+                    than a dropdown. The value IS the boolean the API wants,
+                    so nothing is translated on save. */}
+                <CustomInput
+                  label="Bot Is Admin *"
+                  name="bot_is_admin"
+                  method="switch_toggle"
+                  onLabel="Yes"
+                  offLabel="No"
+                  editable={!viewMode}
+                />
+                <CustomInput
+                  label="Status *"
+                  name="is_active"
+                  method="switch_toggle"
+                  onLabel="Active"
+                  offLabel="Inactive"
+                  editable={!viewMode}
+                />
+              </Stack>
 
+              {/* Contextual only: these appear when the entered Chat ID is
+                  actually a Basic Group, or Bot Is Admin is actually No. */}
               <GroupTypeNotice chatId={values.chat_id} botIsAdmin={values.bot_is_admin} />
-                </Box>
-
-                {/* The guidance is for somebody filling the form in, so it is
-                    not shown on the read-only view. */}
-                {!viewMode ? (
-                  <GuidancePanel
-                    onOpenGuide={() => setGuideOpen(true)}
-                    createMode={createMode}
-                  />
-                ) : null}
-              </Flex>
 
               <div className={styles.buttonContainer}>
                 {viewMode ? (

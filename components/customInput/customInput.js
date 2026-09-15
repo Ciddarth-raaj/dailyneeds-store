@@ -89,6 +89,11 @@ const TextFieldBody = ({
   customRenderer,
   renderSelected,
   showErrors = true,
+  // `switch_toggle` labels. Defaulted to the pair it has always shown, so
+  // every existing use is unchanged; destructured here rather than left in
+  // `props` so they are never spread onto the DOM Switch.
+  onLabel = "Active",
+  offLabel = "Inactive",
   ...props
 }) => {
   let start = 1950;
@@ -306,7 +311,13 @@ const TextFieldBody = ({
                           <Switch
                             id={field.name}
                             isChecked={!!field.value}
-                            onChange={onChange}
+                            // Falls back to Formik when no handler is passed,
+                            // so a toggle works the way every other field
+                            // here does; an explicit onChange still wins.
+                            onChange={
+                              onChange ||
+                              ((e) => setFieldValue(field.name, e.target.checked))
+                            }
                             isDisabled={props.isDisabled || !editable}
                             {...props}
                           />
@@ -314,7 +325,7 @@ const TextFieldBody = ({
                             fontSize="sm"
                             color={field.value ? "green.500" : "gray.400"}
                           >
-                            {field.value ? "Active" : "Inactive"}
+                            {field.value ? onLabel : offLabel}
                           </Text>
                         </Flex>
                       );

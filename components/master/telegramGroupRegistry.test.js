@@ -444,23 +444,15 @@ test("the list carries the Chat ID and Basic Group guidance banners", () => {
 
 test("the form has a Status field defaulting to Active", () => {
   assert.match(formPage, /name="is_active"/);
-  assert.match(formPage, /values=\{STATUS_OPTIONS\}/);
-  assert.match(formPage, /is_active: "Active"/);
-  assert.match(formPage, /\.oneOf\(\["Active", "Inactive"\]\)/);
+  assert.match(formPage, /is_active: true/, "create starts Active");
+  assert.match(formPage, /is_active: Yup\.boolean\(\)/);
 });
 
 test("Status is sent as a boolean, and read back from one", () => {
-  assert.match(formPage, /is_active: values\.is_active === "Active"/);
-  assert.match(formPage, /group\.is_active === false \? "Inactive" : "Active"/);
+  assert.match(formPage, /is_active: Boolean\(values\.is_active\)/);
+  assert.match(formPage, /is_active: group\.is_active !== false/);
 });
 
-test("the form shows the guidance panel while editing, and not on the read-only view", () => {
-  assert.match(formPage, /function GuidancePanel\(/);
-  assert.match(formPage, /\{!viewMode \? \(\s*<GuidancePanel/);
-  assert.match(formPage, /Chat ID guidelines/);
-  assert.match(formPage, /Bot admin requirement/);
-  assert.match(formPage, /How to get the Chat ID/);
-});
 
 test("STATUS IS NOT THE BOT-ADMIN FLAG - they are separate fields", () => {
   assert.match(formPage, /name="bot_is_admin"/);
@@ -474,12 +466,6 @@ test("STATUS IS NOT THE BOT-ADMIN FLAG - they are separate fields", () => {
 
 /* ================================================= the in-app setup guide = */
 
-test("the setup guide is reachable from the list and from the form", () => {
-  assert.match(listPage, /<TelegramGroupSetupGuide isOpen=\{guideOpen\}/);
-  assert.match(listPage, /Setup guide/);
-  assert.match(formPage, /<TelegramGroupSetupGuide isOpen=\{guideOpen\}/);
-  assert.match(formPage, /Full setup guide/);
-});
 
 test("reading the guide needs no permission to manage groups", () => {
   // Knowing how a group is set up is not authority to register one, so the
@@ -493,17 +479,21 @@ test("reading the guide needs no permission to manage groups", () => {
 
 test("the guide covers all six steps, verification and the warnings", () => {
   for (const step of [
-    "Create the Telegram group",
+    "Create a Telegram group",
     "Convert it to a Supergroup",
     "Add the Daily Needs bot",
-    "Send /setup in the group",
-    "Detect the group here",
-    "Complete the rest and save",
+    "Send /setup",
+    "Detect the group",
+    "Complete and save",
   ]) {
     assert.match(guide, new RegExp(step), step);
   }
-  assert.match(guide, /How to verify/);
-  assert.match(guide, /Important/);
+  // The closing note, kept deliberately small - three facts, not a second
+  // instruction block.
+  const prose = guide.replace(/\s+/g, " ");
+  assert.match(prose, /Chat IDs normally start with/);
+  assert.match(prose, /Detect Group is the preferred method/);
+  assert.match(prose, /No third-party bot or server-log lookup is required/);
 });
 
 test("THE GUIDE CANNOT DRIFT FROM THE FORM - it reads the shared lists", () => {
@@ -544,16 +534,6 @@ test("the guide's field list matches what the form actually asks for", () => {
   }
 });
 
-test("the guide states the rules the form and server actually enforce", () => {
-  // JSX wraps prose across lines, so these match on collapsed whitespace
-  // rather than on however Prettier happened to break the sentence.
-  const prose = guide.replace(/\s+/g, " ");
-  assert.match(prose, /positive and is rejected/);
-  assert.match(prose, /Do not add spaces before or after the Chat ID/);
-  assert.match(prose, /rejected, not tidied up/);
-  assert.match(prose, /registered only once/);
-  assert.match(prose, /detected from the Chat ID/);
-});
 
 test("the guide explains but does not enforce - it holds no validation of its own", () => {
   // Enforcement lives in the form and again on the server. A second copy of
@@ -691,10 +671,9 @@ test("THE FRONTEND NEVER POLLS TELEGRAM ITSELF", () => {
 
 test("the guide teaches /setup and Detect Group, not a log lookup", () => {
   const prose = guide.replace(/\s+/g, " ");
-  assert.match(prose, /Send \/setup in the group/);
-  assert.match(prose, /Detect the group here/);
+  assert.match(prose, /Send <Code fontSize="xs">\/setup<\/Code> inside the Telegram group/);
   assert.match(prose, /<strong>Detect Group<\/strong>/);
-  assert.match(prose, /No server-log or manual Chat ID lookup is needed/);
+  assert.match(prose, /No third-party bot or server-log lookup is required/);
   // The old instructions are gone.
   assert.ok(!/bot logs/.test(prose), "no 'take the Chat ID from the bot logs'");
   assert.ok(!/Daily Needs Telegram setup test/.test(prose), "the old test-message step is gone");
@@ -703,7 +682,7 @@ test("the guide teaches /setup and Detect Group, not a log lookup", () => {
 test("the guide still says Group Name and Chat ID come from detection", () => {
   const prose = guide.replace(/\s+/g, " ");
   assert.match(prose, /filled in by Detect Group/);
-  assert.match(prose, /arrive from Detect Group/);
+  assert.match(prose, /Group Name and Group Chat ID are filled in once you select/);
 });
 
 
@@ -745,26 +724,151 @@ test("NO SUPERSEDED CHAT-ID INSTRUCTIONS SURVIVE ANYWHERE ON THE SCREEN", () => 
   }
 });
 
-test("the guidance panel teaches /setup and Detect Group instead", () => {
+
+
+
+
+/* ======================================== the refined Add page layout ==== */
+
+test("THE SETUP GUIDE IS ON THE PAGE, not behind a button", () => {
+  // The people who need it are setting up their first group. A guide you
+  // have to know to ask for is a guide they never see.
+  assert.match(formPage, /<TelegramGroupSetupSteps compact \/>/);
+  assert.match(formPage, /Setup guide/);
+  assert.ok(!/<TelegramGroupSetupGuide/.test(formPage), "no drawer element on the form");
+  assert.ok(!/guideOpen|setGuideOpen/.test(formPage), "no drawer state");
+  assert.ok(!/Full setup guide/.test(formPage), "no Full setup guide button");
+});
+
+test("the inline guide is Create-only, like Detect Group", () => {
+  assert.match(formPage, /\{createMode \? \(\s*<Box[\s\S]{0,400}<TelegramGroupSetupSteps/);
+});
+
+test("THE SIDE GUIDANCE BLOCKS ARE GONE, and nothing replaced them", () => {
+  assert.ok(!/function GuidancePanel/.test(formPage), "GuidancePanel is deleted");
+  for (const block of [
+    "Chat ID guidelines",
+    "Bot admin requirement",
+    "How to get the Chat ID",
+  ]) {
+    assert.ok(!formPage.includes(block), `"${block}" must be gone`);
+  }
+  // And no second sidebar took its place.
+  assert.ok(!/direction=\{\{ base: "column", xl: "row" \}\}/.test(formPage), "no two-column shell");
+});
+
+test("THE FORM IS A SINGLE COLUMN in the approved field order", () => {
+  const order = [...formPage.matchAll(/name="(group_name|chat_id|category|used_for|outlet_id|bot_is_admin|is_active)"/g)]
+    .map((m) => m[1]);
+  assert.deepStrictEqual(order, [
+    "group_name",
+    "chat_id",
+    "category",
+    "used_for",
+    "outlet_id",
+    "bot_is_admin",
+    "is_active",
+  ]);
+  // The old grid put two fields per row; the Stack puts one.
+  assert.match(formPage, /<Stack spacing=\{0\} maxW="640px">/);
+  assert.ok(!/inputSubContainer/.test(formPage), "the two-column rows are gone");
+});
+
+test("Bot Is Admin and Status use the repo's existing switch_toggle", () => {
+  const botField = /<CustomInput\s+label="Bot Is Admin \*"[\s\S]*?\/>/.exec(formPage)[0];
+  assert.match(botField, /method="switch_toggle"/);
+  assert.match(botField, /onLabel="Yes"/);
+  assert.match(botField, /offLabel="No"/);
+
+  const statusField = /<CustomInput\s+label="Status \*"[\s\S]*?\/>/.exec(formPage)[0];
+  assert.match(statusField, /method="switch_toggle"/);
+  assert.match(statusField, /onLabel="Active"/);
+  assert.match(statusField, /offLabel="Inactive"/);
+
+  // Neither is a dropdown any more.
+  for (const field of [botField, statusField]) {
+    assert.ok(!/method="switch"/.test(field), "not a Select");
+    assert.ok(!/values=\{/.test(field), "no option list");
+  }
+});
+
+test("the toggle labels are a real CustomInput feature, defaulted for every other caller", () => {
+  const input = strip(read("components/customInput/customInput.js"));
+  assert.match(input, /onLabel = "Active"/);
+  assert.match(input, /offLabel = "Inactive"/);
+  assert.match(input, /\{field\.value \? onLabel : offLabel\}/);
+  // Destructured, so they are never spread onto the DOM Switch.
+  const spread = /case "switch_toggle":[\s\S]*?\{\.\.\.props\}/.exec(input);
+  assert.ok(spread, "props are still spread onto the Switch");
+  assert.ok(!/onLabel/.test(spread[0].replace(/onLabel = "Active"/, "")), "labels are not in props");
+});
+
+test("BOT IS ADMIN MAPS ON->true, OFF->false, with no translation on save", () => {
+  assert.match(formPage, /bot_is_admin: Boolean\(values\.bot_is_admin\)/);
+  assert.match(formPage, /bot_is_admin: Boolean\(group\.bot_is_admin\)/);
+  // The old string encoding is gone entirely.
+  assert.ok(!/values\.bot_is_admin === "1"/.test(formPage));
+  assert.ok(!/bot_is_admin: "1"|bot_is_admin: "0"/.test(formPage));
+});
+
+test("STATUS MAPS ON->Active(true), OFF->Inactive(false), default Active on create", () => {
+  assert.match(formPage, /is_active: Boolean\(values\.is_active\)/);
+  assert.match(formPage, /is_active: true/, "create default");
+  assert.ok(!/values\.is_active === "Active"/.test(formPage));
+});
+
+test("a required BOOLEAN must still accept false", () => {
+  // `Yup.string().required()` would reject "No"/"Inactive" once they became
+  // `false`, because required() rejects falsy. The boolean rule does not.
+  assert.match(formPage, /bot_is_admin: Yup\.boolean\(\)/);
+  assert.match(formPage, /is_active: Yup\.boolean\(\)/);
+  assert.ok(!/bot_is_admin: Yup\.string\(\)/.test(formPage));
+  assert.ok(!/is_active: Yup\.string\(\)/.test(formPage));
+});
+
+test("Bot Is Admin defaults to No, which the list then flags", () => {
+  // Claiming the bot is an admin when nobody has checked is the one wrong
+  // default here; a mistaken No is visible in the registry, a mistaken Yes
+  // is silent.
+  assert.match(formPage, /bot_is_admin: false/);
+});
+
+test("the dynamic warnings survive the redesign and stay contextual", () => {
+  assert.match(formPage, /<GroupTypeNotice chatId=\{values\.chat_id\} botIsAdmin=\{values\.bot_is_admin\}/);
+  // The Basic Group notice is keyed on the derived type of what was typed.
+  assert.match(formPage, /type === GROUP_TYPE\.BASIC_GROUP \? \(/);
+  // The bot warning is keyed on the toggle being off - a boolean now.
+  assert.match(formPage, /showBotWarning = hasChatId && botIsAdmin === false/);
+});
+
+test("the Detect Group hint is one line, not another explanation", () => {
   const prose = formPage.replace(/\s+/g, " ");
-  assert.match(prose, /Add the Daily Needs bot to your Telegram group as an admin/);
-  assert.match(prose, /Click Detect Group above/);
-  assert.match(prose, /No third-party bot and no log lookup is needed/);
+  assert.match(prose, /Send <Code fontSize="xs">\/setup<\/Code> in your Telegram group first, then click Detect Group/);
+  assert.ok(!prose.includes("instead of typing the Chat ID"), "the longer hint is gone");
 });
 
-test("the 'click Detect Group above' panel is itself create-only", () => {
-  // Otherwise Edit would be telling somebody to click a button that is
-  // deliberately not there - the same contradiction in a new place.
-  assert.match(formPage, /function GuidancePanel\(\{ onOpenGuide, createMode \}\)/);
-  assert.match(formPage, /\{createMode \? \(\s*<Alert status="success"/);
-  assert.match(formPage, /createMode=\{createMode\}/);
+test("the list screen keeps the drawer, so the guide has one copy of its wording", () => {
+  assert.match(listPage, /<TelegramGroupSetupGuide isOpen=\{guideOpen\}/);
+  assert.match(guide, /export function TelegramGroupSetupSteps/);
+  assert.match(guide, /export default function TelegramGroupSetupGuide/);
+  // The drawer renders the same steps rather than its own copy.
+  assert.match(guide, /<TelegramGroupSetupSteps \/>/);
 });
 
-test("Edit still keeps the Chat ID rules, which apply to a typed id", () => {
-  // Narrowing the how-to must not take the validation rules with it: Edit
-  // can still change a Chat ID by hand.
-  const panel = /function GuidancePanel\([\s\S]*?\n\}/.exec(formPage)[0];
-  const createOnlyAt = panel.indexOf("{createMode ? (");
-  assert.ok(panel.indexOf("Chat ID guidelines") < createOnlyAt, "guidelines are unconditional");
-  assert.ok(panel.indexOf("Bot admin requirement") < createOnlyAt, "bot admin note is unconditional");
+test("step 2 does not assume Telegram shows a Convert button", () => {
+  const prose = guide.replace(/\s+/g, " ");
+  assert.match(prose, /If Telegram shows <strong>Convert to Supergroup<\/strong>/);
+  assert.match(prose, /If that option is not visible/);
+  assert.match(prose, /Chat history visible for new members/);
+  assert.match(prose, /Topics/);
+  assert.match(prose, /Telegram may then upgrade the group for you/);
+});
+
+
+test("the bot warning waits for a Chat ID, so an untouched form is not pre-warned", () => {
+  // Bot Is Admin now starts OFF, so without this gate the Add page would
+  // open with a red warning about a group nobody has named yet.
+  assert.match(formPage, /const hasChatId = Boolean\(/);
+  assert.match(formPage, /showBotWarning = hasChatId && botIsAdmin === false/);
+  assert.ok(!/botIsAdmin === "0"/.test(formPage), "the old string encoding is gone");
 });
