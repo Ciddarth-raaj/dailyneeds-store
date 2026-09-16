@@ -127,14 +127,55 @@ export function targetStatusLabel(row) {
 
 export const targetIsBroken = (row) => targetWarning(row) !== null;
 
-/** What the numbers on this screen count. The server decides; this names it. */
+/**
+ * What the numbers on this screen count. The server decides; this names it.
+ *
+ * THREE STATES, AND TWO OF THEM WOULD OTHERWISE RENDER AS THE SAME ZERO.
+ * `BRANCH` with nothing matched is an OBSERVATION - nobody in your branch
+ * fits this rule. `NONE` is not an observation about anybody: the account has
+ * no employee record, no branch, an inactive record, no session, or the
+ * scope resolver did not run. Showing "0 employees match" there would invent
+ * a finding out of a failure, and the reading it invites - "this rule matches
+ * nobody, it must be broken" - is what gets a working rule deleted.
+ */
 export const COUNTS_SCOPE = {
   ALL: "ALL",
   BRANCH: "BRANCH",
+  NONE: "NONE",
 };
 
+/**
+ * THE ONE PLACE `counts_scope` IS INTERPRETED. Every component asks these
+ * three questions rather than comparing the string itself, so a fourth state
+ * added later is handled here once instead of in five components that each
+ * quietly disagree.
+ */
 export const isBranchScoped = (payload) =>
   Boolean(payload) && payload.counts_scope === COUNTS_SCOPE.BRANCH;
+
+/**
+ * ANYTHING THAT IS NOT EXPLICITLY `ALL` OR `BRANCH` IS UNAVAILABLE.
+ *
+ * Deliberately not `=== "NONE"`. A missing field, a response from an older
+ * server, or a state added in a future release must all fall to the
+ * non-disclosing answer, because the alternative default - treating an
+ * unrecognised scope as company-wide - would present somebody's partial or
+ * absent numbers as the company's. The safe direction is to say less.
+ */
+export function isCountsUnavailable(payload) {
+  const scope = payload && payload.counts_scope;
+  return scope !== COUNTS_SCOPE.ALL && scope !== COUNTS_SCOPE.BRANCH;
+}
+
+/** The sentence for a state where nothing could be counted. */
+export const COUNTS_UNAVAILABLE = {
+  SUMMARY: "Employee counts are unavailable for your account scope.",
+  NOTICE:
+    "The mapping rules are still shown, but employee counts cannot be displayed for this account.",
+  EMPLOYEES: "Employee details and counts are unavailable for your account scope.",
+  /** What a count cell shows instead of a number. Compact, and not a zero. */
+  CELL: "\u2014",
+};
 
 /**
  * THE COUNT SENTENCE, AND WHOSE EMPLOYEES IT COUNTS.
@@ -144,16 +185,11 @@ export const isBranchScoped = (payload) =>
  * cover a hundred people - and a manager who believes a company-wide rule
  * covers twelve is a manager who concludes it is broken and deletes it.
  *
- * So the scope is in the sentence itself: "12 employees in your branch scope
- * match this mapping". The number is true, and what it counts is stated
- * beside it.
- *
- * THIS REPLACED "34 match, 12 visible to you". That wording required a
- * company-wide total, which is information about other branches' staffing -
- * their headcount by designation, how many are already on Telegram - and the
- * server no longer computes one for a caller who may not see it.
+ * An unavailable scope gets no number at all, for the stronger version of
+ * the same reason: there is nothing to report.
  */
 export function scopeSummary(payload = {}) {
+  if (isCountsUnavailable(payload)) return COUNTS_UNAVAILABLE.SUMMARY;
   const { total_matched = 0 } = payload;
   const verb = total_matched === 1 ? "employee matches" : "employees match";
   if (isBranchScoped(payload)) {
@@ -163,23 +199,27 @@ export function scopeSummary(payload = {}) {
 }
 
 /**
- * The line that says the WHOLE screen's numbers are limited - shown once,
- * near the counts, rather than repeated on every row.
+ * The line that qualifies the WHOLE screen's numbers - shown once, near the
+ * counts, rather than repeated on every row.
  *
- * It is deliberately explicit that the RULE is unaffected: a manager must
- * not read a scoped count as "this mapping only covers my branch", because
- * then deleting it looks harmless.
+ * For a branch caller it is explicit that the RULE is unaffected, because a
+ * scoped count read as "this mapping only covers my branch" makes deleting it
+ * look harmless. The unavailable notice says the same thing differently: the
+ * rules are real and visible, only the arithmetic is missing.
  */
 export function countsScopeNotice(payload) {
+  if (isCountsUnavailable(payload)) return COUNTS_UNAVAILABLE.NOTICE;
   if (!isBranchScoped(payload)) return null;
   return "Counts on this screen are limited to your branch scope. The mapping rules themselves apply company-wide.";
 }
 
 /** The header line above the mapping grid. */
 export function groupCountSummary(payload = {}) {
+  // No "0 employees", and no "0 already connected" either - neither is an
+  // observed population.
+  if (isCountsUnavailable(payload)) return COUNTS_UNAVAILABLE.SUMMARY;
   const { total_matched = 0, total_connected } = payload;
-  const scoped = isBranchScoped(payload);
-  const who = scoped ? " in your branch scope" : "";
+  const who = isBranchScoped(payload) ? " in your branch scope" : "";
   const noun = total_matched === 1 ? "employee" : "employees";
   let text = `${total_matched} ${noun}${who} currently match this group's mappings`;
   if (typeof total_connected === "number") {
@@ -193,15 +233,38 @@ export function groupCountSummary(payload = {}) {
  * The empty state, which must not overclaim.
  *
  * A branch-scoped caller seeing nothing has learned that NOBODY THEY MAY SEE
- * matches - not that nobody matches. Saying "no staff match this mapping"
- * would be asserting something about branches they cannot see, which is both
- * untrue and the disclosure this correction removed.
+ * matches - not that nobody matches. An unavailable caller has learned even
+ * less than that: nothing was looked at, so the mapping must not be described
+ * as matching anybody or nobody.
  */
 export function emptyMatchedMessage(payload) {
+  if (isCountsUnavailable(payload)) return COUNTS_UNAVAILABLE.EMPLOYEES;
   if (isBranchScoped(payload)) {
     return "No currently employed staff in your branch scope match this mapping. It may still match employees in other branches.";
   }
   return "No currently employed staff match this mapping.";
+}
+
+/**
+ * What one row's Matched Employees cell shows.
+ *
+ * An em dash rather than a 0, because the cell has nothing to report and a
+ * zero would be read as a count. The raw number from the server is left
+ * alone; only its presentation depends on the scope.
+ */
+export function matchedCountCell(row, payload) {
+  if (isCountsUnavailable(payload)) return COUNTS_UNAVAILABLE.CELL;
+  return row && typeof row.matched_employees === "number" ? row.matched_employees : COUNTS_UNAVAILABLE.CELL;
+}
+
+/**
+ * The Matched Employees column header.
+ *
+ * NEUTRAL WHEN COUNTS ARE UNAVAILABLE. "(your branch)" over a column of
+ * dashes would claim a branch answer where there is none.
+ */
+export function matchedCountHeader(payload) {
+  return isBranchScoped(payload) ? "Matched Employees (your branch)" : "Matched Employees";
 }
 
 /** Yes / No. Never a username, an id or a mobile number. */

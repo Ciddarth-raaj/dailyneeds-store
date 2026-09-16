@@ -31,6 +31,7 @@ const addModal = strip(read("components/master/AddTelegramGroupMapping.jsx"));
 const employeesModal = strip(read("components/master/TelegramGroupMatchedEmployees.jsx"));
 const helper = strip(read("helper/telegramGroups.js"));
 const hook = strip(read("customHooks/useTelegramGroupMappings.js"));
+const mapPageNow = () => strip(read("pages/master/telegram-groups/map.jsx"));
 
 /* The rules module is ESM; evaluate its exports without a bundler. */
 const rules = (() => {
@@ -55,7 +56,11 @@ const rules = (() => {
     "groupCountSummary",
     "emptyMatchedMessage",
     "isBranchScoped",
+    "isCountsUnavailable",
+    "matchedCountCell",
+    "matchedCountHeader",
     "COUNTS_SCOPE",
+    "COUNTS_UNAVAILABLE",
     "telegramConnectedLabel",
     "canManageMappings",
     "canSubmitMapping",
@@ -215,7 +220,9 @@ describe("the count wording says WHOSE employees it counts", () => {
 
   it("shows no notice at all to an all-branches caller", () => {
     assert.strictEqual(rules.countsScopeNotice(all), null);
-    assert.strictEqual(rules.countsScopeNotice({}), null);
+    // `{}` is NOT silent any more: a response with no counts_scope is
+    // unavailable rather than company-wide, and says so.
+    assert.match(rules.countsScopeNotice({}), /counts cannot be displayed/i);
   });
 
   it("the group header line carries the scope too", () => {
@@ -238,6 +245,109 @@ describe("the count wording says WHOSE employees it counts", () => {
   });
 });
 
+describe("counts_scope NONE - nothing was counted, which is not a zero", () => {
+  const none = { total_matched: 0, total_connected: 0, counts_scope: "NONE" };
+  const branch = { total_matched: 0, counts_scope: "BRANCH" };
+  const all = { total_matched: 0, counts_scope: "ALL" };
+
+  it("says counts are unavailable, and none of the forbidden phrases", () => {
+    const text = rules.scopeSummary(none);
+    assert.match(text, /unavailable for your account scope/i);
+    for (const forbidden of [
+      /in your branch/i,
+      /0 employees match/i,
+      /no employees match/i,
+      /nobody matches/i,
+    ]) {
+      assert.ok(!forbidden.test(text), `must not say ${forbidden}`);
+    }
+  });
+
+  it("the group summary shows no 0 and no phantom connected count", () => {
+    const text = rules.groupCountSummary(none);
+    assert.match(text, /unavailable for your account scope/i);
+    assert.ok(!/\b0\b/.test(text), "0 connected is not an observed population either");
+    assert.ok(!/already connected/.test(text));
+  });
+
+  it("the grid cell is an em dash, never 0", () => {
+    assert.strictEqual(rules.matchedCountCell({ matched_employees: 0 }, none), "\u2014");
+    assert.strictEqual(rules.matchedCountCell({ matched_employees: 7 }, none), "\u2014");
+    // A real zero from a real scope IS a number, and stays one.
+    assert.strictEqual(rules.matchedCountCell({ matched_employees: 0 }, branch), 0);
+    assert.strictEqual(rules.matchedCountCell({ matched_employees: 34 }, all), 34);
+  });
+
+  it("the column header stays neutral - no (your branch) over dashes", () => {
+    assert.strictEqual(rules.matchedCountHeader(none), "Matched Employees");
+    assert.strictEqual(rules.matchedCountHeader(all), "Matched Employees");
+    assert.strictEqual(rules.matchedCountHeader(branch), "Matched Employees (your branch)");
+  });
+
+  it("the matched-employees modal does not claim nobody matches", () => {
+    const text = rules.emptyMatchedMessage(none);
+    assert.match(text, /unavailable for your account scope/i);
+    assert.ok(!/No currently employed staff/.test(text));
+    assert.ok(!/in your branch scope/.test(text));
+  });
+
+  it("the notice says the RULES are still real", () => {
+    const notice = rules.countsScopeNotice(none);
+    assert.match(notice, /mapping rules are still shown/i);
+    assert.match(notice, /counts cannot be displayed/i);
+  });
+
+  it("an unknown or missing counts_scope fails to the NON-DISCLOSING answer", () => {
+    // Never treat an unrecognised scope as company-wide: that would present
+    // absent or partial numbers as the company's.
+    for (const payload of [{}, null, undefined, { counts_scope: "SOMETHING_NEW" }, { counts_scope: null }]) {
+      assert.strictEqual(rules.isCountsUnavailable(payload), true, JSON.stringify(payload));
+      assert.match(rules.scopeSummary(payload || {}), /unavailable/i);
+      assert.strictEqual(rules.matchedCountHeader(payload), "Matched Employees");
+    }
+  });
+
+  it("ALL and BRANCH are unchanged by any of this", () => {
+    assert.strictEqual(rules.isCountsUnavailable({ counts_scope: "ALL" }), false);
+    assert.strictEqual(rules.isCountsUnavailable({ counts_scope: "BRANCH" }), false);
+    assert.match(rules.scopeSummary({ total_matched: 34, counts_scope: "ALL" }), /34 employees match this mapping\./);
+    assert.match(
+      rules.scopeSummary({ total_matched: 12, counts_scope: "BRANCH" }),
+      /12 employees match this mapping in your branch scope\./
+    );
+    assert.strictEqual(rules.countsScopeNotice({ counts_scope: "ALL" }), null);
+  });
+
+  it("the three states are distinct everywhere it matters", () => {
+    const summaries = [all, branch, none].map((p) => rules.scopeSummary(p));
+    assert.strictEqual(new Set(summaries).size, 3, "three states, three sentences");
+  });
+});
+
+describe("the screens read the scope through the helper, not by hand", () => {
+  it("no component compares counts_scope to a string itself", () => {
+    for (const rel of [
+      "pages/master/telegram-groups/map.jsx",
+      "components/master/TelegramGroupMatchedEmployees.jsx",
+    ]) {
+      const source = strip(read(rel));
+      assert.ok(
+        !/counts_scope\s*===/.test(source),
+        `${rel} must ask the helper, so a future state is handled in one place`
+      );
+    }
+  });
+
+  it("the map screen renders the cell and header through the helpers", () => {
+    assert.match(mapPageNow(), /headerName: matchedCountHeader\(data\)/);
+    assert.match(mapPageNow(), /matchedCountCell\(params\.data, data\)/);
+  });
+
+  it("the modal asks the helper whether counts are unavailable", () => {
+    assert.match(strip(read("components/master/TelegramGroupMatchedEmployees.jsx")), /isCountsUnavailable\(result\)/);
+  });
+});
+
 describe("the replaced scope_limited flag", () => {
   it("is gone from the whole frontend", () => {
     for (const rel of [
@@ -252,13 +362,16 @@ describe("the replaced scope_limited flag", () => {
   });
 
   it("is replaced by counts_scope, which needs no forbidden total", () => {
-    assert.deepStrictEqual(rules.COUNTS_SCOPE, { ALL: "ALL", BRANCH: "BRANCH" });
+    assert.deepStrictEqual(rules.COUNTS_SCOPE, { ALL: "ALL", BRANCH: "BRANCH", NONE: "NONE" });
     assert.strictEqual(rules.isBranchScoped({ counts_scope: "BRANCH" }), true);
     assert.strictEqual(rules.isBranchScoped({ counts_scope: "ALL" }), false);
-    // Absent or unknown is treated as NOT branch-scoped for wording only -
-    // the server decides what the numbers are; this only labels them.
+    // Absent, unknown or NONE is not branch-scoped - and, separately, is
+    // unavailable. The two questions are asked with two helpers so "not a
+    // branch" is never mistaken for "the company".
     assert.strictEqual(rules.isBranchScoped({}), false);
     assert.strictEqual(rules.isBranchScoped(null), false);
+    assert.strictEqual(rules.isBranchScoped({ counts_scope: "NONE" }), false);
+    assert.strictEqual(rules.isCountsUnavailable({ counts_scope: "NONE" }), true);
   });
 });
 
@@ -363,10 +476,11 @@ describe("the Map screen", () => {
     for (const header of ["Mapping Type", "Mapping To", "Status", "Actions"]) {
       assert.match(mapPage, new RegExp(`headerName: "${header}"`));
     }
-    // Matched Employees carries the scope in its header, so it is a ternary
-    // rather than a literal - both spellings must be present.
-    assert.match(mapPage, /"Matched Employees \(your branch\)"/);
-    assert.match(mapPage, /: "Matched Employees"/);
+    // Matched Employees carries the scope in its header, so the column names
+    // the helper rather than a literal; the two spellings live in the helper
+    // module and are asserted against it there.
+    assert.match(mapPage, /headerName: matchedCountHeader\(data\)/);
+    assert.strictEqual(rules.matchedCountHeader({ counts_scope: "BRANCH" }), "Matched Employees (your branch)");
   });
 
   it("offers View All Matched Employees for the deduplicated union", () => {
@@ -401,14 +515,14 @@ describe("the Map screen", () => {
     assert.equal((mapPage.match(/countsScopeNotice\(data\) &&/g) || []).length, 1, "said once, not per row");
   });
 
-  it("labels the Matched Employees column with the scope", () => {
+  it("labels the Matched Employees column through the shared helper", () => {
     // A number read on its own - scanning the grid, or in a screenshot -
     // must not be mistaken for the company figure.
-    assert.match(mapPage, /branchScoped \? "Matched Employees \(your branch\)" : "Matched Employees"/);
+    assert.match(mapPage, /headerName: matchedCountHeader\(data\)/);
   });
 
   it("derives the scope from the response, never from local state", () => {
-    assert.match(mapPage, /const branchScoped = isBranchScoped\(data\)/);
+    assert.match(mapPage, /isCountsUnavailable\(data\)/);
   });
 });
 

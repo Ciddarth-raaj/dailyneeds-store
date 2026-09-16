@@ -6,6 +6,7 @@ import {
   countsScopeNotice,
   emptyMatchedMessage,
   isBranchScoped,
+  isCountsUnavailable,
   scopeSummary,
   telegramConnectedLabel,
 } from "../../util/telegramGroupMapping";
@@ -30,6 +31,10 @@ import {
  * people, and never a company-wide total, which is information about other
  * branches' staffing. Both halves matter: somebody who thinks a global rule
  * covers twelve people is somebody who deletes it.
+ *
+ * AN ACCOUNT THAT COULD NOT BE SCOPED AT ALL IS TOLD SO. It does not read
+ * "0 employees match" or "nobody in your branch matches" - neither is an
+ * observation about anybody, because nothing was looked at.
  */
 export default function TelegramGroupMatchedEmployees({
   isOpen,
@@ -72,7 +77,10 @@ export default function TelegramGroupMatchedEmployees({
 
         {!loading && !error && result && (
           <>
-            <Alert status={isBranchScoped(result) ? "warning" : "info"} borderRadius="md">
+            <Alert
+              status={isBranchScoped(result) || isCountsUnavailable(result) ? "warning" : "info"}
+              borderRadius="md"
+            >
               <AlertIcon />
               <Box fontSize="sm">
                 {scopeSummary(result)}

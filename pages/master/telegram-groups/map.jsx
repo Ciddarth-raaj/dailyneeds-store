@@ -34,7 +34,9 @@ import {
   MAPPING_MESSAGES,
   countsScopeNotice,
   groupCountSummary,
-  isBranchScoped,
+  isCountsUnavailable,
+  matchedCountCell,
+  matchedCountHeader,
   mappingTargetLabel,
   mappingTypeLabel,
   targetStatusLabel,
@@ -86,6 +88,12 @@ import {
  * a hundred people, and it never shows them the company's total, which is
  * information about other branches' staffing. One notice states that the
  * counts are theirs and the rules are everyone's.
+ *
+ * AND WHEN NOTHING COULD BE COUNTED AT ALL, IT SHOWS NO NUMBERS. An account
+ * with no employee record, no branch or no session gets em dashes and a
+ * sentence saying counts are unavailable - never a 0, which would be read as
+ * "this rule matches nobody" and get a working rule deleted. The RULES are
+ * still listed in full, because configuration is not employee information.
  */
 export default function TelegramGroupMapPage() {
   const router = useRouter();
@@ -152,7 +160,9 @@ export default function TelegramGroupMapPage() {
     [confirmDelete, id, refetch]
   );
 
-  const branchScoped = isBranchScoped(data);
+  // ONE interpretation of counts_scope for the whole screen, from the helper
+  // module - not a string comparison repeated per component.
+  const countsUnavailable = isCountsUnavailable(data);
 
   const colDefs = useMemo(
     () => [
@@ -171,12 +181,17 @@ export default function TelegramGroupMapPage() {
       },
       {
         field: "matched_employees",
-        // The header carries the scope too, so a number read on its own -
+        // The header carries the scope, so a number read on its own -
         // scanning the grid, or in a screenshot - is never mistaken for the
-        // company-wide figure.
-        headerName: branchScoped ? "Matched Employees (your branch)" : "Matched Employees",
-        width: branchScoped ? 240 : 190,
-        type: "numeric-column",
+        // company-wide figure. It stays NEUTRAL when counts are unavailable:
+        // "(your branch)" over a column of dashes would claim a branch
+        // answer where there is none.
+        headerName: matchedCountHeader(data),
+        width: matchedCountHeader(data).length > 20 ? 240 : 190,
+        // An em dash rather than 0 when nothing could be counted. A zero
+        // there reads as a finding, and the finding it suggests - "this rule
+        // matches nobody" - is what gets a working rule deleted.
+        valueGetter: (params) => matchedCountCell(params.data, data),
       },
       {
         field: "status",
@@ -229,7 +244,7 @@ export default function TelegramGroupMapPage() {
         },
       },
     ],
-    [branchScoped, canManage, handleDelete, openEmployees]
+    [data, canManage, handleDelete, openEmployees]
   );
 
   const brokenCount = mappings.filter(targetIsBroken).length;
@@ -320,7 +335,7 @@ export default function TelegramGroupMapPage() {
                   every row. It states both halves: the counts are yours, the
                   rules are the company's. */}
               {countsScopeNotice(data) && (
-                <Alert status="info" borderRadius="md">
+                <Alert status={countsUnavailable ? "warning" : "info"} borderRadius="md">
                   <AlertIcon />
                   <Box fontSize="sm">{countsScopeNotice(data)}</Box>
                 </Alert>
