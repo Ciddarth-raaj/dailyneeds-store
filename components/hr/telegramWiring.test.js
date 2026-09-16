@@ -165,7 +165,7 @@ test("NO MOBILE NUMBER, TELEGRAM USER ID OR CHAT ID IS EVER RENDERED", () => {
 });
 
 test("the mismatch message names NEITHER number", () => {
-  const mismatch = /MOBILE_MISMATCH &&[\s\S]*?\)\}/.exec(panel);
+  const mismatch = /\{mismatched &&[\s\S]*?\n      \)\}/.exec(panel);
   assert.ok(mismatch, "the mismatch branch is there");
   assert.match(mismatch[0], /does not match the mobile recorded for this employee/);
   assert.match(mismatch[0], /Correct the employee mobile number and generate a new QR/);
@@ -542,4 +542,128 @@ test("generating a QR moves the generation on, so requests in flight are stale",
 test("THE MANAGER FLOW COMMENT MATCHES THE FLOW", () => {
   assert.match(wizard, /1 Aadhaar {2}→ {2}2 Personal {2}→ {2}3 Employment {2}→ {2}Employee ID {2}→ {2}4 Telegram/);
   assert.ok(!/→ {2}4 Education/.test(wizard), "no comment still calls stage 4 Education");
+});
+
+/* ================================================= reconnect mismatch === */
+
+/**
+ * THE BUG THIS SECTION EXISTS FOR.
+ *
+ * A first connection leaves the EMPLOYEE at MOBILE_MISMATCH - there is no
+ * identity to be connected to. A reconnect does not: the old account is
+ * deliberately kept, so the employee stays CONNECTED and only the ATTEMPT is
+ * mismatched. A warning gated on the employee status alone therefore showed a
+ * plain "Telegram Connected" after a failed reconnect and hid the failure, and
+ * the manager would have walked away believing the new number was accepted.
+ */
+
+/** The panel's derivation, read from the source it is written in. */
+const mismatchDerivation = /const mismatched =\n?\s*([\s\S]*?);/.exec(panelCode);
+
+test("MISMATCH IS DERIVED FROM BOTH THE EMPLOYEE STATUS AND THE ATTEMPT", () => {
+  assert.ok(mismatchDerivation, "there is one derivation");
+  assert.match(mismatchDerivation[1], /current === TELEGRAM_STATUS\.MOBILE_MISMATCH/, "first connection");
+  assert.match(mismatchDerivation[1], /statusIsCurrent && attemptMismatched\(attempt\)/, "reconnect");
+});
+
+test("a first-time mismatch still renders the warning", () => {
+  // status MOBILE_MISMATCH, attempt MOBILE_MISMATCH - both true, one warning.
+  const mismatched = (current, attempt, statusIsCurrent = true) =>
+    current === "MOBILE_MISMATCH" || (statusIsCurrent && require("../../util/employeeTelegram").attemptMismatched(attempt));
+  assert.equal(mismatched("MOBILE_MISMATCH", "MOBILE_MISMATCH"), true);
+});
+
+test("A RECONNECT MISMATCH IS DETECTED THOUGH THE EMPLOYEE READS CONNECTED", () => {
+  const { attemptMismatched } = require("../../util/employeeTelegram");
+  const mismatched = (current, attempt, statusIsCurrent = true) =>
+    current === "MOBILE_MISMATCH" || (statusIsCurrent && attemptMismatched(attempt));
+  assert.equal(
+    mismatched("CONNECTED", "MOBILE_MISMATCH"),
+    true,
+    "the failure must not be invisible behind a connected badge"
+  );
+});
+
+test("and it does NOT require the employee status to become MOBILE_MISMATCH", () => {
+  // Which is the whole point: the backend deliberately leaves the employee
+  // CONNECTED on their old account, so demanding that status would mean the
+  // warning could never appear for a reconnect.
+  assert.ok(
+    !/mismatched =[^;]*current === TELEGRAM_STATUS\.MOBILE_MISMATCH &&/.test(panelCode),
+    "the two sources are an OR, never an AND"
+  );
+});
+
+test("ONE WARNING BRANCH, not a second reconnect-specific one", () => {
+  assert.equal(
+    (panel.match(/Telegram mobile does not match the mobile recorded for this employee\./g) || []).length,
+    1,
+    "exactly one mismatch warning exists"
+  );
+  assert.equal((panelCode.match(/\{mismatched &&/g) || []).length, 1, "rendered from one branch");
+});
+
+test("THE WARNING SAYS WHICH ATTEMPT FAILED, and that the old account survives", () => {
+  const mismatch = /\{mismatched &&[\s\S]*?\n      \)\}/.exec(panel);
+  assert.ok(mismatch);
+  assert.match(mismatch[0], /The new Telegram account was not verified\./);
+  assert.match(mismatch[0], /stays connected until a new one is verified/);
+  // Both of those lines are for the connected case only - a first-time
+  // mismatch has no account to talk about.
+  assert.match(mismatch[0], /\{connected && \(/);
+});
+
+test("the warning never implies the existing identity was disconnected", () => {
+  const mismatch = /\{mismatched &&[\s\S]*?\n      \)\}/.exec(panel);
+  for (const forbidden of ["disconnected", "removed", "unlinked", "lost"]) {
+    assert.ok(!mismatch[0].toLowerCase().includes(forbidden), `must not say ${forbidden}`);
+  }
+});
+
+test("A RECONNECT MISMATCH DISCLOSES NO NUMBER AND NO IDENTIFIER", () => {
+  const mismatch = /\{mismatched &&[\s\S]*?\n      \)\}/.exec(panel);
+  assert.ok(!/\d{4,}/.test(mismatch[0]), "no run of digits that could be a mobile or an id");
+  for (const forbidden of [
+    "MOBILE_MISMATCH",
+    "link_attempt",
+    "telegram_user_id",
+    "chat_id",
+    "primary_contact_number",
+  ]) {
+    assert.ok(!mismatch[0].includes(forbidden), `must not expose ${forbidden}`);
+  }
+});
+
+test("MISMATCH AND FAILED STAY DISTINCT", () => {
+  assert.match(panelCode, /const failed = statusIsCurrent && attemptFailed\(attempt\);/);
+  assert.match(panelCode, /const mismatched =/);
+  // Different branches, different words.
+  assert.match(panel, /This Telegram setup attempt could not be completed\./);
+  assert.match(panel, /Telegram mobile does not match the mobile recorded for this employee\./);
+  const failedBlock = /\{failed &&[\s\S]*?\)\}/.exec(panel);
+  assert.ok(!failedBlock[0].includes("does not match the mobile"), "FAILED is not the mismatch copy");
+});
+
+test("a VERIFIED reconnect shows no mismatch and no failure", () => {
+  const { attemptMismatched, attemptFailed } = require("../../util/employeeTelegram");
+  assert.equal(attemptMismatched("VERIFIED"), false);
+  assert.equal(attemptFailed("VERIFIED"), false);
+  // And with no live QR the reconnect banner is gone too, so the panel is
+  // back to a plain connected state - which is then the truth.
+  const { isReconnectInFlight } = require("../../util/employeeTelegram");
+  assert.equal(
+    isReconnectInFlight({ status: "CONNECTED", attempt: "VERIFIED", hasLiveLink: false }),
+    false
+  );
+});
+
+test("A STALE MOBILE_MISMATCH CANNOT WARN ABOUT A FRESH QR", () => {
+  // Same ownership rule as everything else: an answer from before this QR
+  // says nothing about it. `statusIsCurrent` gates the attempt half of the
+  // derivation for exactly this reason.
+  const { attemptMismatched } = require("../../util/employeeTelegram");
+  const mismatched = (current, attempt, statusIsCurrent) =>
+    current === "MOBILE_MISMATCH" || (statusIsCurrent && attemptMismatched(attempt));
+  assert.equal(mismatched("CONNECTED", "MOBILE_MISMATCH", false), false, "stale answer, no warning");
+  assert.match(mismatchDerivation[1], /statusIsCurrent &&/, "and the panel gates it that way");
 });

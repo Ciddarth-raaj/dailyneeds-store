@@ -18,6 +18,7 @@ import useEmployeeTelegram from "../../customHooks/useEmployeeTelegram";
 import {
   TELEGRAM_STATUS,
   attemptFailed,
+  attemptMismatched,
   countdownText,
   isConnected,
   isReconnectInFlight,
@@ -123,6 +124,23 @@ function TelegramSetupPanel({
    */
   const failed = statusIsCurrent && attemptFailed(attempt);
 
+  /**
+   * THE NUMBER DID NOT MATCH - from either place it can be true.
+   *
+   * A FIRST connection leaves the EMPLOYEE at MOBILE_MISMATCH, because there
+   * is no identity to be connected to. A RECONNECT does not: the old account
+   * is deliberately kept, so the employee stays CONNECTED and only the
+   * ATTEMPT is mismatched. Reading the employee status alone therefore showed
+   * a plain "Telegram Connected" after a failed reconnect and hid the failure
+   * entirely - the manager would have walked away believing the new number
+   * had been accepted.
+   *
+   * One boolean, one warning branch. There is no separate reconnect mismatch
+   * screen to drift from this one.
+   */
+  const mismatched =
+    current === TELEGRAM_STATUS.MOBILE_MISMATCH || (statusIsCurrent && attemptMismatched(attempt));
+
   if (loading && !status) {
     return (
       <Flex align="center" gap={3} py={4}>
@@ -169,6 +187,10 @@ function TelegramSetupPanel({
       )}
 
       {/* ---------------------------------------------------- connected -- */}
+      {/* STILL TRUE, SO STILL SHOWN. A failed reconnect does not disconnect
+          anybody - the account below is genuinely still connected - but the
+          warning underneath says the NEW attempt failed, so this cannot read
+          as a pure success. */}
       {connected && !reconnecting && (
         <Stack spacing={2}>
           <Alert status="success" borderRadius="md" fontSize="sm">
@@ -200,14 +222,27 @@ function TelegramSetupPanel({
       )}
 
       {/* ----------------------------------------------------- mismatch -- */}
-      {current === TELEGRAM_STATUS.MOBILE_MISMATCH && (
+      {mismatched && (
         <Alert status="warning" borderRadius="md" fontSize="sm">
           <AlertIcon />
           <Box>
+            {/* WHICH ATTEMPT FAILED, said only where it is not obvious. On a
+                first connection there is nothing else on screen; after a
+                failed reconnect the connected account is shown above, and
+                without this line the warning would look like it was about
+                that account rather than about the new one. */}
+            {connected && (
+              <Text fontWeight="semibold">The new Telegram account was not verified.</Text>
+            )}
             {/* NEITHER NUMBER IS NAMED - not the shared one, not the stored
                 one, not a masked form of either. */}
             <Text>Telegram mobile does not match the mobile recorded for this employee.</Text>
             <Text mt={1}>Correct the employee mobile number and generate a new QR.</Text>
+            {connected && (
+              <Text mt={1} color="gray.700">
+                The Telegram account above stays connected until a new one is verified.
+              </Text>
+            )}
             {onEditMobile && canManage && (
               <Button mt={2} size="xs" variant="outline" onClick={onEditMobile}>
                 Edit employee details
