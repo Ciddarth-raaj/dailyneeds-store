@@ -45,14 +45,18 @@ import {
 /**
  * Add Employee — the store manager's onboarding wizard.
  *
- *   1 Aadhaar  →  2 Personal  →  3 Employment  →  Employee ID  →  4 Education
+ *   1 Aadhaar  →  2 Personal  →  3 Employment  →  Employee ID  →  4 Telegram
  *
- * THE SAME ORDER AS THE PROFILE. These are sections 1-4 of the one employee
- * master; the profile shows all eight in the same sequence, and the manager's
- * part is the first four. Sections 5-8 (Payment Details, Statutory Details,
- * Payroll, Documents) are governed by their own designation rights and are
- * not in this wizard - not shown as disabled future steps either, because a
- * step somebody cannot take is a step they will ask to be given.
+ * THREE OF THE FOUR ARE EMPLOYEE-MASTER SECTIONS, in the order the profile
+ * shows them. The fourth, Telegram, is not a section at all: it writes no
+ * column on the employee record, which is why it can be skipped without
+ * leaving anything half-done.
+ *
+ * EDUCATION IS NOT IN THIS WIZARD, and neither are Payment Details, Statutory
+ * Details, Payroll or Documents. They are HR's, completed on the employee
+ * profile under their own rights - and they are not shown here as disabled
+ * future steps either, because a step somebody cannot take is a step they
+ * will ask to be given.
  *
  * THE EMPLOYEE IS CREATED AT THE END OF STAGE 3, NOT STAGE 4. Finishing
  * Employment creates the record and allocates the permanent Employee ID -

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import EmployeeTelegramHelper from "../helper/employeeTelegram";
+import { createRequestOwnership } from "../util/telegramRequestOwnership";
 import {
   TELEGRAM_POLL_INTERVAL_MS,
   attemptSettled,
@@ -45,7 +46,15 @@ import {
  * case is one extra poll, and the alternative is a dead QR a manager cannot
  * explain.
  *
- * `generationRef` is a REF and not state on purpose - it is read inside async
+ * AND A RESPONSE IS CHECKED BEFORE IT IS APPLIED, NOT AFTER. Every request
+ * takes a ticket before it is sent and offers it back when it answers;
+ * `util/telegramRequestOwnership.js` refuses a ticket from a replaced
+ * generation, or one older than an answer already taken, and a refused
+ * response is discarded WHOLE - no status, no error, no loading change.
+ * Applying part of a stale answer is how the previous attempt's VERIFIED
+ * could still reach the screen after a newer poll had already landed.
+ *
+ * The ownership is a REF and not state on purpose: it is read inside async
  * callbacks that must see the value at the moment they resolve, not the value
  * their closure captured.
  *
@@ -82,33 +91,48 @@ export default function useEmployeeTelegram(employeeId, { enabled = true } = {})
     };
   }, []);
 
-  /** How many links this hook has generated. See the note above. */
-  const generationRef = useRef(0);
+  /** Who owns the answer to each request. See the note above. */
+  const ownershipRef = useRef(null);
+  if (ownershipRef.current === null) ownershipRef.current = createRequestOwnership();
 
   const refresh = useCallback(async () => {
     if (!employeeId || !enabled) return null;
-    // The generation this request is being made FOR. If another link is
-    // generated while it is in flight, the answer it brings back describes
-    // the older attempt and must not be allowed to settle the newer one.
-    const generation = generationRef.current;
+    // Taken BEFORE the request is sent, so the answer can be placed in time
+    // when it eventually arrives.
+    const ownership = ownershipRef.current;
+    const ticket = ownership.begin();
     setLoading(true);
+
+    /** Nothing a refused response may touch. Not state, not loading, nothing. */
+    const stopLoadingIfNewest = () => {
+      if (alive.current && ownership.isNewest(ticket)) setLoading(false);
+    };
+
     try {
       const res = await EmployeeTelegramHelper.getStatus(employeeId);
       if (!alive.current) return null;
+      // THE ONE GATE. Everything below it belongs to the current QR and is
+      // newer than anything already accepted for it.
+      if (!ownership.accept(ticket)) return null;
+
       if (res && res.code && res.code !== 200) {
         setError(res.msg || "Could not read the Telegram status.");
         return null;
       }
       const data = (res && res.data) || null;
       setStatus(data);
-      if (generation === generationRef.current) setStatusIsCurrent(true);
+      setStatusIsCurrent(true);
       setError(null);
       return data;
     } catch (err) {
-      if (alive.current) setError("Could not reach the server.");
+      if (!alive.current) return null;
+      // A STALE FAILURE IS STILL STALE. An older request that throws must not
+      // replace an error - or a success - that a newer one already produced.
+      if (!ownership.accept(ticket)) return null;
+      setError("Could not reach the server.");
       return null;
     } finally {
-      if (alive.current) setLoading(false);
+      stopLoadingIfNewest();
     }
   }, [employeeId, enabled]);
 
@@ -130,10 +154,10 @@ export default function useEmployeeTelegram(employeeId, { enabled = true } = {})
         setError((res && res.msg) || "The Telegram link could not be generated.");
         return null;
       }
-      // A NEW ATTEMPT BEGINS HERE. Everything already on screen describes the
-      // previous one, including a VERIFIED that belongs to the connection this
-      // QR is about to replace.
-      generationRef.current += 1;
+      // A NEW ATTEMPT BEGINS HERE. Everything already on screen - and every
+      // request still in flight - describes the previous one, including a
+      // VERIFIED that belongs to the connection this QR is about to replace.
+      ownershipRef.current.newGeneration();
       setStatusIsCurrent(false);
       setLink(res.link);
       setExpiresAt(res.expires_at || null);

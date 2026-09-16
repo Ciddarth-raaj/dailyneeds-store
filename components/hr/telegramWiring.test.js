@@ -501,3 +501,45 @@ test("failure is never rendered as success", () => {
   assert.match(panelCode, /\{connected && !reconnecting &&/);
   assert.match(panelCode, /const failed = statusIsCurrent && attemptFailed\(attempt\);/);
 });
+
+/* ================================================= request ownership ==== */
+
+test("THE HOOK CHECKS A RESPONSE BEFORE IT APPLIES ANY OF IT", () => {
+  // The rule itself is tested for real, with promises resolved out of order,
+  // in `util/telegramRequestOwnership.test.js`. This asserts the hook is
+  // actually plugged into it - and, specifically, that the gate comes BEFORE
+  // the first state update rather than after.
+  assert.match(hookCode, /const ticket = ownership\.begin\(\);/);
+  const body = /const res = await EmployeeTelegramHelper\.getStatus[\s\S]*?return data;/.exec(hookCode);
+  assert.ok(body, "the success path is there");
+  const gate = body[0].indexOf("ownership.accept(ticket)");
+  const firstWrite = Math.min(
+    ...["setStatus(", "setStatusIsCurrent(", "setError("]
+      .map((setter) => body[0].indexOf(setter))
+      .filter((index) => index >= 0)
+  );
+  assert.ok(gate >= 0, "the gate is there");
+  assert.ok(gate < firstWrite, "and nothing is written before it");
+});
+
+test("a refused response writes nothing at all - not even the error", () => {
+  const catchBlock = /\} catch \(err\) \{[\s\S]*?\} finally \{/.exec(hookCode);
+  assert.ok(catchBlock, "the failure path is there");
+  const gate = catchBlock[0].indexOf("ownership.accept(ticket)");
+  const write = catchBlock[0].indexOf("setError(");
+  assert.ok(gate >= 0 && gate < write, "a stale failure cannot replace a newer answer");
+});
+
+test("only the newest request may report that loading finished", () => {
+  assert.match(hookCode, /if \(alive\.current && ownership\.isNewest\(ticket\)\) setLoading\(false\);/);
+});
+
+test("generating a QR moves the generation on, so requests in flight are stale", () => {
+  assert.match(hookCode, /ownershipRef\.current\.newGeneration\(\);/);
+  assert.match(hookCode, /setStatusIsCurrent\(false\);/);
+});
+
+test("THE MANAGER FLOW COMMENT MATCHES THE FLOW", () => {
+  assert.match(wizard, /1 Aadhaar {2}→ {2}2 Personal {2}→ {2}3 Employment {2}→ {2}Employee ID {2}→ {2}4 Telegram/);
+  assert.ok(!/→ {2}4 Education/.test(wizard), "no comment still calls stage 4 Education");
+});
