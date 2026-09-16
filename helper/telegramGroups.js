@@ -61,3 +61,52 @@ export const deleteTelegramGroup = (id) =>
     if (res.data?.code === 200) return res.data;
     return fail(res, "Failed to delete the Telegram group");
   });
+
+/* ------------------------------------------- Phase 3A: group mapping ---- */
+
+/**
+ * WHO SHOULD BELONG TO A GROUP. Configuration only.
+ *
+ * None of these adds, removes, invites or bans anybody on Telegram - there
+ * is no endpoint here that could. Reads need `view_telegram_groups`, writes
+ * need `manage_telegram_groups`; there is no third key.
+ */
+export const getTelegramGroupMappings = (id) =>
+  API.get(`/telegram-groups/${id}/mappings`).then((res) => {
+    if (res.data?.code === 200) return res.data.data;
+    return fail(res, "Failed to fetch the group's mappings");
+  });
+
+/**
+ * `body` is `{ mapping_type }` for All Employees and
+ * `{ mapping_type, target_id }` for the other three - `util/telegramGroupMapping#mappingPayload`
+ * builds it. The server's refusal is thrown verbatim, because "That mapping
+ * is already on this group" and "That outlet no longer exists" are the exact
+ * sentences the user has to act on.
+ */
+export const addTelegramGroupMapping = (id, body) =>
+  API.post(`/telegram-groups/${id}/mappings`, body).then((res) => {
+    if (res.data?.code === 200) return res.data;
+    return fail(res, "Failed to add the mapping");
+  });
+
+export const deleteTelegramGroupMapping = (id, mappingId) =>
+  API.delete(`/telegram-groups/${id}/mappings/${mappingId}`).then((res) => {
+    if (res.data?.code === 200) return res.data;
+    return fail(res, "Failed to remove the mapping");
+  });
+
+/**
+ * The people a group's rules resolve to.
+ *
+ * NO BRANCH IS SENT, and none may be: the server resolves the caller's scope
+ * from its own live lookup and refuses a request that names one. Omitting
+ * `mappingId` asks for the deduplicated union of every rule.
+ */
+export const getTelegramGroupMatchedEmployees = (id, mappingId) =>
+  API.get(`/telegram-groups/${id}/matched-employees`, {
+    params: mappingId ? { mapping_id: mappingId } : {},
+  }).then((res) => {
+    if (res.data?.code === 200) return res.data.data;
+    return fail(res, "Failed to fetch the matched employees");
+  });

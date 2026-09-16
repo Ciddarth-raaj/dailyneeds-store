@@ -41,7 +41,12 @@ import {
  * Telegram Group Registry - every group the Daily Needs bot posts to.
  *
  * Columns: Group Name | Chat ID | Type | Category | Used For | Outlet |
- * Bot Admin | Actions, with View, Edit and Delete per row.
+ * Bot Admin | Actions, with View, Map, Edit and Delete per row.
+ *
+ * MAP IS WHERE A GROUP'S MEMBERSHIP INTENT LIVES - which employees SHOULD
+ * belong to it. It is an action on the group rather than a screen of its
+ * own, because a mapping has no meaning apart from the group it maps into.
+ * It changes nobody's actual Telegram membership.
  *
  * TYPE IS DERIVED FROM THE CHAT ID, never chosen and never stored: `-100…`
  * is a Supergroup and any other valid negative id is a Basic Group. The
@@ -186,6 +191,17 @@ export default function TelegramGroupRegistryPage() {
               label: "View",
               iconType: "view",
               redirectionUrl: `/master/telegram-groups/view?id=${id}`,
+            },
+            // MAP - who SHOULD belong to this group. Behind the VIEW key,
+            // not the manage key: reading the mapping configuration and its
+            // counts is reading, and the Add and Delete controls inside the
+            // screen are what require `manage_telegram_groups`. Gating the
+            // whole screen on manage would stop a store manager checking
+            // which rules cover their branch.
+            {
+              label: "Map",
+              iconType: "edit",
+              redirectionUrl: `/master/telegram-groups/map?id=${id}`,
             },
           ];
           if (canManage) {

@@ -108,6 +108,12 @@ test("no other consumer was switched to the directory", () => {
     // Employee Attendance - an id and a name, on a screen reached on
     // `view_calculated_attendance` and never on `view_stores`.
     "components/attendance/SearchableEmployeePicker.jsx",
+    // Phase 3A: the Outlet selector in Add Mapping. An id and a name, on a
+    // screen reached on `manage_telegram_groups` - somebody registering
+    // Telegram groups has no reason to hold `view_stores`, and without the
+    // directory the dropdown would be empty for them and the mapping type
+    // simply unusable.
+    "components/master/AddTelegramGroupMapping.jsx",
     // M4 Payroll: the Outlet filter on the employee picker (Salary Revision &
     // History) and on the approval queue (Salary Approval). An id and a name
     // each, for screens reached on `view_salary` / `approve_salary_revision`
