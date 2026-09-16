@@ -3,8 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import EmployeeTelegramHelper from "../helper/employeeTelegram";
 import {
   TELEGRAM_POLL_INTERVAL_MS,
-  attemptMismatched,
-  attemptVerified,
+  attemptSettled,
   isLinkExpired,
   shouldPollTelegram,
 } from "../util/employeeTelegram";
@@ -22,18 +21,41 @@ import {
  *
  * `link` lives in React state and NOWHERE else. Not localStorage, not
  * sessionStorage, not a cookie, not a global store, never logged, never put
- * in a toast, never sent anywhere. Generating a new one replaces it;
- * expiry clears it; unmounting drops it with the component. That is the whole
- * storage policy and there is no code here that could break it, because there
- * is no other place the value is written.
+ * in a toast, never sent anywhere. Generating a new one replaces it; expiry
+ * and a settled attempt clear it; unmounting drops it with the component.
+ * That is the whole storage policy, and there is no code here that could
+ * break it because there is no other place the value is written.
+ *
+ * ================== WHICH ATTEMPT A STATUS IS TALKING ABOUT ==============
+ *
+ * THIS IS THE SUBTLE PART, and it is the bug that made it necessary.
+ *
+ * The status on screen is whatever the last refresh returned. When somebody
+ * presses Change Telegram on an employee whose LAST attempt ended in
+ * `VERIFIED` - which is exactly what a currently connected employee's last
+ * attempt was - the new QR appears beside a status that still says VERIFIED.
+ * A rule that closed the QR on a settled attempt would therefore close the
+ * brand-new one instantly, before the employee had even picked up their phone.
+ *
+ * So every generation is counted, and a status is only allowed to SETTLE the
+ * QR in front of the user once it came back from a request made AFTER that
+ * generation. Anything older describes the previous attempt and is ignored
+ * for that purpose. While the answer is still outstanding the screen keeps
+ * polling and keeps showing the QR, which is the safe direction: the worst
+ * case is one extra poll, and the alternative is a dead QR a manager cannot
+ * explain.
+ *
+ * `generationRef` is a REF and not state on purpose - it is read inside async
+ * callbacks that must see the value at the moment they resolve, not the value
+ * their closure captured.
  *
  * ============================== POLLING STOPS ============================
  *
- * `shouldPollTelegram` decides - CONNECTED and MOBILE_MISMATCH are terminal,
- * and no live QR means nothing is in flight. On top of that the interval is
- * cleared when the component unmounts, so navigating away ends it. There is
- * no global poller, nothing polls the employee list, and a screen reopened
- * later simply asks once and renders the backend's answer.
+ * `shouldPollTelegram` decides - a settled attempt and no live QR are
+ * terminal - and the interval belongs to an effect that clears it, so
+ * navigating away or unmounting ends it. There is no global poller, nothing
+ * polls the employee list, and a screen reopened later simply asks once and
+ * renders the backend's answer.
  */
 export default function useEmployeeTelegram(employeeId, { enabled = true } = {}) {
   const [status, setStatus] = useState(null);
@@ -45,6 +67,11 @@ export default function useEmployeeTelegram(employeeId, { enabled = true } = {})
   const [expired, setExpired] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
+  /**
+   * Whether the status now held describes the CURRENT QR. False from the
+   * moment a new link is generated until a refresh issued after it returns.
+   */
+  const [statusIsCurrent, setStatusIsCurrent] = useState(true);
 
   /** So a request that resolves after unmount cannot set state on a dead component. */
   const alive = useRef(true);
@@ -55,8 +82,15 @@ export default function useEmployeeTelegram(employeeId, { enabled = true } = {})
     };
   }, []);
 
+  /** How many links this hook has generated. See the note above. */
+  const generationRef = useRef(0);
+
   const refresh = useCallback(async () => {
     if (!employeeId || !enabled) return null;
+    // The generation this request is being made FOR. If another link is
+    // generated while it is in flight, the answer it brings back describes
+    // the older attempt and must not be allowed to settle the newer one.
+    const generation = generationRef.current;
     setLoading(true);
     try {
       const res = await EmployeeTelegramHelper.getStatus(employeeId);
@@ -67,6 +101,7 @@ export default function useEmployeeTelegram(employeeId, { enabled = true } = {})
       }
       const data = (res && res.data) || null;
       setStatus(data);
+      if (generation === generationRef.current) setStatusIsCurrent(true);
       setError(null);
       return data;
     } catch (err) {
@@ -95,10 +130,16 @@ export default function useEmployeeTelegram(employeeId, { enabled = true } = {})
         setError((res && res.msg) || "The Telegram link could not be generated.");
         return null;
       }
+      // A NEW ATTEMPT BEGINS HERE. Everything already on screen describes the
+      // previous one, including a VERIFIED that belongs to the connection this
+      // QR is about to replace.
+      generationRef.current += 1;
+      setStatusIsCurrent(false);
       setLink(res.link);
       setExpiresAt(res.expires_at || null);
       setExpired(false);
-      // Re-read so a screen opened on a stale status moves to Waiting at once.
+      // Ask again, for THIS generation, so the screen stops relying on the
+      // previous attempt's answer as soon as possible.
       refresh();
       return res;
     } catch (err) {
@@ -134,6 +175,38 @@ export default function useEmployeeTelegram(employeeId, { enabled = true } = {})
     }
   }, [employeeId, refresh]);
 
+  /* ------------------------------------------------------------------------
+   * EVERY DERIVED VALUE IS DECLARED BEFORE THE EFFECTS THAT READ IT.
+   *
+   * Not a style preference: an effect's dependency array is evaluated during
+   * render, so an effect placed above one of these would throw a
+   * ReferenceError before the component could mount. The one below cost a
+   * runtime crash on the employee profile.
+   * --------------------------------------------------------------------- */
+
+  /** What the CURRENT attempt is doing, as the backend reported it. */
+  const attempt = (status && status.link_attempt) || null;
+  /** A QR that exists and has not run out of time. */
+  const hasLiveLink = Boolean(link) && !expired;
+  /**
+   * A settled answer only counts when it describes THIS QR - see the note at
+   * the top of this file. This is the whole stale-status protection.
+   */
+  const settled = statusIsCurrent && attemptSettled(attempt);
+  /**
+   * THE ATTEMPT DECIDES WHETHER TO KEEP WATCHING, NOT THE IDENTITY. During a
+   * reconnect the employee stays CONNECTED on their old account, so watching
+   * the status alone would stop the poll the moment the QR appeared.
+   */
+  const polling =
+    enabled &&
+    shouldPollTelegram({
+      status: status && status.status,
+      attempt,
+      hasLiveLink,
+      attemptIsCurrent: statusIsCurrent,
+    });
+
   /**
    * The countdown, and the moment the QR stops being usable.
    *
@@ -155,28 +228,19 @@ export default function useEmployeeTelegram(employeeId, { enabled = true } = {})
   }, [expiresAt, expired]);
 
   /**
-   * A SETTLED ATTEMPT CLOSES THE QR. Verified or mismatched, the code in front
-   * of the employee has been dealt with and cannot be used again, so it is
-   * dropped from state exactly as an expired one is - and the panel falls back
-   * to showing the connection it produced, or the mismatch it hit.
+   * A SETTLED ATTEMPT CLOSES THE QR - verified, mismatched or failed, the code
+   * in front of the employee has been dealt with and cannot be used again.
+   *
+   * `settled` already requires the answer to belong to this generation, so a
+   * stale VERIFIED from the connection being replaced cannot reach here.
    */
   useEffect(() => {
-    if (!link) return;
-    if (attemptVerified(attempt) || attemptMismatched(attempt)) {
-      setLink(null);
-      setExpiresAt(null);
-    }
-  }, [attempt, link]);
+    if (!link || !settled) return;
+    setLink(null);
+    setExpiresAt(null);
+  }, [link, settled]);
 
   /** The poll itself. Its whole lifetime is this effect's. */
-  const hasLiveLink = Boolean(link) && !expired;
-  /**
-   * THE ATTEMPT, NOT THE IDENTITY, DECIDES WHETHER TO KEEP WATCHING. During a
-   * reconnect the employee stays CONNECTED on their old account, so watching
-   * `status` alone would stop the poll the moment the QR appeared.
-   */
-  const attempt = (status && status.link_attempt) || null;
-  const polling = enabled && shouldPollTelegram({ status: status && status.status, attempt, hasLiveLink });
   useEffect(() => {
     if (!polling) return undefined;
     const timer = setInterval(() => {
@@ -191,6 +255,8 @@ export default function useEmployeeTelegram(employeeId, { enabled = true } = {})
     error,
     link,
     attempt,
+    /** False while the status on screen still describes the previous attempt. */
+    statusIsCurrent,
     expiresAt,
     expired,
     generating,

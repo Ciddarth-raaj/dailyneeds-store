@@ -187,3 +187,158 @@ test("pending is every answered state except connected", () => {
     assert.equal(telegramPending({ telegram_status: status }), true, status);
   }
 });
+
+/* =============================== the reconnect lifecycle, step by step === */
+
+/**
+ * THE BUG THIS SECTION EXISTS FOR.
+ *
+ * A connected employee's LAST attempt is, by definition, the VERIFIED one
+ * that produced their connection. Press Change Telegram and the new QR
+ * appears beside that VERIFIED - so a rule that closed the QR on a settled
+ * attempt closed the brand-new one instantly, before the employee had picked
+ * up their phone.
+ *
+ * The fix is ownership: a settled answer only counts once it came back from a
+ * request made AFTER the QR was generated. These drive the real rules through
+ * the whole sequence.
+ */
+const {
+  attemptSettled,
+  attemptFailed,
+  isReconnectInFlight,
+} = require("./employeeTelegram");
+
+/** What the hook computes: settle only on an answer that belongs to this QR. */
+const settles = ({ attempt, statusIsCurrent }) => statusIsCurrent && attemptSettled(attempt);
+
+test("A STALE VERIFIED DOES NOT CLOSE A FRESHLY GENERATED QR", () => {
+  // The moment after Change Telegram: new link, old status.
+  const justGenerated = { attempt: "VERIFIED", statusIsCurrent: false };
+  assert.equal(settles(justGenerated), false, "the new QR survives");
+  assert.equal(
+    shouldPollTelegram({
+      status: "CONNECTED",
+      attempt: "VERIFIED",
+      hasLiveLink: true,
+      attemptIsCurrent: false,
+    }),
+    true,
+    "and it keeps watching for an answer of its own"
+  );
+});
+
+test("nor does a stale MOBILE_MISMATCH or FAILED", () => {
+  for (const attempt of ["MOBILE_MISMATCH", "FAILED", "VERIFIED"]) {
+    assert.equal(settles({ attempt, statusIsCurrent: false }), false, attempt);
+  }
+});
+
+test("a reconnect in flight is recognised even before its first answer arrives", () => {
+  assert.ok(
+    isReconnectInFlight({
+      status: "CONNECTED",
+      attempt: "VERIFIED",
+      hasLiveLink: true,
+      attemptIsCurrent: false,
+    }),
+    "an unanswered QR is in flight by definition"
+  );
+});
+
+test("ONCE THE ANSWER BELONGS TO THIS QR, VERIFIED SETTLES IT", () => {
+  assert.equal(settles({ attempt: "VERIFIED", statusIsCurrent: true }), true);
+  assert.equal(
+    shouldPollTelegram({ status: "CONNECTED", attempt: "VERIFIED", hasLiveLink: true }),
+    false
+  );
+});
+
+test("a post-generation MOBILE_MISMATCH settles it", () => {
+  assert.equal(settles({ attempt: "MOBILE_MISMATCH", statusIsCurrent: true }), true);
+  assert.equal(
+    shouldPollTelegram({ status: "CONNECTED", attempt: "MOBILE_MISMATCH", hasLiveLink: true }),
+    false
+  );
+});
+
+test("a post-generation FAILED settles it, and is NOT success", () => {
+  assert.equal(settles({ attempt: "FAILED", statusIsCurrent: true }), true);
+  assert.ok(attemptFailed("FAILED"));
+  assert.ok(!attemptFailed("VERIFIED"), "failure and success are never confused");
+  assert.equal(
+    shouldPollTelegram({ status: "PENDING", attempt: "FAILED", hasLiveLink: true }),
+    false
+  );
+});
+
+test("an in-flight answer that is not settled keeps the QR and the poll", () => {
+  for (const attempt of ["PENDING", "AWAITING_CONTACT"]) {
+    assert.equal(settles({ attempt, statusIsCurrent: true }), false, attempt);
+    assert.equal(
+      shouldPollTelegram({ status: "CONNECTED", attempt, hasLiveLink: true }),
+      true,
+      attempt
+    );
+  }
+});
+
+test("EXPIRY ENDS IT WHATEVER THE ATTEMPT SAYS", () => {
+  for (const attempt of ["PENDING", "AWAITING_CONTACT", "VERIFIED", null]) {
+    assert.equal(
+      shouldPollTelegram({ status: "CONNECTED", attempt, hasLiveLink: false }),
+      false,
+      `${attempt} with no live link`
+    );
+    assert.equal(
+      shouldPollTelegram({
+        status: "CONNECTED",
+        attempt,
+        hasLiveLink: false,
+        attemptIsCurrent: false,
+      }),
+      false,
+      "including one whose answer never arrived"
+    );
+  }
+});
+
+test("THE WHOLE INITIAL CONNECTION, in the order it happens", () => {
+  // Nothing on screen yet.
+  assert.equal(shouldPollTelegram({ status: "PENDING", attempt: "NONE", hasLiveLink: false }), false);
+  // QR generated: no answer of its own yet, so it watches.
+  assert.equal(
+    shouldPollTelegram({ status: "PENDING", attempt: "NONE", hasLiveLink: true, attemptIsCurrent: false }),
+    true
+  );
+  // The employee opens it.
+  assert.equal(
+    shouldPollTelegram({ status: "AWAITING_CONTACT", attempt: "AWAITING_CONTACT", hasLiveLink: true }),
+    true
+  );
+  // And finishes.
+  assert.equal(
+    shouldPollTelegram({ status: "CONNECTED", attempt: "VERIFIED", hasLiveLink: true }),
+    false
+  );
+  assert.equal(settles({ attempt: "VERIFIED", statusIsCurrent: true }), true);
+});
+
+test("THE WHOLE RECONNECT, in the order it happens", () => {
+  const connected = { status: "CONNECTED" };
+  // Before: connected, no QR, nothing polling.
+  assert.equal(shouldPollTelegram({ ...connected, attempt: "VERIFIED", hasLiveLink: false }), false);
+  // Change Telegram: the QR is up and the status still describes the old one.
+  const justGenerated = { ...connected, attempt: "VERIFIED", hasLiveLink: true, attemptIsCurrent: false };
+  assert.equal(shouldPollTelegram(justGenerated), true, "it watches");
+  assert.equal(settles({ attempt: "VERIFIED", statusIsCurrent: false }), false, "and survives");
+  assert.ok(isReconnectInFlight(justGenerated), "and says a reconnect is under way");
+  // The first answer of its own: still going.
+  assert.equal(
+    shouldPollTelegram({ ...connected, attempt: "AWAITING_CONTACT", hasLiveLink: true }),
+    true
+  );
+  // The new account verifies.
+  assert.equal(shouldPollTelegram({ ...connected, attempt: "VERIFIED", hasLiveLink: true }), false);
+  assert.equal(settles({ attempt: "VERIFIED", statusIsCurrent: true }), true, "now it closes");
+});

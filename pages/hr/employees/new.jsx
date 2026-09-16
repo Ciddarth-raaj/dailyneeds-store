@@ -56,10 +56,14 @@ import {
  *
  * THE EMPLOYEE IS CREATED AT THE END OF STAGE 3, NOT STAGE 4. Finishing
  * Employment creates the record and allocates the permanent Employee ID -
- * the same moment it always was. Stage 4 then records Education AGAINST that
- * ID, through the onboarding education endpoint, which takes `employee_create`
- * rather than the profile's `employee_edit`: the manager who just created the
- * employee finishes the education without being given the editor.
+ * the same moment it always was. Stage 4 is Telegram, which needs that ID to
+ * issue its one-time link and writes nothing on the employee record, so it
+ * can be skipped without leaving anything half-done.
+ *
+ * AND STAGE 4 IS WHERE THE MANAGER'S JOB ENDS. Education, payment, statutory,
+ * payroll and documents are HR's, completed afterwards on the employee
+ * profile by whoever holds those rights. Either ending here - Finish, or Skip
+ * for now & Finish - lands on that profile.
  *
  * THE INITIAL SHIFT is chosen on stage 3, from the NEW work shift master
  * (active shifts only, through the assignment endpoint's options read) and
@@ -128,7 +132,9 @@ function AddEmployee() {
     designation_id: "",
     department_id: "",
     default_work_shift_id: "",
-    // education - stage 4, written against the Employee ID stage 3 creates
+    // Education. NOT a stage of this wizard any more - these stay in the form
+    // state because `buildCreatePayload` and the duplicate check read the
+    // shape as a whole, and they are simply never asked for here.
     qualification: "",
     additional_course: "",
     previous_experience: "",
@@ -263,7 +269,7 @@ function AddEmployee() {
       setCreated(res);
       toast({
         title: `Employee ${res.employee_id} created`,
-        description: "Record their education next, or skip it.",
+        description: "Complete Telegram setup next, or skip it for now.",
         status: "success",
         duration: 5000,
       });
@@ -662,9 +668,9 @@ function AddEmployee() {
                 <Stack spacing={0}>
                   <Text fontWeight="bold">This creates the employee and their Employee ID.</Text>
                   <Text>
-                    Education follows on the next stage. Payment, statutory, payroll and document
-                    details are completed afterwards on the same employee record by whoever holds
-                    those rights.
+                    Telegram setup follows, once the Employee ID exists. Education, payment,
+                    statutory, payroll and document details are completed afterwards on the same
+                    employee record by whoever holds those rights.
                   </Text>
                 </Stack>
               </Alert>

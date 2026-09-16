@@ -95,11 +95,37 @@ test("THE POLL WATCHES THE ATTEMPT, NOT THE IDENTITY - which is what makes recon
   // During a reconnect the employee stays CONNECTED on their old account, so
   // a rule that stopped at CONNECTED would stop the instant the QR appeared.
   assert.match(hookCode, /const attempt = \(status && status\.link_attempt\) \|\| null;/);
-  assert.match(hookCode, /shouldPollTelegram\(\{ status: status && status\.status, attempt, hasLiveLink \}\)/);
+  assert.match(hookCode, /shouldPollTelegram\(\{[\s\S]*?attemptIsCurrent: statusIsCurrent,[\s\S]*?\}\)/);
 });
 
-test("a settled attempt closes the QR", () => {
-  assert.match(hookCode, /attemptVerified\(attempt\) \|\| attemptMismatched\(attempt\)/);
+test("a settled attempt closes the QR - but only one that belongs to THIS QR", () => {
+  assert.match(hookCode, /const settled = statusIsCurrent && attemptSettled\(attempt\);/);
+  assert.match(hookCode, /if \(!link \|\| !settled\) return;/);
+});
+
+/* ============================================ no read before declaration = */
+
+test("EVERY DERIVED VALUE IS DECLARED BEFORE ANY EFFECT READS IT", () => {
+  // An effect's dependency array is evaluated during render, so an effect
+  // placed above one of these throws a ReferenceError before the component
+  // can mount. That cost a runtime crash on the employee profile once.
+  const code = hookCode;
+  for (const name of ["attempt", "hasLiveLink", "settled", "polling"]) {
+    const declaration = code.indexOf(`const ${name} =`);
+    assert.ok(declaration > 0, `${name} is declared`);
+    const earlier = [...code.matchAll(new RegExp(`\\b${name}\\b`, "g"))]
+      .map((match) => match.index)
+      .filter((index) => index < declaration);
+    assert.equal(earlier.length, 0, `${name} must not be read before it is declared`);
+  }
+});
+
+test("the hook parses and evaluates without a temporal-dead-zone error", () => {
+  // The crash was a ReferenceError at render, which a source grep alone
+  // cannot see: this evaluates the module body the way the bundler does.
+  const fs = require("fs");
+  const source = fs.readFileSync(path.join(repoRoot, "customHooks/useEmployeeTelegram.js"), "utf8");
+  assert.doesNotThrow(() => new Function(source.replace(/^import[\s\S]*?;$/gm, "").replace(/export default/, "return")));
 });
 
 test("THE POLL IS CLEARED WHEN THE EFFECT ENDS - which is what unmount does", () => {
@@ -429,4 +455,49 @@ test("and the connected row still reads Connected - Groups Pending", () => {
   const { telegramLabel } = require("../../util/employeeTelegram");
   const row = queueRow({ employee_id: 4, status: 1 }, { telegram_status: "CONNECTED" });
   assert.equal(telegramLabel(row.telegram_status, { short: true }), "Connected - Groups Pending");
+});
+
+/* ================================================= no stale manager copy = */
+
+test("NO MANAGER-WIZARD COPY SAYS EDUCATION COMES NEXT", () => {
+  // The manager's job ends at Telegram. Copy that still promises Education is
+  // a promise the wizard no longer keeps.
+  for (const stale of [
+    "Record their education next",
+    "Education follows on the next stage",
+    "Education is stage 4",
+    "education next",
+  ]) {
+    assert.ok(!wizard.includes(stale), `stale copy: "${stale}"`);
+  }
+  // And the replacements say what actually happens.
+  assert.match(wizard, /Complete Telegram setup next, or skip it for now/);
+  assert.match(wizard, /Telegram setup follows, once the Employee ID exists/);
+});
+
+test("EDUCATION IS STILL EMPLOYEE-MASTER DATA", () => {
+  // Removing a wizard stage must not remove the data behind it.
+  assert.match(profileCode, /<EducationSection/);
+  const { EMPLOYEE_MASTER_SECTIONS } = require("../../util/hrProfile");
+  assert.ok(EMPLOYEE_MASTER_SECTIONS.some((section) => section.key === "education"));
+});
+
+/* ========================================================= FAILED in UI = */
+
+test("A FAILED ATTEMPT SHOWS ONE SENTENCE AND NO REASON", () => {
+  assert.match(panel, /This Telegram setup attempt could not be completed\. Generate a new QR and try again\./);
+  // It must not disclose what the bot itself refuses to say in the chat.
+  const failedBlock = /\{failed &&[\s\S]*?\)\}/.exec(panel);
+  assert.ok(failedBlock, "the failed branch is there");
+  for (const forbidden of ["DUPLICATE", "INELIGIBLE", "employee_id", "already connected to"]) {
+    assert.ok(!failedBlock[0].includes(forbidden), `must not name ${forbidden}`);
+  }
+});
+
+test("failure is never rendered as success", () => {
+  // The success block is gated on `connected`, which a failed attempt does
+  // not set - and on `!reconnecting`, so a live reconnect does not show it
+  // either.
+  assert.match(panelCode, /\{connected && !reconnecting &&/);
+  assert.match(panelCode, /const failed = statusIsCurrent && attemptFailed\(attempt\);/);
 });

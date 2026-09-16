@@ -138,10 +138,22 @@ const LINK_ATTEMPT = Object.freeze({
   AWAITING_CONTACT: "AWAITING_CONTACT",
   MOBILE_MISMATCH: "MOBILE_MISMATCH",
   VERIFIED: "VERIFIED",
+  /**
+   * It ended, and not on the number - the Telegram account is already another
+   * employee's, or the employee stopped being employed mid-flow. The backend
+   * sends one word and no reason, and the screen shows one sentence and no
+   * reason: naming it would disclose from the office what the bot refuses to
+   * say in the chat.
+   */
+  FAILED: "FAILED",
 });
 
-/** An attempt that has finished, one way or the other. Nothing more will change. */
-const ATTEMPT_SETTLED = [LINK_ATTEMPT.MOBILE_MISMATCH, LINK_ATTEMPT.VERIFIED];
+/** An attempt that has finished, one way or another. Nothing more will change. */
+const ATTEMPT_SETTLED = [
+  LINK_ATTEMPT.MOBILE_MISMATCH,
+  LINK_ATTEMPT.VERIFIED,
+  LINK_ATTEMPT.FAILED,
+];
 
 /**
  * SHOULD THE SCREEN STILL BE POLLING?
@@ -168,8 +180,18 @@ const ATTEMPT_SETTLED = [LINK_ATTEMPT.MOBILE_MISMATCH, LINK_ATTEMPT.VERIFIED];
  * send `link_attempt` still stops on CONNECTED, which is right for a first
  * connection and is all it could ever have done.
  */
-function shouldPollTelegram({ status, attempt = null, hasLiveLink = false } = {}) {
+function shouldPollTelegram({
+  status,
+  attempt = null,
+  hasLiveLink = false,
+  attemptIsCurrent = true,
+} = {}) {
   if (!hasLiveLink) return false;
+  // THE STATUS ON SCREEN PREDATES THIS QR, so it says nothing about it. Keep
+  // watching until an answer that belongs to this attempt arrives - stopping
+  // on a stale one is exactly how a fresh reconnect QR used to be killed by
+  // the previous attempt's VERIFIED.
+  if (!attemptIsCurrent) return true;
   if (attempt !== null && attempt !== undefined && attempt !== "") {
     return !ATTEMPT_SETTLED.includes(String(attempt));
   }
@@ -185,8 +207,15 @@ function shouldPollTelegram({ status, attempt = null, hasLiveLink = false } = {}
  * The screen says so in as many words, because "Connected" beside a QR is
  * otherwise a contradiction a manager has to work out for themselves.
  */
-function isReconnectInFlight({ status, attempt = null, hasLiveLink = false } = {}) {
+function isReconnectInFlight({
+  status,
+  attempt = null,
+  hasLiveLink = false,
+  attemptIsCurrent = true,
+} = {}) {
   if (!hasLiveLink || !isConnected(status)) return false;
+  // A QR whose answer has not arrived yet is in flight by definition.
+  if (!attemptIsCurrent) return true;
   return String(attempt) === LINK_ATTEMPT.AWAITING_CONTACT || String(attempt) === LINK_ATTEMPT.PENDING;
 }
 
@@ -195,6 +224,17 @@ const attemptVerified = (attempt) => String(attempt) === LINK_ATTEMPT.VERIFIED;
 
 /** Did it fail on the number? */
 const attemptMismatched = (attempt) => String(attempt) === LINK_ATTEMPT.MOBILE_MISMATCH;
+
+/** Did it end some other way it cannot come back from? */
+const attemptFailed = (attempt) => String(attempt) === LINK_ATTEMPT.FAILED;
+
+/**
+ * Has the attempt in front of the user finished, whatever the ending?
+ *
+ * ONLY EVER ASKED OF A STATUS THAT BELONGS TO THE CURRENT QR - see the hook.
+ * A settled answer about the PREVIOUS attempt says nothing about this one.
+ */
+const attemptSettled = (attempt) => ATTEMPT_SETTLED.includes(String(attempt));
 
 /** How often, in ms. Modest on purpose - a manager is standing there, not a robot. */
 const TELEGRAM_POLL_INTERVAL_MS = 3000;
@@ -249,6 +289,8 @@ module.exports = {
   isReconnectInFlight,
   attemptVerified,
   attemptMismatched,
+  attemptFailed,
+  attemptSettled,
   TELEGRAM_LABELS,
   TELEGRAM_SHORT_LABELS,
   TELEGRAM_POLL_INTERVAL_MS,

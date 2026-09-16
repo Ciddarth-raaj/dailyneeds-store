@@ -17,6 +17,7 @@ import { QRCodeSVG } from "qrcode.react";
 import useEmployeeTelegram from "../../customHooks/useEmployeeTelegram";
 import {
   TELEGRAM_STATUS,
+  attemptFailed,
   countdownText,
   isConnected,
   isReconnectInFlight,
@@ -76,6 +77,7 @@ function TelegramSetupPanel({
     error,
     link,
     attempt,
+    statusIsCurrent,
     expiresAt,
     expired,
     generating,
@@ -110,7 +112,16 @@ function TelegramSetupPanel({
     status: current,
     attempt,
     hasLiveLink: Boolean(link) && !expired,
+    attemptIsCurrent: statusIsCurrent,
   });
+
+  /**
+   * The attempt ended, and not on the number - the Telegram account is
+   * already another employee's, or the employee stopped being employed
+   * mid-flow. ONE SENTENCE AND NO REASON: naming it would disclose from the
+   * office what the bot refuses to say in the chat.
+   */
+  const failed = statusIsCurrent && attemptFailed(attempt);
 
   if (loading && !status) {
     return (
@@ -179,6 +190,13 @@ function TelegramSetupPanel({
             Mapping is configured.
           </Text>
         </Stack>
+      )}
+
+      {failed && (
+        <Alert status="warning" borderRadius="md" fontSize="sm">
+          <AlertIcon />
+          This Telegram setup attempt could not be completed. Generate a new QR and try again.
+        </Alert>
       )}
 
       {/* ----------------------------------------------------- mismatch -- */}
