@@ -13,6 +13,7 @@ import {
   Spinner,
   Stack,
   Text,
+  Tooltip,
 } from "@chakra-ui/react";
 import GlobalWrapper from "../../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../../components/CustomContainer";
@@ -34,7 +35,7 @@ import {
   statusBadge,
 } from "../../../util/hrOnboardingQueue";
 import OnboardingQueueCard from "../../../components/hr/OnboardingQueueCard";
-import { telegramBadgeScheme, telegramLabel } from "../../../util/employeeTelegram";
+import { telegramQueueBadge } from "../../../util/employeeTelegramGroups";
 import { canViewOnboardingQueue } from "../../../util/hrProfile";
 
 /**
@@ -309,21 +310,49 @@ function OnboardingQueue() {
     bank: badge(row.bank, { completeLabel: "Verified" }),
     statutory: badge(row.statutory),
     payroll: badge(row.payroll),
-    // THE SHARED LABEL, not the tri-state badge - this column has to be able
-    // to read "Connected - Groups Pending", which "Complete" would misstate.
-    // `util/employeeTelegram.js` owns the wording, so this cell, the profile
-    // card and the wizard all say the same thing.
-    telegram: (
-      <Badge
-        colorScheme={telegramBadgeScheme(row.telegram_status)}
-        fontSize="0.7em"
-        px={2}
-        py={1}
-        whiteSpace="normal"
-      >
-        {telegramLabel(row.telegram_status, { short: true })}
-      </Badge>
-    ),
+    // PHASE 3B: the column now says whether the required GROUPS are done,
+    // not merely whether an account is connected - which is what
+    // "Connected - Groups Pending" was standing in for until group
+    // membership existed.
+    //
+    // IT IS LAST-VERIFIED, AND THE TOOLTIP SAYS SO. The list cannot ask
+    // Telegram: completion needs two calls per required group per employee,
+    // thousands per page load on the token the three-second poller shares.
+    // So it reads what the employee's own screen last confirmed, and that
+    // screen stays the authority.
+    //
+    // FALLS BACK TO THE OLD LABEL where the server did not send completion -
+    // an older response, or a server without the cache wired. A missing
+    // field must not render as a blank cell or, worse, as "Not Connected".
+    // PHASE 3B: the column says whether the required GROUPS are done, not
+    // merely whether an account is connected - which is what
+    // "Connected - Groups Pending" was standing in for.
+    //
+    // THE BADGE COMES FROM THE SHARED HELPER, which the mobile card also
+    // uses. Two renderings of one fact drift when somebody updates one and
+    // not the other, and the drift is invisible until a manager on a phone
+    // and a manager at a desk read different words about the same employee.
+    //
+    // It is LAST-VERIFIED and the tooltip says so: the list cannot ask
+    // Telegram - two calls per required group per employee, thousands per
+    // page load on the token the three-second poller shares - so it reads
+    // what the employee's own screen last confirmed, and that screen stays
+    // the authority.
+    telegram: (() => {
+      const badge = telegramQueueBadge(row);
+      const chip = (
+        <Badge
+          colorScheme={badge.colorScheme}
+          fontSize="0.7em"
+          px={2}
+          py={1}
+          whiteSpace="normal"
+        >
+          {badge.label}
+        </Badge>
+      );
+      return badge.hint ? <Tooltip label={badge.hint}>{chip}</Tooltip> : chip;
+    })(),
     // Pending here means "still on cash", so it is labelled as the route
     // rather than as an outstanding item - it is not one of the four.
     ...(canSeePaymentRoute
