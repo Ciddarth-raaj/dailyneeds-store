@@ -6,6 +6,10 @@ import { currentEmploymentStatus, currentPlacement } from "../../../util/hrStatu
 import { currentShiftLabel } from "../../../util/currentShift";
 import { displayDate } from "../../../util/displayDate";
 import { toDateInputValue, joiningDateChanged } from "../../../util/joiningDate";
+import {
+  EMPLOYMENT_TYPE_OPTIONS,
+  GRADE_OPTIONS,
+} from "../../../util/employmentClassification";
 
 /**
  * Section 4 of the employee master: Employment Details.
@@ -74,6 +78,20 @@ import { toDateInputValue, joiningDateChanged } from "../../../util/joiningDate"
  * Changing branch or designation re-issues the employee's authorisation on
  * the backend, so the section says so before it is saved rather than after
  * somebody is unexpectedly signed out.
+ *
+ * EMPLOYMENT TYPE AND GRADE ARE CLASSIFICATION, AND NOTHING ELSE. Two fixed
+ * dropdowns - Permanent/Contract and A to E, from
+ * `util/employmentClassification.js`, which mirrors the backend's own list.
+ * There is no master screen behind either and neither accepts free text.
+ * Nothing on this page or anywhere else reads them to decide a salary, an
+ * attendance rule, a shift or a permission: they are recorded and shown.
+ *
+ * BOTH MAY BE BLANK. Most existing employees have neither, the columns are
+ * nullable, and clearing one is a legitimate edit that stores NULL - the
+ * read-only field then says "not recorded", which is the truth rather than a
+ * gap. They ride the same `employee_edit` save as branch and designation, so
+ * the branch-scoping and HR rules that already govern this card govern them
+ * too, unchanged.
  */
 function EmploymentSection({
   employee = {},
@@ -124,6 +142,9 @@ function EmploymentSection({
       store_id: employee.store_id ?? "",
       department_id: employee.department_id ?? "",
       designation_id: employee.designation_id ?? "",
+      // "" is the blank option, and `buildHrPatch` sends it as null.
+      employment_type: employee.employment_type ?? "",
+      grade: employee.grade ?? "",
       work_shift_id: currentShiftId ?? "",
     });
     setEditing(true);
@@ -245,6 +266,22 @@ function EmploymentSection({
                 onChange={set}
                 options={opts(designations, "designation_id", "designation_name")}
               />
+              <EditField
+                label="Employment Type"
+                name="employment_type"
+                value={form.employment_type}
+                onChange={set}
+                options={EMPLOYMENT_TYPE_OPTIONS}
+                help="Permanent or Contract. Can be left blank until it is decided."
+              />
+              <EditField
+                label="Grade"
+                name="grade"
+                value={form.grade}
+                onChange={set}
+                options={GRADE_OPTIONS}
+                help="The internal band, A to E. Can be left blank."
+              />
               {canAssignShift ? (
                 <EditField
                   label="Shift"
@@ -276,6 +313,8 @@ function EmploymentSection({
               <Field label="Branch / Outlet" value={placement.outlet} />
               <Field label="Department" value={placement.department_name} />
               <Field label="Designation" value={placement.designation_name} />
+              <Field label="Employment Type" value={employee.employment_type} />
+              <Field label="Grade" value={employee.grade} />
               <Field label="Shift" value={currentShiftLabel(currentShift)} />
             </FieldGrid>
             <Text fontSize="xs" color="gray.500">

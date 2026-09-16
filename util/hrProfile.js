@@ -268,10 +268,25 @@ const HR_EDITABLE_FIELDS = [
   "department_id",
   "designation_id",
   "shift_id",
+  // Employment CLASSIFICATION. Fixed dropdowns, recorded on the same section
+  // and saved through the same `employee_edit` request as the placement above.
+  // Nothing on this screen reads either value to decide anything.
+  "employment_type",
+  "grade",
 ];
 
 /** Sent as integers; "" means "no change", not zero. */
 const NUMERIC_HR_FIELDS = ["store_id", "department_id", "designation_id", "shift_id"];
+
+/**
+ * Cleared to NULL rather than to "".
+ *
+ * Both are nullable ENUM columns, and "" is not a member of either - it would
+ * be refused by the API and, if it ever got past, stored as an empty string
+ * the dropdown cannot render back. "Not recorded" is a state HR may return an
+ * employee to, so an emptied dropdown is a real change and is sent as null.
+ */
+const NULLABLE_HR_FIELDS = ["employment_type", "grade"];
 
 /**
  * The sensitive columns, and the key each one has in the `/employee/updatedata`
@@ -365,6 +380,10 @@ function buildHrPatch(original = {}, form = {}) {
     if (NUMERIC_HR_FIELDS.includes(field)) {
       // An emptied dropdown clears the placement rather than setting 0.
       patch[field] = blank(value) ? null : Number(value);
+      continue;
+    }
+    if (NULLABLE_HR_FIELDS.includes(field)) {
+      patch[field] = blank(value) ? null : String(value).trim();
       continue;
     }
     patch[field] = blank(value) ? "" : String(value).trim();
@@ -492,6 +511,7 @@ module.exports = {
   paymentTypeLabel,
   HR_EDITABLE_FIELDS,
   NUMERIC_HR_FIELDS,
+  NULLABLE_HR_FIELDS,
   SENSITIVE_FIELDS,
   SENSITIVE_FIELD_API_KEY,
   buildHrPatch,

@@ -50,6 +50,7 @@
  */
 
 const { validatePersonalDetails } = require("./personalDetails");
+const { EMPLOYMENT_TYPES, GRADES } = require("./employmentClassification");
 
 /** The manager's four stages, in order. Nothing else is a stage. */
 const ONBOARDING_STAGES = [
@@ -189,6 +190,17 @@ function validateStage(key, form = {}, context = {}) {
     if (text(form.default_work_shift_id) && !/^\d+$/.test(text(form.default_work_shift_id))) {
       errors.default_work_shift_id = "Choose a shift from the list.";
     }
+    // CLASSIFICATION, AND OPTIONAL. Employment type and grade are recorded
+    // here when they are known - a hire whose band is not yet decided is still
+    // created. They are fixed dropdowns, so the only way either can hold
+    // something that is not on the list is a bug, and it is refused here as
+    // well as by the API rather than sent.
+    if (text(form.employment_type) && !EMPLOYMENT_TYPES.includes(text(form.employment_type))) {
+      errors.employment_type = "Choose an employment type from the list.";
+    }
+    if (text(form.grade) && !GRADES.includes(text(form.grade))) {
+      errors.grade = "Choose a grade from the list.";
+    }
     return errors;
   }
 
@@ -231,6 +243,14 @@ const PERSONAL_FIELDS = [
 const EMPLOYMENT_IDS = ["store_id", "designation_id", "department_id"];
 
 /**
+ * The two classification columns, sent verbatim when chosen and omitted when
+ * not - so a hire nobody has classified yet is created with both NULL,
+ * exactly like every employee who predates the fields. Never free text: the
+ * values come from the same two lists the backend validates against.
+ */
+const CLASSIFICATION_FIELDS = ["employment_type", "grade"];
+
+/**
  * The NEW work shift master's id, sent as a number when chosen and omitted
  * when not. Never `shift_id`: that is the legacy `shift_master` column, which
  * this screen does not read or write.
@@ -267,6 +287,10 @@ function buildCreatePayload(form = {}, verification = null) {
   for (const field of EMPLOYMENT_IDS) {
     const value = text(form[field]);
     if (value) payload[field] = Number(value);
+  }
+  for (const field of CLASSIFICATION_FIELDS) {
+    const value = text(form[field]);
+    if (value) payload[field] = value;
   }
   const shift = text(form[WORK_SHIFT_FIELD]);
   if (shift) payload[WORK_SHIFT_FIELD] = Number(shift);
@@ -395,4 +419,5 @@ module.exports = {
   todayIso,
   PERSONAL_FIELDS,
   EMPLOYMENT_IDS,
+  CLASSIFICATION_FIELDS,
 };

@@ -32,6 +32,10 @@ import useOutlets from "../../../customHooks/useOutlets";
 import useDesignations from "../../../customHooks/useDesignations";
 import useDepartments from "../../../customHooks/useDepartments";
 import useWorkShiftOptions from "../../../customHooks/useWorkShiftOptions";
+import {
+  EMPLOYMENT_TYPES,
+  GRADES,
+} from "../../../util/employmentClassification";
 import HrHelper from "../../../helper/hr";
 import { duplicateSummary } from "../../../util/hrStatus";
 import {
@@ -133,6 +137,10 @@ function AddEmployee() {
     // employment
     date_of_joining: "",
     store_id: "",
+    // Classification, both optional: a hire whose type or band is not yet
+    // decided is still created, and the columns are nullable.
+    employment_type: "",
+    grade: "",
     designation_id: "",
     department_id: "",
     default_work_shift_id: "",
@@ -631,6 +639,53 @@ function AddEmployee() {
                     ))}
                   </Select>
                   <FormErrorMessage fontSize="xs">{errors.department_id}</FormErrorMessage>
+                </FormControl>
+                <FormControl isInvalid={Boolean(errors.employment_type)}>
+                  <FormLabel fontSize="sm">Employment Type</FormLabel>
+                  {/* A FIXED LIST, not a master. Permanent or Contract, from
+                      `util/employmentClassification.js`, which is the same set
+                      the API validates against. */}
+                  <Select
+                    size="sm"
+                    placeholder="Select employment type (optional)"
+                    value={form.employment_type}
+                    onChange={set("employment_type")}
+                  >
+                    {EMPLOYMENT_TYPES.map((t) => (
+                      <option key={t} value={t}>
+                        {t}
+                      </option>
+                    ))}
+                  </Select>
+                  {errors.employment_type ? (
+                    <FormErrorMessage fontSize="xs">{errors.employment_type}</FormErrorMessage>
+                  ) : (
+                    <FormHelperText fontSize="xs">
+                      Can be left blank and recorded later from the employee profile.
+                    </FormHelperText>
+                  )}
+                </FormControl>
+                <FormControl isInvalid={Boolean(errors.grade)}>
+                  <FormLabel fontSize="sm">Grade</FormLabel>
+                  <Select
+                    size="sm"
+                    placeholder="Select grade (optional)"
+                    value={form.grade}
+                    onChange={set("grade")}
+                  >
+                    {GRADES.map((g) => (
+                      <option key={g} value={g}>
+                        {`Grade ${g}`}
+                      </option>
+                    ))}
+                  </Select>
+                  {errors.grade ? (
+                    <FormErrorMessage fontSize="xs">{errors.grade}</FormErrorMessage>
+                  ) : (
+                    <FormHelperText fontSize="xs">
+                      The internal band, A to E. Can be left blank.
+                    </FormHelperText>
+                  )}
                 </FormControl>
                 <FormControl isInvalid={Boolean(errors.default_work_shift_id)}>
                   <FormLabel fontSize="sm">Shift</FormLabel>
