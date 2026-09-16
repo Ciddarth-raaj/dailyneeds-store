@@ -28,9 +28,21 @@ const helper = strip(read("helper/employeeTelegram.js"));
 const hook = strip(read("customHooks/useEmployeeTelegramGroups.js"));
 
 const rules = (() => {
-  const cjs = read("util/employeeTelegramGroups.js")
+  // The module imports the Phase 2 label helpers; inline the real ones so
+  // the fallback path is exercised against the actual wording rather than a
+  // stand-in that could drift from it.
+  const phase2 = read("util/employeeTelegram.js")
     .replace(/export const /g, "const ")
-    .replace(/export function /g, "function ");
+    .replace(/export function /g, "function ")
+    .replace(/export \{[\s\S]*?\};/g, "")
+    .replace(/module\.exports[\s\S]*?;/g, "");
+  const cjs =
+    phase2 +
+    "\n" +
+    read("util/employeeTelegramGroups.js")
+      .replace(/^import[^\n]*\n/gm, "")
+      .replace(/export const /g, "const ")
+      .replace(/export function /g, "function ");
   const names = [
     "MEMBERSHIP_STATUS",
     "MEMBERSHIP_LABEL",
@@ -56,6 +68,7 @@ const rules = (() => {
     "completionScheme",
     "completionHint",
     "hasCompletion",
+    "telegramQueueBadge",
   ];
   // eslint-disable-next-line no-new-func
   return new Function(`${cjs}\nreturn { ${names.join(", ")} };`)();
@@ -437,11 +450,13 @@ describe("the dashboard completion column", () => {
     assert.match(rules.completionHint("VERIFICATION_PENDING"), /Open the employee/i);
   });
 
-  it("renders the completion badge when the server sends one", () => {
-    assert.match(queue, /hasCompletion\(row\) \? \(/);
-    assert.match(queue, /completionLabel\(row\.telegram_completion\)/);
-    assert.match(queue, /completionScheme\(row\.telegram_completion\)/);
-    assert.match(queue, /completionHint\(row\.telegram_completion\)/);
+  it("renders the completion badge through the shared helper", () => {
+    // The desktop cell no longer builds the badge itself - it and the mobile
+    // card both ask `telegramQueueBadge`, which is what stops them drifting.
+    assert.match(queue, /telegramQueueBadge\(row\)/);
+    assert.match(queue, /badge\.colorScheme/);
+    assert.match(queue, /badge\.label/);
+    assert.match(queue, /badge\.hint \? <Tooltip/);
   });
 
   it("FALLS BACK to the old label when the field is absent", () => {
@@ -451,8 +466,9 @@ describe("the dashboard completion column", () => {
     assert.strictEqual(rules.hasCompletion({ telegram_completion: "SOMETHING_NEW" }), false);
     assert.strictEqual(rules.hasCompletion(null), false);
     assert.strictEqual(rules.hasCompletion({ telegram_completion: "COMPLETE" }), true);
-    // And the JSX keeps the previous branch for exactly that case.
-    assert.match(queue, /telegramLabel\(row\.telegram_status, \{ short: true \}\)/);
+    // The fallback now lives in the shared helper, where BOTH views get it,
+    // rather than in one view's JSX - asserted against behaviour below.
+    assert.strictEqual(rules.telegramQueueBadge({}).fromCompletion, false);
   });
 
   it("makes NO per-row request - the column comes from the bulk summary", () => {
@@ -461,5 +477,71 @@ describe("the dashboard completion column", () => {
       "the list must never call the per-employee Telegram endpoint"
     );
     assert.ok(!/employeeTelegram\./.test(queue), "no per-row Telegram helper call");
+  });
+});
+
+
+/* ============================ desktop and mobile must not disagree ======= */
+
+describe("the Telegram chip is ONE function for both views", () => {
+  const card = strip(read("components/hr/OnboardingQueueCard.jsx"));
+  const queue = strip(read("pages/hr/onboarding/index.jsx"));
+
+  it("renders every completion state with the same label and colour", () => {
+    for (const status of ["COMPLETE", "PENDING", "VERIFICATION_PENDING", "NOT_CONNECTED"]) {
+      const badge = rules.telegramQueueBadge({ telegram_completion: status });
+      assert.strictEqual(badge.label, rules.completionLabel(status), status);
+      assert.strictEqual(badge.colorScheme, rules.completionScheme(status), status);
+      assert.strictEqual(badge.fromCompletion, true);
+    }
+  });
+
+  it("shows the four approved words", () => {
+    const labels = ["COMPLETE", "PENDING", "VERIFICATION_PENDING", "NOT_CONNECTED"].map(
+      (s) => rules.telegramQueueBadge({ telegram_completion: s }).label
+    );
+    assert.deepStrictEqual(labels, ["Complete", "Groups Pending", "Not Checked", "Not Connected"]);
+  });
+
+  it("FALLS BACK to the Phase 2 label when completion is absent or unknown", () => {
+    for (const row of [
+      {},
+      { telegram_completion: "SOMETHING_NEW" },
+      { telegram_completion: null },
+      { telegram_status: "CONNECTED" },
+    ]) {
+      const badge = rules.telegramQueueBadge(row);
+      assert.strictEqual(badge.fromCompletion, false);
+      assert.ok(badge.label, "a missing field must never render blank");
+      assert.notStrictEqual(badge.label, "Not Connected", "a connected employee must not be mislabelled");
+    }
+  });
+
+  it("survives a null row without throwing", () => {
+    const badge = rules.telegramQueueBadge(null);
+    assert.ok(badge.label);
+    assert.strictEqual(badge.fromCompletion, false);
+  });
+
+  it("BOTH views call it, and NEITHER decides anything itself", () => {
+    assert.match(card, /telegramQueueBadge\(row\)/);
+    assert.match(queue, /telegramQueueBadge\(row\)/);
+    // Neither view may reach past it to the raw field or the label tables.
+    for (const [name, source] of Object.entries({ card, queue })) {
+      assert.ok(
+        !/completionLabel\(|completionScheme\(/.test(source),
+        `${name} must not build the badge itself - that is how the two drift`
+      );
+    }
+  });
+
+  it("the mobile card shows a Telegram chip at all", () => {
+    assert.match(card, /Telegram: \{telegram\.label\}/);
+  });
+
+  it("the mobile card does NOT flatten Telegram through statusBadge", () => {
+    // statusBadge is tri-state; Telegram has four, and the fourth - Not
+    // Checked - is the one the queue most needs.
+    assert.ok(!/statusBadge\(\s*row\.telegram/.test(card));
   });
 });

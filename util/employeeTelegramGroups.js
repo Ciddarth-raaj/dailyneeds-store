@@ -1,3 +1,5 @@
+import { telegramBadgeScheme, telegramLabel } from "./employeeTelegram";
+
 /**
  * Required Telegram groups - the rules the screen reads from. Phase 3B.
  *
@@ -203,3 +205,35 @@ export const completionHint = (status) => COMPLETION_HINT[status] || null;
 /** Is this a status the dashboard knows how to render? */
 export const hasCompletion = (row) =>
   Boolean(row) && Boolean(COMPLETION_LABEL[row.telegram_completion]);
+
+/**
+ * THE TELEGRAM CHIP, FOR EVERY QUEUE VIEW. One function, so the desktop
+ * table and the mobile card cannot disagree.
+ *
+ * They are two renderings of one fact, and the way they drift is that
+ * somebody updates one and not the other - which is invisible until a
+ * manager on a phone and a manager at a desk are looking at the same
+ * employee and reading different words. So neither view decides anything:
+ * both ask this.
+ *
+ * FALLS BACK TO THE PHASE 2 LABEL when the server sends no completion - an
+ * older response, or a server without the verification cache wired. A
+ * missing field must not render blank, and certainly not as "Not Connected",
+ * which would put a connected employee on a queue they do not belong on.
+ */
+export function telegramQueueBadge(row) {
+  if (hasCompletion(row)) {
+    return {
+      colorScheme: completionScheme(row.telegram_completion),
+      label: completionLabel(row.telegram_completion),
+      hint: completionHint(row.telegram_completion),
+      fromCompletion: true,
+    };
+  }
+  return {
+    colorScheme: telegramBadgeScheme(row && row.telegram_status),
+    label: telegramLabel(row && row.telegram_status, { short: true }),
+    hint: null,
+    fromCompletion: false,
+  };
+}

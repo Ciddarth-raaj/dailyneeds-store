@@ -35,13 +35,7 @@ import {
   statusBadge,
 } from "../../../util/hrOnboardingQueue";
 import OnboardingQueueCard from "../../../components/hr/OnboardingQueueCard";
-import { telegramBadgeScheme, telegramLabel } from "../../../util/employeeTelegram";
-import {
-  completionHint,
-  completionLabel,
-  completionScheme,
-  hasCompletion,
-} from "../../../util/employeeTelegramGroups";
+import { telegramQueueBadge } from "../../../util/employeeTelegramGroups";
 import { canViewOnboardingQueue } from "../../../util/hrProfile";
 
 /**
@@ -330,29 +324,35 @@ function OnboardingQueue() {
     // FALLS BACK TO THE OLD LABEL where the server did not send completion -
     // an older response, or a server without the cache wired. A missing
     // field must not render as a blank cell or, worse, as "Not Connected".
-    telegram: hasCompletion(row) ? (
-      <Tooltip label={completionHint(row.telegram_completion)}>
+    // PHASE 3B: the column says whether the required GROUPS are done, not
+    // merely whether an account is connected - which is what
+    // "Connected - Groups Pending" was standing in for.
+    //
+    // THE BADGE COMES FROM THE SHARED HELPER, which the mobile card also
+    // uses. Two renderings of one fact drift when somebody updates one and
+    // not the other, and the drift is invisible until a manager on a phone
+    // and a manager at a desk read different words about the same employee.
+    //
+    // It is LAST-VERIFIED and the tooltip says so: the list cannot ask
+    // Telegram - two calls per required group per employee, thousands per
+    // page load on the token the three-second poller shares - so it reads
+    // what the employee's own screen last confirmed, and that screen stays
+    // the authority.
+    telegram: (() => {
+      const badge = telegramQueueBadge(row);
+      const chip = (
         <Badge
-          colorScheme={completionScheme(row.telegram_completion)}
+          colorScheme={badge.colorScheme}
           fontSize="0.7em"
           px={2}
           py={1}
           whiteSpace="normal"
         >
-          {completionLabel(row.telegram_completion)}
+          {badge.label}
         </Badge>
-      </Tooltip>
-    ) : (
-      <Badge
-        colorScheme={telegramBadgeScheme(row.telegram_status)}
-        fontSize="0.7em"
-        px={2}
-        py={1}
-        whiteSpace="normal"
-      >
-        {telegramLabel(row.telegram_status, { short: true })}
-      </Badge>
-    ),
+      );
+      return badge.hint ? <Tooltip label={badge.hint}>{chip}</Tooltip> : chip;
+    })(),
     // Pending here means "still on cash", so it is labelled as the route
     // rather than as an outstanding item - it is not one of the four.
     ...(canSeePaymentRoute

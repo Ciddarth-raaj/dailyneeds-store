@@ -312,7 +312,16 @@ test("THE DASHBOARD READS TELEGRAM FROM THE STATUS SUMMARY, not per employee", (
     !dashboardCode.includes("EmployeeTelegramHelper") && !dashboardCode.includes("useEmployeeTelegram"),
     "and must not reach for the single-employee hook"
   );
-  assert.match(dashboardCode, /telegramLabel\(row\.telegram_status/, "it renders the summary's field");
+  // IT RENDERS SUMMARY FIELDS, THROUGH THE SHARED BADGE HELPER. The literal
+  // `telegramLabel(row.telegram_status` moved into
+  // `util/employeeTelegramGroups.js#telegramQueueBadge` when Phase 3B gave
+  // the mobile card the same chip - one function so the two views cannot
+  // drift. The guarantee this test exists for is unchanged and is asserted
+  // above: no per-employee call, no single-employee hook.
+  assert.match(dashboardCode, /telegramQueueBadge\(row\)/, "it renders the summary's fields");
+  const badgeHelper = codeOf(read("util/employeeTelegramGroups.js"));
+  assert.match(badgeHelper, /row\.telegram_completion/, "completion comes from the summary row");
+  assert.match(badgeHelper, /telegram_status/, "and the Phase 2 field is still the fallback");
 });
 
 test("the summary's Telegram fields are carried through the index", () => {

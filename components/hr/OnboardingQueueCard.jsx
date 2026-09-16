@@ -2,6 +2,7 @@ import React from "react";
 import Link from "next/link";
 import { Avatar, Badge, Box, Button, Stack, Text, Wrap, WrapItem } from "@chakra-ui/react";
 import { statusBadge } from "../../util/hrOnboardingQueue";
+import { telegramQueueBadge } from "../../util/employeeTelegramGroups";
 
 /**
  * One employee in the Onboarding / Pending HR queue, as a CARD - the mobile
@@ -52,6 +53,21 @@ function OnboardingQueueCard({ row, canSeePaymentRoute = false }) {
     { label: "HR", value: row.hr },
   ];
 
+  /**
+   * TELEGRAM, FROM THE SAME HELPER THE TABLE USES.
+   *
+   * It is not a `statusBadge` chip because it is not the tri-state the other
+   * five are: it has four states, one of which - Not Checked - means "nobody
+   * has looked", which Pending/Complete cannot express. Passing it through
+   * `statusBadge` would flatten exactly the distinction the queue needs.
+   *
+   * Sharing `telegramQueueBadge` with the desktop table is the point: two
+   * renderings of one fact drift when somebody updates one and not the
+   * other, and the drift is invisible until a manager on a phone and a
+   * manager at a desk read different words about the same employee.
+   */
+  const telegram = telegramQueueBadge(row);
+
   return (
     <Box borderWidth="1px" borderColor="gray.200" borderRadius="lg" bg="white" p={4}>
       <Stack direction="row" spacing={3} align="center" mb={3}>
@@ -97,6 +113,19 @@ function OnboardingQueueCard({ row, canSeePaymentRoute = false }) {
             </WrapItem>
           );
         })}
+        <WrapItem>
+          <Badge
+            colorScheme={telegram.colorScheme}
+            variant="subtle"
+            fontSize="10px"
+            px={2}
+            py={1}
+            borderRadius="md"
+            textTransform="none"
+          >
+            Telegram: {telegram.label}
+          </Badge>
+        </WrapItem>
       </Wrap>
     </Box>
   );
