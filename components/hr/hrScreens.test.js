@@ -279,16 +279,19 @@ test("the heavy stage 1 copy is gone, and the concise copy is what is left", () 
  * division of labour it exists to express: the manager does three stages and
  * stops, and HR's sections are somewhere else entirely.
  */
-test("Add Employee is the four manager stages, Aadhaar first (M1)", () => {
+test("Add Employee is the four manager stages, Aadhaar first and Telegram last", () => {
   const stages = read("util/hrOnboarding.js");
-  assert.match(stages, /key: "aadhaar"[\s\S]*key: "personal"[\s\S]*key: "employment"[\s\S]*key: "education"/);
+  assert.match(stages, /key: "aadhaar"[\s\S]*key: "personal"[\s\S]*key: "employment"[\s\S]*key: "telegram"/);
   assert.match(add, /OnboardingStepper/, "the stages are shown as a stepper");
   // Each stage renders on its own, so this is not the old single long form
   // with Aadhaar at the bottom of it.
   assert.match(add, /stageKey === "aadhaar"/);
   assert.match(add, /stageKey === "personal"/);
   assert.match(add, /stageKey === "employment"/);
-  assert.match(add, /stageKey === "education"/);
+  assert.match(add, /stageKey === "telegram"/);
+  // EDUCATION IS NOT ONE OF THEM ANY MORE. The manager's job ends at
+  // Telegram; HR carries the record on through Employee Master.
+  assert.ok(!/stageKey === "education"/.test(add), "Education is not a manager stage");
 });
 
 test("A STORE MANAGER IS NEVER SHOWN AN HR-ONLY SECTION HERE, not even disabled", () => {
@@ -328,17 +331,18 @@ test("exactly one employee is created, and only on the EMPLOYMENT stage (M1: sta
   }
 });
 
-test("M1: stage 4 saves education against the created ID through the onboarding endpoint, and never re-creates", () => {
+test("THE MANAGER FINISHES AT TELEGRAM AND LANDS ON THE EMPLOYEE'S PROFILE", () => {
   const code = codeOf(add);
-  assert.match(code, /HrHelper\.saveOnboardingEducation\(created\.employee_id, payload\)/);
-  assert.match(code, /buildEducationPayload\(form\)/);
-  // A blank education finishes without a request.
-  assert.match(code, /if \(!payload\) \{\s*setFinished\(true\);\s*return;/);
+  // Whether Telegram connected or was skipped, the employee exists and HR
+  // carries on from the profile - which is where the rest of the work is.
+  assert.match(code, /router\.push\(`\/hr\/employees\/\$\{created\.employee_id\}`\)/);
+  // No second completion screen, and no education request from this wizard.
+  assert.ok(!/createdSummary/.test(code), "there is no separate success screen");
+  assert.ok(!/saveOnboardingEducation/.test(code), "the manager records no education");
   // Once created, Back and the stepper cannot return across the create.
   assert.match(code, /const back = \(\) => \{[\s\S]{0,200}if \(created\) return;/);
   assert.match(code, /index < stage && !created/);
-  // The success screen appears after stage 4, not straight after the create.
-  assert.match(code, /const success = finished \? createdSummary\(created\) : null/);
+  // The endpoint itself is untouched - HR still uses it from the profile.
   assert.match(helper, /onboarding-education/);
 });
 
@@ -370,12 +374,13 @@ test("Next validates the stage in front of the manager, and only that one", () =
   assert.match(code, /validateStage\("employment", form, stageContext\)/);
 });
 
-test("the success state shows the Employee ID and says HR onboarding is pending", () => {
-  assert.match(add, /createdSummary\(created\)/);
-  assert.match(add, /Employee ID <strong>\{success\.employeeId\}<\/strong>/);
-  const rules = read("util/hrOnboarding.js");
-  const summary = rules.slice(rules.indexOf("function createdSummary"));
-  assert.match(summary.slice(0, 900), /HR onboarding pending/);
+test("EDUCATION SURVIVES IN EMPLOYEE MASTER, it is only the manager's step that went", () => {
+  // Removing a wizard stage must not remove the employee data behind it.
+  const profile = read("pages/hr/employees/[id].jsx");
+  assert.match(profile, /<EducationSection/, "the profile still edits Education");
+  assert.match(read("components/hr/profile/EducationSection.jsx"), /qualification/);
+  const { EMPLOYEE_MASTER_SECTIONS } = require("../../util/hrProfile");
+  assert.ok(EMPLOYEE_MASTER_SECTIONS.some((section) => section.key === "education"));
 });
 
 test("verifying later attaches to the same employee, and never creates one", () => {
@@ -687,14 +692,14 @@ test("M1: THE PROFILE RENDERS THE EIGHT SECTIONS IN THE ONE ORDER, AND NO LEGACY
   // and Edit are still the same employee master; only that constraint
   // separates their order.
   //
-  // TELEGRAM IS A FIFTH WIZARD STAGE AND IS NOT ONE OF THE SECTIONS. It
+  // TELEGRAM IS THE FOURTH WIZARD STAGE AND IS NOT ONE OF THE SECTIONS. It
   // writes no column on `new_employee` - it connects an identity in its own
   // tables - so it is not part of the employee master's section vocabulary,
   // and the profile renders it as a card of its own rather than as a ninth
   // section in this sequence.
   assert.deepStrictEqual(
     ONBOARDING_STAGES.map((s) => s.key).filter((k) => k !== "telegram").sort(),
-    EMPLOYEE_MASTER_SECTIONS.slice(0, 4).map((s) => s.key).sort()
+    EMPLOYEE_MASTER_SECTIONS.slice(0, 4).map((s) => s.key).filter((k) => k !== "education").sort()
   );
   assert.ok(profile.includes("<TelegramSection"), "and the profile does render the Telegram card");
   // Aadhaar is a full-width first section, not a half-width card beside Statutory.

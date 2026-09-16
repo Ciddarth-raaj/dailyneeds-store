@@ -91,6 +91,17 @@ test("polling is decided by the shared rule, not by the component", () => {
   assert.match(hookCode, /TELEGRAM_POLL_INTERVAL_MS/);
 });
 
+test("THE POLL WATCHES THE ATTEMPT, NOT THE IDENTITY - which is what makes reconnect work", () => {
+  // During a reconnect the employee stays CONNECTED on their old account, so
+  // a rule that stopped at CONNECTED would stop the instant the QR appeared.
+  assert.match(hookCode, /const attempt = \(status && status\.link_attempt\) \|\| null;/);
+  assert.match(hookCode, /shouldPollTelegram\(\{ status: status && status\.status, attempt, hasLiveLink \}\)/);
+});
+
+test("a settled attempt closes the QR", () => {
+  assert.match(hookCode, /attemptVerified\(attempt\) \|\| attemptMismatched\(attempt\)/);
+});
+
 test("THE POLL IS CLEARED WHEN THE EFFECT ENDS - which is what unmount does", () => {
   const effect = /if \(!polling\) return undefined;[\s\S]*?\}, \[polling, refresh\]\);/.exec(hookCode);
   assert.ok(effect, "the polling effect is there");
@@ -182,11 +193,13 @@ test("the status is refreshed after a disconnect", () => {
 
 /* ======================================================== the onboarding = */
 
-test("TELEGRAM COMES AFTER THE EMPLOYEE EXISTS", () => {
-  const { ONBOARDING_STAGES, CREATE_STAGE_KEY } = require("../../util/hrOnboarding");
+test("TELEGRAM COMES AFTER THE EMPLOYEE EXISTS, AND IS THE MANAGER'S LAST STAGE", () => {
+  const { ONBOARDING_STAGES, CREATE_STAGE_KEY, isFinalStage } = require("../../util/hrOnboarding");
   const keys = ONBOARDING_STAGES.map((s) => s.key);
+  assert.deepEqual(keys, ["aadhaar", "personal", "employment", "telegram"]);
   assert.ok(keys.indexOf("telegram") > keys.indexOf(CREATE_STAGE_KEY), "after the create stage");
   assert.equal(keys[keys.indexOf("telegram") - 1], "employment");
+  assert.ok(isFinalStage(keys.indexOf("telegram")), "and nothing follows it");
 });
 
 test("the wizard's Telegram stage runs against the CREATED employee id", () => {
@@ -202,12 +215,43 @@ test("and refuses to offer setup when there is no employee yet", () => {
   assert.match(stage[0], /has to be created before Telegram can be connected/);
 });
 
-test("SKIP FOR NOW MOVES ON WITHOUT CONNECTING ANYTHING", () => {
+test("CONNECTED OFFERS Finish; NOT CONNECTED OFFERS Skip for now & Finish", () => {
   const footer = /stageKey === "telegram" \? \([\s\S]*?\) : stageKey === "aadhaar"/.exec(wizardCode);
   assert.ok(footer, "the Telegram footer button is there");
-  assert.match(footer[0], /Skip for now/);
-  assert.match(footer[0], /goTo\(stage \+ 1\)/, "it simply advances");
-  assert.ok(!/telegram/i.test(footer[0].replace(/stageKey === "telegram"/, "")) || true);
+  assert.match(
+    footer[0],
+    /\{telegramConnected \? "Finish" : "Skip for now & Finish"\}/,
+    "offering to skip something already done would be a puzzle"
+  );
+  assert.match(footer[0], /onClick=\{finish\}/);
+});
+
+test("EITHER ENDING GOES TO THE CREATED EMPLOYEE'S PROFILE", () => {
+  const finish = /const finish = \(\) => \{[\s\S]*?\};/.exec(wizardCode);
+  assert.ok(finish, "there is one finish path");
+  assert.match(finish[0], /router\.push\(`\/hr\/employees\/\$\{created\.employee_id\}`\)/);
+  // It writes nothing: skipping creates no Telegram state at all.
+  assert.ok(!/telegram/i.test(finish[0]), "the finish path touches no Telegram API");
+  // No TELEGRAM skipped flag is invented - skipping means only that no
+  // connected identity exists. (`aadhaarSkipped` is the pre-existing Aadhaar
+  // decision and is a different thing entirely.)
+  assert.ok(
+    !/telegram_skipped|telegramSkipped/i.test(wizardCode),
+    "skipping records nothing about Telegram"
+  );
+});
+
+test("the connected state comes from the BACKEND, never from having generated a QR", () => {
+  assert.match(wizardCode, /onStatusChange=\{setTelegramConnected\}/);
+  const panel = panelCode;
+  assert.match(panel, /onStatusChange\(connected\)/);
+  assert.match(panel, /const connected = isConnected\(current\)/, "read off the status the server sent");
+});
+
+test("EDUCATION IS GONE FROM THE WIZARD AND STILL PRESENT IN EMPLOYEE MASTER", () => {
+  assert.ok(!/stageKey === "education"/.test(wizardCode));
+  assert.ok(!/saveOnboardingEducation/.test(wizardCode));
+  assert.match(profileCode, /<EducationSection/);
 });
 
 /* ==================================================== the employee master */
@@ -296,4 +340,93 @@ test("each Telegram state maps to the label the dashboard shows", () => {
     assert.equal(row.telegram_status, status);
     assert.equal(telegramLabel(row.telegram_status, { short: true }), label);
   }
+});
+
+/* ========================================================== reconnect === */
+
+test("A LIVE RECONNECT QR KEEPS POLLING THOUGH THE EMPLOYEE IS CONNECTED", () => {
+  const { shouldPollTelegram } = require("../../util/employeeTelegram");
+  assert.equal(
+    shouldPollTelegram({ status: "CONNECTED", attempt: "AWAITING_CONTACT", hasLiveLink: true }),
+    true,
+    "the new account has not verified yet"
+  );
+  assert.equal(
+    shouldPollTelegram({ status: "CONNECTED", attempt: "PENDING", hasLiveLink: true }),
+    true,
+    "nor has it even been opened"
+  );
+});
+
+test("THE OLD IDENTITY'S CONNECTED STATE IS NEVER TAKEN AS THE NEW QR SUCCEEDING", () => {
+  const { isReconnectInFlight } = require("../../util/employeeTelegram");
+  assert.equal(
+    isReconnectInFlight({ status: "CONNECTED", attempt: "AWAITING_CONTACT", hasLiveLink: true }),
+    true
+  );
+  // And the panel says so rather than showing the old success beside a QR.
+  assert.match(panelCode, /const reconnecting = isReconnectInFlight\(/);
+  assert.match(panelCode, /\{connected && !reconnecting &&/, "the success block yields to it");
+  assert.match(panel, /Waiting for the new Telegram account to be verified/);
+});
+
+test("a successful reconnect is detected, and stops the poll", () => {
+  const { shouldPollTelegram, attemptVerified } = require("../../util/employeeTelegram");
+  assert.ok(attemptVerified("VERIFIED"));
+  assert.equal(
+    shouldPollTelegram({ status: "CONNECTED", attempt: "VERIFIED", hasLiveLink: true }),
+    false
+  );
+});
+
+test("a mismatched reconnect is detected, and stops the poll", () => {
+  const { shouldPollTelegram, attemptMismatched } = require("../../util/employeeTelegram");
+  assert.ok(attemptMismatched("MOBILE_MISMATCH"));
+  assert.equal(
+    shouldPollTelegram({ status: "CONNECTED", attempt: "MOBILE_MISMATCH", hasLiveLink: true }),
+    false
+  );
+});
+
+test("EXPIRY STOPS RECONNECT POLLING TOO", () => {
+  const { shouldPollTelegram } = require("../../util/employeeTelegram");
+  assert.equal(
+    shouldPollTelegram({ status: "CONNECTED", attempt: "AWAITING_CONTACT", hasLiveLink: false }),
+    false
+  );
+});
+
+test("a failed reconnect leaves the old connection intact and displayed", () => {
+  // Nothing in the frontend disconnects on failure: the backend keeps the old
+  // identity, and the panel falls back to showing it.
+  assert.equal((panelCode.match(/disconnect\(\)/g) || []).length, 1, "one disconnect call site");
+  const confirm = /confirmingDisconnect[\s\S]*?disconnect\(\)/.exec(panelCode);
+  assert.ok(confirm, "and it is the confirmed one");
+});
+
+/* ========================================================== dashboard === */
+
+test("THE CARD AND THE FILTER BOTH READ 'Telegram Connection Pending'", () => {
+  const { QUEUE_CARDS, QUEUE_FILTERS } = require("../../util/hrOnboardingQueue");
+  assert.equal(QUEUE_CARDS.find((c) => c.filter === "telegram").label, "Telegram Connection Pending");
+  assert.equal(QUEUE_FILTERS.find((f) => f.value === "telegram").label, "Telegram Connection Pending");
+});
+
+test("connection work is counted, and a connected employee is NOT", () => {
+  const { queueRow, queueCounts } = require("../../util/hrOnboardingQueue");
+  const row = (id, status) => queueRow({ employee_id: id, status: 1 }, { telegram_status: status });
+  const counts = queueCounts([
+    row(1, "PENDING"),
+    row(2, "AWAITING_CONTACT"),
+    row(3, "MOBILE_MISMATCH"),
+    row(4, "CONNECTED"),
+  ]);
+  assert.equal(counts.telegram, 3, "the three that still need connecting");
+});
+
+test("and the connected row still reads Connected - Groups Pending", () => {
+  const { queueRow } = require("../../util/hrOnboardingQueue");
+  const { telegramLabel } = require("../../util/employeeTelegram");
+  const row = queueRow({ employee_id: 4, status: 1 }, { telegram_status: "CONNECTED" });
+  assert.equal(telegramLabel(row.telegram_status, { short: true }), "Connected - Groups Pending");
 });

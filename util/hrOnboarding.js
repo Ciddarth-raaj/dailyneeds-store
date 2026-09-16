@@ -23,12 +23,25 @@
  *   3  Employment   where they work, and on which shift - and the ONLY point
  *                   at which an employee record is created and an Employee
  *                   ID allocated. THE ID IS CREATED HERE, NOT AFTER STAGE 4.
- *   4  Education    completed against the Employee ID that now exists, by the
- *                   same `employee_create` holder, through the onboarding
- *                   education endpoint (not the profile's `employee_edit`).
+ *   4  Telegram     the employee connects their OWN Telegram account by
+ *                   scanning a one-time QR, AND IT IS THE LAST THING THE
+ *                   MANAGER DOES. It is here and not earlier because the link
+ *                   is issued against an Employee ID, which stage 3 is what
+ *                   creates - and it writes nothing to the employee record, so
+ *                   it can be skipped without leaving anything half-done. A
+ *                   skipped employee is simply Telegram Pending, which is what
+ *                   every existing employee already is.
  *
- * WHAT A MANAGER NEVER SEES: Payment Details, Statutory Details, Payroll and
- * Documents. Those are sections 5-8 of the employee master, each behind its
+ * THE MANAGER'S JOB ENDS THERE. HR carries the record the rest of the way
+ * through Employee Master.
+ *
+ * EDUCATION IS NOT A STAGE OF THIS WIZARD, and its absence is deliberate. It
+ * is still employee data and is still edited on the profile under its
+ * existing right; what was removed is the manager's obligation to ask a new
+ * hire for it while they are standing in front of them.
+ *
+ * WHAT A MANAGER NEVER SEES: Education, Payment Details, Statutory Details,
+ * Payroll and Documents. Those are sections 5-8 of the employee master, each behind its
  * own designation right, completed on the employee profile - and they are not
  * in this file even as a disabled future step: a step somebody cannot take is
  * a step they will ask to be given.
@@ -38,7 +51,7 @@
 
 const { validatePersonalDetails } = require("./personalDetails");
 
-/** The manager's five stages, in order. Nothing else is a stage. */
+/** The manager's four stages, in order. Nothing else is a stage. */
 const ONBOARDING_STAGES = [
   {
     key: "aadhaar",
@@ -67,12 +80,6 @@ const ONBOARDING_STAGES = [
     title: "Telegram Setup",
     blurb:
       "Connect the employee's own Telegram account. It needs the Employee ID, so it comes after the employee exists - and it never blocks: Skip for now leaves them created and Telegram Pending.",
-  },
-  {
-    key: "education",
-    label: "Education",
-    title: "Education & Experience",
-    blurb: "Qualification and previous experience, recorded against the new Employee ID. Optional.",
   },
 ];
 

@@ -126,23 +126,75 @@ function countdownText(expiresAt, now = Date.now()) {
 }
 
 /**
+ * What the CURRENT link attempt has come to, as the backend reports it.
+ *
+ * SEPARATE FROM THE STATUS, and that separation is what makes reconnect work.
+ * Mirrored from `utils/employee_telegram_status.js`; nothing here invents a
+ * state.
+ */
+const LINK_ATTEMPT = Object.freeze({
+  NONE: "NONE",
+  PENDING: "PENDING",
+  AWAITING_CONTACT: "AWAITING_CONTACT",
+  MOBILE_MISMATCH: "MOBILE_MISMATCH",
+  VERIFIED: "VERIFIED",
+});
+
+/** An attempt that has finished, one way or the other. Nothing more will change. */
+const ATTEMPT_SETTLED = [LINK_ATTEMPT.MOBILE_MISMATCH, LINK_ATTEMPT.VERIFIED];
+
+/**
  * SHOULD THE SCREEN STILL BE POLLING?
  *
  * The one rule behind the polling lifecycle, kept out of the component so it
  * can be tested. Polling exists ONLY to notice that the employee finished on
- * their phone, so it stops the moment there is nothing left to notice:
+ * their phone, so it stops the moment there is nothing left to notice.
  *
- *   CONNECTED         they finished. Nothing will change again.
- *   MOBILE_MISMATCH   it ended, and it needs a human, not another request.
- *   no live QR        nothing is in flight; an expired QR cannot complete.
+ * ================== WHY IT IS NOT "STOP WHEN CONNECTED" ==================
  *
- * The component adds unmount and navigation on top of this - see the hook.
+ * That is what it used to be, and it was wrong for RECONNECT. When a connected
+ * employee links a different Telegram account the backend deliberately keeps
+ * the old identity until the new one verifies, so `status` reads CONNECTED for
+ * the whole attempt. A screen that stopped at CONNECTED would stop the instant
+ * it generated the QR - and would have declared success for a verification
+ * that had not happened.
+ *
+ * SO THE ATTEMPT DECIDES, NOT THE IDENTITY. While a live QR is on screen,
+ * polling continues until that attempt settles - verified or mismatched -
+ * whatever the employee's existing connection says. `link_attempt` is the
+ * backend field that reports it.
+ *
+ * WITHOUT THAT FIELD, the old rule applies: an older backend that does not
+ * send `link_attempt` still stops on CONNECTED, which is right for a first
+ * connection and is all it could ever have done.
  */
-function shouldPollTelegram({ status, hasLiveLink = false } = {}) {
+function shouldPollTelegram({ status, attempt = null, hasLiveLink = false } = {}) {
+  if (!hasLiveLink) return false;
+  if (attempt !== null && attempt !== undefined && attempt !== "") {
+    return !ATTEMPT_SETTLED.includes(String(attempt));
+  }
   if (isConnected(status)) return false;
   if (String(status) === TELEGRAM_STATUS.MOBILE_MISMATCH) return false;
-  return Boolean(hasLiveLink);
+  return true;
 }
+
+/**
+ * Is a reconnect in flight - a live QR for an employee who is already
+ * connected, whose new attempt has not settled?
+ *
+ * The screen says so in as many words, because "Connected" beside a QR is
+ * otherwise a contradiction a manager has to work out for themselves.
+ */
+function isReconnectInFlight({ status, attempt = null, hasLiveLink = false } = {}) {
+  if (!hasLiveLink || !isConnected(status)) return false;
+  return String(attempt) === LINK_ATTEMPT.AWAITING_CONTACT || String(attempt) === LINK_ATTEMPT.PENDING;
+}
+
+/** Did the attempt in front of the user just finish successfully? */
+const attemptVerified = (attempt) => String(attempt) === LINK_ATTEMPT.VERIFIED;
+
+/** Did it fail on the number? */
+const attemptMismatched = (attempt) => String(attempt) === LINK_ATTEMPT.MOBILE_MISMATCH;
 
 /** How often, in ms. Modest on purpose - a manager is standing there, not a robot. */
 const TELEGRAM_POLL_INTERVAL_MS = 3000;
@@ -192,6 +244,11 @@ function telegramPending(summaryRow) {
 
 module.exports = {
   TELEGRAM_STATUS,
+  LINK_ATTEMPT,
+  ATTEMPT_SETTLED,
+  isReconnectInFlight,
+  attemptVerified,
+  attemptMismatched,
   TELEGRAM_LABELS,
   TELEGRAM_SHORT_LABELS,
   TELEGRAM_POLL_INTERVAL_MS,

@@ -241,7 +241,7 @@ function queueRow(employee = {}, status = {}) {
   const overall = hr;
 
   /**
-   * TELEGRAM, AND IT IS NOT PART OF `overall`.
+   * TELEGRAM CONNECTION, AND IT IS NOT PART OF `overall`.
    *
    * Tracked, not gating. Required-group membership does not exist yet, so an
    * employee whose Telegram is merely connected still has work in front of
@@ -249,7 +249,10 @@ function queueRow(employee = {}, status = {}) {
    * employees incomplete for a feature that has not shipped. The card and the
    * column show the state; `hr` is untouched.
    *
-   * COMPLETE HERE MEANS "AN IDENTITY IS CONNECTED", which is why the column
+   * COMPLETE HERE MEANS "AN IDENTITY IS CONNECTED" - the connection work is
+   * done, which is exactly what the card counts. It does NOT mean Telegram
+   * onboarding is finished; group membership has not shipped. That is why the
+   * card says Connection and why the column
    * renders `telegram_status` through the shared label rather than this
    * tri-state: the badge has to read "Connected - Groups Pending", never
    * "Complete". The tri-state exists so the card can be counted and filtered
@@ -314,7 +317,11 @@ const QUEUE_FILTERS = [
   { value: "bank", label: "Bank Pending" },
   { value: "statutory", label: "Statutory Pending" },
   { value: "payroll", label: "Payroll Pending" },
-  { value: "telegram", label: "Telegram Pending" },
+  // CONNECTION, not Telegram onboarding as a whole: a connected employee
+  // still has group membership in front of them, so a card called "Telegram
+  // Pending" would be a queue nobody could ever clear. This one counts the
+  // employees whose Telegram is not yet CONNECTED, and that is all.
+  { value: "telegram", label: "Telegram Connection Pending" },
   { value: "cash_to_bank", label: "Cash → Bank Pending" },
   { value: "hr", label: "HR Pending" },
   // The per-scheme halves. NOT cards - the dashboard counts PF and ESI as one
@@ -334,7 +341,7 @@ const QUEUE_CARDS = [
   { filter: "payroll", label: "Payroll pending", count: "payroll" },
   // TRACKED, NOT GATING - it is not one of the four HR items and is not part
   // of the HR count. An employee can be HR complete and Telegram pending.
-  { filter: "telegram", label: "Telegram pending", count: "telegram" },
+  { filter: "telegram", label: "Telegram Connection Pending", count: "telegram" },
   // NOT one of the four, and placed after them for that reason: an
   // operational migration HR is running, not a record that is unfinished.
   { filter: "cash_to_bank", label: "Cash → Bank pending", count: "cashToBank" },

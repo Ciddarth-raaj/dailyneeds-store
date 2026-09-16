@@ -38,10 +38,7 @@ import {
   ONBOARDING_STAGES,
   applyVerifiedDemographics,
   buildCreatePayload,
-  buildEducationPayload,
-  createdSummary,
   isCreateStage,
-  isFinalStage,
   validateStage,
 } from "../../../util/hrOnboarding";
 
@@ -145,9 +142,14 @@ function AddEmployee() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   // The create's result. Set at the end of stage 3; stage 4 runs against
-  // `created.employee_id`, and the success screen appears after stage 4.
+  // `created.employee_id`, and Telegram - the last stage - runs against it.
   const [created, setCreated] = useState(null);
-  const [finished, setFinished] = useState(false);
+  /**
+   * Whether the employee has actually connected, reported by the panel from
+   * the backend's own answer. It decides ONE thing: which ending the button
+   * offers. Nothing here infers a connection from having generated a QR.
+   */
+  const [telegramConnected, setTelegramConnected] = useState(false);
 
   const set = (key) => (e) => {
     const { value } = e.target;
@@ -275,34 +277,24 @@ function AddEmployee() {
   };
 
   /**
-   * Stage 4. Saves the education columns against the created employee, or
-   * finishes at once when nothing was typed - a blank education is a
-   * finished onboarding, not a failed one.
+   * THE END OF THE MANAGER'S JOB.
+   *
+   * Whether Telegram was connected or skipped, the employee exists and the
+   * manager is finished: HR carries the record on through Employee Master. So
+   * this goes to the employee's profile rather than to a completion screen -
+   * that is where the rest of the work happens, and where whoever comes back
+   * to finish Telegram later will do it.
+   *
+   * IT WRITES NOTHING. Skipping creates no Telegram state of any kind; the
+   * absence of a connected identity IS "Telegram Pending", which is what every
+   * existing employee already reads.
    */
-  const finishEducation = async () => {
-    setError(null);
-    const payload = buildEducationPayload(form);
-    if (!payload) {
-      setFinished(true);
-      return;
-    }
-    setBusy(true);
-    try {
-      const res = await HrHelper.saveOnboardingEducation(created.employee_id, payload);
-      if (res && res.code && res.code !== 200) {
-        setError(res.msg || "The education details could not be saved. The employee has already been created.");
-        return;
-      }
-      setFinished(true);
-    } catch (err) {
-      setError("Could not reach the server. The employee has already been created.");
-    } finally {
-      setBusy(false);
-    }
+  const finish = () => {
+    if (!created || !created.employee_id) return;
+    router.push(`/hr/employees/${created.employee_id}`);
   };
 
   const summary = duplicateSummary(duplicates);
-  const success = finished ? createdSummary(created) : null;
 
   if (!canCreate) {
     return (
@@ -317,47 +309,6 @@ function AddEmployee() {
     );
   }
 
-  /* ------------------------------------------------------ after stage 4 */
-  if (success) {
-    return (
-      <GlobalWrapper title="Employee created">
-        <CustomContainer title="Employee created" filledHeader>
-          <Stack spacing={5} maxW="700px">
-            <Alert status="success" alignItems="flex-start" fontSize="sm">
-              <AlertIcon />
-              <Stack spacing={2}>
-                <Heading size="sm">{success.title}</Heading>
-                <Text>
-                  Employee ID <strong>{success.employeeId}</strong> is permanent and is how every
-                  other screen refers to {form.employee_name.trim() || "this employee"}.
-                </Text>
-                <Text>{success.aadhaarNote}</Text>
-                <Text color="gray.700">{success.hrNote}</Text>
-              </Stack>
-            </Alert>
-
-            <Stack direction={{ base: "column", sm: "row" }} spacing={3}>
-              <Link href={`/hr/employees/${success.employeeId}`} passHref>
-                <Button colorScheme="purple">Open employee</Button>
-              </Link>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  // A fresh person, not an edit of the last one.
-                  router.reload();
-                }}
-              >
-                Add another employee
-              </Button>
-              <Link href="/hr/employees" passHref>
-                <Button variant="ghost">Back to employees</Button>
-              </Link>
-            </Stack>
-          </Stack>
-        </CustomContainer>
-      </GlobalWrapper>
-    );
-  }
 
   /* ----------------------------------------------------------- the stages */
   return (
@@ -734,6 +685,7 @@ function AddEmployee() {
                   employeeName={form.employee_name}
                   outletName={outletName}
                   canManage
+                  onStatusChange={setTelegramConnected}
                 />
               ) : (
                 <Alert status="warning" fontSize="sm">
@@ -747,45 +699,6 @@ function AddEmployee() {
             </Stack>
           ) : null}
 
-          {/* =========================================== 5. Education ==== */}
-          {stageKey === "education" ? (
-            <Stack spacing={4}>
-              {created ? (
-                <Alert status="success" fontSize="sm">
-                  <AlertIcon />
-                  <Text>
-                    Employee <strong>{created.employee_id}</strong> has been created. Education is
-                    recorded against that ID.
-                  </Text>
-                </Alert>
-              ) : null}
-              <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
-                <FormControl>
-                  <FormLabel fontSize="sm">Qualification</FormLabel>
-                  <Input size="sm" value={form.qualification} onChange={set("qualification")} />
-                </FormControl>
-                <FormControl>
-                  <FormLabel fontSize="sm">Additional course</FormLabel>
-                  <Input size="sm" value={form.additional_course} onChange={set("additional_course")} />
-                </FormControl>
-              </SimpleGrid>
-              <FormControl>
-                <FormLabel fontSize="sm">Previous experience</FormLabel>
-                <Textarea
-                  size="sm"
-                  rows={3}
-                  value={form.previous_experience}
-                  onChange={set("previous_experience")}
-                />
-                <FormHelperText fontSize="xs">
-                  All optional. Leave blank and choose Finish if not known yet.
-                </FormHelperText>
-              </FormControl>
-            </Stack>
-          ) : null}
-
-          <Divider />
-
           {/* -------------------------------------------------- the footer */}
           <Stack direction={{ base: "column", sm: "row" }} spacing={3}>
             {stage > 0 && !created ? (
@@ -798,16 +711,14 @@ function AddEmployee() {
               <Button colorScheme="purple" isLoading={busy} isDisabled={!required} onClick={create}>
                 Create employee &amp; generate ID
               </Button>
-            ) : isFinalStage(stage) ? (
-              <Button colorScheme="purple" isLoading={busy} onClick={finishEducation}>
-                {buildEducationPayload(form) ? "Save education & finish" : "Finish without education"}
-              </Button>
             ) : stageKey === "telegram" ? (
-              /* TELEGRAM NEVER BLOCKS. The button says what it does: whether
-                 the employee connected or not, the next stage is Education
-                 and the employee already exists either way. */
-              <Button colorScheme="purple" onClick={() => goTo(stage + 1)}>
-                Skip for now
+              /* TELEGRAM NEVER BLOCKS, AND THE BUTTON SAYS WHICH ENDING THIS
+                 IS. Once the employee has connected there is nothing left to
+                 skip, so offering "Skip for now" there would be a puzzle:
+                 skip what? Either way the employee exists and the manager is
+                 done. */
+              <Button colorScheme="purple" onClick={finish}>
+                {telegramConnected ? "Finish" : "Skip for now & Finish"}
               </Button>
             ) : stageKey === "aadhaar" ? null : (
               <Button colorScheme="purple" isLoading={checking} onClick={next}>

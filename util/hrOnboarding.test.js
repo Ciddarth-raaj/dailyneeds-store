@@ -59,37 +59,46 @@ const employment = {
 };
 
 /* ================================================== the stages themselves */
-test("the manager has exactly five stages, in the order the employee is built up", () => {
+test("THE MANAGER HAS EXACTLY FOUR STAGES, ENDING AT TELEGRAM", () => {
   assert.deepStrictEqual(
     ONBOARDING_STAGES.map((s) => s.key),
-    ["aadhaar", "personal", "employment", "telegram", "education"]
+    ["aadhaar", "personal", "employment", "telegram"]
   );
 
-  // FOUR OF THEM ARE EMPLOYEE-MASTER SECTIONS. The profile shows Education &
-  // Experience before Employment Details. The wizard cannot: its Employment
-  // stage is the one that CREATES the employee and allocates the Employee ID,
-  // and its Education stage is recorded against that ID through the
-  // onboarding education endpoint, so Education first would be education
-  // recorded against a record that does not exist. Add and Edit are still ONE
-  // employee master - one constraint, and only that constraint, separates
-  // their order.
-  //
-  // TELEGRAM IS THE FIFTH AND IS NOT ONE OF THEM, deliberately: it writes no
-  // column on `new_employee` at all. It connects an identity in its own
-  // tables, which is why it can be skipped without leaving the employee
-  // record half-finished, and why it is not part of the sensitive-section
-  // vocabulary the profile's rights are expressed in.
+  // EDUCATION IS NOT A MANAGER STAGE. The manager's job ends when the
+  // employee exists and their Telegram has been offered; HR carries the
+  // record on through Employee Master, where Education is still edited under
+  // its existing right. What was removed is the obligation to ask a new hire
+  // for it while they are standing in front of somebody.
+  assert.ok(
+    !ONBOARDING_STAGES.some((s) => s.key === "education"),
+    "Education is not a stage of the create wizard"
+  );
+  // But it is still an employee-master section, and still editable there.
   const { EMPLOYEE_MASTER_SECTIONS } = require("./hrProfile");
+  assert.ok(
+    EMPLOYEE_MASTER_SECTIONS.some((s) => s.key === "education"),
+    "Education remains part of the employee master"
+  );
+  // THE THREE STAGES THAT ARE SECTIONS still match the profile's first four
+  // minus Education - Add and Edit are one employee master.
   assert.deepStrictEqual(
     ONBOARDING_STAGES.map((s) => s.key).filter((k) => k !== "telegram").sort(),
-    EMPLOYEE_MASTER_SECTIONS.slice(0, 4).map((s) => s.key).sort(),
-    "Add and Edit cover the same four sections"
+    EMPLOYEE_MASTER_SECTIONS.slice(0, 4).map((s) => s.key).filter((k) => k !== "education").sort()
   );
-  assert.strictEqual(CREATE_STAGE_KEY, "employment", "and this is why the wizard's order differs");
-  // Education is the last stage, and Telegram is not - a manager who
-  // connects Telegram still has Education in front of them.
-  assert.ok(isFinalStage(4), "Education is last");
-  assert.ok(!isFinalStage(3), "Telegram is not");
+  assert.strictEqual(CREATE_STAGE_KEY, "employment", "the employee is still created at Employment");
+  // TELEGRAM IS LAST, and it is not the stage that creates anybody.
+  assert.ok(isFinalStage(3), "Telegram is the final stage");
+  assert.ok(!isFinalStage(2), "Employment is not");
+  assert.strictEqual(ONBOARDING_STAGES[ONBOARDING_STAGES.length - 1].key, "telegram");
+});
+
+test("TELEGRAM CANNOT COME BEFORE THE EMPLOYEE EXISTS", () => {
+  const { stageIndex } = require("./hrOnboarding");
+  assert.ok(
+    stageIndex("telegram") > stageIndex(CREATE_STAGE_KEY),
+    "the link is issued against an Employee ID, which Employment is what creates"
+  );
 });
 
 test("NO HR-ONLY STAGE IS IN THE MANAGER'S WIZARD, not even as a future step", () => {
@@ -111,8 +120,10 @@ test("THE EMPLOYEE IS CREATED AT THE END OF EMPLOYMENT (STAGE 3), NOT AFTER EDUC
   assert.ok(!isFinalStage(stageIndex("employment")), "the create stage is not the last stage");
 });
 
-test("stage 4 (education) requires nothing - a blank education is a finished onboarding", () => {
-  assert.ok(stageIsComplete("education", {}, ctx()));
+test("education is not a stage, and judging one is not something the wizard does", () => {
+  // The helpers below still exist for the endpoint HR uses; they are simply
+  // no longer reachable from the manager's wizard.
+  assert.ok(!ONBOARDING_STAGES.some((s) => s.key === "education"));
 });
 
 test("the education payload carries the three education columns and nothing else, or null", () => {

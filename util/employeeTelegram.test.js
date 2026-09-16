@@ -100,10 +100,38 @@ test("POLLING RUNS ONLY WHILE THERE IS SOMETHING LEFT TO NOTICE", () => {
   // It exists to see the employee finish on their phone. Nothing else.
   assert.ok(shouldPollTelegram({ status: "PENDING", hasLiveLink: true }));
   assert.ok(shouldPollTelegram({ status: "AWAITING_CONTACT", hasLiveLink: true }));
+  assert.ok(shouldPollTelegram({ status: "PENDING", attempt: "AWAITING_CONTACT", hasLiveLink: true }));
 });
 
-test("polling STOPS on connected", () => {
+test("A RECONNECT KEEPS POLLING THOUGH THE EMPLOYEE READS CONNECTED", () => {
+  // The old identity is deliberately kept until the new one verifies, so the
+  // status says CONNECTED for the whole attempt. Watching it alone would stop
+  // the poll the moment the QR appeared - and declare success for a
+  // verification that had not happened.
+  assert.ok(shouldPollTelegram({ status: "CONNECTED", attempt: "AWAITING_CONTACT", hasLiveLink: true }));
+  assert.ok(shouldPollTelegram({ status: "CONNECTED", attempt: "PENDING", hasLiveLink: true }));
+  assert.ok(!shouldPollTelegram({ status: "CONNECTED", attempt: "VERIFIED", hasLiveLink: true }));
+  assert.ok(!shouldPollTelegram({ status: "CONNECTED", attempt: "MOBILE_MISMATCH", hasLiveLink: true }));
+});
+
+test("an older backend that sends no attempt still stops on CONNECTED", () => {
+  // Which is right for a first connection, and is all it could ever have done.
   assert.ok(!shouldPollTelegram({ status: "CONNECTED", hasLiveLink: true }));
+  assert.ok(!shouldPollTelegram({ status: "CONNECTED", attempt: null, hasLiveLink: true }));
+  assert.ok(shouldPollTelegram({ status: "PENDING", attempt: null, hasLiveLink: true }));
+});
+
+test("a reconnect in flight is recognised, and a finished one is not", () => {
+  const { isReconnectInFlight } = require("./employeeTelegram");
+  assert.ok(isReconnectInFlight({ status: "CONNECTED", attempt: "AWAITING_CONTACT", hasLiveLink: true }));
+  assert.ok(!isReconnectInFlight({ status: "CONNECTED", attempt: "VERIFIED", hasLiveLink: true }));
+  assert.ok(!isReconnectInFlight({ status: "CONNECTED", attempt: "AWAITING_CONTACT", hasLiveLink: false }));
+  assert.ok(!isReconnectInFlight({ status: "PENDING", attempt: "AWAITING_CONTACT", hasLiveLink: true }));
+});
+
+test("polling STOPS once the attempt in front of the user settles", () => {
+  assert.ok(!shouldPollTelegram({ status: "CONNECTED", attempt: "VERIFIED", hasLiveLink: true }));
+  assert.ok(!shouldPollTelegram({ status: "PENDING", attempt: "MOBILE_MISMATCH", hasLiveLink: true }));
 });
 
 test("polling STOPS on mobile mismatch - it needs a human, not another request", () => {

@@ -19,6 +19,7 @@ import {
   TELEGRAM_STATUS,
   countdownText,
   isConnected,
+  isReconnectInFlight,
   telegramBadgeScheme,
   telegramLabel,
 } from "../../util/employeeTelegram";
@@ -61,12 +62,20 @@ function TelegramSetupPanel({
   canManage = false,
   onEditMobile = null,
   compact = false,
+  /**
+   * Told whether the employee is connected, whenever the backend's answer
+   * changes. The wizard uses it to decide which ending to offer - Finish, or
+   * Skip for now & Finish - and nothing infers a connection from having
+   * generated a QR.
+   */
+  onStatusChange = null,
 }) {
   const {
     status,
     loading,
     error,
     link,
+    attempt,
     expiresAt,
     expired,
     generating,
@@ -87,6 +96,21 @@ function TelegramSetupPanel({
 
   const current = (status && status.status) || null;
   const connected = isConnected(current);
+
+  useEffect(() => {
+    if (typeof onStatusChange === "function") onStatusChange(connected);
+  }, [connected, onStatusChange]);
+
+  /**
+   * A NEW ACCOUNT IS BEING VERIFIED WHILE THE OLD ONE IS STILL CONNECTED.
+   * Said plainly, because "Connected" beside a QR code is otherwise a
+   * contradiction the manager has to work out for themselves.
+   */
+  const reconnecting = isReconnectInFlight({
+    status: current,
+    attempt,
+    hasLiveLink: Boolean(link) && !expired,
+  });
 
   if (loading && !status) {
     return (
@@ -125,8 +149,16 @@ function TelegramSetupPanel({
         </Alert>
       )}
 
+      {reconnecting && (
+        <Alert status="info" borderRadius="md" fontSize="sm">
+          <AlertIcon />
+          Waiting for the new Telegram account to be verified. The current account stays
+          connected until it is.
+        </Alert>
+      )}
+
       {/* ---------------------------------------------------- connected -- */}
-      {connected && (
+      {connected && !reconnecting && (
         <Stack spacing={2}>
           <Alert status="success" borderRadius="md" fontSize="sm">
             <AlertIcon />
@@ -226,11 +258,7 @@ function TelegramSetupPanel({
       {/* CHANGE TELEGRAM NEVER DISCONNECTS FIRST. The backend replaces an
           identity atomically only once the new account has verified, so the
           employee keeps a working connection while the new one is proven. */}
-      {canManage && connected && link && !expired && (
-        <Text fontSize="xs" color="gray.600">
-          The current Telegram stays connected until the new account is verified.
-        </Text>
-      )}
+
 
       {confirmingDisconnect && (
         <Alert status="warning" borderRadius="md" fontSize="sm">

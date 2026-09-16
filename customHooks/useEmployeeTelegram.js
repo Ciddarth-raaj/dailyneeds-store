@@ -3,6 +3,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import EmployeeTelegramHelper from "../helper/employeeTelegram";
 import {
   TELEGRAM_POLL_INTERVAL_MS,
+  attemptMismatched,
+  attemptVerified,
   isLinkExpired,
   shouldPollTelegram,
 } from "../util/employeeTelegram";
@@ -152,9 +154,29 @@ export default function useEmployeeTelegram(employeeId, { enabled = true } = {})
     return () => clearInterval(timer);
   }, [expiresAt, expired]);
 
+  /**
+   * A SETTLED ATTEMPT CLOSES THE QR. Verified or mismatched, the code in front
+   * of the employee has been dealt with and cannot be used again, so it is
+   * dropped from state exactly as an expired one is - and the panel falls back
+   * to showing the connection it produced, or the mismatch it hit.
+   */
+  useEffect(() => {
+    if (!link) return;
+    if (attemptVerified(attempt) || attemptMismatched(attempt)) {
+      setLink(null);
+      setExpiresAt(null);
+    }
+  }, [attempt, link]);
+
   /** The poll itself. Its whole lifetime is this effect's. */
   const hasLiveLink = Boolean(link) && !expired;
-  const polling = enabled && shouldPollTelegram({ status: status && status.status, hasLiveLink });
+  /**
+   * THE ATTEMPT, NOT THE IDENTITY, DECIDES WHETHER TO KEEP WATCHING. During a
+   * reconnect the employee stays CONNECTED on their old account, so watching
+   * `status` alone would stop the poll the moment the QR appeared.
+   */
+  const attempt = (status && status.link_attempt) || null;
+  const polling = enabled && shouldPollTelegram({ status: status && status.status, attempt, hasLiveLink });
   useEffect(() => {
     if (!polling) return undefined;
     const timer = setInterval(() => {
@@ -168,6 +190,7 @@ export default function useEmployeeTelegram(employeeId, { enabled = true } = {})
     loading,
     error,
     link,
+    attempt,
     expiresAt,
     expired,
     generating,
