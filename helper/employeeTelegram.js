@@ -14,6 +14,45 @@ import API from "../util/api";
  */
 const employeeTelegram = {
   /**
+   * GET /hr/employee/:id/telegram/groups - `view_employees` + branch scope.
+   *
+   * The employee's required groups, where they stand in each, and whether
+   * that adds up to Telegram Complete. No Telegram user id, chat id,
+   * username or mobile - and no invite link.
+   *
+   * IT COSTS TELEGRAM CALLS on the server, so it belongs to a screen
+   * somebody opened deliberately and is never fetched from a list.
+   */
+  getGroups: (employeeId) =>
+    new Promise((resolve, reject) => {
+      API.get(`/hr/employee/${employeeId}/telegram/groups`)
+        .then((res) => resolve(res.data))
+        .catch((err) => reject(err));
+    }),
+
+  /**
+   * POST /hr/employee/:id/telegram/groups/:groupId/join-link
+   * `employee_create OR employee_edit` + branch scope.
+   *
+   * RETURNS A ONE-TIME CREDENTIAL, exactly as `generateTelegramLink` does.
+   * The invite URL is handed back once and never written down here - no
+   * module state, no storage, no log. The component holds it in React state
+   * while it is on screen and lets it go.
+   *
+   * The body is empty on purpose: nothing about the join may come from the
+   * browser except which employee and which group, both in the path.
+   */
+  createJoinLink: (employeeId, telegramGroupId) =>
+    new Promise((resolve, reject) => {
+      API.post(
+        `/hr/employee/${employeeId}/telegram/groups/${telegramGroupId}/join-link`,
+        {}
+      )
+        .then((res) => resolve(res.data))
+        .catch((err) => reject(err));
+    }),
+
+  /**
    * GET /hr/employee/:id/telegram — `view_employees` + branch scope.
    *
    * Returns `{ status, connected, mobile_verified, telegram_username,

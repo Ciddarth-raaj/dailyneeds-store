@@ -25,6 +25,7 @@ import {
   telegramBadgeScheme,
   telegramLabel,
 } from "../../util/employeeTelegram";
+import TelegramRequiredGroups from "./TelegramRequiredGroups";
 
 /**
  * TELEGRAM SETUP - the whole flow, in one component.
@@ -336,6 +337,19 @@ function TelegramSetupPanel({
             </Stack>
           </Box>
         </Alert>
+      )}
+
+      {/* PHASE 3B: REQUIRED GROUPS.
+          Inside this panel rather than beside it, so the onboarding wizard
+          and the Employee Master profile - which both render this component -
+          get the same list from one place. An existing connected employee
+          therefore completes their groups without reconnecting anything.
+
+          Only once an identity is CONNECTED: there is nobody to add to a
+          group before that, and a required-group list above an unconnected
+          employee is a to-do list nobody can action. */}
+      {connected && !reconnecting && (
+        <TelegramRequiredGroups employeeId={employeeId} connected={connected} />
       )}
 
       {!canManage && (
