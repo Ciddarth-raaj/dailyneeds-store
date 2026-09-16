@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   Button,
@@ -31,6 +31,7 @@ import EmployeeHelper from "../../../helper/employee";
 import HrHelper from "../../../helper/hr";
 import unwrapList from "../../../util/apiList";
 import { statusSummaryIndex } from "../../../util/hrStatus";
+import BulkExportImport from "../../../components/Employee/BulkExportImport";
 
 /**
  * Stage 0C / C3 — the HR employee master list.
@@ -83,6 +84,14 @@ const VIEW_STORAGE_KEY = "hr.employees.view";
 function HrEmployeeList() {
   const canView = usePermissions(["view_employees"]);
   const canCreate = usePermissions(["employee_create"]);
+  /*
+   * BULK EXPORT / IMPORT is shown behind `employee_edit` because that is what
+   * the import half requires. A display decision only: the server demands
+   * `view_employees` for the export and `view_employees` AND `employee_edit`
+   * for the preview and the confirm, per request, whatever this says.
+   */
+  const canBulkUpdate = usePermissions(["employee_edit"]);
+  const [bulkOpen, setBulkOpen] = useState(false);
   // The Onboarding / Pending HR queue is HR and administrators only, so the
   // link to it is too. Same rule the screen itself enforces.
   const canOpenQueue = canViewOnboardingQueue(usePayrollActor());
@@ -135,29 +144,42 @@ function HrEmployeeList() {
   const { outlets } = useOutlets({ directory: true });
   const { designations } = useDesignations();
 
+  /*
+   * Hoisted out of the effect below so a completed bulk update can ask for
+   * the list again. Otherwise the screen would keep showing the branch and
+   * the grade the import had just changed, which reads as the update not
+   * having worked.
+   *
+   * `isCancelled` keeps the mount-time behaviour EXACTLY as it was: the
+   * effect passes its own flag so a response arriving after unmount still
+   * sets nothing, and the bulk-update caller passes nothing and always
+   * applies. Hoisting this must not quietly drop the guard that was here.
+   */
+  const loadEmployees = useCallback(async (isCancelled = () => false) => {
+    setLoading(true);
+    try {
+      const result = unwrapList(await EmployeeHelper.getEmployee());
+      if (isCancelled()) return;
+      setRows(result.items);
+      setDenied(result.accessDenied);
+      setError(result.error);
+    } catch (err) {
+      if (!isCancelled()) {
+        setRows([]);
+        setError(true);
+      }
+    } finally {
+      if (!isCancelled()) setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
-    (async () => {
-      setLoading(true);
-      try {
-        const result = unwrapList(await EmployeeHelper.getEmployee());
-        if (cancelled) return;
-        setRows(result.items);
-        setDenied(result.accessDenied);
-        setError(result.error);
-      } catch (err) {
-        if (!cancelled) {
-          setRows([]);
-          setError(true);
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
+    loadEmployees(() => cancelled);
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [loadEmployees]);
 
   /**
    * ONE request for the whole list, never one per employee. It is deliberately
@@ -307,6 +329,16 @@ function HrEmployeeList() {
                 </Button>
               </Link>
             ) : null}
+            {canBulkUpdate ? (
+              <Button
+                size="sm"
+                variant="outline"
+                colorScheme="purple"
+                onClick={() => setBulkOpen(true)}
+              >
+                Bulk Export / Import
+              </Button>
+            ) : null}
             {canCreate ? (
               <Link href="/hr/employees/new" passHref>
                 <Button colorScheme="purple" size="sm">
@@ -440,6 +472,26 @@ function HrEmployeeList() {
           </>
         )}
       </CustomContainer>
+
+      {/*
+        THE EXPORT FOLLOWS THE FILTERS THIS SCREEN IS SHOWING, so "export"
+        means what is in front of the user rather than quietly widening to
+        every employee. `search` and the HR-onboarding filter are deliberately
+        NOT sent: the first is a name, which the bulk audit must never record,
+        and the second is a derived status the export endpoint knows nothing
+        about. The server scopes the population by branch again regardless, and
+        refuses a branch outside the caller's scope rather than narrowing it.
+      */}
+      <BulkExportImport
+        isOpen={bulkOpen}
+        onClose={() => setBulkOpen(false)}
+        filters={{
+          status: status === "active" ? 1 : status === "inactive" ? 0 : null,
+          ...(outlet ? { store_ids: [Number(outlet)] } : {}),
+          ...(designation ? { designation_ids: [Number(designation)] } : {}),
+        }}
+        onApplied={() => loadEmployees()}
+      />
     </GlobalWrapper>
   );
 }
