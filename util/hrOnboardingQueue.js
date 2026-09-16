@@ -251,12 +251,17 @@ function queueRow(employee = {}, status = {}) {
    *
    * COMPLETE HERE MEANS "AN IDENTITY IS CONNECTED" - the connection work is
    * done, which is exactly what the card counts. It does NOT mean Telegram
-   * onboarding is finished; group membership has not shipped. That is why the
-   * card says Connection and why the column
-   * renders `telegram_status` through the shared label rather than this
-   * tri-state: the badge has to read "Connected - Groups Pending", never
-   * "Complete". The tri-state exists so the card can be counted and filtered
-   * like every other one.
+   * onboarding is finished, which is why the card says Connection and why the
+   * column does not render this tri-state. The tri-state exists so the card
+   * can be counted and filtered like every other one.
+   *
+   * PHASE 3B: THE COLUMN NOW RENDERS `telegram_completion`, which the badge
+   * helper reads in preference to `telegram_status`. Group membership has
+   * shipped, so "Connected - Groups Pending" is no longer the best the badge
+   * can say - it can say Complete, Groups Pending or Not Checked. The
+   * CONNECTION card and its filter are deliberately left alone: they count a
+   * different thing, and changing what they count would move employees
+   * between queues nobody asked to move.
    *
    * UNKNOWN STAYS UNKNOWN. A server that did not send the key has not said
    * this employee needs Telegram, and putting them on a chase list because a
@@ -286,6 +291,20 @@ function queueRow(employee = {}, status = {}) {
     telegram,
     /** The backend's own status, for the column's label. Null when unsent. */
     telegram_status: telegramStatus,
+    /**
+     * PHASE 3B COMPLETION, CARRIED THROUGH UNCHANGED.
+     *
+     * The badge helper prefers this over `telegram_status`, so a row that
+     * loses it here silently renders the Phase 2 label instead - which is
+     * exactly what happened before this line existed: the backend computed
+     * completion, the API returned it, and the queue dropped it on the way to
+     * the component. Every test on either side of this function passed.
+     *
+     * SPREAD ONLY WHEN PRESENT, never defaulted. An absent field means the
+     * server did not say, and inventing a value here would put employees on a
+     * chase list because a column was missing - the mistake `hr` above avoids.
+     */
+    ...(status.telegram_completion ? { telegram_completion: status.telegram_completion } : {}),
     hr,
     overall,
     hr_onboarding_missing: Array.isArray(status.hr_onboarding_missing)

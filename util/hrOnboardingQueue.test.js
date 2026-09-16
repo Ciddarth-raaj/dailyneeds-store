@@ -705,3 +705,91 @@ test("AN UNPRIVILEGED CALLER'S ROWS STILL COUNT THE SAME EVERYWHERE ELSE", () =>
   assert.strictEqual(seen.bank, NOT_APPLICABLE);
   assert.strictEqual(hidden.bank, UNKNOWN, "and neither reads Pending");
 });
+
+/* ====================== Phase 3B: completion survives the whole path ===== */
+
+/**
+ * THE END-TO-END PATH, because every test on either side of it passed while
+ * it was broken.
+ *
+ *   the server's status summary
+ *     -> queueRow(), which builds what the screens actually render
+ *       -> telegramQueueBadge(), which both the table and the card ask
+ *
+ * `queueRow` dropped `telegram_completion`, so the backend computed it, the
+ * API returned it, and the badge fell back to the Phase 2 label. The unit
+ * tests for the summary passed, and so did the unit tests for the badge -
+ * neither of them crosses this seam. This one does.
+ */
+const badgeRules = (() => {
+  const fs = require("fs");
+  const path = require("path");
+  const readUtil = (rel) => fs.readFileSync(path.join(__dirname, rel), "utf8");
+  const phase2 = readUtil("employeeTelegram.js")
+    .replace(/export const /g, "const ")
+    .replace(/export function /g, "function ")
+    .replace(/export \{[\s\S]*?\};/g, "")
+    .replace(/module\.exports[\s\S]*?;/g, "");
+  const groups = readUtil("employeeTelegramGroups.js")
+    .replace(/^import[^\n]*\n/gm, "")
+    .replace(/export const /g, "const ")
+    .replace(/export function /g, "function ");
+  // eslint-disable-next-line no-new-func
+  return new Function(`${phase2}\n${groups}\nreturn { telegramQueueBadge };`)();
+})();
+
+/** Summary -> row -> badge, exactly as the screens do it. */
+const badgeFor = (completion) => {
+  const status = done({ telegram_status: "CONNECTED" });
+  if (completion !== undefined) status.telegram_completion = completion;
+  const row = queueRow(employee(), status);
+  return badgeRules.telegramQueueBadge(row);
+};
+
+test("PHASE 3B: every completion state survives summary -> queueRow -> badge", () => {
+  assert.strictEqual(badgeFor("COMPLETE").label, "Complete");
+  assert.strictEqual(badgeFor("VERIFICATION_PENDING").label, "Not Checked");
+  assert.strictEqual(badgeFor("PENDING").label, "Groups Pending");
+  assert.strictEqual(badgeFor("NOT_CONNECTED").label, "Not Connected");
+});
+
+test("PHASE 3B: the badge is derived from completion, not from the Phase 2 status", () => {
+  // The proof the field actually arrived: a CONNECTED employee whose groups
+  // are pending must NOT read as the Phase 2 label.
+  const badge = badgeFor("PENDING");
+  assert.strictEqual(badge.fromCompletion, true);
+  assert.strictEqual(badge.label, "Groups Pending");
+});
+
+test("PHASE 3B: queueRow carries the field through untouched", () => {
+  const row = queueRow(employee(), done({ telegram_completion: "COMPLETE" }));
+  assert.strictEqual(row.telegram_completion, "COMPLETE");
+});
+
+test("PHASE 3B: an absent completion is NOT invented, and falls back safely", () => {
+  const row = queueRow(employee(), done({ telegram_status: "CONNECTED" }));
+  assert.strictEqual("telegram_completion" in row, false, "a missing field must not be defaulted");
+
+  const badge = badgeRules.telegramQueueBadge(row);
+  assert.strictEqual(badge.fromCompletion, false);
+  assert.ok(badge.label, "it must not render blank");
+  assert.notStrictEqual(badge.label, "Not Connected", "a connected employee must not be mislabelled");
+});
+
+test("PHASE 3B: an unknown completion falls back rather than rendering the code", () => {
+  const badge = badgeFor("SOMETHING_NEW");
+  assert.strictEqual(badge.fromCompletion, false);
+  assert.ok(!/SOMETHING_NEW/.test(badge.label));
+});
+
+test("PHASE 3B: the Connection card and filter are unchanged by completion", () => {
+  // They count a different thing - whether an identity is connected - and
+  // moving employees between queues is not what this change is for.
+  const connected = queueRow(employee(), done({ telegram_status: "CONNECTED", telegram_completion: "PENDING" }));
+  assert.strictEqual(connected.telegram, COMPLETE, "still 'connection done' for the card");
+  assert.strictEqual(matchesFilter(connected, "telegram"), false);
+
+  const notConnected = queueRow(employee(), done({ telegram_status: "PENDING", telegram_completion: "NOT_CONNECTED" }));
+  assert.strictEqual(notConnected.telegram, PENDING);
+  assert.strictEqual(matchesFilter(notConnected, "telegram"), true);
+});
