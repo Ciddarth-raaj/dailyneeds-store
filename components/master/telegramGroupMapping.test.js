@@ -51,6 +51,11 @@ const rules = (() => {
     "targetStatusLabel",
     "targetIsBroken",
     "scopeSummary",
+    "countsScopeNotice",
+    "groupCountSummary",
+    "emptyMatchedMessage",
+    "isBranchScoped",
+    "COUNTS_SCOPE",
     "telegramConnectedLabel",
     "canManageMappings",
     "canSubmitMapping",
@@ -163,26 +168,97 @@ describe("the three target states", () => {
   });
 });
 
-describe("the global-vs-visible wording", () => {
-  it("names both numbers when the viewer sees a subset", () => {
-    const text = rules.scopeSummary({ total_matched: 34, visible_count: 12, scope_limited: true });
-    assert.match(text, /34 employees match this mapping/);
-    assert.match(text, /12 are visible in your branch scope/);
+describe("the count wording says WHOSE employees it counts", () => {
+  const branch = { total_matched: 12, counts_scope: "BRANCH" };
+  const all = { total_matched: 34, counts_scope: "ALL" };
+
+  it("a branch-scoped caller is told the count is theirs", () => {
+    const text = rules.scopeSummary(branch);
+    assert.match(text, /12 employees match this mapping in your branch scope/);
   });
 
-  it("states the total even when nothing is hidden", () => {
-    const text = rules.scopeSummary({ total_matched: 34, visible_count: 34, scope_limited: false });
-    assert.match(text, /34 employees match this mapping/);
-    assert.ok(!/visible in your branch scope/.test(text));
+  it("NEVER shows a branch caller a bare number", () => {
+    // "12 employees match this mapping" is false as labelled for a rule that
+    // may cover a hundred people, and a manager who believes it deletes the
+    // rule.
+    const text = rules.scopeSummary(branch);
+    assert.ok(/your branch scope/.test(text), "the scope must be in the sentence itself");
   });
 
-  it("never implies the visible subset is the whole population", () => {
-    const text = rules.scopeSummary({ total_matched: 34, visible_count: 0, scope_limited: true });
-    assert.match(text, /34/, "the company-wide total must always be stated");
+  it("an all-branches caller gets the plain company sentence", () => {
+    const text = rules.scopeSummary(all);
+    assert.match(text, /34 employees match this mapping\./);
+    assert.ok(!/branch scope/.test(text), "an all-branches caller is not branch-scoped");
+  });
+
+  it("NO stale '34 match, 12 visible' wording survives anywhere", () => {
+    // The old sentence needed a company-wide total, which is exactly the
+    // figure the backend no longer computes for a scoped caller.
+    for (const source of [
+      read("util/telegramGroupMapping.js"),
+      read("components/master/TelegramGroupMatchedEmployees.jsx"),
+      read("pages/master/telegram-groups/map.jsx"),
+    ]) {
+      assert.ok(
+        !/are visible in your branch scope/.test(source),
+        "the old two-number wording must be gone"
+      );
+      assert.ok(!/visible_count/.test(source), "visible_count is not a field any more");
+    }
+  });
+
+  it("the notice states BOTH facts: counts are yours, rules are everyone's", () => {
+    const notice = rules.countsScopeNotice(branch);
+    assert.match(notice, /limited to your branch scope/i);
+    assert.match(notice, /company-wide/i, "a scoped count must not read as a branch-only rule");
+  });
+
+  it("shows no notice at all to an all-branches caller", () => {
+    assert.strictEqual(rules.countsScopeNotice(all), null);
+    assert.strictEqual(rules.countsScopeNotice({}), null);
+  });
+
+  it("the group header line carries the scope too", () => {
+    assert.match(rules.groupCountSummary(branch), /12 employees in your branch scope/);
+    assert.ok(!/in your branch scope/.test(rules.groupCountSummary(all)));
+  });
+
+  it("the empty state never claims NOBODY matches, to a scoped caller", () => {
+    const scoped = rules.emptyMatchedMessage({ total_matched: 0, counts_scope: "BRANCH" });
+    assert.match(scoped, /in your branch scope/);
+    assert.match(scoped, /may still match employees in other branches/i);
+
+    const global = rules.emptyMatchedMessage({ total_matched: 0, counts_scope: "ALL" });
+    assert.match(global, /No currently employed staff match this mapping/);
+    assert.ok(!/other branches/.test(global));
   });
 
   it("reads correctly for one employee", () => {
-    assert.match(rules.scopeSummary({ total_matched: 1, visible_count: 1 }), /1 employee matches/);
+    assert.match(rules.scopeSummary({ total_matched: 1, counts_scope: "ALL" }), /1 employee matches/);
+  });
+});
+
+describe("the replaced scope_limited flag", () => {
+  it("is gone from the whole frontend", () => {
+    for (const rel of [
+      "util/telegramGroupMapping.js",
+      "components/master/TelegramGroupMatchedEmployees.jsx",
+      "pages/master/telegram-groups/map.jsx",
+      "customHooks/useTelegramGroupMappings.js",
+      "helper/telegramGroups.js",
+    ]) {
+      assert.ok(!/scope_limited/.test(read(rel)), `${rel} still references scope_limited`);
+    }
+  });
+
+  it("is replaced by counts_scope, which needs no forbidden total", () => {
+    assert.deepStrictEqual(rules.COUNTS_SCOPE, { ALL: "ALL", BRANCH: "BRANCH" });
+    assert.strictEqual(rules.isBranchScoped({ counts_scope: "BRANCH" }), true);
+    assert.strictEqual(rules.isBranchScoped({ counts_scope: "ALL" }), false);
+    // Absent or unknown is treated as NOT branch-scoped for wording only -
+    // the server decides what the numbers are; this only labels them.
+    assert.strictEqual(rules.isBranchScoped({}), false);
+    assert.strictEqual(rules.isBranchScoped(null), false);
   });
 });
 
@@ -238,6 +314,27 @@ describe("the Registry gains Map as a fourth action", () => {
   });
 });
 
+describe("the mapping RULE is never scoped", () => {
+  it("the rule label is built from the type and target, not from any count", () => {
+    // A manager sees "Outlet · ECR" even when ECR's staff are not theirs to
+    // count. Configuration is not somebody's employees.
+    assert.strictEqual(
+      rules.mappingTargetLabel({ mapping_type: "OUTLET", target_name: "ECR", target_id: 5 }),
+      "ECR"
+    );
+    assert.strictEqual(
+      rules.mappingTargetLabel({ mapping_type: "ALL_EMPLOYEES" }),
+      "All Employees"
+    );
+  });
+
+  it("nothing in the label helpers reads counts_scope", () => {
+    const source = read("util/telegramGroupMapping.js");
+    const label = source.slice(source.indexOf("function mappingTargetLabel"), source.indexOf("function targetWarning"));
+    assert.ok(!/counts_scope|branchScoped|isBranchScoped/.test(label));
+  });
+});
+
 describe("the Map screen", () => {
   it("exists at the route the Registry links to", () => {
     assert.ok(exists("pages/master/telegram-groups/map.jsx"));
@@ -263,9 +360,13 @@ describe("the Map screen", () => {
   });
 
   it("has the approved mapping columns", () => {
-    for (const header of ["Mapping Type", "Mapping To", "Matched Employees", "Status", "Actions"]) {
+    for (const header of ["Mapping Type", "Mapping To", "Status", "Actions"]) {
       assert.match(mapPage, new RegExp(`headerName: "${header}"`));
     }
+    // Matched Employees carries the scope in its header, so it is a ternary
+    // rather than a literal - both spellings must be present.
+    assert.match(mapPage, /"Matched Employees \(your branch\)"/);
+    assert.match(mapPage, /: "Matched Employees"/);
   });
 
   it("offers View All Matched Employees for the deduplicated union", () => {
@@ -293,6 +394,21 @@ describe("the Map screen", () => {
 
   it("refetches from the server after a write instead of patching a count", () => {
     assert.match(mapPage, /await refetch\(\)/);
+  });
+
+  it("shows the branch-scope notice once, from the server's own flag", () => {
+    assert.match(mapPage, /countsScopeNotice\(data\)/);
+    assert.equal((mapPage.match(/countsScopeNotice\(data\) &&/g) || []).length, 1, "said once, not per row");
+  });
+
+  it("labels the Matched Employees column with the scope", () => {
+    // A number read on its own - scanning the grid, or in a screenshot -
+    // must not be mistaken for the company figure.
+    assert.match(mapPage, /branchScoped \? "Matched Employees \(your branch\)" : "Matched Employees"/);
+  });
+
+  it("derives the scope from the response, never from local state", () => {
+    assert.match(mapPage, /const branchScoped = isBranchScoped\(data\)/);
   });
 });
 
@@ -384,14 +500,16 @@ describe("View Employees", () => {
     }
   });
 
-  it("states the global total and the visible count", () => {
+  it("states the count with its scope", () => {
     assert.match(employeesModal, /scopeSummary\(result\)/);
+    assert.match(employeesModal, /countsScopeNotice\(result\)/);
   });
 
-  it("distinguishes 'none match' from 'none visible to you'", () => {
-    assert.match(employeesModal, /result\.total_matched > 0/);
-    assert.match(employeesModal, /None of the matched employees is in your branch scope/);
-    assert.match(employeesModal, /No currently employed staff match this mapping/);
+  it("uses the shared empty-state wording, which never overclaims", () => {
+    assert.match(employeesModal, /emptyMatchedMessage\(result\)/);
+    // The old branch, which asserted something about branches the caller
+    // cannot see, is gone.
+    assert.ok(!/None of the matched employees is in your branch scope/.test(employeesModal));
   });
 
   it("loads on demand, not with the page", () => {

@@ -127,20 +127,81 @@ export function targetStatusLabel(row) {
 
 export const targetIsBroken = (row) => targetWarning(row) !== null;
 
+/** What the numbers on this screen count. The server decides; this names it. */
+export const COUNTS_SCOPE = {
+  ALL: "ALL",
+  BRANCH: "BRANCH",
+};
+
+export const isBranchScoped = (payload) =>
+  Boolean(payload) && payload.counts_scope === COUNTS_SCOPE.BRANCH;
+
 /**
- * "34 employees match this mapping. 12 are visible in your branch scope."
+ * THE COUNT SENTENCE, AND WHOSE EMPLOYEES IT COUNTS.
  *
- * THE TOTAL IS ALWAYS STATED, even when the viewer can see all of it, and
- * the visible count is only mentioned when it differs. A manager must never
- * be left believing the twelve names in front of them are the whole
- * population - that is how somebody concludes a rule is wrong and deletes
- * it.
+ * A branch-scoped caller is never shown a bare number. "12 employees match
+ * this mapping" would be FALSE AS LABELLED for them - the rule may well
+ * cover a hundred people - and a manager who believes a company-wide rule
+ * covers twelve is a manager who concludes it is broken and deletes it.
+ *
+ * So the scope is in the sentence itself: "12 employees in your branch scope
+ * match this mapping". The number is true, and what it counts is stated
+ * beside it.
+ *
+ * THIS REPLACED "34 match, 12 visible to you". That wording required a
+ * company-wide total, which is information about other branches' staffing -
+ * their headcount by designation, how many are already on Telegram - and the
+ * server no longer computes one for a caller who may not see it.
  */
-export function scopeSummary({ total_matched = 0, visible_count = 0, scope_limited = false } = {}) {
-  const people = total_matched === 1 ? "employee matches" : "employees match";
-  const base = `${total_matched} ${people} this mapping.`;
-  if (!scope_limited && visible_count === total_matched) return base;
-  return `${base} ${visible_count} ${visible_count === 1 ? "is" : "are"} visible in your branch scope.`;
+export function scopeSummary(payload = {}) {
+  const { total_matched = 0 } = payload;
+  const verb = total_matched === 1 ? "employee matches" : "employees match";
+  if (isBranchScoped(payload)) {
+    return `${total_matched} ${verb} this mapping in your branch scope.`;
+  }
+  return `${total_matched} ${verb} this mapping.`;
+}
+
+/**
+ * The line that says the WHOLE screen's numbers are limited - shown once,
+ * near the counts, rather than repeated on every row.
+ *
+ * It is deliberately explicit that the RULE is unaffected: a manager must
+ * not read a scoped count as "this mapping only covers my branch", because
+ * then deleting it looks harmless.
+ */
+export function countsScopeNotice(payload) {
+  if (!isBranchScoped(payload)) return null;
+  return "Counts on this screen are limited to your branch scope. The mapping rules themselves apply company-wide.";
+}
+
+/** The header line above the mapping grid. */
+export function groupCountSummary(payload = {}) {
+  const { total_matched = 0, total_connected } = payload;
+  const scoped = isBranchScoped(payload);
+  const who = scoped ? " in your branch scope" : "";
+  const noun = total_matched === 1 ? "employee" : "employees";
+  let text = `${total_matched} ${noun}${who} currently match this group's mappings`;
+  if (typeof total_connected === "number") {
+    text += ` · ${total_connected} already connected to Telegram`;
+  }
+  if (payload.as_of_date) text += ` · as of ${payload.as_of_date}`;
+  return text;
+}
+
+/**
+ * The empty state, which must not overclaim.
+ *
+ * A branch-scoped caller seeing nothing has learned that NOBODY THEY MAY SEE
+ * matches - not that nobody matches. Saying "no staff match this mapping"
+ * would be asserting something about branches they cannot see, which is both
+ * untrue and the disclosure this correction removed.
+ */
+export function emptyMatchedMessage(payload) {
+  if (isBranchScoped(payload)) {
+    return "No currently employed staff in your branch scope match this mapping. It may still match employees in other branches.";
+  }
+  return "No currently employed staff match this mapping.";
 }
 
 /** Yes / No. Never a username, an id or a mobile number. */

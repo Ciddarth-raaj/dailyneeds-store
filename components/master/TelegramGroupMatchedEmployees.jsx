@@ -2,7 +2,13 @@ import React from "react";
 import { Alert, AlertIcon, Badge, Box, Spinner, Stack, Text } from "@chakra-ui/react";
 import CustomModal from "../CustomModal";
 import AgGrid from "../AgGrid";
-import { scopeSummary, telegramConnectedLabel } from "../../util/telegramGroupMapping";
+import {
+  countsScopeNotice,
+  emptyMatchedMessage,
+  isBranchScoped,
+  scopeSummary,
+  telegramConnectedLabel,
+} from "../../util/telegramGroupMapping";
 
 /**
  * The employees a mapping - or the whole group - resolves to.
@@ -18,10 +24,12 @@ import { scopeSummary, telegramConnectedLabel } from "../../util/telegramGroupMa
  * nothing about WHICH Telegram account, and it does not decide whether
  * somebody matches the mapping.
  *
- * THE TOTAL IS ALWAYS STATED, AND IT IS COMPANY-WIDE. A branch manager sees
- * "34 employees match this mapping. 12 are visible in your branch scope." -
- * never twelve names with no indication that twenty-two others exist.
- * Leaving that out is how somebody decides a rule is wrong and deletes it.
+ * THE COUNT SAYS WHOSE EMPLOYEES IT COUNTS. A branch manager reads "12
+ * employees match this mapping in your branch scope" - never a bare "12",
+ * which would be false as labelled for a rule that may cover a hundred
+ * people, and never a company-wide total, which is information about other
+ * branches' staffing. Both halves matter: somebody who thinks a global rule
+ * covers twelve people is somebody who deletes it.
  */
 export default function TelegramGroupMatchedEmployees({
   isOpen,
@@ -64,10 +72,16 @@ export default function TelegramGroupMatchedEmployees({
 
         {!loading && !error && result && (
           <>
-            <Alert status={result.scope_limited ? "warning" : "info"} borderRadius="md">
+            <Alert status={isBranchScoped(result) ? "warning" : "info"} borderRadius="md">
               <AlertIcon />
               <Box fontSize="sm">
                 {scopeSummary(result)}
+                {countsScopeNotice(result) ? (
+                  <Text as="span" color="gray.700">
+                    {" "}
+                    {countsScopeNotice(result)}
+                  </Text>
+                ) : null}
                 {result.as_of_date ? (
                   <Text as="span" color="gray.600">
                     {" "}
@@ -91,11 +105,9 @@ export default function TelegramGroupMatchedEmployees({
             ) : (
               <Alert status="info" borderRadius="md">
                 <AlertIcon />
-                <Text fontSize="sm">
-                  {result.total_matched > 0
-                    ? "None of the matched employees is in your branch scope."
-                    : "No currently employed staff match this mapping."}
-                </Text>
+                {/* Never "nobody matches" to a branch-scoped caller - they
+                    have learned only that nobody THEY MAY SEE matches. */}
+                <Text fontSize="sm">{emptyMatchedMessage(result)}</Text>
               </Alert>
             )}
           </>

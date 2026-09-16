@@ -32,6 +32,9 @@ import {
 import { displayOutlet } from "../../../util/telegramGroup";
 import {
   MAPPING_MESSAGES,
+  countsScopeNotice,
+  groupCountSummary,
+  isBranchScoped,
   mappingTargetLabel,
   mappingTypeLabel,
   targetStatusLabel,
@@ -70,12 +73,19 @@ import {
  * Collapsing those into one number would hide real breakage behind an
  * ordinary-looking zero.
  *
- * ================================= COUNTS ARE GLOBAL, NAMES ARE SCOPED =====
+ * =========== THE RULES ARE COMPANY-WIDE, THE NUMBERS ARE THE VIEWER'S ======
  *
- * The matched count is the same for everybody, because a rule is either
- * right or wrong regardless of who is looking and a number names nobody.
- * View Employees obeys the branch scope the server resolves live, and says
- * so out loud when it is showing a subset.
+ * A branch manager sees every rule in full - that one says "All Employees"
+ * and another says "Designation: Store Manager" - because that is
+ * configuration, not somebody's staff. What narrows is every employee-derived
+ * NUMBER: the per-rule count, the total and the connected count are all
+ * counts of employees the viewer is authorised to see.
+ *
+ * SO THE SCREEN SAYS SO, IN BOTH DIRECTIONS. It never shows a branch-scoped
+ * manager a bare "12", which would be false as labelled for a rule covering
+ * a hundred people, and it never shows them the company's total, which is
+ * information about other branches' staffing. One notice states that the
+ * counts are theirs and the rules are everyone's.
  */
 export default function TelegramGroupMapPage() {
   const router = useRouter();
@@ -142,6 +152,8 @@ export default function TelegramGroupMapPage() {
     [confirmDelete, id, refetch]
   );
 
+  const branchScoped = isBranchScoped(data);
+
   const colDefs = useMemo(
     () => [
       {
@@ -159,8 +171,11 @@ export default function TelegramGroupMapPage() {
       },
       {
         field: "matched_employees",
-        headerName: "Matched Employees",
-        width: 190,
+        // The header carries the scope too, so a number read on its own -
+        // scanning the grid, or in a screenshot - is never mistaken for the
+        // company-wide figure.
+        headerName: branchScoped ? "Matched Employees (your branch)" : "Matched Employees",
+        width: branchScoped ? 240 : 190,
         type: "numeric-column",
       },
       {
@@ -214,7 +229,7 @@ export default function TelegramGroupMapPage() {
         },
       },
     ],
-    [canManage, handleDelete, openEmployees]
+    [branchScoped, canManage, handleDelete, openEmployees]
   );
 
   const brokenCount = mappings.filter(targetIsBroken).length;
@@ -301,6 +316,16 @@ export default function TelegramGroupMapPage() {
                 </Alert>
               )}
 
+              {/* Said ONCE, near the numbers it qualifies, rather than on
+                  every row. It states both halves: the counts are yours, the
+                  rules are the company's. */}
+              {countsScopeNotice(data) && (
+                <Alert status="info" borderRadius="md">
+                  <AlertIcon />
+                  <Box fontSize="sm">{countsScopeNotice(data)}</Box>
+                </Alert>
+              )}
+
               {brokenCount > 0 && (
                 <Alert status="warning" borderRadius="md">
                   <AlertIcon />
@@ -314,12 +339,7 @@ export default function TelegramGroupMapPage() {
 
               <Flex align="center" justify="space-between" wrap="wrap" gap={2}>
                 <Text fontSize="sm" color="gray.600">
-                  {data.total_matched} employee{data.total_matched === 1 ? "" : "s"} currently match
-                  this group&apos;s mappings
-                  {typeof data.total_connected === "number"
-                    ? ` · ${data.total_connected} already connected to Telegram`
-                    : ""}
-                  {data.as_of_date ? ` · as of ${data.as_of_date}` : ""}
+                  {groupCountSummary(data)}
                 </Text>
                 {mappings.length > 0 && (
                   <Button
