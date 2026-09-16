@@ -38,7 +38,7 @@
 
 const { validatePersonalDetails } = require("./personalDetails");
 
-/** The manager's four stages, in order. Nothing else is a stage. */
+/** The manager's five stages, in order. Nothing else is a stage. */
 const ONBOARDING_STAGES = [
   {
     key: "aadhaar",
@@ -60,6 +60,13 @@ const ONBOARDING_STAGES = [
     title: "Employment details",
     blurb:
       "Where they work and their shift. Finishing this stage creates the employee and allocates the Employee ID.",
+  },
+  {
+    key: "telegram",
+    label: "Telegram",
+    title: "Telegram Setup",
+    blurb:
+      "Connect the employee's own Telegram account. It needs the Employee ID, so it comes after the employee exists - and it never blocks: Skip for now leaves them created and Telegram Pending.",
   },
   {
     key: "education",

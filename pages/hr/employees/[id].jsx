@@ -19,6 +19,8 @@ import AadhaarSection from "../../../components/hr/profile/AadhaarSection";
 import PersonalSection from "../../../components/hr/profile/PersonalSection";
 import EmployeePhotoHeader from "../../../components/hr/profile/EmployeePhotoHeader";
 import AttendanceRequiredSection from "../../../components/hr/profile/AttendanceRequiredSection";
+import TelegramSection from "../../../components/hr/profile/TelegramSection";
+import { canManageTelegram } from "../../../util/employeeTelegram";
 import EmploymentSection from "../../../components/hr/profile/EmploymentSection";
 import EducationSection from "../../../components/hr/profile/EducationSection";
 import PaymentDetailsSection from "../../../components/hr/profile/PaymentDetailsSection";
@@ -138,6 +140,15 @@ function EmployeeProfile() {
   const actor = { permissions, isAdmin };
 
   const canEdit = canEditEmployee(actor);
+  /**
+   * Telegram setup. `employee_create` OR `employee_edit`, exactly as
+   * `routes/employee_telegram.js` enforces - and no new Telegram permission,
+   * deliberately: finishing setup for an employee who already exists must not
+   * require the right to create employees. The branch scope the server also
+   * applies cannot be evaluated here, so this hides a button the server would
+   * refuse anyway; it never grants anything.
+   */
+  const mayManageTelegram = canManageTelegram(actor);
   const mayViewSensitive = canViewSensitive(actor);
   const mayEditPayment = canEditPaymentDetails(actor);
   const mayEditStatutory = canEditStatutoryDetails(actor);
@@ -571,6 +582,14 @@ function EmployeeProfile() {
     employee_name: (lifecycle && lifecycle.employee_name) || (employee && employee.employee_name) || "",
   };
 
+  /** The employee's outlet, for the Telegram card's header. Display only. */
+  const telegramOutletName = (() => {
+    const storeId = employee && employee.store_id;
+    if (storeId === undefined || storeId === null) return "";
+    const found = (outlets || []).find((o) => Number(o.outlet_id) === Number(storeId));
+    return found ? found.outlet_name || "" : "";
+  })();
+
   if (!lifecycle && !employee) {
     return (
       <GlobalWrapper title="Employee">
@@ -675,6 +694,19 @@ function EmployeeProfile() {
             isAdmin={isAdmin}
             onChange={saveAttendanceRequired}
             saving={saving}
+          />
+
+          {/* ================================== 2c. Telegram ========= */}
+          {/* The SECONDARY action point: the wizard sets a new hire up while
+              they are standing there, and this is where the ~200 existing
+              employees get theirs. `canManage` mirrors what
+              `routes/employee_telegram.js` enforces - the server decides, and
+              the branch scope it applies cannot be evaluated here at all. */}
+          <TelegramSection
+            employeeId={identity.employee_id}
+            employeeName={identity.employee_name}
+            outletName={telegramOutletName}
+            canManage={mayManageTelegram && Boolean(employee)}
           />
 
           {/* ========================= 3. Education & Experience ==== */}

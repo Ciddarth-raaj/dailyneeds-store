@@ -686,10 +686,17 @@ test("M1: THE PROFILE RENDERS THE EIGHT SECTIONS IN THE ONE ORDER, AND NO LEGACY
   // cannot put Education first without inventing a record to attach to. Add
   // and Edit are still the same employee master; only that constraint
   // separates their order.
+  //
+  // TELEGRAM IS A FIFTH WIZARD STAGE AND IS NOT ONE OF THE SECTIONS. It
+  // writes no column on `new_employee` - it connects an identity in its own
+  // tables - so it is not part of the employee master's section vocabulary,
+  // and the profile renders it as a card of its own rather than as a ninth
+  // section in this sequence.
   assert.deepStrictEqual(
-    ONBOARDING_STAGES.map((s) => s.key).sort(),
+    ONBOARDING_STAGES.map((s) => s.key).filter((k) => k !== "telegram").sort(),
     EMPLOYEE_MASTER_SECTIONS.slice(0, 4).map((s) => s.key).sort()
   );
+  assert.ok(profile.includes("<TelegramSection"), "and the profile does render the Telegram card");
   // Aadhaar is a full-width first section, not a half-width card beside Statutory.
   assert.ok(!/SimpleGrid/.test(codeOf(profile)), "no side-by-side grid on the profile");
   // The old /employee/[id] form is not resurrected as an edit layout: that

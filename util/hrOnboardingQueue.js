@@ -95,6 +95,8 @@
  * util/hrOnboardingQueue.test.js` can pin all of it.
  */
 
+const { telegramStatusOf, isConnected: telegramConnected } = require("./employeeTelegram");
+
 const PENDING = "PENDING";
 const COMPLETE = "COMPLETE";
 const NOT_APPLICABLE = "NOT_APPLICABLE";
@@ -238,6 +240,29 @@ function queueRow(employee = {}, status = {}) {
    */
   const overall = hr;
 
+  /**
+   * TELEGRAM, AND IT IS NOT PART OF `overall`.
+   *
+   * Tracked, not gating. Required-group membership does not exist yet, so an
+   * employee whose Telegram is merely connected still has work in front of
+   * them - and folding that into HR completion today would mark all 630
+   * employees incomplete for a feature that has not shipped. The card and the
+   * column show the state; `hr` is untouched.
+   *
+   * COMPLETE HERE MEANS "AN IDENTITY IS CONNECTED", which is why the column
+   * renders `telegram_status` through the shared label rather than this
+   * tri-state: the badge has to read "Connected - Groups Pending", never
+   * "Complete". The tri-state exists so the card can be counted and filtered
+   * like every other one.
+   *
+   * UNKNOWN STAYS UNKNOWN. A server that did not send the key has not said
+   * this employee needs Telegram, and putting them on a chase list because a
+   * column was absent is exactly the mistake `hr` above avoids.
+   */
+  const telegramStatus = telegramStatusOf(status);
+  const telegram =
+    telegramStatus === null ? UNKNOWN : telegramConnected(telegramStatus) ? COMPLETE : PENDING;
+
   return {
     employee_id: employee.employee_id,
     employee_name: employee.employee_name,
@@ -255,6 +280,9 @@ function queueRow(employee = {}, status = {}) {
     statutory,
     payroll,
     cashToBank,
+    telegram,
+    /** The backend's own status, for the column's label. Null when unsent. */
+    telegram_status: telegramStatus,
     hr,
     overall,
     hr_onboarding_missing: Array.isArray(status.hr_onboarding_missing)
@@ -286,6 +314,7 @@ const QUEUE_FILTERS = [
   { value: "bank", label: "Bank Pending" },
   { value: "statutory", label: "Statutory Pending" },
   { value: "payroll", label: "Payroll Pending" },
+  { value: "telegram", label: "Telegram Pending" },
   { value: "cash_to_bank", label: "Cash → Bank Pending" },
   { value: "hr", label: "HR Pending" },
   // The per-scheme halves. NOT cards - the dashboard counts PF and ESI as one
@@ -303,6 +332,9 @@ const QUEUE_CARDS = [
   { filter: "bank", label: "Bank pending", count: "bank" },
   { filter: "statutory", label: "Statutory pending", count: "statutory" },
   { filter: "payroll", label: "Payroll pending", count: "payroll" },
+  // TRACKED, NOT GATING - it is not one of the four HR items and is not part
+  // of the HR count. An employee can be HR complete and Telegram pending.
+  { filter: "telegram", label: "Telegram pending", count: "telegram" },
   // NOT one of the four, and placed after them for that reason: an
   // operational migration HR is running, not a record that is unfinished.
   { filter: "cash_to_bank", label: "Cash → Bank pending", count: "cashToBank" },
@@ -371,6 +403,9 @@ function matchesFilter(row, filter) {
       return isPending(row.statutory);
     case "payroll":
       return isPending(row.payroll);
+    // Not a subset of "hr": an HR-complete employee can still need Telegram.
+    case "telegram":
+      return isPending(row.telegram);
     // Everyone still paid in cash. Not a subset of "all_pending": a finished
     // employee can be on this list, which is the whole point of it.
     case "cash_to_bank":
@@ -443,6 +478,9 @@ function queueCounts(rows, { outlet = "", department = "" } = {}) {
     bank: count((r) => isPending(r.bank)),
     statutory: count((r) => isPending(r.statutory)),
     payroll: count((r) => isPending(r.payroll)),
+    // Counted over the whole active population like everything else, and NOT
+    // a subset of `hr`.
+    telegram: count((r) => isPending(r.telegram)),
     // Counted over the same whole active population as everything else, and
     // NOT a subset of `hr` - an HR-complete employee can be on it.
     cashToBank: count((r) => isPending(r.cashToBank)),

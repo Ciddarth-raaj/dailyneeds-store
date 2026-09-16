@@ -280,6 +280,13 @@ function statusSummaryIndex(summary) {
     // render. `bank_section_status` is COMPLETE / PENDING / NOT_APPLICABLE
     // (the employee is paid in cash) / UNKNOWN (nobody has said how they are
     // paid), so the two cannot be confused for one another.
+    // TELEGRAM, on the same terms as everything above: carried through only
+    // when the server actually sent it, so a build without the column reads
+    // as "not answered" rather than as "this employee needs Telegram".
+    if (row.telegram_status) entry.telegram_status = row.telegram_status;
+    if (row.telegram_connected !== undefined && row.telegram_connected !== null) {
+      entry.telegram_connected = Boolean(row.telegram_connected);
+    }
     if (row.bank_section_status) entry.bank_section_status = row.bank_section_status;
     // Still paid in cash: an operational migration, never an HR failure.
     if (row.cash_to_bank_pending !== undefined && row.cash_to_bank_pending !== null) {

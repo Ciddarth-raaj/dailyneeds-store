@@ -335,7 +335,7 @@ test("the counts follow outlet and department, but not the work filter", () => {
 
 test("no count is ever a hardcoded example", () => {
   assert.deepStrictEqual(queueCounts([]), {
-    active: 0, aadhaar: 0, bank: 0, statutory: 0, payroll: 0, cashToBank: 0, hr: 0,
+    active: 0, aadhaar: 0, bank: 0, statutory: 0, payroll: 0, telegram: 0, cashToBank: 0, hr: 0,
     pf: 0, esi: 0, pending: 0,
   });
 });
@@ -352,10 +352,10 @@ test("a badge never says Pending for something unknown", () => {
 
 /* ------------------------------------------------- the dashboard's cards */
 
-test("THERE ARE SEVEN CARDS, AND EACH ONE SELECTS A REAL FILTER", () => {
+test("THERE ARE EIGHT CARDS, AND EACH ONE SELECTS A REAL FILTER", () => {
   assert.deepStrictEqual(
     QUEUE_CARDS.map((c) => c.filter),
-    ["all", "aadhaar", "bank", "statutory", "payroll", "cash_to_bank", "hr"]
+    ["all", "aadhaar", "bank", "statutory", "payroll", "telegram", "cash_to_bank", "hr"]
   );
   // A card whose filter did not exist would select nothing and silently show
   // the whole list, so the two definitions are checked against each other.
@@ -656,16 +656,16 @@ test("WITHOUT THE PERMISSION THE CASH CARD IS ABSENT, NOT ZERO", () => {
   // A zero would say, as a fact, that nobody is on cash. Absence says nothing.
   assert.deepStrictEqual(
     cards.map((c) => c.filter),
-    ["all", "aadhaar", "bank", "statutory", "payroll", "hr"]
+    ["all", "aadhaar", "bank", "statutory", "payroll", "telegram", "hr"]
   );
   // The filter goes with it, or the page could reach a state it cannot draw.
   assert.ok(!queueFilters({ canSeePaymentRoute: false }).some((f) => f.value === "cash_to_bank"));
 });
 
-test("WITH THE PERMISSION ALL SEVEN CARDS ARE OFFERED", () => {
+test("WITH THE PERMISSION ALL EIGHT CARDS ARE OFFERED", () => {
   assert.deepStrictEqual(
     queueCards({ canSeePaymentRoute: true }).map((c) => c.filter),
-    ["all", "aadhaar", "bank", "statutory", "payroll", "cash_to_bank", "hr"]
+    ["all", "aadhaar", "bank", "statutory", "payroll", "telegram", "cash_to_bank", "hr"]
   );
   assert.ok(queueFilters({ canSeePaymentRoute: true }).some((f) => f.value === "cash_to_bank"));
 });

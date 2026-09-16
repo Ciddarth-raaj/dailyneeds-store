@@ -59,29 +59,37 @@ const employment = {
 };
 
 /* ================================================== the stages themselves */
-test("the manager has exactly four stages, and they are the first four profile sections", () => {
+test("the manager has exactly five stages, in the order the employee is built up", () => {
   assert.deepStrictEqual(
     ONBOARDING_STAGES.map((s) => s.key),
-    ["aadhaar", "personal", "employment", "education"]
+    ["aadhaar", "personal", "employment", "telegram", "education"]
   );
-  // THE SAME FOUR SECTIONS AS THE PROFILE - checked as a SET.
+
+  // FOUR OF THEM ARE EMPLOYEE-MASTER SECTIONS. The profile shows Education &
+  // Experience before Employment Details. The wizard cannot: its Employment
+  // stage is the one that CREATES the employee and allocates the Employee ID,
+  // and its Education stage is recorded against that ID through the
+  // onboarding education endpoint, so Education first would be education
+  // recorded against a record that does not exist. Add and Edit are still ONE
+  // employee master - one constraint, and only that constraint, separates
+  // their order.
   //
-  // The profile shows Education & Experience before Employment Details. The
-  // wizard cannot: its Employment stage is the one that CREATES the employee
-  // and allocates the Employee ID, and its Education stage is recorded
-  // against that ID through the onboarding education endpoint, so Education
-  // first would be education recorded against a record that does not exist.
-  // Add and Edit are still ONE employee master - one constraint, and only
-  // that constraint, separates their order.
+  // TELEGRAM IS THE FIFTH AND IS NOT ONE OF THEM, deliberately: it writes no
+  // column on `new_employee` at all. It connects an identity in its own
+  // tables, which is why it can be skipped without leaving the employee
+  // record half-finished, and why it is not part of the sensitive-section
+  // vocabulary the profile's rights are expressed in.
   const { EMPLOYEE_MASTER_SECTIONS } = require("./hrProfile");
   assert.deepStrictEqual(
-    ONBOARDING_STAGES.map((s) => s.key).sort(),
+    ONBOARDING_STAGES.map((s) => s.key).filter((k) => k !== "telegram").sort(),
     EMPLOYEE_MASTER_SECTIONS.slice(0, 4).map((s) => s.key).sort(),
     "Add and Edit cover the same four sections"
   );
   assert.strictEqual(CREATE_STAGE_KEY, "employment", "and this is why the wizard's order differs");
-  assert.ok(isFinalStage(3));
-  assert.ok(!isFinalStage(2));
+  // Education is the last stage, and Telegram is not - a manager who
+  // connects Telegram still has Education in front of them.
+  assert.ok(isFinalStage(4), "Education is last");
+  assert.ok(!isFinalStage(3), "Telegram is not");
 });
 
 test("NO HR-ONLY STAGE IS IN THE MANAGER'S WIZARD, not even as a future step", () => {

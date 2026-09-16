@@ -34,6 +34,7 @@ import {
   statusBadge,
 } from "../../../util/hrOnboardingQueue";
 import OnboardingQueueCard from "../../../components/hr/OnboardingQueueCard";
+import { telegramBadgeScheme, telegramLabel } from "../../../util/employeeTelegram";
 import { canViewOnboardingQueue } from "../../../util/hrProfile";
 
 /**
@@ -272,6 +273,10 @@ function OnboardingQueue() {
     // still available as a filter, and on the employee's own profile.
     statutory: "Statutory",
     payroll: "Payroll",
+    // TELEGRAM. Tracked here, NOT part of the HR column beside it: required
+    // group membership has not shipped, so a connected employee still has
+    // work and an unconnected one is not an HR-incomplete record.
+    telegram: "Telegram",
     // WHY THE ROUTE IS A COLUMN, AND WHY IT IS CONDITIONAL. Bank reads "Not
     // applicable" for anybody paid in cash, and a dash-like badge with no
     // explanation beside it is a puzzle - this says which route they are on.
@@ -304,6 +309,21 @@ function OnboardingQueue() {
     bank: badge(row.bank, { completeLabel: "Verified" }),
     statutory: badge(row.statutory),
     payroll: badge(row.payroll),
+    // THE SHARED LABEL, not the tri-state badge - this column has to be able
+    // to read "Connected - Groups Pending", which "Complete" would misstate.
+    // `util/employeeTelegram.js` owns the wording, so this cell, the profile
+    // card and the wizard all say the same thing.
+    telegram: (
+      <Badge
+        colorScheme={telegramBadgeScheme(row.telegram_status)}
+        fontSize="0.7em"
+        px={2}
+        py={1}
+        whiteSpace="normal"
+      >
+        {telegramLabel(row.telegram_status, { short: true })}
+      </Badge>
+    ),
     // Pending here means "still on cash", so it is labelled as the route
     // rather than as an outstanding item - it is not one of the four.
     ...(canSeePaymentRoute

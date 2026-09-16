@@ -25,6 +25,7 @@ import GlobalWrapper from "../../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../../components/CustomContainer";
 import AadhaarVerifyModal from "../../../components/hr/AadhaarVerifyModal";
 import OnboardingStepper from "../../../components/hr/OnboardingStepper";
+import TelegramSetupPanel from "../../../components/hr/TelegramSetupPanel";
 import { ConfidenceBadge, EmploymentBadge } from "../../../components/hr/StatusBadges";
 import usePermissions from "../../../customHooks/usePermissions";
 import useOutlets from "../../../customHooks/useOutlets";
@@ -159,6 +160,11 @@ function AddEmployee() {
   // stage - which is the only stage that offers the create.
   const required = form.employee_name.trim() && form.date_of_joining;
 
+  /** The chosen outlet's name, for the Telegram stage's header. Display only. */
+  const outletName = (() => {
+    const found = (outlets || []).find((o) => String(o.outlet_id) === String(form.store_id));
+    return found ? found.outlet_name || "" : "";
+  })();
   const stageKey = ONBOARDING_STAGES[stage].key;
   const stageContext = { verification, aadhaarSkipped };
 
@@ -714,7 +720,34 @@ function AddEmployee() {
             </Stack>
           ) : null}
 
-          {/* =========================================== 4. Education ==== */}
+          {/* ============================================ 4. Telegram ==== */}
+          {/* IT IS HERE AND NOT EARLIER because the link is issued against an
+              Employee ID, which stage 3 is what creates. It writes nothing on
+              the employee record, so Skip for now leaves a created, active
+              employee who is simply Telegram Pending - the state every
+              existing employee is already in. */}
+          {stageKey === "telegram" ? (
+            <Stack spacing={4}>
+              {created ? (
+                <TelegramSetupPanel
+                  employeeId={created.employee_id}
+                  employeeName={form.employee_name}
+                  outletName={outletName}
+                  canManage
+                />
+              ) : (
+                <Alert status="warning" fontSize="sm">
+                  <AlertIcon />
+                  <Text>
+                    The employee has to be created before Telegram can be connected. Go back and
+                    finish Employment Details.
+                  </Text>
+                </Alert>
+              )}
+            </Stack>
+          ) : null}
+
+          {/* =========================================== 5. Education ==== */}
           {stageKey === "education" ? (
             <Stack spacing={4}>
               {created ? (
@@ -768,6 +801,13 @@ function AddEmployee() {
             ) : isFinalStage(stage) ? (
               <Button colorScheme="purple" isLoading={busy} onClick={finishEducation}>
                 {buildEducationPayload(form) ? "Save education & finish" : "Finish without education"}
+              </Button>
+            ) : stageKey === "telegram" ? (
+              /* TELEGRAM NEVER BLOCKS. The button says what it does: whether
+                 the employee connected or not, the next stage is Education
+                 and the employee already exists either way. */
+              <Button colorScheme="purple" onClick={() => goTo(stage + 1)}>
+                Skip for now
               </Button>
             ) : stageKey === "aadhaar" ? null : (
               <Button colorScheme="purple" isLoading={checking} onClick={next}>
