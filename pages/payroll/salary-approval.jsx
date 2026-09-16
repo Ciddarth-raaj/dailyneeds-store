@@ -1,8 +1,9 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Alert,
   AlertIcon,
   Button,
+  Checkbox,
   Input,
   Select,
   SimpleGrid,
@@ -24,6 +25,15 @@ import {
   canOpenApprovalScreen,
   canRejectProposal,
 } from "../../util/payrollAccess";
+import {
+  confirmationMessage,
+  isAllSelected,
+  nextSelectAll,
+  pruneSelection,
+  selectableSalaryIds,
+  successMessage,
+  toggleSelection,
+} from "../../util/salaryApprovalSelection";
 
 /**
  * M4 — Salary Approval.
@@ -53,6 +63,15 @@ import {
  *
  * ONE READ, NOT SIX HUNDRED. The queue is a single endpoint; this screen never
  * walks the employee master to assemble it.
+ *
+ * BULK APPROVAL IS THE SAME DECISION OVER A SELECTION, AND IT IS THE SERVER'S
+ * DECISION. Only proposals this reader may approve - `canApproveProposal`, the
+ * permission and the server's `own_proposal` flag - can be ticked, and Select
+ * All ticks exactly the eligible proposals the ACTIVE FILTERS are showing,
+ * because the filters are applied by the server and `items` is what came back.
+ * The server re-checks every id, refuses the whole batch if any one of them is
+ * stale, decided or the approver's own, and there is no bulk reject and no way
+ * to edit an amount here - rejecting still needs its reason, one at a time.
  */
 function SalaryApproval() {
   const toast = useToast();
@@ -65,6 +84,8 @@ function SalaryApproval() {
   const [effectiveFrom, setEffectiveFrom] = useState("");
   const [effectiveTo, setEffectiveTo] = useState("");
   const [busyId, setBusyId] = useState(null);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   const { outlets } = useOutlets({ directory: true });
 
@@ -84,6 +105,34 @@ function SalaryApproval() {
     filters,
     mayOpen
   );
+
+  /**
+   * THE ELIGIBLE ROWS ARE THE DISPLAYED ROWS, NARROWED BY THE SAME RULE THE
+   * BUTTON USES. `items` is what the server returned for the active filters -
+   * nothing is filtered in the browser - and `canApproveProposal` is the rule
+   * that decides whether Approve is offered on a card, so Select All can never
+   * tick something the reader may not approve.
+   */
+  const eligibleIds = useMemo(() => selectableSalaryIds(items, actor), [items, actor]);
+
+  /*
+   * A SELECTION NEVER OUTLIVES THE ROWS IT WAS MADE ON. Re-reading the queue,
+   * or changing a filter, can remove a row somebody had ticked; keeping its id
+   * would let "Approve Selected (3)" send an id that is no longer on screen.
+   */
+  useEffect(() => {
+    setSelectedIds((prev) => pruneSelection(prev, eligibleIds));
+  }, [eligibleIds]);
+
+  const selectedCount = selectedIds.length;
+  const allEligibleSelected = isAllSelected(eligibleIds, selectedIds);
+
+  const setSelected = (salaryId, checked) =>
+    setSelectedIds((prev) => toggleSelection(prev, salaryId, checked));
+
+  const toggleSelectAll = () => setSelectedIds(nextSelectAll(eligibleIds, selectedIds));
+
+  const clearSelection = () => setSelectedIds([]);
 
   const clearFilters = () => {
     setEmployeeId("");
@@ -146,6 +195,59 @@ function SalaryApproval() {
       isClosable: true,
     });
     await refresh();
+  };
+
+  /**
+   * APPROVE THE SELECTION — ONE REQUEST, ONE OUTCOME.
+   *
+   * ONE CONFIRMATION, BECAUSE IT IS ONE DECISION. Approving twenty pay changes
+   * is not twenty small acts to be waved through; the count is in the question
+   * so nobody agrees to more than they meant to.
+   *
+   * A FAILURE MEANS NOTHING WAS APPROVED. The endpoint is all-or-nothing, so
+   * the server's sentence is shown as it is and the queue is left alone -
+   * there is no partial state for this screen to explain.
+   */
+  const approveSelected = async () => {
+    if (bulkBusy || busyId || selectedCount === 0) return;
+
+    const confirmed = window.confirm(confirmationMessage(selectedCount));
+    if (!confirmed) return;
+
+    setBulkBusy(true);
+    try {
+      const result = await PayrollSalaryHelper.bulkApprove(selectedIds);
+      const outcome = describeApiResult(result);
+      if (outcome.kind !== KIND.OK) {
+        toast({
+          title: outcome.message,
+          description: "Nothing was approved. Reload the queue and try again.",
+          status: outcome.kind === KIND.DENIED ? "info" : "error",
+          duration: 8000,
+          isClosable: true,
+        });
+        return;
+      }
+
+      const approved = result && result.approved_count ? result.approved_count : selectedCount;
+      toast({
+        title: successMessage(approved),
+        status: "success",
+        duration: 5000,
+        isClosable: true,
+      });
+      setSelectedIds([]);
+      await refresh();
+    } catch (err) {
+      toast({
+        title: "The approvals could not be saved. Nothing was approved.",
+        status: "error",
+        duration: 6000,
+        isClosable: true,
+      });
+    } finally {
+      setBulkBusy(false);
+    }
   };
 
   const body = () => {
@@ -235,9 +337,48 @@ function SalaryApproval() {
 
         {loaded && items.length > 0 ? (
           <Stack spacing={2}>
-            <Text fontSize="xs" color="gray.600">
-              {items.length} proposal{items.length === 1 ? "" : "s"} awaiting a decision.
-            </Text>
+            <Stack direction="row" align="center" spacing={3} flexWrap="wrap">
+              {/* SELECT ALL MEANS "ALL I MAY APPROVE, HERE" — not all rows, and
+                  not rows the filters are hiding. */}
+              <Checkbox
+                colorScheme="purple"
+                isChecked={allEligibleSelected}
+                isIndeterminate={selectedCount > 0 && !allEligibleSelected}
+                isDisabled={eligibleIds.length === 0 || bulkBusy}
+                onChange={toggleSelectAll}
+                aria-label="Select all proposals you may approve"
+              >
+                <Text fontSize="xs">Select all</Text>
+              </Checkbox>
+              <Text fontSize="xs" color="gray.600">
+                {items.length} proposal{items.length === 1 ? "" : "s"} awaiting a decision.
+              </Text>
+              {selectedCount > 0 ? (
+                <>
+                  <Text fontSize="xs" fontWeight="bold">
+                    {selectedCount} selected
+                  </Text>
+                  <Button
+                    size="xs"
+                    variant="ghost"
+                    onClick={clearSelection}
+                    isDisabled={bulkBusy}
+                  >
+                    Clear
+                  </Button>
+                  <Button
+                    size="xs"
+                    colorScheme="purple"
+                    onClick={approveSelected}
+                    isLoading={bulkBusy}
+                    loadingText="Approving"
+                    isDisabled={Boolean(busyId)}
+                  >
+                    Approve Selected ({selectedCount})
+                  </Button>
+                </>
+              ) : null}
+            </Stack>
             {items.map((item) => (
               <PendingProposalCard
                 key={item.salary_id}
@@ -246,7 +387,10 @@ function SalaryApproval() {
                 canReject={mayReject}
                 onApprove={approve}
                 onReject={reject}
-                busy={busyId === item.salary_id}
+                busy={busyId === item.salary_id || bulkBusy}
+                selectable={canApproveProposal(actor, item)}
+                selected={selectedIds.includes(item.salary_id)}
+                onSelectChange={setSelected}
               />
             ))}
           </Stack>

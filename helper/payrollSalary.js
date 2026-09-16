@@ -126,6 +126,26 @@ const payrollSalary = {
     }),
 
   /**
+   * POST /hr/salary/revision/bulk-approve — a selection, decided as one act.
+   *
+   * ALL OR NOTHING, AND THE SERVER DECIDES WHICH. The ids go up as a list and
+   * come back approved together or not at all: every record is re-checked
+   * against the same rules a single approval runs - still pending, not the
+   * approver's own - and the first refusal refuses the batch. So a failure
+   * here means NOTHING was approved, and the queue this screen re-reads is the
+   * truth about what happened.
+   *
+   * IT DECIDES NOTHING ITSELF. No rule about who may approve what is
+   * implemented in this file; a refusal arrives as data and is shown.
+   */
+  bulkApprove: (salaryIds) =>
+    new Promise((resolve, reject) => {
+      API.post("/hr/salary/revision/bulk-approve", { salary_ids: salaryIds })
+        .then((res) => resolve(res.data))
+        .catch(reject);
+    }),
+
+  /**
    * POST /hr/salary/bulk/validate — a whole file, priced and checked.
    *
    * SAVES NOTHING. `rows` is the three template cells per row, as text. Every

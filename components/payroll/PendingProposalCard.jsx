@@ -5,6 +5,7 @@ import {
   Badge,
   Box,
   Button,
+  Checkbox,
   Divider,
   FormControl,
   FormErrorMessage,
@@ -40,7 +41,27 @@ import { presentQueueDetail, presentQueueRow } from "../../util/salaryApprovalQu
  * what this card does with it. Reject stays available: withdrawing your own
  * proposal is a normal thing to need, and only self-APPROVAL is blocked.
  */
-function PendingProposalCard({ item, canApprove, canReject, onApprove, onReject, busy }) {
+/**
+ * BULK SELECTION IS OFFERED ONLY WHERE APPROVAL IS. `selectable` is the
+ * caller's `canApprove` - the permission and the server's `own_proposal` flag -
+ * so a proposal this reader may not agree to has no checkbox to tick, exactly
+ * as it has no Approve button to press. The server refuses either way; this
+ * keeps the screen from offering what it would refuse.
+ *
+ * The selection props are optional: a card rendered without them is the M4
+ * card unchanged.
+ */
+function PendingProposalCard({
+  item,
+  canApprove,
+  canReject,
+  onApprove,
+  onReject,
+  busy,
+  selectable = false,
+  selected = false,
+  onSelectChange = null,
+}) {
   const row = presentQueueRow(item);
   const detail = presentQueueDetail(item);
 
@@ -64,6 +85,15 @@ function PendingProposalCard({ item, canApprove, canReject, onApprove, onReject,
     <Box borderWidth="1px" borderColor="gray.200" borderRadius="md" bg="white" p={3}>
       {/* ------------------------------------------------------ who and where */}
       <Stack direction="row" align="center" spacing={2} flexWrap="wrap">
+        {onSelectChange ? (
+          <Checkbox
+            colorScheme="purple"
+            isChecked={selected}
+            isDisabled={!selectable || busy}
+            onChange={(e) => onSelectChange(row.salary_id, e.target.checked)}
+            aria-label={`Select salary revision ${row.salary_id} for approval`}
+          />
+        ) : null}
         <Badge colorScheme="purple" fontSize="10px">
           {row.employee_id}
         </Badge>
