@@ -48,6 +48,14 @@ const rules = (() => {
     "groupProgress",
     "progressSummary",
     "shouldPollGroups",
+    "TELEGRAM_COMPLETION",
+    "COMPLETION_LABEL",
+    "COMPLETION_SCHEME",
+    "COMPLETION_HINT",
+    "completionLabel",
+    "completionScheme",
+    "completionHint",
+    "hasCompletion",
   ];
   // eslint-disable-next-line no-new-func
   return new Function(`${cjs}\nreturn { ${names.join(", ")} };`)();
@@ -381,5 +389,77 @@ describe("NO MEMBERSHIP REMOVAL EXISTS IN THE 3A/3B UI", () => {
       const printed = source.match(/\{[^}]*\b(mobile|contact_number|phone)\w*\s*\}/gi) || [];
       assert.deepStrictEqual(printed, [], `${name} renders a mobile value: ${printed.join(", ")}`);
     }
+  });
+});
+
+
+/* =============================================== dashboard completion */
+
+describe("the dashboard completion column", () => {
+  const queue = strip(read("pages/hr/onboarding/index.jsx"));
+
+  it("has a word for each of the four states, and none is an enum", () => {
+    assert.deepStrictEqual(Object.keys(rules.COMPLETION_LABEL).sort(), [
+      "COMPLETE",
+      "NOT_CONNECTED",
+      "PENDING",
+      "VERIFICATION_PENDING",
+    ]);
+    for (const label of Object.values(rules.COMPLETION_LABEL)) {
+      assert.ok(!/_/.test(label), `"${label}" reads like an enum`);
+    }
+  });
+
+  it("says NOT CHECKED rather than Pending for an unverified group", () => {
+    // Different job for whoever works the queue: Pending means the employee
+    // must join something, Not Checked means nobody has looked since a
+    // mapping changed or they reconnected. Merging them sends somebody
+    // chasing an employee who may already be finished.
+    assert.strictEqual(rules.completionLabel("VERIFICATION_PENDING"), "Not Checked");
+    assert.strictEqual(rules.completionLabel("PENDING"), "Groups Pending");
+    assert.notStrictEqual(
+      rules.completionLabel("VERIFICATION_PENDING"),
+      rules.completionLabel("PENDING")
+    );
+  });
+
+  it("colours Complete and the two unfinished states differently", () => {
+    assert.strictEqual(rules.completionScheme("COMPLETE"), "green");
+    assert.notStrictEqual(rules.completionScheme("PENDING"), "green");
+    assert.notStrictEqual(rules.completionScheme("VERIFICATION_PENDING"), "green");
+    assert.notStrictEqual(rules.completionScheme("NOT_CONNECTED"), "green");
+  });
+
+  it("the tooltip says the status is LAST-VERIFIED, not live", () => {
+    assert.match(rules.completionHint("COMPLETE"), /last checked/i);
+    assert.match(rules.completionHint("PENDING"), /last checked/i);
+    assert.match(rules.completionHint("VERIFICATION_PENDING"), /not been checked/i);
+    assert.match(rules.completionHint("VERIFICATION_PENDING"), /Open the employee/i);
+  });
+
+  it("renders the completion badge when the server sends one", () => {
+    assert.match(queue, /hasCompletion\(row\) \? \(/);
+    assert.match(queue, /completionLabel\(row\.telegram_completion\)/);
+    assert.match(queue, /completionScheme\(row\.telegram_completion\)/);
+    assert.match(queue, /completionHint\(row\.telegram_completion\)/);
+  });
+
+  it("FALLS BACK to the old label when the field is absent", () => {
+    // An older response, or a server without the cache wired. A missing
+    // field must not render blank, and certainly not as Not Connected.
+    assert.strictEqual(rules.hasCompletion({}), false);
+    assert.strictEqual(rules.hasCompletion({ telegram_completion: "SOMETHING_NEW" }), false);
+    assert.strictEqual(rules.hasCompletion(null), false);
+    assert.strictEqual(rules.hasCompletion({ telegram_completion: "COMPLETE" }), true);
+    // And the JSX keeps the previous branch for exactly that case.
+    assert.match(queue, /telegramLabel\(row\.telegram_status, \{ short: true \}\)/);
+  });
+
+  it("makes NO per-row request - the column comes from the bulk summary", () => {
+    assert.ok(
+      !/\/telegram\/groups/.test(queue),
+      "the list must never call the per-employee Telegram endpoint"
+    );
+    assert.ok(!/employeeTelegram\./.test(queue), "no per-row Telegram helper call");
   });
 });

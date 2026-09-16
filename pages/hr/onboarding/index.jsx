@@ -13,6 +13,7 @@ import {
   Spinner,
   Stack,
   Text,
+  Tooltip,
 } from "@chakra-ui/react";
 import GlobalWrapper from "../../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../../components/CustomContainer";
@@ -35,6 +36,12 @@ import {
 } from "../../../util/hrOnboardingQueue";
 import OnboardingQueueCard from "../../../components/hr/OnboardingQueueCard";
 import { telegramBadgeScheme, telegramLabel } from "../../../util/employeeTelegram";
+import {
+  completionHint,
+  completionLabel,
+  completionScheme,
+  hasCompletion,
+} from "../../../util/employeeTelegramGroups";
 import { canViewOnboardingQueue } from "../../../util/hrProfile";
 
 /**
@@ -309,11 +316,33 @@ function OnboardingQueue() {
     bank: badge(row.bank, { completeLabel: "Verified" }),
     statutory: badge(row.statutory),
     payroll: badge(row.payroll),
-    // THE SHARED LABEL, not the tri-state badge - this column has to be able
-    // to read "Connected - Groups Pending", which "Complete" would misstate.
-    // `util/employeeTelegram.js` owns the wording, so this cell, the profile
-    // card and the wizard all say the same thing.
-    telegram: (
+    // PHASE 3B: the column now says whether the required GROUPS are done,
+    // not merely whether an account is connected - which is what
+    // "Connected - Groups Pending" was standing in for until group
+    // membership existed.
+    //
+    // IT IS LAST-VERIFIED, AND THE TOOLTIP SAYS SO. The list cannot ask
+    // Telegram: completion needs two calls per required group per employee,
+    // thousands per page load on the token the three-second poller shares.
+    // So it reads what the employee's own screen last confirmed, and that
+    // screen stays the authority.
+    //
+    // FALLS BACK TO THE OLD LABEL where the server did not send completion -
+    // an older response, or a server without the cache wired. A missing
+    // field must not render as a blank cell or, worse, as "Not Connected".
+    telegram: hasCompletion(row) ? (
+      <Tooltip label={completionHint(row.telegram_completion)}>
+        <Badge
+          colorScheme={completionScheme(row.telegram_completion)}
+          fontSize="0.7em"
+          px={2}
+          py={1}
+          whiteSpace="normal"
+        >
+          {completionLabel(row.telegram_completion)}
+        </Badge>
+      </Tooltip>
+    ) : (
       <Badge
         colorScheme={telegramBadgeScheme(row.telegram_status)}
         fontSize="0.7em"

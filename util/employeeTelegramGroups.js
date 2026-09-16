@@ -145,3 +145,61 @@ export function progressSummary(payload) {
  */
 export const shouldPollGroups = (payload) =>
   Boolean(payload) && Boolean(payload.connected) && ((payload.groups || []).some(isPending));
+
+/* ------------------------------------ dashboard completion (Phase 3B) ---- */
+
+/**
+ * The dashboard's four states. LAST-VERIFIED, not a live Telegram verdict -
+ * the list cannot ask Telegram without thousands of calls per page load, so
+ * it reads what the employee's own screen last confirmed.
+ */
+export const TELEGRAM_COMPLETION = {
+  NOT_CONNECTED: "NOT_CONNECTED",
+  VERIFICATION_PENDING: "VERIFICATION_PENDING",
+  PENDING: "PENDING",
+  COMPLETE: "COMPLETE",
+};
+
+/**
+ * VERIFICATION_PENDING SAYS "NOT CHECKED", NOT "NOT DONE".
+ *
+ * It is a different job for whoever works this queue: PENDING means the
+ * employee still has to join something, while Not Checked means nobody has
+ * looked since a mapping changed or they reconnected. Labelling both
+ * "Pending" would send somebody chasing an employee who may already be
+ * finished.
+ */
+export const COMPLETION_LABEL = {
+  NOT_CONNECTED: "Not Connected",
+  VERIFICATION_PENDING: "Not Checked",
+  PENDING: "Groups Pending",
+  COMPLETE: "Complete",
+};
+
+export const COMPLETION_SCHEME = {
+  NOT_CONNECTED: "red",
+  VERIFICATION_PENDING: "blue",
+  PENDING: "orange",
+  COMPLETE: "green",
+};
+
+/**
+ * The tooltip. It states the one thing the badge cannot: this is what was
+ * true when somebody last looked, and the employee's own record is the
+ * authority.
+ */
+export const COMPLETION_HINT = {
+  NOT_CONNECTED: "This employee has not connected Telegram.",
+  VERIFICATION_PENDING:
+    "A required group has not been checked for this Telegram account yet. Open the employee to verify.",
+  PENDING: "A required group was not joined when this was last checked.",
+  COMPLETE: "All required groups were joined when this was last checked.",
+};
+
+export const completionLabel = (status) => COMPLETION_LABEL[status] || null;
+export const completionScheme = (status) => COMPLETION_SCHEME[status] || "gray";
+export const completionHint = (status) => COMPLETION_HINT[status] || null;
+
+/** Is this a status the dashboard knows how to render? */
+export const hasCompletion = (row) =>
+  Boolean(row) && Boolean(COMPLETION_LABEL[row.telegram_completion]);
