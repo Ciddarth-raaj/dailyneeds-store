@@ -6,6 +6,7 @@ import CustomContainer from "../../components/CustomContainer";
 import AgGrid from "../../components/AgGrid";
 import GrnPriceCheckerItemsModal from "../../components/grn/GrnPriceCheckerItemsModal";
 import GrnHighlightLoader from "../../components/grn/GrnHighlightLoader";
+import GrnVerifyConfirmModal from "../../components/grn/GrnVerifyConfirmModal";
 import AddToOfferV3Modal from "../../components/grn/AddToOfferV3Modal";
 import usePermissions from "../../customHooks/usePermissions";
 import {
@@ -20,7 +21,7 @@ import {
   Tooltip,
   useToken,
 } from "@chakra-ui/react";
-import { unignoreGrnIssues } from "../../helper/grnList";
+import { unignoreGrnIssues, verifyGrn } from "../../helper/grnList";
 import { useGrnDetail } from "../../customHooks/useGrnDetail";
 import { useGrnPriceCheckerItemsMap } from "../../customHooks/useGrnPriceCheckerItemsMap";
 import { capitalize } from "../../util/string";
@@ -36,6 +37,11 @@ import {
   isGrnNetCostChanged,
   sortRowsMismatchFirst,
 } from "../../util/grn";
+import {
+  formatGrnVerifiedAt,
+  grnVerifiedByLabel,
+  isGrnVerified,
+} from "../../util/grnVerification";
 import currencyFormatter from "../../util/currencyFormatter";
 import toast from "react-hot-toast";
 import { useModuleTableTheme } from "../../contexts/ModuleTableThemeContext";
@@ -73,14 +79,19 @@ function GrnDetailPage() {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [addOfferProduct, setAddOfferProduct] = useState(null);
   const [unignoring, setUnignoring] = useState(false);
+  const [verifyOpen, setVerifyOpen] = useState(false);
+  const [verifying, setVerifying] = useState(false);
   const canAddOfferV3 = usePermissions("add_offers_v3");
   const canIgnore = usePermissions("ignore_grn_issues");
+  // A dedicated key: `view_all_grn` opens this page, `verify_grn` is what
+  // puts the sign-off button on it. The endpoint re-checks it regardless.
+  const canVerify = usePermissions("verify_grn");
   const { colorScheme } = useModuleTableTheme();
   const [linkColor] = useToken("colors", [`${colorScheme}.600`]);
   const [mismatchBg] = useToken("colors", ["red.100"]);
   const [netCostBg] = useToken("colors", ["pink.100"]);
 
-  const { header, items, loading, error, refetch } = useGrnDetail(refno, {
+  const { header, items, verification, loading, error, refetch } = useGrnDetail(refno, {
     enabled: isReady && Boolean(refno),
   });
 
@@ -131,6 +142,29 @@ function GrnDetailPage() {
     },
     [refno, refetch]
   );
+
+  // The GRN's verification state as the API sent it. Every detail payload
+  // carries the block, so a GRN nobody has touched reads as pending rather
+  // than as a missing field.
+  const verified = isGrnVerified(verification);
+
+  // Approval is for the whole GRN and is keyed on the refno from the route --
+  // the same value the API records it against. The verifier and the time are
+  // the backend's to decide; nothing about them is sent from here.
+  const handleVerify = useCallback(async () => {
+    if (refno == null || refno === "") return;
+    setVerifying(true);
+    try {
+      const res = await verifyGrn(refno);
+      toast.success(res?.msg || "GRN verified.");
+      setVerifyOpen(false);
+      refetch();
+    } catch (err) {
+      toast.error(err?.message || "Failed to verify GRN.");
+    } finally {
+      setVerifying(false);
+    }
+  }, [refno, refetch]);
 
   const gridOptions = useMemo(
     () => ({
@@ -572,6 +606,31 @@ function GrnDetailPage() {
           >
             Back to All GRN
           </Button>
+
+          {verified ? (
+            <Flex align="center" gap={4} flexWrap="wrap">
+              <Badge colorScheme="green" fontSize="sm" px={2} py={1}>
+                ✓ Verified
+              </Badge>
+              <SummaryField
+                label="Verified by"
+                value={grnVerifiedByLabel(verification)}
+              />
+              <SummaryField
+                label="Verified at"
+                value={formatGrnVerifiedAt(verification?.verified_at)}
+              />
+            </Flex>
+          ) : canVerify ? (
+            <Button
+              size="sm"
+              colorScheme="green"
+              isDisabled={loading || !refno}
+              onClick={() => setVerifyOpen(true)}
+            >
+              Verify &amp; Accept GRN
+            </Button>
+          ) : null}
         </Flex>
 
         <CustomContainer title="GRN Summary" filledHeader size="xs">
@@ -657,6 +716,15 @@ function GrnDetailPage() {
             : undefined
         }
         priceCheckerLoading={pcLoading}
+      />
+      <GrnVerifyConfirmModal
+        isOpen={verifyOpen}
+        onClose={() => {
+          if (!verifying) setVerifyOpen(false);
+        }}
+        onConfirm={handleVerify}
+        refno={header?.mmh_mrc_refno ?? refno}
+        isLoading={verifying}
       />
       <AddToOfferV3Modal
         isOpen={Boolean(addOfferProduct)}

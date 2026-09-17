@@ -6,7 +6,7 @@ import CustomContainer from "../../components/CustomContainer";
 import AgGrid from "../../components/AgGrid";
 import GrnMonthCalendar from "../../components/grn/GrnMonthCalendar";
 import GrnHighlightLoader from "../../components/grn/GrnHighlightLoader";
-import { Flex, IconButton, Tooltip, useToken } from "@chakra-ui/react";
+import { Badge, Flex, IconButton, Tooltip, useToken } from "@chakra-ui/react";
 import { useGrnList } from "../../customHooks/useGrnList";
 import { useGrnIssues } from "../../customHooks/useGrnIssues";
 import {
@@ -14,6 +14,12 @@ import {
   grnDetailHasPriceMismatch,
   sortRowsMismatchFirst,
 } from "../../util/grn";
+import {
+  formatGrnVerifiedAt,
+  grnVerificationStatusLabel,
+  grnVerifiedByLabel,
+  isGrnVerified,
+} from "../../util/grnVerification";
 import toast from "react-hot-toast";
 
 function queryDate(value) {
@@ -157,6 +163,39 @@ function GrnListing() {
         headerName: "No of products",
         type: "number",
         maxWidth: 160,
+      },
+      {
+        colId: "verification_status",
+        headerName: "Status",
+        maxWidth: 170,
+        // Sorting and filtering read the label, so "Verified" and "Pending
+        // Verification" behave like any other text column.
+        valueGetter: (params) =>
+          grnVerificationStatusLabel(params.data?.verification),
+        cellRenderer: (params) => {
+          const verified = isGrnVerified(params.data?.verification);
+          return (
+            <Badge colorScheme={verified ? "green" : "orange"}>
+              {grnVerificationStatusLabel(params.data?.verification)}
+            </Badge>
+          );
+        },
+      },
+      {
+        colId: "verified_by",
+        headerName: "Verified By",
+        type: "capitalized",
+        flex: 1,
+        // The API resolves the verifier's display name, so no row here makes
+        // a lookup of its own.
+        valueGetter: (params) => grnVerifiedByLabel(params.data?.verification),
+      },
+      {
+        colId: "verified_at",
+        headerName: "Verified At",
+        maxWidth: 180,
+        valueGetter: (params) =>
+          formatGrnVerifiedAt(params.data?.verification?.verified_at),
       },
       {
         colId: "purchase_uom_action",

@@ -52,3 +52,20 @@ export const getGrnDetail = (refno) => {
     throw new Error(data?.msg || "Failed to fetch GRN detail");
   });
 };
+
+/**
+ * Signs a GRN off as checked and verified.
+ *
+ * The approver and the timestamp are NOT sent: the backend takes the verifier
+ * from the authenticated session and the time from its own clock. Sending
+ * them from here would be an audit record the browser dictated.
+ */
+export const verifyGrn = (refno) => {
+  return API.post(`/grn/${encodeURIComponent(String(refno))}/verify`).then(
+    (res) => {
+      const data = res?.data ?? res;
+      if (data?.code === 200) return data;
+      throw new Error(data?.msg || "Failed to verify GRN");
+    }
+  );
+};
