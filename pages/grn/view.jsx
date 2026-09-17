@@ -617,7 +617,10 @@ function GrnDetailPage() {
                 value={grnVerifiedByLabel(verification)}
               />
               <SummaryField
-                label="Verified at"
+                // The zone is named on the label because the value is a bare
+                // DD/MM/YYYY hh:mm A: an audit time nobody can place is not
+                // much of an audit time.
+                label="Verified at (IST)"
                 value={formatGrnVerifiedAt(verification?.verified_at)}
               />
             </Flex>

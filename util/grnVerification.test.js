@@ -3,18 +3,25 @@
  *
  *   node --test util/grnVerification.test.js
  *
- * The case that makes the timestamp test worth having: `verified_at` is the
- * SERVER's wall clock, sent as "YYYY-MM-DD HH:mm:ss" with no offset. Handing
- * that string to `new Date()` in a browser would re-read it in the viewer's
- * timezone, and an audit screen would then show a time nobody approved
- * anything at. The formatter must be plain string surgery, and these tests
- * pin that it is - including 12 AM and 12 PM, where a naive `% 12` prints
- * "00".
+ * THE TIMESTAMP IS THE PART THAT CAN QUIETLY BE WRONG. `verified_at` names an
+ * instant - ISO-8601 UTC, because the API reads the column back with
+ * UNIX_TIMESTAMP - and the screens must show it in Asia/Kolkata no matter
+ * where the viewer's browser thinks it is. Two things are pinned here:
+ *
+ *   THE SAME STORED INSTANT displays as the same IST wall clock whatever
+ *   TZ the process runs in, which is asserted by re-running the formatter
+ *   under several process time zones rather than by trusting one.
+ *
+ *   A ZONELESS timestamp is refused. "2026-09-17 14:30:00" could mean any of
+ *   a dozen instants; rendering it as though it were already IST is the bug
+ *   this replaced, and it must show an em dash instead of a plausible lie.
  */
 const test = require("node:test");
 const assert = require("node:assert");
 
 const {
+  IST_LABEL,
+  IST_OFFSET_MINUTES,
   isGrnVerified,
   grnVerificationStatusLabel,
   grnVerifiedByLabel,
@@ -25,7 +32,7 @@ const verified = {
   status: "VERIFIED",
   verified_by: 7,
   verified_by_name: "Asha R",
-  verified_at: "2026-09-17 14:05:00",
+  verified_at: "2026-09-17T08:35:00Z",
 };
 const pending = {
   status: "PENDING",
@@ -73,35 +80,80 @@ test("the verifier column shows the name the API resolved", () => {
   );
 });
 
-test("verified_at prints as DD/MM/YYYY hh:mm A in the server's own clock", () => {
+test("verified_at prints as DD/MM/YYYY hh:mm A in Asia/Kolkata", () => {
+  // 09:00 UTC is 14:30 IST (+05:30), the example the feature is specified on.
   assert.strictEqual(
-    formatGrnVerifiedAt("2026-09-17 14:05:00"),
-    "17/09/2026 02:05 PM"
+    formatGrnVerifiedAt("2026-09-17T09:00:00Z"),
+    "17/09/2026 02:30 PM"
   );
+  // Late UTC evening is already the NEXT DAY in India: the date has to roll
+  // with the time, which a naive "add 5.5 hours to the hours field" misses.
   assert.strictEqual(
-    formatGrnVerifiedAt("2026-01-05 09:30:00"),
-    "05/01/2026 09:30 AM"
+    formatGrnVerifiedAt("2026-09-17T18:45:00Z"),
+    "18/09/2026 12:15 AM"
   );
-  // Midnight and noon: the hours a `% 12` alone gets wrong.
+  // Midnight and noon IST, the hours a bare `% 12` prints as "00".
   assert.strictEqual(
-    formatGrnVerifiedAt("2026-01-05 00:15:00"),
-    "05/01/2026 12:15 AM"
-  );
-  assert.strictEqual(
-    formatGrnVerifiedAt("2026-01-05 12:00:00"),
+    formatGrnVerifiedAt("2026-01-05T06:30:00Z"),
     "05/01/2026 12:00 PM"
   );
-  // An ISO-ish T separator is accepted too, and read the same way.
   assert.strictEqual(
-    formatGrnVerifiedAt("2026-01-05T23:45:10"),
-    "05/01/2026 11:45 PM"
+    formatGrnVerifiedAt("2026-01-04T18:30:00Z"),
+    "05/01/2026 12:00 AM"
+  );
+  // The same instant written with a different explicit offset is the same
+  // IST wall clock - the offset is read, not ignored.
+  assert.strictEqual(
+    formatGrnVerifiedAt("2026-09-17T05:00:00-04:00"),
+    "17/09/2026 02:30 PM"
+  );
+  assert.strictEqual(
+    formatGrnVerifiedAt("2026-09-17T14:30:00+05:30"),
+    "17/09/2026 02:30 PM"
   );
 });
 
-test("a missing or unparseable timestamp is an em dash, not Invalid Date", () => {
+test("IST is declared, not implied", () => {
+  assert.strictEqual(IST_LABEL, "Asia/Kolkata");
+  assert.strictEqual(IST_OFFSET_MINUTES, 330);
+});
+
+test("the same stored instant shows the same IST time in any viewer timezone", () => {
+  const stored = "2026-09-17T09:00:00Z";
+  const expected = "17/09/2026 02:30 PM";
+  const zones = ["UTC", "America/New_York", "Asia/Kolkata", "Pacific/Kiritimati"];
+  const original = process.env.TZ;
+
+  try {
+    for (const zone of zones) {
+      process.env.TZ = zone;
+      assert.strictEqual(
+        formatGrnVerifiedAt(stored),
+        expected,
+        `expected IST rendering while the process runs in ${zone}`
+      );
+    }
+  } finally {
+    if (original === undefined) delete process.env.TZ;
+    else process.env.TZ = original;
+  }
+});
+
+test("an epoch from the API is accepted and placed in IST", () => {
+  // Seconds, as UNIX_TIMESTAMP returns them, and the same moment in ms.
+  assert.strictEqual(formatGrnVerifiedAt(1789635600), "17/09/2026 02:30 PM");
+  assert.strictEqual(formatGrnVerifiedAt(1789635600000), "17/09/2026 02:30 PM");
+});
+
+test("a zoneless or unparseable timestamp is an em dash, never a guess", () => {
   assert.strictEqual(formatGrnVerifiedAt(null), "—");
   assert.strictEqual(formatGrnVerifiedAt(""), "—");
   assert.strictEqual(formatGrnVerifiedAt("   "), "—");
   assert.strictEqual(formatGrnVerifiedAt("not a date"), "—");
-  assert.strictEqual(formatGrnVerifiedAt("2026-01-05 99:00:00"), "—");
+  // NO ZONE: this is the shape that used to be rendered as if it were local
+  // wall-clock time. There is no honest instant behind it.
+  assert.strictEqual(formatGrnVerifiedAt("2026-09-17 14:30:00"), "—");
+  assert.strictEqual(formatGrnVerifiedAt("2026-09-17T14:30:00"), "—");
+  // Explicit zone, impossible clock.
+  assert.strictEqual(formatGrnVerifiedAt("2026-01-05T99:00:00Z"), "—");
 });
