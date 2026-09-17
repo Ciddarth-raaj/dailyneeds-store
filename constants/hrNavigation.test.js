@@ -84,7 +84,10 @@ test("Employees, Department and Designation are all inside HR", () => {
     "/hr/onboarding",
     // M4: Payroll, a section of HR like the three above it. M5 adds the third
     // entry - a faster way to raise the proposals the first one raises singly.
+    // Payrun Initialization adds the fourth, and it is the first entry here
+    // that is about a MONTH rather than about one employee's pay.
     "/payroll/bulk-salary-upload",
+    "/payroll/payrun",
     "/payroll/salary-approval",
     "/payroll/salary-revision",
     "/work-shift",
@@ -306,7 +309,10 @@ test("HR navigation still appears exactly once, and still holds its pages", () =
     "/hr/onboarding",
     // M4: Payroll, a section of HR like the three above it. M5 adds the third
     // entry - a faster way to raise the proposals the first one raises singly.
+    // Payrun Initialization adds the fourth, and it is the first entry here
+    // that is about a MONTH rather than about one employee's pay.
     "/payroll/bulk-salary-upload",
+    "/payroll/payrun",
     "/payroll/salary-approval",
     "/payroll/salary-revision",
     "/work-shift",
@@ -393,18 +399,39 @@ test("the module rail reads All, HR, Reports, WMS, GST", () => {
   assert.deepStrictEqual(ids, ["all", "hr", "reports", "wms", "gst"]);
 });
 
-test("M4/M5: HR > Payroll is the three salary screens, each behind ALL of its keys", () => {
+test("HR > Payroll is the three salary screens plus the Payrun, each behind ALL of its keys", () => {
   const hrMenu = treeNamed("HR_MENU");
   const pay = sectionOf(hrMenu, "payroll");
 
   assert.deepStrictEqual(locationsIn(pay).sort(), [
     "/payroll/bulk-salary-upload",
+    "/payroll/payrun",
     "/payroll/salary-approval",
     "/payroll/salary-revision",
   ]);
   assert.match(pay, /title:\s*"Salary Revision & History"/);
   assert.match(pay, /title:\s*"Salary Approval"/);
   assert.match(pay, /title:\s*"Bulk Salary Upload"/);
+  assert.match(pay, /title:\s*"Payrun"/);
+
+  /*
+   * THE PAYRUN TAKES THE THREE READ KEYS AND NOT `process_payroll`.
+   *
+   * `view_salary` is on it because the screen's table carries an Approved
+   * Monthly Gross column - opening it is company-wide salary disclosure, and
+   * it must not be reachable through a payroll key somebody was granted to
+   * look at headcounts.
+   *
+   * `process_payroll` is deliberately absent: the screen is genuinely useful
+   * read-only, as the list of what payroll is waiting on, and requiring the
+   * initialize key to SEE it would hide that from the people who clear the
+   * blockers. The Initialize action is gated on that key inside the screen and
+   * re-checked by the server.
+   */
+  assert.match(
+    pay,
+    /title:\s*"Payrun"[\s\S]*?permission:\s*\["view_employees", "view_payroll", "view_salary"\]/
+  );
 
   // ARRAYS MEAN ALL OF THESE KEYS (util/menuPermissions.js), matching the
   // `requireAll(...)` each backend route uses. An entry shown to somebody

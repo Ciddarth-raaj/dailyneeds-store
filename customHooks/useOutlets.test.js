@@ -163,6 +163,10 @@ test("no other consumer was switched to the directory", () => {
     // Telegram Group Registry list: the Outlet FILTER - an id and a name,
     // behind `view_telegram_groups` and never `view_stores`.
     "pages/master/telegram-groups/index.jsx",
+    // Payrun Initialization: the Location filter on the payroll month - an id
+    // and a name, on a screen reached on `view_payroll` and never on
+    // `view_stores`.
+    "pages/payroll/payrun.jsx",
     "pages/payroll/salary-approval.jsx",
     "pages/stock-checker/[mode].jsx",
     "pages/stock-checker/assigned-products.jsx",

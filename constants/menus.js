@@ -1135,6 +1135,32 @@ const HR_MENU = {
         selected: false,
         location: "/payroll/bulk-salary-upload",
       },
+      // Payrun Initialization - the first stage of the Monthly Payrun, and
+      // the first entry in this section that is about a MONTH rather than
+      // about one employee's pay.
+      //
+      // THREE KEYS, ALL OF THEM, matching `GET /payrun/month` exactly. The
+      // third, `view_salary`, is not decoration: the screen's table carries an
+      // Approved Monthly Gross column, so opening it is company-wide salary
+      // disclosure and must not be reachable through a payroll key somebody
+      // was granted to look at headcounts.
+      //
+      // `process_payroll` is deliberately NOT on the entry. The screen is
+      // genuinely useful read-only - it is the list of what payroll is waiting
+      // on - and requiring the initialize key to SEE it would hide that from
+      // everybody who is meant to clear the blockers rather than run the month.
+      // The Initialize buttons are gated on that key inside the screen, and
+      // re-checked by the server.
+      //
+      // ONE ENTRY, NOT FOUR. Recalculate, approval, finalize and payslips have
+      // no screens, so they have no entries: an entry that leads nowhere is a
+      // promise the navigation cannot keep.
+      payrun: {
+        title: "Payrun",
+        permission: ["view_employees", "view_payroll", "view_salary"],
+        selected: false,
+        location: "/payroll/payrun",
+      },
     },
   },
 };

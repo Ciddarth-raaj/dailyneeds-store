@@ -550,19 +550,26 @@ test("THE EMPLOYEE MASTER NEVER ACQUIRES THE REVISION OR APPROVAL WORKFLOW", () 
   assert.ok(!fs.existsSync(path.join(pages, "hr", "salary")), "salary is not an Employee Master screen");
 });
 
-test("PAYROLL'S SCREENS EXIST, AND THERE IS STILL NO MONTHLY PAYROLL", () => {
-  // The other half of the rule above: Payroll is a real section, with exactly
-  // three screens - propose one, decide them, and propose many.
+test("PAYROLL'S SCREENS EXIST, AND THE SALARY ONES ARE STILL ONLY ABOUT SALARY", () => {
+  // The other half of the rule above: Payroll is a real section. Three of its
+  // screens are about ONE employee's pay - propose one, decide them, propose
+  // many - and the fourth, the Payrun, is the first that is about a MONTH.
   const payroll = path.join(ROOT, "pages", "payroll");
   assert.ok(fs.existsSync(payroll), "the Payroll screens exist");
   assert.deepStrictEqual(fs.readdirSync(payroll).sort(), [
     "bulk-salary-upload.jsx",
+    // Payrun Initialization: the first stage of the Monthly Payrun. It is
+    // deliberately NOT in the `payrollFiles` list below, because that list
+    // asserts what the SALARY screens must not reach into, and the Payrun is
+    // the module several of those words were being held for.
+    "payrun.jsx",
     "salary-approval.jsx",
     "salary-revision.jsx",
   ]);
 
-  // Payroll runs, payslips, attendance calculation and bank payment are later
-  // modules. Not started, not stubbed, not linked.
+  // Payslips, net pay and bank payment are still later modules, and the salary
+  // screens still run no payroll period: `process_payroll` gates the Payrun,
+  // not these. Not started, not stubbed, not linked, from here.
   const payrollFiles = [
     "pages/payroll/salary-revision.jsx",
     "pages/payroll/salary-approval.jsx",
