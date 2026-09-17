@@ -297,11 +297,20 @@ function BulkExportImport({ isOpen, onClose, filters = {}, onApplied }) {
           <FileUpload
             value={file}
             onChange={handleFile}
-            accept={{
-              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"],
-              "application/vnd.ms-excel": [".xls"],
-              "text/csv": [".csv"],
-            }}
+            /*
+             * THE STRING FORM, which is what react-dropzone 11 accepts - the
+             * same spelling every other FileUpload in this repo uses.
+             *
+             * The `{mime: [ext]}` object form is react-dropzone 12+ syntax.
+             * On 11 it reaches `attr-accept`, which does `accepts.split(",")`
+             * on whatever it is handed and throws `TypeError: r.split is not
+             * a function` for an object. That happens inside the drop / file
+             * -selection handler, so the file was never accepted, onDropAccepted
+             * never fired, and choosing a file did NOTHING AT ALL - no error,
+             * no preview, no reaction. A build cannot catch it because a build
+             * never runs the dropzone.
+             */
+            accept=".xlsx,.xls,.csv"
             placeholderText="Drag the edited .xlsx here, or click to select"
           />
           {busy && !shown && (
