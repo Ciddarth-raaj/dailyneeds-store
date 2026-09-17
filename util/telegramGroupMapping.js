@@ -13,28 +13,17 @@
  * the backend decided.
  */
 
-/** The only four. There is no rule builder and no hand-picked employee list. */
-export const MAPPING_TYPE = {
-  ALL_EMPLOYEES: "ALL_EMPLOYEES",
-  OUTLET: "OUTLET",
-  DESIGNATION: "DESIGNATION",
-  DEPARTMENT: "DEPARTMENT",
-};
-
-/** Dropdown order, matching the backend's constant. */
-export const MAPPING_TYPES = [
-  MAPPING_TYPE.ALL_EMPLOYEES,
-  MAPPING_TYPE.OUTLET,
-  MAPPING_TYPE.DESIGNATION,
-  MAPPING_TYPE.DEPARTMENT,
-];
-
-export const MAPPING_TYPE_LABEL = {
-  ALL_EMPLOYEES: "All Employees",
-  OUTLET: "Outlet",
-  DESIGNATION: "Designation",
-  DEPARTMENT: "Department",
-};
+/**
+ * The rule that narrows nothing, which is what "everybody" means.
+ *
+ * THERE IS NO MAPPING TYPE ANY MORE. `mapping_type` / `target_id` described a
+ * rule with exactly one dimension, and the backend neither stores nor accepts
+ * that shape - a body carrying it is REFUSED rather than ignored, because
+ * silently dropping it would save "All Employees" for somebody who asked for
+ * one outlet. So the vocabulary is gone from here too: a helper that could
+ * still build that body is a helper a screen could still call.
+ */
+export const ALL_EMPLOYEES_LABEL = "All Employees";
 
 export const TARGET_STATE = {
   NOT_APPLICABLE: "NOT_APPLICABLE",
@@ -44,6 +33,15 @@ export const TARGET_STATE = {
 };
 
 export const MAPPING_MESSAGES = {
+  DUPLICATE_RULE: "An identical rule is already on this group",
+  NO_EMPLOYEES_SELECTED: "Select at least one employee",
+  TOO_MANY_EMPLOYEES: "Select at most 200 employees at a time",
+  RULE_IS_ALL_EMPLOYEES:
+    "Every dimension is All, so this rule covers every employee in the company.",
+  SAVE_RULE_HELP:
+    "Stores a rule. Anybody who matches it later is covered automatically, and anybody who stops matching it stops being covered.",
+  ADD_SELECTED_HELP:
+    "Adds exactly the people ticked below, and writes no rule. They stay until somebody removes them by hand.",
   INACTIVE_GROUP:
     "This Telegram group is inactive. Mapping configuration is preserved. No Telegram membership action will be performed.",
   TARGET_INACTIVE: "Mapped target is inactive",
@@ -65,33 +63,165 @@ export const MAPPING_MESSAGES = {
  * existing master list, so an id that does not exist cannot be submitted by
  * hand in the first place.
  */
-export const TARGET_SELECTOR = {
-  ALL_EMPLOYEES: null,
-  OUTLET: "outlet",
-  DESIGNATION: "designation",
-  DEPARTMENT: "department",
-};
-
-export const needsTarget = (type) => Boolean(TARGET_SELECTOR[type]);
-
-export const mappingTypeLabel = (type) => MAPPING_TYPE_LABEL[type] || type || "";
+/* ============================================ MULTI-LEVEL RULES ========== */
 
 /**
- * What the Mapping To column shows.
+ * A RULE IS THREE OPTIONAL DIMENSIONS, JOINED BY AND.
  *
- * A MISSING TARGET STILL SHOWS ITS ID. "Outlet #14" is what lets somebody
- * work out which outlet was deleted; a blank cell or a bare dash would leave
- * them with a warning they cannot act on.
+ * Outlet, then Department, then Designation - and the order is the order the
+ * form cascades through, because each one narrows what the next is asked
+ * about. A dimension left blank is "All", so a form with nothing chosen is
+ * the rule that covers everybody, which is exactly what the old All
+ * Employees type meant.
+ *
+ * EVERY DIMENSION ADDED MAKES THE POPULATION SMALLER, never larger. That is
+ * the one thing a person reading the form must be able to predict without
+ * knowing the operator, and it is why this is AND and not OR: under OR,
+ * naming a designation would silently pull in that designation across every
+ * outlet in the company.
+ *
+ * NOBODY EVER TYPES AN ID. Each dimension is picked from its existing master
+ * list, so an id that does not exist cannot be submitted by hand.
  */
-export function mappingTargetLabel(row) {
-  if (!row) return "";
-  if (row.mapping_type === MAPPING_TYPE.ALL_EMPLOYEES) {
-    return MAPPING_TYPE_LABEL.ALL_EMPLOYEES;
+export const RULE_DIMENSIONS = [
+  { key: "OUTLET", field: "outlet_id", label: "Outlet", selector: "outlet" },
+  { key: "DEPARTMENT", field: "department_id", label: "Department", selector: "department" },
+  { key: "DESIGNATION", field: "designation_id", label: "Designation", selector: "designation" },
+];
+
+/** What a dimension left unrestricted is called, everywhere. */
+export const ANY_LABEL = "All";
+
+/**
+ * HOW MANY EMPLOYEES ONE "Add Selected Employees" MAY NAME.
+ *
+ * Mirrors `BULK_GRANT_MAX` in the backend's
+ * `constants/telegram_group_mapping.js`. The server is what enforces it -
+ * this is here so the screen can disable the button and say why, rather than
+ * letting somebody select four hundred people and read a refusal afterwards.
+ * A test pins the two numbers together.
+ */
+export const BULK_GRANT_MAX = 200;
+
+/**
+ * The body for POST /telegram-groups/:id/mappings and /mapping-preview.
+ *
+ * A BLANK DIMENSION IS OMITTED, not sent as 0 or null. "All" is the absence
+ * of a restriction, and the server owns the sentinel that stores it; a
+ * client inventing its own would be writing a value it does not own.
+ */
+export function rulePayload(form = {}) {
+  const body = {};
+  for (const dimension of RULE_DIMENSIONS) {
+    const raw = form[dimension.field];
+    if (raw === undefined || raw === null || raw === "") continue;
+    const id = Number(raw);
+    if (Number.isInteger(id) && id > 0) body[dimension.field] = id;
   }
-  if (row.target_name) return row.target_name;
-  const id = row.target_id === null || row.target_id === undefined ? "" : `#${row.target_id}`;
-  return `${mappingTypeLabel(row.mapping_type)} ${id}`.trim();
+  return body;
 }
+
+/** How many dimensions this form narrows. Zero is All Employees. */
+export const narrowedCount = (form = {}) => Object.keys(rulePayload(form)).length;
+
+/**
+ * Is this form a rule that may be saved?
+ *
+ * ALMOST ALWAYS YES, and deliberately: every dimension is optional, so there
+ * is no "pick a type first" step left to get wrong. The two refusals are a
+ * rule the group ALREADY HAS - which the preview reports before Save is
+ * pressed rather than after - and a request already in flight.
+ */
+export function canSaveRule({ form, preview, saving } = {}) {
+  if (saving) return false;
+  if (preview && preview.duplicate_rule) return false;
+  return typeof form === "object" && form !== null;
+}
+
+/** Why Save is disabled, in the words the person needs. Null when it is not. */
+export function saveBlockedReason({ form, preview, saving } = {}) {
+  if (saving) return null;
+  if (preview && preview.duplicate_rule) return MAPPING_MESSAGES.DUPLICATE_RULE;
+  return null;
+}
+
+/**
+ * The rule as one sentence, for a row or for the form's summary.
+ *
+ * THE SERVER'S OWN LABEL WINS when there is one, because it resolved the
+ * names from the masters and knows which target has been deleted. The local
+ * fallback exists for the form, where no rule has been saved yet and the
+ * names are the ones sitting in the dropdowns.
+ */
+export function ruleLabel(row, names = {}) {
+  if (row && row.rule_label) return row.rule_label;
+  const parts = [];
+  for (const dimension of RULE_DIMENSIONS) {
+    const id = row && row.rule ? row.rule[dimension.field] : row && row[dimension.field];
+    if (id === undefined || id === null || id === "") continue;
+    const named = names[dimension.field] && names[dimension.field][id];
+    parts.push(`${dimension.label}: ${named || `#${id}`}`);
+  }
+  return parts.length === 0 ? ALL_EMPLOYEES_LABEL : parts.join(" + ");
+}
+
+/**
+ * ONE DIMENSION'S CELL on a mapping row: the target's name, or "All".
+ *
+ * A MISSING TARGET STILL SHOWS ITS ID. "#14" is what lets somebody work out
+ * which outlet was deleted; a blank cell or a bare dash would leave them
+ * with a warning they cannot act on.
+ */
+export function dimensionCell(row, key) {
+  const found = row && Array.isArray(row.rule_dimensions)
+    ? row.rule_dimensions.find((d) => d.dimension === key)
+    : null;
+  if (!found) return ANY_LABEL;
+  if (found.name) return found.name;
+  return found.id === null || found.id === undefined ? ANY_LABEL : `#${found.id}`;
+}
+
+/** The state of one dimension, for the per-dimension warning styling. */
+export function dimensionState(row, key) {
+  const found = row && Array.isArray(row.rule_dimensions)
+    ? row.rule_dimensions.find((d) => d.dimension === key)
+    : null;
+  return (found && found.state) || TARGET_STATE.NOT_APPLICABLE;
+}
+
+/**
+ * Is this selection of employees addable, and why not?
+ *
+ * BOUNDED, because the server bounds it - one transaction per request, and
+ * an unbounded selection is an unbounded transaction. Saying so before the
+ * button is pressed is the difference between a disabled control with a
+ * reason on it and a refusal after the fact.
+ */
+export function canAddSelected(employeeIds = []) {
+  const ids = Array.isArray(employeeIds) ? employeeIds : [];
+  return ids.length > 0 && ids.length <= BULK_GRANT_MAX;
+}
+
+export function addSelectedBlockedReason(employeeIds = []) {
+  const ids = Array.isArray(employeeIds) ? employeeIds : [];
+  if (ids.length === 0) return MAPPING_MESSAGES.NO_EMPLOYEES_SELECTED;
+  if (ids.length > BULK_GRANT_MAX) return MAPPING_MESSAGES.TOO_MANY_EMPLOYEES;
+  return null;
+}
+
+/**
+ * THE TWO ACTIONS ARE DIFFERENT THINGS AND THE SCREEN MUST SAY SO.
+ *
+ * Saving a rule stores configuration that re-derives itself from the
+ * employee master forever. Adding selected employees creates MANUAL claims
+ * for the people named and nothing else - it writes NO rule, because
+ * inventing a rule to describe an arbitrary selection is how a group ends up
+ * with configuration nobody chose and nobody can read back.
+ */
+export const RULE_ACTION = {
+  SAVE_RULE: "Save Dynamic Rule",
+  ADD_SELECTED: "Add Selected Employees",
+};
 
 /**
  * THE WARNING, OR NOTHING - and zero matches is NOT a warning.
@@ -278,29 +408,3 @@ export const telegramConnectedLabel = (employee) =>
  */
 export const canManageMappings = (permissions = {}) =>
   Boolean(permissions.manage_telegram_groups);
-
-/**
- * Is this Add Mapping form submittable?
- *
- * All Employees is ready as soon as it is chosen. The other three need a
- * target picked from their list. Nothing else is ever required, because
- * there is nothing else to ask.
- */
-export function canSubmitMapping({ mapping_type, target_id } = {}) {
-  if (!MAPPING_TYPES.includes(mapping_type)) return false;
-  if (!needsTarget(mapping_type)) return true;
-  const id = Number(target_id);
-  return Number.isInteger(id) && id > 0;
-}
-
-/**
- * The body for POST /telegram-groups/:id/mappings.
- *
- * ALL_EMPLOYEES SENDS NO TARGET AT ALL. The server assigns the sentinel; a
- * client that invented its own 0 would be duplicating a rule it does not
- * own, and the server refuses a target on that type anyway.
- */
-export function mappingPayload({ mapping_type, target_id } = {}) {
-  if (!needsTarget(mapping_type)) return { mapping_type };
-  return { mapping_type, target_id: Number(target_id) };
-}

@@ -27,7 +27,7 @@ const exists = (rel) => fs.existsSync(path.join(__dirname, "..", "..", rel));
 
 const mapPage = strip(read("pages/master/telegram-groups/map.jsx"));
 const listPage = strip(read("pages/master/telegram-groups/index.jsx"));
-const addModal = strip(read("components/master/AddTelegramGroupMapping.jsx"));
+const mapModal = strip(read("components/master/MapTelegramGroupEmployees.jsx"));
 const employeesModal = strip(read("components/master/TelegramGroupMatchedEmployees.jsx"));
 const helper = strip(read("helper/telegramGroups.js"));
 const hook = strip(read("customHooks/useTelegramGroupMappings.js"));
@@ -39,15 +39,22 @@ const rules = (() => {
     .replace(/export const /g, "const ")
     .replace(/export function /g, "function ");
   const names = [
-    "MAPPING_TYPE",
-    "MAPPING_TYPES",
-    "MAPPING_TYPE_LABEL",
+    "ALL_EMPLOYEES_LABEL",
     "TARGET_STATE",
-    "TARGET_SELECTOR",
     "MAPPING_MESSAGES",
-    "needsTarget",
-    "mappingTypeLabel",
-    "mappingTargetLabel",
+    "RULE_DIMENSIONS",
+    "ANY_LABEL",
+    "BULK_GRANT_MAX",
+    "RULE_ACTION",
+    "rulePayload",
+    "narrowedCount",
+    "canSaveRule",
+    "saveBlockedReason",
+    "ruleLabel",
+    "dimensionCell",
+    "dimensionState",
+    "canAddSelected",
+    "addSelectedBlockedReason",
     "targetWarning",
     "targetStatusLabel",
     "targetIsBroken",
@@ -63,8 +70,6 @@ const rules = (() => {
     "COUNTS_UNAVAILABLE",
     "telegramConnectedLabel",
     "canManageMappings",
-    "canSubmitMapping",
-    "mappingPayload",
   ];
   // eslint-disable-next-line no-new-func
   return new Function(`${cjs}\nreturn { ${names.join(", ")} };`)();
@@ -72,55 +77,186 @@ const rules = (() => {
 
 /* =============================================================== rules */
 
-describe("the four mapping types", () => {
-  it("are exactly four, in the approved order", () => {
-    assert.deepStrictEqual(rules.MAPPING_TYPES, [
-      "ALL_EMPLOYEES",
-      "OUTLET",
-      "DESIGNATION",
-      "DEPARTMENT",
-    ]);
+describe("the three rule dimensions", () => {
+  it("are exactly three, in cascade order", () => {
+    assert.deepStrictEqual(
+      rules.RULE_DIMENSIONS.map((d) => d.key),
+      ["OUTLET", "DEPARTMENT", "DESIGNATION"]
+    );
+    assert.deepStrictEqual(
+      rules.RULE_DIMENSIONS.map((d) => d.field),
+      ["outlet_id", "department_id", "designation_id"]
+    );
   });
 
-  it("include no rule builder and no hand-picked employee list", () => {
-    for (const forbidden of ["SELECTED_EMPLOYEES", "MANUAL", "ROLE", "USER", "STORE_MANAGER", "CATEGORY"]) {
-      assert.ok(!rules.MAPPING_TYPES.includes(forbidden), `${forbidden} must not be offered`);
+  it("each picks from a master list, so nobody ever types an id", () => {
+    for (const dimension of rules.RULE_DIMENSIONS) {
+      assert.ok(dimension.selector, `${dimension.key} must name the master it picks from`);
+      assert.ok(dimension.label, `${dimension.key} must have a label`);
     }
   });
 
-  it("ALL EMPLOYEES has no target selector; the other three do", () => {
-    assert.strictEqual(rules.needsTarget("ALL_EMPLOYEES"), false);
-    assert.strictEqual(rules.TARGET_SELECTOR.ALL_EMPLOYEES, null);
-    assert.strictEqual(rules.needsTarget("OUTLET"), true);
-    assert.strictEqual(rules.needsTarget("DESIGNATION"), true);
-    assert.strictEqual(rules.needsTarget("DEPARTMENT"), true);
+  it("offer no rule builder and no hand-picked employee dimension", () => {
+    const keys = rules.RULE_DIMENSIONS.map((d) => d.key);
+    for (const forbidden of ["SELECTED_EMPLOYEES", "MANUAL", "ROLE", "USER", "CATEGORY", "EXPRESSION"]) {
+      assert.ok(!keys.includes(forbidden), `${forbidden} must not be a dimension`);
+    }
+  });
+
+  it("the single-dimension vocabulary is GONE, not merely unused", () => {
+    // A helper that can still build `{mapping_type, target_id}` is a helper
+    // a screen can still call, and the server REFUSES that body rather than
+    // ignoring it - so the rule would silently be saved as All Employees.
+    for (const removed of ["MAPPING_TYPES", "MAPPING_TYPE", "needsTarget", "mappingPayload", "canSubmitMapping", "mappingTargetLabel"]) {
+      assert.strictEqual(rules[removed], undefined, `${removed} must no longer exist`);
+    }
+    const source = read("util/telegramGroupMapping.js");
+    assert.ok(!/mapping_type/.test(source.replace(/\/\*[\s\S]*?\*\//g, "")), "no code may still name mapping_type");
   });
 });
 
-describe("the submitted payload", () => {
-  it("sends NO target for All Employees - the sentinel is the server's", () => {
-    assert.deepStrictEqual(rules.mappingPayload({ mapping_type: "ALL_EMPLOYEES" }), {
-      mapping_type: "ALL_EMPLOYEES",
-    });
-    assert.ok(!("target_id" in rules.mappingPayload({ mapping_type: "ALL_EMPLOYEES" })));
+describe("the submitted rule payload", () => {
+  it("omits every dimension left on All", () => {
+    assert.deepStrictEqual(rules.rulePayload({}), {});
+    assert.deepStrictEqual(rules.rulePayload({ outlet_id: "", department_id: null, designation_id: undefined }), {});
   });
 
-  it("sends a numeric target for the other three", () => {
-    assert.deepStrictEqual(rules.mappingPayload({ mapping_type: "OUTLET", target_id: "5" }), {
-      mapping_type: "OUTLET",
-      target_id: 5,
+  it("sends the dimensions that were chosen, as numbers", () => {
+    assert.deepStrictEqual(rules.rulePayload({ outlet_id: "5", designation_id: 7 }), {
+      outlet_id: 5,
+      designation_id: 7,
     });
   });
 
-  it("will not submit an incomplete form", () => {
-    assert.strictEqual(rules.canSubmitMapping({ mapping_type: "ALL_EMPLOYEES" }), true);
-    assert.strictEqual(rules.canSubmitMapping({ mapping_type: "OUTLET" }), false);
-    assert.strictEqual(rules.canSubmitMapping({ mapping_type: "OUTLET", target_id: "" }), false);
-    assert.strictEqual(rules.canSubmitMapping({ mapping_type: "OUTLET", target_id: 0 }), false);
-    assert.strictEqual(rules.canSubmitMapping({ mapping_type: "OUTLET", target_id: -3 }), false);
-    assert.strictEqual(rules.canSubmitMapping({ mapping_type: "OUTLET", target_id: 5 }), true);
-    assert.strictEqual(rules.canSubmitMapping({ mapping_type: "NONSENSE", target_id: 5 }), false);
-    assert.strictEqual(rules.canSubmitMapping({}), false);
+  it("never sends a sentinel of its own for All", () => {
+    // The server owns the 0. A client inventing one would be writing a value
+    // it does not own.
+    const body = rules.rulePayload({ outlet_id: 5 });
+    assert.ok(!("department_id" in body));
+    assert.ok(!("designation_id" in body));
+    assert.ok(!JSON.stringify(body).includes(":0"));
+  });
+
+  it("drops junk rather than sending it", () => {
+    assert.deepStrictEqual(rules.rulePayload({ outlet_id: "abc", department_id: -3, designation_id: 0 }), {});
+  });
+
+  it("never carries a mapping_type", () => {
+    const body = rules.rulePayload({ outlet_id: 5, mapping_type: "OUTLET" });
+    assert.ok(!("mapping_type" in body));
+  });
+
+  it("counts how many dimensions a form narrows", () => {
+    assert.strictEqual(rules.narrowedCount({}), 0);
+    assert.strictEqual(rules.narrowedCount({ outlet_id: 5 }), 1);
+    assert.strictEqual(rules.narrowedCount({ outlet_id: 5, designation_id: 7 }), 2);
+    assert.strictEqual(rules.narrowedCount({ outlet_id: 5, department_id: 3, designation_id: 7 }), 3);
+  });
+});
+
+describe("saving a rule, and adding a selection, are different actions", () => {
+  it("names them differently on purpose", () => {
+    assert.strictEqual(rules.RULE_ACTION.SAVE_RULE, "Save Dynamic Rule");
+    assert.strictEqual(rules.RULE_ACTION.ADD_SELECTED, "Add Selected Employees");
+    assert.notStrictEqual(rules.RULE_ACTION.SAVE_RULE, rules.RULE_ACTION.ADD_SELECTED);
+  });
+
+  it("explains what each one keeps doing afterwards", () => {
+    assert.match(rules.MAPPING_MESSAGES.SAVE_RULE_HELP, /automatically/);
+    assert.match(rules.MAPPING_MESSAGES.ADD_SELECTED_HELP, /writes no rule/i);
+  });
+
+  it("a rule with nothing narrowed may be saved, and is warned about", () => {
+    // It IS "All Employees" - a real choice, not an incomplete form. But it
+    // is the largest population there is, so the screen says so.
+    assert.strictEqual(rules.canSaveRule({ form: {} }), true);
+    assert.match(rules.MAPPING_MESSAGES.RULE_IS_ALL_EMPLOYEES, /every employee/i);
+  });
+
+  it("refuses to save a rule the group already has", () => {
+    const blocked = { form: { outlet_id: 5 }, preview: { duplicate_rule: true } };
+    assert.strictEqual(rules.canSaveRule(blocked), false);
+    assert.strictEqual(rules.saveBlockedReason(blocked), rules.MAPPING_MESSAGES.DUPLICATE_RULE);
+  });
+
+  it("refuses to save while a request is already in flight", () => {
+    assert.strictEqual(rules.canSaveRule({ form: {}, saving: "rule" }), false);
+  });
+
+  it("will not add an empty selection", () => {
+    assert.strictEqual(rules.canAddSelected([]), false);
+    assert.strictEqual(rules.addSelectedBlockedReason([]), rules.MAPPING_MESSAGES.NO_EMPLOYEES_SELECTED);
+    assert.strictEqual(rules.canAddSelected(), false);
+  });
+
+  it("will not add more than the server accepts in one transaction", () => {
+    const tooMany = Array.from({ length: rules.BULK_GRANT_MAX + 1 }, (_, i) => i + 1);
+    assert.strictEqual(rules.canAddSelected(tooMany), false);
+    assert.strictEqual(rules.addSelectedBlockedReason(tooMany), rules.MAPPING_MESSAGES.TOO_MANY_EMPLOYEES);
+    assert.strictEqual(rules.canAddSelected(tooMany.slice(0, rules.BULK_GRANT_MAX)), true);
+  });
+
+  it("the bound matches the backend's BULK_GRANT_MAX exactly", () => {
+    // Two numbers that must agree: the screen disables the button, the
+    // server refuses the request. A drift means a selection the screen
+    // allowed and the server rejected.
+    const backend = fs.readFileSync(
+      path.join(__dirname, "..", "..", "..", "dailyneeds-store-backend", "constants", "telegram_group_mapping.js"),
+      "utf8"
+    );
+    const declared = Number(backend.match(/const BULK_GRANT_MAX = (\d+)/)[1]);
+    assert.strictEqual(rules.BULK_GRANT_MAX, declared);
+    assert.match(rules.MAPPING_MESSAGES.TOO_MANY_EMPLOYEES, new RegExp(String(declared)));
+  });
+});
+
+describe("a rule reads back as a sentence, and as three cells", () => {
+  const row = {
+    rule: { outlet_id: 5, department_id: null, designation_id: 7 },
+    rule_dimensions: [
+      { dimension: "OUTLET", id: 5, name: "ECR", state: "ACTIVE" },
+      { dimension: "DEPARTMENT", id: null, name: "All", state: "NOT_APPLICABLE" },
+      { dimension: "DESIGNATION", id: 7, name: "Cashier", state: "ACTIVE" },
+    ],
+    rule_label: "Outlet: ECR + Designation: Cashier",
+  };
+
+  it("prefers the server's label, which resolved the names", () => {
+    assert.strictEqual(rules.ruleLabel(row), "Outlet: ECR + Designation: Cashier");
+  });
+
+  it("falls back to local names for a rule not yet saved", () => {
+    assert.strictEqual(
+      rules.ruleLabel({ rule: { outlet_id: 5, designation_id: 7 } }, { outlet_id: { 5: "ECR" }, designation_id: { 7: "Cashier" } }),
+      "Outlet: ECR + Designation: Cashier"
+    );
+  });
+
+  it("a rule narrowing nothing reads as All Employees", () => {
+    assert.strictEqual(rules.ruleLabel({ rule: {} }, {}), "All Employees");
+    assert.strictEqual(rules.ALL_EMPLOYEES_LABEL, "All Employees");
+  });
+
+  it("an unnamed target still shows its id", () => {
+    assert.strictEqual(rules.ruleLabel({ rule: { outlet_id: 14 } }, {}), "Outlet: #14");
+  });
+
+  it("each dimension gets its own cell, and All is a real value", () => {
+    assert.strictEqual(rules.dimensionCell(row, "OUTLET"), "ECR");
+    assert.strictEqual(rules.dimensionCell(row, "DEPARTMENT"), "All");
+    assert.strictEqual(rules.dimensionCell(row, "DESIGNATION"), "Cashier");
+    assert.strictEqual(rules.ANY_LABEL, "All");
+  });
+
+  it("a MISSING target shows its id in its own cell", () => {
+    const broken = { rule_dimensions: [{ dimension: "OUTLET", id: 14, name: null, state: "MISSING" }] };
+    assert.strictEqual(rules.dimensionCell(broken, "OUTLET"), "#14");
+    assert.strictEqual(rules.dimensionState(broken, "OUTLET"), "MISSING");
+  });
+
+  it("an absent dimension is All, not a broken one", () => {
+    assert.strictEqual(rules.dimensionCell({}, "OUTLET"), "All");
+    assert.strictEqual(rules.dimensionState({}, "OUTLET"), "NOT_APPLICABLE");
   });
 });
 
@@ -166,10 +302,8 @@ describe("the three target states", () => {
   });
 
   it("a MISSING target still shows its id, so somebody can work out which", () => {
-    assert.strictEqual(
-      rules.mappingTargetLabel({ mapping_type: "OUTLET", target_id: 14, target_name: null }),
-      "Outlet #14"
-    );
+    const broken = { rule_dimensions: [{ dimension: "OUTLET", id: 14, name: null, state: "MISSING" }] };
+    assert.strictEqual(rules.dimensionCell(broken, "OUTLET"), "#14");
   });
 });
 
@@ -394,10 +528,10 @@ describe("permissions", () => {
 
 /* ============================================================== screens */
 
-describe("the Registry gains Map as a fourth action", () => {
-  it("lists View, Map, Edit and Delete", () => {
+describe("the Registry gains Map Employees as a fourth action", () => {
+  it("lists View, Map Employees, Edit and Delete", () => {
     assert.match(listPage, /label: "View"/);
-    assert.match(listPage, /label: "Map"/);
+    assert.match(listPage, /label: "Map Employees"/);
     assert.match(listPage, /label: "Edit"/);
     assert.match(listPage, /label: "Delete"/);
   });
@@ -406,10 +540,35 @@ describe("the Registry gains Map as a fourth action", () => {
     assert.match(listPage, /\/master\/telegram-groups\/map\?id=\$\{id\}/);
   });
 
-  it("puts Map behind the VIEW key, with Edit and Delete still behind manage", () => {
+  it("gives Map Employees a DISTINCT icon, never a second pencil", () => {
+    // Two identical pencils on one row make the more consequential action -
+    // the one deciding who belongs in a real Telegram group - look like
+    // editing a group's name, and a person picks whichever they land on.
+    const actionsBlock = listPage.slice(listPage.indexOf("const actions = ["), listPage.indexOf("return actions;"));
+    const mapAction = actionsBlock.slice(actionsBlock.indexOf('label: "Map Employees"'));
+    const iconType = mapAction.match(/iconType: "(\w+)"/)[1];
+    assert.strictEqual(iconType, "map");
+    assert.notStrictEqual(iconType, "edit", "never the pencil Edit uses");
+
+    // And the icon it resolves to is a people/hierarchy glyph, not a pen.
+    const grid = read("components/AgGrid/index.jsx");
+    const icons = grid.slice(grid.indexOf("const ICON_TYPES = {"), grid.indexOf("};", grid.indexOf("const ICON_TYPES = {")));
+    const glyph = icons.match(/map: "([^"]+)"/)[1];
+    assert.match(glyph, /sitemap|users|people|diagram/, glyph);
+    assert.ok(!/fa-pen|fa-pencil|fa-edit/.test(glyph), "the Map glyph must not be a pencil");
+  });
+
+  it("the tooltip reads Map Employees", () => {
+    // The action-icon renderer uses `label` as the Tooltip text.
+    assert.match(listPage, /label: "Map Employees"/);
+    const grid = read("components/AgGrid/index.jsx");
+    assert.match(grid, /<Tooltip label=\{item\.label\}/);
+  });
+
+  it("puts Map Employees behind the VIEW key, with Edit and Delete still behind manage", () => {
     // Map is readable configuration; the write controls are inside it.
     const actionsBlock = listPage.slice(listPage.indexOf('const actions = ['), listPage.indexOf('return actions;'));
-    const mapIndex = actionsBlock.indexOf('label: "Map"');
+    const mapIndex = actionsBlock.indexOf('label: "Map Employees"');
     const manageIndex = actionsBlock.indexOf('if (canManage)');
     assert.ok(mapIndex > -1 && manageIndex > -1);
     assert.ok(mapIndex < manageIndex, "Map must sit outside the canManage branch");
@@ -428,17 +587,12 @@ describe("the Registry gains Map as a fourth action", () => {
 });
 
 describe("the mapping RULE is never scoped", () => {
-  it("the rule label is built from the type and target, not from any count", () => {
-    // A manager sees "Outlet · ECR" even when ECR's staff are not theirs to
+  it("the rule label is built from the rule, not from any count", () => {
+    // A manager sees "Outlet: ECR" even when ECR's staff are not theirs to
     // count. Configuration is not somebody's employees.
-    assert.strictEqual(
-      rules.mappingTargetLabel({ mapping_type: "OUTLET", target_name: "ECR", target_id: 5 }),
-      "ECR"
-    );
-    assert.strictEqual(
-      rules.mappingTargetLabel({ mapping_type: "ALL_EMPLOYEES" }),
-      "All Employees"
-    );
+    const row = { rule_dimensions: [{ dimension: "OUTLET", id: 5, name: "ECR", state: "ACTIVE" }] };
+    assert.strictEqual(rules.dimensionCell(row, "OUTLET"), "ECR");
+    assert.strictEqual(rules.ruleLabel({ rule: {} }, {}), "All Employees");
   });
 
   it("nothing in the label helpers reads counts_scope", () => {
@@ -472,10 +626,17 @@ describe("the Map screen", () => {
     assert.ok(!/chat_id/.test(mapPage), "the mapping screen is about people, not the chat's id");
   });
 
-  it("has the approved mapping columns", () => {
-    for (const header of ["Mapping Type", "Mapping To", "Status", "Actions"]) {
+  it("has one column per dimension, plus the approved rest", () => {
+    // The three dimensions come from the shared list rather than three
+    // literals, so a rule narrowing two of them can be SEEN to narrow two.
+    assert.match(mapPage, /RULE_DIMENSIONS\.map\(/);
+    assert.match(mapPage, /headerName: dimension\.label/);
+    for (const header of ["Status", "Actions"]) {
       assert.match(mapPage, new RegExp(`headerName: "${header}"`));
     }
+    // And the single-dimension columns are gone.
+    assert.ok(!/headerName: "Mapping Type"/.test(mapPage));
+    assert.ok(!/headerName: "Mapping To"/.test(mapPage));
     // Matched Employees carries the scope in its header, so the column names
     // the helper rather than a literal; the two spellings live in the helper
     // module and are asserted against it there.
@@ -526,40 +687,97 @@ describe("the Map screen", () => {
   });
 });
 
-describe("Add Mapping", () => {
-  it("offers exactly the four types from the shared list", () => {
-    assert.match(addModal, /MAPPING_TYPES\.map/);
-    assert.ok(!/SELECTED_EMPLOYEES|employee_ids|Pick employees/i.test(addModal));
+describe("Map Employees - the multi-level form", () => {
+  it("cascades through the three dimensions from the shared list", () => {
+    assert.match(mapModal, /RULE_DIMENSIONS\.map\(/);
+    assert.ok(!/SELECTED_EMPLOYEES|mapping_type|Pick a type/i.test(mapModal));
   });
 
-  it("shows no target selector for All Employees", () => {
-    assert.match(addModal, /needsTarget\(mappingType\) && \(/);
-    assert.match(addModal, /mappingType === MAPPING_TYPE\.ALL_EMPLOYEES && \(/);
+  it("every dimension offers All, which is a real choice and the default", () => {
+    // "All" is not a placeholder: a dimension left alone narrows nothing.
+    assert.match(mapModal, /<option value="">\{ANY_LABEL\}<\/option>/);
+    assert.match(mapModal, /useState\(\{\}\)/, "the form starts with nothing narrowed");
   });
 
   it("uses the existing master hooks rather than new endpoints", () => {
-    assert.match(addModal, /useOutlets/);
-    assert.match(addModal, /useDesignations/);
-    assert.match(addModal, /useDepartments/);
-    assert.ok(!/API\.get|fetch\(/.test(addModal), "no bespoke master fetching");
+    assert.match(mapModal, /useOutlets/);
+    assert.match(mapModal, /useDesignations/);
+    assert.match(mapModal, /useDepartments/);
+    assert.ok(!/API\.get|fetch\(/.test(mapModal), "no bespoke master fetching");
   });
 
   it("never asks anybody to type a numeric id", () => {
-    assert.ok(!/type="number"/.test(addModal));
-    assert.match(addModal, /<Select/, "targets are chosen from a list");
+    assert.ok(!/type="number"/.test(mapModal));
+    assert.match(mapModal, /<Select/, "dimensions are chosen from a list");
   });
 
-  it("clears the target when the type changes", () => {
-    // A designation id carried into an outlet field points at a different row.
-    assert.match(addModal, /setMappingType\(value\);[\s\S]{0,200}setTargetId\(""\)/);
+  it("previews the population live, through the helper", () => {
+    assert.match(mapModal, /previewTelegramGroupMapping/);
+    assert.match(mapModal, /rulePayload\(form\)/);
+    // Re-runs when the rule or the search changes.
+    assert.match(mapModal, /\[isOpen, telegramGroupId, form, search\]/);
   });
 
-  it("shows the server's validation message verbatim", () => {
-    assert.match(addModal, /setError\(\(err && err\.message\)/);
+  it("drops a preview that arrived after the rule moved on", () => {
+    // A slow response for an older rule must not overwrite the list for the
+    // current one - the operator would tick people a different rule matched.
+    assert.match(mapModal, /let ignore = false/);
+    assert.match(mapModal, /if \(ignore\) return/);
   });
 
-  it("cannot submit until the form is complete", () => {
-    assert.match(addModal, /isDisabled=\{!ready \|\| submitting\}/);
+  it("un-ticks anybody the new rule no longer covers", () => {
+    assert.match(mapModal, /current\.filter\(\(id\) => visible\.has\(id\)\)/);
+  });
+
+  it("warns when the rule narrows nothing at all", () => {
+    assert.match(mapModal, /narrowedCount\(form\) === 0/);
+    assert.match(mapModal, /MAPPING_MESSAGES\.RULE_IS_ALL_EMPLOYEES/);
+  });
+
+  it("says an identical rule already exists BEFORE Save is pressed", () => {
+    assert.match(mapModal, /preview\.duplicate_rule/);
+    assert.match(mapModal, /MAPPING_MESSAGES\.DUPLICATE_RULE/);
+  });
+
+  it("offers the two actions, named apart, with what each one does", () => {
+    assert.match(mapModal, /RULE_ACTION\.SAVE_RULE/);
+    assert.match(mapModal, /RULE_ACTION\.ADD_SELECTED/);
+    assert.match(mapModal, /MAPPING_MESSAGES\.SAVE_RULE_HELP/);
+    assert.match(mapModal, /MAPPING_MESSAGES\.ADD_SELECTED_HELP/);
+  });
+
+  it("gates each action on its own helper, never on an ad-hoc condition", () => {
+    assert.match(mapModal, /isDisabled=\{!canSaveRule\(/);
+    assert.match(mapModal, /isDisabled=\{!canAddSelected\(selected\)/);
+    assert.match(mapModal, /saveBlockedReason\(/);
+    assert.match(mapModal, /addSelectedBlockedReason\(selected\)/);
+  });
+
+  it("shows the server's refusal verbatim", () => {
+    assert.match(mapModal, /err\.message \|\| "Could not save the rule"/);
+    assert.match(mapModal, /err\.message \|\| "Could not add the selected employees"/);
+  });
+
+  it("the selection can only contain people the preview returned", () => {
+    // The preview is already narrowed to the branches this viewer may see,
+    // and the server enforces the same scope again on the grant.
+    assert.match(mapModal, /employees\.map\(\(e\) => e\.employee_id\)/);
+    assert.ok(!/prompt\(|Enter employee/i.test(mapModal), "no typed employee id");
+  });
+
+  it("renders only the six safe employee fields", () => {
+    const forbidden = [
+      "salary", "aadhaar", "bank", "mobile", "pan_number",
+      "telegram_user_id", "telegram_chat_id", "telegram_username", "date_of_birth",
+    ];
+    for (const field of forbidden) {
+      assert.ok(!new RegExp(field, "i").test(mapModal), `${field} must not be rendered`);
+    }
+    assert.match(mapModal, /telegram_connected/, "a boolean is all that is shown");
+  });
+
+  it("says out loud that neither action touches Telegram", () => {
+    assert.match(mapModal, /Neither action adds anybody to, or removes anybody from, a Telegram group/);
   });
 });
 
@@ -636,7 +854,7 @@ describe("View Employees", () => {
 describe("THE 3A UI STILL PERFORMS NO TELEGRAM ACTION, and 3C's is separate", () => {
   const screens = {
     "map.jsx": read("pages/master/telegram-groups/map.jsx"),
-    "AddTelegramGroupMapping.jsx": read("components/master/AddTelegramGroupMapping.jsx"),
+    "MapTelegramGroupEmployees.jsx": read("components/master/MapTelegramGroupEmployees.jsx"),
     "TelegramGroupMatchedEmployees.jsx": read("components/master/TelegramGroupMatchedEmployees.jsx"),
     "useTelegramGroupMappings.js": read("customHooks/useTelegramGroupMappings.js"),
     "util/telegramGroupMapping.js": read("util/telegramGroupMapping.js"),

@@ -78,10 +78,18 @@ export const getTelegramGroupMappings = (id) =>
   });
 
 /**
- * `body` is `{ mapping_type }` for All Employees and
- * `{ mapping_type, target_id }` for the other three - `util/telegramGroupMapping#mappingPayload`
- * builds it. The server's refusal is thrown verbatim, because "That mapping
- * is already on this group" and "That outlet no longer exists" are the exact
+ * `body` is the composite rule - `{ outlet_id?, department_id?, designation_id? }`,
+ * built by `util/telegramGroupMapping#rulePayload`. Every dimension is
+ * optional and an omitted one means "All"; a body with none of them is the
+ * rule that covers everybody.
+ *
+ * `mapping_type` IS NO LONGER A FIELD and must not be sent: the server
+ * refuses an unknown one rather than ignoring it, which is deliberate -
+ * silently dropping it would save "All Employees" for somebody who asked for
+ * one outlet.
+ *
+ * The server's refusal is thrown verbatim, because "An identical rule is
+ * already on this group" and "That outlet no longer exists" are the exact
  * sentences the user has to act on.
  */
 export const addTelegramGroupMapping = (id, body) =>
@@ -94,6 +102,23 @@ export const deleteTelegramGroupMapping = (id, mappingId) =>
   API.delete(`/telegram-groups/${id}/mappings/${mappingId}`).then((res) => {
     if (res.data?.code === 200) return res.data;
     return fail(res, "Failed to remove the mapping");
+  });
+
+/**
+ * PREVIEW - who a rule WOULD cover, before it is saved.
+ *
+ * POST because the body is the rule, and the server validates it with the
+ * same code that validates it at save time - so a rule the preview accepted
+ * cannot be refused by Save for a reason the operator never saw.
+ *
+ * IT WRITES NOTHING. `view_telegram_groups`, like every other read on this
+ * screen, and NO BRANCH IS SENT: the server resolves the caller's scope from
+ * its own live lookup.
+ */
+export const previewTelegramGroupMapping = (id, body) =>
+  API.post(`/telegram-groups/${id}/mapping-preview`, body).then((res) => {
+    if (res.data?.code === 200) return res.data.data;
+    return fail(res, "Failed to preview this rule");
   });
 
 /**
@@ -134,4 +159,22 @@ export const revokeTelegramGroupMembership = (id, employeeId) =>
   API.delete(`/telegram-groups/${id}/membership/${employeeId}`).then((res) => {
     if (res.data?.code === 200) return res.data;
     return fail(res, "Failed to remove the employee from this group");
+  });
+
+/**
+ * ADD MANY, IN ONE REQUEST AND ONE TRANSACTION.
+ *
+ * NEVER A LOOP OVER `grantTelegramGroupMembership`. Eighteen uncontrolled
+ * requests are eighteen independent transactions: a dropped connection
+ * halfway leaves nine granted and nine not, with nothing on screen saying
+ * which nine. One request is all of them or none of them.
+ *
+ * The server bounds the list and re-checks the caller's branch scope, so a
+ * selection reaching outside it fails the whole request rather than being
+ * silently trimmed.
+ */
+export const grantTelegramGroupMembershipBulk = (id, employeeIds) =>
+  API.post(`/telegram-groups/${id}/membership/bulk`, { employee_ids: employeeIds }).then((res) => {
+    if (res.data?.code === 200) return res.data;
+    return fail(res, "Failed to add the selected employees to this group");
   });

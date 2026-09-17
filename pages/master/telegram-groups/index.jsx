@@ -199,8 +199,13 @@ export default function TelegramGroupRegistryPage() {
             // whole screen on manage would stop a store manager checking
             // which rules cover their branch.
             {
-              label: "Map",
-              iconType: "edit",
+              // A DISTINCT ICON AND A DISTINCT NAME. This action decides who
+              // belongs in a real Telegram group; Edit changes the group's
+              // own name and category. Giving both the same pencil made the
+              // more consequential one look like the less consequential one,
+              // and the tooltip was the only thing telling them apart.
+              label: "Map Employees",
+              iconType: "map",
               redirectionUrl: `/master/telegram-groups/map?id=${id}`,
             },
           ];

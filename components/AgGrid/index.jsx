@@ -675,6 +675,12 @@ const AgGrid = React.forwardRef(function AgGrid(
               view: "fa-solid fa-eye",
               edit: "fa-solid fa-pen",
               delete: "fa-solid fa-trash",
+              // A PEOPLE-AND-HIERARCHY icon, deliberately NOT a second
+              // pencil. Two identical pencils on one row make the more
+              // consequential action - the one that decides who belongs in a
+              // company Telegram group - indistinguishable from editing a
+              // group's name, and a person picks whichever they land on.
+              map: "fa-solid fa-sitemap",
             };
 
             return (

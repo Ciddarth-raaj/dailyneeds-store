@@ -113,7 +113,7 @@ test("no other consumer was switched to the directory", () => {
     // Telegram groups has no reason to hold `view_stores`, and without the
     // directory the dropdown would be empty for them and the mapping type
     // simply unusable.
-    "components/master/AddTelegramGroupMapping.jsx",
+    "components/master/MapTelegramGroupEmployees.jsx",
     // M4 Payroll: the Outlet filter on the employee picker (Salary Revision &
     // History) and on the approval queue (Salary Approval). An id and a name
     // each, for screens reached on `view_salary` / `approve_salary_revision`

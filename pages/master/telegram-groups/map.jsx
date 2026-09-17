@@ -23,12 +23,13 @@ import {
   useTelegramGroupMappings,
   useTelegramGroupMatchedEmployees,
 } from "../../../customHooks/useTelegramGroupMappings";
-import AddTelegramGroupMapping from "../../../components/master/AddTelegramGroupMapping";
+import MapTelegramGroupEmployees from "../../../components/master/MapTelegramGroupEmployees";
 import TelegramGroupMatchedEmployees from "../../../components/master/TelegramGroupMatchedEmployees";
 import TelegramGroupManagedMembership from "../../../components/master/TelegramGroupManagedMembership";
 import { useTelegramGroupMembership } from "../../../customHooks/useTelegramGroupMembership";
 import {
   addTelegramGroupMapping,
+  grantTelegramGroupMembershipBulk,
   deleteTelegramGroupMapping,
   grantTelegramGroupMembership,
   revokeTelegramGroupMembership,
@@ -41,8 +42,10 @@ import {
   isCountsUnavailable,
   matchedCountCell,
   matchedCountHeader,
-  mappingTargetLabel,
-  mappingTypeLabel,
+  RULE_DIMENSIONS,
+  dimensionCell,
+  dimensionState,
+  ruleLabel,
   targetStatusLabel,
   targetWarning,
   targetIsBroken,
@@ -112,6 +115,13 @@ export default function TelegramGroupMapPage() {
   const [membershipBusy, setMembershipBusy] = useState(false);
 
   const [addOpen, setAddOpen] = useState(false);
+  /**
+   * Which of the two actions is in flight: "rule", "selected", or false.
+   *
+   * Not a boolean, because the two buttons do DIFFERENT things and only the
+   * one that was pressed may show a spinner - a shared boolean would make
+   * Save look busy while employees were being added.
+   */
   const [submitting, setSubmitting] = useState(false);
   const [employeesTitle, setEmployeesTitle] = useState("");
   const [employeesOpen, setEmployeesOpen] = useState(false);
@@ -172,12 +182,16 @@ export default function TelegramGroupMapPage() {
     [id, membership]
   );
 
-  const handleAdd = useCallback(
+  /**
+   * SAVE DYNAMIC RULE. Stores configuration that keeps deciding: anybody who
+   * matches it later is covered automatically.
+   */
+  const handleSaveRule = useCallback(
     async (payload) => {
-      setSubmitting(true);
+      setSubmitting("rule");
       try {
         await addTelegramGroupMapping(id, payload);
-        toast.success("Mapping added");
+        toast.success("Rule saved");
         setAddOpen(false);
         // The whole response is refetched rather than the row patched: every
         // count on this screen comes from one server snapshot, and a locally
@@ -190,9 +204,29 @@ export default function TelegramGroupMapPage() {
     [id, refetch]
   );
 
+  /**
+   * ADD SELECTED EMPLOYEES. MANUAL membership for exactly the people ticked,
+   * and NO rule - one request for the whole selection rather than one per
+   * employee, so the grant is all of them or none of them.
+   */
+  const handleAddSelected = useCallback(
+    async (employeeIds) => {
+      setSubmitting("selected");
+      try {
+        const res = await grantTelegramGroupMembershipBulk(id, employeeIds);
+        toast.success(res.msg || "Employees added");
+        setAddOpen(false);
+        await Promise.all([refetch(), membership.refetch()]);
+      } finally {
+        setSubmitting(false);
+      }
+    },
+    [id, refetch, membership]
+  );
+
   const handleDelete = useCallback(
     (row) => {
-      const label = `${mappingTypeLabel(row.mapping_type)} · ${mappingTargetLabel(row)}`;
+      const label = ruleLabel(row);
       confirmDelete({
         title: MAPPING_MESSAGES.DELETE_TITLE,
         description: MAPPING_MESSAGES.deleteBody(label),
@@ -212,19 +246,17 @@ export default function TelegramGroupMapPage() {
 
   const colDefs = useMemo(
     () => [
-      {
-        field: "mapping_type",
-        headerName: "Mapping Type",
-        width: 170,
-        valueGetter: (params) => (params.data ? mappingTypeLabel(params.data.mapping_type) : ""),
-      },
-      {
-        field: "target",
-        headerName: "Mapping To",
+      // ONE COLUMN PER DIMENSION, in cascade order. A rule that narrows
+      // nothing reads "All / All / All", which is what "All Employees"
+      // always meant - and a rule narrowing two of them can finally be SEEN
+      // to narrow two, which a single "Mapping To" cell could not show.
+      ...RULE_DIMENSIONS.map((dimension) => ({
+        field: dimension.field,
+        headerName: dimension.label,
         flex: 1,
-        minWidth: 180,
-        valueGetter: (params) => (params.data ? mappingTargetLabel(params.data) : ""),
-      },
+        minWidth: 140,
+        valueGetter: (params) => (params.data ? dimensionCell(params.data, dimension.key) : ""),
+      })),
       {
         field: "matched_employees",
         // The header carries the scope, so a number read on its own -
@@ -274,7 +306,7 @@ export default function TelegramGroupMapPage() {
               onClick: () =>
                 openEmployees(
                   row.telegram_group_mapping_id,
-                  `${mappingTypeLabel(row.mapping_type)} · ${mappingTargetLabel(row)}`
+                  ruleLabel(row)
                 ),
             },
           ];
@@ -311,7 +343,7 @@ export default function TelegramGroupMapPage() {
             </Button>
             {canManage && (
               <Button size="sm" colorScheme="purple" onClick={() => setAddOpen(true)}>
-                + Add Mapping
+                + Map Employees
               </Button>
             )}
           </Flex>
@@ -446,10 +478,12 @@ export default function TelegramGroupMapPage() {
         </Stack>
       </CustomContainer>
 
-      <AddTelegramGroupMapping
+      <MapTelegramGroupEmployees
         isOpen={addOpen}
         onClose={() => setAddOpen(false)}
-        onSubmit={handleAdd}
+        telegramGroupId={id}
+        onSaveRule={handleSaveRule}
+        onAddSelected={handleAddSelected}
         submitting={submitting}
       />
 
