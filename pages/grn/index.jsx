@@ -18,6 +18,7 @@ import {
   formatGrnVerifiedAt,
   grnVerificationStatusLabel,
   grnVerifiedByLabel,
+  isGrnVerificationApplicable,
   isGrnVerified,
 } from "../../util/grnVerification";
 import toast from "react-hot-toast";
@@ -173,10 +174,14 @@ function GrnListing() {
         valueGetter: (params) =>
           grnVerificationStatusLabel(params.data?.verification),
         cellRenderer: (params) => {
-          const verified = isGrnVerified(params.data?.verification);
+          // A GRN from before verification started shows an empty cell: it is
+          // not pending anything, and a badge here would read as work owed.
+          const verification = params.data?.verification;
+          if (!isGrnVerificationApplicable(verification)) return null;
+          const verified = isGrnVerified(verification);
           return (
             <Badge colorScheme={verified ? "green" : "orange"}>
-              {grnVerificationStatusLabel(params.data?.verification)}
+              {grnVerificationStatusLabel(verification)}
             </Badge>
           );
         },
@@ -195,7 +200,9 @@ function GrnListing() {
         headerName: "Verified At",
         maxWidth: 180,
         valueGetter: (params) =>
-          formatGrnVerifiedAt(params.data?.verification?.verified_at),
+          isGrnVerificationApplicable(params.data?.verification)
+            ? formatGrnVerifiedAt(params.data?.verification?.verified_at)
+            : "",
       },
       {
         colId: "purchase_uom_action",

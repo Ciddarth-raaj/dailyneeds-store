@@ -20,6 +20,7 @@ const test = require("node:test");
 const assert = require("node:assert");
 
 const {
+  isGrnVerificationApplicable,
   IST_LABEL,
   IST_OFFSET_MINUTES,
   isGrnVerified,
@@ -59,9 +60,10 @@ test("status labels are the two the listing shows", () => {
     grnVerificationStatusLabel(pending),
     "Pending Verification"
   );
-  // A GRN from before this feature arrives with no block at all.
+  // An unrecognised status on a block that IS present still reads as
+  // pending; a MISSING block is the out-of-scope case, asserted below.
   assert.strictEqual(
-    grnVerificationStatusLabel(undefined),
+    grnVerificationStatusLabel({ status: "SOMETHING_NEW" }),
     "Pending Verification"
   );
 });
@@ -156,4 +158,28 @@ test("a zoneless or unparseable timestamp is an em dash, never a guess", () => {
   assert.strictEqual(formatGrnVerifiedAt("2026-09-17T14:30:00"), "—");
   // Explicit zone, impossible clock.
   assert.strictEqual(formatGrnVerifiedAt("2026-01-05T99:00:00Z"), "—");
+});
+
+test("a GRN outside the programme shows nothing, not 'Pending'", () => {
+  // Verification is not retrospective: the API sends no block at all for a
+  // GRN dated before it started. Those rows must read as "does not apply",
+  // never as work owed - a page of historical GRNs all saying "Pending
+  // Verification" would invent a backlog nobody has to clear.
+  assert.strictEqual(isGrnVerificationApplicable(null), false);
+  assert.strictEqual(isGrnVerificationApplicable(undefined), false);
+  assert.strictEqual(isGrnVerificationApplicable(pending), true);
+  assert.strictEqual(isGrnVerificationApplicable(verified), true);
+
+  assert.strictEqual(grnVerificationStatusLabel(null), "");
+  assert.strictEqual(grnVerifiedByLabel(null), "");
+  assert.strictEqual(formatGrnVerifiedAt(null), "—");
+
+  // And an in-scope GRN is unaffected.
+  assert.strictEqual(grnVerificationStatusLabel(pending), "Pending Verification");
+  assert.strictEqual(grnVerifiedByLabel(verified), "Asha R");
+});
+
+test("an out-of-scope GRN is not treated as verified", () => {
+  assert.strictEqual(isGrnVerified(null), false);
+  assert.strictEqual(isGrnVerified(undefined), false);
 });

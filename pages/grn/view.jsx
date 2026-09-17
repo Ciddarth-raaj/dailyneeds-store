@@ -40,6 +40,7 @@ import {
 import {
   formatGrnVerifiedAt,
   grnVerifiedByLabel,
+  isGrnVerificationApplicable,
   isGrnVerified,
 } from "../../util/grnVerification";
 import currencyFormatter from "../../util/currencyFormatter";
@@ -147,6 +148,11 @@ function GrnDetailPage() {
   // carries the block, so a GRN nobody has touched reads as pending rather
   // than as a missing field.
   const verified = isGrnVerified(verification);
+  // Verification is not retrospective: the API sends no block for a GRN dated
+  // before the programme started, and those pages show neither the button nor
+  // the verified summary. The endpoint refuses them too - this is only what
+  // is on screen.
+  const verificationApplies = isGrnVerificationApplicable(verification);
 
   // Approval is for the whole GRN and is keyed on the refno from the route --
   // the same value the API records it against. The verifier and the time are
@@ -624,7 +630,7 @@ function GrnDetailPage() {
                 value={formatGrnVerifiedAt(verification?.verified_at)}
               />
             </Flex>
-          ) : canVerify ? (
+          ) : canVerify && verificationApplies ? (
             <Button
               size="sm"
               colorScheme="green"

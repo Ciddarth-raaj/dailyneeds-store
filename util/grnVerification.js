@@ -18,18 +18,45 @@ const STATUS_LABELS = {
   [PENDING]: "Pending Verification",
 };
 
+/**
+ * Does verification apply to this GRN at all?
+ *
+ * Verification is not retrospective: the API sends NO verification block
+ * (null) for a GRN dated before the programme started, and those rows show
+ * nothing in the Status / Verified By / Verified At columns and offer no
+ * Verify & Accept button. An in-scope GRN always carries a block, PENDING
+ * until it is signed off, so "no block" and "not yet verified" are never
+ * confused with each other.
+ */
+function isGrnVerificationApplicable(verification) {
+  return verification != null;
+}
+
 /** Is this GRN signed off? Only the server's own status answers that. */
 function isGrnVerified(verification) {
   return verification?.status === VERIFIED;
 }
 
-/** "Verified" / "Pending Verification" — a GRN with no block yet is pending. */
+/**
+ * "Verified" / "Pending Verification", or an EMPTY string for a GRN the
+ * programme does not cover.
+ *
+ * The empty string is deliberate rather than a dash: an old bill is not
+ * awaiting anything, and printing a placeholder in three columns across a
+ * page of historical GRNs would read as missing data instead of as "this
+ * does not apply".
+ */
 function grnVerificationStatusLabel(verification) {
+  if (!isGrnVerificationApplicable(verification)) return "";
   return STATUS_LABELS[verification?.status] ?? STATUS_LABELS[PENDING];
 }
 
-/** The verifier's display name as the API resolved it, or an em dash. */
+/**
+ * The verifier's display name as the API resolved it; an em dash while an
+ * in-scope GRN is still pending, and nothing at all for one out of scope.
+ */
 function grnVerifiedByLabel(verification) {
+  if (!isGrnVerificationApplicable(verification)) return "";
   if (!isGrnVerified(verification)) return "—";
   const name = verification?.verified_by_name;
   if (name != null && String(name).trim() !== "") return String(name).trim();
@@ -111,6 +138,7 @@ function toInstant(value) {
 module.exports = {
   VERIFIED,
   PENDING,
+  isGrnVerificationApplicable,
   IST_LABEL,
   IST_OFFSET_MINUTES,
   isGrnVerified,
