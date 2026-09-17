@@ -64,6 +64,7 @@ const rules = (() => {
     "allShownSelected",
     "rowSeverity",
     "ruleDimensionStates",
+    "previewIsFresh",
     "targetWarning",
     "targetStatusLabel",
     "targetIsBroken",
@@ -178,31 +179,37 @@ describe("saving a rule, and adding a selection, are different actions", () => {
   it("a rule with nothing narrowed may be saved, and is warned about", () => {
     // It IS "All Employees" - a real choice, not an incomplete form. But it
     // is the largest population there is, so the screen says so.
-    assert.strictEqual(rules.canSaveRule({ form: {} }), true);
+    assert.strictEqual(rules.canSaveRule({ form: {}, fresh: true }), true);
     assert.match(rules.MAPPING_MESSAGES.RULE_IS_ALL_EMPLOYEES, /every employee/i);
   });
 
   it("refuses to save a rule the group already has", () => {
-    const blocked = { form: { outlet_id: 5 }, preview: { duplicate_rule: true } };
+    const blocked = { form: { outlet_id: 5 }, preview: { duplicate_rule: true }, fresh: true };
     assert.strictEqual(rules.canSaveRule(blocked), false);
     assert.strictEqual(rules.saveBlockedReason(blocked), rules.MAPPING_MESSAGES.DUPLICATE_RULE);
   });
 
   it("refuses to save while a request is already in flight", () => {
-    assert.strictEqual(rules.canSaveRule({ form: {}, saving: "rule" }), false);
+    assert.strictEqual(rules.canSaveRule({ form: {}, fresh: true, saving: "rule" }), false);
   });
 
   it("will not add an empty selection", () => {
-    assert.strictEqual(rules.canAddSelected([]), false);
-    assert.strictEqual(rules.addSelectedBlockedReason([]), rules.MAPPING_MESSAGES.NO_EMPLOYEES_SELECTED);
+    assert.strictEqual(rules.canAddSelected([], { fresh: true }), false);
+    assert.strictEqual(
+      rules.addSelectedBlockedReason([], { fresh: true }),
+      rules.MAPPING_MESSAGES.NO_EMPLOYEES_SELECTED
+    );
     assert.strictEqual(rules.canAddSelected(), false);
   });
 
   it("will not add more than the server accepts in one transaction", () => {
     const tooMany = Array.from({ length: rules.BULK_GRANT_MAX + 1 }, (_, i) => i + 1);
-    assert.strictEqual(rules.canAddSelected(tooMany), false);
-    assert.strictEqual(rules.addSelectedBlockedReason(tooMany), rules.MAPPING_MESSAGES.TOO_MANY_EMPLOYEES);
-    assert.strictEqual(rules.canAddSelected(tooMany.slice(0, rules.BULK_GRANT_MAX)), true);
+    assert.strictEqual(rules.canAddSelected(tooMany, { fresh: true }), false);
+    assert.strictEqual(
+      rules.addSelectedBlockedReason(tooMany, { fresh: true }),
+      rules.MAPPING_MESSAGES.TOO_MANY_EMPLOYEES
+    );
+    assert.strictEqual(rules.canAddSelected(tooMany.slice(0, rules.BULK_GRANT_MAX), { fresh: true }), true);
   });
 
   it("the bound matches the backend's BULK_GRANT_MAX exactly", () => {
@@ -430,12 +437,48 @@ describe("the cascade resets what it no longer offers", () => {
     assert.deepStrictEqual(rules.pruneInvalidDimensions(form, options), form);
   });
 
-  it("a level with NO options yet clears nothing", () => {
-    // An empty list means the preview has not answered, or the caller may
-    // see nobody. Treating that as "everything is invalid" would wipe the
-    // operator's form while it loaded.
-    const form = { outlet_id: 5, department_id: 3 };
+  it("an ABSENT option key clears nothing - the preview has not answered", () => {
+    // No answer for that level, so no grounds to clear. Clearing here would
+    // wipe the operator's form while the preview loaded, or after it failed.
+    const form = { outlet_id: 5, department_id: 3, designation_id: 7 };
     assert.deepStrictEqual(rules.pruneInvalidDimensions(form, {}), form);
+    assert.deepStrictEqual(rules.dimensionsWerePruned(form, rules.pruneInvalidDimensions(form, {})), false);
+  });
+
+  it("an EMPTY option list CLEARS the selection - nothing there is valid", () => {
+    // THE BUG THIS EXISTS FOR. `[]` from a successful preview is a finding:
+    // no designation is reachable from the levels above. A selected one is
+    // therefore invalid, and leaving it hides a value the operator cannot
+    // see, cannot change and cannot remove - silently narrowing every count
+    // to zero.
+    const pruned = rules.pruneInvalidDimensions(
+      { outlet_id: 5, designation_id: 7 },
+      { designation_id: [] }
+    );
+    assert.strictEqual(pruned.designation_id, "");
+    assert.strictEqual(pruned.outlet_id, 5, "the level that WAS answered is untouched");
+  });
+
+  it("empty lists on BOTH downstream levels clear both", () => {
+    const pruned = rules.pruneInvalidDimensions(
+      { outlet_id: 5, department_id: 3, designation_id: 7 },
+      { department_id: [], designation_id: [] }
+    );
+    assert.strictEqual(pruned.department_id, "");
+    assert.strictEqual(pruned.designation_id, "");
+    assert.strictEqual(pruned.outlet_id, 5);
+  });
+
+  it("a populated list still keeps a valid selection", () => {
+    const pruned = rules.pruneInvalidDimensions(
+      { outlet_id: 5, department_id: 3 },
+      { department_id: [{ id: 3, name: "Operations" }] }
+    );
+    assert.strictEqual(pruned.department_id, 3);
+  });
+
+  it("an empty list does NOT clear an All/blank dimension", () => {
+    const form = { outlet_id: 5, department_id: "" };
     assert.deepStrictEqual(rules.pruneInvalidDimensions(form, { department_id: [] }), form);
   });
 
@@ -443,6 +486,119 @@ describe("the cascade resets what it no longer offers", () => {
     const pruned = rules.pruneInvalidDimensions({ outlet_id: "5", department_id: "3" }, options);
     assert.strictEqual(pruned.outlet_id, "5");
     assert.strictEqual(pruned.department_id, "3");
+  });
+});
+
+describe("a write action requires the LATEST successful preview", () => {
+  /**
+   * The component's own state, driven as data. `revision` is bumped by every
+   * rule change; a preview carries the revision it answered for.
+   */
+  const at = (over = {}) => ({ preview: null, revision: 0, loading: false, error: null, ...over });
+  const answered = (revision, data = {}) => ({ data, revision });
+
+  it("a preview answering the CURRENT revision is fresh", () => {
+    assert.strictEqual(rules.previewIsFresh(at({ preview: answered(3), revision: 3 })), true);
+  });
+
+  it("changing a filter makes it stale IMMEDIATELY - before loading is even set", () => {
+    // THE WINDOW THIS CLOSES. Between the dropdown changing and the effect
+    // setting `loading`, React renders at least once with the OLD population
+    // on screen. Inferring freshness from `loading === false` leaves both
+    // write buttons live over it for that render.
+    const justChanged = at({ preview: answered(3), revision: 4, loading: false });
+    assert.strictEqual(rules.previewIsFresh(justChanged), false);
+  });
+
+  it("change filter -> Save is disabled immediately, with a reason", () => {
+    const gate = { preview: {}, fresh: rules.previewIsFresh(at({ preview: answered(3), revision: 4 })) };
+    assert.strictEqual(rules.canSaveRule({ form: { outlet_id: 5 }, ...gate }), false);
+    assert.strictEqual(rules.saveBlockedReason(gate), rules.MAPPING_MESSAGES.PREVIEW_STALE);
+  });
+
+  it("change filter -> Add Selected is disabled immediately, with a reason", () => {
+    const gate = { fresh: rules.previewIsFresh(at({ preview: answered(3), revision: 4 })) };
+    assert.strictEqual(rules.canAddSelected([11, 22], gate), false);
+    assert.strictEqual(rules.addSelectedBlockedReason([11, 22], gate), rules.MAPPING_MESSAGES.SELECTION_STALE);
+  });
+
+  it("a selection made under an OLDER rule cannot be submitted", () => {
+    // The people ticked were chosen against a population that is no longer
+    // the one on screen, and retainSelection has not reconciled them yet.
+    const stale = { fresh: false };
+    assert.strictEqual(rules.canAddSelected([11, 22, 33], stale), false);
+  });
+
+  it("the latest preview re-enables the actions", () => {
+    const fresh = rules.previewIsFresh(at({ preview: answered(4), revision: 4 }));
+    assert.strictEqual(fresh, true);
+    assert.strictEqual(rules.canSaveRule({ form: { outlet_id: 5 }, preview: {}, fresh }), true);
+    assert.strictEqual(rules.canAddSelected([11], { fresh }), true);
+  });
+
+  it("while the preview is loading, both stay disabled", () => {
+    const gate = { fresh: rules.previewIsFresh(at({ preview: answered(4), revision: 4, loading: true })) };
+    assert.strictEqual(rules.canSaveRule({ form: {}, ...gate }), false);
+    assert.strictEqual(rules.canAddSelected([11], gate), false);
+  });
+
+  it("a FAILED preview keeps both disabled, and says so", () => {
+    // The last good preview may still be on screen; it describes a rule
+    // nobody has validated. Leaving the buttons live is how an unchecked
+    // rule gets saved.
+    const error = "Could not preview this rule";
+    const gate = {
+      fresh: rules.previewIsFresh(at({ preview: answered(4), revision: 4, error })),
+      error,
+    };
+    assert.strictEqual(gate.fresh, false);
+    assert.strictEqual(rules.canSaveRule({ form: {}, ...gate }), false);
+    assert.strictEqual(rules.canAddSelected([11], gate), false);
+    assert.strictEqual(rules.saveBlockedReason(gate), rules.MAPPING_MESSAGES.PREVIEW_FAILED);
+    assert.strictEqual(rules.addSelectedBlockedReason([11], gate), rules.MAPPING_MESSAGES.PREVIEW_FAILED);
+  });
+
+  it("with NO preview at all, nothing is actionable", () => {
+    const gate = { fresh: rules.previewIsFresh(at({ preview: null, revision: 0 })) };
+    assert.strictEqual(gate.fresh, false);
+    assert.strictEqual(rules.canSaveRule({ form: {}, ...gate }), false);
+    assert.strictEqual(rules.canAddSelected([11], gate), false);
+  });
+
+  it("a duplicate rule STILL blocks Save after a fresh preview", () => {
+    // Freshness is a precondition, not a replacement for the other refusals.
+    const gate = {
+      fresh: rules.previewIsFresh(at({ preview: answered(4), revision: 4 })),
+      preview: { duplicate_rule: true },
+    };
+    assert.strictEqual(gate.fresh, true);
+    assert.strictEqual(rules.canSaveRule({ form: { outlet_id: 5 }, ...gate }), false);
+    assert.strictEqual(rules.saveBlockedReason(gate), rules.MAPPING_MESSAGES.DUPLICATE_RULE);
+  });
+
+  it("a duplicate rule does NOT block Add Selected", () => {
+    // Adding the people is a different action from saving the rule, and an
+    // existing identical rule is no reason to refuse it.
+    const gate = { fresh: true, preview: { duplicate_rule: true } };
+    assert.strictEqual(rules.canAddSelected([11], gate), true);
+  });
+
+  it("an in-flight write blocks the other action too", () => {
+    const gate = { fresh: true, saving: "rule" };
+    assert.strictEqual(rules.canSaveRule({ form: {}, ...gate }), false);
+    assert.strictEqual(rules.canAddSelected([11], gate), false);
+  });
+
+  it("freshness is never inferred from loading alone", () => {
+    // Stated as a property: with loading false and no error, a preview for
+    // an older revision is STILL not fresh.
+    for (let revision = 1; revision <= 5; revision += 1) {
+      assert.strictEqual(
+        rules.previewIsFresh(at({ preview: answered(revision - 1), revision, loading: false })),
+        false,
+        `revision ${revision}`
+      );
+    }
   });
 });
 
@@ -969,7 +1125,7 @@ describe("Map Employees - the multi-level form", () => {
   it("takes its options from the PREVIEW, never from the master lists", () => {
     // Master lists offer combinations that match nobody, and an operator who
     // picks one reads a 0 and cannot tell a mistake from an empty outlet.
-    assert.match(mapModal, /preview\.rule_options/);
+    assert.match(mapModal, /previewData && previewData\.rule_options/);
     for (const hook of ["useOutlets", "useDesignations", "useDepartments"]) {
       assert.ok(!new RegExp(hook).test(mapModal), `${hook} must no longer be the source`);
     }
@@ -984,8 +1140,8 @@ describe("Map Employees - the multi-level form", () => {
   });
 
   it("clears a downstream value the cascade stopped offering", () => {
-    assert.match(mapModal, /pruneInvalidDimensions\(current, data\.rule_options/);
-    assert.match(mapModal, /dimensionsWerePruned\(current, pruned\)/);
+    assert.match(mapModal, /pruneInvalidDimensions\(form, data\.rule_options/);
+    assert.match(mapModal, /dimensionsWerePruned\(form, pruned\)/);
   });
 
   it("never asks anybody to type a numeric id", () => {
@@ -1002,7 +1158,7 @@ describe("Map Employees - the multi-level form", () => {
     // `search` is deliberately absent from the dependency list AND from the
     // request: the preview must always hold the rule's WHOLE population,
     // which is what makes the selection safe.
-    assert.match(mapModal, /\[isOpen, telegramGroupId, form\]/);
+    assert.match(mapModal, /\[isOpen, telegramGroupId, form, revision, changeRule\]/);
     assert.ok(
       !/previewTelegramGroupMapping\([^)]*search/.test(mapModal),
       "search must not be sent - it would filter the population"
@@ -1024,7 +1180,7 @@ describe("Map Employees - the multi-level form", () => {
 
   it("filters the table client-side, so search only changes what is shown", () => {
     assert.match(mapModal, /visibleEmployees\(population, search\)/);
-    assert.match(mapModal, /const population = \(preview && preview\.employees\)/);
+    assert.match(mapModal, /const population = \(previewData && previewData\.employees\)/);
   });
 
   it("Select All applies to the displayed rows only", () => {
@@ -1054,7 +1210,7 @@ describe("Map Employees - the multi-level form", () => {
   });
 
   it("says an identical rule already exists BEFORE Save is pressed", () => {
-    assert.match(mapModal, /preview\.duplicate_rule/);
+    assert.match(mapModal, /previewData\.duplicate_rule/);
     assert.match(mapModal, /MAPPING_MESSAGES\.DUPLICATE_RULE/);
   });
 
@@ -1066,10 +1222,47 @@ describe("Map Employees - the multi-level form", () => {
   });
 
   it("gates each action on its own helper, never on an ad-hoc condition", () => {
-    assert.match(mapModal, /isDisabled=\{!canSaveRule\(/);
-    assert.match(mapModal, /isDisabled=\{!canAddSelected\(selected\)/);
-    assert.match(mapModal, /saveBlockedReason\(/);
-    assert.match(mapModal, /addSelectedBlockedReason\(selected\)/);
+    assert.match(mapModal, /isDisabled=\{!saveAllowed\}/);
+    assert.match(mapModal, /isDisabled=\{!addAllowed\}/);
+    assert.match(mapModal, /canSaveRule\(\{ form, \.\.\.gate \}\)/);
+    assert.match(mapModal, /canAddSelected\(selected, gate\)/);
+  });
+
+  it("carries an explicit revision, not `loading === false`, as freshness", () => {
+    assert.match(mapModal, /const \[revision, setRevision\] = useState\(0\)/);
+    assert.match(mapModal, /const issuedFor = revision/);
+    assert.match(mapModal, /setPreview\(\{ data, revision: issuedFor \}\)/);
+    assert.match(mapModal, /previewIsFresh\(\{ preview, revision, loading, error: previewError \}\)/);
+  });
+
+  it("every rule change goes through the one function that bumps it", () => {
+    assert.match(mapModal, /const changeRule = useCallback/);
+    assert.match(mapModal, /setDimension = \(field, value\) => changeRule\(/);
+    // No direct setForm outside changeRule and the reset in close().
+    const directSets = [...mapModal.matchAll(/setForm\(/g)].length;
+    assert.strictEqual(directSets, 2, "only changeRule and close() may set the form");
+  });
+
+  it("does not publish a preview whose own response pruned the rule", () => {
+    // It answered for a rule that is about to change; publishing it would
+    // mark a stale population fresh and hand both buttons to it.
+    assert.match(mapModal, /changeRule\(pruned\);\s*\n\s*return;/);
+  });
+
+  it("refuses the write even if the disabled button is bypassed", () => {
+    assert.match(mapModal, /if \(!saveAllowed\) return;/);
+    assert.match(mapModal, /if \(!addAllowed\) return;/);
+  });
+
+  it("keeps a failed preview apart from a failed save", () => {
+    // A failed Save must not make a good preview look stale, and a failed
+    // preview must not look like a failed Save.
+    assert.match(mapModal, /const \[previewError, setPreviewError\]/);
+    assert.match(mapModal, /const \[actionError, setActionError\]/);
+  });
+
+  it("marks a stale population on screen rather than silently showing it", () => {
+    assert.match(mapModal, /MAPPING_MESSAGES\.PREVIEW_STALE/);
   });
 
   it("shows the server's refusal verbatim", () => {

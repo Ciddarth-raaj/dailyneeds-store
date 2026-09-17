@@ -36,6 +36,7 @@ import {
   canAddSelected,
   canSaveRule,
   countsScopeNotice,
+  previewIsFresh,
   isCountsUnavailable,
   allShownSelected,
   dimensionsWerePruned,
@@ -106,11 +107,32 @@ export default function MapTelegramGroupEmployees({
   submitting,
 }) {
   const [form, setForm] = useState({});
+  /**
+   * THE FRESHNESS TOKEN. Bumped by every change to the rule, and carried on
+   * the preview that answered for it.
+   *
+   * It exists because `loading === false` is not freshness. Between the
+   * operator changing a dropdown and the effect setting `loading`, React has
+   * rendered at least once with the OLD population on screen and both write
+   * buttons live over it. An explicit revision is stale on the very same
+   * render as the change, with no window at all.
+   */
+  const [revision, setRevision] = useState(0);
   const [search, setSearch] = useState("");
+  /** `{ data, revision }`, set ONLY on success. Never on failure. */
   const [preview, setPreview] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  /** The preview's own failure. Blocks both write actions while it stands. */
+  const [previewError, setPreviewError] = useState(null);
+  /** A failed Save/Add. Separate, so it cannot make a good preview look stale. */
+  const [actionError, setActionError] = useState(null);
   const [selected, setSelected] = useState([]);
+
+  /** Every rule change goes through here, so the revision cannot be forgotten. */
+  const changeRule = useCallback((next) => {
+    setForm(next);
+    setRevision((current) => current + 1);
+  }, []);
 
   /**
    * THE CASCADE'S OPTIONS COME FROM THE PREVIEW, NOT FROM THE MASTERS.
@@ -125,7 +147,16 @@ export default function MapTelegramGroupEmployees({
    * the cascade in the browser would be a second one, and the day the two
    * disagreed the screen would be showing a population the server does not.
    */
-  const ruleOptions = useMemo(() => (preview && preview.rule_options) || {}, [preview]);
+  /**
+   * IS WHAT IS ON SCREEN AN ANSWER ABOUT THE RULE IN THE FORM?
+   *
+   * Everything actionable hangs off this one boolean, so there is a single
+   * place where "the preview is current" is decided rather than three
+   * conditions that can drift apart.
+   */
+  const previewData = preview ? preview.data : null;
+  const fresh = previewIsFresh({ preview, revision, loading, error: previewError });
+  const ruleOptions = useMemo(() => (previewData && previewData.rule_options) || {}, [previewData]);
   const optionsFor = useCallback(
     (field) => (Array.isArray(ruleOptions[field]) ? ruleOptions[field] : []),
     [ruleOptions]
@@ -157,26 +188,41 @@ export default function MapTelegramGroupEmployees({
   useEffect(() => {
     if (!isOpen || !telegramGroupId) return undefined;
     let ignore = false;
+    // The revision this request answers for. `form` and `revision` move
+    // together, so the closure holds a consistent pair.
+    const issuedFor = revision;
     setLoading(true);
-    setError(null);
+    setPreviewError(null);
     previewTelegramGroupMapping(telegramGroupId, rulePayload(form))
       .then((data) => {
         if (ignore) return;
-        setPreview(data);
+
         // A DOWNSTREAM VALUE THE CASCADE NO LONGER OFFERS IS CLEARED. A
         // hidden department the operator cannot see or change would go on
-        // narrowing the population invisibly. Setting the form re-runs this
-        // effect once with the settled rule.
-        setForm((current) => {
-          const pruned = pruneInvalidDimensions(current, data.rule_options || {});
-          return dimensionsWerePruned(current, pruned) ? pruned : current;
-        });
+        // narrowing the population invisibly.
+        //
+        // WHEN THAT HAPPENS THIS PREVIEW IS NOT PUBLISHED. It answered for a
+        // rule that is about to change, so publishing it would mark a stale
+        // population as fresh and hand both write buttons to it. The rule
+        // change re-runs this effect, and the NEXT response is the one that
+        // becomes actionable.
+        const pruned = pruneInvalidDimensions(form, data.rule_options || {});
+        if (dimensionsWerePruned(form, pruned)) {
+          changeRule(pruned);
+          return;
+        }
+
+        setPreview({ data, revision: issuedFor });
         // THE SELECTION BELONGS TO THE RULE'S POPULATION, not to what the
         // search box happens to be showing.
         setSelected((current) => retainSelection(current, data.employees || []));
       })
       .catch((err) => {
-        if (!ignore) setError(err.message || "Could not preview this rule");
+        if (ignore) return;
+        // The last good preview stays on screen - it is still useful - but
+        // nothing is published for THIS revision, so it is not fresh and
+        // both write actions stay blocked.
+        setPreviewError(err.message || "Could not preview this rule");
       })
       .finally(() => {
         if (!ignore) setLoading(false);
@@ -184,14 +230,14 @@ export default function MapTelegramGroupEmployees({
     return () => {
       ignore = true;
     };
-  }, [isOpen, telegramGroupId, form]);
+  }, [isOpen, telegramGroupId, form, revision, changeRule]);
 
   /** The rule's whole population - what the selection is measured against. */
-  const population = (preview && preview.employees) || [];
+  const population = (previewData && previewData.employees) || [];
   /** What the table shows. The search narrows THIS, never the selection. */
   const shown = visibleEmployees(population, search);
 
-  const setDimension = (field, value) => setForm((current) => ({ ...current, [field]: value }));
+  const setDimension = (field, value) => changeRule({ ...form, [field]: value });
 
   const toggle = (employeeId) =>
     setSelected((current) =>
@@ -205,45 +251,55 @@ export default function MapTelegramGroupEmployees({
 
   const close = () => {
     setForm({});
+    setRevision(0);
     setSearch("");
     setSelected([]);
     setPreview(null);
-    setError(null);
+    setPreviewError(null);
+    setActionError(null);
     onClose();
   };
 
-  const saveBlocked = saveBlockedReason({ form, preview, saving: submitting });
-  const addBlocked = addSelectedBlockedReason(selected);
+  const gate = { preview: previewData, saving: submitting, fresh, error: previewError };
+  const saveAllowed = canSaveRule({ form, ...gate });
+  const addAllowed = canAddSelected(selected, gate);
+  const saveBlocked = saveBlockedReason(gate);
+  const addBlocked = addSelectedBlockedReason(selected, gate);
 
   const handleSaveRule = async () => {
-    setError(null);
+    // BELT AND BRACES. The button is disabled, but a rule that was never
+    // previewed must not be writable through any path - a stray keyboard
+    // activation or a future refactor of the disabled prop included.
+    if (!saveAllowed) return;
+    setActionError(null);
     try {
       await onSaveRule(rulePayload(form));
       close();
     } catch (err) {
-      setError(err.message || "Could not save the rule");
+      setActionError(err.message || "Could not save the rule");
     }
   };
 
   const handleAddSelected = async () => {
-    setError(null);
+    if (!addAllowed) return;
+    setActionError(null);
     try {
       await onAddSelected(selected);
       close();
     } catch (err) {
-      setError(err.message || "Could not add the selected employees");
+      setActionError(err.message || "Could not add the selected employees");
     }
   };
 
-  const countsNotice = countsScopeNotice(preview);
+  const countsNotice = countsScopeNotice(previewData);
 
   return (
     <CustomModal isOpen={isOpen} onClose={close} title="Map Employees" size="4xl">
       <Stack spacing={4}>
-        {error && (
+        {(previewError || actionError) && (
           <Alert status="error" borderRadius="md">
             <AlertIcon />
-            {error}
+            {previewError || actionError}
           </Alert>
         )}
 
@@ -288,7 +344,7 @@ export default function MapTelegramGroupEmployees({
               {MAPPING_MESSAGES.RULE_IS_ALL_EMPLOYEES}
             </Alert>
           )}
-          {preview && preview.duplicate_rule && (
+          {fresh && previewData.duplicate_rule && (
             <Alert status="info" borderRadius="md" mt={2}>
               <AlertIcon />
               {MAPPING_MESSAGES.DUPLICATE_RULE}
@@ -296,16 +352,28 @@ export default function MapTelegramGroupEmployees({
           )}
         </Box>
 
+        {!fresh && !previewError && preview && (
+          <Alert status="info" borderRadius="md">
+            <AlertIcon />
+            {/* The old population is still useful to look at, so it stays -
+                but it is marked as describing a rule that has moved on, and
+                both write buttons are disabled over it. */}
+            {MAPPING_MESSAGES.PREVIEW_STALE}
+          </Alert>
+        )}
+
         <Divider />
 
         <Flex justify="space-between" align="center" gap={3} wrap="wrap">
           <Box>
             <Text fontWeight="semibold">
-              {loading ? "Counting…" : `${(preview && preview.total_matched) || 0} employee(s) match`}
+              {loading || !fresh
+                ? "Counting…"
+                : `${previewData.total_matched || 0} employee(s) match`}
             </Text>
-            {preview && !isCountsUnavailable(preview) && (
+            {fresh && !isCountsUnavailable(previewData) && (
               <Text fontSize="xs" color="gray.600">
-                {(preview && preview.total_connected) || 0} already connected to Telegram
+                {previewData.total_connected || 0} already connected to Telegram
               </Text>
             )}
             {countsNotice && (
@@ -396,7 +464,7 @@ export default function MapTelegramGroupEmployees({
                 size="sm"
                 colorScheme="blue"
                 isLoading={submitting === "rule"}
-                isDisabled={!canSaveRule({ form, preview, saving: submitting })}
+                isDisabled={!saveAllowed}
                 onClick={handleSaveRule}
               >
                 {RULE_ACTION.SAVE_RULE}
@@ -409,7 +477,7 @@ export default function MapTelegramGroupEmployees({
                 size="sm"
                 colorScheme="teal"
                 isLoading={submitting === "selected"}
-                isDisabled={!canAddSelected(selected) || Boolean(submitting)}
+                isDisabled={!addAllowed}
                 onClick={handleAddSelected}
               >
                 {RULE_ACTION.ADD_SELECTED} ({selected.length})

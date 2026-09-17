@@ -35,6 +35,9 @@ export const TARGET_STATE = {
 export const MAPPING_MESSAGES = {
   DUPLICATE_RULE: "An identical rule is already on this group",
   NO_EMPLOYEES_SELECTED: "Select at least one employee",
+  PREVIEW_STALE: "Checking who this rule covers…",
+  SELECTION_STALE: "Checking who this rule covers before adding anybody…",
+  PREVIEW_FAILED: "This rule could not be checked, so nothing can be saved or added.",
   TOO_MANY_EMPLOYEES: "Select at most 200 employees at a time",
   RULE_IS_ALL_EMPLOYEES:
     "Every dimension is All, so this rule covers every employee in the company.",
@@ -125,22 +128,53 @@ export function rulePayload(form = {}) {
 export const narrowedCount = (form = {}) => Object.keys(rulePayload(form)).length;
 
 /**
+ * IS THE PREVIEW ON SCREEN AN ANSWER ABOUT THE RULE IN THE FORM?
+ *
+ * An EXPLICIT revision, not `loading === false`. The moment a dimension
+ * changes, the form's revision moves ahead of the preview's and the answer
+ * is stale - before any request has been issued, before `loading` has had a
+ * chance to become true, and whatever the network does next. Inferring
+ * freshness from `loading` alone leaves a window on every single change in
+ * which the previous rule's population is shown as if it were this one's,
+ * and both write buttons are live over it.
+ *
+ * A FAILED PREVIEW IS NOT FRESH EITHER. After an error the last SUCCESSFUL
+ * preview may still be on screen, and it describes a rule nobody has
+ * validated. Leaving the buttons live over it is how a rule gets saved that
+ * was never checked.
+ */
+export function previewIsFresh({ preview, revision, loading, error } = {}) {
+  if (loading) return false;
+  if (error) return false;
+  if (!preview) return false;
+  return preview.revision === revision;
+}
+
+/**
  * Is this form a rule that may be saved?
  *
- * ALMOST ALWAYS YES, and deliberately: every dimension is optional, so there
- * is no "pick a type first" step left to get wrong. The two refusals are a
- * rule the group ALREADY HAS - which the preview reports before Save is
- * pressed rather than after - and a request already in flight.
+ * THE RULE MUST HAVE BEEN PREVIEWED SUCCESSFULLY, and that is the point of
+ * the gate: Save writes configuration that goes on deciding who is in a
+ * Telegram group, so it may only ever write a rule the server has just
+ * validated and the operator has just seen the population of.
+ *
+ * Beyond that the answer is almost always yes, deliberately: every dimension
+ * is optional, so there is no "pick a type first" step left to get wrong.
+ * The remaining refusals are a rule the group ALREADY HAS - reported before
+ * Save is pressed rather than after - and a request already in flight.
  */
-export function canSaveRule({ form, preview, saving } = {}) {
+export function canSaveRule({ form, preview, saving, fresh } = {}) {
   if (saving) return false;
+  if (!fresh) return false;
   if (preview && preview.duplicate_rule) return false;
   return typeof form === "object" && form !== null;
 }
 
 /** Why Save is disabled, in the words the person needs. Null when it is not. */
-export function saveBlockedReason({ form, preview, saving } = {}) {
+export function saveBlockedReason({ preview, saving, fresh, error } = {}) {
   if (saving) return null;
+  if (error) return MAPPING_MESSAGES.PREVIEW_FAILED;
+  if (!fresh) return MAPPING_MESSAGES.PREVIEW_STALE;
   if (preview && preview.duplicate_rule) return MAPPING_MESSAGES.DUPLICATE_RULE;
   return null;
 }
@@ -202,18 +236,28 @@ export function dimensionState(row, key) {
  * widens Department's options, which may in turn keep a Designation that a
  * bottom-up pass would already have thrown away.
  *
- * A LEVEL WITH NO OPTIONS AT ALL CLEARS NOTHING. An empty list means the
- * preview has not answered yet, or the caller may see nobody; treating that
- * as "every value is invalid" would wipe the operator's form while it
- * loaded.
+ * AN ABSENT KEY AND AN EMPTY LIST ARE DIFFERENT ANSWERS, and conflating
+ * them was a real bug. After a SUCCESSFUL preview, `department_id: []` is a
+ * finding - "no department is reachable from the levels above" - and a
+ * selected department is therefore invalid and must go. A MISSING key is not
+ * an answer at all: the preview has not run, or failed, and clearing on that
+ * basis would wipe the operator's form while it loaded.
+ *
+ * Treating `[]` as "not loaded" left a hidden department selected that the
+ * operator could not see, could not change and could not remove, silently
+ * narrowing every count to zero.
  */
 export function pruneInvalidDimensions(form = {}, options = {}) {
   const next = { ...form };
   for (const dimension of RULE_DIMENSIONS) {
     const value = next[dimension.field];
+    // All/blank is the absence of a restriction and is always valid.
     if (value === undefined || value === null || value === "") continue;
     const offered = options[dimension.field];
-    if (!Array.isArray(offered) || offered.length === 0) continue;
+    // The key is absent: no answer for this level, so no grounds to clear.
+    if (!Array.isArray(offered)) continue;
+    // The key is present. `[]` means nothing is valid here, so the selected
+    // value is not either - the loop below finds no match and clears it.
     if (!offered.some((option) => Number(option.id) === Number(value))) {
       next[dimension.field] = "";
     }
@@ -294,12 +338,22 @@ export const allShownSelected = (selected = [], shown = []) => {
  * button is pressed is the difference between a disabled control with a
  * reason on it and a refusal after the fact.
  */
-export function canAddSelected(employeeIds = []) {
+export function canAddSelected(employeeIds = [], { fresh = true, saving } = {}) {
+  if (saving) return false;
+  // THE SELECTION MUST BELONG TO THE RULE CURRENTLY IN THE FORM. Once a
+  // dimension changes, the ticked people were chosen under a rule that is no
+  // longer the one on screen, and `retainSelection` has not yet reconciled
+  // them against the new population - so granting now could add somebody the
+  // operator is no longer looking at.
+  if (!fresh) return false;
   const ids = Array.isArray(employeeIds) ? employeeIds : [];
   return ids.length > 0 && ids.length <= BULK_GRANT_MAX;
 }
 
-export function addSelectedBlockedReason(employeeIds = []) {
+export function addSelectedBlockedReason(employeeIds = [], { fresh = true, saving, error } = {}) {
+  if (saving) return null;
+  if (error) return MAPPING_MESSAGES.PREVIEW_FAILED;
+  if (!fresh) return MAPPING_MESSAGES.SELECTION_STALE;
   const ids = Array.isArray(employeeIds) ? employeeIds : [];
   if (ids.length === 0) return MAPPING_MESSAGES.NO_EMPLOYEES_SELECTED;
   if (ids.length > BULK_GRANT_MAX) return MAPPING_MESSAGES.TOO_MANY_EMPLOYEES;
