@@ -633,7 +633,7 @@ describe("View Employees", () => {
   });
 });
 
-describe("NO MEMBERSHIP ACTION EXISTS ANYWHERE IN THE 3A UI", () => {
+describe("THE 3A UI STILL PERFORMS NO TELEGRAM ACTION, and 3C's is separate", () => {
   const screens = {
     "map.jsx": read("pages/master/telegram-groups/map.jsx"),
     "AddTelegramGroupMapping.jsx": read("components/master/AddTelegramGroupMapping.jsx"),
@@ -642,7 +642,7 @@ describe("NO MEMBERSHIP ACTION EXISTS ANYWHERE IN THE 3A UI", () => {
     "util/telegramGroupMapping.js": read("util/telegramGroupMapping.js"),
   };
 
-  it("offers no Join, Invite, Add Member, Remove Member or Sync control", () => {
+  it("offers no Join, Invite, Kick, Ban or Sync control", () => {
     // COMMENTS ARE STRIPPED, JSX TEXT IS NOT. The distinction matters both
     // ways: a button's label is JSX text and must be scanned, while these
     // files' own headers say IN PROSE that no invite or member control
@@ -650,11 +650,15 @@ describe("NO MEMBERSHIP ACTION EXISTS ANYWHERE IN THE 3A UI", () => {
     // property being asserted.
     for (const [name, raw] of Object.entries(screens)) {
       const source = strip(raw);
+      // PHASE 3C ADDED ONE THING TO THIS SCREEN and it is deliberately not
+      // in this list: a managed-membership panel whose "Add Employee" makes
+      // a group REQUIRED for somebody. It cannot put anybody in a Telegram
+      // group - no bot can - and the panel says so. What must still be
+      // absent is anything that claims to act on Telegram directly from a
+      // configuration screen.
       for (const label of [
         "Join Group",
         "Invite",
-        "Add Member",
-        "Remove Member",
         "Add to Group",
         "Remove from Group",
         "Kick",
@@ -670,21 +674,36 @@ describe("NO MEMBERSHIP ACTION EXISTS ANYWHERE IN THE 3A UI", () => {
     }
   });
 
-  it("calls only the four configuration endpoints", () => {
+  it("calls the configuration endpoints, plus Phase 3C's managed membership - and nothing else", () => {
     const calls = [...helper.matchAll(/API\.(get|post|put|delete)\(`?\/telegram-groups([^`)]*)/g)].map(
       (m) => `${m[1]} ${m[2]}`
     );
     for (const call of calls) {
+      const allowed =
+        /matched-employees/.test(call) ||
+        // Phase 3C: managed membership under the Group Map, which is where
+        // `manage_telegram_groups` lives. Still no invite, join, ban, kick
+        // or sync endpoint anywhere on this surface.
+        /\/membership/.test(call);
       assert.ok(
-        !/invite|join|member(?!s\b)|ban|kick|sync/i.test(call) ||
-          /matched-employees/.test(call),
+        !/invite|join|member(?!s\b)|ban|kick|sync/i.test(call) || allowed,
         `unexpected Telegram call: ${call}`
       );
+      assert.ok(!/invite|join|ban|kick|sync/i.test(call), `unexpected Telegram action: ${call}`);
     }
     assert.match(helper, /getTelegramGroupMappings/);
     assert.match(helper, /addTelegramGroupMapping/);
     assert.match(helper, /deleteTelegramGroupMapping/);
     assert.match(helper, /getTelegramGroupMatchedEmployees/);
+  });
+
+  it("managed membership is the ONLY write Phase 3C added here, and it is group-scoped", () => {
+    assert.match(helper, /grantTelegramGroupMembership/);
+    assert.match(helper, /revokeTelegramGroupMembership/);
+    // Both name a group in the path: there is no employee-scoped write that
+    // could be reached from an employee screen under `employee_edit`.
+    const grant = helper.slice(helper.indexOf("export const grantTelegramGroupMembership"));
+    assert.match(grant.slice(0, 400), /\/telegram-groups\/\$\{id\}\/membership/);
   });
 
   it("sends no branch of its own to matched-employees", () => {

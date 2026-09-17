@@ -110,3 +110,28 @@ export const getTelegramGroupMatchedEmployees = (id, mappingId) =>
     if (res.data?.code === 200) return res.data.data;
     return fail(res, "Failed to fetch the matched employees");
   });
+
+/* ------------------------------------------- Phase 3C: managed membership */
+/**
+ * MANAGED MEMBERSHIP lives here, in the Group Map's API surface, because it
+ * is `manage_telegram_groups` work: granting somebody a company group is
+ * granting ACCESS, not recording a detail about them. Nothing in
+ * `helper/employeeTelegram.js` may write it.
+ */
+export const getTelegramGroupMembership = (id) =>
+  API.get(`/telegram-groups/${id}/membership`).then((res) => {
+    if (res.data?.code === 200) return Array.isArray(res.data.data) ? res.data.data : [];
+    return fail(res, "Failed to load this group's managed membership");
+  });
+
+export const grantTelegramGroupMembership = (id, employeeId) =>
+  API.post(`/telegram-groups/${id}/membership`, { employee_id: employeeId }).then((res) => {
+    if (res.data?.code === 200) return res.data;
+    return fail(res, "Failed to add the employee to this group");
+  });
+
+export const revokeTelegramGroupMembership = (id, employeeId) =>
+  API.delete(`/telegram-groups/${id}/membership/${employeeId}`).then((res) => {
+    if (res.data?.code === 200) return res.data;
+    return fail(res, "Failed to remove the employee from this group");
+  });

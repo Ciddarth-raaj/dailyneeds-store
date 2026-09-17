@@ -25,9 +25,13 @@ import {
 } from "../../../customHooks/useTelegramGroupMappings";
 import AddTelegramGroupMapping from "../../../components/master/AddTelegramGroupMapping";
 import TelegramGroupMatchedEmployees from "../../../components/master/TelegramGroupMatchedEmployees";
+import TelegramGroupManagedMembership from "../../../components/master/TelegramGroupManagedMembership";
+import { useTelegramGroupMembership } from "../../../customHooks/useTelegramGroupMembership";
 import {
   addTelegramGroupMapping,
   deleteTelegramGroupMapping,
+  grantTelegramGroupMembership,
+  revokeTelegramGroupMembership,
 } from "../../../helper/telegramGroups";
 import { displayOutlet } from "../../../util/telegramGroup";
 import {
@@ -103,6 +107,9 @@ export default function TelegramGroupMapPage() {
 
   const { data, loading, error, refetch } = useTelegramGroupMappings(id, { enabled: Boolean(id) });
   const matched = useTelegramGroupMatchedEmployees(id);
+  // Phase 3C: who is MANAGED into this group, by rule and by hand.
+  const membership = useTelegramGroupMembership(id, { enabled: Boolean(id) });
+  const [membershipBusy, setMembershipBusy] = useState(false);
 
   const [addOpen, setAddOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -125,6 +132,45 @@ export default function TelegramGroupMapPage() {
     setEmployeesOpen(false);
     matched.reset();
   }, [matched]);
+
+  /**
+   * A grant makes the group REQUIRED for that employee. It does not - and
+   * cannot - put them in the Telegram group: no bot may add a user to a
+   * chat. The toast says what actually happened.
+   */
+  const handleGrant = useCallback(
+    async (employeeId) => {
+      setMembershipBusy(true);
+      try {
+        await grantTelegramGroupMembership(id, employeeId);
+        toast.success("Added. This group is now required for them, and their Telegram panel offers the join link.");
+        await membership.refetch();
+      } catch (err) {
+        toast.error(err.message || "Failed to add the employee");
+      } finally {
+        setMembershipBusy(false);
+      }
+    },
+    [id, membership]
+  );
+
+  const handleRevoke = useCallback(
+    async (employeeId) => {
+      setMembershipBusy(true);
+      try {
+        await revokeTelegramGroupMembership(id, employeeId);
+        // Deliberately not "Removed": the claim is now pending, and whether
+        // anybody leaves depends on whether a mapping still matches them.
+        toast.success("Removal requested. If no mapping still matches them, Diya removes them on its next pass.");
+        await membership.refetch();
+      } catch (err) {
+        toast.error(err.message || "Failed to remove the employee");
+      } finally {
+        setMembershipBusy(false);
+      }
+    },
+    [id, membership]
+  );
 
   const handleAdd = useCallback(
     async (payload) => {
@@ -366,6 +412,16 @@ export default function TelegramGroupMapPage() {
                   </Button>
                 )}
               </Flex>
+
+              <TelegramGroupManagedMembership
+                claims={membership.claims}
+                loading={membership.loading}
+                error={membership.error}
+                canManage={canManage}
+                onGrant={handleGrant}
+                onRevoke={handleRevoke}
+                busy={membershipBusy}
+              />
 
               {mappings.length === 0 ? (
                 <Alert status="info" borderRadius="md">

@@ -26,6 +26,7 @@ import {
   telegramLabel,
 } from "../../util/employeeTelegram";
 import TelegramRequiredGroups from "./TelegramRequiredGroups";
+import TelegramManagedMembership from "./TelegramManagedMembership";
 
 /**
  * TELEGRAM SETUP - the whole flow, in one component.
@@ -349,7 +350,13 @@ function TelegramSetupPanel({
           group before that, and a required-group list above an unconnected
           employee is a to-do list nobody can action. */}
       {connected && !reconnecting && (
-        <TelegramRequiredGroups employeeId={employeeId} connected={connected} />
+        <>
+          <TelegramRequiredGroups employeeId={employeeId} connected={connected} />
+          {/* Phase 3C, read-only: WHY each group applies, and whether a
+              removal has been decided but not yet performed. No control here -
+              granting is Group Map work under a different permission. */}
+          <TelegramManagedMembership employeeId={employeeId} connected={connected} />
+        </>
       )}
 
       {!canManage && (

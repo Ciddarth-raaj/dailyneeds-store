@@ -279,7 +279,27 @@ describe("integration with the existing flows", () => {
   });
 
   it("appears only once the identity is connected", () => {
-    assert.match(setupPanel, /\{connected && !reconnecting && \(\s*<TelegramRequiredGroups/);
+    // The GUARD is what matters, not the exact shape of the block: Phase 3C
+    // put its read-only managed-membership list beside this one inside the
+    // same `connected && !reconnecting` fragment, which is correct - there is
+    // nothing to say about managed groups for somebody with no identity
+    // either. The panel has more than one such guard, so the one wrapping
+    // this component is found by walking back from the component itself.
+    const at = setupPanel.indexOf("<TelegramRequiredGroups");
+    assert.notEqual(at, -1);
+    const before = setupPanel.slice(0, at);
+    const guardAt = before.lastIndexOf("{connected && !reconnecting && (");
+    assert.notEqual(guardAt, -1, "required groups must sit inside the connected guard");
+    // Nothing closes the guard between it and the component.
+    assert.ok(!/\)\}/.test(setupPanel.slice(guardAt, at)));
+  });
+
+  it("and so does Phase 3C's read-only managed-membership list", () => {
+    const at = setupPanel.indexOf("<TelegramManagedMembership");
+    assert.notEqual(at, -1);
+    const guardAt = setupPanel.slice(0, at).lastIndexOf("{connected && !reconnecting && (");
+    assert.notEqual(guardAt, -1);
+    assert.ok(!/\)\}/.test(setupPanel.slice(guardAt, at)));
   });
 
   it("reaches the onboarding wizard through that same panel", () => {

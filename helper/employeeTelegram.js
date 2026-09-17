@@ -86,6 +86,25 @@ const employeeTelegram = {
     }),
 
   /**
+   * GET /hr/employee/:id/telegram/membership - `view_employees` + branch
+   * scope. Phase 3C, and READ-ONLY on purpose.
+   *
+   * It says which groups this employee is MANAGED into and by which source.
+   * There is deliberately no grant or revoke here: that is
+   * `manage_telegram_groups` work on the Group Map, because granting a
+   * company group is granting access rather than recording an employee
+   * detail, and `employee_edit` must not become a way in.
+   *
+   * Names groups. No Telegram user id, chat id or invite link.
+   */
+  getManagedMembership: (employeeId) =>
+    new Promise((resolve, reject) => {
+      API.get(`/hr/employee/${employeeId}/telegram/membership`)
+        .then((res) => resolve(res.data))
+        .catch((err) => reject(err));
+    }),
+
+  /**
    * POST /hr/employee/:id/telegram/disconnect — same key as the link.
    *
    * ONLY the explicit Disconnect action calls this. Reconnecting does NOT:
