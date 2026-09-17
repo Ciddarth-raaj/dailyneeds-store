@@ -438,6 +438,7 @@ export const PERMISSIONS = {
     view_purchase_uom: "View Purchase UOM",
     view_issue_grn: "View Issue GRN",
     ignore_grn_issues: "Ignore GRN Issues",
+    verify_grn: "Verify GRN",
   },
 
   // Purchase Ref
