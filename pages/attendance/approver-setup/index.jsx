@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Alert, AlertIcon, Badge, Button, Flex, FormControl, FormLabel, Input, Select, Stack, Text, useBreakpointValue, useToast } from "@chakra-ui/react";
+import { Alert, AlertIcon, Button, Flex, FormControl, FormLabel, Input, Select, Stack, Text, useBreakpointValue, useToast } from "@chakra-ui/react";
 import GlobalWrapper from "../../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../../components/CustomContainer";
 import ApproverSetupTable from "../../../components/attendance/approver-setup/ApproverSetupTable";
+import ApproverSetupSummary from "../../../components/attendance/approver-setup/ApproverSetupSummary";
 import SetApproversModal from "../../../components/attendance/approver-setup/SetApproversModal";
 import ReplaceApproverModal from "../../../components/attendance/approver-setup/ReplaceApproverModal";
 import useOutlets from "../../../customHooks/useOutlets";
@@ -27,7 +28,8 @@ import { apiMessage, buildListParams, isOk } from "../../../util/attendanceAppro
  * Approver moves one person out of every mapping and every undecided
  * pending step at one level. No payroll or salary field appears here.
  */
-const EMPTY = { department_id: "", store_id: "", designation_id: "", employee_id: "", search: "" };
+const EMPTY = { department_id: "", store_id: "", designation_id: "", employee_id: "", search: "", setup_status: null };
+const EMPTY_SUMMARY = { attendance_required: 0, completed: 0, missing: 0 };
 
 export default function AttendanceApproverSetupPage() {
   const toast = useToast();
@@ -41,6 +43,7 @@ export default function AttendanceApproverSetupPage() {
   const [applied, setApplied] = useState(EMPTY);
   const [rows, setRows] = useState([]);
   const [total, setTotal] = useState(0);
+  const [summary, setSummary] = useState(EMPTY_SUMMARY);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);
@@ -60,13 +63,18 @@ export default function AttendanceApproverSetupPage() {
       if (!isOk(res)) {
         setRows([]);
         setTotal(0);
+        setSummary(EMPTY_SUMMARY);
         setError(apiMessage(res, "The approver setup could not be loaded"));
       } else {
         setRows(Array.isArray(res.rows) ? res.rows : []);
         setTotal(Number(res.total) || 0);
+        // The server's counts over the whole filtered population. Never
+        // recomputed from `res.rows`, which is one page of it.
+        setSummary(res.summary || EMPTY_SUMMARY);
       }
     } catch (err) {
       setRows([]);
+      setSummary(EMPTY_SUMMARY);
       setError("Could not reach the server. Please try again.");
     } finally {
       setLoading(false);
@@ -85,8 +93,25 @@ export default function AttendanceApproverSetupPage() {
   useEffect(() => { load(applied); }, [load, applied]);
   useEffect(() => { loadOptions(); }, [loadOptions]);
 
+  // Searching keeps whichever card is selected: the card is a view of the
+  // same population the other filters describe, not a competing one.
   const search = () => { setSelectedIds([]); setApplied(filters); };
   const reset = () => { setFilters(EMPTY); setSelectedIds([]); setApplied(EMPTY); };
+
+  /**
+   * A card was clicked. Selecting the one already selected clears it, and
+   * "Attendance Required Employees" (status null) clears it too - so there is
+   * always a way back to everybody without reaching for Reset.
+   *
+   * It applies immediately rather than waiting for Search: the user clicked a
+   * number to see the employees behind it.
+   */
+  const selectStatus = (status) => {
+    const next = applied.setup_status === status ? null : status;
+    setFilters((f) => ({ ...f, setup_status: next }));
+    setSelectedIds([]);
+    setApplied((a) => ({ ...a, setup_status: next }));
+  };
 
   const toggle = (id) => setSelectedIds((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
   const toggleAll = () => setSelectedIds((s) => (rows.length > 0 && rows.every((r) => s.includes(r.employee_id)) ? [] : rows.map((r) => r.employee_id)));
@@ -113,17 +138,18 @@ export default function AttendanceApproverSetupPage() {
       <CustomContainer
         title="Attendance Approver Setup"
         filledHeader
-        rightSection={
-          <Flex align="center" gap={2}>
-            <Text fontSize="sm" color="gray.600">Employees:</Text>
-            <Badge colorScheme="purple" fontSize="sm" px={2}>{loading ? "…" : total}</Badge>
-          </Flex>
-        }
       >
         <Stack spacing={4}>
           <Text fontSize="xs" color="gray.500">
             First Level → Second Level → Final Approver, per employee, for Attendance Regularization and OT requests. First and Second are optional; the Final Approver is always required and is the final decision-maker. Employees without a setup follow the existing role-based chain.
           </Text>
+
+          <ApproverSetupSummary
+            summary={summary}
+            activeStatus={applied.setup_status}
+            onSelect={selectStatus}
+            loading={loading}
+          />
 
           <Flex direction={isMobile ? "column" : "row"} gap={3} align={isMobile ? "stretch" : "flex-end"} wrap="nowrap">
             <FormControl flex={1} minW={isMobile ? undefined : "150px"}>
@@ -164,6 +190,10 @@ export default function AttendanceApproverSetupPage() {
             </Button>
             <Button size="sm" variant="outline" colorScheme="orange" onClick={() => setReplaceOpen(true)}>Replace Approver</Button>
             {selectedIds.length > 0 ? <Text fontSize="xs" color="gray.600">{selectedIds.length} selected</Text> : null}
+            <Text fontSize="xs" color="gray.500" ml="auto">
+              {loading ? "…" : `${total} employee${total === 1 ? "" : "s"} shown`}
+              {applied.setup_status ? ` · ${applied.setup_status === "completed" ? "completed setup" : "without setup"}` : ""}
+            </Text>
           </Flex>
 
           {error ? <Alert status="error" fontSize="sm" borderRadius="md"><AlertIcon />{error}</Alert> : null}

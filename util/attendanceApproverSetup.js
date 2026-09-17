@@ -98,6 +98,14 @@ function approverCell(row, key) {
   return name ? `${name} (${id})` : String(id);
 }
 
+/**
+ * The two states a dashboard card can select. `setup_status` narrows the
+ * TABLE only - the summary the response carries is always the full
+ * completed/missing split of the other filters, so the cards keep meaning
+ * something while one of them is active.
+ */
+const SETUP_STATUS = Object.freeze({ COMPLETED: "completed", MISSING: "missing" });
+
 /** Only the filters actually chosen. */
 function buildListParams(filters = {}) {
   const params = {};
@@ -105,9 +113,76 @@ function buildListParams(filters = {}) {
     if (filters[k] !== undefined && filters[k] !== null && filters[k] !== "") params[k] = Number(filters[k]);
   });
   if (filters.search && String(filters.search).trim() !== "") params.search = String(filters.search).trim();
+  // Sent only when a card is selected, and only when it names a state the
+  // server knows: an unrecognised value would be ignored there anyway, and
+  // not sending it keeps the request honest about what was asked for.
+  if (Object.values(SETUP_STATUS).includes(filters.setup_status)) {
+    params.setup_status = filters.setup_status;
+  }
   params.limit = filters.limit || 500;
   params.offset = filters.offset || 0;
   return params;
+}
+
+/**
+ * The three dashboard cards, from the summary the list response carried.
+ *
+ * READ, NEVER COMPUTED. The counts are the database's answer over the whole
+ * filtered population; deriving them from the rows in hand would be wrong
+ * for any population larger than one page, and wrong in the direction that
+ * looks plausible. A missing summary yields zeros and a disabled card rather
+ * than a guess.
+ *
+ * "Without Approver Setup", not "Without Approver": an employee with no
+ * employee-level setup still has the existing fallback chain, so they are
+ * not unapprovable - they are just not configured here.
+ */
+function summaryCards(summary, activeStatus = null) {
+  const n = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
+  const required = n(summary && summary.attendance_required);
+  const completed = n(summary && summary.completed);
+  const missing = n(summary && summary.missing);
+  return [
+    {
+      key: "attendance_required",
+      label: "Attendance Required Employees",
+      value: required,
+      help: "Active employees who are required to have attendance. Attendance-exempt employees are not counted.",
+      status: null,
+      colorScheme: "purple",
+      selected: activeStatus === null,
+    },
+    {
+      key: "completed",
+      label: "Approver Setup Completed",
+      value: completed,
+      help: "Have an active setup with a Final Approver. First and Second Level are optional.",
+      status: SETUP_STATUS.COMPLETED,
+      colorScheme: "green",
+      selected: activeStatus === SETUP_STATUS.COMPLETED,
+    },
+    {
+      key: "missing",
+      label: "Without Approver Setup",
+      value: missing,
+      help: "No active setup, or a setup with no Final Approver. These employees follow the existing fallback approval chain.",
+      status: SETUP_STATUS.MISSING,
+      colorScheme: "orange",
+      selected: activeStatus === SETUP_STATUS.MISSING,
+    },
+  ];
+}
+
+/**
+ * Does the summary add up? `completed + missing` must equal
+ * `attendance_required` - the backend counts them as complements of one
+ * another over one population, so a mismatch means the two numbers came from
+ * different answers and the cards should not be trusted.
+ */
+function summaryIsConsistent(summary) {
+  if (!summary) return false;
+  const n = (v) => Number(v);
+  return n(summary.completed) + n(summary.missing) === n(summary.attendance_required);
 }
 
 /** The sentence under a bulk result: honest about partial failure. */
@@ -133,6 +208,9 @@ const apiMessage = (res, fallback = "Something went wrong") =>
 
 module.exports = {
   LEVELS,
+  SETUP_STATUS,
+  summaryCards,
+  summaryIsConsistent,
   LEVEL_LABEL,
   levelLabel,
   validateApproverForm,
