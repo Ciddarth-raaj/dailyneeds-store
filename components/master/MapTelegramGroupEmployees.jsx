@@ -25,9 +25,6 @@ import {
   Tr,
 } from "@chakra-ui/react";
 import CustomModal from "../CustomModal";
-import useOutlets from "../../customHooks/useOutlets";
-import useDesignations from "../../customHooks/useDesignations";
-import useDepartments from "../../customHooks/useDepartments";
 import { previewTelegramGroupMapping } from "../../helper/telegramGroups";
 import {
   ANY_LABEL,
@@ -40,11 +37,17 @@ import {
   canSaveRule,
   countsScopeNotice,
   isCountsUnavailable,
+  allShownSelected,
+  dimensionsWerePruned,
   narrowedCount,
+  pruneInvalidDimensions,
+  retainSelection,
   ruleLabel,
   rulePayload,
   saveBlockedReason,
   telegramConnectedLabel,
+  toggleAllShown,
+  visibleEmployees,
 } from "../../util/telegramGroupMapping";
 
 /**
@@ -109,33 +112,26 @@ export default function MapTelegramGroupEmployees({
   const [error, setError] = useState(null);
   const [selected, setSelected] = useState([]);
 
-  const { outlets, accessDenied: outletsDenied } = useOutlets({ directory: true });
-  const { designations, accessDenied: designationsDenied } = useDesignations();
-  const { departments, accessDenied: departmentsDenied } = useDepartments();
-
-  /** The options behind each dimension, from the masters already in use. */
+  /**
+   * THE CASCADE'S OPTIONS COME FROM THE PREVIEW, NOT FROM THE MASTERS.
+   *
+   * The server answers each level from the population the levels above it
+   * already narrowed, using the same employee snapshot and the same
+   * employment rule as the count. Master lists would offer combinations that
+   * match nobody, and an operator who picked one would read a 0 and be
+   * unable to tell a mistake from an empty outlet.
+   *
+   * It also means there is ONE membership rule in this system. Re-deriving
+   * the cascade in the browser would be a second one, and the day the two
+   * disagreed the screen would be showing a population the server does not.
+   */
+  const ruleOptions = useMemo(() => (preview && preview.rule_options) || {}, [preview]);
   const optionsFor = useCallback(
-    (field) => {
-      switch (field) {
-        case "outlet_id":
-          return (outlets || []).map((o) => ({ id: o.outlet_id, name: o.outlet_name }));
-        case "department_id":
-          return (departments || []).map((d) => ({ id: d.department_id, name: d.department_name }));
-        case "designation_id":
-          return (designations || []).map((d) => ({ id: d.designation_id, name: d.designation_name }));
-        default:
-          return [];
-      }
-    },
-    [outlets, departments, designations]
+    (field) => (Array.isArray(ruleOptions[field]) ? ruleOptions[field] : []),
+    [ruleOptions]
   );
 
-  const deniedFor = (field) =>
-    (field === "outlet_id" && outletsDenied) ||
-    (field === "department_id" && departmentsDenied) ||
-    (field === "designation_id" && designationsDenied);
-
-  /** The names currently in the dropdowns, for the local rule summary. */
+  /** The names currently on offer, for the local rule summary. */
   const names = useMemo(() => {
     const out = {};
     for (const dimension of RULE_DIMENSIONS) {
@@ -146,7 +142,13 @@ export default function MapTelegramGroupEmployees({
   }, [optionsFor]);
 
   /**
-   * THE PREVIEW RE-RUNS WHENEVER THE RULE OR THE SEARCH CHANGES.
+   * THE PREVIEW RE-RUNS WHEN THE RULE CHANGES - AND ONLY THEN.
+   *
+   * `search` IS DELIBERATELY NOT A DEPENDENCY AND IS NOT SENT. It filters
+   * the rows on screen and nothing else, so the preview always holds the
+   * RULE's whole population. That is what makes the selection safe: pruning
+   * against a search-filtered list is exactly how ticking Ravi, typing
+   * "Kumar" and ticking Kumar used to drop Ravi.
    *
    * `ignore` drops a response that arrived after the rule moved on, so a
    * slow request for an older rule cannot overwrite the list for the current
@@ -157,13 +159,21 @@ export default function MapTelegramGroupEmployees({
     let ignore = false;
     setLoading(true);
     setError(null);
-    previewTelegramGroupMapping(telegramGroupId, { ...rulePayload(form), search })
+    previewTelegramGroupMapping(telegramGroupId, rulePayload(form))
       .then((data) => {
         if (ignore) return;
         setPreview(data);
-        // Anybody no longer in the population cannot stay ticked.
-        const visible = new Set((data.employees || []).map((e) => e.employee_id));
-        setSelected((current) => current.filter((id) => visible.has(id)));
+        // A DOWNSTREAM VALUE THE CASCADE NO LONGER OFFERS IS CLEARED. A
+        // hidden department the operator cannot see or change would go on
+        // narrowing the population invisibly. Setting the form re-runs this
+        // effect once with the settled rule.
+        setForm((current) => {
+          const pruned = pruneInvalidDimensions(current, data.rule_options || {});
+          return dimensionsWerePruned(current, pruned) ? pruned : current;
+        });
+        // THE SELECTION BELONGS TO THE RULE'S POPULATION, not to what the
+        // search box happens to be showing.
+        setSelected((current) => retainSelection(current, data.employees || []));
       })
       .catch((err) => {
         if (!ignore) setError(err.message || "Could not preview this rule");
@@ -174,9 +184,13 @@ export default function MapTelegramGroupEmployees({
     return () => {
       ignore = true;
     };
-  }, [isOpen, telegramGroupId, form, search]);
+  }, [isOpen, telegramGroupId, form]);
 
-  const employees = (preview && preview.employees) || [];
+  /** The rule's whole population - what the selection is measured against. */
+  const population = (preview && preview.employees) || [];
+  /** What the table shows. The search narrows THIS, never the selection. */
+  const shown = visibleEmployees(population, search);
+
   const setDimension = (field, value) => setForm((current) => ({ ...current, [field]: value }));
 
   const toggle = (employeeId) =>
@@ -186,13 +200,8 @@ export default function MapTelegramGroupEmployees({
         : [...current, employeeId]
     );
 
-  const allShownSelected = employees.length > 0 && employees.every((e) => selected.includes(e.employee_id));
-  const toggleAllShown = () =>
-    setSelected((current) =>
-      allShownSelected
-        ? current.filter((id) => !employees.some((e) => e.employee_id === id))
-        : [...new Set([...current, ...employees.map((e) => e.employee_id)])]
-    );
+  const everyShownSelected = allShownSelected(selected, shown);
+  const toggleShown = () => setSelected((current) => toggleAllShown(current, shown));
 
   const close = () => {
     setForm({});
@@ -245,7 +254,7 @@ export default function MapTelegramGroupEmployees({
               <Select
                 size="sm"
                 value={form[dimension.field] ?? ""}
-                isDisabled={deniedFor(dimension.field)}
+                isDisabled={loading}
                 onChange={(e) => setDimension(dimension.field, e.target.value)}
               >
                 {/* "All" is the default and it is a real choice, not a
@@ -257,9 +266,12 @@ export default function MapTelegramGroupEmployees({
                   </option>
                 ))}
               </Select>
-              {deniedFor(dimension.field) && (
+              {!loading && optionsFor(dimension.field).length === 0 && (
                 <Text fontSize="xs" color="gray.500" mt={1}>
-                  You are not authorised to list {dimension.label.toLowerCase()}s.
+                  {/* Empty because nobody above this level has one - not
+                      because the master is empty. Saying which keeps an
+                      operator from hunting for a missing master row. */}
+                  No {dimension.label.toLowerCase()} is available for the levels above.
                 </Text>
               )}
             </FormControl>
@@ -305,7 +317,7 @@ export default function MapTelegramGroupEmployees({
           <Input
             size="sm"
             maxW="260px"
-            placeholder="Search by name"
+            placeholder="Search by name or employee ID"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -317,18 +329,21 @@ export default function MapTelegramGroupEmployees({
               <Spinner size="sm" />
             </Flex>
           )}
-          {!loading && employees.length === 0 && (
+          {!loading && shown.length === 0 && (
             <Text p={4} fontSize="sm" color="gray.600">
-              No employee matches this rule.
+              {population.length === 0
+                ? "No employee matches this rule."
+                : "No employee on this rule matches your search."}
             </Text>
           )}
-          {!loading && employees.length > 0 && (
+          {!loading && shown.length > 0 && (
             <Table size="sm">
               <Thead>
                 <Tr>
                   <Th width="40px">
-                    <Checkbox isChecked={allShownSelected} onChange={toggleAllShown} />
+                    <Checkbox isChecked={everyShownSelected} onChange={toggleShown} />
                   </Th>
+                  <Th>Employee ID</Th>
                   <Th>Employee</Th>
                   <Th>Outlet</Th>
                   <Th>Department</Th>
@@ -337,7 +352,7 @@ export default function MapTelegramGroupEmployees({
                 </Tr>
               </Thead>
               <Tbody>
-                {employees.map((employee) => (
+                {shown.map((employee) => (
                   <Tr key={employee.employee_id}>
                     <Td>
                       <Checkbox
@@ -345,6 +360,7 @@ export default function MapTelegramGroupEmployees({
                         onChange={() => toggle(employee.employee_id)}
                       />
                     </Td>
+                    <Td>{employee.employee_id}</Td>
                     <Td>{employee.employee_name}</Td>
                     <Td>{employee.outlet_name || "—"}</Td>
                     <Td>{employee.department_name || "—"}</Td>

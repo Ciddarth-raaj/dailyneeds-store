@@ -55,6 +55,15 @@ const rules = (() => {
     "dimensionState",
     "canAddSelected",
     "addSelectedBlockedReason",
+    "pruneInvalidDimensions",
+    "dimensionsWerePruned",
+    "matchesEmployeeSearch",
+    "visibleEmployees",
+    "retainSelection",
+    "toggleAllShown",
+    "allShownSelected",
+    "rowSeverity",
+    "ruleDimensionStates",
     "targetWarning",
     "targetStatusLabel",
     "targetIsBroken",
@@ -260,50 +269,308 @@ describe("a rule reads back as a sentence, and as three cells", () => {
   });
 });
 
-describe("the three target states", () => {
-  it("ACTIVE carries no warning", () => {
-    const row = { mapping_type: "OUTLET", target_state: "ACTIVE", target_name: "ECR" };
-    assert.strictEqual(rules.targetWarning(row), null);
-    assert.strictEqual(rules.targetStatusLabel(row), "Active");
-    assert.strictEqual(rules.targetIsBroken(row), false);
+describe("a composite row's status, reduced from THREE dimension states", () => {
+  /** `dims` in cascade order: outlet, department, designation. */
+  const row = (...states) => ({
+    rule_dimensions: [
+      { dimension: "OUTLET", id: states[0] === "NOT_APPLICABLE" ? null : 5, name: "ECR", state: states[0] },
+      { dimension: "DEPARTMENT", id: states[1] === "NOT_APPLICABLE" ? null : 3, name: "Ops", state: states[1] },
+      { dimension: "DESIGNATION", id: states[2] === "NOT_APPLICABLE" ? null : 7, name: "Cashier", state: states[2] },
+    ],
+  });
+  const ALL = "NOT_APPLICABLE";
+
+  it("Active + All + All -> Active", () => {
+    // THE REGRESSION THIS BLOCK EXISTS FOR. A perfectly healthy saved rule
+    // used to fall through to "—" because the old single `target_state` is
+    // simply absent on a composite row - and a valid rule that looks like it
+    // has no state is a rule somebody deletes.
+    const r = row("ACTIVE", ALL, ALL);
+    assert.strictEqual(rules.targetStatusLabel(r), "Active");
+    assert.strictEqual(rules.targetWarning(r), null);
+    assert.strictEqual(rules.targetIsBroken(r), false);
+    assert.strictEqual(rules.rowSeverity(r), "ACTIVE");
   });
 
-  it("INACTIVE warns, and is not the same warning as MISSING", () => {
-    const inactive = { mapping_type: "OUTLET", target_state: "INACTIVE", target_name: "ECR" };
-    const missing = { mapping_type: "OUTLET", target_state: "MISSING", target_id: 14 };
-    assert.strictEqual(rules.targetWarning(inactive), "Mapped target is inactive");
-    assert.strictEqual(rules.targetWarning(missing), "Mapped target no longer exists");
-    assert.notStrictEqual(rules.targetWarning(inactive), rules.targetWarning(missing));
-    assert.strictEqual(rules.targetStatusLabel(inactive), "Inactive");
-    assert.strictEqual(rules.targetStatusLabel(missing), "Missing");
+  it("Active + Active + Active -> Active", () => {
+    assert.strictEqual(rules.targetStatusLabel(row("ACTIVE", "ACTIVE", "ACTIVE")), "Active");
+  });
+
+  it("Active + Inactive + All -> Inactive", () => {
+    const r = row("ACTIVE", "INACTIVE", ALL);
+    assert.strictEqual(rules.targetStatusLabel(r), "Inactive");
+    assert.strictEqual(rules.targetWarning(r), "Mapped target is inactive");
+    assert.strictEqual(rules.rowSeverity(r), "INACTIVE");
+  });
+
+  it("Active + Missing + Inactive -> Missing, the most actionable state", () => {
+    // MISSING must not hide behind a sibling that is merely retired.
+    const r = row("ACTIVE", "MISSING", "INACTIVE");
+    assert.strictEqual(rules.targetStatusLabel(r), "Missing");
+    assert.strictEqual(rules.targetWarning(r), "Mapped target no longer exists");
+    assert.strictEqual(rules.rowSeverity(r), "MISSING");
+  });
+
+  it("All + All + All -> the em dash, and nothing is broken", () => {
+    const r = row(ALL, ALL, ALL);
+    assert.strictEqual(rules.targetStatusLabel(r), "—");
+    assert.strictEqual(rules.targetWarning(r), null);
+    assert.strictEqual(rules.targetIsBroken(r), false);
+    assert.strictEqual(rules.rowSeverity(r), "NOT_APPLICABLE");
+  });
+
+  it("the warning names the HIGHEST-SEVERITY dimension, matching the badge", () => {
+    // If they disagreed, the colour would describe one dimension and the
+    // words another.
+    const r = row("INACTIVE", "MISSING", ALL);
+    assert.strictEqual(rules.rowSeverity(r), "MISSING");
+    assert.strictEqual(rules.targetWarning(r), "Mapped target no longer exists");
+  });
+
+  it("prefers the server's own warning text over the local fallback", () => {
+    const r = {
+      rule_dimensions: [{ dimension: "OUTLET", id: 5, state: "INACTIVE", warning: "Something the server said" }],
+    };
+    assert.strictEqual(rules.targetWarning(r), "Something the server said");
   });
 
   it("A VALID MAPPING MATCHING NOBODY IS NOT BROKEN", () => {
     // The distinction the whole screen turns on: 0 is a count, not a fault.
-    const row = {
-      mapping_type: "OUTLET",
-      target_state: "ACTIVE",
-      target_name: "ECR",
-      matched_employees: 0,
-    };
-    assert.strictEqual(rules.targetWarning(row), null);
-    assert.strictEqual(rules.targetIsBroken(row), false);
+    const r = { ...row("ACTIVE", ALL, ALL), matched_employees: 0 };
+    assert.strictEqual(rules.targetWarning(r), null);
+    assert.strictEqual(rules.targetIsBroken(r), false);
+    assert.strictEqual(rules.targetStatusLabel(r), "Active");
   });
 
-  it("prefers the server's own warning text over the local fallback", () => {
-    const row = { target_state: "INACTIVE", target_warning: "Something the server said" };
-    assert.strictEqual(rules.targetWarning(row), "Something the server said");
+  it("the legacy single target_state is NOT consulted, even as a fallback", () => {
+    // Reading it would let a row be described by a field that no longer
+    // reflects two of its three dimensions.
+    const stale = { target_state: "ACTIVE", target_warning: "stale", rule_dimensions: [] };
+    assert.strictEqual(rules.targetStatusLabel(stale), "—");
+    assert.strictEqual(rules.targetWarning(stale), null);
+    const source = read("util/telegramGroupMapping.js").replace(/\/\*[\s\S]*?\*\//g, "");
+    assert.ok(!/row\.target_state/.test(source), "no code may read the legacy field");
   });
 
-  it("ALL_EMPLOYEES has no target to break", () => {
-    const row = { mapping_type: "ALL_EMPLOYEES", target_state: "NOT_APPLICABLE" };
-    assert.strictEqual(rules.targetWarning(row), null);
-    assert.strictEqual(rules.targetStatusLabel(row), "—");
+  it("a row with no rule_dimensions at all is the em dash, not a crash", () => {
+    for (const r of [undefined, null, {}, { rule_dimensions: null }]) {
+      assert.strictEqual(rules.targetStatusLabel(r), "—");
+      assert.strictEqual(rules.targetWarning(r), null);
+    }
   });
 
   it("a MISSING target still shows its id, so somebody can work out which", () => {
     const broken = { rule_dimensions: [{ dimension: "OUTLET", id: 14, name: null, state: "MISSING" }] };
     assert.strictEqual(rules.dimensionCell(broken, "OUTLET"), "#14");
+  });
+
+  it("the page colours the badge from the SAME derivation as the label", () => {
+    assert.match(mapPage, /rowSeverity\(row\) === TARGET_STATE\.MISSING/);
+    assert.ok(!/row\.target_state/.test(mapPage), "never the legacy field");
+  });
+});
+
+describe("the cascade resets what it no longer offers", () => {
+  const options = {
+    outlet_id: [{ id: 5, name: "ECR" }, { id: 6, name: "Anna Nagar" }],
+    department_id: [{ id: 3, name: "Operations" }, { id: 4, name: "Billing" }],
+    designation_id: [{ id: 7, name: "Cashier" }],
+  };
+
+  it("keeps a value the cascade still offers", () => {
+    const form = { outlet_id: 5, department_id: 3, designation_id: 7 };
+    assert.deepStrictEqual(rules.pruneInvalidDimensions(form, options), form);
+    assert.strictEqual(rules.dimensionsWerePruned(form, rules.pruneInvalidDimensions(form, options)), false);
+  });
+
+  it("changing Outlet clears a Department that is no longer valid", () => {
+    // Department 9 exists in the master but nobody at the new outlet is in
+    // it, so it is not on offer any more.
+    const form = { outlet_id: 5, department_id: 9 };
+    const pruned = rules.pruneInvalidDimensions(form, options);
+    assert.strictEqual(pruned.department_id, "");
+    assert.strictEqual(pruned.outlet_id, 5, "the level the operator just chose stays");
+    assert.strictEqual(rules.dimensionsWerePruned(form, pruned), true);
+  });
+
+  it("changing Outlet clears a Designation that is no longer valid", () => {
+    const pruned = rules.pruneInvalidDimensions({ outlet_id: 5, designation_id: 10 }, options);
+    assert.strictEqual(pruned.designation_id, "");
+  });
+
+  it("changing Department clears a Designation that is no longer valid", () => {
+    const narrower = { ...options, designation_id: [{ id: 7, name: "Cashier" }] };
+    const pruned = rules.pruneInvalidDimensions({ outlet_id: 5, department_id: 4, designation_id: 8 }, narrower);
+    assert.strictEqual(pruned.designation_id, "", "Packer is not in Billing at ECR");
+    assert.strictEqual(pruned.department_id, 4);
+  });
+
+  it("clears BOTH downstream levels when both went invalid", () => {
+    const pruned = rules.pruneInvalidDimensions({ outlet_id: 6, department_id: 99, designation_id: 99 }, options);
+    assert.strictEqual(pruned.department_id, "");
+    assert.strictEqual(pruned.designation_id, "");
+  });
+
+  it("never retains a hidden invalid value", () => {
+    // The property, stated directly: after pruning, every set dimension is
+    // one the dropdown is actually showing.
+    const pruned = rules.pruneInvalidDimensions({ outlet_id: 77, department_id: 9, designation_id: 10 }, options);
+    for (const dimension of rules.RULE_DIMENSIONS) {
+      const value = pruned[dimension.field];
+      if (value === "" || value === undefined) continue;
+      assert.ok(
+        options[dimension.field].some((o) => Number(o.id) === Number(value)),
+        `${dimension.field} kept a value that is not on offer`
+      );
+    }
+  });
+
+  it("All is never pruned - the absence of a restriction is always valid", () => {
+    const form = { outlet_id: "", department_id: "", designation_id: "" };
+    assert.deepStrictEqual(rules.pruneInvalidDimensions(form, options), form);
+  });
+
+  it("a level with NO options yet clears nothing", () => {
+    // An empty list means the preview has not answered, or the caller may
+    // see nobody. Treating that as "everything is invalid" would wipe the
+    // operator's form while it loaded.
+    const form = { outlet_id: 5, department_id: 3 };
+    assert.deepStrictEqual(rules.pruneInvalidDimensions(form, {}), form);
+    assert.deepStrictEqual(rules.pruneInvalidDimensions(form, { department_id: [] }), form);
+  });
+
+  it("compares by value, so a string id from a <select> still matches", () => {
+    const pruned = rules.pruneInvalidDimensions({ outlet_id: "5", department_id: "3" }, options);
+    assert.strictEqual(pruned.outlet_id, "5");
+    assert.strictEqual(pruned.department_id, "3");
+  });
+});
+
+describe("the selection survives the search box", () => {
+  const POPULATION = [
+    { employee_id: 11, employee_name: "Ravi" },
+    { employee_id: 22, employee_name: "Kumar" },
+    { employee_id: 33, employee_name: "Selvi" },
+  ];
+
+  /**
+   * The component's own sequence, run as data: the search narrows what is
+   * SHOWN, the selection is only ever pruned against the rule's POPULATION.
+   */
+  const shownFor = (search) => rules.visibleEmployees(POPULATION, search);
+
+  it("select A, then search hides A - A stays selected", () => {
+    // THE BUG THIS BLOCK EXISTS FOR. Pruning against the displayed rows
+    // meant the operator granted one person having chosen two, silently.
+    let selected = [11];
+    const shown = shownFor("Kumar");
+    assert.ok(!shown.some((e) => e.employee_id === 11), "Ravi is off screen");
+    selected = rules.retainSelection(selected, POPULATION);
+    assert.deepStrictEqual(selected, [11]);
+  });
+
+  it("select B while A is hidden - both are selected", () => {
+    let selected = [11];
+    selected = rules.retainSelection(selected, POPULATION);
+    selected = [...selected, 22];
+    assert.deepStrictEqual(selected.sort((a, b) => a - b), [11, 22]);
+  });
+
+  it("clear the search - both are still ticked", () => {
+    const selected = rules.retainSelection([11, 22], POPULATION);
+    const shown = shownFor("");
+    assert.deepStrictEqual(selected.sort((a, b) => a - b), [11, 22]);
+    for (const id of selected) {
+      assert.ok(shown.some((e) => e.employee_id === id), `${id} is shown again`);
+    }
+  });
+
+  it("a REAL rule change excluding A does remove A", () => {
+    // Somebody who no longer belongs to the rule's population cannot be
+    // granted through it, so this removal is correct and must still happen.
+    const narrower = POPULATION.filter((e) => e.employee_id !== 11);
+    assert.deepStrictEqual(rules.retainSelection([11, 22], narrower), [22]);
+  });
+
+  it("an empty population clears the selection entirely", () => {
+    assert.deepStrictEqual(rules.retainSelection([11, 22], []), []);
+  });
+
+  it("compares by value, so a string id from the DOM still survives", () => {
+    assert.deepStrictEqual(rules.retainSelection(["11"], POPULATION), ["11"]);
+  });
+
+  it("Select All ticks the SHOWN rows and leaves other selections alone", () => {
+    const selected = rules.toggleAllShown([33], shownFor("Kumar"));
+    assert.deepStrictEqual(selected.sort((a, b) => a - b), [22, 33], "Selvi is untouched");
+  });
+
+  it("Select All un-ticks only the shown rows", () => {
+    const selected = rules.toggleAllShown([22, 33], shownFor("Kumar"));
+    assert.deepStrictEqual(selected, [33]);
+  });
+
+  it("Select All never reaches somebody the operator cannot see", () => {
+    const selected = rules.toggleAllShown([], shownFor("Ravi"));
+    assert.deepStrictEqual(selected, [11]);
+  });
+
+  it("allShownSelected reflects the shown rows, not the whole population", () => {
+    assert.strictEqual(rules.allShownSelected([22], shownFor("Kumar")), true);
+    assert.strictEqual(rules.allShownSelected([22], shownFor("")), false);
+    assert.strictEqual(rules.allShownSelected([], []), false, "nothing shown is not 'all'");
+  });
+
+  it("the bulk maximum is unchanged at 200", () => {
+    assert.strictEqual(rules.BULK_GRANT_MAX, 200);
+  });
+});
+
+describe("search matches a name or an employee ID", () => {
+  const PEOPLE = [
+    { employee_id: 42, employee_name: "Ravi" },
+    { employee_id: 1425, employee_name: "Kumar" },
+    { employee_id: 7, employee_name: "Ravi Kumar" },
+  ];
+  const found = (search) => rules.visibleEmployees(PEOPLE, search).map((e) => e.employee_id).sort((a, b) => a - b);
+
+  it("matches the employee NAME, case-insensitively", () => {
+    assert.deepStrictEqual(found("ravi"), [7, 42]);
+    assert.deepStrictEqual(found("KUMAR"), [7, 1425]);
+  });
+
+  it("matches the employee ID", () => {
+    assert.deepStrictEqual(found("1425"), [1425]);
+    assert.deepStrictEqual(found("7"), [7]);
+  });
+
+  it("matches an ID as a substring, like every other search box here", () => {
+    assert.deepStrictEqual(found("42"), [42, 1425]);
+  });
+
+  it("an empty or blank search shows everybody", () => {
+    for (const search of ["", "   ", null, undefined]) {
+      assert.strictEqual(found(search).length, 3, JSON.stringify(search));
+    }
+  });
+
+  it("matches NOTHING else - not a mobile, not an Aadhaar", () => {
+    // Matching those would CONFIRM a value the searcher already had, which
+    // is a disclosure even though nothing is printed.
+    const loaded = [{ employee_id: 3, employee_name: "Raj", mobile: "9876543210", aadhaar_number: "123456789012" }];
+    assert.strictEqual(rules.visibleEmployees(loaded, "9876543210").length, 0);
+    assert.strictEqual(rules.visibleEmployees(loaded, "123456789012").length, 0);
+  });
+
+  it("the frontend and backend search the same two fields", () => {
+    const backend = fs.readFileSync(
+      path.join(__dirname, "..", "..", "..", "dailyneeds-store-backend", "usecase", "telegram_group_mapping.js"),
+      "utf8"
+    );
+    const matcher = backend.slice(backend.indexOf("static matchesSearch"), backend.indexOf("static matchesSearch") + 400);
+    assert.match(matcher, /employee_name/);
+    assert.match(matcher, /employee_id/);
+    assert.ok(!/mobile|aadhaar|salary/i.test(matcher), "nothing sensitive is searchable");
   });
 });
 
@@ -699,11 +966,26 @@ describe("Map Employees - the multi-level form", () => {
     assert.match(mapModal, /useState\(\{\}\)/, "the form starts with nothing narrowed");
   });
 
-  it("uses the existing master hooks rather than new endpoints", () => {
-    assert.match(mapModal, /useOutlets/);
-    assert.match(mapModal, /useDesignations/);
-    assert.match(mapModal, /useDepartments/);
+  it("takes its options from the PREVIEW, never from the master lists", () => {
+    // Master lists offer combinations that match nobody, and an operator who
+    // picks one reads a 0 and cannot tell a mistake from an empty outlet.
+    assert.match(mapModal, /preview\.rule_options/);
+    for (const hook of ["useOutlets", "useDesignations", "useDepartments"]) {
+      assert.ok(!new RegExp(hook).test(mapModal), `${hook} must no longer be the source`);
+    }
     assert.ok(!/API\.get|fetch\(/.test(mapModal), "no bespoke master fetching");
+  });
+
+  it("re-derives no membership rule of its own in the browser", () => {
+    // One rule in this system. A second would disagree eventually, and the
+    // screen would be showing a population the server does not.
+    assert.ok(!/employedOn|date_of_joining|resignation_date/.test(mapModal));
+    assert.ok(!/store_id ===|department_id ===|designation_id ===/.test(mapModal));
+  });
+
+  it("clears a downstream value the cascade stopped offering", () => {
+    assert.match(mapModal, /pruneInvalidDimensions\(current, data\.rule_options/);
+    assert.match(mapModal, /dimensionsWerePruned\(current, pruned\)/);
   });
 
   it("never asks anybody to type a numeric id", () => {
@@ -714,8 +996,17 @@ describe("Map Employees - the multi-level form", () => {
   it("previews the population live, through the helper", () => {
     assert.match(mapModal, /previewTelegramGroupMapping/);
     assert.match(mapModal, /rulePayload\(form\)/);
-    // Re-runs when the rule or the search changes.
-    assert.match(mapModal, /\[isOpen, telegramGroupId, form, search\]/);
+  });
+
+  it("re-previews when the RULE changes, and never merely on a keystroke", () => {
+    // `search` is deliberately absent from the dependency list AND from the
+    // request: the preview must always hold the rule's WHOLE population,
+    // which is what makes the selection safe.
+    assert.match(mapModal, /\[isOpen, telegramGroupId, form\]/);
+    assert.ok(
+      !/previewTelegramGroupMapping\([^)]*search/.test(mapModal),
+      "search must not be sent - it would filter the population"
+    );
   });
 
   it("drops a preview that arrived after the rule moved on", () => {
@@ -725,8 +1016,36 @@ describe("Map Employees - the multi-level form", () => {
     assert.match(mapModal, /if \(ignore\) return/);
   });
 
-  it("un-ticks anybody the new rule no longer covers", () => {
-    assert.match(mapModal, /current\.filter\(\(id\) => visible\.has\(id\)\)/);
+  it("measures the selection against the RULE's population, not the search", () => {
+    assert.match(mapModal, /retainSelection\(current, data\.employees/);
+    // The old bug, pinned as absent: pruning against the displayed rows.
+    assert.ok(!/visible\.has\(id\)/.test(mapModal));
+  });
+
+  it("filters the table client-side, so search only changes what is shown", () => {
+    assert.match(mapModal, /visibleEmployees\(population, search\)/);
+    assert.match(mapModal, /const population = \(preview && preview\.employees\)/);
+  });
+
+  it("Select All applies to the displayed rows only", () => {
+    assert.match(mapModal, /toggleAllShown\(current, shown\)/);
+    assert.match(mapModal, /allShownSelected\(selected, shown\)/);
+  });
+
+  it("shows Employee ID as a column, before the name", () => {
+    const headers = [...mapModal.matchAll(/<Th[^>]*>([^<{]+)<\/Th>/g)].map((m) => m[1].trim());
+    assert.deepStrictEqual(headers, [
+      "Employee ID",
+      "Employee",
+      "Outlet",
+      "Department",
+      "Designation",
+      "Telegram",
+    ]);
+  });
+
+  it("says the search box matches a name OR an employee ID", () => {
+    assert.match(mapModal, /placeholder="Search by name or employee ID"/);
   });
 
   it("warns when the rule narrows nothing at all", () => {
@@ -761,7 +1080,7 @@ describe("Map Employees - the multi-level form", () => {
   it("the selection can only contain people the preview returned", () => {
     // The preview is already narrowed to the branches this viewer may see,
     // and the server enforces the same scope again on the grant.
-    assert.match(mapModal, /employees\.map\(\(e\) => e\.employee_id\)/);
+    assert.match(mapModal, /retainSelection\(/);
     assert.ok(!/prompt\(|Enter employee/i.test(mapModal), "no typed employee id");
   });
 

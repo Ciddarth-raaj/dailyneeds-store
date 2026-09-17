@@ -190,6 +190,103 @@ export function dimensionState(row, key) {
 }
 
 /**
+ * DROP ANY DOWNSTREAM VALUE THE CASCADE NO LONGER OFFERS.
+ *
+ * `options` is the server's `rule_options` - the choices each level actually
+ * has, given the levels above it. After the rule changes, a value that is no
+ * longer on offer must be CLEARED rather than kept: a hidden department the
+ * operator cannot see, cannot change and cannot remove is a rule they did
+ * not write, and it would go on narrowing the population invisibly.
+ *
+ * IT RUNS TOP-DOWN, so one pass settles the whole cascade. Clearing Outlet
+ * widens Department's options, which may in turn keep a Designation that a
+ * bottom-up pass would already have thrown away.
+ *
+ * A LEVEL WITH NO OPTIONS AT ALL CLEARS NOTHING. An empty list means the
+ * preview has not answered yet, or the caller may see nobody; treating that
+ * as "every value is invalid" would wipe the operator's form while it
+ * loaded.
+ */
+export function pruneInvalidDimensions(form = {}, options = {}) {
+  const next = { ...form };
+  for (const dimension of RULE_DIMENSIONS) {
+    const value = next[dimension.field];
+    if (value === undefined || value === null || value === "") continue;
+    const offered = options[dimension.field];
+    if (!Array.isArray(offered) || offered.length === 0) continue;
+    if (!offered.some((option) => Number(option.id) === Number(value))) {
+      next[dimension.field] = "";
+    }
+  }
+  return next;
+}
+
+/** Did pruning actually change anything? Lets a caller avoid a pointless render. */
+export const dimensionsWerePruned = (before = {}, after = {}) =>
+  RULE_DIMENSIONS.some((d) => (before[d.field] ?? "") !== (after[d.field] ?? ""));
+
+/**
+ * DOES THIS EMPLOYEE MATCH THE SEARCH BOX - by name OR by employee ID.
+ *
+ * Name alone is not enough: two people share a first name and the operator
+ * has the ID in front of them on a roster. Nothing else is searchable -
+ * matching a mobile or an Aadhaar would CONFIRM a value the searcher already
+ * had, which is a disclosure even though nothing is printed.
+ */
+export function matchesEmployeeSearch(employee, search) {
+  const needle = String(search === undefined || search === null ? "" : search)
+    .trim()
+    .toLowerCase();
+  if (!needle) return true;
+  if (!employee) return false;
+  if (String(employee.employee_name || "").toLowerCase().includes(needle)) return true;
+  return String(employee.employee_id).includes(needle);
+}
+
+/** The rows the table shows. The RULE's population, narrowed only for display. */
+export const visibleEmployees = (employees = [], search) =>
+  (Array.isArray(employees) ? employees : []).filter((e) => matchesEmployeeSearch(e, search));
+
+/**
+ * THE SELECTION BELONGS TO THE RULE, NOT TO THE SEARCH BOX.
+ *
+ * Keep every selected employee who is still in the rule's population, and
+ * ONLY those. The bug this exists to prevent: pruning against the rows
+ * currently DISPLAYED meant selecting Ravi, typing "Kumar", then ticking
+ * Kumar silently dropped Ravi - the operator granted one person having
+ * chosen two, and nothing on screen said so.
+ *
+ * A REAL RULE CHANGE STILL REMOVES PEOPLE, and must: somebody who no longer
+ * belongs to the rule's population cannot be granted through it.
+ */
+export function retainSelection(selected = [], population = []) {
+  const alive = new Set((Array.isArray(population) ? population : []).map((e) => Number(e.employee_id)));
+  return (Array.isArray(selected) ? selected : []).filter((id) => alive.has(Number(id)));
+}
+
+/**
+ * SELECT ALL APPLIES TO WHAT IS ON SCREEN, and nothing else.
+ *
+ * Ticking it while a search is active selects the rows that search matched,
+ * and leaves every other selection alone; un-ticking it removes exactly
+ * those rows and leaves the rest selected. Anything wider would let one
+ * click select people the operator never saw.
+ */
+export function toggleAllShown(selected = [], shown = []) {
+  const shownIds = (Array.isArray(shown) ? shown : []).map((e) => Number(e.employee_id));
+  const current = (Array.isArray(selected) ? selected : []).map(Number);
+  const allSelected = shownIds.length > 0 && shownIds.every((id) => current.includes(id));
+  if (allSelected) return current.filter((id) => !shownIds.includes(id));
+  return [...new Set([...current, ...shownIds])];
+}
+
+export const allShownSelected = (selected = [], shown = []) => {
+  const current = (Array.isArray(selected) ? selected : []).map(Number);
+  const shownIds = (Array.isArray(shown) ? shown : []).map((e) => Number(e.employee_id));
+  return shownIds.length > 0 && shownIds.every((id) => current.includes(id));
+};
+
+/**
  * Is this selection of employees addable, and why not?
  *
  * BOUNDED, because the server bounds it - one transaction per request, and
@@ -232,27 +329,74 @@ export const RULE_ACTION = {
  * real breakage behind an ordinary number, which is the single distinction
  * this screen exists to preserve.
  */
-export function targetWarning(row) {
-  if (!row) return null;
-  if (row.target_warning) return row.target_warning;
-  if (row.target_state === TARGET_STATE.INACTIVE) return MAPPING_MESSAGES.TARGET_INACTIVE;
-  if (row.target_state === TARGET_STATE.MISSING) return MAPPING_MESSAGES.TARGET_MISSING;
-  return null;
+/**
+ * THE ROW'S OVERALL STATE, from all three dimensions at once.
+ *
+ * A composite rule has THREE target states, not one, and the row shows a
+ * single badge - so the three have to be reduced, and the order of that
+ * reduction is the whole correctness question. It is by SEVERITY:
+ *
+ *   any MISSING    -> Missing    a target has been deleted. The most
+ *                                actionable state there is, and it must not
+ *                                be hidden behind a sibling that is merely
+ *                                retired.
+ *   else any INACTIVE -> Inactive
+ *   else at least one narrowed dimension ACTIVE -> Active
+ *   nothing narrowed  -> "—"     All / All / All. There is no target to be
+ *                                broken, which is not the same as a target
+ *                                whose state is unknown.
+ *
+ * WHY THIS REPLACED A SINGLE `target_state`. That field described a rule
+ * with one dimension. Against a composite row it is simply absent, so every
+ * saved multi-level rule - including perfectly healthy ones - fell through
+ * to the default and rendered as "—". A valid rule that looks like it has no
+ * state is a rule somebody deletes. The legacy field is deliberately NOT
+ * consulted as a fallback: reading it would mean a row could be described by
+ * a field that no longer reflects two of its three dimensions.
+ */
+export function ruleDimensionStates(row) {
+  return row && Array.isArray(row.rule_dimensions) ? row.rule_dimensions : [];
 }
 
-/** Active / Inactive / Missing / — , for the Status column. */
 export function targetStatusLabel(row) {
-  if (!row) return "";
-  switch (row.target_state) {
-    case TARGET_STATE.MISSING:
-      return "Missing";
-    case TARGET_STATE.INACTIVE:
-      return "Inactive";
-    case TARGET_STATE.ACTIVE:
-      return "Active";
-    default:
-      return "—";
-  }
+  const dimensions = ruleDimensionStates(row);
+  if (dimensions.length === 0) return "—";
+  if (dimensions.some((d) => d.state === TARGET_STATE.MISSING)) return "Missing";
+  if (dimensions.some((d) => d.state === TARGET_STATE.INACTIVE)) return "Inactive";
+  if (dimensions.some((d) => d.state === TARGET_STATE.ACTIVE)) return "Active";
+  // Every dimension unrestricted - "All Employees". Nothing to be broken.
+  return "—";
+}
+
+/**
+ * THE WARNING, OR NOTHING - and zero matches is NOT a warning.
+ *
+ * It names the HIGHEST-SEVERITY broken dimension, matching the badge, so the
+ * words and the colour can never describe different dimensions. A rule whose
+ * outlet is open and staffed by nobody today is correct and reads "Active"
+ * with a count of 0; a rule whose outlet was deleted is broken configuration.
+ * Collapsing the two into "0 employees" would hide real breakage behind an
+ * ordinary number, which is the single distinction this screen preserves.
+ */
+export function targetWarning(row) {
+  const dimensions = ruleDimensionStates(row);
+  const worst =
+    dimensions.find((d) => d.state === TARGET_STATE.MISSING) ||
+    dimensions.find((d) => d.state === TARGET_STATE.INACTIVE);
+  if (!worst) return null;
+  if (worst.warning) return worst.warning;
+  return worst.state === TARGET_STATE.MISSING
+    ? MAPPING_MESSAGES.TARGET_MISSING
+    : MAPPING_MESSAGES.TARGET_INACTIVE;
+}
+
+/** The severity that decides the badge colour, so the two cannot disagree. */
+export function rowSeverity(row) {
+  const label = targetStatusLabel(row);
+  if (label === "Missing") return TARGET_STATE.MISSING;
+  if (label === "Inactive") return TARGET_STATE.INACTIVE;
+  if (label === "Active") return TARGET_STATE.ACTIVE;
+  return TARGET_STATE.NOT_APPLICABLE;
 }
 
 export const targetIsBroken = (row) => targetWarning(row) !== null;

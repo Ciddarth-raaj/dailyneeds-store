@@ -46,6 +46,8 @@ import {
   dimensionCell,
   dimensionState,
   ruleLabel,
+  TARGET_STATE,
+  rowSeverity,
   targetStatusLabel,
   targetWarning,
   targetIsBroken,
@@ -284,10 +286,14 @@ export default function TelegramGroupMapPage() {
             return <Badge colorScheme={label === "Active" ? "green" : "gray"}>{label}</Badge>;
           }
           // The warning is the whole reason the row is still here, so it is
-          // on the row rather than hidden behind an icon.
+          // on the row rather than hidden behind an icon. The colour comes
+          // from the SAME derivation as the label, so the badge and the
+          // words can never describe different dimensions.
           return (
             <Tooltip label={warning}>
-              <Badge colorScheme={row.target_state === "MISSING" ? "red" : "orange"}>{label}</Badge>
+              <Badge colorScheme={rowSeverity(row) === TARGET_STATE.MISSING ? "red" : "orange"}>
+                {label}
+              </Badge>
             </Tooltip>
           );
         },
