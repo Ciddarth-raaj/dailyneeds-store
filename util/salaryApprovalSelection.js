@@ -51,7 +51,21 @@ function toggleSelection(selectedIds, salaryId, checked) {
  */
 function pruneSelection(selectedIds, eligibleIds) {
   const eligible = Array.isArray(eligibleIds) ? eligibleIds : [];
-  return (Array.isArray(selectedIds) ? selectedIds : []).filter((id) => eligible.includes(id));
+  const current = Array.isArray(selectedIds) ? selectedIds : [];
+  const kept = current.filter((id) => eligible.includes(id));
+  /*
+   * THE SAME ARRAY BACK WHEN NOTHING WAS DROPPED, AND THAT IS NOT A
+   * MICRO-OPTIMISATION.
+   *
+   * This is called from a `useState` updater in an effect. `filter` always
+   * allocates, so returning the fresh array unconditionally made every run a
+   * genuine state change by `Object.is`, React re-rendered, the effect ran
+   * again — and the Salary Approval screen span at full CPU. Returning the
+   * identical reference is what lets React bail out, and it is the pure
+   * function's job rather than the caller's because every caller would
+   * otherwise have to remember.
+   */
+  return kept.length === current.length ? current : kept;
 }
 
 /** True only when there IS something eligible and all of it is ticked. */

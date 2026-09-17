@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useUser } from "../contexts/UserContext";
 
 /**
@@ -15,13 +16,26 @@ import { useUser } from "../contexts/UserContext";
  *
  * NOT A SECURITY BOUNDARY. What comes out of here decides what to draw. Every
  * salary endpoint re-checks the caller's real permissions on every request.
+ *
+ * THE SAME OBJECT BACK UNTIL THE FACTS CHANGE. This used to build a fresh
+ * literal on every render, which is invisible until a caller puts it in a
+ * dependency array: on Salary Approval it made a `useMemo` recompute every
+ * render and the effect that depends on that memo run every render, which is
+ * a render loop and a screen that pegs the CPU. `permissions` is state inside
+ * `UserContext`, so its reference only moves when it is actually refetched,
+ * and memoising on it is stable.
  */
 function usePayrollActor() {
   const { userConfig } = useUser();
-  return {
-    permissions: userConfig.permissions || [],
-    isAdmin: String(userConfig.userType) === "2",
-  };
+  const permissions = userConfig.permissions;
+  const userType = userConfig.userType;
+  return useMemo(
+    () => ({
+      permissions: permissions || [],
+      isAdmin: String(userType) === "2",
+    }),
+    [permissions, userType]
+  );
 }
 
 export default usePayrollActor;
