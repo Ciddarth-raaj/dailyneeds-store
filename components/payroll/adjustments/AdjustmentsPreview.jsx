@@ -87,7 +87,7 @@ function AdjustmentsPreview({ preview, initializedCount }) {
           <AlertIcon />
           {preview.no_adjustment_pending_confirmation} row
           {preview.no_adjustment_pending_confirmation === 1 ? " has" : "s have"} no pay-affecting amount.
-          Any Balance Advance on them is still saved — it is informational and does not change anyone's pay.
+          Any Balance Advance on them is still saved — it is informational and changes nobody&apos;s pay.
           Saving this file does <b>not</b> confirm them as having no adjustment — they stay{" "}
           <b>Pending Confirmation</b> until somebody confirms them explicitly.
         </Alert>
