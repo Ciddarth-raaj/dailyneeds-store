@@ -6,7 +6,6 @@ import {
   PayTypeControl,
   SelectCheckbox,
   StatusBadge,
-  WarningsBlock,
   rowIsBusy,
   rowIsSelectable,
 } from "./payrunPresentation";
@@ -111,12 +110,10 @@ function PayrunEmployeeCard({
           </Field>
         </SimpleGrid>
 
-        {/* THE BLOCKING REASONS ARE ON THE STATUS BADGE ABOVE - tap it. What
-            stays inline is the warning, because nothing announces it and there
-            is at most one: a warning does not stop the month, so nobody would
-            think to go looking for it. */}
-        <WarningsBlock row={row} fontSize="xs" />
-
+        {/* THE BLOCKING REASONS ARE ON THE STATUS BADGE ABOVE - tap it.
+            Nothing else goes between the facts and the button: the
+            bank-details warning that used to sit here said what Pay Type
+            already says, and cost a third of the card's height to say it. */}
         <InitializeControl
           row={row}
           selectable={selectable}

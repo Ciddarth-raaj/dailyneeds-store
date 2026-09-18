@@ -6,7 +6,6 @@ import {
   PayTypeControl,
   SelectCheckbox,
   StatusBadge,
-  WarningsBlock,
   rowIsBusy,
   rowIsSelectable,
 } from "./payrunPresentation";
@@ -90,7 +89,6 @@ function PayrunTable({
                 <Td>{row.designation_name || "—"}</Td>
                 <Td>
                   <StatusBadge row={row} />
-                  <WarningsBlock row={row} />
                 </Td>
                 <Td>
                   <PayTypeControl

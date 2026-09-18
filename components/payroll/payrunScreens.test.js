@@ -250,7 +250,7 @@ test("the exit badge is a badge - it is never wired to the pay type", () => {
   // onChange - so there is nothing for it to drive on either layout.
   const badge = presentationCode.slice(
     presentationCode.indexOf("export function ExitedBadge"),
-    presentationCode.indexOf("export function WarningsBlock")
+    presentationCode.indexOf("export function PayTypeControl")
   );
   assert.ok(
     !/(Select|Button|onChange|onInitialize|pay_type)/.test(badge),
@@ -342,7 +342,6 @@ test("the mobile card carries every field the table does", () => {
   assert.match(cardCode, /label="Designation"/);
   assert.match(cardCode, /label="Pay Type"/);
   assert.match(cardCode, /<StatusBadge row=\{row\} \/>/);
-  assert.match(cardCode, /<WarningsBlock row=\{row\}/);
   assert.match(cardCode, /<ExitedBadge row=\{row\} \/>/);
   assert.match(cardCode, /<SelectCheckbox/);
   assert.match(cardCode, /<InitializeControl/);
@@ -419,9 +418,39 @@ test("no long explanatory sentence is printed inline on either layout", () => {
     assert.ok(!/blocking_reasons/.test(code), `${name} still renders the reasons inline`);
     assert.ok(!/Blocking Reasons/.test(code), `${name} still has a blocking reasons column`);
   });
-  // The WARNING stays inline, because nothing announces it and it does not block.
-  assert.match(cardCode, /<WarningsBlock/);
-  assert.match(tableCode, /<WarningsBlock/);
+});
+
+test("THE BANK-DETAILS WARNING IS NOT SHOWN ON THIS SCREEN AT ALL", () => {
+  /*
+   * It said what Pay Type already says - whether an account exists is that
+   * field's business - and cost a third of a phone card's height to say it.
+   * Bank readiness belongs to the payment stage, where somebody can act on it.
+   */
+  ALL_VIEWS.forEach(([name, code]) => {
+    assert.ok(!/row\.warnings|WarningsBlock/.test(code), `${name} still renders a warning`);
+    assert.ok(!/BANK_DETAILS_MISSING/.test(code), `${name} names the warning`);
+    assert.ok(
+      !/payment readiness|Bank details are missing/i.test(code),
+      `${name} still carries the warning copy`
+    );
+  });
+
+  // NOTHING REPLACED IT - not a badge, not an icon, not a second popover. The
+  // only popover on this screen is the blocker one on the Status badge.
+  // The ROOT <Popover> element, not its Trigger/Content/Arrow/Body children.
+  assert.equal(
+    (presentationCode.match(/<Popover(?=[\s>])/g) || []).length,
+    1,
+    "a second popover would be the warning coming back in another costume"
+  );
+  [tableCode, cardCode].forEach((code) =>
+    assert.ok(!/warning/i.test(code), "no warning affordance may remain on a layout")
+  );
+
+  // AND THE SERVER STILL PRODUCES IT - this is presentation only. The payrun
+  // rules module is untouched and still reports the warning for a later stage.
+  const selection = read("util/payrunSelection.js");
+  assert.ok(!/warnings/.test(codeOf(selection)), "the browser keeps no warning rule of its own");
 });
 
 test("a READY row is selectable on BOTH layouts, through the one shared rule", () => {

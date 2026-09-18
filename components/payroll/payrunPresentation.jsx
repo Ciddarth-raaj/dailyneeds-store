@@ -206,30 +206,28 @@ export function ExitedBadge({ row, ml = 2 }) {
   );
 }
 
-/**
- * THE WARNINGS - and only the warnings.
+/*
+ * THERE IS NO `WarningsBlock` HERE ANY MORE.
  *
- * A WARNING IS NOT A BLOCKING REASON, which is why it stayed on the row when
- * the reasons moved behind the badge: missing bank details do not stop a month
- * being initialized, nothing shows that somebody must click to discover it,
- * and there is at most one of them. A blocker says "you cannot"; a warning
- * says "you will have to deal with this", and the second is worth a line.
+ * The one warning this screen ever showed was "Bank details are missing. This
+ * does not block initialization; it is a payment readiness issue." - two lines
+ * of orange text on every card of every employee HR has not collected an
+ * account for, which on a phone was a third of the card's height.
  *
- * Blocking reasons are on `StatusBadge` above, in full.
+ * IT WAS SAYING SOMETHING THE ROW ALREADY SAYS. Pay Type sits beside it and
+ * reads BANK or CASH; whether an account exists is that field's business, and
+ * the readiness question belongs to the payment/bank-processing stage where
+ * somebody can act on it. A warning that neither blocks anything nor tells you
+ * something new is height.
+ *
+ * NOTHING REPLACES IT - no badge, no icon, no popover. The warning is not
+ * being relocated, it is not being shown here at all.
+ *
+ * THE SERVER STILL PRODUCES IT, deliberately untouched: `payrun_eligibility`
+ * still reports BANK_DETAILS_MISSING and the API still sends `warnings` on
+ * every row, so the later payment stage has it waiting. This screen simply
+ * does not render it - the same presentation-only removal the gross had.
  */
-export function WarningsBlock({ row, fontSize = "xs" }) {
-  const warnings = row.warnings || [];
-  if (warnings.length === 0) return null;
-  return (
-    <Stack spacing={0.5}>
-      {warnings.map((warning) => (
-        <Text key={warning.code} fontSize={fontSize} color="orange.600" whiteSpace="normal">
-          {warning.message}
-        </Text>
-      ))}
-    </Stack>
-  );
-}
 
 /**
  * THE MONTHLY PAY TYPE - a control only once the month is INITIALIZED and only
