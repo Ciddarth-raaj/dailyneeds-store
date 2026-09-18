@@ -77,14 +77,19 @@ function AdjustmentsPreview({ preview, initializedCount }) {
         </Alert>
       ) : null}
 
-      {/* THE SENTENCE THAT STOPS THE COMMONEST MISUNDERSTANDING IN THIS STAGE. */}
+      {/* THE SENTENCE THAT STOPS THE COMMONEST MISUNDERSTANDING IN THIS STAGE.
+          "No pay-affecting amounts" rather than "no amounts", because a row
+          carrying only a Balance Advance belongs in this section: the balance
+          is saved, and it is not an adjustment, so the employee still needs
+          confirming. Saying "no amounts" there would read as a mistake. */}
       {preview.no_adjustment_pending_confirmation > 0 ? (
         <Alert status="info" fontSize="sm">
           <AlertIcon />
           {preview.no_adjustment_pending_confirmation} row
-          {preview.no_adjustment_pending_confirmation === 1 ? " has" : "s have"} no amounts. Saving this file
-          does <b>not</b> confirm them as having no adjustment — they stay <b>Pending Confirmation</b> until
-          somebody confirms them explicitly.
+          {preview.no_adjustment_pending_confirmation === 1 ? " has" : "s have"} no pay-affecting amount.
+          Any Balance Advance on them is still saved — it is informational and does not change anyone's pay.
+          Saving this file does <b>not</b> confirm them as having no adjustment — they stay{" "}
+          <b>Pending Confirmation</b> until somebody confirms them explicitly.
         </Alert>
       ) : null}
 

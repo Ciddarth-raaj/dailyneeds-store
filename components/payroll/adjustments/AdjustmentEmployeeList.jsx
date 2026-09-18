@@ -188,6 +188,16 @@ function AdjustmentCards(props) {
                     No amounts entered.
                   </Text>
                 )}
+                {/* SAID ON THE ROW, because an employee showing a Balance
+                    Advance and "No Adjustment — Pending Confirmation" looks
+                    like a contradiction until you know the balance is not an
+                    adjustment. It is the ordinary case for anybody repaying
+                    an advance who has nothing unusual this month. */}
+                {row.informational && row.adjustment_state !== STATE.HAS_ADJUSTMENT ? (
+                  <Text fontSize="xs" color="gray.500">
+                    A Balance Advance is informational — it does not count as an adjustment.
+                  </Text>
+                ) : null}
                 {row.remarks ? (
                   <Text fontSize="xs" color="gray.600">
                     {row.remarks}

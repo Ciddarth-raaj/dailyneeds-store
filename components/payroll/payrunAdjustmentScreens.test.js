@@ -147,6 +147,52 @@ test("the save message carries the pending count rather than only a row count", 
   assert.match(workflowCode, /saveOutcomeMessage/);
 });
 
+test("BALANCE ADVANCE IS PRESENTED AS INFORMATIONAL, NOT AS AN ADJUSTMENT", () => {
+  /*
+   * The browser must not classify it either. The state on the row is the
+   * server's answer - a Balance-Advance-only employee arrives as
+   * NO_ADJUSTMENT_PENDING_CONFIRMATION - and the screen's job is to render
+   * that without making it look like a contradiction.
+   */
+  /*
+   * Nothing here CONCLUDES an adjustment from the informational figure. The
+   * list may READ the state to decide whether to print the explanatory note -
+   * `row.informational && row.adjustment_state !== STATE.HAS_ADJUSTMENT` - and
+   * that is the opposite of inferring one, so the assertion is against a
+   * POSITIVE inference and against any assignment.
+   */
+  assert.ok(
+    !/informational[^\n]*===\s*STATE\.HAS_ADJUSTMENT/.test(SCREEN_CODE),
+    "the browser concludes HAS_ADJUSTMENT from the informational figure"
+  );
+  assert.ok(
+    !/adjustment_state\s*=[^=]/.test(SCREEN_CODE),
+    "the browser assigns an adjustment state"
+  );
+
+  // The preview's No Adjustment section says what it means for a row that
+  // carries only a balance.
+  assert.match(preview, /no pay-affecting amount/);
+  assert.match(preview, /still saved/);
+
+  // The row itself explains the pairing rather than leaving it looking wrong.
+  assert.match(list, /informational — it does not count as an adjustment/);
+
+  // And a Balance Advance is never added into a pay total on screen.
+  assert.match(listCode, /no pay effect/);
+});
+
+test("the tick is offered on a pending employee whatever amounts the row shows", () => {
+  // `isConfirmable` reads only the server's state, so an employee with a
+  // stored Balance Advance can still be confirmed - which is the whole of the
+  // business rule on the browser's side.
+  assert.match(rulesCode, /row\.adjustment_state === STATE\.NO_ADJUSTMENT_PENDING_CONFIRMATION/);
+  assert.ok(
+    !/isConfirmable[\s\S]{0,300}amounts/.test(rulesCode),
+    "the tick is decided from the amounts rather than from the server's state"
+  );
+});
+
 test("the manual editor says a blank box is not a confirmation", () => {
   assert.match(editor, /is not a confirmation/);
   assert.match(editor, /Confirm No Adjustment/);
