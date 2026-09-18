@@ -303,6 +303,50 @@ test("there is no payslip, publish or unlock affordance anywhere", () => {
   }
 });
 
+/* =================================== the two rules the review pass corrected */
+
+/**
+ * OT ACROSS MORE THAN ONE NRM IS SHOWN AS A BREAKDOWN, NOT AS ONE RATE.
+ *
+ * The server reports no single rate when the overtime was worked against
+ * several NRMs, so a screen that printed one anyway would be inventing a
+ * figure that priced none of the money.
+ */
+test("the breakup shows the OT group breakdown when there is more than one NRM", () => {
+  assert.ok(breakupCode.includes("ot_groups"));
+  assert.ok(/otGroups\.length > 1/.test(breakupCode), "it branches on the number of groups");
+  assert.ok(breakup.includes("more than one NRM"), "and says why there is no single rate");
+  // The single-NRM month still shows the simple NRM and hourly rate.
+  assert.ok(breakupCode.includes("Effective NRM"));
+  assert.ok(breakupCode.includes("OT Hourly Rate"));
+});
+
+test("the browser neither groups nor prices the overtime itself", () => {
+  for (const forbidden of ["reduce(", "nrm_minutes /", "/ 60", "approved_ot_minutes *"]) {
+    assert.ok(
+      !breakupCode.includes(forbidden),
+      `the breakup computes something about OT: ${forbidden}`
+    );
+  }
+});
+
+/**
+ * AND THE CONTRIBUTION-PERIOD ANSWER IS SHOWN WHERE THE CONTRIBUTION IS READ.
+ * A contribution charged on a wage above the ESI ceiling is correct when
+ * coverage continues from the period's entry, and somebody reviewing it should
+ * not have to take that on trust.
+ */
+test("the breakup explains a continuing ESI contribution period", () => {
+  assert.ok(breakupCode.includes("esi_contribution_period_continues"));
+  assert.ok(breakupCode.includes("esi_period_start"));
+  assert.ok(breakupCode.includes("esi_coverage_entry_date"));
+  assert.ok(breakup.includes("coverage continues"));
+  assert.ok(
+    !breakupCode.includes("21000"),
+    "the browser must not hold the ESI ceiling"
+  );
+});
+
 /** A failed read and an empty month are told apart. */
 test("a failed read is not rendered as an empty month", () => {
   assert.ok(workflow.includes("it does not mean there is nothing to"));

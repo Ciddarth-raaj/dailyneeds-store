@@ -92,8 +92,26 @@ const money = (value) => {
 const numberOrDash = (value) =>
   value === null || value === undefined ? "—" : String(value);
 
+/** Where attendance got this NRM from, said in words rather than in an enum. */
+function nrmSourceNote(source) {
+  return source === "EMPLOYEE_OVERRIDE"
+    ? "this employee's own break override, as attendance resolved it"
+    : "the assigned shift's NRM, as attendance resolved it";
+}
+
 function CalculationBreakup({ isOpen, onClose, employee, loading, error }) {
   const breakup = employee && employee.breakup;
+  /*
+   * THE OT BREAKDOWN AS THE SERVER PRICED IT. One entry is the ordinary case
+   * and reads exactly as it did before; more than one means there is no single
+   * rate, and the list below is the only honest account of the amount. The
+   * browser groups nothing and prices nothing - it renders what came back.
+   */
+  const otGroups = (breakup && Array.isArray(breakup.ot.ot_groups) ? breakup.ot.ot_groups : []);
+  const effectiveNrm =
+    otGroups.length === 1 ? otGroups[0].nrm_minutes : breakup && breakup.ot.effective_nrm_minutes;
+  const effectiveNrmSource =
+    otGroups.length === 1 ? otGroups[0].nrm_source : breakup && breakup.ot.effective_nrm_source;
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="lg" scrollBehavior="inside">
@@ -175,30 +193,61 @@ function CalculationBreakup({ isOpen, onClose, employee, loading, error }) {
 
               <Group title="Overtime">
                 <Line label="Approved OT Hours" value={numberOrDash(breakup.ot.approved_ot_hours)} />
-                <Line
-                  label="Effective NRM"
-                  value={
-                    breakup.ot.effective_nrm_minutes === null ||
-                    breakup.ot.effective_nrm_minutes === undefined
-                      ? "—"
-                      : `${breakup.ot.effective_nrm_minutes} min`
-                  }
-                  /* WHERE THE NRM CAME FROM, ON THE ROW. Two employees on one
-                     shift may have different OT rates ONLY when one of them
-                     has a lunch/break override, and this is what says which
-                     case this is. */
-                  note={
-                    breakup.ot.effective_nrm_source === "EMPLOYEE_OVERRIDE"
-                      ? "This employee's own break override, as attendance resolved it"
-                      : "The assigned shift's NRM, as attendance resolved it"
-                  }
-                />
-                <Line
-                  label="OT Hourly Rate"
-                  value={money(breakup.ot.ot_hourly_rate)}
-                  note="Daily Rate ÷ Effective NRM"
-                />
-                <Line label="OT Amount" value={money(breakup.ot.ot_amount)} />
+
+                {/*
+                  ONE NRM OR SEVERAL, AND THE SCREEN SAYS WHICH.
+
+                  The hourly rate is Daily Rate ÷ NRM, so an hour worked
+                  against an 8-hour day and an hour worked against an 11-hour
+                  day are worth different amounts. An employee with approved OT
+                  on both has NO single rate, and the server reports none - so
+                  showing one here would be inventing a figure that priced none
+                  of the money. In that case the groups are listed instead,
+                  each with the minutes, the rate and the amount it produced.
+                */}
+                {otGroups.length > 1 ? (
+                  <Box>
+                    <Text fontSize="xs" color="gray.600" mb={1}>
+                      This month&rsquo;s overtime was worked against more than one NRM, so each part
+                      is priced at its own rate.
+                    </Text>
+                    {otGroups.map((group) => (
+                      <Line
+                        key={`${group.nrm_minutes}-${group.nrm_source}`}
+                        label={`${numberOrDash(group.approved_ot_hours)} h at NRM ${group.nrm_minutes} min`}
+                        value={money(group.ot_amount)}
+                        note={`${money(group.ot_hourly_rate)} per hour · ${nrmSourceNote(
+                          group.nrm_source
+                        )}`}
+                      />
+                    ))}
+                  </Box>
+                ) : (
+                  <>
+                    <Line
+                      label="Effective NRM"
+                      value={
+                        effectiveNrm === null || effectiveNrm === undefined
+                          ? "—"
+                          : `${effectiveNrm} min`
+                      }
+                      /* WHERE THE NRM CAME FROM, ON THE ROW. Two employees on
+                         one shift may have different OT rates ONLY when one of
+                         them has a lunch/break override, and this is what says
+                         which case this is. */
+                      note={nrmSourceNote(effectiveNrmSource)}
+                    />
+                    <Line
+                      label="OT Hourly Rate"
+                      value={money(
+                        otGroups.length === 1 ? otGroups[0].ot_hourly_rate : breakup.ot.ot_hourly_rate
+                      )}
+                      note="Daily Rate ÷ Effective NRM"
+                    />
+                  </>
+                )}
+
+                <Line label="OT Amount" value={money(breakup.ot.ot_amount)} strong={otGroups.length > 1} />
               </Group>
 
               <Divider />
@@ -235,6 +284,23 @@ function CalculationBreakup({ isOpen, onClose, employee, loading, error }) {
                 />
                 <Line label="Employee ESI" value={money(breakup.statutory.employee_esi)} />
                 <Line label="Employer ESI" value={money(breakup.statutory.employer_esi)} />
+                {/*
+                  WHY AN ABOVE-CEILING EMPLOYEE IS STILL CONTRIBUTING.
+
+                  ESI coverage is decided once per contribution period and runs
+                  to the end of it, so a contribution charged on a wage above
+                  the ceiling is correct rather than an error - and the person
+                  reviewing it should not have to take that on trust or go and
+                  ask. The server decides it; this prints its answer.
+                */}
+                {breakup.statutory.esi_contribution_period_continues === true ? (
+                  <Line
+                    label="Contribution period"
+                    value={`${breakup.statutory.esi_period_start} to ${breakup.statutory.esi_period_end}`}
+                    note={`Covered at entry on ${breakup.statutory.esi_coverage_entry_date}, so coverage continues to the end of the period whatever the wage does.`}
+                    muted
+                  />
+                ) : null}
               </Group>
 
               <Divider />
