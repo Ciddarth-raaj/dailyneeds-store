@@ -245,6 +245,52 @@ export const PERMISSIONS = {
     void_attendance_punch: "Void a Raw Attendance Punch",
   },
 
+  // Reports — the reporting module on the rail beside HR.
+  //
+  // THESE THREE KEYS ALREADY EXIST AND ALREADY GATE THE BACKEND. The
+  // reports-foundation migration declared `view_reports`, `export_reports` and
+  // `manage_shared_report_templates` and granted them to NOBODY;
+  // `routes/employee_report.js` has required them since the day Reports
+  // shipped. They were simply never listed HERE - and this file is what the
+  // Permission Matrix renders - so there was no checkbox and the rights could
+  // not be granted at all. Reports worked for administrators, through the
+  // `user_type = 2` bypass, and for no one else. Listing them is the whole fix;
+  // it is the same gap the C2 employee keys and `view_employee_aadhaar` had.
+  //
+  // NO SECOND PERMISSION SYSTEM. The keys are the backend's, spelled exactly as
+  // `constants/hr_permissions.js` spells them. Nothing here is renamed,
+  // aliased or invented.
+  //
+  // THREE DECISIONS, BECAUSE THEY ARE THREE:
+  //
+  //   view_reports   discovery and preview. It confers NO field access of its
+  //                  own: somebody who reaches the screen sees exactly the
+  //                  columns their existing B2/B3/M2 permissions already allow,
+  //                  so a report cannot become a way around
+  //                  `view_employee_sensitive` or `view_salary`.
+  //   export_reports taking data out of the building in bulk. Separate on
+  //                  purpose - somebody may reasonably be trusted to look at a
+  //                  screen and not to email a spreadsheet.
+  //   manage_shared_report_templates
+  //                  publishing a report to everybody rather than keeping it.
+  //
+  // IT IS NOT A DOORWAY INTO A DATASET. The Employee Master dataset is HR's,
+  // and reaching it needs `view_employees` as well - the same key that guards
+  // the HR directory. The backend requires exactly that pair with `requireAll`
+  // (AND, never OR), the navigation entries name both, and the pages ask for
+  // both with `{ all: true }`. Ticking only the box below therefore grants the
+  // reporting capability and no employee data whatsoever.
+  //
+  // `hr_reports` AND `process_payroll` STAY OFF THIS SCREEN, for the reason M3
+  // gave: neither runs a payroll nor produces a report today, and a key that
+  // can be granted before its screen exists grants nothing while being
+  // remembered as if it did.
+  reports: {
+    view_reports: "View Reports",
+    export_reports: "Export Reports",
+    manage_shared_report_templates: "Manage Shared Report Templates",
+  },
+
   // Master
   master: {
     view_branch: "View Branches",
