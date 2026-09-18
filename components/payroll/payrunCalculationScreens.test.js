@@ -43,6 +43,8 @@ const breakupCode = codeOf(breakup);
 const hook = codeOf(read("customHooks/usePayrunCalculationMonth.js"));
 const page = read("pages/payroll/payrun.jsx");
 const pageCode = codeOf(page);
+const presentationCode = codeOf(read("components/payroll/payrunPresentation.jsx"));
+const payTypeActionCode = codeOf(read("util/payrunPayType.js"));
 
 const SCREEN_CODE = [workflowCode, listCode, breakupCode, rulesCode, hook].join("\n");
 
@@ -367,4 +369,78 @@ test("the five summary counts come from the server", () => {
   }
   assert.ok(workflowCode.includes("summary."));
   assert.ok(!hook.includes("rows.filter("), "the hook must not recount the summary");
+});
+
+
+/* ============================================ the monthly pay type, here too */
+
+/**
+ * PAY TYPE IS EDITABLE ON THIS SCREEN, AND IT IS THE SAME CONTROL, THE SAME
+ * ENDPOINT AND THE SAME PERMISSION AS ON INITIALIZATION.
+ *
+ * WHY IT BELONGS HERE. Whoever is reading what an employee will actually be
+ * paid is the person who notices that it has to go out in cash. Showing the
+ * value but refusing to change it meant walking back a stage and forward
+ * again, which is how a month goes out on the wrong route.
+ *
+ * WHAT THESE PROVE, SOURCE-WISE: that this screen invented no second control,
+ * no second endpoint and no second rule about when a pay type may move.
+ */
+test("Calculation & Review draws the SHARED pay type control, not one of its own", () => {
+  assert.match(listCode, /import \{ PayTypeControl \} from "\.\.\/payrunPresentation"/);
+  // No select of its own anywhere in this stage.
+  assert.ok(
+    !/<Select[\s\S]*?value=\{row\.pay_type\}/.test(listCode),
+    "the calculation list must not draw its own pay type select"
+  );
+  // Both layouts render the same cell, so the phone and the desktop cannot
+  // disagree about who may change a pay type.
+  assert.ok(
+    (listCode.match(/<PayTypeCell \{\.\.\.props\} row=\{row\} \/>/g) || []).length === 2,
+    "the table and the card must render the same pay type cell"
+  );
+});
+
+test("it reuses the existing endpoint and the existing permission", () => {
+  // The change goes through the one shared module, which posts to the one
+  // existing route. This screen's own helper gains nothing.
+  assert.match(workflowCode, /changeMonthlyPayType\(/);
+  assert.ok(
+    !/pay-type/.test(helperCode),
+    "the calculation helper must not grow a second pay type call"
+  );
+  assert.match(payTypeActionCode, /PayrunHelper\.setPayType/);
+  // The permission is the initialization screen's key, passed down, never
+  // decided here.
+  assert.match(pageCode, /mayChangePayType=\{mayChangePayType\}/);
+  assert.match(workflowCode, /canChangePayType=\{mayChangePayType && !monthLocked\}/);
+  assert.ok(
+    !/change_payrun_pay_type/.test(workflowCode + listCode),
+    "the permission string belongs in util/payrunAccess.js, not on a screen"
+  );
+});
+
+test("a locked employee's pay type is read-only", () => {
+  assert.match(listCode, /editable=\{!isLocked\(row\)\}/);
+  assert.match(listCode, /approved and locked/);
+  // And the shared control renders a word rather than a select when it is not
+  // editable - proved over the module both screens use.
+  assert.match(presentationCode, /if \(mayEdit\)/);
+  assert.match(presentationCode, /<Tooltip label=\{reason\}>/);
+});
+
+test("changing it refreshes the month, so the stale status shows immediately", () => {
+  const handler = workflowCode.slice(
+    workflowCode.indexOf("const changePayType"),
+    workflowCode.indexOf("const openDetail")
+  );
+  assert.match(handler, /if \(ok\) await refresh\(\)/);
+  assert.match(handler, /setBusyEmployeeId\(employeeId\)/);
+  // The RECALCULATION REQUIRED status is the server's, arrived at through its
+  // own inputs hash - this screen computes nothing about it.
+  assert.ok(
+    !/RECALCULATION_REQUIRED\s*[:=]/.test(handler),
+    "the browser must not decide that a calculation went stale"
+  );
+  assert.match(workflowCode, /STATUS\.RECALCULATION_REQUIRED/);
 });

@@ -56,6 +56,14 @@ const ALL_VIEWS = [
 ];
 const hook = read("customHooks/usePayrunMonth.js");
 const hookCode = codeOf(hook);
+/*
+ * THE ONE PLACE THE PAY TYPE CHANGE IS MADE. Two screens offer it now -
+ * Initialization and Calculation & Review - and both call this module, so
+ * the request, the refusal handling and the sentence about it being
+ * month-specific exist once.
+ */
+const payTypeAction = read("util/payrunPayType.js");
+const payTypeActionCode = codeOf(payTypeAction);
 
 /* ============================================== the endpoints are the real ones */
 
@@ -202,7 +210,11 @@ test("a partial bulk outcome is reported as partial, not as a success", () => {
 
 test("a refusal never renders as done", () => {
   assert.match(pageCode, /describeApiResult\(result\)/);
-  assert.ok((pageCode.match(/outcome\.kind !== KIND\.OK/g) || []).length >= 2);
+  // The initialize path checks it here; the pay-type path checks it in the
+  // shared module both screens now call, and that is checked there.
+  assert.ok((pageCode.match(/outcome\.kind !== KIND\.OK/g) || []).length >= 1);
+  assert.match(payTypeActionCode, /describeApiResult\(result\)/);
+  assert.match(payTypeActionCode, /outcome\.kind !== KIND\.OK/);
 });
 
 test("a failed read is not shown as an empty month", () => {
@@ -211,11 +223,13 @@ test("a failed read is not shown as an empty month", () => {
 });
 
 test("the pay type change says it is month-specific and changes no employee record", () => {
-  assert.match(pageCode, /This month only\. The employee's record is unchanged\./);
+  assert.match(payTypeActionCode, /This month only\. The employee's record is unchanged/);
   assert.ok(
-    !/payment_type/.test(pageCode + tableCode + helperCode),
+    !/payment_type/.test(pageCode + tableCode + helperCode + payTypeActionCode),
     "no payrun screen may send or edit the Employee Master's payment type"
   );
+  // The page no longer builds that sentence itself - it calls the one module.
+  assert.match(pageCode, /changeMonthlyPayType\(/);
 });
 
 test("HOLD is not offered as a pay type anywhere on the screen", () => {
@@ -264,7 +278,20 @@ test("the exit badge is a badge - it is never wired to the pay type", () => {
 });
 
 test("the pay type is only editable once the month is initialized", () => {
-  assert.match(presentationCode, /if \(row\.initialized && canChangePayType\)/);
+  /*
+   * ONE CONTROL, TWO SCREENS. The editability question is now a parameter -
+   * the initialization screen's answer is "is it initialized", which stays the
+   * DEFAULT, and Calculation & Review passes "is it not approved and locked".
+   * Neither screen draws a select of its own.
+   */
+  assert.match(
+    presentationCode,
+    /editable === null \? Boolean\(row\.initialized\) : Boolean\(editable\)/
+  );
+  assert.match(presentationCode, /Boolean\(canChangePayType\)/);
+  assert.match(presentationCode, /if \(mayEdit\)/);
+  // The initialization screens pass no override, so they get that default.
+  assert.ok(!/editable=/.test(tableCode + cardCode));
 });
 
 /* ==================================================== the table's columns */
@@ -483,7 +510,7 @@ test("the mobile pay type edit follows the SAME permission rule as desktop", () 
     !/canChangePayType\s*(\|\||=\s*true)/.test(cardCode),
     "the card must not widen the pay type permission"
   );
-  assert.match(presentationCode, /if \(row\.initialized && canChangePayType\)/);
+  assert.match(presentationCode, /if \(mayEdit\)/);
   // The page still gates it on the permission AND the month lock, as before.
   assert.match(pageCode, /canChangePayType=\{mayChangePayType && !monthLocked\}/);
 });
@@ -615,16 +642,20 @@ test("the reasons popover is reachable by tap, click and keyboard alike", () => 
 test("PAY TYPE IS UNCHANGED BY THIS CLEANUP", () => {
   // Still on the screen, still only editable once initialized, still gated on
   // the permission AND the month lock, still BANK/CASH only.
-  assert.match(presentationCode, /if \(row\.initialized && canChangePayType\)/);
+  assert.match(
+    presentationCode,
+    /editable === null \? Boolean\(row\.initialized\) : Boolean\(editable\)/
+  );
   assert.match(presentationCode, /<option value="BANK">/);
   assert.match(presentationCode, /<option value="CASH">/);
   assert.ok(!/HOLD/.test(presentation + table + card + page));
   assert.match(pageCode, /canChangePayType=\{mayChangePayType && !monthLocked\}/);
   assert.match(cardCode, /label="Pay Type"/);
   assert.match(tableCode, /<Th>Pay Type<\/Th>/);
-  // And still month-specific, still not the Employee Master.
-  assert.match(pageCode, /This month only\. The employee's record is unchanged\./);
+  // And still month-specific, still not the Employee Master - said once, in
+  // the shared module both screens call.
   assert.ok(!/payment_type/.test(pageCode + cardCode + tableCode + presentationCode + helperCode));
+  assert.match(payTypeActionCode, /This month only\. The employee's record is unchanged/);
 });
 
 test("nothing moves an exited employee to CASH - the badge and the filter only FIND them", () => {
@@ -640,5 +671,47 @@ test("nothing moves an exited employee to CASH - the badge and the filter only F
       !/(exited_in_month|lifecycle)[^\n]*\?[^\n]*("CASH"|"BANK")/.test(code),
       `${name} picks a pay type from an employment fact`
     )
+  );
+});
+
+
+/* ================== attendance is not an initialization blocker any more == */
+
+/**
+ * THE RULE CHANGED ON THE SERVER, AND THE SCREEN FOLLOWS WITHOUT KNOWING IT.
+ *
+ * Initialization used to refuse an employee whose attendance month was not
+ * final, who had a regularization outstanding or who had an OT approval
+ * outstanding. It does not any more - those are warnings now, and the hard
+ * refusal moved to Approve & Lock, where the money is committed.
+ *
+ * WHAT THIS PROVES IS THAT THE SCREEN NEVER HAD AN OPINION TO UPDATE. Every
+ * blocking reason it shows is a string the server sent, so the rule change
+ * needed no edit here - and these assertions are what keep it that way: the
+ * day somebody hard-codes "Attendance incomplete" into a badge, a label or a
+ * filter, this stops passing.
+ */
+test("no payrun view names an attendance blocker of its own", () => {
+  ALL_VIEWS.forEach(([name, code]) => {
+    assert.ok(
+      !/ATTENDANCE_INCOMPLETE|Attendance incomplete|PENDING_OT_APPROVAL|PENDING_ATTENDANCE_REGULARIZATION/.test(code),
+      `${name} names an attendance blocker - the server owns that vocabulary`
+    );
+  });
+});
+
+test("the blocking reasons rendered are the server's list, unfiltered", () => {
+  // The badge and the popover both walk `row.blocking_reasons` as it arrived.
+  assert.match(presentationCode, /row\.blocking_reasons/);
+  assert.ok(
+    !/blocking_reasons[^\n]*\.filter\(/.test(presentationCode + tableCode + cardCode),
+    "a screen that filtered the reasons would be deciding which ones count"
+  );
+  // And the READY / BLOCKED grouping is the server's status, never recomputed.
+  assert.ok(
+    !/blocking_reasons\.length\s*===?\s*0/.test(
+      pageCode + tableCode + cardCode + presentationCode
+    ),
+    "the browser must not decide who is READY from the reasons list"
   );
 });
