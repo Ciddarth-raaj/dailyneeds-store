@@ -230,16 +230,47 @@ export function ExitedBadge({ row, ml = 2 }) {
  */
 
 /**
- * THE MONTHLY PAY TYPE - a control only once the month is INITIALIZED and only
- * for somebody who holds the key.
+ * THE MONTHLY PAY TYPE - one control, drawn on every payrun screen that offers
+ * it, and it is the SAME control on all of them.
  *
- * Before initialization there is no month-specific record to change: the value
- * shown is the default it WOULD start on, which is the Employee Master's and
- * nothing else's. The server re-checks the permission on every request; this
- * decides whether to draw the control.
+ * WHERE IT APPEARS. Initialization, where the month's pay type first exists,
+ * and Calculation & Review, where somebody looking at what an employee will
+ * actually be paid is the person most likely to notice that it has to go out
+ * in cash. Making the second screen show the value but not let anybody change
+ * it meant walking back a stage to do it - and the two stages would have had
+ * to agree, separately, about when it may be changed.
+ *
+ * WHEN IT IS A CONTROL RATHER THAN A WORD:
+ *
+ *   before initialization   a word. There is no month-specific record to
+ *                           change yet; what is shown is the default it WOULD
+ *                           start on, which is the Employee Master's
+ *   after APPROVE & LOCK    a word. The approval committed to how the money
+ *                           travels; a later Unlock makes it a control again
+ *   no permission           a word
+ *   otherwise               a control, through Initialization, Adjustments and
+ *                           Calculation & Review alike
+ *
+ * `editable` IS HOW A SCREEN SAYS THE SECOND OF THOSE. Left alone it means
+ * "initialized", which is the initialization screen's question; the
+ * calculation screen passes `!isLocked(row)`. Neither answer is invented here
+ * and neither is trusted: the server re-checks the permission AND the lock on
+ * every request and refuses in its own words.
  */
-export function PayTypeControl({ row, canChangePayType, busy, onPayTypeChange, size = "xs", width = "90px" }) {
-  if (row.initialized && canChangePayType) {
+export function PayTypeControl({
+  row,
+  canChangePayType,
+  busy,
+  onPayTypeChange,
+  size = "xs",
+  width = "90px",
+  editable = null,
+  readOnlyReason = null,
+}) {
+  const mayEdit = (editable === null ? Boolean(row.initialized) : Boolean(editable)) &&
+    Boolean(canChangePayType);
+
+  if (mayEdit) {
     return (
       <Select
         size={size}
@@ -254,15 +285,16 @@ export function PayTypeControl({ row, canChangePayType, busy, onPayTypeChange, s
       </Select>
     );
   }
+  const reason =
+    readOnlyReason ||
+    (row.initialized
+      ? "You do not have permission to change the pay type"
+      : "Defaulted from the Employee Master, and from nothing else. It becomes changeable, for this month only, once initialized.");
   return (
-    <Tooltip
-      label={
-        row.initialized
-          ? "You do not have permission to change the pay type"
-          : "Defaulted from the Employee Master, and from nothing else. It becomes changeable, for this month only, once initialized."
-      }
-    >
-      <Text fontSize="xs">{row.pay_type}</Text>
+    <Tooltip label={reason}>
+      <Text fontSize="xs" aria-label={`Pay type for employee ${row.employee_id}`}>
+        {row.pay_type}
+      </Text>
     </Tooltip>
   );
 }

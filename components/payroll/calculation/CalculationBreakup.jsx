@@ -92,8 +92,16 @@ const money = (value) => {
 const numberOrDash = (value) =>
   value === null || value === undefined ? "—" : String(value);
 
-/** Where attendance got this NRM from, said in words rather than in an enum. */
+/**
+ * Where attendance got this NRM from, said in words rather than in an enum.
+ *
+ * NO SOURCE MEANS NO SENTENCE. While the attendance month is not settled the
+ * server sends no NRM and no source, and the old default - "the assigned
+ * shift's NRM, as attendance resolved it" - would be describing a resolution
+ * that has not happened.
+ */
 function nrmSourceNote(source) {
+  if (!source) return null;
   return source === "EMPLOYEE_OVERRIDE"
     ? "this employee's own break override, as attendance resolved it"
     : "the assigned shift's NRM, as attendance resolved it";
@@ -155,6 +163,33 @@ function CalculationBreakup({ isOpen, onClose, employee, loading, error }) {
               {/* THE STALE WARNING SITS ABOVE THE FIGURES, not beside them.
                   Somebody reading a net pay has to know, before they read it,
                   that it no longer describes the current sources. */}
+              {/*
+                  AND THE PENDING NOTICE SITS ABOVE THEM TOO, for the same
+                  reason. Most of the figures below are an em dash rather than
+                  a number, and somebody has to be told that is because nobody
+                  has settled the attendance yet - not because this employee is
+                  owed nothing. The stored calculation is still there and still
+                  what a recalculation will refresh; what is absent is the
+                  claim that its attendance-priced figures are answers.
+              */}
+              {employee.attendance_pending ? (
+                <Alert status="info" fontSize="sm">
+                  <AlertIcon />
+                  <Box>
+                    <Text fontWeight="bold">
+                      Attendance for this month is not settled yet.
+                    </Text>
+                    <Text fontSize="xs">
+                      The salary days, overtime, PF, ESI and net pay are shown as &mdash; because
+                      they would be priced from an attendance month nobody has finalised. The
+                      adjustments and the pay type below are this payrun&rsquo;s own and are shown
+                      as they stand. Once attendance is final, recalculate this employee to see
+                      the real figures.
+                    </Text>
+                  </Box>
+                </Alert>
+              ) : null}
+
               {(employee.recalculation_reasons || []).length > 0 ? (
                 <Alert status="warning" fontSize="sm">
                   <AlertIcon />

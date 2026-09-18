@@ -169,3 +169,58 @@ test("every status has a badge colour, and stale is not the same as ready", () =
     assert.equal(typeof rules.statusScheme(status), "string");
   }
 });
+
+/* ============================== attendance that is not settled yet ======== */
+
+/**
+ * ATTENDANCE_PENDING IS A STATUS THE BROWSER MIRRORS AND NEVER DERIVES.
+ *
+ * The server sends it instead of CALCULATED when the attendance the figures
+ * were priced from is missing or not final, and sends those figures as null
+ * beside it. Everything this module has to get right about it is which actions
+ * it fits and what colour the badge is; the decision itself arrives.
+ */
+test("the browser mirrors the server's status list exactly", () => {
+  const fs = require("fs");
+  const path = require("path");
+  const backend = fs.readFileSync(
+    path.join(
+      __dirname,
+      "..",
+      "..",
+      "dailyneeds-store-backend",
+      "constants",
+      "payrun_calculation.js"
+    ),
+    "utf8"
+  );
+  const block = backend.match(/const CALC_STATUS = \{([\s\S]*?)\};/);
+  assert.ok(block, "the backend's CALC_STATUS is not where it was");
+  const serverStatuses = [...block[1].matchAll(/^\s{2}([A-Z_]+):/gm)].map((m) => m[1]);
+
+  assert.deepEqual(
+    Object.keys(STATUS).sort(),
+    serverStatuses.sort(),
+    "the browser's mirror and the server's statuses have drifted"
+  );
+  assert.ok(serverStatuses.includes("ATTENDANCE_PENDING"));
+});
+
+test("a pending-attendance row may be recalculated - it has a calculation", () => {
+  assert.equal(rules.isRecalculable(row(1, STATUS.ATTENDANCE_PENDING)), true);
+  assert.deepEqual(rules.recalculableEmployeeIds([row(7, STATUS.ATTENDANCE_PENDING)]), [7]);
+});
+
+test("a pending-attendance row is never calculable and never approvable", () => {
+  assert.equal(rules.isCalculable(row(1, STATUS.ATTENDANCE_PENDING)), false);
+  assert.equal(rules.isApprovable(row(1, STATUS.ATTENDANCE_PENDING)), false);
+  assert.deepEqual(rules.approvableEmployeeIds([row(1, STATUS.ATTENDANCE_PENDING)]), []);
+  assert.equal(rules.isLocked(row(1, STATUS.ATTENDANCE_PENDING)), false);
+});
+
+test("its badge is its own colour, not the stale one and not the calculated one", () => {
+  const pending = rules.statusScheme(STATUS.ATTENDANCE_PENDING);
+  assert.equal(pending, "yellow");
+  assert.notEqual(pending, rules.statusScheme(STATUS.RECALCULATION_REQUIRED));
+  assert.notEqual(pending, rules.statusScheme(STATUS.CALCULATED));
+});

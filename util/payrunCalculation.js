@@ -18,9 +18,19 @@
  * are browser concerns with no server counterpart.
  */
 
-/** The server's five statuses. Mirrored, never re-derived - see the header. */
+/** The server's statuses. Mirrored, never re-derived - see the header. */
 const STATUS = {
   NOT_CALCULATED: "NOT_CALCULATED",
+  /**
+   * CALCULATED, BUT FROM AN ATTENDANCE MONTH THAT IS NOT SETTLED.
+   *
+   * The server sends this instead of CALCULATED when the attendance the
+   * figures were priced from is missing or not final, and it sends the
+   * attendance-dependent figures as null beside it - so Salary Days, the OT,
+   * the PF, the ESI and the Net Pay render as an em dash rather than as a
+   * zero. Nothing in this file decides that; the flag and the nulls arrive.
+   */
+  ATTENDANCE_PENDING: "ATTENDANCE_PENDING",
   CALCULATED: "CALCULATED",
   RECALCULATION_REQUIRED: "RECALCULATION_REQUIRED",
   READY_FOR_APPROVAL: "READY_FOR_APPROVAL",
@@ -49,6 +59,10 @@ const isRecalculable = (row) =>
   Boolean(
     row &&
       (row.status === STATUS.CALCULATED ||
+        /* A pending-attendance row HAS a calculation, so it can be refreshed -
+           and refreshing it is exactly what somebody does the moment the
+           attendance month is settled. */
+        row.status === STATUS.ATTENDANCE_PENDING ||
         row.status === STATUS.RECALCULATION_REQUIRED ||
         row.status === STATUS.READY_FOR_APPROVAL)
   );
@@ -177,6 +191,9 @@ function statusScheme(status) {
   if (status === STATUS.APPROVED_LOCKED) return "green";
   if (status === STATUS.READY_FOR_APPROVAL) return "teal";
   if (status === STATUS.RECALCULATION_REQUIRED) return "orange";
+  /* Distinct from the orange of a moved source: this row is not stale, it is
+     waiting on somebody else settling the attendance month. */
+  if (status === STATUS.ATTENDANCE_PENDING) return "yellow";
   if (status === STATUS.CALCULATED) return "purple";
   return "gray";
 }

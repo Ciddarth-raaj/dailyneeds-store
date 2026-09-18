@@ -21,6 +21,7 @@ import CalculationBreakup from "./CalculationBreakup";
 import usePayrunCalculationMonth from "../../../customHooks/usePayrunCalculationMonth";
 import PayrunCalculationHelper from "../../../helper/payrunCalculation";
 import { describeApiResult, KIND } from "../../../util/salaryApiError";
+import { changeMonthlyPayType } from "../../../util/payrunPayType";
 import {
   STATUS,
   approveMessage,
@@ -69,7 +70,15 @@ import {
  * later stages, and an affordance for one of them would be a promise the
  * system cannot keep.
  */
-function PayrunCalculation({ year, month, storeId, monthName, mayCalculate, mayApprove }) {
+function PayrunCalculation({
+  year,
+  month,
+  storeId,
+  monthName,
+  mayCalculate,
+  mayApprove,
+  mayChangePayType,
+}) {
   const toast = useToast();
 
   const [status, setStatus] = useState("");
@@ -199,6 +208,45 @@ function PayrunCalculation({ year, month, storeId, monthName, mayCalculate, mayA
       }
     );
 
+  /**
+   * THIS MONTH'S PAY TYPE, CHANGED FROM THE REVIEW SCREEN.
+   *
+   * WHY IT IS OFFERED HERE AT ALL. Whoever is reading what an employee will
+   * actually be paid is the person who notices that it has to go out in cash -
+   * their account is closed, they have left, the bank rejected the last one.
+   * Sending them back a stage to change it, and then forward again, is how a
+   * month goes out on the wrong route.
+   *
+   * IT IS THE SAME ACT AS ON THE INITIALIZATION SCREEN, through the same
+   * shared module, the same endpoint and the same permission. It writes
+   * `payrun_employee.pay_type` and nothing else - not the Employee Master, and
+   * not this stage's stored calculation.
+   *
+   * AND IT DOES NOT SILENTLY RE-SIGN ANYTHING. The pay type is one of the
+   * inputs the server hashes, so an employee who was calculated comes back as
+   * RECALCULATION REQUIRED with every stored figure exactly as it was, and
+   * cannot be approved until somebody presses Recalculate. The refresh below
+   * is what makes that visible immediately - the row's status changes under
+   * the person who just changed the pay type, which is the point.
+   */
+  const changePayType = async (employeeId, payType) => {
+    if (busy) return;
+    setBusyEmployeeId(employeeId);
+    try {
+      const { ok, toast: message } = await changeMonthlyPayType({
+        year,
+        month,
+        employeeId,
+        payType,
+        monthLabel: monthName,
+      });
+      toast(message);
+      if (ok) await refresh();
+    } finally {
+      setBusyEmployeeId(null);
+    }
+  };
+
   /** Open one employee's breakup. A read, and it changes nothing. */
   const openDetail = async (row) => {
     setDetailOpen(true);
@@ -225,13 +273,22 @@ function PayrunCalculation({ year, month, storeId, monthName, mayCalculate, mayA
   };
 
   /**
-   * THE FIVE COUNTS THE STAGE IS SUMMARISED BY, in the order of the pipeline
-   * they describe. They count the WHOLE month and never the filtered view -
+   * THE COUNTS THE STAGE IS SUMMARISED BY, in the order of the pipeline
+   * they describe.
+   *
+   * ATTENDANCE PENDING IS ITS OWN CARD and is deliberately not folded into
+   * "Calculated". Those two numbers are two different jobs: a calculated
+   * employee is waiting on a confirmation or an approval somebody here can
+   * give, and a pending one is waiting on the attendance month being settled,
+   * which is somebody else's. A month where the second number is large is a
+   * month that is not costed yet, and rolling it into the first would say the
+   * opposite. They count the WHOLE month and never the filtered view -
    * the server's summary is used as it arrives, because "ready: 0" meaning
    * "none matching this filter" is the most dangerous number here.
    */
   const summaryCards = [
     { label: "Initialized", value: summary.initialized },
+    { label: "Attendance Pending", value: summary.attendance_pending },
     { label: "Calculated", value: summary.calculated + summary.ready_for_approval },
     { label: "Recalculation Required", value: summary.recalculation_required },
     { label: "Ready for Approval", value: summary.ready_for_approval },
@@ -240,7 +297,7 @@ function PayrunCalculation({ year, month, storeId, monthName, mayCalculate, mayA
 
   return (
     <Stack spacing={4}>
-      <SimpleGrid columns={{ base: 2, md: 5 }} spacing={3}>
+      <SimpleGrid columns={{ base: 2, md: 6 }} spacing={3}>
         {summaryCards.map((card) => (
           <Stat key={card.label} p={3} borderWidth="1px" borderRadius="md">
             <StatLabel fontSize="xs">{card.label}</StatLabel>
@@ -265,6 +322,7 @@ function PayrunCalculation({ year, month, storeId, monthName, mayCalculate, mayA
           aria-label="Calculation status"
         >
           <option value={STATUS.NOT_CALCULATED}>Not calculated</option>
+          <option value={STATUS.ATTENDANCE_PENDING}>Attendance pending</option>
           <option value={STATUS.CALCULATED}>Calculated</option>
           <option value={STATUS.RECALCULATION_REQUIRED}>Recalculation required</option>
           <option value={STATUS.READY_FOR_APPROVAL}>Ready for approval</option>
@@ -427,8 +485,10 @@ function PayrunCalculation({ year, month, storeId, monthName, mayCalculate, mayA
             }
             onApprove={(ids) => approve(ids)}
             onOpen={openDetail}
+            onPayTypeChange={changePayType}
             canCalculate={mayCalculate && !monthLocked}
             canApprove={mayApprove && !monthLocked}
+            canChangePayType={mayChangePayType && !monthLocked}
             busyEmployeeId={busyEmployeeId}
             disabled={bulkBusy}
           />

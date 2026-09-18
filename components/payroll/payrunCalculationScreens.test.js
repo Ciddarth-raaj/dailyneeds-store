@@ -43,6 +43,8 @@ const breakupCode = codeOf(breakup);
 const hook = codeOf(read("customHooks/usePayrunCalculationMonth.js"));
 const page = read("pages/payroll/payrun.jsx");
 const pageCode = codeOf(page);
+const presentationCode = codeOf(read("components/payroll/payrunPresentation.jsx"));
+const payTypeActionCode = codeOf(read("util/payrunPayType.js"));
 
 const SCREEN_CODE = [workflowCode, listCode, breakupCode, rulesCode, hook].join("\n");
 
@@ -367,4 +369,179 @@ test("the five summary counts come from the server", () => {
   }
   assert.ok(workflowCode.includes("summary."));
   assert.ok(!hook.includes("rows.filter("), "the hook must not recount the summary");
+});
+
+
+/* ============================================ the monthly pay type, here too */
+
+/**
+ * PAY TYPE IS EDITABLE ON THIS SCREEN, AND IT IS THE SAME CONTROL, THE SAME
+ * ENDPOINT AND THE SAME PERMISSION AS ON INITIALIZATION.
+ *
+ * WHY IT BELONGS HERE. Whoever is reading what an employee will actually be
+ * paid is the person who notices that it has to go out in cash. Showing the
+ * value but refusing to change it meant walking back a stage and forward
+ * again, which is how a month goes out on the wrong route.
+ *
+ * WHAT THESE PROVE, SOURCE-WISE: that this screen invented no second control,
+ * no second endpoint and no second rule about when a pay type may move.
+ */
+test("Calculation & Review draws the SHARED pay type control, not one of its own", () => {
+  assert.match(listCode, /import \{ PayTypeControl \} from "\.\.\/payrunPresentation"/);
+  // No select of its own anywhere in this stage.
+  assert.ok(
+    !/<Select[\s\S]*?value=\{row\.pay_type\}/.test(listCode),
+    "the calculation list must not draw its own pay type select"
+  );
+  // Both layouts render the same cell, so the phone and the desktop cannot
+  // disagree about who may change a pay type.
+  assert.ok(
+    (listCode.match(/<PayTypeCell \{\.\.\.props\} row=\{row\} \/>/g) || []).length === 2,
+    "the table and the card must render the same pay type cell"
+  );
+});
+
+test("it reuses the existing endpoint and the existing permission", () => {
+  // The change goes through the one shared module, which posts to the one
+  // existing route. This screen's own helper gains nothing.
+  assert.match(workflowCode, /changeMonthlyPayType\(/);
+  assert.ok(
+    !/pay-type/.test(helperCode),
+    "the calculation helper must not grow a second pay type call"
+  );
+  assert.match(payTypeActionCode, /PayrunHelper\.setPayType/);
+  // The permission is the initialization screen's key, passed down, never
+  // decided here.
+  assert.match(pageCode, /mayChangePayType=\{mayChangePayType\}/);
+  assert.match(workflowCode, /canChangePayType=\{mayChangePayType && !monthLocked\}/);
+  assert.ok(
+    !/change_payrun_pay_type/.test(workflowCode + listCode),
+    "the permission string belongs in util/payrunAccess.js, not on a screen"
+  );
+});
+
+test("a locked employee's pay type is read-only", () => {
+  assert.match(listCode, /editable=\{!isLocked\(row\)\}/);
+  assert.match(listCode, /approved and locked/);
+  // And the shared control renders a word rather than a select when it is not
+  // editable - proved over the module both screens use.
+  assert.match(presentationCode, /if \(mayEdit\)/);
+  assert.match(presentationCode, /<Tooltip label=\{reason\}>/);
+});
+
+test("changing it refreshes the month, so the stale status shows immediately", () => {
+  const handler = workflowCode.slice(
+    workflowCode.indexOf("const changePayType"),
+    workflowCode.indexOf("const openDetail")
+  );
+  assert.match(handler, /if \(ok\) await refresh\(\)/);
+  assert.match(handler, /setBusyEmployeeId\(employeeId\)/);
+  // The RECALCULATION REQUIRED status is the server's, arrived at through its
+  // own inputs hash - this screen computes nothing about it.
+  assert.ok(
+    !/RECALCULATION_REQUIRED\s*[:=]/.test(handler),
+    "the browser must not decide that a calculation went stale"
+  );
+  assert.match(workflowCode, /STATUS\.RECALCULATION_REQUIRED/);
+});
+
+/* ================== a provisional figure is not presented as a result ==== */
+
+/**
+ * THE SEPTEMBER 2026 FAILURE: the screen read CALCULATED, Salary Days 0, Net
+ * Pay 0.00 for an employee whose attendance month had never been settled -
+ * every one of those zeroes being arithmetic on a month that does not exist.
+ *
+ * THE FIX IS THE SERVER'S AND THE SCREEN'S TOGETHER, and the division is the
+ * thing these tests hold. The SERVER decides - it sends ATTENDANCE_PENDING and
+ * sends the attendance-dependent figures as null. The SCREEN renders an absent
+ * figure as an em dash, which it already did, and says why. What the screen
+ * must never do is decide for itself which figures to blank: that would be a
+ * second copy of the rule, in the place where it is hardest to see it drift.
+ */
+test("the browser does not decide which figures are provisional", () => {
+  /*
+   * No branch anywhere in the screen turns a figure into a dash BECAUSE of the
+   * pending flag. The flag may be read to render an explanation - and is, in
+   * the drawer - but a `attendance_pending ? null : row.net_pay` here would be
+   * the browser suppressing a payroll figure on its own authority.
+   */
+  for (const [name, source] of [
+    ["the list", listCode],
+    ["the workflow", workflowCode],
+    ["the rules", rulesCode],
+  ]) {
+    assert.ok(
+      !/attendance_pending\s*[?&|]/.test(source),
+      `${name} branches figures on attendance_pending`
+    );
+  }
+  assert.ok(
+    !/attendance_pending/.test(rulesCode),
+    "the pure rules module has no business knowing about the flag"
+  );
+});
+
+/**
+ * AND AN ABSENT FIGURE RENDERS AS A DASH RATHER THAN AS A ZERO, in both
+ * layouts and in the drawer. This is the mechanism the suppression relies on:
+ * if any of these fell back to 0, the server sending null would put the bug
+ * straight back.
+ */
+test("an absent figure is an em dash everywhere it can appear", () => {
+  /* The list's two helpers, and the net pay it formats inline. */
+  assert.match(listCode, /const count = \(value\) =>\s*\(value === null \|\| value === undefined \? "—"/);
+  assert.match(listCode, /text === null \? "—"/);
+  assert.match(listCode, /formatMoney\(row\.net_pay\) === null \? "—"/);
+
+  /* The drawer's two, and its Line component. */
+  assert.match(breakupCode, /const money = \(value\) => \{[\s\S]*?text === null \? "—"/);
+  assert.match(breakupCode, /const numberOrDash = \(value\) =>\s*value === null \|\| value === undefined \? "—"/);
+  assert.match(breakupCode, /text === null \|\| text === undefined \|\| text === "" \? "—"/);
+
+  /* And no "|| 0" fallback creeps in where a figure is rendered. */
+  for (const forbidden of [
+    "row.net_pay || 0",
+    "row.salary_days || 0",
+    "row.employee_pf || 0",
+    "row.employee_esi || 0",
+  ]) {
+    assert.ok(!SCREEN_CODE.includes(forbidden), `the screen falls back to a zero: ${forbidden}`);
+  }
+});
+
+test("the drawer says why the figures are dashes", () => {
+  assert.match(breakupCode, /employee\.attendance_pending/);
+  assert.match(breakup, /Attendance for this month is not settled yet/);
+  /* And it does not claim an NRM source the server did not resolve. */
+  assert.match(breakupCode, /if \(!source\) return null;/);
+});
+
+test("the month is summarised and filtered by the new status", () => {
+  assert.match(workflowCode, /summary\.attendance_pending/);
+  assert.match(workflow, /Attendance Pending/);
+  assert.match(workflowCode, /STATUS\.ATTENDANCE_PENDING/);
+  /* It is its own card, not folded into the calculated one. */
+  assert.ok(
+    !/calculated \+ summary\.attendance_pending/.test(workflowCode),
+    "attendance pending must not be counted as calculated"
+  );
+  /* The hook's fallback summary carries it too, so a failed read shows 0
+     rather than NaN in that card. */
+  assert.match(hook, /attendance_pending: 0/);
+});
+
+/**
+ * THE APPROVAL GATE IS UNCHANGED BY ANY OF THIS. The new status is a way of
+ * describing a row, never a way of acting on one, and Approve is still offered
+ * on exactly one status.
+ */
+test("the new status opens no path to approval", () => {
+  const isApprovable = rulesCode.match(/const isApprovable = [\s\S]*?;\n/);
+  assert.ok(isApprovable, "isApprovable is not where it was");
+  assert.match(isApprovable[0], /STATUS\.READY_FOR_APPROVAL/);
+  /* One status and one only. Naming a second here is the whole of how a gate
+     like this gets widened by accident. */
+  const named = [...isApprovable[0].matchAll(/STATUS\.([A-Z_]+)/g)].map((m) => m[1]);
+  assert.deepEqual(named, ["READY_FOR_APPROVAL"]);
 });

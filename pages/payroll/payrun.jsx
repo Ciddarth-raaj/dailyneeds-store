@@ -24,6 +24,7 @@ import usePayrunMonth from "../../customHooks/usePayrunMonth";
 import useOutlets from "../../customHooks/useOutlets";
 import PayrunHelper from "../../helper/payrun";
 import { describeApiResult, KIND } from "../../util/salaryApiError";
+import { changeMonthlyPayType } from "../../util/payrunPayType";
 import {
   canApprovePayrun,
   canCalculatePayrun,
@@ -286,37 +287,21 @@ function Payrun() {
     if (busyEmployeeId || bulkBusy) return;
     setBusyEmployeeId(employeeId);
     try {
-      const result = await PayrunHelper.setPayType({
+      /*
+       * THE SAME CALL THE CALCULATION & REVIEW SCREEN MAKES, through the same
+       * module. Two screens offer this now, and a second copy of the request
+       * and its refusal handling here would be the copy that forgot to say
+       * the change is month-specific.
+       */
+      const { ok, toast: message } = await changeMonthlyPayType({
         year,
         month,
-        employee_id: employeeId,
-        pay_type: payType,
+        employeeId,
+        payType,
+        monthLabel: MONTH_NAMES[month - 1],
       });
-      const outcome = describeApiResult(result);
-      if (outcome.kind !== KIND.OK) {
-        toast({
-          title: outcome.message,
-          status: outcome.kind === KIND.DENIED ? "info" : "error",
-          duration: 8000,
-          isClosable: true,
-        });
-        return;
-      }
-      toast({
-        title: `Pay type set to ${payType} for ${MONTH_NAMES[month - 1]} ${year}.`,
-        description: "This month only. The employee's record is unchanged.",
-        status: "success",
-        duration: 5000,
-        isClosable: true,
-      });
-      await refresh();
-    } catch (err) {
-      toast({
-        title: "The pay type could not be changed. Please try again.",
-        status: "error",
-        duration: 6000,
-        isClosable: true,
-      });
+      toast(message);
+      if (ok) await refresh();
     } finally {
       setBusyEmployeeId(null);
     }
@@ -489,6 +474,7 @@ function Payrun() {
             monthName={MONTH_NAMES[month - 1]}
             mayCalculate={mayCalculate}
             mayApprove={mayApprove}
+            mayChangePayType={mayChangePayType}
           />
         ) : null}
 

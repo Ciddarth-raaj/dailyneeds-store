@@ -17,6 +17,7 @@ import {
 } from "@chakra-ui/react";
 
 import { formatMoney } from "../../../util/salaryView";
+import { PayTypeControl } from "../payrunPresentation";
 import {
   STATUS,
   isApprovable,
@@ -50,6 +51,42 @@ import {
  * a browser mapping codes to its own labels renders a bare code the day a
  * status is added, for a status nobody notices is missing.
  */
+
+/**
+ * THE MONTHLY PAY TYPE, ON THIS SCREEN, THROUGH THE SHARED CONTROL.
+ *
+ * THE SAME COMPONENT THE INITIALIZATION SCREEN DRAWS, and deliberately not a
+ * second one: a select of its own here would be a second opinion about when a
+ * pay type may be changed, and the day one of the two learned about a new
+ * lock the other would still be offering the control.
+ *
+ * WHAT THIS SCREEN ADDS IS ITS OWN ANSWER TO "IS IT STILL EDITABLE": an
+ * employee whose month is APPROVED & LOCKED is read-only, because the approval
+ * committed to how the money travels. Everybody else in the month - calculated
+ * or not, stale or not - is editable, and changing it drops their calculation
+ * to RECALCULATION REQUIRED through the server's own inputs hash rather than
+ * through anything decided here.
+ *
+ * THE ROWS ARE ALL INITIALIZED. This stage's population IS the initialized
+ * employees, so `editable` is passed explicitly rather than left to default to
+ * `row.initialized`, which this endpoint does not send.
+ */
+function PayTypeCell({ row, canChangePayType, onPayTypeChange, busyEmployeeId, disabled }) {
+  return (
+    <PayTypeControl
+      row={row}
+      editable={!isLocked(row)}
+      canChangePayType={canChangePayType}
+      busy={disabled || busyEmployeeId === row.employee_id}
+      onPayTypeChange={onPayTypeChange}
+      readOnlyReason={
+        isLocked(row)
+          ? "This employee's month is approved and locked. The pay type is part of what was signed off, and becomes changeable again only if that approval is reversed."
+          : "You do not have permission to change the pay type"
+      }
+    />
+  );
+}
 
 /** A money cell. An absent figure is a dash, never a zero - see below. */
 function Money({ value }) {
@@ -197,7 +234,7 @@ function CalculationTable(props) {
                 </Text>
               </Td>
               <Td>
-                <Text fontSize="xs">{row.pay_type}</Text>
+                <PayTypeCell {...props} row={row} />
               </Td>
               <Td>
                 <Badge colorScheme={statusScheme(row.status)} whiteSpace="normal" textAlign="left">
@@ -283,7 +320,9 @@ function CalculationCard(props) {
           <Field label="Approved OT" value={count(row.approved_ot_hours)} />
           <Field label="Additions"><Money value={row.additions} /></Field>
           <Field label="Deductions"><Money value={row.deductions} /></Field>
-          <Field label="Pay Type" value={row.pay_type} />
+          <Field label="Pay Type">
+            <PayTypeCell {...props} row={row} />
+          </Field>
           <Field label="PF"><Money value={row.employee_pf} /></Field>
           <Field label="ESI"><Money value={row.employee_esi} /></Field>
           <Field label="Net Pay">
