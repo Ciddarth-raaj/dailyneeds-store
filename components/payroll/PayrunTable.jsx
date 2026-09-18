@@ -1,29 +1,27 @@
 import React from "react";
+import { Box, Table, Tbody, Td, Th, Thead, Tr } from "@chakra-ui/react";
 import {
-  Badge,
-  Button,
-  Checkbox,
-  Select,
-  Table,
-  Tbody,
-  Td,
-  Th,
-  Thead,
-  Tr,
-  Text,
-  Tooltip,
-} from "@chakra-ui/react";
-import { reasonText } from "../../util/payrunSelection";
-import { isRowInitializable } from "../../util/payrunAccess";
+  ExitedBadge,
+  InitializeControl,
+  PayTypeControl,
+  ReasonsBlock,
+  SelectCheckbox,
+  StatusBadge,
+  grossText,
+  rowIsBusy,
+  rowIsSelectable,
+} from "./payrunPresentation";
 
 /**
- * Payrun Initialization - the month's employees, one row each.
+ * Payrun Initialization - the month's employees, one row each. THE DESKTOP
+ * LAYOUT; the phone gets `PayrunEmployeeCard`, and `PayrunEmployeeList`
+ * chooses between them.
  *
  * IT DECIDES NOTHING AND CALCULATES NOTHING. Every cell is a value the server
- * sent: the status, the blocking reasons, the gross, the pay type. The only
- * rule this component applies is `isRowInitializable`, which is the shared one
- * the page's selection uses, so a checkbox and a button can never disagree
- * about whether a row may be acted on.
+ * sent: the status, the blocking reasons, the gross, the pay type. The cells
+ * themselves come from `payrunPresentation.jsx` - shared with the card - so a
+ * row and a card can never disagree about a figure or about whether a row may
+ * be acted on.
  *
  * A BLOCKED ROW CANNOT BE TICKED OR INITIALIZED, and it says why rather than
  * merely being greyed out: a disabled control with no explanation sends
@@ -32,14 +30,12 @@ import { isRowInitializable } from "../../util/payrunAccess";
  * THE REASONS ARE SHOWN IN FULL. They are short, there are rarely more than
  * two, and hiding them behind an icon would defeat the point of the screen -
  * which is to tell a payroll clerk exactly what is outstanding.
+ *
+ * THE COLUMNS ARE UNCHANGED by the responsive work: same ten, same order, same
+ * behaviour. `overflowX` on the wrapper is the one addition, so that a narrow
+ * LAPTOP - which still gets this layout - scrolls the table rather than
+ * bursting the page width.
  */
-
-const STATUS_COLOR = {
-  READY: "green",
-  BLOCKED: "red",
-  INITIALIZED: "purple",
-};
-
 function PayrunTable({
   rows,
   selectedIds,
@@ -52,127 +48,74 @@ function PayrunTable({
   disabled,
 }) {
   return (
-    <Table size="sm" variant="simple">
-      <Thead>
-        <Tr>
-          <Th width="40px" />
-          <Th>Employee ID</Th>
-          <Th>Employee Name</Th>
-          <Th>Location</Th>
-          <Th>Designation</Th>
-          <Th isNumeric>Approved Monthly Gross</Th>
-          <Th>Status</Th>
-          <Th>Pay Type</Th>
-          <Th>Blocking Reasons</Th>
-          <Th />
-        </Tr>
-      </Thead>
-      <Tbody>
-        {rows.map((row) => {
-          const selectable = isRowInitializable(row) && canInitialize;
-          const busy = busyEmployeeId === row.employee_id || disabled;
-          return (
-            <Tr key={row.employee_id}>
-              <Td>
-                <Checkbox
-                  colorScheme="purple"
-                  isChecked={selectedIds.includes(row.employee_id)}
-                  isDisabled={!selectable || busy}
-                  onChange={(e) => onSelectChange(row.employee_id, e.target.checked)}
-                  aria-label={`Select employee ${row.employee_id}`}
-                />
-              </Td>
-              <Td>{row.employee_id}</Td>
-              <Td>
-                {row.employee_name}
-                {/* WHO HAD LEFT BY THE END OF THIS MONTH - the server's dated
-                    answer, shown because nothing defaults a leaver's pay type
-                    any more: whoever works the month decides whether this
-                    person's final pay goes by bank or in cash, and they cannot
-                    decide it without being able to see who has left. It is a
-                    badge and never an input - the pay type beside it comes
-                    from the Employee Master regardless. */}
-                {row.exited_in_month ? (
-                  <Tooltip label="Left on or before the end of this payroll month. Their pay type still defaults from the Employee Master - change it here if this month should be paid in cash.">
-                    <Badge ml={2} colorScheme="orange" fontSize="0.6rem">
-                      Exited
-                    </Badge>
-                  </Tooltip>
-                ) : null}
-              </Td>
-              <Td>{row.store_name || "—"}</Td>
-              <Td>{row.designation_name || "—"}</Td>
-              {/* The figure is shown exactly as the server sent it. A gross
-                  that has not been approved is NOT zero - it is unknown, and
-                  rendering it as 0 would read as "this person is paid nothing". */}
-              <Td isNumeric>
-                {row.monthly_gross === null || row.monthly_gross === undefined
-                  ? "—"
-                  : Number(row.monthly_gross).toLocaleString("en-IN")}
-              </Td>
-              <Td>
-                <Badge colorScheme={STATUS_COLOR[row.status] || "gray"}>{row.status}</Badge>
-              </Td>
-              <Td>
-                {/* CHANGEABLE ONLY ONCE THE MONTH IS INITIALIZED, because
-                    before that there is no month-specific record to change -
-                    the value shown is the default it WOULD start on. */}
-                {row.initialized && canChangePayType ? (
-                  <Select
-                    size="xs"
-                    width="90px"
-                    value={row.pay_type}
-                    isDisabled={busy}
-                    onChange={(e) => onPayTypeChange(row.employee_id, e.target.value)}
-                    aria-label={`Pay type for employee ${row.employee_id}`}
-                  >
-                    <option value="BANK">BANK</option>
-                    <option value="CASH">CASH</option>
-                  </Select>
-                ) : (
-                  <Tooltip
-                    label={
-                      row.initialized
-                        ? "You do not have permission to change the pay type"
-                        : "Defaulted from the Employee Master, and from nothing else. It becomes changeable, for this month only, once initialized."
-                    }
-                  >
-                    <Text fontSize="xs">{row.pay_type}</Text>
-                  </Tooltip>
-                )}
-              </Td>
-              <Td maxWidth="320px">
-                <Text fontSize="xs" color="red.600" whiteSpace="normal">
-                  {reasonText(row)}
-                </Text>
-                {(row.warnings || []).map((warning) => (
-                  <Text key={warning.code} fontSize="xs" color="orange.600" whiteSpace="normal">
-                    {warning.message}
-                  </Text>
-                ))}
-              </Td>
-              <Td>
-                {row.initialized ? (
-                  <Text fontSize="xs" color="gray.600">
-                    {row.initialized_at || "Initialized"}
-                  </Text>
-                ) : (
-                  <Button
-                    size="xs"
-                    colorScheme="purple"
-                    isDisabled={!selectable || busy}
-                    isLoading={busyEmployeeId === row.employee_id}
-                    onClick={() => onInitialize(row.employee_id)}
-                  >
-                    Initialize
-                  </Button>
-                )}
-              </Td>
-            </Tr>
-          );
-        })}
-      </Tbody>
-    </Table>
+    <Box overflowX="auto">
+      <Table size="sm" variant="simple">
+        <Thead>
+          <Tr>
+            <Th width="40px" />
+            <Th>Employee ID</Th>
+            <Th>Employee Name</Th>
+            <Th>Location</Th>
+            <Th>Designation</Th>
+            <Th isNumeric>Approved Monthly Gross</Th>
+            <Th>Status</Th>
+            <Th>Pay Type</Th>
+            <Th>Blocking Reasons</Th>
+            <Th />
+          </Tr>
+        </Thead>
+        <Tbody>
+          {rows.map((row) => {
+            const selectable = rowIsSelectable(row, canInitialize);
+            const busy = rowIsBusy(row, busyEmployeeId, disabled);
+            return (
+              <Tr key={row.employee_id}>
+                <Td>
+                  <SelectCheckbox
+                    row={row}
+                    selectable={selectable}
+                    busy={busy}
+                    selectedIds={selectedIds}
+                    onSelectChange={onSelectChange}
+                  />
+                </Td>
+                <Td>{row.employee_id}</Td>
+                <Td>
+                  {row.employee_name}
+                  <ExitedBadge row={row} />
+                </Td>
+                <Td>{row.store_name || "—"}</Td>
+                <Td>{row.designation_name || "—"}</Td>
+                <Td isNumeric>{grossText(row)}</Td>
+                <Td>
+                  <StatusBadge row={row} />
+                </Td>
+                <Td>
+                  <PayTypeControl
+                    row={row}
+                    canChangePayType={canChangePayType}
+                    busy={busy}
+                    onPayTypeChange={onPayTypeChange}
+                  />
+                </Td>
+                <Td maxWidth="320px">
+                  <ReasonsBlock row={row} />
+                </Td>
+                <Td>
+                  <InitializeControl
+                    row={row}
+                    selectable={selectable}
+                    busy={busy}
+                    busyEmployeeId={busyEmployeeId}
+                    onInitialize={onInitialize}
+                  />
+                </Td>
+              </Tr>
+            );
+          })}
+        </Tbody>
+      </Table>
+    </Box>
   );
 }
 

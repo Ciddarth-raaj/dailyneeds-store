@@ -34,6 +34,26 @@ const page = read("pages/payroll/payrun.jsx");
 const pageCode = codeOf(page);
 const table = read("components/payroll/PayrunTable.jsx");
 const tableCode = codeOf(table);
+/*
+ * THE RESPONSIVE SPLIT. The screen renders the same month two ways and the
+ * cells are shared, so most assertions below now run over the SHARED module -
+ * which is the point of it existing: proving something about `presentation`
+ * proves it for the table and the card at once.
+ */
+const list = read("components/payroll/PayrunEmployeeList.jsx");
+const listCode = codeOf(list);
+const card = read("components/payroll/PayrunEmployeeCard.jsx");
+const cardCode = codeOf(card);
+const presentation = read("components/payroll/payrunPresentation.jsx");
+const presentationCode = codeOf(presentation);
+/** Every payrun view, for the assertions that must hold on all of them. */
+const ALL_VIEWS = [
+  ["page", pageCode],
+  ["table", tableCode],
+  ["card", cardCode],
+  ["list", listCode],
+  ["presentation", presentationCode],
+];
 const hook = read("customHooks/usePayrunMonth.js");
 const hookCode = codeOf(hook);
 
@@ -80,10 +100,12 @@ test("no payroll figure or eligibility is computed in the browser", () => {
 });
 
 test("the status and the blocking reasons are rendered, never derived", () => {
-  assert.match(tableCode, /row\.status/);
-  assert.match(tableCode, /reasonText\(row\)/);
+  assert.match(presentationCode, /row\.status/);
+  assert.match(presentationCode, /reasonText\(row\)/);
   assert.ok(
-    !/blocking_reasons\.push|status\s*=\s*"(READY|BLOCKED)"/.test(tableCode + pageCode),
+    !/blocking_reasons\.push|status\s*=\s*"(READY|BLOCKED)"/.test(
+      tableCode + cardCode + presentationCode + pageCode
+    ),
     "a screen may not decide a row's status"
   );
 });
@@ -96,11 +118,18 @@ test("the summary counts come from the server and are never recounted", () => {
   );
 });
 
-test("an unapproved gross renders as unknown, never as zero", () => {
+test("an unapproved gross renders as unknown, never as zero - on BOTH layouts", () => {
   assert.match(
-    tableCode,
-    /row\.monthly_gross === null \|\| row\.monthly_gross === undefined\s*\n?\s*\?\s*"—"/,
+    presentationCode,
+    /if \(row\.monthly_gross === null \|\| row\.monthly_gross === undefined\) return "—";/,
     "rendering a missing gross as 0 would read as 'this person is paid nothing'"
+  );
+  // And both layouts get it from that one function rather than formatting
+  // their own, so they cannot disagree about a figure.
+  assert.match(tableCode, /grossText\(row\)/);
+  assert.match(cardCode, /grossText\(row\)/);
+  [tableCode, cardCode].forEach((code) =>
+    assert.ok(!/toLocaleString/.test(code), "a layout formatted its own gross")
   );
 });
 
@@ -108,16 +137,19 @@ test("an unapproved gross renders as unknown, never as zero", () => {
 
 test("selectable is EXACTLY initializable, and the rule is imported rather than restated", () => {
   assert.match(read("util/payrunSelection.js"), /require\("\.\/payrunAccess"\)/);
-  assert.match(tableCode, /isRowInitializable\(row\)/);
+  assert.match(presentationCode, /isRowInitializable\(row\)/);
   assert.match(pageCode, /selectableEmployeeIds\(rows\)/);
+  // Neither layout restates it; both ask the shared rule.
+  assert.match(tableCode, /rowIsSelectable\(row, canInitialize\)/);
+  assert.match(cardCode, /rowIsSelectable\(row, canInitialize\)/);
 });
 
 test("a blocked row's checkbox and Initialize button are both disabled", () => {
-  assert.match(tableCode, /const selectable = isRowInitializable\(row\) && canInitialize/);
-  assert.match(tableCode, /isDisabled=\{!selectable \|\| busy\}/);
-  // Both controls, not just one: two occurrences of the same guard.
+  assert.match(presentationCode, /isRowInitializable\(row\) && Boolean\(canInitialize\)/);
+  // Both controls carry the SAME guard, in the shared module, so this holds
+  // for the table row and the phone card at once.
   assert.ok(
-    (tableCode.match(/isDisabled=\{!selectable \|\| busy\}/g) || []).length >= 2,
+    (presentationCode.match(/isDisabled=\{!selectable \|\| busy\}/g) || []).length >= 2,
     "the checkbox and the button must carry the same guard"
   );
 });
@@ -176,13 +208,16 @@ test("the pay type change says it is month-specific and changes no employee reco
 });
 
 test("HOLD is not offered as a pay type anywhere on the screen", () => {
-  assert.ok(!/HOLD/.test(page + table + helper), "hold is a payroll status, not a pay route");
-  assert.match(tableCode, /<option value="BANK">/);
-  assert.match(tableCode, /<option value="CASH">/);
+  assert.ok(
+    !/HOLD/.test(page + table + card + list + presentation + helper),
+    "hold is a payroll status, not a pay route"
+  );
+  assert.match(presentationCode, /<option value="BANK">/);
+  assert.match(presentationCode, /<option value="CASH">/);
 });
 
 test("no screen defaults a pay type, and none infers one from an employment fact", () => {
-  [["page", pageCode], ["table", tableCode], ["hook", hookCode], ["helper", helperCode]].forEach(
+  [...ALL_VIEWS, ["hook", hookCode], ["helper", helperCode]].forEach(
     ([name, code]) => {
       assert.ok(
         !/RESIGNED_DEFAULT/.test(code),
@@ -195,21 +230,30 @@ test("no screen defaults a pay type, and none infers one from an employment fact
     }
   );
   // The pay type rendered on a row is whatever the server sent.
-  assert.match(tableCode, /value=\{row\.pay_type\}/);
+  assert.match(presentationCode, /value=\{row\.pay_type\}/);
 });
 
 test("the exit badge is a badge - it is never wired to the pay type", () => {
-  assert.match(tableCode, /row\.exited_in_month \?/);
-  // It sits on the NAME cell, not the pay type cell, and drives no value.
-  const payTypeCell = tableCode.slice(tableCode.indexOf("row.initialized && canChangePayType"));
+  assert.match(presentationCode, /if \(!row\.exited_in_month\) return null;/);
+  // The badge component renders no control at all - no Select, no Button, no
+  // onChange - so there is nothing for it to drive on either layout.
+  const badge = presentationCode.slice(
+    presentationCode.indexOf("export function ExitedBadge"),
+    presentationCode.indexOf("export function ReasonsBlock")
+  );
   assert.ok(
-    !/exited_in_month/.test(payTypeCell),
+    !/(Select|Button|onChange|onInitialize|pay_type)/.test(badge),
     "the exit badge must not reach the pay type control"
   );
+  // And the pay type control never reads it.
+  const payTypeControl = presentationCode.slice(
+    presentationCode.indexOf("export function PayTypeControl")
+  );
+  assert.ok(!/exited_in_month/.test(payTypeControl));
 });
 
 test("the pay type is only editable once the month is initialized", () => {
-  assert.match(tableCode, /row\.initialized && canChangePayType \?/);
+  assert.match(presentationCode, /if \(row\.initialized && canChangePayType\)/);
 });
 
 /* ==================================================== the table's columns */
@@ -232,4 +276,171 @@ test("the filters go to the server, not to a filter() in the browser", () => {
     !/rows\.filter\(/.test(pageCode),
     "filtering in the browser would fetch everything and hide most of it"
   );
+});
+
+/* ==================================================== the responsive split == */
+
+/**
+ * WHAT THESE PROVE, AND WHAT THEY CANNOT. There is still no React renderer in
+ * this repo, so these check the SOURCE: which component is chosen at which
+ * breakpoint, that the card carries every field, and - the part that actually
+ * protects payroll - that the phone layout applies the same rules as the
+ * desktop one rather than a relaxed copy of them.
+ *
+ * The rules themselves are pure modules and are proved properly in
+ * `util/payrunRules.test.js`, which both layouts run through unchanged.
+ */
+
+test("MOBILE RENDERS CARDS AND DESKTOP RENDERS THE TABLE, at the repo's own breakpoint", () => {
+  assert.match(listCode, /useBreakpointValue\(\{ base: true, md: false \}\)/);
+  assert.match(listCode, /if \(isMobile\)/);
+  assert.match(listCode, /<PayrunEmployeeCard/);
+  assert.match(listCode, /return <PayrunTable \{\.\.\.props\} \/>;/);
+
+  // The SAME breakpoint the two attendance screens already use. A third
+  // definition of "mobile" in one app is a bug waiting for a narrow tablet.
+  const attendanceList = codeOf(read("components/attendance/AttendanceDayList.jsx"));
+  assert.match(attendanceList, /useBreakpointValue\(\{ base: true, md: false \}\)/);
+
+  // The page delegates the choice; it does not make it twice.
+  assert.match(pageCode, /<PayrunEmployeeList/);
+  assert.ok(!/useBreakpointValue/.test(pageCode), "the page must not re-decide the layout");
+});
+
+test("the desktop table still has all ten columns, unchanged", () => {
+  [
+    "Employee ID",
+    "Employee Name",
+    "Location",
+    "Designation",
+    "Approved Monthly Gross",
+    "Status",
+    "Pay Type",
+    "Blocking Reasons",
+  ].forEach((heading) => assert.ok(table.includes(heading), `the table lost its ${heading} column`));
+  assert.match(tableCode, /<Table size="sm" variant="simple">/);
+});
+
+test("the mobile card carries every field the table does", () => {
+  assert.match(cardCode, /row\.employee_id/);
+  assert.match(cardCode, /row\.employee_name/);
+  assert.match(cardCode, /label="Location"/);
+  assert.match(cardCode, /label="Designation"/);
+  assert.match(cardCode, /label="Approved Monthly Gross"/);
+  assert.match(cardCode, /label="Pay Type"/);
+  assert.match(cardCode, /<StatusBadge row=\{row\} \/>/);
+  assert.match(cardCode, /<ReasonsBlock row=\{row\}/);
+  assert.match(cardCode, /<ExitedBadge row=\{row\} \/>/);
+  assert.match(cardCode, /<SelectCheckbox/);
+  assert.match(cardCode, /<InitializeControl/);
+  assert.match(cardCode, /<PayTypeControl/);
+});
+
+test("BLOCKING REASONS ARE VISIBLE ON MOBILE - printed, never behind a tooltip", () => {
+  // The reasons block is plain text, and it is NOT wrapped in a Tooltip:
+  // there is no hover on a touch screen, so a hovered reason is unreadable.
+  const reasonsBlock = presentationCode.slice(
+    presentationCode.indexOf("export function ReasonsBlock"),
+    presentationCode.indexOf("export function PayTypeControl")
+  );
+  assert.ok(!/Tooltip/.test(reasonsBlock), "blocking reasons must not be behind a tooltip");
+  assert.match(reasonsBlock, /whiteSpace="normal"/, "a long reason must wrap, not be clipped");
+  assert.match(reasonsBlock, /reasonText\(row\)/);
+  // Warnings are shown too, and told apart from blocking reasons by colour.
+  assert.match(reasonsBlock, /color="red\.600"/);
+  assert.match(reasonsBlock, /color="orange\.600"/);
+  // And the card renders it in the flow rather than in a collapsed section.
+  assert.match(cardCode, /<ReasonsBlock row=\{row\} fontSize="xs" \/>/);
+  assert.ok(!/Accordion|Collapse|isTruncated|noOfLines/.test(cardCode), "reasons must not be hidden or clipped on the card");
+});
+
+test("a READY row is selectable on BOTH layouts, through the one shared rule", () => {
+  assert.match(presentationCode, /export function rowIsSelectable\(row, canInitialize\) \{/);
+  assert.match(presentationCode, /return isRowInitializable\(row\) && Boolean\(canInitialize\);/);
+  [["table", tableCode], ["card", cardCode]].forEach(([name, code]) => {
+    assert.match(code, /rowIsSelectable\(row, canInitialize\)/, `${name} does not use the shared rule`);
+    assert.match(code, /selectable=\{selectable\}/, `${name} does not pass it to its controls`);
+  });
+});
+
+test("a BLOCKED row cannot be selected or initialized on mobile either", () => {
+  // Both controls in the shared module carry `!selectable`, and the card
+  // passes the same `selectable` to both - so a blocked card is as inert as a
+  // blocked row. There is no mobile-only branch that relaxes it.
+  assert.ok(
+    !/canInitialize\s*\|\||selectable\s*\|\||isMobile\s*\?[^]*selectable/.test(cardCode),
+    "the card must not widen the selectable rule"
+  );
+  assert.ok(!/isRowInitializable|status === "READY"/.test(cardCode), "the card must not restate the rule");
+  const initialize = presentationCode.slice(presentationCode.indexOf("export function InitializeControl"));
+  assert.match(initialize, /isDisabled=\{!selectable \|\| busy\}/);
+});
+
+test("the mobile pay type edit follows the SAME permission rule as desktop", () => {
+  // One component, used by both, and the card passes the permission through
+  // untouched - it does not default it, widen it or assume it.
+  assert.match(cardCode, /canChangePayType=\{canChangePayType\}/);
+  assert.ok(
+    !/canChangePayType\s*(\|\||=\s*true)/.test(cardCode),
+    "the card must not widen the pay type permission"
+  );
+  assert.match(presentationCode, /if \(row\.initialized && canChangePayType\)/);
+  // The page still gates it on the permission AND the month lock, as before.
+  assert.match(pageCode, /canChangePayType=\{mayChangePayType && !monthLocked\}/);
+});
+
+test("the exited badge stays display-only on the card", () => {
+  // From the badge's USE in the card (not its import) to the status badge
+  // beside it: a name, an id, and nothing that can be operated.
+  const nameBlock = cardCode.slice(
+    cardCode.indexOf("<ExitedBadge"),
+    cardCode.indexOf("<StatusBadge")
+  );
+  assert.ok(nameBlock.length > 0);
+  assert.ok(!/onChange|onClick|<Select|<Button/.test(nameBlock), "the badge must render no control");
+  // And it is rendered in the NAME area, above the fields - not in the Pay
+  // Type field, where it would read as a cause.
+  assert.ok(
+    cardCode.indexOf("<ExitedBadge") < cardCode.indexOf('label="Pay Type"'),
+    "the exited badge must not sit inside the pay type field"
+  );
+});
+
+test("the responsive work introduced NO payroll calculation or business rule", () => {
+  ALL_VIEWS.forEach(([name, code]) => {
+    assert.ok(
+      !/monthly_gross\s*[*/+-]\s|daily_rate|salary_days|attendance_days|shortage_minutes|base_days/.test(code),
+      `${name} does arithmetic on a payroll figure`
+    );
+    assert.ok(
+      !/(pf_applicable|esi_applicable|is_final|resignation_date|date_of_joining)\s*(===|!==|\?)/.test(code),
+      `${name} re-decides an eligibility rule the server already decided`
+    );
+    assert.ok(
+      !/BLOCK_REASON|RESIGNED_DEFAULT|STATUS_GROUP\s*=/.test(code),
+      `${name} restates a server-side vocabulary`
+    );
+  });
+  // The new files add no rule module of their own: they import the two that
+  // already existed and nothing else from util/.
+  [cardCode, listCode].forEach((code) =>
+    assert.ok(!/require\(|from "\.\.\/\.\.\/util\//.test(code), "a layout must not reach into util directly")
+  );
+  assert.match(presentationCode, /from "\.\.\/\.\.\/util\/payrunSelection"/);
+  assert.match(presentationCode, /from "\.\.\/\.\.\/util\/payrunAccess"/);
+});
+
+test("the top area is mobile-friendly, and the bulk actions stay reachable", () => {
+  // Filters two-across on a phone, five-across on a desktop.
+  assert.match(pageCode, /columns=\{\{ base: 2, md: 5 \}\}/);
+  // Summary cards two-across on a phone, four on a desktop - unchanged.
+  assert.match(pageCode, /columns=\{\{ base: 2, md: 4 \}\}/);
+  // The four counts are all still there.
+  ["Total Eligible", "Ready", "Blocked", "Initialized"].forEach((label) =>
+    assert.ok(page.includes(label), `the summary lost ${label}`)
+  );
+  // Bulk controls stick on a phone only.
+  assert.match(pageCode, /position=\{\{ base: "sticky", md: "static" \}\}/);
+  assert.match(pageCode, /Select all Ready/);
+  assert.match(pageCode, /Initialize Selected \(\{selectedCount\}\)/);
 });

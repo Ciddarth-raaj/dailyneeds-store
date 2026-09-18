@@ -16,7 +16,7 @@ import {
 } from "@chakra-ui/react";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../components/CustomContainer";
-import PayrunTable from "../../components/payroll/PayrunTable";
+import PayrunEmployeeList from "../../components/payroll/PayrunEmployeeList";
 import usePayrollActor from "../../customHooks/usePayrollActor";
 import usePayrunMonth from "../../customHooks/usePayrunMonth";
 import useOutlets from "../../customHooks/useOutlets";
@@ -259,7 +259,10 @@ function Payrun() {
 
     return (
       <Stack spacing={4}>
-        <SimpleGrid columns={{ base: 1, md: 5 }} spacing={3}>
+        {/* TWO ACROSS ON A PHONE. Month and Year belong side by side - they
+            are one choice - and five full-width rows would push the summary
+            and the first employee below the fold before anything was read. */}
+        <SimpleGrid columns={{ base: 2, md: 5 }} spacing={3}>
           <Select
             size="sm"
             value={month}
@@ -306,7 +309,13 @@ function Payrun() {
             <option value="BLOCKED">Blocked</option>
             <option value="INITIALIZED">Initialized</option>
           </Select>
-          <Button size="sm" variant="outline" onClick={refresh} isDisabled={loading}>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={refresh}
+            isDisabled={loading}
+            gridColumn={{ base: "span 2", md: "auto" }}
+          >
             Refresh
           </Button>
         </SimpleGrid>
@@ -361,7 +370,33 @@ function Payrun() {
 
         {loaded && rows.length > 0 ? (
           <Stack spacing={2}>
-            <Stack direction="row" align="center" spacing={3} flexWrap="wrap">
+            {/*
+              THE BULK BAR, AND IT STICKS TO THE TOP ON A PHONE.
+
+              On a desktop it sits above the table and everything it refers to
+              is on screen with it. On a phone the cards are tall, so by the
+              time somebody has ticked the fourth employee the count and the
+              Initialize Selected button have scrolled away - and a bulk action
+              you cannot see is one you perform by scrolling back up to find,
+              every time. Sticking it to the top keeps the count and the button
+              with the selection that is being built.
+
+              STICKY RATHER THAN A FIXED FOOTER BAR: sticky is three properties
+              and no layout to maintain, and it cannot cover the last card the
+              way a fixed bar does. `zIndex` and a solid background so the
+              cards scroll under it rather than through it.
+            */}
+            <Stack
+              direction="row"
+              align="center"
+              spacing={3}
+              flexWrap="wrap"
+              position={{ base: "sticky", md: "static" }}
+              top={{ base: 0, md: "auto" }}
+              zIndex={{ base: 1, md: "auto" }}
+              bg="white"
+              py={{ base: 2, md: 0 }}
+            >
               <Checkbox
                 colorScheme="purple"
                 isChecked={allSelected}
@@ -402,7 +437,10 @@ function Payrun() {
               ) : null}
             </Stack>
 
-            <PayrunTable
+            {/* THE TABLE ON A DESKTOP, STACKED CARDS ON A PHONE - one
+                component decides, and both layouts get the same props, the
+                same permissions and the same shared cells. */}
+            <PayrunEmployeeList
               rows={rows}
               selectedIds={selectedIds}
               onSelectChange={setSelected}
