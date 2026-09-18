@@ -273,13 +273,22 @@ function PayrunCalculation({
   };
 
   /**
-   * THE FIVE COUNTS THE STAGE IS SUMMARISED BY, in the order of the pipeline
-   * they describe. They count the WHOLE month and never the filtered view -
+   * THE COUNTS THE STAGE IS SUMMARISED BY, in the order of the pipeline
+   * they describe.
+   *
+   * ATTENDANCE PENDING IS ITS OWN CARD and is deliberately not folded into
+   * "Calculated". Those two numbers are two different jobs: a calculated
+   * employee is waiting on a confirmation or an approval somebody here can
+   * give, and a pending one is waiting on the attendance month being settled,
+   * which is somebody else's. A month where the second number is large is a
+   * month that is not costed yet, and rolling it into the first would say the
+   * opposite. They count the WHOLE month and never the filtered view -
    * the server's summary is used as it arrives, because "ready: 0" meaning
    * "none matching this filter" is the most dangerous number here.
    */
   const summaryCards = [
     { label: "Initialized", value: summary.initialized },
+    { label: "Attendance Pending", value: summary.attendance_pending },
     { label: "Calculated", value: summary.calculated + summary.ready_for_approval },
     { label: "Recalculation Required", value: summary.recalculation_required },
     { label: "Ready for Approval", value: summary.ready_for_approval },
@@ -288,7 +297,7 @@ function PayrunCalculation({
 
   return (
     <Stack spacing={4}>
-      <SimpleGrid columns={{ base: 2, md: 5 }} spacing={3}>
+      <SimpleGrid columns={{ base: 2, md: 6 }} spacing={3}>
         {summaryCards.map((card) => (
           <Stat key={card.label} p={3} borderWidth="1px" borderRadius="md">
             <StatLabel fontSize="xs">{card.label}</StatLabel>
@@ -313,6 +322,7 @@ function PayrunCalculation({
           aria-label="Calculation status"
         >
           <option value={STATUS.NOT_CALCULATED}>Not calculated</option>
+          <option value={STATUS.ATTENDANCE_PENDING}>Attendance pending</option>
           <option value={STATUS.CALCULATED}>Calculated</option>
           <option value={STATUS.RECALCULATION_REQUIRED}>Recalculation required</option>
           <option value={STATUS.READY_FOR_APPROVAL}>Ready for approval</option>

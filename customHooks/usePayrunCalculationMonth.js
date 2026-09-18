@@ -98,6 +98,7 @@ function usePayrunCalculationMonth(filters, canView) {
   const summary = (month && month.summary) || {
     initialized: 0,
     not_calculated: 0,
+    attendance_pending: 0,
     calculated: 0,
     recalculation_required: 0,
     ready_for_approval: 0,
