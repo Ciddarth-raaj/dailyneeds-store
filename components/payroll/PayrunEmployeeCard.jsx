@@ -4,10 +4,9 @@ import {
   ExitedBadge,
   InitializeControl,
   PayTypeControl,
-  ReasonsBlock,
   SelectCheckbox,
   StatusBadge,
-  grossText,
+  WarningsBlock,
   rowIsBusy,
   rowIsSelectable,
 } from "./payrunPresentation";
@@ -31,8 +30,9 @@ import {
  * layouts cannot disagree about a gross, a status or whether a row may be
  * acted on. There is no payroll logic in this file, and no rule of its own.
  *
- * THE REASONS ARE PRINTED, NOT HOVERED. There is no hover on a touch screen,
- * so a reason behind a tooltip is a reason a phone user can never read.
+ * THE REASONS ARE A TAP AWAY, NOT A HOVER AWAY. There is no hover on a touch
+ * screen, so the BLOCKED badge opens them on a CLICK - the one interaction a
+ * tap and a desktop click both perform. They are shown in full when opened.
  */
 
 /** One labelled fact. The label is small and grey; the value carries. */
@@ -93,10 +93,12 @@ function PayrunEmployeeCard({
           <StatusBadge row={row} />
         </Flex>
 
+        {/* FOUR FACTS WERE FIVE. The Approved Monthly Gross is gone from this
+            screen - it belongs on the calculation screen - which is most of
+            why the card got shorter. */}
         <SimpleGrid columns={2} spacing={3}>
           <Field label="Location" value={row.store_name || "—"} />
           <Field label="Designation" value={row.designation_name || "—"} />
-          <Field label="Approved Monthly Gross" value={grossText(row)} />
           <Field label="Pay Type">
             <PayTypeControl
               row={row}
@@ -109,8 +111,11 @@ function PayrunEmployeeCard({
           </Field>
         </SimpleGrid>
 
-        {/* IN FULL, AND IN THE FLOW OF THE CARD. */}
-        <ReasonsBlock row={row} fontSize="xs" />
+        {/* THE BLOCKING REASONS ARE ON THE STATUS BADGE ABOVE - tap it. What
+            stays inline is the warning, because nothing announces it and there
+            is at most one: a warning does not stop the month, so nobody would
+            think to go looking for it. */}
+        <WarningsBlock row={row} fontSize="xs" />
 
         <InitializeControl
           row={row}

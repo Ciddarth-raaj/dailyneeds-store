@@ -4,10 +4,9 @@ import {
   ExitedBadge,
   InitializeControl,
   PayTypeControl,
-  ReasonsBlock,
   SelectCheckbox,
   StatusBadge,
-  grossText,
+  WarningsBlock,
   rowIsBusy,
   rowIsSelectable,
 } from "./payrunPresentation";
@@ -27,14 +26,15 @@ import {
  * merely being greyed out: a disabled control with no explanation sends
  * somebody to ask a colleague what is wrong with a record they are looking at.
  *
- * THE REASONS ARE SHOWN IN FULL. They are short, there are rarely more than
- * two, and hiding them behind an icon would defeat the point of the screen -
- * which is to tell a payroll clerk exactly what is outstanding.
+ * THE REASONS ARE BEHIND THE STATUS BADGE, IN FULL. They were a column of
+ * their own, in full sentences, and it was the widest thing on the screen -
+ * forty rows of explanatory prose for a list somebody is scanning. A BLOCKED
+ * badge now says how many there are and opens them on a click. Nothing is
+ * dropped or summarised, and no rule changed.
  *
- * THE COLUMNS ARE UNCHANGED by the responsive work: same ten, same order, same
- * behaviour. `overflowX` on the wrapper is the one addition, so that a narrow
- * LAPTOP - which still gets this layout - scrolls the table rather than
- * bursting the page width.
+ * THERE IS NO APPROVED MONTHLY GROSS COLUMN. Initialization is about whether a
+ * month can be taken, not what it is worth; the figure belongs on the
+ * calculation screen. The API still sends it.
  */
 function PayrunTable({
   rows,
@@ -57,10 +57,12 @@ function PayrunTable({
             <Th>Employee Name</Th>
             <Th>Location</Th>
             <Th>Designation</Th>
-            <Th isNumeric>Approved Monthly Gross</Th>
+            {/* NO Approved Monthly Gross, and NO Blocking Reasons column. The
+                gross belongs on the calculation screen; the reasons are behind
+                the Status badge, in full. Both are presentation decisions - the
+                server still sends every one of those values. */}
             <Th>Status</Th>
             <Th>Pay Type</Th>
-            <Th>Blocking Reasons</Th>
             <Th />
           </Tr>
         </Thead>
@@ -86,9 +88,9 @@ function PayrunTable({
                 </Td>
                 <Td>{row.store_name || "—"}</Td>
                 <Td>{row.designation_name || "—"}</Td>
-                <Td isNumeric>{grossText(row)}</Td>
                 <Td>
                   <StatusBadge row={row} />
+                  <WarningsBlock row={row} />
                 </Td>
                 <Td>
                   <PayTypeControl
@@ -97,9 +99,6 @@ function PayrunTable({
                     busy={busy}
                     onPayTypeChange={onPayTypeChange}
                   />
-                </Td>
-                <Td maxWidth="320px">
-                  <ReasonsBlock row={row} />
                 </Td>
                 <Td>
                   <InitializeControl

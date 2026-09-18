@@ -100,6 +100,20 @@ function Payrun() {
   const [month, setMonth] = useState(initial.month);
   const [storeId, setStoreId] = useState("");
   const [status, setStatus] = useState("");
+  /*
+   * THE EMPLOYEE LIFECYCLE FILTER, AND IT IS ITS OWN PIECE OF STATE.
+   *
+   * A SEPARATE QUESTION FROM `status`: that one asks what the PAYRUN says
+   * about the month, this asks what the EMPLOYMENT RECORD says about the
+   * person. Every combination is a real thing to ask for - "Exited +
+   * Initialized" is the list whose pay type may need moving to CASH by hand,
+   * which is the reason this filter exists.
+   *
+   * EXITED IS THE SERVER'S DATED ANSWER. It means "had they left by the end of
+   * THIS month", never the Employee Master's current status, and the server
+   * decides it from the same field the Exited badge uses.
+   */
+  const [lifecycle, setLifecycle] = useState("");
   const [selectedIds, setSelectedIds] = useState([]);
   const [busyEmployeeId, setBusyEmployeeId] = useState(null);
   const [bulkBusy, setBulkBusy] = useState(false);
@@ -109,8 +123,8 @@ function Payrun() {
   // Sent to the server, so rows that do not match are never read out of the
   // database - not filtered out of a full month in the browser.
   const filters = useMemo(
-    () => ({ year, month, store_ids: storeId, status }),
-    [year, month, storeId, status]
+    () => ({ year, month, store_ids: storeId, status, lifecycle }),
+    [year, month, storeId, status, lifecycle]
   );
 
   const { rows, summary, monthLocked, loading, loaded, denied, error, refresh } =
@@ -262,7 +276,7 @@ function Payrun() {
         {/* TWO ACROSS ON A PHONE. Month and Year belong side by side - they
             are one choice - and five full-width rows would push the summary
             and the first employee below the fold before anything was read. */}
-        <SimpleGrid columns={{ base: 2, md: 5 }} spacing={3}>
+        <SimpleGrid columns={{ base: 2, md: 6 }} spacing={3}>
           <Select
             size="sm"
             value={month}
@@ -308,6 +322,18 @@ function Payrun() {
             <option value="READY">Ready</option>
             <option value="BLOCKED">Blocked</option>
             <option value="INITIALIZED">Initialized</option>
+          </Select>
+          {/* INDEPENDENT OF THE STATUS FILTER BESIDE IT - both are sent, and
+              the server applies both, so Exited + Blocked is one request. */}
+          <Select
+            size="sm"
+            placeholder="All employees"
+            value={lifecycle}
+            onChange={(e) => setLifecycle(e.target.value)}
+            aria-label="Employee lifecycle"
+          >
+            <option value="ACTIVE">Active</option>
+            <option value="EXITED">Exited</option>
           </Select>
           <Button
             size="sm"

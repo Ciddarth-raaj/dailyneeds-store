@@ -27,7 +27,6 @@ const {
   isAllSelected,
   confirmationMessage,
   outcomeMessage,
-  reasonText,
 } = require("./payrunSelection");
 
 const actor = (...keys) => ({ permissions: keys.map((k) => ({ permission_key: k })), isAdmin: false });
@@ -154,16 +153,11 @@ test("a partial outcome is never reported as a success", () => {
   assert.equal(outcomeMessage({}), "Nothing was initialized.");
 });
 
-test("the blocking reasons are rendered from the SERVER's sentences", () => {
+test("the reason helper is gone - the badge renders the server's objects directly", () => {
+  const selection = require("./payrunSelection");
   assert.equal(
-    reasonText({
-      blocking_reasons: [
-        { code: "SALARY_NOT_APPROVED", message: "Salary not approved" },
-        { code: "PENDING_OT_APPROVAL", message: "Pending OT approval" },
-      ],
-    }),
-    "Salary not approved; Pending OT approval"
+    selection.reasonText,
+    undefined,
+    "nothing flattens the reasons into a line any more; they are shown one per row"
   );
-  assert.equal(reasonText({ blocking_reasons: [] }), "");
-  assert.equal(reasonText(null), "");
 });

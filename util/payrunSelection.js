@@ -103,11 +103,13 @@ function outcomeMessage(result) {
   return parts.length === 0 ? "Nothing was initialized." : `${parts.join(", ")}.`;
 }
 
-/** The blocking reasons on a row, as one readable line. */
-function reasonText(row) {
-  const reasons = (row && row.blocking_reasons) || [];
-  return reasons.map((r) => r.message || r.code).join("; ");
-}
+/*
+ * `reasonText` USED TO LIVE HERE - the blocking reasons joined into one line -
+ * and it is gone because nothing joins them any more. The reasons are rendered
+ * one per line inside the Status badge's popover, each with the compact label
+ * the SERVER sends, so a helper that flattened them into a sentence would be a
+ * second presentation of the same data that nobody renders.
+ */
 
 module.exports = {
   selectableEmployeeIds,
@@ -117,5 +119,4 @@ module.exports = {
   isAllSelected,
   confirmationMessage,
   outcomeMessage,
-  reasonText,
 };

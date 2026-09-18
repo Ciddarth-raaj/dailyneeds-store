@@ -1,6 +1,18 @@
 import React from "react";
-import { Badge, Button, Checkbox, Select, Stack, Text, Tooltip } from "@chakra-ui/react";
-import { reasonText } from "../../util/payrunSelection";
+import {
+  Badge,
+  Button,
+  Checkbox,
+  Popover,
+  PopoverArrow,
+  PopoverBody,
+  PopoverContent,
+  PopoverTrigger,
+  Select,
+  Stack,
+  Text,
+  Tooltip,
+} from "@chakra-ui/react";
 import { isRowInitializable } from "../../util/payrunAccess";
 
 /**
@@ -14,8 +26,10 @@ import { isRowInitializable } from "../../util/payrunAccess";
  * the other correctly withheld. The layouts differ; what they SAY must not.
  *
  * SO THE RULES LIVE HERE ONCE, AND THEY ARE NOT NEW RULES. `isRowInitializable`
- * and `reasonText` are the existing shared modules, imported rather than
- * restated; nothing in this file decides eligibility, calculates a payroll
+ * is the existing shared module, imported rather than restated, and the
+ * blocking reasons are rendered exactly as the server sent them - its compact
+ * label and its sentence. Nothing in this file decides eligibility, names a
+ * blocker, calculates a payroll
  * figure or reads a permission of its own. It renders what it is handed.
  *
  * `rowIsBusy` IS THE ONE PIECE OF SHARED ARITHMETIC, and it is about the
@@ -46,21 +60,87 @@ export function rowIsSelectable(row, canInitialize) {
   return isRowInitializable(row) && Boolean(canInitialize);
 }
 
-/** READY / BLOCKED / INITIALIZED, exactly as the server said it. */
+/**
+ * READY / BLOCKED / INITIALIZED, exactly as the server said it - AND, for a
+ * BLOCKED row, the way into why.
+ *
+ * THE REASONS USED TO BE PRINTED IN A COLUMN OF THEIR OWN, in full sentences.
+ * That column was the widest thing on the screen and it pushed everything else
+ * off a phone; it also meant forty rows of explanatory prose for a list
+ * somebody is scanning rather than reading. The reasons are now behind the
+ * badge that says there are some.
+ *
+ * NOTHING IS HIDDEN THAT WAS DECIDED ELSEWHERE. Every reason the server sent
+ * is in the popover, in full, with its compact label first - none is dropped,
+ * summarised or truncated, and the rules behind them are untouched.
+ *
+ * ONE INTERACTION FOR BOTH, AND IT IS CLICK. `components/attendance/PunchTimeCell.jsx`
+ * opens its popover on HOVER, which is right for a desktop-only affordance and
+ * useless on a phone - there is no hover on a touch screen, so a hover-only
+ * reason is a reason a mobile user can never read. Click is the one trigger a
+ * desktop click and a mobile tap both perform, so both get the same thing.
+ * `tabIndex` and a `button` role so it is reachable from the keyboard too.
+ */
 export function StatusBadge({ row }) {
-  return <Badge colorScheme={STATUS_COLOR[row.status] || "gray"}>{row.status}</Badge>;
+  const badge = (
+    <Badge colorScheme={STATUS_COLOR[row.status] || "gray"}>{row.status}</Badge>
+  );
+
+  const reasons = row.blocking_reasons || [];
+  if (reasons.length === 0) return badge;
+
+  return (
+    <Popover placement="bottom-start" isLazy>
+      <PopoverTrigger>
+        <Badge
+          colorScheme={STATUS_COLOR[row.status] || "gray"}
+          cursor="pointer"
+          role="button"
+          tabIndex={0}
+          textDecoration="underline dotted"
+          aria-label={`${row.status} - ${reasons.length} reason${reasons.length === 1 ? "" : "s"}. Open for details.`}
+        >
+          {row.status} ({reasons.length})
+        </Badge>
+      </PopoverTrigger>
+      <PopoverContent w="auto" maxW="320px" fontSize="xs">
+        <PopoverArrow />
+        <PopoverBody>
+          <Stack spacing={2}>
+            {reasons.map((reason) => (
+              <Stack key={reason.code} spacing={0}>
+                {/* THE COMPACT BUSINESS LABEL, which is the server's and not
+                    this screen's - see `constants/payrun.js`. */}
+                <Text fontWeight="600" color="red.600">
+                  {reason.label || reason.code}
+                </Text>
+                {/* And the sentence that says what to go and fix, for somebody
+                    who has stopped on this row deliberately. */}
+                {reason.message && reason.message !== reason.label ? (
+                  <Text color="gray.600">{reason.message}</Text>
+                ) : null}
+              </Stack>
+            ))}
+          </Stack>
+        </PopoverBody>
+      </PopoverContent>
+    </Popover>
+  );
 }
 
-/**
- * The approved monthly gross, formatted and never computed.
+/*
+ * THERE IS NO `grossText` HERE ANY MORE, AND THAT IS DELIBERATE.
  *
- * A gross that has not been approved is NOT zero - it is unknown, and
- * rendering it as 0 would read as "this person is paid nothing".
+ * The Approved Monthly Gross was removed from this screen: Initialization is
+ * about WHETHER a month can be taken, not what it is worth, and a salary
+ * figure against every name turned a work queue into a payroll disclosure that
+ * everybody who can open the screen could read over somebody's shoulder.
+ *
+ * NOTHING WAS REMOVED FROM THE BACKEND. The snapshot still stores the gross,
+ * the structure and the salary reference, and the API still sends
+ * `monthly_gross` - this screen simply does not render it. It belongs on the
+ * calculation / review screen, where the figure is the point.
  */
-export function grossText(row) {
-  if (row.monthly_gross === null || row.monthly_gross === undefined) return "—";
-  return Number(row.monthly_gross).toLocaleString("en-IN");
-}
 
 /**
  * WHO HAD LEFT BY THE END OF THIS MONTH - the server's dated answer.
@@ -83,28 +163,21 @@ export function ExitedBadge({ row, ml = 2 }) {
 }
 
 /**
- * EVERY BLOCKING REASON, IN FULL, AND THE WARNINGS UNDER THEM.
+ * THE WARNINGS - and only the warnings.
  *
- * NOT BEHIND A TOOLTIP, ON EITHER LAYOUT. The whole point of this screen is to
- * tell a payroll clerk exactly what is outstanding, and a reason somebody has
- * to hover to discover is a reason they will not read on a phone at all -
- * there is no hover on a touch screen. `whiteSpace="normal"` so a long reason
- * wraps instead of being clipped.
+ * A WARNING IS NOT A BLOCKING REASON, which is why it stayed on the row when
+ * the reasons moved behind the badge: missing bank details do not stop a month
+ * being initialized, nothing shows that somebody must click to discover it,
+ * and there is at most one of them. A blocker says "you cannot"; a warning
+ * says "you will have to deal with this", and the second is worth a line.
  *
- * A WARNING IS NOT A BLOCKING REASON and is coloured differently: missing bank
- * details do not stop a month being initialized.
+ * Blocking reasons are on `StatusBadge` above, in full.
  */
-export function ReasonsBlock({ row, fontSize = "xs" }) {
-  const reasons = reasonText(row);
+export function WarningsBlock({ row, fontSize = "xs" }) {
   const warnings = row.warnings || [];
-  if (!reasons && warnings.length === 0) return null;
+  if (warnings.length === 0) return null;
   return (
     <Stack spacing={0.5}>
-      {reasons ? (
-        <Text fontSize={fontSize} color="red.600" whiteSpace="normal">
-          {reasons}
-        </Text>
-      ) : null}
       {warnings.map((warning) => (
         <Text key={warning.code} fontSize={fontSize} color="orange.600" whiteSpace="normal">
           {warning.message}

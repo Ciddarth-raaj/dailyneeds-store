@@ -101,7 +101,11 @@ test("no payroll figure or eligibility is computed in the browser", () => {
 
 test("the status and the blocking reasons are rendered, never derived", () => {
   assert.match(presentationCode, /row\.status/);
-  assert.match(presentationCode, /reasonText\(row\)/);
+  // The reasons are the SERVER's objects, rendered as they arrive - the label
+  // it sent, and the message it sent. Nothing is composed here.
+  assert.match(presentationCode, /row\.blocking_reasons \|\| \[\]/);
+  assert.match(presentationCode, /reason\.label \|\| reason\.code/);
+  assert.match(presentationCode, /\{reason\.message\}/);
   assert.ok(
     !/blocking_reasons\.push|status\s*=\s*"(READY|BLOCKED)"/.test(
       tableCode + cardCode + presentationCode + pageCode
@@ -118,18 +122,26 @@ test("the summary counts come from the server and are never recounted", () => {
   );
 });
 
-test("an unapproved gross renders as unknown, never as zero - on BOTH layouts", () => {
-  assert.match(
-    presentationCode,
-    /if \(row\.monthly_gross === null \|\| row\.monthly_gross === undefined\) return "—";/,
-    "rendering a missing gross as 0 would read as 'this person is paid nothing'"
+test("THE APPROVED MONTHLY GROSS IS NOT ON THE INITIALIZATION SCREEN AT ALL", () => {
+  /*
+   * Initialization is about WHETHER a month can be taken, not what it is
+   * worth. The figure belongs on the calculation / review screen, and a salary
+   * against every name turned a work queue into a payroll disclosure.
+   *
+   * PRESENTATION ONLY - the server still sends `monthly_gross` and the
+   * snapshot still stores it; no screen renders it.
+   */
+  ALL_VIEWS.forEach(([name, code]) => {
+    assert.ok(!/monthly_gross/.test(code), `${name} still renders a gross`);
+    assert.ok(!/grossText|toLocaleString/.test(code), `${name} still formats a gross`);
+  });
+  assert.ok(
+    !/Approved Monthly Gross/.test(tableCode + cardCode),
+    "the gross column/field is gone"
   );
-  // And both layouts get it from that one function rather than formatting
-  // their own, so they cannot disagree about a figure.
-  assert.match(tableCode, /grossText\(row\)/);
-  assert.match(cardCode, /grossText\(row\)/);
-  [tableCode, cardCode].forEach((code) =>
-    assert.ok(!/toLocaleString/.test(code), "a layout formatted its own gross")
+  // And nothing else took its place as a money figure on this screen.
+  ALL_VIEWS.forEach(([name, code]) =>
+    assert.ok(!/daily_salary|basic|conveyance|hra|special_allowance/.test(code), `${name} renders a salary component`)
   );
 });
 
@@ -239,7 +251,7 @@ test("the exit badge is a badge - it is never wired to the pay type", () => {
   // onChange - so there is nothing for it to drive on either layout.
   const badge = presentationCode.slice(
     presentationCode.indexOf("export function ExitedBadge"),
-    presentationCode.indexOf("export function ReasonsBlock")
+    presentationCode.indexOf("export function WarningsBlock")
   );
   assert.ok(
     !/(Select|Button|onChange|onInitialize|pay_type)/.test(badge),
@@ -271,7 +283,10 @@ test("the table carries the columns the screen was asked for", () => {
 });
 
 test("the filters go to the server, not to a filter() in the browser", () => {
-  assert.match(pageCode, /const filters = useMemo\(\s*\n?\s*\(\) => \(\{ year, month, store_ids: storeId, status \}\)/);
+  assert.match(
+    pageCode,
+    /const filters = useMemo\(\s*\n?\s*\(\) => \(\{ year, month, store_ids: storeId, status, lifecycle \}\)/
+  );
   assert.ok(
     !/rows\.filter\(/.test(pageCode),
     "filtering in the browser would fetch everything and hide most of it"
@@ -326,32 +341,69 @@ test("the mobile card carries every field the table does", () => {
   assert.match(cardCode, /row\.employee_name/);
   assert.match(cardCode, /label="Location"/);
   assert.match(cardCode, /label="Designation"/);
-  assert.match(cardCode, /label="Approved Monthly Gross"/);
   assert.match(cardCode, /label="Pay Type"/);
   assert.match(cardCode, /<StatusBadge row=\{row\} \/>/);
-  assert.match(cardCode, /<ReasonsBlock row=\{row\}/);
+  assert.match(cardCode, /<WarningsBlock row=\{row\}/);
   assert.match(cardCode, /<ExitedBadge row=\{row\} \/>/);
   assert.match(cardCode, /<SelectCheckbox/);
   assert.match(cardCode, /<InitializeControl/);
   assert.match(cardCode, /<PayTypeControl/);
 });
 
-test("BLOCKING REASONS ARE VISIBLE ON MOBILE - printed, never behind a tooltip", () => {
-  // The reasons block is plain text, and it is NOT wrapped in a Tooltip:
-  // there is no hover on a touch screen, so a hovered reason is unreadable.
-  const reasonsBlock = presentationCode.slice(
-    presentationCode.indexOf("export function ReasonsBlock"),
-    presentationCode.indexOf("export function PayTypeControl")
+test("BLOCKING REASONS OPEN FROM THE BADGE, BY CLICK - which a tap performs too", () => {
+  const badge = presentationCode.slice(
+    presentationCode.indexOf("export function StatusBadge"),
+    presentationCode.indexOf("THERE IS NO `grossText`")
   );
-  assert.ok(!/Tooltip/.test(reasonsBlock), "blocking reasons must not be behind a tooltip");
-  assert.match(reasonsBlock, /whiteSpace="normal"/, "a long reason must wrap, not be clipped");
-  assert.match(reasonsBlock, /reasonText\(row\)/);
-  // Warnings are shown too, and told apart from blocking reasons by colour.
-  assert.match(reasonsBlock, /color="red\.600"/);
-  assert.match(reasonsBlock, /color="orange\.600"/);
-  // And the card renders it in the flow rather than in a collapsed section.
-  assert.match(cardCode, /<ReasonsBlock row=\{row\} fontSize="xs" \/>/);
-  assert.ok(!/Accordion|Collapse|isTruncated|noOfLines/.test(cardCode), "reasons must not be hidden or clipped on the card");
+  // A Popover with NO `trigger="hover"`, which means Chakra's default: click.
+  // `PunchTimeCell` uses hover, and hover does nothing on a touch screen - a
+  // hover-only reason is one a phone user can never read.
+  assert.match(badge, /<Popover /);
+  assert.ok(!/trigger="hover"/.test(badge), "a hover trigger is unusable on a phone");
+  assert.match(badge, /<PopoverTrigger>/);
+  assert.match(badge, /<PopoverBody>/);
+  // Reachable by keyboard and announced to a screen reader.
+  assert.match(badge, /role="button"/);
+  assert.match(badge, /tabIndex=\{0\}/);
+  assert.match(badge, /aria-label=/);
+  // A non-blocked row gets a plain badge with nothing to open.
+  assert.match(badge, /if \(reasons\.length === 0\) return badge;/);
+});
+
+test("EVERY reason is shown when opened, with its COMPACT LABEL first", () => {
+  const badge = presentationCode.slice(
+    presentationCode.indexOf("export function StatusBadge"),
+    presentationCode.indexOf("THERE IS NO `grossText`")
+  );
+  // Every one, not the first - `.map` over the whole list.
+  assert.match(badge, /reasons\.map\(\(reason\) =>/);
+  // The label leads; the explaining sentence follows it.
+  assert.match(badge, /\{reason\.label \|\| reason\.code\}/);
+  assert.ok(
+    badge.indexOf("reason.label") < badge.indexOf("reason.message"),
+    "the compact label must come first"
+  );
+  // The count is on the badge, so a blocked row says how many without opening.
+  assert.match(badge, /\{row\.status\} \(\{reasons\.length\}\)/);
+  // And the labels are the SERVER's - no lookup table in the browser.
+  ALL_VIEWS.forEach(([name, code]) =>
+    assert.ok(
+      !/ATTENDANCE_INCOMPLETE|SALARY_NOT_APPROVED|PENDING_OT_APPROVAL|MONTH_LOCKED/.test(code),
+      `${name} restates the server's reason vocabulary`
+    )
+  );
+});
+
+test("no long explanatory sentence is printed inline on either layout", () => {
+  // The prose that used to sit in a column is not rendered in the row or the
+  // card any more - only inside the popover, for somebody who asked for it.
+  [["table", tableCode], ["card", cardCode]].forEach(([name, code]) => {
+    assert.ok(!/blocking_reasons/.test(code), `${name} still renders the reasons inline`);
+    assert.ok(!/Blocking Reasons/.test(code), `${name} still has a blocking reasons column`);
+  });
+  // The WARNING stays inline, because nothing announces it and it does not block.
+  assert.match(cardCode, /<WarningsBlock/);
+  assert.match(tableCode, /<WarningsBlock/);
 });
 
 test("a READY row is selectable on BOTH layouts, through the one shared rule", () => {
@@ -409,7 +461,7 @@ test("the exited badge stays display-only on the card", () => {
 test("the responsive work introduced NO payroll calculation or business rule", () => {
   ALL_VIEWS.forEach(([name, code]) => {
     assert.ok(
-      !/monthly_gross\s*[*/+-]\s|daily_rate|salary_days|attendance_days|shortage_minutes|base_days/.test(code),
+      !/monthly_gross|daily_rate|salary_days|attendance_days|shortage_minutes|base_days/.test(code),
       `${name} does arithmetic on a payroll figure`
     );
     assert.ok(
@@ -426,13 +478,15 @@ test("the responsive work introduced NO payroll calculation or business rule", (
   [cardCode, listCode].forEach((code) =>
     assert.ok(!/require\(|from "\.\.\/\.\.\/util\//.test(code), "a layout must not reach into util directly")
   );
-  assert.match(presentationCode, /from "\.\.\/\.\.\/util\/payrunSelection"/);
   assert.match(presentationCode, /from "\.\.\/\.\.\/util\/payrunAccess"/);
+  // It no longer needs `payrunSelection` at all: the reasons are rendered as
+  // the server's own objects rather than flattened by a helper.
+  assert.ok(!/payrunSelection/.test(presentationCode));
 });
 
 test("the top area is mobile-friendly, and the bulk actions stay reachable", () => {
   // Filters two-across on a phone, five-across on a desktop.
-  assert.match(pageCode, /columns=\{\{ base: 2, md: 5 \}\}/);
+  assert.match(pageCode, /columns=\{\{ base: 2, md: 6 \}\}/);
   // Summary cards two-across on a phone, four on a desktop - unchanged.
   assert.match(pageCode, /columns=\{\{ base: 2, md: 4 \}\}/);
   // The four counts are all still there.
@@ -443,4 +497,92 @@ test("the top area is mobile-friendly, and the bulk actions stay reachable", () 
   assert.match(pageCode, /position=\{\{ base: "sticky", md: "static" \}\}/);
   assert.match(pageCode, /Select all Ready/);
   assert.match(pageCode, /Initialize Selected \(\{selectedCount\}\)/);
+});
+
+/* ================================================= the lifecycle filter == */
+
+test("THE EXITED FILTER IS ITS OWN CONTROL, INDEPENDENT OF STATUS", () => {
+  // Two selects, two pieces of state, both sent - so "Exited + Blocked" is one
+  // request rather than an impossible combination.
+  assert.match(pageCode, /const \[lifecycle, setLifecycle\] = useState\(""\)/);
+  assert.match(pageCode, /const \[status, setStatus\] = useState\(""\)/);
+  assert.match(pageCode, /placeholder="All employees"/);
+  assert.match(pageCode, /<option value="ACTIVE">Active<\/option>/);
+  assert.match(pageCode, /<option value="EXITED">Exited<\/option>/);
+  // The status filter is untouched beside it.
+  assert.match(pageCode, /placeholder="All statuses"/);
+  assert.match(pageCode, /<option value="READY">Ready<\/option>/);
+  assert.match(pageCode, /<option value="BLOCKED">Blocked<\/option>/);
+  assert.match(pageCode, /<option value="INITIALIZED">Initialized<\/option>/);
+});
+
+test("the lifecycle filter is applied by the SERVER, like every other filter", () => {
+  // It goes into the same filters object the hook serialises into the query,
+  // so the rows that do not match are never read out of the database.
+  assert.match(pageCode, /store_ids: storeId, status, lifecycle/);
+  assert.ok(
+    !/rows\.filter\(/.test(pageCode + cardCode + listCode),
+    "filtering in the browser would fetch everybody and hide most of them"
+  );
+  // The helper and hook pass it through generically - no new plumbing.
+  assert.match(hookCode, /for \(const \[name, value\] of Object\.entries\(parsed\)\)/);
+  assert.match(helperCode, /API\.get\("\/payrun\/month", \{ params \}\)/);
+});
+
+test("the browser never decides WHO is exited - it sends a word and renders a flag", () => {
+  ALL_VIEWS.forEach(([name, code]) => {
+    assert.ok(
+      !/resignation_date|exitedByMonthEnd|ended_on/.test(code),
+      `${name} re-derives who left; that is the server's one dated rule`
+    );
+  });
+  // The badge renders the server's dated answer and nothing else.
+  assert.match(presentationCode, /if \(!row\.exited_in_month\) return null;/);
+});
+
+/* ============================================ interaction and pay type == */
+
+test("the reasons popover is reachable by tap, click and keyboard alike", () => {
+  const badge = presentationCode.slice(
+    presentationCode.indexOf("export function StatusBadge"),
+    presentationCode.indexOf("THERE IS NO `grossText`")
+  );
+  // No hover trigger anywhere on this screen's reason path.
+  assert.ok(!/trigger="hover"/.test(badge));
+  // A pointer affordance, a keyboard stop, and a name for a screen reader.
+  assert.match(badge, /cursor="pointer"/);
+  assert.match(badge, /tabIndex=\{0\}/);
+  assert.match(badge, /role="button"/);
+  assert.match(badge, /aria-label=\{`\$\{row\.status\}/);
+});
+
+test("PAY TYPE IS UNCHANGED BY THIS CLEANUP", () => {
+  // Still on the screen, still only editable once initialized, still gated on
+  // the permission AND the month lock, still BANK/CASH only.
+  assert.match(presentationCode, /if \(row\.initialized && canChangePayType\)/);
+  assert.match(presentationCode, /<option value="BANK">/);
+  assert.match(presentationCode, /<option value="CASH">/);
+  assert.ok(!/HOLD/.test(presentation + table + card + page));
+  assert.match(pageCode, /canChangePayType=\{mayChangePayType && !monthLocked\}/);
+  assert.match(cardCode, /label="Pay Type"/);
+  assert.match(tableCode, /<Th>Pay Type<\/Th>/);
+  // And still month-specific, still not the Employee Master.
+  assert.match(pageCode, /This month only\. The employee's record is unchanged\./);
+  assert.ok(!/payment_type/.test(pageCode + cardCode + tableCode + presentationCode + helperCode));
+});
+
+test("nothing moves an exited employee to CASH - the badge and the filter only FIND them", () => {
+  // The exit signal reaches no pay type control on either layout.
+  const payTypeControl = presentationCode.slice(
+    presentationCode.indexOf("export function PayTypeControl"),
+    presentationCode.indexOf("export function InitializeControl")
+  );
+  assert.ok(!/exited_in_month|lifecycle/.test(payTypeControl));
+  // And no screen defaults one from an employment fact.
+  ALL_VIEWS.forEach(([name, code]) =>
+    assert.ok(
+      !/(exited_in_month|lifecycle)[^\n]*\?[^\n]*("CASH"|"BANK")/.test(code),
+      `${name} picks a pay type from an employment fact`
+    )
+  );
 });
