@@ -31,6 +31,9 @@ const MODULE_ICONS = {
   employee: "fa-users",
   shifts: "fa-clock",
   attendance: "fa-calendar-check",
+  // The same icon the Reports module carries on the rail, so the header on
+  // this screen and the entry in the navigation are recognisably one thing.
+  reports: "fa-file-lines",
   master: "fa-database",
   materials: "fa-boxes-stacked",
   purchase_order: "fa-file-signature",
