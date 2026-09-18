@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useRef } from "react";
 import {
   Badge,
   Button,
@@ -12,6 +12,7 @@ import {
   Stack,
   Text,
   Tooltip,
+  useDisclosure,
 } from "@chakra-ui/react";
 import { isRowInitializable } from "../../util/payrunAccess";
 
@@ -64,33 +65,60 @@ export function rowIsSelectable(row, canInitialize) {
  * READY / BLOCKED / INITIALIZED, exactly as the server said it - AND, for a
  * BLOCKED row, the way into why.
  *
- * THE REASONS USED TO BE PRINTED IN A COLUMN OF THEIR OWN, in full sentences.
- * That column was the widest thing on the screen and it pushed everything else
- * off a phone; it also meant forty rows of explanatory prose for a list
- * somebody is scanning rather than reading. The reasons are now behind the
- * badge that says there are some.
+ * THE BADGE SAYS ONLY THE STATUS. No count, no reason, no suffix: this is a
+ * list somebody scans down, and "BLOCKED" is the whole of what a scan needs.
+ * How many and which are the next question, and they are one interaction away.
  *
- * NOTHING IS HIDDEN THAT WAS DECIDED ELSEWHERE. Every reason the server sent
- * is in the popover, in full, with its compact label first - none is dropped,
- * summarised or truncated, and the rules behind them are untouched.
+ * WHAT OPENS IS THE COMPACT LABELS, ONE PER LINE, AND NOTHING ELSE. The
+ * server's `message` - the sentence explaining why a blocker exists - is
+ * deliberately NOT rendered anywhere on this screen. It still arrives on every
+ * reason and a later screen may use it; here it was prose in a place meant for
+ * a glance.
  *
- * ONE INTERACTION FOR BOTH, AND IT IS CLICK. `components/attendance/PunchTimeCell.jsx`
- * opens its popover on HOVER, which is right for a desktop-only affordance and
- * useless on a phone - there is no hover on a touch screen, so a hover-only
- * reason is a reason a mobile user can never read. Click is the one trigger a
- * desktop click and a mobile tap both perform, so both get the same thing.
- * `tabIndex` and a `button` role so it is reachable from the keyboard too.
+ * THE INTERACTION HAS TO WORK FOR A MOUSE AND A FINGER, AND THE OBVIOUS WAYS
+ * DO NOT. `trigger="hover"` (what `PunchTimeCell` uses) never opens on a touch
+ * screen - there is no hover to give. `trigger="click"` works everywhere but
+ * makes a desktop user click for something a hover should have shown. And the
+ * naive fix - hover handlers plus a click handler - is worse than either:
+ * a tap fires `pointerenter` AND `click` on most mobile browsers, so the open
+ * and the toggle cancel each other and the popover flickers shut under the
+ * finger that opened it.
+ *
+ * SO THE POPOVER IS CONTROLLED, AND EACH POINTER GETS THE GESTURE THAT SUITS
+ * IT, decided from `pointerType` rather than from a screen-width guess:
+ *
+ *   mouse    hovering opens it, leaving closes it - and a click keeps it open
+ *            rather than toggling, so a click after a hover is never a close
+ *   touch    a tap toggles it; the hover handlers ignore the synthetic
+ *            pointerenter that precedes it, which is what stops the flicker
+ *   keyboard focus opens, blur closes, Enter/Space toggles
+ *
+ * `autoFocus={false}` so that merely hovering does not yank focus out of
+ * whatever the person was doing.
  */
 export function StatusBadge({ row }) {
-  const badge = (
+  const { isOpen, onOpen, onClose, onToggle } = useDisclosure();
+  /* What kind of pointer last touched this badge - a click event cannot be
+     asked, so the pointerdown that preceded it is remembered. */
+  const lastPointer = useRef("mouse");
+
+  const plainBadge = (
     <Badge colorScheme={STATUS_COLOR[row.status] || "gray"}>{row.status}</Badge>
   );
 
   const reasons = row.blocking_reasons || [];
-  if (reasons.length === 0) return badge;
+  if (reasons.length === 0) return plainBadge;
+
+  const isMouse = (event) => (event.pointerType || "mouse") === "mouse";
 
   return (
-    <Popover placement="bottom-start" isLazy>
+    <Popover
+      isOpen={isOpen}
+      onClose={onClose}
+      placement="bottom-start"
+      autoFocus={false}
+      isLazy
+    >
       <PopoverTrigger>
         <Badge
           colorScheme={STATUS_COLOR[row.status] || "gray"}
@@ -98,28 +126,44 @@ export function StatusBadge({ row }) {
           role="button"
           tabIndex={0}
           textDecoration="underline dotted"
-          aria-label={`${row.status} - ${reasons.length} reason${reasons.length === 1 ? "" : "s"}. Open for details.`}
+          aria-label={`${row.status}. Show the reasons.`}
+          onPointerDown={(e) => {
+            lastPointer.current = e.pointerType || "mouse";
+          }}
+          onPointerEnter={(e) => {
+            if (isMouse(e)) onOpen();
+          }}
+          onPointerLeave={(e) => {
+            if (isMouse(e)) onClose();
+          }}
+          onClick={() => {
+            /* A mouse has already opened it by hovering; toggling here would
+               close it on the click that was meant to pin it open. */
+            if (lastPointer.current === "mouse") onOpen();
+            else onToggle();
+          }}
+          onFocus={onOpen}
+          onBlur={onClose}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              onToggle();
+            }
+          }}
         >
-          {row.status} ({reasons.length})
+          {row.status}
         </Badge>
       </PopoverTrigger>
-      <PopoverContent w="auto" maxW="320px" fontSize="xs">
+      <PopoverContent w="auto" maxW="260px" fontSize="xs">
         <PopoverArrow />
         <PopoverBody>
-          <Stack spacing={2}>
+          {/* ONE COMPACT LABEL PER LINE. Every blocker the server reported,
+              in the order it reported them, and nothing else. */}
+          <Stack spacing={1}>
             {reasons.map((reason) => (
-              <Stack key={reason.code} spacing={0}>
-                {/* THE COMPACT BUSINESS LABEL, which is the server's and not
-                    this screen's - see `constants/payrun.js`. */}
-                <Text fontWeight="600" color="red.600">
-                  {reason.label || reason.code}
-                </Text>
-                {/* And the sentence that says what to go and fix, for somebody
-                    who has stopped on this row deliberately. */}
-                {reason.message && reason.message !== reason.label ? (
-                  <Text color="gray.600">{reason.message}</Text>
-                ) : null}
-              </Stack>
+              <Text key={reason.code} color="red.600" whiteSpace="normal">
+                {reason.label || reason.code}
+              </Text>
             ))}
           </Stack>
         </PopoverBody>

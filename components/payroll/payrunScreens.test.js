@@ -101,11 +101,10 @@ test("no payroll figure or eligibility is computed in the browser", () => {
 
 test("the status and the blocking reasons are rendered, never derived", () => {
   assert.match(presentationCode, /row\.status/);
-  // The reasons are the SERVER's objects, rendered as they arrive - the label
-  // it sent, and the message it sent. Nothing is composed here.
+  // The reasons are the SERVER's objects, rendered as they arrive - its
+  // compact label, and nothing composed here.
   assert.match(presentationCode, /row\.blocking_reasons \|\| \[\]/);
   assert.match(presentationCode, /reason\.label \|\| reason\.code/);
-  assert.match(presentationCode, /\{reason\.message\}/);
   assert.ok(
     !/blocking_reasons\.push|status\s*=\s*"(READY|BLOCKED)"/.test(
       tableCode + cardCode + presentationCode + pageCode
@@ -350,48 +349,67 @@ test("the mobile card carries every field the table does", () => {
   assert.match(cardCode, /<PayTypeControl/);
 });
 
-test("BLOCKING REASONS OPEN FROM THE BADGE, BY CLICK - which a tap performs too", () => {
+test("THE BADGE SAYS ONLY THE STATUS - no count, no reason text on it", () => {
   const badge = presentationCode.slice(
     presentationCode.indexOf("export function StatusBadge"),
     presentationCode.indexOf("THERE IS NO `grossText`")
   );
-  // A Popover with NO `trigger="hover"`, which means Chakra's default: click.
-  // `PunchTimeCell` uses hover, and hover does nothing on a touch screen - a
-  // hover-only reason is one a phone user can never read.
-  assert.match(badge, /<Popover /);
-  assert.ok(!/trigger="hover"/.test(badge), "a hover trigger is unusable on a phone");
-  assert.match(badge, /<PopoverTrigger>/);
-  assert.match(badge, /<PopoverBody>/);
-  // Reachable by keyboard and announced to a screen reader.
-  assert.match(badge, /role="button"/);
-  assert.match(badge, /tabIndex=\{0\}/);
-  assert.match(badge, /aria-label=/);
-  // A non-blocked row gets a plain badge with nothing to open.
-  assert.match(badge, /if \(reasons\.length === 0\) return badge;/);
+  assert.match(badge, />\s*\{row\.status\}\s*</);
+  assert.ok(!/\{row\.status\} \(/.test(badge), "a count must not be appended to the badge");
+  assert.ok(!/reasons\.length\}/.test(badge), "the reason count must not be rendered");
+  // A row with nothing wrong gets a plain badge with nothing to open.
+  assert.match(badge, /if \(reasons\.length === 0\) return plainBadge;/);
 });
 
-test("EVERY reason is shown when opened, with its COMPACT LABEL first", () => {
+test("THE POPOVER SHOWS ONLY THE COMPACT LABELS, ONE PER LINE", () => {
+  const body = presentationCode.slice(
+    presentationCode.indexOf("<PopoverBody>"),
+    presentationCode.indexOf("</PopoverBody>")
+  );
+  // Every reason, each its own line, each just the label.
+  assert.match(body, /reasons\.map\(\(reason\) =>/);
+  assert.match(body, /\{reason\.label \|\| reason\.code\}/);
+  assert.match(body, /<Stack spacing=\{1\}>/);
+  assert.ok(!/\.join\(/.test(body), "the labels must not be flattened into one line");
+
+  // THE SENTENCE IS NOT RENDERED ANYWHERE ON THIS SCREEN. The server still
+  // sends `message`; this UI does not show it.
+  ALL_VIEWS.forEach(([name, code]) =>
+    assert.ok(!/reason\.message/.test(code), `${name} renders a reason message`)
+  );
+});
+
+test("THE REASONS OPEN ON HOVER *AND* ON TAP, decided by pointer type", () => {
   const badge = presentationCode.slice(
     presentationCode.indexOf("export function StatusBadge"),
     presentationCode.indexOf("THERE IS NO `grossText`")
   );
-  // Every one, not the first - `.map` over the whole list.
-  assert.match(badge, /reasons\.map\(\(reason\) =>/);
-  // The label leads; the explaining sentence follows it.
-  assert.match(badge, /\{reason\.label \|\| reason\.code\}/);
-  assert.ok(
-    badge.indexOf("reason.label") < badge.indexOf("reason.message"),
-    "the compact label must come first"
-  );
-  // The count is on the badge, so a blocked row says how many without opening.
-  assert.match(badge, /\{row\.status\} \(\{reasons\.length\}\)/);
-  // And the labels are the SERVER's - no lookup table in the browser.
-  ALL_VIEWS.forEach(([name, code]) =>
-    assert.ok(
-      !/ATTENDANCE_INCOMPLETE|SALARY_NOT_APPROVED|PENDING_OT_APPROVAL|MONTH_LOCKED/.test(code),
-      `${name} restates the server's reason vocabulary`
-    )
-  );
+  // Controlled, so one badge can serve both gestures.
+  assert.match(badge, /useDisclosure\(\)/);
+  assert.match(badge, /isOpen=\{isOpen\}/);
+
+  // MOUSE: hover opens, leaving closes - both guarded on pointerType, which is
+  // what stops a tap's synthetic pointerenter from fighting its own click.
+  assert.match(badge, /onPointerEnter=/);
+  assert.match(badge, /onPointerLeave=/);
+  assert.match(badge, /if \(isMouse\(e\)\) onOpen\(\);/);
+  assert.match(badge, /if \(isMouse\(e\)\) onClose\(\);/);
+  assert.match(badge, /\(event\.pointerType \|\| "mouse"\) === "mouse"/);
+
+  // TOUCH: the tap toggles; a mouse click re-opens rather than toggling shut.
+  assert.match(badge, /onPointerDown=/);
+  assert.match(badge, /lastPointer\.current === "mouse"\) onOpen\(\);/);
+  assert.match(badge, /else onToggle\(\);/);
+
+  // KEYBOARD.
+  assert.match(badge, /onFocus=\{onOpen\}/);
+  assert.match(badge, /onBlur=\{onClose\}/);
+  assert.match(badge, /e\.key === "Enter" \|\| e\.key === " "/);
+
+  // NOT the hover-only trigger, which would leave a phone with no way in.
+  assert.ok(!/trigger="hover"/.test(badge));
+  // And hovering must not steal focus from whatever somebody was doing.
+  assert.match(badge, /autoFocus=\{false\}/);
 });
 
 test("no long explanatory sentence is printed inline on either layout", () => {
