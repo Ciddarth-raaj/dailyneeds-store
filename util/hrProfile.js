@@ -273,6 +273,14 @@ const HR_EDITABLE_FIELDS = [
   // Nothing on this screen reads either value to decide anything.
   "employment_type",
   "grade",
+  // EXTRA BREAK HOURS. Recorded on the same Employment section and saved in
+  // the same `employee_edit` request as the placement above - no separate
+  // endpoint and no permission of its own. Unlike the two classification
+  // fields it DOES decide something: attendance adds it to the day's allowed
+  // break on a four-or-more-punch day. Blank clears it, which is no extra
+  // break, so it belongs on the nullable list below rather than being sent
+  // as the empty string.
+  "extra_break_hours",
 ];
 
 /** Sent as integers; "" means "no change", not zero. */
@@ -286,7 +294,7 @@ const NUMERIC_HR_FIELDS = ["store_id", "department_id", "designation_id", "shift
  * the dropdown cannot render back. "Not recorded" is a state HR may return an
  * employee to, so an emptied dropdown is a real change and is sent as null.
  */
-const NULLABLE_HR_FIELDS = ["employment_type", "grade"];
+const NULLABLE_HR_FIELDS = ["employment_type", "grade", "extra_break_hours"];
 
 /**
  * The sensitive columns, and the key each one has in the `/employee/updatedata`

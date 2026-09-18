@@ -141,6 +141,7 @@ function AddEmployee() {
     // decided is still created, and the columns are nullable.
     employment_type: "",
     grade: "",
+    extra_break_hours: "",
     designation_id: "",
     department_id: "",
     default_work_shift_id: "",
@@ -684,6 +685,29 @@ function AddEmployee() {
                   ) : (
                     <FormHelperText fontSize="xs">
                       The internal band, A to E. Can be left blank.
+                    </FormHelperText>
+                  )}
+                </FormControl>
+                <FormControl isInvalid={Boolean(errors.extra_break_hours)}>
+                  <FormLabel fontSize="sm">Extra Break Hours</FormLabel>
+                  {/* IN HOURS, decimals allowed - 0.5 is half an hour. It is
+                      ADDED to the shift's own break, and attendance credits it
+                      only on a day with four or more punches. */}
+                  <Input
+                    size="sm"
+                    type="number"
+                    step="0.25"
+                    min="0"
+                    placeholder="0"
+                    value={form.extra_break_hours}
+                    onChange={set("extra_break_hours")}
+                  />
+                  {errors.extra_break_hours ? (
+                    <FormErrorMessage fontSize="xs">{errors.extra_break_hours}</FormErrorMessage>
+                  ) : (
+                    <FormHelperText fontSize="xs">
+                      Extra break on top of the shift&apos;s own break, in hours. Counted only on a
+                      day with four or more punches. Leave blank for none.
                     </FormHelperText>
                   )}
                 </FormControl>

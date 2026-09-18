@@ -201,6 +201,17 @@ function validateStage(key, form = {}, context = {}) {
     if (text(form.grade) && !GRADES.includes(text(form.grade))) {
       errors.grade = "Choose a grade from the list.";
     }
+    // EXTRA BREAK HOURS, and optional. Refused here as well as by the API so
+    // a typo is a message beside the field rather than a 422 on Save.
+    const extraBreak = text(form.extra_break_hours);
+    if (extraBreak !== "") {
+      const hours = Number(extraBreak);
+      if (!Number.isFinite(hours) || hours < 0) {
+        errors.extra_break_hours = "Extra break hours must be a number of hours, such as 0.5.";
+      } else if (hours > 23.99) {
+        errors.extra_break_hours = "Extra break hours must be less than a whole day.";
+      }
+    }
     return errors;
   }
 
@@ -257,6 +268,14 @@ const CLASSIFICATION_FIELDS = ["employment_type", "grade"];
  */
 const WORK_SHIFT_FIELD = "default_work_shift_id";
 
+/**
+ * EXTRA BREAK HOURS, sent as a NUMBER of hours when typed and omitted when
+ * not - so a hire nobody has given an extra break is created with NULL, which
+ * is no extra break at all. Half an hour is 0.5. Attendance credits it only
+ * on a day with four or more punches.
+ */
+const EXTRA_BREAK_FIELD = "extra_break_hours";
+
 /** The three education columns, stage 4's whole vocabulary. */
 const EDUCATION_FIELDS = ["qualification", "additional_course", "previous_experience"];
 
@@ -294,6 +313,12 @@ function buildCreatePayload(form = {}, verification = null) {
   }
   const shift = text(form[WORK_SHIFT_FIELD]);
   if (shift) payload[WORK_SHIFT_FIELD] = Number(shift);
+  const extraBreak = text(form[EXTRA_BREAK_FIELD]);
+  // A typed 0 is sent: it is the same as blank to the engine, but it is what
+  // the manager entered, and dropping it would make the field look unsaved.
+  if (extraBreak !== "" && Number.isFinite(Number(extraBreak))) {
+    payload[EXTRA_BREAK_FIELD] = Number(extraBreak);
+  }
   if (verification && verification.verification_id) {
     payload.aadhaar_verification_id = verification.verification_id;
   }

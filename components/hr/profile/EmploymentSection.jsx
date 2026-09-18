@@ -145,6 +145,9 @@ function EmploymentSection({
       // "" is the blank option, and `buildHrPatch` sends it as null.
       employment_type: employee.employment_type ?? "",
       grade: employee.grade ?? "",
+      // "" is blank, and `buildHrPatch` sends a blank as null - which is no
+      // extra break at all, the state every employee starts in.
+      extra_break_hours: employee.extra_break_hours ?? "",
       work_shift_id: currentShiftId ?? "",
     });
     setEditing(true);
@@ -301,6 +304,14 @@ function EmploymentSection({
                   help="Changed from Employee Shift Assignment by someone with that right."
                 />
               )}
+              <EditField
+                label="Extra Break Hours"
+                name="extra_break_hours"
+                type="number"
+                value={form.extra_break_hours}
+                onChange={set}
+                help="Extra break allowed on top of the shift's own break, in hours (0.5 is half an hour). Counted only on a day with four or more punches; a two-punch day is unaffected. Blank means none."
+              />
             </FieldGrid>
             <Text fontSize="xs" color="orange.700">
               Changing branch or designation changes what this employee is allowed to do, so they
@@ -316,6 +327,7 @@ function EmploymentSection({
               <Field label="Employment Type" value={employee.employment_type} />
               <Field label="Grade" value={employee.grade} />
               <Field label="Shift" value={currentShiftLabel(currentShift)} />
+              <Field label="Extra Break Hours" value={employee.extra_break_hours} />
             </FieldGrid>
             <Text fontSize="xs" color="gray.500">
               {canAssignShift
