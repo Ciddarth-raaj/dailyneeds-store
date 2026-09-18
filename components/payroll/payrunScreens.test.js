@@ -532,8 +532,17 @@ test("the responsive work introduced NO payroll calculation or business rule", (
 });
 
 test("the top area is mobile-friendly, and the bulk actions stay reachable", () => {
-  // Filters two-across on a phone, five-across on a desktop.
-  assert.match(pageCode, /columns=\{\{ base: 2, md: 6 \}\}/);
+  /*
+   * Filters two-across on a phone. On a desktop the INITIALIZATION stage still
+   * shows all six - month, year, location, status, lifecycle, refresh - and
+   * the Adjustments stage shows four, because the status and lifecycle filters
+   * ask about initialization eligibility, which that stage has no opinion
+   * about. The count follows the stage rather than being fixed.
+   */
+  assert.match(
+    pageCode,
+    /columns=\{\{ base: 2, md: stage === STAGE\.INITIALIZATION \? 6 : 4 \}\}/
+  );
   // Summary cards two-across on a phone, four on a desktop - unchanged.
   assert.match(pageCode, /columns=\{\{ base: 2, md: 4 \}\}/);
   // The four counts are all still there.

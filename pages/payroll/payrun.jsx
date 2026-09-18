@@ -17,6 +17,7 @@ import {
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../components/CustomContainer";
 import PayrunEmployeeList from "../../components/payroll/PayrunEmployeeList";
+import PayrunAdjustments from "../../components/payroll/adjustments/PayrunAdjustments";
 import usePayrollActor from "../../customHooks/usePayrollActor";
 import usePayrunMonth from "../../customHooks/usePayrunMonth";
 import useOutlets from "../../customHooks/useOutlets";
@@ -71,6 +72,14 @@ import {
  * read-only view of what payroll is waiting on, which is a genuinely useful
  * thing for HR to have.
  *
+ * TWO STAGES LIVE ON THIS SCREEN, AND ADJUSTMENTS IS NOT A SEPARATE MENU.
+ * Initialization and Adjustments are consecutive steps of ONE payroll month:
+ * the second operates on exactly the employees the first initialized, and a
+ * separate Payroll menu entry for it would mean choosing the month twice and
+ * would hide the fact that one stage feeds the other. So the month, the year
+ * and the branch are chosen once, at the top, and the stage switch below them
+ * changes what is shown about that month - it never reloads a different one.
+ *
  * SELECT ALL READY MEANS EXACTLY THAT. The rows the server returned that are
  * READY - never a blocked row, never an already-initialized one, and never a
  * row the active filters are hiding, since the filters are applied by the
@@ -82,6 +91,12 @@ function currentPeriod() {
   const now = new Date();
   return { year: now.getFullYear(), month: now.getMonth() + 1 };
 }
+
+/** The two stages of the monthly payrun that exist today. */
+const STAGE = {
+  INITIALIZATION: "INITIALIZATION",
+  ADJUSTMENTS: "ADJUSTMENTS",
+};
 
 const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
@@ -114,6 +129,12 @@ function Payrun() {
    * decides it from the same field the Exited badge uses.
    */
   const [lifecycle, setLifecycle] = useState("");
+  /*
+   * WHICH STAGE OF THE MONTH IS ON SCREEN. It is a view of the SAME month -
+   * the year, month and branch above are shared - so switching stages never
+   * asks somebody to pick a payroll month twice.
+   */
+  const [stage, setStage] = useState(STAGE.INITIALIZATION);
   const [selectedIds, setSelectedIds] = useState([]);
   const [busyEmployeeId, setBusyEmployeeId] = useState(null);
   const [bulkBusy, setBulkBusy] = useState(false);
@@ -127,8 +148,13 @@ function Payrun() {
     [year, month, storeId, status, lifecycle]
   );
 
+  /*
+   * THE INITIALIZATION MONTH IS READ ONLY WHILE ITS STAGE IS ON SCREEN. The
+   * adjustments stage reads its own month through its own hook, and loading
+   * both would be two full-month requests to draw one of them.
+   */
   const { rows, summary, monthLocked, loading, loaded, denied, error, refresh } =
-    usePayrunMonth(filters, mayOpen);
+    usePayrunMonth(filters, mayOpen && stage === STAGE.INITIALIZATION);
 
   const selectableIds = useMemo(
     () => (mayInitialize ? selectableEmployeeIds(rows) : []),
@@ -276,7 +302,7 @@ function Payrun() {
         {/* TWO ACROSS ON A PHONE. Month and Year belong side by side - they
             are one choice - and five full-width rows would push the summary
             and the first employee below the fold before anything was read. */}
-        <SimpleGrid columns={{ base: 2, md: 6 }} spacing={3}>
+        <SimpleGrid columns={{ base: 2, md: stage === STAGE.INITIALIZATION ? 6 : 4 }} spacing={3}>
           <Select
             size="sm"
             value={month}
@@ -313,39 +339,101 @@ function Payrun() {
               </option>
             ))}
           </Select>
-          <Select
-            size="sm"
-            placeholder="All statuses"
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
-          >
-            <option value="READY">Ready</option>
-            <option value="BLOCKED">Blocked</option>
-            <option value="INITIALIZED">Initialized</option>
-          </Select>
+          {/* THE TWO INITIALIZATION FILTERS. They ask about initialization
+              eligibility and employment lifecycle, neither of which the
+              adjustments stage has an opinion about - its population is
+              simply "everybody initialized" - so they are not drawn there
+              rather than being drawn and ignored. */}
+          {stage === STAGE.INITIALIZATION ? (
+            <Select
+              size="sm"
+              placeholder="All statuses"
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+            >
+              <option value="READY">Ready</option>
+              <option value="BLOCKED">Blocked</option>
+              <option value="INITIALIZED">Initialized</option>
+            </Select>
+          ) : null}
           {/* INDEPENDENT OF THE STATUS FILTER BESIDE IT - both are sent, and
               the server applies both, so Exited + Blocked is one request. */}
-          <Select
-            size="sm"
-            placeholder="All employees"
-            value={lifecycle}
-            onChange={(e) => setLifecycle(e.target.value)}
-            aria-label="Employee lifecycle"
-          >
-            <option value="ACTIVE">Active</option>
-            <option value="EXITED">Exited</option>
-          </Select>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={refresh}
-            isDisabled={loading}
-            gridColumn={{ base: "span 2", md: "auto" }}
-          >
-            Refresh
-          </Button>
+          {stage === STAGE.INITIALIZATION ? (
+            <Select
+              size="sm"
+              placeholder="All employees"
+              value={lifecycle}
+              onChange={(e) => setLifecycle(e.target.value)}
+              aria-label="Employee lifecycle"
+            >
+              <option value="ACTIVE">Active</option>
+              <option value="EXITED">Exited</option>
+            </Select>
+          ) : null}
+          {stage === STAGE.INITIALIZATION ? (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={refresh}
+              isDisabled={loading}
+              gridColumn={{ base: "span 2", md: "auto" }}
+            >
+              Refresh
+            </Button>
+          ) : null}
         </SimpleGrid>
 
+        {/*
+          THE STAGE SWITCH — the payrun's own steps, not a menu.
+
+          TWO BUTTONS RATHER THAN A ROUTE, because both stages are views of the
+          SAME month: switching must not ask somebody to choose August again,
+          and it must not be reachable from the sidebar as though Adjustments
+          were a module of its own. It is the second step of a payroll month
+          and only means anything after the first.
+
+          FULL-WIDTH ON A PHONE so the two targets are thumb-sized rather than
+          two small buttons sharing a line with the filters above them.
+        */}
+        <Stack direction="row" spacing={2}>
+          {[
+            { key: STAGE.INITIALIZATION, label: "Initialization" },
+            { key: STAGE.ADJUSTMENTS, label: "Adjustments" },
+          ].map((entry) => (
+            <Button
+              key={entry.key}
+              size="sm"
+              flex={{ base: 1, md: "0 0 auto" }}
+              colorScheme="purple"
+              variant={stage === entry.key ? "solid" : "outline"}
+              onClick={() => setStage(entry.key)}
+            >
+              {entry.label}
+            </Button>
+          ))}
+        </Stack>
+
+        {/*
+          THE ADJUSTMENTS STAGE. It receives the month and the branch that were
+          chosen above and nothing else: it reads its own population - the
+          employees INITIALIZED for that month - from the server, and it
+          decides none of its own rules here.
+        */}
+        {stage === STAGE.ADJUSTMENTS ? (
+          <PayrunAdjustments
+            year={year}
+            month={month}
+            storeId={storeId}
+            monthName={MONTH_NAMES[month - 1]}
+            /* The same key that initializes a month is the key that puts
+               figures into it - see `routes/payrun_adjustment.js`. */
+            mayEdit={mayInitialize}
+          />
+        ) : null}
+
+        {/* ============================= THE INITIALIZATION STAGE, unchanged */}
+        {stage === STAGE.INITIALIZATION ? (
+          <>
         <SimpleGrid columns={{ base: 2, md: 4 }} spacing={3}>
           {summaryCards.map((card) => (
             <Stat key={card.label} p={3} borderWidth="1px" borderRadius="md">
@@ -479,6 +567,8 @@ function Payrun() {
             />
           </Stack>
         ) : null}
+          </>
+        ) : null}
       </Stack>
     );
   };
@@ -486,8 +576,12 @@ function Payrun() {
   return (
     <GlobalWrapper title="Payrun">
       <CustomContainer
-        title="Payrun — Initialization"
-        subtitle="Take each employee's payroll snapshot for the month. After initialization, later salary and attendance changes do not alter the month until it is explicitly recalculated."
+        title={stage === STAGE.ADJUSTMENTS ? "Payrun — Adjustments" : "Payrun — Initialization"}
+        subtitle={
+          stage === STAGE.ADJUSTMENTS
+            ? "Record the incentives, bonuses, arrears and recoveries for the employees initialized for this month — and confirm, explicitly, the ones who genuinely have none."
+            : "Take each employee's payroll snapshot for the month. After initialization, later salary and attendance changes do not alter the month until it is explicitly recalculated."
+        }
       >
         {body()}
       </CustomContainer>
