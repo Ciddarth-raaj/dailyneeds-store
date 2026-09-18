@@ -93,6 +93,8 @@ const UNRESOLVED_TEXT = {
     "ESI applicable has not been recorded on Statutory Details.",
   ESI_WAGE_CONTEXT_UNAVAILABLE:
     "ESI is charged on the wage actually paid in a month, and monthly payroll has not produced one yet.",
+  ESI_CONTRIBUTION_PERIOD_UNRESOLVED:
+    "ESI contribution-period coverage could not be confirmed from the available records.",
 };
 
 /** A code nobody has written copy for yet, as a readable sentence. */
