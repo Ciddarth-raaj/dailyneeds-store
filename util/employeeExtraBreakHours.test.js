@@ -96,3 +96,26 @@ test("the help text says the rule the engine actually applies", () => {
   assert.match(section, /four or more punches/);
   assert.match(addForm, /four or more punches/);
 });
+
+/* ------------------------------------- the configuration fault on screen - */
+
+test("a BREAK_EXCEEDS_SHIFT day reads as a Shift Setup issue", () => {
+  const { dayIssue } = require("./attendanceV2");
+  const issue = dayIssue({
+    status: "REVIEW_REQUIRED",
+    review_reasons: ["BREAK_EXCEEDS_SHIFT"],
+    punch_count: 4,
+  });
+  assert.equal(issue.key, "SHIFT_SETUP");
+  assert.equal(issue.label, "Shift Setup Issue");
+});
+
+test("a five-punch day is still Missing Punch, not a setup issue", () => {
+  const { dayIssue } = require("./attendanceV2");
+  const issue = dayIssue({
+    status: "REVIEW_REQUIRED",
+    review_reasons: ["MISSING_PUNCH"],
+    punch_count: 5,
+  });
+  assert.equal(issue.key, "MISSING_PUNCH");
+});

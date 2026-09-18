@@ -105,6 +105,12 @@ function dayIssue(day) {
       if (reasons.includes("NO_SCHEDULE_ROW")) {
         return { key: "SHIFT_SETUP", label: LABEL.SHIFT_SETUP, color: "gray" };
       }
+      // The employee's Extra Break Hours would leave the day no working
+      // minutes at all. A configuration fault, reported in the same bucket as
+      // the other two - the reason on the row names the exact cause.
+      if (reasons.includes("BREAK_EXCEEDS_SHIFT")) {
+        return { key: "SHIFT_SETUP", label: LABEL.SHIFT_SETUP, color: "gray" };
+      }
       if (reasons.includes("NO_SHIFT_FOR_DATE")) {
         return { key: "NO_SHIFT", label: LABEL.NO_SHIFT, color: "gray" };
       }
