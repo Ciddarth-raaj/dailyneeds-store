@@ -434,139 +434,139 @@ function Payrun() {
         {/* ============================= THE INITIALIZATION STAGE, unchanged */}
         {stage === STAGE.INITIALIZATION ? (
           <>
-        <SimpleGrid columns={{ base: 2, md: 4 }} spacing={3}>
-          {summaryCards.map((card) => (
-            <Stat key={card.label} p={3} borderWidth="1px" borderRadius="md">
-              <StatLabel fontSize="xs">{card.label}</StatLabel>
-              <StatNumber fontSize="lg">{card.value ?? 0}</StatNumber>
-            </Stat>
-          ))}
-        </SimpleGrid>
+          <SimpleGrid columns={{ base: 2, md: 4 }} spacing={3}>
+            {summaryCards.map((card) => (
+              <Stat key={card.label} p={3} borderWidth="1px" borderRadius="md">
+                <StatLabel fontSize="xs">{card.label}</StatLabel>
+                <StatNumber fontSize="lg">{card.value ?? 0}</StatNumber>
+              </Stat>
+            ))}
+          </SimpleGrid>
 
-        {monthLocked ? (
-          <Alert status="warning" fontSize="sm">
-            <AlertIcon />
-            This payroll month is locked. Nothing in it can be initialized or changed.
-          </Alert>
-        ) : null}
+          {monthLocked ? (
+            <Alert status="warning" fontSize="sm">
+              <AlertIcon />
+              This payroll month is locked. Nothing in it can be initialized or changed.
+            </Alert>
+          ) : null}
 
-        {loading ? (
-          <Stack direction="row" align="center" spacing={2}>
-            <Spinner size="sm" />
-            <Text fontSize="sm" color="gray.600">
-              Loading the payroll month…
-            </Text>
-          </Stack>
-        ) : null}
-
-        {denied ? (
-          <Alert status="info" fontSize="sm">
-            <AlertIcon />
-            You do not have permission to view this payroll month.
-          </Alert>
-        ) : null}
-
-        {/* A FAILED READ IS NOT AN EMPTY MONTH. "Nobody is waiting" and "we
-            could not find out" are different things to tell a payroll clerk. */}
-        {error ? (
-          <Alert status="error" fontSize="sm">
-            <AlertIcon />
-            {error} This is a problem reading the month — it does not mean there is nothing to
-            initialize.
-          </Alert>
-        ) : null}
-
-        {loaded && rows.length === 0 ? (
-          <Text fontSize="sm" color="gray.600">
-            No employees match this payroll month and these filters.
-          </Text>
-        ) : null}
-
-        {loaded && rows.length > 0 ? (
-          <Stack spacing={2}>
-            {/*
-              THE BULK BAR, AND IT STICKS TO THE TOP ON A PHONE.
-
-              On a desktop it sits above the table and everything it refers to
-              is on screen with it. On a phone the cards are tall, so by the
-              time somebody has ticked the fourth employee the count and the
-              Initialize Selected button have scrolled away - and a bulk action
-              you cannot see is one you perform by scrolling back up to find,
-              every time. Sticking it to the top keeps the count and the button
-              with the selection that is being built.
-
-              STICKY RATHER THAN A FIXED FOOTER BAR: sticky is three properties
-              and no layout to maintain, and it cannot cover the last card the
-              way a fixed bar does. `zIndex` and a solid background so the
-              cards scroll under it rather than through it.
-            */}
-            <Stack
-              direction="row"
-              align="center"
-              spacing={3}
-              flexWrap="wrap"
-              position={{ base: "sticky", md: "static" }}
-              top={{ base: 0, md: "auto" }}
-              zIndex={{ base: 1, md: "auto" }}
-              bg="white"
-              py={{ base: 2, md: 0 }}
-            >
-              <Checkbox
-                colorScheme="purple"
-                isChecked={allSelected}
-                isIndeterminate={selectedCount > 0 && !allSelected}
-                isDisabled={selectableIds.length === 0 || bulkBusy}
-                onChange={toggleSelectAll}
-                aria-label="Select all ready employees"
-              >
-                <Text fontSize="xs">Select all Ready ({selectableIds.length})</Text>
-              </Checkbox>
-              <Text fontSize="xs" color="gray.600">
-                {rows.length} employee{rows.length === 1 ? "" : "s"} shown.
+          {loading ? (
+            <Stack direction="row" align="center" spacing={2}>
+              <Spinner size="sm" />
+              <Text fontSize="sm" color="gray.600">
+                Loading the payroll month…
               </Text>
-              {selectedCount > 0 ? (
-                <>
-                  <Text fontSize="xs" fontWeight="bold">
-                    {selectedCount} selected
-                  </Text>
-                  <Button
-                    size="xs"
-                    variant="ghost"
-                    onClick={() => setSelectedIds([])}
-                    isDisabled={bulkBusy}
-                  >
-                    Clear
-                  </Button>
-                  <Button
-                    size="xs"
-                    colorScheme="purple"
-                    isLoading={bulkBusy}
-                    loadingText="Initializing"
-                    isDisabled={Boolean(busyEmployeeId) || monthLocked}
-                    onClick={() => runInitialize(selectedIds, { confirm: true })}
-                  >
-                    Initialize Selected ({selectedCount})
-                  </Button>
-                </>
-              ) : null}
             </Stack>
+          ) : null}
 
-            {/* THE TABLE ON A DESKTOP, STACKED CARDS ON A PHONE - one
-                component decides, and both layouts get the same props, the
-                same permissions and the same shared cells. */}
-            <PayrunEmployeeList
-              rows={rows}
-              selectedIds={selectedIds}
-              onSelectChange={setSelected}
-              onInitialize={(employeeId) => runInitialize([employeeId], { confirm: true })}
-              onPayTypeChange={changePayType}
-              canInitialize={mayInitialize && !monthLocked}
-              canChangePayType={mayChangePayType && !monthLocked}
-              busyEmployeeId={busyEmployeeId}
-              disabled={bulkBusy}
-            />
-          </Stack>
-        ) : null}
+          {denied ? (
+            <Alert status="info" fontSize="sm">
+              <AlertIcon />
+              You do not have permission to view this payroll month.
+            </Alert>
+          ) : null}
+
+          {/* A FAILED READ IS NOT AN EMPTY MONTH. "Nobody is waiting" and "we
+              could not find out" are different things to tell a payroll clerk. */}
+          {error ? (
+            <Alert status="error" fontSize="sm">
+              <AlertIcon />
+              {error} This is a problem reading the month — it does not mean there is nothing to
+              initialize.
+            </Alert>
+          ) : null}
+
+          {loaded && rows.length === 0 ? (
+            <Text fontSize="sm" color="gray.600">
+              No employees match this payroll month and these filters.
+            </Text>
+          ) : null}
+
+          {loaded && rows.length > 0 ? (
+            <Stack spacing={2}>
+              {/*
+                THE BULK BAR, AND IT STICKS TO THE TOP ON A PHONE.
+
+                On a desktop it sits above the table and everything it refers to
+                is on screen with it. On a phone the cards are tall, so by the
+                time somebody has ticked the fourth employee the count and the
+                Initialize Selected button have scrolled away - and a bulk action
+                you cannot see is one you perform by scrolling back up to find,
+                every time. Sticking it to the top keeps the count and the button
+                with the selection that is being built.
+
+                STICKY RATHER THAN A FIXED FOOTER BAR: sticky is three properties
+                and no layout to maintain, and it cannot cover the last card the
+                way a fixed bar does. `zIndex` and a solid background so the
+                cards scroll under it rather than through it.
+              */}
+              <Stack
+                direction="row"
+                align="center"
+                spacing={3}
+                flexWrap="wrap"
+                position={{ base: "sticky", md: "static" }}
+                top={{ base: 0, md: "auto" }}
+                zIndex={{ base: 1, md: "auto" }}
+                bg="white"
+                py={{ base: 2, md: 0 }}
+              >
+                <Checkbox
+                  colorScheme="purple"
+                  isChecked={allSelected}
+                  isIndeterminate={selectedCount > 0 && !allSelected}
+                  isDisabled={selectableIds.length === 0 || bulkBusy}
+                  onChange={toggleSelectAll}
+                  aria-label="Select all ready employees"
+                >
+                  <Text fontSize="xs">Select all Ready ({selectableIds.length})</Text>
+                </Checkbox>
+                <Text fontSize="xs" color="gray.600">
+                  {rows.length} employee{rows.length === 1 ? "" : "s"} shown.
+                </Text>
+                {selectedCount > 0 ? (
+                  <>
+                    <Text fontSize="xs" fontWeight="bold">
+                      {selectedCount} selected
+                    </Text>
+                    <Button
+                      size="xs"
+                      variant="ghost"
+                      onClick={() => setSelectedIds([])}
+                      isDisabled={bulkBusy}
+                    >
+                      Clear
+                    </Button>
+                    <Button
+                      size="xs"
+                      colorScheme="purple"
+                      isLoading={bulkBusy}
+                      loadingText="Initializing"
+                      isDisabled={Boolean(busyEmployeeId) || monthLocked}
+                      onClick={() => runInitialize(selectedIds, { confirm: true })}
+                    >
+                      Initialize Selected ({selectedCount})
+                      </Button>
+                  </>
+                ) : null}
+              </Stack>
+
+              {/* THE TABLE ON A DESKTOP, STACKED CARDS ON A PHONE - one
+                  component decides, and both layouts get the same props, the
+                  same permissions and the same shared cells. */}
+              <PayrunEmployeeList
+                rows={rows}
+                selectedIds={selectedIds}
+                onSelectChange={setSelected}
+                onInitialize={(employeeId) => runInitialize([employeeId], { confirm: true })}
+                onPayTypeChange={changePayType}
+                canInitialize={mayInitialize && !monthLocked}
+                canChangePayType={mayChangePayType && !monthLocked}
+                busyEmployeeId={busyEmployeeId}
+                disabled={bulkBusy}
+              />
+            </Stack>
+          ) : null}
           </>
         ) : null}
       </Stack>

@@ -99,7 +99,7 @@ function Cells({ row, components, selected, onSelectChange, onEdit, onConfirm, c
 }
 
 function AdjustmentTable(props) {
-  const { rows, components } = props;
+  const { rows } = props;
   return (
     <Box overflowX="auto">
       <Table size="sm" variant="simple">
