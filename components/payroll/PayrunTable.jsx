@@ -85,10 +85,19 @@ function PayrunTable({
               <Td>{row.employee_id}</Td>
               <Td>
                 {row.employee_name}
-                {row.resigned ? (
-                  <Badge ml={2} colorScheme="orange" fontSize="0.6rem">
-                    Resigned
-                  </Badge>
+                {/* WHO HAD LEFT BY THE END OF THIS MONTH - the server's dated
+                    answer, shown because nothing defaults a leaver's pay type
+                    any more: whoever works the month decides whether this
+                    person's final pay goes by bank or in cash, and they cannot
+                    decide it without being able to see who has left. It is a
+                    badge and never an input - the pay type beside it comes
+                    from the Employee Master regardless. */}
+                {row.exited_in_month ? (
+                  <Tooltip label="Left on or before the end of this payroll month. Their pay type still defaults from the Employee Master - change it here if this month should be paid in cash.">
+                    <Badge ml={2} colorScheme="orange" fontSize="0.6rem">
+                      Exited
+                    </Badge>
+                  </Tooltip>
                 ) : null}
               </Td>
               <Td>{row.store_name || "—"}</Td>
@@ -125,7 +134,7 @@ function PayrunTable({
                     label={
                       row.initialized
                         ? "You do not have permission to change the pay type"
-                        : "Defaulted from the Employee Master. It becomes changeable, for this month only, once initialized."
+                        : "Defaulted from the Employee Master, and from nothing else. It becomes changeable, for this month only, once initialized."
                     }
                   >
                     <Text fontSize="xs">{row.pay_type}</Text>

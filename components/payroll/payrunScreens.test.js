@@ -181,6 +181,33 @@ test("HOLD is not offered as a pay type anywhere on the screen", () => {
   assert.match(tableCode, /<option value="CASH">/);
 });
 
+test("no screen defaults a pay type, and none infers one from an employment fact", () => {
+  [["page", pageCode], ["table", tableCode], ["hook", hookCode], ["helper", helperCode]].forEach(
+    ([name, code]) => {
+      assert.ok(
+        !/RESIGNED_DEFAULT/.test(code),
+        `${name} names a pay type source that no longer exists`
+      );
+      assert.ok(
+        !/(resigned|exited_in_month|resignation_date|status)[^\n]*\?[^\n]*("CASH"|"BANK")/.test(code),
+        `${name} picks a pay type from an employment fact - the Employee Master decides, server-side`
+      );
+    }
+  );
+  // The pay type rendered on a row is whatever the server sent.
+  assert.match(tableCode, /value=\{row\.pay_type\}/);
+});
+
+test("the exit badge is a badge - it is never wired to the pay type", () => {
+  assert.match(tableCode, /row\.exited_in_month \?/);
+  // It sits on the NAME cell, not the pay type cell, and drives no value.
+  const payTypeCell = tableCode.slice(tableCode.indexOf("row.initialized && canChangePayType"));
+  assert.ok(
+    !/exited_in_month/.test(payTypeCell),
+    "the exit badge must not reach the pay type control"
+  );
+});
+
 test("the pay type is only editable once the month is initialized", () => {
   assert.match(tableCode, /row\.initialized && canChangePayType \?/);
 });
