@@ -18,12 +18,15 @@ import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../components/CustomContainer";
 import PayrunEmployeeList from "../../components/payroll/PayrunEmployeeList";
 import PayrunAdjustments from "../../components/payroll/adjustments/PayrunAdjustments";
+import PayrunCalculation from "../../components/payroll/calculation/PayrunCalculation";
 import usePayrollActor from "../../customHooks/usePayrollActor";
 import usePayrunMonth from "../../customHooks/usePayrunMonth";
 import useOutlets from "../../customHooks/useOutlets";
 import PayrunHelper from "../../helper/payrun";
 import { describeApiResult, KIND } from "../../util/salaryApiError";
 import {
+  canApprovePayrun,
+  canCalculatePayrun,
   canChangePayrunPayType,
   canInitializePayrun,
   canOpenPayrun,
@@ -92,10 +95,43 @@ function currentPeriod() {
   return { year: now.getFullYear(), month: now.getMonth() + 1 };
 }
 
-/** The two stages of the monthly payrun that exist today. */
+/**
+ * The three stages of the monthly payrun that exist today.
+ *
+ * THEY ARE CONSECUTIVE STEPS OF ONE MONTH, not three screens. Adjustments
+ * operates on exactly the employees Initialization initialized, and Calculation
+ * on exactly the employees Adjustments has figures for - so the month, the year
+ * and the branch are chosen once, at the top, and the switch below changes what
+ * is shown ABOUT that month.
+ *
+ * THERE IS NO PAYSLIP STAGE, deliberately. Generating and publishing payslips
+ * is the stage after this one and is not built; a fourth button would be a
+ * promise the system cannot keep.
+ */
 const STAGE = {
   INITIALIZATION: "INITIALIZATION",
   ADJUSTMENTS: "ADJUSTMENTS",
+  CALCULATION: "CALCULATION",
+};
+
+/**
+ * WHAT EACH STAGE IS, SAID ON THE SCREEN. Written out per stage rather than
+ * composed, because the subtitle is where each stage explains the thing people
+ * get wrong about it - and those three sentences have nothing in common.
+ */
+const STAGE_TITLE = {
+  [STAGE.INITIALIZATION]: "Payrun — Initialization",
+  [STAGE.ADJUSTMENTS]: "Payrun — Adjustments",
+  [STAGE.CALCULATION]: "Payrun — Calculation & Review",
+};
+
+const STAGE_SUBTITLE = {
+  [STAGE.INITIALIZATION]:
+    "Take each employee's payroll snapshot for the month. After initialization, later salary and attendance changes do not alter the month until it is explicitly recalculated.",
+  [STAGE.ADJUSTMENTS]:
+    "Record the incentives, bonuses, arrears and recoveries for the employees initialized for this month — and confirm, explicitly, the ones who genuinely have none.",
+  [STAGE.CALCULATION]:
+    "Calculate each employee's month from the snapshot, the attendance result, the approved OT and the adjustments — then review it and approve it. Approving locks that employee's month, and only that employee's.",
 };
 
 const MONTH_NAMES = [
@@ -109,6 +145,13 @@ function Payrun() {
   const mayOpen = canOpenPayrun(actor);
   const mayInitialize = canInitializePayrun(actor);
   const mayChangePayType = canChangePayrunPayType(actor);
+  const mayCalculate = canCalculatePayrun(actor);
+  /*
+   * APPROVING IS ITS OWN KEY AND IS NOT IMPLIED BY CALCULATING. The screen is
+   * useful under either alone: without `approve_payrun` it calculates and
+   * reviews, which is exactly the separation of duties the key exists for.
+   */
+  const mayApprove = canApprovePayrun(actor);
 
   const initial = currentPeriod();
   const [year, setYear] = useState(initial.year);
@@ -399,6 +442,7 @@ function Payrun() {
           {[
             { key: STAGE.INITIALIZATION, label: "Initialization" },
             { key: STAGE.ADJUSTMENTS, label: "Adjustments" },
+            { key: STAGE.CALCULATION, label: "Calculation & Review" },
           ].map((entry) => (
             <Button
               key={entry.key}
@@ -428,6 +472,23 @@ function Payrun() {
             /* The same key that initializes a month is the key that puts
                figures into it - see `routes/payrun_adjustment.js`. */
             mayEdit={mayInitialize}
+          />
+        ) : null}
+
+        {/*
+          THE CALCULATION & REVIEW STAGE. It receives the month and the branch
+          chosen above and nothing else: it reads its own population - the
+          employees INITIALIZED for that month - and every figure on it from the
+          server, and it decides none of its own rules here.
+        */}
+        {stage === STAGE.CALCULATION ? (
+          <PayrunCalculation
+            year={year}
+            month={month}
+            storeId={storeId}
+            monthName={MONTH_NAMES[month - 1]}
+            mayCalculate={mayCalculate}
+            mayApprove={mayApprove}
           />
         ) : null}
 
@@ -576,12 +637,8 @@ function Payrun() {
   return (
     <GlobalWrapper title="Payrun">
       <CustomContainer
-        title={stage === STAGE.ADJUSTMENTS ? "Payrun — Adjustments" : "Payrun — Initialization"}
-        subtitle={
-          stage === STAGE.ADJUSTMENTS
-            ? "Record the incentives, bonuses, arrears and recoveries for the employees initialized for this month — and confirm, explicitly, the ones who genuinely have none."
-            : "Take each employee's payroll snapshot for the month. After initialization, later salary and attendance changes do not alter the month until it is explicitly recalculated."
-        }
+        title={STAGE_TITLE[stage]}
+        subtitle={STAGE_SUBTITLE[stage]}
       >
         {body()}
       </CustomContainer>

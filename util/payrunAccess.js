@@ -72,6 +72,40 @@ function canChangePayrunPayType({ permissions = [], isAdmin = false } = {}) {
 }
 
 /**
+ * CALCULATE AND RECALCULATE A MONTH.
+ *
+ * `requireAll(VIEW_EMPLOYEES, PROCESS_PAYROLL)` - the SAME key that
+ * initializes a month and puts figures into it, and deliberately not a new
+ * one. Computing the month from what is already in it is the same person doing
+ * the same job one stage later, and a separate key would be a second box to
+ * tick for one decision.
+ *
+ * IT IS THE SAME ANSWER AS `canInitializePayrun` TODAY, and it is a separate
+ * function anyway: they are two decisions that happen to take the same key,
+ * and the day one of them changes, the screen should not have to work out
+ * which of its buttons the old name meant.
+ */
+function canCalculatePayrun({ permissions = [], isAdmin = false } = {}) {
+  if (isAdminUser(isAdmin)) return true;
+  return has(permissions, "view_employees") && has(permissions, "process_payroll");
+}
+
+/**
+ * APPROVE AND LOCK AN EMPLOYEE'S CALCULATED MONTH.
+ *
+ * `requireAll(VIEW_EMPLOYEES, APPROVE_PAYRUN)`, and it is emphatically NOT
+ * implied by the calculate permission. Approving locks the employee's month -
+ * after it, nothing can be recalculated, no adjustment edited and no pay type
+ * changed - so whoever enters an incentive should not also be the one who
+ * signs it off. That is the separation `add_salary` and
+ * `approve_salary_revision` already keep on the Salary Master.
+ */
+function canApprovePayrun({ permissions = [], isAdmin = false } = {}) {
+  if (isAdminUser(isAdmin)) return true;
+  return has(permissions, "view_employees") && has(permissions, "approve_payrun");
+}
+
+/**
  * MAY THIS ROW BE INITIALIZED AT ALL?
  *
  * THE SERVER'S ANSWER, NOT A SECOND OPINION. `status` is what
@@ -94,6 +128,8 @@ function canSeePayrunMenu(actor) {
 module.exports = {
   canOpenPayrun,
   canInitializePayrun,
+  canCalculatePayrun,
+  canApprovePayrun,
   canChangePayrunPayType,
   isRowInitializable,
   canSeePayrunMenu,
