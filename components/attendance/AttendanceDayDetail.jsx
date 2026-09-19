@@ -1,5 +1,5 @@
 import React from "react";
-import { Badge, Box, Button, Flex, SimpleGrid, Stack, Text } from "@chakra-ui/react";
+import { Alert, AlertIcon, Badge, Box, Button, Flex, SimpleGrid, Stack, Text } from "@chakra-ui/react";
 import CustomModal from "../CustomModal";
 import { ExplainTooltip } from "./AttendanceDayList";
 import {
@@ -8,6 +8,7 @@ import {
   PUNCH_STATUS_LABEL,
   REGULARIZED_PUNCH_LABEL,
   canRegularize,
+  regularizationEligibility,
   dayIssue,
   dayPunchRows,
   otClaim,
@@ -101,6 +102,11 @@ export default function AttendanceDayDetail({
   const punches = dayPunchRows(day);
   const approvedOt = Number(day.approved_ot_minutes) || 0;
   const showRegularize = !!onRegularize && canRegularize(day);
+  // Why the button is not there, when the reason is not obvious from the day
+  // itself: the stored day was calculated from a different set of punches
+  // than the device now shows, so neither count may be acted on until the
+  // date is recalculated.
+  const regularizationBlock = regularizationEligibility(day);
   const ot = otClaim(day);
   const showRequestOt = !!onRequestOt && !!ot && ot.canRequest;
 
@@ -139,6 +145,13 @@ export default function AttendanceDayDetail({
           <Badge colorScheme={issue.color} alignSelf="flex-start" fontSize="xs" px={2} py={1}>
             {issue.label}
           </Badge>
+        ) : null}
+
+        {regularizationBlock.message ? (
+          <Alert status="warning" fontSize="sm" borderRadius="md">
+            <AlertIcon />
+            {regularizationBlock.message}
+          </Alert>
         ) : null}
 
         <Box>

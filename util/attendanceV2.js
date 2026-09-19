@@ -262,10 +262,45 @@ function summaryEmptyMessage(filter) {
   return SUMMARY_EMPTY_MESSAGE[filter] || SUMMARY_EMPTY_MESSAGE.ALL;
 }
 
+/**
+ * May a missing-punch regularization be raised for this day?
+ *
+ * THE SAME RULE THE BACKEND APPLIES (`utils/attendance_missing_punch.js`),
+ * over the SAME day object the screen is showing. The modal used to list the
+ * stored `effective_punches` of a closed date while the backend guard counted
+ * a freshly calculated set, so a day whose stored row had drifted - a punch
+ * imported after the date was last calculated - was offered as a Missing
+ * Punch and then refused as "a complete day", naming punches nobody had been
+ * shown. `punch_evidence_stale` travels on every day from the read path and
+ * says exactly that; such a date is corrected by a Recalculate, not by a
+ * regularization.
+ *
+ * @returns {{allowed:boolean, reason:string|null, message:string|null}}
+ */
+function regularizationEligibility(day) {
+  if (!day) return { allowed: false, reason: "NO_DAY", message: null };
+  if (day.punch_evidence_stale === true) {
+    const shown = Number(day.punch_count) || 0;
+    const now = Number(day.live_punch_count);
+    return {
+      allowed: false,
+      reason: "STALE_PUNCH_EVIDENCE",
+      message:
+        "The punches on record for this day have changed since it was calculated" +
+        (Number.isFinite(now) ? ` (${shown} calculated, ${now} on the device)` : "") +
+        ". Ask HR to recalculate the day before regularizing it.",
+    };
+  }
+  const issue = dayIssue(day);
+  if (!issue || issue.key !== "MISSING_PUNCH") {
+    return { allowed: false, reason: "COMPLETE_DAY", message: null };
+  }
+  return { allowed: true, reason: null, message: null };
+}
+
 /** Only a Missing Punch day may be regularized, and only while nothing is pending. */
 function canRegularize(day) {
-  const issue = dayIssue(day);
-  return !!issue && issue.key === "MISSING_PUNCH";
+  return regularizationEligibility(day).allowed;
 }
 
 /** `HH:MM` from `YYYY-MM-DD HH:MM:SS` (or `HH:MM:SS`). */
@@ -753,6 +788,7 @@ module.exports = {
   otClaim,
   formatOtClock,
   canRegularize,
+  regularizationEligibility,
   clock,
   positionalPunches,
   punchSummary,

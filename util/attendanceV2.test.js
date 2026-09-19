@@ -452,3 +452,78 @@ test("OT hover walks the engine's chain: surplus, pre-shift dropped, minimum exc
     "OT 2h 16m",
   ]);
 });
+
+/**
+ * MISSING PUNCH: THE MODAL AND THE BACKEND COUNT THE SAME PUNCHES.
+ *
+ * The screen lists `effective_punches` and the backend guard counts the
+ * effective punch set of the SAME day. `punch_evidence_stale` is the read
+ * path saying the stored day was calculated from a different set of punches
+ * than the device now shows - the case that produced "2026-09-17 has 2
+ * punches" under a modal listing only `08:45 IN`.
+ */
+const { regularizationEligibility } = require("./attendanceV2");
+
+const missingPunchDay = (extra = {}) => ({
+  attendance_date: "2026-09-17",
+  status: "REVIEW_REQUIRED",
+  review_reasons: ["MISSING_PUNCH"],
+  punch_count: 1,
+  effective_punches: [{ punch_id: 1, source: "BIOMAX", io_time: "2026-09-17 08:45:00" }],
+  punch_evidence_stale: false,
+  live_punch_count: 1,
+  ...extra,
+});
+
+test("one effective punch: shown, and offered for regularization", () => {
+  const day = missingPunchDay();
+  assert.equal(positionalPunches(day).length, day.punch_count);
+  assert.equal(canRegularize(day), true);
+  assert.equal(regularizationEligibility(day).message, null);
+});
+
+test("two effective punches: both shown, and NOT offered as a missing-punch day", () => {
+  const day = {
+    attendance_date: "2026-09-17",
+    status: "FINAL",
+    review_reasons: [],
+    punch_count: 2,
+    effective_punches: [
+      { punch_id: 1, source: "BIOMAX", io_time: "2026-09-17 08:45:00" },
+      { punch_id: 2, source: "BIOMAX", io_time: "2026-09-17 22:20:00" },
+    ],
+    punch_evidence_stale: false,
+    live_punch_count: 2,
+  };
+  assert.deepEqual(positionalPunches(day).map((p) => p.time), ["08:45", "22:20"]);
+  assert.deepEqual(positionalPunches(day).map((p) => p.direction), ["IN", "OUT"]);
+  assert.equal(canRegularize(day), false);
+});
+
+test("drifted punch evidence: not offered, and the reason says what to do", () => {
+  const day = missingPunchDay({ punch_evidence_stale: true, live_punch_count: 2 });
+  assert.equal(canRegularize(day), false);
+  const block = regularizationEligibility(day);
+  assert.equal(block.reason, "STALE_PUNCH_EVIDENCE");
+  assert.match(block.message, /recalculate/i);
+  assert.match(block.message, /1 calculated, 2 on the device/);
+});
+
+test("a pending regularization is not a second missing punch", () => {
+  const day = missingPunchDay({ status: "REGULARIZATION_PENDING", review_reasons: [] });
+  assert.equal(canRegularize(day), false);
+  assert.equal(dayIssue(day).key, "REGULARIZATION_PENDING");
+});
+
+test("a rejected request leaves the day regularizable again", () => {
+  // A rejected request stores no punch: the day is the one-punch day it was.
+  const day = missingPunchDay({ approval_request_id: 441 });
+  assert.equal(canRegularize(day), true);
+});
+
+test("a day the read path never flagged is judged on its punches alone", () => {
+  const day = missingPunchDay();
+  delete day.punch_evidence_stale;
+  delete day.live_punch_count;
+  assert.equal(canRegularize(day), true);
+});
