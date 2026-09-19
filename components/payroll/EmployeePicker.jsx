@@ -13,7 +13,7 @@ import {
 } from "@chakra-ui/react";
 import EmployeeHelper from "../../helper/employee";
 import unwrapList from "../../util/apiList";
-import useOutlets from "../../customHooks/useOutlets";
+import useEmployeeOutlets from "../../customHooks/useEmployeeOutlets";
 
 /**
  * M4 — choosing whose salary this is.
@@ -47,7 +47,14 @@ function EmployeePicker({ selectedId, onSelect, disabled = false }) {
   const [search, setSearch] = useState("");
   const [outlet, setOutlet] = useState("");
 
-  const { outlets } = useOutlets({ directory: true });
+  /**
+   * THE BRANCHES THIS USER MAY FILTER BY, NARROWED ON THE SERVER.
+   *
+   * This picker's employees come from `GET /employee/employees`, which is
+   * narrowed by `employee_branch_scope`, so offering every outlet in the
+   * company named branches whose employees the picker will never list.
+   */
+  const { outlets } = useEmployeeOutlets();
 
   useEffect(() => {
     let cancelled = false;

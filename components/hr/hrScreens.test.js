@@ -1646,14 +1646,19 @@ test("THE EMPLOYEE MASTER LIST ITSELF IS NOT RESTRICTED BY THIS", () => {
  * asserted in the backend's `routes/hr_onboarding_branch_scope.test.js`,
  * against the raw response body, because that is where the boundary is.
  */
-test("NO HR EMPLOYEE SCREEN READS THE COMPANY-WIDE OUTLET DIRECTORY", () => {
+test("NO EMPLOYEE-BRANCH-SCOPED SCREEN READS THE COMPANY-WIDE DIRECTORY", () => {
   const fs = require("fs");
+  // Every screen whose ROWS are narrowed by `employee_branch_scope` on the
+  // server - HR, shift assignment and the two payroll surfaces whose data
+  // comes through that same middleware.
   const screens = [
     "pages/hr/onboarding/index.jsx",
     "pages/hr/employees/index.jsx",
     "pages/hr/employees/new.jsx",
     "pages/hr/employees/[id].jsx",
     "pages/employee-shift-assignment/index.jsx",
+    "pages/payroll/payrun.jsx",
+    "components/payroll/EmployeePicker.jsx",
   ];
   for (const rel of screens) {
     const code = fs.readFileSync(__dirname + "/../../" + rel, "utf8");
@@ -1693,5 +1698,44 @@ test("THE CREATE AND EDIT FORMS TREAT THE DROPDOWN AS UX, NOT AS THE GUARD", () 
   for (const rel of ["pages/hr/employees/new.jsx", "pages/hr/employees/[id].jsx"]) {
     const code = fs.readFileSync(__dirname + "/../../" + rel, "utf8");
     assert.match(code, /checkTargetBranch/, `${rel} must name the server-side guard`);
+  }
+});
+
+/* ========== payroll: the same scope, and the one screen that differs ==== */
+
+test("THE PAYROLL OUTLET PICKERS USE THE SCOPED EMPLOYEE SOURCE", () => {
+  const fs = require("fs");
+  // Payrun Initialization reads `/payrun/*`, which `routes/payrun.js`
+  // resolves through `employee_branch_scope`; the payroll employee picker
+  // reads `/employee/employees`, narrowed by the same middleware. Both
+  // therefore take the scoped outlet source, like every other screen on that
+  // scope.
+  for (const rel of ["pages/payroll/payrun.jsx", "components/payroll/EmployeePicker.jsx"]) {
+    const code = fs.readFileSync(__dirname + "/../../" + rel, "utf8");
+    assert.match(code, /useEmployeeOutlets/, `${rel} must use the scoped source`);
+    assert.ok(!/useOutlets/.test(code), `${rel} must not use the company-wide directory`);
+  }
+});
+
+test("SALARY APPROVAL STAYS COMPANY-WIDE, ON THE EVIDENCE", () => {
+  const fs = require("fs");
+  // NOT AN OVERSIGHT AND NOT AN EXCEPTION FOR CONVENIENCE. Its queue is
+  // `GET /hr/salary/pending`, which takes NO branch scope - it is gated on
+  // three keys together instead and documents itself as spanning all
+  // employees. Narrowing this dropdown to the caller's branch would build a
+  // filter that cannot select most of the rows on screen, which is a bug and
+  // not a fix. A picker must match the scope of the data beside it.
+  const code = fs.readFileSync(__dirname + "/../../pages/payroll/salary-approval.jsx", "utf8");
+  assert.match(code, /useOutlets\(\{ directory: true \}\)/, "it is deliberately company-wide");
+  assert.match(code, /usePendingSalaryQueue/, "and its rows are the company-wide queue");
+});
+
+test("PAYROLL CALCULATION AND APPROVAL LOGIC IS UNTOUCHED BY THIS CHANGE", () => {
+  const fs = require("fs");
+  // The outlet source is a dropdown. If a change to it ever reached the
+  // figures or the approval rules, that would be the thing to catch.
+  const picker = fs.readFileSync(__dirname + "/../../components/payroll/EmployeePicker.jsx", "utf8");
+  for (const forbidden of ["monthly_gross", "monthly_ctc", "approve", "basic"]) {
+    assert.ok(!picker.includes(forbidden), `the picker must not touch ${forbidden}`);
   }
 });
