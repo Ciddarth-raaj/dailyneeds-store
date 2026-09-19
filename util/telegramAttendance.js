@@ -42,13 +42,81 @@ const DATE_STATE = Object.freeze({
   NOT_ACTIONABLE: "NOT_ACTIONABLE",
 });
 
-/** The two sections of the Mini App. My Attendance is the default. */
+/** The three sections of the Mini App. My Attendance is the default. */
 const SECTION = Object.freeze({
   ATTENDANCE: "ATTENDANCE",
   CORRECTIONS: "CORRECTIONS",
+  HELP: "HELP",
 });
 
 const DEFAULT_SECTION = SECTION.ATTENDANCE;
+
+/**
+ * Tab order. The INDEX is what the controlled `<Tabs>` is driven by, and
+ * My Attendance is index 0 so the Mini App opens on it whenever nothing
+ * valid is asked for.
+ */
+const SECTION_ORDER = Object.freeze([SECTION.ATTENDANCE, SECTION.CORRECTIONS, SECTION.HELP]);
+
+/** `?section=` values, as the bot and the alert write them. */
+const SECTION_PARAM = Object.freeze({
+  attendance: SECTION.ATTENDANCE,
+  corrections: SECTION.CORRECTIONS,
+  help: SECTION.HELP,
+});
+
+/**
+ * WHICH SECTION A URL ASKS FOR - and it is only ever an ASK.
+ *
+ * `?section=` is navigation and carries ZERO authority. It chooses a tab and
+ * nothing else: it cannot name an employee, cannot widen what the server
+ * returns, and is never sent anywhere. Every API call the Mini App makes is
+ * pinned server-side to the employee Telegram's signature resolved to.
+ *
+ * ANYTHING UNRECOGNISED FALLS BACK TO MY ATTENDANCE rather than erroring:
+ * a mistyped, empty, absent, duplicated or hostile value all land the
+ * employee on the screen they most likely wanted, which is the only sensible
+ * answer for a parameter that means nothing on its own.
+ */
+function sectionFromQuery(search) {
+  const raw = typeof search === "string" ? search : "";
+  const match = /[?&]section=([^&]*)/.exec(raw);
+  if (!match) return DEFAULT_SECTION;
+  let value;
+  try {
+    value = decodeURIComponent(match[1]);
+  } catch (err) {
+    return DEFAULT_SECTION;
+  }
+  const key = String(value).trim().toLowerCase();
+  return Object.prototype.hasOwnProperty.call(SECTION_PARAM, key)
+    ? SECTION_PARAM[key]
+    : DEFAULT_SECTION;
+}
+
+/** The tab index for a section. Unknown sections land on My Attendance. */
+function sectionIndex(section) {
+  const index = SECTION_ORDER.indexOf(section);
+  return index === -1 ? 0 : index;
+}
+
+/** The section for a tab index, for the controlled Tabs' onChange. */
+function sectionAtIndex(index) {
+  return SECTION_ORDER[index] || DEFAULT_SECTION;
+}
+
+/**
+ * The Help text. Plain sentences, no approval controls, nothing that could be
+ * mistaken for one - approvals are the manager/HR screens and are not in
+ * Telegram at all.
+ */
+const HELP_LINES = Object.freeze([
+  "My Attendance shows your attendance.",
+  "Corrections is for missing-punch requests.",
+  "Select the missing date, enter the missing punch time and reason, and submit.",
+  "Submitted requests go for approval.",
+  "Contact your manager or HR if your Telegram or employee details are incorrect.",
+]);
 
 /* ------------------------------------------------- month navigation ---- */
 
@@ -162,6 +230,12 @@ module.exports = {
   stateColor,
   SECTION,
   DEFAULT_SECTION,
+  SECTION_ORDER,
+  SECTION_PARAM,
+  sectionFromQuery,
+  sectionIndex,
+  sectionAtIndex,
+  HELP_LINES,
   shiftMonth,
   previousMonth,
   nextMonth,

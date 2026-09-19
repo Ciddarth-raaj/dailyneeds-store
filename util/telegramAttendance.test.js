@@ -176,3 +176,80 @@ test("an approved or rejected card carries the server's verdict, not a guess", (
   });
   assert.equal(rejected.can_submit, true);
 });
+
+/* ============================================ sections / deep links ==== */
+
+test("no section, or an unknown one, lands on My Attendance", () => {
+  const { sectionFromQuery, sectionIndex, SECTION } = require("./telegramAttendance");
+  for (const q of ["", "?", "?date=2026-09-18", "?section=", "?section=bogus", "?section=approvals", undefined, null, 7]) {
+    assert.equal(sectionFromQuery(q), SECTION.ATTENDANCE, `${JSON.stringify(q)}`);
+    assert.equal(sectionIndex(sectionFromQuery(q)), 0);
+  }
+});
+
+test("each known section maps to its own tab", () => {
+  const { sectionFromQuery, sectionIndex, SECTION } = require("./telegramAttendance");
+  assert.equal(sectionFromQuery("?section=attendance"), SECTION.ATTENDANCE);
+  assert.equal(sectionFromQuery("?section=corrections"), SECTION.CORRECTIONS);
+  assert.equal(sectionFromQuery("?section=help"), SECTION.HELP);
+  assert.deepEqual(
+    ["attendance", "corrections", "help"].map((s) => sectionIndex(sectionFromQuery(`?section=${s}`))),
+    [0, 1, 2]
+  );
+});
+
+test("the section parameter is case-insensitive and tolerant of whitespace", () => {
+  const { sectionFromQuery, SECTION } = require("./telegramAttendance");
+  assert.equal(sectionFromQuery("?section=HELP"), SECTION.HELP);
+  assert.equal(sectionFromQuery("?section=Corrections"), SECTION.CORRECTIONS);
+  assert.equal(sectionFromQuery("?section=%20help%20"), SECTION.HELP);
+});
+
+/**
+ * THE ALERT DEEP LINK. `?section=corrections&date=…` must open Corrections
+ * AND highlight the date - the two are read by different functions and both
+ * have to work off the same query string.
+ */
+test("the Regularise Attendance link opens Corrections and highlights the date", () => {
+  const { sectionFromQuery, sectionIndex, navigationHint, SECTION } = require("./telegramAttendance");
+  const search = "?section=corrections&date=2026-09-18";
+  assert.equal(sectionFromQuery(search), SECTION.CORRECTIONS);
+  assert.equal(sectionIndex(sectionFromQuery(search)), 1);
+  assert.equal(navigationHint(search), "2026-09-18");
+});
+
+/**
+ * ZERO AUTHORITY. The query can choose a tab and highlight a card. It cannot
+ * say who you are, and there is no reader here that would let it.
+ */
+test("query parameters cannot influence employee identity", () => {
+  const api = require("./telegramAttendance");
+  const hostile = "?section=corrections&date=2026-09-18&employee_id=78&requested_for_employee_id=78";
+  assert.equal(api.sectionFromQuery(hostile), api.SECTION.CORRECTIONS);
+  assert.equal(api.navigationHint(hostile), "2026-09-18");
+  // Nothing in this module reads, returns or even names an employee.
+  assert.ok(!Object.keys(api).some((k) => /employee/i.test(k)));
+  const src = require("fs").readFileSync(require.resolve("./telegramAttendance"), "utf8");
+  assert.ok(!/employee_id/.test(src), "the util names no employee id at all");
+});
+
+test("the tab index maps back to a section for the controlled Tabs", () => {
+  const { sectionAtIndex, sectionIndex, SECTION, SECTION_ORDER } = require("./telegramAttendance");
+  assert.deepEqual(SECTION_ORDER, [SECTION.ATTENDANCE, SECTION.CORRECTIONS, SECTION.HELP]);
+  [0, 1, 2].forEach((i) => assert.equal(sectionIndex(sectionAtIndex(i)), i));
+  // Out of range falls back rather than throwing.
+  assert.equal(sectionAtIndex(9), SECTION.ATTENDANCE);
+  assert.equal(sectionAtIndex(-1), SECTION.ATTENDANCE);
+});
+
+test("the Help text is the five approved lines and offers no approval control", () => {
+  const { HELP_LINES } = require("./telegramAttendance");
+  assert.equal(HELP_LINES.length, 5);
+  assert.match(HELP_LINES[0], /My Attendance shows your attendance/);
+  assert.match(HELP_LINES[1], /Corrections is for missing-punch requests/);
+  assert.match(HELP_LINES[2], /missing punch time and reason/);
+  assert.match(HELP_LINES[3], /go for approval/);
+  assert.match(HELP_LINES[4], /manager or HR/);
+  const all = HELP_LINES.join(" ");
+  assert.ok(!/\bapprove\b|\breject\b/i.test(all), "no approval action is offered");
+});

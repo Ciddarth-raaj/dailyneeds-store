@@ -22,9 +22,10 @@ const page = strip(read("pages/telegram/attendance/index.jsx"));
 const list = strip(read("components/telegram/TelegramMissingDateList.jsx"));
 const form = strip(read("components/telegram/TelegramRegularizationForm.jsx"));
 const monthNav = strip(read("components/telegram/TelegramMonthNav.jsx"));
+const help = strip(read("components/telegram/TelegramHelp.jsx"));
 const helper = strip(read("helper/telegramAttendance.js"));
 const app = read("pages/_app.js");
-const all = [page, list, form, monthNav, helper].join("\n");
+const all = [page, list, form, monthNav, help, helper].join("\n");
 
 test("the page is registered as one the shell does not bounce to login", () => {
   assert.ok(/"\/telegram\/attendance":\s*true/.test(app));
@@ -237,6 +238,27 @@ test("the ?date= parameter is used only as a navigation hint", () => {
   assert.ok(!/date:\s*hint/.test(page));
 });
 
+/**
+ * Both readers work off ONE query string read once, so the alert's
+ * `?section=corrections&date=…` cannot open the right tab but highlight
+ * nothing, or vice versa.
+ */
+test("section and date are read from the same single query-string read", () => {
+  const effect = page.slice(page.indexOf("const search ="), page.indexOf("const initData"));
+  assert.match(effect, /const search = typeof window === "undefined" \? "" : window\.location\.search;/);
+  assert.match(effect, /setHint\(navigationHint\(search\)\)/);
+  assert.match(effect, /setTabIndex\(sectionIndex\(sectionFromQuery\(search\)\)\)/);
+});
+
+test("neither section nor date is ever sent to the API", () => {
+  assert.ok(!/section/.test(helper), "the helper sends no section");
+  const bodies = page.match(/TelegramAttendanceHelper\.\w+\([^)]*\)/g) || [];
+  assert.ok(bodies.length > 0);
+  for (const call of bodies) {
+    assert.ok(!/section|hint/.test(call), `${call} must not carry navigation state`);
+  }
+});
+
 test("existing punches are shown READ-ONLY", () => {
   assert.ok(/positionalPunches/.test(form), "punches come from the shared renderer");
   assert.ok(/read only/i.test(form), "and are labelled as read-only");
@@ -296,12 +318,29 @@ test("a successful submit says so and refreshes BOTH sections at once", () => {
  * THE TWO SECTIONS
  * =================================================================== */
 
-test("My Attendance is the DEFAULT section and Corrections is separate", () => {
+test("the three sections are My Attendance, Corrections and Help, in that order", () => {
   const tabList = page.slice(page.indexOf("<TabList"), page.indexOf("</TabList>"));
   const tabs = [...tabList.matchAll(/<Tab>([^<]+)<\/Tab>/g)].map((m) => m[1].trim());
-  assert.deepEqual(tabs, ["My Attendance", "Corrections"]);
-  // Tab zero is what Chakra opens on, and no defaultIndex moves it.
-  assert.ok(!/defaultIndex/.test(page), "nothing overrides the default tab");
+  assert.deepEqual(tabs, ["My Attendance", "Corrections", "Help"]);
+});
+
+/**
+ * CONTROLLED TABS. Uncontrolled ones always open tab 0, which is why the bot
+ * menu's `?section=corrections` link could not have worked before.
+ */
+test("the tabs are CONTROLLED and seeded from ?section= on load", () => {
+  assert.match(page, /index=\{tabIndex\}/, "the Tabs index is state");
+  assert.match(page, /onChange=\{\(next\) => setTabIndex\(/, "tapping a tab updates that state");
+  assert.match(page, /setTabIndex\(sectionIndex\(sectionFromQuery\(search\)\)\)/);
+  assert.ok(!/defaultIndex/.test(page), "no defaultIndex fighting the controlled index");
+  // My Attendance remains the default the state starts on.
+  assert.match(page, /useState\(0\)/);
+});
+
+test("Help is a section of its own, with no approval control", () => {
+  assert.match(page, /<TelegramHelp \/>/);
+  assert.match(help, /HELP_LINES/, "the text is the shared value, not inline JSX");
+  assert.ok(!/approve|reject|decision/i.test(help.replace(/approval/gi, "")));
 });
 
 test("My Attendance renders the EXISTING attendance list and detail", () => {

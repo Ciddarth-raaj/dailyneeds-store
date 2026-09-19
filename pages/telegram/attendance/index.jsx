@@ -22,18 +22,21 @@ import TelegramMissingDateList from "../../../components/telegram/TelegramMissin
 import TelegramMonthNav from "../../../components/telegram/TelegramMonthNav";
 import TelegramRegularizationForm from "../../../components/telegram/TelegramRegularizationForm";
 import TelegramAttendanceHelper from "../../../helper/telegramAttendance";
+import TelegramHelp from "../../../components/telegram/TelegramHelp";
 import {
-  SECTION,
   apiMessage,
   currentMonth,
   isOk,
   navigationHint,
+  sectionAtIndex,
+  sectionFromQuery,
+  sectionIndex,
 } from "../../../util/telegramAttendance";
 
 /**
  * THE TELEGRAM ATTENDANCE MINI APP - employee attendance self-service.
  *
- * TWO SECTIONS, and MY ATTENDANCE IS THE DEFAULT:
+ * THREE SECTIONS, and MY ATTENDANCE IS THE DEFAULT:
  *
  *   MY ATTENDANCE  the employee's own calculated month, read-only. Tapping a
  *                  day opens the existing Day Detail with NO action props,
@@ -45,6 +48,21 @@ import {
  *                  Attendance, Regularisation Pending, Regularised,
  *                  Regularisation Rejected. An actionable date opens the
  *                  form; Submit raises the ORDINARY Daily Needs request.
+ *
+ *   HELP           five sentences. No approval controls, here or anywhere.
+ *
+ * ======================================= `?section=` IS NAVIGATION ONLY ====
+ *
+ * The bot's home menu and the Regularise Attendance alert link straight to a
+ * section - `?section=corrections&date=…` for the alert, so an employee who
+ * tapped a button about a missing punch lands on the screen for it. The tabs
+ * are CONTROLLED so that link can actually decide which one opens.
+ *
+ * IT CARRIES ZERO AUTHORITY. `sectionFromQuery` maps it to one of three known
+ * sections and falls back to My Attendance for anything else - absent,
+ * empty, mistyped or hostile. It chooses a tab; it is never sent to the API,
+ * never influences which employee anything is read for, and there is no query
+ * parameter anywhere in this app that could.
  *
  * ================================= IT RENDERS THE EXISTING SCREENS =========
  *
@@ -87,6 +105,9 @@ import {
  */
 export default function TelegramAttendancePage() {
   const [ready, setReady] = useState(false);
+  // CONTROLLED TABS. The index is state, seeded from `?section=` on load, so
+  // a deep link opens the section it names instead of always landing on tab 0.
+  const [tabIndex, setTabIndex] = useState(0);
   const [fatal, setFatal] = useState(null);
   const [notice, setNotice] = useState(null);
 
@@ -156,7 +177,10 @@ export default function TelegramAttendancePage() {
         if (typeof webApp.expand === "function") webApp.expand();
       }
 
-      setHint(navigationHint(typeof window === "undefined" ? "" : window.location.search));
+      const search = typeof window === "undefined" ? "" : window.location.search;
+      setHint(navigationHint(search));
+      // Navigation only - see the header. An unknown section lands on tab 0.
+      setTabIndex(sectionIndex(sectionFromQuery(search)));
 
       const initData = webApp && webApp.initData ? webApp.initData : "";
       if (!initData) {
@@ -316,11 +340,22 @@ export default function TelegramAttendancePage() {
               onBack={() => setDetail(null)}
             />
           ) : (
-            /* MY ATTENDANCE IS TAB ZERO - the section the Mini App opens on. */
-            <Tabs colorScheme="purple" size="sm" isLazy>
+            /*
+              MY ATTENDANCE IS TAB ZERO - what the Mini App opens on whenever
+              `?section=` is absent or unrecognised. `sectionAtIndex` keeps the
+              index and the section name in one mapping rather than two.
+            */
+            <Tabs
+              colorScheme="purple"
+              size="sm"
+              isLazy
+              index={tabIndex}
+              onChange={(next) => setTabIndex(sectionIndex(sectionAtIndex(next)))}
+            >
               <TabList mb={3}>
                 <Tab>My Attendance</Tab>
                 <Tab>Corrections</Tab>
+                <Tab>Help</Tab>
               </TabList>
 
               <TabPanels>
@@ -351,6 +386,10 @@ export default function TelegramAttendancePage() {
                       onSelect={openCorrection}
                     />
                   </Stack>
+                </TabPanel>
+
+                <TabPanel px={0}>
+                  <TelegramHelp />
                 </TabPanel>
               </TabPanels>
             </Tabs>
