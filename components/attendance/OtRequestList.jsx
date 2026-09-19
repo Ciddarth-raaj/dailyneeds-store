@@ -86,7 +86,10 @@ function StatusBadge({ status }) {
 const EXCESS_SENTENCE = {
   AVAILABLE: (m) => `${formatOtClock(m)} outside the approved shift is still to be requested`,
   REQUEST_PENDING: (m) => `${formatOtClock(m)} outside the approved shift is awaiting approval`,
-  APPROVED: (m) => `${formatOtClock(m)} outside the approved shift was also approved`,
+  // Note the second argument: the APPROVED sentence prints the backend's own
+  // approved component, not the claimable figure - a later correction can
+  // clamp one without moving the other.
+  APPROVED: (m, approved) => `${formatOtClock(approved)} outside the approved shift was also approved`,
   REJECTED: (m) => `${formatOtClock(m)} outside the approved shift was rejected`,
   CLOSED_AT_PAYROLL_LOCK: (m) => `${formatOtClock(m)} outside the approved shift: Closed – Payroll Locked`,
 };
@@ -95,7 +98,11 @@ function ShiftAuthorisation({ status, day }) {
   if (status.key !== "APPROVED_VIA_SHIFT_CHANGE") return null;
   const claimable = Math.max(0, Math.trunc(Number(day.ot_claimable_minutes) || 0));
   const excessState = day.ot_excess_state || (claimable > 0 ? "AVAILABLE" : "NONE");
-  const sentence = claimable > 0 && EXCESS_SENTENCE[excessState] ? EXCESS_SENTENCE[excessState](claimable) : null;
+  const approvedExcess = Math.max(0, Math.trunc(Number(day.ot_request_approved_minutes) || 0));
+  const sentence =
+    claimable > 0 && EXCESS_SENTENCE[excessState]
+      ? EXCESS_SENTENCE[excessState](claimable, approvedExcess)
+      : null;
   return (
     <>
       <Text fontSize="10px" color="green.700">

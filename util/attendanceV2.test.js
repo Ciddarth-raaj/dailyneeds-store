@@ -810,3 +810,27 @@ test("a pending or approved excess reads as itself, and neither offers a second 
   const available = { ...base, ot_excess_state: "AVAILABLE" };
   assert.strictEqual(canRequestOt(available), true);
 });
+
+test("the two approved components are read from the backend, never inferred", () => {
+  const { otRequestStatus, otClaim } = require("./attendanceV2");
+  const mixed = {
+    ot_claim_state: "APPROVED_VIA_SHIFT_CHANGE",
+    ot_excess_state: "APPROVED",
+    candidate_ot_minutes: 570,
+    ot_shift_authorised_minutes: 480,
+    ot_claimable_minutes: 90,
+    // The APPROVED component is its own figure and can differ from the
+    // claimable one once a correction clamps it.
+    ot_request_approved_minutes: 30,
+    approved_ot_minutes: 510,
+    approved_ot_source: "MIXED",
+    is_final: true,
+    status: "FINAL",
+  };
+  const status = otRequestStatus(mixed);
+  assert.strictEqual(status.shiftAuthorisedMinutes, 480);
+  assert.strictEqual(status.otRequestApprovedMinutes, 30);
+  assert.strictEqual(status.approvedOtSource, "MIXED");
+  // The sentence prints the APPROVED thirty minutes, not the claimable ninety.
+  assert.match(otClaim(mixed).detail, /00:30 outside the approved shift was also approved/);
+});

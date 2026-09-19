@@ -215,7 +215,15 @@ function otClaim(day) {
       const excessDetail = {
         AVAILABLE: `${formatOtClock(claimable)} worked outside the approved shift is still to be requested`,
         REQUEST_PENDING: `${formatOtClock(claimable)} outside the approved shift is requested and awaiting approval`,
-        APPROVED: `${formatOtClock(claimable)} outside the approved shift was also approved`,
+        // The APPROVED figure is the backend's own component, not the
+        // claimable remainder: they differ the moment a later correction
+        // clamps what the request may be paid, and showing the wrong one
+        // would print a number nobody is owed.
+        APPROVED: `${formatOtClock(
+          day.ot_request_approved_minutes === undefined || day.ot_request_approved_minutes === null
+            ? claimable
+            : Math.max(0, Math.trunc(Number(day.ot_request_approved_minutes) || 0))
+        )} outside the approved shift was also approved`,
         REJECTED: `${formatOtClock(claimable)} outside the approved shift was rejected`,
         CLOSED_AT_PAYROLL_LOCK: `${formatOtClock(claimable)} outside the approved shift: ${OT_CLOSED_LABEL}`,
       }[excessState] || null;
@@ -352,6 +360,17 @@ function otRequestStatus(day) {
         // first rather than replacing it.
         excessState: (day && day.ot_excess_state) || "NONE",
         excessMinutes: Math.max(0, Math.trunc(Number(day && day.ot_claimable_minutes) || 0)),
+        // The two approved components, read from the backend rather than
+        // inferred by subtracting one total from another.
+        shiftAuthorisedMinutes: Math.max(
+          0,
+          Math.trunc(Number(day && day.ot_shift_authorised_minutes) || 0)
+        ),
+        otRequestApprovedMinutes: Math.max(
+          0,
+          Math.trunc(Number(day && day.ot_request_approved_minutes) || 0)
+        ),
+        approvedOtSource: (day && day.approved_ot_source) || null,
         closureReason: (day && day.ot_closure_reason) ? otClosureReason(day) : null,
       };
     case "REQUEST_PENDING":
