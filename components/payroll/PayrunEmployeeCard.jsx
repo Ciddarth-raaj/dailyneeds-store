@@ -6,6 +6,7 @@ import {
   PayTypeControl,
   SelectCheckbox,
   StatusBadge,
+  AttendanceStatusBadge,
   rowIsBusy,
   rowIsSelectable,
 } from "./payrunPresentation";
@@ -60,6 +61,7 @@ function PayrunEmployeeCard({
   canChangePayType,
   busyEmployeeId,
   disabled,
+  onOpenAttendance,
 }) {
   const selectable = rowIsSelectable(row, canInitialize);
   const busy = rowIsBusy(row, busyEmployeeId, disabled);
@@ -97,6 +99,11 @@ function PayrunEmployeeCard({
             why the card got shorter. */}
         <SimpleGrid columns={2} spacing={3}>
           <Field label="Location" value={row.store_name || "—"} />
+          {/* TAPPABLE ON A PHONE exactly as the table's badge is clickable -
+              the detail is the point of the badge, on both layouts. */}
+          <Field label="Attendance">
+            <AttendanceStatusBadge row={row} onOpen={onOpenAttendance} />
+          </Field>
           <Field label="Designation" value={row.designation_name || "—"} />
           <Field label="Pay Type">
             <PayTypeControl

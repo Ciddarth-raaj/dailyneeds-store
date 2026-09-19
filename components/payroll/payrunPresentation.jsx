@@ -1,6 +1,7 @@
 import React, { useRef } from "react";
 import {
   Badge,
+  Box,
   Button,
   Checkbox,
   Popover,
@@ -14,6 +15,11 @@ import {
   Tooltip,
   useDisclosure,
 } from "@chakra-ui/react";
+import {
+  ATTENDANCE_STATUS,
+  ATTENDANCE_STATUS_LABEL,
+  ATTENDANCE_STATUS_SCHEME,
+} from "../../util/payrunTabs";
 import { isRowInitializable } from "../../util/payrunAccess";
 
 /**
@@ -340,5 +346,49 @@ export function SelectCheckbox({ row, selectable, busy, selectedIds, onSelectCha
     >
       {children}
     </Checkbox>
+  );
+}
+
+/**
+ * WHETHER THIS EMPLOYEE'S ATTENDANCE IS READY FOR PAYROLL, as a badge that
+ * opens the detail when there is a detail to open.
+ *
+ * THREE STATES AND THREE COLOURS, and CLOSED IS NOT GREEN. An employee whose
+ * attendance was closed for payroll is being paid on a basis somebody accepted
+ * with known gaps in it; one who is READY had no gaps. Both are payable and
+ * only one is settled, and whoever approves the month is entitled to see which
+ * of the two they are signing - so they never share a badge.
+ *
+ * PENDING AND CLOSED ARE BOTH CLICKABLE, because both have something to say:
+ * pending says what is still outstanding, closed says what was accepted. READY
+ * is a full stop and opens nothing.
+ */
+export function AttendanceStatusBadge({ row, onOpen }) {
+  const status = row && row.attendance_status;
+  if (!status) return null;
+
+  const label = ATTENDANCE_STATUS_LABEL[status] || status;
+  const scheme = ATTENDANCE_STATUS_SCHEME[status] || "gray";
+  const count = Number(row.attendance_unresolved_count || 0);
+  const openable = status !== ATTENDANCE_STATUS.READY && typeof onOpen === "function";
+
+  const badge = (
+    <Badge colorScheme={scheme} whiteSpace="normal" textAlign="left">
+      {label}
+      {count > 0 ? ` · ${count}` : ""}
+    </Badge>
+  );
+
+  if (!openable) return badge;
+  return (
+    <Box
+      as="button"
+      type="button"
+      onClick={() => onOpen(row)}
+      aria-label={`Attendance ${label} for ${row.employee_name || row.employee_id}`}
+      textAlign="left"
+    >
+      {badge}
+    </Box>
   );
 }

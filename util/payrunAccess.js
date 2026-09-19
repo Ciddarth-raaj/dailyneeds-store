@@ -106,6 +106,22 @@ function canApprovePayrun({ permissions = [], isAdmin = false } = {}) {
 }
 
 /**
+ * CLOSE ATTENDANCE FOR PAYROLL - accept the attendance as it stands.
+ *
+ * ITS OWN KEY, and deliberately neither the processing one nor the approval
+ * one. Closing decides what somebody is paid on, so it is not inherited by
+ * whoever enters incentives; and it is not the approver's either, because a
+ * person who could both waive the gate and sign the month off is the
+ * separation of duties undone. See the server's `hr_permissions.js`.
+ *
+ * THIS HIDES A BUTTON AND NOTHING MORE. The endpoint enforces the same key.
+ */
+function canCloseAttendanceForPayroll({ permissions = [], isAdmin = false } = {}) {
+  if (isAdminUser(isAdmin)) return true;
+  return has(permissions, "view_employees") && has(permissions, "close_payrun_attendance");
+}
+
+/**
  * MAY THIS ROW BE INITIALIZED AT ALL?
  *
  * THE SERVER'S ANSWER, NOT A SECOND OPINION. `status` is what
@@ -131,6 +147,7 @@ module.exports = {
   canCalculatePayrun,
   canApprovePayrun,
   canChangePayrunPayType,
+  canCloseAttendanceForPayroll,
   isRowInitializable,
   canSeePayrunMenu,
 };

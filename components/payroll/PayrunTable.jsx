@@ -6,6 +6,7 @@ import {
   PayTypeControl,
   SelectCheckbox,
   StatusBadge,
+  AttendanceStatusBadge,
   rowIsBusy,
   rowIsSelectable,
 } from "./payrunPresentation";
@@ -45,6 +46,7 @@ function PayrunTable({
   canChangePayType,
   busyEmployeeId,
   disabled,
+  onOpenAttendance,
 }) {
   return (
     <Box overflowX="auto">
@@ -61,6 +63,10 @@ function PayrunTable({
                 the Status badge, in full. Both are presentation decisions - the
                 server still sends every one of those values. */}
             <Th>Status</Th>
+            {/* THE ATTENDANCE DIMENSION, beside the payrun one rather than
+                folded into it: an employee can be Initialized AND attendance
+                pending, and one badge could only say one of those. */}
+            <Th>Attendance</Th>
             <Th>Pay Type</Th>
             <Th />
           </Tr>
@@ -89,6 +95,9 @@ function PayrunTable({
                 <Td>{row.designation_name || "—"}</Td>
                 <Td>
                   <StatusBadge row={row} />
+                </Td>
+                <Td>
+                  <AttendanceStatusBadge row={row} onOpen={onOpenAttendance} />
                 </Td>
                 <Td>
                   <PayTypeControl
