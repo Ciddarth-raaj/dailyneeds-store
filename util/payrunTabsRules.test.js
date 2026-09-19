@@ -150,7 +150,7 @@ test("an unresolved item links to the screen that settles it", () => {
   );
   assert.equal(
     tabs.unresolvedLink({ code: "PENDING_OT" }, { employee_id: 1952 }),
-    "/attendance/ot-approval"
+    "/attendance/approval?type=OT"
   );
 });
 

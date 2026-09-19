@@ -1050,11 +1050,14 @@ const HR_MENU = {
         selected: false,
         location: "/attendance/missing-attendance",
       },
-      // The approval screens share one read key; what each approver sees is
-      // their own role's and outlet's, decided on the server. Recalculate is
-      // behind the key the backend grants to nobody by migration.
+      // ONE approval screen, with Attendance | OT | Shift on it. What each
+      // approver sees is their own role's and outlet's, decided on the
+      // server. The OT entry stays in the menu and deep-links to the OT tab -
+      // people look for it by name - but it is the same screen, not a second
+      // one. Recalculate is behind the key the backend grants to nobody by
+      // migration.
       attendance_approval: {
-        title: "Attendance Approval",
+        title: "Attendance Approvals",
         permission: "view_attendance_approvals",
         selected: false,
         location: "/attendance/approval",
@@ -1063,7 +1066,7 @@ const HR_MENU = {
         title: "OT Approval",
         permission: "view_attendance_approvals",
         selected: false,
-        location: "/attendance/ot-approval",
+        location: "/attendance/approval?type=OT",
       },
       recalculate_attendance: {
         title: "Recalculate Attendance",

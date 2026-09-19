@@ -111,7 +111,8 @@ const LOCATION_UNVERIFIED_REASONS = Object.freeze([
 const ATTENTION_TARGETS = Object.freeze({
   ATTENDANCE_DETAIL: { label: "Open attendance detail", href: "/attendance/calculated" },
   APPROVAL_QUEUE: { label: "Open approval queue", href: "/attendance/approval" },
-  OT_APPROVAL_QUEUE: { label: "Open OT approvals", href: "/attendance/ot-approval" },
+  // The OT tab of the one approval screen, deep-linked.
+  OT_APPROVAL_QUEUE: { label: "Open OT approvals", href: "/attendance/approval?type=OT" },
   SHIFT_ASSIGNMENT: { label: "Open shift assignment", href: "/employee-shift-assignment" },
 });
 

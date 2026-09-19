@@ -138,6 +138,12 @@ test("no other consumer was switched to the directory", () => {
     // Attendance Approver Setup: the Store filter - an id and a name, on a
     // screen reached on `manage_attendance_approvers` and never on
     // `view_stores`.
+    // The Attendance Approval Centre's Outlet filter. An id and a name, on a
+    // screen reached on `view_attendance_approvals` - an approver has no
+    // reason to hold `view_stores`, and the filter would be empty for them.
+    // The filter narrows only; the outlets a caller may actually SEE requests
+    // from are resolved on the server from their own branch scope.
+    "pages/attendance/approval/index.jsx",
     "pages/attendance/approver-setup/index.jsx",
     "pages/attendance/devices/[id].jsx",
     "pages/attendance/devices/new.jsx",

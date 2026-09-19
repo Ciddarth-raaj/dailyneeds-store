@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Alert, AlertIcon, Flex, FormControl, FormLabel, Input, Stack, Text, useToast } from "@chakra-ui/react";
+import { Alert, AlertIcon, Button, Flex, FormControl, FormLabel, Input, Stack, Text, useToast } from "@chakra-ui/react";
 import GlobalWrapper from "../../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../../components/CustomContainer";
 import AttendanceDayList from "../../../components/attendance/AttendanceDayList";
 import AttendanceDayDetail from "../../../components/attendance/AttendanceDayDetail";
 import RegularizationForm from "../../../components/attendance/RegularizationForm";
 import OtRequestForm from "../../../components/attendance/OtRequestForm";
+import ShiftChangeRequestForm from "../../../components/attendance/ShiftChangeRequestForm";
 import AttendanceV2Helper from "../../../helper/attendanceV2";
 import { apiMessage, currentMonth, isOk, monthBounds } from "../../../util/attendanceV2";
 
@@ -25,6 +26,11 @@ import { apiMessage, currentMonth, isOk, monthBounds } from "../../../util/atten
  * requests, never combined. The OT minutes are the engine's and the form
  * has no field for them. The shift is read-only here - there is no Edit Shift on this page,
  * and the backend would refuse it anyway.
+ *
+ * "Request a shift change" is the third request, and it is the same kind of
+ * thing as the other two: the employee ASKS, an approver decides, and only a
+ * final approval makes the requested shift apply - to one date. Nothing on
+ * this page changes any shift, then or after approval.
  */
 export default function MyAttendancePage() {
   const toast = useToast();
@@ -35,6 +41,7 @@ export default function MyAttendancePage() {
   const [selected, setSelected] = useState(null);
   const [regularizing, setRegularizing] = useState(null);
   const [requestingOt, setRequestingOt] = useState(null);
+  const [requestingShift, setRequestingShift] = useState(false);
 
   const load = useCallback(async () => {
     const bounds = monthBounds(month);
@@ -85,6 +92,20 @@ export default function MyAttendancePage() {
     await load();
   };
 
+  const onShiftSubmitted = async (res) => {
+    setRequestingShift(false);
+    toast({
+      title: "Shift change requested",
+      description:
+        res && res.telegram && res.telegram.sent
+          ? "Your first approver has been notified. The shift changes only after every required approval, and only for that date."
+          : "It is with your first approver. The shift changes only after every required approval, and only for that date.",
+      status: "success",
+      duration: 6000,
+    });
+    await load();
+  };
+
   return (
     <GlobalWrapper title="My Attendance">
       <CustomContainer title="My Attendance" filledHeader>
@@ -97,6 +118,9 @@ export default function MyAttendancePage() {
             <Text fontSize="xs" color="gray.500" pb={2}>
               Tap a day for its detail.
             </Text>
+            <Button size="sm" colorScheme="purple" variant="outline" onClick={() => setRequestingShift(true)}>
+              Request a shift change
+            </Button>
           </Flex>
 
           {error ? (
@@ -122,6 +146,12 @@ export default function MyAttendancePage() {
         isOpen={!!requestingOt}
         onClose={() => setRequestingOt(null)}
         onSubmitted={onOtSubmitted}
+      />
+      <ShiftChangeRequestForm
+        isOpen={requestingShift}
+        onClose={() => setRequestingShift(false)}
+        onSubmitted={onShiftSubmitted}
+        defaultDate={selected ? selected.attendance_date : ""}
       />
       <RegularizationForm
         day={regularizing}

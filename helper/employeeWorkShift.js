@@ -85,6 +85,46 @@ const employeeWorkShift = {
         .then((res) => resolve(res.data))
         .catch(reject);
     }),
+
+  /**
+   * POST /hr/work-shift-assignments/change — the EFFECTIVE-DATED permanent
+   * shift change: `{ employee_id, work_shift_id, effective_from, reason }`.
+   *
+   * It APPENDS to the employee's dated history and overwrites nothing: dates
+   * before `effective_from` keep the shift they had, and dates from it take
+   * the new one. The effective date may be in the past (if payroll for the
+   * months it would move is unlocked) or in the future.
+   *
+   * Its own permission, `edit_shift_assignment_effective_dated`, which the
+   * bulk assignment above does NOT imply - so a 403 here is a routine answer
+   * and arrives as `{ code: 403, msg }` like every other helper.
+   */
+  changeAssignment: ({ employee_id, work_shift_id, effective_from, reason }) =>
+    new Promise((resolve, reject) => {
+      API.post("/hr/work-shift-assignments/change", {
+        employee_id,
+        work_shift_id,
+        effective_from,
+        reason,
+      })
+        .then((res) => resolve(res.data))
+        .catch(reject);
+    }),
+
+  /**
+   * GET /hr/work-shift-assignments/history/:id — every dated row for one
+   * employee, newest first: `{ effective_from, shift, source, reason,
+   * changed_by_name, changed_at, is_current, is_future_dated }`.
+   *
+   * `is_current` is the RESOLVER's answer for today and NOT the first row: a
+   * future-dated change sits at the top of the list and is not current.
+   */
+  getAssignmentHistory: (employeeId) =>
+    new Promise((resolve, reject) => {
+      API.get(`/hr/work-shift-assignments/history/${employeeId}`)
+        .then((res) => resolve(res.data))
+        .catch(reject);
+    }),
 };
 
 export default employeeWorkShift;

@@ -576,7 +576,7 @@ describe("the needs-attention layer", () => {
 
   it("links a waiting approval to the queue that owns it", () => {
     assert.equal(attentionLink({ target: "APPROVAL_QUEUE" }).href, "/attendance/approval");
-    assert.equal(attentionLink({ target: "OT_APPROVAL_QUEUE" }).href, "/attendance/ot-approval");
+    assert.equal(attentionLink({ target: "OT_APPROVAL_QUEUE" }).href, "/attendance/approval?type=OT");
     assert.equal(
       attentionLink({ target: "SHIFT_SETUP" }) || attentionLink({ target: "SHIFT_ASSIGNMENT" }).href,
       "/employee-shift-assignment"

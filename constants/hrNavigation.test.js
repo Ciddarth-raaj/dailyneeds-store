@@ -66,6 +66,9 @@ test("Employees, Department and Designation are all inside HR", () => {
     // Attendance v2: the HR/Admin view of a calculated month, and every
     // employee's own.
     "/attendance/approval",
+    // One approval screen. The OT entry keeps its name in the menu, because
+    // that is what people look for, and deep-links to its tab.
+    "/attendance/approval?type=OT",
     "/attendance/approver-setup",
     "/attendance/calculated",
     "/attendance/dashboard",
@@ -75,7 +78,6 @@ test("Employees, Department and Designation are all inside HR", () => {
     "/attendance/list?tab=audit",
     "/attendance/missing-attendance",
     "/attendance/my",
-    "/attendance/ot-approval",
     "/attendance/recalculate",
     "/department",
     "/designation",
@@ -197,6 +199,9 @@ test("HR > Attendance: list, punch audit, devices and the DigiSME import, on the
   const att = sectionOf(hrMenu, "attendance");
   assert.deepStrictEqual(locationsIn(att).sort(), [
     "/attendance/approval",
+    // One approval screen. The OT entry keeps its name in the menu, because
+    // that is what people look for, and deep-links to its tab.
+    "/attendance/approval?type=OT",
     "/attendance/approver-setup",
     "/attendance/calculated",
     "/attendance/dashboard",
@@ -206,10 +211,9 @@ test("HR > Attendance: list, punch audit, devices and the DigiSME import, on the
     "/attendance/list?tab=audit",
     "/attendance/missing-attendance",
     "/attendance/my",
-    "/attendance/ot-approval",
     "/attendance/recalculate",
   ]);
-  assert.match(att, /title:\s*"Attendance Approval"[\s\S]*?permission:\s*"view_attendance_approvals"/);
+  assert.match(att, /title:\s*"Attendance Approvals"[\s\S]*?permission:\s*"view_attendance_approvals"/);
   assert.match(att, /title:\s*"OT Approval"[\s\S]*?permission:\s*"view_attendance_approvals"/);
   assert.match(att, /title:\s*"Recalculate Attendance"[\s\S]*?permission:\s*"recalculate_attendance"/);
   assert.match(att, /title:\s*"Attendance Approver Setup"[\s\S]*?permission:\s*"manage_attendance_approvers"/);
@@ -293,6 +297,9 @@ test("HR navigation still appears exactly once, and still holds its pages", () =
     // Attendance v2: the HR/Admin view of a calculated month, and every
     // employee's own.
     "/attendance/approval",
+    // One approval screen. The OT entry keeps its name in the menu, because
+    // that is what people look for, and deep-links to its tab.
+    "/attendance/approval?type=OT",
     "/attendance/approver-setup",
     "/attendance/calculated",
     "/attendance/dashboard",
@@ -302,7 +309,6 @@ test("HR navigation still appears exactly once, and still holds its pages", () =
     "/attendance/list?tab=audit",
     "/attendance/missing-attendance",
     "/attendance/my",
-    "/attendance/ot-approval",
     "/attendance/recalculate",
     "/department",
     "/designation",

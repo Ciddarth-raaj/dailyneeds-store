@@ -65,13 +65,74 @@ const attendanceV2 = {
 
   /* ---------------------------------------------- the approval screens */
 
-  /** `{ request_type, status, limit, offset }` - one type per call. */
-  getApprovals: ({ request_type, status = "PENDING", limit = 200, offset = 0 }) =>
-    call("get", "/attendance/approvals", { params: { request_type, status, limit, offset } }),
+  /**
+   * `{ request_type, status, filters }` - ONE type per call, which is what
+   * the unified approval centre's Attendance | OT | Shift selector chooses.
+   *
+   * The filters NARROW what the caller may already see and can never widen
+   * it: the outlets a user has rights to are resolved on the server from
+   * their own branch scope, and an outlet asked for outside it simply
+   * matches nothing. Nothing here sends an employee id the caller could use
+   * to reach somebody they are not entitled to see.
+   */
+  getApprovals: ({
+    request_type,
+    status = "PENDING",
+    limit = 200,
+    offset = 0,
+    outlet_ids = null,
+    employee_id = null,
+    designation_id = null,
+  }) =>
+    call("get", "/attendance/approvals", {
+      params: {
+        request_type,
+        status,
+        limit,
+        offset,
+        ...(outlet_ids && outlet_ids.length > 0 ? { outlet_ids: outlet_ids.join(",") } : {}),
+        ...(employee_id ? { employee_id } : {}),
+        ...(designation_id ? { designation_id } : {}),
+      },
+    }),
 
-  /** "Pending with me", counted on the server for one type. */
-  getApprovalCount: (request_type) =>
-    call("get", "/attendance/approvals/count", { params: { request_type } }),
+  /**
+   * "Pending with me", counted on the server - under the SAME filters the
+   * table is showing, so the number is a count of what the reader can see.
+   */
+  getApprovalCount: (request_type, filters = {}) =>
+    call("get", "/attendance/approvals/count", {
+      params: {
+        request_type,
+        ...(filters.outlet_ids && filters.outlet_ids.length > 0 ? { outlet_ids: filters.outlet_ids.join(",") } : {}),
+        ...(filters.employee_id ? { employee_id: filters.employee_id } : {}),
+        ...(filters.designation_id ? { designation_id: filters.designation_id } : {}),
+      },
+    }),
+
+  /* ------------------------------------- the one-day shift change request */
+
+  /**
+   * The shifts I MAY ask for on a date: active, running that weekday, and
+   * LONGER than my own. The server re-derives every one of those conditions
+   * when the request is submitted, so this dropdown is a convenience and not
+   * the rule.
+   */
+  getMyShiftChangeOptions: (attendance_date) =>
+    call("get", "/attendance/me/shift-change/options", { params: { attendance_date } }),
+
+  /**
+   * `{ attendance_date, work_shift_id, reason }`. Self only: the employee is
+   * the session's, and the body has no field that could name anybody else.
+   * It RAISES a request - nothing is changed until the last required
+   * approval.
+   */
+  raiseMyShiftChange: ({ attendance_date, work_shift_id, reason }) =>
+    new Promise((resolve, reject) => {
+      API.post("/attendance/me/shift-change", { attendance_date, work_shift_id, reason })
+        .then((res) => resolve(res.data))
+        .catch(reject);
+    }),
 
   /** Decide the current stage. Takes NO minutes: an approver cannot change OT. */
   decideApproval: (request_id, { decision, remarks }) =>
