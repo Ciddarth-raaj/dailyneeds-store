@@ -1,13 +1,42 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Alert, AlertIcon, Flex, FormControl, FormLabel, Input, Stack, Text, useToast } from "@chakra-ui/react";
+import {
+  Alert,
+  AlertIcon,
+  Flex,
+  FormControl,
+  FormLabel,
+  Input,
+  Stack,
+  Tab,
+  TabList,
+  TabPanel,
+  TabPanels,
+  Tabs,
+  Text,
+  useToast,
+} from "@chakra-ui/react";
 import GlobalWrapper from "../../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../../components/CustomContainer";
 import AttendanceDayList from "../../../components/attendance/AttendanceDayList";
+import CorrectionRequestList from "../../../components/attendance/CorrectionRequestList";
+import OtRequestList from "../../../components/attendance/OtRequestList";
 import AttendanceDayDetail from "../../../components/attendance/AttendanceDayDetail";
 import RegularizationForm from "../../../components/attendance/RegularizationForm";
 import OtRequestForm from "../../../components/attendance/OtRequestForm";
 import AttendanceV2Helper from "../../../helper/attendanceV2";
-import { apiMessage, currentMonth, isOk, monthBounds } from "../../../util/attendanceV2";
+import {
+  MY_TAB,
+  MY_TAB_LABEL,
+  MY_TAB_ORDER,
+  apiMessage,
+  correctionRequestRows,
+  currentMonth,
+  isOk,
+  monthBounds,
+  myTabAtIndex,
+  myTabIndex,
+  otRequestRows,
+} from "../../../util/attendanceV2";
 
 /**
  * My Attendance - the signed-in employee's own calculated attendance.
@@ -25,6 +54,29 @@ import { apiMessage, currentMonth, isOk, monthBounds } from "../../../util/atten
  * requests, never combined. The OT minutes are the engine's and the form
  * has no field for them. The shift is read-only here - there is no Edit Shift on this page,
  * and the backend would refuse it anyway.
+ *
+ * ================================================== THREE TABS, ONE READ ===
+ *
+ *   ATTENDANCE           the month, as before. The landing tab.
+ *   CORRECTION REQUESTS  the dates needing a correction or carrying one,
+ *                        with its status, reason and rejection reason.
+ *   OT REQUESTS          the dates with overtime to claim or already
+ *                        claimed, with the engine's eligible OT, the status
+ *                        and the rejection reason.
+ *
+ * ALL THREE ARE THE SAME `days`. There is ONE request, `GET /attendance/me`,
+ * and the two request tabs are FILTERS over the rows it returned
+ * (`otRequestRows`, `correctionRequestRows`) - not a second endpoint, not a
+ * second attendance engine and not a second OT calculation. Every figure a
+ * tab shows is a field the server sent: `candidate_ot_minutes` is the
+ * eligible OT, `ot_claim_state` is the OT status, `correction_state` is the
+ * correction status. The browser derives none of them from the punch times
+ * it happens to be displaying beside them.
+ *
+ * THE OT FORM HAS NO DURATION FIELD, here or anywhere: submitting sends a
+ * date and a reason, the server recalculates the date and stores its own
+ * candidate, and the correction dependency, the one-claim-per-date rule and
+ * the payroll lock are all its refusals, not this page's.
  */
 export default function MyAttendancePage() {
   const toast = useToast();
@@ -35,6 +87,9 @@ export default function MyAttendancePage() {
   const [selected, setSelected] = useState(null);
   const [regularizing, setRegularizing] = useState(null);
   const [requestingOt, setRequestingOt] = useState(null);
+  // CONTROLLED TABS, so a submission can send the employee to the tab that
+  // now holds what they filed instead of leaving them on the month.
+  const [tab, setTab] = useState(MY_TAB.ATTENDANCE);
 
   const load = useCallback(async () => {
     const bounds = monthBounds(month);
@@ -64,6 +119,7 @@ export default function MyAttendancePage() {
   const onSubmitted = async () => {
     setRegularizing(null);
     setSelected(null);
+    setTab(MY_TAB.CORRECTIONS);
     toast({
       title: "Regularization submitted",
       description: "The day now shows Regularization Pending until it is approved.",
@@ -76,6 +132,7 @@ export default function MyAttendancePage() {
   const onOtSubmitted = async () => {
     setRequestingOt(null);
     setSelected(null);
+    setTab(MY_TAB.OT);
     toast({
       title: "OT request submitted",
       description: "The day now shows OT Request Pending until it is approved.",
@@ -106,7 +163,42 @@ export default function MyAttendancePage() {
             </Alert>
           ) : null}
 
-          <AttendanceDayList days={days} loading={loading} onSelect={setSelected} />
+          <Tabs
+            index={myTabIndex(tab)}
+            onChange={(i) => setTab(myTabAtIndex(i))}
+            colorScheme="purple"
+            size="sm"
+            isLazy
+          >
+            <TabList>
+              {MY_TAB_ORDER.map((key) => (
+                <Tab key={key} fontSize="sm" fontWeight="600">
+                  {MY_TAB_LABEL[key]}
+                </Tab>
+              ))}
+            </TabList>
+            <TabPanels>
+              <TabPanel px={0}>
+                <AttendanceDayList days={days} loading={loading} onSelect={setSelected} />
+              </TabPanel>
+              <TabPanel px={0}>
+                <CorrectionRequestList
+                  days={correctionRequestRows(days)}
+                  loading={loading}
+                  onSelect={setSelected}
+                  onRegularize={(day) => setRegularizing(day)}
+                />
+              </TabPanel>
+              <TabPanel px={0}>
+                <OtRequestList
+                  days={otRequestRows(days)}
+                  loading={loading}
+                  onSelect={setSelected}
+                  onRequestOt={(day) => setRequestingOt(day)}
+                />
+              </TabPanel>
+            </TabPanels>
+          </Tabs>
         </Stack>
       </CustomContainer>
 

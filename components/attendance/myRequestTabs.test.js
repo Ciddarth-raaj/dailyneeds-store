@@ -1,0 +1,140 @@
+/**
+ * My Attendance - the Attendance / Correction Requests / OT Requests tabs.
+ *
+ *   node --test components/attendance/myRequestTabs.test.js
+ *
+ * No component renderer is wired up in this repo, so these read the sources
+ * the way components/attendance/attendanceV2Screens.test.js does.
+ */
+const test = require("node:test");
+const assert = require("node:assert");
+const fs = require("fs");
+const path = require("path");
+
+const read = (rel) => fs.readFileSync(path.join(__dirname, "..", "..", rel), "utf8");
+const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+
+const myPage = strip(read("pages/attendance/my/index.jsx"));
+const otList = strip(read("components/attendance/OtRequestList.jsx"));
+const correctionList = strip(read("components/attendance/CorrectionRequestList.jsx"));
+const otForm = strip(read("components/attendance/OtRequestForm.jsx"));
+const helper = strip(read("helper/attendanceV2.js"));
+
+/* ================================================== the tab shell ==== */
+
+test("the employee's own page shows the three tabs, Attendance first", () => {
+  assert.match(myPage, /<Tabs[\s\S]*?index=\{myTabIndex\(tab\)\}/);
+  assert.match(myPage, /onChange=\{\(i\) => setTab\(myTabAtIndex\(i\)\)\}/);
+  assert.match(myPage, /MY_TAB_ORDER\.map/);
+  assert.match(myPage, /MY_TAB_LABEL\[key\]/);
+  // The month list stays the first panel.
+  const panels = myPage.slice(myPage.indexOf("<TabPanels>"));
+  assert.ok(
+    panels.indexOf("AttendanceDayList") < panels.indexOf("CorrectionRequestList"),
+    "Attendance is the first panel"
+  );
+  assert.ok(
+    panels.indexOf("CorrectionRequestList") < panels.indexOf("OtRequestList"),
+    "Correction Requests comes before OT Requests"
+  );
+});
+
+test("the OT tab is visible to every employee: no permission key anywhere on the page", () => {
+  assert.match(myPage, /<GlobalWrapper title="My Attendance">/);
+  assert.ok(!/permissionKey/.test(myPage), "no permission gate on the employee's own page");
+  assert.ok(!/employee_id/.test(myPage), "the page never names an employee id");
+});
+
+test("all three tabs are the SAME /attendance/me read - no second endpoint, no second engine", () => {
+  assert.match(myPage, /getMyAttendance\(/);
+  assert.equal((myPage.match(/AttendanceV2Helper\./g) || []).length, 1, "one helper call on the page");
+  assert.match(myPage, /days=\{correctionRequestRows\(days\)\}/);
+  assert.match(myPage, /days=\{otRequestRows\(days\)\}/);
+});
+
+/* ============================================= the OT Requests tab ==== */
+
+test("the OT row renders the BACKEND's eligible OT, never a figure derived here", () => {
+  assert.match(otList, /candidate_ot_minutes/);
+  assert.match(otList, /Eligible OT/);
+  assert.match(otList, /otRequestStatus\(day\)/);
+  // The columns the tab must carry.
+  ["Date", "Shift", "Punches", "Worked / NRM", "Eligible OT", "Status", "Action"].forEach((header) => {
+    assert.ok(otList.includes(`>${header}<`), `the ${header} column`);
+  });
+});
+
+test("no OT arithmetic is done in the OT tab", () => {
+  // No minute maths, and nothing reading a clock time to produce a duration.
+  assert.ok(!/[-+*/]\s*60\b/.test(otList), "no minute arithmetic");
+  assert.ok(!/candidate_ot_minutes\s*[-+*/]/.test(otList), "the engine's figure is not adjusted");
+  assert.ok(!/new Date\(/.test(otList), "no date maths on the punch times it displays");
+});
+
+test("the OT status uses the four request words, and the tab reads them from one place", () => {
+  assert.match(otList, /otRequestStatus\(day\)/);
+  assert.ok(!/"Pending"|"Approved"|"Rejected"|"Not Requested"/.test(otList), "no status word is spelled here");
+  const util = read("util/attendanceV2.js");
+  assert.match(util, /NOT_REQUESTED: "Not Requested"/);
+  assert.match(util, /PENDING: "Pending"/);
+  assert.match(util, /APPROVED: "Approved"/);
+  assert.match(util, /REJECTED: "Rejected"/);
+});
+
+test("an existing request shows requested OT, reason, submitted time and the rejection reason", () => {
+  assert.match(otList, /Requested OT:/);
+  assert.match(otList, /Reason: \{status\.reason\}/);
+  assert.match(otList, /Rejected: \{status\.rejectionReason\}/);
+  assert.match(otList, /Submitted \$\{displayDateTime\(status\.requestedAt\)\}/);
+  assert.match(otList, /Decided \$\{displayDateTime\(status\.decidedAt\)\}/);
+});
+
+test("a blocked date offers no button and shows the correction message instead", () => {
+  assert.match(otList, /const blocked = otBlockedReason\(day\)/);
+  assert.match(otList, /if \(blocked\)/);
+  assert.match(otList, /if \(!canRequestOt\(day\)\) return/);
+  const util = read("util/attendanceV2.js");
+  assert.match(util, /OT_BLOCKED_BY_CORRECTION = "Complete attendance correction first\."/);
+});
+
+/* ============================================== the OT request form ==== */
+
+test("the OT form has no field for a duration and submits a date and a reason only", () => {
+  assert.ok(!/type="number"/.test(otForm), "no numeric input anywhere on the form");
+  assert.ok(!/<Input/.test(otForm), "the only free text is the reason Textarea");
+  assert.equal((otForm.match(/<Textarea/g) || []).length, 1);
+  assert.match(otForm, /Calculated OT \(read only\)/);
+  assert.match(otForm, /raiseMyOtRequest\(\{\s*attendance_date: date,\s*reason: reason\.trim\(\),\s*\}\)/);
+  assert.ok(!/minutes:/.test(otForm), "no minutes field is ever sent");
+  assert.ok(!/employee_id/.test(otForm), "no employee id is ever sent");
+});
+
+test("the form requires a reason before it will submit", () => {
+  assert.match(otForm, /if \(reason\.trim\(\)\.length < 5\)/);
+  assert.match(otForm, /Enter a reason for the overtime/);
+  assert.match(otForm, /isRequired/);
+});
+
+test("the helper posts the date and the reason to the self-only OT endpoint", () => {
+  const fn = helper.slice(helper.indexOf("raiseMyOtRequest"), helper.indexOf("getApprovals"));
+  assert.match(fn, /"\/attendance\/me\/ot-request"/);
+  assert.match(fn, /\{ attendance_date, reason \}/);
+  assert.ok(!/employee_id/.test(fn));
+  assert.ok(!/minutes/.test(fn));
+});
+
+/* ====================================== the Correction Requests tab ==== */
+
+test("the Correction tab shows the request state and stays out of OT", () => {
+  assert.match(correctionList, /correctionRequestStatus\(day\)/);
+  assert.match(correctionList, /canRegularize\(day\)/);
+  assert.match(correctionList, /Rejected: \{status\.rejectionReason\}/);
+  assert.ok(!/ot_claim_state|candidate_ot_minutes|Request OT/.test(correctionList), "no OT on the correction tab");
+});
+
+test("the two tabs raise two separate requests", () => {
+  assert.match(myPage, /onRegularize=\{\(day\) => setRegularizing\(day\)\}/);
+  assert.match(myPage, /onRequestOt=\{\(day\) => setRequestingOt\(day\)\}/);
+  assert.ok(!/RegularizationForm/.test(otList), "the OT tab cannot raise a correction");
+  assert.ok(!/OtRequestForm/.test(correctionList), "the correction tab cannot raise OT");
+});

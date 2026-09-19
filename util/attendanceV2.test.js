@@ -14,6 +14,18 @@ const {
   dayPunchRows,
   dayIssue,
   otClaim,
+  MY_TAB,
+  MY_TAB_ORDER,
+  MY_TAB_LABEL,
+  myTabIndex,
+  myTabAtIndex,
+  otRequestStatus,
+  OT_BLOCKED_BY_CORRECTION,
+  otBlockedReason,
+  canRequestOt,
+  otRequestRows,
+  correctionRequestStatus,
+  correctionRequestRows,
   formatOtClock,
   canRegularize,
   positionalPunches,
@@ -451,4 +463,154 @@ test("OT hover walks the engine's chain: surplus, pre-shift dropped, minimum exc
     "Minimum 20m excluded: 2h 36m − 20m = 2h 16m",
     "OT 2h 16m",
   ]);
+});
+
+/* ============================ the employee's own request tabs ==== */
+
+test("the three tabs are Attendance, Correction Requests and OT Requests, in that order", () => {
+  assert.deepEqual(MY_TAB_ORDER.map((k) => MY_TAB_LABEL[k]), [
+    "Attendance",
+    "Correction Requests",
+    "OT Requests",
+  ]);
+  assert.equal(myTabIndex(MY_TAB.ATTENDANCE), 0);
+  assert.equal(myTabIndex(MY_TAB.OT), 2);
+  // Anything unrecognised lands on the month rather than on a blank panel.
+  assert.equal(myTabIndex("NOPE"), 0);
+  assert.equal(myTabAtIndex(1), MY_TAB.CORRECTIONS);
+  assert.equal(myTabAtIndex(99), MY_TAB.ATTENDANCE);
+});
+
+test("the OT status is read off ot_claim_state, in the four request words", () => {
+  const cases = [
+    [{ ot_claim_state: "AVAILABLE", candidate_ot_minutes: 90 }, "NOT_REQUESTED", "Not Requested"],
+    [{ ot_claim_state: "REQUEST_PENDING", ot_requested_minutes: 90 }, "PENDING", "Pending"],
+    [{ ot_claim_state: "APPROVED", approved_ot_minutes: 90 }, "APPROVED", "Approved"],
+    [{ ot_claim_state: "REJECTED", ot_requested_minutes: 90 }, "REJECTED", "Rejected"],
+    [{ candidate_ot_minutes: 0 }, "NOT_REQUESTED", "Not Requested"],
+  ];
+  cases.forEach(([d, key, label]) => {
+    const status = otRequestStatus(day(d));
+    assert.equal(status.key, key, JSON.stringify(d));
+    assert.equal(status.label, label);
+  });
+});
+
+test("the OT minutes on a row are the backend's field, never recomputed", () => {
+  assert.equal(otRequestStatus(day({ ot_claim_state: "AVAILABLE", candidate_ot_minutes: 90 })).minutes, 90);
+  // Requested is the candidate the SERVER stored on the request, which may
+  // differ from what the day now calculates.
+  assert.equal(
+    otRequestStatus(day({ ot_claim_state: "REQUEST_PENDING", candidate_ot_minutes: 120, ot_requested_minutes: 90 })).minutes,
+    90
+  );
+  assert.equal(otRequestStatus(day({ ot_claim_state: "APPROVED", approved_ot_minutes: 75 })).minutes, 75);
+});
+
+test("a rejected OT request carries the approver's reason; a payroll-lock closure carries the closure wording", () => {
+  const rejected = otRequestStatus(day({
+    ot_claim_state: "REJECTED",
+    ot_requested_minutes: 90,
+    ot_rejection_remarks: "Not approved in advance",
+    ot_decided_at: "2026-09-16 10:00:00",
+  }));
+  assert.equal(rejected.label, "Rejected");
+  assert.equal(rejected.rejectionReason, "Not approved in advance");
+  assert.equal(rejected.decidedAt, "2026-09-16 10:00:00");
+
+  const closed = otRequestStatus(day({
+    ot_claim_state: "CLOSED_AT_PAYROLL_LOCK",
+    ot_requested_minutes: 90,
+    ot_closure_reason: "NOT_REQUESTED_BEFORE_PAYROLL_LOCK",
+  }));
+  assert.equal(closed.label, "Rejected");
+  assert.equal(closed.rejectionReason, "Rejected – Not Requested Before Payroll Lock");
+
+  // A rejection with no remarks says nothing rather than inventing a reason.
+  assert.equal(otRequestStatus(day({ ot_claim_state: "REJECTED" })).rejectionReason, null);
+});
+
+test("a submitted OT request shows its reason and the time it was submitted", () => {
+  const status = otRequestStatus(day({
+    ot_claim_state: "REQUEST_PENDING",
+    ot_requested_minutes: 90,
+    ot_reason: "Stock count ran late",
+    ot_requested_at: "2026-09-15 09:00:00",
+    ot_request_id: 901,
+  }));
+  assert.equal(status.reason, "Stock count ran late");
+  assert.equal(status.requestedAt, "2026-09-15 09:00:00");
+  assert.equal(status.requestId, 901);
+});
+
+test("a pending correction blocks the OT request and says so", () => {
+  const blocked = day({ ot_claim_state: "AVAILABLE", candidate_ot_minutes: 90, correction_state: "PENDING" });
+  assert.equal(otBlockedReason(blocked), OT_BLOCKED_BY_CORRECTION);
+  assert.equal(OT_BLOCKED_BY_CORRECTION, "Complete attendance correction first.");
+  assert.equal(canRequestOt(blocked), false);
+
+  // A missing punch is the same message: the day is not settled yet.
+  const missing = day({ status: "REVIEW_REQUIRED", punch_count: 1, review_reasons: ["MISSING_PUNCH"] });
+  assert.equal(otBlockedReason(missing), OT_BLOCKED_BY_CORRECTION);
+  assert.equal(canRequestOt(missing), false);
+});
+
+test("an approved correction unblocks OT, on whatever the refreshed day now says", () => {
+  const settled = day({
+    correction_state: "APPROVED",
+    ot_claim_state: "AVAILABLE",
+    candidate_ot_minutes: 90,
+  });
+  assert.equal(otBlockedReason(settled), null);
+  assert.equal(canRequestOt(settled), true);
+  assert.equal(otRequestStatus(settled).minutes, 90);
+});
+
+test("OT is offered only where the backend's claim state says AVAILABLE", () => {
+  assert.equal(canRequestOt(day({ ot_claim_state: "AVAILABLE", candidate_ot_minutes: 90 })), true);
+  ["REQUEST_PENDING", "APPROVED", "REJECTED", "CLOSED_AT_PAYROLL_LOCK", "NONE"].forEach((state) => {
+    assert.equal(canRequestOt(day({ ot_claim_state: state, candidate_ot_minutes: 90 })), false, state);
+  });
+});
+
+test("a closed or locked month offers no OT action at all", () => {
+  const locked = day({
+    ot_claim_state: "CLOSED_AT_PAYROLL_LOCK",
+    ot_closure_reason: "NOT_REQUESTED_BEFORE_PAYROLL_LOCK",
+    candidate_ot_minutes: 90,
+  });
+  assert.equal(canRequestOt(locked), false);
+  assert.equal(otRequestStatus(locked).key, "REJECTED");
+});
+
+test("the OT tab shows the dates with OT to talk about, and no others", () => {
+  const rows = otRequestRows([
+    day({ attendance_date: "2026-09-01", candidate_ot_minutes: 0, ot_claim_state: "NONE" }),
+    day({ attendance_date: "2026-09-02", candidate_ot_minutes: 90, ot_claim_state: "AVAILABLE" }),
+    day({ attendance_date: "2026-09-03", candidate_ot_minutes: 0, ot_claim_state: "REJECTED" }),
+  ]);
+  assert.deepEqual(rows.map((r) => r.attendance_date), ["2026-09-02", "2026-09-03"]);
+  assert.deepEqual(otRequestRows(null), []);
+});
+
+test("the correction status mirrors it, rejection reason included", () => {
+  assert.equal(correctionRequestStatus(day()).label, "Not Requested");
+  assert.equal(correctionRequestStatus(day({ correction_state: "PENDING" })).label, "Pending");
+  const rejected = correctionRequestStatus(day({
+    correction_state: "REJECTED",
+    correction_rejection_remarks: "You were marked off duty",
+    correction_decided_at: "2026-09-16 10:00:00",
+  }));
+  assert.equal(rejected.label, "Rejected");
+  assert.equal(rejected.rejectionReason, "You were marked off duty");
+  assert.equal(rejected.decidedAt, "2026-09-16 10:00:00");
+});
+
+test("the Correction tab shows filed corrections and the days still needing one", () => {
+  const rows = correctionRequestRows([
+    day({ attendance_date: "2026-09-01" }),
+    day({ attendance_date: "2026-09-02", status: "REVIEW_REQUIRED", punch_count: 1, review_reasons: ["MISSING_PUNCH"] }),
+    day({ attendance_date: "2026-09-03", correction_state: "APPROVED" }),
+  ]);
+  assert.deepEqual(rows.map((r) => r.attendance_date), ["2026-09-02", "2026-09-03"]);
 });

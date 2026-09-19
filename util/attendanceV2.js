@@ -180,6 +180,203 @@ function formatOtClock(minutes) {
   return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
 }
 
+/* ================================== the employee's own request tabs ==== */
+
+/**
+ * THE THREE TABS of the employee's own attendance area, in order.
+ *
+ * Attendance is index 0 and stays the landing tab: the month is what an
+ * employee opens this page for, and the two request tabs are what they came
+ * back for. The INDEX is what the controlled `<Tabs>` is driven by, exactly
+ * as `util/telegramAttendance.js#SECTION_ORDER` drives the Mini App's.
+ */
+const MY_TAB = Object.freeze({
+  ATTENDANCE: "ATTENDANCE",
+  CORRECTIONS: "CORRECTIONS",
+  OT: "OT",
+});
+
+const MY_TAB_ORDER = Object.freeze([MY_TAB.ATTENDANCE, MY_TAB.CORRECTIONS, MY_TAB.OT]);
+
+const MY_TAB_LABEL = Object.freeze({
+  ATTENDANCE: "Attendance",
+  CORRECTIONS: "Correction Requests",
+  OT: "OT Requests",
+});
+
+function myTabIndex(tab) {
+  const i = MY_TAB_ORDER.indexOf(tab);
+  return i === -1 ? 0 : i;
+}
+
+function myTabAtIndex(index) {
+  return MY_TAB_ORDER[index] || MY_TAB.ATTENDANCE;
+}
+
+/**
+ * THE OT REQUEST STATUS a row shows, in the agreed request words.
+ *
+ * READ OFF `ot_claim_state`, which the backend derives from the OT request
+ * row itself (`usecase/attendance_calculation.js#otClaimFor`). NOTHING HERE
+ * DECIDES A STATUS and nothing here decides a duration: the four statuses
+ * map one-for-one onto the claim states, and a payroll-lock closure is a
+ * Rejected whose reason is the closure wording the backend recorded.
+ *
+ * @returns {{key:string, label:string, color:string, minutes:number,
+ *   rejectionReason:string|null, requestedAt:string|null,
+ *   decidedAt:string|null, requestId:number|null}}
+ */
+const OT_REQUEST_STATUS = Object.freeze({
+  NOT_REQUESTED: "Not Requested",
+  PENDING: "Pending",
+  APPROVED: "Approved",
+  REJECTED: "Rejected",
+});
+
+function otRequestStatus(day) {
+  const claim = otClaim(day) || { state: "NONE", minutes: 0 };
+  const base = {
+    minutes: claim.minutes || 0,
+    requestId: day && day.ot_request_id !== undefined ? day.ot_request_id : null,
+    reason: (day && day.ot_reason) || null,
+    requestedAt: (day && day.ot_requested_at) || null,
+    decidedAt: (day && day.ot_decided_at) || null,
+    rejectionReason: null,
+  };
+  switch (claim.state) {
+    case "REQUEST_PENDING":
+      return { ...base, key: "PENDING", label: OT_REQUEST_STATUS.PENDING, color: "orange" };
+    case "APPROVED":
+      return { ...base, key: "APPROVED", label: OT_REQUEST_STATUS.APPROVED, color: "green" };
+    case "REJECTED":
+      return {
+        ...base,
+        key: "REJECTED",
+        label: OT_REQUEST_STATUS.REJECTED,
+        color: "red",
+        // The approver's own words. A rejection with no remarks shows the
+        // status alone rather than an invented sentence.
+        rejectionReason: (day && day.ot_rejection_remarks) || null,
+      };
+    case "CLOSED_AT_PAYROLL_LOCK":
+      return {
+        ...base,
+        key: "REJECTED",
+        label: OT_REQUEST_STATUS.REJECTED,
+        color: "red",
+        rejectionReason: OT_CLOSURE_LABEL[day && day.ot_closure_reason] || "Closed at payroll lock",
+      };
+    default:
+      return { ...base, key: "NOT_REQUESTED", label: OT_REQUEST_STATUS.NOT_REQUESTED, color: "gray" };
+  }
+}
+
+/**
+ * THE CORRECTION DEPENDENCY, as a sentence or null.
+ *
+ * OT is a claim on a day that is SETTLED. While the date still has a missing
+ * or wrong punch, or a correction nobody has decided yet, its overtime is a
+ * guess - so the employee is sent to finish the correction first rather than
+ * being allowed to claim against a figure that is about to change.
+ *
+ * THIS IS NOT A SECOND RULE. The backend refuses the same submission
+ * (`raiseOtRequest`: an open request on the date, and a day that is not a
+ * complete FINAL one), and would refuse it even if this returned null. What
+ * it decides is what the SCREEN says instead of a disabled button with no
+ * explanation.
+ *
+ * @returns {string|null} the message, or null when nothing blocks OT
+ */
+const OT_BLOCKED_BY_CORRECTION = "Complete attendance correction first.";
+
+function otBlockedReason(day) {
+  if (!day) return null;
+  if (day.correction_state === "PENDING") return OT_BLOCKED_BY_CORRECTION;
+  const issue = dayIssue(day);
+  if (issue && (issue.key === "MISSING_PUNCH" || issue.key === "REGULARIZATION_PENDING")) {
+    return OT_BLOCKED_BY_CORRECTION;
+  }
+  return null;
+}
+
+/**
+ * Whether the Request OT action is offered on a day.
+ *
+ * `canRequest` is the backend's claim state - AVAILABLE and nothing else -
+ * and the correction dependency is checked on top of it. Both have to agree,
+ * and neither is computed from punch times on this side.
+ */
+function canRequestOt(day) {
+  const claim = otClaim(day);
+  return !!claim && claim.canRequest === true && otBlockedReason(day) === null;
+}
+
+/**
+ * The rows the OT Requests tab shows: every date of the loaded month that
+ * has OT to talk about - one the engine found, or one already claimed.
+ *
+ * A day with neither is not an OT row. It is not hidden by a rule of this
+ * file's own: `candidate_ot_minutes` is the engine's figure on the day, and
+ * `ot_claim_state` is the request's state, both as the server sent them.
+ */
+function otRequestRows(days) {
+  return (Array.isArray(days) ? days : []).filter((d) => {
+    const state = (d && d.ot_claim_state) || "NONE";
+    if (state !== "NONE") return true;
+    return Math.trunc(Number(d && d.candidate_ot_minutes) || 0) > 0;
+  });
+}
+
+/**
+ * THE CORRECTION REQUEST STATUS, the mirror of `otRequestStatus`, read off
+ * `correction_state` - the request row the backend put beside the day.
+ */
+const CORRECTION_REQUEST_STATUS = Object.freeze({
+  NOT_REQUESTED: "Not Requested",
+  PENDING: "Pending",
+  APPROVED: "Approved",
+  REJECTED: "Rejected",
+});
+
+function correctionRequestStatus(day) {
+  const state = (day && day.correction_state) || "NONE";
+  const base = {
+    requestId: (day && day.correction_request_id) || null,
+    reason: (day && day.correction_reason) || null,
+    requestedAt: (day && day.correction_requested_at) || null,
+    decidedAt: (day && day.correction_decided_at) || null,
+    rejectionReason: null,
+  };
+  switch (state) {
+    case "PENDING":
+      return { ...base, key: "PENDING", label: CORRECTION_REQUEST_STATUS.PENDING, color: "orange" };
+    case "APPROVED":
+      return { ...base, key: "APPROVED", label: CORRECTION_REQUEST_STATUS.APPROVED, color: "green" };
+    case "REJECTED":
+      return {
+        ...base,
+        key: "REJECTED",
+        label: CORRECTION_REQUEST_STATUS.REJECTED,
+        color: "red",
+        rejectionReason: (day && day.correction_rejection_remarks) || null,
+      };
+    default:
+      return { ...base, key: "NOT_REQUESTED", label: CORRECTION_REQUEST_STATUS.NOT_REQUESTED, color: "gray" };
+  }
+}
+
+/**
+ * The rows the Correction Requests tab shows: a date with a correction filed
+ * against it, or one that still needs one (a Missing Punch day).
+ */
+function correctionRequestRows(days) {
+  return (Array.isArray(days) ? days : []).filter((d) => {
+    if (d && d.correction_state && d.correction_state !== "NONE") return true;
+    const issue = dayIssue(d);
+    return !!issue && (issue.key === "MISSING_PUNCH" || issue.key === "REGULARIZATION_PENDING");
+  });
+}
+
 /**
  * THE MONTH SUMMARY: Present / Absent / Need Action, and the filter they drive.
  *
@@ -751,6 +948,20 @@ module.exports = {
   SUMMARY_EMPTY_MESSAGE,
   summaryEmptyMessage,
   otClaim,
+  MY_TAB,
+  MY_TAB_ORDER,
+  MY_TAB_LABEL,
+  myTabIndex,
+  myTabAtIndex,
+  OT_REQUEST_STATUS,
+  otRequestStatus,
+  OT_BLOCKED_BY_CORRECTION,
+  otBlockedReason,
+  canRequestOt,
+  otRequestRows,
+  CORRECTION_REQUEST_STATUS,
+  correctionRequestStatus,
+  correctionRequestRows,
   formatOtClock,
   canRegularize,
   clock,
