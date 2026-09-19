@@ -24,6 +24,7 @@ import AttendanceMissingHelper from "../../../helper/attendanceMissing";
 import {
   MISSING_ATTENDANCE_COLUMNS,
   buildQuery,
+  defaultRange,
   flattenRow,
   windowNote,
 } from "../../../util/attendanceMissing";
@@ -72,15 +73,16 @@ export default function MissingAttendanceReportPage() {
   const { departments } = useDepartments();
   const { options: shifts } = useWorkShiftOptions(canView);
 
-  const today = useMemo(() => new Date(), []);
-  const defaults = useMemo(() => {
-    // Opens on the last completed week, ending YESTERDAY - the latest date
-    // this report can ever show. Never today: see the header.
-    const end = new Date(today.getTime() - 24 * 3600 * 1000);
-    const start = new Date(end.getTime() - 6 * 24 * 3600 * 1000);
-    const iso = (d) => d.toISOString().slice(0, 10);
-    return { from_date: iso(start), to_date: iso(end) };
-  }, [today]);
+  // Opens on the last seven COMPLETED attendance dates, ending YESTERDAY -
+  // the latest date this report can ever show.
+  //
+  // `defaultRange` reads the IST business date through the SHARED `istToday`
+  // the Attendance Dashboard already defaults with. It must never go back to
+  // `toISOString()`, which renders UTC: between 00:00 and 05:29 IST that is
+  // still yesterday's date, and the screen would open a day early and hide
+  // the very day somebody opened it to chase. The server clamps the window
+  // regardless, so this decides the PREFILL and nothing else.
+  const defaults = useMemo(() => defaultRange(), []);
 
   const [filters, setFilters] = useState({
     ...defaults,

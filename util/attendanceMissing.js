@@ -1,3 +1,5 @@
+import { istToday } from "./attendanceDashboard";
+
 /**
  * The Missing Attendance Report, presented.
  *
@@ -26,6 +28,61 @@ export const MISSING_ATTENDANCE_COLUMNS = [
   { key: "status", header: "Status", minWidth: 160 },
   { key: "correction_requested", header: "Correction Requested", minWidth: 180 },
 ];
+
+/**
+ * `YYYY-MM-DD` plus `n` days, by UTC arithmetic on the PARTS.
+ *
+ * NO LOCAL `Date` IS CONSTRUCTED FROM THE STRING, and that is the whole
+ * point: `new Date("2026-09-19")` is parsed as UTC MIDNIGHT, and reading it
+ * back with `getFullYear()` in IST gives 19 September at 05:30 - fine - while
+ * `new Date(2026, 8, 19)` is LOCAL midnight and reading it back with
+ * `toISOString()` gives the 18th. Mixing the two is exactly how a date moves
+ * a day. Here the parts go in and the parts come out; no zone is involved at
+ * any point.
+ */
+export function addDays(dateOnly, n) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(dateOnly || ""));
+  if (!m) return null;
+  const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]) + n));
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(
+    d.getUTCDate()
+  ).padStart(2, "0")}`;
+}
+
+/**
+ * THE DEFAULT WINDOW: the last SEVEN COMPLETED attendance dates, ending
+ * YESTERDAY.
+ *
+ * ================================== WHY THIS IS NOT `toISOString().slice()` =
+ *
+ * It was, and it was wrong. `toISOString()` renders the instant in UTC, so
+ * between 00:00 and 05:29 IST the UTC date is still YESTERDAY'S - and the
+ * screen would open one day too early for every India user in that window.
+ * At 00:01 IST on 19 September the old code produced a `to_date` of the
+ * 17th, silently hiding the 18th, which is precisely the day a morning
+ * shift-in-charge opens this report to chase.
+ *
+ * So the business date comes from `istToday` - the SHARED helper the
+ * Attendance Dashboard already defaults its date filter with, and which is
+ * already tested across the IST/UTC boundary - and yesterday is one day
+ * before it by the string arithmetic above. No `toISOString` anywhere, and no
+ * `Date` built at local midnight.
+ *
+ * THE BACKEND REMAINS AUTHORITATIVE. This only decides which dates the boxes
+ * are PREFILLED with. Whatever is typed, the server clamps the window to
+ * completed attendance dates against its OWN IST clock
+ * (`utils/attendance_missing.js#clampToReportable`) and reports what it
+ * actually used in `meta`. A browser on a laptop with the wrong clock or the
+ * wrong timezone can therefore open on an odd default, and still cannot be
+ * shown today's half-finished day.
+ *
+ * `now` is injectable so the boundary can be tested. Production passes
+ * nothing.
+ */
+export function defaultRange(now = new Date()) {
+  const to_date = addDays(istToday(now), -1);
+  return { from_date: addDays(to_date, -6), to_date };
+}
 
 /** `2026-09-18` -> `18 Sep 2026`. Display only; the value sorts on the ISO date. */
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
