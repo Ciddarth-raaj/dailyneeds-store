@@ -1032,6 +1032,24 @@ const HR_MENU = {
         selected: false,
         location: "/attendance/calculated",
       },
+      // ATTENDANCE REPORTS. The chasing list: every completed past date on
+      // which an eligible employee recorded a POSITIVE, ODD number of punches
+      // - one punch of a pair never arrived. A day with NO punches is an
+      // absence and is deliberately not on it, and the current attendance
+      // date is never on it because the day is still being punched.
+      //
+      // Its own key, granted to nobody by migration. It is not
+      // `view_attendance_dashboard` (one date across the company) and not
+      // `view_calculated_attendance` (one employee's month): this is a third
+      // question, and a designation can be given it without either. Branch
+      // scope is resolved on the server exactly as it is for the dashboard,
+      // so this entry appearing widens nobody.
+      missing_attendance_report: {
+        title: "Missing Attendance Report",
+        permission: "view_missing_attendance_report",
+        selected: false,
+        location: "/attendance/missing-attendance",
+      },
       // The approval screens share one read key; what each approver sees is
       // their own role's and outlet's, decided on the server. Recalculate is
       // behind the key the backend grants to nobody by migration.

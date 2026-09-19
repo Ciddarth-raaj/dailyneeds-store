@@ -220,6 +220,13 @@ export const PERMISSIONS = {
     // under changes that date's pay, so it is its own key, granted by
     // migration to nobody. Reading your OWN month needs neither.
     view_calculated_attendance: "View Employee Attendance (calculated)",
+    // The Missing Attendance Report - the chasing list of completed past
+    // dates with an ODD punch count. Two keys, read and export, exactly as
+    // the raw Attendance List above has: taking a spreadsheet of every
+    // branch's gaps off the premises is a different decision from looking at
+    // the screen. Neither is granted by migration.
+    view_missing_attendance_report: "View Missing Attendance Report",
+    export_missing_attendance_report: "Export Missing Attendance Report",
     // The management overview of ONE attendance date across the company is
     // `view_attendance_dashboard`, and it is listed under DASHBOARD rather than
     // here: it is one of four dashboard feature keys that share one store
