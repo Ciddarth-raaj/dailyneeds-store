@@ -243,6 +243,21 @@ test("the ?date= parameter is used only as a navigation hint", () => {
  * `?section=corrections&date=…` cannot open the right tab but highlight
  * nothing, or vice versa.
  */
+/**
+ * BACKWARD COMPATIBILITY. Alert buttons already sent as `?date=…` with no
+ * section must still open Corrections. The page delegates the whole rule to
+ * `sectionFromQuery`, so this asserts the delegation rather than restating
+ * the rule (which `util/telegramAttendance.test.js` owns).
+ */
+test("the page derives its tab from sectionFromQuery, so legacy ?date= links work", () => {
+  const { sectionFromQuery, sectionIndex, SECTION } = require("../../util/telegramAttendance");
+  assert.match(page, /setTabIndex\(sectionIndex\(sectionFromQuery\(search\)\)\)/);
+  // No competing rule in the page that could override it.
+  assert.ok(!/section\s*===/.test(page), "the page decides no section of its own");
+  assert.equal(sectionIndex(sectionFromQuery("?date=2026-09-18")), 1);
+  assert.equal(sectionFromQuery("?date=2026-09-18"), SECTION.CORRECTIONS);
+});
+
 test("section and date are read from the same single query-string read", () => {
   const effect = page.slice(page.indexOf("const search ="), page.indexOf("const initData"));
   assert.match(effect, /const search = typeof window === "undefined" \? "" : window\.location\.search;/);

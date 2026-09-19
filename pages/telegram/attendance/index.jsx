@@ -58,11 +58,18 @@ import {
  * tapped a button about a missing punch lands on the screen for it. The tabs
  * are CONTROLLED so that link can actually decide which one opens.
  *
- * IT CARRIES ZERO AUTHORITY. `sectionFromQuery` maps it to one of three known
- * sections and falls back to My Attendance for anything else - absent,
- * empty, mistyped or hostile. It chooses a tab; it is never sent to the API,
- * never influences which employee anything is read for, and there is no query
- * parameter anywhere in this app that could.
+ * A BARE `?date=` ALSO OPENS CORRECTIONS. Production has already sent alert
+ * buttons in that older shape and they stay tappable in employees' chats
+ * indefinitely; landing one on My Attendance would make the button appear to
+ * do nothing. `sectionFromQuery` owns that whole rule - an explicit
+ * recognised section wins, otherwise a valid date means Corrections,
+ * otherwise My Attendance.
+ *
+ * IT CARRIES ZERO AUTHORITY. Both parameters choose a TAB and a HIGHLIGHT.
+ * Neither is ever sent to the API, neither influences which employee anything
+ * is read for, and there is no query parameter anywhere in this app that
+ * could. A date the employee is not entitled to is not in the list the server
+ * returns, so it highlights nothing.
  *
  * ================================= IT RENDERS THE EXISTING SCREENS =========
  *

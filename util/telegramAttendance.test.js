@@ -179,12 +179,83 @@ test("an approved or rejected card carries the server's verdict, not a guess", (
 
 /* ============================================ sections / deep links ==== */
 
-test("no section, or an unknown one, lands on My Attendance", () => {
+test("no section and no valid date lands on My Attendance", () => {
   const { sectionFromQuery, sectionIndex, SECTION } = require("./telegramAttendance");
-  for (const q of ["", "?", "?date=2026-09-18", "?section=", "?section=bogus", "?section=approvals", undefined, null, 7]) {
+  for (const q of ["", "?", "?section=", "?section=bogus", "?section=approvals", undefined, null, 7]) {
     assert.equal(sectionFromQuery(q), SECTION.ATTENDANCE, `${JSON.stringify(q)}`);
     assert.equal(sectionIndex(sectionFromQuery(q)), 0);
   }
+});
+
+/* ======================================================================
+ * LEGACY `?date=` LINKS
+ *
+ * Production has ALREADY SENT Regularise Attendance buttons shaped
+ * `?date=YYYY-MM-DD` with no section, and those messages stay tappable in
+ * employees' chats indefinitely. A tap has to land where the button
+ * promised - Corrections, on that date.
+ * ====================================================================== */
+
+test("a bare valid date - the OLD alert link - opens Corrections and highlights it", () => {
+  const { sectionFromQuery, sectionIndex, navigationHint, SECTION } = require("./telegramAttendance");
+  const legacy = "?date=2026-09-18";
+  assert.equal(sectionFromQuery(legacy), SECTION.CORRECTIONS);
+  assert.equal(sectionIndex(sectionFromQuery(legacy)), 1);
+  assert.equal(navigationHint(legacy), "2026-09-18");
+});
+
+test("the NEW alert link behaves identically", () => {
+  const { sectionFromQuery, sectionIndex, navigationHint, SECTION } = require("./telegramAttendance");
+  const current = "?section=corrections&date=2026-09-18";
+  assert.equal(sectionFromQuery(current), SECTION.CORRECTIONS);
+  assert.equal(sectionIndex(sectionFromQuery(current)), 1);
+  assert.equal(navigationHint(current), "2026-09-18");
+});
+
+test("a MALFORMED date alone is no date at all, and lands on My Attendance", () => {
+  const { sectionFromQuery, sectionIndex, navigationHint, SECTION } = require("./telegramAttendance");
+  for (const q of ["?date=yesterday", "?date=", "?date=2026-9-1", "?date=18-09-2026", "?date=2026-09-18T10:00"]) {
+    assert.equal(sectionFromQuery(q), SECTION.ATTENDANCE, q);
+    assert.equal(sectionIndex(sectionFromQuery(q)), 0, q);
+    assert.equal(navigationHint(q), null, q);
+  }
+});
+
+/**
+ * AN EXPLICIT SECTION WINS, DATE OR NO DATE. The date stays a hint: it
+ * highlights a card if that section shows one, and never moves the tab.
+ */
+test("an explicit valid section is authoritative even with a date", () => {
+  const { sectionFromQuery, sectionIndex, navigationHint, SECTION } = require("./telegramAttendance");
+
+  const attendance = "?section=attendance&date=2026-09-18";
+  assert.equal(sectionFromQuery(attendance), SECTION.ATTENDANCE);
+  assert.equal(sectionIndex(sectionFromQuery(attendance)), 0);
+  // The date is still READ - it is simply not what chose the tab.
+  assert.equal(navigationHint(attendance), "2026-09-18");
+
+  const help = "?section=help&date=2026-09-18";
+  assert.equal(sectionFromQuery(help), SECTION.HELP);
+  assert.equal(sectionIndex(sectionFromQuery(help)), 2);
+});
+
+/**
+ * An unrecognised section is treated as NO section, so a legacy date beside
+ * it is still honoured rather than being lost to a value that means nothing.
+ */
+test("an unrecognised section does not swallow a valid legacy date", () => {
+  const { sectionFromQuery, SECTION } = require("./telegramAttendance");
+  assert.equal(sectionFromQuery("?section=bogus&date=2026-09-18"), SECTION.CORRECTIONS);
+  assert.equal(sectionFromQuery("?section=bogus"), SECTION.ATTENDANCE);
+});
+
+test("explicitSection reports only recognised sections", () => {
+  const { explicitSection, SECTION } = require("./telegramAttendance");
+  assert.equal(explicitSection("?section=corrections"), SECTION.CORRECTIONS);
+  assert.equal(explicitSection("?section=bogus"), null);
+  assert.equal(explicitSection("?date=2026-09-18"), null);
+  assert.equal(explicitSection(""), null);
+  assert.equal(explicitSection("?section=%E0%A4"), null, "a bad escape is not a section");
 });
 
 test("each known section maps to its own tab", () => {
@@ -210,12 +281,13 @@ test("the section parameter is case-insensitive and tolerant of whitespace", () 
  * AND highlight the date - the two are read by different functions and both
  * have to work off the same query string.
  */
-test("the Regularise Attendance link opens Corrections and highlights the date", () => {
+test("both alert link shapes - old and new - open Corrections on the date", () => {
   const { sectionFromQuery, sectionIndex, navigationHint, SECTION } = require("./telegramAttendance");
-  const search = "?section=corrections&date=2026-09-18";
-  assert.equal(sectionFromQuery(search), SECTION.CORRECTIONS);
-  assert.equal(sectionIndex(sectionFromQuery(search)), 1);
-  assert.equal(navigationHint(search), "2026-09-18");
+  for (const search of ["?section=corrections&date=2026-09-18", "?date=2026-09-18"]) {
+    assert.equal(sectionFromQuery(search), SECTION.CORRECTIONS, search);
+    assert.equal(sectionIndex(sectionFromQuery(search)), 1, search);
+    assert.equal(navigationHint(search), "2026-09-18", search);
+  }
 });
 
 /**
@@ -227,6 +299,10 @@ test("query parameters cannot influence employee identity", () => {
   const hostile = "?section=corrections&date=2026-09-18&employee_id=78&requested_for_employee_id=78";
   assert.equal(api.sectionFromQuery(hostile), api.SECTION.CORRECTIONS);
   assert.equal(api.navigationHint(hostile), "2026-09-18");
+  // The legacy shape is no different: a date choosing a TAB is still not a
+  // date choosing an EMPLOYEE.
+  assert.equal(api.sectionFromQuery("?date=2026-09-18&employee_id=78"), api.SECTION.CORRECTIONS);
+  assert.equal(api.navigationHint("?date=2026-09-18&employee_id=78"), "2026-09-18");
   // Nothing in this module reads, returns or even names an employee.
   assert.ok(!Object.keys(api).some((k) => /employee/i.test(k)));
   const src = require("fs").readFileSync(require.resolve("./telegramAttendance"), "utf8");

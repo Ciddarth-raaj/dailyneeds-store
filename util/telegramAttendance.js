@@ -66,32 +66,68 @@ const SECTION_PARAM = Object.freeze({
 });
 
 /**
- * WHICH SECTION A URL ASKS FOR - and it is only ever an ASK.
+ * An explicit, recognised `?section=`, or null when the URL names none.
  *
- * `?section=` is navigation and carries ZERO authority. It chooses a tab and
- * nothing else: it cannot name an employee, cannot widen what the server
- * returns, and is never sent anywhere. Every API call the Mini App makes is
- * pinned server-side to the employee Telegram's signature resolved to.
- *
- * ANYTHING UNRECOGNISED FALLS BACK TO MY ATTENDANCE rather than erroring:
- * a mistyped, empty, absent, duplicated or hostile value all land the
- * employee on the screen they most likely wanted, which is the only sensible
- * answer for a parameter that means nothing on its own.
+ * Null covers absent, empty, mistyped and hostile alike - an unrecognised
+ * section is treated as NO section rather than as an error, so it falls
+ * through to the same rules a bare URL does.
  */
-function sectionFromQuery(search) {
+function explicitSection(search) {
   const raw = typeof search === "string" ? search : "";
   const match = /[?&]section=([^&]*)/.exec(raw);
-  if (!match) return DEFAULT_SECTION;
+  if (!match) return null;
   let value;
   try {
     value = decodeURIComponent(match[1]);
   } catch (err) {
-    return DEFAULT_SECTION;
+    return null;
   }
   const key = String(value).trim().toLowerCase();
-  return Object.prototype.hasOwnProperty.call(SECTION_PARAM, key)
-    ? SECTION_PARAM[key]
-    : DEFAULT_SECTION;
+  return Object.prototype.hasOwnProperty.call(SECTION_PARAM, key) ? SECTION_PARAM[key] : null;
+}
+
+/**
+ * WHICH SECTION A URL ASKS FOR - and it is only ever an ASK.
+ *
+ * ============================= WHY A BARE `?date=` MEANS CORRECTIONS =======
+ *
+ * Production has ALREADY SENT Regularise Attendance buttons in the old shape,
+ * `?date=YYYY-MM-DD` with no section, and those messages are sitting in
+ * employees' chats where they will be tapped for as long as the chat exists.
+ * A tap on one has to land where the button promised - Corrections, on that
+ * date - not on My Attendance with the employee left to work out that the
+ * button they pressed about a missing punch did nothing visible.
+ *
+ * A date is only ever attached to a correction link, so a URL carrying a
+ * valid date and no section can be read as one without guessing.
+ *
+ * ================================= THE RULE, IN PRECEDENCE ORDER ===========
+ *
+ *   1. an explicit, RECOGNISED `section=` wins outright, date or no date -
+ *      `?section=attendance&date=…` is My Attendance, because the link said
+ *      so and the date is only ever a hint;
+ *   2. otherwise a VALID `date=` means Corrections - the legacy button;
+ *   3. otherwise My Attendance.
+ *
+ * An INVALID date is no date at all (`navigationHint` validates it), so
+ * `?date=yesterday` is rule 3 and lands on My Attendance. An unrecognised
+ * section is treated as no section, so `?section=bogus&date=…` still honours
+ * the legacy date rather than a value that means nothing.
+ *
+ * ================================== STILL ZERO AUTHORITY ==================
+ *
+ * Both parameters choose a TAB and a HIGHLIGHT. Neither can name an employee,
+ * neither widens what the server returns, and neither is ever sent anywhere:
+ * every API call the Mini App makes is pinned server-side to the employee
+ * Telegram's signature resolved to. A date the employee is not entitled to is
+ * not in the list the server returns, so it highlights nothing.
+ */
+function sectionFromQuery(search) {
+  const explicit = explicitSection(search);
+  if (explicit !== null) return explicit;
+  // `navigationHint` is the one date validator, so "valid date" means exactly
+  // what the highlight means - the two cannot disagree about a given URL.
+  return navigationHint(search) !== null ? SECTION.CORRECTIONS : DEFAULT_SECTION;
 }
 
 /** The tab index for a section. Unknown sections land on My Attendance. */
@@ -229,6 +265,7 @@ module.exports = {
   DATE_STATE,
   stateColor,
   SECTION,
+  explicitSection,
   DEFAULT_SECTION,
   SECTION_ORDER,
   SECTION_PARAM,
