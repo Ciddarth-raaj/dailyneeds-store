@@ -270,3 +270,27 @@ test("28. no salary or payroll amounts appear on any of these screens", () => {
   }
   assert.ok(!/payroll/i.test(recalc.replace(/Payroll Lock/g, "")), "no payroll lock screen or wording on Recalculate");
 });
+
+/* ============== the effective-dated shift change, and its failure state == */
+
+const shiftEditor = strip(read("components/attendance/ShiftAssignmentEditor.jsx"));
+
+test("29. a saved change whose recalculation FAILED is never shown as a success", () => {
+  // 207 is the partial state: the assignment is committed and the attendance
+  // behind it is stale. It must not travel down either the success path or
+  // the ordinary error path - a screen that said "Recorded" here would be
+  // telling somebody their payroll input was consistent when it is not.
+  assert.match(shiftEditor, /res\.code === 207/);
+  assert.match(shiftEditor, /setPartial\(\{ message: res\.msg, range: res\.recalculation_range/);
+  assert.match(shiftEditor, /Saved, but attendance was NOT recalculated/);
+  assert.match(shiftEditor, /<Alert status="error"[\s\S]*?Saved, but attendance was NOT recalculated/);
+  // And a deterministic retry over the exact range the server named.
+  assert.match(shiftEditor, /Retry recalculation \(\{partial\.range\.from\} to \{partial\.range\.to\}\)/);
+  assert.match(shiftEditor, /recalculateBulk\(\{[\s\S]*?from_date: partial\.range\.from,[\s\S]*?to_date: partial\.range\.to,/);
+});
+
+test("30. a future effective date is not offered, because nothing would activate it", () => {
+  assert.match(shiftEditor, /max=\{isoToday\(\)\}/);
+  assert.match(shiftEditor, /A future date cannot be filed/);
+  assert.ok(!/applies when it arrives/.test(shiftEditor), "the old promise is gone");
+});

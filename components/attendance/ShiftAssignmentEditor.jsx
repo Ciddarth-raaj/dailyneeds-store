@@ -23,6 +23,7 @@ import {
 } from "@chakra-ui/react";
 import CustomModal from "../CustomModal";
 import EmployeeWorkShiftHelper from "../../helper/employeeWorkShift";
+import AttendanceV2Helper from "../../helper/attendanceV2";
 
 /**
  * EDIT SHIFT ASSIGNMENT, and the SHIFT HISTORY beside it.
@@ -37,12 +38,20 @@ import EmployeeWorkShiftHelper from "../../helper/employeeWorkShift";
  *
  *   - the effective date may be in the PAST, if payroll for the months it
  *     would move is still open. The server refuses a locked month with a
- *     message naming it, and refuses it again at the write.
- *   - it may be in the FUTURE, in which case nothing is recalculated and the
- *     employee's current shift does not move until the date arrives.
- *   - attendance from the effective date to today is recalculated, because
- *     those are precisely the dates whose NRM, shortage and overtime the
- *     change has just moved.
+ *     message naming it, and refuses it again - under a row lock, inside the
+ *     writing transaction - at the write.
+ *   - it may NOT be in the future. Nothing in this system moves
+ *     `default_work_shift_id` on a date, so a future-dated change would be
+ *     right in the history and wrong in the column every current-state screen
+ *     reads. The input is capped at today and the server refuses it anyway.
+ *   - the dates the change actually moves are recalculated - which stops
+ *     where a LATER assignment already takes over, not blindly at today.
+ *
+ * A RECALCULATION CAN FAIL AFTER THE ASSIGNMENT IS SAVED, and when it does
+ * this screen says so in red and offers the retry. It must never read as a
+ * completed save: the history would be right while the attendance behind it
+ * still carried the old shift's NRM, shortage and overtime - and payroll
+ * reads those rows.
  *
  * `is_current` on a history row is the RESOLVER's answer for today and not
  * "the newest row": a future-dated change sits at the top of the list and is
@@ -76,6 +85,9 @@ export default function ShiftAssignmentEditor({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [notice, setNotice] = useState(null);
+  /** Set only when the assignment saved but its recalculation did not. */
+  const [partial, setPartial] = useState(null);
+  const [retrying, setRetrying] = useState(false);
 
   const employeeId = employee ? Number(employee.employee_id) : null;
 
@@ -105,12 +117,39 @@ export default function ShiftAssignmentEditor({
     setEffectiveFrom(isoToday());
     setReason("");
     setNotice(null);
+    setPartial(null);
     load();
   }, [isOpen, load]);
+
+  const retryRecalculation = async () => {
+    if (!partial || !partial.range) return;
+    setRetrying(true);
+    setError(null);
+    try {
+      const res = await AttendanceV2Helper.recalculateBulk({
+        employee_id: employeeId,
+        from_date: partial.range.from,
+        to_date: partial.range.to,
+      });
+      if (!res || res.code !== 200) {
+        setError((res && res.msg) || "The recalculation failed again. Use Recalculate Attendance for this range.");
+        return;
+      }
+      setPartial(null);
+      setNotice(
+        `Attendance for ${partial.range.from} to ${partial.range.to} has now been recalculated.`
+      );
+    } catch (err) {
+      setError("Could not reach the server. Please try again.");
+    } finally {
+      setRetrying(false);
+    }
+  };
 
   const submit = async () => {
     setError(null);
     setNotice(null);
+    setPartial(null);
     if (!workShiftId) {
       setError("Choose the new shift");
       return;
@@ -131,6 +170,19 @@ export default function ShiftAssignmentEditor({
         effective_from: effectiveFrom,
         reason: reason.trim(),
       });
+      /*
+       * 207: the assignment WAS saved and its recalculation was not. It is
+       * neither an error nor a success and is shown as neither - a red
+       * warning that says exactly what happened, with the range to retry.
+       */
+      if (res && res.code === 207) {
+        setPartial({ message: res.msg, range: res.recalculation_range || null });
+        setWorkShiftId("");
+        setReason("");
+        await load();
+        if (onChanged) onChanged(res);
+        return;
+      }
       if (!res || res.code !== 200) {
         setError((res && res.msg) || "The change could not be saved");
         return;
@@ -204,7 +256,15 @@ export default function ShiftAssignmentEditor({
               </FormControl>
               <FormControl isRequired maxW="200px">
                 <FormLabel fontSize="sm">Effective from</FormLabel>
-                <Input type="date" size="sm" value={effectiveFrom} onChange={(e) => setEffectiveFrom(e.target.value)} />
+                {/* Today is the latest allowed date; the server refuses a
+                    later one regardless, because nothing would activate it. */}
+                <Input
+                  type="date"
+                  size="sm"
+                  max={isoToday()}
+                  value={effectiveFrom}
+                  onChange={(e) => setEffectiveFrom(e.target.value)}
+                />
               </FormControl>
             </Flex>
             <FormControl isRequired>
@@ -212,9 +272,9 @@ export default function ShiftAssignmentEditor({
               <Textarea rows={2} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Why the shift is changing" />
             </FormControl>
             <Text fontSize="xs" color="gray.600">
-              Dates before the effective date keep the shift they already had. Attendance from the effective date to
-              today is recalculated; a date in a payroll month that is approved and locked is refused. A future date is
-              recorded now and applies when it arrives.
+              Dates before the effective date keep the shift they already had. The dates this change actually moves are
+              recalculated — which stops where a later assignment already takes over. A date in a payroll month that is
+              approved and locked is refused. A future date cannot be filed: file the change on the day it takes effect.
             </Text>
           </Stack>
         ) : (
@@ -223,6 +283,27 @@ export default function ShiftAssignmentEditor({
             You can see this employee&apos;s shift history. Changing it needs the shift-change permission.
           </Alert>
         )}
+
+        {partial ? (
+          <Alert status="error" fontSize="sm" borderRadius="md" alignItems="flex-start">
+            <AlertIcon />
+            <Box>
+              <Text fontWeight="700">Saved, but attendance was NOT recalculated</Text>
+              <Text>{partial.message}</Text>
+              {partial.range ? (
+                <Button
+                  size="xs"
+                  colorScheme="red"
+                  mt={2}
+                  onClick={retryRecalculation}
+                  isLoading={retrying}
+                >
+                  Retry recalculation ({partial.range.from} to {partial.range.to})
+                </Button>
+              ) : null}
+            </Box>
+          </Alert>
+        ) : null}
 
         {notice ? (
           <Alert status="success" fontSize="sm" borderRadius="md">

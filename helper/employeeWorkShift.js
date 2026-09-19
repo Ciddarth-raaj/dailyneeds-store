@@ -92,8 +92,18 @@ const employeeWorkShift = {
    *
    * It APPENDS to the employee's dated history and overwrites nothing: dates
    * before `effective_from` keep the shift they had, and dates from it take
-   * the new one. The effective date may be in the past (if payroll for the
-   * months it would move is unlocked) or in the future.
+   * the new one. The effective date may be in the past, if payroll for the
+   * months it would actually move is unlocked; it may NOT be in the future,
+   * because nothing in this system would activate it on the day.
+   *
+   * THREE OUTCOMES, not two:
+   *
+   *   200  saved, and the affected dates were recalculated
+   *   207  SAVED, and the recalculation FAILED - the history is right and
+   *        the attendance behind it is stale. `recalculation_range` is the
+   *        range to retry. This is not a success and the screen must not
+   *        show one.
+   *   4xx  nothing was written
    *
    * Its own permission, `edit_shift_assignment_effective_dated`, which the
    * bulk assignment above does NOT imply - so a 403 here is a routine answer
