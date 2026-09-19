@@ -29,7 +29,7 @@ import PayrollSection from "../../../components/hr/profile/PayrollSection";
 import DocumentsSection from "../../../components/hr/profile/DocumentsSection";
 import BankDetailsEditor from "../../../components/hr/profile/BankDetailsEditor";
 import usePermissions from "../../../customHooks/usePermissions";
-import useOutlets from "../../../customHooks/useOutlets";
+import useEmployeeOutlets from "../../../customHooks/useEmployeeOutlets";
 import useDepartments from "../../../customHooks/useDepartments";
 import useDesignations from "../../../customHooks/useDesignations";
 import useCurrentWorkShift from "../../../customHooks/useCurrentWorkShift";
@@ -176,7 +176,21 @@ function EmployeeProfile() {
   const mayOverrideSalary = canOverrideComponents(actor);
   const canViewLifecycle = usePermissions(["view_employee_lifecycle"]);
 
-  const { outlets } = useOutlets({ directory: true });
+  /**
+   * THE BRANCHES THIS USER MAY ASSIGN, NARROWED ON THE SERVER.
+   *
+   * Employment Details lets an editor change an employee's outlet, which is a
+   * BRANCH TRANSFER. A branch-scoped editor must not be offered a branch they
+   * could not move somebody into, and must not be sent the names of branches
+   * they cannot reach. `/hr/employees/outlets` applies the same
+   * `employee_branch_scope` that already decides whether this employee is
+   * theirs at all.
+   *
+   * THE DROPDOWN IS UX, NOT THE BOUNDARY. `POST /hr/employee/:id/edit` runs
+   * `checkTargetBranch` on `store_id` and refuses a transfer out of scope
+   * (`OUT_OF_BRANCH_TRANSFER`) whatever this screen sends.
+   */
+  const { outlets } = useEmployeeOutlets();
   const { departments } = useDepartments();
   const { designations } = useDesignations();
   // Bumped after a shift assignment so the current-shift read runs again.

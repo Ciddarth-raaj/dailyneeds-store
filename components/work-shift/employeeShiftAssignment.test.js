@@ -67,7 +67,13 @@ test("the page offers all five filters", () => {
   for (const filter of ["store_id", "department_id", "designation_id", "search", "assignment_status"]) {
     assert.ok(pageCode.includes(filter), `${filter} must be a filter`);
   }
-  assert.match(pageCode, /useOutlets\(/);
+  // The OUTLET filter, from the SCOPED employee outlet source. It used to be
+  // `useOutlets({ directory: true })`, which is company-wide: this screen's
+  // rows are narrowed by `employee_branch_scope` on the server, so a
+  // branch-scoped user was being offered - and sent the names of - branches
+  // whose employees the same screen refuses to show.
+  assert.match(pageCode, /useEmployeeOutlets\(/);
+  assert.ok(!/useOutlets\(/.test(pageCode), "not the company-wide directory");
   assert.match(pageCode, /useDepartments\(/);
   assert.match(pageCode, /useDesignations\(/);
 });

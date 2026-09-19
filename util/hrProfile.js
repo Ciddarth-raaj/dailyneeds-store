@@ -46,43 +46,47 @@ const isAdminUser = (isAdmin) => isAdmin === true;
 /**
  * MAY THIS USER OPEN THE ONBOARDING / PENDING HR QUEUE?
  *
- * IT IS AN HR AND ADMINISTRATOR WORK QUEUE, COMPANY-WIDE, AND THAT IS THE
- * WHOLE RULE. The screen exists so HR can chase unfinished records across
- * every outlet; a store manager has no follow-up to do on it and the counts
- * would mean nothing narrowed to one branch. So there is no branch-scoped
- * version of it - a manager is refused outright rather than shown a smaller
- * dashboard.
+ * ACCESS IS RIGHTS BASED. One right - `view_hr_onboarding_dashboard` - or the
+ * administrator bypass, and nothing else. NOT a designation, NOT a user type,
+ * NOT "HR only". A store manager whose designation has been granted this
+ * right on the rights screen opens the screen exactly as HR does; that is the
+ * entire access rule and there is no second one hiding behind it.
  *
- * A KEY OF ITS OWN - `view_hr_onboarding_dashboard` - AND NOT THE BRANCH-SCOPE
- * ONE. This used to read `employee_scope_all_branches`, which worked because
- * HR holds it, but that key means company-wide EMPLOYEE SCOPE: which
- * employees a caller may be shown. Tying the screen to it meant that the day
- * company-wide employee access was granted to some other designation - an
- * Operations lead, an auditor, a second HR role - that designation would
- * silently acquire HR's work queue too. Nobody would have decided that and
- * nobody would have noticed.
+ * The screen ALSO needs `view_employees`, because it reads employees - that
+ * is the employee list's own right and is checked beside this one rather than
+ * folded into it, so neither implies the other.
+ *
+ * DATA IS BRANCH BASED, AND IT IS NOT THIS FUNCTION'S QUESTION. Which
+ * employees the screen then shows is the EXISTING employee branch scope,
+ * decided on the server: own authorised store(s) by default, every branch for
+ * a holder of `employee_scope_all_branches`, every branch for an
+ * administrator. So a branch-scoped holder of this right gets the same queue,
+ * the same cards and the same counts as HR - over their own store.
+ *
+ * THIS KEY IS DELIBERATELY NOT `employee_scope_all_branches`. That key means
+ * company-wide EMPLOYEE SCOPE: which employees a caller may be shown. Tying
+ * the screen to it meant that granting company-wide employee access to some
+ * other designation - an Operations lead, an auditor, a second HR role -
+ * silently handed them HR's work queue too, and that requiring the screen
+ * meant requiring company-wide reach. Both directions were wrong.
  *
  * SO THE TWO ARE INDEPENDENT, IN BOTH DIRECTIONS:
  *
  *   this key alone        opens the screen; the employees it then shows are
- *                         still whatever the caller's branch scope allows
+ *                         whatever the caller's branch scope allows, which
+ *                         for most holders is their own store
  *   the scope key alone   company-wide employee reads, and no work queue
- *
- * HR is granted both, separately, because HR genuinely needs both. An
- * administrator needs neither: `user_type = 2` bypasses the permission table
- * on the server, and `isAdminUser` is that same bypass here.
  *
  * IT IS NOT `view_employee_sensitive`, AND MUST NEVER BECOME IT. Opening the
  * queue and being told how somebody is paid are different questions:
  * `canViewSensitive` below still decides the Cash -> Bank card and the Paid
- * by column on its own, so an HR user without the sensitive key gets the
+ * by column on its own, so a user without the sensitive key gets the
  * dashboard with those two withheld. Collapsing the two would silently widen
  * sensitive disclosure to everybody who can open the screen.
  *
  * NOT A SECURITY BOUNDARY. This decides what to draw and whether to ask for
- * data at all. The endpoints behind it re-check the caller on every request
- * and are branch-scoped independently - Employee Master still narrows to a
- * manager's own branches, and nothing here changes that.
+ * data at all. Both endpoints behind the screen re-check the caller on every
+ * request and are branch-scoped independently.
  */
 function canViewOnboardingQueue({ permissions = [], isAdmin = false } = {}) {
   return isAdminUser(isAdmin) || has(permissions, "view_hr_onboarding_dashboard");

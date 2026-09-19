@@ -33,6 +33,30 @@ const hr = {
         .catch(reject);
     }),
 
+  /**
+   * GET /hr/employees/outlets — view_employees.
+   *
+   * THE BRANCHES THIS CALLER MAY FILTER EMPLOYEES BY, as `[{ outlet_id,
+   * outlet_name }]`, narrowed on the SERVER by the employee branch scope.
+   *
+   * NOT `/outlet/directory`, AND THAT IS THE WHOLE POINT. That endpoint is
+   * behind a session but deliberately company-wide - a purchase filter is
+   * supposed to name every branch - so an employee screen using it sent a
+   * branch-scoped store manager every outlet in the company and then hid the
+   * ones they may not use in React. The names had already crossed the wire.
+   * This returns only what the caller may know about.
+   *
+   * It is the SCOPE, not the population: an authorised branch with no
+   * employees in it is still returned, so the dropdown cannot lose a branch
+   * because a search or a status filter emptied it.
+   */
+  getEmployeeOutlets: () =>
+    new Promise((resolve, reject) => {
+      API.get("/hr/employees/outlets")
+        .then((res) => resolve(res.data))
+        .catch(reject);
+    }),
+
   /** POST /hr/employee — employee_create. Never send employee_id: the DB allocates it. */
   createEmployee: (payload) =>
     new Promise((resolve, reject) => {

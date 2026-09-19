@@ -25,7 +25,7 @@ import PayrunTabs from "../../components/payroll/PayrunTabs";
 import AttendancePendingDrawer from "../../components/payroll/AttendancePendingDrawer";
 import usePayrollActor from "../../customHooks/usePayrollActor";
 import usePayrunMonth from "../../customHooks/usePayrunMonth";
-import useOutlets from "../../customHooks/useOutlets";
+import useEmployeeOutlets from "../../customHooks/useEmployeeOutlets";
 import PayrunHelper from "../../helper/payrun";
 import { describeApiResult, KIND } from "../../util/salaryApiError";
 import { changeMonthlyPayType } from "../../util/payrunPayType";
@@ -224,7 +224,21 @@ function Payrun() {
   const [busyEmployeeId, setBusyEmployeeId] = useState(null);
   const [bulkBusy, setBulkBusy] = useState(false);
 
-  const { outlets } = useOutlets({ directory: true });
+  /**
+   * THE BRANCHES THIS USER MAY FILTER BY, NARROWED ON THE SERVER.
+   *
+   * The payrun's own reads go through `routes/payrun.js#_scope`, which is
+   * `employee_branch_scope` - the SAME scope as the employee list. So a
+   * branch-scoped payroll user already receives only their own branch's
+   * employees here, and reading the company-wide `/outlet/directory` for the
+   * Location filter sent them the names of branches whose payrun rows the
+   * same screen refuses to show.
+   *
+   * NOT THE BOUNDARY. `_scope` refuses a `store_ids` naming a branch outside
+   * the caller's scope (`OUT_OF_BRANCH`), so a hand-edited filter is rejected
+   * by the server whatever this dropdown offers.
+   */
+  const { outlets } = useEmployeeOutlets();
 
   /* A different month is a different set of rows, so the search that was
      narrowing the old one no longer means anything. */

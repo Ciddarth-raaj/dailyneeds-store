@@ -113,11 +113,6 @@ test("no other consumer was switched to the directory", () => {
     // Telegram groups has no reason to hold `view_stores`, and without the
     // directory the dropdown would be empty for them and the mapping type
     // simply unusable.
-    // M4 Payroll: the Outlet filter on the employee picker (Salary Revision &
-    // History) and on the approval queue (Salary Approval). An id and a name
-    // each, for screens reached on `view_salary` / `approve_salary_revision`
-    // and never on `view_stores` - the same reason as the HR screens below.
-    "components/payroll/EmployeePicker.jsx",
     // Stock Checker: all four callers. Listed in sorted position rather than
     // grouped together, because the assertion compares a sorted array.
     //
@@ -148,19 +143,55 @@ test("no other consumer was switched to the directory", () => {
     "pages/attendance/devices/[id].jsx",
     "pages/attendance/devices/new.jsx",
     "pages/attendance/list/index.jsx",
+    // Missing Attendance Report: the Outlet filter - an id and a name, for a
+    // screen reached on `view_missing_attendance_report` and not on
+    // `view_stores`. Same shape as the attendance screens above it, and
+    // scoped by the ATTENDANCE scope (`utils/dashboard_scope.js`) rather than
+    // by the employee branch scope: the report's rows are narrowed on the
+    // server and this picker can only narrow further.
+    //
+    // It was missing from this list rather than from the page, so the guard
+    // had been red since the report shipped. Added as test maintenance - the
+    // page is deliberately unchanged.
+    "pages/attendance/missing-attendance/index.jsx",
     // Recalculate Attendance: the Store filter - an id and a name, for a
     // screen reached on `recalculate_attendance` and not on `view_stores`.
     "pages/attendance/recalculate/index.jsx",
-    // Employee Shift Assignment: the Outlet filter. Same reason as the HR
-    // screens below - an id and a name, for a screen HR reaches on
-    // `view_employees` + `view_shift_assignments` and not on `view_stores`.
-    "pages/employee-shift-assignment/index.jsx",
-    "pages/hr/employees/[id].jsx",
-    "pages/hr/employees/index.jsx",
-    "pages/hr/employees/new.jsx",
-    // The Onboarding / Pending HR queue's outlet filter: the same id and name,
-    // on the same `view_employees` as the employee list beside it.
-    "pages/hr/onboarding/index.jsx",
+    // NO `pages/hr/*` ENTRY REMAINS, AND THAT IS THE POINT.
+    // The Onboarding / Pending HR queue is branch-scoped - a store manager
+    // holding `view_hr_onboarding_dashboard` sees their own branch - and this
+    // directory is company-wide, so reading it sent that manager the id and
+    // name of every outlet in the company and the screen hid the surplus in
+    // React. A filter is not an authorization boundary: the names had
+    // already crossed the wire. It now reads `GET /hr/employees/outlets`,
+    // which applies the server's `employee_branch_scope`, through
+    // `customHooks/useEmployeeOutlets.js`.
+    //
+    // EMPLOYEE MASTER WENT THE SAME WAY, for the same reason and with more at
+    // stake than a filter: the Outlet field on New Employee IS the branch the
+    // employee is created into, and on the profile it is a BRANCH TRANSFER.
+    // Offering a branch-scoped user an outlet the server would refuse is a
+    // form that fails on submit, and sending them the name proves the branch
+    // exists. All three now read `GET /hr/employees/outlets`.
+    //
+    // THE SERVER REMAINS THE BOUNDARY EITHER WAY: `checkTargetBranch` refuses
+    // a create or an edit naming a branch outside the caller's scope, so the
+    // dropdown is UX and the refusal does not depend on it.
+    //
+    // WHAT MAY STILL USE THE COMPANY-WIDE DIRECTORY, and why it is not this
+    // problem: every entry above is a PICKER on a screen scoped by something
+    // OTHER than `employee_branch_scope` - purchases, attendance
+    // (`dashboard_scope`), stock, telegram, the report catalogue, and the
+    // company-wide salary approval queue - where naming every branch is the
+    // documented intent of the endpoint behind it.
+    //
+    // THE RULE THIS LIST NOW ENFORCES: no screen whose data is narrowed by
+    // `employee_branch_scope` may read the company-wide directory. Employee
+    // Master, New Employee, the employee profile, Shift Assignment, the
+    // Onboarding queue, Payrun Initialization and the payroll employee picker
+    // were all such screens and all now read `GET /hr/employees/outlets`.
+    // If a new screen is added here, check which scope its ROWS come from
+    // before adding it.
     // Telegram Group Registry: the OPTIONAL Outlet on the add/edit form - an
     // id and a name, on a screen reached on `manage_telegram_groups` and
     // never on `view_stores`. The registry stores the outlet_id only and
@@ -169,10 +200,23 @@ test("no other consumer was switched to the directory", () => {
     // Telegram Group Registry list: the Outlet FILTER - an id and a name,
     // behind `view_telegram_groups` and never `view_stores`.
     "pages/master/telegram-groups/index.jsx",
-    // Payrun Initialization: the Location filter on the payroll month - an id
-    // and a name, on a screen reached on `view_payroll` and never on
-    // `view_stores`.
-    "pages/payroll/payrun.jsx",
+    // SALARY APPROVAL IS THE ONE PAYROLL SCREEN THAT STAYS, and it stays on
+    // the evidence rather than for convenience. Its queue is
+    // `GET /hr/salary/pending`, which is INTENTIONALLY COMPANY-WIDE: the
+    // route documents itself as "the pending approval queue, ACROSS ALL
+    // EMPLOYEES", takes no branch scope at all, and is gated instead on three
+    // keys together - `view_employees` + `view_salary` +
+    // `approve_salary_revision`. Its actor is used only to flag a proposal
+    // the approver raised themselves.
+    //
+    // So its rows genuinely span every outlet, and narrowing the dropdown to
+    // the caller's own branch would build a filter that cannot select most of
+    // what is on screen. That would be a bug, not a fix. A picker must match
+    // the scope of the data beside it, and here that scope is the company.
+    //
+    // (The wider question of whether a company-wide salary queue is the right
+    // design is a payroll decision and is untouched here - this change does
+    // not alter salary logic, approval rules or who may approve.)
     "pages/payroll/salary-approval.jsx",
     "pages/stock-checker/[mode].jsx",
     "pages/stock-checker/assigned-products.jsx",

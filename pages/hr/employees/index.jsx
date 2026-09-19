@@ -25,7 +25,7 @@ import {
 import usePermissions from "../../../customHooks/usePermissions";
 import usePayrollActor from "../../../customHooks/usePayrollActor";
 import { canViewOnboardingQueue } from "../../../util/hrProfile";
-import useOutlets from "../../../customHooks/useOutlets";
+import useEmployeeOutlets from "../../../customHooks/useEmployeeOutlets";
 import useDesignations from "../../../customHooks/useDesignations";
 import EmployeeHelper from "../../../helper/employee";
 import HrHelper from "../../../helper/hr";
@@ -141,7 +141,16 @@ function HrEmployeeList() {
   // rows, so the derived flag is filterable rather than only visible.
   const [hrOnboarding, setHrOnboarding] = useState("all");
 
-  const { outlets } = useOutlets({ directory: true });
+  /**
+   * THE BRANCHES THIS USER MAY FILTER BY, NARROWED ON THE SERVER.
+   *
+   * Not the company-wide `/outlet/directory`: this list names branches on a
+   * screen whose employee rows the server already scopes, so a branch-scoped
+   * manager was being sent every outlet name in the company for a filter they
+   * could not use. `/hr/employees/outlets` applies the same
+   * `employee_branch_scope` as the employee list itself.
+   */
+  const { outlets } = useEmployeeOutlets();
   const { designations } = useDesignations();
 
   /*

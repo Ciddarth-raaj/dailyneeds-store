@@ -1475,15 +1475,21 @@ test("the two screens point at each other", () => {
   assert.match(codeOf(queue), /href="\/hr\/employees"/);
 });
 
-/* ========== the Onboarding queue is HR and administrators only ========== */
+/* ====== the Onboarding queue: rights-based access, branch-based data ==== */
 /**
- * A work queue for HR, company-wide. A store manager is refused outright -
- * there is deliberately no branch-scoped version of this screen - and the
- * refusal must reach them BEFORE any data is requested, not as a dashboard
- * of zeroes after it arrives.
+ * ACCESS IS RIGHTS BASED. The queue is gated on `view_hr_onboarding_dashboard`
+ * and `view_employees` and on NOTHING ELSE - not a designation, not a user
+ * type, not "HR only". A store manager granted the right opens it; a user
+ * without the right is refused, and the refusal must reach them BEFORE any
+ * data is requested, not as a dashboard of zeroes after it arrives.
+ *
+ * DATA IS BRANCH BASED, and that is the server's existing employee branch
+ * scope applied to both requests. The screen's job is not to widen it: the
+ * outlet dropdown is built from the rows it was given rather than from the
+ * company-wide outlet directory.
  */
 
-test("THE QUEUE IS GATED ON ITS OWN DEDICATED PERMISSION", () => {
+test("THE QUEUE IS GATED ON ITS OWN DEDICATED RIGHT, NOT ON A DESIGNATION", () => {
   const code = codeOf(queue);
   assert.match(code, /canViewOnboardingQueue\(actor\)/, "it reads the shared rule");
   assert.match(code, /usePayrollActor\(\)/, "from the shared actor");
@@ -1499,6 +1505,85 @@ test("THE QUEUE IS GATED ON ITS OWN DEDICATED PERMISSION", () => {
   );
   // And it is NOT the sensitive key: that still gates only the cash route.
   assert.match(code, /canSeePaymentRoute = usePermissions\(\["view_employee_sensitive"\]\)/);
+  // No designation or user-type test of its own beyond the shared actor's
+  // administrator bypass - "HR only" must not come back in another shape.
+  assert.ok(!/designation/i.test(code), "the screen must not decide access by designation");
+});
+
+test("THE OUTLET DROPDOWN IS SCOPED ON THE SERVER, NOT FILTERED IN REACT", () => {
+  const code = codeOf(queue);
+  // `/outlet/directory` is authenticated but DELIBERATELY company-wide - it
+  // was widened so a purchase filter could name every branch. An employee
+  // screen reading it was sent every outlet in the company and hid the rest
+  // in React, which is not a boundary: the names had already crossed the
+  // wire and sat in the network tab. So this screen must not use that hook
+  // at all.
+  assert.ok(
+    !/useOutlets/.test(code),
+    "the company-wide outlet directory must not be read by this screen"
+  );
+  assert.match(code, /useEmployeeOutlets\(\{ skip: !canOpenQueue \}\)/);
+
+  // And the hook must hold no rule of its own - the narrowing is the
+  // server's `employee_branch_scope`, not a second implementation here.
+  const hook = require("fs").readFileSync(
+    __dirname + "/../../customHooks/useEmployeeOutlets.js",
+    "utf8"
+  );
+  assert.match(hook, /getEmployeeOutlets\(\)/);
+  assert.ok(
+    !/store_id|branch|filter\(/.test(hook.replace(/\/\*[\s\S]*?\*\//g, "")),
+    "the hook must not re-implement any branch rule"
+  );
+
+  // A selection made before the scope arrived must not survive it - but it
+  // must not be cleared while the scope is still loading either.
+  assert.match(code, /if \(!outlets\.length\) return;/);
+  assert.match(code, /setOutlet\(""\)/);
+});
+
+test("THE OUTLET OPTIONS ARE THE SCOPE, NOT THE ROWS ON SCREEN", () => {
+  const code = codeOf(queue);
+  // The options come from the hook and are never recomputed from `queue`,
+  // `visible` or any filter state, so a search or a status filter cannot
+  // make an authorised outlet disappear from the dropdown.
+  assert.ok(
+    !/queueOutlets/.test(code),
+    "the outlet list must not be derived from the employee rows"
+  );
+  const rules = require("fs").readFileSync(__dirname + "/../../util/hrOnboardingQueue.js", "utf8");
+  assert.ok(!/function queueOutlets/.test(rules), "and the row-derived helper is gone");
+  // The dropdown renders exactly what the hook returned.
+  assert.match(code, /\(outlets \|\| \[\]\)\.map/);
+});
+
+test("THE SIDEBAR ENTRY CARRIES THE SCREEN'S OWN RIGHTS", () => {
+  const hasMenuPermission = require("../../util/menuPermissions");
+  const src = require("fs").readFileSync(__dirname + "/../../constants/menus.js", "utf8");
+  assert.match(
+    src,
+    /permission: \["view_hr_onboarding_dashboard", "view_employees"\],\s*\n\s*selected: false,\s*\n\s*location: "\/hr\/onboarding"/,
+    "the menu entry requires BOTH of the screen's rights"
+  );
+
+  const rows = (...keys) => keys.map((permission_key) => ({ permission_key }));
+  const NEEDED = ["view_hr_onboarding_dashboard", "view_employees"];
+
+  // Dashboard right + list right -> the entry may appear.
+  assert.equal(hasMenuPermission(NEEDED, rows(...NEEDED)), true);
+  // `view_employees` ALONE -> no entry. This is the regression: a manager
+  // was offered a link to a screen that could only refuse them.
+  assert.equal(hasMenuPermission(NEEDED, rows("view_employees")), false);
+  // The dashboard right alone is not enough either - the screen reads
+  // employees and says so.
+  assert.equal(hasMenuPermission(NEEDED, rows("view_hr_onboarding_dashboard")), false);
+  // Branch scope is not a menu input at all: an own-branch manager holding
+  // both rights still gets the entry, and the scope decides what is behind it.
+  assert.equal(
+    hasMenuPermission(NEEDED, rows(...NEEDED, "employee_scope_all_branches")),
+    true
+  );
+  assert.equal(hasMenuPermission(NEEDED, rows(...NEEDED)), true);
 });
 
 test("A DENIED USER CAUSES NO REQUEST AND SEES NO ZEROES", () => {
@@ -1517,10 +1602,10 @@ test("A DENIED USER CAUSES NO REQUEST AND SEES NO ZEROES", () => {
   assert.match(code, /You do not have permission to view the HR onboarding dashboard\./);
 });
 
-test("EMPLOYEE MASTER HIDES THE QUEUE LINK FROM A STORE MANAGER", () => {
+test("EMPLOYEE MASTER SHOWS THE QUEUE LINK TO WHOEVER HOLDS THE RIGHT", () => {
   const code = codeOf(list);
-  // Gated on the dedicated key, through the shared rule - so a manager with
-  // view_employees, employee_edit and branch access still sees no button.
+  // Gated on the dedicated right, through the shared rule - so a manager
+  // WITHOUT it sees no button, and a manager granted it does.
   assert.ok(
     !/employee_scope_all_branches/.test(code),
     "the link must not be gated on company-wide employee scope"
@@ -1539,10 +1624,118 @@ test("EMPLOYEE MASTER HIDES THE QUEUE LINK FROM A STORE MANAGER", () => {
 test("THE EMPLOYEE MASTER LIST ITSELF IS NOT RESTRICTED BY THIS", () => {
   const code = codeOf(list);
   // Employee Master stays exactly as it was - branch-scoped on the server for
-  // managers, and gated here on `view_employees`. Only the LINK is HR's.
+  // managers, and gated here on `view_employees`. Only the LINK carries the
+  // dashboard right.
   assert.match(code, /usePermissions\(\["view_employees"\]\)/);
   assert.ok(
     !/if \(!canOpenQueue\)/.test(code),
     "the queue rule must not gate the employee list's own data"
   );
+});
+
+/* ========== no employee screen reads the company-wide directory ========= */
+/**
+ * THE CLASS OF BUG, NOT ONE INSTANCE OF IT. The onboarding queue was fixed
+ * first; Employee Master, New Employee, the employee profile and Employee
+ * Shift Assignment had exactly the same exposure, and on the create and edit
+ * forms the stakes are higher than a filter - the Outlet field IS the branch
+ * the employee is created into, and changing it on the profile is a branch
+ * transfer.
+ *
+ * These assert the SOURCE each screen reads. What the server then returns is
+ * asserted in the backend's `routes/hr_onboarding_branch_scope.test.js`,
+ * against the raw response body, because that is where the boundary is.
+ */
+test("NO EMPLOYEE-BRANCH-SCOPED SCREEN READS THE COMPANY-WIDE DIRECTORY", () => {
+  const fs = require("fs");
+  // Every screen whose ROWS are narrowed by `employee_branch_scope` on the
+  // server - HR, shift assignment and the two payroll surfaces whose data
+  // comes through that same middleware.
+  const screens = [
+    "pages/hr/onboarding/index.jsx",
+    "pages/hr/employees/index.jsx",
+    "pages/hr/employees/new.jsx",
+    "pages/hr/employees/[id].jsx",
+    "pages/employee-shift-assignment/index.jsx",
+    "pages/payroll/payrun.jsx",
+    "components/payroll/EmployeePicker.jsx",
+  ];
+  for (const rel of screens) {
+    const code = fs.readFileSync(__dirname + "/../../" + rel, "utf8");
+    assert.ok(
+      !/useOutlets/.test(code),
+      `${rel} must not read the company-wide outlet directory`
+    );
+    assert.match(code, /useEmployeeOutlets/, `${rel} must read the scoped employee outlet source`);
+  }
+});
+
+test("THE SCOPED OUTLET HOOK IS THE ONLY EMPLOYEE OUTLET SOURCE", () => {
+  const fs = require("fs");
+  const hook = fs.readFileSync(__dirname + "/../../customHooks/useEmployeeOutlets.js", "utf8");
+  // It calls the scoped endpoint and holds no rule of its own - the
+  // narrowing is the server's, and a second copy of it here would be a
+  // second branch-scope implementation to keep in step.
+  assert.match(hook, /HrHelper\.getEmployeeOutlets\(\)/);
+  const helper = fs.readFileSync(__dirname + "/../../helper/hr.js", "utf8");
+  assert.match(helper, /API\.get\("\/hr\/employees\/outlets"\)/);
+  // Comments stripped first: the hook EXPLAINS why it is not
+  // `/outlet/directory`, and that prose must not read as a call to it.
+  const hookCode = hook.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  assert.ok(
+    !/outlet\/directory/.test(hookCode),
+    "the scoped hook must never fall back to the company-wide directory"
+  );
+  assert.ok(!/getOutletDirectory/.test(hookCode));
+});
+
+test("THE CREATE AND EDIT FORMS TREAT THE DROPDOWN AS UX, NOT AS THE GUARD", () => {
+  const fs = require("fs");
+  // The comment is the contract a future reader needs: narrowing the
+  // dropdown is a courtesy, and the server refuses a foreign branch
+  // regardless. If either screen ever starts relying on the dropdown, this
+  // is the line that should have stopped it.
+  for (const rel of ["pages/hr/employees/new.jsx", "pages/hr/employees/[id].jsx"]) {
+    const code = fs.readFileSync(__dirname + "/../../" + rel, "utf8");
+    assert.match(code, /checkTargetBranch/, `${rel} must name the server-side guard`);
+  }
+});
+
+/* ========== payroll: the same scope, and the one screen that differs ==== */
+
+test("THE PAYROLL OUTLET PICKERS USE THE SCOPED EMPLOYEE SOURCE", () => {
+  const fs = require("fs");
+  // Payrun Initialization reads `/payrun/*`, which `routes/payrun.js`
+  // resolves through `employee_branch_scope`; the payroll employee picker
+  // reads `/employee/employees`, narrowed by the same middleware. Both
+  // therefore take the scoped outlet source, like every other screen on that
+  // scope.
+  for (const rel of ["pages/payroll/payrun.jsx", "components/payroll/EmployeePicker.jsx"]) {
+    const code = fs.readFileSync(__dirname + "/../../" + rel, "utf8");
+    assert.match(code, /useEmployeeOutlets/, `${rel} must use the scoped source`);
+    assert.ok(!/useOutlets/.test(code), `${rel} must not use the company-wide directory`);
+  }
+});
+
+test("SALARY APPROVAL STAYS COMPANY-WIDE, ON THE EVIDENCE", () => {
+  const fs = require("fs");
+  // NOT AN OVERSIGHT AND NOT AN EXCEPTION FOR CONVENIENCE. Its queue is
+  // `GET /hr/salary/pending`, which takes NO branch scope - it is gated on
+  // three keys together instead and documents itself as spanning all
+  // employees. Narrowing this dropdown to the caller's branch would build a
+  // filter that cannot select most of the rows on screen, which is a bug and
+  // not a fix. A picker must match the scope of the data beside it.
+  const code = fs.readFileSync(__dirname + "/../../pages/payroll/salary-approval.jsx", "utf8");
+  assert.match(code, /useOutlets\(\{ directory: true \}\)/, "it is deliberately company-wide");
+  assert.match(code, /usePendingSalaryQueue/, "and its rows are the company-wide queue");
+});
+
+test("PAYROLL CALCULATION AND APPROVAL LOGIC IS UNTOUCHED BY THIS CHANGE", () => {
+  const fs = require("fs");
+  // The outlet source is a dropdown. If a change to it ever reached the
+  // figures or the approval rules, that would be the thing to catch.
+  const picker = fs.readFileSync(__dirname + "/../../components/payroll/EmployeePicker.jsx", "utf8");
+  for (const forbidden of ["monthly_gross", "monthly_ctc", "approve", "basic"]) {
+    assert.ok(!picker.includes(forbidden), `the picker must not touch ${forbidden}`);
+  }
 });
