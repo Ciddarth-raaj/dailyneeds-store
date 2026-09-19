@@ -58,12 +58,68 @@ const unprotectedPath = {
   "/": true,
   // Stage 0A: redeeming a setup/reset link happens before there is a session.
   "/setup-password": true,
-  // The Telegram Attendance Mini App. It runs inside Telegram's WebView with
-  // no dnds.co.in session and no way to obtain one - most employees have no
-  // login at all - and it authenticates itself with Telegram's signed
-  // initData against its own scoped API. Without this entry the shell would
-  // bounce every employee to the login screen before the page could run.
+  // The Telegram Attendance Mini App - see STANDALONE_PATHS below.
   "/telegram/attendance": true,
+};
+
+/**
+ * ============================ PAGES THAT GET NO DNDS APPLICATION SHELL =====
+ *
+ * A page listed here renders inside ChakraProvider and NOTHING ELSE.
+ *
+ * WHY THIS EXISTS. The ordinary shell is not passive. `UserProvider` calls
+ * `GET /employee/get-details` and `GET /designation/permissions` from a mount
+ * effect, unconditionally, through `util/api.js`. With no dnds.co.in session
+ * those answer `{ code: 403, msg: "Access Denied" }`, which
+ * `util/handle403.js` correctly classifies as a DEAD SESSION and turns into
+ * `window.location.href = "/login"`.
+ *
+ * For the Telegram Attendance Mini App that is fatal, and it is fatal in the
+ * worst way - the page itself works perfectly, and the employee never sees
+ * it. They tap "Regularise Attendance", Telegram opens the WebView, the shell
+ * fires two authenticated calls the employee was never going to be able to
+ * make, and the WebView is redirected to a login screen for an account most
+ * employees do not have. Keeping the page out of `unprotectedPath` was never
+ * enough: that map only governs the constructor's own redirect, not the
+ * providers mounted around the page.
+ *
+ * WHAT IS DELIBERATELY NOT MOUNTED, and why each one would break it:
+ *
+ *   UserProvider                     the two authenticated calls above
+ *   ProductsProvider                 product/category state no Mini App has
+ *   ModuleTableThemeBridge           ag-grid theming for tables not rendered
+ *   StockHoldingBackgroundLoadToast  polls a stock-holding job
+ *   Toaster / ToastContainer         notification surfaces the page does not
+ *                                    use; it renders its own inline alerts
+ *
+ * ANYTHING ADDED TO THE ORDINARY SHELL IS OUTSIDE THIS BRANCH BY DEFAULT,
+ * which is the right default: a new provider cannot silently start making
+ * authenticated calls on behalf of a page that has no session.
+ * `components/telegram/telegramAttendanceScreen.test.js` asserts this branch
+ * mounts none of the names above.
+ */
+const STANDALONE_PATHS = {
+  "/telegram/attendance": true,
+};
+
+const isStandalone = (pathname) => STANDALONE_PATHS[pathname] === true;
+
+/**
+ * The route being rendered.
+ *
+ * `this.props.router` IS THE SOURCE, not the `next/router` singleton. During
+ * `next build`'s static prerender there is no router instance, and touching
+ * the singleton's `pathname` there throws "No router instance found" - which
+ * fails the build for every statically rendered page, not just this one. Next
+ * passes the router to `_app` as a prop precisely so render can read it, and
+ * that is what this uses; the singleton stays a client-only fallback.
+ */
+const pathnameOf = (props) => {
+  if (props && props.router && typeof props.router.pathname === "string") {
+    return props.router.pathname;
+  }
+  if (typeof window === "undefined") return null;
+  return router && typeof router.pathname === "string" ? router.pathname : null;
 };
 
 class MyApp extends React.Component {
@@ -72,8 +128,17 @@ class MyApp extends React.Component {
     this.initUser();
   }
 
+  /** The current route, from props where Next provides it. */
+  get pathname() {
+    return pathnameOf(this.props);
+  }
+
   initUser() {
     if (typeof window === "undefined") return;
+    // A standalone page has no dnds.co.in session, must not be redirected for
+    // lacking one, and must not have one attached to the shared axios
+    // instance on its behalf. It authenticates itself.
+    if (isStandalone(pathnameOf(this.props))) return;
     try {
       const token = localStorage.getItem("Token");
       const designation_id = localStorage.getItem("Designation_id");
@@ -109,6 +174,19 @@ class MyApp extends React.Component {
 
   render() {
     const { Component, pageProps } = this.props;
+
+    // THE STANDALONE SHELL. Styling and the page - no provider that talks to
+    // an authenticated DNDS endpoint. See STANDALONE_PATHS.
+    if (isStandalone(this.pathname)) {
+      return (
+        <div id="root-portal">
+          <ChakraProvider theme={theme}>
+            <Component {...pageProps} />
+          </ChakraProvider>
+        </div>
+      );
+    }
+
     return (
       <div id="root-portal">
         <ChakraProvider theme={theme}>

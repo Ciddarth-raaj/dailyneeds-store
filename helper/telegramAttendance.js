@@ -61,7 +61,16 @@ const telegramAttendance = {
       return res.data;
     }),
 
-  /** This employee's actionable dates. No parameters at all. */
+  /**
+   * MY ATTENDANCE: one month of the employee's own calculated days.
+   *
+   * `month` (`YYYY-MM`) is the ONLY parameter. There is no employee, outlet,
+   * store, designation or approval-role field, and the API refuses one.
+   */
+  getMonth: (month) =>
+    client.get("/telegram/attendance/month", { params: { month }, headers: authHeaders() }).then((r) => r.data),
+
+  /** CORRECTIONS: this employee's correction dates. No parameters at all. */
   getMissingDates: () =>
     client.get("/telegram/attendance/missing-dates", { headers: authHeaders() }).then((r) => r.data),
 

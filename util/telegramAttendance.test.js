@@ -113,3 +113,66 @@ test("the punch timestamp is built by the SAME function the web form uses", () =
   const daytime = buildSubmission(nightShift, "19:30", "Forgot to punch out");
   assert.equal(daytime.body.punch_time, "2026-09-17 19:30:00");
 });
+
+/* ============================================ month navigation ==== */
+
+test("month arithmetic crosses year boundaries in both directions", () => {
+  const { previousMonth, nextMonth } = require("./telegramAttendance");
+  assert.equal(previousMonth("2026-01"), "2025-12");
+  assert.equal(nextMonth("2026-12"), "2027-01");
+  assert.equal(previousMonth("2026-09"), "2026-08");
+  assert.equal(nextMonth("2026-09"), "2026-10");
+  // Not a month: handed back rather than turned into a guess.
+  assert.equal(nextMonth("nonsense"), "nonsense");
+});
+
+test("forward navigation stops at the current month - never the future", () => {
+  const { canGoNext } = require("./telegramAttendance");
+  const now = new Date("2026-09-19T00:00:00Z");
+  assert.equal(canGoNext("2026-07", now), true);
+  assert.equal(canGoNext("2026-08", now), true);
+  // Standing on September, October is not offered.
+  assert.equal(canGoNext("2026-09", now), false);
+  assert.equal(canGoNext("2026-10", now), false);
+  // Backwards is never limited - an employee may read any past month.
+  assert.equal(canGoNext("2024-01", now), true);
+});
+
+test("the month label is human, and the default section is My Attendance", () => {
+  const { monthLabel, SECTION, DEFAULT_SECTION } = require("./telegramAttendance");
+  assert.equal(monthLabel("2026-09"), "Sep 2026");
+  assert.equal(monthLabel("2026-01"), "Jan 2026");
+  assert.equal(DEFAULT_SECTION, SECTION.ATTENDANCE);
+});
+
+test("every correction state has its own label colour", () => {
+  const { DATE_STATE, stateColor } = require("./telegramAttendance");
+  const colors = [
+    DATE_STATE.ACTIONABLE,
+    DATE_STATE.PENDING,
+    DATE_STATE.APPROVED,
+    DATE_STATE.REJECTED,
+  ].map(stateColor);
+  assert.equal(new Set(colors).size, 4, `distinct colours, got ${colors.join(",")}`);
+});
+
+test("an approved or rejected card carries the server's verdict, not a guess", () => {
+  const { dateCard, DATE_STATE } = require("./telegramAttendance");
+  const approved = dateCard({
+    attendance_date: "2026-09-12",
+    state: DATE_STATE.APPROVED,
+    state_label: "Regularised",
+    can_submit: false,
+  });
+  assert.equal(approved.label, "Regularised");
+  assert.equal(approved.can_submit, false);
+
+  // A rejection leaves the date submittable again - the backend's rule.
+  const rejected = dateCard({
+    attendance_date: "2026-09-12",
+    state: DATE_STATE.REJECTED,
+    state_label: "Regularisation Rejected",
+    can_submit: true,
+  });
+  assert.equal(rejected.can_submit, true);
+});

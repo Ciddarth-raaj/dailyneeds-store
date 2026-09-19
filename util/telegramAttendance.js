@@ -23,14 +23,66 @@
  * times a machine saw somebody. The server does not send one either.
  */
 
-const { calendarDateFor, clock, displayDate, weekday, isOk, apiMessage } = require("./attendanceV2");
+const {
+  calendarDateFor,
+  clock,
+  displayDate,
+  weekday,
+  isOk,
+  apiMessage,
+  currentMonth,
+} = require("./attendanceV2");
 
 /** The states the server's date list uses. Mirrors `DATE_STATE` on the API. */
 const DATE_STATE = Object.freeze({
   ACTIONABLE: "ACTIONABLE",
   PENDING: "PENDING",
+  APPROVED: "APPROVED",
+  REJECTED: "REJECTED",
   NOT_ACTIONABLE: "NOT_ACTIONABLE",
 });
+
+/** The two sections of the Mini App. My Attendance is the default. */
+const SECTION = Object.freeze({
+  ATTENDANCE: "ATTENDANCE",
+  CORRECTIONS: "CORRECTIONS",
+});
+
+const DEFAULT_SECTION = SECTION.ATTENDANCE;
+
+/* ------------------------------------------------- month navigation ---- */
+
+/** `2026-09` -> `2026-08`. Pure integer month arithmetic, no Date parsing. */
+function shiftMonth(month, delta) {
+  const m = /^(\d{4})-(\d{2})$/.exec(String(month || ""));
+  if (!m) return month;
+  const total = Number(m[1]) * 12 + (Number(m[2]) - 1) + delta;
+  const year = Math.floor(total / 12);
+  const index = total - year * 12;
+  return `${year}-${String(index + 1).padStart(2, "0")}`;
+}
+
+const previousMonth = (month) => shiftMonth(month, -1);
+const nextMonth = (month) => shiftMonth(month, 1);
+
+/**
+ * NEVER BEYOND THE MONTH WE ARE IN. A future month has no attendance to
+ * read, and the backend clamps it away anyway - so the control is disabled
+ * rather than offering a screen that can only come back empty.
+ */
+function canGoNext(month, now = new Date()) {
+  return nextMonth(month) <= currentMonth(now);
+}
+
+const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/** `2026-09` -> `Sep 2026`. */
+function monthLabel(month) {
+  const m = /^(\d{4})-(\d{2})$/.exec(String(month || ""));
+  if (!m) return String(month || "");
+  const index = Number(m[2]) - 1;
+  return index >= 0 && index < 12 ? `${MONTH_NAMES[index]} ${m[1]}` : String(month);
+}
 
 /**
  * THE `?date=` IN THE MINI APP URL IS A NAVIGATION HINT AND NOTHING MORE.
@@ -77,6 +129,8 @@ function dateCard(row) {
 function stateColor(state) {
   if (state === DATE_STATE.ACTIONABLE) return "orange";
   if (state === DATE_STATE.PENDING) return "purple";
+  if (state === DATE_STATE.APPROVED) return "green";
+  if (state === DATE_STATE.REJECTED) return "red";
   return "gray";
 }
 
@@ -105,6 +159,14 @@ function buildSubmission(day, time, reason) {
 
 module.exports = {
   DATE_STATE,
+  stateColor,
+  SECTION,
+  DEFAULT_SECTION,
+  shiftMonth,
+  previousMonth,
+  nextMonth,
+  canGoNext,
+  monthLabel,
   navigationHint,
   dateCard,
   stateColor,
@@ -116,4 +178,5 @@ module.exports = {
   weekday,
   isOk,
   apiMessage,
+  currentMonth,
 };
