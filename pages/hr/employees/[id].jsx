@@ -141,12 +141,14 @@ function EmployeeProfile() {
 
   const canEdit = canEditEmployee(actor);
   /**
-   * Telegram setup. `employee_create` OR `employee_edit`, exactly as
-   * `routes/employee_telegram.js` enforces - and no new Telegram permission,
-   * deliberately: finishing setup for an employee who already exists must not
-   * require the right to create employees. The branch scope the server also
-   * applies cannot be evaluated here, so this hides a button the server would
-   * refuse anyway; it never grants anything.
+   * Telegram setup. `employee_create` AND `employee_edit`, BOTH, exactly as
+   * `routes/employee_telegram.js` now enforces with `requireAll` - and still
+   * no new Telegram permission, deliberately: the two keys already exist on
+   * the Permission Matrix, so only the connective between them changed.
+   * Neither key alone offers Generate QR, Generate New QR, Change Telegram or
+   * Disconnect. The branch scope the server also applies cannot be evaluated
+   * here, so this hides a button the server would refuse anyway; it never
+   * grants anything.
    */
   const mayManageTelegram = canManageTelegram(actor);
   const mayViewSensitive = canViewSensitive(actor);

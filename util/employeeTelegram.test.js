@@ -150,20 +150,85 @@ test("the interval is modest - a manager is standing there, not a robot", () => 
 
 /* ----------------------------------------------------------- permissions */
 
-test("SETUP IS employee_create OR employee_edit - never create alone", () => {
-  // Finishing setup for an employee who already exists must not require the
-  // right to create employees; that is the whole reason it is an OR.
-  assert.ok(canManageTelegram({ permissions: ["employee_edit"] }));
-  assert.ok(canManageTelegram({ permissions: ["employee_create"] }));
-  assert.ok(canManageTelegram({ permissions: ["employee_create", "employee_edit"] }));
-  assert.ok(canManageTelegram({ isAdmin: true, permissions: [] }));
+/**
+ * The shape the API ACTUALLY returns - a list of permission ROWS. Every
+ * permission assertion below is run against BOTH this and the bare strings a
+ * test would naturally write, because the two diverging is precisely the bug
+ * this file now pins: `includes` over rows compared objects to strings and was
+ * false for every real signed-in user.
+ */
+const rows = (...keys) => keys.map((permission_key) => ({ permission_key }));
+
+/** Both shapes of the same grant, for a single assertion to run over. */
+const bothShapes = (...keys) => [keys, rows(...keys)];
+
+test("SETUP NEEDS BOTH employee_create AND employee_edit - neither alone", () => {
+  // The corrected rule. Attaching, replacing or retiring an employee's
+  // Telegram identity is a joint decision, so one key is not enough.
+  for (const held of bothShapes("employee_create", "employee_edit")) {
+    assert.ok(canManageTelegram({ permissions: held }), "both keys open it");
+  }
+  for (const held of bothShapes("employee_edit")) {
+    assert.ok(!canManageTelegram({ permissions: held }), "employee_edit ALONE does not");
+  }
+  for (const held of bothShapes("employee_create")) {
+    assert.ok(!canManageTelegram({ permissions: held }), "employee_create ALONE does not");
+  }
 });
 
-test("a view-only user may not manage it", () => {
-  assert.ok(!canManageTelegram({ permissions: ["view_employees"] }));
+test("the administrator bypass is unchanged - no keys needed at all", () => {
+  assert.ok(canManageTelegram({ isAdmin: true, permissions: [] }));
+  assert.ok(canManageTelegram({ isAdmin: true, permissions: rows("view_employees") }));
+  assert.ok(canViewTelegram({ isAdmin: true, permissions: [] }));
+});
+
+test("a view-only user SEES THE STATUS and is offered no action", () => {
+  for (const held of bothShapes("view_employees")) {
+    assert.ok(canViewTelegram({ permissions: held }), "the status is readable");
+    assert.ok(!canManageTelegram({ permissions: held }), "and nothing more");
+  }
   assert.ok(!canManageTelegram({ permissions: [] }));
   assert.ok(!canManageTelegram({}));
-  assert.ok(canViewTelegram({ permissions: ["view_employees"] }));
+  assert.ok(!canViewTelegram({ permissions: rows("employee_edit", "employee_create") }));
+});
+
+test("THE PRODUCTION PERMISSION SHAPE IS READ, not only string arrays", () => {
+  /*
+   * THE REGRESSION THIS FILE EXISTS FOR. `userConfig.permissions` is
+   * `[{ permission_key }]`, so the old `Array.includes("employee_edit")`
+   * compared a ROW OBJECT to a string and was false for every non-admin - the
+   * Telegram buttons were decided by the administrator bypass alone. A row
+   * list and a string list must now answer identically.
+   */
+  const grants = [
+    ["employee_create", "employee_edit"],
+    ["employee_edit"],
+    ["employee_create"],
+    ["view_employees"],
+    [],
+  ];
+  for (const keys of grants) {
+    assert.equal(
+      canManageTelegram({ permissions: rows(...keys) }),
+      canManageTelegram({ permissions: keys }),
+      `manage: the two shapes must agree for [${keys}]`
+    );
+    assert.equal(
+      canViewTelegram({ permissions: rows(...keys) }),
+      canViewTelegram({ permissions: keys }),
+      `view: the two shapes must agree for [${keys}]`
+    );
+  }
+  // And the one that used to fail outright.
+  assert.ok(canManageTelegram({ permissions: rows("employee_create", "employee_edit") }));
+});
+
+test("a malformed permission list is refused rather than trusted", () => {
+  // It FAILS CLOSED. Anything that is not a list of keys grants nothing.
+  assert.ok(!canManageTelegram({ permissions: null }));
+  assert.ok(!canManageTelegram({ permissions: "employee_edit,employee_create" }));
+  assert.ok(!canManageTelegram({ permissions: [{}, { permission_key: null }] }));
+  assert.ok(!canViewTelegram({ permissions: null }));
 });
 
 /* ------------------------------------------------------ dashboard fields */

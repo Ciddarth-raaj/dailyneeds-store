@@ -28,6 +28,8 @@ import OnboardingStepper from "../../../components/hr/OnboardingStepper";
 import TelegramSetupPanel from "../../../components/hr/TelegramSetupPanel";
 import { ConfidenceBadge, EmploymentBadge } from "../../../components/hr/StatusBadges";
 import usePermissions from "../../../customHooks/usePermissions";
+import { useUser } from "../../../contexts/UserContext";
+import { canManageTelegram } from "../../../util/employeeTelegram";
 import useOutlets from "../../../customHooks/useOutlets";
 import useDesignations from "../../../customHooks/useDesignations";
 import useDepartments from "../../../customHooks/useDepartments";
@@ -107,6 +109,20 @@ function AddEmployee() {
   const router = useRouter();
   const toast = useToast();
   const canCreate = usePermissions(["employee_create"]);
+  /**
+   * THE WIZARD'S TELEGRAM STAGE IS NOT OPENED BY REACHING IT. Stage 5 used to
+   * pass `canManage` unconditionally, on the reasoning that anybody who had
+   * just created the employee could obviously finish setting them up. The
+   * approved rule is now the conjunction - `employee_create` AND
+   * `employee_edit` - so a create-only manager reaches this stage legitimately
+   * and must NOT be offered a QR the server would refuse with a 403. One
+   * function decides it, the same one the Employee Master profile calls.
+   */
+  const { userConfig } = useUser();
+  const mayManageTelegram = canManageTelegram({
+    permissions: userConfig.permissions || [],
+    isAdmin: String(userConfig.userType) === "2",
+  });
 
   const { outlets } = useOutlets({ directory: true });
   const { designations } = useDesignations();
@@ -773,7 +789,7 @@ function AddEmployee() {
                   employeeId={created.employee_id}
                   employeeName={form.employee_name}
                   outletName={outletName}
-                  canManage
+                  canManage={mayManageTelegram}
                   onStatusChange={setTelegramConnected}
                 />
               ) : (

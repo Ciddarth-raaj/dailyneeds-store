@@ -287,9 +287,45 @@ test("the profile renders the Telegram card, reusing the same panel", () => {
   assert.match(codeOf(section), /<TelegramSetupPanel/, "one implementation, not two");
 });
 
-test("the card's actions are gated on the same OR the backend enforces", () => {
+test("the card's actions are gated on the same AND the backend enforces", () => {
   assert.match(profileCode, /const mayManageTelegram = canManageTelegram\(actor\)/);
   assert.match(profileCode, /canManage=\{mayManageTelegram/);
+});
+
+test("THE WIZARD'S TELEGRAM STAGE IS GATED TOO - it no longer assumes", () => {
+  /*
+   * Stage 5 used to pass a bare `canManage`, which was true for anybody who
+   * reached it. Under the conjunction a create-only manager reaches that
+   * stage legitimately and must be offered no QR, so the wizard asks the same
+   * function the profile does rather than assuming its own answer.
+   */
+  assert.ok(
+    !/canManage\s*\n/.test(wizardCode.replace(/canManage=\{[^}]*\}/g, "")),
+    "no bare `canManage` prop survives in the wizard"
+  );
+  assert.match(wizardCode, /canManageTelegram\(/, "the wizard asks the shared rule");
+  assert.match(wizardCode, /canManage=\{mayManageTelegram\}/);
+});
+
+test("THE RULE IS THE CONJUNCTION, AND READS THE REAL PERMISSION SHAPE", () => {
+  /*
+   * Asserted against the source as well as behaviourally in
+   * `util/employeeTelegram.test.js`, because both halves of this correction
+   * are easy to undo by accident: an `||` restores the old OR, and an
+   * `includes` restores the bug where `[{ permission_key }]` rows compared
+   * unequal to strings and no non-administrator was ever offered the buttons.
+   */
+  const rule = codeOf(read("util/employeeTelegram.js"));
+  assert.match(
+    rule,
+    /function canManageTelegram[\s\S]*?holds\(permissions, "employee_edit"\) &&\s*holds\(permissions, "employee_create"\)/,
+    "both keys, joined by AND"
+  );
+  assert.ok(
+    !/function canManageTelegram[\s\S]*?\|\|[\s\S]*?\n}/.test(rule),
+    "and no OR anywhere in it"
+  );
+  assert.match(rule, /p\.permission_key/, "the production row shape is read");
 });
 
 test("a view-only user is offered no mutation at all", () => {

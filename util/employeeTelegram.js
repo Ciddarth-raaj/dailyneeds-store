@@ -240,27 +240,62 @@ const attemptSettled = (attempt) => ATTEMPT_SETTLED.includes(String(attempt));
 const TELEGRAM_POLL_INTERVAL_MS = 3000;
 
 /**
+ * DOES THIS ACTOR HOLD THIS KEY?
+ *
+ * TWO SHAPES, ONE ANSWER, and that is the whole reason this helper exists.
+ * `userConfig.permissions` as the API actually returns it is a list of ROWS -
+ * `[{ permission_key: "employee_edit" }, ...]` - which is what
+ * `customHooks/usePermissions.js` reads and what `util/hrProfile.js` has
+ * always handled. The functions below used to call `Array.prototype.includes`
+ * on that list, which compares each ROW OBJECT to a string and is therefore
+ * false for every real signed-in user: in production the Telegram buttons were
+ * decided by the administrator bypass alone, and no store manager could ever
+ * have been offered them.
+ *
+ * Plain strings are accepted too, because that is what the tests build and
+ * what any future caller would naturally pass. Same rule as `hrProfile`'s
+ * `has`, deliberately spelled the same way.
+ */
+const holds = (permissions, key) =>
+  Array.isArray(permissions) &&
+  permissions.some((p) => (p && p.permission_key ? p.permission_key : p) === key);
+
+/**
  * MAY THIS USER SET TELEGRAM UP for an employee they can already see?
  *
- * THE BACKEND IS THE AUTHORITY AND THIS ONLY HIDES BUTTONS. It mirrors what
- * `routes/employee_telegram.js` enforces - `employee_create` OR
- * `employee_edit`, plus the branch scope, which no frontend can evaluate -
- * so a store manager is offered the action for their own store's employees
- * and is refused by the server for anybody else's. NO NEW TELEGRAM
- * PERMISSION EXISTS, deliberately: finishing setup for an existing employee
- * must not require the right to create employees, which is why it is an OR.
+ * BOTH `employee_create` AND `employee_edit`. Attaching, replacing or
+ * retiring an employee's Telegram IDENTITY is a joint decision, so neither key
+ * on its own opens Generate QR, Generate New QR, Change Telegram or
+ * Disconnect. This was an OR until the rule was corrected; `routes/
+ * employee_telegram.js` now carries `requireAll(EMPLOYEE_CREATE,
+ * EMPLOYEE_EDIT)` on exactly the same three mutations, so what is hidden here
+ * is what the server refuses there.
+ *
+ * NO NEW TELEGRAM PERMISSION KEY EXISTS, deliberately. Both keys are already
+ * on the Permission Matrix and already mean what they say; only the connective
+ * between them changed, so an administrator grants Telegram management by
+ * ticking the two boxes that were always there.
+ *
+ * THE BACKEND IS THE AUTHORITY AND THIS ONLY HIDES BUTTONS. The branch scope -
+ * a store manager to their own store, HR with `employee_scope_all_branches`
+ * company-wide - is evaluated in SQL from the caller's live branch assignment
+ * and cannot be evaluated here at all. This narrows nothing and widens
+ * nothing: it stops offering an action the server would refuse.
  */
 function canManageTelegram({ permissions = [], isAdmin = false } = {}) {
   if (isAdmin === true) return true;
-  const held = Array.isArray(permissions) ? permissions : [];
-  return held.includes("employee_edit") || held.includes("employee_create");
+  return holds(permissions, "employee_edit") && holds(permissions, "employee_create");
 }
 
-/** Reading the status is the ordinary employee read. */
+/**
+ * Reading the status is the ordinary employee read, and is UNCHANGED by the
+ * correction above. Somebody with `view_employees` alone still sees TELEGRAM
+ * PENDING on the profile and the dashboard - they are simply offered no button
+ * to do anything about it.
+ */
 function canViewTelegram({ permissions = [], isAdmin = false } = {}) {
   if (isAdmin === true) return true;
-  const held = Array.isArray(permissions) ? permissions : [];
-  return held.includes("view_employees");
+  return holds(permissions, "view_employees");
 }
 
 /**
