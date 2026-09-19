@@ -1632,3 +1632,66 @@ test("THE EMPLOYEE MASTER LIST ITSELF IS NOT RESTRICTED BY THIS", () => {
     "the queue rule must not gate the employee list's own data"
   );
 });
+
+/* ========== no employee screen reads the company-wide directory ========= */
+/**
+ * THE CLASS OF BUG, NOT ONE INSTANCE OF IT. The onboarding queue was fixed
+ * first; Employee Master, New Employee, the employee profile and Employee
+ * Shift Assignment had exactly the same exposure, and on the create and edit
+ * forms the stakes are higher than a filter - the Outlet field IS the branch
+ * the employee is created into, and changing it on the profile is a branch
+ * transfer.
+ *
+ * These assert the SOURCE each screen reads. What the server then returns is
+ * asserted in the backend's `routes/hr_onboarding_branch_scope.test.js`,
+ * against the raw response body, because that is where the boundary is.
+ */
+test("NO HR EMPLOYEE SCREEN READS THE COMPANY-WIDE OUTLET DIRECTORY", () => {
+  const fs = require("fs");
+  const screens = [
+    "pages/hr/onboarding/index.jsx",
+    "pages/hr/employees/index.jsx",
+    "pages/hr/employees/new.jsx",
+    "pages/hr/employees/[id].jsx",
+    "pages/employee-shift-assignment/index.jsx",
+  ];
+  for (const rel of screens) {
+    const code = fs.readFileSync(__dirname + "/../../" + rel, "utf8");
+    assert.ok(
+      !/useOutlets/.test(code),
+      `${rel} must not read the company-wide outlet directory`
+    );
+    assert.match(code, /useEmployeeOutlets/, `${rel} must read the scoped employee outlet source`);
+  }
+});
+
+test("THE SCOPED OUTLET HOOK IS THE ONLY EMPLOYEE OUTLET SOURCE", () => {
+  const fs = require("fs");
+  const hook = fs.readFileSync(__dirname + "/../../customHooks/useEmployeeOutlets.js", "utf8");
+  // It calls the scoped endpoint and holds no rule of its own - the
+  // narrowing is the server's, and a second copy of it here would be a
+  // second branch-scope implementation to keep in step.
+  assert.match(hook, /HrHelper\.getEmployeeOutlets\(\)/);
+  const helper = fs.readFileSync(__dirname + "/../../helper/hr.js", "utf8");
+  assert.match(helper, /API\.get\("\/hr\/employees\/outlets"\)/);
+  // Comments stripped first: the hook EXPLAINS why it is not
+  // `/outlet/directory`, and that prose must not read as a call to it.
+  const hookCode = hook.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  assert.ok(
+    !/outlet\/directory/.test(hookCode),
+    "the scoped hook must never fall back to the company-wide directory"
+  );
+  assert.ok(!/getOutletDirectory/.test(hookCode));
+});
+
+test("THE CREATE AND EDIT FORMS TREAT THE DROPDOWN AS UX, NOT AS THE GUARD", () => {
+  const fs = require("fs");
+  // The comment is the contract a future reader needs: narrowing the
+  // dropdown is a courtesy, and the server refuses a foreign branch
+  // regardless. If either screen ever starts relying on the dropdown, this
+  // is the line that should have stopped it.
+  for (const rel of ["pages/hr/employees/new.jsx", "pages/hr/employees/[id].jsx"]) {
+    const code = fs.readFileSync(__dirname + "/../../" + rel, "utf8");
+    assert.match(code, /checkTargetBranch/, `${rel} must name the server-side guard`);
+  }
+});

@@ -40,7 +40,7 @@ const hr = {
    * outlet_name }]`, narrowed on the SERVER by the employee branch scope.
    *
    * NOT `/outlet/directory`, AND THAT IS THE WHOLE POINT. That endpoint is
-   * authenticated but deliberately company-wide - a purchase filter is
+   * behind a session but deliberately company-wide - a purchase filter is
    * supposed to name every branch - so an employee screen using it sent a
    * branch-scoped store manager every outlet in the company and then hid the
    * ones they may not use in React. The names had already crossed the wire.

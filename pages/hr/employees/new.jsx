@@ -30,7 +30,7 @@ import { ConfidenceBadge, EmploymentBadge } from "../../../components/hr/StatusB
 import usePermissions from "../../../customHooks/usePermissions";
 import { useUser } from "../../../contexts/UserContext";
 import { canManageTelegram } from "../../../util/employeeTelegram";
-import useOutlets from "../../../customHooks/useOutlets";
+import useEmployeeOutlets from "../../../customHooks/useEmployeeOutlets";
 import useDesignations from "../../../customHooks/useDesignations";
 import useDepartments from "../../../customHooks/useDepartments";
 import useWorkShiftOptions from "../../../customHooks/useWorkShiftOptions";
@@ -124,7 +124,19 @@ function AddEmployee() {
     isAdmin: String(userConfig.userType) === "2",
   });
 
-  const { outlets } = useOutlets({ directory: true });
+  /**
+   * THE BRANCHES THIS USER MAY CREATE INTO, NARROWED ON THE SERVER.
+   *
+   * The Outlet field on this form IS the new employee's branch, so offering a
+   * branch-scoped creator every outlet in the company offered them a create
+   * the server would refuse. `/hr/employees/outlets` applies the same
+   * `employee_branch_scope`, so the dropdown matches what will be accepted.
+   *
+   * THE DROPDOWN IS UX, NOT THE BOUNDARY. `POST /hr/employee` runs
+   * `checkTargetBranch` on `store_id` and refuses a foreign branch
+   * (`OUT_OF_BRANCH_TRANSFER`) whatever this form sends.
+   */
+  const { outlets } = useEmployeeOutlets();
   const { designations } = useDesignations();
   const { departments } = useDepartments();
   const shiftOptions = useWorkShiftOptions(canCreate);

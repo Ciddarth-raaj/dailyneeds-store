@@ -16,7 +16,7 @@ import CustomContainer from "../../components/CustomContainer";
 import CustomModal from "../../components/CustomModal";
 import Table from "../../components/table/table";
 import usePermissions from "../../customHooks/usePermissions";
-import useOutlets from "../../customHooks/useOutlets";
+import useEmployeeOutlets from "../../customHooks/useEmployeeOutlets";
 import useDepartments from "../../customHooks/useDepartments";
 import useDesignations from "../../customHooks/useDesignations";
 import EmployeeWorkShiftHelper from "../../helper/employeeWorkShift";
@@ -111,7 +111,16 @@ function EmployeeShiftAssignment() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [assigning, setAssigning] = useState(false);
 
-  const { outlets } = useOutlets({ directory: true });
+  /**
+   * THE BRANCHES THIS USER MAY FILTER BY, NARROWED ON THE SERVER.
+   *
+   * This is an employee-management screen: its rows come from
+   * `/hr/employees/work-shift`, which is narrowed by the SAME
+   * `employee_branch_scope` as the employee list. Reading the company-wide
+   * `/outlet/directory` for the filter therefore sent a branch-scoped user
+   * the names of branches whose employees the same screen refuses to show.
+   */
+  const { outlets } = useEmployeeOutlets();
   const { departments } = useDepartments();
   const { designations } = useDesignations();
 
