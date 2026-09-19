@@ -891,12 +891,31 @@ const HR_MENU = {
         location: "/hr/employees",
       },
       // The compliance half of the employee master: whose record HR has not
-      // finished, and what is missing. Same data and same permission as the
-      // list above - it is that list asked a different question - which is why
-      // it takes `view_employees` and not a key of its own.
+      // finished, and what is missing.
+      //
+      // THE SAME TWO RIGHTS THE SCREEN ITSELF CHECKS, and in the same
+      // conjunction: `util/hrProfile.js#canViewOnboardingQueue` reads
+      // `view_hr_onboarding_dashboard` and the page checks `view_employees`
+      // beside it. This used to say `view_employees` alone, so a store
+      // manager without the dashboard right was offered a menu entry that
+      // could only turn them away - a menu that advertises a refusal.
+      //
+      // AN ARRAY MEANS ALL OF THEM (`util/menuPermissions.js`), which is the
+      // AND the screen applies. Holding the list right alone is Employee
+      // Master and not this.
+      //
+      // BRANCH SCOPE IS DELIBERATELY ABSENT. Whether this entry EXISTS is an
+      // access question and the two rights answer it; which employees are
+      // behind it is the branch scope, decided on the server after entry. A
+      // store manager granted the dashboard right sees this entry and their
+      // own branch's queue behind it.
+      //
+      // AN ADMINISTRATOR IS UNAFFECTED: `user_type = 2` is served every
+      // declared key by `GET /designation/permissions`, and the onboarding
+      // migration declares this one in `all_permissions`.
       hr_onboarding: {
         title: "Onboarding / Pending HR",
-        permission: "view_employees",
+        permission: ["view_hr_onboarding_dashboard", "view_employees"],
         selected: false,
         location: "/hr/onboarding",
       },

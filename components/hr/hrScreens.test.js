@@ -1510,19 +1510,80 @@ test("THE QUEUE IS GATED ON ITS OWN DEDICATED RIGHT, NOT ON A DESIGNATION", () =
   assert.ok(!/designation/i.test(code), "the screen must not decide access by designation");
 });
 
-test("THE OUTLET DROPDOWN IS BUILT FROM THE SCOPED ROWS, NOT THE DIRECTORY", () => {
+test("THE OUTLET DROPDOWN IS SCOPED ON THE SERVER, NOT FILTERED IN REACT", () => {
   const code = codeOf(queue);
-  // The company-wide outlet directory may NAME an outlet; it may not decide
-  // which outlets a branch-scoped user is offered. Offering every store in
-  // the company to a store manager discloses those stores' existence and
-  // names on a screen whose employees the server already narrowed.
-  assert.match(code, /queueOutlets\(queue, outletDirectory\)/);
+  // `/outlet/directory` is authenticated but DELIBERATELY company-wide - it
+  // was widened so a purchase filter could name every branch. An employee
+  // screen reading it was sent every outlet in the company and hid the rest
+  // in React, which is not a boundary: the names had already crossed the
+  // wire and sat in the network tab. So this screen must not use that hook
+  // at all.
   assert.ok(
-    !/\(outlets \|\| \[\]\)\.map/.test(code) || /queueOutlets/.test(code),
-    "the dropdown must render the derived outlets"
+    !/useOutlets/.test(code),
+    "the company-wide outlet directory must not be read by this screen"
   );
-  // A selection made before the rows arrived must not survive them.
+  assert.match(code, /useEmployeeOutlets\(\{ skip: !canOpenQueue \}\)/);
+
+  // And the hook must hold no rule of its own - the narrowing is the
+  // server's `employee_branch_scope`, not a second implementation here.
+  const hook = require("fs").readFileSync(
+    __dirname + "/../../customHooks/useEmployeeOutlets.js",
+    "utf8"
+  );
+  assert.match(hook, /getEmployeeOutlets\(\)/);
+  assert.ok(
+    !/store_id|branch|filter\(/.test(hook.replace(/\/\*[\s\S]*?\*\//g, "")),
+    "the hook must not re-implement any branch rule"
+  );
+
+  // A selection made before the scope arrived must not survive it - but it
+  // must not be cleared while the scope is still loading either.
+  assert.match(code, /if \(!outlets\.length\) return;/);
   assert.match(code, /setOutlet\(""\)/);
+});
+
+test("THE OUTLET OPTIONS ARE THE SCOPE, NOT THE ROWS ON SCREEN", () => {
+  const code = codeOf(queue);
+  // The options come from the hook and are never recomputed from `queue`,
+  // `visible` or any filter state, so a search or a status filter cannot
+  // make an authorised outlet disappear from the dropdown.
+  assert.ok(
+    !/queueOutlets/.test(code),
+    "the outlet list must not be derived from the employee rows"
+  );
+  const rules = require("fs").readFileSync(__dirname + "/../../util/hrOnboardingQueue.js", "utf8");
+  assert.ok(!/function queueOutlets/.test(rules), "and the row-derived helper is gone");
+  // The dropdown renders exactly what the hook returned.
+  assert.match(code, /\(outlets \|\| \[\]\)\.map/);
+});
+
+test("THE SIDEBAR ENTRY CARRIES THE SCREEN'S OWN RIGHTS", () => {
+  const hasMenuPermission = require("../../util/menuPermissions");
+  const src = require("fs").readFileSync(__dirname + "/../../constants/menus.js", "utf8");
+  assert.match(
+    src,
+    /permission: \["view_hr_onboarding_dashboard", "view_employees"\],\s*\n\s*selected: false,\s*\n\s*location: "\/hr\/onboarding"/,
+    "the menu entry requires BOTH of the screen's rights"
+  );
+
+  const rows = (...keys) => keys.map((permission_key) => ({ permission_key }));
+  const NEEDED = ["view_hr_onboarding_dashboard", "view_employees"];
+
+  // Dashboard right + list right -> the entry may appear.
+  assert.equal(hasMenuPermission(NEEDED, rows(...NEEDED)), true);
+  // `view_employees` ALONE -> no entry. This is the regression: a manager
+  // was offered a link to a screen that could only refuse them.
+  assert.equal(hasMenuPermission(NEEDED, rows("view_employees")), false);
+  // The dashboard right alone is not enough either - the screen reads
+  // employees and says so.
+  assert.equal(hasMenuPermission(NEEDED, rows("view_hr_onboarding_dashboard")), false);
+  // Branch scope is not a menu input at all: an own-branch manager holding
+  // both rights still gets the entry, and the scope decides what is behind it.
+  assert.equal(
+    hasMenuPermission(NEEDED, rows(...NEEDED, "employee_scope_all_branches")),
+    true
+  );
+  assert.equal(hasMenuPermission(NEEDED, rows(...NEEDED)), true);
 });
 
 test("A DENIED USER CAUSES NO REQUEST AND SEES NO ZEROES", () => {

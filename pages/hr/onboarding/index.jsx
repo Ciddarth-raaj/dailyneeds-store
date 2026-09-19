@@ -20,7 +20,7 @@ import CustomContainer from "../../../components/CustomContainer";
 import Table from "../../../components/table/table";
 import usePermissions from "../../../customHooks/usePermissions";
 import usePayrollActor from "../../../customHooks/usePayrollActor";
-import useOutlets from "../../../customHooks/useOutlets";
+import useEmployeeOutlets from "../../../customHooks/useEmployeeOutlets";
 import useDepartments from "../../../customHooks/useDepartments";
 import EmployeeHelper from "../../../helper/employee";
 import HrHelper from "../../../helper/hr";
@@ -31,7 +31,6 @@ import {
   queueCards,
   queueCounts,
   queueFilters,
-  queueOutlets,
   queueRow,
   statusBadge,
 } from "../../../util/hrOnboardingQueue";
@@ -79,12 +78,27 @@ import { canViewOnboardingQueue } from "../../../util/hrProfile";
  *                                       onboarding state, of an employee the
  *                                       list itself refuses to return.
  *
- * Nothing on this page filters for security. The outlet dropdown, the cards
- * and the search all operate on rows the server already narrowed, and the
- * dropdown is built from THOSE ROWS (`queueOutlets`) rather than from the
- * company-wide outlet directory, so a scoped user is never even told the
- * names of branches they cannot see. The counts are computed over the same
- * narrowed rows, so no card can total another store's employees.
+ * THE OUTLET DROPDOWN IS SCOPED ON THE SERVER TOO, and is the third request
+ * this screen makes:
+ *
+ *   GET /hr/employees/outlets           `view_employees` + the SAME branch
+ *                                       scope. It returns the branches this
+ *                                       caller may filter by, so a scoped
+ *                                       user is never SENT the name of a
+ *                                       store they cannot see.
+ *
+ * It used to read `/outlet/directory`, which is company-wide by design, and
+ * hide the rest in React. A filter is not an authorization boundary: the
+ * names had already crossed the wire. Nothing on this page filters for
+ * security now - the cards, the search and the queue all operate on rows the
+ * server narrowed, and the counts are computed over those same rows, so no
+ * card can total another store's employees.
+ *
+ * THE DROPDOWN IS THE SCOPE, NOT THE POPULATION. It comes from the branch
+ * scope rather than from the employees on screen, so an authorised branch
+ * that currently holds nobody is still offered, and selecting a status
+ * filter or typing in the search box cannot make an outlet disappear from
+ * it.
  *
  * IT IS NOT THE SENSITIVE KEY. Opening this queue and being told how somebody
  * is paid stay separate questions: `view_employee_sensitive` still decides
@@ -202,9 +216,22 @@ function OnboardingQueue() {
   const [department, setDepartment] = useState("");
   const [search, setSearch] = useState("");
 
-  // The directory names outlets; `queueOutlets` decides WHICH of them this
-  // user may be offered, from the branch-scoped rows themselves.
-  const { outlets: outletDirectory } = useOutlets({ directory: true });
+  /**
+   * THE BRANCHES THIS USER MAY FILTER BY, NARROWED ON THE SERVER.
+   *
+   * NOT the company-wide `/outlet/directory` this screen used to read. That
+   * list is every outlet in the company, so a branch-scoped store manager
+   * received the id and name of every store and the browser hid the ones
+   * they may not use - which is not a boundary, because the names had
+   * already been sent. `/hr/employees/outlets` applies the SAME
+   * `employee_branch_scope` as the employee list and the status summary, so
+   * there is nothing to hide and no second scope rule in React.
+   *
+   * IT IS THE SCOPE, NOT THE ROWS. An authorised branch with no employees in
+   * it is still offered, and the list does not move when a search or a
+   * status filter empties one - see the note on the filters below.
+   */
+  const { outlets } = useEmployeeOutlets({ skip: !canOpenQueue });
   const { departments } = useDepartments();
 
   useEffect(() => {
@@ -277,10 +304,6 @@ function OnboardingQueue() {
   const cards = useMemo(() => queueCards({ canSeePaymentRoute }), [canSeePaymentRoute]);
   const filters = useMemo(() => queueFilters({ canSeePaymentRoute }), [canSeePaymentRoute]);
 
-  // Only the outlets present in the employees this caller was actually
-  // given - never the company-wide directory. See `queueOutlets`.
-  const outlets = useMemo(() => queueOutlets(queue, outletDirectory), [queue, outletDirectory]);
-
   const counts = useMemo(() => queueCounts(queue, { outlet, department }), [queue, outlet, department]);
   const visible = useMemo(
     () => filterQueue(queue, { filter, outlet, department, search }),
@@ -294,8 +317,14 @@ function OnboardingQueue() {
 
   // An outlet this user may not filter by cannot stay selected. It cannot
   // normally be reached - the dropdown never offers one - but a selection
-  // made before the rows arrived must not survive them.
+  // made before the scope arrived must not survive it.
+  //
+  // GUARDED ON A LOADED SCOPE. `outlets` is `[]` until the request returns,
+  // and clearing a selection during that window would be this effect
+  // fighting the user rather than protecting them; the backend refuses an
+  // out-of-scope branch regardless, so nothing rests on this running early.
   useEffect(() => {
+    if (!outlets.length) return;
     if (outlet && !outlets.some((o) => String(o.outlet_id) === String(outlet))) setOutlet("");
   }, [outlets, outlet]);
 

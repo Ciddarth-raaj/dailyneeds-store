@@ -152,9 +152,22 @@ test("no other consumer was switched to the directory", () => {
     "pages/hr/employees/[id].jsx",
     "pages/hr/employees/index.jsx",
     "pages/hr/employees/new.jsx",
-    // The Onboarding / Pending HR queue's outlet filter: the same id and name,
-    // on the same `view_employees` as the employee list beside it.
-    "pages/hr/onboarding/index.jsx",
+    // NOT `pages/hr/onboarding/index.jsx` ANY MORE, AND THAT IS THE POINT.
+    // The Onboarding / Pending HR queue is branch-scoped - a store manager
+    // holding `view_hr_onboarding_dashboard` sees their own branch - and this
+    // directory is company-wide, so reading it sent that manager the id and
+    // name of every outlet in the company and the screen hid the surplus in
+    // React. A filter is not an authorization boundary: the names had
+    // already crossed the wire. It now reads `GET /hr/employees/outlets`,
+    // which applies the server's `employee_branch_scope`, through
+    // `customHooks/useEmployeeOutlets.js`.
+    //
+    // THE THREE `pages/hr/employees/*` ENTRIES ABOVE ARE THE SAME PROBLEM AND
+    // ARE DELIBERATELY LEFT FOR THEIR OWN CHANGE. Employee Master's employee
+    // ROWS are branch-scoped on the server already, so this is the outlet
+    // NAMES only, and switching those screens is a change to Employee Master
+    // rather than to the onboarding queue. `useEmployeeOutlets` is ready for
+    // them. Listed here so it is a recorded decision and not an oversight.
     // Telegram Group Registry: the OPTIONAL Outlet on the add/edit form - an
     // id and a name, on a screen reached on `manage_telegram_groups` and
     // never on `view_stores`. The registry stores the outlet_id only and

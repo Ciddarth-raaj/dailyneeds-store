@@ -26,7 +26,6 @@ const assert = require("node:assert/strict");
 const { canViewOnboardingQueue, canViewSensitive } = require("./hrProfile");
 const {
   queueCounts,
-  queueOutlets,
   filterQueue,
   queueCards,
   queueRow,
@@ -109,17 +108,14 @@ test("A BRANCH-SCOPED USER'S QUEUE, COUNTS AND OUTLETS ARE THEIR STORE ONLY", ()
   // store this caller may not see.
   assert.equal(queueCounts(queue).active, 2);
 
-  // AND THE DROPDOWN NAMES ONLY THEIR OWN OUTLET, even though the outlet
-  // directory knows every branch in the company. Offering "Moolakulam" to a
-  // Kathirkamam manager discloses the store's existence and its name.
-  const directory = [
-    { outlet_id: 2, outlet_name: "Kathirkamam" },
-    { outlet_id: 5, outlet_name: "Moolakulam" },
-    { outlet_id: 9, outlet_name: "Villianur" },
-  ];
-  assert.deepEqual(queueOutlets(queue, directory), [
-    { outlet_id: 2, outlet_name: "Kathirkamam" },
-  ]);
+  // THE OUTLET DROPDOWN IS NOT TESTED HERE, because it is not decided here
+  // any more. It comes from `GET /hr/employees/outlets`, which applies the
+  // same branch scope on the SERVER, so a foreign outlet name is never sent
+  // to this browser at all - see
+  // `routes/hr_onboarding_branch_scope.test.js` in the backend, which
+  // asserts it against the raw response body. A client-side filter over the
+  // company-wide directory would have passed a test written here and still
+  // leaked every store name over the wire.
 });
 
 test("A STATUS SUMMARY THAT NAMES ANOTHER STORE'S EMPLOYEE CANNOT ADD THEM", () => {
@@ -138,9 +134,6 @@ test("A STATUS SUMMARY THAT NAMES ANOTHER STORE'S EMPLOYEE CANNOT ADD THEM", () 
   const ids = queue.map((r) => r.employee_id);
   assert.ok(!ids.includes(3), "an out-of-scope summary row is not an employee");
   assert.equal(queueCounts(queue).active, 2);
-  assert.deepEqual(queueOutlets(queue, [{ outlet_id: 5, outlet_name: "Moolakulam" }]), [
-    { outlet_id: 2, outlet_name: "Kathirkamam" },
-  ]);
 });
 
 test("AN ALL-BRANCH USER WITH THE DASHBOARD RIGHT SEES EVERY AUTHORISED BRANCH", () => {
@@ -150,20 +143,12 @@ test("AN ALL-BRANCH USER WITH THE DASHBOARD RIGHT SEES EVERY AUTHORISED BRANCH",
   // Their list response carries every branch, so their screen does too.
   const queue = COMPANY.map((e) => queueRow(e, {}));
   assert.equal(queueCounts(queue).active, 3);
-  assert.deepEqual(
-    queueOutlets(queue, [
-      { outlet_id: 2, outlet_name: "Kathirkamam" },
-      { outlet_id: 5, outlet_name: "Moolakulam" },
-    ]).map((o) => o.outlet_name),
-    ["Kathirkamam", "Moolakulam"]
-  );
 });
 
 test("AN ADMINISTRATOR SEES EVERY BRANCH", () => {
   assert.equal(canViewOnboardingQueue({ permissions: [], isAdmin: true }), true);
   const queue = COMPANY.map((e) => queueRow(e, {}));
   assert.equal(queueCounts(queue).active, 3);
-  assert.equal(queueOutlets(queue, []).length, 2);
 });
 
 test("THE OUTLET FILTER NARROWS WITHIN SCOPE AND CANNOT REACH OUTSIDE IT", () => {
@@ -175,22 +160,36 @@ test("THE OUTLET FILTER NARROWS WITHIN SCOPE AND CANNOT REACH OUTSIDE IT", () =>
   assert.equal(filterQueue(queue, { filter: "all", outlet: 2 }).length, 2);
 });
 
-test("AN OUTLET IN THE ROWS BUT MISSING FROM THE DIRECTORY IS STILL OFFERED", () => {
-  // Losing a filter for employees that ARE on screen is the opposite
-  // mistake, so the row's own name is used, then the id.
-  const queue = [employee(7, 4, "Reddiarpalayam"), employee(8, 6, null)].map((e) =>
-    queueRow(e, {})
-  );
-  assert.deepEqual(queueOutlets(queue, []), [
-    { outlet_id: 6, outlet_name: "Outlet 6" },
-    { outlet_id: 4, outlet_name: "Reddiarpalayam" },
-  ]);
-});
+/**
+ * THE OUTLET DROPDOWN IS NO LONGER DERIVED FROM THESE ROWS AT ALL, and that
+ * is deliberate twice over:
+ *
+ *   SECURITY   a list the browser filters is a list the browser was sent.
+ *              `GET /hr/employees/outlets` narrows it on the server with the
+ *              same `employee_branch_scope` as everything else, so a foreign
+ *              outlet name never arrives.
+ *   CORRECTNESS a dropdown built from the rows on screen loses an authorised
+ *              branch the moment that branch has no matching row - an empty
+ *              store, an active search, another status filter selected. The
+ *              endpoint answers about the SCOPE, so the options are stable.
+ *
+ * The test below is what remains of the row-derived version's job: proving
+ * that a UI filter cannot change which outlets are selectable, because the
+ * two are now unrelated.
+ */
+test("A SEARCH OR STATUS FILTER CANNOT REMOVE AN AUTHORISED OUTLET", () => {
+  // Two stores in scope; a search that matches an employee in only one of
+  // them. The visible rows collapse to that store - and the outlet options,
+  // which come from the scope and not from these rows, are untouched by it.
+  const queue = COMPANY.map((e) => queueRow(e, {}));
+  const searched = filterQueue(queue, { filter: "all", search: "Employee 3" });
+  assert.deepEqual(searched.map((r) => r.store_id), [5]);
 
-test("RESIGNED EMPLOYEES CONTRIBUTE NO OUTLET AND NO COUNT", () => {
-  const queue = [employee(9, 8, "Lawspet", { status: 0 })].map((e) => queueRow(e, {}));
-  assert.deepEqual(queueOutlets(queue, [{ outlet_id: 8, outlet_name: "Lawspet" }]), []);
-  assert.equal(queueCounts(queue).active, 0);
+  // Nothing in this module is asked which outlets to offer. If a future
+  // change re-derived them from rows, this assertion is the one that says
+  // the Kathirkamam option must not vanish because somebody typed a name.
+  const { queueOutlets } = require("./hrOnboardingQueue");
+  assert.equal(queueOutlets, undefined, "the outlet list must not be derived from rows again");
 });
 
 /* ============================== SENSITIVE STAYS INDEPENDENT ============= */
