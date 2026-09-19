@@ -540,6 +540,16 @@ test("no OT figure is computed on the Telegram side", () => {
   assert.match(otForm, /otCard\(day\)/);
 });
 
+test("a payroll closure is printed as Closed, never under the word Rejected", () => {
+  // Two separate fields, two separate lines, two separate colours.
+  assert.match(otList, /Rejected: \{card\.rejection_reason\}/);
+  assert.match(otList, /Closed: \{card\.closure_reason\}/);
+  const rejectionLine = otList.slice(otList.indexOf("Rejected: {card.rejection_reason}") - 120, otList.indexOf("Rejected: {card.rejection_reason}"));
+  assert.match(rejectionLine, /red\.600/, "a refusal is red");
+  const closureLine = otList.slice(otList.indexOf("Closed: {card.closure_reason}") - 120, otList.indexOf("Closed: {card.closure_reason}"));
+  assert.match(closureLine, /gray\.600/, "a closure is not");
+});
+
 test("the OT card shows the agreed columns and the whole request history", () => {
   ["Worked", "NRM", "Eligible OT"].forEach((label) => {
     assert.ok(otList.includes(`"${label}"`) || otList.includes(`>${label}<`), `the ${label} figure`);

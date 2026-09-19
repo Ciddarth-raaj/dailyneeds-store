@@ -15,6 +15,11 @@ import { otCard } from "../../util/telegramAttendance";
  *
  * ================================= EVERY FIGURE IS THE SERVER'S ===========
  *
+ * A CLOSED date is not a rejected one. "Closed – Payroll Locked" is its own
+ * grey state with the period's reason beneath it; "Rejected" is red and
+ * carries the approver's own remarks. The two are never printed as each
+ * other - see `otRequestStatus` in `util/attendanceV2.js`.
+ *
  * `otCard` builds the row from the calculated day the month read returned,
  * through the shared web helpers. Eligible OT is `candidate_ot_minutes`;
  * Requested is the candidate the SERVER stored on the request; Approved is
@@ -128,9 +133,16 @@ export default function TelegramOtDateList({ days, loading, highlight, onSelect 
                         Reason: {card.reason}
                       </Text>
                     ) : null}
+                    {/* An approver's refusal ... */}
                     {card.rejection_reason ? (
                       <Text fontSize="xs" color="red.600">
                         Rejected: {card.rejection_reason}
+                      </Text>
+                    ) : null}
+                    {/* ... and a shut payroll month, which is not one. */}
+                    {card.closure_reason ? (
+                      <Text fontSize="xs" color="gray.600">
+                        Closed: {card.closure_reason}
                       </Text>
                     ) : null}
                     {card.requested_at ? (

@@ -48,8 +48,9 @@ import {
  * The status is `otRequestStatus`, which reads `ot_claim_state` - the state
  * of the actual request row - and maps it onto the four request words
  * everything else in this system uses: Not Requested, Pending, Approved,
- * Rejected. A payroll-lock closure is a Rejected carrying the closure
- * wording the backend recorded as its reason.
+ * Rejected - plus Closed – Payroll Locked, which is deliberately NOT a
+ * Rejected. An approver rejecting a claim and a payroll month being shut
+ * are different events and are shown as different states.
  *
  * =========================================== THE CORRECTION DEPENDENCY =====
  *
@@ -73,9 +74,17 @@ function StatusBadge({ status }) {
   );
 }
 
-/** The reason an employee gave, and the reason an approver gave back. */
+/**
+ * The reason an employee gave, and the reason it came back.
+ *
+ * A REJECTION AND A CLOSURE ARE PRINTED DIFFERENTLY because they are not
+ * the same event: `rejectionReason` is an approver's remarks on this claim,
+ * `closureReason` is the payroll month having been locked. Only one is ever
+ * set (`otRequestStatus` decides which), and a closure never appears under
+ * the word "Rejected".
+ */
 function Reasons({ status }) {
-  if (!status.reason && !status.rejectionReason) return null;
+  if (!status.reason && !status.rejectionReason && !status.closureReason) return null;
   return (
     <Stack spacing={0.5} mt={1}>
       {status.reason ? (
@@ -86,6 +95,11 @@ function Reasons({ status }) {
       {status.rejectionReason ? (
         <Text fontSize="10px" color="red.600">
           Rejected: {status.rejectionReason}
+        </Text>
+      ) : null}
+      {status.closureReason ? (
+        <Text fontSize="10px" color="gray.600">
+          Closed: {status.closureReason}
         </Text>
       ) : null}
     </Stack>

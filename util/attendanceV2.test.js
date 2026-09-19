@@ -103,15 +103,30 @@ test("6. approved -> OT Approved with the approved minutes", () => {
   assert.equal(ot.canRequest, false);
 });
 
-test("7. rejected -> OT Rejected; closed at payroll lock says exactly why", () => {
-  assert.equal(otClaim(day({ ot_claim_state: "REJECTED", ot_requested_minutes: 28 })).label, "OT Rejected");
+test("7. a REJECTION is a person's; a CLOSURE is the period's, and they read differently", () => {
+  const rejected = otClaim(day({ ot_claim_state: "REJECTED", ot_requested_minutes: 28 }));
+  assert.equal(rejected.label, "OT Rejected");
+  assert.equal(rejected.color, "red");
   assert.equal(otClaim(day({ ot_claim_state: "REJECTED" })).canRequest, false);
+
+  /*
+   * A payroll-lock closure is stored on a row whose status is REJECTED -
+   * a storage detail - but no approver decided it, so it must not be shown
+   * as a rejection. Grey, its own words, and the word "Rejected" absent.
+   */
   const closed = otClaim(day({ ot_claim_state: "CLOSED_AT_PAYROLL_LOCK", ot_closure_reason: "NOT_REQUESTED_BEFORE_PAYROLL_LOCK" }));
-  assert.equal(closed.label, "OT Rejected");
-  assert.equal(closed.detail, "Rejected – Not Requested Before Payroll Lock");
+  assert.equal(closed.label, "OT Closed – Payroll Locked");
+  assert.equal(closed.color, "gray");
+  assert.equal(closed.detail, "Payroll for this month was locked before this OT was requested");
+  assert.ok(!/Rejected/.test(closed.label), "a closure is never labelled Rejected");
   assert.equal(closed.canRequest, false);
+
   const late = otClaim(day({ ot_claim_state: "CLOSED_AT_PAYROLL_LOCK", ot_closure_reason: "NOT_APPROVED_BEFORE_PAYROLL_LOCK" }));
-  assert.equal(late.detail, "Rejected – Not Approved Before Payroll Lock");
+  assert.equal(late.detail, "Payroll for this month was locked before this OT was approved");
+  // An unrecognised closure code still says "closed", never "rejected".
+  const odd = otClaim(day({ ot_claim_state: "CLOSED_AT_PAYROLL_LOCK", ot_closure_reason: "SOMETHING_NEW" }));
+  assert.equal(odd.detail, "Payroll for this month was locked");
+  assert.equal(odd.label, "OT Closed – Payroll Locked");
 });
 
 test("8. no OT -> no OT line and no Request OT action", () => {
@@ -487,6 +502,7 @@ test("the OT status is read off ot_claim_state, in the four request words", () =
     [{ ot_claim_state: "REQUEST_PENDING", ot_requested_minutes: 90 }, "PENDING", "Pending"],
     [{ ot_claim_state: "APPROVED", approved_ot_minutes: 90 }, "APPROVED", "Approved"],
     [{ ot_claim_state: "REJECTED", ot_requested_minutes: 90 }, "REJECTED", "Rejected"],
+    [{ ot_claim_state: "CLOSED_AT_PAYROLL_LOCK", ot_requested_minutes: 90 }, "CLOSED", "Closed – Payroll Locked"],
     [{ candidate_ot_minutes: 0 }, "NOT_REQUESTED", "Not Requested"],
   ];
   cases.forEach(([d, key, label]) => {
@@ -507,24 +523,36 @@ test("the OT minutes on a row are the backend's field, never recomputed", () => 
   assert.equal(otRequestStatus(day({ ot_claim_state: "APPROVED", approved_ot_minutes: 75 })).minutes, 75);
 });
 
-test("a rejected OT request carries the approver's reason; a payroll-lock closure carries the closure wording", () => {
+test("a rejection carries the approver's remarks; a closure carries the period's reason, in a DIFFERENT field", () => {
   const rejected = otRequestStatus(day({
     ot_claim_state: "REJECTED",
     ot_requested_minutes: 90,
     ot_rejection_remarks: "Not approved in advance",
     ot_decided_at: "2026-09-16 10:00:00",
   }));
+  assert.equal(rejected.key, "REJECTED");
   assert.equal(rejected.label, "Rejected");
   assert.equal(rejected.rejectionReason, "Not approved in advance");
+  assert.equal(rejected.closureReason, null, "a rejection is not a closure");
   assert.equal(rejected.decidedAt, "2026-09-16 10:00:00");
 
+  /*
+   * THE DISTINCTION THAT MATTERS. A closure must not arrive in
+   * `rejectionReason`, because every screen prints that field under the
+   * word "Rejected" - which would tell an employee a manager refused their
+   * overtime when in fact the month closed.
+   */
   const closed = otRequestStatus(day({
     ot_claim_state: "CLOSED_AT_PAYROLL_LOCK",
     ot_requested_minutes: 90,
     ot_closure_reason: "NOT_REQUESTED_BEFORE_PAYROLL_LOCK",
   }));
-  assert.equal(closed.label, "Rejected");
-  assert.equal(closed.rejectionReason, "Rejected – Not Requested Before Payroll Lock");
+  assert.equal(closed.key, "CLOSED");
+  assert.equal(closed.label, "Closed – Payroll Locked");
+  assert.equal(closed.color, "gray");
+  assert.equal(closed.rejectionReason, null, "nobody rejected this");
+  assert.equal(closed.closureReason, "Payroll for this month was locked before this OT was requested");
+  assert.ok(!/Rejected/.test(closed.label));
 
   // A rejection with no remarks says nothing rather than inventing a reason.
   assert.equal(otRequestStatus(day({ ot_claim_state: "REJECTED" })).rejectionReason, null);
@@ -580,7 +608,38 @@ test("a closed or locked month offers no OT action at all", () => {
     candidate_ot_minutes: 90,
   });
   assert.equal(canRequestOt(locked), false);
-  assert.equal(otRequestStatus(locked).key, "REJECTED");
+  assert.equal(otRequestStatus(locked).key, "CLOSED");
+});
+
+/**
+ * THE INCLUSION RULE: candidate OT > 0 OR a claim already exists.
+ *
+ * A recalculation can take a date's candidate OT to zero - a punch voided,
+ * a shift corrected - long after the employee asked for it. Their request
+ * still happened, and its outcome is theirs to see, so history must not be
+ * filtered out by a figure that has since moved. Only a date with neither
+ * OT nor a claim is absent.
+ */
+test("a submitted OT request stays visible after candidate OT falls to zero", () => {
+  const rows = [
+    day({ attendance_date: "2026-09-01", candidate_ot_minutes: 90, ot_claim_state: "AVAILABLE" }),
+    day({ attendance_date: "2026-09-02", candidate_ot_minutes: 0, ot_claim_state: "REQUEST_PENDING", ot_requested_minutes: 90 }),
+    day({ attendance_date: "2026-09-03", candidate_ot_minutes: 0, ot_claim_state: "APPROVED", approved_ot_minutes: 90 }),
+    day({ attendance_date: "2026-09-04", candidate_ot_minutes: 0, ot_claim_state: "REJECTED", ot_requested_minutes: 90 }),
+    day({ attendance_date: "2026-09-05", candidate_ot_minutes: 0, ot_claim_state: "CLOSED_AT_PAYROLL_LOCK", ot_requested_minutes: 90 }),
+    day({ attendance_date: "2026-09-06", candidate_ot_minutes: 0, ot_claim_state: "NONE" }),
+    day({ attendance_date: "2026-09-07", candidate_ot_minutes: 0 }),
+  ];
+  assert.deepEqual(otRequestRows(rows).map((r) => r.attendance_date), [
+    "2026-09-01",
+    "2026-09-02",
+    "2026-09-03",
+    "2026-09-04",
+    "2026-09-05",
+  ]);
+  // And the claimed rows still state what was asked for, not today's zero.
+  assert.equal(otRequestStatus(rows[1]).minutes, 90);
+  assert.equal(otRequestStatus(rows[2]).minutes, 90);
 });
 
 test("the OT tab shows the dates with OT to talk about, and no others", () => {

@@ -462,16 +462,41 @@ test("an approved correction unblocks OT, on the refreshed day's own figure", ()
   assert.equal(card.eligible_ot, "01:30");
 });
 
-test("a date closed at payroll lock reads as Rejected and cannot be requested", () => {
+/**
+ * A CLOSED PERIOD IS NOT A REJECTION, and the Mini App must not say it is.
+ * An employee who reads "Rejected" goes and argues with a manager who
+ * decided nothing; the truth is that the month was locked.
+ */
+test("a date closed at payroll lock reads as Closed, NOT as Rejected", () => {
   const { otCard } = require("./telegramAttendance");
   const card = otCard(otDay({
     ot_claim_state: "CLOSED_AT_PAYROLL_LOCK",
     ot_closure_reason: "NOT_REQUESTED_BEFORE_PAYROLL_LOCK",
     ot_requested_minutes: 90,
   }));
-  assert.equal(card.label, "Rejected");
-  assert.equal(card.rejection_reason, "Rejected – Not Requested Before Payroll Lock");
+  assert.equal(card.state, "CLOSED");
+  assert.equal(card.label, "Closed – Payroll Locked");
+  assert.equal(card.color, "gray", "grey, not the red of a refusal");
+  assert.ok(!/Rejected/.test(card.label));
+  // The period's reason, and NOT in the field the card prints as "Rejected:".
+  assert.equal(card.rejection_reason, null);
+  assert.equal(card.closure_reason, "Payroll for this month was locked before this OT was requested");
   assert.equal(card.can_submit, false);
+});
+
+test("a genuine approver rejection still reads as Rejected, with the remarks", () => {
+  const { otCard } = require("./telegramAttendance");
+  const card = otCard(otDay({
+    ot_claim_state: "REJECTED",
+    ot_requested_minutes: 90,
+    ot_rejection_remarks: "Not approved in advance",
+    ot_decided_at: "2026-09-19 10:00:00",
+  }));
+  assert.equal(card.state, "REJECTED");
+  assert.equal(card.label, "Rejected");
+  assert.equal(card.color, "red");
+  assert.equal(card.rejection_reason, "Not approved in advance");
+  assert.equal(card.closure_reason, null, "a rejection is not a closure");
 });
 
 test("the OT list is a filter over the month's days, not a second read", () => {
@@ -483,4 +508,41 @@ test("the OT list is a filter over the month's days, not a second read", () => {
   ]);
   assert.deepEqual(cards.map((c) => c.attendance_date), ["2026-09-02", "2026-09-03"]);
   assert.deepEqual(otCards([]), []);
+});
+
+/**
+ * HISTORY SURVIVES A RECALCULATION. A date whose candidate OT has since
+ * fallen to zero - a voided punch, a corrected shift - still shows the
+ * request the employee made and what came of it. The rule is "OT to claim
+ * OR a claim already made", never candidate OT alone.
+ */
+test("a submitted OT request stays in the Telegram list after candidate OT falls to zero", () => {
+  const { otCards } = require("./telegramAttendance");
+  const cards = otCards([
+    otDay({ attendance_date: "2026-09-01", candidate_ot_minutes: 90, ot_claim_state: "AVAILABLE" }),
+    otDay({ attendance_date: "2026-09-02", candidate_ot_minutes: 0, ot_claim_state: "REQUEST_PENDING", ot_requested_minutes: 90 }),
+    otDay({ attendance_date: "2026-09-03", candidate_ot_minutes: 0, ot_claim_state: "APPROVED", approved_ot_minutes: 90 }),
+    otDay({ attendance_date: "2026-09-04", candidate_ot_minutes: 0, ot_claim_state: "REJECTED", ot_requested_minutes: 90, ot_rejection_remarks: "No" }),
+    otDay({ attendance_date: "2026-09-05", candidate_ot_minutes: 0, ot_claim_state: "CLOSED_AT_PAYROLL_LOCK", ot_requested_minutes: 90 }),
+    otDay({ attendance_date: "2026-09-06", candidate_ot_minutes: 0, ot_claim_state: "NONE" }),
+  ]);
+  assert.deepEqual(cards.map((c) => c.attendance_date), [
+    "2026-09-01",
+    "2026-09-02",
+    "2026-09-03",
+    "2026-09-04",
+    "2026-09-05",
+  ]);
+  // Each still states what was ASKED FOR, not the zero the day now carries.
+  assert.deepEqual(
+    cards.slice(1).map((c) => c.requested_ot),
+    ["01:30", "01:30", "01:30", "01:30"]
+  );
+  assert.deepEqual(cards.map((c) => c.label), [
+    "Not Requested",
+    "Pending",
+    "Approved",
+    "Rejected",
+    "Closed – Payroll Locked",
+  ]);
 });

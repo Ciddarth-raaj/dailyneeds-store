@@ -296,18 +296,29 @@ function otCard(day) {
     reason: status.reason,
     requested_at: status.requestedAt,
     decided_at: status.decidedAt,
+    // TWO SEPARATE FIELDS ON PURPOSE. `rejection_reason` is an approver's
+    // remarks; `closure_reason` is the payroll period being shut. Only one
+    // is ever set, and a closure never fills the rejection field - see
+    // `otRequestStatus` in `util/attendanceV2.js`.
     rejection_reason: status.rejectionReason,
+    closure_reason: status.closureReason,
     // The server's answer, carried through - never a rule decided here.
     can_submit: canRequestOt(day),
     blocked_reason: otBlockedReason(day),
   };
 }
 
-/** The badge colour for an OT state. Mirrors `stateColor` for corrections. */
+/**
+ * The badge colour for an OT state. Mirrors `stateColor` for corrections.
+ *
+ * CLOSED is GREY, not red: a locked payroll month is not a refusal of this
+ * employee's claim, and colouring it like one would say it was.
+ */
 function otStateColor(state) {
   if (state === "PENDING") return "purple";
   if (state === "APPROVED") return "green";
   if (state === "REJECTED") return "red";
+  if (state === "CLOSED") return "gray";
   return "orange";
 }
 

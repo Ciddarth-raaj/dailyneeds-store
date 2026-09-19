@@ -81,6 +81,13 @@ test("the OT status uses the four request words, and the tab reads them from one
   assert.match(util, /REJECTED: "Rejected"/);
 });
 
+test("the web OT tab also separates a payroll closure from a rejection", () => {
+  assert.match(otList, /Rejected: \{status\.rejectionReason\}/);
+  assert.match(otList, /Closed: \{status\.closureReason\}/);
+  const util = read("util/attendanceV2.js");
+  assert.match(util, /CLOSED: "Closed – Payroll Locked"/);
+});
+
 test("an existing request shows requested OT, reason, submitted time and the rejection reason", () => {
   assert.match(otList, /Requested OT:/);
   assert.match(otList, /Reason: \{status\.reason\}/);

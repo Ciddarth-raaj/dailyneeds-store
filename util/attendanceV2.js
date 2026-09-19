@@ -131,16 +131,48 @@ function dayIssue(day) {
  *   AVAILABLE               "OT Available: 00:28"        + Request OT
  *   REQUEST_PENDING         "OT Request Pending: 00:28"
  *   APPROVED                "OT Approved: 00:28"
- *   REJECTED                "OT Rejected"
- *   CLOSED_AT_PAYROLL_LOCK  "OT Rejected" + the closure wording in the detail
+ *   REJECTED                "OT Rejected"                 an APPROVER said no
+ *   CLOSED_AT_PAYROLL_LOCK  "OT Closed – Payroll Locked"  the PERIOD said no
+ *
+ * THE LAST TWO ARE NOT THE SAME THING AND ARE NOT SHOWN AS THE SAME THING.
+ * A rejection is a person's decision on this employee's claim and carries
+ * that person's remarks; a closure is the payroll period being shut, which
+ * no one decided about this claim in particular. The database stores the
+ * closure on a row whose `status` happens to be REJECTED - that is a storage
+ * detail, and `ot_closure_reason` is what distinguishes them - so the
+ * distinction is made HERE, where an employee reads it. Telling somebody
+ * their overtime was "rejected" when in fact the month closed sends them to
+ * argue with a manager who decided nothing.
  *
  * @returns {{state:string, label:string, minutes:number, canRequest:boolean,
  *   color:string, detail:string|null}|null} null when the day has no OT at all
+ */
+/**
+ * The closure wording as the BACKEND records it, kept for the approval
+ * screens that already show `closure_label` from the request row.
  */
 const OT_CLOSURE_LABEL = Object.freeze({
   NOT_REQUESTED_BEFORE_PAYROLL_LOCK: "Rejected – Not Requested Before Payroll Lock",
   NOT_APPROVED_BEFORE_PAYROLL_LOCK: "Rejected – Not Approved Before Payroll Lock",
 });
+
+/**
+ * The same two closures as an EMPLOYEE should read them: the period closed,
+ * and why it caught this date. The word "Rejected" is deliberately absent -
+ * nobody rejected anything.
+ */
+const OT_CLOSURE_EMPLOYEE_LABEL = Object.freeze({
+  NOT_REQUESTED_BEFORE_PAYROLL_LOCK: "Payroll for this month was locked before this OT was requested",
+  NOT_APPROVED_BEFORE_PAYROLL_LOCK: "Payroll for this month was locked before this OT was approved",
+});
+
+/** The user-facing name of the closed state, wherever it is shown. */
+const OT_CLOSED_LABEL = "Closed – Payroll Locked";
+
+function otClosureReason(day) {
+  if (!day) return null;
+  return OT_CLOSURE_EMPLOYEE_LABEL[day.ot_closure_reason] || "Payroll for this month was locked";
+}
 
 function otClaim(day) {
   if (!day) return null;
@@ -161,13 +193,14 @@ function otClaim(day) {
     case "REJECTED":
       return { state, label: "OT Rejected", minutes: requested, canRequest: false, color: "red", detail: null };
     case "CLOSED_AT_PAYROLL_LOCK":
+      // GREY, NOT RED, AND NOT THE WORD "REJECTED". See the header.
       return {
         state,
-        label: "OT Rejected",
+        label: `OT ${OT_CLOSED_LABEL}`,
         minutes: requested,
         canRequest: false,
-        color: "red",
-        detail: OT_CLOSURE_LABEL[day.ot_closure_reason] || "Closed at payroll lock",
+        color: "gray",
+        detail: otClosureReason(day),
       };
     default:
       return null;
@@ -231,6 +264,12 @@ const OT_REQUEST_STATUS = Object.freeze({
   PENDING: "Pending",
   APPROVED: "Approved",
   REJECTED: "Rejected",
+  // A FIFTH STATUS, because a closed period is not a decision. `Rejected`
+  // below carries an approver's remarks in `rejectionReason`; `Closed`
+  // carries the period's reason in `closureReason` and leaves
+  // `rejectionReason` null, so no screen can print a closure as though
+  // somebody had refused the claim.
+  CLOSED: "Closed – Payroll Locked",
 });
 
 function otRequestStatus(day) {
@@ -242,6 +281,7 @@ function otRequestStatus(day) {
     requestedAt: (day && day.ot_requested_at) || null,
     decidedAt: (day && day.ot_decided_at) || null,
     rejectionReason: null,
+    closureReason: null,
   };
   switch (claim.state) {
     case "REQUEST_PENDING":
@@ -261,10 +301,11 @@ function otRequestStatus(day) {
     case "CLOSED_AT_PAYROLL_LOCK":
       return {
         ...base,
-        key: "REJECTED",
-        label: OT_REQUEST_STATUS.REJECTED,
-        color: "red",
-        rejectionReason: OT_CLOSURE_LABEL[day && day.ot_closure_reason] || "Closed at payroll lock",
+        key: "CLOSED",
+        label: OT_REQUEST_STATUS.CLOSED,
+        color: "gray",
+        // NOT `rejectionReason`: nobody rejected this.
+        closureReason: otClosureReason(day),
       };
     default:
       return { ...base, key: "NOT_REQUESTED", label: OT_REQUEST_STATUS.NOT_REQUESTED, color: "gray" };
@@ -939,6 +980,9 @@ module.exports = {
   canVoidPunch,
   dayPunchRows,
   OT_CLOSURE_LABEL,
+  OT_CLOSURE_EMPLOYEE_LABEL,
+  OT_CLOSED_LABEL,
+  otClosureReason,
   dayIssue,
   SUMMARY_FILTER,
   NEED_ACTION_ISSUE_KEYS,
