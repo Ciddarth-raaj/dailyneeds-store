@@ -1475,15 +1475,21 @@ test("the two screens point at each other", () => {
   assert.match(codeOf(queue), /href="\/hr\/employees"/);
 });
 
-/* ========== the Onboarding queue is HR and administrators only ========== */
+/* ====== the Onboarding queue: rights-based access, branch-based data ==== */
 /**
- * A work queue for HR, company-wide. A store manager is refused outright -
- * there is deliberately no branch-scoped version of this screen - and the
- * refusal must reach them BEFORE any data is requested, not as a dashboard
- * of zeroes after it arrives.
+ * ACCESS IS RIGHTS BASED. The queue is gated on `view_hr_onboarding_dashboard`
+ * and `view_employees` and on NOTHING ELSE - not a designation, not a user
+ * type, not "HR only". A store manager granted the right opens it; a user
+ * without the right is refused, and the refusal must reach them BEFORE any
+ * data is requested, not as a dashboard of zeroes after it arrives.
+ *
+ * DATA IS BRANCH BASED, and that is the server's existing employee branch
+ * scope applied to both requests. The screen's job is not to widen it: the
+ * outlet dropdown is built from the rows it was given rather than from the
+ * company-wide outlet directory.
  */
 
-test("THE QUEUE IS GATED ON ITS OWN DEDICATED PERMISSION", () => {
+test("THE QUEUE IS GATED ON ITS OWN DEDICATED RIGHT, NOT ON A DESIGNATION", () => {
   const code = codeOf(queue);
   assert.match(code, /canViewOnboardingQueue\(actor\)/, "it reads the shared rule");
   assert.match(code, /usePayrollActor\(\)/, "from the shared actor");
@@ -1499,6 +1505,24 @@ test("THE QUEUE IS GATED ON ITS OWN DEDICATED PERMISSION", () => {
   );
   // And it is NOT the sensitive key: that still gates only the cash route.
   assert.match(code, /canSeePaymentRoute = usePermissions\(\["view_employee_sensitive"\]\)/);
+  // No designation or user-type test of its own beyond the shared actor's
+  // administrator bypass - "HR only" must not come back in another shape.
+  assert.ok(!/designation/i.test(code), "the screen must not decide access by designation");
+});
+
+test("THE OUTLET DROPDOWN IS BUILT FROM THE SCOPED ROWS, NOT THE DIRECTORY", () => {
+  const code = codeOf(queue);
+  // The company-wide outlet directory may NAME an outlet; it may not decide
+  // which outlets a branch-scoped user is offered. Offering every store in
+  // the company to a store manager discloses those stores' existence and
+  // names on a screen whose employees the server already narrowed.
+  assert.match(code, /queueOutlets\(queue, outletDirectory\)/);
+  assert.ok(
+    !/\(outlets \|\| \[\]\)\.map/.test(code) || /queueOutlets/.test(code),
+    "the dropdown must render the derived outlets"
+  );
+  // A selection made before the rows arrived must not survive them.
+  assert.match(code, /setOutlet\(""\)/);
 });
 
 test("A DENIED USER CAUSES NO REQUEST AND SEES NO ZEROES", () => {
@@ -1517,10 +1541,10 @@ test("A DENIED USER CAUSES NO REQUEST AND SEES NO ZEROES", () => {
   assert.match(code, /You do not have permission to view the HR onboarding dashboard\./);
 });
 
-test("EMPLOYEE MASTER HIDES THE QUEUE LINK FROM A STORE MANAGER", () => {
+test("EMPLOYEE MASTER SHOWS THE QUEUE LINK TO WHOEVER HOLDS THE RIGHT", () => {
   const code = codeOf(list);
-  // Gated on the dedicated key, through the shared rule - so a manager with
-  // view_employees, employee_edit and branch access still sees no button.
+  // Gated on the dedicated right, through the shared rule - so a manager
+  // WITHOUT it sees no button, and a manager granted it does.
   assert.ok(
     !/employee_scope_all_branches/.test(code),
     "the link must not be gated on company-wide employee scope"
@@ -1539,7 +1563,8 @@ test("EMPLOYEE MASTER HIDES THE QUEUE LINK FROM A STORE MANAGER", () => {
 test("THE EMPLOYEE MASTER LIST ITSELF IS NOT RESTRICTED BY THIS", () => {
   const code = codeOf(list);
   // Employee Master stays exactly as it was - branch-scoped on the server for
-  // managers, and gated here on `view_employees`. Only the LINK is HR's.
+  // managers, and gated here on `view_employees`. Only the LINK carries the
+  // dashboard right.
   assert.match(code, /usePermissions\(\["view_employees"\]\)/);
   assert.ok(
     !/if \(!canOpenQueue\)/.test(code),

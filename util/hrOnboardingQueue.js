@@ -536,6 +536,66 @@ function statusBadge(value, { pendingLabel = "Pending", completeLabel = "Complet
   return { label: "—", colorScheme: "gray", unknown: true };
 }
 
+/* ---------------------------------------------------------------- outlets */
+
+/**
+ * THE OUTLETS THIS USER MAY FILTER BY - derived from the employees they were
+ * actually given, never from the outlet directory on its own.
+ *
+ * WHY IT IS NOT JUST `useOutlets()`. The outlet directory is company-wide: it
+ * exists so a screen can name a branch, and it answers to its own permission.
+ * Dropping it straight into this dashboard's filter meant a branch-scoped
+ * store manager was offered every outlet in the company by name and could
+ * select one, which is a disclosure ("these other stores exist, and here is
+ * what they are called") on a screen whose whole population the backend had
+ * already narrowed to their own branch. Selecting one of them produced an
+ * empty queue, so nothing leaked through the rows - the LIST ITSELF was the
+ * leak.
+ *
+ * THE EMPLOYEE ROWS ARE ALREADY THE ANSWER. `GET /employee/employees` is
+ * branch-scoped on the server, so the distinct branches present in those rows
+ * ARE the branches this caller is authorised for. Deriving the dropdown from
+ * them cannot widen it, and it cannot fall out of step with the queue,
+ * the counts or the backend's rule, because it is the same data.
+ *
+ * NOT A SECURITY BOUNDARY, and it does not need to be. The server narrows the
+ * employee list and the status summary independently; this only stops the
+ * screen from NAMING branches the caller was never shown. Both halves of the
+ * rule hold on their own.
+ *
+ * The directory is still consulted, for the outlet's proper name - a row's
+ * `store_name` is whatever the employee join produced and may be missing.
+ * An outlet present in the rows but absent from the directory is still
+ * offered, under the row's name or its id, rather than silently dropped:
+ * losing a filter for employees that ARE on screen would be the opposite
+ * mistake.
+ *
+ * Active employees only, matching every other reading on this screen.
+ */
+function queueOutlets(rows, outlets) {
+  const named = new Map(
+    (outlets || [])
+      .filter((o) => o && o.outlet_id !== undefined && o.outlet_id !== null)
+      .map((o) => [String(o.outlet_id), o.outlet_name])
+  );
+
+  const seen = new Map();
+  for (const row of rows || []) {
+    if (!isActive(row)) continue;
+    if (row.store_id === undefined || row.store_id === null || row.store_id === "") continue;
+    const id = String(row.store_id);
+    if (seen.has(id)) continue;
+    seen.set(id, {
+      outlet_id: row.store_id,
+      outlet_name: named.get(id) || row.store_name || `Outlet ${id}`,
+    });
+  }
+
+  return [...seen.values()].sort((a, b) =>
+    String(a.outlet_name).localeCompare(String(b.outlet_name))
+  );
+}
+
 module.exports = {
   PENDING,
   COMPLETE,
@@ -553,5 +613,6 @@ module.exports = {
   matchesFilter,
   filterQueue,
   queueCounts,
+  queueOutlets,
   statusBadge,
 };

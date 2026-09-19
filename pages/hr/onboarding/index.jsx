@@ -31,6 +31,7 @@ import {
   queueCards,
   queueCounts,
   queueFilters,
+  queueOutlets,
   queueRow,
   statusBadge,
 } from "../../../util/hrOnboardingQueue";
@@ -41,14 +42,49 @@ import { canViewOnboardingQueue } from "../../../util/hrProfile";
 /**
  * Onboarding / Pending HR — the compliance work queue.
  *
- * HR AND ADMINISTRATORS ONLY, AND COMPANY-WIDE. This is HR's follow-up list,
- * so a store manager is refused outright rather than shown the same queue
- * narrowed to their own branch - the counts would mean nothing at one outlet
- * and there is no follow-up for a manager to do on them. The rule is the
- * company-wide employee scope the backend already decides (`user_type` admin,
- * or `employee_scope_all_branches`, which is HR's key), read here through
- * `canViewOnboardingQueue`; no new permission and no branch-scoped variant of
- * this screen exists.
+ * ACCESS IS RIGHTS BASED; DATA IS BRANCH BASED. Those are two decisions and
+ * this screen keeps them apart, because collapsing them is what made the
+ * screen wrong before:
+ *
+ *   MAY THIS USER OPEN IT?     two rights, and nothing else -
+ *                              `view_hr_onboarding_dashboard` to open the
+ *                              queue and `view_employees` to read employees
+ *                              at all. NOT a designation, NOT a user type,
+ *                              NOT HR-only. A store manager granted the
+ *                              dashboard right on the rights screen opens it
+ *                              exactly like HR does.
+ *   WHICH EMPLOYEES DOES IT    the EXISTING employee branch scope, decided on
+ *   SHOW?                      the server: a branch-scoped user sees their own
+ *                              authorised store(s), a holder of
+ *                              `employee_scope_all_branches` sees every
+ *                              branch, an administrator (`user_type = 2`)
+ *                              sees every branch. There is no second store
+ *                              scope here and this screen invents none.
+ *
+ * It used to be refused outright to anybody who was not HR or an
+ * administrator, on the reasoning that the counts "would mean nothing at one
+ * outlet". That was a scope question answered with an access rule: a store
+ * manager's own branch is precisely what the counts should mean to them, and
+ * the branch scope already produces that queue without any help from this
+ * screen. The refusal is gone; the narrowing does the work.
+ *
+ * THE SERVER IS THE BOUNDARY, BOTH TIMES. Both requests this page makes are
+ * branch-scoped on the server, independently of each other and of anything
+ * decided here:
+ *
+ *   GET /employee/employees             `view_employees` + branch scope
+ *   GET /hr/employees/status-summary    `view_employees` + the SAME branch
+ *                                       scope, so the badge endpoint cannot
+ *                                       disclose the existence, or the
+ *                                       onboarding state, of an employee the
+ *                                       list itself refuses to return.
+ *
+ * Nothing on this page filters for security. The outlet dropdown, the cards
+ * and the search all operate on rows the server already narrowed, and the
+ * dropdown is built from THOSE ROWS (`queueOutlets`) rather than from the
+ * company-wide outlet directory, so a scoped user is never even told the
+ * names of branches they cannot see. The counts are computed over the same
+ * narrowed rows, so no card can total another store's employees.
  *
  * IT IS NOT THE SENSITIVE KEY. Opening this queue and being told how somebody
  * is paid stay separate questions: `view_employee_sensitive` still decides
@@ -56,7 +92,8 @@ import { canViewOnboardingQueue } from "../../../util/hrProfile";
  * without it gets the dashboard with those two withheld.
  *
  * EMPLOYEE MASTER IS UNCHANGED AND STILL BRANCH-SCOPED for the managers who
- * use it. Nothing here loosens that; this screen simply is not theirs.
+ * use it. This screen is narrowed by that SAME scope rather than exempted
+ * from it - one store-scope system, applied twice, not two.
  *
  * THE OTHER HALF OF THE EMPLOYEE MASTER. `/hr/employees` answers "who is this
  * person and where do they work" and is now clean of compliance badges; this
@@ -64,8 +101,8 @@ import { canViewOnboardingQueue } from "../../../util/hrProfile";
  * jobs done by different people at different times, and one screen serving
  * both gave 630 employees three badges each to chase the handful who need it.
  *
- * NO NEW ENDPOINT, NO NEW PERMISSION, NO NEW STATE. Exactly the two requests
- * the employee list already makes:
+ * NO NEW ENDPOINT AND NO NEW STATE. Exactly the two requests the employee
+ * list already makes, both branch-scoped on the server:
  *
  *   GET /employee/employees             `view_employees` - who exists
  *   GET /hr/employees/status-summary    `view_employees` - their statuses
@@ -125,11 +162,12 @@ const CARD_PAGE = 24;
 
 function OnboardingQueue() {
   /**
-   * HR AND ADMINISTRATORS ONLY, COMPANY-WIDE - the rule lives in
-   * `util/hrProfile.js#canViewOnboardingQueue` and is the company-wide
-   * employee scope the backend already decides. A store manager is REFUSED
-   * here rather than shown a branch-narrowed version of the queue: this
-   * screen is HR's follow-up list, and a manager has no follow-up to do on it.
+   * TWO RIGHTS, NO DESIGNATION. `canViewOnboardingQueue` reads
+   * `view_hr_onboarding_dashboard` (or the administrator bypass) and
+   * `view_employees` is checked beside it. Nothing here asks what the user's
+   * designation or user type is beyond that bypass, so a store manager who
+   * has been granted the dashboard right opens this screen - narrowed by the
+   * branch scope to their own store, which is the whole of the rule.
    */
   const actor = usePayrollActor();
   const canOpenQueue = canViewOnboardingQueue(actor);
@@ -164,7 +202,9 @@ function OnboardingQueue() {
   const [department, setDepartment] = useState("");
   const [search, setSearch] = useState("");
 
-  const { outlets } = useOutlets({ directory: true });
+  // The directory names outlets; `queueOutlets` decides WHICH of them this
+  // user may be offered, from the branch-scoped rows themselves.
+  const { outlets: outletDirectory } = useOutlets({ directory: true });
   const { departments } = useDepartments();
 
   useEffect(() => {
@@ -237,6 +277,10 @@ function OnboardingQueue() {
   const cards = useMemo(() => queueCards({ canSeePaymentRoute }), [canSeePaymentRoute]);
   const filters = useMemo(() => queueFilters({ canSeePaymentRoute }), [canSeePaymentRoute]);
 
+  // Only the outlets present in the employees this caller was actually
+  // given - never the company-wide directory. See `queueOutlets`.
+  const outlets = useMemo(() => queueOutlets(queue, outletDirectory), [queue, outletDirectory]);
+
   const counts = useMemo(() => queueCounts(queue, { outlet, department }), [queue, outlet, department]);
   const visible = useMemo(
     () => filterQueue(queue, { filter, outlet, department, search }),
@@ -247,6 +291,13 @@ function OnboardingQueue() {
   useEffect(() => {
     setCardsShown(CARD_PAGE);
   }, [filter, outlet, department, search]);
+
+  // An outlet this user may not filter by cannot stay selected. It cannot
+  // normally be reached - the dropdown never offers one - but a selection
+  // made before the rows arrived must not survive them.
+  useEffect(() => {
+    if (outlet && !outlets.some((o) => String(o.outlet_id) === String(outlet))) setOutlet("");
+  }, [outlets, outlet]);
 
   // A filter this user may not use cannot stay selected - there would be no
   // card to draw the selection on, and no data behind it either. It cannot
