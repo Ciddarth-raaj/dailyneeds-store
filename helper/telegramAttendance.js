@@ -5,6 +5,12 @@ import constants from "../constants/api.js";
  * The Telegram Attendance Mini App API, as `routes/telegram_attendance.js`
  * defines it.
  *
+ * NO BUSINESS LOGIC LIVES HERE AND NONE IS DUPLICATED BELOW. Both writes go
+ * to thin authenticated routes that delegate to the very usecases the web
+ * app uses - `raiseRequest` for a correction, `raiseOtRequest` for OT - so
+ * there is one correction engine and one OT engine in this system, not two
+ * of each.
+ *
  * ============================== ITS OWN AXIOS INSTANCE, ON PURPOSE =========
  *
  * NOT `util/api.js`. That instance carries the dnds.co.in session in
@@ -86,6 +92,27 @@ const telegramAttendance = {
       .post(
         "/telegram/attendance/regularization",
         { attendance_date, punch_time, reason },
+        { headers: authHeaders() }
+      )
+      .then((r) => r.data),
+
+  /**
+   * OT: `{ attendance_date, reason }`. TWO FIELDS, AND NEITHER IS A
+   * DURATION.
+   *
+   * The arguments are destructured rather than spread precisely so that a
+   * caller who passes a whole day object cannot leak `candidate_ot_minutes`
+   * onto the wire - only these two names are read, and the API refuses any
+   * other key with a 422 anyway. The minutes are recalculated on the server
+   * at submission by the same `raiseOtRequest` the web app reaches through
+   * `POST /attendance/me/ot-request`; this route exists only because a Mini
+   * App has no dnds.co.in session to present to that one.
+   */
+  submitOtRequest: ({ attendance_date, reason }) =>
+    client
+      .post(
+        "/telegram/attendance/ot-request",
+        { attendance_date, reason },
         { headers: authHeaders() }
       )
       .then((r) => r.data),
