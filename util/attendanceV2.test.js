@@ -710,3 +710,56 @@ test("the Correction tab shows filed corrections and the days still needing one"
   ]);
   assert.deepEqual(rows.map((r) => r.attendance_date), ["2026-09-02", "2026-09-03"]);
 });
+
+/* ========== OT authorised by an approved one-day shift change =========== */
+
+test("an approved shift change shows Approved via Shift Change, and offers no request for it", () => {
+  const { otRequestStatus, canRequestOt } = require("./attendanceV2");
+  const day = {
+    ot_claim_state: "APPROVED_VIA_SHIFT_CHANGE",
+    candidate_ot_minutes: 300,
+    ot_shift_authorised_minutes: 300,
+    ot_claimable_minutes: 0,
+    approved_ot_minutes: 300,
+    ot_authorising_request_id: 901,
+    is_final: true,
+    status: "FINAL",
+  };
+  const status = otRequestStatus(day);
+  assert.strictEqual(status.key, "APPROVED_VIA_SHIFT_CHANGE");
+  assert.strictEqual(status.label, "Approved via Shift Change");
+  assert.strictEqual(status.authorisingRequestId, 901, "it points at the decision that authorised it");
+  // The employee is NEVER asked to claim what somebody already approved.
+  assert.strictEqual(canRequestOt(day), false);
+  // And it is not dressed up as an OT request that nobody filed.
+  assert.strictEqual(status.requestId, null);
+});
+
+test("only the part OUTSIDE the approved shift is still requestable", () => {
+  const { otRequestStatus, canRequestOt } = require("./attendanceV2");
+  const day = {
+    ot_claim_state: "APPROVED_VIA_SHIFT_CHANGE",
+    candidate_ot_minutes: 570,
+    ot_shift_authorised_minutes: 480,
+    ot_claimable_minutes: 90,
+    approved_ot_minutes: 480,
+    is_final: true,
+    status: "FINAL",
+  };
+  assert.strictEqual(canRequestOt(day), true, "the excess follows the ordinary path");
+  assert.strictEqual(otRequestStatus(day).minutes, 480, "and the badge reports what was authorised");
+});
+
+test("an ordinary OT day is untouched: Not Requested, and requestable", () => {
+  const { otRequestStatus, canRequestOt } = require("./attendanceV2");
+  const day = {
+    ot_claim_state: "AVAILABLE",
+    candidate_ot_minutes: 120,
+    ot_claimable_minutes: 120,
+    ot_shift_authorised_minutes: 0,
+    is_final: true,
+    status: "FINAL",
+  };
+  assert.strictEqual(otRequestStatus(day).key, "NOT_REQUESTED");
+  assert.strictEqual(canRequestOt(day), true);
+});

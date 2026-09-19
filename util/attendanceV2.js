@@ -183,9 +183,37 @@ function otClaim(day) {
     : Math.max(0, Math.trunc(Number(day.ot_requested_minutes) || 0));
   const approved = Math.max(0, Math.trunc(Number(day.approved_ot_minutes) || 0));
 
+  // What an approved SHIFT CHANGE already authorised, and what is left to
+  // claim. Both come from the server; on an ordinary date the first is 0 and
+  // the second is the whole candidate.
+  const shiftAuthorised = Math.max(0, Math.trunc(Number(day.ot_shift_authorised_minutes) || 0));
+  const claimable =
+    day.ot_claimable_minutes === null || day.ot_claimable_minutes === undefined
+      ? candidate
+      : Math.max(0, Math.trunc(Number(day.ot_claimable_minutes) || 0));
+
   switch (state) {
+    /*
+     * APPROVED BY THE SHIFT CHANGE ITSELF. There is no OT request and there
+     * must not be one - the approval already happened, under Shift, and
+     * asking the employee to claim it again would be asking twice for one
+     * decision. `canRequest` is true ONLY for whatever fell outside the
+     * approved shift's own window, which the ordinary path still covers.
+     */
+    case "APPROVED_VIA_SHIFT_CHANGE":
+      return {
+        state,
+        label: `OT Approved via Shift Change: ${formatOtClock(shiftAuthorised)}`,
+        minutes: shiftAuthorised,
+        canRequest: claimable > 0,
+        color: "green",
+        detail:
+          claimable > 0
+            ? `${formatOtClock(claimable)} worked outside the approved shift is still to be requested`
+            : null,
+      };
     case "AVAILABLE":
-      return { state, label: `OT Available: ${formatOtClock(candidate)}`, minutes: candidate, canRequest: true, color: "blue", detail: null };
+      return { state, label: `OT Available: ${formatOtClock(claimable)}`, minutes: claimable, canRequest: true, color: "blue", detail: null };
     case "REQUEST_PENDING":
       return { state, label: `OT Request Pending: ${formatOtClock(requested)}`, minutes: requested, canRequest: false, color: "orange", detail: day.ot_reason || null };
     case "APPROVED":
@@ -266,6 +294,10 @@ function myTabAtIndex(index) {
  */
 const OT_REQUEST_STATUS = Object.freeze({
   NOT_REQUESTED: "Not Requested",
+  // A SIXTH STATUS, and not "Approved": an approved one-day shift change
+  // authorises the overtime it produces, so the employee never filed - and
+  // must never be asked to file - a request for it.
+  APPROVED_VIA_SHIFT_CHANGE: "Approved via Shift Change",
   PENDING: "Pending",
   APPROVED: "Approved",
   REJECTED: "Rejected",
@@ -289,6 +321,16 @@ function otRequestStatus(day) {
     closureReason: null,
   };
   switch (claim.state) {
+    case "APPROVED_VIA_SHIFT_CHANGE":
+      return {
+        ...base,
+        key: "APPROVED_VIA_SHIFT_CHANGE",
+        label: OT_REQUEST_STATUS.APPROVED_VIA_SHIFT_CHANGE,
+        color: "green",
+        // The request that authorised it, so the row can point at the
+        // decision instead of implying an OT request nobody made.
+        authorisingRequestId: (day && day.ot_authorising_request_id) || null,
+      };
     case "REQUEST_PENDING":
       return { ...base, key: "PENDING", label: OT_REQUEST_STATUS.PENDING, color: "orange" };
     case "APPROVED":

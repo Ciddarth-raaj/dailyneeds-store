@@ -165,3 +165,18 @@ test("the two tabs raise two separate requests", () => {
   assert.ok(!/RegularizationForm/.test(otList), "the OT tab cannot raise a correction");
   assert.ok(!/OtRequestForm/.test(correctionList), "the correction tab cannot raise OT");
 });
+
+/* ============ OT authorised by an approved one-day shift change ========= */
+
+test("the OT tab says Approved via Shift Change, and never offers to claim it again", () => {
+  const otList = strip(read("components/attendance/OtRequestList.jsx"));
+  // The row states where the approval came from, and names the request that
+  // made it - not an OT request, which does not exist for these minutes.
+  assert.match(otList, /status\.key !== "APPROVED_VIA_SHIFT_CHANGE"/);
+  assert.match(otList, /Approved by your shift change/);
+  assert.match(otList, /no OT request needed/);
+  assert.match(otList, /outside the approved shift is still to be requested/);
+  // Request OT is still gated on `canRequestOt`, which is false once the
+  // shift change has authorised the whole of it.
+  assert.match(otList, /if \(!canRequestOt\(day\)\) return/);
+});

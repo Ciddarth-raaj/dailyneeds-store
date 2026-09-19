@@ -75,6 +75,26 @@ function StatusBadge({ status }) {
 }
 
 /**
+ * The one line an approved shift change earns on this tab.
+ *
+ * It is NOT an OT request and there is none to link to: the approval happened
+ * under Shift, and this says so rather than leaving a green "Approved" badge
+ * on a row the employee never filed. `RowAction` still offers Request OT when
+ * some of the day fell outside the approved shift - that part follows the
+ * ordinary path.
+ */
+function ShiftAuthorisation({ status, day }) {
+  if (status.key !== "APPROVED_VIA_SHIFT_CHANGE") return null;
+  const claimable = Math.max(0, Math.trunc(Number(day.ot_claimable_minutes) || 0));
+  return (
+    <Text fontSize="10px" color="green.700">
+      Approved by your shift change{status.authorisingRequestId ? ` (request #${status.authorisingRequestId})` : ""}
+      {claimable > 0 ? ` · ${formatOtClock(claimable)} outside the approved shift is still to be requested` : " · no OT request needed"}
+    </Text>
+  );
+}
+
+/**
  * The reason an employee gave, and the reason it came back.
  *
  * A REJECTION AND A CLOSURE ARE PRINTED DIFFERENTLY because they are not
@@ -198,6 +218,7 @@ function OtCard({ day, onSelect, onRequestOt }) {
             {status.key === "APPROVED" ? ` · Approved ${formatOtClock(day.approved_ot_minutes)}` : null}
           </Text>
         ) : null}
+        <ShiftAuthorisation status={status} day={day} />
         <Reasons status={status} />
         <Timestamps status={status} />
         <Box>
@@ -264,6 +285,7 @@ function OtTable({ days, onSelect, onRequestOt }) {
                 </Td>
                 <Td>
                   <StatusBadge status={status} />
+                  <ShiftAuthorisation status={status} day={day} />
                   <Reasons status={status} />
                   <Timestamps status={status} />
                 </Td>
