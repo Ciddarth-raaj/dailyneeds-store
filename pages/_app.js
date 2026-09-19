@@ -58,6 +58,12 @@ const unprotectedPath = {
   "/": true,
   // Stage 0A: redeeming a setup/reset link happens before there is a session.
   "/setup-password": true,
+  // The Telegram Attendance Mini App. It runs inside Telegram's WebView with
+  // no dnds.co.in session and no way to obtain one - most employees have no
+  // login at all - and it authenticates itself with Telegram's signed
+  // initData against its own scoped API. Without this entry the shell would
+  // bounce every employee to the login screen before the page could run.
+  "/telegram/attendance": true,
 };
 
 class MyApp extends React.Component {
