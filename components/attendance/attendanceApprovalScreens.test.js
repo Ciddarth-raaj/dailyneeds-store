@@ -286,7 +286,41 @@ test("29. a saved change whose recalculation FAILED is never shown as a success"
   assert.match(shiftEditor, /<Alert status="error"[\s\S]*?Saved, but attendance was NOT recalculated/);
   // And a deterministic retry over the exact range the server named.
   assert.match(shiftEditor, /Retry recalculation \(\{partial\.range\.from\} to \{partial\.range\.to\}\)/);
-  assert.match(shiftEditor, /recalculateBulk\(\{[\s\S]*?from_date: partial\.range\.from,[\s\S]*?to_date: partial\.range\.to,/);
+});
+
+test("29b. the retry uses the SHIFT-ASSIGNMENT route, not the general recalculation endpoint", () => {
+  /*
+   * Recalculate Attendance is behind `recalculate_attendance` - the general
+   * tool, pointed at any employee, outlet or designation, and a key the
+   * person who just edited this employee's shift need not hold. Retrying
+   * there would have refused exactly the user entitled to finish the job,
+   * and granting them that key to avoid the refusal would have handed them
+   * the general tool. The recovery keeps the change's own authority.
+   */
+  assert.match(
+    shiftEditor,
+    /EmployeeWorkShiftHelper\.recalculateAfterChange\(\{[\s\S]*?employee_id: employeeId,[\s\S]*?from_date: partial\.range\.from,[\s\S]*?to_date: partial\.range\.to,/
+  );
+  assert.ok(!/recalculateBulk/.test(shiftEditor), "the general endpoint is not reachable from this screen");
+  assert.ok(!/AttendanceV2Helper/.test(shiftEditor), "and its helper is not even imported");
+
+  const workShiftHelper = strip(read("helper/employeeWorkShift.js"));
+  assert.match(workShiftHelper, /"\/hr\/work-shift-assignments\/recalculate"/);
+  assert.match(workShiftHelper, /\{ employee_id, from_date, to_date \}/);
+  assert.ok(
+    !/store_id|designation_id|employee_ids/.test(
+      workShiftHelper.slice(workShiftHelper.indexOf("recalculateAfterChange"), workShiftHelper.indexOf("getAssignmentHistory"))
+    ),
+    "one employee, one range, nothing that widens it"
+  );
+});
+
+test("29c. a SUCCESSFUL retry clears the red state and reports completion", () => {
+  // The red warning is cleared only on the success path, and the message the
+  // server sent is what the user is shown.
+  assert.match(shiftEditor, /setPartial\(null\);\s*setNotice\(\s*res\.msg/);
+  // A failed retry keeps the red state and says so instead.
+  assert.match(shiftEditor, /The recalculation failed again/);
 });
 
 test("30. a future effective date is not offered, because nothing would activate it", () => {

@@ -23,7 +23,6 @@ import {
 } from "@chakra-ui/react";
 import CustomModal from "../CustomModal";
 import EmployeeWorkShiftHelper from "../../helper/employeeWorkShift";
-import AttendanceV2Helper from "../../helper/attendanceV2";
 
 /**
  * EDIT SHIFT ASSIGNMENT, and the SHIFT HISTORY beside it.
@@ -126,18 +125,27 @@ export default function ShiftAssignmentEditor({
     setRetrying(true);
     setError(null);
     try {
-      const res = await AttendanceV2Helper.recalculateBulk({
+      /*
+       * THE SHIFT-ASSIGNMENT RETRY, not the general recalculation endpoint.
+       *
+       * Recalculate Attendance is behind `recalculate_attendance`, which the
+       * person who just edited this employee's shift need not hold - so
+       * retrying there would have refused the one user entitled to finish the
+       * job. This route carries the same authority as the change itself.
+       */
+      const res = await EmployeeWorkShiftHelper.recalculateAfterChange({
         employee_id: employeeId,
         from_date: partial.range.from,
         to_date: partial.range.to,
       });
       if (!res || res.code !== 200) {
-        setError((res && res.msg) || "The recalculation failed again. Use Recalculate Attendance for this range.");
+        setError((res && res.msg) || "The recalculation failed again. Please try once more.");
         return;
       }
+      // The red state is cleared only when the retry actually succeeded.
       setPartial(null);
       setNotice(
-        `Attendance for ${partial.range.from} to ${partial.range.to} has now been recalculated.`
+        res.msg || `Attendance for ${partial.range.from} to ${partial.range.to} has now been recalculated.`
       );
     } catch (err) {
       setError("Could not reach the server. Please try again.");

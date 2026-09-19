@@ -122,6 +122,29 @@ const employeeWorkShift = {
     }),
 
   /**
+   * POST /hr/work-shift-assignments/recalculate —
+   * `{ employee_id, from_date, to_date }`.
+   *
+   * THE RECOVERY for a 207 from `changeAssignment`, and deliberately NOT
+   * `/attendance/calculated/recalculate-bulk`. That endpoint is the general
+   * tool - any employee, any outlet, any designation - behind
+   * `recalculate_attendance`, a key a shift editor need not hold; retrying
+   * through it would have answered 403 to exactly the person entitled to fix
+   * the problem, and granting them that key to avoid the 403 would have
+   * handed them the general tool.
+   *
+   * This one needs the SAME two keys as the change it follows, is scoped to
+   * an employee the caller may reach, and takes one employee and one range
+   * with no parameter that could widen either.
+   */
+  recalculateAfterChange: ({ employee_id, from_date, to_date }) =>
+    new Promise((resolve, reject) => {
+      API.post("/hr/work-shift-assignments/recalculate", { employee_id, from_date, to_date })
+        .then((res) => resolve(res.data))
+        .catch(reject);
+    }),
+
+  /**
    * GET /hr/work-shift-assignments/history/:id — every dated row for one
    * employee, newest first: `{ effective_from, shift, source, reason,
    * changed_by_name, changed_at, is_current, is_future_dated }`.
