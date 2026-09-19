@@ -763,3 +763,50 @@ test("an ordinary OT day is untouched: Not Requested, and requestable", () => {
   assert.strictEqual(otRequestStatus(day).key, "NOT_REQUESTED");
   assert.strictEqual(canRequestOt(day), true);
 });
+
+test("a closed excess does not un-approve what the shift change authorised", () => {
+  const { otRequestStatus, canRequestOt, otClaim } = require("./attendanceV2");
+  const day = {
+    ot_claim_state: "APPROVED_VIA_SHIFT_CHANGE",
+    ot_excess_state: "CLOSED_AT_PAYROLL_LOCK",
+    candidate_ot_minutes: 570,
+    ot_shift_authorised_minutes: 480,
+    ot_claimable_minutes: 90,
+    approved_ot_minutes: 480,
+    ot_closure_reason: "NOT_REQUESTED_BEFORE_PAYROLL_LOCK",
+    is_final: true,
+    status: "FINAL",
+  };
+  const status = otRequestStatus(day);
+  // The day is NOT "Closed – Payroll Locked": eight approved hours are not
+  // un-approved by a closed thirty-minute remainder.
+  assert.strictEqual(status.key, "APPROVED_VIA_SHIFT_CHANGE");
+  assert.strictEqual(status.excessState, "CLOSED_AT_PAYROLL_LOCK");
+  assert.strictEqual(status.excessMinutes, 90);
+  assert.match(otClaim(day).detail, /outside the approved shift: Closed/);
+  // And there is nothing left to request.
+  assert.strictEqual(canRequestOt(day), false);
+});
+
+test("a pending or approved excess reads as itself, and neither offers a second request", () => {
+  const { otClaim, canRequestOt } = require("./attendanceV2");
+  const base = {
+    ot_claim_state: "APPROVED_VIA_SHIFT_CHANGE",
+    candidate_ot_minutes: 570,
+    ot_shift_authorised_minutes: 480,
+    ot_claimable_minutes: 90,
+    is_final: true,
+    status: "FINAL",
+  };
+  const pending = { ...base, ot_excess_state: "REQUEST_PENDING" };
+  assert.match(otClaim(pending).detail, /awaiting approval/);
+  assert.strictEqual(canRequestOt(pending), false, "it is already requested");
+
+  const approved = { ...base, ot_excess_state: "APPROVED", approved_ot_minutes: 570 };
+  assert.match(otClaim(approved).detail, /was also approved/);
+  assert.strictEqual(canRequestOt(approved), false);
+
+  // Only an unclaimed excess may still be claimed.
+  const available = { ...base, ot_excess_state: "AVAILABLE" };
+  assert.strictEqual(canRequestOt(available), true);
+});

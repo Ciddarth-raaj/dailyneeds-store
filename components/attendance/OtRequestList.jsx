@@ -83,14 +83,40 @@ function StatusBadge({ status }) {
  * some of the day fell outside the approved shift - that part follows the
  * ordinary path.
  */
+const EXCESS_SENTENCE = {
+  AVAILABLE: (m) => `${formatOtClock(m)} outside the approved shift is still to be requested`,
+  REQUEST_PENDING: (m) => `${formatOtClock(m)} outside the approved shift is awaiting approval`,
+  APPROVED: (m) => `${formatOtClock(m)} outside the approved shift was also approved`,
+  REJECTED: (m) => `${formatOtClock(m)} outside the approved shift was rejected`,
+  CLOSED_AT_PAYROLL_LOCK: (m) => `${formatOtClock(m)} outside the approved shift: Closed – Payroll Locked`,
+};
+
 function ShiftAuthorisation({ status, day }) {
   if (status.key !== "APPROVED_VIA_SHIFT_CHANGE") return null;
   const claimable = Math.max(0, Math.trunc(Number(day.ot_claimable_minutes) || 0));
+  const excessState = day.ot_excess_state || (claimable > 0 ? "AVAILABLE" : "NONE");
+  const sentence = claimable > 0 && EXCESS_SENTENCE[excessState] ? EXCESS_SENTENCE[excessState](claimable) : null;
   return (
-    <Text fontSize="10px" color="green.700">
-      Approved by your shift change{status.authorisingRequestId ? ` (request #${status.authorisingRequestId})` : ""}
-      {claimable > 0 ? ` · ${formatOtClock(claimable)} outside the approved shift is still to be requested` : " · no OT request needed"}
-    </Text>
+    <>
+      <Text fontSize="10px" color="green.700">
+        Approved by your shift change{status.authorisingRequestId ? ` (request #${status.authorisingRequestId})` : ""}
+        {sentence ? "" : " · no OT request needed"}
+      </Text>
+      {/*
+        THE EXCESS IS A SECOND FACT, not a replacement for the first. A
+        closed or rejected remainder is printed in its own colour beside the
+        green line rather than turning the whole date grey - those approved
+        hours were approved before the month closed and are still payable.
+      */}
+      {sentence ? (
+        <Text
+          fontSize="10px"
+          color={excessState === "CLOSED_AT_PAYROLL_LOCK" || excessState === "REJECTED" ? "gray.600" : "blue.700"}
+        >
+          {sentence}
+        </Text>
+      ) : null}
+    </>
   );
 }
 

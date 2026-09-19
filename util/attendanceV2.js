@@ -200,18 +200,36 @@ function otClaim(day) {
      * decision. `canRequest` is true ONLY for whatever fell outside the
      * approved shift's own window, which the ordinary path still covers.
      */
-    case "APPROVED_VIA_SHIFT_CHANGE":
+    case "APPROVED_VIA_SHIFT_CHANGE": {
+      /*
+       * THE EXCESS HAS ITS OWN FATE, and it is not the day's.
+       *
+       * A 30-minute excess that was closed at payroll lock, rejected, or is
+       * still pending does not un-approve the five hours the shift change
+       * authorised - so the day stays green and says what happened to the
+       * remainder beside it, rather than presenting the whole date as
+       * closed. `canRequest` is true only while the excess is genuinely
+       * still claimable.
+       */
+      const excessState = day.ot_excess_state || (claimable > 0 ? "AVAILABLE" : "NONE");
+      const excessDetail = {
+        AVAILABLE: `${formatOtClock(claimable)} worked outside the approved shift is still to be requested`,
+        REQUEST_PENDING: `${formatOtClock(claimable)} outside the approved shift is requested and awaiting approval`,
+        APPROVED: `${formatOtClock(claimable)} outside the approved shift was also approved`,
+        REJECTED: `${formatOtClock(claimable)} outside the approved shift was rejected`,
+        CLOSED_AT_PAYROLL_LOCK: `${formatOtClock(claimable)} outside the approved shift: ${OT_CLOSED_LABEL}`,
+      }[excessState] || null;
+
       return {
         state,
         label: `OT Approved via Shift Change: ${formatOtClock(shiftAuthorised)}`,
         minutes: shiftAuthorised,
-        canRequest: claimable > 0,
+        // Only an excess nobody has claimed yet may still be claimed.
+        canRequest: claimable > 0 && excessState === "AVAILABLE",
         color: "green",
-        detail:
-          claimable > 0
-            ? `${formatOtClock(claimable)} worked outside the approved shift is still to be requested`
-            : null,
+        detail: excessDetail,
       };
+    }
     case "AVAILABLE":
       return { state, label: `OT Available: ${formatOtClock(claimable)}`, minutes: claimable, canRequest: true, color: "blue", detail: null };
     case "REQUEST_PENDING":
@@ -330,6 +348,11 @@ function otRequestStatus(day) {
         // The request that authorised it, so the row can point at the
         // decision instead of implying an OT request nobody made.
         authorisingRequestId: (day && day.ot_authorising_request_id) || null,
+        // And what became of the remainder - a second fact, shown beside the
+        // first rather than replacing it.
+        excessState: (day && day.ot_excess_state) || "NONE",
+        excessMinutes: Math.max(0, Math.trunc(Number(day && day.ot_claimable_minutes) || 0)),
+        closureReason: (day && day.ot_closure_reason) ? otClosureReason(day) : null,
       };
     case "REQUEST_PENDING":
       return { ...base, key: "PENDING", label: OT_REQUEST_STATUS.PENDING, color: "orange" };
