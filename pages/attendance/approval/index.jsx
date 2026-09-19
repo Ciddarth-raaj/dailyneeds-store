@@ -21,7 +21,6 @@ import GlobalWrapper from "../../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../../components/CustomContainer";
 import ApprovalQueue from "../../../components/attendance/ApprovalQueue";
 import AttendanceV2Helper from "../../../helper/attendanceV2";
-import useOutlets from "../../../customHooks/useOutlets";
 import useDesignations from "../../../customHooks/useDesignations";
 import { apiMessage, isOk } from "../../../util/attendanceV2";
 
@@ -35,12 +34,12 @@ import { apiMessage, isOk } from "../../../util/attendanceV2";
  * ot-approval` now redirects here with OT preselected rather than being
  * maintained beside it.
  *
- * THE FILTERS NARROW; THEY DO NOT WIDEN. The outlets in the dropdown are the
- * ones this user has rights to, and the server applies its own scope to every
- * query regardless: asking for an outlet outside it returns nothing rather
- * than returning it. Nothing on this screen can reach a request the caller
- * was not already entitled to see, which is why the filter state is safe to
- * keep in the URL.
+ * THE FILTERS NARROW; THEY DO NOT WIDEN. Every dropdown on this screen is
+ * built from the rows the server returned, and the server applies the
+ * caller's own branch scope to every query regardless: asking for an outlet
+ * outside it returns nothing rather than returning it. Nothing here can reach
+ * a request - or even the NAME of an outlet - the caller was not already
+ * entitled to see, which is why the filter state is safe to keep in the URL.
  *
  * FILTERS SURVIVE THE TAB. Switching Attendance -> OT -> Shift keeps the
  * outlet, employee and designation, because a manager looking at one outlet's
@@ -81,7 +80,6 @@ const decisionMessage = (type, res) => {
 export default function AttendanceApprovalCentrePage() {
   const toast = useToast();
   const router = useRouter();
-  const { outlets } = useOutlets({ directory: true });
   const { designations } = useDesignations();
 
   const [type, setType] = useState("REGULARIZATION");
@@ -93,18 +91,28 @@ export default function AttendanceApprovalCentrePage() {
   const [error, setError] = useState(null);
   const [deciding, setDeciding] = useState(null);
   /**
-   * The employees the EMPLOYEE filter offers.
+   * The OUTLETS and EMPLOYEES the filters offer, taken from the requests the
+   * server has already returned.
    *
-   * Taken from the requests the server has already returned, rather than from
-   * the employee directory. Two reasons, and the second is the important one:
-   * an approver holds `view_attendance_approvals` and not necessarily any
-   * employee-reading permission, and these are exactly the people whose
-   * requests this approver can see - so the dropdown cannot name somebody
-   * they have no business filtering by. It is refreshed on every load that
-   * is not itself filtered by employee, which is what keeps the list from
-   * collapsing to the one person just chosen.
+   * NOT from `/outlet/directory`, and not from `/hr/employees/outlets`
+   * either. The directory is authenticated but deliberately COMPANY-WIDE, and
+   * this screen's rows are narrowed by the caller's `employee_branch_scope` on
+   * the server - so reading it here would send a branch-scoped approver the
+   * name of every outlet in the company for a screen that refuses to show
+   * their requests, which is the leak `useEmployeeOutlets` was introduced to
+   * close. The scoped employee endpoint is the right answer for the employee
+   * screens and the wrong one here: it needs `view_employees`, which a store
+   * manager holding `view_attendance_approvals` need not have, and they would
+   * lose the filter entirely.
+   *
+   * The rows themselves are the honest source. They have already passed the
+   * server's scope, they need no second permission, and an outlet or a person
+   * that appears in them is by definition one this approver may filter by.
+   * Both lists refresh on every load that is not itself filtered by that
+   * field, which is what stops a list collapsing to the one value just chosen.
    */
   const [roster, setRoster] = useState([]);
+  const [outlets, setOutlets] = useState([]);
   const status = STATUSES[tab];
 
   // The Request Type may arrive in the URL: from the redirect that replaced
@@ -146,6 +154,15 @@ export default function AttendanceApprovalCentrePage() {
             }
           });
           setRoster([...seen.values()].sort((a, b) => ("" + a.employee_name).localeCompare(b.employee_name)));
+        }
+        if (!queryFilters.outlet_ids) {
+          const seen = new Map();
+          loaded.forEach((r) => {
+            if (r.outlet_id !== null && r.outlet_id !== undefined && !seen.has(r.outlet_id)) {
+              seen.set(r.outlet_id, { outlet_id: r.outlet_id, outlet_name: r.outlet_name });
+            }
+          });
+          setOutlets([...seen.values()].sort((a, b) => ("" + a.outlet_name).localeCompare(b.outlet_name)));
         }
       }
       setCount(isOk(counted) ? Number(counted.pending_with_me) || 0 : null);
@@ -229,7 +246,7 @@ export default function AttendanceApprovalCentrePage() {
 
           <SimpleGrid columns={{ base: 1, md: 4 }} spacing={2}>
             <Select size="sm" placeholder="All outlets" value={filters.outlet_id} onChange={(e) => setFilter("outlet_id", e.target.value)}>
-              {(outlets || []).map((o) => (
+              {outlets.map((o) => (
                 <option key={o.outlet_id} value={o.outlet_id}>{o.outlet_name}</option>
               ))}
             </Select>
