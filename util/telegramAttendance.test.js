@@ -236,7 +236,7 @@ test("an explicit valid section is authoritative even with a date", () => {
 
   const help = "?section=help&date=2026-09-18";
   assert.equal(sectionFromQuery(help), SECTION.HELP);
-  assert.equal(sectionIndex(sectionFromQuery(help)), 2);
+  assert.equal(sectionIndex(sectionFromQuery(help)), 3);
 });
 
 /**
@@ -262,10 +262,13 @@ test("each known section maps to its own tab", () => {
   const { sectionFromQuery, sectionIndex, SECTION } = require("./telegramAttendance");
   assert.equal(sectionFromQuery("?section=attendance"), SECTION.ATTENDANCE);
   assert.equal(sectionFromQuery("?section=corrections"), SECTION.CORRECTIONS);
+  assert.equal(sectionFromQuery("?section=ot"), SECTION.OT);
   assert.equal(sectionFromQuery("?section=help"), SECTION.HELP);
   assert.deepEqual(
-    ["attendance", "corrections", "help"].map((s) => sectionIndex(sectionFromQuery(`?section=${s}`))),
-    [0, 1, 2]
+    ["attendance", "corrections", "ot", "help"].map((s) =>
+      sectionIndex(sectionFromQuery(`?section=${s}`))
+    ),
+    [0, 1, 2, 3]
   );
 });
 
@@ -311,21 +314,173 @@ test("query parameters cannot influence employee identity", () => {
 
 test("the tab index maps back to a section for the controlled Tabs", () => {
   const { sectionAtIndex, sectionIndex, SECTION, SECTION_ORDER } = require("./telegramAttendance");
-  assert.deepEqual(SECTION_ORDER, [SECTION.ATTENDANCE, SECTION.CORRECTIONS, SECTION.HELP]);
-  [0, 1, 2].forEach((i) => assert.equal(sectionIndex(sectionAtIndex(i)), i));
+  assert.deepEqual(SECTION_ORDER, [
+    SECTION.ATTENDANCE,
+    SECTION.CORRECTIONS,
+    SECTION.OT,
+    SECTION.HELP,
+  ]);
+  [0, 1, 2, 3].forEach((i) => assert.equal(sectionIndex(sectionAtIndex(i)), i));
   // Out of range falls back rather than throwing.
   assert.equal(sectionAtIndex(9), SECTION.ATTENDANCE);
   assert.equal(sectionAtIndex(-1), SECTION.ATTENDANCE);
 });
 
-test("the Help text is the five approved lines and offers no approval control", () => {
+test("the Help text covers all three request sections and offers no approval control", () => {
   const { HELP_LINES } = require("./telegramAttendance");
-  assert.equal(HELP_LINES.length, 5);
+  assert.equal(HELP_LINES.length, 7);
   assert.match(HELP_LINES[0], /My Attendance shows your attendance/);
   assert.match(HELP_LINES[1], /Corrections is for missing-punch requests/);
   assert.match(HELP_LINES[2], /missing punch time and reason/);
-  assert.match(HELP_LINES[3], /go for approval/);
-  assert.match(HELP_LINES[4], /manager or HR/);
+  assert.match(HELP_LINES[3], /OT Requests is for claiming the overtime/);
+  // The one thing an employee must not expect to be able to do.
+  assert.match(HELP_LINES[4], /cannot be typed in; you enter only the reason/);
+  assert.match(HELP_LINES[5], /go for approval/);
+  assert.match(HELP_LINES[6], /manager or HR/);
   const all = HELP_LINES.join(" ");
   assert.ok(!/\bapprove\b|\breject\b/i.test(all), "no approval action is offered");
+});
+
+/* ======================================================= OT requests ==== */
+
+const otDay = (overrides = {}) => ({
+  attendance_date: "2026-09-17",
+  status: "FINAL",
+  is_final: true,
+  punch_count: 2,
+  worked_minutes: 750,
+  nrm_minutes: 660,
+  candidate_ot_minutes: 90,
+  shift_name: "Late Shift",
+  shift_snapshot: { in_time: "10:00:00", out_time: "22:00:00" },
+  effective_punches: [
+    { punch_id: 1, source: "BIOMAX", io_time: "2026-09-17 10:00:00" },
+    { punch_id: 2, source: "BIOMAX", io_time: "2026-09-17 23:30:00" },
+  ],
+  ot_claim_state: "AVAILABLE",
+  ...overrides,
+});
+
+test("the OT card is built from the day the server sent, figures and all", () => {
+  const { otCard } = require("./telegramAttendance");
+  const card = otCard(otDay());
+  assert.equal(card.attendance_date, "2026-09-17");
+  assert.equal(card.title, "17 Sep 2026");
+  assert.equal(card.weekday, "Thu");
+  assert.equal(card.shift, "Late Shift (10:00–22:00)");
+  assert.equal(card.punches, "10:00 → 23:30");
+  assert.equal(card.worked, "12h 30m");
+  assert.equal(card.nrm, "11h");
+  // THE ENGINE's eligible OT, formatted and not recomputed.
+  assert.equal(card.eligible_ot, "01:30");
+  assert.equal(card.state, "NOT_REQUESTED");
+  assert.equal(card.label, "Not Requested");
+  assert.equal(card.can_submit, true);
+  assert.equal(card.blocked_reason, null);
+});
+
+test("the four OT states render with their own label and colour", () => {
+  const { otCard } = require("./telegramAttendance");
+  const cases = [
+    [{ ot_claim_state: "AVAILABLE" }, "Not Requested", "orange"],
+    [{ ot_claim_state: "REQUEST_PENDING", ot_requested_minutes: 90 }, "Pending", "purple"],
+    [{ ot_claim_state: "APPROVED", approved_ot_minutes: 90 }, "Approved", "green"],
+    [{ ot_claim_state: "REJECTED", ot_requested_minutes: 90 }, "Rejected", "red"],
+  ];
+  cases.forEach(([patch, label, color]) => {
+    const card = otCard(otDay(patch));
+    assert.equal(card.label, label, JSON.stringify(patch));
+    assert.equal(card.color, color);
+    // Only an unclaimed day may be submitted.
+    assert.equal(card.can_submit, label === "Not Requested");
+  });
+});
+
+test("a submitted card carries the reason, the times and the requested figure", () => {
+  const { otCard } = require("./telegramAttendance");
+  const card = otCard(otDay({
+    ot_claim_state: "REQUEST_PENDING",
+    ot_requested_minutes: 90,
+    ot_reason: "Stock count ran late",
+    ot_requested_at: "2026-09-18 09:00:00",
+  }));
+  assert.equal(card.requested_ot, "01:30");
+  assert.equal(card.reason, "Stock count ran late");
+  assert.equal(card.requested_at, "2026-09-18 09:00:00");
+  assert.equal(card.decided_at, null);
+  assert.equal(card.rejection_reason, null);
+});
+
+test("a rejected card carries the approver's rejection reason and the decision time", () => {
+  const { otCard } = require("./telegramAttendance");
+  const card = otCard(otDay({
+    ot_claim_state: "REJECTED",
+    ot_requested_minutes: 90,
+    ot_rejection_remarks: "Not approved in advance",
+    ot_decided_at: "2026-09-19 10:00:00",
+  }));
+  assert.equal(card.label, "Rejected");
+  assert.equal(card.rejection_reason, "Not approved in advance");
+  assert.equal(card.decided_at, "2026-09-19 10:00:00");
+});
+
+test("an approved card states what was approved, which may differ from what was asked", () => {
+  const { otCard } = require("./telegramAttendance");
+  const card = otCard(otDay({
+    ot_claim_state: "APPROVED",
+    ot_requested_minutes: 90,
+    approved_ot_minutes: 75,
+  }));
+  assert.equal(card.label, "Approved");
+  assert.equal(card.approved_ot, "01:15");
+});
+
+test("a pending correction blocks the OT request and says what to do", () => {
+  const { otCard } = require("./telegramAttendance");
+  const card = otCard(otDay({ correction_state: "PENDING" }));
+  assert.equal(card.can_submit, false);
+  assert.equal(card.blocked_reason, "Complete attendance correction first.");
+
+  // A missing punch is the same: the day is not settled yet.
+  const missing = otCard(otDay({
+    status: "REVIEW_REQUIRED",
+    is_final: false,
+    punch_count: 1,
+    review_reasons: ["MISSING_PUNCH"],
+    ot_claim_state: "NONE",
+  }));
+  assert.equal(missing.can_submit, false);
+  assert.equal(missing.blocked_reason, "Complete attendance correction first.");
+});
+
+test("an approved correction unblocks OT, on the refreshed day's own figure", () => {
+  const { otCard } = require("./telegramAttendance");
+  // The corrected day: the punch is now effective and the engine found OT.
+  const card = otCard(otDay({ correction_state: "APPROVED", candidate_ot_minutes: 90 }));
+  assert.equal(card.blocked_reason, null);
+  assert.equal(card.can_submit, true);
+  assert.equal(card.eligible_ot, "01:30");
+});
+
+test("a date closed at payroll lock reads as Rejected and cannot be requested", () => {
+  const { otCard } = require("./telegramAttendance");
+  const card = otCard(otDay({
+    ot_claim_state: "CLOSED_AT_PAYROLL_LOCK",
+    ot_closure_reason: "NOT_REQUESTED_BEFORE_PAYROLL_LOCK",
+    ot_requested_minutes: 90,
+  }));
+  assert.equal(card.label, "Rejected");
+  assert.equal(card.rejection_reason, "Rejected – Not Requested Before Payroll Lock");
+  assert.equal(card.can_submit, false);
+});
+
+test("the OT list is a filter over the month's days, not a second read", () => {
+  const { otCards } = require("./telegramAttendance");
+  const cards = otCards([
+    otDay({ attendance_date: "2026-09-01", candidate_ot_minutes: 0, ot_claim_state: "NONE" }),
+    otDay({ attendance_date: "2026-09-02" }),
+    otDay({ attendance_date: "2026-09-03", candidate_ot_minutes: 0, ot_claim_state: "REJECTED" }),
+  ]);
+  assert.deepEqual(cards.map((c) => c.attendance_date), ["2026-09-02", "2026-09-03"]);
+  assert.deepEqual(otCards([]), []);
 });

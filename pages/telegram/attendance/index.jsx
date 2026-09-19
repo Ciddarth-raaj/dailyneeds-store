@@ -21,9 +21,13 @@ import AttendanceDayDetail from "../../../components/attendance/AttendanceDayDet
 import TelegramMissingDateList from "../../../components/telegram/TelegramMissingDateList";
 import TelegramMonthNav from "../../../components/telegram/TelegramMonthNav";
 import TelegramRegularizationForm from "../../../components/telegram/TelegramRegularizationForm";
+import TelegramOtDateList from "../../../components/telegram/TelegramOtDateList";
+import TelegramOtRequestForm from "../../../components/telegram/TelegramOtRequestForm";
 import TelegramAttendanceHelper from "../../../helper/telegramAttendance";
 import TelegramHelp from "../../../components/telegram/TelegramHelp";
 import {
+  SECTION_LABEL,
+  SECTION_ORDER,
   apiMessage,
   currentMonth,
   isOk,
@@ -32,11 +36,12 @@ import {
   sectionFromQuery,
   sectionIndex,
 } from "../../../util/telegramAttendance";
+import { otRequestRows } from "../../../util/attendanceV2";
 
 /**
  * THE TELEGRAM ATTENDANCE MINI APP - employee attendance self-service.
  *
- * THREE SECTIONS, and MY ATTENDANCE IS THE DEFAULT:
+ * FOUR SECTIONS, and MY ATTENDANCE IS THE DEFAULT:
  *
  *   MY ATTENDANCE  the employee's own calculated month, read-only. Tapping a
  *                  day opens the existing Day Detail with NO action props,
@@ -49,7 +54,31 @@ import {
  *                  Regularisation Rejected. An actionable date opens the
  *                  form; Submit raises the ORDINARY Daily Needs request.
  *
- *   HELP           five sentences. No approval controls, here or anywhere.
+ *   OT REQUESTS    every date of the loaded month with overtime to talk
+ *                  about - one the engine found, or one already claimed -
+ *                  with its Eligible OT and its state: Not Requested,
+ *                  Pending, Approved, Rejected. An actionable date opens the
+ *                  form; Submit raises the ORDINARY Daily Needs OT request.
+ *
+ *   HELP           a few sentences. No approval controls, here or anywhere.
+ *
+ * ============================== OT IS THE MONTH, NOT A SECOND READ ========
+ *
+ * The OT tab is `otRequestRows(days)` - a FILTER over the very days My
+ * Attendance is already showing, and each row is turned into a card by
+ * `otCard`, exactly as Corrections uses `dateCard`. There is no OT
+ * list endpoint, no OT month read and no OT calculation on this side:
+ * Eligible OT is `candidate_ot_minutes` as the engine computed it, the state
+ * is `ot_claim_state` as the request row reports it, and the blocking
+ * message is `otBlockedReason`, all from `util/attendanceV2.js` - the same
+ * functions the web `/attendance/my` OT tab uses.
+ *
+ * WHAT SUBMIT SENDS IS A DATE AND A REASON. `POST
+ * /telegram/attendance/ot-request` is a thin authenticated route: it
+ * resolves the employee from the verified Telegram session and delegates to
+ * `raiseOtRequest` - the one OT business path in the backend, which the web
+ * app reaches through `POST /attendance/me/ot-request`. The minutes are
+ * recalculated there and the request body has no field for them.
  *
  * ======================================= `?section=` IS NAVIGATION ONLY ====
  *
@@ -123,6 +152,12 @@ export default function TelegramAttendancePage() {
   const [days, setDays] = useState([]);
   const [daysLoading, setDaysLoading] = useState(true);
   const [selectedDay, setSelectedDay] = useState(null);
+
+  // OT REQUESTS. No list state: the tab is a view of `days` above, and the
+  // form holds the DAY the employee tapped - the row the month already
+  // returned, so no second read is made to open it.
+  const [otDay, setOtDay] = useState(null);
+  const [otSaving, setOtSaving] = useState(false);
 
   // CORRECTIONS
   const [corrections, setCorrections] = useState([]);
@@ -296,6 +331,45 @@ export default function TelegramAttendancePage() {
     }
   };
 
+  /**
+   * Raise the OT request. The body is the form's two fields, passed through
+   * untouched - this function adds nothing to it and could not add minutes
+   * if it wanted to, because the helper reads only those two names and the
+   * API refuses any other key.
+   *
+   * On success the month is reloaded, so the date comes back showing "OT
+   * Request Pending" with the SERVER's figure on it and can no longer be
+   * submitted. The duplicate refusal is the engine's; the screen simply
+   * stops inviting it.
+   */
+  const submitOt = async (body, onError) => {
+    setOtSaving(true);
+    try {
+      const res = await TelegramAttendanceHelper.submitOtRequest(body);
+      if (!isOk(res)) {
+        onError(apiMessage(res));
+        return;
+      }
+      setOtDay(null);
+      setNotice({
+        status: "success",
+        title: "OT request submitted",
+        text: "Your request has been sent for approval.",
+      });
+      await loadMonth(month);
+    } catch (err) {
+      onError("Could not reach the server. Please try again.");
+    } finally {
+      setOtSaving(false);
+    }
+  };
+
+  /** Open one OT date's form, from the day the month already returned. */
+  const openOt = (attendanceDate) => {
+    setNotice(null);
+    setOtDay(otRequestRows(days).find((d) => d.attendance_date === attendanceDate) || null);
+  };
+
   const banner = fatal ? (
     <Alert status="error" fontSize="sm" borderRadius="md">
       <AlertIcon />
@@ -346,6 +420,13 @@ export default function TelegramAttendancePage() {
               onSubmit={submit}
               onBack={() => setDetail(null)}
             />
+          ) : otDay ? (
+            <TelegramOtRequestForm
+              day={otDay}
+              saving={otSaving}
+              onSubmit={submitOt}
+              onBack={() => setOtDay(null)}
+            />
           ) : (
             /*
               MY ATTENDANCE IS TAB ZERO - what the Mini App opens on whenever
@@ -359,10 +440,14 @@ export default function TelegramAttendancePage() {
               index={tabIndex}
               onChange={(next) => setTabIndex(sectionIndex(sectionAtIndex(next)))}
             >
+              {/* One list, from one order: a tab cannot go missing from the
+                  captions or appear in the wrong place relative to
+                  `SECTION_ORDER`, which is what `?section=` resolves
+                  against. */}
               <TabList mb={3}>
-                <Tab>My Attendance</Tab>
-                <Tab>Corrections</Tab>
-                <Tab>Help</Tab>
+                {SECTION_ORDER.map((key) => (
+                  <Tab key={key}>{SECTION_LABEL[key]}</Tab>
+                ))}
               </TabList>
 
               <TabPanels>
@@ -391,6 +476,23 @@ export default function TelegramAttendancePage() {
                       loading={correctionsLoading}
                       highlight={hint}
                       onSelect={openCorrection}
+                    />
+                  </Stack>
+                </TabPanel>
+
+                <TabPanel px={0}>
+                  <Stack spacing={3}>
+                    <Text fontSize="xs" color="gray.500">
+                      Overtime the system calculated for you, and what happened to what you
+                      claimed. The hours are calculated - you enter only a reason.
+                    </Text>
+                    {/* THE SAME `days`, FILTERED. No second request is made
+                        for this tab, and no figure on it is computed here. */}
+                    <TelegramOtDateList
+                      days={otRequestRows(days)}
+                      loading={daysLoading}
+                      highlight={hint}
+                      onSelect={openOt}
                     />
                   </Stack>
                 </TabPanel>

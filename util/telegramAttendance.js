@@ -31,6 +31,14 @@ const {
   isOk,
   apiMessage,
   currentMonth,
+  canRequestOt,
+  formatMinutes,
+  formatOtClock,
+  otBlockedReason,
+  otRequestRows,
+  otRequestStatus,
+  punchSummary,
+  shiftLabel,
 } = require("./attendanceV2");
 
 /** The states the server's date list uses. Mirrors `DATE_STATE` on the API. */
@@ -42,10 +50,11 @@ const DATE_STATE = Object.freeze({
   NOT_ACTIONABLE: "NOT_ACTIONABLE",
 });
 
-/** The three sections of the Mini App. My Attendance is the default. */
+/** The four sections of the Mini App. My Attendance is the default. */
 const SECTION = Object.freeze({
   ATTENDANCE: "ATTENDANCE",
   CORRECTIONS: "CORRECTIONS",
+  OT: "OT",
   HELP: "HELP",
 });
 
@@ -56,12 +65,26 @@ const DEFAULT_SECTION = SECTION.ATTENDANCE;
  * My Attendance is index 0 so the Mini App opens on it whenever nothing
  * valid is asked for.
  */
-const SECTION_ORDER = Object.freeze([SECTION.ATTENDANCE, SECTION.CORRECTIONS, SECTION.HELP]);
+const SECTION_ORDER = Object.freeze([
+  SECTION.ATTENDANCE,
+  SECTION.CORRECTIONS,
+  SECTION.OT,
+  SECTION.HELP,
+]);
+
+/** The tab captions, in the same order. */
+const SECTION_LABEL = Object.freeze({
+  ATTENDANCE: "My Attendance",
+  CORRECTIONS: "Corrections",
+  OT: "OT Requests",
+  HELP: "Help",
+});
 
 /** `?section=` values, as the bot and the alert write them. */
 const SECTION_PARAM = Object.freeze({
   attendance: SECTION.ATTENDANCE,
   corrections: SECTION.CORRECTIONS,
+  ot: SECTION.OT,
   help: SECTION.HELP,
 });
 
@@ -150,6 +173,8 @@ const HELP_LINES = Object.freeze([
   "My Attendance shows your attendance.",
   "Corrections is for missing-punch requests.",
   "Select the missing date, enter the missing punch time and reason, and submit.",
+  "OT Requests is for claiming the overtime the system calculated for a day.",
+  "The OT hours are calculated for you and cannot be typed in; you enter only the reason.",
   "Submitted requests go for approval.",
   "Contact your manager or HR if your Telegram or employee details are incorrect.",
 ]);
@@ -229,6 +254,72 @@ function dateCard(row) {
   };
 }
 
+/* ---------------------------------------------------- OT requests ---- */
+
+/**
+ * THE OT CARD the employee taps, from a CALCULATED DAY.
+ *
+ * ========================== IT RE-IMPLEMENTS NOTHING, EXACTLY LIKE THE REST
+ *
+ * Every value below is taken from the day the server sent or from the shared
+ * web helpers that read it - `otRequestStatus` (the status, off
+ * `ot_claim_state`), `otBlockedReason` (the correction dependency),
+ * `canRequestOt` (whether the action is offered), `punchSummary`,
+ * `shiftLabel`, `formatMinutes`, `formatOtClock`. Those are the SAME
+ * functions the web `/attendance/my` OT tab uses, so a date reads
+ * identically on a phone in Telegram and on a desktop, and neither can
+ * drift from the other.
+ *
+ * THERE IS NO OT ARITHMETIC IN THIS FILE OR ANY FILE IT CALLS. `eligible` is
+ * `candidate_ot_minutes` formatted; `requested` is the candidate the SERVER
+ * stored on the request. Nothing here reads the punch times to produce a
+ * duration, and nothing here decides a status.
+ */
+function otCard(day) {
+  if (!day) return null;
+  const status = otRequestStatus(day);
+  return {
+    attendance_date: day.attendance_date,
+    title: displayDate(day.attendance_date),
+    weekday: weekday(day.attendance_date),
+    shift: shiftLabel(day),
+    punches: punchSummary(day),
+    worked: formatMinutes(day.worked_minutes),
+    nrm: formatMinutes(day.nrm_minutes),
+    // The engine's eligible OT, as `hh:mm`.
+    eligible_ot: formatOtClock(day.candidate_ot_minutes),
+    state: status.key,
+    label: status.label,
+    color: otStateColor(status.key),
+    requested_ot: status.key === "NOT_REQUESTED" ? null : formatOtClock(status.minutes),
+    approved_ot: status.key === "APPROVED" ? formatOtClock(day.approved_ot_minutes) : null,
+    reason: status.reason,
+    requested_at: status.requestedAt,
+    decided_at: status.decidedAt,
+    rejection_reason: status.rejectionReason,
+    // The server's answer, carried through - never a rule decided here.
+    can_submit: canRequestOt(day),
+    blocked_reason: otBlockedReason(day),
+  };
+}
+
+/** The badge colour for an OT state. Mirrors `stateColor` for corrections. */
+function otStateColor(state) {
+  if (state === "PENDING") return "purple";
+  if (state === "APPROVED") return "green";
+  if (state === "REJECTED") return "red";
+  return "orange";
+}
+
+/**
+ * The OT cards of a loaded month: the shared `otRequestRows` filter over the
+ * SAME `days` My Attendance already holds. THE OT TAB MAKES NO REQUEST OF
+ * ITS OWN - there is one month read in this app, and this is a view of it.
+ */
+function otCards(days) {
+  return otRequestRows(days).map(otCard);
+}
+
 /** The colour scheme for a card's badge. One place, so the list is consistent. */
 function stateColor(state) {
   if (state === DATE_STATE.ACTIONABLE) return "orange";
@@ -265,6 +356,10 @@ module.exports = {
   DATE_STATE,
   stateColor,
   SECTION,
+  SECTION_LABEL,
+  otCard,
+  otCards,
+  otStateColor,
   explicitSection,
   DEFAULT_SECTION,
   SECTION_ORDER,

@@ -21,11 +21,13 @@ const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm,
 const page = strip(read("pages/telegram/attendance/index.jsx"));
 const list = strip(read("components/telegram/TelegramMissingDateList.jsx"));
 const form = strip(read("components/telegram/TelegramRegularizationForm.jsx"));
+const otList = strip(read("components/telegram/TelegramOtDateList.jsx"));
+const otForm = strip(read("components/telegram/TelegramOtRequestForm.jsx"));
 const monthNav = strip(read("components/telegram/TelegramMonthNav.jsx"));
 const help = strip(read("components/telegram/TelegramHelp.jsx"));
 const helper = strip(read("helper/telegramAttendance.js"));
 const app = read("pages/_app.js");
-const all = [page, list, form, monthNav, help, helper].join("\n");
+const all = [page, list, form, otList, otForm, monthNav, help, helper].join("\n");
 
 test("the page is registered as one the shell does not bounce to login", () => {
   assert.ok(/"\/telegram\/attendance":\s*true/.test(app));
@@ -227,8 +229,30 @@ test("there is no employee selector and no branch selector", () => {
 });
 
 test("there are no approval or admin controls", () => {
-  assert.ok(!/approve|decision|reject/i.test(all.replace(/approval/gi, "")), "no approve/decide action");
-  assert.ok(!/attendance\/approvals|\/decision/.test(all));
+  /*
+   * WHAT THIS ASSERTS, AND WHY IT IS NOT A WORD BLACKLIST ANY MORE.
+   *
+   * The Mini App now REPORTS approval outcomes - a card reads "Approved
+   * 01:30", "Rejected", "Decided 16 Sep 2026 10:00" - because an employee
+   * who claimed overtime has to be told what came of it. Those are states
+   * the screen displays, not powers it holds, so banning the word would ban
+   * the reporting rather than the capability.
+   *
+   * The capability is what is banned here: no handler that decides, no
+   * button that approves or rejects, and no approval endpoint anywhere in
+   * the graph. A Mini App that gained any of the three would fail this.
+   */
+  assert.ok(
+    !/onApprove|onReject|onDecide|decideApproval|handleApprove|handleReject/.test(all),
+    "no decision handler"
+  );
+  assert.ok(
+    !/>\s*(Approve|Reject|Decide)\s*</.test(all),
+    "no button that approves, rejects or decides"
+  );
+  assert.ok(!/attendance\/approvals|\/decision/.test(all), "no approval endpoint");
+  // The approval SCREENS are a different app and are not imported here.
+  assert.ok(!/ApprovalQueue|attendance\/approval/.test(all));
 });
 
 test("the ?date= parameter is used only as a navigation hint", () => {
@@ -333,10 +357,26 @@ test("a successful submit says so and refreshes BOTH sections at once", () => {
  * THE TWO SECTIONS
  * =================================================================== */
 
-test("the three sections are My Attendance, Corrections and Help, in that order", () => {
+test("the four sections are My Attendance, Corrections, OT Requests and Help, in that order", () => {
+  // The captions are rendered from SECTION_ORDER, so the ORDER is the thing
+  // to assert and it lives in one place - a tab cannot be listed in the
+  // captions in a different order from the one `?section=` resolves against.
+  const { SECTION, SECTION_ORDER, SECTION_LABEL } = require("../../util/telegramAttendance");
+  assert.deepEqual(SECTION_ORDER, [
+    SECTION.ATTENDANCE,
+    SECTION.CORRECTIONS,
+    SECTION.OT,
+    SECTION.HELP,
+  ]);
+  assert.deepEqual(SECTION_ORDER.map((k) => SECTION_LABEL[k]), [
+    "My Attendance",
+    "Corrections",
+    "OT Requests",
+    "Help",
+  ]);
   const tabList = page.slice(page.indexOf("<TabList"), page.indexOf("</TabList>"));
-  const tabs = [...tabList.matchAll(/<Tab>([^<]+)<\/Tab>/g)].map((m) => m[1].trim());
-  assert.deepEqual(tabs, ["My Attendance", "Corrections", "Help"]);
+  assert.match(tabList, /SECTION_ORDER\.map/);
+  assert.match(tabList, /SECTION_LABEL\[key\]/);
 });
 
 /**
@@ -424,4 +464,120 @@ test("the list reflects state and offers no button on a pending date", () => {
   assert.ok(/can_submit/.test(strip(read("util/telegramAttendance.js"))));
   assert.ok(/detail\.can_submit/.test(form), "the form obeys the server's verdict");
   assert.ok(/state_label/.test(form), "and shows the current state instead");
+});
+
+/* ===================================================================
+ * THE OT REQUESTS TAB
+ *
+ * A Mini App tab over the SAME month read and the SAME OT engine. The
+ * claims worth asserting are the ones a source can honestly make: that this
+ * tab makes no read of its own, that no OT figure is computed on this side,
+ * and that there is no field anywhere on it into which a duration could be
+ * typed or from which one could be sent.
+ * =================================================================== */
+
+test("OT Requests sits beside Corrections and is rendered from the month already loaded", () => {
+  assert.match(page, /<TelegramOtDateList/);
+  const panels = page.slice(page.indexOf("<TabPanels>"));
+  assert.ok(
+    panels.indexOf("TelegramMissingDateList") < panels.indexOf("TelegramOtDateList"),
+    "Corrections comes before OT Requests"
+  );
+  assert.ok(
+    panels.indexOf("TelegramOtDateList") < panels.indexOf("<TelegramHelp"),
+    "Help stays last"
+  );
+  // The SAME days, filtered by the shared helper - not a second request.
+  assert.match(page, /days=\{otRequestRows\(days\)\}/);
+  assert.ok(!/getOtDates|getOtRequests|otMonth/.test(page), "no OT-specific read exists");
+});
+
+test("the OT tab adds no read to the Mini App API surface", () => {
+  // Exactly the five calls the Mini App has ever had, plus the OT write.
+  const calls = [...helper.matchAll(/client\s*\.\s*(get|post)\(\s*"([^"]+)"/g)].map(
+    (m) => `${m[1].toUpperCase()} ${m[2]}`
+  );
+  assert.deepEqual(calls.sort(), [
+    "GET /telegram/attendance/date",
+    "GET /telegram/attendance/missing-dates",
+    "GET /telegram/attendance/month",
+    "POST /telegram/attendance/ot-request",
+    "POST /telegram/attendance/regularization",
+    "POST /telegram/attendance/session",
+  ]);
+});
+
+test("the OT submission sends a date and a reason, and has no field for minutes", () => {
+  const fn = helper.slice(helper.indexOf("submitOtRequest"));
+  assert.match(fn, /"\/telegram\/attendance\/ot-request"/);
+  assert.match(fn, /\{ attendance_date, reason \}/);
+  assert.ok(!/minutes/.test(fn), "no duration field on the wire");
+  assert.ok(!/employee_id/.test(fn), "no employee id on the wire");
+  // The page hands the form's own object through; it never spreads a day.
+  assert.match(page, /submitOtRequest\(body\)/);
+  assert.match(otForm, /onSubmit\(\{ attendance_date: day\.attendance_date, reason: trimmed \}/);
+  assert.ok(!/\.\.\.day/.test(otForm), "the day object is never spread into a body");
+});
+
+test("the OT duration cannot be typed: the form has exactly one input, the reason", () => {
+  assert.ok(!/type="number"/.test(otForm), "no numeric input");
+  assert.ok(!/<Input/.test(otForm), "no Input at all - the reason is a Textarea");
+  assert.equal((otForm.match(/<Textarea/g) || []).length, 1, "one field, and it is the reason");
+  assert.match(otForm, /Calculated OT \(read only\)/);
+  assert.match(otForm, /It cannot be changed here/);
+  assert.match(otForm, /if \(trimmed\.length < 5\)/, "a reason is required before submit");
+});
+
+test("no OT figure is computed on the Telegram side", () => {
+  for (const [name, src] of [["list", otList], ["form", otForm]]) {
+    assert.ok(!/[-+*/]\s*60\b/.test(src), `${name}: no minute arithmetic`);
+    assert.ok(!/candidate_ot_minutes\s*[-+*/]/.test(src), `${name}: the engine's figure is not adjusted`);
+    assert.ok(!/new Date\(/.test(src), `${name}: no date maths on the punches it displays`);
+  }
+  // Everything the card shows comes from the shared util, which reads the
+  // day the server sent.
+  assert.match(otList, /otCard\(day\)/);
+  assert.match(otForm, /otCard\(day\)/);
+});
+
+test("the OT card shows the agreed columns and the whole request history", () => {
+  ["Worked", "NRM", "Eligible OT"].forEach((label) => {
+    assert.ok(otList.includes(`"${label}"`) || otList.includes(`>${label}<`), `the ${label} figure`);
+  });
+  assert.match(otList, /card\.punches/, "the punch summary");
+  assert.match(otList, /card\.shift/, "the shift");
+  assert.match(otList, /card\.label/, "the status");
+  assert.match(otList, /Requested OT:/);
+  assert.match(otList, /Reason: \{card\.reason\}/);
+  assert.match(otList, /Rejected: \{card\.rejection_reason\}/);
+  assert.match(otList, /Submitted \{displayDateTime\(card\.requested_at\)\}/);
+  assert.match(otList, /Decided \{displayDateTime\(card\.decided_at\)\}/);
+});
+
+test("a blocked date is not tappable and says what to do instead", () => {
+  assert.match(otList, /card\.can_submit \? \(\) => onSelect/);
+  assert.match(otList, /card\.blocked_reason/);
+  assert.match(otForm, /card\.can_submit \?/);
+  const util = read("util/attendanceV2.js");
+  assert.match(util, /OT_BLOCKED_BY_CORRECTION = "Complete attendance correction first\."/);
+});
+
+test("the OT tab raises no correction and the Corrections tab raises no OT", () => {
+  assert.ok(!/Regulari[sz]ation/.test(otList) && !/Regulari[sz]ation/.test(otForm.replace(/Regularized/g, "")));
+  assert.ok(!/ot-request|candidate_ot|Request OT/i.test(list));
+});
+
+test("the OT tab reports decisions and can make none", () => {
+  const ot = [otList, otForm].join("\n");
+  // It REPORTS: the three outcomes an employee needs to see.
+  assert.match(otList, /card\.approved_ot/);
+  assert.match(otList, /card\.rejection_reason/);
+  assert.match(otList, /card\.decided_at/);
+  // It DECIDES nothing: no handler, no button, no endpoint.
+  assert.ok(!/onApprove|onReject|onDecide|decideApproval/.test(ot), "no decision handler");
+  assert.ok(!/>\s*(Approve|Reject|Decide)\s*</.test(ot), "no decision button");
+  assert.ok(!/attendance\/approvals|\/decision/.test(ot), "no approval endpoint");
+  // The one write it can make is the employee's own request.
+  const writes = [...ot.matchAll(/onSubmit\(/g)];
+  assert.equal(writes.length, 1, "one submit, and it is the OT request");
 });
