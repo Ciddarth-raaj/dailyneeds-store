@@ -67,11 +67,13 @@ const payTypeActionCode = codeOf(payTypeAction);
 
 /* ============================================== the endpoints are the real ones */
 
-test("the helper calls exactly the four endpoints the backend declares", () => {
+test("the helper calls exactly the endpoints the backend declares", () => {
   const calls = (helperCode.match(/API\.(get|post)\("([^"]+)"/g) || []).map((m) =>
     m.replace(/.*"([^"]+)".*/, "$1")
   );
   assert.deepStrictEqual(calls.sort(), [
+    "/payrun/attendance/close",
+    "/payrun/attendance/close/history",
     "/payrun/initialize",
     "/payrun/month",
     "/payrun/pay-type",
@@ -309,9 +311,14 @@ test("the table carries the columns the screen was asked for", () => {
 });
 
 test("the filters go to the server, not to a filter() in the browser", () => {
-  assert.match(
-    pageCode,
-    /const filters = useMemo\(\s*\n?\s*\(\) => \(\{ year, month, store_ids: storeId, status, lifecycle \}\)/
+  /*
+   * The filters object now carries the search and the tab's own narrowing
+   * alongside the two selects; what has not changed, and is what this test is
+   * for, is that every one of them is SENT rather than applied here.
+   */
+  assert.match(pageCode, /const filters = useMemo\(/);
+  ["year", "month", "store_ids: storeId", "search", "tabFilters(INITIALIZATION_TABS"].forEach(
+    (part) => assert.ok(pageCode.includes(part), `the filters object lost ${part}`)
   );
   assert.ok(
     !/rows\.filter\(/.test(pageCode),
@@ -602,7 +609,7 @@ test("THE EXITED FILTER IS ITS OWN CONTROL, INDEPENDENT OF STATUS", () => {
 test("the lifecycle filter is applied by the SERVER, like every other filter", () => {
   // It goes into the same filters object the hook serialises into the query,
   // so the rows that do not match are never read out of the database.
-  assert.match(pageCode, /store_ids: storeId, status, lifecycle/);
+  assert.match(pageCode, /\.\.\.\(lifecycle \? \{ lifecycle \} : \{\}\)/);
   assert.ok(
     !/rows\.filter\(/.test(pageCode + cardCode + listCode),
     "filtering in the browser would fetch everybody and hide most of them"

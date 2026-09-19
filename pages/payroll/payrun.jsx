@@ -2,8 +2,10 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   Alert,
   AlertIcon,
+  Box,
   Button,
   Checkbox,
+  Input,
   Select,
   SimpleGrid,
   Spinner,
@@ -19,6 +21,8 @@ import CustomContainer from "../../components/CustomContainer";
 import PayrunEmployeeList from "../../components/payroll/PayrunEmployeeList";
 import PayrunAdjustments from "../../components/payroll/adjustments/PayrunAdjustments";
 import PayrunCalculation from "../../components/payroll/calculation/PayrunCalculation";
+import PayrunTabs from "../../components/payroll/PayrunTabs";
+import AttendancePendingDrawer from "../../components/payroll/AttendancePendingDrawer";
 import usePayrollActor from "../../customHooks/usePayrollActor";
 import usePayrunMonth from "../../customHooks/usePayrunMonth";
 import useOutlets from "../../customHooks/useOutlets";
@@ -31,7 +35,16 @@ import {
   canChangePayrunPayType,
   canInitializePayrun,
   canOpenPayrun,
+  canCloseAttendanceForPayroll,
 } from "../../util/payrunAccess";
+import {
+  INITIALIZATION_TABS,
+  DEFAULT_TAB,
+  tabFilters,
+  tabCount,
+  closeSelectionSummary,
+  closeMessage,
+} from "../../util/payrunTabs";
 import {
   confirmationMessage,
   isAllSelected,
@@ -153,6 +166,7 @@ function Payrun() {
    * reviews, which is exactly the separation of duties the key exists for.
    */
   const mayApprove = canApprovePayrun(actor);
+  const mayCloseAttendance = canCloseAttendanceForPayroll(actor);
 
   const initial = currentPeriod();
   const [year, setYear] = useState(initial.year);
@@ -179,17 +193,64 @@ function Payrun() {
    * asks somebody to pick a payroll month twice.
    */
   const [stage, setStage] = useState(STAGE.INITIALIZATION);
+
+  /*
+   * THE SEARCH IS SHARED BY ALL THREE STAGES AND SURVIVES THE SWITCH.
+   *
+   * Somebody looking for one person in three hundred types their name once.
+   * Moving Initialization -> Adjustments -> Calculation to see what is holding
+   * that person up should keep showing that person; clearing the box at every
+   * step would mean typing the name three times to follow one employee through
+   * their own month. It lives here for the same reason the year, the month and
+   * the branch do: it is a fact about what the user is looking at, not about
+   * which stage is on screen.
+   *
+   * CHANGING THE MONTH CLEARS IT, matching the page's existing behaviour for
+   * everything else that is about a particular month's rows.
+   */
+  const [search, setSearch] = useState("");
+
+  /*
+   * THE WORKING TAB, PER STAGE. Each stage opens on its own most actionable
+   * queue - see `DEFAULT_TAB` - so the screen opens on the work rather than on
+   * two hundred finished employees. ALL is always one click away.
+   */
+  const [initTab, setInitTab] = useState(DEFAULT_TAB.INITIALIZATION);
+
+  /* The employee whose attendance detail is open, and the close in flight. */
+  const [attendanceRow, setAttendanceRow] = useState(null);
+  const [closing, setClosing] = useState(false);
   const [selectedIds, setSelectedIds] = useState([]);
   const [busyEmployeeId, setBusyEmployeeId] = useState(null);
   const [bulkBusy, setBulkBusy] = useState(false);
 
   const { outlets } = useOutlets({ directory: true });
 
+  /* A different month is a different set of rows, so the search that was
+     narrowing the old one no longer means anything. */
+  useEffect(() => {
+    setSearch("");
+  }, [year, month]);
+
   // Sent to the server, so rows that do not match are never read out of the
   // database - not filtered out of a full month in the browser.
   const filters = useMemo(
-    () => ({ year, month, store_ids: storeId, status, lifecycle }),
-    [year, month, storeId, status, lifecycle]
+    () => ({
+      year,
+      month,
+      store_ids: storeId,
+      search,
+      /*
+       * THE TAB CONTRIBUTES ITS OWN NARROWING and the two selects contribute
+       * theirs. They compose on the server, exactly as `status` and
+       * `lifecycle` already did - "Attendance Pending" plus "Exited" is one
+       * request and one answer.
+       */
+      ...tabFilters(INITIALIZATION_TABS, initTab),
+      ...(status ? { status } : {}),
+      ...(lifecycle ? { lifecycle } : {}),
+    }),
+    [year, month, storeId, status, lifecycle, search, initTab]
   );
 
   /*
@@ -225,6 +286,85 @@ function Payrun() {
    * A single row posts a list of one, because the server has one endpoint for
    * both and two client paths into one endpoint is how they drift.
    */
+  /**
+   * CLOSE ATTENDANCE FOR PAYROLL - one employee or a selection, one path.
+   *
+   * THE CONFIRMATION SAYS WHAT IS BEING ACCEPTED, not how many rows are
+   * ticked: how many unresolved items, of what kind, and that the underlying
+   * requests stay open. Somebody accepting a month's worth of gaps should read
+   * that before it happens, not discover it afterwards.
+   *
+   * THE SERVER DECIDES WHO IS ELIGIBLE. What is sent is the list somebody
+   * selected; the server re-reads the month and skips anything it finds
+   * settled, already closed, locked or out of scope, and says which.
+   */
+  const runCloseAttendance = async (employeeIds, { confirm = true } = {}) => {
+    if (bulkBusy || busyEmployeeId || closing) return;
+
+    const summaryOfClose = closeSelectionSummary(rows, employeeIds);
+    if (summaryOfClose.employees === 0) {
+      toast({
+        title: "Nothing in this selection needs closing.",
+        status: "info",
+        duration: 5000,
+        isClosable: true,
+      });
+      return;
+    }
+    if (confirm && !window.confirm(closeMessage(summaryOfClose))) return;
+
+    setClosing(true);
+    if (summaryOfClose.employees === 1) setBusyEmployeeId(summaryOfClose.employee_ids[0]);
+    else setBulkBusy(true);
+
+    try {
+      const result = await PayrunHelper.closeAttendance({
+        year,
+        month,
+        employee_ids: summaryOfClose.employee_ids,
+      });
+      const outcome = describeApiResult(result);
+      if (outcome.kind !== KIND.OK) {
+        toast({
+          title: outcome.message,
+          status: outcome.kind === KIND.DENIED ? "info" : "error",
+          duration: 8000,
+          isClosable: true,
+        });
+        return;
+      }
+
+      /* Closed / skipped / failed, each reported, with the skipped reasons
+         available on the rows the refresh brings back. */
+      const skipped = Number(result.skipped_count || 0);
+      const failed = Number(result.failed_count || 0);
+      toast({
+        title: `Closed: ${Number(result.closed_count || 0)}, skipped: ${skipped}, failed: ${failed}.`,
+        description:
+          skipped || failed
+            ? "Employees that were already closed, already settled, locked or out of scope were skipped."
+            : undefined,
+        status: failed ? "warning" : "success",
+        duration: 7000,
+        isClosable: true,
+      });
+      setSelectedIds([]);
+      setAttendanceRow(null);
+      await refresh();
+    } catch (err) {
+      toast({
+        title: "Attendance could not be closed for payroll. Please try again.",
+        status: "error",
+        duration: 6000,
+        isClosable: true,
+      });
+    } finally {
+      setClosing(false);
+      setBulkBusy(false);
+      setBusyEmployeeId(null);
+    }
+  };
+
   const runInitialize = async (employeeIds, { confirm }) => {
     if (bulkBusy || busyEmployeeId) return;
     if (confirm && !window.confirm(confirmationMessage(employeeIds.length))) return;
@@ -307,11 +447,31 @@ function Payrun() {
     }
   };
 
-  const summaryCards = [
+  /**
+   * HOW MUCH OF THIS MONTH IS LEFT, IN TWO DIMENSIONS THAT ARE LABELLED AS
+   * TWO.
+   *
+   * THE WORKFLOW COUNTS PARTITION THE MONTH. Ready, Blocked and Initialized
+   * are mutually exclusive and add up to Total Eligible: every employee is in
+   * exactly one of them.
+   *
+   * THE ATTENDANCE COUNTS DO NOT JOIN THAT SUM, and the heading says so.
+   * Attendance readiness is a different question about the same people, and
+   * the two genuinely overlap - an INITIALIZED employee is very often
+   * attendance-pending, which is the ordinary state of a month end and the
+   * reason Close for Payroll exists. Printing all six in one row would invite
+   * somebody to add them up and get more employees than the month contains.
+   */
+  const workflowCards = [
     { label: "Total Eligible", value: summary.total_eligible },
     { label: "Ready", value: summary.ready },
     { label: "Blocked", value: summary.blocked },
     { label: "Initialized", value: summary.initialized },
+  ];
+
+  const attendanceCards = [
+    { label: "Attendance Pending", value: summary.attendance_pending },
+    { label: "Closed for Payroll", value: summary.attendance_closed_for_payroll },
   ];
 
   const body = () => {
@@ -372,6 +532,21 @@ function Payrun() {
               adjustments stage has an opinion about - its population is
               simply "everybody initialized" - so they are not drawn there
               rather than being drawn and ignored. */}
+          {/*
+            THE SEARCH, SHARED BY ALL THREE STAGES AND ALWAYS ON SCREEN.
+            It sits with the month and the branch because it is the same kind
+            of thing: what the user is looking at, rather than which stage is
+            showing it. On a phone it spans the row, so it is reachable without
+            scrolling past the filters.
+          */}
+          <Input
+            size="sm"
+            placeholder="Search employee or ID"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            aria-label="Search employee"
+            gridColumn={{ base: "span 2", md: "auto" }}
+          />
           {stage === STAGE.INITIALIZATION ? (
             <Select
               size="sm"
@@ -454,6 +629,8 @@ function Payrun() {
             month={month}
             storeId={storeId}
             monthName={MONTH_NAMES[month - 1]}
+            /* The search typed once, above, and carried into this stage. */
+            search={search}
             /* The same key that initializes a month is the key that puts
                figures into it - see `routes/payrun_adjustment.js`. */
             mayEdit={mayInitialize}
@@ -472,6 +649,7 @@ function Payrun() {
             month={month}
             storeId={storeId}
             monthName={MONTH_NAMES[month - 1]}
+            search={search}
             mayCalculate={mayCalculate}
             mayApprove={mayApprove}
             mayChangePayType={mayChangePayType}
@@ -481,14 +659,42 @@ function Payrun() {
         {/* ============================= THE INITIALIZATION STAGE, unchanged */}
         {stage === STAGE.INITIALIZATION ? (
           <>
-          <SimpleGrid columns={{ base: 2, md: 4 }} spacing={3}>
-            {summaryCards.map((card) => (
-              <Stat key={card.label} p={3} borderWidth="1px" borderRadius="md">
-                <StatLabel fontSize="xs">{card.label}</StatLabel>
-                <StatNumber fontSize="lg">{card.value ?? 0}</StatNumber>
-              </Stat>
-            ))}
-          </SimpleGrid>
+          <Box>
+            <Text fontSize="xs" color="gray.500" textTransform="uppercase" letterSpacing="0.06em" mb={1}>
+              Payrun progress
+            </Text>
+            <SimpleGrid columns={{ base: 2, md: 4 }} spacing={3}>
+              {workflowCards.map((card) => (
+                <Stat key={card.label} p={3} borderWidth="1px" borderRadius="md">
+                  <StatLabel fontSize="xs">{card.label}</StatLabel>
+                  <StatNumber fontSize="lg">{card.value ?? 0}</StatNumber>
+                </Stat>
+              ))}
+            </SimpleGrid>
+          </Box>
+
+          <Box>
+            <Text fontSize="xs" color="gray.500" textTransform="uppercase" letterSpacing="0.06em" mb={1}>
+              Attendance readiness — counted separately, and overlaps the above
+            </Text>
+            <SimpleGrid columns={{ base: 2, md: 4 }} spacing={3}>
+              {attendanceCards.map((card) => (
+                <Stat key={card.label} p={3} borderWidth="1px" borderRadius="md">
+                  <StatLabel fontSize="xs">{card.label}</StatLabel>
+                  <StatNumber fontSize="lg">{card.value ?? 0}</StatNumber>
+                </Stat>
+              ))}
+            </SimpleGrid>
+          </Box>
+
+          <PayrunTabs
+            tabs={INITIALIZATION_TABS}
+            active={initTab}
+            counts={(key) => tabCount("INITIALIZATION", key, summary)}
+            onChange={setInitTab}
+            isDisabled={loading}
+            ariaLabel="Initialization workflow"
+          />
 
           {monthLocked ? (
             <Alert status="warning" fontSize="sm">
@@ -594,6 +800,27 @@ function Payrun() {
                     >
                       Initialize Selected ({selectedCount})
                       </Button>
+                    {/*
+                      CLOSE PENDING ATTENDANCE, offered only to somebody who
+                      holds the key and only when the selection contains
+                      something a close would change. The count on the button
+                      is the CLOSEABLE subset, not the selection - offering to
+                      close thirty-two when two would move is a promise the
+                      action does not keep.
+                    */}
+                    {mayCloseAttendance && closeSelectionSummary(rows, selectedIds).employees > 0 ? (
+                      <Button
+                        size="xs"
+                        colorScheme="blue"
+                        isLoading={closing && bulkBusy}
+                        loadingText="Closing"
+                        isDisabled={Boolean(busyEmployeeId) || monthLocked}
+                        onClick={() => runCloseAttendance(selectedIds)}
+                      >
+                        Close Pending Attendance (
+                        {closeSelectionSummary(rows, selectedIds).employees})
+                      </Button>
+                    ) : null}
                   </>
                 ) : null}
               </Stack>
@@ -602,6 +829,8 @@ function Payrun() {
                   component decides, and both layouts get the same props, the
                   same permissions and the same shared cells. */}
               <PayrunEmployeeList
+                onOpenAttendance={(row) => setAttendanceRow(row)}
+                mayCloseAttendance={mayCloseAttendance}
                 rows={rows}
                 selectedIds={selectedIds}
                 onSelectChange={setSelected}
@@ -628,6 +857,20 @@ function Payrun() {
       >
         {body()}
       </CustomContainer>
+
+      {/*
+        THE ATTENDANCE DETAIL, at the page level so it survives the list
+        re-rendering under it - a refresh after a close must not tear the
+        drawer out from under whoever opened it.
+      */}
+      <AttendancePendingDrawer
+        isOpen={Boolean(attendanceRow)}
+        onClose={() => setAttendanceRow(null)}
+        row={attendanceRow}
+        canClose={mayCloseAttendance && !monthLocked}
+        busy={closing}
+        onCloseForPayroll={(row) => runCloseAttendance([row.employee_id])}
+      />
     </GlobalWrapper>
   );
 }

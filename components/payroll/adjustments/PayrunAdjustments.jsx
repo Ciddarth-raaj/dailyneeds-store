@@ -25,6 +25,13 @@ import AdjustmentsPreview from "./AdjustmentsPreview";
 import PayrunAdjustmentsHelper from "../../../helper/payrunAdjustments";
 import usePayrunAdjustmentsMonth from "../../../customHooks/usePayrunAdjustmentsMonth";
 import { describeApiResult, KIND } from "../../../util/salaryApiError";
+import PayrunTabs from "../PayrunTabs";
+import {
+  ADJUSTMENT_TABS,
+  DEFAULT_TAB,
+  tabFilters,
+  tabCount,
+} from "../../../util/payrunTabs";
 import {
   canSaveImport,
   confirmableEmployeeIds,
@@ -73,11 +80,16 @@ import {
  * an affordance for a stage that does not exist is a promise the system cannot
  * keep.
  */
-function PayrunAdjustments({ year, month, storeId, mayEdit, monthName }) {
+function PayrunAdjustments({ year, month, storeId, mayEdit, monthName, search = "" }) {
   const toast = useToast();
 
   const [catalogue, setCatalogue] = useState(null);
-  const [stateFilter, setStateFilter] = useState("");
+  /*
+   * THE WORKING TAB. Opens on the employees nobody has dealt with yet - the
+   * only queue on this stage with work in it - rather than on all two hundred.
+   * ALL is one click away and never hidden.
+   */
+  const [tab, setTab] = useState(DEFAULT_TAB.ADJUSTMENTS);
   const [selectedIds, setSelectedIds] = useState([]);
   const [busyEmployeeId, setBusyEmployeeId] = useState(null);
   const [bulkBusy, setBulkBusy] = useState(false);
@@ -92,8 +104,15 @@ function PayrunAdjustments({ year, month, storeId, mayEdit, monthName }) {
   const [editorBusy, setEditorBusy] = useState(false);
 
   const filters = useMemo(
-    () => ({ year, month, store_ids: storeId, state: stateFilter }),
-    [year, month, storeId, stateFilter]
+    () => ({
+      year,
+      month,
+      store_ids: storeId,
+      /* The search typed once at the top of the payrun, carried in here. */
+      search,
+      ...tabFilters(ADJUSTMENT_TABS, tab),
+    }),
+    [year, month, storeId, tab, search]
   );
 
   const { rows, summary, monthLocked, loading, loaded, denied, error, refresh } =
@@ -478,20 +497,16 @@ function PayrunAdjustments({ year, month, storeId, mayEdit, monthName }) {
         align={{ base: "stretch", md: "center" }}
         spacing={3}
       >
-        <Select
-          size="sm"
-          maxW={{ base: "100%", md: "320px" }}
-          placeholder="All employees"
-          value={stateFilter}
-          onChange={(e) => setStateFilter(e.target.value)}
-          aria-label="Adjustment state"
-        >
-          <option value={STATE.HAS_ADJUSTMENT}>Has adjustment</option>
-          <option value={STATE.NO_ADJUSTMENT_CONFIRMED}>No Adjustment — Confirmed</option>
-          <option value={STATE.NO_ADJUSTMENT_PENDING_CONFIRMATION}>
-            No Adjustment — Pending Confirmation
-          </option>
-        </Select>
+        <Box flex="1" minWidth={0}>
+          <PayrunTabs
+            tabs={ADJUSTMENT_TABS}
+            active={tab}
+            counts={(key) => tabCount("ADJUSTMENTS", key, summary)}
+            onChange={setTab}
+            isDisabled={loading}
+            ariaLabel="Adjustments workflow"
+          />
+        </Box>
         <Button size="sm" variant="outline" onClick={refresh} isDisabled={loading}>
           Refresh
         </Button>

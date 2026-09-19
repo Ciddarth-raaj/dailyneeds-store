@@ -442,7 +442,12 @@ test("changing it refreshes the month, so the stale status shows immediately", (
     !/RECALCULATION_REQUIRED\s*[:=]/.test(handler),
     "the browser must not decide that a calculation went stale"
   );
-  assert.match(workflowCode, /STATUS\.RECALCULATION_REQUIRED/);
+  /* The stage offers a RECALCULATION REQUIRED queue - through the shared tab
+     list since the filter selects became tabs, which is where that status now
+     lives. The point of the assertion is unchanged: the screen surfaces the
+     server's status and derives none of its own. */
+  const { CALCULATION_TABS: queues } = require("../../util/payrunTabs");
+  assert.ok(queues.some((t) => t.status === "RECALCULATION_REQUIRED"));
 });
 
 /* ================== a provisional figure is not presented as a result ==== */
@@ -520,7 +525,11 @@ test("the drawer says why the figures are dashes", () => {
 test("the month is summarised and filtered by the new status", () => {
   assert.match(workflowCode, /summary\.attendance_pending/);
   assert.match(workflow, /Attendance Pending/);
-  assert.match(workflowCode, /STATUS\.ATTENDANCE_PENDING/);
+  /* The status is offered as a working QUEUE now rather than as an option in
+     a filter select - the tab strip replaced the selects - so it is asserted
+     where it actually lives. */
+  const { CALCULATION_TABS: queues } = require("../../util/payrunTabs");
+  assert.ok(queues.some((t) => t.status === "ATTENDANCE_PENDING"));
   /* It is its own card, not folded into the calculated one. */
   assert.ok(
     !/calculated \+ summary\.attendance_pending/.test(workflowCode),
@@ -544,4 +553,171 @@ test("the new status opens no path to approval", () => {
      like this gets widened by accident. */
   const named = [...isApprovable[0].matchAll(/STATUS\.([A-Z_]+)/g)].map((m) => m[1]);
   assert.deepEqual(named, ["READY_FOR_APPROVAL"]);
+});
+
+/* ===================== the payrun workflow: tabs, search, close ========== */
+
+const fs2 = require("fs");
+const path2 = require("path");
+const readRoot = (p) => fs2.readFileSync(path2.join(ROOT, p), "utf8");
+
+const pageCode2 = codeOf(readRoot("pages/payroll/payrun.jsx"));
+const adjustmentsCode = codeOf(readRoot("components/payroll/adjustments/PayrunAdjustments.jsx"));
+const tabsComponent = readRoot("components/payroll/PayrunTabs.jsx");
+const drawerSrc = readRoot("components/payroll/AttendancePendingDrawer.jsx");
+const drawerCode = codeOf(drawerSrc);
+const payrunHelper = codeOf(readRoot("helper/payrun.js"));
+const accessCode = codeOf(readRoot("util/payrunAccess.js"));
+const tableCode = codeOf(readRoot("components/payroll/PayrunTable.jsx"));
+const cardCode = codeOf(readRoot("components/payroll/PayrunEmployeeCard.jsx"));
+
+/* ------------------------------ 22-25: search across all three stages --- */
+
+test("the search is typed once, at the top, and reaches every stage", () => {
+  /* One input, on the shared header, beside the month and the branch. */
+  assert.match(pageCode2, /placeholder="Search employee or ID"/);
+  assert.match(pageCode2, /const \[search, setSearch\] = useState\(""\)/);
+
+  /* Initialization sends it with its own filters... */
+  assert.match(pageCode2, /search,/);
+  /* ...and the other two stages receive it as a prop rather than owning one. */
+  assert.match(pageCode2, /search=\{search\}/);
+  assert.match(adjustmentsCode, /search = ""/);
+  assert.match(workflowCode, /search = ""/);
+});
+
+test("the search survives a stage switch and is cleared by a month change", () => {
+  /* `search` is NOT in the stage state, so switching stages cannot reset it. */
+  assert.ok(
+    !/setStage\([^)]*\)[^;]*setSearch/.test(pageCode2),
+    "switching stages must not clear the search"
+  );
+  /* A different month is a different set of rows, so it does clear there. */
+  assert.match(pageCode2, /useEffect\(\(\) => \{\s*setSearch\(""\);\s*\}, \[year, month\]\)/);
+});
+
+test("neither stage keeps a second search box of its own", () => {
+  for (const [name, source] of [
+    ["the adjustments stage", adjustmentsCode],
+    ["the calculation stage", workflowCode],
+  ]) {
+    assert.ok(!/setSearch\(/.test(source), `${name} owns a second search`);
+  }
+});
+
+/* ------------------------------ 26-28: the tabs ------------------------- */
+
+test("every stage renders the shared tab strip rather than its own filter bar", () => {
+  assert.match(pageCode2, /<PayrunTabs/);
+  assert.match(adjustmentsCode, /<PayrunTabs/);
+  assert.match(workflowCode, /<PayrunTabs/);
+  assert.match(pageCode2, /tabs=\{INITIALIZATION_TABS\}/);
+  assert.match(adjustmentsCode, /tabs=\{ADJUSTMENT_TABS\}/);
+  assert.match(workflowCode, /tabs=\{CALCULATION_TABS\}/);
+});
+
+test("the tab strip scrolls sideways rather than collapsing on a phone", () => {
+  assert.match(tabsComponent, /overflowX="auto"/);
+  assert.match(tabsComponent, /whiteSpace="nowrap"/);
+  /* A select would hide the counts, which are the reason to look. */
+  assert.ok(!/<Select/.test(tabsComponent));
+});
+
+test("the tab counts are the server's summary, never recounted from the rows", () => {
+  assert.match(pageCode2, /tabCount\("INITIALIZATION", key, summary\)/);
+  assert.match(adjustmentsCode, /tabCount\("ADJUSTMENTS", key, summary\)/);
+  assert.match(workflowCode, /tabCount\("CALCULATION", key, summary\)/);
+  for (const [name, source] of [["the page", pageCode2], ["the calculation stage", workflowCode]]) {
+    assert.ok(!/rows\.filter\([^)]*\)\.length/.test(source), `${name} recounts a tab from the rows`);
+  }
+});
+
+/* ------------------------------ 29, 32: the attendance detail ----------- */
+
+test("a pending attendance badge opens the unresolved detail", () => {
+  assert.match(pageCode2, /<AttendancePendingDrawer/);
+  assert.match(pageCode2, /setAttendanceRow/);
+  /* Both layouts - the badge is tappable on a phone exactly as it is
+     clickable on a desktop. */
+  assert.match(tableCode, /<AttendanceStatusBadge row=\{row\} onOpen=\{onOpenAttendance\}/);
+  assert.match(cardCode, /<AttendanceStatusBadge row=\{row\} onOpen=\{onOpenAttendance\}/);
+});
+
+test("the drawer shows the server's items and links to the screens that fix them", () => {
+  assert.match(drawerCode, /row\.attendance_unresolved/);
+  assert.match(drawerCode, /unresolvedLink\(/);
+  assert.match(drawerCode, /heldDateLink\(/);
+  /* It counts nothing and classifies nothing of its own. */
+  assert.ok(!/is_final/.test(drawerCode), "the drawer reads an attendance internal");
+  assert.ok(!/pending_regularizations\s*[><=]/.test(drawerCode));
+});
+
+test("a closed employee still shows what was accepted", () => {
+  assert.match(drawerSrc, /closed for payroll/i);
+  assert.match(drawerSrc, /were not approved or rejected/i);
+});
+
+test("CLOSED FOR PAYROLL is distinguishable from genuinely READY", () => {
+  const presentation = readRoot("components/payroll/payrunPresentation.jsx");
+  assert.match(presentation, /ATTENDANCE_STATUS_LABEL\[status\]/);
+  assert.match(presentation, /ATTENDANCE_STATUS_SCHEME\[status\]/);
+  /* READY opens nothing; the other two have something to say. */
+  assert.match(codeOf(presentation), /status !== ATTENDANCE_STATUS\.READY/);
+});
+
+/* ------------------------------ 30-31: the close actions ---------------- */
+
+test("the individual and the bulk close go through one function", () => {
+  assert.match(pageCode2, /const runCloseAttendance = async/);
+  /* The drawer's button and the bulk button both call it. */
+  assert.match(pageCode2, /onCloseForPayroll=\{\(row\) => runCloseAttendance\(\[row\.employee_id\]\)\}/);
+  assert.match(pageCode2, /onClick=\{\(\) => runCloseAttendance\(selectedIds\)\}/);
+});
+
+test("the bulk close confirms with a count of what it would actually change", () => {
+  assert.match(pageCode2, /closeSelectionSummary\(rows, employeeIds\)/);
+  assert.match(pageCode2, /window\.confirm\(closeMessage\(summaryOfClose\)\)/);
+  /* The button's number is the CLOSEABLE subset, not the selection. */
+  assert.match(pageCode2, /closeSelectionSummary\(rows, selectedIds\)\.employees/);
+});
+
+test("the close reports closed, skipped and failed separately", () => {
+  assert.match(pageCode2, /Closed: \$\{Number\(result\.closed_count \|\| 0\)\}/);
+  assert.match(pageCode2, /skipped: \$\{skipped\}/);
+  assert.match(pageCode2, /failed: \$\{failed\}/);
+});
+
+test("the browser sends no closed_by and names no attendance request", () => {
+  assert.match(payrunHelper, /closeAttendance: \(\{ year, month, employee_ids, all_pending \}\)/);
+  const call = payrunHelper.split("closeAttendance:")[1].split("getAttendanceCloseHistory")[0];
+  assert.ok(!/closed_by/.test(call), "the browser sends who closed it");
+  assert.ok(!/request_id|regularization_id|ot_id/.test(call));
+});
+
+/* ------------------------------ authorization is the server's ----------- */
+
+test("the close button is hidden without the key, and that is not the security", () => {
+  assert.match(accessCode, /function canCloseAttendanceForPayroll/);
+  assert.match(accessCode, /close_payrun_attendance/);
+  /* Not borrowed from the processing or the approval key. */
+  const fn = accessCode.split("function canCloseAttendanceForPayroll")[1].split("function ")[0];
+  assert.ok(!/process_payroll/.test(fn));
+  assert.ok(!/approve_payrun/.test(fn));
+  assert.match(pageCode2, /mayCloseAttendance/);
+});
+
+/* ------------------------------ 33-34: mobile and the locked queue ------ */
+
+test("the mobile card layout survives the new column", () => {
+  /* The list still chooses between a table and cards at the same breakpoint,
+     and both receive the same props. */
+  const listCode2 = codeOf(readRoot("components/payroll/PayrunEmployeeList.jsx"));
+  assert.match(listCode2, /useBreakpointValue\(\{ base: true, md: false \}\)/);
+  assert.match(listCode2, /<PayrunEmployeeCard key=\{row\.employee_id\} row=\{row\} \{\.\.\.props\} \/>/);
+});
+
+test("Approved & Locked is a queue of its own and never the default", () => {
+  const { CALCULATION_TABS: calcTabs, DEFAULT_TAB: defaults } = require("../../util/payrunTabs");
+  assert.ok(calcTabs.some((t) => t.key === "APPROVED_LOCKED"));
+  assert.notEqual(defaults.CALCULATION, "APPROVED_LOCKED");
 });

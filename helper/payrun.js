@@ -76,6 +76,27 @@ const payrun = {
         .then((res) => resolve(res.data))
         .catch(reject);
     }),
+
+  /**
+   * CLOSE ATTENDANCE FOR PAYROLL - accept the attendance as it stands.
+   *
+   * `employee_ids` for a selection, or `all_pending` for everybody the SERVER
+   * finds pending - never both, which the server refuses rather than resolving.
+   *
+   * THE BODY CANNOT SAY WHO CLOSED IT and cannot name an attendance request:
+   * the approver is the authenticated session, and this action decides no
+   * regularization and no OT. The server's schema refuses a body that tries.
+   */
+  closeAttendance: ({ year, month, employee_ids, all_pending }) =>
+    API.post("/payrun/attendance/close", {
+      year,
+      month,
+      ...(all_pending ? { all_pending: true } : { employee_ids }),
+    }).then((res) => res.data),
+
+  /** The append-only close history for one employee's month. */
+  getAttendanceCloseHistory: (params) =>
+    API.get("/payrun/attendance/close/history", { params }).then((res) => res.data),
 };
 
 export default payrun;

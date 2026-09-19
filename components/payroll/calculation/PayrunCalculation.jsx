@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   Alert,
   AlertIcon,
+  Box,
   Button,
   Checkbox,
   Input,
@@ -22,6 +23,13 @@ import usePayrunCalculationMonth from "../../../customHooks/usePayrunCalculation
 import PayrunCalculationHelper from "../../../helper/payrunCalculation";
 import { describeApiResult, KIND } from "../../../util/salaryApiError";
 import { changeMonthlyPayType } from "../../../util/payrunPayType";
+import PayrunTabs from "../PayrunTabs";
+import {
+  CALCULATION_TABS,
+  DEFAULT_TAB,
+  tabFilters,
+  tabCount,
+} from "../../../util/payrunTabs";
 import {
   STATUS,
   approveMessage,
@@ -78,11 +86,18 @@ function PayrunCalculation({
   mayCalculate,
   mayApprove,
   mayChangePayType,
+  search = "",
 }) {
   const toast = useToast();
 
-  const [status, setStatus] = useState("");
-  const [search, setSearch] = useState("");
+  /*
+   * THE WORKING TAB. Opens on the attendance queue - the employees whose month
+   * cannot be finished until somebody settles or accepts their attendance -
+   * rather than on a list where two hundred approved employees bury ten
+   * unfinished ones. APPROVED & LOCKED is a tab of its own and is never the
+   * default: it is the only queue that is definitionally finished.
+   */
+  const [tab, setTab] = useState(DEFAULT_TAB.CALCULATION);
   const [selectedIds, setSelectedIds] = useState([]);
   const [busyEmployeeId, setBusyEmployeeId] = useState(null);
   const [bulkBusy, setBulkBusy] = useState(false);
@@ -94,8 +109,15 @@ function PayrunCalculation({
   const [detailOpen, setDetailOpen] = useState(false);
 
   const filters = useMemo(
-    () => ({ year, month, store_ids: storeId, status, search }),
-    [year, month, storeId, status, search]
+    () => ({
+      year,
+      month,
+      store_ids: storeId,
+      /* Typed once at the top of the payrun and carried into every stage. */
+      search,
+      ...tabFilters(CALCULATION_TABS, tab),
+    }),
+    [year, month, storeId, tab, search]
   );
 
   const { rows, summary, monthLocked, loading, loaded, denied, error, refresh } =
@@ -313,32 +335,21 @@ function PayrunCalculation({
         </Alert>
       ) : null}
 
-      <SimpleGrid columns={{ base: 2, md: 4 }} spacing={3}>
-        <Select
-          size="sm"
-          placeholder="All statuses"
-          value={status}
-          onChange={(e) => setStatus(e.target.value)}
-          aria-label="Calculation status"
-        >
-          <option value={STATUS.NOT_CALCULATED}>Not calculated</option>
-          <option value={STATUS.ATTENDANCE_PENDING}>Attendance pending</option>
-          <option value={STATUS.CALCULATED}>Calculated</option>
-          <option value={STATUS.RECALCULATION_REQUIRED}>Recalculation required</option>
-          <option value={STATUS.READY_FOR_APPROVAL}>Ready for approval</option>
-          <option value={STATUS.APPROVED_LOCKED}>Approved &amp; Locked</option>
-        </Select>
-        <Input
-          size="sm"
-          placeholder="Search employee"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          aria-label="Search employee"
-        />
-        <Button size="sm" variant="outline" onClick={refresh} isDisabled={loading}>
+      <Stack direction={{ base: "column", md: "row" }} spacing={3} align={{ md: "center" }}>
+        <Box flex="1" minWidth={0}>
+          <PayrunTabs
+            tabs={CALCULATION_TABS}
+            active={tab}
+            counts={(key) => tabCount("CALCULATION", key, summary)}
+            onChange={setTab}
+            isDisabled={loading}
+            ariaLabel="Calculation workflow"
+          />
+        </Box>
+        <Button size="sm" variant="outline" onClick={refresh} isDisabled={loading} flexShrink={0}>
           Refresh
         </Button>
-      </SimpleGrid>
+      </Stack>
 
       {/*
         THE FOUR ACTIONS THE STAGE HAS, and each says how many rows it would
