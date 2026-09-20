@@ -19,6 +19,7 @@ import AadhaarSection from "../../../components/hr/profile/AadhaarSection";
 import PersonalSection from "../../../components/hr/profile/PersonalSection";
 import EmployeePhotoHeader from "../../../components/hr/profile/EmployeePhotoHeader";
 import AttendanceRequiredSection from "../../../components/hr/profile/AttendanceRequiredSection";
+import LocationScopeSection from "../../../components/hr/profile/LocationScopeSection";
 import TelegramSection from "../../../components/hr/profile/TelegramSection";
 import { canManageTelegram } from "../../../util/employeeTelegram";
 import EmploymentSection from "../../../components/hr/profile/EmploymentSection";
@@ -310,6 +311,39 @@ function EmployeeProfile() {
    * checks `user_type = 2` itself; the card only offers the control to an
    * administrator so that nobody is invited into a 403.
    */
+  /**
+   * Duty Location - POST /hr/employee/:id/location-scope.
+   *
+   * Its own endpoint and not part of the ordinary edit, for the same reason
+   * Attendance Required has one: HR may see it and may not change it. The
+   * server checks `user_type = 2` itself; the card only offers the control to
+   * an administrator so that nobody is invited into a 403.
+   */
+  const saveLocationScope = async (worksAllLocations) => {
+    setSaving(true);
+    try {
+      const res = await HrHelper.setLocationScope(id, worksAllLocations);
+      if (failed(res)) {
+        toast({ title: res.msg || "The change was not saved", status: "error", duration: 7000 });
+        return false;
+      }
+      toast({
+        title: worksAllLocations
+          ? "This employee now works across all locations and is counted in no single outlet's staffing"
+          : "This employee is now expected at the outlet on their record",
+        status: "success",
+        duration: 3500,
+      });
+      await load();
+      return true;
+    } catch (err) {
+      toast({ title: "Could not reach the server", status: "error", duration: 5000 });
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const saveAttendanceRequired = async (required) => {
     setSaving(true);
     try {
@@ -709,6 +743,19 @@ function EmployeeProfile() {
             value={employee ? employee.attendance_required !== 0 : true}
             isAdmin={isAdmin}
             onChange={saveAttendanceRequired}
+            saving={saving}
+          />
+
+          {/* ============================== 2b-ii. Duty Location ===== */}
+          {/* Which outlet's staffing this employee is counted into - the one
+              on their record, or none of them individually. Its own endpoint
+              and its own card for the same reason Attendance Required has
+              them: HR may see it and may not change it. */}
+          <LocationScopeSection
+            value={employee ? employee.works_all_locations === 1 || employee.works_all_locations === true : false}
+            outletName={employee ? employee.outlet_name || employee.outlet_nickname || null : null}
+            isAdmin={isAdmin}
+            onChange={saveLocationScope}
             saving={saving}
           />
 

@@ -701,6 +701,7 @@ export default function AttendanceDashboardPage() {
                       <CoveragePanel rows={staffing.coverage} onOpen={openCoverageRow} />
                       <AttentionNowPanel
                         items={staffing.attention_preview}
+                        groups={staffing.attention_groups}
                         total={staffing.attention_total}
                         truncated={staffing.attention_preview_truncated}
                         onOpenAll={() => openStaffingBucket("NEEDS_ATTENTION")}

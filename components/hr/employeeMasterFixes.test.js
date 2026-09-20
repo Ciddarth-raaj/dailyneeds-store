@@ -140,3 +140,54 @@ test("the card says what No does NOT mean, because Active + Not Required reads a
     assert.match(attendance, phrase);
   }
 });
+
+/* ======================================= Duty Location / roaming employees */
+
+const locationScope = read("components/hr/profile/LocationScopeSection.jsx");
+/** JSX prose wraps across lines; a sentence a reader sees is not one source line. */
+const flatScope = locationScope.replace(/\s+/g, " ");
+
+/**
+ * MARKING SOMEBODY "ALL LOCATIONS" IS A RECORDED FACT ABOUT THAT PERSON, set
+ * on their own profile — not a rule keyed off their job title, and not a
+ * special case written into a dashboard.
+ */
+test("Duty Location is its own card on the employee profile", () => {
+  assert.match(profile, /LocationScopeSection/);
+  assert.match(profile, /works_all_locations/);
+  assert.match(locationScope, /All Locations \/ Roaming/);
+  assert.match(locationScope, /Fixed outlet/);
+});
+
+test("it is set per employee and never inferred from a designation", () => {
+  const code = locationScope
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/\{\/\*[\s\S]*?\*\/\}/g, "")
+    .replace(/^\s*\/\/.*$/gm, "");
+  assert.ok(!/designation/i.test(code), "no job title decides this");
+  assert.ok(!/kumaraguru/i.test(code), "and no person is named");
+});
+
+test("the card says what it does NOT mean, because the badge invites a wrong reading", () => {
+  // "All Locations" beside an Active badge is exactly the kind of thing
+  // somebody reads as an exemption or a transfer.
+  assert.match(flatScope, /not an attendance exemption, a resignation or a salary stop/);
+  assert.match(flatScope, /still appear in attendance, in the Missing Attendance Report and in payroll/);
+});
+
+test("changing it is administrators only, and the server is the boundary", () => {
+  assert.match(locationScope, /isAdmin \? \(/);
+  assert.match(locationScope, /Only an administrator can change this/);
+  assert.match(locationScope, /hiding the button is a courtesy, not the boundary/);
+  // Its own endpoint, not the generic edit body.
+  assert.match(hrHelper, /\/hr\/employee\/\$\{employeeId\}\/location-scope/);
+  assert.match(hrHelper, /works_all_locations: Boolean\(worksAllLocations\)/);
+});
+
+test("the owning branch is kept, because authorization scope reads it", () => {
+  assert.match(flatScope, /remains the branch that owns their record/);
+  // The card never offers to clear the outlet: `store_id` appears only in the
+  // comment that explains what it is for, never in anything this card writes.
+  const code = locationScope.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  assert.ok(!/store_id/.test(code));
+});

@@ -660,3 +660,68 @@ describe("the exclusive dashboard store scope on the rights screen", () => {
     assert.match(src, /It is a convenience, not the guarantee/i);
   });
 });
+
+/* ------------------------------------- Needs attention now, grouped store-wise */
+
+/**
+ * THE GROUPING IS THE SERVER'S. These defend the browser's half of it: that
+ * the panel renders the groups it was given rather than inventing its own, and
+ * that a payload with no grouping still renders every row instead of an empty
+ * panel.
+ */
+describe("attentionGroups lays out what the server grouped", () => {
+  const { attentionGroups, ATTENTION_UNGROUPED_LABEL, ROAMING_LABEL } = require("./attendanceDashboard");
+
+  const groups = [
+    {
+      group_key: "1",
+      store_id: 1,
+      outlet_name: "Vallalar Salai",
+      works_all_locations: false,
+      count: 2,
+      items: [{ employee_id: 1 }, { employee_id: 2 }],
+    },
+    {
+      group_key: "roaming",
+      store_id: null,
+      outlet_name: ROAMING_LABEL,
+      works_all_locations: true,
+      count: 1,
+      items: [{ employee_id: 9 }],
+    },
+  ];
+
+  it("returns the server's groups untouched, in the server's order", () => {
+    assert.equal(attentionGroups(groups, []), groups);
+  });
+
+  it("does NOT regroup the flat items when groups are present", () => {
+    // Regrouping in the browser is how a panel starts disagreeing with the
+    // count it is shown beside.
+    const out = attentionGroups(groups, [{ employee_id: 99, store_id: 4 }]);
+    assert.equal(out.length, 2);
+    assert.deepEqual(
+      out.flatMap((g) => g.items.map((i) => i.employee_id)),
+      [1, 2, 9]
+    );
+  });
+
+  it("falls back to ONE named group when the server sent no grouping", () => {
+    const rows = [{ employee_id: 1 }, { employee_id: 2 }];
+    const out = attentionGroups(undefined, rows);
+    assert.equal(out.length, 1);
+    assert.equal(out[0].outlet_name, ATTENTION_UNGROUPED_LABEL);
+    assert.equal(out[0].count, 2);
+    assert.equal(out[0].items, rows, "every row still renders");
+  });
+
+  it("returns nothing to render when there is nothing waiting", () => {
+    assert.deepEqual(attentionGroups(undefined, []), []);
+    assert.deepEqual(attentionGroups([], []), []);
+    assert.deepEqual(attentionGroups(null, null), []);
+  });
+
+  it("names the roaming heading with the one string the server sends", () => {
+    assert.equal(ROAMING_LABEL, "All Locations / Roaming");
+  });
+});

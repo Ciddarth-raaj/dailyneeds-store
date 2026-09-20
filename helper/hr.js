@@ -118,6 +118,37 @@ const hr = {
     }),
 
   /**
+   * GET /hr/employee/:id/location-scope — view_employees.
+   *
+   * Whether this employee's duty is tied to one outlet. Anybody who may see
+   * the profile may see the value; only an administrator may change it, and
+   * the server enforces that on `user_type = 2` directly rather than on a
+   * grantable permission key.
+   */
+  getLocationScope: (employeeId) =>
+    new Promise((resolve, reject) => {
+      API.get(`/hr/employee/${employeeId}/location-scope`)
+        .then((res) => resolve(res.data))
+        .catch(reject);
+    }),
+
+  /**
+   * POST /hr/employee/:id/location-scope — ADMINISTRATORS ONLY.
+   *
+   * A non-administrator gets a 403 from the server whether or not the web app
+   * offered the control, which is the point: hiding the button is a courtesy
+   * and this endpoint is the boundary.
+   */
+  setLocationScope: (employeeId, worksAllLocations) =>
+    new Promise((resolve, reject) => {
+      API.post(`/hr/employee/${employeeId}/location-scope`, {
+        works_all_locations: Boolean(worksAllLocations),
+      })
+        .then((res) => resolve(res.data))
+        .catch(reject);
+    }),
+
+  /**
    * POST /hr/employee/:id/joining-date — employee_edit.
    *
    * Corrects a wrongly recorded joining date. The backend moves the master

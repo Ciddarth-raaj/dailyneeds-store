@@ -116,6 +116,42 @@ const ATTENTION_TARGETS = Object.freeze({
   SHIFT_ASSIGNMENT: { label: "Open shift assignment", href: "/employee-shift-assignment" },
 });
 
+/**
+ * The heading a group of attention rows with no location of its own is shown
+ * under - the fallback for a server payload that predates `attention_groups`.
+ * The GROUPING ITSELF IS THE SERVER'S: it is built from the same rows and the
+ * same filters that produced the totals, so a group count cannot disagree with
+ * the panel it sits in. The browser only lays it out.
+ */
+const ATTENTION_UNGROUPED_LABEL = "All employees";
+
+/** What a roaming employee's heading says. The server sends this string. */
+const ROAMING_LABEL = "All Locations / Roaming";
+
+/**
+ * The groups a panel should render, from whatever the server sent.
+ *
+ * ONE GROUP PER LOCATION when `attention_groups` is present, and ONE group
+ * holding everything when it is not. The fallback is not a second grouping
+ * rule - regrouping in the browser is how the panel would start disagreeing
+ * with its own count - it is the honest "this server does not group yet".
+ */
+function attentionGroups(groups, items) {
+  if (Array.isArray(groups) && groups.length > 0) return groups;
+  const rows = Array.isArray(items) ? items : [];
+  if (rows.length === 0) return [];
+  return [
+    {
+      group_key: "all",
+      store_id: null,
+      outlet_name: ATTENTION_UNGROUPED_LABEL,
+      works_all_locations: false,
+      count: rows.length,
+      items: rows,
+    },
+  ];
+}
+
 /** The tone each attention reason is drawn in. None of them is a verdict. */
 const ATTENTION_TONE = Object.freeze({
   SHIFT_SETUP: "purple",
@@ -615,6 +651,9 @@ module.exports = {
   bucketTitle,
   employeeDayHref,
   istToday,
+  attentionGroups,
+  ATTENTION_UNGROUPED_LABEL,
+  ROAMING_LABEL,
   apiMessage,
   isOk,
   isForbidden,

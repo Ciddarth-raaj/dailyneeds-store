@@ -892,3 +892,51 @@ test("THE TWO SCOPE RIGHTS CANNOT BOTH BE TICKED ON THE RIGHTS SCREEN", () => {
   // And the screen is explicit that the server is the real guarantee.
   assert.match(prose(permissionConstants), /the server enforces it/i);
 });
+
+/* ---------------------------- Needs attention now is grouped store-wise ---- */
+
+/**
+ * THE PANEL RENDERS GROUPS, AND IT RENDERS THE SERVER'S.
+ *
+ * The fault this replaces was a flat list of names spanning every branch: the
+ * reader is responsible for one or two of them and had to scan the whole list
+ * for their own. What must NOT happen in fixing it is the browser inventing a
+ * second grouping rule - the counts beside the headings come from the same
+ * computation as the totals, and a browser-side regroup is how those start
+ * disagreeing.
+ */
+test("Needs attention now groups by location, from the server's grouping", () => {
+  // The panel is handed the groups the snapshot built.
+  assert.match(page, /groups=\{staffing\.attention_groups\}/);
+  assert.match(attentionNowPanel, /attentionGroups/);
+  assert.match(attentionNowPanel, /group\.outlet_name/);
+  assert.match(attentionNowPanel, /group\.count/);
+
+  // And it still receives the flat preview, so nothing that read it breaks.
+  assert.match(page, /items=\{staffing\.attention_preview\}/);
+});
+
+test("the panel does not build its own grouping", () => {
+  // No reduce/groupBy over the items: the only grouping in this file is the
+  // one `attentionGroups` hands back.
+  assert.ok(
+    !/items\s*\.\s*reduce|groupBy|new Map\(/.test(attentionNowPanel),
+    "the browser must not regroup rows it was given grouped"
+  );
+});
+
+test("every attention row is keyed within its group, so nobody renders twice", () => {
+  assert.match(attentionNowPanel, /key=\{`\$\{group\.group_key\}-/);
+});
+
+test("the panel still decides nothing, grouped or not", () => {
+  assert.ok(
+    !/onApprove|onReject|onRegularize|handleApprove/.test(attentionNowPanel),
+    "grouping is a layout change and must not have added an action"
+  );
+  assert.match(flat(attentionNowPanel), /opens the screen that owns it; nothing is decided here/i);
+});
+
+test("the grouped panel says in its own source that nobody appears twice", () => {
+  assert.match(prose(attentionNowRaw), /NOBODY APPEARS TWICE/i);
+});
