@@ -165,7 +165,11 @@ test("10d. the one-day shift REQUEST asks, and says so", () => {
 
 test("13. Approve / Reject appear only where the backend says the row is actionable", () => {
   assert.match(detail, /row\.status === "PENDING" && row\.actionable && onDecide \?/);
-  assert.match(approval, /onDecide=\{name === "PENDING" \|\| name === "ALL" \? onDecide : null\}/);
+  // History tabs still carry no decision controls. The Shift clause beside
+  // it is the new permission gate (see attendanceShiftRights.test.js); the
+  // PENDING/ALL rule it is anded with is unchanged.
+  assert.match(approval, /\(name === "PENDING" \|\| name === "ALL"\) &&/);
+  assert.match(approval, /\? onDecide\s*:\s*null/);
   assert.match(detail, /row\.not_actionable_reason/);
 });
 

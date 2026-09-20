@@ -18,6 +18,7 @@ import {
   useToast,
 } from "@chakra-ui/react";
 import GlobalWrapper from "../../../components/globalWrapper/globalWrapper";
+import usePermissions from "../../../customHooks/usePermissions";
 import CustomContainer from "../../../components/CustomContainer";
 import ApprovalQueue from "../../../components/attendance/ApprovalQueue";
 import AttendanceV2Helper from "../../../helper/attendanceV2";
@@ -54,6 +55,24 @@ const TYPES = [
   { key: "SHIFT_CHANGE", label: "Shift" },
 ];
 const STATUSES = ["PENDING", "APPROVED", "REJECTED", "ALL"];
+
+/**
+ * THE SHIFT TAB CARRIES ITS OWN KEYS, ON TOP OF THE PAGE'S.
+ *
+ * The screen stays behind `view_attendance_approvals` as it always was, and
+ * Attendance and OT are unchanged. Shift is the one type that needs a second
+ * key: `view_shift_change_requests` to see the selector at all, and
+ * `approve_shift_change_request` - beside the ordinary approval key - before
+ * Approve and Reject are offered on a Shift row.
+ *
+ * THIS HIDES BUTTONS; IT IS NOT THE SECURITY BOUNDARY. The same two keys are
+ * enforced on `/attendance/approvals`, `/attendance/approvals/count`, the
+ * detail route and the decision route, where the type is taken from the
+ * stored request rather than from anything the client sent. A caller who
+ * reaches past this UI is refused there.
+ */
+const SHIFT_VIEW_KEYS = ["view_attendance_approvals", "view_shift_change_requests"];
+const SHIFT_DECIDE_KEYS = ["approve_attendance_regularization", "approve_shift_change_request"];
 const EMPTY_FILTERS = { outlet_id: "", employee_id: "", designation_id: "" };
 
 /** The URL's `type`, accepting the short word the old links and Telegram use. */
@@ -81,6 +100,13 @@ export default function AttendanceApprovalCentrePage() {
   const toast = useToast();
   const router = useRouter();
   const { designations } = useDesignations();
+
+  const canViewShift = usePermissions(SHIFT_VIEW_KEYS, { all: true });
+  const canDecideShift = usePermissions(SHIFT_DECIDE_KEYS, { all: true });
+  const types = useMemo(
+    () => TYPES.filter((t) => t.key !== "SHIFT_CHANGE" || canViewShift),
+    [canViewShift]
+  );
 
   const [type, setType] = useState("REGULARIZATION");
   const [tab, setTab] = useState(0);
@@ -120,8 +146,18 @@ export default function AttendanceApprovalCentrePage() {
   useEffect(() => {
     if (!router.isReady) return;
     const asked = typeFromQuery(router.query.type);
+    // A link into the Shift tab is no way around the key. Without it the
+    // deep link lands on Attendance rather than on a tab whose every call
+    // the server would refuse.
+    if (asked === "SHIFT_CHANGE" && !canViewShift) return;
     if (asked) setType(asked);
-  }, [router.isReady, router.query.type]);
+  }, [router.isReady, router.query.type, canViewShift]);
+
+  // The keys arrive with the user config, which can land after the first
+  // render, so a tab that was reachable a moment ago is stepped back off.
+  useEffect(() => {
+    if (type === "SHIFT_CHANGE" && !canViewShift) setType("REGULARIZATION");
+  }, [type, canViewShift]);
 
   const queryFilters = useMemo(
     () => ({
@@ -231,7 +267,7 @@ export default function AttendanceApprovalCentrePage() {
       >
         <Stack spacing={3}>
           <Flex gap={2} wrap="wrap">
-            {TYPES.map((t) => (
+            {types.map((t) => (
               <Button
                 key={t.key}
                 size="sm"
@@ -283,7 +319,12 @@ export default function AttendanceApprovalCentrePage() {
                       rows={rows}
                       kind={type}
                       loading={loading}
-                      onDecide={name === "PENDING" || name === "ALL" ? onDecide : null}
+                      onDecide={
+                        (name === "PENDING" || name === "ALL") &&
+                        (type !== "SHIFT_CHANGE" || canDecideShift)
+                          ? onDecide
+                          : null
+                      }
                       deciding={deciding}
                     />
                   </Stack>
