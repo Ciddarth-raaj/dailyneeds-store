@@ -152,6 +152,82 @@ function attentionGroups(groups, items) {
   ];
 }
 
+/**
+ * COVERAGE, COLLAPSED STORE-WISE.
+ *
+ * The server sends one row per location x role - the grain the drilldown needs,
+ * because "Warehouse / GRN Executive" is the exact list a manager opens. What
+ * it is not is a readable screen: eight outlets times a dozen designations is a
+ * hundred rows, and finding your own branch means scrolling past everybody
+ * else's.
+ *
+ * So the rows are folded into one parent per location, with the roles kept
+ * underneath. NOTHING IS RECALCULATED AND NOTHING NEW IS FETCHED: a parent's
+ * Expected, In and Gap are the SUM OF ITS OWN CHILD ROWS, the very rows drawn
+ * beneath it. That is the whole reason the totals are computed here rather than
+ * read from the snapshot's headline figures - a second source would be a second
+ * answer, and the first time a filter narrowed one and not the other, a parent
+ * would disagree with the rows it is sitting on top of. Whatever the server
+ * sent, the parent adds it up.
+ *
+ * WHICH ALSO MAKES THE FILTERS FREE. The outlet, shift, designation and search
+ * filters are applied to the POPULATION in SQL, long before this; by the time
+ * rows arrive they are already the filtered set, so summing them gives parent
+ * totals for exactly that filter. One outlet selected yields one parent row -
+ * collapsed, like every other - and a designation filter yields parents that
+ * total only the matching roles.
+ *
+ * ROAMING EMPLOYEES ARE NOT IN THIS DATA AT ALL. `buildCoverage` on the server
+ * groups `rostered`, and an employee whose duty is not tied to one outlet is
+ * never in that list - so no sum here can include one, and the flag cannot be
+ * defeated by a regrouping in the browser. They are reported separately.
+ *
+ * `delivery` and `reconciles` are per OUTLET on the server (every role row in
+ * an outlet carries the same verdict), so the parent carries them and the child
+ * rows do not repeat them.
+ */
+function groupCoverageByOutlet(rows) {
+  const groups = new Map();
+
+  (Array.isArray(rows) ? rows : []).forEach((row) => {
+    const key = row.store_id === null || row.store_id === undefined ? "none" : String(row.store_id);
+    if (!groups.has(key)) {
+      groups.set(key, {
+        group_key: key,
+        store_id: row.store_id === null || row.store_id === undefined ? null : row.store_id,
+        outlet_name: row.outlet_name || "No outlet on record",
+        delivery: row.delivery,
+        expected_now: 0,
+        recorded_in: 0,
+        recorded_in_location_unverified: 0,
+        gap: 0,
+        reconciles: true,
+        roles: [],
+      });
+    }
+    const group = groups.get(key);
+    group.roles.push(row);
+    // THE ONLY ARITHMETIC ON THIS SCREEN, and it is addition over the rows the
+    // reader can see. `Number(x) || 0` so a missing field is 0 rather than NaN,
+    // which would render as a blank cell and read as "no gap".
+    group.expected_now += Number(row.expected_now) || 0;
+    group.recorded_in += Number(row.recorded_in) || 0;
+    group.recorded_in_location_unverified += Number(row.recorded_in_location_unverified) || 0;
+    group.gap += Number(row.gap) || 0;
+    if (row.reconciles === false) group.reconciles = false;
+  });
+
+  // Biggest shortfall first, exactly as the flat list read, then the larger
+  // roster, then the name - so the order is total and cannot shuffle between
+  // renders of the same data.
+  return [...groups.values()].sort(
+    (a, b) =>
+      b.gap - a.gap ||
+      b.expected_now - a.expected_now ||
+      String(a.outlet_name).localeCompare(String(b.outlet_name))
+  );
+}
+
 /** The tone each attention reason is drawn in. None of them is a verdict. */
 const ATTENTION_TONE = Object.freeze({
   SHIFT_SETUP: "purple",
@@ -652,6 +728,7 @@ module.exports = {
   employeeDayHref,
   istToday,
   attentionGroups,
+  groupCoverageByOutlet,
   ATTENTION_UNGROUPED_LABEL,
   ROAMING_LABEL,
   apiMessage,

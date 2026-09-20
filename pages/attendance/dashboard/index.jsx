@@ -698,7 +698,11 @@ export default function AttendanceDashboardPage() {
                     ) : null}
 
                     <SimpleGrid columns={{ base: 1, lg: 2, xl: 3 }} spacing={3}>
-                      <CoveragePanel rows={staffing.coverage} onOpen={openCoverageRow} />
+                      <CoveragePanel
+                        rows={staffing.coverage}
+                        roaming={staffing.roaming}
+                        onOpen={openCoverageRow}
+                      />
                       <AttentionNowPanel
                         items={staffing.attention_preview}
                         groups={staffing.attention_groups}

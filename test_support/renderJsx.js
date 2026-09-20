@@ -127,4 +127,128 @@ function textOf(markup) {
     .filter(Boolean);
 }
 
-module.exports = { render, load, textOf, decodeEntities, unavailable, root };
+/**
+ * A LIVE COMPONENT IN A REAL DOM, for behaviour a static render cannot show.
+ *
+ * `render` above answers "what does this look like"; it cannot answer "what
+ * happens when somebody clicks the row". An accordion is almost entirely the
+ * second question - collapsed by default, one open at a time, click again to
+ * close - and a test that only asserted the closed markup would pass on a
+ * component whose rows do not open at all.
+ *
+ * So `mount` runs the component in jsdom with the real `react-dom`, and
+ * `click` dispatches a real DOM event through React's own synthetic event
+ * system. What is exercised is the component's actual state, its actual
+ * handler and its actual re-render - not a reimplementation of any of them in
+ * the test.
+ *
+ * jsdom is a devDependency and nothing in the shipped bundle imports it. The
+ * globals are installed once, at mount, because React reads `document` at
+ * module scope when it is first required in a DOM environment.
+ */
+let JSDOM = null;
+try {
+  ({ JSDOM } = require("jsdom"));
+} catch (err) {
+  if (!unavailable) unavailable = `jsdom not installed: ${err.message}`;
+}
+
+let domReady = false;
+function installDom() {
+  if (domReady) return;
+  const dom = new JSDOM("<!doctype html><html><body></body></html>", {
+    url: "http://localhost/",
+  });
+  global.window = dom.window;
+  global.document = dom.window.document;
+  global.navigator = dom.window.navigator;
+  global.Element = dom.window.Element;
+  global.HTMLElement = dom.window.HTMLElement;
+  global.Node = dom.window.Node;
+  global.Event = dom.window.Event;
+  global.MouseEvent = dom.window.MouseEvent;
+  global.KeyboardEvent = dom.window.KeyboardEvent;
+  global.getComputedStyle = dom.window.getComputedStyle;
+  // React 17 checks this to decide whether it may use the DOM renderer.
+  global.IS_REACT_ACT_ENVIRONMENT = true;
+
+  /**
+   * AND THE TEST PROCESS MUST BE ABLE TO EXIT.
+   *
+   * React's scheduler prefers `MessageChannel` when one exists and keeps its
+   * port open for the lifetime of the renderer. A port is an active libuv
+   * handle, so `node --test` finishes every assertion and then sits there for
+   * ever with nothing to report - which looks exactly like a hung test and is
+   * the most expensive kind of flake, because the first instinct is to blame
+   * the component.
+   *
+   * Removing the global makes the scheduler fall back to `setTimeout`, whose
+   * handles clear themselves. This changes WHEN React flushes work by a tick;
+   * it does not change what it renders, and every mutation here is wrapped in
+   * `act`, which flushes before returning either way. `window.close()` is not
+   * enough on its own - the port outlives the jsdom window that created it.
+   */
+  delete global.MessageChannel;
+  try {
+    delete dom.window.MessageChannel;
+  } catch (err) {
+    // A getter-only property on some jsdom versions; the global above is the
+    // one the scheduler actually reads.
+  }
+
+  domReady = true;
+}
+
+/**
+ * Mount a component and return a handle for reading and clicking it.
+ *
+ * `act` wraps every mutation so React has flushed before an assertion runs;
+ * without it an assertion can read the DOM between a click and the re-render
+ * it caused, which is a flaky test that blames the component.
+ */
+function mount(rel, props) {
+  installDom();
+  const ReactDOM = require("react-dom");
+  const { act } = require("react-dom/test-utils");
+  const Component = load(rel);
+
+  const container = document.createElement("div");
+  document.body.appendChild(container);
+  act(() => {
+    ReactDOM.render(React.createElement(Component, props), container);
+  });
+
+  const api = {
+    container,
+    /** Every element matching a selector, as an array. */
+    all: (selector) => [...container.querySelectorAll(selector)],
+    /** The first element matching a selector, or null. */
+    one: (selector) => container.querySelector(selector),
+    /** The visible text of the mounted tree, as a reader sees it. */
+    text: () => textOf(container.innerHTML),
+    /** Click an element through React's synthetic event system. */
+    click: (el) => {
+      if (!el) throw new Error("click() was given nothing to click");
+      act(() => {
+        el.dispatchEvent(new window.MouseEvent("click", { bubbles: true, cancelable: true }));
+      });
+      return api;
+    },
+    /** Re-render with new props, as a parent passing fresh data would. */
+    setProps: (next) => {
+      act(() => {
+        ReactDOM.render(React.createElement(Component, next), container);
+      });
+      return api;
+    },
+    unmount: () => {
+      act(() => {
+        ReactDOM.unmountComponentAtNode(container);
+      });
+      container.remove();
+    },
+  };
+  return api;
+}
+
+module.exports = { render, mount, load, textOf, decodeEntities, unavailable, root };
