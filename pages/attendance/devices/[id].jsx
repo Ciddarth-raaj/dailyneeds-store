@@ -24,7 +24,14 @@ import usePermissions from "../../../customHooks/usePermissions";
 import useOutlets from "../../../customHooks/useOutlets";
 import AttendanceHelper from "../../../helper/attendance";
 import { toApiDateTime } from "../../../components/attendance/DeviceForm";
-import { displayDateTime } from "../../../util/attendanceRaw";
+import { displayDateTime, displayIstDateTime } from "../../../util/attendanceRaw";
+import {
+  assignmentColor,
+  assignmentLabel,
+  connectionColor,
+  connectionLabel,
+  sinceText,
+} from "../../../util/biomaxDevices";
 
 /**
  * One Biomax device: details, its location history, its event history, and
@@ -43,6 +50,20 @@ import { displayDateTime } from "../../../util/attendanceRaw";
  * confirmation and this page shows that question rather than hiding it.
  *
  * The Cloud ID is not an editable field here. Label and notes are.
+ *
+ * ACTIVE IS NOT CONNECTED, and the top of this page is where that has to be
+ * unmistakable. Assignment is the administrative state; Connection is
+ * whether the terminal has contacted DNDS recently. They are shown as two
+ * labelled badges, side by side, with the two timestamps that justify them:
+ * last contact with DNDS (any poll) and last attendance punch (a face at
+ * the terminal). An Active device that has not polled since yesterday is
+ * the whole reason this page exists.
+ *
+ * Machine timestamps - first seen, last seen, last punch, event times - are
+ * written by MySQL NOW(3) on a UTC server and go through
+ * displayIstDateTime. The location-history dates do NOT: an administrator
+ * typed those as local wall clock, and shifting them would rewrite when a
+ * device was somewhere.
  */
 export default function BiomaxDevicePage() {
   const router = useRouter();
@@ -150,6 +171,7 @@ export default function BiomaxDevicePage() {
   }
 
   const isActive = device.status === "ACTIVE";
+  const connection = device.connection_status || null;
   const assignmentRows = (device.assignments || []).map((a) => ({
     location: a.outlet_name || a.outlet_id,
     effective_from: displayDateTime(a.effective_from),
@@ -157,7 +179,7 @@ export default function BiomaxDevicePage() {
     note: a.note || "",
   }));
   const eventRows = (device.events || []).map((e) => ({
-    when: displayDateTime(e.created_at),
+    when: displayIstDateTime(e.created_at),
     event: e.event_type,
     detail: e.detail ? JSON.stringify(e.detail) : "",
     by: e.actor_name || (e.actor_employee_id ? `#${e.actor_employee_id}` : "system"),
@@ -171,7 +193,8 @@ export default function BiomaxDevicePage() {
         filledHeader
         rightSection={
           <Stack direction="row" spacing={2} align="center">
-            <Badge colorScheme={isActive ? "green" : "gray"}>{isActive ? "Active" : "Inactive"}</Badge>
+            <Badge colorScheme={assignmentColor(device.status)}>Assignment: {assignmentLabel(device.status)}</Badge>
+            <Badge colorScheme={connectionColor(connection)}>Connection: {connectionLabel(connection)}</Badge>
             {canManage && isActive ? <Button size="sm" variant="outline" colorScheme="purple" onClick={() => open("move")}>Move</Button> : null}
             {canManage && isActive ? <Button size="sm" variant="outline" colorScheme="red" onClick={() => open("deactivate")}>Deactivate</Button> : null}
             {canManage && !isActive ? <Button size="sm" colorScheme="purple" onClick={() => open("reactivate")}>Reactivate</Button> : null}
@@ -180,7 +203,15 @@ export default function BiomaxDevicePage() {
       >
         <Stack spacing={1} fontSize="sm">
           <Text><b>Current location:</b> {device.current_assignment ? `${device.current_assignment.outlet_name} since ${displayDateTime(device.current_assignment.effective_from)}` : "none (inactive)"}</Text>
-          <Text><b>First seen:</b> {displayDateTime(device.first_seen_at) || "-"} · <b>Last seen:</b> {displayDateTime(device.last_seen_at) || "-"} · <b>Last punch:</b> {displayDateTime(device.last_punch_at) || "-"}</Text>
+          <Text>
+            <b>Last contact with DNDS:</b> {displayIstDateTime(device.last_seen_at) || "never"}
+            {sinceText(device.seconds_since_seen) ? ` (${sinceText(device.seconds_since_seen)})` : ""}
+          </Text>
+          <Text><b>Last attendance punch:</b> {displayIstDateTime(device.last_punch_at) || "never"}</Text>
+          <Text color="gray.500">
+            First seen {displayIstDateTime(device.first_seen_at) || "-"}. Assignment is what an administrator recorded; connection is
+            whether the terminal is reaching DNDS. A device can be Active and Offline, or Inactive and still polling.
+          </Text>
         </Stack>
 
         <Stack spacing={3} mt={5} maxW="560px">

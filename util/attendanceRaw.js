@@ -19,7 +19,7 @@ function clockTimeColumnCount(meta, rows) {
  * needs the same convention, and two copies of a formatting rule is how a
  * screen ends up showing 2013-06-08 next to 08/06/2013.
  */
-const { displayDate, displayDateTime } = require("./displayDate");
+const { displayDate, displayDateTime, displayIstDateTime, istDateTimeLocalValue } = require("./displayDate");
 
 /** The fixed part of the Attendance List, then Clock Time-1..N, then the count. */
 function attendanceListColumns(n) {
@@ -216,6 +216,8 @@ module.exports = {
   clockTimeColumnCount,
   displayDate,
   displayDateTime,
+  displayIstDateTime,
+  istDateTimeLocalValue,
   attendanceListColumns,
   flattenRow,
   punchesCellText,
