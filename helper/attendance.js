@@ -116,6 +116,7 @@ const attendance = {
 
   getDevices: () => get("/attendance/devices"),
   getUnregisteredDevices: () => get("/attendance/devices/unregistered"),
+  getDeviceReceiverHealth: () => get("/attendance/devices/receiver-health"),
   getDevice: (biomax_device_id) => get("/attendance/devices/details", { biomax_device_id }),
 
   /** `{ dev_id, label, notes?, outlet_id, effective_from, note? }` */

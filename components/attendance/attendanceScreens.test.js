@@ -139,10 +139,46 @@ test("NOTHING ON EITHER TAB CALCULATES ATTENDANCE", () => {
 
 test("the device list shows the approved columns and links to Add Device for managers", () => {
   const headers = (devicesList.match(/headerName:\s*"([^"]+)"/g) || []).map((m) => m.slice(13, -1));
-  assert.deepStrictEqual(headers, ["Device Label", "Cloud ID", "Location", "Effective From", "Effective To", "Status", "Last Punch", "Punches Today", "Actions"]);
+  assert.deepStrictEqual(headers, ["Device Label", "Cloud ID", "Location", "Assignment", "Connection", "Last Seen", "Last Punch", "Punches Today", "Actions"]);
   assert.match(devicesList, /\+ Add Device/);
   assert.match(devicesList, /usePermissions\(\["manage_biomax_devices"\]\)/);
   assert.match(devicesList, /permissionKey=\{\["view_biomax_devices"\]\}/);
+});
+
+test("Assignment and Connection are two columns, and the screen applies no timeout of its own", () => {
+  // Assignment comes from `status`, connection from the server's word.
+  assert.match(devicesList, /assignmentLabel\(p\.data\.status\)/);
+  assert.match(devicesList, /connectionLabel\(p\.data\.connection_status\)/);
+  // No threshold is re-implemented in the browser.
+  assert.ok(!/seconds_since_seen\s*[<>]/.test(devicesList + devicePage), "no timeout rule in the frontend");
+  assert.ok(!/(900|3600|15 \* 60)/.test(devicesList + devicePage), "no threshold constant in the frontend");
+});
+
+test("Last Seen and Last Punch are converted to IST; Effective From/To are not", () => {
+  assert.match(devicesList, /headerName: "Last Seen", minWidth: \d+, valueGetter: \(p\) => \(p\.data \? displayIstDateTime\(p\.data\.last_seen_at\)/);
+  assert.match(devicesList, /displayIstDateTime\(p\.data\.last_punch_at\)/);
+  // The device page's location history keeps the administrator's wall clock.
+  assert.match(devicePage, /effective_from: displayDateTime\(a\.effective_from\)/);
+  assert.match(devicePage, /effective_to: a\.effective_to \? displayDateTime\(a\.effective_to\)/);
+  assert.ok(!/displayIstDateTime\(a\.effective/.test(devicePage), "assignment periods are never shifted");
+});
+
+test("the device page shows Assignment and Connection as separate, labelled badges", () => {
+  assert.match(devicePage, /Assignment: \{assignmentLabel\(device\.status\)\}/);
+  assert.match(devicePage, /Connection: \{connectionLabel\(connection\)\}/);
+  assert.match(devicePage, /Last contact with DNDS:/);
+  assert.match(devicePage, /Last attendance punch:/);
+});
+
+test("the receiver header is fetched separately, and its failure never empties the device list", () => {
+  assert.match(devicesList, /getDeviceReceiverHealth\(\)/);
+  assert.match(devicesList, /Biomax Receiver:/);
+  // The list load and the health load are two calls, and health catches.
+  assert.ok(!/getDeviceReceiverHealth\(\)[^;]*\]\)/.test(devicesList), "health is not awaited inside the list Promise.all");
+  assert.match(devicesList, /catch \(err\) \{\s*setHealth\(null\);/);
+  assert.match(devicesList, /Receiver health could not be checked/);
+  // The browser never talks to the receiver's own port.
+  assert.ok(!/7005/.test(devicesList + devicePage + helper), "the browser never addresses the receiver port");
 });
 
 test("THERE IS NO DELETE for a device, in the pages or the helper", () => {

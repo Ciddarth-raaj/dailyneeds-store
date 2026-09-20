@@ -5,13 +5,26 @@ import GlobalWrapper from "../../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../../components/CustomContainer";
 import DeviceForm, { toApiDateTime } from "../../../components/attendance/DeviceForm";
 import useOutlets from "../../../customHooks/useOutlets";
+import { displayDateTime } from "../../../util/attendanceRaw";
 import AttendanceHelper from "../../../helper/attendance";
+import { registerPrefill } from "../../../util/biomaxRegisterPrefill";
 
 /**
  * Add Device. Also the landing page for "Register" from the unregistered
  * list: `?dev_id=` fills the Cloud ID and `?first_punch=` suggests Effective
  * From, so the administrator sees which quarantined punches will be covered
  * and can move the date if they should not be.
+ *
+ * `first_punch` IS ALREADY IST AND IS NOT CONVERTED. It comes from
+ * biomax_punch.io_time, which is the terminal's own clock; the devices are
+ * set to Indian time and the receiver stores the 14-digit string through
+ * MySQL's STR_TO_DATE without ever building a JS Date
+ * (docs/biomax-attendance-part1.md R3). Passing it through an IST
+ * conversion - as the machine timestamps on the Devices screen need - would
+ * push it forward another 5:30 and pre-fill Effective From to a time the
+ * device never punched at. The value is only reshaped from
+ * 'YYYY-MM-DD HH:MM:SS' to what `datetime-local` binds to, and the banner
+ * shows the same wall clock the administrator sees in the unregistered list.
  */
 export default function NewBiomaxDevicePage() {
   const router = useRouter();
@@ -27,7 +40,7 @@ export default function NewBiomaxDevicePage() {
     setValue((v) => ({
       ...v,
       dev_id: dev_id ? String(dev_id) : v.dev_id,
-      effective_from: first_punch ? String(first_punch).replace(" ", "T").slice(0, 16) : v.effective_from,
+      effective_from: first_punch ? registerPrefill(first_punch) : v.effective_from,
     }));
   }, [router.isReady, router.query]);
 
@@ -62,7 +75,7 @@ export default function NewBiomaxDevicePage() {
         {router.query && router.query.first_punch ? (
           <Alert status="info" fontSize="sm" mb={4}>
             <AlertIcon />
-            This Cloud ID has already sent punches, the first at {String(router.query.first_punch)}. Effective From is pre-filled to cover them; punches before it stay held as inactive.
+            This Cloud ID has already sent punches, the first at {displayDateTime(String(router.query.first_punch))} (the terminal's own clock, IST). Effective From is pre-filled to cover them; punches before it stay held as inactive.
           </Alert>
         ) : null}
         {error ? (
