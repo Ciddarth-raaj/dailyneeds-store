@@ -85,6 +85,79 @@ const employeeWorkShift = {
         .then((res) => resolve(res.data))
         .catch(reject);
     }),
+
+  /**
+   * POST /hr/work-shift-assignments/change — the EFFECTIVE-DATED permanent
+   * shift change: `{ employee_id, work_shift_id, effective_from, reason }`.
+   *
+   * It APPENDS to the employee's dated history and overwrites nothing: dates
+   * before `effective_from` keep the shift they had, and dates from it take
+   * the new one. The effective date may be in the past, if payroll for the
+   * months it would actually move is unlocked; it may NOT be in the future,
+   * because nothing in this system would activate it on the day.
+   *
+   * THREE OUTCOMES, not two:
+   *
+   *   200  saved, and the affected dates were recalculated
+   *   207  SAVED, and the recalculation FAILED - the history is right and
+   *        the attendance behind it is stale. `recalculation_range` is the
+   *        range to retry. This is not a success and the screen must not
+   *        show one.
+   *   4xx  nothing was written
+   *
+   * Its own permission, `edit_shift_assignment_effective_dated`, which the
+   * bulk assignment above does NOT imply - so a 403 here is a routine answer
+   * and arrives as `{ code: 403, msg }` like every other helper.
+   */
+  changeAssignment: ({ employee_id, work_shift_id, effective_from, reason }) =>
+    new Promise((resolve, reject) => {
+      API.post("/hr/work-shift-assignments/change", {
+        employee_id,
+        work_shift_id,
+        effective_from,
+        reason,
+      })
+        .then((res) => resolve(res.data))
+        .catch(reject);
+    }),
+
+  /**
+   * POST /hr/work-shift-assignments/recalculate —
+   * `{ employee_id, from_date, to_date }`.
+   *
+   * THE RECOVERY for a 207 from `changeAssignment`, and deliberately NOT
+   * `/attendance/calculated/recalculate-bulk`. That endpoint is the general
+   * tool - any employee, any outlet, any designation - behind
+   * `recalculate_attendance`, a key a shift editor need not hold; retrying
+   * through it would have answered 403 to exactly the person entitled to fix
+   * the problem, and granting them that key to avoid the 403 would have
+   * handed them the general tool.
+   *
+   * This one needs the SAME two keys as the change it follows, is scoped to
+   * an employee the caller may reach, and takes one employee and one range
+   * with no parameter that could widen either.
+   */
+  recalculateAfterChange: ({ employee_id, from_date, to_date }) =>
+    new Promise((resolve, reject) => {
+      API.post("/hr/work-shift-assignments/recalculate", { employee_id, from_date, to_date })
+        .then((res) => resolve(res.data))
+        .catch(reject);
+    }),
+
+  /**
+   * GET /hr/work-shift-assignments/history/:id — every dated row for one
+   * employee, newest first: `{ effective_from, shift, source, reason,
+   * changed_by_name, changed_at, is_current, is_future_dated }`.
+   *
+   * `is_current` is the RESOLVER's answer for today and NOT the first row: a
+   * future-dated change sits at the top of the list and is not current.
+   */
+  getAssignmentHistory: (employeeId) =>
+    new Promise((resolve, reject) => {
+      API.get(`/hr/work-shift-assignments/history/${employeeId}`)
+        .then((res) => resolve(res.data))
+        .catch(reject);
+    }),
 };
 
 export default employeeWorkShift;

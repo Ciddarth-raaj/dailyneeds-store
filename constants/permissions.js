@@ -233,6 +233,12 @@ export const PERMISSIONS = {
     // scope, and keeping them together is what makes the scope configurable in
     // one place. It is read-only and grants no approval, edit or recalculation.
     edit_attendance_date_shift: "Edit Shift for a Single Attendance Date",
+    // The EFFECTIVE-DATED permanent shift change ("Edit Shift Assignment"):
+    // one employee, one new shift, one date it applies from, a reason. It
+    // moves the NRM, shortage and overtime of every date from that one
+    // onward, so it is neither of the assignment keys and is granted by
+    // migration to nobody.
+    edit_shift_assignment_effective_dated: "Edit Shift Assignment (effective from a date)",
     // The approval and recalculation screens. `view_attendance_approvals`
     // opens Attendance Approval and OT Approval - what each person sees
     // there is decided by their approval role and outlet on the server;
@@ -242,6 +248,20 @@ export const PERMISSIONS = {
     view_attendance_approvals: "View Attendance / OT Approvals",
     approve_attendance_regularization: "Approve / Reject Attendance and OT Requests",
     recalculate_attendance: "Recalculate Attendance",
+    // THE ONE-DAY SHIFT CHANGE, all three of its keys, granted by migration
+    // to nobody.
+    //
+    //   raise_    the EMPLOYEE's own request, for themselves only - the route
+    //             takes the employee from the session and has no field that
+    //             could name anybody else, so this key can never act on
+    //             somebody else's attendance.
+    //   view_     the Shift tab of the approval centre.
+    //   approve_  reaching the decision endpoint. NOT the authority to decide
+    //             a particular stage, which is the approval chain's and is
+    //             decided per request on the server.
+    raise_shift_change_request: "Request a One-Day Shift Change (own attendance)",
+    view_shift_change_requests: "View Shift Change Requests",
+    approve_shift_change_request: "Approve / Reject Shift Change Requests",
     // The Attendance Approver Setup screen and every mutation behind it:
     // per-employee First / Second / Final approvers, Bulk Set, Replace
     // Approver. Granted by migration to nobody.

@@ -183,9 +183,63 @@ function otClaim(day) {
     : Math.max(0, Math.trunc(Number(day.ot_requested_minutes) || 0));
   const approved = Math.max(0, Math.trunc(Number(day.approved_ot_minutes) || 0));
 
+  // What an approved SHIFT CHANGE already authorised, and what is left to
+  // claim. Both come from the server; on an ordinary date the first is 0 and
+  // the second is the whole candidate.
+  const shiftAuthorised = Math.max(0, Math.trunc(Number(day.ot_shift_authorised_minutes) || 0));
+  const claimable =
+    day.ot_claimable_minutes === null || day.ot_claimable_minutes === undefined
+      ? candidate
+      : Math.max(0, Math.trunc(Number(day.ot_claimable_minutes) || 0));
+
   switch (state) {
+    /*
+     * APPROVED BY THE SHIFT CHANGE ITSELF. There is no OT request and there
+     * must not be one - the approval already happened, under Shift, and
+     * asking the employee to claim it again would be asking twice for one
+     * decision. `canRequest` is true ONLY for whatever fell outside the
+     * approved shift's own window, which the ordinary path still covers.
+     */
+    case "APPROVED_VIA_SHIFT_CHANGE": {
+      /*
+       * THE EXCESS HAS ITS OWN FATE, and it is not the day's.
+       *
+       * A 30-minute excess that was closed at payroll lock, rejected, or is
+       * still pending does not un-approve the five hours the shift change
+       * authorised - so the day stays green and says what happened to the
+       * remainder beside it, rather than presenting the whole date as
+       * closed. `canRequest` is true only while the excess is genuinely
+       * still claimable.
+       */
+      const excessState = day.ot_excess_state || (claimable > 0 ? "AVAILABLE" : "NONE");
+      const excessDetail = {
+        AVAILABLE: `${formatOtClock(claimable)} worked outside the approved shift is still to be requested`,
+        REQUEST_PENDING: `${formatOtClock(claimable)} outside the approved shift is requested and awaiting approval`,
+        // The APPROVED figure is the backend's own component, not the
+        // claimable remainder: they differ the moment a later correction
+        // clamps what the request may be paid, and showing the wrong one
+        // would print a number nobody is owed.
+        APPROVED: `${formatOtClock(
+          day.ot_request_approved_minutes === undefined || day.ot_request_approved_minutes === null
+            ? claimable
+            : Math.max(0, Math.trunc(Number(day.ot_request_approved_minutes) || 0))
+        )} outside the approved shift was also approved`,
+        REJECTED: `${formatOtClock(claimable)} outside the approved shift was rejected`,
+        CLOSED_AT_PAYROLL_LOCK: `${formatOtClock(claimable)} outside the approved shift: ${OT_CLOSED_LABEL}`,
+      }[excessState] || null;
+
+      return {
+        state,
+        label: `OT Approved via Shift Change: ${formatOtClock(shiftAuthorised)}`,
+        minutes: shiftAuthorised,
+        // Only an excess nobody has claimed yet may still be claimed.
+        canRequest: claimable > 0 && excessState === "AVAILABLE",
+        color: "green",
+        detail: excessDetail,
+      };
+    }
     case "AVAILABLE":
-      return { state, label: `OT Available: ${formatOtClock(candidate)}`, minutes: candidate, canRequest: true, color: "blue", detail: null };
+      return { state, label: `OT Available: ${formatOtClock(claimable)}`, minutes: claimable, canRequest: true, color: "blue", detail: null };
     case "REQUEST_PENDING":
       return { state, label: `OT Request Pending: ${formatOtClock(requested)}`, minutes: requested, canRequest: false, color: "orange", detail: day.ot_reason || null };
     case "APPROVED":
@@ -227,14 +281,19 @@ const MY_TAB = Object.freeze({
   ATTENDANCE: "ATTENDANCE",
   CORRECTIONS: "CORRECTIONS",
   OT: "OT",
+  // The one-day shift change. It is a REQUEST like the two beside it - the
+  // employee asks and an approver decides - so it belongs in the same list
+  // rather than behind a button whose outcome is nowhere to be seen.
+  SHIFT: "SHIFT",
 });
 
-const MY_TAB_ORDER = Object.freeze([MY_TAB.ATTENDANCE, MY_TAB.CORRECTIONS, MY_TAB.OT]);
+const MY_TAB_ORDER = Object.freeze([MY_TAB.ATTENDANCE, MY_TAB.CORRECTIONS, MY_TAB.OT, MY_TAB.SHIFT]);
 
 const MY_TAB_LABEL = Object.freeze({
   ATTENDANCE: "Attendance",
   CORRECTIONS: "Correction Requests",
   OT: "OT Requests",
+  SHIFT: "Shift Requests",
 });
 
 function myTabIndex(tab) {
@@ -261,6 +320,10 @@ function myTabAtIndex(index) {
  */
 const OT_REQUEST_STATUS = Object.freeze({
   NOT_REQUESTED: "Not Requested",
+  // A SIXTH STATUS, and not "Approved": an approved one-day shift change
+  // authorises the overtime it produces, so the employee never filed - and
+  // must never be asked to file - a request for it.
+  APPROVED_VIA_SHIFT_CHANGE: "Approved via Shift Change",
   PENDING: "Pending",
   APPROVED: "Approved",
   REJECTED: "Rejected",
@@ -284,6 +347,32 @@ function otRequestStatus(day) {
     closureReason: null,
   };
   switch (claim.state) {
+    case "APPROVED_VIA_SHIFT_CHANGE":
+      return {
+        ...base,
+        key: "APPROVED_VIA_SHIFT_CHANGE",
+        label: OT_REQUEST_STATUS.APPROVED_VIA_SHIFT_CHANGE,
+        color: "green",
+        // The request that authorised it, so the row can point at the
+        // decision instead of implying an OT request nobody made.
+        authorisingRequestId: (day && day.ot_authorising_request_id) || null,
+        // And what became of the remainder - a second fact, shown beside the
+        // first rather than replacing it.
+        excessState: (day && day.ot_excess_state) || "NONE",
+        excessMinutes: Math.max(0, Math.trunc(Number(day && day.ot_claimable_minutes) || 0)),
+        // The two approved components, read from the backend rather than
+        // inferred by subtracting one total from another.
+        shiftAuthorisedMinutes: Math.max(
+          0,
+          Math.trunc(Number(day && day.ot_shift_authorised_minutes) || 0)
+        ),
+        otRequestApprovedMinutes: Math.max(
+          0,
+          Math.trunc(Number(day && day.ot_request_approved_minutes) || 0)
+        ),
+        approvedOtSource: (day && day.approved_ot_source) || null,
+        closureReason: (day && day.ot_closure_reason) ? otClosureReason(day) : null,
+      };
     case "REQUEST_PENDING":
       return { ...base, key: "PENDING", label: OT_REQUEST_STATUS.PENDING, color: "orange" };
     case "APPROVED":
@@ -416,6 +505,64 @@ function correctionRequestRows(days) {
     const issue = dayIssue(d);
     return !!issue && (issue.key === "MISSING_PUNCH" || issue.key === "REGULARIZATION_PENDING");
   });
+}
+
+/**
+ * THE SHIFT REQUEST STATUS, the third mirror of `otRequestStatus`, read off
+ * `shift_change_state` - the request row the backend put beside the day.
+ *
+ * A pending shift request decides NOTHING about the day: it is not an issue,
+ * it does not hold the date open and the day is still calculated under the
+ * employee's ordinary shift until the final approval writes the one-date
+ * override. This reads the request's state and says so, and nothing else.
+ */
+const SHIFT_REQUEST_STATUS = Object.freeze({
+  NOT_REQUESTED: "Not Requested",
+  PENDING: "Pending",
+  APPROVED: "Approved",
+  REJECTED: "Rejected",
+});
+
+function shiftRequestStatus(day) {
+  const state = (day && day.shift_change_state) || "NONE";
+  const base = {
+    requestId: (day && day.shift_change_request_id) || null,
+    requestedWorkShiftId: (day && day.shift_change_requested_work_shift_id) || null,
+    reason: (day && day.shift_change_reason) || null,
+    requestedAt: (day && day.shift_change_requested_at) || null,
+    decidedAt: (day && day.shift_change_decided_at) || null,
+    rejectionReason: null,
+  };
+  switch (state) {
+    case "PENDING":
+      return { ...base, key: "PENDING", label: SHIFT_REQUEST_STATUS.PENDING, color: "orange" };
+    case "APPROVED":
+      return { ...base, key: "APPROVED", label: SHIFT_REQUEST_STATUS.APPROVED, color: "green" };
+    case "REJECTED":
+      return {
+        ...base,
+        key: "REJECTED",
+        label: SHIFT_REQUEST_STATUS.REJECTED,
+        color: "red",
+        rejectionReason: (day && day.shift_change_rejection_remarks) || null,
+      };
+    default:
+      return { ...base, key: "NOT_REQUESTED", label: SHIFT_REQUEST_STATUS.NOT_REQUESTED, color: "gray" };
+  }
+}
+
+/**
+ * The rows the Shift Requests tab shows: the dates a one-day shift change was
+ * actually asked for.
+ *
+ * Unlike the other two tabs there is no "still needs one" case - a shift
+ * request is a choice, never something the engine finds wrong with a day - so
+ * a date nobody asked about is simply not a row.
+ */
+function shiftRequestRows(days) {
+  return (Array.isArray(days) ? days : []).filter(
+    (d) => d && d.shift_change_state && d.shift_change_state !== "NONE"
+  );
 }
 
 /**
@@ -1003,6 +1150,9 @@ module.exports = {
   otBlockedReason,
   canRequestOt,
   otRequestRows,
+  SHIFT_REQUEST_STATUS,
+  shiftRequestStatus,
+  shiftRequestRows,
   CORRECTION_REQUEST_STATUS,
   correctionRequestStatus,
   correctionRequestRows,

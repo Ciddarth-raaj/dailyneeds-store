@@ -19,6 +19,7 @@ import usePermissions from "../../customHooks/usePermissions";
 import useEmployeeOutlets from "../../customHooks/useEmployeeOutlets";
 import useDepartments from "../../customHooks/useDepartments";
 import useDesignations from "../../customHooks/useDesignations";
+import ShiftAssignmentEditor from "../../components/attendance/ShiftAssignmentEditor";
 import EmployeeWorkShiftHelper from "../../helper/employeeWorkShift";
 import WorkShiftHelper from "../../helper/workShift";
 import {
@@ -97,6 +98,16 @@ function EmployeeShiftAssignment() {
   // May this caller assign at all? What gates the checkboxes and the
   // "you can look but not change" note.
   const canAssign = canAssignOne || canAssignMany;
+  /**
+   * The EFFECTIVE-DATED change is its own key and is granted to nobody by the
+   * migration: it moves the NRM, shortage and overtime of every date from the
+   * effective one onward. Holding the bulk assign key does not imply it, so
+   * the two are asked for separately and the backend requires it regardless -
+   * this only decides whether the form is offered.
+   */
+  const canChangeDated = usePermissions(["employee_edit", "edit_shift_assignment_effective_dated"], {
+    requireAll: true,
+  });
 
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const [rows, setRows] = useState([]);
@@ -110,6 +121,7 @@ function EmployeeShiftAssignment() {
   const [targetShiftId, setTargetShiftId] = useState("");
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [assigning, setAssigning] = useState(false);
+  const [editingEmployee, setEditingEmployee] = useState(null);
 
   /**
    * THE BRANCHES THIS USER MAY FILTER BY, NARROWED ON THE SERVER.
@@ -277,6 +289,7 @@ function EmployeeShiftAssignment() {
     department_name: "Department",
     designation_name: "Designation",
     work_shift: "Current Work Shift",
+    history: "Shift History",
   };
 
   const tableRows = rows.map((row) => {
@@ -303,6 +316,21 @@ function EmployeeShiftAssignment() {
           {currentWorkShiftLabel(row)}
           {row.work_shift_active === false ? " (inactive)" : ""}
         </Text>
+      ),
+      // One employee at a time, with their dated history beside the form: an
+      // effective-dated change is a decision about a person, not a selection.
+      history: (
+        <Button
+          size="xs"
+          variant="outline"
+          colorScheme="purple"
+          onClick={(e) => {
+            e.stopPropagation();
+            setEditingEmployee(row);
+          }}
+        >
+          {canChangeDated ? "Edit / History" : "History"}
+        </Button>
       ),
     };
   });
@@ -502,6 +530,15 @@ function EmployeeShiftAssignment() {
           </>
         )}
       </CustomContainer>
+
+      <ShiftAssignmentEditor
+        employee={editingEmployee}
+        shiftOptions={shiftOptions}
+        isOpen={!!editingEmployee}
+        canEdit={canChangeDated}
+        onClose={() => setEditingEmployee(null)}
+        onChanged={() => load()}
+      />
 
       <CustomModal
         isOpen={confirmOpen}

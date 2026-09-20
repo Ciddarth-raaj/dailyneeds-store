@@ -22,7 +22,7 @@ const helper = strip(read("helper/attendanceV2.js"));
 
 /* ================================================== the tab shell ==== */
 
-test("the employee's own page shows the three tabs, Attendance first", () => {
+test("the employee's own page shows the four tabs, Attendance first", () => {
   assert.match(myPage, /<Tabs[\s\S]*?index=\{myTabIndex\(tab\)\}/);
   assert.match(myPage, /onChange=\{\(i\) => setTab\(myTabAtIndex\(i\)\)\}/);
   assert.match(myPage, /MY_TAB_ORDER\.map/);
@@ -37,6 +37,13 @@ test("the employee's own page shows the three tabs, Attendance first", () => {
     panels.indexOf("CorrectionRequestList") < panels.indexOf("OtRequestList"),
     "Correction Requests comes before OT Requests"
   );
+  // The one-day shift change is the third REQUEST tab and the last of the
+  // four: it was added beside the other two rather than in front of them, so
+  // nobody's muscle memory for Correction Requests or OT Requests moves.
+  assert.ok(
+    panels.indexOf("OtRequestList") < panels.indexOf("ShiftRequestList"),
+    "Shift Requests comes last"
+  );
 });
 
 test("the OT tab is visible to every employee: no permission key anywhere on the page", () => {
@@ -45,11 +52,24 @@ test("the OT tab is visible to every employee: no permission key anywhere on the
   assert.ok(!/employee_id/.test(myPage), "the page never names an employee id");
 });
 
-test("all three tabs are the SAME /attendance/me read - no second endpoint, no second engine", () => {
+test("all four tabs are the SAME /attendance/me read - no second endpoint, no second engine", () => {
   assert.match(myPage, /getMyAttendance\(/);
   assert.equal((myPage.match(/AttendanceV2Helper\./g) || []).length, 1, "one helper call on the page");
   assert.match(myPage, /days=\{correctionRequestRows\(days\)\}/);
   assert.match(myPage, /days=\{otRequestRows\(days\)\}/);
+  assert.match(myPage, /days=\{shiftRequestRows\(days\)\}/);
+});
+
+test("the Shift Requests tab reports the BACKEND's request state and raises nothing", () => {
+  const shiftList = strip(read("components/attendance/ShiftRequestList.jsx"));
+  assert.match(shiftList, /shiftRequestStatus\(day\)/);
+  assert.match(shiftList, /shift_change_state|shiftRequestStatus/);
+  // No button: a shift request names a date the employee chooses, so it is
+  // raised from the page's own control with the date as a field.
+  assert.ok(!/<Button/.test(shiftList), "the tab raises nothing");
+  // And it decides nothing about the day: a pending request is not an issue
+  // with the date, so no attendance status is drawn here.
+  assert.ok(!/dayIssue|issueLabel/.test(shiftList));
 });
 
 /* ============================================= the OT Requests tab ==== */
@@ -144,4 +164,19 @@ test("the two tabs raise two separate requests", () => {
   assert.match(myPage, /onRequestOt=\{\(day\) => setRequestingOt\(day\)\}/);
   assert.ok(!/RegularizationForm/.test(otList), "the OT tab cannot raise a correction");
   assert.ok(!/OtRequestForm/.test(correctionList), "the correction tab cannot raise OT");
+});
+
+/* ============ OT authorised by an approved one-day shift change ========= */
+
+test("the OT tab says Approved via Shift Change, and never offers to claim it again", () => {
+  const otList = strip(read("components/attendance/OtRequestList.jsx"));
+  // The row states where the approval came from, and names the request that
+  // made it - not an OT request, which does not exist for these minutes.
+  assert.match(otList, /status\.key !== "APPROVED_VIA_SHIFT_CHANGE"/);
+  assert.match(otList, /Approved by your shift change/);
+  assert.match(otList, /no OT request needed/);
+  assert.match(otList, /outside the approved shift is still to be requested/);
+  // Request OT is still gated on `canRequestOt`, which is false once the
+  // shift change has authorised the whole of it.
+  assert.match(otList, /if \(!canRequestOt\(day\)\) return/);
 });

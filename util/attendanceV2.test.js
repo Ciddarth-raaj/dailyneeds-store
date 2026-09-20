@@ -482,18 +482,55 @@ test("OT hover walks the engine's chain: surplus, pre-shift dropped, minimum exc
 
 /* ============================ the employee's own request tabs ==== */
 
-test("the three tabs are Attendance, Correction Requests and OT Requests, in that order", () => {
+test("the four tabs are Attendance, Correction Requests, OT Requests and Shift Requests, in that order", () => {
   assert.deepEqual(MY_TAB_ORDER.map((k) => MY_TAB_LABEL[k]), [
     "Attendance",
     "Correction Requests",
     "OT Requests",
+    // Added at the END, so the index every existing tab already had is the
+    // index it still has - a controlled `<Tabs>` is driven by that number.
+    "Shift Requests",
   ]);
   assert.equal(myTabIndex(MY_TAB.ATTENDANCE), 0);
   assert.equal(myTabIndex(MY_TAB.OT), 2);
+  assert.equal(myTabIndex(MY_TAB.SHIFT), 3);
   // Anything unrecognised lands on the month rather than on a blank panel.
   assert.equal(myTabIndex("NOPE"), 0);
   assert.equal(myTabAtIndex(1), MY_TAB.CORRECTIONS);
   assert.equal(myTabAtIndex(99), MY_TAB.ATTENDANCE);
+});
+
+test("the shift request status is read off shift_change_state, in the same four request words", () => {
+  const { shiftRequestStatus, shiftRequestRows } = require("./attendanceV2");
+  const cases = [
+    [{ shift_change_state: "PENDING" }, "PENDING", "Pending"],
+    [{ shift_change_state: "APPROVED" }, "APPROVED", "Approved"],
+    [{ shift_change_state: "REJECTED" }, "REJECTED", "Rejected"],
+    [{}, "NOT_REQUESTED", "Not Requested"],
+  ];
+  for (const [day, key, label] of cases) {
+    const status = shiftRequestStatus(day);
+    assert.equal(status.key, key);
+    assert.equal(status.label, label);
+  }
+  // The approver's words, on a rejection and only on a rejection.
+  assert.equal(
+    shiftRequestStatus({ shift_change_state: "REJECTED", shift_change_rejection_remarks: "We have cover" })
+      .rejectionReason,
+    "We have cover"
+  );
+  assert.equal(
+    shiftRequestStatus({ shift_change_state: "APPROVED", shift_change_rejection_remarks: "ignored" })
+      .rejectionReason,
+    null
+  );
+  // A date nobody asked about is not a row: unlike a correction, a shift
+  // request is a choice and never something the engine finds wrong with a day.
+  assert.deepEqual(
+    shiftRequestRows([{ attendance_date: "2026-09-01" }, { attendance_date: "2026-09-02", shift_change_state: "PENDING" }])
+      .map((d) => d.attendance_date),
+    ["2026-09-02"]
+  );
 });
 
 test("the OT status is read off ot_claim_state, in the four request words", () => {
@@ -672,4 +709,128 @@ test("the Correction tab shows filed corrections and the days still needing one"
     day({ attendance_date: "2026-09-03", correction_state: "APPROVED" }),
   ]);
   assert.deepEqual(rows.map((r) => r.attendance_date), ["2026-09-02", "2026-09-03"]);
+});
+
+/* ========== OT authorised by an approved one-day shift change =========== */
+
+test("an approved shift change shows Approved via Shift Change, and offers no request for it", () => {
+  const { otRequestStatus, canRequestOt } = require("./attendanceV2");
+  const day = {
+    ot_claim_state: "APPROVED_VIA_SHIFT_CHANGE",
+    candidate_ot_minutes: 300,
+    ot_shift_authorised_minutes: 300,
+    ot_claimable_minutes: 0,
+    approved_ot_minutes: 300,
+    ot_authorising_request_id: 901,
+    is_final: true,
+    status: "FINAL",
+  };
+  const status = otRequestStatus(day);
+  assert.strictEqual(status.key, "APPROVED_VIA_SHIFT_CHANGE");
+  assert.strictEqual(status.label, "Approved via Shift Change");
+  assert.strictEqual(status.authorisingRequestId, 901, "it points at the decision that authorised it");
+  // The employee is NEVER asked to claim what somebody already approved.
+  assert.strictEqual(canRequestOt(day), false);
+  // And it is not dressed up as an OT request that nobody filed.
+  assert.strictEqual(status.requestId, null);
+});
+
+test("only the part OUTSIDE the approved shift is still requestable", () => {
+  const { otRequestStatus, canRequestOt } = require("./attendanceV2");
+  const day = {
+    ot_claim_state: "APPROVED_VIA_SHIFT_CHANGE",
+    candidate_ot_minutes: 570,
+    ot_shift_authorised_minutes: 480,
+    ot_claimable_minutes: 90,
+    approved_ot_minutes: 480,
+    is_final: true,
+    status: "FINAL",
+  };
+  assert.strictEqual(canRequestOt(day), true, "the excess follows the ordinary path");
+  assert.strictEqual(otRequestStatus(day).minutes, 480, "and the badge reports what was authorised");
+});
+
+test("an ordinary OT day is untouched: Not Requested, and requestable", () => {
+  const { otRequestStatus, canRequestOt } = require("./attendanceV2");
+  const day = {
+    ot_claim_state: "AVAILABLE",
+    candidate_ot_minutes: 120,
+    ot_claimable_minutes: 120,
+    ot_shift_authorised_minutes: 0,
+    is_final: true,
+    status: "FINAL",
+  };
+  assert.strictEqual(otRequestStatus(day).key, "NOT_REQUESTED");
+  assert.strictEqual(canRequestOt(day), true);
+});
+
+test("a closed excess does not un-approve what the shift change authorised", () => {
+  const { otRequestStatus, canRequestOt, otClaim } = require("./attendanceV2");
+  const day = {
+    ot_claim_state: "APPROVED_VIA_SHIFT_CHANGE",
+    ot_excess_state: "CLOSED_AT_PAYROLL_LOCK",
+    candidate_ot_minutes: 570,
+    ot_shift_authorised_minutes: 480,
+    ot_claimable_minutes: 90,
+    approved_ot_minutes: 480,
+    ot_closure_reason: "NOT_REQUESTED_BEFORE_PAYROLL_LOCK",
+    is_final: true,
+    status: "FINAL",
+  };
+  const status = otRequestStatus(day);
+  // The day is NOT "Closed – Payroll Locked": eight approved hours are not
+  // un-approved by a closed thirty-minute remainder.
+  assert.strictEqual(status.key, "APPROVED_VIA_SHIFT_CHANGE");
+  assert.strictEqual(status.excessState, "CLOSED_AT_PAYROLL_LOCK");
+  assert.strictEqual(status.excessMinutes, 90);
+  assert.match(otClaim(day).detail, /outside the approved shift: Closed/);
+  // And there is nothing left to request.
+  assert.strictEqual(canRequestOt(day), false);
+});
+
+test("a pending or approved excess reads as itself, and neither offers a second request", () => {
+  const { otClaim, canRequestOt } = require("./attendanceV2");
+  const base = {
+    ot_claim_state: "APPROVED_VIA_SHIFT_CHANGE",
+    candidate_ot_minutes: 570,
+    ot_shift_authorised_minutes: 480,
+    ot_claimable_minutes: 90,
+    is_final: true,
+    status: "FINAL",
+  };
+  const pending = { ...base, ot_excess_state: "REQUEST_PENDING" };
+  assert.match(otClaim(pending).detail, /awaiting approval/);
+  assert.strictEqual(canRequestOt(pending), false, "it is already requested");
+
+  const approved = { ...base, ot_excess_state: "APPROVED", approved_ot_minutes: 570 };
+  assert.match(otClaim(approved).detail, /was also approved/);
+  assert.strictEqual(canRequestOt(approved), false);
+
+  // Only an unclaimed excess may still be claimed.
+  const available = { ...base, ot_excess_state: "AVAILABLE" };
+  assert.strictEqual(canRequestOt(available), true);
+});
+
+test("the two approved components are read from the backend, never inferred", () => {
+  const { otRequestStatus, otClaim } = require("./attendanceV2");
+  const mixed = {
+    ot_claim_state: "APPROVED_VIA_SHIFT_CHANGE",
+    ot_excess_state: "APPROVED",
+    candidate_ot_minutes: 570,
+    ot_shift_authorised_minutes: 480,
+    ot_claimable_minutes: 90,
+    // The APPROVED component is its own figure and can differ from the
+    // claimable one once a correction clamps it.
+    ot_request_approved_minutes: 30,
+    approved_ot_minutes: 510,
+    approved_ot_source: "MIXED",
+    is_final: true,
+    status: "FINAL",
+  };
+  const status = otRequestStatus(mixed);
+  assert.strictEqual(status.shiftAuthorisedMinutes, 480);
+  assert.strictEqual(status.otRequestApprovedMinutes, 30);
+  assert.strictEqual(status.approvedOtSource, "MIXED");
+  // The sentence prints the APPROVED thirty minutes, not the claimable ninety.
+  assert.match(otClaim(mixed).detail, /00:30 outside the approved shift was also approved/);
 });

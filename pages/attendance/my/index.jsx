@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import {
   Alert,
   AlertIcon,
+  Button,
   Flex,
   FormControl,
   FormLabel,
@@ -20,9 +21,11 @@ import CustomContainer from "../../../components/CustomContainer";
 import AttendanceDayList from "../../../components/attendance/AttendanceDayList";
 import CorrectionRequestList from "../../../components/attendance/CorrectionRequestList";
 import OtRequestList from "../../../components/attendance/OtRequestList";
+import ShiftRequestList from "../../../components/attendance/ShiftRequestList";
 import AttendanceDayDetail from "../../../components/attendance/AttendanceDayDetail";
 import RegularizationForm from "../../../components/attendance/RegularizationForm";
 import OtRequestForm from "../../../components/attendance/OtRequestForm";
+import ShiftChangeRequestForm from "../../../components/attendance/ShiftChangeRequestForm";
 import AttendanceV2Helper from "../../../helper/attendanceV2";
 import {
   MY_TAB,
@@ -36,6 +39,7 @@ import {
   myTabAtIndex,
   myTabIndex,
   otRequestRows,
+  shiftRequestRows,
 } from "../../../util/attendanceV2";
 
 /**
@@ -55,7 +59,7 @@ import {
  * has no field for them. The shift is read-only here - there is no Edit Shift on this page,
  * and the backend would refuse it anyway.
  *
- * ================================================== THREE TABS, ONE READ ===
+ * ================================================== FOUR TABS, ONE READ ====
  *
  *   ATTENDANCE           the month, as before. The landing tab.
  *   CORRECTION REQUESTS  the dates needing a correction or carrying one,
@@ -63,20 +67,28 @@ import {
  *   OT REQUESTS          the dates with overtime to claim or already
  *                        claimed, with the engine's eligible OT, the status
  *                        and the rejection reason.
+ *   SHIFT REQUESTS       the dates a one-day shift change was asked for, and
+ *                        what came of it.
  *
- * ALL THREE ARE THE SAME `days`. There is ONE request, `GET /attendance/me`,
- * and the two request tabs are FILTERS over the rows it returned
- * (`otRequestRows`, `correctionRequestRows`) - not a second endpoint, not a
- * second attendance engine and not a second OT calculation. Every figure a
- * tab shows is a field the server sent: `candidate_ot_minutes` is the
- * eligible OT, `ot_claim_state` is the OT status, `correction_state` is the
- * correction status. The browser derives none of them from the punch times
- * it happens to be displaying beside them.
+ * ALL FOUR ARE THE SAME `days`. There is ONE request, `GET /attendance/me`,
+ * and the three request tabs are FILTERS over the rows it returned
+ * (`otRequestRows`, `correctionRequestRows`, `shiftRequestRows`) - not a
+ * second endpoint, not a second attendance engine and not a second OT
+ * calculation. Every figure a tab shows is a field the server sent:
+ * `candidate_ot_minutes` is the eligible OT, `ot_claim_state` is the OT
+ * status, `correction_state` is the correction status and
+ * `shift_change_state` is the shift request's. The browser derives none of
+ * them from the punch times it happens to be displaying beside them.
  *
  * THE OT FORM HAS NO DURATION FIELD, here or anywhere: submitting sends a
  * date and a reason, the server recalculates the date and stores its own
  * candidate, and the correction dependency, the one-claim-per-date rule and
  * the payroll lock are all its refusals, not this page's.
+ *
+ * THE SHIFT REQUEST IS A REQUEST, on this page as everywhere else: the
+ * employee asks, an approver decides, and only the final approval makes the
+ * requested shift apply - to one date. Nothing here changes any shift, then
+ * or after approval, and it changes no permanent shift ever.
  */
 export default function MyAttendancePage() {
   const toast = useToast();
@@ -87,6 +99,7 @@ export default function MyAttendancePage() {
   const [selected, setSelected] = useState(null);
   const [regularizing, setRegularizing] = useState(null);
   const [requestingOt, setRequestingOt] = useState(null);
+  const [requestingShift, setRequestingShift] = useState(false);
   // CONTROLLED TABS, so a submission can send the employee to the tab that
   // now holds what they filed instead of leaving them on the month.
   const [tab, setTab] = useState(MY_TAB.ATTENDANCE);
@@ -142,6 +155,21 @@ export default function MyAttendancePage() {
     await load();
   };
 
+  const onShiftSubmitted = async (res) => {
+    setRequestingShift(false);
+    setTab(MY_TAB.SHIFT);
+    toast({
+      title: "Shift change requested",
+      description:
+        res && res.telegram && res.telegram.sent
+          ? "Your first approver has been notified. The shift changes only after every required approval, and only for that date."
+          : "It is with your first approver. The shift changes only after every required approval, and only for that date.",
+      status: "success",
+      duration: 6000,
+    });
+    await load();
+  };
+
   return (
     <GlobalWrapper title="My Attendance">
       <CustomContainer title="My Attendance" filledHeader>
@@ -154,6 +182,9 @@ export default function MyAttendancePage() {
             <Text fontSize="xs" color="gray.500" pb={2}>
               Tap a day for its detail.
             </Text>
+            <Button size="sm" colorScheme="purple" variant="outline" onClick={() => setRequestingShift(true)}>
+              Request a shift change
+            </Button>
           </Flex>
 
           {error ? (
@@ -197,6 +228,16 @@ export default function MyAttendancePage() {
                   onRequestOt={(day) => setRequestingOt(day)}
                 />
               </TabPanel>
+              <TabPanel px={0}>
+                {/* No action on this tab: a shift request names a date the
+                    employee chooses, so it is raised from the button above
+                    rather than from a row the engine flagged. */}
+                <ShiftRequestList
+                  days={shiftRequestRows(days)}
+                  loading={loading}
+                  onSelect={setSelected}
+                />
+              </TabPanel>
             </TabPanels>
           </Tabs>
         </Stack>
@@ -214,6 +255,12 @@ export default function MyAttendancePage() {
         isOpen={!!requestingOt}
         onClose={() => setRequestingOt(null)}
         onSubmitted={onOtSubmitted}
+      />
+      <ShiftChangeRequestForm
+        isOpen={requestingShift}
+        onClose={() => setRequestingShift(false)}
+        onSubmitted={onShiftSubmitted}
+        defaultDate={selected ? selected.attendance_date : ""}
       />
       <RegularizationForm
         day={regularizing}

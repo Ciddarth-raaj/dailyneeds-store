@@ -198,7 +198,10 @@ test("3. the OT minutes are read-only and 9. the employee cannot enter or change
 test("4. submit sends the date and the reason only", () => {
   assert.match(otForm, /raiseMyOtRequest\(\{[\s\S]*?attendance_date: date,[\s\S]*?reason: reason\.trim\(\),[\s\S]*?\}\)/);
   assert.ok(!/employee/.test(otForm), "never names an employee");
-  const fn = helper.slice(helper.indexOf("raiseMyOtRequest"), helper.indexOf("getDateShiftOptions"));
+  // The OT helper ALONE - the slice ends at the next helper, whatever that
+  // happens to be, so "no minutes and no employee id" is asserted about this
+  // function and not about whatever was written after it.
+  const fn = helper.slice(helper.indexOf("raiseMyOtRequest"), helper.indexOf("getApprovals"));
   assert.match(fn, /"\/attendance\/me\/ot-request"/);
   assert.match(fn, /\{ attendance_date, reason \}/);
   assert.ok(!/minutes|employee_id/.test(fn));

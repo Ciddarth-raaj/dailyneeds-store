@@ -1,6 +1,12 @@
 /**
- * Attendance Approval, OT Approval and Recalculate Attendance: the approved
+ * The Attendance Approval Centre and Recalculate Attendance: the approved
  * shape of the screens, read from the sources (no renderer in this repo).
+ *
+ * THERE IS ONE APPROVAL SCREEN NOW, with Attendance | OT | Shift on it, and
+ * `/attendance/ot-approval` is a redirect into its OT tab. The assertions
+ * below are the same properties they always were - one request type at a
+ * time, OT read-only, Approve/Reject only where the backend says the row is
+ * actionable - stated against the one screen instead of two.
  *
  *   node --test components/attendance/attendanceApprovalScreens.test.js
  */
@@ -15,6 +21,7 @@ const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm,
 const queue = strip(read("components/attendance/ApprovalQueue.jsx"));
 const approval = strip(read("pages/attendance/approval/index.jsx"));
 const ot = strip(read("pages/attendance/ot-approval/index.jsx"));
+const shiftForm = strip(read("components/attendance/ShiftChangeRequestForm.jsx"));
 const recalc = strip(read("pages/attendance/recalculate/index.jsx"));
 const helper = strip(read("helper/attendanceV2.js"));
 const {
@@ -32,18 +39,37 @@ const list = section(queue, "ApprovalQueue");
 
 /* ======================================== Attendance Approval ==== */
 
-test("1. Attendance Approval renders Pending with me, counted by the server", () => {
+test("1. the approval centre renders Pending with me, counted by the server under the SAME filters", () => {
   assert.match(approval, /Pending with me:/);
-  assert.match(approval, /getApprovalCount\("REGULARIZATION"\)/);
+  assert.match(approval, /getApprovalCount\(type, queryFilters\)/);
   assert.match(approval, /\{count === null \? "—" : count\}/);
   assert.match(approval, /permissionKey=\{\["view_attendance_approvals"\]\}/);
 });
 
-test("2. only attendance regularization rows are requested and rendered", () => {
-  assert.match(approval, /getApprovals\(\{ request_type: "REGULARIZATION", status: "PENDING" \}\)/);
-  assert.match(approval, /<ApprovalQueue[^>]*kind="REGULARIZATION"/);
-  assert.ok(!/request_type: "OT"/.test(approval));
-  assert.ok(!/<Tabs/.test(approval), "one list, no tabs");
+test("2. ONE request type is requested and rendered at a time - Attendance, OT and Shift never mix", () => {
+  assert.match(approval, /getApprovals\(\{ request_type: type, status, \.\.\.queryFilters \}\)/);
+  assert.match(approval, /<ApprovalQueue[\s\S]*?kind=\{type\}/);
+  assert.match(
+    approval,
+    /\{ key: "REGULARIZATION", label: "Attendance" \},\s*\{ key: "OT", label: "OT" \},\s*\{ key: "SHIFT_CHANGE", label: "Shift" \}/
+  );
+  // The old OT screen is a redirect and not a second queue.
+  assert.match(ot, /router\.replace\("\/attendance\/approval\?type=OT"\)/);
+  assert.ok(!/ApprovalQueue/.test(ot), "the OT route renders no queue of its own");
+});
+
+test("2b. the filters narrow and the outlet scope is the server's", () => {
+  for (const f of ['placeholder="All outlets"', 'placeholder="All employees"', 'placeholder="All designations"']) {
+    assert.ok(approval.includes(f), f);
+  }
+  assert.match(approval, />\s*Clear Filters\s*</);
+  // The employee options come from the requests the server returned, so the
+  // dropdown can never name somebody this approver is not entitled to see.
+  assert.match(approval, /if \(!queryFilters\.employee_id\)/);
+  assert.match(approval, /setRoster\(/);
+  assert.ok(!/useEmployeeDirectory|useEmployees/.test(approval), "no employee-reading permission is assumed");
+  // Switching tabs keeps the filters: `filters` is not reset when `type` changes.
+  assert.ok(!/setFilters\(EMPTY_FILTERS\)[\s\S]{0,80}setType/.test(approval));
 });
 
 test("3. a row or card expands inline - no separate detail page and no View button", () => {
@@ -65,7 +91,7 @@ test("4. existing and proposed punches are shown; 5. reason and attendance metri
   assert.match(detail, /label="Date"/);
   assert.match(detail, /label="Shift"/);
   assert.match(detail, /<Chain chain=\{row\.chain\} current=\{row\.current_stage_no\}/);
-  for (const h of ["Employee", "Date", "Shift", "Existing Punches", "Proposed Missing Punch", "Reason", "Submitted On", "Action"]) {
+  for (const h of ["Employee", "Date", "Shift", "Existing Punches", "Proposed Punch", "Reason", "Submitted", "Action"]) {
     assert.ok(list.includes(h), `column ${h}`);
   }
 });
@@ -81,38 +107,69 @@ test("6. Approve / Reject decide the current stage and refresh the list and the 
   assert.ok(!/minutes/.test(helper.slice(helper.indexOf("decideApproval"), helper.indexOf("recalculateBulk"))), "the decision carries no minutes");
 });
 
-test("7. no OT approval or edit control on Attendance Approval", () => {
-  assert.ok(!/OT|ot_/.test(approval.replace(/ot_now_available/g, "").replace(/OT Available/g, "")), "the page names no OT field");
-  assert.match(detail, /!isOt \? \([\s\S]*?Proposed missing punch/, "the OT block is the OT screen's only");
+test("7. no minutes can be typed anywhere, on any tab", () => {
+  // The OT block belongs to the OT tab; the attendance tab shows the proposed
+  // punch and the shift tab shows the two shifts, and none of the three
+  // offers an input for a duration.
+  assert.match(detail, /!isOt \? \([\s\S]*?Proposed missing punch/, "the OT block is the OT tab's only");
   assert.ok(!/<Input|<NumberInput|type="number"/.test(queue), "no input for minutes anywhere in the queue");
+  assert.ok(!/eligible_ot_minutes:|approved_ot_minutes:|ot_minutes:/.test(approval), "the page sends no minutes");
 });
 
 /* ================================================== OT Approval ==== */
 
 test("8. Pending / Approved / Rejected / All tabs render; 9. Pending with me renders", () => {
-  for (const t of ["<Tab>Pending</Tab>", "<Tab>Approved</Tab>", "<Tab>Rejected</Tab>", "<Tab>All</Tab>"]) assert.ok(ot.includes(t), t);
-  assert.match(ot, /const TABS = \["PENDING", "APPROVED", "REJECTED", "ALL"\]/);
-  assert.match(ot, /Pending with me:/);
-  assert.match(ot, /getApprovalCount\("OT"\)/);
-  assert.match(ot, /getApprovals\(\{ request_type: "OT", status \}\)/);
-  assert.match(ot, /permissionKey=\{\["view_attendance_approvals"\]\}/);
+  for (const t of ["<Tab>Pending</Tab>", "<Tab>Approved</Tab>", "<Tab>Rejected</Tab>", "<Tab>All</Tab>"]) assert.ok(approval.includes(t), t);
+  assert.match(approval, /const STATUSES = \["PENDING", "APPROVED", "REJECTED", "ALL"\]/);
+  assert.match(approval, /Pending with me:/);
 });
 
 test("10. pending rows expand inline; 11. the employee's OT reason is shown; 12. OT minutes are read-only", () => {
-  assert.match(ot, /<ApprovalQueue[^>]*kind="OT"/);
   assert.match(detail, /label="Eligible OT \(read only\)"/);
   assert.match(detail, /formatOtClock\(row\.eligible_ot_minutes\)/);
   assert.match(detail, /label="Employee reason"/);
   assert.ok(!/<Input|<NumberInput|type="number"/.test(queue));
-  assert.ok(!/eligible_ot_minutes:|approved_ot_minutes:/.test(ot), "the page never sends minutes");
-  for (const h of ["Employee", "Date", "Shift", "Worked", "Eligible OT", "Employee Reason", "Submitted On", "Action"]) {
+  // The OT table's approved columns, including the REGULAR NRM the base shift
+  // decides - which on a covered day is deliberately not the day's own NRM.
+  for (const h of ["Employee", "Date", "Shift", "Working Time", "Regular NRM", "OT", "Employee Reason", "Submitted", "Action"]) {
     assert.ok(list.includes(h), `column ${h}`);
   }
+  assert.match(detail, /label="Regular NRM"[\s\S]*?row\.base_nrm_minutes/);
+});
+
+test("10b. the Shift tab's table is the approved one, and says what approving does", () => {
+  for (const h of ["Normal Shift", "Requested Shift", "Approval Stage"]) {
+    assert.ok(list.includes(h), `column ${h}`);
+  }
+  assert.match(detail, /label="Requested shift"/);
+  assert.match(detail, /label="Normal shift"/);
+  assert.match(detail, /and to no other date/);
+  assert.match(detail, /permanent shift and salary are not changed/);
+});
+
+test("10c. a rejection cannot be recorded without a reason", () => {
+  assert.match(detail, /const rejectBlocked = remarks\.trim\(\)\.length < 5/);
+  assert.match(detail, /isDisabled=\{!!deciding \|\| rejectBlocked\}/);
+});
+
+test("10d. the one-day shift REQUEST asks, and says so", () => {
+  assert.match(shiftForm, /raiseMyShiftChange\(\{[\s\S]*?attendance_date: date,[\s\S]*?work_shift_id: Number\(workShiftId\),[\s\S]*?reason: reason\.trim\(\)/);
+  assert.ok(!/employee_id/.test(shiftForm), "never names an employee - the session decides whose it is");
+  assert.match(shiftForm, /This is a request\./);
+  assert.match(shiftForm, /only for this one date/);
+  // Only longer shifts are offered, and the server is the authority on it.
+  assert.match(shiftForm, /getMyShiftChangeOptions\(forDate\)/);
+  assert.match(shiftForm, /longer working hours than your normal shift/);
+  assert.match(shiftForm, /read only/);
 });
 
 test("13. Approve / Reject appear only where the backend says the row is actionable", () => {
   assert.match(detail, /row\.status === "PENDING" && row\.actionable && onDecide \?/);
-  assert.match(ot, /onDecide=\{name === "PENDING" \|\| name === "ALL" \? onDecide : null\}/);
+  // History tabs still carry no decision controls. The Shift clause beside
+  // it is the new permission gate (see attendanceShiftRights.test.js); the
+  // PENDING/ALL rule it is anded with is unchanged.
+  assert.match(approval, /\(name === "PENDING" \|\| name === "ALL"\) &&/);
+  assert.match(approval, /\? onDecide\s*:\s*null/);
   assert.match(detail, /row\.not_actionable_reason/);
 });
 
@@ -204,10 +261,74 @@ test("27. recent recalculation history renders from the run audit", () => {
   assert.equal(displayDateTime("2026-09-15 09:00:00"), "15 Sep 2026 09:00");
 });
 
-test("28. no salary or payroll amounts appear on any of the three screens", () => {
+test("28. no salary or payroll amounts appear on any of these screens", () => {
   for (const src of [approval, ot, recalc, queue]) {
-    assert.ok(!/\b(salary|gross|ctc|net pay|payslip|earnings|deduction|₹)\b/i.test(src));
+    // The ONE permitted mention of salary is the shift tab's reassurance that
+    // approving a one-day shift does not touch the salary master - which is a
+    // statement that no salary is involved, and is exactly the thing an
+    // approver needs to be told. Every other form of the word, and every
+    // amount, stays banned.
+    const withoutReassurance = src.replace(/permanent shift and salary are not changed/g, "");
+    assert.ok(!/\b(salary|gross|ctc|net pay|payslip|earnings|deduction|₹)\b/i.test(withoutReassurance));
     assert.ok(!/currencyFormatter/.test(src));
   }
   assert.ok(!/payroll/i.test(recalc.replace(/Payroll Lock/g, "")), "no payroll lock screen or wording on Recalculate");
+});
+
+/* ============== the effective-dated shift change, and its failure state == */
+
+const shiftEditor = strip(read("components/attendance/ShiftAssignmentEditor.jsx"));
+
+test("29. a saved change whose recalculation FAILED is never shown as a success", () => {
+  // 207 is the partial state: the assignment is committed and the attendance
+  // behind it is stale. It must not travel down either the success path or
+  // the ordinary error path - a screen that said "Recorded" here would be
+  // telling somebody their payroll input was consistent when it is not.
+  assert.match(shiftEditor, /res\.code === 207/);
+  assert.match(shiftEditor, /setPartial\(\{ message: res\.msg, range: res\.recalculation_range/);
+  assert.match(shiftEditor, /Saved, but attendance was NOT recalculated/);
+  assert.match(shiftEditor, /<Alert status="error"[\s\S]*?Saved, but attendance was NOT recalculated/);
+  // And a deterministic retry over the exact range the server named.
+  assert.match(shiftEditor, /Retry recalculation \(\{partial\.range\.from\} to \{partial\.range\.to\}\)/);
+});
+
+test("29b. the retry uses the SHIFT-ASSIGNMENT route, not the general recalculation endpoint", () => {
+  /*
+   * Recalculate Attendance is behind `recalculate_attendance` - the general
+   * tool, pointed at any employee, outlet or designation, and a key the
+   * person who just edited this employee's shift need not hold. Retrying
+   * there would have refused exactly the user entitled to finish the job,
+   * and granting them that key to avoid the refusal would have handed them
+   * the general tool. The recovery keeps the change's own authority.
+   */
+  assert.match(
+    shiftEditor,
+    /EmployeeWorkShiftHelper\.recalculateAfterChange\(\{[\s\S]*?employee_id: employeeId,[\s\S]*?from_date: partial\.range\.from,[\s\S]*?to_date: partial\.range\.to,/
+  );
+  assert.ok(!/recalculateBulk/.test(shiftEditor), "the general endpoint is not reachable from this screen");
+  assert.ok(!/AttendanceV2Helper/.test(shiftEditor), "and its helper is not even imported");
+
+  const workShiftHelper = strip(read("helper/employeeWorkShift.js"));
+  assert.match(workShiftHelper, /"\/hr\/work-shift-assignments\/recalculate"/);
+  assert.match(workShiftHelper, /\{ employee_id, from_date, to_date \}/);
+  assert.ok(
+    !/store_id|designation_id|employee_ids/.test(
+      workShiftHelper.slice(workShiftHelper.indexOf("recalculateAfterChange"), workShiftHelper.indexOf("getAssignmentHistory"))
+    ),
+    "one employee, one range, nothing that widens it"
+  );
+});
+
+test("29c. a SUCCESSFUL retry clears the red state and reports completion", () => {
+  // The red warning is cleared only on the success path, and the message the
+  // server sent is what the user is shown.
+  assert.match(shiftEditor, /setPartial\(null\);\s*setNotice\(\s*res\.msg/);
+  // A failed retry keeps the red state and says so instead.
+  assert.match(shiftEditor, /The recalculation failed again/);
+});
+
+test("30. a future effective date is not offered, because nothing would activate it", () => {
+  assert.match(shiftEditor, /max=\{isoToday\(\)\}/);
+  assert.match(shiftEditor, /A future date cannot be filed/);
+  assert.ok(!/applies when it arrives/.test(shiftEditor), "the old promise is gone");
 });

@@ -31,10 +31,15 @@ import {
 } from "../../util/attendanceV2";
 
 /**
- * The approval queue used by BOTH Attendance Approval (kind REGULARIZATION)
- * and OT Approval (kind OT): one screen, rows that EXPAND INLINE. A compact
- * table on a desktop, cards on a phone; the whole row or card is the tap
- * target and there is no separate detail page.
+ * The approval queue used by ALL THREE tabs of the Attendance Approval Centre
+ * - REGULARIZATION, OT and SHIFT_CHANGE: one screen, rows that EXPAND INLINE.
+ * A compact table on a desktop, cards on a phone; the whole row or card is
+ * the tap target and there is no separate detail page.
+ *
+ * ONE COMPONENT AND NOT THREE. The three request types differ in four
+ * columns and one block of the detail; everything else - the chain, the
+ * decision, the actionable rule, the expand behaviour - is identical, and
+ * three copies of it would be three places for them to drift apart.
  *
  * WHAT IS NEVER HERE. No input for OT minutes: the eligible OT is the
  * engine's figure and the decision endpoint takes none. An attendance
@@ -115,17 +120,46 @@ const shiftText = (row) =>
       : row.shift_name
     : row.shift_code || "—";
 
+/** "LONG 10:00–22:00", from whichever pair of columns the row carries. */
+const namedShift = (code, name, inTime, outTime) => {
+  const label = name || code;
+  if (!label) return "—";
+  return inTime && outTime ? `${label} (${clock(inTime)}–${clock(outTime)})` : label;
+};
+
 function Detail({ row, kind, onDecide, deciding }) {
   const [remarks, setRemarks] = useState("");
   const isOt = kind === "OT";
+  const isShift = kind === "SHIFT_CHANGE";
+  // A REJECTION MUST SAY WHY, on every type - the backend refuses one without
+  // a reason, so the button is disabled rather than letting the refusal come
+  // back as an error the approver has to read twice.
+  const rejectBlocked = remarks.trim().length < 5;
   return (
     <Stack spacing={3}>
       <SimpleGrid columns={{ base: 1, md: 3 }} spacing={3}>
         <Field label="Employee">{row.employee_name || row.employee_id}{row.outlet_name ? <Text as="span" color="gray.500" fontWeight="400"> · {row.outlet_name}</Text> : null}</Field>
         <Field label="Date">{displayDate(row.attendance_date)} · {weekday(row.attendance_date)}</Field>
-        <Field label="Shift">{shiftText(row)}</Field>
+        {isShift ? (
+          <Field label="Normal shift">{namedShift(row.base_shift_code, row.base_shift_name)}</Field>
+        ) : (
+          <Field label="Shift">{shiftText(row)}</Field>
+        )}
       </SimpleGrid>
 
+      {isShift ? (
+        <SimpleGrid columns={{ base: 1, md: 2 }} spacing={3}>
+          <Field label="Requested shift">
+            <Text color="purple.700">{namedShift(row.requested_shift_code, row.requested_shift_name)}</Text>
+          </Field>
+          <Field label="For that one date only">
+            <Text fontWeight="400" fontSize="xs" color="gray.600">
+              Approving applies the requested shift to {displayDate(row.attendance_date)} and to no other date. The
+              employee stays on their normal shift the next day, and their permanent shift and salary are not changed.
+            </Text>
+          </Field>
+        </SimpleGrid>
+      ) : (
       <SimpleGrid columns={{ base: 1, md: 2 }} spacing={3}>
         <Field label={isOt ? "Punches" : "Existing punches"}><Punches punches={row.effective_punches} /></Field>
         {!isOt ? (
@@ -142,15 +176,21 @@ function Detail({ row, kind, onDecide, deciding }) {
           </Field>
         )}
       </SimpleGrid>
+      )}
 
       <Field label="Employee reason"><Text fontWeight="400">{row.reason || "—"}</Text></Field>
 
+      {isShift ? null : (
       <SimpleGrid columns={{ base: 3, md: 4 }} spacing={3}>
         <Field label="NRM">{formatMinutes(row.nrm_minutes)}</Field>
+        {/* The REGULAR NRM is the permanent shift's, and on a day carrying an
+            approved one-day shift it is deliberately not the NRM beside it. */}
+        {isOt ? <Field label="Regular NRM">{formatMinutes(row.base_nrm_minutes)}</Field> : null}
         <Field label="Worked">{formatMinutes(row.worked_minutes)}</Field>
         <Field label="Shortage">{formatMinutes(row.shortage_minutes)}</Field>
         {isOt && row.status === "APPROVED" ? <Field label="Approved OT">{formatOtClock(row.approved_ot_minutes)}</Field> : null}
       </SimpleGrid>
+      )}
 
       <Field label={row.status === "PENDING" ? "Approval chain · current stage" : "Approval chain"}>
         <Text fontSize="xs" color="purple.700" mb={1}>{stageLabel(row)}</Text>
@@ -169,9 +209,17 @@ function Detail({ row, kind, onDecide, deciding }) {
       {row.status === "PENDING" && row.actionable && onDecide ? (
         <Box borderTopWidth="1px" borderColor="gray.100" pt={3}>
           <Text fontSize="10px" color="gray.500" textTransform="uppercase" letterSpacing="wide" mb={1}>Remarks</Text>
-          <Textarea size="sm" rows={2} value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Optional" />
+          <Textarea size="sm" rows={2} value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Optional for an approval, required to reject" />
           <Flex gap={2} mt={2} justify="flex-end" wrap="wrap">
-            <Button size="sm" colorScheme="red" variant="outline" isLoading={deciding === "REJECTED"} isDisabled={!!deciding} onClick={() => onDecide(row, "REJECTED", remarks)}>
+            <Button
+              size="sm"
+              colorScheme="red"
+              variant="outline"
+              isLoading={deciding === "REJECTED"}
+              isDisabled={!!deciding || rejectBlocked}
+              title={rejectBlocked ? "A rejection reason is required" : undefined}
+              onClick={() => onDecide(row, "REJECTED", remarks)}
+            >
               Reject
             </Button>
             <Button size="sm" colorScheme="green" isLoading={deciding === "APPROVED"} isDisabled={!!deciding} onClick={() => onDecide(row, "APPROVED", remarks)}>
@@ -192,6 +240,7 @@ export default function ApprovalQueue({ rows, kind, loading, onDecide, deciding 
   const isMobile = useBreakpointValue({ base: true, md: false });
   const [open, setOpen] = useState(null);
   const isOt = kind === "OT";
+  const isShift = kind === "SHIFT_CHANGE";
   const toggle = (id) => setOpen((current) => (current === id ? null : id));
   const history = rows.length > 0 && rows.every((r) => r.status !== "PENDING");
 
@@ -224,9 +273,16 @@ export default function ApprovalQueue({ rows, kind, loading, onDecide, deciding 
                     <Badge colorScheme={row.status === "APPROVED" ? "green" : "red"} fontSize="10px">{decisionLabel(row)}</Badge>
                   )}
                 </Flex>
-                <Text fontSize="xs" color="gray.600">{displayDate(row.attendance_date)} · {weekday(row.attendance_date)} · {shiftText(row)}</Text>
-                <Text fontSize="xs" fontFamily="mono" color="gray.700">{summaryPunches(row)}</Text>
-                {isOt ? (
+                <Text fontSize="xs" color="gray.600">
+                  {displayDate(row.attendance_date)} · {weekday(row.attendance_date)} ·{" "}
+                  {isShift ? namedShift(row.base_shift_code, row.base_shift_name) : shiftText(row)}
+                </Text>
+                {isShift ? null : <Text fontSize="xs" fontFamily="mono" color="gray.700">{summaryPunches(row)}</Text>}
+                {isShift ? (
+                  <Text fontSize="xs" color="purple.700" fontWeight="600">
+                    Requested {namedShift(row.requested_shift_code, row.requested_shift_name)}
+                  </Text>
+                ) : isOt ? (
                   <Text fontSize="xs" color="blue.700" fontWeight="600">Eligible OT {formatOtClock(row.eligible_ot_minutes)}{row.status === "APPROVED" ? ` · Approved ${formatOtClock(row.approved_ot_minutes)}` : ""}</Text>
                 ) : (
                   <Text fontSize="xs" color="orange.700" fontWeight="600">Proposed {row.proposed_punch_time ? clock(row.proposed_punch_time) : "—"}</Text>
@@ -253,12 +309,14 @@ export default function ApprovalQueue({ rows, kind, loading, onDecide, deciding 
           <Tr>
             <Th>Employee</Th>
             <Th>Date</Th>
-            <Th>Shift</Th>
-            {isOt ? <Th isNumeric>Worked</Th> : <Th>Existing Punches</Th>}
-            {isOt ? <Th isNumeric>{history ? "Eligible / Claimed OT" : "Eligible OT"}</Th> : <Th>Proposed Missing Punch</Th>}
+            <Th>{isShift ? "Normal Shift" : "Shift"}</Th>
+            {isShift ? <Th>Requested Shift</Th> : isOt ? <Th isNumeric>Working Time</Th> : <Th>Existing Punches</Th>}
+            {isShift ? null : isOt ? <Th isNumeric>Regular NRM</Th> : <Th>Proposed Punch</Th>}
+            {isOt ? <Th isNumeric>{history ? "Eligible / Claimed OT" : "OT"}</Th> : null}
             {isOt && history ? <Th isNumeric>Approved OT</Th> : null}
             <Th>{isOt ? "Employee Reason" : "Reason"}</Th>
-            <Th>{history ? "Decided" : "Submitted On"}</Th>
+            <Th>{history ? "Decided" : "Submitted"}</Th>
+            {isShift ? <Th>Approval Stage</Th> : null}
             <Th>{history ? "Final Status" : "Action"}</Th>
           </Tr>
         </Thead>
@@ -266,23 +324,43 @@ export default function ApprovalQueue({ rows, kind, loading, onDecide, deciding 
           {rows.map((row) => {
             const id = row.attendance_approval_request_id;
             const expanded = open === id;
-            const columns = 8 + (isOt && history ? 1 : 0);
+            // Employee, Date, Shift, the tab's own fourth column, Reason,
+            // Submitted and Action are on every tab - seven; then the extra
+            // columns each tab adds beyond that.
+            const columns = 7 + (isShift ? 1 : isOt ? 2 + (history ? 1 : 0) : 1);
             return (
               <React.Fragment key={id}>
                 <Tr cursor="pointer" onClick={() => toggle(id)} _hover={{ bg: "purple.50" }} bg={expanded ? "purple.50" : undefined} role="button" tabIndex={0} aria-expanded={expanded}
                   onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(id); } }}>
                   <Td whiteSpace="nowrap">{row.employee_name || row.employee_id}</Td>
                   <Td whiteSpace="nowrap">{displayDate(row.attendance_date)}</Td>
-                  <Td fontSize="xs">{shiftText(row)}</Td>
-                  {isOt ? <Td isNumeric>{formatMinutes(row.worked_minutes)}</Td> : <Td fontFamily="mono" fontSize="xs" whiteSpace="nowrap">{summaryPunches(row)}</Td>}
-                  {isOt ? (
-                    <Td isNumeric fontFamily="mono">{formatOtClock(row.eligible_ot_minutes)}{history && Number(row.claimed_ot_minutes) !== Number(row.eligible_ot_minutes) ? ` / ${formatOtClock(row.claimed_ot_minutes)}` : ""}</Td>
+                  <Td fontSize="xs">{isShift ? namedShift(row.base_shift_code, row.base_shift_name) : shiftText(row)}</Td>
+                  {isShift ? (
+                    <Td fontSize="xs" color="purple.700" fontWeight="600">{namedShift(row.requested_shift_code, row.requested_shift_name)}</Td>
+                  ) : isOt ? (
+                    <Td isNumeric>{formatMinutes(row.worked_minutes)}</Td>
+                  ) : (
+                    <Td fontFamily="mono" fontSize="xs" whiteSpace="nowrap">{summaryPunches(row)}</Td>
+                  )}
+                  {isShift ? null : isOt ? (
+                    <Td isNumeric>{formatMinutes(row.base_nrm_minutes)}</Td>
                   ) : (
                     <Td fontFamily="mono" color="orange.700">{row.proposed_punch_time ? clock(row.proposed_punch_time) : "—"}</Td>
                   )}
+                  {isOt ? (
+                    <Td isNumeric fontFamily="mono">{formatOtClock(row.eligible_ot_minutes)}{history && Number(row.claimed_ot_minutes) !== Number(row.eligible_ot_minutes) ? ` / ${formatOtClock(row.claimed_ot_minutes)}` : ""}</Td>
+                  ) : null}
                   {isOt && history ? <Td isNumeric fontFamily="mono">{row.status === "APPROVED" ? formatOtClock(row.approved_ot_minutes) : "—"}</Td> : null}
                   <Td fontSize="xs" maxW="260px"><Text noOfLines={1}>{row.reason}</Text></Td>
                   <Td fontSize="xs" whiteSpace="nowrap">{history ? `${row.decided_by_name || "—"} · ${displayDateTime(row.decided_at)}` : displayDateTime(row.submitted_at)}</Td>
+                  {isShift ? (
+                    <Td fontSize="xs" whiteSpace="nowrap">
+                      {row.approval_stage}
+                      {row.current_stage_approver_name ? (
+                        <Text as="span" color="gray.500"> · {row.current_stage_approver_name}</Text>
+                      ) : null}
+                    </Td>
+                  ) : null}
                   <Td>
                     {row.status === "PENDING" ? (
                       <Badge colorScheme={row.actionable ? "purple" : "gray"} fontSize="10px">{row.actionable ? "Decide" : stageLabel(row)}</Badge>

@@ -59,7 +59,7 @@ const ATTENDANCE_STATUS_SCHEME = {
 function unresolvedLink(item, { employee_id } = {}) {
   if (!item) return null;
   if (item.code === "PENDING_REGULARIZATION") return "/attendance/approval";
-  if (item.code === "PENDING_OT") return "/attendance/ot-approval";
+  if (item.code === "PENDING_OT") return "/attendance/approval?type=OT";
   if (item.code === "NO_ATTENDANCE_MONTH" || item.code === "ATTENDANCE_NOT_FINAL") {
     const date = Array.isArray(item.dates) && item.dates.length > 0 ? item.dates[0] : null;
     const query = [
