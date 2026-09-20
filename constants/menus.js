@@ -946,6 +946,36 @@ const HR_MENU = {
   // The legacy /shift screen is untouched and stays unlisted, exactly as it
   // has been since C3. Two shift masters in the navigation would put the
   // choice of which one to edit in front of people who have no way to make it.
+  // Staff Budget - the APPROVED HEADCOUNT PLAN, one section of HR in its own
+  // right.
+  //
+  // NOT UNDER EMPLOYEE MASTER, deliberately. That section is the staff list
+  // and the two masters behind it, and everything in it is about people who
+  // exist. This is about positions management has approved, whether or not
+  // anybody is in them, and it is read by people who have no business in the
+  // employee master at all.
+  //
+  // Gated on its own `view_staff_budget`, which is what the backend's
+  // /staff-budget routes require on every endpoint. The entry being hidden is
+  // convenience; the routes are the control.
+  //
+  // The legacy /store-budget "Employee Count" screen stays unlisted, exactly
+  // as it has been. This feature supersedes it and does not touch it.
+  staff_budget: {
+    title: "Staff Budget",
+    selected: false,
+    openPage: true,
+    icon: "fa-sitemap",
+    subMenu: {
+      view_staff_budget: {
+        title: "Staff Budget",
+        permission: "view_staff_budget",
+        selected: false,
+        location: "/staff-budget",
+      },
+    },
+  },
+
   shifts: {
     title: "Shifts",
     selected: false,

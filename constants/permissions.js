@@ -192,6 +192,35 @@ export const PERMISSIONS = {
   // The Employee Profile's Current Shift is READ-ONLY and appears here only
   // through `view_shift_assignments`; the shift is changed on Employee Shift
   // Assignment and nowhere else.
+  // Staff Budget - the approved headcount plan on
+  // Location -> Department -> Designation -> Shift, and, where a monthly rate
+  // is configured, what that plan costs per month.
+  //
+  // ITS OWN GROUP, NOT PART OF THE EMPLOYEE MODULE. The screen reads four
+  // masters and its own table and shows nothing about any individual, so a
+  // designation can be given the plan without being given the staff list -
+  // and, just as deliberately, granting an employee right never drags the
+  // budget along with it.
+  //
+  // Read and write are separate keys because they are separate decisions: a
+  // store or operations lead may need to see the approved headcount for their
+  // location without being able to move it. Editing also covers configuring
+  // the monthly rates, which is the budget owner's act rather than a third
+  // role.
+  //
+  // Granted by the migration to HR Executive and to nobody else;
+  // administrators reach both through the backend's user_type 2 bypass. They
+  // are listed here so an administrator can grant them to another designation
+  // deliberately, on this screen.
+  //
+  // NOT the legacy /store-budget screen's `view_store_budget` /
+  // `add_store_budger`, which stay commented out on a feature this one
+  // supersedes but does not touch.
+  staff_budget: {
+    view_staff_budget: "View Staff Budget",
+    edit_staff_budget: "Edit Staff Budget",
+  },
+
   shifts: {
     view_work_shifts: "View Work Shifts",
     manage_work_shifts: "Manage Work Shifts",

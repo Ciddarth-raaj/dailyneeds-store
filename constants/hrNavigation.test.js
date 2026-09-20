@@ -93,8 +93,37 @@ test("Employees, Department and Designation are all inside HR", () => {
     "/payroll/payrun",
     "/payroll/salary-approval",
     "/payroll/salary-revision",
+    // Staff Budget: the approved headcount plan, its own section of HR. It is
+    // deliberately NOT under Employee Master - that section is the staff list
+    // and its two masters, and this is about approved positions rather than
+    // about people who exist.
+    "/staff-budget",
     "/work-shift",
   ]);
+});
+
+/* ===================================================== the staff budget == */
+test("Staff Budget is its own HR section, on its own key", () => {
+  const hrMenu = treeNamed("HR_MENU");
+  const section = sectionOf(hrMenu, "staff_budget");
+
+  assert.deepStrictEqual(locationsIn(section).sort(), ["/staff-budget"]);
+  assert.match(section, /title:\s*"Staff Budget"/);
+  // The key the backend's /staff-budget routes require on every endpoint.
+  // NOT the legacy `view_store_budget` of the old Employee Count screen,
+  // which is granted on a different feature and stays commented out.
+  assert.match(section, /permission:\s*"view_staff_budget"/);
+  assert.ok(!section.includes("view_store_budget"));
+  // Editing is a separate decision and is never what opens the screen.
+  assert.ok(!section.includes("edit_staff_budget"));
+});
+
+test("the legacy Employee Count screen is still not in the navigation", () => {
+  const hrMenu = treeNamed("HR_MENU");
+  assert.ok(
+    !locationsIn(hrMenu).includes("/store-budget"),
+    "Staff Budget supersedes /store-budget; it does not list it"
+  );
 });
 
 /* ================================================= the work shift master = */
@@ -324,6 +353,11 @@ test("HR navigation still appears exactly once, and still holds its pages", () =
     "/payroll/payrun",
     "/payroll/salary-approval",
     "/payroll/salary-revision",
+    // Staff Budget: the approved headcount plan, its own section of HR. It is
+    // deliberately NOT under Employee Master - that section is the staff list
+    // and its two masters, and this is about approved positions rather than
+    // about people who exist.
+    "/staff-budget",
     "/work-shift",
   ]);
 });
