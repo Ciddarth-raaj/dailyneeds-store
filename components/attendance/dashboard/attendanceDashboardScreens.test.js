@@ -940,3 +940,38 @@ test("the panel still decides nothing, grouped or not", () => {
 test("the grouped panel says in its own source that nobody appears twice", () => {
   assert.match(prose(attentionNowRaw), /NOBODY APPEARS TWICE/i);
 });
+
+/* ------------- Needs attention now is about the current day only ---------- */
+
+/**
+ * TWO WORKFLOWS IN ONE LIST IS WHAT MADE THIS SCREEN CONFUSING.
+ *
+ * A completed-day odd punch sequence is an attendance exception and the
+ * Missing Attendance Report owns it. A live staffing board that also carried
+ * it asked the reader to decide, row by row, which job they were doing. It is
+ * gone from here rather than labelled, and the panel says so in its own words
+ * so the next person to add a row knows where the boundary is.
+ */
+test("the panel declares itself current-day only, and says where the rest went", () => {
+  assert.match(prose(attentionNowRaw), /IT IS ABOUT TODAY, AND ONLY TODAY/);
+  assert.match(prose(attentionNowRaw), /MISSING ATTENDANCE REPORT is the screen\s+that owns it/i);
+});
+
+test("the panel neither renders nor knows about a Missing Punch", () => {
+  const code = strip(attentionNowPanel);
+  assert.ok(!/MISSING_PUNCH/.test(code), "no reason key");
+  assert.ok(!/Missing Punch/.test(code), "no label");
+});
+
+test("no row dates itself, now that every row has the same date", () => {
+  const code = strip(attentionNowPanel);
+  assert.ok(!/earlierDay|displayDate|attendance_date !==/.test(code));
+  assert.ok(!/businessDate/.test(code), "the panel does not need the business date at all");
+  assert.ok(!/businessDate=\{/.test(page), "and the page no longer passes one");
+});
+
+test("the grouping and its counts are untouched by the narrowing", () => {
+  assert.match(page, /groups=\{staffing\.attention_groups\}/);
+  assert.match(attentionNowPanel, /group\.outlet_name/);
+  assert.match(attentionNowPanel, /group\.count/);
+});

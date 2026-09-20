@@ -33,7 +33,6 @@ const PANEL = "components/attendance/dashboard/AttentionNowPanel.jsx";
 /* ------------------------------------------------------------- the fixture */
 
 const BUSINESS_DATE = "2026-09-20";
-const YESTERDAY = "2026-09-19";
 
 const item = (over) => ({
   employee_id: 1,
@@ -75,11 +74,12 @@ const GROUPS = [
       item({
         employee_id: 11,
         employee_name: "Chandran M",
-        reason_key: "MISSING_PUNCH",
-        reason: "Missing Punch",
-        detail: `An odd number of punches on the completed attendance day ${YESTERDAY}`,
-        attendance_date: YESTERDAY,
-        age_minutes: null,
+        reason_key: "REGULARIZATION_PENDING",
+        reason: "Regularization Pending",
+        detail: "A regularization request is waiting for a decision",
+        target: "APPROVAL_QUEUE",
+        owner_name: "Priya N",
+        age_minutes: 130,
       }),
     ],
   },
@@ -97,7 +97,6 @@ const html = () =>
   render(PANEL, {
     items: GROUPS.flatMap((g) => g.items),
     groups: GROUPS,
-    businessDate: BUSINESS_DATE,
     total: 4,
     truncated: false,
     onOpenAll: () => {},
@@ -161,29 +160,33 @@ test("the outlet is not repeated on every row now that it is the heading", skip,
   assert.equal(markup.split("Kathirkamam").length - 1, 1, "once, as the heading");
 });
 
-/* ========================================== B. the date on an earlier day's row */
+/* ============================== B. one date, and no date printed on a row === */
 
-test("a row about a completed earlier day shows that date, plainly", skip, () => {
-  const text = textOf(html());
-  const at = (s) => text.indexOf(s);
-  assert.ok(text.includes("19 Sep 2026"), "the attendance date is on the screen, not only in prose");
-  // It sits beside the reason, above the employee's name — the part of the row
-  // a narrow column shows first, not the part it truncates.
-  assert.ok(at("Missing Punch") < at("19 Sep 2026"));
-  assert.ok(at("19 Sep 2026") < at("Chandran M"));
+/**
+ * THE PANEL IS ABOUT TODAY, so no row needs to say which day it is about.
+ *
+ * An earlier version carried completed-day Missing Punch rows here with the
+ * attendance date chipped onto them. Those rows now live only on the Missing
+ * Attendance Report, so there is nothing left to date — and a date repeated on
+ * every line is a date nobody reads.
+ */
+test("no row prints an attendance date", skip, () => {
+  const text = textOf(html()).join(" ");
+  assert.ok(!/\d{1,2} Sep 2026/.test(text), "no date chip survives on any row");
+  assert.ok(!/2026-09-\d{2}/.test(text), "nor a raw one");
 });
 
-test("the date chip carries a sentence saying it is not today", skip, () => {
-  assert.match(
-    html(),
-    /title="This is about the attendance day 2026-09-19, not today"/,
-    "hovering the chip must explain it"
-  );
+test("nothing on the screen reads as a completed-day punch exception", skip, () => {
+  const text = textOf(html()).join(" ");
+  assert.ok(!/Missing Punch/i.test(text));
+  assert.ok(!/completed attendance day/i.test(text));
 });
 
-test("today's rows carry NO date chip, so the ones that do stand out", skip, () => {
-  const text = textOf(html());
-  assert.ok(!text.includes("20 Sep 2026"), "a date on every row is a date nobody reads");
+test("the panel still names the screen each live row belongs to", skip, () => {
+  const text = textOf(html()).join(" ");
+  assert.match(text, /Open attendance detail/);
+  assert.match(text, /Open approval queue/);
+  assert.match(text, /With Priya N/, "and the approver the system itself names");
 });
 
 /* --------------------------------------------------------- the empty state */
@@ -192,7 +195,6 @@ test("an empty panel says so rather than rendering empty headings", skip, () => 
   const markup = render(PANEL, {
     items: [],
     groups: [],
-    businessDate: BUSINESS_DATE,
     total: 0,
     truncated: false,
     onOpenAll: () => {},
@@ -205,7 +207,6 @@ test("a server that sends no grouping still renders every row", skip, () => {
   const markup = render(PANEL, {
     items: [item({ employee_id: 41, employee_name: "Esakki P" })],
     groups: undefined,
-    businessDate: BUSINESS_DATE,
     total: 1,
     truncated: false,
     onOpenAll: () => {},

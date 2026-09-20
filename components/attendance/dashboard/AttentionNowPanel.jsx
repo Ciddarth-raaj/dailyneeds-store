@@ -5,7 +5,6 @@ import {
   ATTENTION_TONE,
   attentionGroups,
   attentionLink,
-  displayDate,
   elapsedLabel,
   tone,
 } from "../../../util/attendanceDashboard";
@@ -13,15 +12,24 @@ import {
 /**
  * NEEDS ATTENTION NOW — what somebody has to look at, in the order to work it.
  *
+ * IT IS ABOUT TODAY, AND ONLY TODAY. Every row on this panel is a live state
+ * on the current IST business date: a shift with no schedule row, no check-in
+ * after a shift started, a punch recorded at another location or at a terminal
+ * nobody has mapped, a regularization or OT claim waiting for a decision.
+ *
+ * COMPLETED-DAY ATTENDANCE EXCEPTIONS ARE NOT HERE. An odd punch count on a
+ * finished day is real work, and the MISSING ATTENDANCE REPORT is the screen
+ * that owns it — it lists those days and the 06:00 job chases them. This panel
+ * used to carry them too, and that is what made it confusing: two workflows in
+ * one list, and the reader deciding row by row which one they were in. Dating
+ * the row made that legible without making it one job, so the rows are gone
+ * rather than labelled. Nothing is lost; nobody has to look here to find them.
+ *
  * IT IS NOT A NEW WORKFLOW AND NOT A QUEUE. Every row is an EXISTING state the
- * server already computes — a shift with no schedule row, no check-in after a
- * shift started, a punch recorded at another location or at a terminal nobody
- * has mapped, a regularization or OT claim waiting for a decision, an odd punch
- * count on a COMPLETED attendance day. Clicking a row opens the screen that
- * already owns that action, and that screen checks its own permission exactly
- * as it does when reached from the menu. Nothing is approved, rejected,
- * regularized or edited here, and there is no button on this panel that changes
- * any record.
+ * server already computes. Clicking a row opens the screen that already owns
+ * that action, and that screen checks its own permission exactly as it does
+ * when reached from the menu. Nothing is approved, rejected, regularized or
+ * edited here, and there is no button on this panel that changes any record.
  *
  * IT IS GROUPED BY LOCATION, because that is how the work is owned. A flat list
  * of names spanning eight branches is not a work list: whoever is reading it is
@@ -46,14 +54,10 @@ import {
  * would be an invention, and an invented owner is how a real person gets chased
  * for somebody else's task.
  *
- * A ROW ABOUT AN EARLIER DAY SAYS SO, IN THE ROW. This panel is titled "now",
- * and a settled verdict on a completed attendance day — a Missing Punch — is
- * legitimately on it and legitimately NOT about today. Left to a sentence at
- * the end of a two-line detail, the date is the first thing a narrow column
- * truncates, and the row then reads as today's problem. So the date is lifted
- * out beside the reason as its own chip whenever it is not the business date,
- * and today's rows carry no chip at all: a date on every row is a date nobody
- * reads.
+ * NO ROW CARRIES A DATE, because every row has the same one. An earlier
+ * version chipped the attendance date onto rows that were not about today;
+ * with the panel scoped to the current business date there is no such row, and
+ * a date repeated on every line is a date nobody reads.
  *
  * THE ELAPSED TIME IS FOR ORDERING, not a penalty. "No check-in after shift
  * start" says how long the schedule has been uncovered; it says nothing about
@@ -63,7 +67,6 @@ import {
 export default function AttentionNowPanel({
   items,
   groups,
-  businessDate,
   total,
   truncated,
   onOpenAll,
@@ -123,12 +126,6 @@ export default function AttentionNowPanel({
                   const t = tone(ATTENTION_TONE[item.reason_key] || "gray");
                   const link = attentionLink(item);
                   const age = elapsedLabel(item.age_minutes);
-                  // Not today's date -> say which day this is about, where the
-                  // reason is, rather than at the end of a line that wraps.
-                  const earlierDay =
-                    item.attendance_date && businessDate && item.attendance_date !== businessDate
-                      ? item.attendance_date
-                      : null;
                   return (
                     <Flex
                       key={`${group.group_key}-${item.reason_key}-${item.employee_id}-${
@@ -155,16 +152,6 @@ export default function AttentionNowPanel({
                           >
                             {item.reason}
                           </Badge>
-                          {earlierDay ? (
-                            <Badge
-                              fontSize="9px"
-                              bg="gray.700"
-                              color="white"
-                              title={`This is about the attendance day ${earlierDay}, not today`}
-                            >
-                              {displayDate(earlierDay)}
-                            </Badge>
-                          ) : null}
                           {age ? (
                             <Text fontSize="10px" color="gray.500">
                               {age}

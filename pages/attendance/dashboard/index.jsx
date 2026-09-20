@@ -702,7 +702,6 @@ export default function AttendanceDashboardPage() {
                       <AttentionNowPanel
                         items={staffing.attention_preview}
                         groups={staffing.attention_groups}
-                        businessDate={staffing.business_date}
                         total={staffing.attention_total}
                         truncated={staffing.attention_preview_truncated}
                         onOpenAll={() => openStaffingBucket("NEEDS_ATTENTION")}
