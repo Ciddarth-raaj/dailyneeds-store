@@ -5,6 +5,7 @@ import {
   ATTENTION_TONE,
   attentionGroups,
   attentionLink,
+  displayDate,
   elapsedLabel,
   tone,
 } from "../../../util/attendanceDashboard";
@@ -45,6 +46,15 @@ import {
  * would be an invention, and an invented owner is how a real person gets chased
  * for somebody else's task.
  *
+ * A ROW ABOUT AN EARLIER DAY SAYS SO, IN THE ROW. This panel is titled "now",
+ * and a settled verdict on a completed attendance day — a Missing Punch — is
+ * legitimately on it and legitimately NOT about today. Left to a sentence at
+ * the end of a two-line detail, the date is the first thing a narrow column
+ * truncates, and the row then reads as today's problem. So the date is lifted
+ * out beside the reason as its own chip whenever it is not the business date,
+ * and today's rows carry no chip at all: a date on every row is a date nobody
+ * reads.
+ *
  * THE ELAPSED TIME IS FOR ORDERING, not a penalty. "No check-in after shift
  * start" says how long the schedule has been uncovered; it says nothing about
  * why, and it is not lateness, misconduct or a deduction — none of which exist
@@ -53,6 +63,7 @@ import {
 export default function AttentionNowPanel({
   items,
   groups,
+  businessDate,
   total,
   truncated,
   onOpenAll,
@@ -112,6 +123,12 @@ export default function AttentionNowPanel({
                   const t = tone(ATTENTION_TONE[item.reason_key] || "gray");
                   const link = attentionLink(item);
                   const age = elapsedLabel(item.age_minutes);
+                  // Not today's date -> say which day this is about, where the
+                  // reason is, rather than at the end of a line that wraps.
+                  const earlierDay =
+                    item.attendance_date && businessDate && item.attendance_date !== businessDate
+                      ? item.attendance_date
+                      : null;
                   return (
                     <Flex
                       key={`${group.group_key}-${item.reason_key}-${item.employee_id}-${
@@ -138,6 +155,16 @@ export default function AttentionNowPanel({
                           >
                             {item.reason}
                           </Badge>
+                          {earlierDay ? (
+                            <Badge
+                              fontSize="9px"
+                              bg="gray.700"
+                              color="white"
+                              title={`This is about the attendance day ${earlierDay}, not today`}
+                            >
+                              {displayDate(earlierDay)}
+                            </Badge>
+                          ) : null}
                           {age ? (
                             <Text fontSize="10px" color="gray.500">
                               {age}
