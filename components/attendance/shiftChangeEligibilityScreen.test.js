@@ -30,12 +30,13 @@ const read = (rel) => fs.readFileSync(path.join(__dirname, "..", "..", rel), "ut
 const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
 
 const page = strip(read("pages/attendance/shift-change-eligibility/index.jsx"));
+const modal = strip(read("components/attendance/ShiftChangeBlockModal.jsx"));
 const util = strip(read("util/attendanceShiftChangeEligibility.js"));
 const helper = strip(read("helper/attendanceShiftChangeEligibility.js"));
 const menus = read("constants/menus.js");
 const permissions = read("constants/permissions.js");
 
-const browserCode = `${page}\n${util}\n${helper}`;
+const browserCode = `${page}\n${util}\n${helper}\n${modal}`;
 
 test("the browser re-states no part of the shift change eligibility rule", () => {
   // The whole point: one definition, on the server. Any of these in the
@@ -114,9 +115,14 @@ test("every required column is defined, in the approved order and unambiguously 
     "Actual Last Punch",
     "Worked Hours",
     "Extra Hours",
-    "Can Raise Shift Change?",
+    "Can Raise by System?",
     "Worked Longer Than Assigned Shift?",
     "Eligibility Reason",
+    "HR Eligibility",
+    "HR Block Reason",
+    "Blocked By",
+    "Blocked At",
+    "Effective Can Raise?",
     "Request Status",
     "Request ID",
     "Action",
@@ -124,6 +130,12 @@ test("every required column is defined, in the approved order and unambiguously 
   // The renamed columns say exactly which question they answer - a bare
   // "Eligible?" is what sent somebody to ask HR what it meant.
   assert.ok(!headers.includes("Eligible?"), "an ambiguous column name is back");
+  // THE THREE QUESTIONS STAY THREE COLUMNS. Request Status is never
+  // overwritten with "Blocked", and the HR gate never replaces the system's
+  // own verdict - a row can say Yes, Blocked by HR and Not Raised at once.
+  assert.ok(headers.includes("Can Raise by System?"));
+  assert.ok(headers.includes("HR Eligibility"));
+  assert.ok(headers.includes("Request Status"));
 });
 
 test("the request status vocabulary is the server's four words", () => {
@@ -142,13 +154,30 @@ test("the screen opens on HR's actionable question, and can be cleared to show e
   assert.match(util, /can_raise:\s*"ALL"[\s\S]{0,60}worked_longer:\s*"ALL"[\s\S]{0,60}request_status:\s*"ALL"/);
 });
 
-test("the Action column links out and never acts", () => {
+test("the Action column links out, and the ONLY writes are the HR block's", () => {
   assert.match(util, /View attendance/);
   assert.match(util, /View request/);
   // The request link only exists when a request does.
   assert.match(util, /if \(row\.request_id\)/);
-  // Links, not buttons that post.
-  assert.ok(!/\.post\(|\.put\(|\.delete\(/.test(browserCode), "the report writes");
+
+  // THE REPORT ITSELF STILL WRITES NOTHING. The HR block deliberately does -
+  // it is the whole point of the feature - so the assertion is not "no writes"
+  // but "no write except those two, and both to the block router".
+  const writes = [...browserCode.matchAll(/API\.(post|put|patch|delete)\(([^,)]*)/g)].map(
+    (m) => `${m[1]} ${m[2].trim()}`
+  );
+  assert.deepEqual(writes, ["post url"], "the only write helper is the block router's post()");
+  // `post(url, body)` is the helper's own definition; the CALLS are the two
+  // below it, and those are the only write destinations in the browser.
+  const calls = [...helper.matchAll(/post\(([^,]+),/g)]
+    .map((m) => m[1].trim())
+    .filter((arg) => arg !== "url");
+  assert.deepEqual(calls, ["BLOCK_URL", "`${BLOCK_URL}/remove`"]);
+  // Nothing raises, approves or rejects a request from this screen.
+  assert.ok(
+    !/attendance\/me\/shift-change|approve|decide/i.test(helper),
+    "the report must not reach the request or approval endpoints"
+  );
 });
 
 test("the export is the server's xlsx, with the same filters, and never the grid's", () => {
@@ -199,4 +228,97 @@ test("the navigation entry sits in Attendance, behind the read key", () => {
 test("the default range is derived from the IST business date, never from toISOString", () => {
   assert.ok(!/toISOString/.test(util), "the default range renders a UTC date");
   assert.ok(util.includes("istToday"), "the shared IST business date is not used");
+});
+
+
+/* ===================================================================== */
+/* THE HR BLOCK.                                                         */
+/* ===================================================================== */
+
+test("the HR block is a separate WRITE permission, not the report's read key", () => {
+  assert.match(page, /usePermissions\(\["manage_shift_change_eligibility"\]\)/);
+  // The buttons are hidden without it - and the server refuses regardless.
+  assert.match(page, /canManage \? blockAction/);
+  assert.match(
+    permissions,
+    /manage_shift_change_eligibility:\s*"Manage Shift Change Eligibility/
+  );
+});
+
+test("the action offered per row is chosen from SERVER values only", () => {
+  // `blockAction` may read only what the server decided. If it started
+  // comparing hours or dates it would be a second eligibility rule.
+  const fn = util.slice(util.indexOf("export function blockAction"), util.indexOf("export function buildQuery"));
+  assert.match(fn, /row\.hr_blocked/);
+  assert.match(fn, /row\.request_status/);
+  assert.match(fn, /row\.can_raise/);
+  assert.ok(!/nrm|worked_minutes|payroll|MAX_BACKDATE/i.test(fn), "the browser re-decides eligibility");
+});
+
+test("each request state offers the approved action, and only that", () => {
+  const fn = util.slice(util.indexOf("export function blockAction"), util.indexOf("export function buildQuery"));
+  // Rejected gets its own wording, because there is no request to re-reject.
+  assert.match(fn, /"Block Further Requests"/);
+  assert.match(fn, /"Mark Not Eligible"/);
+  assert.match(fn, /"Remove Block"/);
+  // Pending and Approved offer nothing.
+  assert.match(fn, /Pending[\s\S]{0,40}Approved[\s\S]{0,30}return null/);
+  // And no ACTION LABEL calls a pre-request block a rejection. (The value
+  // "REJECTED" is the server's request-status vocabulary and is correct.)
+  const labels = [...fn.matchAll(/label:\s*"([^"]+)"/g)].map((m) => m[1]);
+  labels.forEach((label) => {
+    assert.ok(!/reject/i.test(label), `the action "${label}" calls a block a rejection`);
+  });
+  const modalTitles = [...modal.matchAll(/\?\s*"([^"]*)"\s*\n?\s*:\s*"([^"]*)"/g)].flatMap((m) => [m[1], m[2]]);
+  modalTitles.forEach((t) => assert.ok(!/reject/i.test(t), `the title "${t}" says reject`));
+});
+
+test("the block modal shows the evidence and demands a reason", () => {
+  ["Employee", "Date", "Assigned Shift", "Worked Hours", "Extra Hours"].forEach((label) => {
+    assert.ok(modal.includes(label), `the modal does not show ${label}`);
+  });
+  // Mandatory in both directions, and enforced by the confirm button.
+  assert.match(modal, /isDisabled=\{tooShort\}/);
+  assert.match(modal, /reason\.length < 5/);
+  // "Other" must not be a way to skip the explanation.
+  assert.match(modal, /choice === OTHER_REASON \? other : choice/);
+  assert.match(modal, /choice === OTHER_REASON \?[\s\S]{0,400}Textarea/);
+});
+
+test("the blocked state is shown with its reason, actor and timestamp", () => {
+  const headers = [...util.matchAll(/header:\s*"([^"]+)"/g)].map((m) => m[1]);
+  ["HR Eligibility", "HR Block Reason", "Blocked By", "Blocked At"].forEach((h) => {
+    assert.ok(headers.includes(h), `the ${h} column is missing`);
+  });
+  // ...and the removal dialog repeats them before anything is undone.
+  assert.match(modal, /Blocked by \{row\.hr_blocked_by/);
+  assert.match(modal, /row\.hr_block_reason/);
+});
+
+test("the default actionable view now excludes HR-blocked rows", () => {
+  assert.match(
+    util,
+    /can_raise:\s*"YES"[\s\S]{0,200}hr_eligibility:\s*"ALLOWED"[\s\S]{0,120}request_status:\s*"NOT_RAISED"/
+  );
+  // ...and "Show all records" clears the HR filter too, so nothing is hidden.
+  assert.match(util, /can_raise:\s*"ALL"[\s\S]{0,160}hr_eligibility:\s*"ALL"[\s\S]{0,120}request_status:\s*"ALL"/);
+  assert.match(page, /FormLabel[^>]*>HR Eligibility</);
+});
+
+test("the write calls go to the block router and send no outlet", () => {
+  assert.match(helper, /shift-change-eligibility\/block/);
+  assert.match(helper, /\$\{BLOCK_URL\}\/remove/);
+  const body = helper.slice(helper.indexOf("block: ({"), helper.indexOf("exportXlsx:"));
+  assert.ok(!/store_id|outlet/i.test(body), "the browser must not name a branch");
+  assert.match(body, /employee_id, attendance_date, reason/);
+});
+
+test("24. the export carries the HR fields and is still the server's", () => {
+  // The screen's columns and the server's export columns are separate lists in
+  // separate repositories; this asserts the browser side names the HR fields,
+  // and `routes/attendance_shift_change_report.test.js` asserts the export's.
+  const headers = [...util.matchAll(/header:\s*"([^"]+)"/g)].map((m) => m[1]);
+  assert.ok(headers.includes("Effective Can Raise?"));
+  assert.match(page, /AttendanceShiftChangeEligibilityHelper\.exportXlsx\(buildQuery\(filters\)\)/);
+  assert.match(page, /hideExport/);
 });

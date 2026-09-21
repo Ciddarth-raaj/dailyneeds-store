@@ -23,12 +23,15 @@ import usePermissions from "../../../customHooks/usePermissions";
 import useOutlets from "../../../customHooks/useOutlets";
 import useDesignations from "../../../customHooks/useDesignations";
 import AttendanceShiftChangeEligibilityHelper from "../../../helper/attendanceShiftChangeEligibility";
+import ShiftChangeBlockModal from "../../../components/attendance/ShiftChangeBlockModal";
 import {
   SHIFT_CHANGE_ELIGIBILITY_COLUMNS,
   REQUEST_STATUS_OPTIONS,
+  HR_ELIGIBILITY_OPTIONS,
   YES_NO_OPTIONS,
   actionLinks,
   actionableView,
+  blockAction,
   buildQuery,
   clearedView,
   defaultRange,
@@ -89,6 +92,9 @@ export default function ShiftChangeEligibilityReportPage() {
   const toast = useToast();
   const canView = usePermissions(["view_shift_change_eligibility_report"]);
   const canExport = usePermissions(["export_shift_change_eligibility_report"]);
+  // A WRITE key, deliberately not the report's read key. Hiding the buttons
+  // is presentation; the server refuses the call regardless.
+  const canManage = usePermissions(["manage_shift_change_eligibility"]);
 
   // `directory: true` is the two-column dropdown list, behind no permission -
   // a manager who may open this report should not also need `view_stores` to
@@ -119,6 +125,11 @@ export default function ShiftChangeEligibilityReportPage() {
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState(null);
   const [accessDenied, setAccessDenied] = useState(false);
+  // The HR block modal: which row, which direction, and the server's refusal
+  // if it had one.
+  const [dialog, setDialog] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [dialogError, setDialogError] = useState(null);
 
   const load = useCallback(async (next) => {
     setLoading(true);
@@ -183,22 +194,38 @@ export default function ShiftChangeEligibilityReportPage() {
             minWidth: c.minWidth,
             sortable: false,
             filter: false,
-            cellRenderer: (props) => (
-              <HStack spacing={3}>
-                {actionLinks(props.data).map((link) => (
-                  <NextLink key={link.key} href={link.href} passHref>
-                    <Link color="purple.500" fontSize="sm">
-                      {link.label}
-                    </Link>
-                  </NextLink>
-                ))}
-              </HStack>
-            ),
+            cellRenderer: (props) => {
+              const action = canManage ? blockAction(props.data) : null;
+              return (
+                <HStack spacing={3}>
+                  {actionLinks(props.data).map((link) => (
+                    <NextLink key={link.key} href={link.href} passHref>
+                      <Link color="purple.500" fontSize="sm">
+                        {link.label}
+                      </Link>
+                    </NextLink>
+                  ))}
+                  {action ? (
+                    <Button
+                      size="xs"
+                      variant="outline"
+                      colorScheme={action.kind === "BLOCK" ? "red" : "green"}
+                      onClick={() => {
+                        setDialogError(null);
+                        setDialog({ mode: action.kind, row: props.data });
+                      }}
+                    >
+                      {action.label}
+                    </Button>
+                  ) : null}
+                </HStack>
+              );
+            },
           };
         }
         return { field: c.key, headerName: c.header, minWidth: c.minWidth };
       }),
-    []
+    [canManage]
   );
 
   /**
@@ -206,6 +233,48 @@ export default function ShiftChangeEligibilityReportPage() {
    * server applies the same permission and the same branch scope to it, so
    * the spreadsheet can never contain a row the table does not.
    */
+  /**
+   * CONFIRM THE BLOCK OR THE REMOVAL.
+   *
+   * The server re-decides everything from live facts, so a refusal here is a
+   * real business answer - the month closed, a request was raised, somebody
+   * blocked it first - and is shown in the modal rather than swallowed. On
+   * success the report is reloaded, because a block changes the row's HR
+   * columns, its effective verdict and the actionable count.
+   */
+  const confirmDialog = async (reason) => {
+    if (!dialog) return;
+    setSaving(true);
+    setDialogError(null);
+    try {
+      const payload = {
+        employee_id: dialog.row.employee_id,
+        attendance_date: dialog.row.attendance_date,
+      };
+      const res =
+        dialog.mode === "BLOCK"
+          ? await AttendanceShiftChangeEligibilityHelper.block({ ...payload, reason })
+          : await AttendanceShiftChangeEligibilityHelper.unblock({
+              ...payload,
+              removal_reason: reason,
+            });
+      if (!res || res.code !== 200) {
+        throw new Error((res && res.msg) || "The change could not be saved");
+      }
+      toast({
+        title: dialog.mode === "BLOCK" ? "Marked not eligible" : "Block removed",
+        status: "success",
+        duration: 4000,
+      });
+      setDialog(null);
+      await load(filters);
+    } catch (err) {
+      setDialogError(err.message || "The change could not be saved");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const exportXlsx = async () => {
     setExporting(true);
     try {
@@ -329,6 +398,20 @@ export default function ShiftChangeEligibilityReportPage() {
                   ))}
                 </Select>
               </FormControl>
+              <FormControl maxW="190px">
+                <FormLabel fontSize="sm">HR Eligibility</FormLabel>
+                <Select
+                  size="sm"
+                  value={filters.hr_eligibility}
+                  onChange={(e) => setFilters((f) => ({ ...f, hr_eligibility: e.target.value }))}
+                >
+                  {HR_ELIGIBILITY_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </Select>
+              </FormControl>
               <FormControl maxW="200px">
                 <FormLabel fontSize="sm">Request Status</FormLabel>
                 <Select
@@ -407,6 +490,19 @@ export default function ShiftChangeEligibilityReportPage() {
           </>
         )}
       </CustomContainer>
+      <ShiftChangeBlockModal
+        isOpen={!!dialog}
+        mode={dialog ? dialog.mode : null}
+        row={dialog ? dialog.row : null}
+        busy={saving}
+        error={dialogError}
+        onCancel={() => {
+          if (saving) return;
+          setDialog(null);
+          setDialogError(null);
+        }}
+        onConfirm={confirmDialog}
+      />
     </GlobalWrapper>
   );
 }
