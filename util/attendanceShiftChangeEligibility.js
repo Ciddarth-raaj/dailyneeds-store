@@ -14,8 +14,10 @@ import { istToday } from "./attendanceDashboard";
  * tell HR to chase somebody the backend then refuses.
  *
  * "Worked Longer Than Assigned Shift?" is likewise the server's, measured
- * from the attendance engine's own worked minutes against the permanent
- * shift's normal minutes. It is a SEPARATE question and it authorises
+ * from the attendance engine's own worked minutes against the normal minutes
+ * of the shift EFFECTIVE ON THAT ATTENDANCE DATE - the dated assignment
+ * history, not the employee's current shift, so a roster change never
+ * re-judges the days behind it. It is a SEPARATE question and it authorises
  * nothing: an employee can have worked longer and still not be able to raise
  * a request, and the report shows exactly that.
  *
@@ -225,9 +227,13 @@ export function viewNote(meta, filters) {
   if (isActionableView(filters)) {
     return "Showing employees who can raise a shift change request under the current rules and whose punches ran past their assigned shift, and who have not raised one yet. Change the filters to see every other record.";
   }
+  // THE COUNT IS THE SERVER'S, over the SAME scope and the SAME date, outlet,
+  // employee and designation filters as the rows - it ignores only the three
+  // actionable-state dropdowns, which is what lets it keep saying how much
+  // work is waiting while HR looks at some other cut.
   const tail =
     actionable === null
       ? ""
-      : ` ${actionable} record(s) in this date range are eligible, worked longer and have no request raised.`;
+      : ` ${actionable} record(s) matching these filters can raise a shift change, worked longer and have no request raised.`;
   return `Showing every record that matches the filters.${tail}`;
 }
