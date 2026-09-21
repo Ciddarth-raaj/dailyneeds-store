@@ -79,6 +79,9 @@ test("Employees, Department and Designation are all inside HR", () => {
     "/attendance/missing-attendance",
     "/attendance/my",
     "/attendance/recalculate",
+    // Shift Change Eligibility: who may raise a one-day shift change, by the
+    // SERVER's own production rule, and who already has.
+    "/attendance/shift-change-eligibility",
     "/department",
     "/designation",
     "/employee-shift-assignment",
@@ -241,6 +244,9 @@ test("HR > Attendance: list, punch audit, devices and the DigiSME import, on the
     "/attendance/missing-attendance",
     "/attendance/my",
     "/attendance/recalculate",
+    // Shift Change Eligibility: who may raise a one-day shift change, by the
+    // SERVER's own production rule, and who already has.
+    "/attendance/shift-change-eligibility",
   ]);
   assert.match(att, /title:\s*"Attendance Approvals"[\s\S]*?permission:\s*"view_attendance_approvals"/);
   assert.match(att, /title:\s*"OT Approval"[\s\S]*?permission:\s*"view_attendance_approvals"/);
@@ -339,6 +345,9 @@ test("HR navigation still appears exactly once, and still holds its pages", () =
     "/attendance/missing-attendance",
     "/attendance/my",
     "/attendance/recalculate",
+    // Shift Change Eligibility: who may raise a one-day shift change, by the
+    // SERVER's own production rule, and who already has.
+    "/attendance/shift-change-eligibility",
     "/department",
     "/designation",
     "/employee-shift-assignment",

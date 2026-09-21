@@ -144,6 +144,11 @@ test("no other consumer was switched to the directory", () => {
     // Recalculate Attendance: the Store filter - an id and a name, for a
     // screen reached on `recalculate_attendance` and not on `view_stores`.
     "pages/attendance/recalculate/index.jsx",
+    // Shift Change Eligibility: the Outlet filter, for the same reason as
+    // Missing Attendance above. The report's rows are narrowed by the
+    // ATTENDANCE scope on the server and this picker can only narrow further,
+    // so a manager who may open the report does not also need `view_stores`.
+    "pages/attendance/shift-change-eligibility/index.jsx",
     // NO `pages/hr/*` ENTRY REMAINS, AND THAT IS THE POINT.
     // The Onboarding / Pending HR queue is branch-scoped - a store manager
     // holding `view_hr_onboarding_dashboard` sees their own branch - and this
