@@ -1099,6 +1099,23 @@ const HR_MENU = {
         selected: false,
         location: "/attendance/missing-attendance",
       },
+      // SHIFT CHANGE ELIGIBILITY. Who can raise a one-day shift change right
+      // now, and who already has. "Can Raise Shift Change?" is the SERVER's
+      // production rule - the same one that accepts or refuses the employee's
+      // own request - and "Worked Longer Than Assigned Shift?" is measured
+      // separately from the punches, because a long day is not a permission.
+      //
+      // Its own key, granted to nobody by migration, and NOT
+      // `raise_shift_change_request` or `approve_shift_change_request`:
+      // reading this list neither raises nor decides anything. Branch scope is
+      // resolved on the server exactly as it is for the dashboard, so this
+      // entry appearing widens nobody.
+      shift_change_eligibility_report: {
+        title: "Shift Change Eligibility",
+        permission: "view_shift_change_eligibility_report",
+        selected: false,
+        location: "/attendance/shift-change-eligibility",
+      },
       // ONE approval screen, with Attendance | OT | Shift on it. What each
       // approver sees is their own role's and outlet's, decided on the
       // server. The OT entry stays in the menu and deep-links to the OT tab -

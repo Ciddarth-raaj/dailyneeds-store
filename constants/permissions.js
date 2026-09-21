@@ -256,6 +256,8 @@ export const PERMISSIONS = {
     // the screen. Neither is granted by migration.
     view_missing_attendance_report: "View Missing Attendance Report",
     export_missing_attendance_report: "Export Missing Attendance Report",
+    view_shift_change_eligibility_report: "View Shift Change Eligibility Report",
+    export_shift_change_eligibility_report: "Export Shift Change Eligibility Report",
     // The management overview of ONE attendance date across the company is
     // `view_attendance_dashboard`, and it is listed under DASHBOARD rather than
     // here: it is one of four dashboard feature keys that share one store
