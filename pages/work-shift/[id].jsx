@@ -80,7 +80,17 @@ function EditWorkShift() {
         setServerError((res && res.msg) || "The work shift could not be saved");
         return;
       }
-      toast({ title: "Work shift saved", status: "success", duration: 3000 });
+      // A shift rule change now recalculates the OPEN attendance days already
+      // calculated under this shift, and leaves payroll-locked months alone.
+      // The server says how many of each; showing it is the only sign the
+      // person gets that saving a rule moved days in the past.
+      toast({
+        title: "Work shift saved",
+        description: res.msg || undefined,
+        status: "success",
+        duration: res.msg ? 8000 : 3000,
+        isClosable: true,
+      });
       router.push("/work-shift");
     } catch (err) {
       console.log(err);
