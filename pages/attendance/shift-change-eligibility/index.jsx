@@ -44,8 +44,10 @@ import {
  *
  *   Can Raise Shift Change?             would the backend ACCEPT a shift
  *                                       change request for this date?
- *   Worked Longer Than Assigned Shift?  did the punches run past the
- *                                       permanent shift's normal hours?
+ *   Worked Longer Than Assigned Shift?  did the punches run past the normal
+ *                                       hours of the employee's effective-
+ *                                       dated base shift for that attendance
+ *                                       date?
  *   Request Status                      Not Raised | Pending | Approved |
  *                                       Rejected, from the approval workflow.
  *
