@@ -155,6 +155,18 @@ const attendanceV2 = {
   getRecalculationRuns: (limit = 20) =>
     call("get", "/attendance/calculated/recalculate-runs", { params: { limit } }),
 
+  /** One run, for polling a propagation a Work Shift save queued. */
+  getRecalculationRun: (runId) =>
+    call("get", `/attendance/calculated/recalculate-runs/${runId}`, {}),
+
+  /** Put a failed run - or one that finished with errors - back in the queue. */
+  retryRecalculationRun: (runId) =>
+    new Promise((resolve, reject) => {
+      API.post("/attendance/calculated/recalculate-runs/retry", { run_id: runId })
+        .then((res) => resolve(res.data))
+        .catch(reject);
+    }),
+
   getDateShiftOptions: () => call("get", "/attendance/calculated/date-shift/options", {}),
 
   /** `{ employee_id, attendance_date, work_shift_id }`. */

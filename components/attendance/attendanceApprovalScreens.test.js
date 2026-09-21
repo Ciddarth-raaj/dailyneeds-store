@@ -25,7 +25,7 @@ const shiftForm = strip(read("components/attendance/ShiftChangeRequestForm.jsx")
 const recalc = strip(read("pages/attendance/recalculate/index.jsx"));
 const helper = strip(read("helper/attendanceV2.js"));
 const {
-  buildRecalcBody, decisionLabel, stageLabel, recalcStatusLabel, runFilterLabel, displayDateTime,
+  buildRecalcBody, decisionLabel, stageLabel, recalcStatusLabel, runFilterLabel, canRetryRun, displayDateTime,
 } = require("../../util/attendanceV2");
 
 const section = (src, name) => {
@@ -259,6 +259,31 @@ test("27. recent recalculation history renders from the run audit", () => {
   assert.equal(runFilterLabel({ employee_id: 42, employee_name: "Asha" }), "Asha (42)");
   assert.equal(runFilterLabel({ employee_id: null }), "All employees");
   assert.equal(displayDateTime("2026-09-15 09:00:00"), "15 Sep 2026 09:00");
+});
+
+test("27b. a run a Work Shift save queued is legible, and retryable, in the same list", () => {
+  // A shift rule change queues a background recalculation instead of running
+  // it in the save's request, so the list has to be able to show a run that
+  // has not started yet, say what started it, and offer the retry the backend
+  // allows for a run that failed or finished with errors.
+  assert.equal(recalcStatusLabel("QUEUED"), "Queued");
+  assert.equal(
+    runFilterLabel({ trigger_source: "WORK_SHIFT_SAVE", shift_name: "9 TO 6", work_shift_id: 5 }),
+    "Shift rule change · 9 TO 6"
+  );
+  assert.equal(runFilterLabel({ trigger_source: "WORK_SHIFT_SAVE", work_shift_id: 5 }), "Shift rule change · Shift 5");
+
+  assert.equal(canRetryRun({ status: "FAILED" }), true);
+  assert.equal(canRetryRun({ status: "COMPLETED_WITH_ERRORS" }), true);
+  assert.equal(canRetryRun({ status: "COMPLETED" }), false, "a clean run is not re-runnable");
+  assert.equal(canRetryRun({ status: "QUEUED" }), false);
+  assert.equal(canRetryRun({ status: "RUNNING" }), false);
+  assert.equal(canRetryRun(null), false);
+
+  assert.match(recalc, /QUEUED: "blue"/);
+  assert.match(recalc, /retryRun\(run\.attendance_recalculation_run_id\)/);
+  assert.match(helper, /recalculate-runs\/retry/);
+  assert.match(helper, /recalculate-runs\/\$\{runId\}/);
 });
 
 test("28. no salary or payroll amounts appear on any of these screens", () => {

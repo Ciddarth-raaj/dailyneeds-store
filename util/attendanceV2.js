@@ -885,6 +885,9 @@ function decisionLabel(row) {
 
 const RECALC_STATUS_LABEL = Object.freeze({
   READY: "Ready",
+  // A Work Shift save queues its propagation rather than running it in the
+  // save's request; the worker picks it up within a minute.
+  QUEUED: "Queued",
   RUNNING: "Recalculating",
   COMPLETED: "Completed",
   COMPLETED_WITH_ERRORS: "Completed with errors",
@@ -916,8 +919,20 @@ function buildRecalcBody({ from_date, to_date, employee_id, store_id, designatio
 function runFilterLabel(run) {
   if (!run) return "—";
   const parts = [];
+  // A run started by a Work Shift save has no employee filter: what it
+  // targeted is "everybody this shift governs", and saying so is more use
+  // than "All employees".
+  if (run.trigger_source === "WORK_SHIFT_SAVE") {
+    const shift = run.shift_name || run.shift_code || (run.work_shift_id ? `Shift ${run.work_shift_id}` : null);
+    parts.push(shift ? `Shift rule change · ${shift}` : "Shift rule change");
+  }
   if (run.employee_id) parts.push(run.employee_name ? `${run.employee_name} (${run.employee_id})` : `Employee ${run.employee_id}`);
   return parts.length ? parts.join(" · ") : "All employees";
+}
+
+/** Only a run that failed, or that finished with errors, may be retried. */
+function canRetryRun(run) {
+  return !!run && ["FAILED", "COMPLETED_WITH_ERRORS"].includes(run.status);
 }
 
 /* ============================================ hover explanations ==== */
@@ -1119,6 +1134,7 @@ module.exports = {
   recalcStatusLabel,
   buildRecalcBody,
   runFilterLabel,
+  canRetryRun,
   LABEL,
   REGULARIZED_PUNCH_LABEL,
   PUNCH_STATUS,

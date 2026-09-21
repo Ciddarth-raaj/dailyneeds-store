@@ -80,10 +80,12 @@ function EditWorkShift() {
         setServerError((res && res.msg) || "The work shift could not be saved");
         return;
       }
-      // A shift rule change now recalculates the OPEN attendance days already
-      // calculated under this shift, and leaves payroll-locked months alone.
-      // The server says how many of each; showing it is the only sign the
-      // person gets that saving a rule moved days in the past.
+      // A shift rule change QUEUES a recalculation of every open attendance
+      // day this shift governs, and leaves payroll-locked months alone. The
+      // save does not wait for that work: the server's message names the run
+      // it started, which the Recalculate Attendance screen tracks and can
+      // retry. Showing it is the only sign the person gets that saving a rule
+      // reaches days in the past.
       toast({
         title: "Work shift saved",
         description: res.msg || undefined,

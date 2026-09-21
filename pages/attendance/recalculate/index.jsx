@@ -36,6 +36,7 @@ import {
   isOk,
   recalcStatusLabel,
   runFilterLabel,
+  canRetryRun,
 } from "../../../util/attendanceV2";
 import { formatYYYYMMDD } from "../../../util/dateRange";
 
@@ -49,9 +50,15 @@ import { formatYYYYMMDD } from "../../../util/dateRange";
  *
  * Every affected date is recalculated by the backend under the shift that
  * applied on THAT date - the dated assignment, the one-date override, the
- * configuration version in force, the break override and any approved
- * regularized punch. No punch is edited and no OT request is created;
- * candidate OT becomes OT Available.
+ * break override and any approved regularized punch - and under the shift's
+ * CURRENT configuration, because an open month follows the rule as it stands
+ * today. A payroll-locked month is refused outright. No punch is edited and
+ * no OT request is created; candidate OT becomes OT Available.
+ *
+ * RUNS A WORK SHIFT SAVE QUEUED appear in the same list, marked "Shift rule
+ * change", and start as Queued: that work is done by a background worker
+ * within a minute rather than in the save's own request. A run that failed,
+ * or that finished with errors, can be put back in the queue from here.
  *
  * STATUS BAR. Ready -> Recalculating (an indeterminate bar: the backend
  * runs the batch in one request and reports at the end, so no percentage
@@ -123,7 +130,30 @@ export default function RecalculateAttendancePage() {
     }
   };
 
-  const statusColor = { READY: "gray", RUNNING: "purple", COMPLETED: "green", COMPLETED_WITH_ERRORS: "orange", FAILED: "red" }[state] || "gray";
+  const [retrying, setRetrying] = useState(null);
+
+  /**
+   * Put a run back in the QUEUE. It does not re-run anything from here - the
+   * same background worker picks it up, which is the path the first attempt
+   * took.
+   */
+  const retryRun = async (runId) => {
+    setRetrying(runId);
+    try {
+      const res = await AttendanceV2Helper.retryRecalculationRun(runId);
+      if (!isOk(res)) {
+        setError(apiMessage(res, "The run could not be queued again"));
+        return;
+      }
+      await loadRuns();
+    } catch (err) {
+      setError("Could not reach the server");
+    } finally {
+      setRetrying(null);
+    }
+  };
+
+  const statusColor = { READY: "gray", QUEUED: "blue", RUNNING: "purple", COMPLETED: "green", COMPLETED_WITH_ERRORS: "orange", FAILED: "red" }[state] || "gray";
 
   return (
     <GlobalWrapper title="Recalculate Attendance" permissionKey={["recalculate_attendance"]}>
@@ -229,6 +259,7 @@ export default function RecalculateAttendancePage() {
                   <Th isNumeric>Records Processed</Th>
                   <Th>Status</Th>
                   <Th>Requested By</Th>
+                  <Th />
                 </Tr>
               </Thead>
               <Tbody>
@@ -241,11 +272,24 @@ export default function RecalculateAttendancePage() {
                     <Td fontSize="xs">{run.designation_name || (run.designation_id ? `Designation ${run.designation_id}` : "All")}</Td>
                     <Td fontSize="xs" isNumeric>{Number(run.days_processed || 0).toLocaleString("en-IN")} <Text as="span" color="gray.500">({run.employees_completed}/{run.employees_targeted})</Text></Td>
                     <Td>
-                      <Badge fontSize="10px" colorScheme={{ RUNNING: "purple", COMPLETED: "green", COMPLETED_WITH_ERRORS: "orange", FAILED: "red" }[run.status] || "gray"}>
+                      <Badge fontSize="10px" colorScheme={{ QUEUED: "blue", RUNNING: "purple", COMPLETED: "green", COMPLETED_WITH_ERRORS: "orange", FAILED: "red" }[run.status] || "gray"}>
                         {recalcStatusLabel(run.status)}
                       </Badge>
                     </Td>
                     <Td fontSize="xs">{run.requested_by_name || run.requested_by_employee_id || "—"}</Td>
+                    <Td>
+                      {canRetryRun(run) ? (
+                        <Button
+                          size="xs"
+                          variant="outline"
+                          colorScheme="purple"
+                          isLoading={retrying === run.attendance_recalculation_run_id}
+                          onClick={() => retryRun(run.attendance_recalculation_run_id)}
+                        >
+                          Retry
+                        </Button>
+                      ) : null}
+                    </Td>
                   </Tr>
                 ))}
               </Tbody>
