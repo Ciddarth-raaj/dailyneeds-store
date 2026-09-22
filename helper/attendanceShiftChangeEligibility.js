@@ -81,8 +81,30 @@ const get = (url, params) =>
       .catch(reject);
   });
 
+/**
+ * The WRITE calls live on their own router, behind
+ * `manage_shift_change_eligibility` - NOT the report's read key. A person who
+ * may open this screen may not necessarily block anybody, and the server is
+ * what enforces that; hiding a button is presentation.
+ *
+ * NO OUTLET OR STORE ID IS SENT. The employee's branch is a fact the server
+ * looks up, so there is nothing here for a crafted request to lie about.
+ */
+const post = (url, body) =>
+  new Promise((resolve, reject) => {
+    API.post(url, body)
+      .then((res) => resolve(res.data))
+      .catch(reject);
+  });
+
+const BLOCK_URL = "/attendance/shift-change-eligibility/block";
+
 const attendanceShiftChangeEligibility = {
   getReport: (params) => get("/attendance/reports/shift-change-eligibility", params),
+  block: ({ employee_id, attendance_date, reason }) =>
+    post(BLOCK_URL, { employee_id, attendance_date, reason }),
+  unblock: ({ employee_id, attendance_date, removal_reason }) =>
+    post(`${BLOCK_URL}/remove`, { employee_id, attendance_date, removal_reason }),
   exportXlsx: (params) =>
     downloadXlsx(
       "/attendance/reports/shift-change-eligibility/export.xlsx",

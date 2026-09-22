@@ -258,6 +258,11 @@ export const PERMISSIONS = {
     export_missing_attendance_report: "Export Missing Attendance Report",
     view_shift_change_eligibility_report: "View Shift Change Eligibility Report",
     export_shift_change_eligibility_report: "Export Shift Change Eligibility Report",
+    // A WRITE key, and deliberately not either of the two above: it permits
+    // marking an employee/date not eligible so a shift change request can
+    // never be raised for it, and removing that block again. Reading the
+    // report and changing somebody's eligibility are different decisions.
+    manage_shift_change_eligibility: "Manage Shift Change Eligibility (block/unblock)",
     // The management overview of ONE attendance date across the company is
     // `view_attendance_dashboard`, and it is listed under DASHBOARD rather than
     // here: it is one of four dashboard feature keys that share one store
