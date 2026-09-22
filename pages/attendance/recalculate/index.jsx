@@ -272,9 +272,14 @@ export default function RecalculateAttendancePage() {
                     <Td fontSize="xs">{run.designation_name || (run.designation_id ? `Designation ${run.designation_id}` : "All")}</Td>
                     <Td fontSize="xs" isNumeric>{Number(run.days_processed || 0).toLocaleString("en-IN")} <Text as="span" color="gray.500">({run.employees_completed}/{run.employees_targeted})</Text></Td>
                     <Td>
-                      <Badge fontSize="10px" colorScheme={{ QUEUED: "blue", RUNNING: "purple", COMPLETED: "green", COMPLETED_WITH_ERRORS: "orange", FAILED: "red" }[run.status] || "gray"}>
+                      <Badge fontSize="10px" colorScheme={{ QUEUED: "blue", RUNNING: "purple", COMPLETED: "green", COMPLETED_WITH_ERRORS: "orange", FAILED: "red", SUPERSEDED: "gray" }[run.status] || "gray"}>
                         {recalcStatusLabel(run.status)}
                       </Badge>
+                      {run.superseded_by_run_id ? (
+                        <Text fontSize="10px" color="gray.500">
+                          by run #{run.superseded_by_run_id}
+                        </Text>
+                      ) : null}
                     </Td>
                     <Td fontSize="xs">{run.requested_by_name || run.requested_by_employee_id || "—"}</Td>
                     <Td>

@@ -280,6 +280,13 @@ test("27b. a run a Work Shift save queued is legible, and retryable, in the same
   assert.equal(canRetryRun({ status: "RUNNING" }), false);
   assert.equal(canRetryRun(null), false);
 
+  // A run a newer queued one took over is resolved: nobody waits for it and
+  // nobody retries it, and the row says which run replaced it.
+  assert.equal(recalcStatusLabel("SUPERSEDED"), "Superseded");
+  assert.equal(canRetryRun({ status: "FAILED", superseded_by_run_id: 9 }), false);
+  assert.match(recalc, /SUPERSEDED: "gray"/);
+  assert.match(recalc, /by run #\{run\.superseded_by_run_id\}/);
+
   assert.match(recalc, /QUEUED: "blue"/);
   assert.match(recalc, /retryRun\(run\.attendance_recalculation_run_id\)/);
   assert.match(helper, /recalculate-runs\/retry/);

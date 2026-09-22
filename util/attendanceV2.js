@@ -892,6 +892,10 @@ const RECALC_STATUS_LABEL = Object.freeze({
   COMPLETED: "Completed",
   COMPLETED_WITH_ERRORS: "Completed with errors",
   FAILED: "Failed",
+  // A newer queued run for the same shift took this one's work over: it
+  // carries the same latest rules across the same open attendance, so this
+  // run is resolved and nobody waits for it.
+  SUPERSEDED: "Superseded",
 });
 function recalcStatusLabel(status) {
   return RECALC_STATUS_LABEL[status] || String(status || "Ready");
@@ -930,9 +934,13 @@ function runFilterLabel(run) {
   return parts.length ? parts.join(" · ") : "All employees";
 }
 
-/** Only a run that failed, or that finished with errors, may be retried. */
+/**
+ * Only a run that failed, or that finished with errors, may be retried - and
+ * never one a newer queued run has already taken over.
+ */
 function canRetryRun(run) {
-  return !!run && ["FAILED", "COMPLETED_WITH_ERRORS"].includes(run.status);
+  if (!run || run.superseded_by_run_id) return false;
+  return ["FAILED", "COMPLETED_WITH_ERRORS"].includes(run.status);
 }
 
 /* ============================================ hover explanations ==== */
