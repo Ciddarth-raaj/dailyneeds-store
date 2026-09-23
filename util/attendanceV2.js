@@ -1132,6 +1132,28 @@ function otExplanation(day) {
   return lines;
 }
 
+/**
+ * LATEST REQUEST WINS.
+ *
+ * A screen that reloads on every change of a field - the shift change form
+ * reloads its options on every change of the date - can have two requests in
+ * flight, and nothing makes them come back in order. Without a guard the
+ * slower, OLDER answer lands last and overwrites the newer one: the date
+ * reads 22 Sep while the dropdown holds the options for 21 Sep, which may
+ * be none at all. `begin()` stamps a request; `isCurrent(stamp)` says whether
+ * its answer is still the one the screen is waiting for.
+ */
+function latestOnly() {
+  let latest = 0;
+  return {
+    begin: () => {
+      latest += 1;
+      return latest;
+    },
+    isCurrent: (stamp) => stamp === latest,
+  };
+}
+
 module.exports = {
   STATUS,
   roleLabel,
@@ -1197,4 +1219,5 @@ module.exports = {
   isOk,
   shortExplanation,
   otExplanation,
+  latestOnly,
 };

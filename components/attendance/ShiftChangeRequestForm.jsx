@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Alert,
   AlertIcon,
@@ -16,7 +16,7 @@ import {
 } from "@chakra-ui/react";
 import CustomModal from "../CustomModal";
 import AttendanceV2Helper from "../../helper/attendanceV2";
-import { apiMessage, displayDate, formatMinutes, isOk, weekday } from "../../util/attendanceV2";
+import { apiMessage, displayDate, formatMinutes, isOk, latestOnly, weekday } from "../../util/attendanceV2";
 
 /**
  * REQUEST ANOTHER SHIFT FOR ONE DATE.
@@ -45,6 +45,9 @@ export default function ShiftChangeRequestForm({ isOpen, onClose, onSubmitted, d
   const [loadingOptions, setLoadingOptions] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  // Only the answer for the date on screen may fill the dropdown - see
+  // `latestOnly` for why an older answer can arrive last.
+  const optionsRequests = useRef(latestOnly());
 
   const reset = () => {
     setReason("");
@@ -55,15 +58,18 @@ export default function ShiftChangeRequestForm({ isOpen, onClose, onSubmitted, d
   };
 
   const loadOptions = useCallback(async (forDate) => {
+    const stamp = optionsRequests.current.begin();
     if (!forDate) {
       setOptions([]);
       setBase(null);
+      setLoadingOptions(false);
       return;
     }
     setLoadingOptions(true);
     setError(null);
     try {
       const res = await AttendanceV2Helper.getMyShiftChangeOptions(forDate);
+      if (!optionsRequests.current.isCurrent(stamp)) return;
       if (!isOk(res)) {
         setOptions([]);
         setBase(null);
@@ -74,11 +80,12 @@ export default function ShiftChangeRequestForm({ isOpen, onClose, onSubmitted, d
       setOptions(Array.isArray(res.options) ? res.options : []);
       setWorkShiftId("");
     } catch (err) {
+      if (!optionsRequests.current.isCurrent(stamp)) return;
       setOptions([]);
       setBase(null);
       setError("Could not reach the server. Please try again.");
     } finally {
-      setLoadingOptions(false);
+      if (optionsRequests.current.isCurrent(stamp)) setLoadingOptions(false);
     }
   }, []);
 

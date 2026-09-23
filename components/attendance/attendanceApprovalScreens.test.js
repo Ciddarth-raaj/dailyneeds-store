@@ -163,6 +163,33 @@ test("10d. the one-day shift REQUEST asks, and says so", () => {
   assert.match(shiftForm, /read only/);
 });
 
+test("10e. the dropdown shows the server's options UNFILTERED, and only for the date on screen", async () => {
+  // Every option the server returns is rendered - the browser adds no rule
+  // of its own that could drop the 09:00-21:00 shift.
+  assert.match(shiftForm, /setOptions\(Array\.isArray\(res\.options\) \? res\.options : \[\]\)/);
+  assert.match(shiftForm, /\{options\.map\(\(o\) => \(/);
+  assert.ok(!/options\.filter\(/.test(shiftForm), "no client-side filtering of the offered shifts");
+  // A slower answer for a date the employee has already moved away from is
+  // ignored, success or failure.
+  assert.match(shiftForm, /const stamp = optionsRequests\.current\.begin\(\);/);
+  assert.equal((shiftForm.match(/if \(!optionsRequests\.current\.isCurrent\(stamp\)\) return;/g) || []).length, 2);
+
+  // The guard itself, behaviourally: 21 Sep is asked, then 22 Sep; 22 Sep
+  // answers first with 09:00-21:00, then the stale 21 Sep answer arrives.
+  const { latestOnly } = require("../../util/attendanceV2");
+  const guard = latestOnly();
+  let shown = null;
+  const load = (answer) => {
+    const stamp = guard.begin();
+    return (res) => { if (guard.isCurrent(stamp)) shown = res; };
+  };
+  const answer21 = load();
+  const answer22 = load();
+  answer22({ attendance_date: "2026-09-22", options: [{ shift_code: "G921" }] });
+  answer21({ attendance_date: "2026-09-21", options: [] });
+  assert.deepEqual(shown, { attendance_date: "2026-09-22", options: [{ shift_code: "G921" }] });
+});
+
 test("13. Approve / Reject appear only where the backend says the row is actionable", () => {
   assert.match(detail, /row\.status === "PENDING" && row\.actionable && onDecide \?/);
   // History tabs still carry no decision controls. The Shift clause beside
