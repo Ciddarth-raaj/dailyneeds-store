@@ -216,6 +216,15 @@ export default function RecalculateAttendancePage() {
                 <Box><Text fontSize="10px" color="gray.500" textTransform="uppercase">Range</Text><Text fontSize="sm" fontWeight="600">{displayDate(result.from_date)} – {displayDate(result.to_date)}</Text></Box>
               </SimpleGrid>
             ) : null}
+            {result && state !== "RUNNING" && Number(result.attendance_days_skipped_open) > 0 ? (
+              <Text fontSize="xs" color="gray.600" mt={2}>
+                {Number(result.attendance_days_skipped_open).toLocaleString("en-IN")} attendance day(s) on dates that had not closed yet
+                {Array.isArray(result.open_dates_skipped) && result.open_dates_skipped.length > 0
+                  ? ` (${displayDate(result.open_dates_skipped[0])} – ${displayDate(result.open_dates_skipped[result.open_dates_skipped.length - 1])})`
+                  : ""}{" "}
+                were not stored. They are shown live and are stored by a recalculation after they close.
+              </Text>
+            ) : null}
             {result && Array.isArray(result.errors) && result.errors.length > 0 ? (
               <Box mt={2}>
                 <Button size="xs" variant="link" colorScheme="red" onClick={() => setShowErrors((v) => !v)}>
@@ -238,7 +247,7 @@ export default function RecalculateAttendancePage() {
           </Box>
 
           <Text fontSize="xs" color="gray.500">
-            Recalculation uses the shift that applied on each date, the single-date shift override, the break override and approved regularized punches. Biomax punches are never changed, and no OT request is created: candidate OT becomes OT Available for the employee to request.
+            Only dates whose attendance day has closed are stored; today and later dates are shown live. Recalculation uses the shift that applied on each date, the single-date shift override, the break override and approved regularized punches. Biomax punches are never changed, and no OT request is created: candidate OT becomes OT Available for the employee to request.
           </Text>
         </Stack>
       </CustomContainer>

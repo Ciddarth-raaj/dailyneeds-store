@@ -364,3 +364,14 @@ test("30. a future effective date is not offered, because nothing would activate
   assert.match(shiftEditor, /A future date cannot be filed/);
   assert.ok(!/applies when it arrives/.test(shiftEditor), "the old promise is gone");
 });
+
+test("Recalculate Attendance says which open/future days were NOT stored, and Edit Shift says when a day is only live", () => {
+  const recalc = strip(read("pages/attendance/recalculate/index.jsx"));
+  assert.match(recalc, /result\.attendance_days_skipped_open/);
+  assert.match(recalc, /result\.open_dates_skipped/);
+  assert.match(recalc, /were not stored\. They are shown live and are stored by a recalculation after they close\./);
+
+  const calculated = strip(read("pages/attendance/calculated/index.jsx"));
+  assert.match(calculated, /res\.attendance_persisted === false/);
+  assert.match(calculated, /is still open, so it is shown live under/);
+});

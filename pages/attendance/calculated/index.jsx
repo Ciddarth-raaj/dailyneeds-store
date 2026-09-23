@@ -167,7 +167,9 @@ export default function EmployeeAttendancePage() {
     toast({
       title: res.changed ? "Shift changed for this date" : "Shift unchanged",
       description: res.changed
-        ? `${res.attendance_date} now calculated under ${res.shift_code || "the new shift"}.`
+        ? res.attendance_persisted === false
+          ? `${res.attendance_date} is still open, so it is shown live under ${res.shift_code || "the new shift"} and stored by a recalculation after it closes.`
+          : `${res.attendance_date} now calculated under ${res.shift_code || "the new shift"}.`
         : "This date was already on that shift.",
       status: "success",
       duration: 5000,
