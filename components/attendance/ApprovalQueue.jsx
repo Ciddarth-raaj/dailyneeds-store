@@ -3,6 +3,7 @@ import {
   Badge,
   Box,
   Button,
+  Checkbox,
   Flex,
   SimpleGrid,
   Spinner,
@@ -271,7 +272,30 @@ function Detail({ row, kind, onDecide, deciding, onRevoke = null }) {
 
 const summaryPunches = (row) => positional(row.effective_punches).map((p) => p.time).join(" → ") || "—";
 
-export default function ApprovalQueue({ rows, kind, loading, onDecide, deciding, onRevoke = null }) {
+/**
+ * BULK SELECTION, when the page passes `selection`: a tick box on each row
+ * the tab may action (`selection.selectable(row)` - the server's own
+ * `actionable` / `revocable`), and a header box that ticks every such row on
+ * this page. Ticking never expands the row. Without `selection` the queue is
+ * exactly what it was.
+ */
+function RowCheck({ row, selection }) {
+  if (!selection) return null;
+  const selectable = selection.selectable(row);
+  return (
+    <Checkbox
+      colorScheme="purple"
+      isChecked={selectable && selection.isSelected(row.attendance_approval_request_id)}
+      isDisabled={!selectable}
+      onChange={() => selection.toggle(row)}
+      onClick={(e) => e.stopPropagation()}
+      aria-label={`Select request ${row.attendance_approval_request_id}`}
+      title={selectable ? undefined : "Not something you can action from this tab"}
+    />
+  );
+}
+
+export default function ApprovalQueue({ rows, kind, loading, onDecide, deciding, onRevoke = null, selection = null }) {
   const isMobile = useBreakpointValue({ base: true, md: false });
   const [open, setOpen] = useState(null);
   const isOt = kind === "OT";
@@ -291,14 +315,33 @@ export default function ApprovalQueue({ rows, kind, loading, onDecide, deciding,
     return <Text fontSize="sm" color="gray.600" py={4}>Nothing here.</Text>;
   }
 
+  const pageBox = selection ? (
+    <Checkbox
+      colorScheme="purple"
+      isChecked={selection.pageState === "all"}
+      isIndeterminate={selection.pageState === "some"}
+      isDisabled={!rows.some((r) => selection.selectable(r))}
+      onChange={() => selection.togglePage()}
+      aria-label="Select all on this page"
+    />
+  ) : null;
+
   if (isMobile) {
     return (
       <Stack spacing={2}>
+        {selection ? (
+          <Flex align="center" gap={2} px={1}>
+            {pageBox}
+            <Text fontSize="sm" color="gray.600">Select all on this page</Text>
+          </Flex>
+        ) : null}
         {rows.map((row) => {
           const id = row.attendance_approval_request_id;
           const expanded = open === id;
           return (
             <Box key={id} borderWidth="1px" borderRadius="md" borderColor={expanded ? "purple.300" : "gray.200"} bg="white" shadow="sm" p={3}>
+              <Flex gap={3} align="flex-start">
+              {selection ? <Box pt="2px"><RowCheck row={row} selection={selection} /></Box> : null}
               <Box as="button" type="button" textAlign="left" w="100%" onClick={() => toggle(id)} aria-expanded={expanded}>
                 <Flex justify="space-between" align="center" gap={2}>
                   <Text fontWeight="600" fontSize="sm" color="purple.700">{row.employee_name || row.employee_id}</Text>
@@ -325,6 +368,7 @@ export default function ApprovalQueue({ rows, kind, loading, onDecide, deciding,
                 <Text fontSize="xs" color="gray.600" noOfLines={expanded ? undefined : 1}>{row.reason}</Text>
                 <Text fontSize="10px" color="gray.500">Submitted {displayDateTime(row.submitted_at)}</Text>
               </Box>
+              </Flex>
               {expanded ? (
                 <Box mt={3} pt={3} borderTopWidth="1px" borderColor="gray.100">
                   <Detail row={row} kind={kind} onDecide={onDecide} deciding={deciding && deciding.id === id ? deciding.decision : null} onRevoke={onRevoke} />
@@ -342,6 +386,7 @@ export default function ApprovalQueue({ rows, kind, loading, onDecide, deciding,
       <Table size="sm" variant="simple">
         <Thead bg="gray.50">
           <Tr>
+            {selection ? <Th w="1%">{pageBox}</Th> : null}
             <Th>Employee</Th>
             <Th>Date</Th>
             <Th>{isShift ? "Normal Shift" : "Shift"}</Th>
@@ -362,11 +407,12 @@ export default function ApprovalQueue({ rows, kind, loading, onDecide, deciding,
             // Employee, Date, Shift, the tab's own fourth column, Reason,
             // Submitted and Action are on every tab - seven; then the extra
             // columns each tab adds beyond that.
-            const columns = 7 + (isShift ? 1 : isOt ? 2 + (history ? 1 : 0) : 1);
+            const columns = 7 + (isShift ? 1 : isOt ? 2 + (history ? 1 : 0) : 1) + (selection ? 1 : 0);
             return (
               <React.Fragment key={id}>
                 <Tr cursor="pointer" onClick={() => toggle(id)} _hover={{ bg: "purple.50" }} bg={expanded ? "purple.50" : undefined} role="button" tabIndex={0} aria-expanded={expanded}
-                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(id); } }}>
+                  onKeyDown={(e) => { if (e.target !== e.currentTarget) return; if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(id); } }}>
+                  {selection ? <Td onClick={(e) => e.stopPropagation()}><RowCheck row={row} selection={selection} /></Td> : null}
                   <Td whiteSpace="nowrap">{row.employee_name || row.employee_id}</Td>
                   <Td whiteSpace="nowrap">{displayDate(row.attendance_date)}</Td>
                   <Td fontSize="xs">{isShift ? namedShift(row.base_shift_code, row.base_shift_name) : shiftText(row)}</Td>

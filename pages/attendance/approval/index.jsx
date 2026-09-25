@@ -22,10 +22,21 @@ import usePermissions from "../../../customHooks/usePermissions";
 import CustomContainer from "../../../components/CustomContainer";
 import ApprovalQueue from "../../../components/attendance/ApprovalQueue";
 import RevokeDecisionModal from "../../../components/attendance/RevokeDecisionModal";
+import BulkActionBar from "../../../components/attendance/BulkActionBar";
+import BulkActionModal from "../../../components/attendance/BulkActionModal";
 import { useUser } from "../../../contexts/UserContext";
 import AttendanceV2Helper from "../../../helper/attendanceV2";
 import useDesignations from "../../../customHooks/useDesignations";
 import { apiMessage, isOk } from "../../../util/attendanceV2";
+import {
+  bulkActionsFor,
+  isSelectable,
+  pageState,
+  selectionFromTargets,
+  selectionScope,
+  togglePage,
+  toggleRow,
+} from "../../../util/approvalBulk";
 
 /**
  * THE ATTENDANCE APPROVAL CENTRE - Attendance, OT and Shift in one place.
@@ -148,6 +159,22 @@ export default function AttendanceApprovalCentrePage() {
   const [outlets, setOutlets] = useState([]);
   const status = STATUSES[tab];
 
+  /**
+   * BULK SELECTION. One selection per view: the type, the tab and every
+   * filter make up its scope, and a new scope starts an empty one, so ids
+   * ticked under one filter can never be actioned under another. The page's
+   * own rows decide what may be ticked (the server's `actionable` /
+   * `revocable`); the bulk endpoint re-checks every id regardless.
+   */
+  const [selected, setSelected] = useState(() => new Map());
+  const [allMatching, setAllMatching] = useState(null);
+  const [selectingAll, setSelectingAll] = useState(false);
+  const [bulk, setBulk] = useState(null);
+  const scope = selectionScope({ type, status, filters });
+  useEffect(() => {
+    setSelected(new Map());
+    setAllMatching(null);
+  }, [scope]);
   // The Request Type may arrive in the URL: from the redirect that replaced
   // the old OT screen, and from the View button on a Telegram message.
   useEffect(() => {
@@ -272,6 +299,68 @@ export default function AttendanceApprovalCentrePage() {
 
   const filtered = filters.outlet_id || filters.employee_id || filters.designation_id;
 
+  const canDecideHere = type !== "SHIFT_CHANGE" || canDecideShift;
+  const bulkActions = bulkActionsFor({ status, type, canDecide: canDecideHere, isAdmin });
+  const selection =
+    bulkActions.length > 0
+      ? {
+          selectable: (row) => isSelectable(row, status),
+          isSelected: (id) => selected.has(Number(id)),
+          toggle: (row) => {
+            setAllMatching(null);
+            setSelected((current) => toggleRow(current, row, status));
+          },
+          togglePage: () => {
+            setAllMatching(null);
+            setSelected((current) => togglePage(current, rows, status));
+          },
+          pageState: pageState(selected, rows, status),
+        }
+      : null;
+
+  const selectAllMatching = async () => {
+    setSelectingAll(true);
+    try {
+      // Revoke on the Approved / Rejected tabs; Approve covers Reject too -
+      // both act on the same pending rows.
+      const res = await AttendanceV2Helper.getBulkTargets({
+        request_type: type,
+        status,
+        action: status === "PENDING" ? "APPROVE" : "REVOKE",
+        ...queryFilters,
+      });
+      if (!isOk(res)) {
+        toast({ title: "Could not select all", description: apiMessage(res), status: "error", duration: 6000 });
+        return;
+      }
+      const next = selectionFromTargets(res.items);
+      setSelected(next);
+      setAllMatching({ count: next.size, truncated: !!res.truncated });
+    } catch (err) {
+      toast({ title: "Could not reach the server", status: "error", duration: 5000 });
+    } finally {
+      setSelectingAll(false);
+    }
+  };
+
+  const onBulkFinished = async (report) => {
+    setBulk(null);
+    const { succeeded, skipped, failed } = report.summary;
+    toast({
+      title: `${succeeded} done${skipped ? `, ${skipped} skipped` : ""}${failed ? `, ${failed} failed` : ""}`,
+      status: failed || skipped ? "warning" : "success",
+      duration: 6000,
+    });
+    setSelected(new Map());
+    setAllMatching(null);
+    await load();
+  };
+  const rowById = new Map(rows.map((r) => [Number(r.attendance_approval_request_id), r]));
+  const describeRow = (result) => {
+    const row = rowById.get(Number(result.request_id));
+    return row ? row.employee_name || `Employee ${row.employee_id}` : result.employee_id ? `Employee ${result.employee_id}` : "";
+  };
+
   return (
     <GlobalWrapper title="Attendance Approvals" permissionKey={["view_attendance_approvals"]}>
       <CustomContainer
@@ -334,6 +423,20 @@ export default function AttendanceApprovalCentrePage() {
                     {error ? (
                       <Alert status="error" fontSize="sm" borderRadius="md"><AlertIcon />{error}</Alert>
                     ) : null}
+                    {name === status && selection ? (
+                      <BulkActionBar
+                        count={selected.size}
+                        actions={bulkActions}
+                        onAction={(action) => setBulk({ action, type, items: [...selected.values()] })}
+                        onClear={() => {
+                          setSelected(new Map());
+                          setAllMatching(null);
+                        }}
+                        onSelectAllMatching={selectAllMatching}
+                        selectingAll={selectingAll}
+                        allMatching={allMatching}
+                      />
+                    ) : null}
                     <ApprovalQueue
                       rows={rows}
                       kind={type}
@@ -346,6 +449,7 @@ export default function AttendanceApprovalCentrePage() {
                       }
                       deciding={deciding}
                       onRevoke={isAdmin && type !== "SHIFT_CHANGE" ? (row) => setRevoking({ row }) : null}
+                      selection={name === status ? selection : null}
                     />
                   </Stack>
                 </TabPanel>
@@ -359,6 +463,13 @@ export default function AttendanceApprovalCentrePage() {
         isOpen={!!revoking}
         onClose={() => setRevoking(null)}
         onRevoked={onRevoked}
+      />
+      <BulkActionModal
+        target={bulk}
+        isOpen={!!bulk}
+        onClose={() => setBulk(null)}
+        onFinished={onBulkFinished}
+        describeRow={describeRow}
       />
     </GlobalWrapper>
   );

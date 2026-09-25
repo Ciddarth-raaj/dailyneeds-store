@@ -37,7 +37,7 @@ test("a REQUEST shows Revoke only where the server said `revocable`, and only wh
   assert.match(queue, /onClick=\{\(\) => onRevoke\(row\)\}/);
   assert.match(queue, />\s*Revoke\s*</);
   assert.ok(!/st\.revocable/.test(queue), "no per-step revoke: the whole request is voided");
-  assert.match(queue, /export default function ApprovalQueue\(\{ rows, kind, loading, onDecide, deciding, onRevoke = null \}\)/);
+  assert.match(queue, /export default function ApprovalQueue\(\{ rows, kind, loading, onDecide, deciding, onRevoke = null, selection = null \}\)/);
 });
 
 test("the confirmation states employee, date, type, stage/level, current decision, approved OT, and that the request is CANCELLED", () => {

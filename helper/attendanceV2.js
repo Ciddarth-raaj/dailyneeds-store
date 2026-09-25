@@ -156,6 +156,31 @@ const attendanceV2 = {
         .catch(reject);
     }),
 
+  /**
+   * BULK Approve / Reject / Revoke on one tab: `{ action, request_type,
+   * items: [{ request_id, current_stage_no?, status? }], reason? }`. The server
+   * runs each id through the single-record action and answers per record.
+   */
+  bulkApprovals: ({ action, request_type, items, reason }) =>
+    new Promise((resolve, reject) => {
+      API.post("/attendance/approvals/bulk", { action, request_type, items, ...(reason ? { reason } : {}) })
+        .then((res) => resolve(res.data))
+        .catch(reject);
+    }),
+
+  /** "Select all matching the filters": the ids this caller could `action` now. */
+  getBulkTargets: ({ request_type, status, action, outlet_ids = null, employee_id = null, designation_id = null }) =>
+    call("get", "/attendance/approvals/bulk-targets", {
+      params: {
+        request_type,
+        status,
+        action,
+        ...(outlet_ids && outlet_ids.length > 0 ? { outlet_ids: outlet_ids.join(",") } : {}),
+        ...(employee_id ? { employee_id } : {}),
+        ...(designation_id ? { designation_id } : {}),
+      },
+    }),
+
   /* ---------------------------------------------- bulk recalculation */
 
   /** `{ from_date, to_date, employee_id?, store_id?, designation_id? }` - only the filters set. */
