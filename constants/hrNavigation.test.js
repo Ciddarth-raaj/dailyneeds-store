@@ -72,6 +72,9 @@ test("Employees, Department and Designation are all inside HR", () => {
     "/attendance/approver-setup",
     "/attendance/calculated",
     "/attendance/dashboard",
+    // Device Time Correction: administrators only (the page and the server
+    // check user_type 2); drawn on the device-administration key.
+    "/attendance/device-time-correction",
     "/attendance/devices",
     "/attendance/imports",
     "/attendance/list",
@@ -237,6 +240,9 @@ test("HR > Attendance: list, punch audit, devices and the DigiSME import, on the
     "/attendance/approver-setup",
     "/attendance/calculated",
     "/attendance/dashboard",
+    // Device Time Correction: administrators only (the page and the server
+    // check user_type 2); drawn on the device-administration key.
+    "/attendance/device-time-correction",
     "/attendance/devices",
     "/attendance/imports",
     "/attendance/list",
@@ -256,6 +262,7 @@ test("HR > Attendance: list, punch audit, devices and the DigiSME import, on the
   assert.match(att, /title:\s*"Attendance List"[\s\S]*?permission:\s*"view_raw_attendance"/);
   assert.match(att, /title:\s*"Punch Audit"[\s\S]*?permission:\s*"view_attendance_punch_audit"/);
   assert.match(att, /title:\s*"Biomax Devices"[\s\S]*?permission:\s*"view_biomax_devices"/);
+  assert.match(att, /title:\s*"Device Time Correction"[\s\S]*?permission:\s*"manage_biomax_devices"/);
   // Attendance v2's first screens. My Attendance carries NO permission - it
   // is the employee's own month and the backend derives the employee from
   // the session; Employee Attendance is behind the read key the backend
@@ -338,6 +345,9 @@ test("HR navigation still appears exactly once, and still holds its pages", () =
     "/attendance/approver-setup",
     "/attendance/calculated",
     "/attendance/dashboard",
+    // Device Time Correction: administrators only (the page and the server
+    // check user_type 2); drawn on the device-administration key.
+    "/attendance/device-time-correction",
     "/attendance/devices",
     "/attendance/imports",
     "/attendance/list",

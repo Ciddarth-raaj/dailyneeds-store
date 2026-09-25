@@ -27,6 +27,7 @@ import { DateRangeFilter } from "../../../components/DateRangeFilter";
 import PunchTimeCell from "../../../components/attendance/PunchTimeCell";
 import AttendanceBanners from "../../../components/attendance/AttendanceBanners";
 import VoidPunchModal from "../../../components/attendance/VoidPunchModal";
+import { correctionAuditLine } from "../../../util/deviceTimeCorrection";
 import usePermissions from "../../../customHooks/usePermissions";
 import useOutlets from "../../../customHooks/useOutlets";
 import useDepartments from "../../../customHooks/useDepartments";
@@ -431,7 +432,36 @@ function PunchAuditTab({ today, outlets, initial, toast, canVoid }) {
 
   const colDefs = useMemo(
     () => [
-      { field: "clock_time", headerName: "Time", minWidth: 100 },
+      {
+        // The EFFECTIVE time. Where an administrator corrected this device's
+        // clock, the original device time is shown beside it, and the
+        // "Device Time Correction" column says who, why and by how much.
+        field: "clock_time",
+        headerName: "Time",
+        minWidth: 150,
+        cellRenderer: (p) => {
+          if (!p.data) return null;
+          if (!p.data.time_corrected) return p.data.clock_time;
+          return (
+            <span title={correctionAuditLine(p.data) || ""}>
+              {p.data.clock_time}{" "}
+              <Badge colorScheme="orange" fontSize="9px">CLOCK CORRECTED</Badge>
+            </span>
+          );
+        },
+      },
+      {
+        field: "original_clock_time",
+        headerName: "Original Device Time",
+        minWidth: 140,
+        valueGetter: (p) => (p.data && p.data.time_corrected ? p.data.original_clock_time || "" : ""),
+      },
+      {
+        field: "time_correction_id",
+        headerName: "Device Time Correction",
+        minWidth: 320,
+        valueGetter: (p) => (p.data ? correctionAuditLine(p.data) || "" : ""),
+      },
       { field: "calendar_date", headerName: "Calendar Date", minWidth: 120, valueGetter: (p) => (p.data ? displayDate(p.data.calendar_date) : "") },
       { field: "attendance_date", headerName: "Attendance Date", minWidth: 130, valueGetter: (p) => (p.data && p.data.attendance_date ? displayDate(p.data.attendance_date) : "") },
       { field: "user_id", headerName: "Employee Code", minWidth: 120 },

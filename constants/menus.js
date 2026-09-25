@@ -1043,6 +1043,18 @@ const HR_MENU = {
         selected: false,
         location: "/attendance/devices",
       },
+      // DEVICE TIME CORRECTION: correcting punches an attendance machine
+      // stamped while its clock was wrong. ADMINISTRATORS ONLY - the backend
+      // checks `user_type` 2 on every route and nothing grantable. The entry
+      // rides on `manage_biomax_devices`, the device-administration key the
+      // backend grants to no designation, so it is drawn for administrators
+      // (who receive every key) and the page itself re-checks `user_type`.
+      device_time_correction: {
+        title: "Device Time Correction",
+        permission: "manage_biomax_devices",
+        selected: false,
+        location: "/attendance/device-time-correction",
+      },
       // The permanent DigiSME fallback: an Excel export of the same punches,
       // imported into the same table. Administrators only - the backend
       // grants `manage_attendance_import` to no designation - so this entry
