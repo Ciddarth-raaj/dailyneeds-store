@@ -21,6 +21,8 @@ import GlobalWrapper from "../../../components/globalWrapper/globalWrapper";
 import usePermissions from "../../../customHooks/usePermissions";
 import CustomContainer from "../../../components/CustomContainer";
 import ApprovalQueue from "../../../components/attendance/ApprovalQueue";
+import RevokeDecisionModal from "../../../components/attendance/RevokeDecisionModal";
+import { useUser } from "../../../contexts/UserContext";
 import AttendanceV2Helper from "../../../helper/attendanceV2";
 import useDesignations from "../../../customHooks/useDesignations";
 import { apiMessage, isOk } from "../../../util/attendanceV2";
@@ -102,6 +104,11 @@ export default function AttendanceApprovalCentrePage() {
   const { designations } = useDesignations();
 
   const canViewShift = usePermissions(SHIFT_VIEW_KEYS, { all: true });
+  // REVOKE is for administrators (user_type 2) only, and never on Shift. This
+  // only decides whether the control is offered; the endpoint decides again.
+  const { userConfig } = useUser();
+  const isAdmin = String(userConfig && userConfig.userType) === "2";
+  const [revoking, setRevoking] = useState(null);
   const canDecideShift = usePermissions(SHIFT_DECIDE_KEYS, { all: true });
   const types = useMemo(
     () => TYPES.filter((t) => t.key !== "SHIFT_CHANGE" || canViewShift),
@@ -251,6 +258,17 @@ export default function AttendanceApprovalCentrePage() {
     }
   };
 
+  const onRevoked = async (res) => {
+    setRevoking(null);
+    toast({
+      title: "Decision revoked",
+      description: `The request is pending again at stage ${res.current_stage_no}, and the date has been recalculated.`,
+      status: "success",
+      duration: 6000,
+    });
+    await load();
+  };
+
   const filtered = filters.outlet_id || filters.employee_id || filters.designation_id;
 
   return (
@@ -326,6 +344,7 @@ export default function AttendanceApprovalCentrePage() {
                           : null
                       }
                       deciding={deciding}
+                      onRevoke={isAdmin && type !== "SHIFT_CHANGE" ? (row, step) => setRevoking({ row, step }) : null}
                     />
                   </Stack>
                 </TabPanel>
@@ -334,6 +353,12 @@ export default function AttendanceApprovalCentrePage() {
           </Tabs>
         </Stack>
       </CustomContainer>
+      <RevokeDecisionModal
+        target={revoking}
+        isOpen={!!revoking}
+        onClose={() => setRevoking(null)}
+        onRevoked={onRevoked}
+      />
     </GlobalWrapper>
   );
 }

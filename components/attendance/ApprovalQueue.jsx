@@ -91,7 +91,12 @@ const stageApproverLabel = (st) =>
     ? `${st.approver_name || `Employee ${st.approver_employee_id}`}${st.approval_level ? ` · ${levelLabel(st.approval_level)}` : ""}`
     : roleLabel(st.approver_role);
 
-function Chain({ chain, current }) {
+/**
+ * `onRevoke` is passed by the page for an ADMINISTRATOR only, and a step
+ * offers it only where the server marked the decision `revocable`. Neither is
+ * the boundary: the revoke endpoint checks the account and the stage itself.
+ */
+function Chain({ chain, current, onRevoke = null }) {
   return (
     <Stack spacing={1}>
       {(chain || []).map((st) => (
@@ -107,6 +112,11 @@ function Chain({ chain, current }) {
           {st.decided_by_name ? <Text color="gray.600">by {st.decided_by_name}</Text> : null}
           {st.decided_at ? <Text color="gray.500">{displayDateTime(st.decided_at)}</Text> : null}
           {st.remarks ? <Text color="gray.600">“{st.remarks}”</Text> : null}
+          {onRevoke && st.revocable ? (
+            <Button size="xs" variant="outline" colorScheme="red" onClick={() => onRevoke(st)}>
+              Revoke
+            </Button>
+          ) : null}
         </Flex>
       ))}
     </Stack>
@@ -127,7 +137,27 @@ const namedShift = (code, name, inTime, outTime) => {
   return inTime && outTime ? `${label} (${clock(inTime)}–${clock(outTime)})` : label;
 };
 
-function Detail({ row, kind, onDecide, deciding }) {
+/** Every revocation of this request, newest first - the audit, read only. */
+function Revocations({ revocations }) {
+  if (!Array.isArray(revocations) || revocations.length === 0) return null;
+  return (
+    <Field label="Revoked decisions">
+      <Stack spacing={1}>
+        {revocations.map((v) => (
+          <Text key={v.attendance_approval_revocation_id} fontSize="xs" fontWeight="400" color="gray.700">
+            Stage {v.revoked_stage_no}
+            {v.revoked_approval_level ? ` (${levelLabel(v.revoked_approval_level)})` : ""} {String(v.original_decision).toLowerCase()}
+            {v.original_decided_by_name ? ` by ${v.original_decided_by_name}` : ""}
+            {v.original_approved_ot_minutes ? ` · ${formatOtClock(v.original_approved_ot_minutes)} OT` : ""} — revoked by{" "}
+            {v.revoked_by_name || "an administrator"} {displayDateTime(v.revoked_at)}: “{v.reason}”
+          </Text>
+        ))}
+      </Stack>
+    </Field>
+  );
+}
+
+function Detail({ row, kind, onDecide, deciding, onRevoke = null }) {
   const [remarks, setRemarks] = useState("");
   const isOt = kind === "OT";
   const isShift = kind === "SHIFT_CHANGE";
@@ -194,8 +224,10 @@ function Detail({ row, kind, onDecide, deciding }) {
 
       <Field label={row.status === "PENDING" ? "Approval chain · current stage" : "Approval chain"}>
         <Text fontSize="xs" color="purple.700" mb={1}>{stageLabel(row)}</Text>
-        <Chain chain={row.chain} current={row.current_stage_no} />
+        <Chain chain={row.chain} current={row.current_stage_no} onRevoke={onRevoke ? (st) => onRevoke(row, st) : null} />
       </Field>
+
+      <Revocations revocations={row.revocations} />
 
       {row.status !== "PENDING" ? (
         <Field label="Decision">
@@ -236,7 +268,7 @@ function Detail({ row, kind, onDecide, deciding }) {
 
 const summaryPunches = (row) => positional(row.effective_punches).map((p) => p.time).join(" → ") || "—";
 
-export default function ApprovalQueue({ rows, kind, loading, onDecide, deciding }) {
+export default function ApprovalQueue({ rows, kind, loading, onDecide, deciding, onRevoke = null }) {
   const isMobile = useBreakpointValue({ base: true, md: false });
   const [open, setOpen] = useState(null);
   const isOt = kind === "OT";
@@ -292,7 +324,7 @@ export default function ApprovalQueue({ rows, kind, loading, onDecide, deciding 
               </Box>
               {expanded ? (
                 <Box mt={3} pt={3} borderTopWidth="1px" borderColor="gray.100">
-                  <Detail row={row} kind={kind} onDecide={onDecide} deciding={deciding && deciding.id === id ? deciding.decision : null} />
+                  <Detail row={row} kind={kind} onDecide={onDecide} deciding={deciding && deciding.id === id ? deciding.decision : null} onRevoke={onRevoke} />
                 </Box>
               ) : null}
             </Box>
@@ -372,7 +404,7 @@ export default function ApprovalQueue({ rows, kind, loading, onDecide, deciding 
                 {expanded ? (
                   <Tr>
                     <Td colSpan={columns} bg="gray.50">
-                      <Detail row={row} kind={kind} onDecide={onDecide} deciding={deciding && deciding.id === id ? deciding.decision : null} />
+                      <Detail row={row} kind={kind} onDecide={onDecide} deciding={deciding && deciding.id === id ? deciding.decision : null} onRevoke={onRevoke} />
                     </Td>
                   </Tr>
                 ) : null}

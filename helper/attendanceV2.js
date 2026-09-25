@@ -142,6 +142,19 @@ const attendanceV2 = {
         .catch(reject);
     }),
 
+  /**
+   * ADMINISTRATORS ONLY: undo ONE stage decision of an Attendance or OT
+   * request and reopen the chain from that stage. `{ stage_no, reason }` and
+   * nothing else - the type, the employee, the decision and the minutes are
+   * read from the stored request, and the server checks the account itself.
+   */
+  revokeApproval: (request_id, { stage_no, reason }) =>
+    new Promise((resolve, reject) => {
+      API.post(`/attendance/approvals/${request_id}/revoke`, { stage_no: Number(stage_no), reason })
+        .then((res) => resolve(res.data))
+        .catch(reject);
+    }),
+
   /* ---------------------------------------------- bulk recalculation */
 
   /** `{ from_date, to_date, employee_id?, store_id?, designation_id? }` - only the filters set. */
