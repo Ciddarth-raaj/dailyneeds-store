@@ -115,7 +115,7 @@ export default function AttendanceApprovalCentrePage() {
   const { designations } = useDesignations();
 
   const canViewShift = usePermissions(SHIFT_VIEW_KEYS, { all: true });
-  // REVOKE is for administrators (user_type 2) only, and never on Shift. This
+  // REVOKE is for administrators (user_type 2) only, on every type. This
   // only decides whether the control is offered; the endpoint decides again.
   const { userConfig } = useUser();
   const isAdmin = String(userConfig && userConfig.userType) === "2";
@@ -290,7 +290,9 @@ export default function AttendanceApprovalCentrePage() {
     toast({
       title: "Decision revoked",
       description:
-        "The request is cancelled and the date has been recalculated. The employee can raise a fresh request for it.",
+        res && res.status === "PENDING"
+          ? `The rejection is withdrawn and the request is back in approval at stage ${res.reopened_stage_no}.`
+          : "The request is cancelled and the date has been recalculated. The employee can raise a fresh request for it.",
       status: "success",
       duration: 6000,
     });
@@ -427,7 +429,7 @@ export default function AttendanceApprovalCentrePage() {
                       <BulkActionBar
                         count={selected.size}
                         actions={bulkActions}
-                        onAction={(action) => setBulk({ action, type, items: [...selected.values()] })}
+                        onAction={(action) => setBulk({ action, type, status, items: [...selected.values()] })}
                         onClear={() => {
                           setSelected(new Map());
                           setAllMatching(null);
@@ -448,7 +450,7 @@ export default function AttendanceApprovalCentrePage() {
                           : null
                       }
                       deciding={deciding}
-                      onRevoke={isAdmin && type !== "SHIFT_CHANGE" ? (row) => setRevoking({ row }) : null}
+                      onRevoke={isAdmin ? (row) => setRevoking({ row }) : null}
                       selection={name === status ? selection : null}
                     />
                   </Stack>

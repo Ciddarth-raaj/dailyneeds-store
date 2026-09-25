@@ -29,7 +29,9 @@ test("each tab offers only its own actions, to the right viewer", () => {
   assert.deepEqual(bulkActionsFor({ status: "APPROVED", type: "OT", canDecide: true, isAdmin: true }), ["REVOKE"]);
   assert.deepEqual(bulkActionsFor({ status: "REJECTED", type: "REGULARIZATION", canDecide: true, isAdmin: true }), ["REVOKE"]);
   assert.deepEqual(bulkActionsFor({ status: "APPROVED", type: "OT", canDecide: true, isAdmin: false }), [], "revoke is administrators only");
-  assert.deepEqual(bulkActionsFor({ status: "APPROVED", type: "SHIFT_CHANGE", canDecide: true, isAdmin: true }), [], "a Shift decision is not revocable");
+  assert.deepEqual(bulkActionsFor({ status: "APPROVED", type: "SHIFT_CHANGE", canDecide: true, isAdmin: true }), ["REVOKE"], "Shift: approved -> cancelled");
+  assert.deepEqual(bulkActionsFor({ status: "REJECTED", type: "SHIFT_CHANGE", canDecide: false, isAdmin: true }), ["REVOKE"], "Shift: rejected -> reopened");
+  assert.deepEqual(bulkActionsFor({ status: "REJECTED", type: "SHIFT_CHANGE", canDecide: true, isAdmin: false }), [], "never to a non-administrator");
   assert.deepEqual(bulkActionsFor({ status: "ALL", type: "OT", canDecide: true, isAdmin: true }), [], "a mixed list has no one action");
 });
 

@@ -34,8 +34,12 @@ import { BULK_ACTION, chunk, confirmTitle, mergeBulkResults, reasonError, reason
 const EFFECT = {
   APPROVE: () => "Each request is approved at its current stage, exactly as its own Approve button would.",
   REJECT: () => "Each request is rejected and closed. The same reason is recorded on every one of them.",
-  REVOKE: (type) =>
-    type === "OT"
+  REVOKE: (type, status) =>
+    type === "SHIFT_CHANGE" && status === "REJECTED"
+      ? "Each rejected shift request is reopened: the rejection is withdrawn and it goes back to Pending at the stage that rejected it, for that approver to decide again. One the shift request rules would refuse now (another shift request for the date, an HR block, too old) is skipped."
+      : type === "SHIFT_CHANGE"
+      ? "Each approved shift request is cancelled - it does not go back to Pending. Its one-day shift stops applying, the date is recalculated on the normal shift, and any OT that shift authorised is removed. One with an OT request on the date is skipped - revoke that OT first."
+      : type === "OT"
       ? "Each OT request is cancelled - it does not go back to Pending. Its OT stops reaching payroll, the day shows OT as Not Requested again, and the employee can raise a fresh request."
       : "Each request is cancelled - it does not go back to Pending. Its punch stops counting, the date is recalculated, and the employee can raise a fresh request.",
 };
@@ -49,7 +53,7 @@ export default function BulkActionModal({ target, isOpen, onClose, onFinished, d
   const [report, setReport] = useState(null);
 
   if (!target) return null;
-  const { action, type, items } = target;
+  const { action, type, status, items } = target;
   const running = progress !== null && report === null;
 
   const reset = () => {
@@ -163,7 +167,7 @@ export default function BulkActionModal({ target, isOpen, onClose, onFinished, d
           <Alert status={action === BULK_ACTION.APPROVE ? "info" : "warning"} fontSize="sm" borderRadius="md" alignItems="flex-start">
             <AlertIcon />
             <Box>
-              <b>{items.length}</b> selected request{items.length === 1 ? "" : "s"}. {EFFECT[action](type)} Each one is checked
+              <b>{items.length}</b> selected request{items.length === 1 ? "" : "s"}. {EFFECT[action](type, status)} Each one is checked
               on its own - permission, payroll lock, its current state - and one that cannot be actioned is skipped and
               reported without stopping the rest.
             </Box>

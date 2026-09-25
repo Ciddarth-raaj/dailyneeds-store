@@ -59,6 +59,9 @@ test("the confirmation states the count, requires the reason for Reject/Revoke, 
   assert.match(modal, /isDisabled=\{reasonRequired\(action\) && reason\.trim\(\)\.length < 5\}/);
   assert.match(modal, /does not go back to Pending/);
   assert.match(modal, /the day shows OT as Not Requested again/);
+  assert.match(page, /setBulk\(\{ action, type, status, items: \[\.\.\.selected\.values\(\)\] \}\)/, "the tab's status tells the modal which Shift outcome applies");
+  assert.match(modal, /type === "SHIFT_CHANGE" && status === "REJECTED"\s*\? "Each rejected shift request is reopened/);
+  assert.match(modal, /Each approved shift request is cancelled - it does not go back to Pending\. Its one-day shift stops applying/);
 });
 
 test("it sends ids, the seen state and the reason - in turns - and nothing the server must decide", () => {
@@ -83,7 +86,7 @@ test("the results show successful, skipped and failed counts and the reason for 
 
 test("13. the single-record controls are untouched: Approve / Reject / Revoke still call their own endpoints", () => {
   assert.match(page, /AttendanceV2Helper\.decideApproval\(row\.attendance_approval_request_id, \{ decision, remarks \}\)/);
-  assert.match(page, /onRevoke=\{isAdmin && type !== "SHIFT_CHANGE" \? \(row\) => setRevoking\(\{ row \}\) : null\}/);
+  assert.match(page, /onRevoke=\{isAdmin \? \(row\) => setRevoking\(\{ row \}\) : null\}/);
   assert.match(helper, /API\.post\(`\/attendance\/regularization\/\$\{request_id\}\/decision`/);
   assert.match(helper, /API\.post\(`\/attendance\/approvals\/\$\{request_id\}\/revoke`, \{ reason \}\)/);
 });

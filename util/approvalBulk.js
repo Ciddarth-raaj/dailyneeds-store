@@ -28,14 +28,13 @@ const idOf = (row) => Number(row && row.attendance_approval_request_id);
  * The actions a status tab offers, for this viewer.
  *
  *   Pending            Approve, Reject   - to an approver the page lets decide
- *   Approved/Rejected  Revoke            - administrators only, never Shift
- *                                          (Shift decisions are not revocable)
+ *   Approved/Rejected  Revoke            - administrators only, every type
  *   All                nothing           - a mixed list has no one action
  */
 function bulkActionsFor({ status, type, canDecide, isAdmin }) {
   if (status === "PENDING") return canDecide ? [BULK_ACTION.APPROVE, BULK_ACTION.REJECT] : [];
   if (status === "APPROVED" || status === "REJECTED") {
-    return isAdmin && type !== "SHIFT_CHANGE" ? [BULK_ACTION.REVOKE] : [];
+    return isAdmin ? [BULK_ACTION.REVOKE] : [];
   }
   return [];
 }

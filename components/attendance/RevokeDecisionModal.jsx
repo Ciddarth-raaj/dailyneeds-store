@@ -18,7 +18,13 @@ import AttendanceV2Helper from "../../helper/attendanceV2";
 import { apiMessage, displayDate, formatOtClock, isOk, levelLabel, roleLabel } from "../../util/attendanceV2";
 
 /**
- * ADMINISTRATORS ONLY: revoke an Attendance or OT request's decision.
+ * ADMINISTRATORS ONLY: revoke an Attendance, OT or Shift request's decision.
+ *
+ * SHIFT has two outcomes, both stated before anything is done: an APPROVED
+ * one-day shift is cancelled like any other request - its override stops
+ * applying and the date goes back to the employee's normal shift, taking the
+ * OT that shift authorised with it; a REJECTED shift request is REOPENED at
+ * the stage that rejected it, back in that approver's queue.
  *
  * A revocation VOIDS the request - it becomes CANCELLED and never comes back
  * to a queue. It is not reopened: its approval steps keep their decisions as
@@ -45,7 +51,32 @@ const Field = ({ label, children }) => (
   </Box>
 );
 
-const TYPE_LABEL = { REGULARIZATION: "Attendance", REGULARIZATION_WITH_OT: "Attendance", OT: "OT" };
+const TYPE_LABEL = { REGULARIZATION: "Attendance", REGULARIZATION_WITH_OT: "Attendance", OT: "OT", SHIFT_CHANGE: "Shift" };
+
+/** What this revocation will do, in words - decided by the request's type and status. */
+function effectOf(row, stageNo) {
+  const id = row.attendance_approval_request_id;
+  if (row.request_type === "SHIFT_CHANGE" && row.status === "REJECTED") {
+    return {
+      verb: "reopened",
+      text: `Request #${id} will be reopened: the rejection at stage ${stageNo} is withdrawn and the request goes back to Pending at that stage, for its approver to decide again. Earlier approvals stand. The date is not changed until it is approved. The original rejection and your reason are kept in the audit.`,
+    };
+  }
+  if (row.request_type === "SHIFT_CHANGE") {
+    return {
+      verb: "cancelled",
+      text: `Request #${id} will be cancelled. It will not come back for approval, and its approval history is kept as it is. The one-day shift stops applying: the date is recalculated on the employee's normal shift, and any OT that shift authorised is removed. This is refused while an OT request stands on the date - revoke that first. The employee can then raise a fresh request. The original decision and your reason are kept in the audit.`,
+    };
+  }
+  return {
+    verb: "cancelled",
+    text: `Request #${id} will be cancelled. It will not come back for approval, and its approval history is kept as it is. ${
+      row.request_type === "OT"
+        ? "Its OT stops reaching payroll, and the day shows OT as Not Requested again."
+        : "Its punch stops counting on the day."
+    } The date is recalculated now. The employee can then raise a fresh request, which starts a new approval chain. The original decision and your reason are kept in the audit.`,
+  };
+}
 
 export default function RevokeDecisionModal({ target, isOpen, onClose, onRevoked }) {
   const [reason, setReason] = useState("");
@@ -55,6 +86,7 @@ export default function RevokeDecisionModal({ target, isOpen, onClose, onRevoked
   if (!target) return null;
   const { row } = target;
   const isOt = row.request_type === "OT";
+  const isShift = row.request_type === "SHIFT_CHANGE";
   // The stage that DECIDED the request, for the confirmation: the rejection,
   // or the last approval. The server works this out for itself.
   const chainSteps = row.chain || [];
@@ -131,19 +163,19 @@ export default function RevokeDecisionModal({ target, isOpen, onClose, onRevoked
             ) : null}
           </Field>
           {isOt ? <Field label="Approved OT">{formatOtClock(row.approved_ot_minutes)}</Field> : null}
+          {isShift ? (
+            <Field label="Requested shift">
+              {row.requested_shift_name || row.requested_shift_code || "—"}
+              {row.base_shift_name || row.base_shift_code ? (
+                <Text as="span" fontWeight="400" color="gray.600"> (normal: {row.base_shift_name || row.base_shift_code})</Text>
+              ) : null}
+            </Field>
+          ) : null}
         </SimpleGrid>
 
         <Alert status="warning" fontSize="sm" borderRadius="md" alignItems="flex-start">
           <AlertIcon />
-          <Box>
-            Request #{row.attendance_approval_request_id} will be <b>cancelled</b>. It will not come back for
-            approval, and its approval history is kept as it is.{" "}
-            {isOt
-              ? "Its OT stops reaching payroll, and the day shows OT as Not Requested again."
-              : "Its punch stops counting on the day."}{" "}
-            The date is recalculated now. The employee can then raise a fresh request, which starts a new
-            approval chain. The original decision and your reason are kept in the audit.
-          </Box>
+          <Box>{effectOf(row, step.stage_no).text}</Box>
         </Alert>
 
         <FormControl isRequired>
