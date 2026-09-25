@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Alert,
   AlertIcon,
@@ -33,7 +33,9 @@ import {
   MY_TAB_ORDER,
   apiMessage,
   correctionRequestRows,
+  createLatestGate,
   currentMonth,
+  isLoadableMonth,
   isOk,
   monthBounds,
   myTabAtIndex,
@@ -104,13 +106,24 @@ export default function MyAttendancePage() {
   // now holds what they filed instead of leaving them on the month.
   const [tab, setTab] = useState(MY_TAB.ATTENDANCE);
 
+  // ONE REQUEST PER MONTH, AND ONLY THE NEWEST ONE IS SHOWN. The month
+  // picker reports every keystroke of a year ("0002", "0020", "0202",
+  // "2026"): those half-typed years are not requested at all, and if the
+  // employee steps through months faster than the server answers, an older
+  // month's answer arriving late is dropped rather than painted over the
+  // month now selected.
+  const latest = useRef(null);
+  if (latest.current === null) latest.current = createLatestGate();
+
   const load = useCallback(async () => {
+    if (!isLoadableMonth(month)) return;
     const bounds = monthBounds(month);
-    if (!bounds) return;
+    const stamp = latest.current.begin();
     setLoading(true);
     setError(null);
     try {
       const res = await AttendanceV2Helper.getMyAttendance(bounds);
+      if (!latest.current.isLatest(stamp)) return;
       if (!isOk(res)) {
         setDays([]);
         setError(apiMessage(res, "Your attendance could not be loaded"));
@@ -118,10 +131,11 @@ export default function MyAttendancePage() {
       }
       setDays(Array.isArray(res.days) ? res.days : []);
     } catch (err) {
+      if (!latest.current.isLatest(stamp)) return;
       setDays([]);
       setError("Could not reach the server. Please try again.");
     } finally {
-      setLoading(false);
+      if (latest.current.isLatest(stamp)) setLoading(false);
     }
   }, [month]);
 
