@@ -36,6 +36,23 @@ test("My Attendance has no employee selector and sends no employee id", () => {
   assert.ok(!/getEmployeeAttendance/.test(myPage));
 });
 
+test("My Attendance makes ONE month request, only for a real month, and shows only the newest answer", () => {
+  // One call site, one effect: opening the page is one GET /attendance/me.
+  assert.equal((myPage.match(/getMyAttendance\(/g) || []).length, 1);
+  assert.equal((myPage.match(/useEffect\(/g) || []).length, 1);
+  assert.match(myPage, /useEffect\(\(\) => \{\s*load\(\);\s*\}, \[load\]\)/);
+  assert.match(myPage, /const load = useCallback\([\s\S]*?\}, \[month\]\);/);
+  // Half-typed years are not requested; a late answer for an old month is dropped.
+  assert.match(myPage, /if \(!isLoadableMonth\(month\)\) return;/);
+  assert.match(myPage, /const stamp = latest\.current\.begin\(\);/);
+  assert.match(myPage, /if \(!latest\.current\.isLatest\(stamp\)\) return;\s*if \(!isOk\(res\)\)/);
+  // The tabs are filters over the same rows, not further requests.
+  ["CorrectionRequestList", "OtRequestList", "ShiftRequestList", "AttendanceDayList"].forEach((c) => {
+    const src = strip(read(`components/attendance/${c}.jsx`));
+    assert.ok(!/Helper\./.test(src), `${c} makes no request of its own`);
+  });
+});
+
 test("My Attendance needs no permission key; Employee Attendance is behind view_calculated_attendance", () => {
   assert.match(myPage, /<GlobalWrapper title="My Attendance">/);
   assert.match(hrPage, /permissionKey=\{\["view_calculated_attendance"\]\}/);

@@ -34,6 +34,8 @@ const {
   weekday,
   displayDate,
   monthBounds,
+  isLoadableMonth,
+  createLatestGate,
   calendarDateFor,
   shiftLabel,
   apiMessage,
@@ -225,6 +227,28 @@ test("a month becomes its first and last date", () => {
   assert.deepEqual(monthBounds("2028-02"), { from_date: "2028-02-01", to_date: "2028-02-29" });
   assert.equal(monthBounds("2026-13"), null);
   assert.equal(monthBounds(""), null);
+});
+
+test("a half-typed year is not a month to load; a real one is", () => {
+  // What <input type="month"> reports while "2026" is typed.
+  ["0002-09", "0020-09", "0202-09"].forEach((m) => assert.equal(isLoadableMonth(m), false, m));
+  assert.equal(isLoadableMonth("2026-09"), true);
+  assert.equal(isLoadableMonth("2025-12"), true);
+  assert.equal(isLoadableMonth("2026-13"), false);
+  assert.equal(isLoadableMonth(""), false);
+  assert.equal(isLoadableMonth(undefined), false);
+});
+
+test("latest request wins: an older answer is recognised as stale", () => {
+  const gate = createLatestGate();
+  const august = gate.begin();
+  const september = gate.begin();
+  assert.equal(gate.isLatest(august), false);
+  assert.equal(gate.isLatest(september), true);
+  // Gates are independent of one another.
+  const other = createLatestGate();
+  assert.equal(other.isLatest(other.begin()), true);
+  assert.equal(gate.isLatest(september), true);
 });
 
 test("the shift label carries the name and the hours", () => {

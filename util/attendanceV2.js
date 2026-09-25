@@ -770,6 +770,40 @@ function monthBounds(yearMonth) {
   return { from_date: `${y}-${pad(mo)}-01`, to_date: `${y}-${pad(mo)}-${pad(last)}` };
 }
 
+/**
+ * Is this `YYYY-MM` worth asking the server for?
+ *
+ * `<input type="month">` reports a value on every keystroke while a year is
+ * being typed - "0002-09", "0020-09", "0202-09", then "2026-09" - and each
+ * of those used to become a request. The first three are not attendance
+ * months at all (and `monthBounds` renders year 2 as "2-09-01", which the
+ * server rightly refuses as a malformed date, flashing an error). Nothing is
+ * decided here about WHICH months an employee may see; that is the server's.
+ */
+function isLoadableMonth(yearMonth) {
+  const bounds = monthBounds(yearMonth);
+  if (!bounds) return false;
+  const year = Number(String(yearMonth).slice(0, 4));
+  return year >= 2000 && year <= 2099;
+}
+
+/**
+ * LATEST REQUEST WINS. `begin()` stamps a request; `isLatest(stamp)` says
+ * whether it is still the newest one. A slower answer for a month the user
+ * has already moved away from is then dropped instead of overwriting the
+ * month on screen.
+ */
+function createLatestGate() {
+  let current = 0;
+  return {
+    begin: () => {
+      current += 1;
+      return current;
+    },
+    isLatest: (stamp) => stamp === current,
+  };
+}
+
 /** `YYYY-MM-DD` plus n days, by UTC maths. */
 function addDays(dateOnly, n) {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(dateOnly || ""));
@@ -1195,6 +1229,8 @@ module.exports = {
   weekday,
   displayDate,
   monthBounds,
+  isLoadableMonth,
+  createLatestGate,
   addDays,
   calendarDateFor,
   currentMonth,
