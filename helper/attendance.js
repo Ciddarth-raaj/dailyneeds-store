@@ -130,6 +130,25 @@ const attendance = {
   /** `{ biomax_device_id, dev_id, reason }` - audited; refused once the device has punched */
   correctCloudId: (body) => post("/attendance/devices/correct-cloud-id", body),
 
+  /* ------------------------------------------------ Device Time Correction */
+  /*
+   * `/attendance/device-time-corrections`, ADMINISTRATORS ONLY (user_type 2 on
+   * the server, nothing grantable). Preview writes nothing and returns
+   * `batch_ref` + `preview_fingerprint`; Apply must send the SAME criteria
+   * with both, and is refused as stale if the punches changed in between.
+   * No punch id, corrected time or actor is ever sent.
+   */
+
+  getDeviceTimeCorrectionOptions: () => get("/attendance/device-time-corrections/options"),
+  /** `{ date, biomax_device_id, outlet_id?, from_time, to_time, offset_minutes, reason_code, remarks }` */
+  previewDeviceTimeCorrection: (body) => post("/attendance/device-time-corrections/preview", body),
+  /** The preview's criteria + `{ batch_ref, preview_fingerprint }`. */
+  applyDeviceTimeCorrection: (body) => post("/attendance/device-time-corrections", body),
+  listDeviceTimeCorrections: (params) => get("/attendance/device-time-corrections", params),
+  getDeviceTimeCorrection: (id) => get(`/attendance/device-time-corrections/${id}`),
+  /** `{ reason }` */
+  revertDeviceTimeCorrection: (id, reason) => post(`/attendance/device-time-corrections/${id}/revert`, { reason }),
+
   /* ------------------------------------------------- DigiSME Excel import */
   /*
    * `routes/attendance_import.js`, mounted at /attendance/imports, every
