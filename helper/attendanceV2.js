@@ -143,14 +143,15 @@ const attendanceV2 = {
     }),
 
   /**
-   * ADMINISTRATORS ONLY: undo ONE stage decision of an Attendance or OT
-   * request and reopen the chain from that stage. `{ stage_no, reason }` and
-   * nothing else - the type, the employee, the decision and the minutes are
-   * read from the stored request, and the server checks the account itself.
+   * ADMINISTRATORS ONLY: VOID an Attendance or OT request's decision - the
+   * request becomes CANCELLED and the employee may raise a fresh one. The
+   * reason and nothing else: the type, the employee, the decision, the stage
+   * and the minutes are read from the stored request, and the server checks
+   * the account itself.
    */
-  revokeApproval: (request_id, { stage_no, reason }) =>
+  revokeApproval: (request_id, { reason }) =>
     new Promise((resolve, reject) => {
-      API.post(`/attendance/approvals/${request_id}/revoke`, { stage_no: Number(stage_no), reason })
+      API.post(`/attendance/approvals/${request_id}/revoke`, { reason })
         .then((res) => resolve(res.data))
         .catch(reject);
     }),

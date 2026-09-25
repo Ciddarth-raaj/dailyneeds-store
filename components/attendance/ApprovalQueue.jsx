@@ -91,12 +91,7 @@ const stageApproverLabel = (st) =>
     ? `${st.approver_name || `Employee ${st.approver_employee_id}`}${st.approval_level ? ` · ${levelLabel(st.approval_level)}` : ""}`
     : roleLabel(st.approver_role);
 
-/**
- * `onRevoke` is passed by the page for an ADMINISTRATOR only, and a step
- * offers it only where the server marked the decision `revocable`. Neither is
- * the boundary: the revoke endpoint checks the account and the stage itself.
- */
-function Chain({ chain, current, onRevoke = null }) {
+function Chain({ chain, current }) {
   return (
     <Stack spacing={1}>
       {(chain || []).map((st) => (
@@ -112,11 +107,6 @@ function Chain({ chain, current, onRevoke = null }) {
           {st.decided_by_name ? <Text color="gray.600">by {st.decided_by_name}</Text> : null}
           {st.decided_at ? <Text color="gray.500">{displayDateTime(st.decided_at)}</Text> : null}
           {st.remarks ? <Text color="gray.600">“{st.remarks}”</Text> : null}
-          {onRevoke && st.revocable ? (
-            <Button size="xs" variant="outline" colorScheme="red" onClick={() => onRevoke(st)}>
-              Revoke
-            </Button>
-          ) : null}
         </Flex>
       ))}
     </Stack>
@@ -224,18 +214,31 @@ function Detail({ row, kind, onDecide, deciding, onRevoke = null }) {
 
       <Field label={row.status === "PENDING" ? "Approval chain · current stage" : "Approval chain"}>
         <Text fontSize="xs" color="purple.700" mb={1}>{stageLabel(row)}</Text>
-        <Chain chain={row.chain} current={row.current_stage_no} onRevoke={onRevoke ? (st) => onRevoke(row, st) : null} />
+        <Chain chain={row.chain} current={row.current_stage_no} />
       </Field>
 
       <Revocations revocations={row.revocations} />
 
       {row.status !== "PENDING" ? (
         <Field label="Decision">
-          <Text color={row.status === "APPROVED" ? "green.700" : "red.700"}>{decisionLabel(row)}</Text>
+          <Text color={row.status === "APPROVED" ? "green.700" : row.status === "CANCELLED" ? "gray.600" : "red.700"}>{decisionLabel(row)}</Text>
           <Text fontSize="xs" color="gray.500" fontWeight="400">
             {row.decided_by_name ? `${row.decided_by_name} · ` : ""}{displayDateTime(row.decided_at)}
           </Text>
         </Field>
+      ) : null}
+
+      {/*
+        ADMIN REVOKE: offered by the page to an administrator only, and here
+        only where the server marked the REQUEST revocable. It voids the whole
+        request; the endpoint checks the account and the request itself.
+      */}
+      {onRevoke && row.revocable ? (
+        <Flex justify="flex-end">
+          <Button size="sm" variant="outline" colorScheme="red" onClick={() => onRevoke(row)}>
+            Revoke
+          </Button>
+        </Flex>
       ) : null}
 
       {row.status === "PENDING" && row.actionable && onDecide ? (

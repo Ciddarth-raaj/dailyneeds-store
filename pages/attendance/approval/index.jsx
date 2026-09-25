@@ -262,7 +262,8 @@ export default function AttendanceApprovalCentrePage() {
     setRevoking(null);
     toast({
       title: "Decision revoked",
-      description: `The request is pending again at stage ${res.current_stage_no}, and the date has been recalculated.`,
+      description:
+        "The request is cancelled and the date has been recalculated. The employee can raise a fresh request for it.",
       status: "success",
       duration: 6000,
     });
@@ -344,7 +345,7 @@ export default function AttendanceApprovalCentrePage() {
                           : null
                       }
                       deciding={deciding}
-                      onRevoke={isAdmin && type !== "SHIFT_CHANGE" ? (row, step) => setRevoking({ row, step }) : null}
+                      onRevoke={isAdmin && type !== "SHIFT_CHANGE" ? (row) => setRevoking({ row }) : null}
                     />
                   </Stack>
                 </TabPanel>

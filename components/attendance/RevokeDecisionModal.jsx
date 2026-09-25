@@ -18,19 +18,19 @@ import AttendanceV2Helper from "../../helper/attendanceV2";
 import { apiMessage, displayDate, formatOtClock, isOk, levelLabel, roleLabel } from "../../util/attendanceV2";
 
 /**
- * ADMINISTRATORS ONLY: revoke ONE stage decision of an Attendance or OT
- * request.
+ * ADMINISTRATORS ONLY: revoke an Attendance or OT request's decision.
  *
- * What it does is stated before it is done, because it cannot be undone by
- * the same screen: the decision on this stage AND every later stage goes back
- * to pending, the request reopens at this stage, and the date is
- * recalculated - for OT the approved minutes stop reaching payroll, for an
- * attendance correction the proposed punch stops counting, until someone
- * approves it again. The original decision is kept in the revocation audit.
+ * A revocation VOIDS the request - it becomes CANCELLED and never comes back
+ * to a queue. It is not reopened: its approval steps keep their decisions as
+ * history. The date is recalculated without it - for OT the approved minutes
+ * stop reaching payroll, for an attendance correction the punch stops
+ * counting - and the employee can raise a FRESH request for the date, which
+ * starts a new approval chain. All of that is stated before it is done,
+ * because this screen cannot undo it.
  *
- * THIS IS PRESENTATION. The page only opens it for an administrator on a step
- * the server marked `revocable`; the endpoint checks the account, the stage,
- * the payroll lock and the request's state for itself.
+ * THIS IS PRESENTATION. The page only opens it for an administrator on a
+ * request the server marked `revocable`; the endpoint checks the account, the
+ * request and the payroll lock for itself.
  */
 const MIN_REASON = 5;
 
@@ -53,9 +53,16 @@ export default function RevokeDecisionModal({ target, isOpen, onClose, onRevoked
   const [error, setError] = useState(null);
 
   if (!target) return null;
-  const { row, step } = target;
+  const { row } = target;
   const isOt = row.request_type === "OT";
-  const later = (row.chain || []).filter((st) => Number(st.stage_no) > Number(step.stage_no));
+  // The stage that DECIDED the request, for the confirmation: the rejection,
+  // or the last approval. The server works this out for itself.
+  const chainSteps = row.chain || [];
+  const step =
+    chainSteps.find((st) => st.decision === "REJECTED") ||
+    [...chainSteps].reverse().find((st) => st.decision === "APPROVED") ||
+    chainSteps[chainSteps.length - 1] ||
+    {};
 
   const close = () => {
     setReason("");
@@ -72,10 +79,7 @@ export default function RevokeDecisionModal({ target, isOpen, onClose, onRevoked
     }
     setSaving(true);
     try {
-      const res = await AttendanceV2Helper.revokeApproval(row.attendance_approval_request_id, {
-        stage_no: step.stage_no,
-        reason: trimmed,
-      });
+      const res = await AttendanceV2Helper.revokeApproval(row.attendance_approval_request_id, { reason: trimmed });
       if (!isOk(res)) {
         setError(apiMessage(res, "The decision could not be revoked"));
         return;
@@ -121,7 +125,7 @@ export default function RevokeDecisionModal({ target, isOpen, onClose, onRevoked
             Stage {step.stage_no} of {row.total_stages} · {approver}
           </Field>
           <Field label="Current decision">
-            <Badge colorScheme={step.decision === "APPROVED" ? "green" : "red"}>{step.decision}</Badge>
+            <Badge colorScheme={row.status === "APPROVED" ? "green" : row.status === "REJECTED" ? "red" : "purple"}>{row.status}</Badge>
             {step.decided_by_name ? (
               <Text as="span" fontWeight="400" color="gray.600"> by {step.decided_by_name}</Text>
             ) : null}
@@ -132,13 +136,13 @@ export default function RevokeDecisionModal({ target, isOpen, onClose, onRevoked
         <Alert status="warning" fontSize="sm" borderRadius="md" alignItems="flex-start">
           <AlertIcon />
           <Box>
-            Stage {step.stage_no}
-            {later.length > 0 ? ` and every later stage (${later.map((st) => st.stage_no).join(", ")})` : ""} go back to
-            pending, and the request reopens at stage {step.stage_no}.{" "}
+            Request #{row.attendance_approval_request_id} will be <b>cancelled</b>. It will not come back for
+            approval, and its approval history is kept as it is.{" "}
             {isOt
-              ? "Its approved OT stops reaching payroll until it is approved again."
-              : "The proposed punch stops counting until it is approved again."}{" "}
-            The date is recalculated now. The original decision is kept in the audit.
+              ? "Its OT stops reaching payroll, and the day shows OT as Not Requested again."
+              : "Its punch stops counting on the day."}{" "}
+            The date is recalculated now. The employee can then raise a fresh request, which starts a new
+            approval chain. The original decision and your reason are kept in the audit.
           </Box>
         </Alert>
 

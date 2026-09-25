@@ -859,8 +859,12 @@ function levelLabel(level) {
  * `Stage 2 of 3 · Priya (Final Approver)` when the stage carries a
  * snapshotted employee-level approver.
  */
+/** A request an administrator revoked is CANCELLED, and says so. */
+const REVOKED_LABEL = "Cancelled – revoked by Admin";
+
 function stageLabel(row) {
   if (!row) return "—";
+  if (row.status === "CANCELLED") return row.revoked ? REVOKED_LABEL : "Cancelled";
   if (row.status !== "PENDING") return row.status === "APPROVED" ? "Approved" : row.status === "REJECTED" ? "Rejected" : String(row.status);
   const who =
     row.current_stage_approver_employee_id !== null && row.current_stage_approver_employee_id !== undefined
@@ -876,6 +880,7 @@ function stageLabel(row) {
 function decisionLabel(row) {
   if (!row) return "—";
   if (row.closure_label) return row.closure_label;
+  if (row.status === "CANCELLED") return row.revoked ? REVOKED_LABEL : "Cancelled";
   if (row.status === "REJECTED") return "Rejected";
   if (row.status === "APPROVED") return "Approved";
   return stageLabel(row);
@@ -1136,6 +1141,7 @@ module.exports = {
   STATUS,
   roleLabel,
   levelLabel,
+  REVOKED_LABEL,
   displayDateTime,
   stageLabel,
   decisionLabel,
