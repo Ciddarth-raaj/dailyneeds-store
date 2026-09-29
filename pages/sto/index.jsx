@@ -7,6 +7,7 @@ import Link from "next/link";
 import AgGrid from "../../components/AgGrid";
 import STOMonthCalendar from "../../components/sto/STOMonthCalendar";
 import useStockTransfer from "../../customHooks/useStockTransfer";
+import useStockTransferCalendar from "../../customHooks/useStockTransferCalendar";
 import usePermissions from "../../customHooks/usePermissions";
 import { useConfirmDelete } from "../../customHooks/useConfirmDelete";
 import toast from "react-hot-toast";
@@ -90,31 +91,29 @@ function STOListing() {
     moment().clone().startOf("month")
   );
 
-  const viewingMonthDateRange = useMemo(() => {
-    const start = moment(viewingMonth).startOf("month");
-    const end = moment(viewingMonth).endOf("month");
-    return {
-      from_date: start.format("YYYY-MM-DD"),
-      to_date: end.format("YYYY-MM-DD"),
-    };
-  }, [viewingMonth]);
-
-  const { transfers, loading, refetch } = useStockTransfer({
-    is_checked: showAll ? undefined : true,
-    from_date: viewingMonthDateRange.from_date,
-    to_date: viewingMonthDateRange.to_date,
+  /** Calendar: per-day counts for the viewed month only (no transfer rows). */
+  const {
+    days: calendarDays,
+    loading: calendarLoading,
+    refetch: refetchCalendar,
+  } = useStockTransferCalendar({
+    year: viewingMonth.year(),
+    month: viewingMonth.month() + 1,
   });
 
-  const transfersForSelectedDay = useMemo(() => {
-    return (transfers || []).filter((t) => {
-      if (!t?.DN_date) return false;
-      return moment(t.DN_date).format("YYYY-MM-DD") === selectedDate;
-    });
-  }, [transfers, selectedDate]);
+  /**
+   * List: the selected day's transfers only. The backend selects the day from
+   * the stored DN date, so rows are not re-filtered here by browser time zone.
+   */
+  const { transfers, loading, refetch } = useStockTransfer({
+    is_checked: showAll ? undefined : true,
+    from_date: selectedDate,
+    to_date: selectedDate,
+  });
 
   const rowData = useMemo(() => {
-    return transfersForSelectedDay.map(computeRowFromTransfer);
-  }, [transfersForSelectedDay]);
+    return (transfers || []).map(computeRowFromTransfer);
+  }, [transfers]);
 
   const colDefs = useMemo(
     () => [
@@ -183,6 +182,7 @@ function STOListing() {
                         await stoCheck.deleteByRef(dnRefNo);
                         toast.success("STO check deleted");
                         refetch();
+                        refetchCalendar();
                       },
                     }),
             });
@@ -192,7 +192,7 @@ function STOListing() {
         },
       },
     ],
-    [confirmDelete, refetch, canDelete]
+    [confirmDelete, refetch, refetchCalendar, canDelete]
   );
 
   return (
@@ -202,10 +202,10 @@ function STOListing() {
         <STOMonthCalendar
           selectedDate={selectedDate}
           onSelectDate={setSelectedDate}
-          transfersList={transfers || []}
+          days={calendarDays}
           viewingMonth={viewingMonth}
           onViewingMonthChange={setViewingMonth}
-          loading={loading}
+          loading={calendarLoading}
           showAll={showAll}
           onShowAllChange={setShowAll}
         />

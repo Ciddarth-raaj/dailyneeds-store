@@ -32,6 +32,25 @@ const stockTransferOut = {
     }),
 
   /**
+   * Per-day STO counts for one calendar month (no transfer or item rows).
+   * GET /stock-transfer-out/calendar?year=&month=
+   * @param {{ year: number, month: number }} opts month is 1-12
+   * @returns {Promise<Array<{ date: string, total: number, checked: number, unchecked: number }>>}
+   */
+  getStockTransferCalendar: ({ year, month }) =>
+    new Promise((resolve, reject) => {
+      API.get("/stock-transfer-out/calendar", { params: { year, month } })
+        .then((res) => {
+          if (res?.data?.code === 200) {
+            resolve(res.data.data ?? []);
+          } else {
+            reject(res?.data?.msg ?? "Failed to fetch STO calendar");
+          }
+        })
+        .catch((err) => reject(err));
+    }),
+
+  /**
    * Get one stock transfer by Dn_no.
    * GET /stock-transfer-out/:Dn_no
    * @param {number|string} dnNo - Transfer primary key
