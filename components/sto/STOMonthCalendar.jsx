@@ -1,6 +1,5 @@
 import React, { useMemo, useCallback } from "react";
 import { FormControl, FormLabel, HStack, Switch } from "@chakra-ui/react";
-import moment from "moment";
 import MonthStatusCalendar from "../calendar/MonthStatusCalendar";
 
 /**
@@ -10,26 +9,27 @@ import MonthStatusCalendar from "../calendar/MonthStatusCalendar";
 function STOMonthCalendar({
   selectedDate,
   onSelectDate,
-  transfersList = [],
+  days = {},
   viewingMonth,
   onViewingMonthChange,
   loading = false,
   showAll = true,
   onShowAllChange,
 }) {
-  /** YYYY-MM-DD -> { total, unfilled } (unfilled = file_items.length === 0) */
+  /**
+   * YYYY-MM-DD -> { total, unfilled } from the month summary
+   * (`days`: YYYY-MM-DD -> { total, checked, unchecked }; unfilled = no file_items).
+   * Show All OFF counts only checked transfers, as the checked-only list did.
+   */
   const statsByDay = useMemo(() => {
     const map = {};
-    transfersList.forEach((t) => {
-      if (!t?.DN_date) return;
-      const d = moment(t.DN_date).format("YYYY-MM-DD");
-      if (!map[d]) map[d] = { total: 0, unfilled: 0 };
-      map[d].total += 1;
-      const fi = t.file_items || [];
-      if (fi.length === 0) map[d].unfilled += 1;
+    Object.entries(days || {}).forEach(([d, day]) => {
+      map[d] = showAll
+        ? { total: day.total ?? 0, unfilled: day.unchecked ?? 0 }
+        : { total: day.checked ?? 0, unfilled: 0 };
     });
     return map;
-  }, [transfersList]);
+  }, [days, showAll]);
 
   const getDayVisual = useCallback(
     (date) => {
