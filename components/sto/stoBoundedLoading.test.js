@@ -233,3 +233,111 @@ describe("the hooks make one request per real change", skip, () => {
     await h.unmount();
   });
 });
+
+describe("the /sto page: requests per user action", skip, () => {
+  /**
+   * The REAL page and its REAL hooks. Only leaves that need a browser session
+   * or a grid engine are swapped (layout shell, card, grid, the calendar grid,
+   * permissions, confirm dialog), and the HTTP helper is replaced by a counter
+   * - so what is counted is exactly what the page would send.
+   */
+  const React = require("react");
+  const moment = require("moment");
+  const calls = [];
+  let calendarProps = null;
+  let gridRows = null;
+  let page = null;
+
+  function stub(rel, exports) {
+    const file = require.resolve(path.join(root, rel));
+    require.cache[file] = { id: file, filename: file, loaded: true, exports };
+  }
+
+  before(() => {
+    installDom();
+    const passthrough = ({ children, title, rightSection }) =>
+      React.createElement("section", null, title ? React.createElement("h2", null, title) : null, rightSection, children);
+    stub("components/globalWrapper/globalWrapper", { __esModule: true, default: passthrough });
+    stub("components/CustomContainer", { __esModule: true, default: passthrough });
+    stub("components/AgGrid", { __esModule: true, default: ({ rowData }) => ((gridRows = rowData), null) });
+    stub("components/sto/STOMonthCalendar.jsx", { __esModule: true, default: (props) => ((calendarProps = props), null) });
+    stub("customHooks/usePermissions", { __esModule: true, default: () => true });
+    stub("customHooks/useConfirmDelete", {
+      __esModule: true,
+      useConfirmDelete: () => ({ confirmDelete: () => {}, ConfirmDeleteDialog: () => null }),
+    });
+
+    const api = load("helper/stockTransferOut.js");
+    api.getStockTransfers = async (opts) => {
+      calls.push(["list", opts]);
+      return opts.from_date === "2026-09-10"
+        ? []
+        : [
+            { Dn_no: 7, Dn_Ref_no: 70, Cust_Name: "Branch A", DN_date: `${opts.from_date}T04:30:00.000Z`, Tot_Items: 2, items: [], file_items: [] },
+          ];
+    };
+    api.getStockTransferCalendar = async (opts) => {
+      calls.push(["calendar", opts]);
+      return [{ date: "2026-09-29", total: 1, checked: 0, unchecked: 1 }];
+    };
+    page = load("pages/sto/index.jsx");
+  });
+
+  const flush = () => require("react-dom/test-utils").act(async () => {});
+
+  it("opening /sto: one calendar request for this month and one list request for today - nothing per day", async () => {
+    const { ChakraProvider } = require("@chakra-ui/react");
+    const view = mountElement();
+    calls.length = 0;
+    await view.render(React.createElement(ChakraProvider, null, React.createElement(page)));
+    await flush();
+
+    const today = moment().format("YYYY-MM-DD");
+    assert.deepEqual(calls, [
+      ["calendar", { year: moment().year(), month: moment().month() + 1 }],
+      ["list", { is_checked: true, from_date: today, to_date: today }],
+    ]);
+    assert.equal(gridRows.length, 1);
+    assert.equal(gridRows[0].dn_no, 7);
+    assert.equal(calendarProps.days["2026-09-29"].total, 1);
+
+    // clicking a date: one list request for that date, the calendar is not refetched
+    calls.length = 0;
+    await require("react-dom/test-utils").act(async () => calendarProps.onSelectDate("2026-09-16"));
+    await flush();
+    assert.deepEqual(calls, [["list", { is_checked: true, from_date: "2026-09-16", to_date: "2026-09-16" }]]);
+
+    // a date with no STOs: an empty table, still one request
+    calls.length = 0;
+    await require("react-dom/test-utils").act(async () => calendarProps.onSelectDate("2026-09-10"));
+    await flush();
+    assert.deepEqual(calls, [["list", { is_checked: true, from_date: "2026-09-10", to_date: "2026-09-10" }]]);
+    assert.deepEqual(gridRows, []);
+
+    // changing month: one calendar request, no per-day list requests
+    calls.length = 0;
+    await require("react-dom/test-utils").act(async () => calendarProps.onViewingMonthChange(moment("2026-08-01")));
+    await flush();
+    assert.deepEqual(calls, [["calendar", { year: 2026, month: 8 }]]);
+
+    // Show All: the list refetches with is_checked unset; the calendar does not
+    calls.length = 0;
+    await require("react-dom/test-utils").act(async () => calendarProps.onShowAllChange(true));
+    await flush();
+    assert.deepEqual(calls, [["list", { is_checked: undefined, from_date: "2026-09-10", to_date: "2026-09-10" }]]);
+    assert.equal(calendarProps.showAll, true);
+
+    await view.unmount();
+  });
+});
+
+describe("Create / View / Edit keep their data sources", () => {
+  const form = src("pages/sto/[mode].jsx");
+
+  it("Create lists the last 7 days in one ranged call; View/Edit read by reference", () => {
+    assert.match(form, /const start = moment\(\)\.subtract\(6, "days"\);/);
+    assert.match(form, /useStockTransfer\(\{\s*\.\.\.createDateRange,\s*enabled: isCreate,\s*\}\)/);
+    assert.match(form, /useStockTransferByRefId\(isEdit \|\| isView \? queryId : null\)/);
+    assert.match(form, /await stoCheck\.bulkReplace\(\[\{ dn_ref_no: Number\(dnRefNo\), items \}\]\);/);
+  });
+});
