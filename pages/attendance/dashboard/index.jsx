@@ -800,7 +800,9 @@ export default function AttendanceDashboardPage() {
                         total={overview.cards.total_employees.count}
                         isOpenDay={isOpenDay}
                         onOpenShift={(row) =>
-                          row.setup_gap
+                          row.attendance_mode
+                            ? openBucket("TOTAL", { attendance_mode: row.attendance_mode })
+                            : row.setup_gap
                             ? openBucket(
                                 row.issue_key || "SHIFT_SETUP",
                                 row.work_shift_id === null

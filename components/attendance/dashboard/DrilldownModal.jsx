@@ -66,6 +66,11 @@ export default function DrilldownModal({
       <ModalContent>
         <ModalHeader fontSize="md" color="#1B2A5B" pb={1}>
           {bucketTitle(bucket)}
+          {result && result.applied_filters && result.applied_filters.attendance_mode === "PRESENT_ABSENT_ONLY" ? (
+            <Text fontSize="xs" color="green.700" fontWeight="600">
+              Attendance Mode: Present/Absent Only
+            </Text>
+          ) : null}
           <Text fontSize="xs" color="gray.500" fontWeight="400">
             {displayDate(attendanceDate)} · {total} {total === 1 ? "employee" : "employees"}
             {total > shown ? ` · showing ${offset + 1}–${offset + shown}` : ""}

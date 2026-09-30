@@ -59,3 +59,24 @@ describe("the One-Day Shift Change form", () => {
     assert.match(form, /isDisabled=\{Boolean\(notApplicable\)\}/);
   });
 });
+
+describe("the dashboard's Present/Absent Only row opens its own list, by mode", () => {
+  const page = fs.readFileSync(path.join(__dirname, "../pages/attendance/dashboard/index.jsx"), "utf8");
+  const helper = fs.readFileSync(path.join(__dirname, "../helper/attendanceDashboard.js"), "utf8");
+  const modal = fs.readFileSync(path.join(__dirname, "../components/attendance/dashboard/DrilldownModal.jsx"), "utf8");
+
+  it("a row carrying attendance_mode opens the drilldown filtered BY THAT MODE - checked before the setup-gap / no-shift branch", () => {
+    const handler = page.slice(page.indexOf("onOpenShift={(row) =>"), page.indexOf("<TrendPanel"));
+    assert.match(handler, /row\.attendance_mode\s*\?\s*openBucket\("TOTAL", \{ attendance_mode: row\.attendance_mode \}\)/);
+    assert.ok(handler.indexOf("row.attendance_mode") < handler.indexOf("row.setup_gap"), "the mode is decided first");
+  });
+
+  it("the helper sends attendance_mode to the server", () => {
+    assert.match(helper, /if \(attendance_mode\) params\.attendance_mode = attendance_mode;/);
+  });
+
+  it("the list says what it is - never No Shift", () => {
+    assert.match(modal, /applied_filters\.attendance_mode === "PRESENT_ABSENT_ONLY"/);
+    assert.match(modal, /Attendance Mode: Present\/Absent Only/);
+  });
+});

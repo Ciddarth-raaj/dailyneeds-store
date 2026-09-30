@@ -113,9 +113,12 @@ const attendanceDashboard = {
    * An employee with no store cannot be named by a store filter, and omitting
    * the filter would quietly return everybody.
    */
-  getDrilldown: ({ bucket, limit = 50, offset = 0, store_unassigned = false, ...filters }) => {
+  getDrilldown: ({ bucket, limit = 50, offset = 0, store_unassigned = false, attendance_mode = null, ...filters }) => {
     const params = { ...queryFor(filters), bucket, limit, offset };
     if (store_unassigned) params.store_unassigned = true;
+    // The shift panel's Present/Absent Only row: that ATTENDANCE MODE, which
+    // the server matches on each day's own mode - never "no shift id".
+    if (attendance_mode) params.attendance_mode = attendance_mode;
     return call("/attendance/dashboard/drilldown", params);
   },
 
