@@ -66,6 +66,7 @@ const TYPES = [
   { key: "REGULARIZATION", label: "Attendance" },
   { key: "OT", label: "OT" },
   { key: "SHIFT_CHANGE", label: "Shift" },
+  { key: "PERMISSION", label: "Permission" },
 ];
 const STATUSES = ["PENDING", "APPROVED", "REJECTED", "ALL"];
 
@@ -86,6 +87,10 @@ const STATUSES = ["PENDING", "APPROVED", "REJECTED", "ALL"];
  */
 const SHIFT_VIEW_KEYS = ["view_attendance_approvals", "view_shift_change_requests"];
 const SHIFT_DECIDE_KEYS = ["approve_attendance_regularization", "approve_shift_change_request"];
+// PERMISSION: the same shape - its own view and approve keys on top of the
+// page's. Enforced again on every approval route, per stored request type.
+const PERMISSION_VIEW_KEYS = ["view_attendance_approvals", "view_attendance_permissions"];
+const PERMISSION_DECIDE_KEYS = ["approve_attendance_regularization", "approve_attendance_permission"];
 const EMPTY_FILTERS = { outlet_id: "", employee_id: "", designation_id: "" };
 
 /** The URL's `type`, accepting the short word the old links and Telegram use. */
@@ -93,6 +98,7 @@ const typeFromQuery = (value) => {
   const asked = String(value || "").toUpperCase();
   if (asked === "SHIFT" || asked === "SHIFT_CHANGE") return "SHIFT_CHANGE";
   if (asked === "OT") return "OT";
+  if (asked === "PERMISSION") return "PERMISSION";
   if (asked === "ATTENDANCE" || asked === "REGULARIZATION") return "REGULARIZATION";
   return null;
 };
@@ -104,6 +110,11 @@ const decisionMessage = (type, res) => {
     return "Approved. The requested shift applies to that date only, and the date has been recalculated.";
   }
   if (type === "OT") return "Finally approved. Only this approved OT reaches payroll.";
+  if (type === "PERMISSION") {
+    return res.attendance_persisted
+      ? "Permission approved. The date has been recalculated: the permitted time is paid, not counted as worked."
+      : "Permission approved. It is applied when the attendance day closes.";
+  }
   return res.ot_now_available > 0
     ? "Attendance corrected. The day now offers OT Available for the employee to request."
     : "Attendance corrected.";
@@ -121,9 +132,14 @@ export default function AttendanceApprovalCentrePage() {
   const isAdmin = String(userConfig && userConfig.userType) === "2";
   const [revoking, setRevoking] = useState(null);
   const canDecideShift = usePermissions(SHIFT_DECIDE_KEYS, { all: true });
+  const canViewPermission = usePermissions(PERMISSION_VIEW_KEYS, { all: true });
+  const canDecidePermission = usePermissions(PERMISSION_DECIDE_KEYS, { all: true });
   const types = useMemo(
-    () => TYPES.filter((t) => t.key !== "SHIFT_CHANGE" || canViewShift),
-    [canViewShift]
+    () =>
+      TYPES.filter(
+        (t) => (t.key !== "SHIFT_CHANGE" || canViewShift) && (t.key !== "PERMISSION" || canViewPermission)
+      ),
+    [canViewShift, canViewPermission]
   );
 
   const [type, setType] = useState("REGULARIZATION");
@@ -184,14 +200,16 @@ export default function AttendanceApprovalCentrePage() {
     // deep link lands on Attendance rather than on a tab whose every call
     // the server would refuse.
     if (asked === "SHIFT_CHANGE" && !canViewShift) return;
+    if (asked === "PERMISSION" && !canViewPermission) return;
     if (asked) setType(asked);
-  }, [router.isReady, router.query.type, canViewShift]);
+  }, [router.isReady, router.query.type, canViewShift, canViewPermission]);
 
   // The keys arrive with the user config, which can land after the first
   // render, so a tab that was reachable a moment ago is stepped back off.
   useEffect(() => {
     if (type === "SHIFT_CHANGE" && !canViewShift) setType("REGULARIZATION");
-  }, [type, canViewShift]);
+    if (type === "PERMISSION" && !canViewPermission) setType("REGULARIZATION");
+  }, [type, canViewShift, canViewPermission]);
 
   const queryFilters = useMemo(
     () => ({
@@ -301,7 +319,8 @@ export default function AttendanceApprovalCentrePage() {
 
   const filtered = filters.outlet_id || filters.employee_id || filters.designation_id;
 
-  const canDecideHere = type !== "SHIFT_CHANGE" || canDecideShift;
+  const canDecideHere =
+    (type !== "SHIFT_CHANGE" || canDecideShift) && (type !== "PERMISSION" || canDecidePermission);
   const bulkActions = bulkActionsFor({ status, type, canDecide: canDecideHere, isAdmin });
   const selection =
     bulkActions.length > 0
@@ -444,8 +463,7 @@ export default function AttendanceApprovalCentrePage() {
                       kind={type}
                       loading={loading}
                       onDecide={
-                        (name === "PENDING" || name === "ALL") &&
-                        (type !== "SHIFT_CHANGE" || canDecideShift)
+                        (name === "PENDING" || name === "ALL") && canDecideHere
                           ? onDecide
                           : null
                       }

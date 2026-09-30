@@ -186,6 +186,24 @@ function hasRefusals(result) {
   );
 }
 
+/**
+ * THE REASON TO SHOW WITH A PARTIAL OUTCOME. A refusal such as "attendance
+ * changed after the month was calculated" lives only in the result, not on
+ * the row, so the toast carries the first one and says how many more there
+ * are. The text is the server's; nothing is paraphrased here.
+ */
+const REFUSED_RESULTS = ["BLOCKED", "FAILED", "NOT_IN_SCOPE"];
+function refusalDetail(result) {
+  const refused = ((result && result.results) || []).filter(
+    (r) => r && REFUSED_RESULTS.includes(r.result) && r.message
+  );
+  if (refused.length === 0) return null;
+  const first = refused[0];
+  const who = first.employee_id != null ? `Employee ${first.employee_id}: ` : "";
+  const more = refused.length > 1 ? ` (and ${refused.length - 1} more)` : "";
+  return `${who}${first.message}${more}`;
+}
+
 /** The badge colour for a status. Presentation only; the label is the server's. */
 function statusScheme(status) {
   if (status === STATUS.APPROVED_LOCKED) return "green";
@@ -216,5 +234,6 @@ module.exports = {
   recalculateMessage,
   outcomeMessage,
   hasRefusals,
+  refusalDetail,
   statusScheme,
 };

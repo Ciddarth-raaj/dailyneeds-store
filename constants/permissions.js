@@ -306,6 +306,27 @@ export const PERMISSIONS = {
     // a reason, on the record, without deleting it. Granted by migration to
     // nobody; the action is hidden without it and the server checks it again.
     void_attendance_punch: "Void a Raw Attendance Punch",
+    // PERMISSION - paid forgiven shortage, never worked time. All seven are
+    // granted by migration to nobody.
+    //
+    //   view_        the Permission register and the Approval Centre's
+    //                Permission tab.
+    //   raise_       the employee's own request, for themselves only.
+    //   ..._others   a request for an employee in your outlets; it still
+    //                walks that employee's approval chain.
+    //   approve_     reaching the Permission decision endpoint - the chain
+    //                decides who may decide each stage, as for every request.
+    //   grant_       a DIRECT management grant to one named employee.
+    //   grant_bulk   a DIRECT grant to several employees, outlets or everybody
+    //                in your outlets (the festival early release).
+    //   revoke_      revoke a direct grant in your outlets.
+    view_attendance_permissions: "View Attendance Permissions",
+    raise_attendance_permission_request: "Request a Permission (own attendance)",
+    raise_attendance_permission_for_others: "Raise a Permission Request for an Employee",
+    approve_attendance_permission: "Approve / Reject Permission Requests",
+    grant_attendance_permission: "Grant Permission to an Employee (management)",
+    grant_attendance_permission_bulk: "Grant Permission in Bulk (employees / outlets / all)",
+    revoke_attendance_permission: "Revoke a Management Permission",
   },
 
   // Reports — the reporting module on the rail beside HR.

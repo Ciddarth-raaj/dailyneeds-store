@@ -160,6 +160,27 @@ test("refusals in a result are noticed", () => {
   assert.equal(rules.hasRefusals({ not_in_scope_count: 1 }), true);
 });
 
+test("a refusal's own reason travels with the toast, first one plus a count", () => {
+  assert.equal(rules.refusalDetail(null), null);
+  assert.equal(rules.refusalDetail({ results: [{ employee_id: 1, result: "APPROVED", message: "ok" }] }), null);
+  const stale = "This employee's attendance days changed after the monthly attendance was calculated.";
+  assert.equal(
+    rules.refusalDetail({ results: [{ employee_id: 7, result: "BLOCKED", attendance_stale: "DAYS_CHANGED", message: stale }] }),
+    `Employee 7: ${stale}`
+  );
+  assert.equal(
+    rules.refusalDetail({
+      results: [
+        { employee_id: 1, result: "APPROVED", message: "ok" },
+        { employee_id: 7, result: "BLOCKED", message: stale },
+        { employee_id: 8, result: "FAILED", message: "x" },
+        { employee_id: 9, result: "BLOCKED" },
+      ],
+    }),
+    `Employee 7: ${stale} (and 1 more)`
+  );
+});
+
 test("every status has a badge colour, and stale is not the same as ready", () => {
   assert.notEqual(
     rules.statusScheme(STATUS.RECALCULATION_REQUIRED),

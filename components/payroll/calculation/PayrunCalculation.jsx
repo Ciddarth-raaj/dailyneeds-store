@@ -44,6 +44,7 @@ import {
   outcomeMessage,
   pruneSelection,
   recalculateMessage,
+  refusalDetail,
   toggleSelection,
 } from "../../../util/payrunCalculation";
 
@@ -175,7 +176,8 @@ function PayrunCalculation({
       toast({
         title: outcomeMessage(result),
         description: refused
-          ? "Some employees were not changed. Their reasons are shown on their rows."
+          ? refusalDetail(result) ||
+            "Some employees were not changed. Their reasons are shown on their rows."
           : undefined,
         status: refused ? "warning" : "success",
         duration: 7000,

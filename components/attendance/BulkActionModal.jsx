@@ -39,6 +39,8 @@ const EFFECT = {
       ? "Each rejected shift request is reopened: the rejection is withdrawn and it goes back to Pending at the stage that rejected it, for that approver to decide again. One the shift request rules would refuse now (another shift request for the date, an HR block, too old) is skipped."
       : type === "SHIFT_CHANGE"
       ? "Each approved shift request is cancelled - it does not go back to Pending. Its one-day shift stops applying, the date is recalculated on the normal shift, and any OT that shift authorised is removed. One with an OT request on the date is skipped - revoke that OT first."
+      : type === "PERMISSION"
+      ? "Each permission request is cancelled - it does not go back to Pending. Its window stops being paid, the date is recalculated without it, and the employee can raise a fresh request."
       : type === "OT"
       ? "Each OT request is cancelled - it does not go back to Pending. Its OT stops reaching payroll, the day shows OT as Not Requested again, and the employee can raise a fresh request."
       : "Each request is cancelled - it does not go back to Pending. Its punch stops counting, the date is recalculated, and the employee can raise a fresh request.",
