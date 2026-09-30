@@ -32,6 +32,7 @@ import {
 } from "../../util/attendanceV2";
 import {
   PAID_NOT_WORKED,
+  permissionPreviewNotApplicable,
   permissionWindowLabel,
 } from "../../util/attendancePermission";
 
@@ -162,7 +163,10 @@ const permissionWindows = (row) =>
  * Paid, not worked: approving changes no punch, no shift and no OT.
  */
 function PermissionDetail({ row }) {
-  const preview = row.permission_preview;
+  // A Present/Absent Only date: nothing to forgive, so no figures - the
+  // server's reason instead, and the request can only be rejected.
+  const notApplicable = permissionPreviewNotApplicable(row);
+  const preview = notApplicable ? null : row.permission_preview;
   return (
     <SimpleGrid columns={{ base: 1, md: 2 }} spacing={3}>
       <Field label="Permission asked for">
@@ -174,18 +178,24 @@ function PermissionDetail({ row }) {
           ))}
         </Stack>
       </Field>
-      <Field label={preview ? "If approved" : "Paid permission"}>
-        {preview ? (
+      <Field label={notApplicable ? "Not applicable" : preview ? "If approved" : "Paid permission"}>
+        {notApplicable ? (
+          <Text fontWeight="400" fontSize="sm" color="gray.700">
+            {notApplicable}
+          </Text>
+        ) : preview ? (
           <Text fontWeight="400" fontSize="sm">
             Short {formatMinutes(preview.shortage_before_permission_minutes)} → permission covers{" "}
             <Text as="span" fontWeight="700" color="teal.700">{formatMinutes(preview.permission_minutes)}</Text> → short{" "}
             {formatMinutes(preview.shortage_after_permission_minutes)}
           </Text>
         ) : null}
-        <Text fontWeight="400" fontSize="xs" color="gray.600">
-          {PAID_NOT_WORKED}. Approving changes no punch, no shift and no overtime; only the shortage inside the window is
-          forgiven.
-        </Text>
+        {notApplicable ? null : (
+          <Text fontWeight="400" fontSize="xs" color="gray.600">
+            {PAID_NOT_WORKED}. Approving changes no punch, no shift and no overtime; only the shortage inside the window is
+            forgiven.
+          </Text>
+        )}
       </Field>
     </SimpleGrid>
   );
@@ -307,7 +317,14 @@ function Detail({ row, kind, onDecide, deciding, onRevoke = null }) {
             >
               Reject
             </Button>
-            <Button size="sm" colorScheme="green" isLoading={deciding === "APPROVED"} isDisabled={!!deciding} onClick={() => onDecide(row, "APPROVED", remarks)}>
+            <Button
+              size="sm"
+              colorScheme="green"
+              isLoading={deciding === "APPROVED"}
+              isDisabled={!!deciding || !!permissionPreviewNotApplicable(row)}
+              title={permissionPreviewNotApplicable(row) || undefined}
+              onClick={() => onDecide(row, "APPROVED", remarks)}
+            >
               Approve
             </Button>
           </Flex>

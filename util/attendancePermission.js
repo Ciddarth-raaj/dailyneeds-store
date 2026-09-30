@@ -44,6 +44,9 @@ const PERMISSION_SOURCE_LABEL = Object.freeze({
   DIRECT: "Management grant",
 });
 
+/** The backend's refusal of a NEW permission on a Present/Absent Only date. */
+const PERMISSION_NOT_APPLICABLE_MESSAGE = "Permission is not applicable because this employee uses Present/Absent Only attendance.";
+
 /** The backend engine's own wording for a permission on a Present/Absent Only date. */
 const PRESENT_ABSENT_ONLY_PERMISSION_NOTE = "Permission does not apply: Present/Absent Only calculates no shortage to excuse";
 
@@ -147,6 +150,26 @@ function dayPermission(day) {
         ? "No chargeable shortage fell inside the permitted window"
         : null,
   };
+}
+
+/**
+ * May a Permission be REQUESTED for this day? Not on a Present/Absent Only
+ * date - there is no shortage to forgive. The server refuses it anyway; this
+ * only stops the screen offering an action that cannot succeed.
+ */
+function canRequestPermissionForDay(day) {
+  return !!day && !require("./attendanceV2").isPresentAbsentOnlyDay(day);
+}
+
+/**
+ * The server's reason a pending Permission request cannot be approved - its
+ * date is Present/Absent Only - from the Approval Centre row, or null. The
+ * server refuses the approval regardless.
+ */
+function permissionPreviewNotApplicable(row) {
+  const preview = row && row.permission_preview;
+  if (!preview || !preview.not_applicable) return null;
+  return preview.message || PERMISSION_NOT_APPLICABLE_MESSAGE;
 }
 
 /** Explanation lines appended to the Short tooltip. Empty with no permission. */
@@ -293,6 +316,9 @@ module.exports = {
   PERMISSION_SOURCE_LABEL,
   PAID_NOT_WORKED,
   PRESENT_ABSENT_ONLY_PERMISSION_NOTE,
+  PERMISSION_NOT_APPLICABLE_MESSAGE,
+  canRequestPermissionForDay,
+  permissionPreviewNotApplicable,
   TARGET_MODE,
   TARGET_MODE_LABEL,
   formatMinutes,

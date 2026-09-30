@@ -220,3 +220,40 @@ describe("the two screens render through these helpers", () => {
     assert.match(detail, /onRequestPermission/);
   });
 });
+
+describe("a NEW Permission is not offered on a Present/Absent Only date", () => {
+  const { canRequestPermissionForDay, permissionPreviewNotApplicable, PERMISSION_NOT_APPLICABLE_MESSAGE } = require("./attendancePermission");
+  const read = (f) => fs.readFileSync(path.join(__dirname, "..", f), "utf8");
+
+  it("the backend's sentence, word for word", () => {
+    assert.equal(PERMISSION_NOT_APPLICABLE_MESSAGE, "Permission is not applicable because this employee uses Present/Absent Only attendance.");
+  });
+
+  it("Request Permission is offered on a Shift Based day, with or without a shift, and never on a Present/Absent Only day", () => {
+    assert.equal(canRequestPermissionForDay(shiftDay()), true);
+    assert.equal(canRequestPermissionForDay(shiftDay({ status: "NO_SHIFT_FOR_DATE", shift_snapshot: null })), true);
+    assert.equal(canRequestPermissionForDay(paoDay()), false);
+    assert.equal(canRequestPermissionForDay(paoDay({ shift_name: "Late Shift", work_shift_id: 7 })), false);
+    assert.equal(canRequestPermissionForDay(paoDay({ status: "ABSENT", attendance_day_count: 0 })), false);
+  });
+
+  it("the Day Detail hides the button through that helper; the free-date form shows the server's refusal", () => {
+    const detail = read("components/attendance/AttendanceDayDetail.jsx");
+    assert.match(detail, /const showRequestPermission = !!onRequestPermission && canRequestPermissionForDay\(day\);/);
+    assert.match(detail, /\{showRequestPermission \? \(/);
+    assert.doesNotMatch(detail, /\{onRequestPermission \? \(/);
+    const form = read("components/attendance/PermissionRequestForm.jsx");
+    assert.match(form, /setError\(apiMessage\(res\)\)/);
+  });
+
+  it("the Approval Centre shows the reason, not a '0m → 0m → 0m' preview, and offers only Reject", () => {
+    const row = { permission_preview: { not_applicable: true, attendance_calculation_mode: "PRESENT_ABSENT_ONLY", message: PERMISSION_NOT_APPLICABLE_MESSAGE } };
+    assert.equal(permissionPreviewNotApplicable(row), PERMISSION_NOT_APPLICABLE_MESSAGE);
+    assert.equal(permissionPreviewNotApplicable({ permission_preview: { shortage_before_permission_minutes: 120, permission_minutes: 120, shortage_after_permission_minutes: 0 } }), null);
+    assert.equal(permissionPreviewNotApplicable({ permission_preview: null }), null);
+    const queue = read("components/attendance/ApprovalQueue.jsx");
+    assert.match(queue, /const preview = notApplicable \? null : row\.permission_preview;/);
+    assert.match(queue, /isDisabled=\{!!deciding \|\| !!permissionPreviewNotApplicable\(row\)\}/);
+    assert.match(queue, /isDisabled=\{!!deciding \|\| rejectBlocked\}/, "Reject is unchanged");
+  });
+});

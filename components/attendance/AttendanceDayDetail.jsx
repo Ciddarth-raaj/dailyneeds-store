@@ -23,6 +23,7 @@ import {
 import {
   PAID_NOT_WORKED,
   dayPermission,
+  canRequestPermissionForDay,
   permissionSourceLabel,
   permissionStateColor,
   permissionStateLabel,
@@ -123,6 +124,8 @@ export default function AttendanceDayDetail({
   const showRegularize = !!onRegularize && canRegularize(day);
   const ot = otClaim(day);
   const showRequestOt = !!onRequestOt && !!ot && ot.canRequest;
+  // Not offered on a Present/Absent Only date: nothing is short to forgive.
+  const showRequestPermission = !!onRequestPermission && canRequestPermissionForDay(day);
 
   return (
     <CustomModal
@@ -143,7 +146,7 @@ export default function AttendanceDayDetail({
               Regularize
             </Button>
           ) : null}
-          {onRequestPermission ? (
+          {showRequestPermission ? (
             <Button size="sm" variant="outline" colorScheme="teal" onClick={() => onRequestPermission(day)}>
               Request Permission
             </Button>
