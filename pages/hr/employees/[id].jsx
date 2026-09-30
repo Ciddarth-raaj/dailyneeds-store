@@ -212,6 +212,8 @@ function EmployeeProfile() {
   // able to tell "you may not see this" from "this could not be loaded".
   const [bankOutcome, setBankOutcome] = useState(null);
   const [bank, setBank] = useState(null);
+  // Employment Details -> Attendance Calculation Type (the GET answer).
+  const [attendanceMode, setAttendanceMode] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -237,11 +239,12 @@ function EmployeeProfile() {
       // section render that null as a fact about the employee. That is how a
       // store manager without `view_employee_lifecycle` was told an employee
       // had no Aadhaar on record.
-      const [lc, emp, aa, bk] = await Promise.all([
+      const [lc, emp, aa, bk, am] = await Promise.all([
         loadSection(HrHelper.getLifecycle(id)),
         loadSection(EmployeeHelper.getEmployeeByID(id)),
         loadSection(HrHelper.getAadhaarStatus(id)),
         loadSection(HrHelper.getBankStatus(id)),
+        loadSection(HrHelper.getAttendanceCalculationMode(id)),
       ]);
 
       setLifecycle(dataOf(lc));
@@ -250,6 +253,7 @@ function EmployeeProfile() {
       setAadhaarOutcome(aa);
       setBank(dataOf(bk));
       setBankOutcome(bk);
+      setAttendanceMode(am.ok ? dataOf(am) : null);
 
       // ONLY when NEITHER read produced anything. A refused lifecycle is an
       // ordinary outcome for a store manager and must not read as an error;
@@ -444,6 +448,42 @@ function EmployeeProfile() {
       // the rest, and the hook re-reads on the next render of the id.
       await load();
       setShiftVersion((v) => v + 1);
+      return true;
+    } catch (err) {
+      toast({ title: "Could not reach the server", status: "error", duration: 5000 });
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  /**
+   * The Attendance Calculation Type - POST
+   * /hr/employee/:id/attendance-calculation-mode, `employee_edit`. It appends
+   * a dated history row; the server refuses a payroll-locked month and never
+   * recalculates by itself, and its message says which dates need a
+   * recalculation, so that message is what the toast shows.
+   */
+  const changeAttendanceMode = async ({ error, payload }) => {
+    if (error) {
+      toast({ title: error, status: "error", duration: 6000 });
+      return false;
+    }
+    setSaving(true);
+    try {
+      const res = await HrHelper.changeAttendanceCalculationMode(id, payload);
+      if (failed(res)) {
+        toast({ title: res.msg || "The attendance type was not changed", status: "error", duration: 8000 });
+        return false;
+      }
+      toast({
+        title: "Attendance Calculation Type saved",
+        description: res.msg,
+        status: res.recalculation_required ? "warning" : "success",
+        duration: res.recalculation_required ? 12000 : 4000,
+        isClosable: true,
+      });
+      await load();
       return true;
     } catch (err) {
       toast({ title: "Could not reach the server", status: "error", duration: 5000 });
@@ -794,6 +834,8 @@ function EmployeeProfile() {
             onSave={saveOrdinary}
             onSaveJoiningDate={saveJoiningDate}
             onAssignShift={assignShift}
+            attendanceMode={attendanceMode}
+            onChangeAttendanceMode={changeAttendanceMode}
             saving={saving}
           />
 

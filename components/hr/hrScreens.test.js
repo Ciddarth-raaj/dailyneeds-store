@@ -905,7 +905,13 @@ test("employee ID and status are never editable; the joining date only through i
   // behind employee_edit, never folded into the ordinary edit body.
   assert.match(code, /name="date_of_joining"/, "the joining date is editable");
   assert.match(code, /onSaveJoiningDate\(toDateInputValue\(date_of_joining\)\)/, "through its own action");
-  assert.match(code, /const \{ work_shift_id, date_of_joining, \.\.\.placement \} = form/, "and never in the ordinary edit body");
+  // Attendance Calculation Type's two fields are held out beside it: they
+  // have their own endpoint too.
+  assert.match(
+    code,
+    /const \{\s*work_shift_id,\s*date_of_joining,[\s\S]*?\.\.\.placement\s*\} = form/,
+    "and never in the ordinary edit body"
+  );
   const { HR_EDITABLE_FIELDS } = require("../../util/hrProfile");
   assert.ok(!HR_EDITABLE_FIELDS.includes("date_of_joining"));
   assert.match(read("helper/hr.js"), /\/hr\/employee\/\$\{employeeId\}\/joining-date/);

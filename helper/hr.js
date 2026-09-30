@@ -78,6 +78,32 @@ const hr = {
         .catch(reject);
     }),
 
+  /**
+   * GET /hr/employee/:id/attendance-calculation-mode — view_employees.
+   *
+   * The employee's effective-dated Attendance Calculation Type: the mode in
+   * force today, any change already scheduled, and the whole history.
+   */
+  getAttendanceCalculationMode: (employeeId) =>
+    new Promise((resolve, reject) => {
+      API.get(`/hr/employee/${employeeId}/attendance-calculation-mode`)
+        .then((res) => resolve(res.data))
+        .catch(reject);
+    }),
+
+  /**
+   * POST /hr/employee/:id/attendance-calculation-mode — employee_edit, the
+   * same right as the rest of Employment Details. Body:
+   * `{ calculation_mode, effective_from, note? }`. Appends a dated row; it
+   * never rewrites history and it is refused for a payroll-locked month.
+   */
+  changeAttendanceCalculationMode: (employeeId, payload) =>
+    new Promise((resolve, reject) => {
+      API.post(`/hr/employee/${employeeId}/attendance-calculation-mode`, payload)
+        .then((res) => resolve(res.data))
+        .catch(reject);
+    }),
+
   /** POST /hr/employee/:id/edit — employee_edit. */
   editEmployee: (employeeId, patch) =>
     new Promise((resolve, reject) => {

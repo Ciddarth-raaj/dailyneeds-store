@@ -10,6 +10,12 @@ import {
   EMPLOYMENT_TYPE_OPTIONS,
   GRADE_OPTIONS,
 } from "../../../util/employmentClassification";
+import {
+  ATTENDANCE_MODE_OPTIONS,
+  attendanceModeChange,
+  attendanceModeSummary,
+  currentAttendanceMode,
+} from "../../../util/attendanceCalculationMode";
 
 /**
  * Section 4 of the employee master: Employment Details.
@@ -92,6 +98,14 @@ import {
  * gap. They ride the same `employee_edit` save as branch and designation, so
  * the branch-scoping and HR rules that already govern this card govern them
  * too, unchanged.
+ *
+ * ATTENDANCE CALCULATION TYPE IS EFFECTIVE-DATED. Shift Based (the default)
+ * or Present/Absent Only, always with the date it applies from; dates before
+ * it keep the mode they had. It is saved through its own endpoint
+ * (`onChangeAttendanceMode`, the same `employee_edit` right and branch scope
+ * as the rest of this card) because it appends a dated history row rather
+ * than editing a column. It is offered only once the current value has been
+ * read, so nobody changes a setting they could not see.
  */
 function EmploymentSection({
   employee = {},
@@ -111,6 +125,10 @@ function EmploymentSection({
   onSaveJoiningDate,
   /** `(workShiftId) => Promise<boolean>` - the existing single assign. */
   onAssignShift,
+  /** The GET answer for the Attendance Calculation Type, or null if unread. */
+  attendanceMode = null,
+  /** `({ error, payload }) => Promise<boolean>` - appends a dated mode change. */
+  onChangeAttendanceMode,
   saving,
 }) {
   const [editing, setEditing] = useState(false);
@@ -149,9 +167,14 @@ function EmploymentSection({
       // extra break at all, the state every employee starts in.
       extra_break_hours: employee.extra_break_hours ?? "",
       work_shift_id: currentShiftId ?? "",
+      attendance_calculation_mode: currentAttendanceMode(attendanceMode),
+      // Always blank to start: a change must state its own date.
+      attendance_mode_effective_from: "",
     });
     setEditing(true);
   };
+
+  const mayChangeAttendanceMode = typeof onChangeAttendanceMode === "function" && Boolean(attendanceMode);
 
   const set = (name, value) => setForm((f) => ({ ...f, [name]: value }));
 
@@ -160,7 +183,23 @@ function EmploymentSection({
     // The placement edit goes through the ordinary HR editor; the shift goes
     // through the assign endpoint, and only if it changed and may be changed.
     // The joining date is the third: its own audited action, only if changed.
-    const { work_shift_id, date_of_joining, ...placement } = form;
+    const {
+      work_shift_id,
+      date_of_joining,
+      attendance_calculation_mode,
+      attendance_mode_effective_from,
+      ...placement
+    } = form;
+    // The fourth write: the Attendance Calculation Type, through its own
+    // endpoint, only if a change was asked for. An incomplete one (a new type
+    // with no date) stops the save before anything else is written.
+    const modeChange = mayChangeAttendanceMode
+      ? attendanceModeChange({ attendance_calculation_mode, attendance_mode_effective_from }, attendanceMode)
+      : { changed: false, error: null, payload: null };
+    if (modeChange.error) {
+      await onChangeAttendanceMode(modeChange);
+      return;
+    }
     const placementChanged = Object.keys(placement).some(
       (k) => String(placement[k] ?? "") !== String(employee[k] ?? "")
     );
@@ -173,7 +212,7 @@ function EmploymentSection({
     // A shift-only or date-only change must not be stopped by the editor's
     // own "nothing was changed" guard, and a placement-only change must not
     // call the other two.
-    if (placementChanged || (!shiftChanged && !joiningChanged)) {
+    if (placementChanged || (!shiftChanged && !joiningChanged && !modeChange.changed)) {
       const ok = await onSave(placement);
       if (!ok) return;
     }
@@ -186,6 +225,10 @@ function EmploymentSection({
     if (shiftChanged && typeof onAssignShift === "function") {
       const assigned = await onAssignShift(Number(work_shift_id));
       if (!assigned) return;
+    }
+    if (modeChange.changed) {
+      const changed = await onChangeAttendanceMode(modeChange);
+      if (!changed) return;
     }
     setEditing(false);
   };
@@ -312,6 +355,26 @@ function EmploymentSection({
                 onChange={set}
                 help="Extra break allowed on top of the shift's own break, in hours (0.5 is half an hour). Counted only on a day with four or more punches; a two-punch day is unaffected. Blank means none."
               />
+              {mayChangeAttendanceMode ? (
+                <>
+                  <EditField
+                    label="Attendance Calculation Type"
+                    name="attendance_calculation_mode"
+                    value={form.attendance_calculation_mode}
+                    onChange={set}
+                    options={ATTENDANCE_MODE_OPTIONS}
+                    help="Shift Based calculates against the shift, as before. Present/Absent Only: any valid attendance on a date is Present (a full payable day) and none is Absent - no late, early, shortage or OT."
+                  />
+                  <EditField
+                    label="Attendance Type Effective From"
+                    name="attendance_mode_effective_from"
+                    type="date"
+                    value={form.attendance_mode_effective_from}
+                    onChange={set}
+                    help="Required to change the type. Dates before it keep their current type; already-calculated dates are recalculated only when Recalculate Attendance is run. A payroll-locked month cannot be changed."
+                  />
+                </>
+              ) : null}
             </FieldGrid>
             <Text fontSize="xs" color="orange.700">
               Changing branch or designation changes what this employee is allowed to do, so they
@@ -328,6 +391,7 @@ function EmploymentSection({
               <Field label="Grade" value={employee.grade} />
               <Field label="Shift" value={currentShiftLabel(currentShift)} />
               <Field label="Extra Break Hours" value={employee.extra_break_hours} />
+              <Field label="Attendance Calculation Type" value={attendanceModeSummary(attendanceMode)} />
             </FieldGrid>
             <Text fontSize="xs" color="gray.500">
               {canAssignShift

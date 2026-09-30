@@ -9,10 +9,12 @@ import {
   REGULARIZED_PUNCH_LABEL,
   canRegularize,
   dayIssue,
+  presentBadge,
   dayPunchRows,
   otClaim,
   displayDate,
   formatMinutes,
+  timingMinutes,
   shiftLabel,
   weekday,
   shortExplanation,
@@ -97,7 +99,8 @@ export default function AttendanceDayDetail({
   onVoidPunch,
 }) {
   if (!day) return null;
-  const issue = dayIssue(day);
+  // The issue, or an explicit Present on a Present/Absent Only day.
+  const issue = dayIssue(day) || presentBadge(day);
   const punches = dayPunchRows(day);
   const approvedOt = Number(day.approved_ot_minutes) || 0;
   const showRegularize = !!onRegularize && canRegularize(day);
@@ -222,12 +225,12 @@ export default function AttendanceDayDetail({
         </Box>
 
         <SimpleGrid columns={1} spacing={1} borderTopWidth="1px" borderColor="gray.100" pt={3}>
-          <Row label="NRM" value={formatMinutes(day.nrm_minutes)} />
-          <Row label="Worked" value={formatMinutes(day.worked_minutes)} />
+          <Row label="NRM" value={timingMinutes(day, day.nrm_minutes)} />
+          <Row label="Worked" value={timingMinutes(day, day.worked_minutes)} />
           <Row
             label="Short"
             value={
-              <ExplainTooltip lines={shortExplanation(day)}>{formatMinutes(day.shortage_minutes)}</ExplainTooltip>
+              <ExplainTooltip lines={shortExplanation(day)}>{timingMinutes(day, day.shortage_minutes)}</ExplainTooltip>
             }
             accent={Number(day.shortage_minutes) > 0 ? "red.600" : undefined}
           />

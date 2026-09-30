@@ -858,3 +858,52 @@ test("the two approved components are read from the backend, never inferred", ()
   // The sentence prints the APPROVED thirty minutes, not the claimable ninety.
   assert.match(otClaim(mixed).detail, /00:30 outside the approved shift was also approved/);
 });
+
+/* ============================================ Present/Absent Only days ==== */
+
+{
+  const V2 = require("./attendanceV2");
+  const pao = (over = {}) => ({
+    attendance_date: "2026-10-05",
+    attendance_calculation_mode: "PRESENT_ABSENT_ONLY",
+    status: "FINAL",
+    is_final: true,
+    punch_count: 1,
+    review_reasons: [],
+    nrm_minutes: 0,
+    worked_minutes: 0,
+    shortage_minutes: 0,
+    candidate_ot_minutes: 0,
+    shift_snapshot: null,
+    ...over,
+  });
+
+  test("Present/Absent Only: a day with attendance shows an explicit Present badge", () => {
+    assert.deepStrictEqual(V2.presentBadge(pao()), { key: "PRESENT", label: "Present", color: "green" });
+    // ...and no attendance issue, so it counts in Present on the summary cards.
+    assert.strictEqual(V2.dayIssue(pao()), null);
+    assert.strictEqual(V2.daySummaryBucket(pao()), V2.SUMMARY_FILTER.PRESENT);
+  });
+
+  test("Present/Absent Only: an absent day is Absent, a single punch is never Missing Punch", () => {
+    const absent = pao({ status: "ABSENT", punch_count: 0 });
+    assert.strictEqual((V2.dayIssue(absent) || V2.presentBadge(absent)).label, "Absent");
+    assert.strictEqual(V2.canRegularize(pao({ punch_count: 1 })), false);
+  });
+
+  test("Present/Absent Only: no shift-timing figure is shown as a measured zero", () => {
+    assert.strictEqual(V2.timingMinutes(pao(), 0), "—");
+    assert.deepStrictEqual(V2.shortExplanation(pao({ shift_snapshot: {} })), []);
+    assert.deepStrictEqual(V2.otExplanation(pao({ shift_snapshot: {} })), []);
+    assert.strictEqual(V2.shiftLabel(pao()), "Attendance Mode: Present/Absent Only");
+  });
+
+  test("Shift Based days are displayed exactly as before", () => {
+    const shiftDay = { status: "FINAL", punch_count: 2, review_reasons: [], shortage_minutes: 45 };
+    assert.strictEqual(V2.dayIssue(shiftDay) || V2.presentBadge(shiftDay), null, "a FINAL Shift Based day still has no badge");
+    assert.strictEqual(V2.timingMinutes(shiftDay, 45), V2.formatMinutes(45));
+    const noShift = { status: "NO_SHIFT_FOR_DATE", punch_count: 0, review_reasons: ["NO_SHIFT_FOR_DATE"] };
+    assert.strictEqual(V2.presentBadge(noShift), null);
+    assert.strictEqual(V2.dayIssue(noShift).label, "No Shift Assigned");
+  });
+}

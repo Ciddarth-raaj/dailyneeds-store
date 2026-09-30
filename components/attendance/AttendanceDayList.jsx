@@ -19,9 +19,11 @@ import {
 } from "@chakra-ui/react";
 import {
   dayIssue,
+  presentBadge,
   otClaim,
   displayDate,
   formatMinutes,
+  timingMinutes,
   otExplanation,
   punchSummary,
   shiftLabel,
@@ -88,7 +90,8 @@ export function ExplainTooltip({ lines, children }) {
  * and "Review Required" is not one of them.
  */
 function IssueBadge({ day }) {
-  const issue = dayIssue(day);
+  // The issue, or an explicit Present on a Present/Absent Only day.
+  const issue = dayIssue(day) || presentBadge(day);
   if (!issue) return null;
   return (
     <Badge colorScheme={issue.color} fontSize="10px" whiteSpace="nowrap">
@@ -158,12 +161,12 @@ function DayCard({ day, onSelect }) {
         </Text>
         <OtLine day={day} />
         <SimpleGrid columns={4} spacing={2}>
-          <Metric label="NRM" value={formatMinutes(day.nrm_minutes)} />
-          <Metric label="Worked" value={formatMinutes(day.worked_minutes)} />
+          <Metric label="NRM" value={timingMinutes(day, day.nrm_minutes)} />
+          <Metric label="Worked" value={timingMinutes(day, day.worked_minutes)} />
           <Metric
             label="Short"
             value={
-              <ExplainTooltip lines={shortExplanation(day)}>{formatMinutes(day.shortage_minutes)}</ExplainTooltip>
+              <ExplainTooltip lines={shortExplanation(day)}>{timingMinutes(day, day.shortage_minutes)}</ExplainTooltip>
             }
             accent={Number(day.shortage_minutes) > 0 ? "red.600" : undefined}
           />
@@ -222,10 +225,10 @@ function DayTable({ days, onSelect }) {
               <Td fontSize="xs" color="gray.600" maxW="160px" isTruncated title={shiftLabel(day)}>
                 {shiftLabel(day)}
               </Td>
-              <Td isNumeric fontSize="xs" whiteSpace="nowrap">{formatMinutes(day.nrm_minutes)}</Td>
-              <Td isNumeric fontSize="xs" whiteSpace="nowrap">{formatMinutes(day.worked_minutes)}</Td>
+              <Td isNumeric fontSize="xs" whiteSpace="nowrap">{timingMinutes(day, day.nrm_minutes)}</Td>
+              <Td isNumeric fontSize="xs" whiteSpace="nowrap">{timingMinutes(day, day.worked_minutes)}</Td>
               <Td isNumeric fontSize="xs" whiteSpace="nowrap" color={Number(day.shortage_minutes) > 0 ? "red.600" : undefined}>
-                <ExplainTooltip lines={shortExplanation(day)}>{formatMinutes(day.shortage_minutes)}</ExplainTooltip>
+                <ExplainTooltip lines={shortExplanation(day)}>{timingMinutes(day, day.shortage_minutes)}</ExplainTooltip>
               </Td>
               {/* OT: the engine's minutes, with the CLAIM state under them -
                   never folded into the Status badge. */}

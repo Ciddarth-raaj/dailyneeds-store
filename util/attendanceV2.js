@@ -37,6 +37,32 @@ const LABEL = Object.freeze({
 const REGULARIZED_PUNCH_LABEL = "Missed Punch – Regularized";
 
 /**
+ * THE EMPLOYEE'S ATTENDANCE CALCULATION TYPE on a day, as the backend engine
+ * resolved it for that date (`attendance_calculation_mode` on the day).
+ *
+ * Under PRESENT/ABSENT ONLY a day with any attendance is simply Present: the
+ * engine calculates no NRM, worked time, shortage, late, early or OT for it,
+ * so the screens show "Present" and a dash in those columns rather than a
+ * row of zeros that reads like a measured result. Nothing is decided here -
+ * the status still comes from the engine.
+ */
+const ATTENDANCE_MODE = Object.freeze({
+  SHIFT_BASED: "SHIFT_BASED",
+  PRESENT_ABSENT_ONLY: "PRESENT_ABSENT_ONLY",
+});
+
+const ATTENDANCE_MODE_LABEL = Object.freeze({
+  SHIFT_BASED: "Shift Based",
+  PRESENT_ABSENT_ONLY: "Present/Absent Only",
+});
+
+const PRESENT_LABEL = "Present";
+
+function isPresentAbsentOnlyDay(day) {
+  return !!day && day.attendance_calculation_mode === ATTENDANCE_MODE.PRESENT_ABSENT_ONLY;
+}
+
+/**
  * The effective status of a raw punch on a day, as the backend derives it
  * (`utils/attendance_effective_punches.js` there). A day's
  * `effective_punches` are all USED (plus REGULARIZED ones); its
@@ -119,6 +145,24 @@ function dayIssue(day) {
     default:
       return null;
   }
+}
+
+/**
+ * The explicit "Present" a Present/Absent Only day with attendance shows
+ * where it has no issue - screens render `dayIssue(day) || presentBadge(day)`.
+ * Null for every other day, so a Shift Based FINAL day keeps no badge,
+ * exactly as before.
+ */
+function presentBadge(day) {
+  if (isPresentAbsentOnlyDay(day) && day.status === STATUS.FINAL) {
+    return { key: "PRESENT", label: PRESENT_LABEL, color: "green" };
+  }
+  return null;
+}
+
+/** A shift-timing figure (NRM, worked, short, OT): a dash when none is calculated. */
+function timingMinutes(day, minutes) {
+  return isPresentAbsentOnlyDay(day) ? "—" : formatMinutes(minutes);
 }
 
 /**
@@ -838,6 +882,8 @@ function currentMonth(now = new Date()) {
 /** `Late Shift (10:00–22:00)`, or the code, or a dash. */
 function shiftLabel(day) {
   if (!day) return "—";
+  // No shift is read on a Present/Absent Only date: say which rule applies.
+  if (isPresentAbsentOnlyDay(day)) return `Attendance Mode: ${ATTENDANCE_MODE_LABEL.PRESENT_ABSENT_ONLY}`;
   const snap = day.shift_snapshot || null;
   const name = day.shift_name || (snap && snap.shift_code) || null;
   if (!name) return "—";
@@ -998,7 +1044,7 @@ const n0 = (v) => {
  * @returns {string[]} empty when the day has no calculation to explain
  */
 function shortExplanation(day) {
-  if (!day || !day.shift_snapshot) return [];
+  if (!day || !day.shift_snapshot || isPresentAbsentOnlyDay(day)) return [];
   const snap = day.shift_snapshot;
   const lines = [];
   const punches = n0(day.punch_count);
@@ -1080,7 +1126,7 @@ function shortExplanation(day) {
  * @returns {string[]} empty when the day has no calculation to explain
  */
 function otExplanation(day) {
-  if (!day || !day.shift_snapshot) return [];
+  if (!day || !day.shift_snapshot || isPresentAbsentOnlyDay(day)) return [];
   const snap = day.shift_snapshot;
   const lines = [];
   const punches = n0(day.punch_count);
@@ -1195,6 +1241,12 @@ module.exports = {
   OT_CLOSED_LABEL,
   otClosureReason,
   dayIssue,
+  ATTENDANCE_MODE,
+  ATTENDANCE_MODE_LABEL,
+  PRESENT_LABEL,
+  isPresentAbsentOnlyDay,
+  presentBadge,
+  timingMinutes,
   SUMMARY_FILTER,
   NEED_ACTION_ISSUE_KEYS,
   daySummaryBucket,
