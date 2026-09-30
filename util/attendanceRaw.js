@@ -160,6 +160,39 @@ const DERIVATION_STATUS_LABEL = {
   MISSING_CUTOFF: "Shift day has no Attendance Day Cutoff",
 };
 
+/**
+ * THE DERIVATION HALF OF A PUNCH'S STATUS, as shown.
+ *
+ * The receiver's stored status is passed through unchanged, EXCEPT where the
+ * server says the punch falls on a Present/Absent Only date
+ * (`derivation_display`): there, having no shift is expected, so the screen
+ * names the attendance mode instead of reporting "no assigned shift".
+ */
+function derivationStatusText(punch) {
+  if (!punch) return "";
+  if (punch.derivation_display) return punch.derivation_display;
+  if (!punch.derivation_status) return "No derived row";
+  if (punch.derivation_status === "OK") return "";
+  return DERIVATION_STATUS_LABEL[punch.derivation_status] || punch.derivation_status;
+}
+
+/**
+ * The attendance-mode note for an Attendance List row: the server resolves
+ * the mode for the row's date, and this only names it. Null for a Shift
+ * Based row, which carries no note, exactly as before.
+ */
+function attendanceModeNote(row) {
+  return row && row.attendance_calculation_mode === "PRESENT_ABSENT_ONLY" ? "Present/Absent Only" : null;
+}
+
+/** The badge for the same, or null for a dated punch. */
+function derivationStatusBadge(punch) {
+  if (!punch) return null;
+  if (punch.derivation_display) return "PRESENT/ABSENT ONLY";
+  if (punch.derivation_status && punch.derivation_status !== "OK") return punch.derivation_status;
+  return null;
+}
+
 const DEVICE_STATUS_LABEL = {
   REGISTERED: "Registered",
   INACTIVE_DEVICE: "Inactive device at that time",
@@ -233,4 +266,7 @@ module.exports = {
   AUDIT_ISSUE_LABEL,
   DERIVATION_STATUS_LABEL,
   DEVICE_STATUS_LABEL,
+  derivationStatusText,
+  derivationStatusBadge,
+  attendanceModeNote,
 };

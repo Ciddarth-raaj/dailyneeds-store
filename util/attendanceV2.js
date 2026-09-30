@@ -160,6 +160,18 @@ function presentBadge(day) {
   return null;
 }
 
+/**
+ * The server's reason a One-Day Shift Change does not apply to a date at all
+ * - the employee is Present/Absent Only on it - from the shift change options
+ * answer, or null. The server refuses the request itself either way; this
+ * lets the form say so instead of offering a submit that cannot succeed.
+ */
+function shiftChangeNotApplicable(optionsResponse) {
+  if (!optionsResponse || optionsResponse.can_raise !== false) return null;
+  if (optionsResponse.attendance_calculation_mode !== ATTENDANCE_MODE.PRESENT_ABSENT_ONLY) return null;
+  return optionsResponse.reason || "Shift Change is not applicable because this employee uses Present/Absent Only attendance.";
+}
+
 /** A shift-timing figure (NRM, worked, short, OT): a dash when none is calculated. */
 function timingMinutes(day, minutes) {
   return isPresentAbsentOnlyDay(day) ? "—" : formatMinutes(minutes);
@@ -1246,6 +1258,7 @@ module.exports = {
   PRESENT_LABEL,
   isPresentAbsentOnlyDay,
   presentBadge,
+  shiftChangeNotApplicable,
   timingMinutes,
   SUMMARY_FILTER,
   NEED_ACTION_ISSUE_KEYS,

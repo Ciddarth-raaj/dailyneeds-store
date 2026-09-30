@@ -16,7 +16,14 @@ import {
 } from "@chakra-ui/react";
 import CustomModal from "../CustomModal";
 import AttendanceV2Helper from "../../helper/attendanceV2";
-import { apiMessage, displayDate, formatMinutes, isOk, weekday } from "../../util/attendanceV2";
+import {
+  apiMessage,
+  displayDate,
+  formatMinutes,
+  isOk,
+  shiftChangeNotApplicable,
+  weekday,
+} from "../../util/attendanceV2";
 
 /**
  * REQUEST ANOTHER SHIFT FOR ONE DATE.
@@ -45,6 +52,10 @@ export default function ShiftChangeRequestForm({ isOpen, onClose, onSubmitted, d
   const [loadingOptions, setLoadingOptions] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  // Set when the server says a shift change does not apply to the date at all
+  // (Present/Absent Only attendance). The server refuses a submit regardless;
+  // this only stops the form offering one.
+  const [notApplicable, setNotApplicable] = useState(null);
 
   const reset = () => {
     setReason("");
@@ -52,6 +63,7 @@ export default function ShiftChangeRequestForm({ isOpen, onClose, onSubmitted, d
     setOptions([]);
     setBase(null);
     setError(null);
+    setNotApplicable(null);
   };
 
   const loadOptions = useCallback(async (forDate) => {
@@ -62,6 +74,7 @@ export default function ShiftChangeRequestForm({ isOpen, onClose, onSubmitted, d
     }
     setLoadingOptions(true);
     setError(null);
+    setNotApplicable(null);
     try {
       const res = await AttendanceV2Helper.getMyShiftChangeOptions(forDate);
       if (!isOk(res)) {
@@ -70,6 +83,7 @@ export default function ShiftChangeRequestForm({ isOpen, onClose, onSubmitted, d
         setError(apiMessage(res, "The shifts for that date could not be loaded"));
         return;
       }
+      setNotApplicable(shiftChangeNotApplicable(res));
       setBase(res.base || null);
       setOptions(Array.isArray(res.options) ? res.options : []);
       setWorkShiftId("");
@@ -148,7 +162,7 @@ export default function ShiftChangeRequestForm({ isOpen, onClose, onSubmitted, d
           <Button size="sm" variant="ghost" onClick={onClose} isDisabled={saving}>
             Cancel
           </Button>
-          <Button size="sm" colorScheme="purple" onClick={submit} isLoading={saving}>
+          <Button size="sm" colorScheme="purple" onClick={submit} isLoading={saving} isDisabled={Boolean(notApplicable)}>
             Submit request
           </Button>
         </Flex>
@@ -196,7 +210,11 @@ export default function ShiftChangeRequestForm({ isOpen, onClose, onSubmitted, d
               </option>
             ))}
           </Select>
-          {!loadingOptions && date && options.length === 0 ? (
+          {!loadingOptions && notApplicable ? (
+            <Text fontSize="xs" color="gray.600" mt={1}>
+              {notApplicable}
+            </Text>
+          ) : !loadingOptions && date && options.length === 0 ? (
             <Text fontSize="xs" color="gray.600" mt={1}>
               There is no longer shift available for that date. A shift change for one day can only be requested for a
               shift with longer working hours than your normal shift; a shorter or equal one is a change to your regular

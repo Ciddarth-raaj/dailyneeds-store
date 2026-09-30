@@ -48,6 +48,9 @@ import {
   punchesCellText,
   DERIVATION_STATUS_LABEL,
   DEVICE_STATUS_LABEL,
+  attendanceModeNote,
+  derivationStatusBadge,
+  derivationStatusText,
 } from "../../../util/attendanceRaw";
 import { PUNCH_STATUS_COLOR, PUNCH_STATUS_LABEL, canVoidPunch } from "../../../util/attendanceV2";
 
@@ -253,7 +256,18 @@ function AttendanceListTab({ today, outlets, departments, canExport, canAudit, t
           headerName: c.header,
           minWidth: 180,
           cellRenderer: (p) =>
-            p.data && !p.data.matched ? <Badge colorScheme="gray">Not in employee master</Badge> : <span>{p.data ? p.data.employee_name : ""}</span>,
+            p.data && !p.data.matched ? (
+              <Badge colorScheme="gray">Not in employee master</Badge>
+            ) : (
+              <span>
+                {p.data ? p.data.employee_name : ""}
+                {attendanceModeNote(p.data) ? (
+                  <Badge ml={1} colorScheme="green" fontSize="9px" title={`Attendance Mode: ${attendanceModeNote(p.data)}`}>
+                    {attendanceModeNote(p.data)}
+                  </Badge>
+                ) : null}
+              </span>
+            ),
         };
       }
       return { field: c.key, headerName: c.header, minWidth: 120 };
@@ -478,21 +492,22 @@ function PunchAuditTab({ today, outlets, initial, toast, canVoid }) {
         valueGetter: (p) => {
           if (!p.data) return "";
           const parts = [];
-          if (p.data.derivation_status && p.data.derivation_status !== "OK") parts.push(DERIVATION_STATUS_LABEL[p.data.derivation_status] || p.data.derivation_status);
-          if (!p.data.derivation_status) parts.push("No derived row");
+          const derivation = derivationStatusText(p.data);
+          if (derivation) parts.push(derivation);
           if (p.data.device_status !== "REGISTERED") parts.push(DEVICE_STATUS_LABEL[p.data.device_status] || p.data.device_status);
           return parts.join("; ") || "Dated";
         },
         cellRenderer: (p) => {
           if (!p.data) return null;
           const badges = [];
-          if (p.data.derivation_status && p.data.derivation_status !== "OK") badges.push(p.data.derivation_status);
+          const derivationBadge = derivationStatusBadge(p.data);
+          if (derivationBadge) badges.push(derivationBadge);
           if (p.data.device_status !== "REGISTERED") badges.push(p.data.device_status);
           if (badges.length === 0) return <Badge colorScheme="gray">DATED</Badge>;
           return (
             <Stack direction="row" spacing={1}>
               {badges.map((b) => (
-                <Badge key={b} colorScheme="gray" title={DERIVATION_STATUS_LABEL[b] || DEVICE_STATUS_LABEL[b] || b}>{b}</Badge>
+                <Badge key={b} colorScheme="gray" title={b === derivationBadge ? derivationStatusText(p.data) : DERIVATION_STATUS_LABEL[b] || DEVICE_STATUS_LABEL[b] || b}>{b}</Badge>
               ))}
             </Stack>
           );
