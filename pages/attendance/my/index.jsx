@@ -26,6 +26,8 @@ import AttendanceDayDetail from "../../../components/attendance/AttendanceDayDet
 import RegularizationForm from "../../../components/attendance/RegularizationForm";
 import OtRequestForm from "../../../components/attendance/OtRequestForm";
 import ShiftChangeRequestForm from "../../../components/attendance/ShiftChangeRequestForm";
+import PermissionRequestForm from "../../../components/attendance/PermissionRequestForm";
+import usePermissions from "../../../customHooks/usePermissions";
 import AttendanceV2Helper from "../../../helper/attendanceV2";
 import {
   MY_TAB,
@@ -102,6 +104,10 @@ export default function MyAttendancePage() {
   const [regularizing, setRegularizing] = useState(null);
   const [requestingOt, setRequestingOt] = useState(null);
   const [requestingShift, setRequestingShift] = useState(false);
+  // PERMISSION: offered only to a holder of the self-request key; the
+  // server checks it again and takes the employee from the session.
+  const canRequestPermission = usePermissions(["raise_attendance_permission_request"]);
+  const [requestingPermission, setRequestingPermission] = useState(null);
   // CONTROLLED TABS, so a submission can send the employee to the tab that
   // now holds what they filed instead of leaving them on the month.
   const [tab, setTab] = useState(MY_TAB.ATTENDANCE);
@@ -184,6 +190,18 @@ export default function MyAttendancePage() {
     await load();
   };
 
+  const onPermissionSubmitted = async () => {
+    setRequestingPermission(null);
+    setSelected(null);
+    toast({
+      title: "Permission requested",
+      description: "It is with your first approver. Nothing is paid for it until every required approval is given.",
+      status: "success",
+      duration: 6000,
+    });
+    await load();
+  };
+
   return (
     <GlobalWrapper title="My Attendance">
       <CustomContainer title="My Attendance" filledHeader>
@@ -199,6 +217,11 @@ export default function MyAttendancePage() {
             <Button size="sm" colorScheme="purple" variant="outline" onClick={() => setRequestingShift(true)}>
               Request a shift change
             </Button>
+            {canRequestPermission ? (
+              <Button size="sm" colorScheme="teal" variant="outline" onClick={() => setRequestingPermission({ date: "" })}>
+                Request permission
+              </Button>
+            ) : null}
           </Flex>
 
           {error ? (
@@ -263,6 +286,13 @@ export default function MyAttendancePage() {
         onClose={() => setSelected(null)}
         onRegularize={(day) => setRegularizing(day)}
         onRequestOt={(day) => setRequestingOt(day)}
+        onRequestPermission={canRequestPermission ? (day) => setRequestingPermission({ date: day.attendance_date }) : null}
+      />
+      <PermissionRequestForm
+        isOpen={!!requestingPermission}
+        onClose={() => setRequestingPermission(null)}
+        onSubmitted={onPermissionSubmitted}
+        defaultDate={requestingPermission ? requestingPermission.date : ""}
       />
       <OtRequestForm
         day={requestingOt}

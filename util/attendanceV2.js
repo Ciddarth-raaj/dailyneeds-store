@@ -15,6 +15,8 @@
  * 2nd OUT, 3rd IN, ... exactly as the engine pairs them.
  */
 
+const { permissionExplanation } = require("./attendancePermission");
+
 const STATUS = Object.freeze({
   FINAL: "FINAL",
   ABSENT: "ABSENT",
@@ -1064,9 +1066,18 @@ function shortExplanation(day) {
     );
   }
 
+  // PERMISSION, after grace and before what is left: paid, not worked.
+  lines.push(...permissionExplanation(day));
+
   const short = n0(day.shortage_minutes);
   if (short === 0) {
-    lines.push(n0(day.worked_minutes) >= n0(day.nrm_minutes) ? "Worked the full NRM: nothing short" : "Nothing short after grace");
+    lines.push(
+      n0(day.worked_minutes) >= n0(day.nrm_minutes)
+        ? "Worked the full NRM: nothing short"
+        : n0(day.permission_minutes) > 0
+        ? "Nothing short after grace and permission"
+        : "Nothing short after grace"
+    );
   } else {
     lines.push(`Short ${formatMinutes(short)}`);
   }

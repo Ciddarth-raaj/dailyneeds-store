@@ -51,7 +51,7 @@ const Field = ({ label, children }) => (
   </Box>
 );
 
-const TYPE_LABEL = { REGULARIZATION: "Attendance", REGULARIZATION_WITH_OT: "Attendance", OT: "OT", SHIFT_CHANGE: "Shift" };
+const TYPE_LABEL = { REGULARIZATION: "Attendance", REGULARIZATION_WITH_OT: "Attendance", OT: "OT", SHIFT_CHANGE: "Shift", PERMISSION: "Permission" };
 
 /** What this revocation will do, in words - decided by the request's type and status. */
 function effectOf(row, stageNo) {
@@ -73,6 +73,8 @@ function effectOf(row, stageNo) {
     text: `Request #${id} will be cancelled. It will not come back for approval, and its approval history is kept as it is. ${
       row.request_type === "OT"
         ? "Its OT stops reaching payroll, and the day shows OT as Not Requested again."
+        : row.request_type === "PERMISSION"
+        ? "Its permission window stops being paid: whatever it covered is charged as shortage again."
         : "Its punch stops counting on the day."
     } The date is recalculated now. The employee can then raise a fresh request, which starts a new approval chain. The original decision and your reason are kept in the audit.`,
   };

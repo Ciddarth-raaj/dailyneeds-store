@@ -28,6 +28,7 @@ import {
   shortExplanation,
   weekday,
 } from "../../util/attendanceV2";
+import { dayPermission, formatMinutes as permissionMinutes } from "../../util/attendancePermission";
 
 /**
  * Hover on Short or OT: how the engine arrived at the figure, one line per
@@ -108,6 +109,32 @@ function OtLine({ day }) {
   );
 }
 
+/**
+ * PERMISSION, under Short: the paid minutes a permission forgave. Worked
+ * stays what the punches say - this line is how a reader sees that the day
+ * was paid for time that was not worked, and a pending request is named as
+ * pending, not as paid.
+ */
+function PermissionLine({ day }) {
+  const p = dayPermission(day);
+  if (!p) return null;
+  if (p.appliedMinutes > 0) {
+    return (
+      <Text fontSize="10px" fontWeight="600" color="teal.700" whiteSpace="nowrap" title="Paid permission – not worked">
+        Permission {permissionMinutes(p.appliedMinutes)}
+      </Text>
+    );
+  }
+  if (p.windows.some((w) => w.state === "PENDING")) {
+    return (
+      <Text fontSize="10px" fontWeight="600" color="orange.700" whiteSpace="nowrap">
+        Permission Pending
+      </Text>
+    );
+  }
+  return null;
+}
+
 function Metric({ label, value, accent }) {
   return (
     <Box>
@@ -163,7 +190,10 @@ function DayCard({ day, onSelect }) {
           <Metric
             label="Short"
             value={
-              <ExplainTooltip lines={shortExplanation(day)}>{formatMinutes(day.shortage_minutes)}</ExplainTooltip>
+              <>
+                <ExplainTooltip lines={shortExplanation(day)}>{formatMinutes(day.shortage_minutes)}</ExplainTooltip>
+                <PermissionLine day={day} />
+              </>
             }
             accent={Number(day.shortage_minutes) > 0 ? "red.600" : undefined}
           />
@@ -226,6 +256,7 @@ function DayTable({ days, onSelect }) {
               <Td isNumeric fontSize="xs" whiteSpace="nowrap">{formatMinutes(day.worked_minutes)}</Td>
               <Td isNumeric fontSize="xs" whiteSpace="nowrap" color={Number(day.shortage_minutes) > 0 ? "red.600" : undefined}>
                 <ExplainTooltip lines={shortExplanation(day)}>{formatMinutes(day.shortage_minutes)}</ExplainTooltip>
+                <PermissionLine day={day} />
               </Td>
               {/* OT: the engine's minutes, with the CLAIM state under them -
                   never folded into the Status badge. */}

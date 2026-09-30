@@ -206,6 +206,75 @@ const attendanceV2 = {
         .catch(reject);
     }),
 
+  /* ------------------------------------------------------ PERMISSION */
+
+  /**
+   * Request a Permission for YOURSELF: `{ attendance_date, windows, reason }`,
+   * windows `[{ from_time, to_time } | { from_time, to_shift_end: true }]`.
+   * Never an employee id - the backend takes the employee from the session.
+   */
+  raiseMyPermissionRequest: (body) =>
+    new Promise((resolve, reject) => {
+      API.post("/attendance/me/permission-request", body)
+        .then((res) => resolve(res.data))
+        .catch(reject);
+    }),
+
+  /** For an employee in your outlet scope: the same body plus `employee_id`. */
+  raisePermissionRequestFor: (body) =>
+    new Promise((resolve, reject) => {
+      API.post("/attendance/permission-request", body)
+        .then((res) => resolve(res.data))
+        .catch(reject);
+    }),
+
+  /** DIRECT grant: who it would reach. Writes nothing. */
+  previewPermissionGrant: (body) =>
+    new Promise((resolve, reject) => {
+      API.post("/attendance/permissions/preview", body)
+        .then((res) => resolve(res.data))
+        .catch(reject);
+    }),
+
+  /** DIRECT grant: exactly what was previewed, identified by its fingerprint. */
+  applyPermissionGrant: (body) =>
+    new Promise((resolve, reject) => {
+      API.post("/attendance/permissions/apply", body)
+        .then((res) => resolve(res.data))
+        .catch(reject);
+    }),
+
+  /** The Permission register, inside the caller's outlet scope. */
+  getPermissions: ({ from_date, to_date, outlet_ids = null, employee_id = null, source = null, bulk_operation_id = null }) =>
+    call("get", "/attendance/permissions", {
+      params: {
+        from_date,
+        to_date,
+        ...(outlet_ids && outlet_ids.length ? { outlet_ids: outlet_ids.join(",") } : {}),
+        ...(employee_id ? { employee_id } : {}),
+        ...(source ? { source } : {}),
+        ...(bulk_operation_id ? { bulk_operation_id } : {}),
+      },
+    }),
+
+  revokePermission: (id, { reason }) =>
+    new Promise((resolve, reject) => {
+      API.post(`/attendance/permissions/${id}/revoke`, { reason })
+        .then((res) => resolve(res.data))
+        .catch(reject);
+    }),
+
+  getPermissionBulkOperations: () => call("get", "/attendance/permissions/bulk-operations", {}),
+
+  getPermissionBulkOperation: (id) => call("get", `/attendance/permissions/bulk-operations/${id}`, {}),
+
+  revokePermissionBulkOperation: (id, { reason }) =>
+    new Promise((resolve, reject) => {
+      API.post(`/attendance/permissions/bulk-operations/${id}/revoke`, { reason })
+        .then((res) => resolve(res.data))
+        .catch(reject);
+    }),
+
   getDateShiftOptions: () => call("get", "/attendance/calculated/date-shift/options", {}),
 
   /** `{ employee_id, attendance_date, work_shift_id }`. */

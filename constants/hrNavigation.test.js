@@ -81,6 +81,8 @@ test("Employees, Department and Designation are all inside HR", () => {
     "/attendance/list?tab=audit",
     "/attendance/missing-attendance",
     "/attendance/my",
+    // Permission: the register, the management grant and the bulk log.
+    "/attendance/permissions",
     "/attendance/recalculate",
     // Shift Change Eligibility: who may raise a one-day shift change, by the
     // SERVER's own production rule, and who already has.
@@ -249,6 +251,8 @@ test("HR > Attendance: list, punch audit, devices and the DigiSME import, on the
     "/attendance/list?tab=audit",
     "/attendance/missing-attendance",
     "/attendance/my",
+    // Permission: the register, the management grant and the bulk log.
+    "/attendance/permissions",
     "/attendance/recalculate",
     // Shift Change Eligibility: who may raise a one-day shift change, by the
     // SERVER's own production rule, and who already has.
@@ -257,6 +261,7 @@ test("HR > Attendance: list, punch audit, devices and the DigiSME import, on the
   assert.match(att, /title:\s*"Attendance Approvals"[\s\S]*?permission:\s*"view_attendance_approvals"/);
   assert.match(att, /title:\s*"OT Approval"[\s\S]*?permission:\s*"view_attendance_approvals"/);
   assert.match(att, /title:\s*"Recalculate Attendance"[\s\S]*?permission:\s*"recalculate_attendance"/);
+  assert.match(att, /title:\s*"Permissions"[\s\S]*?permission:\s*"view_attendance_permissions"/);
   assert.match(att, /title:\s*"Attendance Approver Setup"[\s\S]*?permission:\s*"manage_attendance_approvers"/);
   assert.match(att, /title:\s*"Import Attendance"[\s\S]*?permission:\s*"manage_attendance_import"/);
   assert.match(att, /title:\s*"Attendance List"[\s\S]*?permission:\s*"view_raw_attendance"/);
@@ -354,6 +359,8 @@ test("HR navigation still appears exactly once, and still holds its pages", () =
     "/attendance/list?tab=audit",
     "/attendance/missing-attendance",
     "/attendance/my",
+    // Permission: the register, the management grant and the bulk log.
+    "/attendance/permissions",
     "/attendance/recalculate",
     // Shift Change Eligibility: who may raise a one-day shift change, by the
     // SERVER's own production rule, and who already has.

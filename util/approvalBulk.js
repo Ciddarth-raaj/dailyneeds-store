@@ -19,7 +19,7 @@ const BULK_ACTION = Object.freeze({ APPROVE: "APPROVE", REJECT: "REJECT", REVOKE
 /** One HTTP call carries at most this many; a larger selection is sent in turns. */
 const BULK_CHUNK = 25;
 
-const TYPE_NOUN = { REGULARIZATION: "Attendance", OT: "OT", SHIFT_CHANGE: "Shift" };
+const TYPE_NOUN = { REGULARIZATION: "Attendance", OT: "OT", SHIFT_CHANGE: "Shift", PERMISSION: "Permission" };
 const VERB = { APPROVE: "Approve", REJECT: "Reject", REVOKE: "Revoke" };
 
 const idOf = (row) => Number(row && row.attendance_approval_request_id);

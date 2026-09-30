@@ -18,6 +18,14 @@ import {
   shortExplanation,
   otExplanation,
 } from "../../util/attendanceV2";
+import {
+  PAID_NOT_WORKED,
+  dayPermission,
+  permissionSourceLabel,
+  permissionStateColor,
+  permissionStateLabel,
+  permissionWindowLabel,
+} from "../../util/attendancePermission";
 
 /**
  * Attendance Day Detail. Opened by tapping a card or row.
@@ -46,6 +54,13 @@ import {
  * late or early penalties, OT10/15/20/30, a lock, or a generic "Review
  * Required". The engine reports late and early minutes but they are not
  * charged, so they are not shown as if they were.
+ *
+ * PERMISSION is its own block and never a Worked figure. The window(s)
+ * management allowed are listed with their state and origin, and the minutes
+ * of them that actually covered a shortage are shown as "Paid permission –
+ * not worked". Worked stays exactly what the punches produced. A day fully
+ * covered reads "Present / Full Pay". `onRequestPermission` is passed by My
+ * Attendance when the employee holds `raise_attendance_permission_request`.
  *
  * The shift is READ-ONLY for the employee. `onEditShift` is passed only by
  * the HR/Admin screen, and only when the caller holds
@@ -95,8 +110,10 @@ export default function AttendanceDayDetail({
   onRequestOt,
   onEditShift,
   onVoidPunch,
+  onRequestPermission,
 }) {
   if (!day) return null;
+  const permission = dayPermission(day);
   const issue = dayIssue(day);
   const punches = dayPunchRows(day);
   const approvedOt = Number(day.approved_ot_minutes) || 0;
@@ -121,6 +138,11 @@ export default function AttendanceDayDetail({
           {showRegularize ? (
             <Button size="sm" colorScheme="purple" onClick={() => onRegularize(day)}>
               Regularize
+            </Button>
+          ) : null}
+          {onRequestPermission ? (
+            <Button size="sm" variant="outline" colorScheme="teal" onClick={() => onRequestPermission(day)}>
+              Request Permission
             </Button>
           ) : null}
           {showRequestOt ? (
@@ -242,6 +264,52 @@ export default function AttendanceDayDetail({
             <Row label="Approved OT" value={formatMinutes(approvedOt)} accent="green.600" />
           ) : null}
         </SimpleGrid>
+
+        {permission ? (
+          <Box borderWidth="1px" borderColor="teal.100" bg="teal.50" borderRadius="md" px={3} py={2}>
+            <Flex justify="space-between" align="center" gap={2} wrap="wrap">
+              <Text fontSize="sm" fontWeight="600" color="teal.800">
+                Permission
+              </Text>
+              {permission.payLabel ? (
+                <Badge colorScheme="green" fontSize="10px">
+                  {permission.payLabel}
+                </Badge>
+              ) : null}
+            </Flex>
+            <Stack spacing={1} mt={1}>
+              {permission.windows.map((w) => (
+                <Flex key={w.attendance_permission_id || permissionWindowLabel(w)} gap={2} align="center" wrap="wrap" fontSize="sm">
+                  <Text fontFamily="mono" fontWeight="600">
+                    {permissionWindowLabel(w)}
+                  </Text>
+                  <Badge colorScheme={permissionStateColor(w)} fontSize="10px">
+                    {permissionStateLabel(w)}
+                  </Badge>
+                  <Text fontSize="xs" color="gray.600">
+                    {permissionSourceLabel(w)}
+                    {w.reason ? ` · ${w.reason}` : ""}
+                  </Text>
+                </Flex>
+              ))}
+            </Stack>
+            {permission.appliedMinutes > 0 ? (
+              <Text fontSize="sm" mt={1}>
+                <Text as="span" color="gray.600">
+                  {PAID_NOT_WORKED}:{" "}
+                </Text>
+                <Text as="span" fontWeight="700">
+                  {formatMinutes(permission.appliedMinutes)}
+                </Text>
+              </Text>
+            ) : null}
+            {permission.uncoveredNote ? (
+              <Text fontSize="xs" color="gray.600" mt={1}>
+                {permission.uncoveredNote}
+              </Text>
+            ) : null}
+          </Box>
+        ) : null}
 
         {ot ? (
           <Box borderWidth="1px" borderColor={`${ot.color}.100`} bg={`${ot.color}.50`} borderRadius="md" px={3} py={2}>

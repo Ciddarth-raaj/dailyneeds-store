@@ -30,6 +30,10 @@ import {
   stageLabel,
   weekday,
 } from "../../util/attendanceV2";
+import {
+  PAID_NOT_WORKED,
+  permissionWindowLabel,
+} from "../../util/attendancePermission";
 
 /**
  * The approval queue used by ALL THREE tabs of the Attendance Approval Centre
@@ -148,10 +152,50 @@ function Revocations({ revocations }) {
   );
 }
 
+/** The windows a Permission request asks for, one per line. */
+const permissionWindows = (row) =>
+  (row.permissions || []).map((p) => permissionWindowLabel(p)).join(", ") || "—";
+
+/**
+ * PERMISSION: the window asked for, and - for a pending request - what
+ * approving it would forgive, from the engine with the approval assumed.
+ * Paid, not worked: approving changes no punch, no shift and no OT.
+ */
+function PermissionDetail({ row }) {
+  const preview = row.permission_preview;
+  return (
+    <SimpleGrid columns={{ base: 1, md: 2 }} spacing={3}>
+      <Field label="Permission asked for">
+        <Stack spacing={0}>
+          {(row.permissions || []).map((p) => (
+            <Text key={p.attendance_permission_id || permissionWindowLabel(p)} fontFamily="mono" color="teal.700">
+              {permissionWindowLabel(p)}
+            </Text>
+          ))}
+        </Stack>
+      </Field>
+      <Field label={preview ? "If approved" : "Paid permission"}>
+        {preview ? (
+          <Text fontWeight="400" fontSize="sm">
+            Short {formatMinutes(preview.shortage_before_permission_minutes)} → permission covers{" "}
+            <Text as="span" fontWeight="700" color="teal.700">{formatMinutes(preview.permission_minutes)}</Text> → short{" "}
+            {formatMinutes(preview.shortage_after_permission_minutes)}
+          </Text>
+        ) : null}
+        <Text fontWeight="400" fontSize="xs" color="gray.600">
+          {PAID_NOT_WORKED}. Approving changes no punch, no shift and no overtime; only the shortage inside the window is
+          forgiven.
+        </Text>
+      </Field>
+    </SimpleGrid>
+  );
+}
+
 function Detail({ row, kind, onDecide, deciding, onRevoke = null }) {
   const [remarks, setRemarks] = useState("");
   const isOt = kind === "OT";
   const isShift = kind === "SHIFT_CHANGE";
+  const isPermission = kind === "PERMISSION";
   // A REJECTION MUST SAY WHY, on every type - the backend refuses one without
   // a reason, so the button is disabled rather than letting the refusal come
   // back as an error the approver has to read twice.
@@ -180,6 +224,11 @@ function Detail({ row, kind, onDecide, deciding, onRevoke = null }) {
             </Text>
           </Field>
         </SimpleGrid>
+      ) : isPermission ? (
+        <>
+          <Field label="Punches"><Punches punches={row.effective_punches} /></Field>
+          <PermissionDetail row={row} />
+        </>
       ) : (
       <SimpleGrid columns={{ base: 1, md: 2 }} spacing={3}>
         <Field label={isOt ? "Punches" : "Existing punches"}><Punches punches={row.effective_punches} /></Field>
@@ -300,6 +349,7 @@ export default function ApprovalQueue({ rows, kind, loading, onDecide, deciding,
   const [open, setOpen] = useState(null);
   const isOt = kind === "OT";
   const isShift = kind === "SHIFT_CHANGE";
+  const isPermission = kind === "PERMISSION";
   const toggle = (id) => setOpen((current) => (current === id ? null : id));
   const history = rows.length > 0 && rows.every((r) => r.status !== "PENDING");
 
@@ -360,6 +410,8 @@ export default function ApprovalQueue({ rows, kind, loading, onDecide, deciding,
                   <Text fontSize="xs" color="purple.700" fontWeight="600">
                     Requested {namedShift(row.requested_shift_code, row.requested_shift_name)}
                   </Text>
+                ) : isPermission ? (
+                  <Text fontSize="xs" color="teal.700" fontWeight="600">Permission {permissionWindows(row)}</Text>
                 ) : isOt ? (
                   <Text fontSize="xs" color="blue.700" fontWeight="600">Eligible OT {formatOtClock(row.eligible_ot_minutes)}{row.status === "APPROVED" ? ` · Approved ${formatOtClock(row.approved_ot_minutes)}` : ""}</Text>
                 ) : (
@@ -390,8 +442,8 @@ export default function ApprovalQueue({ rows, kind, loading, onDecide, deciding,
             <Th>Employee</Th>
             <Th>Date</Th>
             <Th>{isShift ? "Normal Shift" : "Shift"}</Th>
-            {isShift ? <Th>Requested Shift</Th> : isOt ? <Th isNumeric>Working Time</Th> : <Th>Existing Punches</Th>}
-            {isShift ? null : isOt ? <Th isNumeric>Regular NRM</Th> : <Th>Proposed Punch</Th>}
+            {isShift ? <Th>Requested Shift</Th> : isOt ? <Th isNumeric>Working Time</Th> : <Th>{isPermission ? "Punches" : "Existing Punches"}</Th>}
+            {isShift ? null : isOt ? <Th isNumeric>Regular NRM</Th> : <Th>{isPermission ? "Permission" : "Proposed Punch"}</Th>}
             {isOt ? <Th isNumeric>{history ? "Eligible / Claimed OT" : "OT"}</Th> : null}
             {isOt && history ? <Th isNumeric>Approved OT</Th> : null}
             <Th>{isOt ? "Employee Reason" : "Reason"}</Th>
@@ -425,6 +477,8 @@ export default function ApprovalQueue({ rows, kind, loading, onDecide, deciding,
                   )}
                   {isShift ? null : isOt ? (
                     <Td isNumeric>{formatMinutes(row.base_nrm_minutes)}</Td>
+                  ) : isPermission ? (
+                    <Td fontFamily="mono" fontSize="xs" color="teal.700" whiteSpace="nowrap">{permissionWindows(row)}</Td>
                   ) : (
                     <Td fontFamily="mono" color="orange.700">{row.proposed_punch_time ? clock(row.proposed_punch_time) : "—"}</Td>
                   )}

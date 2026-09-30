@@ -1146,6 +1146,17 @@ const HR_MENU = {
         selected: false,
         location: "/attendance/approval?type=OT",
       },
+      // PERMISSION: the register, the management grant (one employee, a
+      // list, outlets, or everybody in scope - the festival early release)
+      // and the bulk grant log. Drawn for anybody who can read the register;
+      // the page offers Grant and Revoke only to the keys that allow them,
+      // and the server checks every key and the outlet scope again.
+      attendance_permissions: {
+        title: "Permissions",
+        permission: "view_attendance_permissions",
+        selected: false,
+        location: "/attendance/permissions",
+      },
       recalculate_attendance: {
         title: "Recalculate Attendance",
         permission: "recalculate_attendance",
