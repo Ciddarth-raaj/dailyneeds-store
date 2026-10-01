@@ -15,6 +15,7 @@ import {
   followupRef,
   formatDate,
   formatDateTime,
+  outcomeMeta,
   sourceHref,
   sourceLabel,
   statusMeta,
@@ -45,7 +46,8 @@ function LrFollowupDetail() {
   }, [load]);
 
   const title = followup ? `LR Follow-up ${followupRef(followup)}` : "LR Follow-up";
-  const meta = followup ? statusMeta(followup.status) : null;
+  // A closed follow-up is badged with its outcome, never just "Closed".
+  const meta = followup ? outcomeMeta(followup) : null;
   const href = followup ? sourceHref(followup) : null;
 
   return (
@@ -138,10 +140,25 @@ function LrFollowupDetail() {
                 label="Closed At"
                 value={
                   followup.closed_at
-                    ? `${formatDateTime(followup.closed_at)} — ${CLOSURE_LABEL[followup.closure_reason] || followup.closure_reason}`
+                    ? `${formatDateTime(followup.closed_at)}${followup.closed_by_name ? ` by ${followup.closed_by_name}` : ""}`
                     : "-"
                 }
               />
+              <Info
+                label="Closure Outcome"
+                value={
+                  followup.closure_reason ? (
+                    <Badge colorScheme={meta.colorScheme}>
+                      {followup.closure_reason === "GOODS_RECEIVED"
+                        ? "Goods Received (stock received)"
+                        : `${CLOSURE_LABEL[followup.closure_reason]} (no stock received)`}
+                    </Badge>
+                  ) : (
+                    "-"
+                  )
+                }
+              />
+              <Info label="Closure Remark" value={followup.closure_remark || "-"} />
             </Grid>
 
             {followup.source && (

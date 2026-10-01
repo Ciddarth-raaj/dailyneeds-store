@@ -9,7 +9,7 @@ import Table from "../../components/table/table";
 import FollowupActions from "../../components/lrFollowup/FollowupActions";
 import currencyFormatter from "../../util/currencyFormatter";
 import { getLegacyQueue, runLegacyBackfill, unwrap } from "../../helper/lrFollowup";
-import { SOURCE_META, ageingLabel, followupRef, formatDate, sourceHref, sourceRef, statusMeta } from "../../util/lrFollowup";
+import { SOURCE_META, ageingLabel, followupRef, formatDate, outcomeMeta, sourceHref, sourceRef } from "../../util/lrFollowup";
 
 const HEADINGS = {
   ref: "Follow-up",
@@ -73,7 +73,7 @@ function LegacyVerification() {
   const rows = useMemo(
     () =>
       ((data && data.items) || []).map((f) => {
-        const meta = statusMeta(f.status);
+        const meta = outcomeMeta(f);
         const href = sourceHref(f);
         return {
           ref: (

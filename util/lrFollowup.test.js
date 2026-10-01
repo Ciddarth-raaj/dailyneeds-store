@@ -167,3 +167,41 @@ describe("the screens", () => {
     assert.doesNotMatch(src, /markGoodsReceived|updateLr/);
   });
 });
+
+describe("closure outcomes are never confused", () => {
+  it("badges a closed follow-up with how it closed", () => {
+    assert.deepEqual(U.outcomeMeta({ status: "CLOSED", closure_reason: "GOODS_RECEIVED" }), {
+      label: "Closed – Goods Received", colorScheme: "green", stockReceived: true,
+    });
+    for (const [reason, label] of [["REFUNDED", "Refunded"], ["ADJUSTED", "Adjusted / Settled"], ["CANCELLED", "Cancelled"]]) {
+      const m = U.outcomeMeta({ status: "CLOSED", closure_reason: reason });
+      assert.equal(m.label, `Closed – ${label}`);
+      assert.equal(m.stockReceived, false);
+      assert.notEqual(m.colorScheme, "green");
+    }
+    assert.equal(U.outcomeMeta({ status: "IN_TRANSIT" }).label, "In Transit");
+  });
+
+  it("the dashboard can ask for stock received or resolved without receipt", () => {
+    assert.deepEqual(U.statusFilterParams("CLOSED:GOODS_RECEIVED"), { status: "CLOSED", closure_reason: "GOODS_RECEIVED" });
+    assert.deepEqual(U.statusFilterParams("CLOSED:WITHOUT_RECEIPT"), { status: "CLOSED", closure_reason: "WITHOUT_RECEIPT" });
+    assert.deepEqual(U.statusFilterParams("IN_TRANSIT"), { status: "IN_TRANSIT", closure_reason: "" });
+    assert.deepEqual(U.statusFilterParams(""), { status: "OPEN", closure_reason: "" });
+  });
+
+  it("closing without receipt is behind its own key and endpoint; legacy decisions behind theirs", () => {
+    const src = fs.readFileSync(path.join(__dirname, "..", "components/lrFollowup/FollowupActions.jsx"), "utf8");
+    assert.match(src, /live && canCloseWithoutReceipt/);
+    assert.match(src, /legacy && canManage/);
+    const helper = fs.readFileSync(path.join(__dirname, "..", "helper/lrFollowup.js"), "utf8");
+    assert.match(helper, /\/close-without-receipt/);
+    assert.match(helper, /\/legacy-decision/);
+    assert.doesNotMatch(helper, /\/resolve`/);
+  });
+
+  it("the transporter error says it must come from the master", () => {
+    const { errors } = U.validateCreditPurchase({ distributor_code: 1, bill_reference: "B", amount: 1, bill_date: "2026-09-30", outlet_id: 1 }, "2026-10-01");
+    assert.deepEqual(Object.keys(errors), ["transporter_id"]);
+    assert.match(errors.transporter_id, /Transporter Master/);
+  });
+});

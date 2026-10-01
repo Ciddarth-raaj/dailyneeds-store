@@ -22,7 +22,8 @@ import usePermissions from "../../customHooks/usePermissions";
 import {
   addFollowUp,
   markGoodsReceived,
-  resolveFollowup,
+  recordLegacyDecision,
+  closeWithoutReceipt,
   updateLrDetails,
   unwrap,
 } from "../../helper/lrFollowup";
@@ -49,6 +50,8 @@ function FollowupActions({ followup, onChanged, size = "sm" }) {
   const canUpdate = usePermissions([PERMISSIONS.UPDATE]);
   const canReceive = usePermissions([PERMISSIONS.MARK_RECEIVED]);
   const canManage = usePermissions([PERMISSIONS.MANAGE_LEGACY]);
+  // Closing a LIVE follow-up without receipt is its own admin key.
+  const canCloseWithoutReceipt = usePermissions([PERMISSIONS.CLOSE_WITHOUT_RECEIPT]);
   const [open, setOpen] = useState(null);
 
   if (!followup) return null;
@@ -84,7 +87,7 @@ function FollowupActions({ followup, onChanged, size = "sm" }) {
             Record Verification
           </Button>
         )}
-        {live && canManage && (
+        {live && canCloseWithoutReceipt && (
           <Button size={size} variant="ghost" colorScheme="red" onClick={() => setOpen("close")}>
             Close without receipt
           </Button>
@@ -97,6 +100,7 @@ function FollowupActions({ followup, onChanged, size = "sm" }) {
       {(open === "verify" || open === "close") && (
         <DecisionDialog
           followup={followup}
+          mode={open}
           options={open === "verify" ? DECISIONS : NON_RECEIPT_DECISIONS}
           title={open === "verify" ? "Legacy Follow-up Verification" : "Close without receipt"}
           onClose={() => setOpen(null)}
@@ -320,7 +324,7 @@ function ReceivedDialog({ followup, onClose, onDone }) {
   );
 }
 
-function DecisionDialog({ followup, options, title, onClose, onDone }) {
+function DecisionDialog({ followup, mode, options, title, onClose, onDone }) {
   const [requestKey] = useState(newRequestKey);
   const [busy, setBusy] = useState(false);
   const [decision, setDecision] = useState("");
@@ -339,23 +343,42 @@ function DecisionDialog({ followup, options, title, onClose, onDone }) {
     submit(
       setBusy,
       () =>
-        resolveFollowup(followup.lr_followup_id, {
-          decision,
-          remark: remark.trim(),
-          received_at: decision === "GOODS_RECEIVED" && receivedOn ? `${receivedOn}T12:00:00+05:30` : null,
-          request_key: requestKey,
-        }),
+        mode === "verify"
+          ? recordLegacyDecision(followup.lr_followup_id, {
+              decision,
+              remark: remark.trim(),
+              received_at: decision === "GOODS_RECEIVED" && receivedOn ? `${receivedOn}T12:00:00+05:30` : null,
+              request_key: requestKey,
+            })
+          : closeWithoutReceipt(followup.lr_followup_id, {
+              closure_reason: decision,
+              remark: remark.trim(),
+              request_key: requestKey,
+            }),
       (d) => onDone(d, "Decision recorded")
     );
   };
 
   return (
-    <Dialog title={title} onClose={onClose} onSave={save} busy={busy} saveLabel="Record Decision" colorScheme="orange">
+    <Dialog
+      title={title}
+      onClose={onClose}
+      onSave={save}
+      busy={busy}
+      saveLabel={mode === "verify" ? "Record Decision" : "Close Without Receipt"}
+      colorScheme={mode === "verify" ? "orange" : "red"}
+    >
+      {mode !== "verify" && (
+        <Text fontSize="sm" color="red.700" bg="red.50" p="8px" borderRadius="6px">
+          This closes the follow-up <b>without stock being received</b>. It is reported separately from Goods
+          Received and cannot be undone.
+        </Text>
+      )}
       <Text fontSize="xs" color="gray.500">
-        The decision and your remark are kept in the follow-up history. The original Advance Request or Credit
-        Purchase is not changed.
+        The decision, your remark, your name and the time are kept in the follow-up history. The original Advance
+        Request or Credit Purchase is not changed.
       </Text>
-      <Field label="Decision" isRequired>
+      <Field label={mode === "verify" ? "Decision" : "Closure Reason"} isRequired>
         <Select size="sm" placeholder="Select" value={decision} onChange={(e) => setDecision(e.target.value)}>
           {options.map((o) => (
             <option key={o.id} value={o.id}>

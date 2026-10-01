@@ -27,11 +27,42 @@ const SOURCE_META = {
 };
 
 const CLOSURE_LABEL = {
-  GOODS_RECEIVED: "Goods received",
+  GOODS_RECEIVED: "Goods Received",
   REFUNDED: "Refunded",
-  ADJUSTED: "Adjusted / settled",
+  ADJUSTED: "Adjusted / Settled",
   CANCELLED: "Cancelled",
 };
+
+/**
+ * A CLOSED follow-up is shown with HOW it closed, so stock actually received
+ * can never be read as a refund or a cancellation:
+ *   "Closed – Goods Received" (green)   vs   "Closed – Refunded" (red), ...
+ */
+function outcomeMeta(row) {
+  if (!row || row.status !== "CLOSED") return statusMeta(row && row.status);
+  const reason = row.closure_reason;
+  return {
+    label: `Closed – ${CLOSURE_LABEL[reason] || reason || "Unknown"}`,
+    colorScheme: reason === "GOODS_RECEIVED" ? "green" : "red",
+    stockReceived: reason === "GOODS_RECEIVED",
+  };
+}
+
+/** Dashboard filter values that mean "closed, with this outcome". */
+const CLOSED_OUTCOME_FILTERS = [
+  { id: "CLOSED:GOODS_RECEIVED", value: "Closed – Goods Received", status: "CLOSED", closure_reason: "GOODS_RECEIVED" },
+  { id: "CLOSED:WITHOUT_RECEIPT", value: "Closed – Without Receipt (all)", status: "CLOSED", closure_reason: "WITHOUT_RECEIPT" },
+  { id: "CLOSED:REFUNDED", value: "Closed – Refunded", status: "CLOSED", closure_reason: "REFUNDED" },
+  { id: "CLOSED:ADJUSTED", value: "Closed – Adjusted / Settled", status: "CLOSED", closure_reason: "ADJUSTED" },
+  { id: "CLOSED:CANCELLED", value: "Closed – Cancelled", status: "CLOSED", closure_reason: "CANCELLED" },
+];
+
+/** The API's `status` and `closure_reason` for a dashboard Status choice. */
+function statusFilterParams(choice) {
+  const outcome = CLOSED_OUTCOME_FILTERS.find((f) => f.id === choice);
+  if (outcome) return { status: outcome.status, closure_reason: outcome.closure_reason };
+  return { status: choice || "OPEN", closure_reason: "" };
+}
 
 /** The Legacy Follow-up Verification decisions, in the order offered. */
 const DECISIONS = [
@@ -61,6 +92,7 @@ const ACTIVITY_LABEL = {
   EXPECTED_DELIVERY_CHANGE: "Expected delivery changed",
   GOODS_RECEIVED: "Goods received",
   CLOSED: "Closed",
+  CLOSED_WITHOUT_RECEIPT: "Closed WITHOUT stock receipt",
   BACKFILL: "Brought in at go-live",
   VERIFICATION_DECISION: "Verification decision",
 };
@@ -70,6 +102,8 @@ const PERMISSIONS = {
   UPDATE: "update_lr_followup",
   MARK_RECEIVED: "mark_lr_goods_received",
   MANAGE_LEGACY: "manage_lr_legacy_verification",
+  CLOSE_WITHOUT_RECEIPT: "close_lr_followup_without_receipt",
+  ALL_STORES: "lr_followup_all_stores",
   VIEW_CREDIT_PURCHASE: "view_credit_purchase",
   CREATE_CREDIT_PURCHASE: "create_credit_purchase",
   VIEW_TRANSPORTER: "view_transporter_master",
@@ -245,13 +279,13 @@ function validateCreditPurchase(form, today) {
   const errors = {};
   const trimmed = (v) => (v === undefined || v === null ? "" : String(v).trim());
   if (!form.distributor_code) errors.distributor_code = "Supplier is required";
-  if (!trimmed(form.bill_reference)) errors.bill_reference = "Credit Purchase / Bill Reference is required";
+  if (!trimmed(form.bill_reference)) errors.bill_reference = "Bill / Invoice Reference is required";
   const amount = Number(form.amount);
   if (!trimmed(form.amount) || !Number.isFinite(amount) || amount <= 0) errors.amount = "Amount must be greater than 0";
-  if (!form.bill_date) errors.bill_date = "Invoice / Bill Date is required";
-  else if (form.bill_date > today) errors.bill_date = "Invoice / Bill Date cannot be in the future";
-  if (!form.outlet_id) errors.outlet_id = "Receiving Outlet is required";
-  if (!form.transporter_id) errors.transporter_id = "Transporter is required";
+  if (!form.bill_date) errors.bill_date = "Bill / Invoice Date is required";
+  else if (form.bill_date > today) errors.bill_date = "Bill / Invoice Date cannot be in the future";
+  if (!form.outlet_id) errors.outlet_id = "Receiving Outlet / Location is required";
+  if (!form.transporter_id) errors.transporter_id = "Transporter is required — select one from the Transporter Master";
   if (form.dispatch_date && form.dispatch_date > today) errors.dispatch_date = "Dispatch Date cannot be in the future";
   if (form.dispatch_date && form.bill_date && form.dispatch_date < form.bill_date) {
     errors.dispatch_date = "Dispatch Date cannot be before the Bill Date";
@@ -308,6 +342,9 @@ module.exports = {
   ACTIVITY_LABEL,
   PERMISSIONS,
   statusMeta,
+  outcomeMeta,
+  CLOSED_OUTCOME_FILTERS,
+  statusFilterParams,
   isOpenStatus,
   dateOnly,
   formatDate,

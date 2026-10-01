@@ -447,14 +447,20 @@ export const PERMISSIONS = {
 
   // Purchase / LR Follow-up. Follow-ups open on their own - when an advance
   // request is paid, or a credit purchase is created - so there is no
-  // "create follow-up" right. Every screen also needs a Dashboard Store
-  // Scope (Own Store or All Stores) above, which decides which branches'
-  // follow-ups and credit purchases are visible.
+  // "create follow-up" right. Which branches are visible is decided by
+  // `lr_followup_all_stores` below (else the user's own branch), not by the
+  // Dashboard Store Scope.
   lr_followup: {
     view_lr_followup: "View Purchase / LR Follow-up",
     update_lr_followup: "Update LR Details / Add Follow-up",
     mark_lr_goods_received: "Mark LR Goods Received",
-    manage_lr_legacy_verification: "Manage Legacy Follow-up Verification & Close Without Receipt",
+    manage_lr_legacy_verification: "Manage Legacy Follow-up Verification",
+    close_lr_followup_without_receipt: "Close LR Follow-up Without Receipt (Refunded / Adjusted / Cancelled)",
+    // WHERE, not what: every branch's follow-ups and credit purchases. For
+    // the company-wide follow-up desk. Separate from the Dashboard Store
+    // Scope above - it widens no dashboard, and those keys widen no
+    // follow-up. Without it, a user sees their own branch only.
+    lr_followup_all_stores: "LR Follow-up: All Stores (company-wide follow-up desk)",
     view_credit_purchase: "View Credit Purchase",
     create_credit_purchase: "Create Credit Purchase",
   },

@@ -27,13 +27,15 @@ import {
   PERMISSIONS,
   SOURCE_META,
   STATUS_META,
+  CLOSED_OUTCOME_FILTERS,
   ageingLabel,
   followupRef,
+  outcomeMeta,
+  statusFilterParams,
   formatDate,
   formatDateTime,
   sourceHref,
   sourceRef,
-  statusMeta,
   transporterLabel,
 } from "../../util/lrFollowup";
 
@@ -91,7 +93,12 @@ function LrFollowupDashboard() {
     try {
       const [s, list] = await Promise.all([
         getLrFollowupSummary(),
-        getLrFollowups({ ...filters, distributor_code: filters.distributor_code || "", limit: 200 }),
+        getLrFollowups({
+          ...filters,
+          ...statusFilterParams(filters.status),
+          distributor_code: filters.distributor_code || "",
+          limit: 200,
+        }),
       ]);
       if (!s || s.code !== 200) throw new Error((s && (s.detail || s.msg)) || "Could not load the summary");
       if (!list || list.code !== 200) throw new Error((list && (list.detail || list.msg)) || "Could not load follow-ups");
@@ -113,7 +120,8 @@ function LrFollowupDashboard() {
   const rows = useMemo(
     () =>
       (data.items || []).map((f) => {
-        const meta = statusMeta(f.status);
+        // A closed row shows HOW it closed: received vs. refunded/adjusted/cancelled.
+        const meta = outcomeMeta(f);
         const href = sourceHref(f);
         return {
           ref: (
@@ -179,6 +187,26 @@ function LrFollowupDashboard() {
       ]
     : [];
 
+  // Closed follow-ups, split by outcome: stock actually received vs.
+  // resolved without receipt. Never added together.
+  const outcomeCards = summary
+    ? [
+        {
+          label: "Closed – Goods Received",
+          value: summary.closed_goods_received,
+          tone: "green",
+          onClick: () => set({ status: "CLOSED:GOODS_RECEIVED" }),
+        },
+        {
+          label: "Closed – Without Receipt",
+          value: summary.closed_without_receipt,
+          hint: `Refunded ${summary.closed_refunded} · Adjusted ${summary.closed_adjusted} · Cancelled ${summary.closed_cancelled}`,
+          tone: "red",
+          onClick: () => set({ status: "CLOSED:WITHOUT_RECEIPT" }),
+        },
+      ]
+    : [];
+
   return (
     <GlobalWrapper title="Purchase / LR Follow-up" permissionKey={["view_lr_followup"]}>
       <CustomContainer title="Purchase / LR Follow-up" filledHeader>
@@ -231,13 +259,49 @@ function LrFollowupDashboard() {
           ))}
         </Grid>
 
+        <Flex gap="10px" mb="16px" wrap="wrap">
+          {outcomeCards.map((c) => (
+            <Box
+              key={c.label}
+              p="10px 14px"
+              borderRadius="8px"
+              borderWidth="1px"
+              borderLeftWidth="4px"
+              borderLeftColor={c.tone === "green" ? "green.400" : "red.400"}
+              bg="white"
+              cursor="pointer"
+              onClick={c.onClick}
+              minW="220px"
+            >
+              <Text fontSize="xs" color="gray.500">
+                {c.label}
+              </Text>
+              <Text fontSize="lg" fontWeight="700">
+                {c.value}
+              </Text>
+              {c.hint && (
+                <Text fontSize="xs" color="gray.500">
+                  {c.hint}
+                </Text>
+              )}
+            </Box>
+          ))}
+        </Flex>
+
         <Flex gap="10px" wrap="wrap" align="flex-end" mb="14px">
           <FilterBox label="Status">
             <Select size="sm" value={filters.status} onChange={(e) => set({ status: e.target.value })}>
               <option value="OPEN">Open (pending goods)</option>
-              {Object.keys(STATUS_META).map((k) => (
-                <option key={k} value={k}>
-                  {STATUS_META[k].label}
+              {Object.keys(STATUS_META)
+                .filter((k) => k !== "GOODS_RECEIVED")
+                .map((k) => (
+                  <option key={k} value={k}>
+                    {k === "CLOSED" ? "Closed – any outcome" : STATUS_META[k].label}
+                  </option>
+                ))}
+              {CLOSED_OUTCOME_FILTERS.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.value}
                 </option>
               ))}
               <option value="ALL">All</option>

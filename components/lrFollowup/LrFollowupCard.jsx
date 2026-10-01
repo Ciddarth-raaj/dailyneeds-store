@@ -10,7 +10,7 @@ import {
   cardState,
   followupRef,
   formatDate,
-  statusMeta,
+  outcomeMeta,
 } from "../../util/lrFollowup";
 
 /**
@@ -75,8 +75,8 @@ function LrFollowupCard({ sourceType, sourceId, sourceStatus }) {
             <Info
               label="Current Status"
               value={
-                <Badge colorScheme={statusMeta(state.followup.status).colorScheme}>
-                  {statusMeta(state.followup.status).label}
+                <Badge colorScheme={outcomeMeta(state.followup).colorScheme}>
+                  {outcomeMeta(state.followup).label}
                 </Badge>
               }
             />

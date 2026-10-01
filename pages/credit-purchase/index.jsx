@@ -9,14 +9,14 @@ import Table from "../../components/table/table";
 import usePermissions from "../../customHooks/usePermissions";
 import currencyFormatter from "../../util/currencyFormatter";
 import { getCreditPurchases, unwrap } from "../../helper/lrFollowup";
-import { PERMISSIONS, formatDate, statusMeta, transporterLabel } from "../../util/lrFollowup";
+import { PERMISSIONS, formatDate, outcomeMeta, transporterLabel } from "../../util/lrFollowup";
 
 const HEADINGS = {
   ref: "Credit Purchase",
   supplier: "Supplier",
-  bill_reference: "Bill Reference",
+  bill_reference: "Bill / Invoice Reference",
   amount: "Amount",
-  bill_date: "Bill Date",
+  bill_date: "Bill / Invoice Date",
   outlet: "Receiving Outlet",
   transporter: "Transporter",
   followup: "LR Follow-up",
@@ -50,7 +50,9 @@ function CreditPurchases() {
   const rows = useMemo(
     () =>
       ((data && data.items) || []).map((cp) => {
-        const meta = cp.followup_status ? statusMeta(cp.followup_status) : null;
+        const meta = cp.followup_status
+          ? outcomeMeta({ status: cp.followup_status, closure_reason: cp.followup_closure_reason })
+          : null;
         return {
           ref: (
             <Link href={`/credit-purchase/${cp.credit_purchase_id}`}>

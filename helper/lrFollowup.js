@@ -25,7 +25,13 @@ export const addFollowUp = async (id, payload) => (await API.post(`/lr-followup/
 export const markGoodsReceived = async (id, payload) =>
   (await API.post(`/lr-followup/${id}/goods-received`, payload)).data;
 
-export const resolveFollowup = async (id, payload) => (await API.post(`/lr-followup/${id}/resolve`, payload)).data;
+/** Legacy Follow-up Verification: the decision for a backfilled row. */
+export const recordLegacyDecision = async (id, payload) =>
+  (await API.post(`/lr-followup/${id}/legacy-decision`, payload)).data;
+
+/** The exceptional close of a live follow-up: refunded, adjusted or cancelled. */
+export const closeWithoutReceipt = async (id, payload) =>
+  (await API.post(`/lr-followup/${id}/close-without-receipt`, payload)).data;
 
 export const getLegacyQueue = async (filters = {}) =>
   (await API.get(`/lr-followup/legacy?${toQueryString(filters)}`)).data;

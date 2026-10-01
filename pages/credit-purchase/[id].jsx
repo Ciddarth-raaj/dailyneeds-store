@@ -45,9 +45,9 @@ function CreditPurchaseDetail() {
           <Flex direction="column" gap="18px">
             <Grid templateColumns={{ base: "1fr 1fr", md: "repeat(4, 1fr)" }} gap="14px">
               <Info label="Supplier" value={purchase.supplier_name || purchase.distributor_code} />
-              <Info label="Credit Purchase / Bill Reference" value={purchase.bill_reference} />
+              <Info label="Bill / Invoice Reference" value={purchase.bill_reference} />
               <Info label="Amount" value={currencyFormatter(purchase.amount)} />
-              <Info label="Invoice / Bill Date" value={formatDate(purchase.bill_date)} />
+              <Info label="Bill / Invoice Date" value={formatDate(purchase.bill_date)} />
               <Info label="Receiving Outlet / Location" value={purchase.outlet_name || "-"} />
               <Info label="Transporter (at entry)" value={transporterLabel(purchase)} />
               <Info label="LR No. (at entry)" value={purchase.lr_no || "-"} />

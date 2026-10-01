@@ -97,13 +97,13 @@ function CreateCreditPurchase() {
               placeholder="Select supplier"
             />
           </Field>
-          <Field label="Credit Purchase / Bill Reference" isRequired error={errors.bill_reference}>
+          <Field label="Bill / Invoice Reference" isRequired error={errors.bill_reference}>
             <Input size="sm" maxLength={100} value={form.bill_reference} onChange={(e) => set({ bill_reference: e.target.value })} />
           </Field>
           <Field label="Amount" isRequired error={errors.amount}>
             <Input size="sm" type="number" min="0" step="0.01" value={form.amount} onChange={(e) => set({ amount: e.target.value })} />
           </Field>
-          <Field label="Invoice / Bill Date" isRequired error={errors.bill_date}>
+          <Field label="Bill / Invoice Date" isRequired error={errors.bill_date}>
             <Input size="sm" type="date" max={localToday()} value={form.bill_date} onChange={(e) => set({ bill_date: e.target.value })} />
           </Field>
           <Field label="Receiving Outlet / Location" isRequired error={errors.outlet_id}>
