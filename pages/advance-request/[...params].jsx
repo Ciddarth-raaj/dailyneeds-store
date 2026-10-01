@@ -8,6 +8,7 @@ import CustomInput from "../../components/customInput/customInput";
 import { useDistributors } from "../../customHooks/useDistributors";
 import usePermissions from "../../customHooks/usePermissions";
 import useAdvanceRequestById from "../../customHooks/useAdvanceRequestById";
+import LrFollowupCard from "../../components/lrFollowup/LrFollowupCard";
 import asset from "../../helper/asset";
 import toast from "react-hot-toast";
 import moment from "moment";
@@ -809,6 +810,16 @@ function AdvanceRequestForm() {
                   )}
                 </>
               )}
+            />
+          )}
+
+          {/* Read-only. A paid advance opens its LR Follow-up on the server;
+              this only shows it - or says plainly that it is missing. */}
+          {!createMode && request && (
+            <LrFollowupCard
+              sourceType="ADVANCE_REQUEST"
+              sourceId={request.advance_request_id}
+              sourceStatus={request.status}
             />
           )}
 

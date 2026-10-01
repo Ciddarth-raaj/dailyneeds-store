@@ -149,6 +149,11 @@ test("no other consumer was switched to the directory", () => {
     // ATTENDANCE scope on the server and this picker can only narrow further,
     // so a manager who may open the report does not also need `view_stores`.
     "pages/attendance/shift-change-eligibility/index.jsx",
+    // Create Credit Purchase: the Receiving Outlet dropdown - an id and a
+    // name, on a screen reached on `create_credit_purchase`, not
+    // `view_stores`. The server refuses an outlet outside the caller's
+    // branch scope, so the list can only offer, never authorize.
+    "pages/credit-purchase/create.jsx",
     // NO `pages/hr/*` ENTRY REMAINS, AND THAT IS THE POINT.
     // The Onboarding / Pending HR queue is branch-scoped - a store manager
     // holding `view_hr_onboarding_dashboard` sees their own branch - and this

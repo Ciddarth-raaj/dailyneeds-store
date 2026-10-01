@@ -57,6 +57,13 @@ const ALL_PAGES_MENU = {
         selected: false,
         location: "/master/remarks",
       },
+      // One Transporter Master for the Advance and Credit LR follow-ups.
+      view_transporter_master: {
+        title: "Transporters",
+        permission: "view_transporter_master",
+        selected: false,
+        location: "/master/transporters",
+      },
       // The Telegram Group Registry: which Telegram groups the bot posts to,
       // what each is for, and whether the bot can act in them. Behind
       // `view_telegram_groups`, which the migration grants to NO designation,
@@ -202,6 +209,40 @@ const ALL_PAGES_MENU = {
         permission: "create_advance_request",
         selected: false,
         location: "/advance-request/create",
+      },
+    },
+  },
+  // Purchase / LR Follow-up: what has been paid for (advance) or bought on
+  // credit and has not physically arrived yet.
+  lr_followup: {
+    title: "Purchase / LR Follow-up",
+    selected: false,
+    openPage: false,
+    icon: "fa-truck-loading",
+    subMenu: {
+      view_lr_followup: {
+        title: "Follow-up Dashboard",
+        permission: "view_lr_followup",
+        selected: false,
+        location: "/lr-followup",
+      },
+      view_credit_purchase: {
+        title: "Credit Purchases",
+        permission: "view_credit_purchase",
+        selected: false,
+        location: "/credit-purchase",
+      },
+      create_credit_purchase: {
+        title: "Create Credit Purchase",
+        permission: "create_credit_purchase",
+        selected: false,
+        location: "/credit-purchase/create",
+      },
+      manage_lr_legacy_verification: {
+        title: "Legacy Follow-up Verification",
+        permission: "manage_lr_legacy_verification",
+        selected: false,
+        location: "/lr-followup/legacy",
       },
     },
   },

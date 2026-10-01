@@ -445,6 +445,28 @@ export const PERMISSIONS = {
     edit_advance_request: "Edit Advance Request",
   },
 
+  // Purchase / LR Follow-up. Follow-ups open on their own - when an advance
+  // request is paid, or a credit purchase is created - so there is no
+  // "create follow-up" right. Every screen also needs a Dashboard Store
+  // Scope (Own Store or All Stores) above, which decides which branches'
+  // follow-ups and credit purchases are visible.
+  lr_followup: {
+    view_lr_followup: "View Purchase / LR Follow-up",
+    update_lr_followup: "Update LR Details / Add Follow-up",
+    mark_lr_goods_received: "Mark LR Goods Received",
+    manage_lr_legacy_verification: "Manage Legacy Follow-up Verification & Close Without Receipt",
+    view_credit_purchase: "View Credit Purchase",
+    create_credit_purchase: "Create Credit Purchase",
+  },
+
+  // Transporter Master - one list for Advance and Credit follow-ups alike.
+  // Never deleted: Edit includes making a transporter Inactive.
+  transporter_master: {
+    view_transporter_master: "View Transporter Master",
+    create_transporter_master: "Create Transporter",
+    edit_transporter_master: "Edit / Activate / Deactivate Transporter",
+  },
+
   // Accounts
   accounts: {
     view_account_sheet: "View Account Sheet",
