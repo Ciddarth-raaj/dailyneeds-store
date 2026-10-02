@@ -1,6 +1,7 @@
 import React from "react";
 import { Badge, Box, Button, Flex, SimpleGrid, Stack, Text } from "@chakra-ui/react";
 import CustomModal from "../CustomModal";
+import { LockedCorrectionBlock } from "./LockedCorrectionBlock";
 import { ExplainTooltip } from "./AttendanceDayList";
 import {
   PUNCH_STATUS,
@@ -9,6 +10,8 @@ import {
   REGULARIZED_PUNCH_LABEL,
   canRegularizeAttendance,
   regularizeBlockedReason,
+  canAuthorizeLockedCorrection,
+  lockedCorrectionView,
   dayIssue,
   presentBadge,
   dayPunchRows,
@@ -78,6 +81,16 @@ import {
  * punches can be regularized. The form it opens lets the user choose the
  * correction; the backend checks everything again.
  *
+ * A PAYROLL-LOCKED DATE: everybody who may not raise a locked-period
+ * correction sees "Payroll month locked". `allowLockedRegularization` (the
+ * HR/Admin screen, with the for-others key) keeps Regularize, and the request
+ * is raised needing authorisation. `onAuthorizeLocked` (holders of
+ * `correct_locked_attendance`) shows "Authorize locked-period correction"
+ * while that authorisation is required. The day's locked-period correction -
+ * authorisation, old vs corrected attendance, payroll difference, direction
+ * and adjustment status - is shown by `LockedCorrectionBlock`, with Mark
+ * settled for `onSettleLocked` (Payroll).
+ *
  * VOID PUNCH is the same shape: `onVoidPunch` is passed only by the HR/Admin
  * screen, only when the caller holds `void_attendance_punch`, and the
  * compact action appears beside a raw BIOMAX / IMPORT punch only - never on
@@ -126,6 +139,9 @@ export default function AttendanceDayDetail({
   onClose,
   onRegularize,
   allowLunchRegularization = false,
+  allowLockedRegularization = false,
+  onAuthorizeLocked = null,
+  onSettleLocked = null,
   onRequestOt,
   onEditShift,
   onVoidPunch,
@@ -137,12 +153,12 @@ export default function AttendanceDayDetail({
   const issue = dayIssue(day) || presentBadge(day);
   const punches = dayPunchRows(day);
   const approvedOt = Number(day.approved_ot_minutes) || 0;
-  const showRegularize =
-    !!onRegularize && canRegularizeAttendance(day, { allowLunch: allowLunchRegularization });
+  const regularizeOptions = { allowLunch: allowLunchRegularization, allowLocked: allowLockedRegularization };
+  const showRegularize = !!onRegularize && canRegularizeAttendance(day, regularizeOptions);
   // A correction the day would allow, in a payroll-locked month: said, not offered.
-  const regularizeBlocked = onRegularize
-    ? regularizeBlockedReason(day, { allowLunch: allowLunchRegularization })
-    : null;
+  const regularizeBlocked = onRegularize ? regularizeBlockedReason(day, regularizeOptions) : null;
+  const lockedCorrection = lockedCorrectionView(day);
+  const showAuthorizeLocked = !!onAuthorizeLocked && canAuthorizeLockedCorrection(day);
   const ot = otClaim(day);
   const showRequestOt = !!onRequestOt && !!ot && ot.canRequest;
   // Not offered on a Present/Absent Only date: nothing is short to forgive.
@@ -165,6 +181,11 @@ export default function AttendanceDayDetail({
           {showRegularize ? (
             <Button size="sm" colorScheme="purple" onClick={() => onRegularize(day)}>
               Regularize
+            </Button>
+          ) : null}
+          {showAuthorizeLocked ? (
+            <Button size="sm" colorScheme="orange" onClick={() => onAuthorizeLocked(day)}>
+              Authorize locked-period correction
             </Button>
           ) : null}
           {regularizeBlocked ? (
@@ -192,6 +213,11 @@ export default function AttendanceDayDetail({
         {issue ? (
           <Badge colorScheme={issue.color} alignSelf="flex-start" fontSize="xs" px={2} py={1}>
             {issue.label}
+          </Badge>
+        ) : null}
+        {day.payroll_locked && !lockedCorrection ? (
+          <Badge colorScheme="gray" alignSelf="flex-start" fontSize="10px">
+            Payroll month locked
           </Badge>
         ) : null}
 
@@ -342,6 +368,8 @@ export default function AttendanceDayDetail({
             ) : null}
           </Box>
         ) : null}
+
+        <LockedCorrectionBlock day={day} onSettle={onSettleLocked} />
 
         {ot ? (
           <Box borderWidth="1px" borderColor={`${ot.color}.100`} bg={`${ot.color}.50`} borderRadius="md" px={3} py={2}>

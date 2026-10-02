@@ -134,7 +134,9 @@ export default function RegularizationForm({ day, isOpen, onClose, onSubmitted, 
 
   const submit = async () => {
     setError(null);
-    if (day.payroll_locked) {
+    // The employee's own form never raises in a locked month; Manager/HR
+    // (`employeeId`) may, and the request then needs authorisation.
+    if (day.payroll_locked && !employeeId) {
       setError("Payroll month locked");
       return;
     }
@@ -228,6 +230,14 @@ export default function RegularizationForm({ day, isOpen, onClose, onSubmitted, 
             </Stack>
           )}
         </Box>
+
+        {day.payroll_locked && employeeId ? (
+          <Alert status="warning" fontSize="sm" borderRadius="md">
+            <AlertIcon />
+            Payroll month locked. This request will need a locked-period authorisation and cannot be approved
+            until a user with correct_locked_attendance authorises it. The locked payroll is not changed.
+          </Alert>
+        ) : null}
 
         {corrections.length > 1 ? (
           <FormControl isRequired>

@@ -31,6 +31,8 @@ const {
   canRegularizeLunch,
   canRegularizeAttendance,
   regularizeBlockedReason,
+  lockedCorrectionView,
+  canAuthorizeLockedCorrection,
   regularizationCorrections,
   positionalPunches,
   punchSummary,
@@ -959,3 +961,44 @@ test("the two approved components are read from the backend, never inferred", ()
     assert.strictEqual(V2.dayIssue(noShift).label, "No Shift Assigned");
   });
 }
+
+
+test("locked month: Manager/HR may raise (allowLocked), everybody else sees Payroll month locked; an open correction blocks both", () => {
+  const shift = { shift_snapshot: { work_shift_id: 7 } };
+  const locked = day({ ...shift, payroll_locked: true });
+  assert.equal(canRegularizeAttendance(locked, { allowLunch: true, allowLocked: true }), true);
+  assert.equal(regularizeBlockedReason(locked, { allowLunch: true, allowLocked: true }), null);
+  assert.equal(canRegularizeAttendance(locked, { allowLunch: true }), false);
+  assert.equal(regularizeBlockedReason(locked, { allowLunch: true }), "Payroll month locked");
+  const open = day({ ...shift, payroll_locked: true, correction_state: "PENDING" });
+  assert.equal(canRegularizeAttendance(open, { allowLunch: true, allowLocked: true }), false);
+  assert.equal(regularizeBlockedReason(open, { allowLunch: true }), null);
+});
+
+test("the locked-period correction view: authorise only while REQUIRED and pending; events carry direction and status", () => {
+  const base = { request_id: 900, request_status: "PENDING", status: "REQUIRED", events: [] };
+  assert.equal(canAuthorizeLockedCorrection(day({ locked_period_correction: base })), true);
+  assert.equal(canAuthorizeLockedCorrection(day({ locked_period_correction: { ...base, status: "AUTHORISED" } })), false);
+  assert.equal(canAuthorizeLockedCorrection(day({ locked_period_correction: { ...base, request_status: "REJECTED" } })), false);
+  assert.equal(canAuthorizeLockedCorrection(day()), false);
+
+  const v = lockedCorrectionView(day({
+    locked_period_correction: {
+      ...base, status: "APPLIED", request_status: "APPROVED", authorised_by_name: "Admin", authorised_at: "2026-10-02 09:00:00",
+      authorisation_reason: "CCTV", events: [{
+        attendance_locked_period_correction_event_id: 1, event_type: "APPROVAL", occurred_at: "2026-10-02 10:00:00",
+        old_calculation: { worked_minutes: 685, break_charged_minutes: 30, candidate_ot_minutes: 235, approved_ot_minutes: 235, effective_punches: [{ io_time: "2026-09-12 10:09:00" }, { io_time: "2026-09-12 22:04:00" }] },
+        new_calculation: { worked_minutes: 655, break_charged_minutes: 60, candidate_ot_minutes: 205, approved_ot_minutes: 205, effective_punches: [] },
+        net_difference: -66.66, direction: "RECOVERABLE_FROM_EMPLOYEE", adjustment_status: "PENDING_ADJUSTMENT",
+      }],
+    },
+  }));
+  assert.equal(v.label, "Locked-period correction applied");
+  assert.equal(v.authorised_by, "Admin");
+  const [e] = v.events;
+  assert.equal(e.old.punches, "10:09 → 22:04");
+  assert.equal(e.corrected.approved_ot, 205);
+  assert.equal(e.amount_label, "₹66.66");
+  assert.equal(e.direction_label, "Recoverable from employee");
+  assert.equal(e.adjustment_label, "Pending adjustment");
+});

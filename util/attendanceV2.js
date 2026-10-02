@@ -775,17 +775,127 @@ const PAYROLL_MONTH_LOCKED = "Payroll month locked";
  * month whatever this says, and there is no unlock path here.
  */
 function canRegularizeAttendance(day, options = {}) {
-  if (day && day.payroll_locked) return false;
+  if (!day) return false;
+  // A correction already open on the date (a locked day keeps its stored row,
+  // so its status alone does not say so).
+  if (day.correction_state === "PENDING") return false;
+  // A locked month: only Manager/HR (`allowLocked`) may RAISE, and the request
+  // then needs a separate locked-period authorisation before approval.
+  if (day.payroll_locked && !options.allowLocked) return false;
   return regularizationCorrections(day, options).some((c) => c.available);
 }
 
 /**
  * Why Regularise is NOT offered on a day that would otherwise have a
- * correction: "Payroll month locked", or null.
+ * correction: "Payroll month locked" (for everybody who may not raise a
+ * locked-period correction), or null.
  */
 function regularizeBlockedReason(day, options = {}) {
-  if (!day || !day.payroll_locked) return null;
+  if (!day || !day.payroll_locked || options.allowLocked) return null;
+  if (day.correction_state === "PENDING") return null;
   return regularizationCorrections(day, options).some((c) => c.available) ? PAYROLL_MONTH_LOCKED : null;
+}
+
+/* ============================== LOCKED-PERIOD CORRECTION, for display ==== */
+
+const LOCKED_CORRECTION_LABEL = Object.freeze({
+  REQUIRED: "Locked-period authorisation required",
+  AUTHORISED: "Locked-period correction authorised",
+  APPLIED: "Locked-period correction applied",
+  REVOKED: "Locked-period correction revoked",
+});
+const LOCKED_CORRECTION_COLOR = Object.freeze({ REQUIRED: "orange", AUTHORISED: "blue", APPLIED: "purple", REVOKED: "gray" });
+const PAYROLL_DIRECTION_LABEL = Object.freeze({
+  PAYABLE_TO_EMPLOYEE: "Payable to employee",
+  RECOVERABLE_FROM_EMPLOYEE: "Recoverable from employee",
+  NO_DIFFERENCE: "No difference",
+});
+const PAYROLL_DIRECTION_COLOR = Object.freeze({
+  PAYABLE_TO_EMPLOYEE: "green",
+  RECOVERABLE_FROM_EMPLOYEE: "red",
+  NO_DIFFERENCE: "gray",
+});
+const ADJUSTMENT_STATUS_LABEL = Object.freeze({
+  PENDING_ADJUSTMENT: "Pending adjustment",
+  SETTLED: "Settled",
+  NOT_REQUIRED: "No adjustment required",
+});
+
+/** `₹66.66` from a signed amount, always shown as a positive figure. */
+function formatRupees(amount) {
+  const n = Math.abs(Number(amount) || 0);
+  return `₹${n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+/**
+ * The day's locked-period correction, shaped for the Day Detail: status,
+ * authorisation, and each event (approval / revoke) with its old and
+ * corrected attendance and its payroll difference. Null when there is none.
+ */
+function lockedCalcView(calc) {
+  return calc
+    ? {
+        punches: Array.isArray(calc.effective_punches) ? calc.effective_punches.map((p) => clock(p.io_time)).join(" → ") : "",
+        worked: calc.worked_minutes,
+        break_charged: calc.break_charged_minutes,
+        ot_eligible: calc.candidate_ot_minutes,
+        approved_ot: calc.approved_ot_minutes,
+        status: calc.status,
+      }
+    : null;
+}
+
+/** One correction event (approval or revoke), shaped for a screen. */
+function lockedEventView(e) {
+  return {
+    id: e.attendance_locked_period_correction_event_id,
+    type: e.event_type,
+    occurred_at: e.occurred_at,
+    reason: e.event_reason || null,
+    employee_id: e.employee_id,
+    employee_name: e.employee_name || null,
+    attendance_date: e.attendance_date || null,
+    old: lockedCalcView(e.old_calculation),
+    corrected: lockedCalcView(e.new_calculation),
+    net_difference: Number(e.net_difference) || 0,
+    amount_label: formatRupees(e.net_difference),
+    direction: e.direction,
+    direction_label: PAYROLL_DIRECTION_LABEL[e.direction] || e.direction,
+    direction_color: PAYROLL_DIRECTION_COLOR[e.direction] || "gray",
+    adjustment_status: e.adjustment_status,
+    adjustment_label: ADJUSTMENT_STATUS_LABEL[e.adjustment_status] || e.adjustment_status,
+    applied:
+      e.adjustment_status === "SETTLED"
+        ? {
+            by: e.applied_by_name || null,
+            at: e.applied_at,
+            note: e.applied_note,
+            month: `${String(e.applied_payroll_month).padStart(2, "0")}/${e.applied_payroll_year}`,
+          }
+        : null,
+  };
+}
+
+function lockedCorrectionView(day) {
+  const c = day && day.locked_period_correction;
+  if (!c) return null;
+  return {
+    status: c.status,
+    label: LOCKED_CORRECTION_LABEL[c.status] || c.status,
+    color: LOCKED_CORRECTION_COLOR[c.status] || "gray",
+    request_id: c.request_id,
+    request_status: c.request_status,
+    authorised_by: c.authorised_by_name || null,
+    authorised_at: c.authorised_at || null,
+    authorisation_reason: c.authorisation_reason || null,
+    events: (c.events || []).map(lockedEventView),
+  };
+}
+
+/** The authorise action: a pending request still waiting for its authorisation. */
+function canAuthorizeLockedCorrection(day) {
+  const c = day && day.locked_period_correction;
+  return !!c && c.status === "REQUIRED" && c.request_status === "PENDING";
 }
 
 /** `HH:MM` from `YYYY-MM-DD HH:MM:SS` (or `HH:MM:SS`). */
@@ -1379,6 +1489,13 @@ module.exports = {
   canRegularizeAttendance,
   regularizeBlockedReason,
   PAYROLL_MONTH_LOCKED,
+  lockedCorrectionView,
+  lockedEventView,
+  canAuthorizeLockedCorrection,
+  formatRupees,
+  LOCKED_CORRECTION_LABEL,
+  PAYROLL_DIRECTION_LABEL,
+  ADJUSTMENT_STATUS_LABEL,
   regularizationCorrections,
   CORRECTION,
   CORRECTION_LABEL,

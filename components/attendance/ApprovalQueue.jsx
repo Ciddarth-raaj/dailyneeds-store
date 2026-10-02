@@ -29,6 +29,7 @@ import {
   roleLabel,
   stageLabel,
   weekday,
+  LOCKED_CORRECTION_LABEL,
 } from "../../util/attendanceV2";
 import {
   PAID_NOT_WORKED,
@@ -450,6 +451,15 @@ export default function ApprovalQueue({ rows, kind, loading, onDecide, deciding,
                 ) : (
                   <Text fontSize="xs" color="orange.700" fontWeight="600">Proposed {proposedPunchLabel(row)}</Text>
                 )}
+                {row.locked_period_status ? (
+                  <Badge
+                    alignSelf="flex-start"
+                    fontSize="10px"
+                    colorScheme={row.locked_period_status === "REQUIRED" ? "orange" : "purple"}
+                  >
+                    {LOCKED_CORRECTION_LABEL[row.locked_period_status] || row.locked_period_status}
+                  </Badge>
+                ) : null}
                 <Text fontSize="xs" color="gray.600" noOfLines={expanded ? undefined : 1}>{row.reason}</Text>
                 <Text fontSize="10px" color="gray.500">Submitted {displayDateTime(row.submitted_at)}</Text>
               </Box>

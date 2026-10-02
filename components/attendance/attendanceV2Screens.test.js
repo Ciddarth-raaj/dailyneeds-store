@@ -132,7 +132,8 @@ test("the Day Detail carries none of the DigiSME clutter", () => {
 });
 
 test("Regularize appears only on a Missing Punch day, and Edit Shift only when the caller may edit", () => {
-  assert.match(detail, /const showRegularize =\s*!!onRegularize && canRegularizeAttendance\(day, \{ allowLunch: allowLunchRegularization \}\)/);
+  assert.match(detail, /const regularizeOptions = \{ allowLunch: allowLunchRegularization, allowLocked: allowLockedRegularization \}/);
+  assert.match(detail, /const showRegularize = !!onRegularize && canRegularizeAttendance\(day, regularizeOptions\)/);
   assert.match(detail, /\{onEditShift \? \([\s\S]*?Edit Shift/);
   // My Attendance never passes onEditShift; the HR page passes it only with the key.
   assert.ok(!/onEditShift/.test(myPage), "no Edit Shift for the employee");
@@ -164,9 +165,9 @@ test("ONE Regularize action: the form offers Missing Lunch Punches on the HR vie
   assert.match(form, /raiseRegularization\(\{[\s\S]*?requested_for_employee_id: employeeId,[\s\S]*?break_out_time:[\s\S]*?break_in_time:/);
   assert.match(helper, /"\/attendance\/regularization"/);
   // A payroll-locked month: Regularize is not offered, and says why.
-  assert.match(detail, /regularizeBlockedReason\(day, \{ allowLunch: allowLunchRegularization \}\)/);
+  assert.match(detail, /regularizeBlockedReason\(day, regularizeOptions\)/);
   assert.match(detail, /\{regularizeBlocked \? \([\s\S]*?isDisabled[\s\S]*?\{regularizeBlocked\}/);
-  assert.match(form, /if \(day\.payroll_locked\)[\s\S]*?Payroll month locked/);
+  assert.match(form, /if \(day\.payroll_locked && !employeeId\)[\s\S]*?Payroll month locked/);
   // A manual punch is marked as one in the Day Detail.
   assert.match(detail, /if \(punch\.regularized\)[\s\S]*?Manual[\s\S]*?REGULARIZED_PUNCH_LABEL/);
 });
@@ -350,4 +351,31 @@ test("16. the punch rows wrap on a narrow screen and the void action is compact"
 
 test("void_attendance_punch is in the permission matrix so it can be granted", () => {
   assert.match(permissions, /void_attendance_punch:/);
+});
+
+
+test("LOCKED-PERIOD correction inside the same Regularize flow: raise (HR), separate authorise, display, settle", () => {
+  // Manager/HR may raise on a locked date; everybody else sees Payroll month locked.
+  assert.match(hrPage, /allowLockedRegularization=\{canRegularizeForOthers\}/);
+  assert.ok(!/allowLockedRegularization|onAuthorizeLocked/.test(myPage), "the employee screen never raises or authorises");
+  // The authorisation is its own action, behind its own key, with a mandatory reason.
+  assert.match(hrPage, /usePermissions\(\["correct_locked_attendance"\]\)/);
+  assert.match(hrPage, /onAuthorizeLocked=\{canAuthorizeLocked \? \(day\) => setAuthorizing\(day\) : null\}/);
+  assert.match(detail, /const showAuthorizeLocked = !!onAuthorizeLocked && canAuthorizeLockedCorrection\(day\)/);
+  assert.match(detail, /\{showAuthorizeLocked \? \([\s\S]*?Authorize locked-period correction/);
+  const lockedActions = read("components/attendance/LockedCorrection.jsx");
+  assert.match(lockedActions, /authorizeLockedCorrection\(view\.request_id, reason\.trim\(\)\)/);
+  assert.match(lockedActions, /reason\.trim\(\)\.length < 5/);
+  // Settlement: Payroll only.
+  assert.match(hrPage, /usePermissions\(\["process_payroll"\]\)/);
+  assert.match(lockedActions, /settleLockedCorrection\(event\.id, \{[\s\S]*?applied_payroll_year[\s\S]*?applied_payroll_month[\s\S]*?applied_note/);
+  // The display block shows the authorisation, old vs corrected, difference, direction and status.
+  const block = read("components/attendance/LockedCorrectionBlock.jsx");
+  for (const text of ["Authorised by", "Authorised at", "Authorisation reason", "Old attendance", "Corrected attendance", "direction_label", "adjustment_label", "amount_label"]) {
+    assert.ok(block.includes(text), text);
+  }
+  assert.match(detail, /<LockedCorrectionBlock day=\{day\} onSettle=\{onSettleLocked\} \/>/);
+  // The form tells Manager/HR the request will need authorisation, and still refuses the employee.
+  assert.match(form, /if \(day\.payroll_locked && !employeeId\)/);
+  assert.match(form, /day\.payroll_locked && employeeId \?[\s\S]*?locked-period authorisation/);
 });

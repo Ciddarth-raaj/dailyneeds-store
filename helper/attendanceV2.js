@@ -68,6 +68,21 @@ const attendanceV2 = {
         .catch(reject);
     }),
 
+  /** Authorise ONE request's locked-period correction - `correct_locked_attendance`. */
+  authorizeLockedCorrection: (request_id, reason) =>
+    call("post", `/attendance/regularization/${request_id}/locked-period-authorisation`, { reason }),
+
+  /** Payroll's list of locked-period correction events. */
+  listLockedCorrections: (params = {}) => call("get", "/attendance/locked-period-corrections", { params }),
+
+  /** Mark one difference settled in a later payroll month - `process_payroll`. */
+  settleLockedCorrection: (event_id, { applied_payroll_year, applied_payroll_month, applied_note }) =>
+    call("post", `/attendance/locked-period-corrections/${event_id}/settle`, {
+      applied_payroll_year,
+      applied_payroll_month,
+      applied_note,
+    }),
+
   /** `{ attendance_date, reason }`. Never minutes, never an employee id. */
   raiseMyOtRequest: ({ attendance_date, reason }) =>
     new Promise((resolve, reject) => {
