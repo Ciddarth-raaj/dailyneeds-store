@@ -132,23 +132,35 @@ test("the Day Detail carries none of the DigiSME clutter", () => {
 });
 
 test("Regularize appears only on a Missing Punch day, and Edit Shift only when the caller may edit", () => {
-  assert.match(detail, /const showRegularize = !!onRegularize && canRegularize\(day\)/);
+  assert.match(detail, /const showRegularize =\s*!!onRegularize && canRegularizeAttendance\(day, \{ allowLunch: allowLunchRegularization \}\)/);
   assert.match(detail, /\{onEditShift \? \([\s\S]*?Edit Shift/);
   // My Attendance never passes onEditShift; the HR page passes it only with the key.
   assert.ok(!/onEditShift/.test(myPage), "no Edit Shift for the employee");
   assert.match(hrPage, /usePermissions\(\["edit_attendance_date_shift"\]\)/);
   assert.match(hrPage, /onEditShift=\{canEditShift \? \(day\) => setEditing\(day\) : null\}/);
-  assert.ok(!/onRegularize=/.test(hrPage), "the HR view does not regularize a missing punch on somebody's behalf");
+  // The HR view regularizes on an employee's behalf only with the for-others key.
+  assert.match(hrPage, /onRegularize=\{canRegularizeForOthers \?/);
 });
 
-test("Regularize Break: a complete day, HR view only, behind raise_attendance_regularization_for_others", () => {
-  assert.match(detail, /const showRegularizeBreak = !!onRegularizeBreak && canRegularizeBreak\(day\)/);
-  assert.match(detail, /\{showRegularizeBreak \? \([\s\S]*?Regularize Break/);
-  assert.ok(!/onRegularizeBreak/.test(myPage), "never self-service");
+test("ONE Regularize action: the form offers Missing Lunch Punches on the HR view only, behind the for-others key", () => {
+  // No separate break action anywhere.
+  for (const src of [detail, hrPage, myPage, form]) {
+    assert.ok(!/Regularize Break|onRegularizeBreak|MISSED_BREAK/.test(src), "no separate break workflow");
+  }
+  assert.match(detail, /\{showRegularize \? \([\s\S]*?>\s*Regularize\s*</);
+  // The HR view passes the SAME onRegularize, and lets the form offer lunch punches.
   assert.match(hrPage, /usePermissions\(\["raise_attendance_regularization_for_others"\]\)/);
-  assert.match(hrPage, /onRegularizeBreak=\{canRegularizeBreak \? \(day\) => setRegularizingBreak\(day\) : null\}/);
-  assert.match(hrPage, /<RegularizationForm[\s\S]*?mode="MISSED_BREAK"/);
-  // The SAME request: the HR raise, carrying the break's OUT and IN, for the employee.
+  assert.match(hrPage, /onRegularize=\{canRegularizeForOthers \? \(day\) => setRegularizing\(day\) : null\}/);
+  assert.match(hrPage, /allowLunchRegularization=\{canRegularizeForOthers\}/);
+  assert.match(hrPage, /<RegularizationForm[\s\S]*?employeeId=\{employeeId\}/);
+  // My Attendance never offers lunch punches: no employee, no allowLunchRegularization.
+  assert.ok(!/allowLunchRegularization|employeeId=/.test(myPage.slice(myPage.indexOf("<RegularizationForm"))), "self: Missing Punch only");
+  // The form: a Correction Type, and Lunch OUT / Lunch IN only for Missing Lunch Punches.
+  assert.match(form, /regularizationCorrections\(day, \{ allowLunch: !!employeeId \}\)/);
+  assert.match(form, /Correction Type/);
+  assert.match(form, /\{isLunch \? \([\s\S]*?Lunch OUT[\s\S]*?Lunch IN[\s\S]*?\) : \([\s\S]*?Missing Punch Time/);
+  assert.match(form, /Remarks/);
+  // The SAME request: the HR raise, carrying the lunch OUT and IN, for the employee.
   assert.match(form, /raiseRegularization\(\{[\s\S]*?requested_for_employee_id: employeeId,[\s\S]*?break_out_time:[\s\S]*?break_in_time:/);
   assert.match(helper, /"\/attendance\/regularization"/);
   // A manual punch is marked as one in the Day Detail.
@@ -247,7 +259,7 @@ test("the OT form shows Date, Shift, Punches, Calculated OT, Reason, Submit", ()
 });
 
 test("10. Missing Punch stays a separate action and a separate request from OT", () => {
-  assert.match(detail, /const showRegularize = !!onRegularize && canRegularize\(day\)/);
+  assert.match(detail, /const showRegularize =\s*!!onRegularize && canRegularizeAttendance\(/);
   assert.match(detail, /const showRequestOt = /);
   assert.match(myPage, /<RegularizationForm/);
   assert.match(myPage, /<OtRequestForm/);

@@ -9,6 +9,8 @@ import {
   FormControl,
   FormLabel,
   Input,
+  Radio,
+  RadioGroup,
   Stack,
   Text,
   Textarea,
@@ -16,86 +18,113 @@ import {
 import CustomModal from "../CustomModal";
 import AttendanceV2Helper from "../../helper/attendanceV2";
 import {
+  CORRECTION,
+  CORRECTION_LABEL,
   apiMessage,
   calendarDateFor,
   displayDate,
   isOk,
   positionalPunches,
+  regularizationCorrections,
   weekday,
 } from "../../util/attendanceV2";
 
+/** Longest reason the backend stores. */
+const MAX_REASON = 500;
+
 /**
- * Missing Punch Regularization. Opened from a Missing Punch day.
- *
- * MISSED BREAK MODE (`mode="MISSED_BREAK"`, manager/HR only): the SAME
- * regularization request, raised for `employeeId` on a complete day whose
- * employee took a break (lunch) without punching. It asks for the break's OUT
- * and IN; once approved both join the punches as regularized manual punches
- * (10:09 IN -> 14:00 OUT -> 15:00 IN -> 22:04 OUT) and the day is recalculated
- * by the ordinary engine. The backend checks the sequence, the permission,
- * the open requests and the payroll lock.
+ * Regularise Attendance - THE ONE regularisation form, for every supported
+ * correction. Opened from the Regularize action in the Day Detail.
  *
  * The date and the existing punches are shown READ-ONLY - they are the
- * device's record and this form has no way to change them; the request body
- * carries only the missing punch time and the reason. Where the new punch
- * falls (IN or OUT) is decided by the backend after chronological ordering,
- * so the form does not ask.
+ * device's record and this form has no way to change them. The correction
+ * is chosen from what the day allows (`regularizationCorrections`):
+ *
+ *   Missing Punch          a Missing Punch day: the missing punch time and
+ *                          the reason. Where it falls (IN or OUT) is decided
+ *                          by the backend after chronological ordering, so
+ *                          the form does not ask.
+ *   Missing Lunch Punches  a complete day such as 10:09 -> 22:04 whose
+ *                          employee took lunch without punching: Lunch OUT,
+ *                          Lunch IN, the reason and optional remarks. Offered
+ *                          only when raising for an employee (`employeeId`,
+ *                          manager/HR); never on the employee's own screen.
+ *
+ * Both are the SAME REGULARIZATION request through the same approval chain.
+ * After approval the punches join the day as regularized manual punches
+ * (10:09 IN -> 14:00 OUT -> 15:00 IN -> 22:04 OUT) and the ordinary engine
+ * recalculates it; the device punches are never changed.
  *
  * The backend validates everything that matters - the reason, the date, the
- * time landing on this date under the shift's cutoff, and that no request is
- * already open - and its message is shown as it is. On success the day shows
- * "Regularization Pending"; if the corrected day creates OT, that OT rides
- * the SAME request.
+ * times landing on this date under the shift's cutoff, the lunch sequence,
+ * that no request is already open, the permission and the payroll lock - and
+ * its message is shown as it is. On success the day shows "Regularization
+ * Pending".
  */
-export default function RegularizationForm({
-  day,
-  isOpen,
-  onClose,
-  onSubmitted,
-  mode = "MISSING_PUNCH",
-  employeeId = null,
-}) {
-  const isBreak = mode === "MISSED_BREAK";
+export default function RegularizationForm({ day, isOpen, onClose, onSubmitted, employeeId = null }) {
+  const [correction, setCorrection] = useState(null);
   const [time, setTime] = useState("");
-  const [breakOut, setBreakOut] = useState("");
-  const [breakIn, setBreakIn] = useState("");
+  const [lunchOut, setLunchOut] = useState("");
+  const [lunchIn, setLunchIn] = useState("");
   const [reason, setReason] = useState("");
+  const [remarks, setRemarks] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
   if (!day) return null;
   const punches = positionalPunches(day);
   const date = day.attendance_date;
+  // Missing Lunch Punches is manager/HR only: offered when raising FOR an
+  // employee, which the backend also gates on the for-others permission.
+  const corrections = regularizationCorrections(day, { allowLunch: !!employeeId });
+  const firstAvailable = corrections.find((c) => c.available) || corrections[0];
+  const chosen =
+    corrections.find((c) => c.key === correction && c.available) || firstAvailable;
+  const isLunch = chosen.key === CORRECTION.MISSING_LUNCH_PUNCHES;
 
   const reset = () => {
+    setCorrection(null);
     setTime("");
-    setBreakOut("");
-    setBreakIn("");
+    setLunchOut("");
+    setLunchIn("");
     setReason("");
+    setRemarks("");
     setError(null);
   };
 
-  const submitBreak = async () => {
-    setError(null);
-    if (!/^\d{2}:\d{2}$/.test(breakOut) || !/^\d{2}:\d{2}$/.test(breakIn)) {
-      setError("Enter the break OUT and IN times");
+  const finish = (res) => {
+    if (!isOk(res)) {
+      setError(apiMessage(res));
+      return;
+    }
+    reset();
+    onSubmitted(res);
+  };
+
+  const submitLunch = async () => {
+    if (!/^\d{2}:\d{2}$/.test(lunchOut) || !/^\d{2}:\d{2}$/.test(lunchIn)) {
+      setError("Enter the Lunch OUT and Lunch IN times");
+      return;
+    }
+    // The correction type is the default reason; remarks ride the same field,
+    // since the request stores one reason.
+    const base = reason.trim() || CORRECTION_LABEL[CORRECTION.MISSING_LUNCH_PUNCHES];
+    const fullReason = remarks.trim() ? `${base} - Remarks: ${remarks.trim()}` : base;
+    if (fullReason.length > MAX_REASON) {
+      setError(`Reason and remarks together may be at most ${MAX_REASON} characters`);
       return;
     }
     setSaving(true);
     try {
-      const res = await AttendanceV2Helper.raiseRegularization({
-        requested_for_employee_id: employeeId,
-        attendance_date: date,
-        break_out_time: `${calendarDateFor(day, breakOut)} ${breakOut}:00`,
-        break_in_time: `${calendarDateFor(day, breakIn)} ${breakIn}:00`,
-        reason: reason.trim(),
-      });
-      if (!isOk(res)) {
-        setError(apiMessage(res));
-        return;
-      }
-      reset();
-      onSubmitted(res);
+      finish(
+        await AttendanceV2Helper.raiseRegularization({
+          requested_for_employee_id: employeeId,
+          attendance_date: date,
+          break_out_time: `${calendarDateFor(day, lunchOut)} ${lunchOut}:00`,
+          break_in_time: `${calendarDateFor(day, lunchIn)} ${lunchIn}:00`,
+          reason: fullReason,
+        })
+      );
     } catch (err) {
       setError("Could not reach the server. Please try again.");
     } finally {
@@ -104,11 +133,15 @@ export default function RegularizationForm({
   };
 
   const submit = async () => {
-    if (isBreak) {
-      await submitBreak();
+    setError(null);
+    if (!chosen.available) {
+      setError(chosen.hint);
       return;
     }
-    setError(null);
+    if (isLunch) {
+      await submitLunch();
+      return;
+    }
     if (!/^\d{2}:\d{2}$/.test(time)) {
       setError("Enter the missing punch time");
       return;
@@ -120,13 +153,13 @@ export default function RegularizationForm({
         punch_time: `${calendarDateFor(day, time)} ${time}:00`,
         reason: reason.trim(),
       };
-      const res = await AttendanceV2Helper.raiseMyRegularization(body);
-      if (!isOk(res)) {
-        setError(apiMessage(res));
-        return;
-      }
-      reset();
-      onSubmitted(res);
+      // Your own attendance through the self route; an employee's through the
+      // HR raise, which names them. The same request either way.
+      finish(
+        employeeId
+          ? await AttendanceV2Helper.raiseRegularization({ requested_for_employee_id: employeeId, ...body })
+          : await AttendanceV2Helper.raiseMyRegularization(body)
+      );
     } catch (err) {
       setError("Could not reach the server. Please try again.");
     } finally {
@@ -141,7 +174,7 @@ export default function RegularizationForm({
         reset();
         onClose();
       }}
-      title={isBreak ? "Regularize Missed Break" : "Regularize Missing Punch"}
+      title="Regularize Attendance"
       size="md"
       bodyProps={{ p: 4 }}
       footer={
@@ -192,16 +225,39 @@ export default function RegularizationForm({
           )}
         </Box>
 
-        {isBreak ? (
+        {corrections.length > 1 ? (
+          <FormControl isRequired>
+            <FormLabel fontSize="sm">Correction Type</FormLabel>
+            <RadioGroup value={chosen.key} onChange={(value) => setCorrection(value)}>
+              <Stack spacing={1}>
+                {corrections.map((c) => (
+                  <Radio key={c.key} value={c.key} isDisabled={!c.available} size="sm">
+                    <Text as="span" fontSize="sm">
+                      {c.label}
+                    </Text>
+                    {!c.available ? (
+                      <Text as="span" fontSize="xs" color="gray.500">
+                        {" "}
+                        · {c.hint}
+                      </Text>
+                    ) : null}
+                  </Radio>
+                ))}
+              </Stack>
+            </RadioGroup>
+          </FormControl>
+        ) : null}
+
+        {isLunch ? (
           <Box>
             <Flex gap={3}>
               <FormControl isRequired>
-                <FormLabel fontSize="sm">Break OUT</FormLabel>
-                <Input type="time" value={breakOut} onChange={(e) => setBreakOut(e.target.value)} />
+                <FormLabel fontSize="sm">Lunch OUT</FormLabel>
+                <Input type="time" value={lunchOut} onChange={(e) => setLunchOut(e.target.value)} />
               </FormControl>
               <FormControl isRequired>
-                <FormLabel fontSize="sm">Break IN</FormLabel>
-                <Input type="time" value={breakIn} onChange={(e) => setBreakIn(e.target.value)} />
+                <FormLabel fontSize="sm">Lunch IN</FormLabel>
+                <Input type="time" value={lunchIn} onChange={(e) => setLunchIn(e.target.value)} />
               </FormControl>
             </Flex>
             <Text fontSize="xs" color="gray.500" mt={1}>
@@ -219,15 +275,22 @@ export default function RegularizationForm({
           </FormControl>
         )}
 
-        <FormControl isRequired>
+        <FormControl isRequired={!isLunch}>
           <FormLabel fontSize="sm">Reason</FormLabel>
           <Textarea
-            rows={3}
+            rows={isLunch ? 2 : 3}
             value={reason}
             onChange={(e) => setReason(e.target.value)}
-            placeholder={isBreak ? "Why the break was not punched" : "Why the punch is missing"}
+            placeholder={isLunch ? CORRECTION_LABEL[CORRECTION.MISSING_LUNCH_PUNCHES] : "Why the punch is missing"}
           />
         </FormControl>
+
+        {isLunch ? (
+          <FormControl>
+            <FormLabel fontSize="sm">Remarks</FormLabel>
+            <Textarea rows={2} value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Optional" />
+          </FormControl>
+        ) : null}
 
         {error ? (
           <Alert status="error" fontSize="sm" borderRadius="md">

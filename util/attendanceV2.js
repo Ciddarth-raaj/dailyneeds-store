@@ -712,15 +712,62 @@ function canRegularize(day) {
 }
 
 /**
- * A MISSED BREAK (lunch OUT + IN) may be regularized on a complete, shift-based
- * day: an even, non-zero punch count and nothing pending. Presentation only -
- * the backend re-checks the sequence, the open requests and the payroll lock.
+ * THE CORRECTIONS THE ONE REGULARISE ATTENDANCE ACTION OFFERS. Every one is
+ * the same REGULARIZATION request; they differ only in which punches it adds.
+ *
+ *   MISSING_PUNCH          one punch, on a Missing Punch (odd) day
+ *   MISSING_LUNCH_PUNCHES  Lunch OUT + Lunch IN, on a complete shift-based
+ *                          day - manager/HR only (`allowLunch`), because two
+ *                          manual punches move payable hours and OT
+ *
+ * Presentation only: the backend re-checks the day, the sequence, the open
+ * requests, the permission and the payroll lock.
  */
-function canRegularizeBreak(day) {
+const CORRECTION = Object.freeze({
+  MISSING_PUNCH: "MISSING_PUNCH",
+  MISSING_LUNCH_PUNCHES: "MISSING_LUNCH_PUNCHES",
+});
+
+const CORRECTION_LABEL = Object.freeze({
+  [CORRECTION.MISSING_PUNCH]: "Missing Punch",
+  [CORRECTION.MISSING_LUNCH_PUNCHES]: "Missing Lunch Punches",
+});
+
+/** A complete (even, non-zero), FINAL, shift-based day with nothing pending. */
+function canRegularizeLunch(day) {
   if (!day || isPresentAbsentOnlyDay(day) || !day.shift_snapshot) return false;
   const count = Number(day.punch_count) || 0;
   if (count < 2 || count % 2 !== 0) return false;
   return day.status === STATUS.FINAL;
+}
+
+/**
+ * @returns {Array<{key, label, available: boolean, hint: string}>} the
+ *   corrections this viewer may choose from for the day, available or not.
+ */
+function regularizationCorrections(day, { allowLunch = false } = {}) {
+  const list = [
+    {
+      key: CORRECTION.MISSING_PUNCH,
+      label: CORRECTION_LABEL[CORRECTION.MISSING_PUNCH],
+      available: canRegularize(day),
+      hint: "Only on a day with a missing punch (an odd number of punches)",
+    },
+  ];
+  if (allowLunch) {
+    list.push({
+      key: CORRECTION.MISSING_LUNCH_PUNCHES,
+      label: CORRECTION_LABEL[CORRECTION.MISSING_LUNCH_PUNCHES],
+      available: canRegularizeLunch(day),
+      hint: "Only on a complete day (IN and OUT recorded, nothing pending)",
+    });
+  }
+  return list;
+}
+
+/** Whether the Regularise action is offered at all: any correction available. */
+function canRegularizeAttendance(day, options = {}) {
+  return regularizationCorrections(day, options).some((c) => c.available);
 }
 
 /** `HH:MM` from `YYYY-MM-DD HH:MM:SS` (or `HH:MM:SS`). */
@@ -1310,7 +1357,11 @@ module.exports = {
   correctionRequestRows,
   formatOtClock,
   canRegularize,
-  canRegularizeBreak,
+  canRegularizeLunch,
+  canRegularizeAttendance,
+  regularizationCorrections,
+  CORRECTION,
+  CORRECTION_LABEL,
   clock,
   positionalPunches,
   punchSummary,

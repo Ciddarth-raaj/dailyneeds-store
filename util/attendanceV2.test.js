@@ -28,7 +28,9 @@ const {
   correctionRequestRows,
   formatOtClock,
   canRegularize,
-  canRegularizeBreak,
+  canRegularizeLunch,
+  canRegularizeAttendance,
+  regularizationCorrections,
   positionalPunches,
   punchSummary,
   formatMinutes,
@@ -164,15 +166,38 @@ test("only a Missing Punch day can be regularized; a pending one cannot be regul
   assert.equal(canRegularize(day({ status: "FINAL", ot_claim_state: "AVAILABLE", candidate_ot_minutes: 30 })), false, "OT is never regularized");
 });
 
-test("a missed break can be regularized on a complete, shift-based day only", () => {
+test("Missing Lunch Punches is offered on a complete, shift-based day only", () => {
   const shift = { shift_snapshot: { work_shift_id: 7 } };
-  assert.equal(canRegularizeBreak(day(shift)), true, "10:09 -> 22:04, lunch not punched");
-  assert.equal(canRegularizeBreak(day({ ...shift, punch_count: 4, effective_punches: punches("09:00", "13:00", "14:00", "22:00") })), true);
-  assert.equal(canRegularizeBreak(day({ ...shift, status: "REVIEW_REQUIRED", punch_count: 3 })), false, "missing punch first");
-  assert.equal(canRegularizeBreak(day({ ...shift, status: "REGULARIZATION_PENDING" })), false);
-  assert.equal(canRegularizeBreak(day({ ...shift, status: "ABSENT", punch_count: 0, effective_punches: [] })), false);
-  assert.equal(canRegularizeBreak(day()), false, "no shift resolved");
-  assert.equal(canRegularizeBreak(null), false);
+  assert.equal(canRegularizeLunch(day(shift)), true, "10:09 -> 22:04, lunch not punched");
+  assert.equal(canRegularizeLunch(day({ ...shift, punch_count: 4, effective_punches: punches("09:00", "13:00", "14:00", "22:00") })), true);
+  assert.equal(canRegularizeLunch(day({ ...shift, status: "REVIEW_REQUIRED", punch_count: 3 })), false, "missing punch first");
+  assert.equal(canRegularizeLunch(day({ ...shift, status: "REGULARIZATION_PENDING" })), false);
+  assert.equal(canRegularizeLunch(day({ ...shift, status: "ABSENT", punch_count: 0, effective_punches: [] })), false);
+  assert.equal(canRegularizeLunch(day()), false, "no shift resolved");
+  assert.equal(canRegularizeLunch(null), false);
+});
+
+test("the one Regularise action detects which corrections the day allows", () => {
+  const shift = { shift_snapshot: { work_shift_id: 7 } };
+  const complete = day(shift);
+  const odd = day({ ...shift, status: "REVIEW_REQUIRED", review_reasons: ["MISSING_PUNCH"], punch_count: 3 });
+
+  // The employee (no lunch): exactly the old rule - Missing Punch days only.
+  assert.deepEqual(regularizationCorrections(odd).map((c) => [c.key, c.available]), [["MISSING_PUNCH", true]]);
+  assert.equal(canRegularizeAttendance(odd), true);
+  assert.equal(canRegularizeAttendance(complete), false);
+
+  // Manager/HR: both listed; the day decides which is available.
+  assert.deepEqual(
+    regularizationCorrections(complete, { allowLunch: true }).map((c) => [c.key, c.available]),
+    [["MISSING_PUNCH", false], ["MISSING_LUNCH_PUNCHES", true]]
+  );
+  assert.deepEqual(
+    regularizationCorrections(odd, { allowLunch: true }).map((c) => [c.key, c.available]),
+    [["MISSING_PUNCH", true], ["MISSING_LUNCH_PUNCHES", false]]
+  );
+  assert.equal(canRegularizeAttendance(complete, { allowLunch: true }), true);
+  assert.equal(canRegularizeAttendance(day({ ...shift, status: "REGULARIZATION_PENDING" }), { allowLunch: true }), false);
 });
 
 /* ================================================= dynamic punches ==== */

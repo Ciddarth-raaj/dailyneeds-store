@@ -81,9 +81,10 @@ export default function EmployeeAttendancePage() {
   const router = useRouter();
   const canEditShift = usePermissions(["edit_attendance_date_shift"]);
   const canVoidPunch = usePermissions(["void_attendance_punch"]);
-  // A missed break (lunch OUT + IN) is regularized by a manager/HR user for
-  // the employee; the backend requires the same key.
-  const canRegularizeBreak = usePermissions(["raise_attendance_regularization_for_others"]);
+  // Regularising an employee's attendance (a missing punch, or Missing Lunch
+  // Punches on a complete day) is the existing raise for somebody else; the
+  // backend requires the same key.
+  const canRegularizeForOthers = usePermissions(["raise_attendance_regularization_for_others"]);
   const [employeeId, setEmployeeId] = useState(null);
   const [month, setMonth] = useState(currentMonth());
   const [days, setDays] = useState([]);
@@ -92,7 +93,7 @@ export default function EmployeeAttendancePage() {
   const [selected, setSelected] = useState(null);
   const [editing, setEditing] = useState(null);
   const [voiding, setVoiding] = useState(null);
-  const [regularizingBreak, setRegularizingBreak] = useState(null);
+  const [regularizing, setRegularizing] = useState(null);
   const [summaryFilter, setSummaryFilter] = useState(SUMMARY_FILTER.ALL);
   /* The date a deep link asked to open, consumed once the month has loaded. */
   const [pendingDate, setPendingDate] = useState(null);
@@ -195,12 +196,12 @@ export default function EmployeeAttendancePage() {
     await load();
   };
 
-  const onBreakSubmitted = async (res) => {
-    setRegularizingBreak(null);
+  const onRegularized = async (res) => {
+    setRegularizing(null);
     setSelected(null);
     const ot = res.ot_revalidation;
     toast({
-      title: res.auto_approved ? "Break regularized" : "Break regularization sent for approval",
+      title: res.auto_approved ? "Attendance regularized" : "Regularization sent for approval",
       description:
         ot && ot.approved_ot_reduced
           ? `Approved OT on ${res.attendance_date} will be re-capped from ${ot.approved_ot_minutes_before} to ${ot.approved_ot_minutes_after} minutes once approved.`
@@ -276,16 +277,16 @@ export default function EmployeeAttendancePage() {
         onClose={() => setSelected(null)}
         onEditShift={canEditShift ? (day) => setEditing(day) : null}
         onVoidPunch={canVoidPunch ? (punch) => setVoiding(punch) : null}
-        onRegularizeBreak={canRegularizeBreak ? (day) => setRegularizingBreak(day) : null}
+        onRegularize={canRegularizeForOthers ? (day) => setRegularizing(day) : null}
+        allowLunchRegularization={canRegularizeForOthers}
       />
-      {canRegularizeBreak ? (
+      {canRegularizeForOthers ? (
         <RegularizationForm
-          mode="MISSED_BREAK"
           employeeId={employeeId}
-          day={regularizingBreak}
-          isOpen={!!regularizingBreak}
-          onClose={() => setRegularizingBreak(null)}
-          onSubmitted={onBreakSubmitted}
+          day={regularizing}
+          isOpen={!!regularizing}
+          onClose={() => setRegularizing(null)}
+          onSubmitted={onRegularized}
         />
       ) : null}
       {canVoidPunch ? (

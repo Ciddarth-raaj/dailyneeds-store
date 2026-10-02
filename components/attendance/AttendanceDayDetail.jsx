@@ -7,8 +7,7 @@ import {
   PUNCH_STATUS_COLOR,
   PUNCH_STATUS_LABEL,
   REGULARIZED_PUNCH_LABEL,
-  canRegularize,
-  canRegularizeBreak,
+  canRegularizeAttendance,
   dayIssue,
   presentBadge,
   dayPunchRows,
@@ -71,11 +70,12 @@ import {
  * `edit_attendance_date_shift` - and the backend checks that key again on
  * the request, so this prop is presentation, not security.
  *
- * REGULARIZE BREAK is the same shape: `onRegularizeBreak` is passed only by
- * the HR/Admin screen, only when the caller holds
- * `raise_attendance_regularization_for_others`, and the button appears only
- * on a complete (even-punch) day. It opens the existing regularization form
- * in its missed-break mode; the backend checks everything again.
+ * REGULARIZE is ONE action for every supported correction. It appears when
+ * the day allows any of them: a Missing Punch day, or - only where
+ * `allowLunchRegularization` is passed (the HR/Admin screen, with
+ * `raise_attendance_regularization_for_others`) - a complete day whose lunch
+ * punches can be regularized. The form it opens lets the user choose the
+ * correction; the backend checks everything again.
  *
  * VOID PUNCH is the same shape: `onVoidPunch` is passed only by the HR/Admin
  * screen, only when the caller holds `void_attendance_punch`, and the
@@ -124,7 +124,7 @@ export default function AttendanceDayDetail({
   isOpen,
   onClose,
   onRegularize,
-  onRegularizeBreak,
+  allowLunchRegularization = false,
   onRequestOt,
   onEditShift,
   onVoidPunch,
@@ -136,8 +136,8 @@ export default function AttendanceDayDetail({
   const issue = dayIssue(day) || presentBadge(day);
   const punches = dayPunchRows(day);
   const approvedOt = Number(day.approved_ot_minutes) || 0;
-  const showRegularize = !!onRegularize && canRegularize(day);
-  const showRegularizeBreak = !!onRegularizeBreak && canRegularizeBreak(day);
+  const showRegularize =
+    !!onRegularize && canRegularizeAttendance(day, { allowLunch: allowLunchRegularization });
   const ot = otClaim(day);
   const showRequestOt = !!onRequestOt && !!ot && ot.canRequest;
   // Not offered on a Present/Absent Only date: nothing is short to forgive.
@@ -160,11 +160,6 @@ export default function AttendanceDayDetail({
           {showRegularize ? (
             <Button size="sm" colorScheme="purple" onClick={() => onRegularize(day)}>
               Regularize
-            </Button>
-          ) : null}
-          {showRegularizeBreak ? (
-            <Button size="sm" variant="outline" colorScheme="purple" onClick={() => onRegularizeBreak(day)}>
-              Regularize Break
             </Button>
           ) : null}
           {showRequestPermission ? (
