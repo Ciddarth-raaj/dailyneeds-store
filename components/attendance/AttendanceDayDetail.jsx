@@ -8,6 +8,7 @@ import {
   PUNCH_STATUS_LABEL,
   REGULARIZED_PUNCH_LABEL,
   canRegularizeAttendance,
+  regularizeBlockedReason,
   dayIssue,
   presentBadge,
   dayPunchRows,
@@ -138,6 +139,10 @@ export default function AttendanceDayDetail({
   const approvedOt = Number(day.approved_ot_minutes) || 0;
   const showRegularize =
     !!onRegularize && canRegularizeAttendance(day, { allowLunch: allowLunchRegularization });
+  // A correction the day would allow, in a payroll-locked month: said, not offered.
+  const regularizeBlocked = onRegularize
+    ? regularizeBlockedReason(day, { allowLunch: allowLunchRegularization })
+    : null;
   const ot = otClaim(day);
   const showRequestOt = !!onRequestOt && !!ot && ot.canRequest;
   // Not offered on a Present/Absent Only date: nothing is short to forgive.
@@ -160,6 +165,11 @@ export default function AttendanceDayDetail({
           {showRegularize ? (
             <Button size="sm" colorScheme="purple" onClick={() => onRegularize(day)}>
               Regularize
+            </Button>
+          ) : null}
+          {regularizeBlocked ? (
+            <Button size="sm" colorScheme="purple" isDisabled title={regularizeBlocked}>
+              Regularize · {regularizeBlocked}
             </Button>
           ) : null}
           {showRequestPermission ? (

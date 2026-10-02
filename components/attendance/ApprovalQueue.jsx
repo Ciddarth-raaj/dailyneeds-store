@@ -243,7 +243,7 @@ function Detail({ row, kind, onDecide, deciding, onRevoke = null }) {
       <SimpleGrid columns={{ base: 1, md: 2 }} spacing={3}>
         <Field label={isOt ? "Punches" : "Existing punches"}><Punches punches={row.effective_punches} /></Field>
         {!isOt ? (
-          <Field label={row.proposed_second_punch_time ? "Proposed missed break" : "Proposed missing punch"}>
+          <Field label={row.proposed_second_punch_time ? "Proposed lunch punches" : "Proposed missing punch"}>
             <Text fontFamily="mono" color="orange.700">{proposedPunchLabel(row)}</Text>
             <Text fontSize="xs" color="gray.500" fontWeight="400">
               {row.proposed_second_punch_time
@@ -347,7 +347,7 @@ function Detail({ row, kind, onDecide, deciding, onRevoke = null }) {
 function proposedPunchLabel(row) {
   if (!row.proposed_punch_time) return "—";
   if (row.proposed_second_punch_time) {
-    return `${clock(row.proposed_punch_time)} OUT → ${clock(row.proposed_second_punch_time)} IN (break)`;
+    return `${clock(row.proposed_punch_time)} OUT → ${clock(row.proposed_second_punch_time)} IN (Lunch)`;
   }
   return clock(row.proposed_punch_time);
 }

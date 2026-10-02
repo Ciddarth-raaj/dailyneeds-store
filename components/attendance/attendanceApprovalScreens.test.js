@@ -87,7 +87,8 @@ test("4. existing and proposed punches are shown; 5. reason and attendance metri
   assert.match(detail, /proposedPunchLabel\(row\)/);
   assert.match(queue, /clock\(row\.proposed_punch_time\)/);
   // A missed break proposes the OUT and the IN, both shown.
-  assert.match(detail, /"Proposed missed break"/);
+  assert.match(detail, /"Proposed lunch punches"/);
+  assert.match(queue, /OUT → \$\{clock\(row\.proposed_second_punch_time\)\} IN \(Lunch\)/);
   assert.match(queue, /clock\(row\.proposed_second_punch_time\)/);
   assert.match(detail, /label="Employee reason"/);
   for (const m of ['label="NRM"', 'label="Worked"', 'label="Shortage"']) assert.match(detail, new RegExp(m), m);

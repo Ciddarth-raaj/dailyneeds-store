@@ -17,6 +17,7 @@ import {
 } from "@chakra-ui/react";
 import {
   canRegularize,
+  PAYROLL_MONTH_LOCKED,
   correctionRequestStatus,
   dayIssue,
   displayDate,
@@ -71,6 +72,14 @@ function Detail({ status }) {
 
 function RowAction({ day, onRegularize }) {
   if (!canRegularize(day)) return <Text fontSize="10px" color="gray.400">—</Text>;
+  // The backend refuses a correction in a payroll-locked month; say so here.
+  if (day.payroll_locked) {
+    return (
+      <Text fontSize="10px" color="gray.500">
+        {PAYROLL_MONTH_LOCKED}
+      </Text>
+    );
+  }
   return (
     <Button
       size="xs"

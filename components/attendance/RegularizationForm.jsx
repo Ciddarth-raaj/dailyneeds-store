@@ -134,6 +134,10 @@ export default function RegularizationForm({ day, isOpen, onClose, onSubmitted, 
 
   const submit = async () => {
     setError(null);
+    if (day.payroll_locked) {
+      setError("Payroll month locked");
+      return;
+    }
     if (!chosen.available) {
       setError(chosen.hint);
       return;

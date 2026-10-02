@@ -765,9 +765,27 @@ function regularizationCorrections(day, { allowLunch = false } = {}) {
   return list;
 }
 
-/** Whether the Regularise action is offered at all: any correction available. */
+/** What a screen says where a correction exists but the payroll month is locked. */
+const PAYROLL_MONTH_LOCKED = "Payroll month locked";
+
+/**
+ * Whether the Regularise action is offered at all: any correction available,
+ * and the day's payroll month not locked. `payroll_locked` is the backend's
+ * own answer on the day read; the backend refuses the request in a locked
+ * month whatever this says, and there is no unlock path here.
+ */
 function canRegularizeAttendance(day, options = {}) {
+  if (day && day.payroll_locked) return false;
   return regularizationCorrections(day, options).some((c) => c.available);
+}
+
+/**
+ * Why Regularise is NOT offered on a day that would otherwise have a
+ * correction: "Payroll month locked", or null.
+ */
+function regularizeBlockedReason(day, options = {}) {
+  if (!day || !day.payroll_locked) return null;
+  return regularizationCorrections(day, options).some((c) => c.available) ? PAYROLL_MONTH_LOCKED : null;
 }
 
 /** `HH:MM` from `YYYY-MM-DD HH:MM:SS` (or `HH:MM:SS`). */
@@ -1359,6 +1377,8 @@ module.exports = {
   canRegularize,
   canRegularizeLunch,
   canRegularizeAttendance,
+  regularizeBlockedReason,
+  PAYROLL_MONTH_LOCKED,
   regularizationCorrections,
   CORRECTION,
   CORRECTION_LABEL,

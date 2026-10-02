@@ -163,6 +163,10 @@ test("ONE Regularize action: the form offers Missing Lunch Punches on the HR vie
   // The SAME request: the HR raise, carrying the lunch OUT and IN, for the employee.
   assert.match(form, /raiseRegularization\(\{[\s\S]*?requested_for_employee_id: employeeId,[\s\S]*?break_out_time:[\s\S]*?break_in_time:/);
   assert.match(helper, /"\/attendance\/regularization"/);
+  // A payroll-locked month: Regularize is not offered, and says why.
+  assert.match(detail, /regularizeBlockedReason\(day, \{ allowLunch: allowLunchRegularization \}\)/);
+  assert.match(detail, /\{regularizeBlocked \? \([\s\S]*?isDisabled[\s\S]*?\{regularizeBlocked\}/);
+  assert.match(form, /if \(day\.payroll_locked\)[\s\S]*?Payroll month locked/);
   // A manual punch is marked as one in the Day Detail.
   assert.match(detail, /if \(punch\.regularized\)[\s\S]*?Manual[\s\S]*?REGULARIZED_PUNCH_LABEL/);
 });

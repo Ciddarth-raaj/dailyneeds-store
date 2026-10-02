@@ -30,6 +30,7 @@ const {
   canRegularize,
   canRegularizeLunch,
   canRegularizeAttendance,
+  regularizeBlockedReason,
   regularizationCorrections,
   positionalPunches,
   punchSummary,
@@ -175,6 +176,20 @@ test("Missing Lunch Punches is offered on a complete, shift-based day only", () 
   assert.equal(canRegularizeLunch(day({ ...shift, status: "ABSENT", punch_count: 0, effective_punches: [] })), false);
   assert.equal(canRegularizeLunch(day()), false, "no shift resolved");
   assert.equal(canRegularizeLunch(null), false);
+});
+
+test("a payroll-locked month: Regularize is not offered and says Payroll month locked", () => {
+  const shift = { shift_snapshot: { work_shift_id: 7 } };
+  const lockedComplete = day({ ...shift, payroll_locked: true });
+  const lockedOdd = day({ ...shift, payroll_locked: true, status: "REVIEW_REQUIRED", review_reasons: ["MISSING_PUNCH"], punch_count: 3 });
+  assert.equal(canRegularizeAttendance(lockedComplete, { allowLunch: true }), false);
+  assert.equal(regularizeBlockedReason(lockedComplete, { allowLunch: true }), "Payroll month locked");
+  assert.equal(canRegularizeAttendance(lockedOdd), false);
+  assert.equal(regularizeBlockedReason(lockedOdd), "Payroll month locked");
+  // Nothing to correct anyway: no lock message either.
+  assert.equal(regularizeBlockedReason(lockedComplete), null, "the employee has no lunch correction to block");
+  assert.equal(regularizeBlockedReason(day({ ...shift, payroll_locked: false }), { allowLunch: true }), null);
+  assert.equal(canRegularizeAttendance(day({ ...shift, payroll_locked: false }), { allowLunch: true }), true);
 });
 
 test("the one Regularise action detects which corrections the day allows", () => {
