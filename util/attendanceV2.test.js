@@ -1002,3 +1002,36 @@ test("the locked-period correction view: authorise only while REQUIRED and pendi
   assert.equal(e.direction_label, "Recoverable from employee");
   assert.equal(e.adjustment_label, "Pending adjustment");
 });
+
+
+test("pending adjustments: only the derived NET is actionable; a correction revoked before settlement needs nothing", () => {
+  const ev = (id, type, net, status) => ({
+    attendance_locked_period_correction_event_id: id, event_type: type, occurred_at: "2026-10-02 10:00:00",
+    net_difference: net, direction: net > 0 ? "PAYABLE_TO_EMPLOYEE" : "RECOVERABLE_FROM_EMPLOYEE", adjustment_status: status,
+  });
+  // A. approve -> revoke before settlement
+  const a = lockedCorrectionView(day({
+    locked_period_correction: {
+      request_id: 900, request_status: "CANCELLED", status: "REVOKED",
+      events: [ev(1, "APPROVAL", -66.66, "PENDING_ADJUSTMENT"), ev(2, "REVOKE", 66.66, "PENDING_ADJUSTMENT")],
+      outstanding: { net_difference: 0, direction: "NO_DIFFERENCE", actionable: false, netted_off: true, pending_event_ids: [1, 2], label: "No adjustment required — correction revoked before settlement" },
+    },
+  }));
+  assert.equal(a.events.length, 2, "full immutable history kept");
+  assert.deepEqual(a.events.map((e) => e.display_label), ["Netted off — revoked before settlement", "Netted off — revoked before settlement"]);
+  assert.equal(a.outstanding.actionable, false);
+  assert.equal(a.outstanding.label, "No adjustment required — correction revoked before settlement");
+
+  // B. approve -> settle -> revoke
+  const b = lockedCorrectionView(day({
+    locked_period_correction: {
+      request_id: 901, request_status: "CANCELLED", status: "REVOKED",
+      events: [ev(1, "APPROVAL", -66.66, "SETTLED"), ev(2, "REVOKE", 66.66, "PENDING_ADJUSTMENT")],
+      outstanding: { net_difference: 66.66, direction: "PAYABLE_TO_EMPLOYEE", actionable: true, netted_off: false, pending_event_ids: [2], label: null },
+    },
+  }));
+  assert.deepEqual(b.events.map((e) => e.display_label), ["Settled", "Pending adjustment"]);
+  assert.equal(b.outstanding.actionable, true);
+  assert.equal(b.outstanding.amount_label, "₹66.66");
+  assert.equal(b.outstanding.direction_label, "Payable to employee");
+});

@@ -75,9 +75,9 @@ const attendanceV2 = {
   /** Payroll's list of locked-period correction events. */
   listLockedCorrections: (params = {}) => call("get", "/attendance/locked-period-corrections", { params }),
 
-  /** Mark one difference settled in a later payroll month - `process_payroll`. */
-  settleLockedCorrection: (event_id, { applied_payroll_year, applied_payroll_month, applied_note }) =>
-    call("post", `/attendance/locked-period-corrections/${event_id}/settle`, {
+  /** Settle ONE request's outstanding (net) adjustment in a later payroll month - `process_payroll`. */
+  settleLockedCorrection: (request_id, { applied_payroll_year, applied_payroll_month, applied_note }) =>
+    call("post", `/attendance/locked-period-corrections/requests/${request_id}/settle`, {
       applied_payroll_year,
       applied_payroll_month,
       applied_note,

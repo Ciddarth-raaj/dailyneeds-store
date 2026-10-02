@@ -876,10 +876,43 @@ function lockedEventView(e) {
   };
 }
 
+/**
+ * THE OUTSTANDING ADJUSTMENT of one correction request, as the backend
+ * derived it (`outstandingAdjustment`): the net of its unsettled events. Only
+ * a non-zero net is actionable; a correction revoked before settlement nets to
+ * zero and reads "No adjustment required — correction revoked before
+ * settlement".
+ */
+function outstandingView(o) {
+  if (!o) return null;
+  return {
+    actionable: o.actionable === true,
+    net_difference: Number(o.net_difference) || 0,
+    amount_label: formatRupees(o.net_difference),
+    direction: o.direction,
+    direction_label: PAYROLL_DIRECTION_LABEL[o.direction] || o.direction,
+    direction_color: PAYROLL_DIRECTION_COLOR[o.direction] || "gray",
+    label: o.label || null,
+    netted_off: o.netted_off === true,
+    pending_event_ids: Array.isArray(o.pending_event_ids) ? o.pending_event_ids.map(Number) : [],
+  };
+}
+
 function lockedCorrectionView(day) {
   const c = day && day.locked_period_correction;
   if (!c) return null;
+  const outstanding = outstandingView(c.outstanding);
+  const events = (c.events || []).map(lockedEventView).map((e) => ({
+    ...e,
+    // The event's own record never changes; this says what it means NOW: an
+    // unsettled event inside a net of zero was cancelled before settlement.
+    display_label:
+      e.adjustment_status === "PENDING_ADJUSTMENT" && outstanding && outstanding.netted_off && outstanding.pending_event_ids.includes(Number(e.id))
+        ? "Netted off — revoked before settlement"
+        : e.adjustment_label,
+  }));
   return {
+    outstanding,
     status: c.status,
     label: LOCKED_CORRECTION_LABEL[c.status] || c.status,
     color: LOCKED_CORRECTION_COLOR[c.status] || "gray",
@@ -888,7 +921,7 @@ function lockedCorrectionView(day) {
     authorised_by: c.authorised_by_name || null,
     authorised_at: c.authorised_at || null,
     authorisation_reason: c.authorisation_reason || null,
-    events: (c.events || []).map(lockedEventView),
+    events,
   };
 }
 
@@ -1491,6 +1524,7 @@ module.exports = {
   PAYROLL_MONTH_LOCKED,
   lockedCorrectionView,
   lockedEventView,
+  outstandingView,
   canAuthorizeLockedCorrection,
   formatRupees,
   LOCKED_CORRECTION_LABEL,

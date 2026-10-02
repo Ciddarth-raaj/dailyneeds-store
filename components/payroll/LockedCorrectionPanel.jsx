@@ -14,16 +14,19 @@ import {
 import AttendanceV2Helper from "../../helper/attendanceV2";
 import { SettleLockedCorrectionModal } from "../attendance/LockedCorrection";
 import usePermissions from "../../customHooks/usePermissions";
-import { apiMessage, displayDate, isOk, lockedEventView } from "../../util/attendanceV2";
+import { apiMessage, displayDate, isOk, lockedEventView, outstandingView } from "../../util/attendanceV2";
 
 /**
  * LOCKED-PERIOD ATTENDANCE CORRECTIONS, for Payroll.
  *
- * Each row is one correction event on a payroll-locked date: its payroll
- * difference priced on that month's frozen payrun, its direction (payable to /
- * recoverable from the employee) and its adjustment status. Nothing here
- * changes a payrun: Payroll applies the difference through the existing
- * adjustment fields of a LATER month, then marks it settled here.
+ * ACTIONABLE: one row per correction REQUEST whose OUTSTANDING adjustment -
+ * the derived net of its unsettled events - is not zero, with its direction
+ * (payable to / recoverable from the employee). A correction revoked before
+ * settlement nets to zero and is not listed here at all. "Show history" lists
+ * every immutable event (approval / revoke) with its own difference and
+ * status, with no actions. Nothing here changes a payrun: Payroll applies the
+ * net through the existing adjustment fields of a LATER month, then marks the
+ * request settled here.
  *
  * Shown to `view_payroll` / `process_payroll`; Mark settled needs
  * `process_payroll`. The backend filters to the caller's outlet scope and
@@ -32,7 +35,8 @@ import { apiMessage, displayDate, isOk, lockedEventView } from "../../util/atten
 export default function LockedCorrectionPanel() {
   const canView = usePermissions(["view_payroll", "process_payroll"]);
   const canSettle = usePermissions(["process_payroll"]);
-  const [rows, setRows] = useState([]);
+  const [outstanding, setOutstanding] = useState([]);
+  const [history, setHistory] = useState([]);
   const [showAll, setShowAll] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -43,18 +47,27 @@ export default function LockedCorrectionPanel() {
     setLoading(true);
     setError(null);
     try {
-      const res = await AttendanceV2Helper.listLockedCorrections(showAll ? {} : { adjustment_status: "PENDING_ADJUSTMENT" });
+      const res = await AttendanceV2Helper.listLockedCorrections();
       if (!isOk(res)) {
         setError(apiMessage(res, "Locked-period corrections could not be loaded"));
         return;
       }
-      setRows((res.corrections || []).map(lockedEventView));
+      setOutstanding(
+        (res.outstanding || []).map((o) => ({
+          ...outstandingView(o),
+          request_id: o.attendance_approval_request_id,
+          employee_id: o.employee_id,
+          employee_name: o.employee_name,
+          attendance_date: o.attendance_date,
+        }))
+      );
+      setHistory((res.corrections || []).map(lockedEventView));
     } catch (err) {
       setError("Could not reach the server. Please try again.");
     } finally {
       setLoading(false);
     }
-  }, [canView, showAll]);
+  }, [canView]);
 
   useEffect(() => {
     load();
@@ -70,7 +83,7 @@ export default function LockedCorrectionPanel() {
         </Text>
         <Flex align="center" gap={2}>
           <Text fontSize="xs" color="gray.600">
-            Show settled
+            Show history
           </Text>
           <Switch size="sm" isChecked={showAll} onChange={(e) => setShowAll(e.target.checked)} />
         </Flex>
@@ -83,33 +96,28 @@ export default function LockedCorrectionPanel() {
       ) : null}
       {loading ? (
         <Spinner size="sm" />
-      ) : rows.length === 0 ? (
+      ) : outstanding.length === 0 ? (
         <Text fontSize="sm" color="gray.500">
-          {showAll ? "No locked-period corrections." : "No differences pending adjustment."}
+          No adjustments outstanding.
         </Text>
       ) : (
         <Stack spacing={2}>
-          {rows.map((r) => (
-            <Flex key={r.id} gap={3} align="center" wrap="wrap" fontSize="sm" borderTopWidth="1px" borderColor="gray.100" pt={2}>
+          {outstanding.map((r) => (
+            <Flex key={r.request_id} gap={3} align="center" wrap="wrap" fontSize="sm" borderTopWidth="1px" borderColor="gray.100" pt={2}>
               <Box minW="180px">
                 <Text fontWeight="600">{r.employee_name || `Employee ${r.employee_id}`}</Text>
                 <Text fontSize="xs" color="gray.600">
-                  {displayDate(r.attendance_date)} · {r.type === "REVOKE" ? "Revoke" : "Correction"}
+                  {displayDate(r.attendance_date)} · Request #{r.request_id}
                 </Text>
               </Box>
               <Text fontWeight="700">{r.amount_label}</Text>
               <Badge colorScheme={r.direction_color} fontSize="10px">
                 {r.direction_label}
               </Badge>
-              <Badge colorScheme={r.adjustment_status === "PENDING_ADJUSTMENT" ? "orange" : "gray"} fontSize="10px">
-                {r.adjustment_label}
+              <Badge colorScheme="orange" fontSize="10px">
+                Pending adjustment
               </Badge>
-              {r.applied ? (
-                <Text fontSize="xs" color="gray.600">
-                  {r.applied.month} · {r.applied.note}
-                </Text>
-              ) : null}
-              {canSettle && r.adjustment_status === "PENDING_ADJUSTMENT" ? (
+              {canSettle ? (
                 <Button size="xs" variant="outline" ml="auto" onClick={() => setSettling(r)}>
                   Mark settled
                 </Button>
@@ -118,9 +126,39 @@ export default function LockedCorrectionPanel() {
           ))}
         </Stack>
       )}
+      {showAll ? (
+        <Box mt={3}>
+          <Text fontSize="xs" fontWeight="600" color="gray.600" mb={1}>
+            History (every event, as recorded)
+          </Text>
+          {history.length === 0 ? (
+            <Text fontSize="xs" color="gray.500">
+              No locked-period corrections.
+            </Text>
+          ) : (
+            <Stack spacing={1}>
+              {history.map((e) => (
+                <Flex key={e.id} gap={2} fontSize="xs" wrap="wrap" align="center">
+                  <Text minW="160px">
+                    {e.employee_name || `Employee ${e.employee_id}`} · {displayDate(e.attendance_date)}
+                  </Text>
+                  <Text>{e.type === "REVOKE" ? "Revoke" : "Approval"}</Text>
+                  <Text fontWeight="600">{e.amount_label}</Text>
+                  <Badge colorScheme={e.direction_color} fontSize="9px">
+                    {e.direction_label}
+                  </Badge>
+                  <Badge fontSize="9px">{e.adjustment_label}</Badge>
+                  {e.applied ? <Text color="gray.600">{e.applied.month}</Text> : null}
+                </Flex>
+              ))}
+            </Stack>
+          )}
+        </Box>
+      ) : null}
       <Text fontSize="10px" color="gray.500" mt={2}>
-        Priced on the locked month&apos;s frozen payrun; PF/ESI not recomputed. Settle through Arrears (payable) or a
-        recovery component (recoverable) in a later month, then mark it settled.
+        Net of each correction&apos;s unsettled events, priced on the locked month&apos;s frozen payrun; PF/ESI not
+        recomputed. Settle through Arrears (payable) or a recovery component (recoverable) in a later month, then mark
+        it settled. A correction revoked before settlement nets to zero and needs nothing.
       </Text>
       {canSettle ? (
         <SettleLockedCorrectionModal

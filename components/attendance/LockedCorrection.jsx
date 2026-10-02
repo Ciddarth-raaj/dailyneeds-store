@@ -116,7 +116,7 @@ export function SettleLockedCorrectionModal({ event, isOpen, onClose, onSettled 
     }
     setSaving(true);
     try {
-      const res = await AttendanceV2Helper.settleLockedCorrection(event.id, {
+      const res = await AttendanceV2Helper.settleLockedCorrection(event.request_id, {
         applied_payroll_year: Number(m[1]),
         applied_payroll_month: Number(m[2]),
         applied_note: note.trim(),
@@ -139,7 +139,7 @@ export function SettleLockedCorrectionModal({ event, isOpen, onClose, onSettled 
     <CustomModal
       isOpen={isOpen}
       onClose={onClose}
-      title="Mark difference settled"
+      title="Mark outstanding adjustment settled"
       size="sm"
       bodyProps={{ p: 4 }}
       footer={

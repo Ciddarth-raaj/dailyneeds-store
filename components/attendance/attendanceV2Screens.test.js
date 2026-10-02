@@ -368,12 +368,22 @@ test("LOCKED-PERIOD correction inside the same Regularize flow: raise (HR), sepa
   assert.match(lockedActions, /reason\.trim\(\)\.length < 5/);
   // Settlement: Payroll only.
   assert.match(hrPage, /usePermissions\(\["process_payroll"\]\)/);
-  assert.match(lockedActions, /settleLockedCorrection\(event\.id, \{[\s\S]*?applied_payroll_year[\s\S]*?applied_payroll_month[\s\S]*?applied_note/);
-  // The display block shows the authorisation, old vs corrected, difference, direction and status.
+  assert.match(lockedActions, /settleLockedCorrection\(event\.request_id, \{[\s\S]*?applied_payroll_year[\s\S]*?applied_payroll_month[\s\S]*?applied_note/);
+  // The display block shows the authorisation, the full event history and ONE outstanding net.
   const block = read("components/attendance/LockedCorrectionBlock.jsx");
-  for (const text of ["Authorised by", "Authorised at", "Authorisation reason", "Old attendance", "Corrected attendance", "direction_label", "adjustment_label", "amount_label"]) {
+  for (const text of ["Authorised by", "Authorised at", "Authorisation reason", "Old attendance", "Corrected attendance", "direction_label", "display_label", "amount_label", "Outstanding adjustment"]) {
     assert.ok(block.includes(text), text);
   }
+  // Mark settled only on the outstanding net, and only when it is actionable - never per event.
+  assert.match(block, /view\.outstanding\.actionable \? \([\s\S]*?Mark settled[\s\S]*?\) : \([\s\S]*?view\.outstanding\.label/);
+  assert.equal((block.match(/Mark settled/g) || []).length, 1);
+  assert.match(block, /onSettle\(\{[\s\S]*?request_id: view\.request_id/);
+  // Payroll's panel: actionable rows are the outstanding nets; history has no actions.
+  const panel = read("components/payroll/LockedCorrectionPanel.jsx");
+  assert.match(panel, /setOutstanding\(\s*\(res\.outstanding \|\| \[\]\)/);
+  assert.match(panel, /setHistory\(\(res\.corrections \|\| \[\]\)\.map\(lockedEventView\)\)/);
+  const historySection = panel.slice(panel.indexOf("History (every event"));
+  assert.ok(!/Mark settled/.test(historySection), "no action on history rows");
   assert.match(detail, /<LockedCorrectionBlock day=\{day\} onSettle=\{onSettleLocked\} \/>/);
   // The form tells Manager/HR the request will need authorisation, and still refuses the employee.
   assert.match(form, /if \(day\.payroll_locked && !employeeId\)/);
