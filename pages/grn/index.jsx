@@ -6,8 +6,17 @@ import CustomContainer from "../../components/CustomContainer";
 import AgGrid from "../../components/AgGrid";
 import GrnMonthCalendar from "../../components/grn/GrnMonthCalendar";
 import GrnHighlightLoader from "../../components/grn/GrnHighlightLoader";
-import { Badge, Flex, IconButton, Tooltip, useToken } from "@chakra-ui/react";
+import GrnSearchBar from "../../components/grn/GrnSearchBar";
+import {
+  Badge,
+  Flex,
+  IconButton,
+  Text,
+  Tooltip,
+  useToken,
+} from "@chakra-ui/react";
 import { useGrnList } from "../../customHooks/useGrnList";
+import { useGrnSearch } from "../../customHooks/useGrnSearch";
 import { useGrnIssues } from "../../customHooks/useGrnIssues";
 import {
   getMismatchRowStyle,
@@ -30,6 +39,14 @@ function queryDate(value) {
   return moment(value, "YYYY-MM-DD", true).isValid() ? value : null;
 }
 
+/** Wait this long after the last keystroke before searching; Enter is immediate. */
+const SEARCH_DEBOUNCE_MS = 350;
+
+function querySearch(value) {
+  const raw = Array.isArray(value) ? value[0] : value;
+  return typeof raw === "string" ? raw.trim() : "";
+}
+
 function GrnListing() {
   const router = useRouter();
   const [mismatchBg] = useToken("colors", ["red.100"]);
@@ -39,6 +56,12 @@ function GrnListing() {
   const [viewingMonth, setViewingMonth] = useState(() =>
     moment().clone().startOf("month")
   );
+  // GRN No search runs across every date. While a term is active the table
+  // shows its results; the selected date and month are left exactly as they
+  // were, so clearing the search puts the date list straight back.
+  const [searchInput, setSearchInput] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const searching = searchTerm !== "";
   const hydratedFromQuery = useRef(false);
 
   useEffect(() => {
@@ -49,18 +72,69 @@ function GrnListing() {
       setSelectedDate(dateFromQuery);
       setViewingMonth(moment(dateFromQuery, "YYYY-MM-DD").startOf("month"));
     }
-  }, [router.isReady, router.query.date]);
+    // Coming Back from a GRN opened out of a search returns to that search.
+    const searchFromQuery = querySearch(router.query.q);
+    if (searchFromQuery) {
+      setSearchInput(searchFromQuery);
+      setSearchTerm(searchFromQuery);
+    }
+  }, [router.isReady, router.query.date, router.query.q]);
 
   useEffect(() => {
     if (!router.isReady || !hydratedFromQuery.current) return;
-    if (router.query.date === selectedDate) return;
-    router.replace(
-      { pathname: "/grn", query: { date: selectedDate } },
-      undefined,
-      { shallow: true }
-    );
+    if (
+      router.query.date === selectedDate &&
+      querySearch(router.query.q) === searchTerm
+    ) {
+      return;
+    }
+    const query = { date: selectedDate };
+    if (searchTerm) query.q = searchTerm;
+    router.replace({ pathname: "/grn", query }, undefined, { shallow: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedDate, router.isReady]);
+  }, [selectedDate, searchTerm, router.isReady]);
+
+  // Debounced while typing; emptying the box ends the search at once.
+  useEffect(() => {
+    const next = searchInput.trim();
+    if (!next) {
+      setSearchTerm("");
+      return undefined;
+    }
+    const timer = setTimeout(() => setSearchTerm(next), SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
+  const clearSearch = useCallback(() => {
+    setSearchInput("");
+    setSearchTerm("");
+  }, []);
+
+  const submitSearch = useCallback(() => {
+    setSearchTerm(searchInput.trim());
+  }, [searchInput]);
+
+  // Picking a day on the calendar is a request to browse that day.
+  const handleSelectDate = useCallback(
+    (date) => {
+      setSelectedDate(date);
+      clearSearch();
+    },
+    [clearSearch]
+  );
+
+  const {
+    results: searchResults,
+    truncated: searchTruncated,
+    loading: searchLoading,
+    error: searchError,
+  } = useGrnSearch(searchTerm);
+
+  useEffect(() => {
+    if (searchError) {
+      toast.error(searchError?.message || "Failed to search GRNs.");
+    }
+  }, [searchError]);
 
   const viewingMonthDateRange = useMemo(() => {
     const start = moment(viewingMonth).startOf("month");
@@ -264,37 +338,80 @@ function GrnListing() {
   return (
     <GlobalWrapper title="All GRN" permissionKey="view_all_grn">
       <Flex flexDirection="column" gap={6}>
+        <GrnSearchBar
+          value={searchInput}
+          onChange={setSearchInput}
+          onSubmit={submitSearch}
+          onClear={clearSearch}
+        />
+
         <GrnMonthCalendar
           grnList={grnList}
           selectedDate={selectedDate}
-          onSelectDate={setSelectedDate}
+          onSelectDate={handleSelectDate}
           viewingMonth={viewingMonth}
           onViewingMonthChange={setViewingMonth}
           loading={loading}
         />
 
-        <CustomContainer
-          title={`All GRN (${moment(selectedDate).format("DD/MM/YYYY")})`}
-          filledHeader
-        >
-          {loading || highlightLoading ? (
-            <GrnHighlightLoader
-              label={
-                loading
-                  ? "Loading GRN list..."
-                  : "Checking price mismatches..."
-              }
-              minH={loading ? "120px" : "240px"}
-            />
-          ) : (
-            <AgGrid
-              rowData={displayRowData}
-              columnDefs={colDefs}
-              tableKey="grn-list"
-              gridOptions={gridOptions}
-            />
-          )}
-        </CustomContainer>
+        {searching ? (
+          <CustomContainer
+            title={
+              searchLoading
+                ? `Search GRN No "${searchTerm}" (all dates)`
+                : `Search GRN No "${searchTerm}" (all dates) - ${searchResults.length} found`
+            }
+            filledHeader
+          >
+            {searchLoading ? (
+              <GrnHighlightLoader label="Searching GRNs..." minH="120px" />
+            ) : searchError ? (
+              <Text color="red.500">Could not search GRNs. Please try again.</Text>
+            ) : searchResults.length === 0 ? (
+              <Text color="gray.600">
+                No GRN found with a GRN No starting with &quot;{searchTerm}&quot;.
+              </Text>
+            ) : (
+              <Flex flexDirection="column" gap={2}>
+                {searchTruncated ? (
+                  <Text fontSize="sm" color="gray.600">
+                    Showing the first {searchResults.length} matches. Type
+                    more of the GRN No to narrow the results.
+                  </Text>
+                ) : null}
+                <AgGrid
+                  rowData={searchResults}
+                  columnDefs={colDefs}
+                  tableKey="grn-list"
+                  gridOptions={gridOptions}
+                />
+              </Flex>
+            )}
+          </CustomContainer>
+        ) : (
+          <CustomContainer
+            title={`All GRN (${moment(selectedDate).format("DD/MM/YYYY")})`}
+            filledHeader
+          >
+            {loading || highlightLoading ? (
+              <GrnHighlightLoader
+                label={
+                  loading
+                    ? "Loading GRN list..."
+                    : "Checking price mismatches..."
+                }
+                minH={loading ? "120px" : "240px"}
+              />
+            ) : (
+              <AgGrid
+                rowData={displayRowData}
+                columnDefs={colDefs}
+                tableKey="grn-list"
+                gridOptions={gridOptions}
+              />
+            )}
+          </CustomContainer>
+        )}
       </Flex>
     </GlobalWrapper>
   );
