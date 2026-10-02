@@ -8,6 +8,8 @@ import GrnPriceCheckerItemsModal from "../../components/grn/GrnPriceCheckerItems
 import GrnHighlightLoader from "../../components/grn/GrnHighlightLoader";
 import GrnVerifyConfirmModal from "../../components/grn/GrnVerifyConfirmModal";
 import AddToOfferV3Modal from "../../components/grn/AddToOfferV3Modal";
+import GrnProductThumbnail from "../../components/grn/GrnProductThumbnail";
+import GrnImagePreviewModal from "../../components/grn/GrnImagePreviewModal";
 import usePermissions from "../../customHooks/usePermissions";
 import {
   Badge,
@@ -16,7 +18,6 @@ import {
   Flex,
   Grid,
   GridItem,
-  Image,
   Text,
   Tooltip,
   useToken,
@@ -79,6 +80,8 @@ function GrnDetailPage() {
   const isReady = router.isReady;
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [addOfferProduct, setAddOfferProduct] = useState(null);
+  // The product image shown large over the page; view only.
+  const [previewImage, setPreviewImage] = useState(null);
   const [unignoring, setUnignoring] = useState(false);
   const [verifyOpen, setVerifyOpen] = useState(false);
   const [verifying, setVerifying] = useState(false);
@@ -251,25 +254,11 @@ function GrnDetailPage() {
         cellRenderer: (params) => {
           if (!params.value) return "—";
           return (
-            <Box
-              display="flex"
-              alignItems="center"
-              justifyContent="center"
-              h="100%"
-            >
-              <Image
-                src={params.value}
-                alt=""
-                sx={{
-                  maxWidth: "48px",
-                  maxHeight: "48px",
-                  width: "auto",
-                  height: "auto",
-                  objectFit: "contain",
-                }}
-                borderRadius="sm"
-              />
-            </Box>
+            <GrnProductThumbnail
+              src={params.value}
+              alt={productDisplayName(params.data?.product)}
+              onOpen={(src, alt) => setPreviewImage({ src, alt })}
+            />
           );
         },
       },
@@ -734,6 +723,12 @@ function GrnDetailPage() {
         onConfirm={handleVerify}
         refno={header?.mmh_mrc_refno ?? refno}
         isLoading={verifying}
+      />
+      <GrnImagePreviewModal
+        isOpen={Boolean(previewImage)}
+        onClose={() => setPreviewImage(null)}
+        src={previewImage?.src}
+        alt={previewImage?.alt}
       />
       <AddToOfferV3Modal
         isOpen={Boolean(addOfferProduct)}

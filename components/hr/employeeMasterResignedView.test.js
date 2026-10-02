@@ -71,7 +71,11 @@ test("NO OTHER SCREEN asks for it", () => {
   for (const d of ["pages", "components", "customHooks", "hooks", "helper", "util", "contexts", "hocs"]) {
     if (fs.existsSync(path.join(ROOT, d))) walk(d);
   }
-  assert.deepStrictEqual(hits.sort(), ["helper/employee.js", "pages/hr/employees/index.jsx"]);
+  assert.deepStrictEqual(hits.sort(), [
+    "components/attendance/SearchableEmployeePicker.jsx",
+    "helper/employee.js",
+    "pages/hr/employees/index.jsx",
+  ]);
 });
 
 test("the backend accepts the flag on both endpoints the page calls", () => {
@@ -81,4 +85,28 @@ test("the backend accepts the flag on both endpoints the page calls", () => {
   const masterRoutes = fs.readFileSync(path.join(backend, "employee_master.js"), "utf8");
   assert.match(employeeRoutes, /include_resigned: Joi\.number\(\)\.valid\(0, 1\)\.optional\(\)/);
   assert.match(masterRoutes, /include_resigned: Joi\.number\(\)\.valid\(0, 1\)\.optional\(\)/);
+});
+
+test("the Employee Attendance picker asks for it, so a recorded leaver can be picked", () => {
+  const picker = code(read("components/attendance/SearchableEmployeePicker.jsx"));
+  assert.match(picker, /EmployeeHelper\.getEmployee\(\{\s*status: 1,\s*include_resigned: true\s*\}\)/);
+  assert.strictEqual((picker.match(/EmployeeHelper\.getEmployee\(/g) || []).length, 1);
+  // It is the Employee Attendance screen's picker, and only that screen's.
+  const users = [];
+  for (const d of ["pages", "components"]) {
+    const walk = (dir) => {
+      for (const name of fs.readdirSync(path.join(ROOT, dir))) {
+        const rel = path.join(dir, name);
+        if (fs.statSync(path.join(ROOT, rel)).isDirectory()) walk(rel);
+        else if (/\.jsx?$/.test(name) && !/\.test\.js$/.test(name) &&
+          /import SearchableEmployeePicker/.test(read(rel))) users.push(rel);
+      }
+    };
+    walk(d);
+  }
+  assert.deepStrictEqual(users, ["pages/attendance/calculated/index.jsx"]);
+});
+
+test("the Payroll picker (Salary Revision) is unchanged", () => {
+  assert.ok(!/include_resigned/.test(read("components/payroll/EmployeePicker.jsx")));
 });

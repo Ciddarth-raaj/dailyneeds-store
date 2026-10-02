@@ -285,7 +285,9 @@ test("the Payroll employee picker and Salary Revision are unchanged by this", ()
 });
 
 test("the attendance picker is no second employee master: the same list, the same key", () => {
-  assert.match(picker, /EmployeeHelper\.getEmployee\(\{ status: 1 \}\)/);
+  // Same list and key; `include_resigned` keeps a recorded leaver pickable
+  // (employeeMasterResignedView.test.js pins why).
+  assert.match(picker, /EmployeeHelper\.getEmployee\(\{\s*status: 1,\s*include_resigned: true\s*\}\)/);
   assert.match(picker, /unwrapList\(/);
   assert.match(picker, /You do not have permission to view the employee list\./);
   assert.match(picker, /could not be loaded\. This is a problem reading it/);

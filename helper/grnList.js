@@ -12,6 +12,19 @@ export const getGrnList = ({ from_date, to_date } = {}) => {
   });
 };
 
+/**
+ * GRN No search across every date. The server matches and ranks (exact GRN
+ * first, then numbers starting with `q`) and applies the user's GRN
+ * permission; nothing is filtered here.
+ */
+export const searchGrn = (q) => {
+  return API.get("/grn/search", { params: { q } }).then((res) => {
+    const data = res?.data ?? res;
+    if (data?.code === 200) return data;
+    throw new Error(data?.msg || "Failed to search GRNs");
+  });
+};
+
 export const getGrnIssues = ({ from_date, to_date } = {}) => {
   const params = {};
   if (from_date) params.from_date = from_date;

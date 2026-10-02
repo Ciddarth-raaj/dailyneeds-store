@@ -122,7 +122,15 @@ function SearchableEmployeePicker({ selectedId, onSelect, disabled = false, trai
     (async () => {
       setLoading(true);
       try {
-        const result = unwrapList(await EmployeeHelper.getEmployee({ status: 1 }));
+        // `include_resigned`: attendance must stay reachable for somebody who
+        // has left - their last month is still reviewed and paid. The default
+        // list drops a leaver whose resignation was RECORDED (their name is in
+        // `resignation`) while keeping every other leaver, so without this the
+        // picker held most former employees but not those. Active employees
+        // are listed exactly as before. (`status` is not sent by the helper.)
+        const result = unwrapList(
+          await EmployeeHelper.getEmployee({ status: 1, include_resigned: true })
+        );
         if (cancelled) return;
         setRows(result.items);
         setDenied(result.accessDenied);
