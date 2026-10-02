@@ -28,6 +28,7 @@ const {
   correctionRequestRows,
   formatOtClock,
   canRegularize,
+  canRegularizeBreak,
   positionalPunches,
   punchSummary,
   formatMinutes,
@@ -161,6 +162,17 @@ test("only a Missing Punch day can be regularized; a pending one cannot be regul
   assert.equal(canRegularize(day()), false);
   assert.equal(canRegularize(day({ status: "ABSENT", punch_count: 0, effective_punches: [] })), false);
   assert.equal(canRegularize(day({ status: "FINAL", ot_claim_state: "AVAILABLE", candidate_ot_minutes: 30 })), false, "OT is never regularized");
+});
+
+test("a missed break can be regularized on a complete, shift-based day only", () => {
+  const shift = { shift_snapshot: { work_shift_id: 7 } };
+  assert.equal(canRegularizeBreak(day(shift)), true, "10:09 -> 22:04, lunch not punched");
+  assert.equal(canRegularizeBreak(day({ ...shift, punch_count: 4, effective_punches: punches("09:00", "13:00", "14:00", "22:00") })), true);
+  assert.equal(canRegularizeBreak(day({ ...shift, status: "REVIEW_REQUIRED", punch_count: 3 })), false, "missing punch first");
+  assert.equal(canRegularizeBreak(day({ ...shift, status: "REGULARIZATION_PENDING" })), false);
+  assert.equal(canRegularizeBreak(day({ ...shift, status: "ABSENT", punch_count: 0, effective_punches: [] })), false);
+  assert.equal(canRegularizeBreak(day()), false, "no shift resolved");
+  assert.equal(canRegularizeBreak(null), false);
 });
 
 /* ================================================= dynamic punches ==== */

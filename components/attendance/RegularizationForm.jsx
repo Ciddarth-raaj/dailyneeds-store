@@ -27,6 +27,14 @@ import {
 /**
  * Missing Punch Regularization. Opened from a Missing Punch day.
  *
+ * MISSED BREAK MODE (`mode="MISSED_BREAK"`, manager/HR only): the SAME
+ * regularization request, raised for `employeeId` on a complete day whose
+ * employee took a break (lunch) without punching. It asks for the break's OUT
+ * and IN; once approved both join the punches as regularized manual punches
+ * (10:09 IN -> 14:00 OUT -> 15:00 IN -> 22:04 OUT) and the day is recalculated
+ * by the ordinary engine. The backend checks the sequence, the permission,
+ * the open requests and the payroll lock.
+ *
  * The date and the existing punches are shown READ-ONLY - they are the
  * device's record and this form has no way to change them; the request body
  * carries only the missing punch time and the reason. Where the new punch
@@ -39,8 +47,18 @@ import {
  * "Regularization Pending"; if the corrected day creates OT, that OT rides
  * the SAME request.
  */
-export default function RegularizationForm({ day, isOpen, onClose, onSubmitted }) {
+export default function RegularizationForm({
+  day,
+  isOpen,
+  onClose,
+  onSubmitted,
+  mode = "MISSING_PUNCH",
+  employeeId = null,
+}) {
+  const isBreak = mode === "MISSED_BREAK";
   const [time, setTime] = useState("");
+  const [breakOut, setBreakOut] = useState("");
+  const [breakIn, setBreakIn] = useState("");
   const [reason, setReason] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -51,11 +69,45 @@ export default function RegularizationForm({ day, isOpen, onClose, onSubmitted }
 
   const reset = () => {
     setTime("");
+    setBreakOut("");
+    setBreakIn("");
     setReason("");
     setError(null);
   };
 
+  const submitBreak = async () => {
+    setError(null);
+    if (!/^\d{2}:\d{2}$/.test(breakOut) || !/^\d{2}:\d{2}$/.test(breakIn)) {
+      setError("Enter the break OUT and IN times");
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await AttendanceV2Helper.raiseRegularization({
+        requested_for_employee_id: employeeId,
+        attendance_date: date,
+        break_out_time: `${calendarDateFor(day, breakOut)} ${breakOut}:00`,
+        break_in_time: `${calendarDateFor(day, breakIn)} ${breakIn}:00`,
+        reason: reason.trim(),
+      });
+      if (!isOk(res)) {
+        setError(apiMessage(res));
+        return;
+      }
+      reset();
+      onSubmitted(res);
+    } catch (err) {
+      setError("Could not reach the server. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const submit = async () => {
+    if (isBreak) {
+      await submitBreak();
+      return;
+    }
     setError(null);
     if (!/^\d{2}:\d{2}$/.test(time)) {
       setError("Enter the missing punch time");
@@ -89,7 +141,7 @@ export default function RegularizationForm({ day, isOpen, onClose, onSubmitted }
         reset();
         onClose();
       }}
-      title="Regularize Missing Punch"
+      title={isBreak ? "Regularize Missed Break" : "Regularize Missing Punch"}
       size="md"
       bodyProps={{ p: 4 }}
       footer={
@@ -140,13 +192,32 @@ export default function RegularizationForm({ day, isOpen, onClose, onSubmitted }
           )}
         </Box>
 
-        <FormControl isRequired>
-          <FormLabel fontSize="sm">Missing Punch Time</FormLabel>
-          <Input type="time" value={time} onChange={(e) => setTime(e.target.value)} />
-          <Text fontSize="xs" color="gray.500" mt={1}>
-            Whether it is an IN or an OUT is worked out from the order of the punches.
-          </Text>
-        </FormControl>
+        {isBreak ? (
+          <Box>
+            <Flex gap={3}>
+              <FormControl isRequired>
+                <FormLabel fontSize="sm">Break OUT</FormLabel>
+                <Input type="time" value={breakOut} onChange={(e) => setBreakOut(e.target.value)} />
+              </FormControl>
+              <FormControl isRequired>
+                <FormLabel fontSize="sm">Break IN</FormLabel>
+                <Input type="time" value={breakIn} onChange={(e) => setBreakIn(e.target.value)} />
+              </FormControl>
+            </Flex>
+            <Text fontSize="xs" color="gray.500" mt={1}>
+              Both must fall between an existing IN and the OUT after it. They are added as regularized manual
+              punches after approval; the device punches are not changed.
+            </Text>
+          </Box>
+        ) : (
+          <FormControl isRequired>
+            <FormLabel fontSize="sm">Missing Punch Time</FormLabel>
+            <Input type="time" value={time} onChange={(e) => setTime(e.target.value)} />
+            <Text fontSize="xs" color="gray.500" mt={1}>
+              Whether it is an IN or an OUT is worked out from the order of the punches.
+            </Text>
+          </FormControl>
+        )}
 
         <FormControl isRequired>
           <FormLabel fontSize="sm">Reason</FormLabel>
@@ -154,7 +225,7 @@ export default function RegularizationForm({ day, isOpen, onClose, onSubmitted }
             rows={3}
             value={reason}
             onChange={(e) => setReason(e.target.value)}
-            placeholder="Why the punch is missing"
+            placeholder={isBreak ? "Why the break was not punched" : "Why the punch is missing"}
           />
         </FormControl>
 

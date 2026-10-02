@@ -55,6 +55,19 @@ const attendanceV2 = {
         .catch(reject);
     }),
 
+  /**
+   * Manager/HR raise for an employee: `{ requested_for_employee_id,
+   * attendance_date, reason }` plus `punch_time` (a missing punch) or
+   * `break_out_time` + `break_in_time` (a missed break). The backend requires
+   * `raise_attendance_regularization_for_others` for a break.
+   */
+  raiseRegularization: (body) =>
+    new Promise((resolve, reject) => {
+      API.post("/attendance/regularization", body)
+        .then((res) => resolve(res.data))
+        .catch(reject);
+    }),
+
   /** `{ attendance_date, reason }`. Never minutes, never an employee id. */
   raiseMyOtRequest: ({ attendance_date, reason }) =>
     new Promise((resolve, reject) => {

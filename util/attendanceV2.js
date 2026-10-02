@@ -711,6 +711,18 @@ function canRegularize(day) {
   return !!issue && issue.key === "MISSING_PUNCH";
 }
 
+/**
+ * A MISSED BREAK (lunch OUT + IN) may be regularized on a complete, shift-based
+ * day: an even, non-zero punch count and nothing pending. Presentation only -
+ * the backend re-checks the sequence, the open requests and the payroll lock.
+ */
+function canRegularizeBreak(day) {
+  if (!day || isPresentAbsentOnlyDay(day) || !day.shift_snapshot) return false;
+  const count = Number(day.punch_count) || 0;
+  if (count < 2 || count % 2 !== 0) return false;
+  return day.status === STATUS.FINAL;
+}
+
 /** `HH:MM` from `YYYY-MM-DD HH:MM:SS` (or `HH:MM:SS`). */
 function clock(ioTime) {
   if (!ioTime) return "";
@@ -1298,6 +1310,7 @@ module.exports = {
   correctionRequestRows,
   formatOtClock,
   canRegularize,
+  canRegularizeBreak,
   clock,
   positionalPunches,
   punchSummary,

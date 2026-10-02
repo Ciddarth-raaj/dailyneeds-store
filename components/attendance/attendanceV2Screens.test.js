@@ -138,7 +138,21 @@ test("Regularize appears only on a Missing Punch day, and Edit Shift only when t
   assert.ok(!/onEditShift/.test(myPage), "no Edit Shift for the employee");
   assert.match(hrPage, /usePermissions\(\["edit_attendance_date_shift"\]\)/);
   assert.match(hrPage, /onEditShift=\{canEditShift \? \(day\) => setEditing\(day\) : null\}/);
-  assert.ok(!/onRegularize/.test(hrPage), "the HR view does not regularize on somebody's behalf");
+  assert.ok(!/onRegularize=/.test(hrPage), "the HR view does not regularize a missing punch on somebody's behalf");
+});
+
+test("Regularize Break: a complete day, HR view only, behind raise_attendance_regularization_for_others", () => {
+  assert.match(detail, /const showRegularizeBreak = !!onRegularizeBreak && canRegularizeBreak\(day\)/);
+  assert.match(detail, /\{showRegularizeBreak \? \([\s\S]*?Regularize Break/);
+  assert.ok(!/onRegularizeBreak/.test(myPage), "never self-service");
+  assert.match(hrPage, /usePermissions\(\["raise_attendance_regularization_for_others"\]\)/);
+  assert.match(hrPage, /onRegularizeBreak=\{canRegularizeBreak \? \(day\) => setRegularizingBreak\(day\) : null\}/);
+  assert.match(hrPage, /<RegularizationForm[\s\S]*?mode="MISSED_BREAK"/);
+  // The SAME request: the HR raise, carrying the break's OUT and IN, for the employee.
+  assert.match(form, /raiseRegularization\(\{[\s\S]*?requested_for_employee_id: employeeId,[\s\S]*?break_out_time:[\s\S]*?break_in_time:/);
+  assert.match(helper, /"\/attendance\/regularization"/);
+  // A manual punch is marked as one in the Day Detail.
+  assert.match(detail, /if \(punch\.regularized\)[\s\S]*?Manual[\s\S]*?REGULARIZED_PUNCH_LABEL/);
 });
 
 /* ======================================== the regularization ==== */

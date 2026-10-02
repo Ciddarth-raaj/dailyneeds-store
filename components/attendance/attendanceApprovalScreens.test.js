@@ -83,8 +83,12 @@ test("3. a row or card expands inline - no separate detail page and no View butt
 
 test("4. existing and proposed punches are shown; 5. reason and attendance metrics are shown", () => {
   assert.match(detail, /label=\{isOt \? "Punches" : "Existing punches"\}/);
-  assert.match(detail, /label="Proposed missing punch"/);
-  assert.match(detail, /clock\(row\.proposed_punch_time\)/);
+  assert.match(detail, /"Proposed missing punch"/);
+  assert.match(detail, /proposedPunchLabel\(row\)/);
+  assert.match(queue, /clock\(row\.proposed_punch_time\)/);
+  // A missed break proposes the OUT and the IN, both shown.
+  assert.match(detail, /"Proposed missed break"/);
+  assert.match(queue, /clock\(row\.proposed_second_punch_time\)/);
   assert.match(detail, /label="Employee reason"/);
   for (const m of ['label="NRM"', 'label="Worked"', 'label="Shortage"']) assert.match(detail, new RegExp(m), m);
   assert.match(detail, /label="Employee"/);

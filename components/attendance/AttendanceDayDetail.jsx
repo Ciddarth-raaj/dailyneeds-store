@@ -8,6 +8,7 @@ import {
   PUNCH_STATUS_LABEL,
   REGULARIZED_PUNCH_LABEL,
   canRegularize,
+  canRegularizeBreak,
   dayIssue,
   presentBadge,
   dayPunchRows,
@@ -70,6 +71,12 @@ import {
  * `edit_attendance_date_shift` - and the backend checks that key again on
  * the request, so this prop is presentation, not security.
  *
+ * REGULARIZE BREAK is the same shape: `onRegularizeBreak` is passed only by
+ * the HR/Admin screen, only when the caller holds
+ * `raise_attendance_regularization_for_others`, and the button appears only
+ * on a complete (even-punch) day. It opens the existing regularization form
+ * in its missed-break mode; the backend checks everything again.
+ *
  * VOID PUNCH is the same shape: `onVoidPunch` is passed only by the HR/Admin
  * screen, only when the caller holds `void_attendance_punch`, and the
  * compact action appears beside a raw BIOMAX / IMPORT punch only - never on
@@ -91,10 +98,17 @@ function Row({ label, value, accent }) {
 
 function PunchStatusBadge({ punch }) {
   if (punch.regularized) {
+    // A manual punch from an approved regularization (a missing punch or a
+    // missed break) - never mistaken for one the device recorded.
     return (
-      <Text fontSize="xs" color="orange.700">
-        {REGULARIZED_PUNCH_LABEL}
-      </Text>
+      <Flex align="center" gap={1}>
+        <Badge colorScheme="purple" fontSize="10px" title="Manual punch added by an approved regularization">
+          Manual
+        </Badge>
+        <Text fontSize="xs" color="orange.700">
+          {REGULARIZED_PUNCH_LABEL}
+        </Text>
+      </Flex>
     );
   }
   if (!punch.excluded) return null;
@@ -110,6 +124,7 @@ export default function AttendanceDayDetail({
   isOpen,
   onClose,
   onRegularize,
+  onRegularizeBreak,
   onRequestOt,
   onEditShift,
   onVoidPunch,
@@ -122,6 +137,7 @@ export default function AttendanceDayDetail({
   const punches = dayPunchRows(day);
   const approvedOt = Number(day.approved_ot_minutes) || 0;
   const showRegularize = !!onRegularize && canRegularize(day);
+  const showRegularizeBreak = !!onRegularizeBreak && canRegularizeBreak(day);
   const ot = otClaim(day);
   const showRequestOt = !!onRequestOt && !!ot && ot.canRequest;
   // Not offered on a Present/Absent Only date: nothing is short to forgive.
@@ -144,6 +160,11 @@ export default function AttendanceDayDetail({
           {showRegularize ? (
             <Button size="sm" colorScheme="purple" onClick={() => onRegularize(day)}>
               Regularize
+            </Button>
+          ) : null}
+          {showRegularizeBreak ? (
+            <Button size="sm" variant="outline" colorScheme="purple" onClick={() => onRegularizeBreak(day)}>
+              Regularize Break
             </Button>
           ) : null}
           {showRequestPermission ? (

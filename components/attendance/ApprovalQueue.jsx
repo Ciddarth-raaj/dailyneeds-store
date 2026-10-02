@@ -243,9 +243,13 @@ function Detail({ row, kind, onDecide, deciding, onRevoke = null }) {
       <SimpleGrid columns={{ base: 1, md: 2 }} spacing={3}>
         <Field label={isOt ? "Punches" : "Existing punches"}><Punches punches={row.effective_punches} /></Field>
         {!isOt ? (
-          <Field label="Proposed missing punch">
-            <Text fontFamily="mono" color="orange.700">{row.proposed_punch_time ? clock(row.proposed_punch_time) : "—"}</Text>
-            <Text fontSize="xs" color="gray.500" fontWeight="400">IN or OUT is decided by its position once added.</Text>
+          <Field label={row.proposed_second_punch_time ? "Proposed missed break" : "Proposed missing punch"}>
+            <Text fontFamily="mono" color="orange.700">{proposedPunchLabel(row)}</Text>
+            <Text fontSize="xs" color="gray.500" fontWeight="400">
+              {row.proposed_second_punch_time
+                ? "Added as two regularized manual punches; the device punches are not changed."
+                : "IN or OUT is decided by its position once added."}
+            </Text>
           </Field>
         ) : (
           <Field label="Eligible OT (read only)">
@@ -334,6 +338,18 @@ function Detail({ row, kind, onDecide, deciding, onRevoke = null }) {
       ) : null}
     </Stack>
   );
+}
+
+/**
+ * The punch(es) a regularization proposes: one missing punch, or - for a
+ * missed break - the OUT and IN pair, both added as manual punches on approval.
+ */
+function proposedPunchLabel(row) {
+  if (!row.proposed_punch_time) return "—";
+  if (row.proposed_second_punch_time) {
+    return `${clock(row.proposed_punch_time)} OUT → ${clock(row.proposed_second_punch_time)} IN (break)`;
+  }
+  return clock(row.proposed_punch_time);
 }
 
 const summaryPunches = (row) => positional(row.effective_punches).map((p) => p.time).join(" → ") || "—";
@@ -432,7 +448,7 @@ export default function ApprovalQueue({ rows, kind, loading, onDecide, deciding,
                 ) : isOt ? (
                   <Text fontSize="xs" color="blue.700" fontWeight="600">Eligible OT {formatOtClock(row.eligible_ot_minutes)}{row.status === "APPROVED" ? ` · Approved ${formatOtClock(row.approved_ot_minutes)}` : ""}</Text>
                 ) : (
-                  <Text fontSize="xs" color="orange.700" fontWeight="600">Proposed {row.proposed_punch_time ? clock(row.proposed_punch_time) : "—"}</Text>
+                  <Text fontSize="xs" color="orange.700" fontWeight="600">Proposed {proposedPunchLabel(row)}</Text>
                 )}
                 <Text fontSize="xs" color="gray.600" noOfLines={expanded ? undefined : 1}>{row.reason}</Text>
                 <Text fontSize="10px" color="gray.500">Submitted {displayDateTime(row.submitted_at)}</Text>
@@ -497,7 +513,7 @@ export default function ApprovalQueue({ rows, kind, loading, onDecide, deciding,
                   ) : isPermission ? (
                     <Td fontFamily="mono" fontSize="xs" color="teal.700" whiteSpace="nowrap">{permissionWindows(row)}</Td>
                   ) : (
-                    <Td fontFamily="mono" color="orange.700">{row.proposed_punch_time ? clock(row.proposed_punch_time) : "—"}</Td>
+                    <Td fontFamily="mono" color="orange.700" whiteSpace="nowrap">{proposedPunchLabel(row)}</Td>
                   )}
                   {isOt ? (
                     <Td isNumeric fontFamily="mono">{formatOtClock(row.eligible_ot_minutes)}{history && Number(row.claimed_ot_minutes) !== Number(row.eligible_ot_minutes) ? ` / ${formatOtClock(row.claimed_ot_minutes)}` : ""}</Td>

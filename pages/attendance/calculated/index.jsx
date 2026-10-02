@@ -9,6 +9,7 @@ import AttendanceSummaryCards from "../../../components/attendance/AttendanceSum
 import AttendanceDayDetail from "../../../components/attendance/AttendanceDayDetail";
 import EditShiftModal from "../../../components/attendance/EditShiftModal";
 import VoidPunchModal from "../../../components/attendance/VoidPunchModal";
+import RegularizationForm from "../../../components/attendance/RegularizationForm";
 import usePermissions from "../../../customHooks/usePermissions";
 import AttendanceV2Helper from "../../../helper/attendanceV2";
 import {
@@ -80,6 +81,9 @@ export default function EmployeeAttendancePage() {
   const router = useRouter();
   const canEditShift = usePermissions(["edit_attendance_date_shift"]);
   const canVoidPunch = usePermissions(["void_attendance_punch"]);
+  // A missed break (lunch OUT + IN) is regularized by a manager/HR user for
+  // the employee; the backend requires the same key.
+  const canRegularizeBreak = usePermissions(["raise_attendance_regularization_for_others"]);
   const [employeeId, setEmployeeId] = useState(null);
   const [month, setMonth] = useState(currentMonth());
   const [days, setDays] = useState([]);
@@ -88,6 +92,7 @@ export default function EmployeeAttendancePage() {
   const [selected, setSelected] = useState(null);
   const [editing, setEditing] = useState(null);
   const [voiding, setVoiding] = useState(null);
+  const [regularizingBreak, setRegularizingBreak] = useState(null);
   const [summaryFilter, setSummaryFilter] = useState(SUMMARY_FILTER.ALL);
   /* The date a deep link asked to open, consumed once the month has loaded. */
   const [pendingDate, setPendingDate] = useState(null);
@@ -190,6 +195,23 @@ export default function EmployeeAttendancePage() {
     await load();
   };
 
+  const onBreakSubmitted = async (res) => {
+    setRegularizingBreak(null);
+    setSelected(null);
+    const ot = res.ot_revalidation;
+    toast({
+      title: res.auto_approved ? "Break regularized" : "Break regularization sent for approval",
+      description:
+        ot && ot.approved_ot_reduced
+          ? `Approved OT on ${res.attendance_date} will be re-capped from ${ot.approved_ot_minutes_before} to ${ot.approved_ot_minutes_after} minutes once approved.`
+          : `${res.attendance_date} is recalculated as soon as the request is approved.`,
+      status: "success",
+      duration: 6000,
+      isClosable: true,
+    });
+    await load();
+  };
+
   /* Counted and filtered from the rows already in hand - no second request. */
   const counts = attendanceSummary(days);
   const visibleDays = filterDaysBySummary(days, summaryFilter);
@@ -254,7 +276,18 @@ export default function EmployeeAttendancePage() {
         onClose={() => setSelected(null)}
         onEditShift={canEditShift ? (day) => setEditing(day) : null}
         onVoidPunch={canVoidPunch ? (punch) => setVoiding(punch) : null}
+        onRegularizeBreak={canRegularizeBreak ? (day) => setRegularizingBreak(day) : null}
       />
+      {canRegularizeBreak ? (
+        <RegularizationForm
+          mode="MISSED_BREAK"
+          employeeId={employeeId}
+          day={regularizingBreak}
+          isOpen={!!regularizingBreak}
+          onClose={() => setRegularizingBreak(null)}
+          onSubmitted={onBreakSubmitted}
+        />
+      ) : null}
       {canVoidPunch ? (
         <VoidPunchModal
           punch={voiding ? { ...voiding, employee_name: selected ? selected.employee_name : null } : null}
