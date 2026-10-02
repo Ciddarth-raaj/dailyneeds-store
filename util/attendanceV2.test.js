@@ -1009,25 +1009,32 @@ test("pending adjustments: only the derived NET is actionable; a correction revo
     attendance_locked_period_correction_event_id: id, event_type: type, occurred_at: "2026-10-02 10:00:00",
     net_difference: net, direction: net > 0 ? "PAYABLE_TO_EMPLOYEE" : "RECOVERABLE_FROM_EMPLOYEE", adjustment_status: status,
   });
-  // A. approve -> revoke before settlement
+  // A. approve -> revoke before settlement: the backend derives NETTED_OFF.
   const a = lockedCorrectionView(day({
     locked_period_correction: {
       request_id: 900, request_status: "CANCELLED", status: "REVOKED",
-      events: [ev(1, "APPROVAL", -66.66, "PENDING_ADJUSTMENT"), ev(2, "REVOKE", 66.66, "PENDING_ADJUSTMENT")],
-      outstanding: { net_difference: 0, direction: "NO_DIFFERENCE", actionable: false, netted_off: true, pending_event_ids: [1, 2], label: "No adjustment required — correction revoked before settlement" },
+      events: [
+        { ...ev(1, "APPROVAL", -66.66, "PENDING_ADJUSTMENT"), effective_adjustment_status: "NETTED_OFF" },
+        { ...ev(2, "REVOKE", 66.66, "PENDING_ADJUSTMENT"), effective_adjustment_status: "NETTED_OFF" },
+      ],
+      outstanding: { state: "NETTED_OFF", net_difference: 0, direction: "NO_DIFFERENCE", actionable: false, netted_off: true, pending_event_ids: [1, 2], label: "NETTED_OFF — no payroll adjustment required" },
     },
   }));
   assert.equal(a.events.length, 2, "full immutable history kept");
-  assert.deepEqual(a.events.map((e) => e.display_label), ["Netted off — revoked before settlement", "Netted off — revoked before settlement"]);
+  assert.deepEqual(a.events.map((e) => e.display_label), ["NETTED_OFF — no payroll adjustment required", "NETTED_OFF — no payroll adjustment required"]);
+  assert.deepEqual(a.events.map((e) => e.adjustment_status), ["PENDING_ADJUSTMENT", "PENDING_ADJUSTMENT"], "stored status untouched");
   assert.equal(a.outstanding.actionable, false);
-  assert.equal(a.outstanding.label, "No adjustment required — correction revoked before settlement");
+  assert.equal(a.outstanding.label, "NETTED_OFF — no payroll adjustment required");
 
   // B. approve -> settle -> revoke
   const b = lockedCorrectionView(day({
     locked_period_correction: {
       request_id: 901, request_status: "CANCELLED", status: "REVOKED",
-      events: [ev(1, "APPROVAL", -66.66, "SETTLED"), ev(2, "REVOKE", 66.66, "PENDING_ADJUSTMENT")],
-      outstanding: { net_difference: 66.66, direction: "PAYABLE_TO_EMPLOYEE", actionable: true, netted_off: false, pending_event_ids: [2], label: null },
+      events: [
+        { ...ev(1, "APPROVAL", -66.66, "SETTLED"), effective_adjustment_status: "SETTLED" },
+        { ...ev(2, "REVOKE", 66.66, "PENDING_ADJUSTMENT"), effective_adjustment_status: "PENDING_ADJUSTMENT" },
+      ],
+      outstanding: { state: "OUTSTANDING", net_difference: 66.66, direction: "PAYABLE_TO_EMPLOYEE", actionable: true, netted_off: false, pending_event_ids: [2], label: null },
     },
   }));
   assert.deepEqual(b.events.map((e) => e.display_label), ["Settled", "Pending adjustment"]);

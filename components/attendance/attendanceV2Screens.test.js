@@ -384,6 +384,8 @@ test("LOCKED-PERIOD correction inside the same Regularize flow: raise (HR), sepa
   assert.match(panel, /setHistory\(\(res\.corrections \|\| \[\]\)\.map\(lockedEventView\)\)/);
   const historySection = panel.slice(panel.indexOf("History (every event"));
   assert.ok(!/Mark settled/.test(historySection), "no action on history rows");
+  // The pending count is the outstanding nets only - netted-off corrections are never counted.
+  assert.match(panel, /outstanding\.length > 0 \?[\s\S]*?\{outstanding\.length\} pending/);
   assert.match(detail, /<LockedCorrectionBlock day=\{day\} onSettle=\{onSettleLocked\} \/>/);
   // The form tells Manager/HR the request will need authorisation, and still refuses the employee.
   assert.match(form, /if \(day\.payroll_locked && !employeeId\)/);

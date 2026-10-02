@@ -78,9 +78,16 @@ export default function LockedCorrectionPanel() {
   return (
     <Box mt={4} borderWidth="1px" borderColor="gray.200" borderRadius="md" p={3}>
       <Flex justify="space-between" align="center" gap={2} wrap="wrap" mb={2}>
-        <Text fontWeight="600" fontSize="sm">
-          Locked-period attendance corrections
-        </Text>
+        <Flex align="center" gap={2}>
+          <Text fontWeight="600" fontSize="sm">
+            Locked-period attendance corrections
+          </Text>
+          {outstanding.length > 0 ? (
+            <Badge colorScheme="orange" fontSize="10px">
+              {outstanding.length} pending
+            </Badge>
+          ) : null}
+        </Flex>
         <Flex align="center" gap={2}>
           <Text fontSize="xs" color="gray.600">
             Show history

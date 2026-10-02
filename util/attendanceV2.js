@@ -819,6 +819,8 @@ const ADJUSTMENT_STATUS_LABEL = Object.freeze({
   PENDING_ADJUSTMENT: "Pending adjustment",
   SETTLED: "Settled",
   NOT_REQUIRED: "No adjustment required",
+  // DERIVED by the backend, never stored: pending events whose request nets to 0.
+  NETTED_OFF: "NETTED_OFF — no payroll adjustment required",
 });
 
 /** `₹66.66` from a signed amount, always shown as a positive figure. */
@@ -863,7 +865,13 @@ function lockedEventView(e) {
     direction_label: PAYROLL_DIRECTION_LABEL[e.direction] || e.direction,
     direction_color: PAYROLL_DIRECTION_COLOR[e.direction] || "gray",
     adjustment_status: e.adjustment_status,
-    adjustment_label: ADJUSTMENT_STATUS_LABEL[e.adjustment_status] || e.adjustment_status,
+    // What the event means NOW - the backend's derived status (NETTED_OFF),
+    // falling back to the stored one. The stored figures never change.
+    effective_adjustment_status: e.effective_adjustment_status || e.adjustment_status,
+    adjustment_label:
+      ADJUSTMENT_STATUS_LABEL[e.effective_adjustment_status || e.adjustment_status] ||
+      e.effective_adjustment_status ||
+      e.adjustment_status,
     applied:
       e.adjustment_status === "SETTLED"
         ? {
@@ -904,12 +912,8 @@ function lockedCorrectionView(day) {
   const outstanding = outstandingView(c.outstanding);
   const events = (c.events || []).map(lockedEventView).map((e) => ({
     ...e,
-    // The event's own record never changes; this says what it means NOW: an
-    // unsettled event inside a net of zero was cancelled before settlement.
-    display_label:
-      e.adjustment_status === "PENDING_ADJUSTMENT" && outstanding && outstanding.netted_off && outstanding.pending_event_ids.includes(Number(e.id))
-        ? "Netted off — revoked before settlement"
-        : e.adjustment_label,
+    // The event's own record never changes; this says what it means NOW.
+    display_label: e.adjustment_label,
   }));
   return {
     outstanding,
