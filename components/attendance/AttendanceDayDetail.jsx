@@ -87,9 +87,8 @@ import {
  * is raised needing authorisation. `onAuthorizeLocked` (holders of
  * `correct_locked_attendance`) shows "Authorize locked-period correction"
  * while that authorisation is required. The day's locked-period correction -
- * authorisation, old vs corrected attendance, payroll difference, direction
- * and adjustment status - is shown by `LockedCorrectionBlock`, with Mark
- * settled for `onSettleLocked` (Payroll).
+ * authorisation and each event's old vs corrected attendance and OT impact
+ * (attendance only, no money) - is shown by `LockedCorrectionBlock`.
  *
  * VOID PUNCH is the same shape: `onVoidPunch` is passed only by the HR/Admin
  * screen, only when the caller holds `void_attendance_punch`, and the
@@ -141,7 +140,6 @@ export default function AttendanceDayDetail({
   allowLunchRegularization = false,
   allowLockedRegularization = false,
   onAuthorizeLocked = null,
-  onSettleLocked = null,
   onRequestOt,
   onEditShift,
   onVoidPunch,
@@ -369,7 +367,7 @@ export default function AttendanceDayDetail({
           </Box>
         ) : null}
 
-        <LockedCorrectionBlock day={day} onSettle={onSettleLocked} />
+        <LockedCorrectionBlock day={day} />
 
         {ot ? (
           <Box borderWidth="1px" borderColor={`${ot.color}.100`} bg={`${ot.color}.50`} borderRadius="md" px={3} py={2}>

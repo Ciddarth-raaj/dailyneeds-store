@@ -989,7 +989,8 @@ test("the locked-period correction view: authorise only while REQUIRED and pendi
         attendance_locked_period_correction_event_id: 1, event_type: "APPROVAL", occurred_at: "2026-10-02 10:00:00",
         old_calculation: { worked_minutes: 685, break_charged_minutes: 30, candidate_ot_minutes: 235, approved_ot_minutes: 235, effective_punches: [{ io_time: "2026-09-12 10:09:00" }, { io_time: "2026-09-12 22:04:00" }] },
         new_calculation: { worked_minutes: 655, break_charged_minutes: 60, candidate_ot_minutes: 205, approved_ot_minutes: 205, effective_punches: [] },
-        net_difference: -66.66, direction: "RECOVERABLE_FROM_EMPLOYEE", adjustment_status: "PENDING_ADJUSTMENT",
+        old_worked_minutes: 685, new_worked_minutes: 655, old_break_charged_minutes: 30, new_break_charged_minutes: 60,
+        old_ot_eligible_minutes: 235, new_ot_eligible_minutes: 205, old_approved_ot_minutes: 235, new_approved_ot_minutes: 205,
       }],
     },
   }));
@@ -998,47 +999,8 @@ test("the locked-period correction view: authorise only while REQUIRED and pendi
   const [e] = v.events;
   assert.equal(e.old.punches, "10:09 → 22:04");
   assert.equal(e.corrected.approved_ot, 205);
-  assert.equal(e.amount_label, "₹66.66");
-  assert.equal(e.direction_label, "Recoverable from employee");
-  assert.equal(e.adjustment_label, "Pending adjustment");
+  assert.deepEqual(e.impact.approved_ot, { before: 235, after: 205, change: -30 });
+  assert.equal(e.impact_label, "Worked −30m · Break +30m · OT eligible −30m · Approved OT −30m");
+  assert.ok(!/amount|direction|adjustment/.test(Object.keys(e).join(",")), "no money on the event view");
 });
 
-
-test("pending adjustments: only the derived NET is actionable; a correction revoked before settlement needs nothing", () => {
-  const ev = (id, type, net, status) => ({
-    attendance_locked_period_correction_event_id: id, event_type: type, occurred_at: "2026-10-02 10:00:00",
-    net_difference: net, direction: net > 0 ? "PAYABLE_TO_EMPLOYEE" : "RECOVERABLE_FROM_EMPLOYEE", adjustment_status: status,
-  });
-  // A. approve -> revoke before settlement: the backend derives NETTED_OFF.
-  const a = lockedCorrectionView(day({
-    locked_period_correction: {
-      request_id: 900, request_status: "CANCELLED", status: "REVOKED",
-      events: [
-        { ...ev(1, "APPROVAL", -66.66, "PENDING_ADJUSTMENT"), effective_adjustment_status: "NETTED_OFF" },
-        { ...ev(2, "REVOKE", 66.66, "PENDING_ADJUSTMENT"), effective_adjustment_status: "NETTED_OFF" },
-      ],
-      outstanding: { state: "NETTED_OFF", net_difference: 0, direction: "NO_DIFFERENCE", actionable: false, netted_off: true, pending_event_ids: [1, 2], label: "NETTED_OFF — no payroll adjustment required" },
-    },
-  }));
-  assert.equal(a.events.length, 2, "full immutable history kept");
-  assert.deepEqual(a.events.map((e) => e.display_label), ["NETTED_OFF — no payroll adjustment required", "NETTED_OFF — no payroll adjustment required"]);
-  assert.deepEqual(a.events.map((e) => e.adjustment_status), ["PENDING_ADJUSTMENT", "PENDING_ADJUSTMENT"], "stored status untouched");
-  assert.equal(a.outstanding.actionable, false);
-  assert.equal(a.outstanding.label, "NETTED_OFF — no payroll adjustment required");
-
-  // B. approve -> settle -> revoke
-  const b = lockedCorrectionView(day({
-    locked_period_correction: {
-      request_id: 901, request_status: "CANCELLED", status: "REVOKED",
-      events: [
-        { ...ev(1, "APPROVAL", -66.66, "SETTLED"), effective_adjustment_status: "SETTLED" },
-        { ...ev(2, "REVOKE", 66.66, "PENDING_ADJUSTMENT"), effective_adjustment_status: "PENDING_ADJUSTMENT" },
-      ],
-      outstanding: { state: "OUTSTANDING", net_difference: 66.66, direction: "PAYABLE_TO_EMPLOYEE", actionable: true, netted_off: false, pending_event_ids: [2], label: null },
-    },
-  }));
-  assert.deepEqual(b.events.map((e) => e.display_label), ["Settled", "Pending adjustment"]);
-  assert.equal(b.outstanding.actionable, true);
-  assert.equal(b.outstanding.amount_label, "₹66.66");
-  assert.equal(b.outstanding.direction_label, "Payable to employee");
-});

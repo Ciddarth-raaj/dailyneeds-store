@@ -797,6 +797,11 @@ function regularizeBlockedReason(day, options = {}) {
 }
 
 /* ============================== LOCKED-PERIOD CORRECTION, for display ==== */
+/*
+ * ATTENDANCE AND OT ONLY. A locked-period correction records the day before
+ * and after and how worked time, break and OT moved; it carries no money and
+ * the frozen payroll is not changed.
+ */
 
 const LOCKED_CORRECTION_LABEL = Object.freeze({
   REQUIRED: "Locked-period authorisation required",
@@ -805,35 +810,7 @@ const LOCKED_CORRECTION_LABEL = Object.freeze({
   REVOKED: "Locked-period correction revoked",
 });
 const LOCKED_CORRECTION_COLOR = Object.freeze({ REQUIRED: "orange", AUTHORISED: "blue", APPLIED: "purple", REVOKED: "gray" });
-const PAYROLL_DIRECTION_LABEL = Object.freeze({
-  PAYABLE_TO_EMPLOYEE: "Payable to employee",
-  RECOVERABLE_FROM_EMPLOYEE: "Recoverable from employee",
-  NO_DIFFERENCE: "No difference",
-});
-const PAYROLL_DIRECTION_COLOR = Object.freeze({
-  PAYABLE_TO_EMPLOYEE: "green",
-  RECOVERABLE_FROM_EMPLOYEE: "red",
-  NO_DIFFERENCE: "gray",
-});
-const ADJUSTMENT_STATUS_LABEL = Object.freeze({
-  PENDING_ADJUSTMENT: "Pending adjustment",
-  SETTLED: "Settled",
-  NOT_REQUIRED: "No adjustment required",
-  // DERIVED by the backend, never stored: pending events whose request nets to 0.
-  NETTED_OFF: "NETTED_OFF — no payroll adjustment required",
-});
 
-/** `₹66.66` from a signed amount, always shown as a positive figure. */
-function formatRupees(amount) {
-  const n = Math.abs(Number(amount) || 0);
-  return `₹${n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
-
-/**
- * The day's locked-period correction, shaped for the Day Detail: status,
- * authorisation, and each event (approval / revoke) with its old and
- * corrected attendance and its payroll difference. Null when there is none.
- */
 function lockedCalcView(calc) {
   return calc
     ? {
@@ -847,76 +824,49 @@ function lockedCalcView(calc) {
     : null;
 }
 
-/** One correction event (approval or revoke), shaped for a screen. */
+/** `+30m`, `−30m`, `0m`, or a dash when either side is unknown. */
+function signedMinutes(change) {
+  if (change === null || change === undefined || !Number.isFinite(Number(change))) return "—";
+  const n = Math.trunc(Number(change));
+  if (n === 0) return "0m";
+  return `${n > 0 ? "+" : "−"}${formatMinutes(Math.abs(n))}`;
+}
+
+/** One correction event (approval or revoke): before / after attendance and the OT impact. */
 function lockedEventView(e) {
+  const pair = (before, after) => ({
+    before: before === undefined ? null : before,
+    after: after === undefined ? null : after,
+    change:
+      before === null || before === undefined || after === null || after === undefined ? null : Number(after) - Number(before),
+  });
+  const impact = {
+    worked: pair(e.old_worked_minutes, e.new_worked_minutes),
+    break_charged: pair(e.old_break_charged_minutes, e.new_break_charged_minutes),
+    ot_eligible: pair(e.old_ot_eligible_minutes, e.new_ot_eligible_minutes),
+    approved_ot: pair(e.old_approved_ot_minutes, e.new_approved_ot_minutes),
+  };
   return {
     id: e.attendance_locked_period_correction_event_id,
     type: e.event_type,
     occurred_at: e.occurred_at,
     reason: e.event_reason || null,
-    employee_id: e.employee_id,
-    employee_name: e.employee_name || null,
-    attendance_date: e.attendance_date || null,
     old: lockedCalcView(e.old_calculation),
     corrected: lockedCalcView(e.new_calculation),
-    net_difference: Number(e.net_difference) || 0,
-    amount_label: formatRupees(e.net_difference),
-    direction: e.direction,
-    direction_label: PAYROLL_DIRECTION_LABEL[e.direction] || e.direction,
-    direction_color: PAYROLL_DIRECTION_COLOR[e.direction] || "gray",
-    adjustment_status: e.adjustment_status,
-    // What the event means NOW - the backend's derived status (NETTED_OFF),
-    // falling back to the stored one. The stored figures never change.
-    effective_adjustment_status: e.effective_adjustment_status || e.adjustment_status,
-    adjustment_label:
-      ADJUSTMENT_STATUS_LABEL[e.effective_adjustment_status || e.adjustment_status] ||
-      e.effective_adjustment_status ||
-      e.adjustment_status,
-    applied:
-      e.adjustment_status === "SETTLED"
-        ? {
-            by: e.applied_by_name || null,
-            at: e.applied_at,
-            note: e.applied_note,
-            month: `${String(e.applied_payroll_month).padStart(2, "0")}/${e.applied_payroll_year}`,
-          }
-        : null,
-  };
-}
-
-/**
- * THE OUTSTANDING ADJUSTMENT of one correction request, as the backend
- * derived it (`outstandingAdjustment`): the net of its unsettled events. Only
- * a non-zero net is actionable; a correction revoked before settlement nets to
- * zero and reads "No adjustment required — correction revoked before
- * settlement".
- */
-function outstandingView(o) {
-  if (!o) return null;
-  return {
-    actionable: o.actionable === true,
-    net_difference: Number(o.net_difference) || 0,
-    amount_label: formatRupees(o.net_difference),
-    direction: o.direction,
-    direction_label: PAYROLL_DIRECTION_LABEL[o.direction] || o.direction,
-    direction_color: PAYROLL_DIRECTION_COLOR[o.direction] || "gray",
-    label: o.label || null,
-    netted_off: o.netted_off === true,
-    pending_event_ids: Array.isArray(o.pending_event_ids) ? o.pending_event_ids.map(Number) : [],
+    impact,
+    impact_label: [
+      `Worked ${signedMinutes(impact.worked.change)}`,
+      `Break ${signedMinutes(impact.break_charged.change)}`,
+      `OT eligible ${signedMinutes(impact.ot_eligible.change)}`,
+      `Approved OT ${signedMinutes(impact.approved_ot.change)}`,
+    ].join(" · "),
   };
 }
 
 function lockedCorrectionView(day) {
   const c = day && day.locked_period_correction;
   if (!c) return null;
-  const outstanding = outstandingView(c.outstanding);
-  const events = (c.events || []).map(lockedEventView).map((e) => ({
-    ...e,
-    // The event's own record never changes; this says what it means NOW.
-    display_label: e.adjustment_label,
-  }));
   return {
-    outstanding,
     status: c.status,
     label: LOCKED_CORRECTION_LABEL[c.status] || c.status,
     color: LOCKED_CORRECTION_COLOR[c.status] || "gray",
@@ -925,7 +875,7 @@ function lockedCorrectionView(day) {
     authorised_by: c.authorised_by_name || null,
     authorised_at: c.authorised_at || null,
     authorisation_reason: c.authorisation_reason || null,
-    events,
+    events: (c.events || []).map(lockedEventView),
   };
 }
 
@@ -1528,12 +1478,9 @@ module.exports = {
   PAYROLL_MONTH_LOCKED,
   lockedCorrectionView,
   lockedEventView,
-  outstandingView,
   canAuthorizeLockedCorrection,
-  formatRupees,
+  signedMinutes,
   LOCKED_CORRECTION_LABEL,
-  PAYROLL_DIRECTION_LABEL,
-  ADJUSTMENT_STATUS_LABEL,
   regularizationCorrections,
   CORRECTION,
   CORRECTION_LABEL,

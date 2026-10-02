@@ -366,27 +366,16 @@ test("LOCKED-PERIOD correction inside the same Regularize flow: raise (HR), sepa
   const lockedActions = read("components/attendance/LockedCorrection.jsx");
   assert.match(lockedActions, /authorizeLockedCorrection\(view\.request_id, reason\.trim\(\)\)/);
   assert.match(lockedActions, /reason\.trim\(\)\.length < 5/);
-  // Settlement: Payroll only.
-  assert.match(hrPage, /usePermissions\(\["process_payroll"\]\)/);
-  assert.match(lockedActions, /settleLockedCorrection\(event\.request_id, \{[\s\S]*?applied_payroll_year[\s\S]*?applied_payroll_month[\s\S]*?applied_note/);
-  // The display block shows the authorisation, the full event history and ONE outstanding net.
+  // No settlement, no money, no Payroll panel.
+  assert.ok(!/process_payroll|SettleLocked|settleLockedCorrection/.test(hrPage + lockedActions));
+  assert.ok(!require("fs").existsSync(require("path").join(__dirname, "..", "payroll", "LockedCorrectionPanel.jsx")));
+  // The display block: authorisation, the full event history, before/after attendance and the OT impact.
   const block = read("components/attendance/LockedCorrectionBlock.jsx");
-  for (const text of ["Authorised by", "Authorised at", "Authorisation reason", "Old attendance", "Corrected attendance", "direction_label", "display_label", "amount_label", "Outstanding adjustment"]) {
+  for (const text of ["Authorised by", "Authorised at", "Authorisation reason", "Old attendance", "Corrected attendance", "OT eligible", "Approved OT", "impact_label"]) {
     assert.ok(block.includes(text), text);
   }
-  // Mark settled only on the outstanding net, and only when it is actionable - never per event.
-  assert.match(block, /view\.outstanding\.actionable \? \([\s\S]*?Mark settled[\s\S]*?\) : \([\s\S]*?view\.outstanding\.label/);
-  assert.equal((block.match(/Mark settled/g) || []).length, 1);
-  assert.match(block, /onSettle\(\{[\s\S]*?request_id: view\.request_id/);
-  // Payroll's panel: actionable rows are the outstanding nets; history has no actions.
-  const panel = read("components/payroll/LockedCorrectionPanel.jsx");
-  assert.match(panel, /setOutstanding\(\s*\(res\.outstanding \|\| \[\]\)/);
-  assert.match(panel, /setHistory\(\(res\.corrections \|\| \[\]\)\.map\(lockedEventView\)\)/);
-  const historySection = panel.slice(panel.indexOf("History (every event"));
-  assert.ok(!/Mark settled/.test(historySection), "no action on history rows");
-  // The pending count is the outstanding nets only - netted-off corrections are never counted.
-  assert.match(panel, /outstanding\.length > 0 \?[\s\S]*?\{outstanding\.length\} pending/);
-  assert.match(detail, /<LockedCorrectionBlock day=\{day\} onSettle=\{onSettleLocked\} \/>/);
+  assert.ok(!/amount_label|direction|adjustment|Mark settled|onSettle|₹/.test(block), "no money in the block");
+  assert.match(detail, /<LockedCorrectionBlock day=\{day\} \/>/);
   // The form tells Manager/HR the request will need authorisation, and still refuses the employee.
   assert.match(form, /if \(day\.payroll_locked && !employeeId\)/);
   assert.match(form, /day\.payroll_locked && employeeId \?[\s\S]*?locked-period authorisation/);

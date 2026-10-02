@@ -23,7 +23,6 @@ import PayrunAdjustments from "../../components/payroll/adjustments/PayrunAdjust
 import PayrunCalculation from "../../components/payroll/calculation/PayrunCalculation";
 import PayrunTabs from "../../components/payroll/PayrunTabs";
 import AttendancePendingDrawer from "../../components/payroll/AttendancePendingDrawer";
-import LockedCorrectionPanel from "../../components/payroll/LockedCorrectionPanel";
 import usePayrollActor from "../../customHooks/usePayrollActor";
 import usePayrunMonth from "../../customHooks/usePayrunMonth";
 import useEmployeeOutlets from "../../customHooks/useEmployeeOutlets";
@@ -871,9 +870,6 @@ function Payrun() {
         subtitle={STAGE_SUBTITLE[stage]}
       >
         {body()}
-        {/* Differences from corrections to payroll-locked attendance dates,
-            for manual settlement in a later month. Self-gated on the payroll keys. */}
-        <LockedCorrectionPanel />
       </CustomContainer>
 
       {/*

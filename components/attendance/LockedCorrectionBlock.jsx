@@ -1,18 +1,18 @@
 import React from "react";
-import { Badge, Box, Button, Flex, SimpleGrid, Stack, Text } from "@chakra-ui/react";
+import { Badge, Box, Flex, SimpleGrid, Stack, Text } from "@chakra-ui/react";
 import { formatMinutes, lockedCorrectionView } from "../../util/attendanceV2";
 
 /**
  * LOCKED-PERIOD CORRECTION, DISPLAY ONLY - for the Day Detail: status,
- * authorisation, the FULL immutable history (each approval / revoke event
- * with its old vs corrected attendance and its own difference), and ONE
- * outstanding adjustment - the derived net of the unsettled events. Mark
- * settled is offered only when that net is not zero.
+ * authorisation, and the full immutable history of approval / revoke events,
+ * each with the attendance before and after and how worked time, break and OT
+ * moved. ATTENDANCE AND OT ONLY: no money, and the locked payroll is not
+ * changed.
  *
  * DELIBERATELY IMPORTS NO API HELPER. The Telegram Mini App renders the Day
- * Detail and must never reach the authenticated API; the actions (authorise,
- * settle) live in `LockedCorrection.jsx` and are passed in as callbacks by the
- * screens that may use them.
+ * Detail and must never reach the authenticated API; the authorise action
+ * lives in `LockedCorrection.jsx` and is passed in by the screens that may
+ * use it.
  */
 
 function Line({ label, value }) {
@@ -49,7 +49,7 @@ function Attendance({ title, calc }) {
   );
 }
 
-export function LockedCorrectionBlock({ day, onSettle }) {
+export function LockedCorrectionBlock({ day }) {
   const view = lockedCorrectionView(day);
   if (!view) return null;
   return (
@@ -79,67 +79,13 @@ export function LockedCorrectionBlock({ day, onSettle }) {
             <Attendance title={e.type === "REVOKE" ? "Before revoke" : "Old attendance"} calc={e.old} />
             <Attendance title={e.type === "REVOKE" ? "After revoke" : "Corrected attendance"} calc={e.corrected} />
           </SimpleGrid>
-          <Flex mt={1} gap={2} align="center" wrap="wrap">
-            <Text fontSize="sm" fontWeight="700">
-              {e.amount_label}
-            </Text>
-            <Badge colorScheme={e.direction_color} fontSize="10px">
-              {e.direction_label}
-            </Badge>
-            <Badge colorScheme={e.adjustment_status === "SETTLED" ? "green" : "gray"} fontSize="10px">
-              {e.display_label}
-            </Badge>
-          </Flex>
-          {e.applied ? (
-            <Text fontSize="xs" color="gray.600">
-              Settled in {e.applied.month} by {e.applied.by || "—"} · {e.applied.note}
-            </Text>
-          ) : null}
+          <Text fontSize="xs" mt={1} fontWeight="600">
+            {e.impact_label}
+          </Text>
         </Box>
       ))}
-      {view.outstanding && view.events.length > 0 ? (
-        <Flex mt={2} pt={2} borderTopWidth="1px" borderColor={`${view.color}.100`} gap={2} align="center" wrap="wrap">
-          <Text fontSize="xs" fontWeight="600">
-            Outstanding adjustment
-          </Text>
-          {view.outstanding.actionable ? (
-            <>
-              <Text fontSize="sm" fontWeight="700">
-                {view.outstanding.amount_label}
-              </Text>
-              <Badge colorScheme={view.outstanding.direction_color} fontSize="10px">
-                {view.outstanding.direction_label}
-              </Badge>
-              <Badge colorScheme="orange" fontSize="10px">
-                Pending adjustment
-              </Badge>
-              {onSettle ? (
-                <Button
-                  size="xs"
-                  variant="outline"
-                  ml="auto"
-                  onClick={() =>
-                    onSettle({
-                      request_id: view.request_id,
-                      amount_label: view.outstanding.amount_label,
-                      direction_label: view.outstanding.direction_label,
-                    })
-                  }
-                >
-                  Mark settled
-                </Button>
-              ) : null}
-            </>
-          ) : (
-            <Text fontSize="xs" color="gray.700">
-              {view.outstanding.label}
-            </Text>
-          )}
-        </Flex>
-      ) : null}
       <Text fontSize="10px" color="gray.500" mt={1}>
-        The locked payroll is not changed. The difference is settled manually by Payroll in a later month; PF/ESI are not
-        recomputed.
+        Attendance and OT only. The locked payroll is not changed.
       </Text>
     </Box>
   );

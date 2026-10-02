@@ -72,17 +72,6 @@ const attendanceV2 = {
   authorizeLockedCorrection: (request_id, reason) =>
     call("post", `/attendance/regularization/${request_id}/locked-period-authorisation`, { reason }),
 
-  /** Payroll's list of locked-period correction events. */
-  listLockedCorrections: (params = {}) => call("get", "/attendance/locked-period-corrections", { params }),
-
-  /** Settle ONE request's outstanding (net) adjustment in a later payroll month - `process_payroll`. */
-  settleLockedCorrection: (request_id, { applied_payroll_year, applied_payroll_month, applied_note }) =>
-    call("post", `/attendance/locked-period-corrections/requests/${request_id}/settle`, {
-      applied_payroll_year,
-      applied_payroll_month,
-      applied_note,
-    }),
-
   /** `{ attendance_date, reason }`. Never minutes, never an employee id. */
   raiseMyOtRequest: ({ attendance_date, reason }) =>
     new Promise((resolve, reject) => {

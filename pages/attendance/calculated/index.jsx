@@ -10,10 +10,7 @@ import AttendanceDayDetail from "../../../components/attendance/AttendanceDayDet
 import EditShiftModal from "../../../components/attendance/EditShiftModal";
 import VoidPunchModal from "../../../components/attendance/VoidPunchModal";
 import RegularizationForm from "../../../components/attendance/RegularizationForm";
-import {
-  AuthorizeLockedCorrectionModal,
-  SettleLockedCorrectionModal,
-} from "../../../components/attendance/LockedCorrection";
+import { AuthorizeLockedCorrectionModal } from "../../../components/attendance/LockedCorrection";
 import usePermissions from "../../../customHooks/usePermissions";
 import AttendanceV2Helper from "../../../helper/attendanceV2";
 import {
@@ -89,9 +86,8 @@ export default function EmployeeAttendancePage() {
   // Punches on a complete day) is the existing raise for somebody else; the
   // backend requires the same key.
   const canRegularizeForOthers = usePermissions(["raise_attendance_regularization_for_others"]);
-  // A payroll-locked date: the separate authorisation, and Payroll's settlement.
+  // A payroll-locked date: the separate locked-period authorisation.
   const canAuthorizeLocked = usePermissions(["correct_locked_attendance"]);
-  const canSettleLocked = usePermissions(["process_payroll"]);
   const [employeeId, setEmployeeId] = useState(null);
   const [month, setMonth] = useState(currentMonth());
   const [days, setDays] = useState([]);
@@ -102,7 +98,6 @@ export default function EmployeeAttendancePage() {
   const [voiding, setVoiding] = useState(null);
   const [regularizing, setRegularizing] = useState(null);
   const [authorizing, setAuthorizing] = useState(null);
-  const [settling, setSettling] = useState(null);
   const [summaryFilter, setSummaryFilter] = useState(SUMMARY_FILTER.ALL);
   /* The date a deep link asked to open, consumed once the month has loaded. */
   const [pendingDate, setPendingDate] = useState(null);
@@ -235,13 +230,6 @@ export default function EmployeeAttendancePage() {
     await load();
   };
 
-  const onLockedSettled = async () => {
-    setSettling(null);
-    setSelected(null);
-    toast({ title: "Difference marked settled", status: "success", duration: 4000 });
-    await load();
-  };
-
   /* Counted and filtered from the rows already in hand - no second request. */
   const counts = attendanceSummary(days);
   const visibleDays = filterDaysBySummary(days, summaryFilter);
@@ -310,7 +298,6 @@ export default function EmployeeAttendancePage() {
         allowLunchRegularization={canRegularizeForOthers}
         allowLockedRegularization={canRegularizeForOthers}
         onAuthorizeLocked={canAuthorizeLocked ? (day) => setAuthorizing(day) : null}
-        onSettleLocked={canSettleLocked ? (event) => setSettling(event) : null}
       />
       {canAuthorizeLocked ? (
         <AuthorizeLockedCorrectionModal
@@ -320,14 +307,7 @@ export default function EmployeeAttendancePage() {
           onAuthorized={onLockedAuthorized}
         />
       ) : null}
-      {canSettleLocked ? (
-        <SettleLockedCorrectionModal
-          event={settling}
-          isOpen={!!settling}
-          onClose={() => setSettling(null)}
-          onSettled={onLockedSettled}
-        />
-      ) : null}
+
       {canRegularizeForOthers ? (
         <RegularizationForm
           employeeId={employeeId}
