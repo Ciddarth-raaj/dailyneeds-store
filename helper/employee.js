@@ -36,6 +36,13 @@ const EmployeeHelper = {
         });
       }
 
+      // HR -> Employee Master only: ask for the population that includes
+      // resigned employees whose resignation was recorded. Every other caller
+      // omits it and gets the list exactly as before.
+      if (filter?.include_resigned) {
+        queryParams.append("include_resigned", "1");
+      }
+
       API.get(`/employee/employees?${queryParams}`)
         .then(async (res) => {
           resolve(res.data);

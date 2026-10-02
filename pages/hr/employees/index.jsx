@@ -167,7 +167,12 @@ function HrEmployeeList() {
   const loadEmployees = useCallback(async (isCancelled = () => false) => {
     setLoading(true);
     try {
-      const result = unwrapList(await EmployeeHelper.getEmployee());
+      // `include_resigned`: this screen's "Resigned" view filters
+      // `status !== 1` over this list, so it needs the leavers whose
+      // resignation was RECORDED - the default list drops anyone whose name
+      // is in `resignation`. Asked for here and nowhere else; the shared
+      // pickers and the Onboarding queue keep the default list.
+      const result = unwrapList(await EmployeeHelper.getEmployee({ include_resigned: true }));
       if (isCancelled()) return;
       setRows(result.items);
       setDenied(result.accessDenied);
@@ -199,7 +204,9 @@ function HrEmployeeList() {
     let cancelled = false;
     (async () => {
       try {
-        const summary = await HrHelper.getStatusSummary();
+        // The SAME population as the list above, so the restored leavers
+        // carry their HR badges rather than an unknown one.
+        const summary = await HrHelper.getStatusSummary({ include_resigned: 1 });
         if (cancelled) return;
         if (!Array.isArray(summary)) {
           // A B2 refusal arrives as `{ code: 403, msg }` rather than a list.
