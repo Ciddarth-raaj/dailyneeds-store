@@ -19,6 +19,7 @@ import {
 
 import CalculationEmployeeList from "./CalculationEmployeeList";
 import CalculationBreakup from "./CalculationBreakup";
+import ResetCalculationModal from "./ResetCalculationModal";
 import usePayrunCalculationMonth from "../../../customHooks/usePayrunCalculationMonth";
 import PayrunCalculationHelper from "../../../helper/payrunCalculation";
 import { describeApiResult, KIND } from "../../../util/salaryApiError";
@@ -40,11 +41,15 @@ import {
   isApprovable,
   isLocked,
   isRecalculable,
+  isResettable,
   nextSelectAll,
   outcomeMessage,
   pruneSelection,
   recalculateMessage,
   refusalDetail,
+  resetHasRefusals,
+  resetOutcomeMessage,
+  resetRefusalDetail,
   toggleSelection,
 } from "../../../util/payrunCalculation";
 
@@ -75,6 +80,10 @@ import {
  * it calculates but cannot sign off - which is the separation of duties the
  * key exists for, and the screen has to make sense on both sides of it.
  *
+ * RESET CALCULATION sends an unapproved employee back to Not Calculated, for
+ * one row or a selection, behind a dialog that names the month and asks why.
+ * It is the calculate key's act, and it never reaches an approved employee.
+ *
  * THERE IS NO PAYSLIP HERE, and no Generate, Publish or Unlock. Those are
  * later stages, and an affordance for one of them would be a promise the
  * system cannot keep.
@@ -102,6 +111,8 @@ function PayrunCalculation({
   const [selectedIds, setSelectedIds] = useState([]);
   const [busyEmployeeId, setBusyEmployeeId] = useState(null);
   const [bulkBusy, setBulkBusy] = useState(false);
+  /* Who the Reset Calculation dialog is open for: { mode, rows }, or null. */
+  const [resetTarget, setResetTarget] = useState(null);
 
   /* The employee whose breakup is open, and the read behind it. */
   const [detail, setDetail] = useState(null);
@@ -136,6 +147,7 @@ function PayrunCalculation({
 
   const selectedRecalculable = eligibleWithin(rows, selectedIds, isRecalculable);
   const selectedApprovable = eligibleWithin(rows, selectedIds, isApprovable);
+  const selectedResettable = eligibleWithin(rows, selectedIds, isResettable);
   const readyIds = approvableEmployeeIds(rows);
 
   const busy = bulkBusy || busyEmployeeId !== null;
@@ -145,7 +157,14 @@ function PayrunCalculation({
    * selection cannot end up reporting their outcomes differently - which is
    * how one of them ends up not mentioning that three employees were refused.
    */
-  const run = async (call, { employeeId = null, confirmText = null }) => {
+  const run = async (
+    call,
+    {
+      employeeId = null,
+      confirmText = null,
+      report = { message: outcomeMessage, refused: hasRefusals, detail: refusalDetail },
+    }
+  ) => {
     if (busy) return;
     if (confirmText && !window.confirm(confirmText)) return;
 
@@ -172,11 +191,11 @@ function PayrunCalculation({
        * run where three were not ready would be a lie by omission, and the
        * three would sit there until somebody noticed.
        */
-      const refused = hasRefusals(result);
+      const refused = report.refused(result);
       toast({
-        title: outcomeMessage(result),
+        title: report.message(result),
         description: refused
-          ? refusalDetail(result) ||
+          ? report.detail(result) ||
             "Some employees were not changed. Their reasons are shown on their rows."
           : undefined,
         status: refused ? "warning" : "success",
@@ -231,6 +250,43 @@ function PayrunCalculation({
         confirmText: approveMessage(all ? readyIds.length : employeeIds.length),
       }
     );
+
+  /**
+   * RESET CALCULATION - one row's action or the selection's, through `run` so
+   * both report their outcome the same way. The dialog IS the confirmation;
+   * it names the month, the employee or the count, and requires a reason.
+   *
+   * ONLY THE IDS ARE SENT, AND THE SERVER RE-DECIDES EACH ONE: an employee
+   * approved since this screen loaded comes back "skipped — payroll locked"
+   * rather than reset.
+   */
+  const monthLabel = monthName ? `${monthName} ${year}` : `${year}-${String(month).padStart(2, "0")}`;
+  const openReset = (targetRows, mode) => setResetTarget({ mode, rows: targetRows });
+  const confirmReset = async ({ reason, remark }) => {
+    const target = resetTarget;
+    if (!target) return;
+    const employeeIds = target.rows.map((row) => row.employee_id);
+    await run(
+      () =>
+        PayrunCalculationHelper.reset({
+          year,
+          month,
+          employee_ids: employeeIds,
+          reason,
+          remark,
+          mode: target.mode,
+        }),
+      {
+        employeeId: target.mode === "INDIVIDUAL" ? employeeIds[0] : null,
+        report: {
+          message: resetOutcomeMessage,
+          refused: resetHasRefusals,
+          detail: resetRefusalDetail,
+        },
+      }
+    );
+    setResetTarget(null);
+  };
 
   /**
    * THIS MONTH'S PAY TYPE, CHANGED FROM THE REVIEW SCREEN.
@@ -399,6 +455,24 @@ function PayrunCalculation({
         >
           Approve All Ready ({readyIds.length})
         </Button>
+        {/* Shown once rows are selected. It counts only the selected rows that
+            HAVE a calculation to reset; the server re-decides each of them. */}
+        {selectedIds.length > 0 ? (
+          <Button
+            size="sm"
+            colorScheme="red"
+            variant="outline"
+            isDisabled={!mayCalculate || monthLocked || busy || selectedResettable.length === 0}
+            onClick={() =>
+              openReset(
+                rows.filter((row) => selectedResettable.includes(row.employee_id)),
+                "BULK"
+              )
+            }
+          >
+            Reset Selected ({selectedResettable.length})
+          </Button>
+        ) : null}
       </Stack>
 
       {!mayApprove ? (
@@ -497,6 +571,7 @@ function PayrunCalculation({
               first ? calculate([row.employee_id]) : recalculate([row.employee_id])
             }
             onApprove={(ids) => approve(ids)}
+            onReset={(row) => openReset([row], "INDIVIDUAL")}
             onOpen={openDetail}
             onPayTypeChange={changePayType}
             canCalculate={mayCalculate && !monthLocked}
@@ -507,6 +582,15 @@ function PayrunCalculation({
           />
         </Stack>
       ) : null}
+
+      <ResetCalculationModal
+        isOpen={resetTarget !== null}
+        onClose={() => setResetTarget(null)}
+        onConfirm={confirmReset}
+        target={resetTarget}
+        monthLabel={monthLabel}
+        busy={busy}
+      />
 
       <CalculationBreakup
         isOpen={detailOpen}

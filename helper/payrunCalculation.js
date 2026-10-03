@@ -3,7 +3,7 @@ import API from "../util/api";
 /**
  * Payrun Calculation & Review - the browser's side of /payrun/calculation.
  *
- * SIX CALLS, MATCHING THE SIX ENDPOINTS EXACTLY. Nothing here invents a route
+ * SEVEN CALLS, MATCHING THE SEVEN ENDPOINTS EXACTLY. Nothing here invents a route
  * and nothing here decides anything: every figure on the review screen - the
  * daily rate, the OT price, the PF and ESI, the net pay - and every status,
  * blocker and reason is the server's answer, because a second implementation
@@ -75,6 +75,24 @@ const PayrunCalculationHelper = {
       year,
       month,
       ...(all_ready ? { all_ready: true } : { employee_ids }),
+    }).then((res) => res.data),
+
+  /**
+   * RESET CALCULATION - return employees to Not Calculated for this month.
+   *
+   * ALWAYS AN EXPLICIT LIST, never a select-all flag: a reset discards
+   * reviewed figures and is done to the people somebody chose. The reason is
+   * required, the remark is required for OTHER, and `mode` says whether it was
+   * one row's action or a selection's. Who reset is the server's identity.
+   */
+  reset: ({ year, month, employee_ids, reason, remark, mode }) =>
+    API.post("/payrun/calculation/reset", {
+      year,
+      month,
+      employee_ids,
+      reason,
+      ...(remark ? { remark } : {}),
+      mode,
     }).then((res) => res.data),
 
   /** GET one employee's calculation and approval history for the month. */

@@ -73,6 +73,81 @@ const isApprovable = (row) => Boolean(row && row.status === STATUS.READY_FOR_APP
 /** A locked row is frozen: nothing on this screen may act on it. */
 const isLocked = (row) => Boolean(row && row.status === STATUS.APPROVED_LOCKED);
 
+/**
+ * RESET CALCULATION IS OFFERED where a calculation exists and nobody has
+ * approved it. This only decides which button to DRAW: the server re-decides
+ * every employee on a held row lock and refuses anyone locked meanwhile.
+ */
+const isResettable = (row) =>
+  Boolean(
+    row &&
+      (row.status === STATUS.CALCULATED ||
+        row.status === STATUS.ATTENDANCE_PENDING ||
+        row.status === STATUS.RECALCULATION_REQUIRED ||
+        row.status === STATUS.READY_FOR_APPROVAL)
+  );
+
+/** The reset reasons the server accepts, with the words the screen shows. */
+const RESET_REASON_OPTIONS = [
+  { value: "ATTENDANCE_CORRECTED", label: "Attendance corrected" },
+  { value: "SALARY_MASTER_CORRECTED", label: "Salary Master corrected" },
+  { value: "WRONG_OT", label: "Wrong OT" },
+  { value: "WRONG_ADDITION_DEDUCTION", label: "Wrong addition/deduction" },
+  { value: "OTHER", label: "Other" },
+];
+const RESET_REMARK_MAX = 500;
+
+/**
+ * WHY THE CONFIRM BUTTON IS DISABLED, or null when the form may be sent. The
+ * server applies the same rule and refuses the request regardless.
+ */
+function resetFormProblem({ reason, remark }) {
+  if (!RESET_REASON_OPTIONS.some((o) => o.value === reason)) return "Choose a reset reason.";
+  const text = (remark || "").trim();
+  if (reason === "OTHER" && text === "") return "A remark is required when the reason is Other.";
+  if (text.length > RESET_REMARK_MAX) return `The remark must be at most ${RESET_REMARK_MAX} characters.`;
+  return null;
+}
+
+/**
+ * "8 reset successfully, 2 skipped — payroll locked." Each kind of skip is
+ * named, because "2 skipped" alone does not say who has to do what next.
+ */
+function resetOutcomeMessage(result) {
+  if (!result) return "Nothing was changed.";
+  const parts = [];
+  const add = (count, text) => {
+    const n = Number(count || 0);
+    if (n > 0) parts.push(`${n} ${text}`);
+  };
+  add(result.reset_count, "reset successfully");
+  add(result.locked_count, "skipped — payroll locked");
+  add(result.skipped_count, "skipped — not calculated");
+  add(result.not_in_scope_count, "skipped — not in this month or your branches");
+  add(result.failed_count, "could not be reset");
+  return parts.length > 0 ? `${parts.join(", ")}.` : "Nothing was changed.";
+}
+
+/** Whether a reset left anybody as they were. */
+const resetHasRefusals = (result) =>
+  Boolean(result) && Number(result.reset_count || 0) < ((result.results || []).length || 0);
+
+/** The first non-reset employee's reason, in the server's words. */
+function resetRefusalDetail(result) {
+  const refused = ((result && result.results) || []).filter(
+    (r) => r && r.result !== "RESET" && r.message
+  );
+  if (refused.length === 0) return null;
+  const first = refused[0];
+  const who = first.employee_name
+    ? `${first.employee_name} (${first.employee_id}): `
+    : first.employee_id != null
+    ? `Employee ${first.employee_id}: `
+    : "";
+  const more = refused.length > 1 ? ` (and ${refused.length - 1} more)` : "";
+  return `${who}${first.message}${more}`;
+}
+
 const calculableEmployeeIds = (rows) => (rows || []).filter(isCalculable).map((r) => r.employee_id);
 const recalculableEmployeeIds = (rows) =>
   (rows || []).filter(isRecalculable).map((r) => r.employee_id);
@@ -222,6 +297,13 @@ module.exports = {
   isRecalculable,
   isApprovable,
   isLocked,
+  isResettable,
+  RESET_REASON_OPTIONS,
+  RESET_REMARK_MAX,
+  resetFormProblem,
+  resetOutcomeMessage,
+  resetHasRefusals,
+  resetRefusalDetail,
   calculableEmployeeIds,
   recalculableEmployeeIds,
   approvableEmployeeIds,

@@ -721,3 +721,53 @@ test("Approved & Locked is a queue of its own and never the default", () => {
   assert.ok(calcTabs.some((t) => t.key === "APPROVED_LOCKED"));
   assert.notEqual(defaults.CALCULATION, "APPROVED_LOCKED");
 });
+
+/* ======================================================= Reset Calculation */
+
+const resetModal = read("components/payroll/calculation/ResetCalculationModal.jsx");
+const resetModalCode = codeOf(resetModal);
+
+test("reset posts an explicit id list with reason, remark and mode - never a select-all flag", () => {
+  const call = helperCode.slice(helperCode.indexOf("reset:"), helperCode.indexOf("getHistory:"));
+  assert.ok(call.includes('"/payrun/calculation/reset"'));
+  for (const field of ["employee_ids", "reason", "remark", "mode"]) {
+    assert.ok(call.includes(field), `the reset call does not send ${field}`);
+  }
+  assert.ok(!/all_eligible|all_ready|reset_by|store_ids/.test(call), "the reset body carries a flag or an actor");
+});
+
+test("each row has Reset Calculation, and a locked row shows it blocked with the reason", () => {
+  assert.ok(listCode.includes("isResettable(row)"));
+  assert.ok(listCode.includes("onReset(row)"));
+  assert.ok(list.includes("Reset Calculation"));
+  assert.match(list, /Approved & Locked for this employee\. It cannot be reset\./);
+});
+
+test("Reset Selected (N) appears with a selection, narrowed and gated like the other actions", () => {
+  assert.ok(workflow.includes("Reset Selected ("));
+  assert.ok(workflowCode.includes("selectedIds.length > 0 ?"));
+  assert.ok(workflowCode.includes("eligibleWithin(rows, selectedIds, isResettable)"));
+  assert.ok(
+    workflowCode.includes("!mayCalculate || monthLocked || busy || selectedResettable.length === 0")
+  );
+  assert.ok(workflowCode.includes('openReset([row], "INDIVIDUAL")'));
+  assert.ok(workflowCode.includes('"BULK"'));
+});
+
+test("the reset dialog shows the month and who, and requires a reason before confirming", () => {
+  assert.ok(resetModal.includes("Payroll month:"));
+  assert.ok(resetModal.includes("Employee ID:"));
+  assert.ok(resetModal.includes("Selected employees:"));
+  assert.ok(resetModalCode.includes("RESET_REASON_OPTIONS.map"));
+  assert.ok(resetModalCode.includes("isDisabled={problem !== null}"));
+  assert.ok(resetModalCode.includes('isRequired={reason === "OTHER"}'));
+  assert.ok(workflowCode.includes("monthLabel={monthLabel}"));
+});
+
+test("a reset goes through the shared run, which reports and refreshes the month", () => {
+  const confirm = workflowCode.slice(workflowCode.indexOf("const confirmReset"), workflowCode.indexOf("setResetTarget(null);\n  };"));
+  assert.ok(confirm.includes("await run("));
+  assert.ok(confirm.includes("resetOutcomeMessage"));
+  const run = workflowCode.slice(workflowCode.indexOf("const run = async"), workflowCode.indexOf("const calculate ="));
+  assert.ok(run.includes("await refresh()"), "the list and the summary counts are re-read");
+});

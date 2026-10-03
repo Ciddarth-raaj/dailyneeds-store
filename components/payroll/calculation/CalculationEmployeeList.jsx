@@ -22,6 +22,7 @@ import {
   STATUS,
   isApprovable,
   isRecalculable,
+  isResettable,
   isLocked,
   statusScheme,
 } from "../../../util/payrunCalculation";
@@ -107,7 +108,17 @@ function Money({ value }) {
  */
 const count = (value) => (value === null || value === undefined ? "—" : String(value));
 
-function RowActions({ row, onRecalculate, onApprove, onOpen, canCalculate, canApprove, busyEmployeeId, disabled }) {
+function RowActions({
+  row,
+  onRecalculate,
+  onApprove,
+  onReset,
+  onOpen,
+  canCalculate,
+  canApprove,
+  busyEmployeeId,
+  disabled,
+}) {
   const busy = busyEmployeeId === row.employee_id;
   return (
     <Stack direction="row" spacing={1} flexWrap="wrap">
@@ -153,6 +164,27 @@ function RowActions({ row, onRecalculate, onApprove, onOpen, canCalculate, canAp
         >
           Approve &amp; Lock
         </Button>
+      ) : null}
+      {/* RESET CALCULATION opens the dialog; nothing is reset by this click.
+          On an approved row it is drawn disabled, with the reason, so the
+          answer to "why can't I reset this?" is on the row itself. */}
+      {isResettable(row) ? (
+        <Button
+          size="xs"
+          colorScheme="red"
+          variant="ghost"
+          onClick={() => onReset(row)}
+          isDisabled={!canCalculate || disabled}
+        >
+          Reset Calculation
+        </Button>
+      ) : null}
+      {isLocked(row) ? (
+        <span title="Payroll is Approved & Locked for this employee. It cannot be reset.">
+          <Button size="xs" colorScheme="red" variant="ghost" isDisabled>
+            Reset Calculation
+          </Button>
+        </span>
       ) : null}
     </Stack>
   );

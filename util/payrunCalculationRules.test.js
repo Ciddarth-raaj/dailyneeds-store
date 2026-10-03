@@ -245,3 +245,68 @@ test("its badge is its own colour, not the stale one and not the calculated one"
   assert.notEqual(pending, rules.statusScheme(STATUS.RECALCULATION_REQUIRED));
   assert.notEqual(pending, rules.statusScheme(STATUS.CALCULATED));
 });
+
+/* ------------------------------------------------------- Reset Calculation */
+
+test("reset is offered wherever a calculation exists and nobody has approved it", () => {
+  for (const status of [
+    STATUS.CALCULATED,
+    STATUS.ATTENDANCE_PENDING,
+    STATUS.RECALCULATION_REQUIRED,
+    STATUS.READY_FOR_APPROVAL,
+  ]) {
+    assert.equal(rules.isResettable(row(1, status)), true, status);
+  }
+  assert.equal(rules.isResettable(row(1, STATUS.NOT_CALCULATED)), false);
+  assert.equal(rules.isResettable(row(1, STATUS.APPROVED_LOCKED)), false);
+  assert.equal(rules.isResettable(null), false);
+});
+
+test("a bulk reset is narrowed to the selected rows that can be reset", () => {
+  const rows = [
+    row(1, STATUS.READY_FOR_APPROVAL),
+    row(2, STATUS.NOT_CALCULATED),
+    row(3, STATUS.APPROVED_LOCKED),
+    row(4, STATUS.RECALCULATION_REQUIRED),
+  ];
+  assert.deepEqual(rules.eligibleWithin(rows, [1, 2, 3, 4], rules.isResettable), [1, 4]);
+});
+
+test("the reset reasons are exactly the five the server accepts", () => {
+  assert.deepEqual(
+    rules.RESET_REASON_OPTIONS.map((o) => o.label),
+    ["Attendance corrected", "Salary Master corrected", "Wrong OT", "Wrong addition/deduction", "Other"]
+  );
+});
+
+test("a reset reason is mandatory, and Other needs a remark", () => {
+  assert.match(rules.resetFormProblem({ reason: "", remark: "" }), /Choose a reset reason/);
+  assert.match(rules.resetFormProblem({ reason: "NOPE", remark: "" }), /Choose a reset reason/);
+  assert.match(rules.resetFormProblem({ reason: "OTHER", remark: "   " }), /remark is required/);
+  assert.match(rules.resetFormProblem({ reason: "WRONG_OT", remark: "x".repeat(501) }), /at most 500/);
+  assert.equal(rules.resetFormProblem({ reason: "OTHER", remark: "DOJ fixed" }), null);
+  assert.equal(rules.resetFormProblem({ reason: "WRONG_OT", remark: "" }), null);
+});
+
+test("the reset outcome names what was reset and why the rest were skipped", () => {
+  assert.equal(
+    rules.resetOutcomeMessage({ reset_count: 8, locked_count: 2, results: new Array(10) }),
+    "8 reset successfully, 2 skipped — payroll locked."
+  );
+  assert.equal(
+    rules.resetOutcomeMessage({ reset_count: 0, skipped_count: 1, not_in_scope_count: 1, failed_count: 1 }),
+    "1 skipped — not calculated, 1 skipped — not in this month or your branches, 1 could not be reset."
+  );
+  assert.equal(rules.resetHasRefusals({ reset_count: 2, results: [{}, {}] }), false);
+  assert.equal(rules.resetHasRefusals({ reset_count: 1, results: [{}, {}] }), true);
+  assert.equal(
+    rules.resetRefusalDetail({
+      results: [
+        { employee_id: 1, result: "RESET", message: "ok" },
+        { employee_id: 3, employee_name: "Ravi", result: "LOCKED", message: "Payroll is Approved & Locked." },
+        { employee_id: 4, result: "LOCKED", message: "Payroll is Approved & Locked." },
+      ],
+    }),
+    "Ravi (3): Payroll is Approved & Locked. (and 1 more)"
+  );
+});
