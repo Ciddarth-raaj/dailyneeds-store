@@ -116,6 +116,26 @@ const telegramAttendance = {
         { headers: authHeaders() }
       )
       .then((r) => r.data),
+
+  /*
+   * MY PAYSLIPS. No employee field exists on any of these - the employee is
+   * the signed session's. A payslip is named by the random `ref` the list
+   * returned, and the server answers 404 for any ref that is not this
+   * employee's published payslip.
+   */
+  listPayslips: () => client.get("/telegram/payslips", { headers: authHeaders() }).then((r) => r.data),
+  getPayslip: (ref) =>
+    client.get("/telegram/payslips/detail", { params: { ref }, headers: authHeaders() }).then((r) => r.data),
+  /** A two-minute link Telegram's own downloader can fetch (it cannot send our header). */
+  payslipPdfLink: (ref) =>
+    client.post("/telegram/payslips/pdf-link", { ref }, { headers: authHeaders() }).then((r) => r.data),
+  /** The PDF bytes, with the session header - for clients without `downloadFile`. */
+  payslipPdf: (ref) =>
+    client
+      .get("/telegram/payslips/pdf", { params: { ref }, headers: authHeaders(), responseType: "blob" })
+      .then((r) => ({ status: r.status, blob: r.data })),
+  /** Absolute URL for a server path (the pdf-link answer is a path). */
+  absoluteUrl: (path) => `${String(constants.BASE_URL || "").replace(/\/+$/, "")}${path}`,
 };
 
 export default telegramAttendance;

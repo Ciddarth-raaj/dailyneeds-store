@@ -95,14 +95,38 @@ const isPublishable = (row) => Boolean(row && row.status === STATUS.APPROVED_LOC
 const isUnpublishable = (row) => Boolean(row && row.status === STATUS.PUBLISHED);
 
 /** "18 unlocked, 2 skipped — already published, 1 skipped — not approved." */
-const LIFECYCLE_DONE = { UNLOCK: ["UNLOCKED", "unlocked"], PUBLISH: ["PUBLISHED", "published"], UNPUBLISH: ["UNPUBLISHED", "unpublished"] };
+const LIFECYCLE_DONE = {
+  UNLOCK: ["UNLOCKED", "unlocked"],
+  PUBLISH: ["PUBLISHED", "payslips published"],
+  UNPUBLISH: ["UNPUBLISHED", "payslips unpublished"],
+};
+/*
+ * A PUBLISHED PAYSLIP IS COUNTED BY WHAT HAPPENED TO ITS NOTIFICATION, because
+ * "published" and "the employee was told" are two different facts:
+ * "198 payslips published and notified, 8 published, Telegram notification
+ * failed, 12 published, no Telegram link".
+ */
+const PUBLISHED_BY_NOTIFICATION = [
+  ["SENT", "published and notified"],
+  ["FAILED", "published, Telegram notification failed"],
+  ["NO_TELEGRAM_LINK", "published, no Telegram link"],
+  ["NOT_ATTEMPTED", "published, not notified"],
+];
 function lifecycleOutcomeMessage(result) {
   if (!result) return "Nothing was changed.";
   const done = LIFECYCLE_DONE[result.action] || ["", "done"];
   const counts = new Map();
   const rows = result.results || [];
   const n = rows.filter((r) => r && r.result === done[0]).length;
-  const parts = n > 0 ? [`${n} ${done[1]}`] : [];
+  const parts = [];
+  if (result.action === "PUBLISH") {
+    PUBLISHED_BY_NOTIFICATION.forEach(([status, text]) => {
+      const k = rows.filter((r) => r && r.result === "PUBLISHED" && (r.notification_status || "NOT_ATTEMPTED") === status).length;
+      if (k > 0) parts.push(`${k} ${k === 1 ? "payslip" : "payslips"} ${text}`);
+    });
+  } else if (n > 0) {
+    parts.push(`${n} ${done[1]}`);
+  }
   rows
     .filter((r) => r && r.result !== done[0])
     .forEach((r) => {
@@ -113,7 +137,13 @@ function lifecycleOutcomeMessage(result) {
   return parts.length > 0 ? `${parts.join(", ")}.` : "Nothing was changed.";
 }
 const lifecycleHasRefusals = (result) =>
-  Boolean(result) && (result.results || []).some((r) => r && r.result !== (LIFECYCLE_DONE[result.action] || [])[0]);
+  Boolean(result) &&
+  (result.results || []).some(
+    (r) =>
+      r &&
+      (r.result !== (LIFECYCLE_DONE[result.action] || [])[0] ||
+        (result.action === "PUBLISH" && r.notification_status && r.notification_status !== "SENT"))
+  );
 function lifecycleRefusalDetail(result) {
   const done = (LIFECYCLE_DONE[result && result.action] || [])[0];
   const refused = ((result && result.results) || []).filter((r) => r && r.result !== done && r.message);
@@ -121,6 +151,70 @@ function lifecycleRefusalDetail(result) {
   const first = refused[0];
   const who = first.employee_name ? `${first.employee_name} (${first.employee_id}): ` : `Employee ${first.employee_id}: `;
   return `${who}${first.message}${refused.length > 1 ? ` (and ${refused.length - 1} more)` : ""}`;
+}
+
+/* ------------------------------------------------------------ payslips */
+
+/** Telegram notification status of a published payslip, as a badge. */
+const NOTIFICATION_BADGE = {
+  SENT: { label: "Telegram Sent", scheme: "green" },
+  FAILED: { label: "Telegram Failed", scheme: "red" },
+  NO_TELEGRAM_LINK: { label: "No Telegram Link", scheme: "orange" },
+  NOT_ATTEMPTED: { label: "Not Notified", scheme: "gray" },
+};
+function notificationBadge(payslip) {
+  if (!payslip) return null;
+  return NOTIFICATION_BADGE[payslip.notification_status] || NOTIFICATION_BADGE.NOT_ATTEMPTED;
+}
+
+const MONTH_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+/** "2026-10-04 09:42:10" -> "4 Oct 2026, 09:42". The server's clock, unconverted. */
+function formatViewedAt(value) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/.exec(String(value || ""));
+  if (!m) return "";
+  return `${Number(m[3])} ${MONTH_SHORT[Number(m[2]) - 1]} ${m[1]}, ${m[4]}:${m[5]}`;
+}
+
+/**
+ * PROOF OF ACCESS, never acceptance: "Not Viewed" or "Viewed on 4 Oct 2026, 09:42".
+ */
+function viewBadge(payslip) {
+  if (!payslip) return null;
+  if (!payslip.viewed || !payslip.first_viewed_at) return { label: "Not Viewed", scheme: "gray" };
+  return { label: `Viewed on ${formatViewedAt(payslip.first_viewed_at)}`, scheme: "teal" };
+}
+
+/** Retry Notification is offered for a published payslip whose employee was not told. */
+const isNotificationRetryable = (row) =>
+  Boolean(
+    row &&
+      row.status === STATUS.PUBLISHED &&
+      row.payslip &&
+      row.payslip.notification_status !== "SENT"
+  );
+
+/** View Payslip is offered on a published row that has a payslip. */
+const hasPayslip = (row) => Boolean(row && row.status === STATUS.PUBLISHED && row.payslip);
+
+/** "3 notified, 1 not notified — no Telegram link, 2 skipped — already notified." */
+function retryOutcomeMessage(result) {
+  if (!result) return "Nothing was sent.";
+  const counts = new Map();
+  (result.results || []).forEach((r) => {
+    if (!r) return;
+    const text = String(r.message || r.result).replace(/\.$/, "");
+    counts.set(text, (counts.get(text) || 0) + 1);
+  });
+  const parts = [];
+  counts.forEach((count, text) => parts.push(`${count} — ${text}`));
+  return parts.length > 0 ? `${parts.join("; ")}.` : "Nothing was sent.";
+}
+const retryHasRefusals = (result) =>
+  Boolean(result) && (result.results || []).some((r) => r && r.result !== "NOTIFIED");
+function retryRefusalDetail(result) {
+  const refused = ((result && result.results) || []).filter((r) => r && r.result === "NOT_NOTIFIED");
+  if (refused.length === 0) return null;
+  return "The payslip stays published. Ask the employee to connect Telegram, or try again later.";
 }
 
 /**
@@ -387,6 +481,14 @@ module.exports = {
   isUnlockable,
   isPublishable,
   isUnpublishable,
+  isNotificationRetryable,
+  hasPayslip,
+  notificationBadge,
+  viewBadge,
+  formatViewedAt,
+  retryOutcomeMessage,
+  retryHasRefusals,
+  retryRefusalDetail,
   lifecycleOutcomeMessage,
   lifecycleHasRefusals,
   lifecycleRefusalDetail,

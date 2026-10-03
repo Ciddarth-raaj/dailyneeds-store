@@ -19,7 +19,7 @@ import {
 } from "@chakra-ui/react";
 
 /**
- * UNLOCK / PUBLISH / UNPUBLISH - the confirmation, for one employee or a
+ * UNLOCK / PUBLISH PAYSLIP / UNPUBLISH PAYSLIP - the confirmation, for one employee or a
  * selection. It names the month and who, says what the act does and does not
  * change, and asks for the reason the server requires (Unlock and Unpublish).
  */
@@ -34,20 +34,26 @@ const COPY = {
       "and the Employee Master are not changed. Published payroll must be unpublished first.",
   },
   PUBLISH: {
-    title: "Publish Payroll",
-    confirm: "Publish",
+    title: "Publish Payslip",
+    confirm: "Publish Payslip",
+    confirmMany: "Publish Payslips",
     reasonRequired: false,
     text:
-      "Publishing releases the approved payroll for payslip, bank and downstream use. The figures do not change. " +
+      "Publishing releases the payslip to the employee. An immutable payslip is frozen from the approved figures " +
+      "(nothing is recalculated) and appears in the employee's Telegram Mini App under My Payslips. " +
+      "The employee gets a Telegram message saying it is available - the message carries no salary figure. " +
+      "A Telegram failure or a missing Telegram link does not undo publication; use Retry Notification. " +
       "An employee whose salary, attendance or adjustments changed since the calculation is refused and must be unlocked and recalculated.",
   },
   UNPUBLISH: {
-    title: "Unpublish Payroll",
-    confirm: "Unpublish",
+    title: "Unpublish Payslip",
+    confirm: "Unpublish Payslip",
+    confirmMany: "Unpublish Payslips",
     reasonRequired: true,
     text:
-      "Unpublishing withdraws the release. The payroll returns to Approved & Locked with the calculation unchanged; " +
-      "it can then be unlocked if it needs correcting.",
+      "Unpublishing removes the payslip from the employee's Mini App immediately and archives it (kept for the audit, not deleted). " +
+      "The payroll returns to Approved & Locked with the calculation unchanged; it can then be unlocked if it needs correcting. " +
+      "The Telegram notification already sent contained no salary figures and no attachment.",
   },
 };
 const REASON_MIN = 5;
@@ -140,7 +146,7 @@ function LifecycleActionModal({ isOpen, onClose, onConfirm, target, monthLabel, 
               isLoading={busy}
               onClick={() => onConfirm({ reason: reason.trim(), remark: remark.trim() })}
             >
-              {individual ? copy.confirm : `${copy.confirm} ${rows.length}`}
+              {individual ? copy.confirm : `${copy.confirmMany || copy.confirm} (${rows.length})`}
             </Button>
           </Stack>
         </ModalFooter>

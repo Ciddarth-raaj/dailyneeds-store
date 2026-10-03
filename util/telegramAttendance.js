@@ -50,11 +50,12 @@ const DATE_STATE = Object.freeze({
   NOT_ACTIONABLE: "NOT_ACTIONABLE",
 });
 
-/** The four sections of the Mini App. My Attendance is the default. */
+/** The five sections of the Mini App. My Attendance is the default. */
 const SECTION = Object.freeze({
   ATTENDANCE: "ATTENDANCE",
   CORRECTIONS: "CORRECTIONS",
   OT: "OT",
+  PAYSLIPS: "PAYSLIPS",
   HELP: "HELP",
 });
 
@@ -69,6 +70,7 @@ const SECTION_ORDER = Object.freeze([
   SECTION.ATTENDANCE,
   SECTION.CORRECTIONS,
   SECTION.OT,
+  SECTION.PAYSLIPS,
   SECTION.HELP,
 ]);
 
@@ -77,6 +79,7 @@ const SECTION_LABEL = Object.freeze({
   ATTENDANCE: "My Attendance",
   CORRECTIONS: "Corrections",
   OT: "OT Requests",
+  PAYSLIPS: "My Payslips",
   HELP: "Help",
 });
 
@@ -85,6 +88,7 @@ const SECTION_PARAM = Object.freeze({
   attendance: SECTION.ATTENDANCE,
   corrections: SECTION.CORRECTIONS,
   ot: SECTION.OT,
+  payslips: SECTION.PAYSLIPS,
   help: SECTION.HELP,
 });
 

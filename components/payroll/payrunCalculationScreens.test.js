@@ -813,7 +813,7 @@ test("each lifecycle action has its own permission, and a bulk button per action
   assert.match(access, /canUnlockPayrun[\s\S]{0,300}unlock_payrun/);
   assert.match(access, /canPublishPayrun[\s\S]{0,300}publish_payrun/);
   assert.ok(pageCode.includes("canUnlockPayrun(actor)") && pageCode.includes("canPublishPayrun(actor)"));
-  for (const [label, predicate] of [["Unlock Selected (", "isUnlockable"], ["Publish Selected (", "isPublishable"], ["Unpublish Selected (", "isUnpublishable"]]) {
+  for (const [label, predicate] of [["Unlock Selected (", "isUnlockable"], ["Publish Payslips Selected (", "isPublishable"], ["Unpublish Payslips Selected (", "isUnpublishable"], ["Retry Notification Selected (", "isNotificationRetryable"]]) {
     assert.ok(workflow.includes(label), label);
     assert.ok(workflowCode.includes(`eligibleWithin(rows, selectedIds, ${predicate})`), predicate);
   }

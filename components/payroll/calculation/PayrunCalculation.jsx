@@ -21,6 +21,7 @@ import CalculationEmployeeList from "./CalculationEmployeeList";
 import CalculationBreakup from "./CalculationBreakup";
 import ResetCalculationModal from "./ResetCalculationModal";
 import LifecycleActionModal from "./LifecycleActionModal";
+import PayslipViewModal from "./PayslipViewModal";
 import usePayrunCalculationMonth from "../../../customHooks/usePayrunCalculationMonth";
 import PayrunCalculationHelper from "../../../helper/payrunCalculation";
 import { describeApiResult, KIND } from "../../../util/salaryApiError";
@@ -41,6 +42,7 @@ import {
   isAllSelected,
   isApprovable,
   isAttendanceProcessable,
+  isNotificationRetryable,
   isPublishable,
   isUnlockable,
   isUnpublishable,
@@ -60,6 +62,9 @@ import {
   resetHasRefusals,
   resetOutcomeMessage,
   resetRefusalDetail,
+  retryHasRefusals,
+  retryOutcomeMessage,
+  retryRefusalDetail,
   toggleSelection,
 } from "../../../util/payrunCalculation";
 
@@ -129,6 +134,8 @@ function PayrunCalculation({
 
   /* Who the Unlock / Publish / Unpublish dialog is open for: { action, mode, rows }. */
   const [lifecycleTarget, setLifecycleTarget] = useState(null);
+  /* The employee whose published payslip is open in View Payslip. */
+  const [payslipTarget, setPayslipTarget] = useState(null);
 
   /* The employee whose breakup is open, and the read behind it. */
   const [detail, setDetail] = useState(null);
@@ -168,6 +175,7 @@ function PayrunCalculation({
   const selectedUnlockable = eligibleWithin(rows, selectedIds, isUnlockable);
   const selectedPublishable = eligibleWithin(rows, selectedIds, isPublishable);
   const selectedUnpublishable = eligibleWithin(rows, selectedIds, isUnpublishable);
+  const selectedRetryable = eligibleWithin(rows, selectedIds, isNotificationRetryable);
   const readyIds = approvableEmployeeIds(rows);
 
   const busy = bulkBusy || busyEmployeeId !== null;
@@ -334,6 +342,34 @@ function PayrunCalculation({
   };
   const rowsOf = (ids) => rows.filter((row) => ids.includes(row.employee_id));
 
+  /**
+   * PUBLISH ALL APPROVED PAYSLIPS - the month only; who is Approved & Locked
+   * is decided by the server inside this viewer's branch scope.
+   */
+  const publishAll = () =>
+    run(() => PayrunCalculationHelper.publishAll({ year, month }), {
+      confirmText:
+        `Publish the payslips of every Approved & Locked employee for ${monthName ? `${monthName} ${year}` : `${year}-${month}`}?\n\n` +
+        "Each payslip is frozen from the approved figures and appears in the employee's Telegram Mini App. " +
+        "Each employee gets a Telegram message that their payslip is available (no salary figures in the message). " +
+        "Anyone whose salary or attendance changed since approval is refused.",
+      report: {
+        message: lifecycleOutcomeMessage,
+        refused: lifecycleHasRefusals,
+        detail: lifecycleRefusalDetail,
+      },
+    });
+
+  /**
+   * RETRY NOTIFICATION - the "payslip available" message again, for published
+   * payslips whose employee was not reached. Never republishes.
+   */
+  const retryNotification = (employeeIds) =>
+    run(() => PayrunCalculationHelper.retryNotification({ year, month, employee_ids: employeeIds }), {
+      employeeId: employeeIds.length === 1 ? employeeIds[0] : null,
+      report: { message: retryOutcomeMessage, refused: retryHasRefusals, detail: retryRefusalDetail },
+    });
+
   const monthLabel = monthName ? `${monthName} ${year}` : `${year}-${String(month).padStart(2, "0")}`;
   const openReset = (targetRows, mode) => setResetTarget({ mode, rows: targetRows });
   const confirmReset = async ({ reason, remark }) => {
@@ -447,11 +483,12 @@ function PayrunCalculation({
     { label: "Recalculation Required", value: summary.recalculation_required },
     { label: "Ready for Approval", value: summary.ready_for_approval },
     { label: "Approved & Locked", value: summary.approved_locked },
+    { label: "Payslip Published", value: summary.published },
   ];
 
   return (
     <Stack spacing={4}>
-      <SimpleGrid columns={{ base: 2, md: 6 }} spacing={3}>
+      <SimpleGrid columns={{ base: 2, md: 7 }} spacing={3}>
         {summaryCards.map((card) => (
           <Stat key={card.label} p={3} borderWidth="1px" borderRadius="md">
             <StatLabel fontSize="xs">{card.label}</StatLabel>
@@ -529,6 +566,18 @@ function PayrunCalculation({
         >
           Approve All Ready ({readyIds.length})
         </Button>
+        {/* PUBLISH ALL APPROVED PAYSLIPS sends no list either: the server
+            publishes whoever is Approved & Locked when the request lands. */}
+        {mayPublish ? (
+          <Button
+            size="sm"
+            colorScheme="blue"
+            isDisabled={monthLocked || busy || !summary.approved_locked}
+            onClick={publishAll}
+          >
+            Publish All Approved Payslips ({summary.approved_locked || 0})
+          </Button>
+        ) : null}
         {/* THE LIFECYCLE ACTIONS, shown once rows are selected and each
             counting only the selected rows it fits. */}
         {selectedIds.length > 0 && mayUnlock ? (
@@ -550,7 +599,7 @@ function PayrunCalculation({
               isDisabled={monthLocked || busy || selectedPublishable.length === 0}
               onClick={() => openLifecycle("PUBLISH", rowsOf(selectedPublishable), "BULK")}
             >
-              Publish Selected ({selectedPublishable.length})
+              Publish Payslips Selected ({selectedPublishable.length})
             </Button>
             <Button
               size="sm"
@@ -559,7 +608,16 @@ function PayrunCalculation({
               isDisabled={monthLocked || busy || selectedUnpublishable.length === 0}
               onClick={() => openLifecycle("UNPUBLISH", rowsOf(selectedUnpublishable), "BULK")}
             >
-              Unpublish Selected ({selectedUnpublishable.length})
+              Unpublish Payslips Selected ({selectedUnpublishable.length})
+            </Button>
+            <Button
+              size="sm"
+              colorScheme="teal"
+              variant="outline"
+              isDisabled={busy || selectedRetryable.length === 0}
+              onClick={() => retryNotification(selectedRetryable)}
+            >
+              Retry Notification Selected ({selectedRetryable.length})
             </Button>
           </>
         ) : null}
@@ -708,6 +766,8 @@ function PayrunCalculation({
             onLifecycle={(action, row) => openLifecycle(action, [row], "INDIVIDUAL")}
             canUnlock={mayUnlock && !monthLocked}
             canPublish={mayPublish && !monthLocked}
+            onRetryNotification={(row) => retryNotification([row.employee_id])}
+            onViewPayslip={(row) => setPayslipTarget(row)}
             onProcessAttendance={(row) => processAttendance([row.employee_id])}
             canProcessAttendance={mayProcessAttendance && !monthLocked}
             onOpen={openDetail}
@@ -728,6 +788,14 @@ function PayrunCalculation({
         target={lifecycleTarget}
         monthLabel={monthLabel}
         busy={busy}
+      />
+
+      <PayslipViewModal
+        isOpen={payslipTarget !== null}
+        onClose={() => setPayslipTarget(null)}
+        target={payslipTarget}
+        year={year}
+        month={month}
       />
 
       <ResetCalculationModal

@@ -131,6 +131,25 @@ const PayrunCalculationHelper = {
       employee_ids,
     }).then((res) => res.data),
 
+  /**
+   * PUBLISH ALL APPROVED PAYSLIPS. The month only: who is approved is decided
+   * on the server, inside the caller's branch scope.
+   */
+  publishAll: ({ year, month }) =>
+    API.post("/payrun/calculation/publish-all", { year, month }).then((res) => res.data),
+
+  /**
+   * RETRY NOTIFICATION - send the "payslip available" Telegram message again.
+   * Ids only: the Telegram destination is the server's to resolve. Never
+   * republishes.
+   */
+  retryNotification: ({ year, month, employee_ids }) =>
+    API.post("/payrun/calculation/retry-notification", { year, month, employee_ids }).then((res) => res.data),
+
+  /** VIEW PAYSLIP (admin): the frozen snapshot, its versions and its notification attempts. */
+  getPayslip: (params) =>
+    API.get("/payrun/calculation/payslip", { params }).then((res) => res.data),
+
   /** GET one employee's calculation and approval history for the month. */
   getHistory: (params) =>
     API.get("/payrun/calculation/history", { params }).then((res) => res.data),

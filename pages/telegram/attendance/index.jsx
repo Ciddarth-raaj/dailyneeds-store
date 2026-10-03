@@ -25,6 +25,7 @@ import TelegramOtDateList from "../../../components/telegram/TelegramOtDateList"
 import TelegramOtRequestForm from "../../../components/telegram/TelegramOtRequestForm";
 import TelegramAttendanceHelper from "../../../helper/telegramAttendance";
 import TelegramHelp from "../../../components/telegram/TelegramHelp";
+import TelegramPayslips from "../../../components/telegram/TelegramPayslips";
 import {
   SECTION_LABEL,
   SECTION_ORDER,
@@ -41,7 +42,7 @@ import { otRequestRows } from "../../../util/attendanceV2";
 /**
  * THE TELEGRAM ATTENDANCE MINI APP - employee attendance self-service.
  *
- * FOUR SECTIONS, and MY ATTENDANCE IS THE DEFAULT:
+ * FIVE SECTIONS, and MY ATTENDANCE IS THE DEFAULT:
  *
  *   MY ATTENDANCE  the employee's own calculated month, read-only. Tapping a
  *                  day opens the existing Day Detail with NO action props,
@@ -59,6 +60,10 @@ import { otRequestRows } from "../../../util/attendanceV2";
  *                  with its Eligible OT and its state: Not Requested,
  *                  Pending, Approved, Rejected. An actionable date opens the
  *                  form; Submit raises the ORDINARY Daily Needs OT request.
+ *
+ *   MY PAYSLIPS    the employee's own PUBLISHED payslips, newest month first.
+ *                  A month opens the frozen payslip (Net Pay first) with a
+ *                  Download PDF rendered on demand from the same snapshot.
  *
  *   HELP           a few sentences. No approval controls, here or anywhere.
  *
@@ -495,6 +500,12 @@ export default function TelegramAttendancePage() {
                       onSelect={openOt}
                     />
                   </Stack>
+                </TabPanel>
+
+                {/* MY PAYSLIPS. Lazy like every tab: nothing is read until it
+                    is opened, and then only this session's own payslips. */}
+                <TabPanel px={0}>
+                  <TelegramPayslips />
                 </TabPanel>
 
                 <TabPanel px={0}>

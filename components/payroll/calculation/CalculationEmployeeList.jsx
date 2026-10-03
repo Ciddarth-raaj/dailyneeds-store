@@ -29,8 +29,37 @@ import {
   isUnlockable,
   isUnpublishable,
   isLocked,
+  isNotificationRetryable,
+  hasPayslip,
+  notificationBadge,
+  viewBadge,
   statusScheme,
 } from "../../../util/payrunCalculation";
+
+/**
+ * A PUBLISHED PAYSLIP'S TWO OTHER FACTS, beside its status: whether the
+ * Telegram notification reached the employee, and whether they have opened
+ * it. Opening is proof of access only - never an acceptance.
+ */
+function PayslipBadges({ row }) {
+  const n = notificationBadge(row.payslip);
+  const v = viewBadge(row.payslip);
+  if (!n && !v) return null;
+  return (
+    <Stack direction="row" spacing={1} mt={1} flexWrap="wrap">
+      {n ? (
+        <Badge colorScheme={n.scheme} variant="subtle" fontSize="10px">
+          {n.label}
+        </Badge>
+      ) : null}
+      {v ? (
+        <Badge colorScheme={v.scheme} variant="outline" fontSize="10px" whiteSpace="normal">
+          {v.label}
+        </Badge>
+      ) : null}
+    </Stack>
+  );
+}
 
 /**
  * PAYRUN > CALCULATION & REVIEW - the month's initialized employees.
@@ -123,6 +152,8 @@ function RowActions({
   onLifecycle,
   canUnlock,
   canPublish,
+  onRetryNotification,
+  onViewPayslip,
   onOpen,
   canCalculate,
   canApprove,
@@ -204,8 +235,9 @@ function RowActions({
           Reset Calculation
         </Button>
       ) : null}
-      {/* THE LIFECYCLE: Unlock and Publish on an approved row; Unpublish on a
-          published one, whose Unlock is shown blocked until it is unpublished. */}
+      {/* THE LIFECYCLE: Unlock and Publish Payslip on an approved row; View
+          Payslip, Retry Notification and Unpublish Payslip on a published one,
+          whose Unlock is shown blocked until it is unpublished. */}
       {isUnlockable(row) && canUnlock ? (
         <Button size="xs" colorScheme="orange" variant="outline" onClick={() => onLifecycle("UNLOCK", row)} isDisabled={disabled}>
           Unlock
@@ -213,12 +245,29 @@ function RowActions({
       ) : null}
       {isPublishable(row) && canPublish ? (
         <Button size="xs" colorScheme="blue" onClick={() => onLifecycle("PUBLISH", row)} isDisabled={disabled}>
-          Publish
+          Publish Payslip
+        </Button>
+      ) : null}
+      {hasPayslip(row) && onViewPayslip ? (
+        <Button size="xs" colorScheme="blue" variant="ghost" onClick={() => onViewPayslip(row)} isDisabled={disabled}>
+          View Payslip
+        </Button>
+      ) : null}
+      {isNotificationRetryable(row) && canPublish && onRetryNotification ? (
+        <Button
+          size="xs"
+          colorScheme="teal"
+          variant="outline"
+          onClick={() => onRetryNotification(row)}
+          isDisabled={disabled}
+          isLoading={busy}
+        >
+          Retry Notification
         </Button>
       ) : null}
       {isUnpublishable(row) && canPublish ? (
         <Button size="xs" colorScheme="blue" variant="outline" onClick={() => onLifecycle("UNPUBLISH", row)} isDisabled={disabled}>
-          Unpublish
+          Unpublish Payslip
         </Button>
       ) : null}
       {isUnpublishable(row) && canUnlock ? (
@@ -333,6 +382,7 @@ function CalculationTable(props) {
                 <Badge colorScheme={statusScheme(row.status)} whiteSpace="normal" textAlign="left">
                   {row.status_label}
                 </Badge>
+                <PayslipBadges row={row} />
                 <Reasons row={row} />
               </Td>
               <Td>
@@ -406,6 +456,7 @@ function CalculationCard(props) {
             {row.status_label}
           </Badge>
         </Stack>
+        <PayslipBadges row={row} />
 
         <SimpleGrid columns={3} spacing={2}>
           <Field label="Salary Days" value={count(row.salary_days)} />

@@ -357,7 +357,7 @@ test("a successful submit says so and refreshes BOTH sections at once", () => {
  * THE TWO SECTIONS
  * =================================================================== */
 
-test("the four sections are My Attendance, Corrections, OT Requests and Help, in that order", () => {
+test("the five sections are My Attendance, Corrections, OT Requests, My Payslips and Help, in that order", () => {
   // The captions are rendered from SECTION_ORDER, so the ORDER is the thing
   // to assert and it lives in one place - a tab cannot be listed in the
   // captions in a different order from the one `?section=` resolves against.
@@ -366,12 +366,14 @@ test("the four sections are My Attendance, Corrections, OT Requests and Help, in
     SECTION.ATTENDANCE,
     SECTION.CORRECTIONS,
     SECTION.OT,
+    SECTION.PAYSLIPS,
     SECTION.HELP,
   ]);
   assert.deepEqual(SECTION_ORDER.map((k) => SECTION_LABEL[k]), [
     "My Attendance",
     "Corrections",
     "OT Requests",
+    "My Payslips",
     "Help",
   ]);
   const tabList = page.slice(page.indexOf("<TabList"), page.indexOf("</TabList>"));
@@ -493,7 +495,8 @@ test("OT Requests sits beside Corrections and is rendered from the month already
 });
 
 test("the OT tab adds no read to the Mini App API surface", () => {
-  // Exactly the five calls the Mini App has ever had, plus the OT write.
+  // Exactly the five calls the Mini App has ever had, plus the OT write,
+  // plus My Payslips' four (list, detail, pdf, pdf-link).
   const calls = [...helper.matchAll(/client\s*\.\s*(get|post)\(\s*"([^"]+)"/g)].map(
     (m) => `${m[1].toUpperCase()} ${m[2]}`
   );
@@ -504,7 +507,11 @@ test("the OT tab adds no read to the Mini App API surface", () => {
     "POST /telegram/attendance/ot-request",
     "POST /telegram/attendance/regularization",
     "POST /telegram/attendance/session",
-  ]);
+    "GET /telegram/payslips",
+    "GET /telegram/payslips/detail",
+    "GET /telegram/payslips/pdf",
+    "POST /telegram/payslips/pdf-link",
+  ].sort());
 });
 
 test("the OT submission sends a date and a reason, and has no field for minutes", () => {

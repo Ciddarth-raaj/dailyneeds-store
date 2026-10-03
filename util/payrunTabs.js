@@ -113,7 +113,7 @@ const CALCULATION_TABS = [
   { key: "RECALCULATION_REQUIRED", label: "Recalculation Required", status: "RECALCULATION_REQUIRED" },
   { key: "READY_FOR_APPROVAL", label: "Ready for Approval", status: "READY_FOR_APPROVAL" },
   { key: "APPROVED_LOCKED", label: "Approved & Locked", status: "APPROVED_LOCKED" },
-  { key: "PUBLISHED", label: "Published", status: "PUBLISHED" },
+  { key: "PUBLISHED", label: "Payslip Published", status: "PUBLISHED" },
 ];
 
 /**

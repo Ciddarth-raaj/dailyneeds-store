@@ -236,7 +236,7 @@ test("an explicit valid section is authoritative even with a date", () => {
 
   const help = "?section=help&date=2026-09-18";
   assert.equal(sectionFromQuery(help), SECTION.HELP);
-  assert.equal(sectionIndex(sectionFromQuery(help)), 3);
+  assert.equal(sectionIndex(sectionFromQuery(help)), 4);
 });
 
 /**
@@ -264,11 +264,12 @@ test("each known section maps to its own tab", () => {
   assert.equal(sectionFromQuery("?section=corrections"), SECTION.CORRECTIONS);
   assert.equal(sectionFromQuery("?section=ot"), SECTION.OT);
   assert.equal(sectionFromQuery("?section=help"), SECTION.HELP);
+  assert.equal(sectionFromQuery("?section=payslips"), SECTION.PAYSLIPS);
   assert.deepEqual(
-    ["attendance", "corrections", "ot", "help"].map((s) =>
+    ["attendance", "corrections", "ot", "payslips", "help"].map((s) =>
       sectionIndex(sectionFromQuery(`?section=${s}`))
     ),
-    [0, 1, 2, 3]
+    [0, 1, 2, 3, 4]
   );
 });
 
@@ -318,9 +319,10 @@ test("the tab index maps back to a section for the controlled Tabs", () => {
     SECTION.ATTENDANCE,
     SECTION.CORRECTIONS,
     SECTION.OT,
+    SECTION.PAYSLIPS,
     SECTION.HELP,
   ]);
-  [0, 1, 2, 3].forEach((i) => assert.equal(sectionIndex(sectionAtIndex(i)), i));
+  [0, 1, 2, 3, 4].forEach((i) => assert.equal(sectionIndex(sectionAtIndex(i)), i));
   // Out of range falls back rather than throwing.
   assert.equal(sectionAtIndex(9), SECTION.ATTENDANCE);
   assert.equal(sectionAtIndex(-1), SECTION.ATTENDANCE);
