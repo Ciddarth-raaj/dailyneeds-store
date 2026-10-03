@@ -57,7 +57,7 @@ const isCalculable = (row) =>
 
 /** Process Attendance is offered where the server says it would clear a blocker. */
 const isAttendanceProcessable = (row) =>
-  Boolean(row && row.status !== STATUS.APPROVED_LOCKED && row.attendance_processable === true);
+  Boolean(row && !isLocked(row) && row.attendance_processable === true);
 
 /**
  * RECALCULATE IS OFFERED ON ANYTHING CALCULATED AND NOT LOCKED, not only on

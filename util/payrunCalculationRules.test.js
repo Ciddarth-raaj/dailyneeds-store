@@ -331,6 +331,7 @@ test("Process Attendance is offered where the server says it would help, never o
   assert.equal(rules.isAttendanceProcessable({ status: STATUS.NOT_CALCULATED, attendance_processable: true }), true);
   assert.equal(rules.isAttendanceProcessable({ status: STATUS.NOT_CALCULATED, attendance_processable: false }), false);
   assert.equal(rules.isAttendanceProcessable({ status: STATUS.APPROVED_LOCKED, attendance_processable: true }), false);
+  assert.equal(rules.isAttendanceProcessable({ status: STATUS.PUBLISHED, attendance_processable: true }), false);
 });
 
 test("the Process Attendance outcome says what cleared and what still needs Attendance", () => {
