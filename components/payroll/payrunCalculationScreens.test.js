@@ -292,10 +292,9 @@ test("the stage is a step of the payrun and not a menu entry of its own", () => 
  * NO PAYSLIP AFFORDANCE. Generating and publishing payslips is the next stage
  * and is not built; a button for it would be a promise the system cannot keep.
  */
-test("there is no payslip, publish or unlock affordance anywhere", () => {
-  /* Compared against the CODE: a comment may name a stage to explain why it
-     is deliberately absent, which is exactly what the workflow's header does. */
-  for (const forbidden of ["Generate Payslip", "Publish", "Unlock", "Unpublish"]) {
+test("there is no payslip-generation affordance - Publish releases, it does not generate", () => {
+  /* Unlock, Publish and Unpublish are built; generating a payslip is not. */
+  for (const forbidden of ["Generate Payslip", "Download Payslip"]) {
     assert.ok(
       !workflowCode.includes(forbidden) &&
         !listCode.includes(forbidden) &&
@@ -797,4 +796,42 @@ test("Process Attendance calls its own endpoint with explicit ids, behind its ow
   assert.ok(workflowCode.includes("selectedIds.length > 0 && mayProcessAttendance"));
   assert.ok(listCode.includes("isAttendanceProcessable(row) && canProcessAttendance"));
   assert.ok(workflowCode.includes("confirmText:"), "it confirms before running the engine");
+});
+
+/* ================================================ the payroll lifecycle */
+
+test("Unlock / Publish / Unpublish call their endpoints with explicit ids and a mode", () => {
+  for (const [name, url] of [["unlock", "unlock"], ["publish", "publish"], ["unpublish", "unpublish"]]) {
+    const call = helperCode.slice(helperCode.indexOf(`${name}:`), helperCode.indexOf("=> res.data", helperCode.indexOf(`${name}:`)));
+    assert.ok(call.includes(`"/payrun/calculation/${url}"`), name);
+    assert.ok(call.includes("employee_ids") && call.includes("mode"), name);
+    assert.ok(!/all_eligible|all_ready|store_ids|published_by/.test(call), name);
+  }
+});
+
+test("each lifecycle action has its own permission, and a bulk button per action narrowed to eligible rows", () => {
+  assert.match(access, /canUnlockPayrun[\s\S]{0,300}unlock_payrun/);
+  assert.match(access, /canPublishPayrun[\s\S]{0,300}publish_payrun/);
+  assert.ok(pageCode.includes("canUnlockPayrun(actor)") && pageCode.includes("canPublishPayrun(actor)"));
+  for (const [label, predicate] of [["Unlock Selected (", "isUnlockable"], ["Publish Selected (", "isPublishable"], ["Unpublish Selected (", "isUnpublishable"]]) {
+    assert.ok(workflow.includes(label), label);
+    assert.ok(workflowCode.includes(`eligibleWithin(rows, selectedIds, ${predicate})`), predicate);
+  }
+  assert.ok(workflowCode.includes("selectedUnlockable.length === 0"));
+  assert.ok(workflowCode.includes("selectedPublishable.length === 0"));
+  assert.ok(workflowCode.includes("selectedUnpublishable.length === 0"));
+});
+
+test("a published row offers Unpublish, and its Unlock is shown blocked until then", () => {
+  assert.ok(listCode.includes('onLifecycle("UNPUBLISH", row)'));
+  assert.match(list, /Published payroll must be unpublished before it can be unlocked\./);
+  assert.ok(listCode.includes("isUnlockable(row) && canUnlock"));
+});
+
+test("the dialog requires a reason for Unlock and Unpublish, and the breakup shows the Net Pay rounding", () => {
+  const modal = read("components/payroll/calculation/LifecycleActionModal.jsx");
+  assert.match(modal, /UNLOCK: \{[\s\S]*?reasonRequired: true/);
+  assert.match(modal, /UNPUBLISH: \{[\s\S]*?reasonRequired: true/);
+  assert.match(modal, /PUBLISH: \{[\s\S]*?reasonRequired: false/);
+  assert.ok(breakup.includes("Net Pay Rounding") && breakupCode.includes("breakup.final.net_pay_rounding"));
 });

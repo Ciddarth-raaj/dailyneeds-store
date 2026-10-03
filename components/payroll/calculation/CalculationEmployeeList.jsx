@@ -25,6 +25,9 @@ import {
   isResettable,
   isAttendanceProcessable,
   isCalculable,
+  isPublishable,
+  isUnlockable,
+  isUnpublishable,
   isLocked,
   statusScheme,
 } from "../../../util/payrunCalculation";
@@ -117,6 +120,9 @@ function RowActions({
   onReset,
   onProcessAttendance,
   canProcessAttendance,
+  onLifecycle,
+  canUnlock,
+  canPublish,
   onOpen,
   canCalculate,
   canApprove,
@@ -198,6 +204,30 @@ function RowActions({
           Reset Calculation
         </Button>
       ) : null}
+      {/* THE LIFECYCLE: Unlock and Publish on an approved row; Unpublish on a
+          published one, whose Unlock is shown blocked until it is unpublished. */}
+      {isUnlockable(row) && canUnlock ? (
+        <Button size="xs" colorScheme="orange" variant="outline" onClick={() => onLifecycle("UNLOCK", row)} isDisabled={disabled}>
+          Unlock
+        </Button>
+      ) : null}
+      {isPublishable(row) && canPublish ? (
+        <Button size="xs" colorScheme="blue" onClick={() => onLifecycle("PUBLISH", row)} isDisabled={disabled}>
+          Publish
+        </Button>
+      ) : null}
+      {isUnpublishable(row) && canPublish ? (
+        <Button size="xs" colorScheme="blue" variant="outline" onClick={() => onLifecycle("UNPUBLISH", row)} isDisabled={disabled}>
+          Unpublish
+        </Button>
+      ) : null}
+      {isUnpublishable(row) && canUnlock ? (
+        <span title="Published payroll must be unpublished before it can be unlocked.">
+          <Button size="xs" colorScheme="orange" variant="outline" isDisabled>
+            Unlock
+          </Button>
+        </span>
+      ) : null}
       {isLocked(row) ? (
         <span title="Payroll is Approved & Locked for this employee. It cannot be reset.">
           <Button size="xs" colorScheme="red" variant="ghost" isDisabled>
@@ -271,7 +301,7 @@ function CalculationTable(props) {
                 <Checkbox
                   colorScheme="purple"
                   isChecked={(selectedIds || []).includes(row.employee_id)}
-                  isDisabled={isLocked(row)}
+                  isDisabled={false}
                   onChange={(e) => onSelectChange(row.employee_id, e.target.checked)}
                   aria-label={`Select ${row.employee_name || row.employee_id}`}
                 />
@@ -360,7 +390,7 @@ function CalculationCard(props) {
           <Checkbox
             colorScheme="purple"
             isChecked={(selectedIds || []).includes(row.employee_id)}
-            isDisabled={isLocked(row)}
+            isDisabled={false}
             onChange={(e) => onSelectChange(row.employee_id, e.target.checked)}
             aria-label={`Select ${row.employee_name || row.employee_id}`}
           />

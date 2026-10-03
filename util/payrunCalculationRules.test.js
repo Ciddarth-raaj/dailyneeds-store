@@ -347,3 +347,41 @@ test("the Process Attendance outcome says what cleared and what still needs Atte
   assert.equal(rules.processHasRefusals(result), true);
   assert.match(rules.processRefusalDetail(result), /^Ravi \(2\): Approved OT is recorded on a day with no NRM$/);
 });
+
+/* --------------------------------------------- Unlock / Publish / Unpublish */
+
+test("lifecycle actions follow the server's status; Published is locked but not unlockable", () => {
+  const approved = row(1, STATUS.APPROVED_LOCKED);
+  const published = row(2, STATUS.PUBLISHED);
+  const ready = row(3, STATUS.READY_FOR_APPROVAL);
+  assert.equal(rules.isLocked(published), true);
+  assert.equal(rules.isUnlockable(approved), true);
+  assert.equal(rules.isUnlockable(published), false, "Unpublish first");
+  assert.equal(rules.isPublishable(approved), true);
+  assert.equal(rules.isPublishable(published), false);
+  assert.equal(rules.isUnpublishable(published), true);
+  assert.equal(rules.isUnpublishable(approved), false);
+  assert.equal(rules.isUnlockable(ready), false);
+  assert.equal(rules.isResettable(published), false);
+  assert.equal(rules.isRecalculable(published), false);
+  assert.deepEqual(rules.eligibleWithin([approved, published, ready], [1, 2, 3], rules.isUnlockable), [1]);
+});
+
+test("the lifecycle outcome reads like '18 unlocked, 2 skipped — already published'", () => {
+  const result = {
+    action: "UNLOCK",
+    results: [
+      ...Array.from({ length: 18 }, (_, i) => ({ employee_id: i, result: "UNLOCKED" })),
+      { employee_id: 40, result: "SKIPPED", message: "Skipped — already published. Unpublish it before unlocking." },
+      { employee_id: 41, result: "SKIPPED", message: "Skipped — already published. Unpublish it before unlocking." },
+      { employee_id: 42, result: "SKIPPED", message: "Skipped — not approved & locked." },
+    ],
+  };
+  assert.equal(
+    rules.lifecycleOutcomeMessage(result),
+    "18 unlocked, 2 skipped — already published, 1 skipped — not approved & locked."
+  );
+  assert.equal(rules.lifecycleHasRefusals(result), true);
+  assert.match(rules.lifecycleRefusalDetail(result), /^Employee 40: Skipped — already published/);
+  assert.equal(rules.statusScheme(STATUS.PUBLISHED), "blue");
+});

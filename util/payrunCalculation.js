@@ -35,6 +35,7 @@ const STATUS = {
   RECALCULATION_REQUIRED: "RECALCULATION_REQUIRED",
   READY_FOR_APPROVAL: "READY_FOR_APPROVAL",
   APPROVED_LOCKED: "APPROVED_LOCKED",
+  PUBLISHED: "PUBLISHED",
 };
 
 /**
@@ -83,7 +84,44 @@ const isRecalculable = (row) =>
 const isApprovable = (row) => Boolean(row && row.status === STATUS.READY_FOR_APPROVAL);
 
 /** A locked row is frozen: nothing on this screen may act on it. */
-const isLocked = (row) => Boolean(row && row.status === STATUS.APPROVED_LOCKED);
+/* Approved & Locked and Published are both locked: nothing recalculates,
+   resets or edits either. */
+const isLocked = (row) =>
+  Boolean(row && (row.status === STATUS.APPROVED_LOCKED || row.status === STATUS.PUBLISHED));
+
+/* The lifecycle actions are offered by the server's status; it re-decides each. */
+const isUnlockable = (row) => Boolean(row && row.status === STATUS.APPROVED_LOCKED);
+const isPublishable = (row) => Boolean(row && row.status === STATUS.APPROVED_LOCKED);
+const isUnpublishable = (row) => Boolean(row && row.status === STATUS.PUBLISHED);
+
+/** "18 unlocked, 2 skipped — already published, 1 skipped — not approved." */
+const LIFECYCLE_DONE = { UNLOCK: ["UNLOCKED", "unlocked"], PUBLISH: ["PUBLISHED", "published"], UNPUBLISH: ["UNPUBLISHED", "unpublished"] };
+function lifecycleOutcomeMessage(result) {
+  if (!result) return "Nothing was changed.";
+  const done = LIFECYCLE_DONE[result.action] || ["", "done"];
+  const counts = new Map();
+  const rows = result.results || [];
+  const n = rows.filter((r) => r && r.result === done[0]).length;
+  const parts = n > 0 ? [`${n} ${done[1]}`] : [];
+  rows
+    .filter((r) => r && r.result !== done[0])
+    .forEach((r) => {
+      const text = String(r.message || r.result).replace(/^Skipped — /, "skipped — ").replace(/\..*$/, "");
+      counts.set(text, (counts.get(text) || 0) + 1);
+    });
+  counts.forEach((count, text) => parts.push(`${count} ${text}`));
+  return parts.length > 0 ? `${parts.join(", ")}.` : "Nothing was changed.";
+}
+const lifecycleHasRefusals = (result) =>
+  Boolean(result) && (result.results || []).some((r) => r && r.result !== (LIFECYCLE_DONE[result.action] || [])[0]);
+function lifecycleRefusalDetail(result) {
+  const done = (LIFECYCLE_DONE[result && result.action] || [])[0];
+  const refused = ((result && result.results) || []).filter((r) => r && r.result !== done && r.message);
+  if (refused.length === 0) return null;
+  const first = refused[0];
+  const who = first.employee_name ? `${first.employee_name} (${first.employee_id}): ` : `Employee ${first.employee_id}: `;
+  return `${who}${first.message}${refused.length > 1 ? ` (and ${refused.length - 1} more)` : ""}`;
+}
 
 /**
  * RESET CALCULATION IS OFFERED where a calculation exists and nobody has
@@ -327,6 +365,7 @@ function refusalDetail(result) {
 
 /** The badge colour for a status. Presentation only; the label is the server's. */
 function statusScheme(status) {
+  if (status === STATUS.PUBLISHED) return "blue";
   if (status === STATUS.APPROVED_LOCKED) return "green";
   if (status === STATUS.READY_FOR_APPROVAL) return "teal";
   if (status === STATUS.RECALCULATION_REQUIRED) return "orange";
@@ -345,6 +384,12 @@ module.exports = {
   isLocked,
   isResettable,
   isAttendanceProcessable,
+  isUnlockable,
+  isPublishable,
+  isUnpublishable,
+  lifecycleOutcomeMessage,
+  lifecycleHasRefusals,
+  lifecycleRefusalDetail,
   processOutcomeMessage,
   processHasRefusals,
   processRefusalDetail,

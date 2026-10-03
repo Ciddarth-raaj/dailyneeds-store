@@ -113,6 +113,7 @@ const CALCULATION_TABS = [
   { key: "RECALCULATION_REQUIRED", label: "Recalculation Required", status: "RECALCULATION_REQUIRED" },
   { key: "READY_FOR_APPROVAL", label: "Ready for Approval", status: "READY_FOR_APPROVAL" },
   { key: "APPROVED_LOCKED", label: "Approved & Locked", status: "APPROVED_LOCKED" },
+  { key: "PUBLISHED", label: "Published", status: "PUBLISHED" },
 ];
 
 /**
@@ -178,6 +179,7 @@ function tabCount(stage, key, summary = {}) {
     if (key === "RECALCULATION_REQUIRED") return at("recalculation_required");
     if (key === "READY_FOR_APPROVAL") return at("ready_for_approval");
     if (key === "APPROVED_LOCKED") return at("approved_locked");
+    if (key === "PUBLISHED") return at("published");
     return undefined;
   }
 

@@ -39,10 +39,10 @@ test("Adjustments offers exactly its four", () => {
   );
 });
 
-test("Calculation & Review offers exactly its five", () => {
+test("Calculation & Review offers exactly its six - Published is a queue of its own", () => {
   assert.deepEqual(
     CALCULATION_TABS.map((t) => t.key),
-    [ALL, "ATTENDANCE_PENDING", "RECALCULATION_REQUIRED", "READY_FOR_APPROVAL", "APPROVED_LOCKED"]
+    [ALL, "ATTENDANCE_PENDING", "RECALCULATION_REQUIRED", "READY_FOR_APPROVAL", "APPROVED_LOCKED", "PUBLISHED"]
   );
 });
 

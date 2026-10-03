@@ -20,6 +20,7 @@ import {
 import CalculationEmployeeList from "./CalculationEmployeeList";
 import CalculationBreakup from "./CalculationBreakup";
 import ResetCalculationModal from "./ResetCalculationModal";
+import LifecycleActionModal from "./LifecycleActionModal";
 import usePayrunCalculationMonth from "../../../customHooks/usePayrunCalculationMonth";
 import PayrunCalculationHelper from "../../../helper/payrunCalculation";
 import { describeApiResult, KIND } from "../../../util/salaryApiError";
@@ -40,7 +41,12 @@ import {
   isAllSelected,
   isApprovable,
   isAttendanceProcessable,
-  isLocked,
+  isPublishable,
+  isUnlockable,
+  isUnpublishable,
+  lifecycleHasRefusals,
+  lifecycleOutcomeMessage,
+  lifecycleRefusalDetail,
   isRecalculable,
   isResettable,
   nextSelectAll,
@@ -101,6 +107,8 @@ function PayrunCalculation({
   mayApprove,
   mayChangePayType,
   mayProcessAttendance = false,
+  mayUnlock = false,
+  mayPublish = false,
   search = "",
 }) {
   const toast = useToast();
@@ -118,6 +126,9 @@ function PayrunCalculation({
   const [bulkBusy, setBulkBusy] = useState(false);
   /* Who the Reset Calculation dialog is open for: { mode, rows }, or null. */
   const [resetTarget, setResetTarget] = useState(null);
+
+  /* Who the Unlock / Publish / Unpublish dialog is open for: { action, mode, rows }. */
+  const [lifecycleTarget, setLifecycleTarget] = useState(null);
 
   /* The employee whose breakup is open, and the read behind it. */
   const [detail, setDetail] = useState(null);
@@ -142,10 +153,10 @@ function PayrunCalculation({
 
   /* A selection never outlives the rows it was made on - most obviously the
      rows that were just approved and can no longer be acted on. */
-  const selectableIds = useMemo(
-    () => rows.filter((row) => !isLocked(row)).map((row) => row.employee_id),
-    [rows]
-  );
+  /* EVERY ROW IS SELECTABLE: a locked or published row is what Unlock,
+     Publish and Unpublish act on. Each action narrows the selection to the
+     rows it fits, and the server re-decides every one. */
+  const selectableIds = useMemo(() => rows.map((row) => row.employee_id), [rows]);
   useEffect(() => {
     setSelectedIds((prev) => pruneSelection(prev, selectableIds));
   }, [selectableIds]);
@@ -154,6 +165,9 @@ function PayrunCalculation({
   const selectedApprovable = eligibleWithin(rows, selectedIds, isApprovable);
   const selectedResettable = eligibleWithin(rows, selectedIds, isResettable);
   const selectedProcessable = eligibleWithin(rows, selectedIds, isAttendanceProcessable);
+  const selectedUnlockable = eligibleWithin(rows, selectedIds, isUnlockable);
+  const selectedPublishable = eligibleWithin(rows, selectedIds, isPublishable);
+  const selectedUnpublishable = eligibleWithin(rows, selectedIds, isUnpublishable);
   const readyIds = approvableEmployeeIds(rows);
 
   const busy = bulkBusy || busyEmployeeId !== null;
@@ -243,13 +257,15 @@ function PayrunCalculation({
       }
     );
 
-  const approve = (employeeIds, { all = false } = {}) =>
+  const approve = (employeeIds, { all = false, mode = null } = {}) =>
     run(
       () =>
         PayrunCalculationHelper.approve({
           year,
           month,
           ...(all ? { all_ready: true } : { employee_ids: employeeIds }),
+          // A row's own button, or a selection / Approve All Ready.
+          mode: mode || (all || employeeIds.length > 1 ? "BULK" : "INDIVIDUAL"),
         }),
       {
         employeeId: !all && employeeIds.length === 1 ? employeeIds[0] : null,
@@ -287,6 +303,36 @@ function PayrunCalculation({
         detail: processRefusalDetail,
       },
     });
+
+  /**
+   * UNLOCK / PUBLISH / UNPUBLISH - one row or a selection, through `run`.
+   * The dialog is the confirmation; the server decides each employee.
+   */
+  const LIFECYCLE_CALL = {
+    UNLOCK: PayrunCalculationHelper.unlock,
+    PUBLISH: PayrunCalculationHelper.publish,
+    UNPUBLISH: PayrunCalculationHelper.unpublish,
+  };
+  const openLifecycle = (action, targetRows, mode) => setLifecycleTarget({ action, mode, rows: targetRows });
+  const confirmLifecycle = async ({ reason, remark }) => {
+    const target = lifecycleTarget;
+    if (!target) return;
+    const employeeIds = target.rows.map((row) => row.employee_id);
+    await run(
+      () =>
+        LIFECYCLE_CALL[target.action]({ year, month, employee_ids: employeeIds, reason, remark, mode: target.mode }),
+      {
+        employeeId: target.mode === "INDIVIDUAL" ? employeeIds[0] : null,
+        report: {
+          message: lifecycleOutcomeMessage,
+          refused: lifecycleHasRefusals,
+          detail: lifecycleRefusalDetail,
+        },
+      }
+    );
+    setLifecycleTarget(null);
+  };
+  const rowsOf = (ids) => rows.filter((row) => ids.includes(row.employee_id));
 
   const monthLabel = monthName ? `${monthName} ${year}` : `${year}-${String(month).padStart(2, "0")}`;
   const openReset = (targetRows, mode) => setResetTarget({ mode, rows: targetRows });
@@ -471,7 +517,7 @@ function PayrunCalculation({
           colorScheme="green"
           variant="outline"
           isDisabled={!mayApprove || monthLocked || busy || selectedApprovable.length === 0}
-          onClick={() => approve(selectedApprovable)}
+          onClick={() => approve(selectedApprovable, { mode: "BULK" })}
         >
           Approve Selected ({selectedApprovable.length})
         </Button>
@@ -483,6 +529,40 @@ function PayrunCalculation({
         >
           Approve All Ready ({readyIds.length})
         </Button>
+        {/* THE LIFECYCLE ACTIONS, shown once rows are selected and each
+            counting only the selected rows it fits. */}
+        {selectedIds.length > 0 && mayUnlock ? (
+          <Button
+            size="sm"
+            colorScheme="orange"
+            variant="outline"
+            isDisabled={monthLocked || busy || selectedUnlockable.length === 0}
+            onClick={() => openLifecycle("UNLOCK", rowsOf(selectedUnlockable), "BULK")}
+          >
+            Unlock Selected ({selectedUnlockable.length})
+          </Button>
+        ) : null}
+        {selectedIds.length > 0 && mayPublish ? (
+          <>
+            <Button
+              size="sm"
+              colorScheme="blue"
+              isDisabled={monthLocked || busy || selectedPublishable.length === 0}
+              onClick={() => openLifecycle("PUBLISH", rowsOf(selectedPublishable), "BULK")}
+            >
+              Publish Selected ({selectedPublishable.length})
+            </Button>
+            <Button
+              size="sm"
+              colorScheme="blue"
+              variant="outline"
+              isDisabled={monthLocked || busy || selectedUnpublishable.length === 0}
+              onClick={() => openLifecycle("UNPUBLISH", rowsOf(selectedUnpublishable), "BULK")}
+            >
+              Unpublish Selected ({selectedUnpublishable.length})
+            </Button>
+          </>
+        ) : null}
         {selectedIds.length > 0 && mayProcessAttendance ? (
           <Button
             size="sm"
@@ -625,6 +705,9 @@ function PayrunCalculation({
             }
             onApprove={(ids) => approve(ids)}
             onReset={(row) => openReset([row], "INDIVIDUAL")}
+            onLifecycle={(action, row) => openLifecycle(action, [row], "INDIVIDUAL")}
+            canUnlock={mayUnlock && !monthLocked}
+            canPublish={mayPublish && !monthLocked}
             onProcessAttendance={(row) => processAttendance([row.employee_id])}
             canProcessAttendance={mayProcessAttendance && !monthLocked}
             onOpen={openDetail}
@@ -637,6 +720,15 @@ function PayrunCalculation({
           />
         </Stack>
       ) : null}
+
+      <LifecycleActionModal
+        isOpen={lifecycleTarget !== null}
+        onClose={() => setLifecycleTarget(null)}
+        onConfirm={confirmLifecycle}
+        target={lifecycleTarget}
+        monthLabel={monthLabel}
+        busy={busy}
+      />
 
       <ResetCalculationModal
         isOpen={resetTarget !== null}

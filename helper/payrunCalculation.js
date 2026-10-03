@@ -3,7 +3,7 @@ import API from "../util/api";
 /**
  * Payrun Calculation & Review - the browser's side of /payrun/calculation.
  *
- * EIGHT CALLS, MATCHING THE EIGHT ENDPOINTS EXACTLY. Nothing here invents a route
+ * ELEVEN CALLS, MATCHING THE ELEVEN ENDPOINTS EXACTLY. Nothing here invents a route
  * and nothing here decides anything: every figure on the review screen - the
  * daily rate, the OT price, the PF and ESI, the net pay - and every status,
  * blocker and reason is the server's answer, because a second implementation
@@ -70,12 +70,36 @@ const PayrunCalculationHelper = {
    * records the approval against the calculation it holds, refusing it if that
    * calculation has moved since this screen read it.
    */
-  approve: ({ year, month, employee_ids, all_ready }) =>
+  approve: ({ year, month, employee_ids, all_ready, mode }) =>
     API.post("/payrun/calculation/approve", {
       year,
       month,
       ...(all_ready ? { all_ready: true } : { employee_ids }),
+      ...(mode ? { mode } : {}),
     }).then((res) => res.data),
+
+  /**
+   * UNLOCK / PUBLISH / UNPUBLISH - explicit ids, a mode, and a reason (required
+   * by the server for unlock and unpublish). The server re-decides every
+   * employee and returns one result each; who acted is its own identity.
+   */
+  unlock: ({ year, month, employee_ids, reason, remark, mode }) =>
+    API.post("/payrun/calculation/unlock", { year, month, employee_ids, reason, ...(remark ? { remark } : {}), mode }).then(
+      (res) => res.data
+    ),
+  publish: ({ year, month, employee_ids, reason, remark, mode }) =>
+    API.post("/payrun/calculation/publish", {
+      year,
+      month,
+      employee_ids,
+      ...(reason ? { reason } : {}),
+      ...(remark ? { remark } : {}),
+      mode,
+    }).then((res) => res.data),
+  unpublish: ({ year, month, employee_ids, reason, remark, mode }) =>
+    API.post("/payrun/calculation/unpublish", { year, month, employee_ids, reason, ...(remark ? { remark } : {}), mode }).then(
+      (res) => res.data
+    ),
 
   /**
    * RESET CALCULATION - return employees to Not Calculated for this month.

@@ -346,6 +346,11 @@ function CalculationBreakup({ isOpen, onClose, employee, loading, error }) {
                   label="Total Employee Deductions"
                   value={money(breakup.final.total_employee_deductions)}
                 />
+                {/* Net Pay is paid in whole rupees; the rounding is the server's
+                    stored figure, shown so the totals still add up. */}
+                {breakup.final.net_pay_rounding !== null && breakup.final.net_pay_rounding !== undefined ? (
+                  <Line label="Net Pay Rounding" value={money(breakup.final.net_pay_rounding)} />
+                ) : null}
                 <Line label="Net Pay" value={money(breakup.final.net_pay)} strong />
                 <Line label="Pay Type" value={breakup.final.pay_type} />
               </Group>

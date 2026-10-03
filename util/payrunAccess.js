@@ -131,6 +131,18 @@ function canProcessPayrunAttendance({ permissions = [], isAdmin = false } = {}) 
   );
 }
 
+/** UNLOCK reopens a signed-off month: its own key, `unlock_payrun`. */
+function canUnlockPayrun({ permissions = [], isAdmin = false } = {}) {
+  if (isAdminUser(isAdmin)) return true;
+  return has(permissions, "view_employees") && has(permissions, "unlock_payrun");
+}
+
+/** PUBLISH and UNPUBLISH release / withdraw a month: `publish_payrun`. */
+function canPublishPayrun({ permissions = [], isAdmin = false } = {}) {
+  if (isAdminUser(isAdmin)) return true;
+  return has(permissions, "view_employees") && has(permissions, "publish_payrun");
+}
+
 function canCloseAttendanceForPayroll({ permissions = [], isAdmin = false } = {}) {
   if (isAdminUser(isAdmin)) return true;
   return has(permissions, "view_employees") && has(permissions, "close_payrun_attendance");
@@ -164,6 +176,8 @@ module.exports = {
   canChangePayrunPayType,
   canCloseAttendanceForPayroll,
   canProcessPayrunAttendance,
+  canUnlockPayrun,
+  canPublishPayrun,
   isRowInitializable,
   canSeePayrunMenu,
 };
