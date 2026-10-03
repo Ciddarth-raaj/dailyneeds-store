@@ -32,6 +32,7 @@ import { changeMonthlyPayType } from "../../util/payrunPayType";
 import {
   canApprovePayrun,
   canCalculatePayrun,
+  canProcessPayrunAttendance,
   canChangePayrunPayType,
   canInitializePayrun,
   canOpenPayrun,
@@ -167,6 +168,7 @@ function Payrun() {
    */
   const mayApprove = canApprovePayrun(actor);
   const mayCloseAttendance = canCloseAttendanceForPayroll(actor);
+  const mayProcessAttendance = canProcessPayrunAttendance(actor);
 
   const initial = currentPeriod();
   const [year, setYear] = useState(initial.year);
@@ -667,6 +669,7 @@ function Payrun() {
             mayCalculate={mayCalculate}
             mayApprove={mayApprove}
             mayChangePayType={mayChangePayType}
+            mayProcessAttendance={mayProcessAttendance}
           />
         ) : null}
 

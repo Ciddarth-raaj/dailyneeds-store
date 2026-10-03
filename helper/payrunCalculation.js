@@ -3,7 +3,7 @@ import API from "../util/api";
 /**
  * Payrun Calculation & Review - the browser's side of /payrun/calculation.
  *
- * SEVEN CALLS, MATCHING THE SEVEN ENDPOINTS EXACTLY. Nothing here invents a route
+ * EIGHT CALLS, MATCHING THE EIGHT ENDPOINTS EXACTLY. Nothing here invents a route
  * and nothing here decides anything: every figure on the review screen - the
  * daily rate, the OT price, the PF and ESI, the net pay - and every status,
  * blocker and reason is the server's answer, because a second implementation
@@ -93,6 +93,18 @@ const PayrunCalculationHelper = {
       reason,
       ...(remark ? { remark } : {}),
       mode,
+    }).then((res) => res.data),
+
+  /**
+   * PROCESS ATTENDANCE - the attendance engine's own month persist, run for
+   * the listed employees where the server's readiness says it would clear a
+   * blocker. Explicit ids only; the server re-decides every one.
+   */
+  processAttendance: ({ year, month, employee_ids }) =>
+    API.post("/payrun/calculation/process-attendance", {
+      year,
+      month,
+      employee_ids,
     }).then((res) => res.data),
 
   /** GET one employee's calculation and approval history for the month. */

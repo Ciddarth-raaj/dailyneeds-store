@@ -116,6 +116,21 @@ function canApprovePayrun({ permissions = [], isAdmin = false } = {}) {
  *
  * THIS HIDES A BUTTON AND NOTHING MORE. The endpoint enforces the same key.
  */
+/**
+ * PROCESS ATTENDANCE FROM PAYROLL runs the attendance engine's month persist,
+ * so it needs the Attendance module's own `recalculate_attendance` on top of
+ * the payroll calculate keys. Hiding the button is not the security; the
+ * server requires all three.
+ */
+function canProcessPayrunAttendance({ permissions = [], isAdmin = false } = {}) {
+  if (isAdminUser(isAdmin)) return true;
+  return (
+    has(permissions, "view_employees") &&
+    has(permissions, "process_payroll") &&
+    has(permissions, "recalculate_attendance")
+  );
+}
+
 function canCloseAttendanceForPayroll({ permissions = [], isAdmin = false } = {}) {
   if (isAdminUser(isAdmin)) return true;
   return has(permissions, "view_employees") && has(permissions, "close_payrun_attendance");
@@ -148,6 +163,7 @@ module.exports = {
   canApprovePayrun,
   canChangePayrunPayType,
   canCloseAttendanceForPayroll,
+  canProcessPayrunAttendance,
   isRowInitializable,
   canSeePayrunMenu,
 };

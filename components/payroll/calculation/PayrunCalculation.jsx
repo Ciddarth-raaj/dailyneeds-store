@@ -39,11 +39,15 @@ import {
   hasRefusals,
   isAllSelected,
   isApprovable,
+  isAttendanceProcessable,
   isLocked,
   isRecalculable,
   isResettable,
   nextSelectAll,
   outcomeMessage,
+  processHasRefusals,
+  processOutcomeMessage,
+  processRefusalDetail,
   pruneSelection,
   recalculateMessage,
   refusalDetail,
@@ -96,6 +100,7 @@ function PayrunCalculation({
   mayCalculate,
   mayApprove,
   mayChangePayType,
+  mayProcessAttendance = false,
   search = "",
 }) {
   const toast = useToast();
@@ -148,6 +153,7 @@ function PayrunCalculation({
   const selectedRecalculable = eligibleWithin(rows, selectedIds, isRecalculable);
   const selectedApprovable = eligibleWithin(rows, selectedIds, isApprovable);
   const selectedResettable = eligibleWithin(rows, selectedIds, isResettable);
+  const selectedProcessable = eligibleWithin(rows, selectedIds, isAttendanceProcessable);
   const readyIds = approvableEmployeeIds(rows);
 
   const busy = bulkBusy || busyEmployeeId !== null;
@@ -260,6 +266,28 @@ function PayrunCalculation({
    * approved since this screen loaded comes back "skipped — payroll locked"
    * rather than reset.
    */
+  /**
+   * PROCESS ATTENDANCE - the attendance engine's own month persist, for the
+   * employees whose blockers it can clear (a summary that no longer matches
+   * its days, days never processed, an approved-OT total out of step). It
+   * decides no request and changes no approval, salary or calculation; what
+   * still blocks afterwards is reported by name.
+   */
+  const processAttendance = (employeeIds) =>
+    run(() => PayrunCalculationHelper.processAttendance({ year, month, employee_ids: employeeIds }), {
+      employeeId: employeeIds.length === 1 ? employeeIds[0] : null,
+      confirmText:
+        `Process attendance for ${employeeIds.length === 1 ? "this employee" : `these ${employeeIds.length} employees`}?\n\n` +
+        "This re-runs the attendance calculation for the month from the punches, approvals and shifts " +
+        "as they stand now - the same as Recalculate in Attendance. It does not approve or change any " +
+        "request, salary or payroll figure.",
+      report: {
+        message: processOutcomeMessage,
+        refused: processHasRefusals,
+        detail: processRefusalDetail,
+      },
+    });
+
   const monthLabel = monthName ? `${monthName} ${year}` : `${year}-${String(month).padStart(2, "0")}`;
   const openReset = (targetRows, mode) => setResetTarget({ mode, rows: targetRows });
   const confirmReset = async ({ reason, remark }) => {
@@ -423,11 +451,11 @@ function PayrunCalculation({
         <Button
           size="sm"
           colorScheme="purple"
-          isDisabled={!mayCalculate || monthLocked || busy || summary.not_calculated === 0}
+          isDisabled={!mayCalculate || monthLocked || busy || summary.eligible_to_calculate === 0}
           isLoading={bulkBusy}
           onClick={() => calculate([], { all: true })}
         >
-          Calculate All Eligible ({summary.not_calculated})
+          Calculate All Eligible ({summary.eligible_to_calculate})
         </Button>
         <Button
           size="sm"
@@ -455,6 +483,17 @@ function PayrunCalculation({
         >
           Approve All Ready ({readyIds.length})
         </Button>
+        {selectedIds.length > 0 && mayProcessAttendance ? (
+          <Button
+            size="sm"
+            colorScheme="blue"
+            variant="outline"
+            isDisabled={monthLocked || busy || selectedProcessable.length === 0}
+            onClick={() => processAttendance(selectedProcessable)}
+          >
+            Process Attendance ({selectedProcessable.length})
+          </Button>
+        ) : null}
         {/* Shown once rows are selected. It counts only the selected rows that
             HAVE a calculation to reset; the server re-decides each of them. */}
         {selectedIds.length > 0 ? (
@@ -474,6 +513,20 @@ function PayrunCalculation({
           </Button>
         ) : null}
       </Stack>
+
+      {/* THE ELIGIBLE COUNT IS TRUTHFUL: it is what Calculate will accept. The
+          rest are said out loud, with their reasons on their rows. */}
+      {summary.not_calculated_blocked > 0 ? (
+        <Text fontSize="xs" color="orange.700">
+          {summary.not_calculated_blocked} not-calculated employee
+          {summary.not_calculated_blocked === 1 ? " is" : "s are"} not eligible yet — the reason is shown
+          on each row
+          {summary.attendance_processable > 0
+            ? `; ${summary.attendance_processable} can be cleared with Process Attendance`
+            : ""}
+          .
+        </Text>
+      ) : null}
 
       {!mayApprove ? (
         <Text fontSize="xs" color="gray.600">
@@ -572,6 +625,8 @@ function PayrunCalculation({
             }
             onApprove={(ids) => approve(ids)}
             onReset={(row) => openReset([row], "INDIVIDUAL")}
+            onProcessAttendance={(row) => processAttendance([row.employee_id])}
+            canProcessAttendance={mayProcessAttendance && !monthLocked}
             onOpen={openDetail}
             onPayTypeChange={changePayType}
             canCalculate={mayCalculate && !monthLocked}

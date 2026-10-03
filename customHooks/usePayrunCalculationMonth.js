@@ -104,6 +104,10 @@ function usePayrunCalculationMonth(filters, canView) {
     ready_for_approval: 0,
     approved_locked: 0,
     payslip_eligible: 0,
+    eligible_to_calculate: 0,
+    not_calculated_blocked: 0,
+    recalculation_ready: 0,
+    attendance_processable: 0,
   };
 
   return {

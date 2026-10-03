@@ -46,7 +46,17 @@ const STATUS = {
  * the figures on screen would be a second copy of the state machine, and the
  * copy would be the one that lets somebody approve a stale month.
  */
-const isCalculable = (row) => Boolean(row && row.status === STATUS.NOT_CALCULATED);
+/*
+ * CALCULABLE IS THE SERVER'S VERDICT. `row.calculable` is the shared payroll
+ * readiness Calculate itself enforces; a row it is false on is not offered a
+ * Calculate button and is not counted as eligible.
+ */
+const isCalculable = (row) =>
+  Boolean(row && row.status === STATUS.NOT_CALCULATED && row.calculable !== false);
+
+/** Process Attendance is offered where the server says it would clear a blocker. */
+const isAttendanceProcessable = (row) =>
+  Boolean(row && row.status !== STATUS.APPROVED_LOCKED && row.attendance_processable === true);
 
 /**
  * RECALCULATE IS OFFERED ON ANYTHING CALCULATED AND NOT LOCKED, not only on
@@ -64,7 +74,9 @@ const isRecalculable = (row) =>
            attendance month is settled. */
         row.status === STATUS.ATTENDANCE_PENDING ||
         row.status === STATUS.RECALCULATION_REQUIRED ||
-        row.status === STATUS.READY_FOR_APPROVAL)
+        row.status === STATUS.READY_FOR_APPROVAL) &&
+      /* ...and only when the server says Calculate would accept it now. */
+      row.calculable !== false
   );
 
 /** ONLY A READY ROW MAY BE APPROVED. The server refuses anything else. */
@@ -126,6 +138,40 @@ function resetOutcomeMessage(result) {
   add(result.not_in_scope_count, "skipped — not in this month or your branches");
   add(result.failed_count, "could not be reset");
   return parts.length > 0 ? `${parts.join(", ")}.` : "Nothing was changed.";
+}
+
+/** "3 processed (2 now clear), 1 skipped - needs attention in Attendance." */
+function processOutcomeMessage(result) {
+  if (!result) return "Nothing was changed.";
+  const parts = [];
+  const add = (count, text) => {
+    const n = Number(count || 0);
+    if (n > 0) parts.push(`${n} ${text}`);
+  };
+  const processed = Number(result.processed_count || 0);
+  if (processed > 0) parts.push(`${processed} processed (${Number(result.cleared_count || 0)} now clear)`);
+  add(result.skipped_count, "skipped — needs a fix in Attendance");
+  add(result.locked_count, "skipped — payroll locked");
+  add(result.not_in_scope_count, "not in this month or your branches");
+  add(result.failed_count, "could not be processed");
+  return parts.length > 0 ? `${parts.join(", ")}.` : "Nothing was changed.";
+}
+
+/** Whether a Process Attendance run left anybody still blocked. */
+const processHasRefusals = (result) =>
+  Boolean(result) &&
+  ((result.results || []).some((r) => r && (r.result !== "PROCESSED" || (r.blockers || []).length > 0)));
+
+/** The first employee still blocked after processing, in the server's words. */
+function processRefusalDetail(result) {
+  const open = ((result && result.results) || []).filter(
+    (r) => r && r.message && (r.result !== "PROCESSED" || (r.blockers || []).length > 0)
+  );
+  if (open.length === 0) return null;
+  const first = open[0];
+  const who = first.employee_name ? `${first.employee_name} (${first.employee_id}): ` : `Employee ${first.employee_id}: `;
+  const more = open.length > 1 ? ` (and ${open.length - 1} more)` : "";
+  return `${who}${first.message}${more}`;
 }
 
 /** Whether a reset left anybody as they were. */
@@ -298,6 +344,10 @@ module.exports = {
   isApprovable,
   isLocked,
   isResettable,
+  isAttendanceProcessable,
+  processOutcomeMessage,
+  processHasRefusals,
+  processRefusalDetail,
   RESET_REASON_OPTIONS,
   RESET_REMARK_MAX,
   resetFormProblem,

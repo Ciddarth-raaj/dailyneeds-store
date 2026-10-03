@@ -310,3 +310,40 @@ test("the reset outcome names what was reset and why the rest were skipped", () 
     "Ravi (3): Payroll is Approved & Locked. (and 1 more)"
   );
 });
+
+/* ------------------------------------------------ payroll readiness (shared) */
+
+test("Calculate is offered only where the server says Calculate will accept it", () => {
+  assert.equal(rules.isCalculable({ employee_id: 1, status: STATUS.NOT_CALCULATED, calculable: true }), true);
+  assert.equal(rules.isCalculable({ employee_id: 1, status: STATUS.NOT_CALCULATED, calculable: false }), false);
+  assert.equal(rules.isRecalculable({ employee_id: 1, status: STATUS.ATTENDANCE_PENDING, calculable: false }), false);
+  assert.equal(rules.isRecalculable({ employee_id: 1, status: STATUS.RECALCULATION_REQUIRED, calculable: true }), true);
+  assert.deepEqual(
+    rules.calculableEmployeeIds([
+      { employee_id: 1, status: STATUS.NOT_CALCULATED, calculable: true },
+      { employee_id: 2, status: STATUS.NOT_CALCULATED, calculable: false },
+    ]),
+    [1]
+  );
+});
+
+test("Process Attendance is offered where the server says it would help, never on a locked row", () => {
+  assert.equal(rules.isAttendanceProcessable({ status: STATUS.NOT_CALCULATED, attendance_processable: true }), true);
+  assert.equal(rules.isAttendanceProcessable({ status: STATUS.NOT_CALCULATED, attendance_processable: false }), false);
+  assert.equal(rules.isAttendanceProcessable({ status: STATUS.APPROVED_LOCKED, attendance_processable: true }), false);
+});
+
+test("the Process Attendance outcome says what cleared and what still needs Attendance", () => {
+  assert.equal(
+    rules.processOutcomeMessage({ processed_count: 3, cleared_count: 2, skipped_count: 1, results: [] }),
+    "3 processed (2 now clear), 1 skipped — needs a fix in Attendance."
+  );
+  const result = {
+    results: [
+      { employee_id: 1, result: "PROCESSED", blockers: [], message: "ok" },
+      { employee_id: 2, employee_name: "Ravi", result: "SKIPPED", message: "Approved OT is recorded on a day with no NRM" },
+    ],
+  };
+  assert.equal(rules.processHasRefusals(result), true);
+  assert.match(rules.processRefusalDetail(result), /^Ravi \(2\): Approved OT is recorded on a day with no NRM$/);
+});

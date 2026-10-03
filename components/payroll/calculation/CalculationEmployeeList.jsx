@@ -23,6 +23,8 @@ import {
   isApprovable,
   isRecalculable,
   isResettable,
+  isAttendanceProcessable,
+  isCalculable,
   isLocked,
   statusScheme,
 } from "../../../util/payrunCalculation";
@@ -113,6 +115,8 @@ function RowActions({
   onRecalculate,
   onApprove,
   onReset,
+  onProcessAttendance,
+  canProcessAttendance,
   onOpen,
   canCalculate,
   canApprove,
@@ -128,7 +132,22 @@ function RowActions({
       {/* CALCULATE AND RECALCULATE ARE ONE BUTTON PER ROW, LABELLED FOR WHAT
           IT WOULD DO. Two buttons where only one is ever enabled is two
           controls to read for one decision. */}
-      {row.status === STATUS.NOT_CALCULATED ? (
+      {/* PROCESS ATTENDANCE, where the server says re-running the attendance
+          month would clear what blocks this employee. */}
+      {isAttendanceProcessable(row) && canProcessAttendance ? (
+        <Button
+          size="xs"
+          colorScheme="blue"
+          variant="outline"
+          onClick={() => onProcessAttendance(row)}
+          isDisabled={disabled}
+          isLoading={busy}
+        >
+          Process Attendance
+        </Button>
+      ) : null}
+      {/* CALCULATE ONLY WHERE THE SERVER SAYS IT WOULD BE ACCEPTED. */}
+      {isCalculable(row) ? (
         <Button
           size="xs"
           colorScheme="purple"
@@ -203,8 +222,20 @@ function Reasons({ row }) {
   return (
     <Stack spacing={1}>
       {reasons.map((reason) => (
-        <Text key={reason.code} fontSize="xs" color="gray.600" whiteSpace="normal">
+        <Text
+          key={reason.code}
+          fontSize="xs"
+          color="gray.600"
+          whiteSpace="normal"
+          title={reason.message || undefined}
+        >
           {reason.label}
+          {/* The exact dates, where the server named them. */}
+          {Array.isArray(reason.not_final_dates) && reason.not_final_dates.length > 0
+            ? `: ${reason.not_final_dates.slice(0, 3).map((d) => d.attendance_date).join(", ")}${reason.not_final_dates.length > 3 ? "…" : ""}`
+            : Array.isArray(reason.dates) && reason.dates.length > 0
+            ? `: ${reason.dates.slice(0, 3).join(", ")}${reason.dates.length > 3 ? "…" : ""}`
+            : ""}
         </Text>
       ))}
     </Stack>

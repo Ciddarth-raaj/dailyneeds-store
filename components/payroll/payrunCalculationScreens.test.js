@@ -771,3 +771,30 @@ test("a reset goes through the shared run, which reports and refreshes the month
   const run = workflowCode.slice(workflowCode.indexOf("const run = async"), workflowCode.indexOf("const calculate ="));
   assert.ok(run.includes("await refresh()"), "the list and the summary counts are re-read");
 });
+
+/* =================================================== payroll readiness */
+
+test("Calculate All Eligible counts what Calculate will accept, not every uncalculated row", () => {
+  assert.ok(workflowCode.includes("Calculate All Eligible ({summary.eligible_to_calculate})"));
+  assert.ok(!workflowCode.includes("Calculate All Eligible ({summary.not_calculated})"));
+  assert.ok(workflowCode.includes("summary.eligible_to_calculate === 0"));
+  assert.ok(workflowCode.includes("summary.not_calculated_blocked"), "the blocked remainder is said out loud");
+  assert.ok(listCode.includes("isCalculable(row)"), "a row's Calculate button follows the server's verdict");
+});
+
+test("the exact reason and its dates are shown on the row", () => {
+  assert.ok(listCode.includes("title={reason.message"));
+  assert.ok(listCode.includes("reason.not_final_dates"));
+});
+
+test("Process Attendance calls its own endpoint with explicit ids, behind its own permission", () => {
+  const call = helperCode.slice(helperCode.indexOf("processAttendance:"), helperCode.indexOf("getHistory:"));
+  assert.ok(call.includes('"/payrun/calculation/process-attendance"'));
+  assert.ok(!/all_eligible|persist|store_ids/.test(call));
+  assert.match(access, /canProcessPayrunAttendance[\s\S]{0,400}recalculate_attendance/);
+  assert.ok(pageCode.includes("canProcessPayrunAttendance(actor)"));
+  assert.ok(workflowCode.includes("eligibleWithin(rows, selectedIds, isAttendanceProcessable)"));
+  assert.ok(workflowCode.includes("selectedIds.length > 0 && mayProcessAttendance"));
+  assert.ok(listCode.includes("isAttendanceProcessable(row) && canProcessAttendance"));
+  assert.ok(workflowCode.includes("confirmText:"), "it confirms before running the engine");
+});
