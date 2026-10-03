@@ -39,7 +39,8 @@ const SNAPSHOT = {
     total: "27826.42",
   },
   deductions: { lines: [{ key: "employee_pf", label: "Employee PF", amount: "1560.74", optional: true }], total: "2992.03" },
-  statutory: { pf_applicable: true, uan: "100200300400", esi_applicable: false, esi_number: null },
+  statutory: { pf_applicable: true, uan_masked: "XXXXXXXX0400", pf_number_masked: "XXXXXXXX/101", esi_applicable: false, esi_number_masked: null },
+  company: { name: "Daily Needs Departmental Store", pf_establishment_code: "TN/MAS/0012345", esi_establishment_code: "510001" },
   final: { net_pay_before_rounding: "24834.39", net_pay_rounding: "-0.39", net_pay: "24834.00" },
 };
 
@@ -65,15 +66,22 @@ test("the facts read straight from the snapshot - masked identifiers only, the r
   const attendance = Object.fromEntries(view.attendanceFacts(SNAPSHOT));
   assert.equal(attendance["OT Rate"], "₹125.06 / hour");
   const statutory = Object.fromEntries(view.statutoryFacts(SNAPSHOT));
-  assert.equal(statutory.UAN, "100200300400");
+  assert.equal(statutory.UAN, "XXXXXXXX0400", "masked, as frozen");
+  assert.equal(statutory["PF Number"], "XXXXXXXX/101");
   assert.equal(statutory["ESI Number"], undefined, "not applicable is not shown");
+  assert.equal(statutory["PF Establishment Code"], "TN/MAS/0012345");
+  assert.equal(statutory["ESI Establishment Code"], undefined, "ESI not applicable");
+  assert.equal(attendance["Standard Working Hours / Day"], 8);
+  assert.ok(!view.attendanceFacts(SNAPSHOT).some(([k]) => /NRM/.test(k)));
 });
 
 /* ------------------------------------------- payroll screen predicates */
 
 const published = (payslip) => ({ status: "PUBLISHED", payslip });
 
-test("badges: Telegram Sent / Failed / No Telegram Link / Not Notified; Not Viewed / Viewed on <date>", () => {
+test("badges: Telegram Queued / Sending / Sent / Failed / No Telegram Link / Not Notified; Not Viewed / Viewed on <date>", () => {
+  assert.equal(calc.notificationBadge({ notification_status: "QUEUED" }).label, "Telegram Queued");
+  assert.equal(calc.notificationBadge({ notification_status: "SENDING" }).label, "Telegram Sending");
   assert.equal(calc.notificationBadge({ notification_status: "SENT" }).label, "Telegram Sent");
   assert.equal(calc.notificationBadge({ notification_status: "FAILED" }).label, "Telegram Failed");
   assert.equal(calc.notificationBadge({ notification_status: "NO_TELEGRAM_LINK" }).label, "No Telegram Link");
@@ -88,9 +96,27 @@ test("Retry Notification is offered only for a published payslip whose employee 
   assert.equal(calc.isNotificationRetryable(published({ notification_status: "NO_TELEGRAM_LINK" })), true);
   assert.equal(calc.isNotificationRetryable(published({ notification_status: "NOT_ATTEMPTED" })), true);
   assert.equal(calc.isNotificationRetryable(published({ notification_status: "SENT" })), false);
+  assert.equal(calc.isNotificationRetryable(published({ notification_status: "QUEUED" })), false, "not while queued");
+  assert.equal(calc.isNotificationRetryable(published({ notification_status: "SENDING" })), false, "not while sending");
+  assert.equal(calc.isNotificationPending(published({ notification_status: "QUEUED" })), true);
+  assert.equal(calc.isNotificationPending(published({ notification_status: "FAILED" })), false);
   assert.equal(calc.isNotificationRetryable({ status: "APPROVED_LOCKED", payslip: null }), false);
   assert.equal(calc.hasPayslip(published({})), true);
   assert.equal(calc.hasPayslip({ status: "APPROVED_LOCKED" }), false);
+});
+
+test("publish returns before Telegram: the outcome says the notifications are queued, and that is not a refusal", () => {
+  const result = { action: "PUBLISH", results: [{ result: "PUBLISHED", notification_status: "QUEUED" }, { result: "PUBLISHED", notification_status: "QUEUED" }] };
+  assert.equal(calc.lifecycleOutcomeMessage(result), "2 payslips published, Telegram notification queued.");
+  assert.equal(calc.lifecycleHasRefusals(result), false);
+  assert.equal(calc.retryHasRefusals({ results: [{ result: "QUEUED" }] }), false);
+  assert.equal(calc.retryHasRefusals({ results: [{ result: "SKIPPED" }] }), true);
+});
+
+test("the payroll screen re-reads the month while notifications are pending - bounded", () => {
+  const src = code(read("components/payroll/calculation/PayrunCalculation.jsx"));
+  assert.match(src, /rows\.some\(isNotificationPending\)/);
+  assert.match(src, /pendingPolls >= 12/);
 });
 
 test("the publish outcome counts by notification: published and notified / failed / no link / skipped", () => {
@@ -139,6 +165,17 @@ test("the list opens a month by its ref; the detail is the shared PayslipDetail 
   assert.match(miniApp, /Download PDF/);
   assert.match(code(miniApp), /isVersionAtLeast\("8\.0"\)/);
   assert.match(code(miniApp), /payslipPdfLink\(open\.ref\)/);
+});
+
+test("download: the authenticated header path is the normal one; the link is the iOS-only fallback", () => {
+  const src = code(miniApp);
+  assert.match(src, /webApp\.platform === "ios"/);
+  const dl = src.slice(src.indexOf("const download = async"));
+  assert.ok(dl.indexOf("needsLinkDownload(webApp)") < dl.indexOf("payslipPdfLink"));
+  assert.match(dl, /TelegramAttendanceHelper\.payslipPdf\(open\.ref\)/);
+  const helperPdf = helper.slice(helper.indexOf("payslipPdf:"), helper.indexOf("absoluteUrl:"));
+  assert.match(helperPdf, /headers: authHeaders\(\)/);
+  assert.match(helperPdf, /params: \{ ref \}/);
 });
 
 test("the detail puts Final Net Pay first, then the sections; nothing reads as acceptance", () => {

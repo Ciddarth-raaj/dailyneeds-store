@@ -14,18 +14,23 @@ import { isOk, apiMessage } from "../../util/telegramAttendance";
  * THE DETAIL IS THE FROZEN SNAPSHOT, and the PDF is rendered on the server
  * from the same snapshot - the two always show the same figures.
  *
- * DOWNLOAD. Telegram 8.0+ has `WebApp.downloadFile`, which fetches a URL
- * itself (without our session header), so it is handed a two-minute link the
- * server mints for this one payslip. Older clients fetch the PDF with the
- * session header and save the blob.
+ * DOWNLOAD. THE NORMAL PATH IS AUTHENTICATED: the PDF is fetched with the
+ * `x-telegram-session` header and saved from memory - no token in any URL.
+ *
+ * ONLY WHERE THAT CANNOT WORK - Telegram on iOS, whose WebView will not save
+ * a blob - is Telegram's own downloader (`WebApp.downloadFile`, 8.0+) used.
+ * It fetches a URL itself, without our header, so it is handed a link the
+ * server issues for this one payslip: opaque, single-use, 60 seconds.
  */
 function telegramWebApp() {
   return typeof window !== "undefined" && window.Telegram ? window.Telegram.WebApp : null;
 }
 
-function canUseDownloadFile(webApp) {
+/** The link fallback: iOS Telegram only, and only where downloadFile exists. */
+function needsLinkDownload(webApp) {
   return Boolean(
     webApp &&
+      webApp.platform === "ios" &&
       typeof webApp.downloadFile === "function" &&
       typeof webApp.isVersionAtLeast === "function" &&
       webApp.isVersionAtLeast("8.0")
@@ -97,7 +102,7 @@ export default function TelegramPayslips() {
     setNotice(null);
     try {
       const webApp = telegramWebApp();
-      if (canUseDownloadFile(webApp)) {
+      if (needsLinkDownload(webApp)) {
         const link = await TelegramAttendanceHelper.payslipPdfLink(open.ref);
         if (!isOk(link)) {
           setNotice({ status: "error", text: apiMessage(link, "The PDF could not be prepared") });

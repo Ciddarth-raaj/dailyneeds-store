@@ -126,10 +126,10 @@ const telegramAttendance = {
   listPayslips: () => client.get("/telegram/payslips", { headers: authHeaders() }).then((r) => r.data),
   getPayslip: (ref) =>
     client.get("/telegram/payslips/detail", { params: { ref }, headers: authHeaders() }).then((r) => r.data),
-  /** A two-minute link Telegram's own downloader can fetch (it cannot send our header). */
+  /** iOS fallback only: a single-use 60-second link Telegram's own downloader can fetch. */
   payslipPdfLink: (ref) =>
     client.post("/telegram/payslips/pdf-link", { ref }, { headers: authHeaders() }).then((r) => r.data),
-  /** The PDF bytes, with the session header - for clients without `downloadFile`. */
+  /** THE NORMAL DOWNLOAD: the PDF bytes, with the session header. */
   payslipPdf: (ref) =>
     client
       .get("/telegram/payslips/pdf", { params: { ref }, headers: authHeaders(), responseType: "blob" })

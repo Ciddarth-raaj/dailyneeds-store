@@ -42,6 +42,7 @@ import {
   isAllSelected,
   isApprovable,
   isAttendanceProcessable,
+  isNotificationPending,
   isNotificationRetryable,
   isPublishable,
   isUnlockable,
@@ -176,6 +177,27 @@ function PayrunCalculation({
   const selectedPublishable = eligibleWithin(rows, selectedIds, isPublishable);
   const selectedUnpublishable = eligibleWithin(rows, selectedIds, isUnpublishable);
   const selectedRetryable = eligibleWithin(rows, selectedIds, isNotificationRetryable);
+
+  /*
+   * NOTIFICATIONS ARE SENT IN THE BACKGROUND, after Publish has already
+   * returned. While any row still shows Telegram Queued / Sending, the month
+   * is re-read every few seconds (a bounded number of times) so the badges
+   * settle without anybody pressing Refresh.
+   */
+  const pendingNotifications = rows.some(isNotificationPending);
+  const [pendingPolls, setPendingPolls] = useState(0);
+  useEffect(() => {
+    if (!pendingNotifications) {
+      if (pendingPolls !== 0) setPendingPolls(0);
+      return undefined;
+    }
+    if (pendingPolls >= 12 || loading || bulkBusy) return undefined;
+    const timer = setTimeout(() => {
+      setPendingPolls((n) => n + 1);
+      refresh();
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [pendingNotifications, pendingPolls, loading, bulkBusy, refresh]);
   const readyIds = approvableEmployeeIds(rows);
 
   const busy = bulkBusy || busyEmployeeId !== null;
@@ -351,7 +373,8 @@ function PayrunCalculation({
       confirmText:
         `Publish the payslips of every Approved & Locked employee for ${monthName ? `${monthName} ${year}` : `${year}-${month}`}?\n\n` +
         "Each payslip is frozen from the approved figures and appears in the employee's Telegram Mini App. " +
-        "Each employee gets a Telegram message that their payslip is available (no salary figures in the message). " +
+        "Each employee is then sent a Telegram message, in the background, that their payslip is available " +
+        "(no salary figures in the message). " +
         "Anyone whose salary or attendance changed since approval is refused.",
       report: {
         message: lifecycleOutcomeMessage,

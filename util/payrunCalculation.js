@@ -107,6 +107,8 @@ const LIFECYCLE_DONE = {
  * failed, 12 published, no Telegram link".
  */
 const PUBLISHED_BY_NOTIFICATION = [
+  ["QUEUED", "published, Telegram notification queued"],
+  ["SENDING", "published, Telegram notification sending"],
   ["SENT", "published and notified"],
   ["FAILED", "published, Telegram notification failed"],
   ["NO_TELEGRAM_LINK", "published, no Telegram link"],
@@ -142,7 +144,9 @@ const lifecycleHasRefusals = (result) =>
     (r) =>
       r &&
       (r.result !== (LIFECYCLE_DONE[result.action] || [])[0] ||
-        (result.action === "PUBLISH" && r.notification_status && r.notification_status !== "SENT"))
+        (result.action === "PUBLISH" &&
+          r.notification_status &&
+          !["SENT", "QUEUED", "SENDING"].includes(r.notification_status)))
   );
 function lifecycleRefusalDetail(result) {
   const done = (LIFECYCLE_DONE[result && result.action] || [])[0];
@@ -157,6 +161,8 @@ function lifecycleRefusalDetail(result) {
 
 /** Telegram notification status of a published payslip, as a badge. */
 const NOTIFICATION_BADGE = {
+  QUEUED: { label: "Telegram Queued", scheme: "purple" },
+  SENDING: { label: "Telegram Sending", scheme: "purple" },
   SENT: { label: "Telegram Sent", scheme: "green" },
   FAILED: { label: "Telegram Failed", scheme: "red" },
   NO_TELEGRAM_LINK: { label: "No Telegram Link", scheme: "orange" },
@@ -184,21 +190,28 @@ function viewBadge(payslip) {
   return { label: `Viewed on ${formatViewedAt(payslip.first_viewed_at)}`, scheme: "teal" };
 }
 
-/** Retry Notification is offered for a published payslip whose employee was not told. */
+/** A notification still waiting in the outbox or being sent right now. */
+const isNotificationPending = (row) =>
+  Boolean(row && row.payslip && ["QUEUED", "SENDING"].includes(row.payslip.notification_status));
+
+/**
+ * Retry Notification is offered for a published payslip whose employee was
+ * not told - not while one is already queued or sending.
+ */
 const isNotificationRetryable = (row) =>
   Boolean(
     row &&
       row.status === STATUS.PUBLISHED &&
       row.payslip &&
-      row.payslip.notification_status !== "SENT"
+      !["SENT", "QUEUED", "SENDING"].includes(row.payslip.notification_status)
   );
 
 /** View Payslip is offered on a published row that has a payslip. */
 const hasPayslip = (row) => Boolean(row && row.status === STATUS.PUBLISHED && row.payslip);
 
-/** "3 notified, 1 not notified — no Telegram link, 2 skipped — already notified." */
+/** "3 — Notification queued; 2 — Skipped — already notified." */
 function retryOutcomeMessage(result) {
-  if (!result) return "Nothing was sent.";
+  if (!result) return "Nothing was queued.";
   const counts = new Map();
   (result.results || []).forEach((r) => {
     if (!r) return;
@@ -207,14 +220,15 @@ function retryOutcomeMessage(result) {
   });
   const parts = [];
   counts.forEach((count, text) => parts.push(`${count} — ${text}`));
-  return parts.length > 0 ? `${parts.join("; ")}.` : "Nothing was sent.";
+  return parts.length > 0 ? `${parts.join("; ")}.` : "Nothing was queued.";
 }
 const retryHasRefusals = (result) =>
-  Boolean(result) && (result.results || []).some((r) => r && r.result !== "NOTIFIED");
+  Boolean(result) && (result.results || []).some((r) => r && r.result !== "QUEUED");
 function retryRefusalDetail(result) {
-  const refused = ((result && result.results) || []).filter((r) => r && r.result === "NOT_NOTIFIED");
-  if (refused.length === 0) return null;
-  return "The payslip stays published. Ask the employee to connect Telegram, or try again later.";
+  const queued = ((result && result.results) || []).filter((r) => r && r.result === "QUEUED");
+  return queued.length > 0
+    ? "Queued notifications are sent in the background; the badges update on refresh."
+    : null;
 }
 
 /**
@@ -482,6 +496,7 @@ module.exports = {
   isPublishable,
   isUnpublishable,
   isNotificationRetryable,
+  isNotificationPending,
   hasPayslip,
   notificationBadge,
   viewBadge,

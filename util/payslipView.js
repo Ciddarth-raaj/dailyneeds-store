@@ -53,7 +53,7 @@ function attendanceFacts(snapshot) {
     ["Monthly Gross", a.monthly_gross ? formatRupees(a.monthly_gross) : null],
     ["Salary Days", a.salary_days],
     ["Daily Rate", a.daily_rate ? formatRupees(a.daily_rate) : null],
-    ["NRM (hours / day)", a.nrm_hours],
+    ["Standard Working Hours / Day", a.nrm_hours],
     ["Missing Hours", Number(a.missing_hours) > 0 ? `${a.missing_hours} h` : null],
     ["Missing-hours Deduction", !isZero(a.missing_hours_deduction) ? formatRupees(a.missing_hours_deduction) : null],
     ["Extra Days", Number(a.extra_days) > 0 ? a.extra_days : null],
@@ -63,14 +63,18 @@ function attendanceFacts(snapshot) {
   ]);
 }
 
+/** Statutory numbers arrive MASKED in the snapshot (last four only). */
 function statutoryFacts(snapshot) {
   const s = (snapshot && snapshot.statutory) || {};
+  const c = (snapshot && snapshot.company) || {};
   return facts([
-    ["UAN", s.uan],
-    ["PF Number", s.pf_number],
+    ["UAN", s.uan_masked],
+    ["PF Number", s.pf_number_masked],
     ["PF Wage", s.pf_wage ? formatRupees(s.pf_wage) : null],
-    ["ESI Number", s.esi_number],
+    ["ESI Number", s.esi_number_masked],
     ["ESI Wage", s.esi_wage ? formatRupees(s.esi_wage) : null],
+    ["PF Establishment Code", s.pf_applicable ? c.pf_establishment_code : null],
+    ["ESI Establishment Code", s.esi_applicable ? c.esi_establishment_code : null],
   ]);
 }
 
