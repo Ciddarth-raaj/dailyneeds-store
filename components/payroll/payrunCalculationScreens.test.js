@@ -356,17 +356,21 @@ test("a failed read is not rendered as an empty month", () => {
 });
 
 /** The summary is the server's and is never recounted in the browser. */
-test("the five summary counts come from the server", () => {
+test("the summary cards' counts come from the server", () => {
+  const { CALCULATION_CARDS } = require("../../util/payrunTabs");
   for (const label of [
-    "Initialized",
+    "All Employees",
+    "Attendance Needs Action",
     "Calculated",
+    "Calculated, Not Ready",
     "Recalculation Required",
     "Ready for Approval",
     "Approved & Locked",
+    "Payslip Published",
   ]) {
-    assert.ok(workflow.includes(label), `missing the ${label} count`);
+    assert.ok(CALCULATION_CARDS.some((c) => c.label === label), `missing the ${label} card`);
   }
-  assert.ok(workflowCode.includes("summary."));
+  assert.match(workflowCode, /const cardCount = \(key\) => tabCount\("CALCULATION", key, summary\);/);
   assert.ok(!hook.includes("rows.filter("), "the hook must not recount the summary");
 });
 
@@ -446,7 +450,7 @@ test("changing it refreshes the month, so the stale status shows immediately", (
      lives. The point of the assertion is unchanged: the screen surfaces the
      server's status and derives none of its own. */
   const { CALCULATION_TABS: queues } = require("../../util/payrunTabs");
-  assert.ok(queues.some((t) => t.status === "RECALCULATION_REQUIRED"));
+  assert.ok(queues.some((t) => t.card === "RECALCULATION_REQUIRED"));
 });
 
 /* ================== a provisional figure is not presented as a result ==== */
@@ -521,14 +525,14 @@ test("the drawer says why the figures are dashes", () => {
   assert.match(breakupCode, /if \(!source\) return null;/);
 });
 
-test("the month is summarised and filtered by the new status", () => {
-  assert.match(workflowCode, /summary\.attendance_pending/);
-  assert.match(workflow, /Attendance Pending/);
-  /* The status is offered as a working QUEUE now rather than as an option in
-     a filter select - the tab strip replaced the selects - so it is asserted
-     where it actually lives. */
+test("the month is summarised and filtered by attendance, now called Attendance Needs Action", () => {
+  /* A card of its own, filtered and counted by the SERVER's
+     `attendance_needs_action` - which overlaps the payroll status. */
   const { CALCULATION_TABS: queues } = require("../../util/payrunTabs");
-  assert.ok(queues.some((t) => t.status === "ATTENDANCE_PENDING"));
+  const card = queues.find((t) => t.card === "ATTENDANCE_NEEDS_ACTION");
+  assert.ok(card);
+  assert.equal(card.label, "Attendance Needs Action");
+  assert.ok(!/Attendance Pending/.test(workflow + JSON.stringify(queues)), "the old wording is gone");
   /* It is its own card, not folded into the calculated one. */
   assert.ok(
     !/calculated \+ summary\.attendance_pending/.test(workflowCode),
@@ -612,9 +616,11 @@ test("every stage renders the shared tab strip rather than its own filter bar", 
   assert.match(pageCode2, /<PayrunFilterCards/);
   assert.ok(!/<PayrunTabs/.test(pageCode2), "Initialization must not draw the tabs as well as the cards");
   assert.match(adjustmentsCode, /<PayrunTabs/);
-  assert.match(workflowCode, /<PayrunTabs/);
+  /* Calculation & Review too: the cards, and no lower tab strip. */
+  assert.match(workflowCode, /<PayrunFilterCards/);
+  assert.ok(!/<PayrunTabs/.test(workflowCode), "Calculation must not draw the tabs as well as the cards");
   assert.match(adjustmentsCode, /tabs=\{ADJUSTMENT_TABS\}/);
-  assert.match(workflowCode, /tabs=\{CALCULATION_TABS\}/);
+  assert.match(workflowCode, /cards=\{CALCULATION_CARDS\}/);
 });
 
 test("the tab strip scrolls sideways rather than collapsing on a phone", () => {
@@ -836,4 +842,91 @@ test("the dialog requires a reason for Unlock and Unpublish, and the breakup sho
   assert.match(modal, /UNPUBLISH: \{[\s\S]*?reasonRequired: true/);
   assert.match(modal, /PUBLISH: \{[\s\S]*?reasonRequired: false/);
   assert.ok(breakup.includes("Net Pay Rounding") && breakupCode.includes("breakup.final.net_pay_rounding"));
+});
+
+/* ======================== Calculation & Review: clickable summary cards == */
+
+const filterCards = codeOf(read("components/payroll/PayrunFilterCards.jsx"));
+
+test("CALCULATION & REVIEW: every card is a real, keyboard-reachable button that filters the list", () => {
+  assert.match(workflowCode, /<PayrunFilterCards/);
+  assert.match(workflowCode, /onSelect=\{selectCard\}/);
+  assert.match(workflowCode, /setTab\(\(active\) => nextCard\(active, key\)\)/);
+  // The selected card is what the request is filtered by - on the server.
+  assert.match(workflowCode, /\.\.\.tabFilters\(CALCULATION_TABS, tab\)/);
+  assert.match(filterCards, /<Button/);
+  assert.match(filterCards, /aria-pressed=\{selected\}/);
+  assert.match(filterCards, /cursor="pointer"/);
+  assert.ok(!/<Stat\b/.test(workflowCode), "the static statistics are gone");
+});
+
+test("CALCULATION & REVIEW: the selected card takes the purple active state", () => {
+  assert.match(filterCards, /borderColor=\{selected \? "purple\.500" : "gray\.200"\}/);
+  assert.match(filterCards, /bg=\{selected \? "purple\.50" : "white"\}/);
+});
+
+test("CALCULATION & REVIEW: All Employees resets - as a card and from the line above the list", () => {
+  const { CALCULATION_CARDS, nextCard, ALL } = require("../../util/payrunTabs");
+  assert.equal(CALCULATION_CARDS[0].key, ALL);
+  assert.equal(nextCard("CALCULATED_NOT_READY", "CALCULATED_NOT_READY"), ALL);
+  assert.match(workflowCode, /onClick=\{\(\) => setTab\(ALL\)\}/);
+  assert.match(workflow, /Show all employees/);
+  assert.match(workflowCode, /filterCaption\(\{ shown: rows\.length, active: tab, search, cards: CALCULATION_CARDS \}\)/);
+});
+
+test("CALCULATION & REVIEW: the caption names the card and the search", () => {
+  const { filterCaption, CALCULATION_CARDS } = require("../../util/payrunTabs");
+  assert.equal(
+    filterCaption({ shown: 3, active: "CALCULATED_NOT_READY", cards: CALCULATION_CARDS }),
+    "Showing 3 employees — Calculated, Not Ready"
+  );
+  assert.equal(
+    filterCaption({ shown: 220, active: "READY_FOR_APPROVAL", cards: CALCULATION_CARDS }),
+    "Showing 220 employees — Ready for Approval"
+  );
+  assert.equal(
+    filterCaption({ shown: 2, active: "CALCULATED_NOT_READY", search: "Priya", cards: CALCULATION_CARDS }),
+    'Showing 2 employees — Calculated, Not Ready matching "Priya"'
+  );
+});
+
+test("CALCULATION & REVIEW: every card filter is ONE server word; the browser decides no membership", () => {
+  const { CALCULATION_TABS, tabFilters, tabCount } = require("../../util/payrunTabs");
+  CALCULATION_TABS.filter((c) => c.key !== "ALL").forEach((c) =>
+    assert.deepEqual(tabFilters(CALCULATION_TABS, c.key), { card: c.key })
+  );
+  // Counts are the server's summary.cards - including the not-ready card.
+  assert.equal(tabCount("CALCULATION", "CALCULATED_NOT_READY", { cards: { CALCULATED_NOT_READY: 3 } }), 3);
+  assert.ok(!/ready_for_approval\s*-|calculated\s*-\s*summary/.test(workflowCode), "no subtraction in the browser");
+});
+
+test("CALCULATION & REVIEW: Approve All Ready counts the server's ready population, not the visible rows", () => {
+  assert.match(workflowCode, /const readyCount = Number\(summary\.ready_for_approval \|\| 0\);/);
+  assert.match(workflowCode, /Approve All Ready \(\{readyCount\}\)/);
+  assert.match(workflowCode, /\.\.\.\(all \? \{ all_ready: true \} : \{ employee_ids: employeeIds \}\)/);
+  assert.ok(!/approvableEmployeeIds\(rows\)/.test(workflowCode));
+  // Approve Selected still acts only on selected rows the server says are ready.
+  assert.match(workflowCode, /eligibleWithin\(rows, selectedIds, isApprovable\)/);
+  assert.match(rulesCode, /const isApprovable = \(row\) => Boolean\(row && row\.status === STATUS\.READY_FOR_APPROVAL\);/);
+});
+
+test("CALCULATION & REVIEW: Publish All still publishes only the Approved & Locked population", () => {
+  assert.match(workflowCode, /Publish All Approved Payslips \(\{summary\.approved_locked \|\| 0\}\)/);
+  assert.match(rulesCode, /const isPublishable = \(row\) => Boolean\(row && row\.status === STATUS\.APPROVED_LOCKED\);/);
+});
+
+test("CALCULATION & REVIEW: Select all is explicitly the rows SHOWN", () => {
+  assert.match(workflow, /Select all shown \(\{selectableIds\.length\}\)/);
+  assert.match(workflowCode, /const selectableIds = useMemo\(\(\) => rows\.map\(\(row\) => row\.employee_id\), \[rows\]\);/);
+});
+
+test("CALCULATION & REVIEW: every not-ready row shows the server's reasons", () => {
+  // The list renders each row's recalculation reasons and blockers by label.
+  const list = codeOf(read("components/payroll/calculation/CalculationEmployeeList.jsx"));
+  assert.match(list, /const reasons = \[\.\.\.\(row\.recalculation_reasons \|\| \[\]\), \.\.\.\(row\.blockers \|\| \[\]\)\];/);
+  assert.match(list, /\{reason\.label\}/);
+  assert.match(list, /\{row\.status_label\}/);
+  // A Calculated, not ready row heads its reasons in words.
+  assert.match(list, /const notReady = row\.status === STATUS\.CALCULATED;/);
+  assert.match(list, /Not ready for approval:/);
 });

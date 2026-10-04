@@ -51,10 +51,13 @@ test("Adjustments offers exactly its four", () => {
   );
 });
 
-test("Calculation & Review offers exactly its six - Published is a queue of its own", () => {
+test("Calculation & Review offers exactly its eight cards - Calculated, Not Ready is its own", () => {
   assert.deepEqual(
     CALCULATION_TABS.map((t) => t.key),
-    [ALL, "ATTENDANCE_PENDING", "RECALCULATION_REQUIRED", "READY_FOR_APPROVAL", "APPROVED_LOCKED", "PUBLISHED"]
+    [
+      ALL, "ATTENDANCE_NEEDS_ACTION", "CALCULATED", "CALCULATED_NOT_READY",
+      "RECALCULATION_REQUIRED", "READY_FOR_APPROVAL", "APPROVED_LOCKED", "PUBLISHED",
+    ]
   );
 });
 
@@ -70,7 +73,8 @@ test("every stage keeps ALL, and it is always first", () => {
  */
 test("Adjustments and Calculation open on an actionable queue; Initialization on All Employees", () => {
   assert.notEqual(DEFAULT_TAB.ADJUSTMENTS, ALL);
-  assert.equal(DEFAULT_TAB.CALCULATION, "ATTENDANCE_PENDING");
+  /* Calculation & Review's cards show every queue's size too. */
+  assert.equal(DEFAULT_TAB.CALCULATION, ALL);
   /* Initialization's cards show every queue's size at once, so it opens on
      the whole month and one click narrows it. */
   assert.equal(DEFAULT_TAB.INITIALIZATION, ALL);
@@ -91,8 +95,9 @@ test("a tab narrows exactly one dimension, and ALL narrows none", () => {
   assert.deepEqual(tabs.tabFilters(INITIALIZATION_TABS, "READY"), { status: "READY" });
   assert.deepEqual(tabs.tabFilters(INITIALIZATION_TABS, "EXITED"), { lifecycle: "EXITED" });
   assert.deepEqual(tabs.tabFilters(CALCULATION_TABS, "APPROVED_LOCKED"), {
-    status: "APPROVED_LOCKED",
+    card: "APPROVED_LOCKED",
   });
+  assert.deepEqual(tabs.tabFilters(CALCULATION_TABS, ALL), {});
   assert.deepEqual(tabs.tabFilters(ADJUSTMENT_TABS, "HAS_ADJUSTMENT"), {
     state: "HAS_ADJUSTMENT",
   });
@@ -120,7 +125,7 @@ test("the counts come from the server's summary, by the names it sends", () => {
     7
   );
   assert.equal(
-    tabs.tabCount("CALCULATION", "READY_FOR_APPROVAL", { ready_for_approval: 12 }),
+    tabs.tabCount("CALCULATION", "READY_FOR_APPROVAL", { cards: { READY_FOR_APPROVAL: 12 } }),
     12
   );
 });
@@ -135,7 +140,7 @@ test("an uncounted tab shows no number rather than a zero", () => {
   assert.equal(tabs.tabCount("CALCULATION", "READY_FOR_APPROVAL", {}), undefined);
   assert.equal(tabs.tabCount("CALCULATION", "READY_FOR_APPROVAL", undefined), undefined);
   /* But a real zero is a real answer and is shown. */
-  assert.equal(tabs.tabCount("CALCULATION", "READY_FOR_APPROVAL", { ready_for_approval: 0 }), 0);
+  assert.equal(tabs.tabCount("CALCULATION", "READY_FOR_APPROVAL", { cards: { READY_FOR_APPROVAL: 0 } }), 0);
 });
 
 /* --------------------------------------------- closed is not the same as ready */

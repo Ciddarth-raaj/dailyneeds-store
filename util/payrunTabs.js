@@ -136,8 +136,8 @@ function nextCard(active, clicked) {
 }
 
 /** The label a card key is shown under, for the line above the table. */
-function cardLabel(key) {
-  const card = INITIALIZATION_TABS.find((c) => c.key === key);
+function cardLabel(key, cards = INITIALIZATION_TABS) {
+  const card = (cards || []).find((c) => c.key === key);
   return card ? card.label : "All Employees";
 }
 
@@ -147,11 +147,11 @@ function cardLabel(key) {
  * `shown` is the number of rows the server returned for this filter, so it
  * honours the search as well; the cards above keep the month's counts.
  */
-function filterCaption({ shown = 0, active = ALL, search = "" } = {}) {
+function filterCaption({ shown = 0, active = ALL, search = "", cards = INITIALIZATION_TABS } = {}) {
   const n = Number(shown) || 0;
   const who = `${n} employee${n === 1 ? "" : "s"}`;
   const needle = String(search || "").trim();
-  return `Showing ${who} — ${cardLabel(active)}${needle ? ` matching "${needle}"` : ""}`;
+  return `Showing ${who} — ${cardLabel(active, cards)}${needle ? ` matching "${needle}"` : ""}`;
 }
 
 const ADJUSTMENT_TABS = [
@@ -165,14 +165,32 @@ const ADJUSTMENT_TABS = [
   { key: "NO_ADJUSTMENT_CONFIRMED", label: "Confirmed", state: "NO_ADJUSTMENT_CONFIRMED" },
 ];
 
-const CALCULATION_TABS = [
-  { key: ALL, label: "All" },
-  { key: "ATTENDANCE_PENDING", label: "Attendance Pending", status: "ATTENDANCE_PENDING" },
-  { key: "RECALCULATION_REQUIRED", label: "Recalculation Required", status: "RECALCULATION_REQUIRED" },
-  { key: "READY_FOR_APPROVAL", label: "Ready for Approval", status: "READY_FOR_APPROVAL" },
-  { key: "APPROVED_LOCKED", label: "Approved & Locked", status: "APPROVED_LOCKED" },
-  { key: "PUBLISHED", label: "Payslip Published", status: "PUBLISHED" },
+/**
+ * CALCULATION & REVIEW - THE CLICKABLE SUMMARY CARDS, the stage's only status
+ * filter. Each card sends ONE word, `card`, and the SERVER decides who is in
+ * it (`utils/payrun_calculation.js#inCard`) and counts it into
+ * `summary.cards` by the same rule - so a card's number and the rows it opens
+ * cannot disagree, and no payroll readiness rule lives in this file.
+ *
+ *   Calculated               a current calculation on accepted attendance, not
+ *                            yet approved = Calculated, not ready + Ready
+ *   Calculated, Not Ready    calculated but refused by Approve & Lock today;
+ *                            every row says why
+ *   Attendance Needs Action  overlaps the others (e.g. Recalculation Required)
+ */
+const CALCULATION_CARDS = [
+  { key: ALL, label: "All Employees", card: ALL },
+  { key: "ATTENDANCE_NEEDS_ACTION", label: "Attendance Needs Action", card: "ATTENDANCE_NEEDS_ACTION" },
+  { key: "CALCULATED", label: "Calculated", card: "CALCULATED" },
+  { key: "CALCULATED_NOT_READY", label: "Calculated, Not Ready", card: "CALCULATED_NOT_READY" },
+  { key: "RECALCULATION_REQUIRED", label: "Recalculation Required", card: "RECALCULATION_REQUIRED" },
+  { key: "READY_FOR_APPROVAL", label: "Ready for Approval", card: "READY_FOR_APPROVAL" },
+  { key: "APPROVED_LOCKED", label: "Approved & Locked", card: "APPROVED_LOCKED" },
+  { key: "PUBLISHED", label: "Payslip Published", card: "PUBLISHED" },
 ];
+
+/* Kept under its old name for the stage's filters. */
+const CALCULATION_TABS = CALCULATION_CARDS;
 
 /**
  * THE TAB EACH STAGE OPENS ON, and it is the one with work in it.
@@ -190,7 +208,8 @@ const DEFAULT_TAB = {
      whole month and one click narrows it. */
   INITIALIZATION: ALL,
   ADJUSTMENTS: "NO_ADJUSTMENT_PENDING_CONFIRMATION",
-  CALCULATION: "ATTENDANCE_PENDING",
+  /* Opens on the whole month; every queue's size is on a card above it. */
+  CALCULATION: ALL,
 };
 
 /** The filter parameters a tab contributes. ALL contributes none. */
@@ -203,6 +222,7 @@ function tabFilters(tabs, key) {
   if (tab.lifecycle) filters.lifecycle = tab.lifecycle;
   if (tab.attendance) filters.attendance_status = tab.attendance;
   if (tab.absence) filters.absence = tab.absence;
+  if (tab.card && tab.card !== ALL) filters.card = tab.card;
   return filters;
 }
 
@@ -232,13 +252,9 @@ function tabCount(stage, key, summary = {}) {
   }
 
   if (stage === "CALCULATION") {
-    if (key === ALL) return at("initialized");
-    if (key === "ATTENDANCE_PENDING") return at("attendance_pending");
-    if (key === "RECALCULATION_REQUIRED") return at("recalculation_required");
-    if (key === "READY_FOR_APPROVAL") return at("ready_for_approval");
-    if (key === "APPROVED_LOCKED") return at("approved_locked");
-    if (key === "PUBLISHED") return at("published");
-    return undefined;
+    /* The server counts every card by the rule its filter uses. */
+    const cards = summary && summary.cards;
+    return cards && typeof cards[key] === "number" ? cards[key] : undefined;
   }
 
   return undefined;
@@ -332,6 +348,7 @@ module.exports = {
   cardLabel,
   filterCaption,
   ADJUSTMENT_TABS,
+  CALCULATION_CARDS,
   CALCULATION_TABS,
   DEFAULT_TAB,
   tabFilters,

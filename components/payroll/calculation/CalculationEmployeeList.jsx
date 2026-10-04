@@ -298,8 +298,19 @@ function RowActions({
 function Reasons({ row }) {
   const reasons = [...(row.recalculation_reasons || []), ...(row.blockers || [])];
   if (reasons.length === 0) return null;
+  /*
+   * CALCULATED, NOT READY SAYS SO IN WORDS: these are the server's approval
+   * blockers, and they are why this employee is in Calculated but not in
+   * Ready for Approval.
+   */
+  const notReady = row.status === STATUS.CALCULATED;
   return (
     <Stack spacing={1}>
+      {notReady ? (
+        <Text fontSize="xs" fontWeight="600" color="orange.700" data-testid="not-ready-heading">
+          Not ready for approval:
+        </Text>
+      ) : null}
       {reasons.map((reason) => (
         <Text
           key={reason.code}

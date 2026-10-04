@@ -7,12 +7,8 @@ import {
   Checkbox,
   Input,
   Select,
-  SimpleGrid,
   Spinner,
   Stack,
-  Stat,
-  StatLabel,
-  StatNumber,
   Text,
   useToast,
 } from "@chakra-ui/react";
@@ -26,17 +22,20 @@ import usePayrunCalculationMonth from "../../../customHooks/usePayrunCalculation
 import PayrunCalculationHelper from "../../../helper/payrunCalculation";
 import { describeApiResult, KIND } from "../../../util/salaryApiError";
 import { changeMonthlyPayType } from "../../../util/payrunPayType";
-import PayrunTabs from "../PayrunTabs";
+import PayrunFilterCards from "../PayrunFilterCards";
 import {
+  ALL,
+  CALCULATION_CARDS,
   CALCULATION_TABS,
   DEFAULT_TAB,
   tabFilters,
   tabCount,
+  nextCard,
+  filterCaption,
 } from "../../../util/payrunTabs";
 import {
   STATUS,
   approveMessage,
-  approvableEmployeeIds,
   eligibleWithin,
   hasRefusals,
   isAllSelected,
@@ -120,13 +119,13 @@ function PayrunCalculation({
   const toast = useToast();
 
   /*
-   * THE WORKING TAB. Opens on the attendance queue - the employees whose month
-   * cannot be finished until somebody settles or accepts their attendance -
-   * rather than on a list where two hundred approved employees bury ten
-   * unfinished ones. APPROVED & LOCKED is a tab of its own and is never the
-   * default: it is the only queue that is definitionally finished.
+   * THE SELECTED SUMMARY CARD - one filter at a time, All Employees by
+   * default, exactly as Payrun Initialization. Every queue's size is on its
+   * card, so opening on the whole month hides nothing; clicking the selected
+   * card again goes back to All Employees.
    */
   const [tab, setTab] = useState(DEFAULT_TAB.CALCULATION);
+  const selectCard = (key) => setTab((active) => nextCard(active, key));
   const [selectedIds, setSelectedIds] = useState([]);
   const [busyEmployeeId, setBusyEmployeeId] = useState(null);
   const [bulkBusy, setBulkBusy] = useState(false);
@@ -198,7 +197,14 @@ function PayrunCalculation({
     }, 5000);
     return () => clearTimeout(timer);
   }, [pendingNotifications, pendingPolls, loading, bulkBusy, refresh]);
-  const readyIds = approvableEmployeeIds(rows);
+  /*
+   * APPROVE ALL READY IS THE SERVER'S READY POPULATION, NOT THE VISIBLE ROWS.
+   * It sends `all_ready` and the server approves every READY_FOR_APPROVAL
+   * employee in scope - so its count is the month's, from the summary. Counted
+   * from `rows` it read 0 whenever a card or a search hid the ready rows,
+   * while the action would still have approved all of them.
+   */
+  const readyCount = Number(summary.ready_for_approval || 0);
 
   const busy = bulkBusy || busyEmployeeId !== null;
 
@@ -299,7 +305,7 @@ function PayrunCalculation({
         }),
       {
         employeeId: !all && employeeIds.length === 1 ? employeeIds[0] : null,
-        confirmText: approveMessage(all ? readyIds.length : employeeIds.length),
+        confirmText: approveMessage(all ? readyCount : employeeIds.length),
       }
     );
 
@@ -485,40 +491,30 @@ function PayrunCalculation({
     }
   };
 
-  /**
-   * THE COUNTS THE STAGE IS SUMMARISED BY, in the order of the pipeline
-   * they describe.
+  /*
+   * THE SUMMARY CARDS ARE THE FILTERS. Each count is the server's
+   * `summary.cards`, decided by the same rule as the card's filter and taken
+   * over the WHOLE month in scope - a search narrows the rows, never a count.
    *
-   * ATTENDANCE PENDING IS ITS OWN CARD and is deliberately not folded into
-   * "Calculated". Those two numbers are two different jobs: a calculated
-   * employee is waiting on a confirmation or an approval somebody here can
-   * give, and a pending one is waiting on the attendance month being settled,
-   * which is somebody else's. A month where the second number is large is a
-   * month that is not costed yet, and rolling it into the first would say the
-   * opposite. They count the WHOLE month and never the filtered view -
-   * the server's summary is used as it arrives, because "ready: 0" meaning
-   * "none matching this filter" is the most dangerous number here.
+   * CALCULATED = Calculated, Not Ready + Ready for Approval. The difference is
+   * its own card, and every row in it carries the approval blockers.
    */
-  const summaryCards = [
-    { label: "Initialized", value: summary.initialized },
-    { label: "Attendance Pending", value: summary.attendance_pending },
-    { label: "Calculated", value: summary.calculated + summary.ready_for_approval },
-    { label: "Recalculation Required", value: summary.recalculation_required },
-    { label: "Ready for Approval", value: summary.ready_for_approval },
-    { label: "Approved & Locked", value: summary.approved_locked },
-    { label: "Payslip Published", value: summary.published },
-  ];
+  const cardCount = (key) => tabCount("CALCULATION", key, summary);
 
   return (
     <Stack spacing={4}>
-      <SimpleGrid columns={{ base: 2, md: 7 }} spacing={3}>
-        {summaryCards.map((card) => (
-          <Stat key={card.label} p={3} borderWidth="1px" borderRadius="md">
-            <StatLabel fontSize="xs">{card.label}</StatLabel>
-            <StatNumber fontSize="lg">{card.value ?? 0}</StatNumber>
-          </Stat>
-        ))}
-      </SimpleGrid>
+      <PayrunFilterCards
+        title="Payroll progress"
+        cards={CALCULATION_CARDS}
+        active={tab}
+        counts={cardCount}
+        onSelect={selectCard}
+        columns={{ base: 2, md: 4, lg: 8 }}
+      />
+      <Text fontSize="xs" color="gray.600">
+        Calculated = Calculated, Not Ready + Ready for Approval. Attendance Needs Action can overlap
+        other cards. Counts are for the whole month and location; search narrows the list only.
+      </Text>
 
       {monthLocked ? (
         <Alert status="warning" fontSize="sm">
@@ -527,17 +523,19 @@ function PayrunCalculation({
         </Alert>
       ) : null}
 
-      <Stack direction={{ base: "column", md: "row" }} spacing={3} align={{ md: "center" }}>
-        <Box flex="1" minWidth={0}>
-          <PayrunTabs
-            tabs={CALCULATION_TABS}
-            active={tab}
-            counts={(key) => tabCount("CALCULATION", key, summary)}
-            onChange={setTab}
-            isDisabled={loading}
-            ariaLabel="Calculation workflow"
-          />
-        </Box>
+      {/* WHAT THE TABLE IS SHOWING, IN WORDS, and the way back to everybody. */}
+      <Stack direction="row" align="center" spacing={3} flexWrap="wrap">
+        {loaded ? (
+          <Text fontSize="sm" fontWeight="600" aria-live="polite" data-testid="filter-caption">
+            {filterCaption({ shown: rows.length, active: tab, search, cards: CALCULATION_CARDS })}
+          </Text>
+        ) : null}
+        {tab !== ALL ? (
+          <Button size="xs" variant="link" colorScheme="purple" onClick={() => setTab(ALL)}>
+            Show all employees
+          </Button>
+        ) : null}
+        <Box flex="1" />
         <Button size="sm" variant="outline" onClick={refresh} isDisabled={loading} flexShrink={0}>
           Refresh
         </Button>
@@ -584,10 +582,10 @@ function PayrunCalculation({
         <Button
           size="sm"
           colorScheme="green"
-          isDisabled={!mayApprove || monthLocked || busy || readyIds.length === 0}
+          isDisabled={!mayApprove || monthLocked || busy || readyCount === 0}
           onClick={() => approve([], { all: true })}
         >
-          Approve All Ready ({readyIds.length})
+          Approve All Ready ({readyCount})
         </Button>
         {/* PUBLISH ALL APPROVED PAYSLIPS sends no list either: the server
             publishes whoever is Approved & Locked when the request lands. */}
@@ -752,14 +750,13 @@ function PayrunCalculation({
               isIndeterminate={selectedIds.length > 0 && !isAllSelected(selectableIds, selectedIds)}
               isDisabled={selectableIds.length === 0 || busy}
               onChange={() => setSelectedIds(nextSelectAll(selectableIds, selectedIds))}
-              aria-label="Select all unlocked employees"
+              aria-label="Select all employees shown"
             >
-              <Text fontSize="xs">Select all ({selectableIds.length})</Text>
+              {/* THE ROWS SHOWN - this card and search - and nothing else.
+                  Each bulk button then counts only the selected rows it fits,
+                  and the server re-decides every one. */}
+              <Text fontSize="xs">Select all shown ({selectableIds.length})</Text>
             </Checkbox>
-            <Text fontSize="xs" color="gray.600">
-              {rows.length} employee{rows.length === 1 ? "" : "s"} shown
-              {monthName ? ` for ${monthName} ${year}` : ""}.
-            </Text>
             {selectedIds.length > 0 ? (
               <>
                 <Text fontSize="xs" fontWeight="bold">
