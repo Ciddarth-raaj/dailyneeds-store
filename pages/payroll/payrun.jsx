@@ -659,8 +659,8 @@ function Payrun() {
                   data.
                 </Text>
                 <Text>
-                  A review list only: employees with no exit recorded whose last three working days
-                  this month are all calculated absences. Nobody is marked exited — check their
+                  Employees with no exit recorded whose latest 3 completed working days are all
+                  calculated absences. A review list only: nobody is marked exited — check their
                   attendance, and record an exit from the employee record only if they have left.
                 </Text>
               </Stack>
