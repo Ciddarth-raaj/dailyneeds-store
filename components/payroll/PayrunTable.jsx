@@ -2,7 +2,6 @@ import React from "react";
 import { Box, Table, Tbody, Td, Th, Thead, Tr } from "@chakra-ui/react";
 import {
   AbsentDatesCell,
-  ExitRecordedCell,
   LastPresentCell,
   ExitedBadge,
   InitializeControl,
@@ -63,13 +62,12 @@ function PayrunTable({
             <Th>Location</Th>
             {/* THE 3-DAY ABSENT CARD swaps Designation for what HR reviews:
                 when they last attended, the three absent working dates (each
-                a link to that day's attendance) and whether an exit is
-                already on record. Everything else stays. */}
+                a link to that day's attendance, plus the employee record).
+                Everything else stays. */}
             {showAbsence ? (
               <>
                 <Th>Last Present</Th>
                 <Th>Absent Working Dates</Th>
-                <Th>Exit Recorded</Th>
               </>
             ) : (
               <Th>Designation</Th>
@@ -115,9 +113,6 @@ function PayrunTable({
                     </Td>
                     <Td>
                       <AbsentDatesCell row={row} />
-                    </Td>
-                    <Td>
-                      <ExitRecordedCell row={row} />
                     </Td>
                   </>
                 ) : (

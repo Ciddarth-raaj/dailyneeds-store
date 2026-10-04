@@ -442,6 +442,12 @@ export function LastPresentCell({ row }) {
 export function AbsentDatesCell({ row }) {
   const dates = (row.absence_review && row.absence_review.absent_dates) || [];
   if (dates.length === 0) return <Text fontSize="xs">—</Text>;
+  /*
+   * NO "EXIT RECORDED" HERE: the server leaves out anybody with an exit on
+   * record, so every listed employee would read "No". The way to the employee
+   * record - where an exit is entered through the existing Resign action -
+   * sits under the dates instead.
+   */
   return (
     <Stack spacing={0}>
       {dates.map((date) => (
@@ -456,18 +462,6 @@ export function AbsentDatesCell({ row }) {
           {date}
         </Link>
       ))}
-    </Stack>
-  );
-}
-
-export function ExitRecordedCell({ row }) {
-  const review = row.absence_review;
-  const recorded = Boolean(review && review.exit_recorded);
-  return (
-    <Stack spacing={0}>
-      <Text fontSize="xs">
-        {recorded ? `Yes${review.exit_date ? ` (${review.exit_date})` : ""}` : "No"}
-      </Text>
       <Link
         href={`/hr/employees/${encodeURIComponent(row.employee_id)}`}
         fontSize="xs"

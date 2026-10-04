@@ -786,7 +786,7 @@ test("ATTENDANCE READINESS stays a separate group, beside Payrun Progress", () =
 test("the 3-Day Absent card shows what HR reviews, on both layouts", () => {
   assert.match(pageCode, /const showAbsence = initTab === "THREE_DAY_ABSENT";/);
   assert.match(pageCode, /showAbsence=\{showAbsence\}/);
-  ["Last Present", "Absent Working Dates", "Exit Recorded"].forEach((heading) => {
+  ["Last Present", "Absent Working Dates"].forEach((heading) => {
     assert.ok(table.includes(heading), `the table has no ${heading} column`);
     assert.ok(card.includes(`label="${heading}"`), `the card has no ${heading} field`);
   });
@@ -794,7 +794,11 @@ test("the 3-Day Absent card shows what HR reviews, on both layouts", () => {
   // exit is entered through the existing employee record - not a new flow.
   assert.match(presentationCode, /heldDateLink\(row\.employee_id, date\)/);
   assert.match(presentationCode, /href=\{`\/hr\/employees\/\$\{encodeURIComponent\(row\.employee_id\)\}`\}/);
-  assert.match(presentationCode, /review\.exit_recorded/);
+  // NO Exit Recorded column: the server excludes anyone with an exit record,
+  // so it would always read "No".
+  ALL_VIEWS.forEach(([name, code]) => {
+    assert.ok(!/Exit Recorded|ExitRecordedCell|exit_recorded/.test(code), `${name} still shows Exit Recorded`);
+  });
 });
 
 test("3-Day Absent never changes an exit - the screen has no write for it", () => {
@@ -827,4 +831,13 @@ test("a BLOCKED row's Initialize stays disabled and its tooltip gives the actual
   assert.match(control, /<Tooltip label=\{explanation\.cannotInitialize\} shouldWrapChildren/);
   // selectable is still exactly READY-and-not-initialized.
   assert.match(presentationCode, /return isRowInitializable\(row\) && Boolean\(canInitialize\);/);
+});
+
+test("the 3-Day Absent view says plainly who it can evaluate, as information not an error", () => {
+  assert.match(
+    page.replace(/\s+/g, " "),
+    /3-Day Absent currently applies to Shift Based employees with complete attendance data\./
+  );
+  // Only when the 3-Day Absent card is selected.
+  assert.match(pageCode, /\{showAbsence \? \(\s*<Alert status="info"/);
 });

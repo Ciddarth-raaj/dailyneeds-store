@@ -2,7 +2,6 @@ import React from "react";
 import { Box, Flex, SimpleGrid, Stack, Text } from "@chakra-ui/react";
 import {
   AbsentDatesCell,
-  ExitRecordedCell,
   LastPresentCell,
   ExitedBadge,
   InitializeControl,
@@ -117,9 +116,6 @@ function PayrunEmployeeCard({
               </Field>
               <Field label="Absent Working Dates">
                 <AbsentDatesCell row={row} />
-              </Field>
-              <Field label="Exit Recorded">
-                <ExitRecordedCell row={row} />
               </Field>
             </>
           ) : null}

@@ -649,14 +649,21 @@ function Payrun() {
           />
 
           {showAbsence ? (
-            <Alert status="info" fontSize="sm">
+            <Alert status="info" fontSize="sm" alignItems="flex-start">
               <AlertIcon />
-              3-Day Absent is a review list only: employees with no exit recorded whose last three
-              working days this month are all calculated absences (rest days and
-              attendance-not-required days are skipped). Anyone whose last days are not yet
-              calculated or still unresolved, or who is on Present/Absent Only attendance, is not
-              listed. Nobody is marked exited — check their attendance, and record an exit from
-              the employee record only if they have actually left.
+              <Stack spacing={1}>
+                {/* Present/Absent Only has no working-day source, so the
+                    server cannot evaluate those employees - said plainly. */}
+                <Text fontWeight="600" data-testid="absence-scope-note">
+                  3-Day Absent currently applies to Shift Based employees with complete attendance
+                  data.
+                </Text>
+                <Text>
+                  A review list only: employees with no exit recorded whose last three working days
+                  this month are all calculated absences. Nobody is marked exited — check their
+                  attendance, and record an exit from the employee record only if they have left.
+                </Text>
+              </Stack>
             </Alert>
           ) : null}
 
