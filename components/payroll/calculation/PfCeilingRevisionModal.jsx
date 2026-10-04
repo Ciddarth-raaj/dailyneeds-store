@@ -48,6 +48,11 @@ import { describeApiResult, KIND } from "../../../util/salaryApiError";
  *
  * Nothing on this screen computes a figure or changes a record. Both
  * downloads are files built in the browser from the server's response.
+ *
+ * NO BUTTON HERE FAILS SILENTLY. A CSV that cannot be built says so, and an
+ * ECR with no approved member says why Download ECR stays disabled - an
+ * unapproved month is the normal state before payroll is approved, not an
+ * error, and it is never worked around by filing anybody unapproved.
  */
 
 const money = (v) =>
@@ -64,7 +69,31 @@ function download(name, text, type = "text/plain") {
   document.body.appendChild(a);
   a.click();
   a.remove();
-  URL.revokeObjectURL(url);
+  // Revoked on the next tick: revoking immediately can cancel the download in
+  // some browsers before it has started reading the object (helper/report.js).
+  setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+const NO_APPROVED_ECR_MESSAGE =
+  "No approved employees are available for ECR generation. Complete and approve payroll first.";
+
+/** Why members were left out of the ECR, in words, most common first. */
+const ECR_REFUSAL_LABEL = {
+  NOT_CALCULATED: "not calculated",
+  NOT_APPROVED: "calculated, not yet approved",
+  INCOMPLETE: "calculation incomplete",
+  PF_PENDING: "PF unresolved",
+  UAN_MISSING: "UAN missing",
+  RECALCULATION_REQUIRED: "recalculation required",
+};
+
+function ecrRefusalSummary(errors) {
+  const counts = new Map();
+  (errors || []).forEach((e) => counts.set(e.code, (counts.get(e.code) || 0) + 1));
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([code, n]) => `${n} ${ECR_REFUSAL_LABEL[code] || code}`)
+    .join(" · ");
 }
 
 const csvCell = (v) => {
@@ -107,6 +136,7 @@ function PfCeilingRevisionModal({ isOpen, onClose, year, month }) {
   const [ecr, setEcr] = useState(null);
   const [ecrLoading, setEcrLoading] = useState(false);
   const [ecrError, setEcrError] = useState(null);
+  const [csvError, setCsvError] = useState(null);
 
   useEffect(() => {
     if (!isOpen) return undefined;
@@ -116,6 +146,7 @@ function PfCeilingRevisionModal({ isOpen, onClose, year, month }) {
     setReport(null);
     setEcr(null);
     setEcrError(null);
+    setCsvError(null);
     PayrunCalculationHelper.getPfCeilingImpact({})
       .then((body) => {
         if (cancelled) return;
@@ -130,9 +161,19 @@ function PfCeilingRevisionModal({ isOpen, onClose, year, month }) {
     };
   }, [isOpen]);
 
+  const downloadReport = () => {
+    setCsvError(null);
+    try {
+      download("epfo-ceiling-2026-affected-employees.csv", reportCsv(report), "text/csv");
+    } catch (err) {
+      setCsvError(`The CSV could not be built: ${(err && err.message) || "unknown error"}. Please try again.`);
+    }
+  };
+
   const loadEcr = () => {
     setEcrLoading(true);
     setEcrError(null);
+    setEcr(null);
     PayrunCalculationHelper.getEcr({ year, month })
       .then((body) => {
         const outcome = describeApiResult(body);
@@ -145,6 +186,7 @@ function PfCeilingRevisionModal({ isOpen, onClose, year, month }) {
 
   const summary = report && report.summary;
   const flagged = report ? report.employees.filter((e) => (e.flags || []).some((f) => f !== "NO_CHANGE")) : [];
+  const ecrReady = Boolean(ecr && ecr.lines && ecr.lines.length > 0);
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="6xl" scrollBehavior="inside">
@@ -176,6 +218,12 @@ function PfCeilingRevisionModal({ isOpen, onClose, year, month }) {
               <Alert status="error" fontSize="sm">
                 <AlertIcon />
                 {error}
+              </Alert>
+            ) : null}
+            {csvError ? (
+              <Alert status="error" fontSize="sm">
+                <AlertIcon />
+                {csvError}
               </Alert>
             ) : null}
 
@@ -268,7 +316,25 @@ function PfCeilingRevisionModal({ isOpen, onClose, year, month }) {
                   {ecrError}
                 </Alert>
               ) : null}
-              {ecr ? (
+              {!ecr && !ecrError && !ecrLoading ? (
+                <Text fontSize="sm" color="gray.600">
+                  Build the ECR first. Download ECR is enabled once at least one approved employee can be filed.
+                </Text>
+              ) : null}
+              {ecr && !ecrReady ? (
+                <Alert status="warning" fontSize="sm" mb={2}>
+                  <AlertIcon />
+                  <Box>
+                    <Text>{NO_APPROVED_ECR_MESSAGE}</Text>
+                    {ecr.errors && ecr.errors.length > 0 ? (
+                      <Text fontSize="xs" mt={1}>
+                        {ecr.errors.length} employee(s) not filed: {ecrRefusalSummary(ecr.errors)}.
+                      </Text>
+                    ) : null}
+                  </Box>
+                </Alert>
+              ) : null}
+              {ecrReady ? (
                 <Stack spacing={2}>
                   <Text fontSize="sm">
                     {ecr.totals.members} members · EPF wages ₹{money(ecr.totals.epf_wages)} · EE ₹
@@ -279,7 +345,7 @@ function PfCeilingRevisionModal({ isOpen, onClose, year, month }) {
                   {ecr.errors.length > 0 ? (
                     <Alert status="warning" fontSize="sm">
                       <AlertIcon />
-                      {ecr.errors.length} employee(s) left out:{" "}
+                      {ecr.errors.length} employee(s) left out ({ecrRefusalSummary(ecr.errors)}):{" "}
                       {ecr.errors
                         .slice(0, 10)
                         .map((e) => `${e.employee_id} (${e.code})`)
@@ -303,7 +369,7 @@ function PfCeilingRevisionModal({ isOpen, onClose, year, month }) {
             <Button
               size="sm"
               isDisabled={!report}
-              onClick={() => download("epfo-ceiling-2026-affected-employees.csv", reportCsv(report), "text/csv")}
+              onClick={downloadReport}
             >
               Download report (CSV)
             </Button>
@@ -312,7 +378,7 @@ function PfCeilingRevisionModal({ isOpen, onClose, year, month }) {
             </Button>
             <Button
               size="sm"
-              isDisabled={!ecr || ecr.lines.length === 0}
+              isDisabled={!ecrReady}
               onClick={() => download(`ECR-${year}-${String(month).padStart(2, "0")}.txt`, ecr.text)}
             >
               Download ECR
