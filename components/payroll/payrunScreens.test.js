@@ -838,6 +838,13 @@ test("the 3-Day Absent view says plainly who it can evaluate, as information not
     page.replace(/\s+/g, " "),
     /3-Day Absent currently applies to Shift Based employees with complete attendance data\./
   );
+  // The latest days as of today - never "this month".
+  assert.match(
+    page.replace(/\s+/g, " "),
+    /Employees with no exit recorded whose latest 3 completed working days are all calculated absences\./
+  );
+  const note = page.slice(page.indexOf("absence-scope-note"), page.indexOf("</Alert>", page.indexOf("absence-scope-note")));
+  assert.ok(!/this month/i.test(note), "the 3-Day Absent note must not say 'this month'");
   // Only when the 3-Day Absent card is selected.
   assert.match(pageCode, /\{showAbsence \? \(\s*<Alert status="info"/);
 });
