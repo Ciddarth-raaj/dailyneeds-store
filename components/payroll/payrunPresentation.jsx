@@ -4,6 +4,7 @@ import {
   Box,
   Button,
   Checkbox,
+  Link,
   Popover,
   PopoverArrow,
   PopoverBody,
@@ -19,8 +20,9 @@ import {
   ATTENDANCE_STATUS,
   ATTENDANCE_STATUS_LABEL,
   ATTENDANCE_STATUS_SCHEME,
+  heldDateLink,
 } from "../../util/payrunTabs";
-import { isRowInitializable } from "../../util/payrunAccess";
+import { blockedExplanation, isRowInitializable } from "../../util/payrunAccess";
 
 /**
  * Payrun Initialization - the cells, shared by the table and the card.
@@ -117,7 +119,15 @@ export function StatusBadge({ row }) {
 
   const isMouse = (event) => (event.pointerType || "mouse") === "mouse";
 
-  return (
+  /*
+   * A BLOCKED ROW SAYS WHY, IN WORDS, beside the badge - "Blocked — Salary
+   * not approved" - built from the server's own reasons by
+   * `blockedExplanation`. An initialized row's leftover reasons stay behind
+   * the badge only: they no longer stop anything.
+   */
+  const explanation = blockedExplanation(row);
+
+  const popover = (
     <Popover
       isOpen={isOpen}
       onClose={onClose}
@@ -175,6 +185,16 @@ export function StatusBadge({ row }) {
         </PopoverBody>
       </PopoverContent>
     </Popover>
+  );
+
+  if (!explanation) return popover;
+  return (
+    <Stack spacing={0.5} align="flex-start">
+      {popover}
+      <Text fontSize="xs" color="red.600" whiteSpace="normal" data-testid="blocked-explanation">
+        {explanation.summary}
+      </Text>
+    </Stack>
   );
 }
 
@@ -320,7 +340,13 @@ export function InitializeControl({ row, selectable, busy, busyEmployeeId, onIni
       </Text>
     );
   }
-  return (
+  /*
+   * A BLOCKED ROW'S DISABLED BUTTON SAYS WHY - "Cannot initialize. Resolve
+   * first: Salary not approved." - from the server's reasons. Wrapped, because
+   * a disabled button fires no pointer events of its own to open a tooltip.
+   */
+  const explanation = blockedExplanation(row);
+  const button = (
     <Button
       size={size}
       width={width}
@@ -328,9 +354,16 @@ export function InitializeControl({ row, selectable, busy, busyEmployeeId, onIni
       isDisabled={!selectable || busy}
       isLoading={busyEmployeeId === row.employee_id}
       onClick={() => onInitialize(row.employee_id)}
+      aria-label={explanation ? `Initialize. ${explanation.cannotInitialize}` : undefined}
     >
       Initialize
     </Button>
+  );
+  if (!explanation) return button;
+  return (
+    <Tooltip label={explanation.cannotInitialize} shouldWrapChildren hasArrow>
+      {button}
+    </Tooltip>
   );
 }
 
@@ -390,5 +423,59 @@ export function AttendanceStatusBadge({ row, onOpen }) {
     >
       {badge}
     </Box>
+  );
+}
+
+/* ============================================== the 3-Day Absent review == */
+
+/**
+ * WHAT HR NEEDS TO REVIEW ONE 3-DAY ABSENT EMPLOYEE, from the server's
+ * `absence_review` - informational only. Every date links to that employee's
+ * calculated attendance, and the employee record is where an exit is entered
+ * through the existing Resign action. Nothing here records an exit itself.
+ */
+export function LastPresentCell({ row }) {
+  const review = row.absence_review;
+  return <Text fontSize="xs">{(review && review.last_present_date) || "—"}</Text>;
+}
+
+export function AbsentDatesCell({ row }) {
+  const dates = (row.absence_review && row.absence_review.absent_dates) || [];
+  if (dates.length === 0) return <Text fontSize="xs">—</Text>;
+  return (
+    <Stack spacing={0}>
+      {dates.map((date) => (
+        <Link
+          key={date}
+          href={heldDateLink(row.employee_id, date)}
+          fontSize="xs"
+          color="purple.600"
+          textDecoration="underline"
+          aria-label={`View attendance for ${row.employee_name || row.employee_id} on ${date}`}
+        >
+          {date}
+        </Link>
+      ))}
+    </Stack>
+  );
+}
+
+export function ExitRecordedCell({ row }) {
+  const review = row.absence_review;
+  const recorded = Boolean(review && review.exit_recorded);
+  return (
+    <Stack spacing={0}>
+      <Text fontSize="xs">
+        {recorded ? `Yes${review.exit_date ? ` (${review.exit_date})` : ""}` : "No"}
+      </Text>
+      <Link
+        href={`/hr/employees/${encodeURIComponent(row.employee_id)}`}
+        fontSize="xs"
+        color="purple.600"
+        textDecoration="underline"
+      >
+        Employee record
+      </Link>
+    </Stack>
   );
 }

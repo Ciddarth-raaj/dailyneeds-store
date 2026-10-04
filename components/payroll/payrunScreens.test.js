@@ -573,16 +573,13 @@ test("the top area is mobile-friendly, and the bulk actions stay reachable", () 
    * ask about initialization eligibility, which that stage has no opinion
    * about. The count follows the stage rather than being fixed.
    */
+  // Month | Year | Location | Search | Refresh - the two dropdowns are gone.
   assert.match(
     pageCode,
-    /columns=\{\{ base: 2, md: stage === STAGE\.INITIALIZATION \? 6 : 4 \}\}/
+    /columns=\{\{ base: 2, md: stage === STAGE\.INITIALIZATION \? 5 : 4 \}\}/
   );
-  // Summary cards two-across on a phone, four on a desktop - unchanged.
-  assert.match(pageCode, /columns=\{\{ base: 2, md: 4 \}\}/);
-  // The four counts are all still there.
-  ["Total Eligible", "Ready", "Blocked", "Initialized"].forEach((label) =>
-    assert.ok(page.includes(label), `the summary lost ${label}`)
-  );
+  // Summary cards two-across on a phone, three on a tablet, six on a desktop.
+  assert.match(pageCode, /columns=\{\{ base: 2, md: 3, lg: 6 \}\}/);
   // Bulk controls stick on a phone only.
   assert.match(pageCode, /position=\{\{ base: "sticky", md: "static" \}\}/);
   assert.match(pageCode, /Select all Ready/);
@@ -591,25 +588,22 @@ test("the top area is mobile-friendly, and the bulk actions stay reachable", () 
 
 /* ================================================= the lifecycle filter == */
 
-test("THE EXITED FILTER IS ITS OWN CONTROL, INDEPENDENT OF STATUS", () => {
-  // Two selects, two pieces of state, both sent - so "Exited + Blocked" is one
-  // request rather than an impossible combination.
-  assert.match(pageCode, /const \[lifecycle, setLifecycle\] = useState\(""\)/);
-  assert.match(pageCode, /const \[status, setStatus\] = useState\(""\)/);
-  assert.match(pageCode, /placeholder="All employees"/);
-  assert.match(pageCode, /<option value="ACTIVE">Active<\/option>/);
-  assert.match(pageCode, /<option value="EXITED">Exited<\/option>/);
-  // The status filter is untouched beside it.
-  assert.match(pageCode, /placeholder="All statuses"/);
-  assert.match(pageCode, /<option value="READY">Ready<\/option>/);
-  assert.match(pageCode, /<option value="BLOCKED">Blocked<\/option>/);
-  assert.match(pageCode, /<option value="INITIALIZED">Initialized<\/option>/);
+test("THE ALL STATUSES AND ALL EMPLOYEES DROPDOWNS ARE GONE - the cards replace them", () => {
+  assert.ok(!/placeholder="All statuses"/.test(pageCode), "All statuses duplicates the cards");
+  assert.ok(!/placeholder="All employees"/.test(pageCode), "All employees duplicates the Exited card");
+  assert.ok(!/setStatus\(|setLifecycle\(/.test(pageCode));
+  assert.ok(!/<option value="(ACTIVE|EXITED|READY|BLOCKED|INITIALIZED)">/.test(pageCode));
+  // Month, year, location and search remain.
+  assert.match(pageCode, /aria-label="Payroll month"/);
+  assert.match(pageCode, /aria-label="Payroll year"/);
+  assert.match(pageCode, /placeholder="All locations"/);
+  assert.match(pageCode, /placeholder="Search employee or ID"/);
 });
 
-test("the lifecycle filter is applied by the SERVER, like every other filter", () => {
-  // It goes into the same filters object the hook serialises into the query,
-  // so the rows that do not match are never read out of the database.
-  assert.match(pageCode, /\.\.\.\(lifecycle \? \{ lifecycle \} : \{\}\)/);
+test("the Exited card is applied by the SERVER, like every other filter", () => {
+  // The selected card's narrowing goes into the same filters object the hook
+  // serialises into the query, so non-matching rows are never read out.
+  assert.match(pageCode, /\.\.\.tabFilters\(INITIALIZATION_TABS, initTab\)/);
   assert.ok(
     !/rows\.filter\(/.test(pageCode + cardCode + listCode),
     "filtering in the browser would fetch everybody and hide most of them"
@@ -721,4 +715,116 @@ test("the blocking reasons rendered are the server's list, unfiltered", () => {
     ),
     "the browser must not decide who is READY from the reasons list"
   );
+});
+
+/* ============================================== the clickable summary cards == */
+
+const cards = read("components/payroll/PayrunFilterCards.jsx");
+const cardsCode = codeOf(cards);
+
+test("THE SUMMARY CARDS ARE REAL BUTTONS that filter the table", () => {
+  // Real, keyboard-reachable controls with a pressed state - not Stat tiles.
+  assert.match(cardsCode, /<Button/);
+  assert.match(cardsCode, /type="button"/);
+  assert.match(cardsCode, /aria-pressed=\{selected\}/);
+  assert.match(cardsCode, /onClick=\{\(\) => onSelect\(card\.key\)\}/);
+  assert.match(cardsCode, /cursor="pointer"/);
+  assert.match(cardsCode, /_hover=/);
+  assert.match(cardsCode, /_focus=/);
+  assert.ok(!/<Stat\b/.test(pageCode), "the old static statistics are gone");
+
+  // Both groups are drawn, from the card definitions, and select the filter.
+  assert.match(pageCode, /cards=\{INITIALIZATION_CARDS\.progress\}/);
+  assert.match(pageCode, /cards=\{INITIALIZATION_CARDS\.attendance\}/);
+  assert.match(pageCode, /onSelect=\{selectCard\}/);
+  assert.match(pageCode, /setInitTab\(\(active\) => nextCard\(active, key\)\)/);
+  // And the selected card is what the request is filtered by.
+  assert.match(pageCode, /\.\.\.tabFilters\(INITIALIZATION_TABS, initTab\)/);
+  assert.match(pageCode, /\[year, month, storeId, search, initTab\]/);
+});
+
+test("THE SELECTED CARD gets the screen's purple active styling", () => {
+  assert.match(cardsCode, /const selected = active === card\.key;/);
+  assert.match(cardsCode, /borderColor=\{selected \? "purple\.500" : "gray\.200"\}/);
+  assert.match(cardsCode, /bg=\{selected \? "purple\.50" : "white"\}/);
+  assert.match(cardsCode, /borderWidth=\{selected \? "2px" : "1px"\}/);
+});
+
+test("ALL EMPLOYEES resets the filter - as a card, and from the line above the table", () => {
+  assert.match(pageCode, /onClick=\{\(\) => setInitTab\(ALL\)\}/);
+  assert.match(pageCode, /Show all employees/);
+  assert.match(pageCode, /filterCaption\(\{ shown: rows\.length, active: initTab, search \}\)/);
+});
+
+test("THE DUPLICATE LOWER TABS ARE GONE from Initialization", () => {
+  assert.ok(!/<PayrunTabs/.test(pageCode));
+  assert.ok(!/import PayrunTabs/.test(pageCode));
+  assert.ok(!/Attendance Pending/.test(pageCode), "the old tab label is not drawn any more");
+});
+
+test("the card counts are the server's summary, never recounted from rows", () => {
+  assert.match(pageCode, /const cardCount = \(key\) => tabCount\("INITIALIZATION", key, summary\);/);
+  assert.match(cardsCode, /typeof count === "number" \? count : "—"/);
+});
+
+test("search works together with the selected card - both are sent in one request", () => {
+  const filtersBlock = pageCode.slice(
+    pageCode.indexOf("const filters = useMemo("),
+    pageCode.indexOf("const { rows, summary")
+  );
+  assert.match(filtersBlock, /search,/);
+  assert.match(filtersBlock, /tabFilters\(INITIALIZATION_TABS, initTab\)/);
+});
+
+test("ATTENDANCE READINESS stays a separate group, beside Payrun Progress", () => {
+  assert.match(pageCode, /title="Payrun progress"/);
+  assert.match(pageCode, /title="Attendance readiness/);
+});
+
+/* =============================================== the 3-Day Absent card == */
+
+test("the 3-Day Absent card shows what HR reviews, on both layouts", () => {
+  assert.match(pageCode, /const showAbsence = initTab === "THREE_DAY_ABSENT";/);
+  assert.match(pageCode, /showAbsence=\{showAbsence\}/);
+  ["Last Present", "Absent Working Dates", "Exit Recorded"].forEach((heading) => {
+    assert.ok(table.includes(heading), `the table has no ${heading} column`);
+    assert.ok(card.includes(`label="${heading}"`), `the card has no ${heading} field`);
+  });
+  // Every absent date links to that day's existing attendance view, and the
+  // exit is entered through the existing employee record - not a new flow.
+  assert.match(presentationCode, /heldDateLink\(row\.employee_id, date\)/);
+  assert.match(presentationCode, /href=\{`\/hr\/employees\/\$\{encodeURIComponent\(row\.employee_id\)\}`\}/);
+  assert.match(presentationCode, /review\.exit_recorded/);
+});
+
+test("3-Day Absent never changes an exit - the screen has no write for it", () => {
+  ALL_VIEWS.forEach(([name, code]) => {
+    assert.ok(!/resign|setExit|markExited/i.test(code.replace(/Resign action/g, "")), `${name} records an exit`);
+  });
+  assert.ok(!/absence/.test(helperCode), "no new endpoint - the month read carries it");
+});
+
+/* ======================================= blocked rows say why, in words == */
+
+test("A BLOCKED ROW SAYS WHY, built from the server's real reasons", () => {
+  const access = codeOf(read("util/payrunAccess.js"));
+  assert.match(access, /function blockedExplanation\(row\)/);
+  assert.match(access, /row\.blocking_reasons \|\| \[\]\)\.map\(\(reason\) => reason\.label \|\| reason\.code\)/);
+  assert.match(access, /`Blocked — \$\{labels\.join\("; "\)\}`/);
+  assert.match(access, /`Cannot initialize\. Resolve first: \$\{labels\.join\("; "\)\}\.`/);
+  // No blocker is named here: attendance is not a block reason on the server.
+  const fn = access.slice(access.indexOf("function blockedExplanation"), access.indexOf("function canSeePayrunMenu"));
+  assert.ok(!/attendance/i.test(fn), "attendance is not a blocker; it has its own column");
+  assert.match(presentationCode, /\{explanation\.summary\}/);
+});
+
+test("a BLOCKED row's Initialize stays disabled and its tooltip gives the actual reason", () => {
+  const control = presentationCode.slice(
+    presentationCode.indexOf("export function InitializeControl"),
+    presentationCode.indexOf("export function SelectCheckbox")
+  );
+  assert.match(control, /isDisabled=\{!selectable \|\| busy\}/);
+  assert.match(control, /<Tooltip label=\{explanation\.cannotInitialize\} shouldWrapChildren/);
+  // selectable is still exactly READY-and-not-initialized.
+  assert.match(presentationCode, /return isRowInitializable\(row\) && Boolean\(canInitialize\);/);
 });

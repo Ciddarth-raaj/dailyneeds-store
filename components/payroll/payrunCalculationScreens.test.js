@@ -607,10 +607,12 @@ test("neither stage keeps a second search box of its own", () => {
 /* ------------------------------ 26-28: the tabs ------------------------- */
 
 test("every stage renders the shared tab strip rather than its own filter bar", () => {
-  assert.match(pageCode2, /<PayrunTabs/);
+  /* Initialization's filters are its clickable summary cards instead - see
+     `components/payroll/payrunScreens.test.js`. */
+  assert.match(pageCode2, /<PayrunFilterCards/);
+  assert.ok(!/<PayrunTabs/.test(pageCode2), "Initialization must not draw the tabs as well as the cards");
   assert.match(adjustmentsCode, /<PayrunTabs/);
   assert.match(workflowCode, /<PayrunTabs/);
-  assert.match(pageCode2, /tabs=\{INITIALIZATION_TABS\}/);
   assert.match(adjustmentsCode, /tabs=\{ADJUSTMENT_TABS\}/);
   assert.match(workflowCode, /tabs=\{CALCULATION_TABS\}/);
 });

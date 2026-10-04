@@ -1,6 +1,9 @@
 import React from "react";
 import { Box, Table, Tbody, Td, Th, Thead, Tr } from "@chakra-ui/react";
 import {
+  AbsentDatesCell,
+  ExitRecordedCell,
+  LastPresentCell,
   ExitedBadge,
   InitializeControl,
   PayTypeControl,
@@ -47,6 +50,7 @@ function PayrunTable({
   busyEmployeeId,
   disabled,
   onOpenAttendance,
+  showAbsence = false,
 }) {
   return (
     <Box overflowX="auto">
@@ -57,7 +61,19 @@ function PayrunTable({
             <Th>Employee ID</Th>
             <Th>Employee Name</Th>
             <Th>Location</Th>
-            <Th>Designation</Th>
+            {/* THE 3-DAY ABSENT CARD swaps Designation for what HR reviews:
+                when they last attended, the three absent working dates (each
+                a link to that day's attendance) and whether an exit is
+                already on record. Everything else stays. */}
+            {showAbsence ? (
+              <>
+                <Th>Last Present</Th>
+                <Th>Absent Working Dates</Th>
+                <Th>Exit Recorded</Th>
+              </>
+            ) : (
+              <Th>Designation</Th>
+            )}
             {/* NO Approved Monthly Gross, and NO Blocking Reasons column. The
                 gross belongs on the calculation screen; the reasons are behind
                 the Status badge, in full. Both are presentation decisions - the
@@ -92,7 +108,21 @@ function PayrunTable({
                   <ExitedBadge row={row} />
                 </Td>
                 <Td>{row.store_name || "—"}</Td>
-                <Td>{row.designation_name || "—"}</Td>
+                {showAbsence ? (
+                  <>
+                    <Td>
+                      <LastPresentCell row={row} />
+                    </Td>
+                    <Td>
+                      <AbsentDatesCell row={row} />
+                    </Td>
+                    <Td>
+                      <ExitRecordedCell row={row} />
+                    </Td>
+                  </>
+                ) : (
+                  <Td>{row.designation_name || "—"}</Td>
+                )}
                 <Td>
                   <StatusBadge row={row} />
                 </Td>

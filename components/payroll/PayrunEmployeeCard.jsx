@@ -1,6 +1,9 @@
 import React from "react";
 import { Box, Flex, SimpleGrid, Stack, Text } from "@chakra-ui/react";
 import {
+  AbsentDatesCell,
+  ExitRecordedCell,
+  LastPresentCell,
   ExitedBadge,
   InitializeControl,
   PayTypeControl,
@@ -62,6 +65,7 @@ function PayrunEmployeeCard({
   busyEmployeeId,
   disabled,
   onOpenAttendance,
+  showAbsence = false,
 }) {
   const selectable = rowIsSelectable(row, canInitialize);
   const busy = rowIsBusy(row, busyEmployeeId, disabled);
@@ -105,6 +109,20 @@ function PayrunEmployeeCard({
             <AttendanceStatusBadge row={row} onOpen={onOpenAttendance} />
           </Field>
           <Field label="Designation" value={row.designation_name || "—"} />
+          {/* The 3-Day Absent review, on a phone too. */}
+          {showAbsence ? (
+            <>
+              <Field label="Last Present">
+                <LastPresentCell row={row} />
+              </Field>
+              <Field label="Absent Working Dates">
+                <AbsentDatesCell row={row} />
+              </Field>
+              <Field label="Exit Recorded">
+                <ExitRecordedCell row={row} />
+              </Field>
+            </>
+          ) : null}
           <Field label="Pay Type">
             <PayTypeControl
               row={row}

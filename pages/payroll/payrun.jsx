@@ -2,16 +2,12 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   Alert,
   AlertIcon,
-  Box,
   Button,
   Checkbox,
   Input,
   Select,
   SimpleGrid,
   Spinner,
-  Stat,
-  StatLabel,
-  StatNumber,
   Stack,
   Text,
   useToast,
@@ -21,7 +17,7 @@ import CustomContainer from "../../components/CustomContainer";
 import PayrunEmployeeList from "../../components/payroll/PayrunEmployeeList";
 import PayrunAdjustments from "../../components/payroll/adjustments/PayrunAdjustments";
 import PayrunCalculation from "../../components/payroll/calculation/PayrunCalculation";
-import PayrunTabs from "../../components/payroll/PayrunTabs";
+import PayrunFilterCards from "../../components/payroll/PayrunFilterCards";
 import AttendancePendingDrawer from "../../components/payroll/AttendancePendingDrawer";
 import usePayrollActor from "../../customHooks/usePayrollActor";
 import usePayrunMonth from "../../customHooks/usePayrunMonth";
@@ -41,10 +37,14 @@ import {
   canCloseAttendanceForPayroll,
 } from "../../util/payrunAccess";
 import {
+  ALL,
+  INITIALIZATION_CARDS,
   INITIALIZATION_TABS,
   DEFAULT_TAB,
   tabFilters,
   tabCount,
+  nextCard,
+  filterCaption,
   closeSelectionSummary,
   closeMessage,
 } from "../../util/payrunTabs";
@@ -178,21 +178,15 @@ function Payrun() {
   const [year, setYear] = useState(initial.year);
   const [month, setMonth] = useState(initial.month);
   const [storeId, setStoreId] = useState("");
-  const [status, setStatus] = useState("");
   /*
-   * THE EMPLOYEE LIFECYCLE FILTER, AND IT IS ITS OWN PIECE OF STATE.
-   *
-   * A SEPARATE QUESTION FROM `status`: that one asks what the PAYRUN says
-   * about the month, this asks what the EMPLOYMENT RECORD says about the
-   * person. Every combination is a real thing to ask for - "Exited +
-   * Initialized" is the list whose pay type may need moving to CASH by hand,
-   * which is the reason this filter exists.
-   *
-   * EXITED IS THE SERVER'S DATED ANSWER. It means "had they left by the end of
-   * THIS month", never the Employee Master's current status, and the server
-   * decides it from the same field the Exited badge uses.
+   * THERE IS NO STATUS DROPDOWN AND NO LIFECYCLE DROPDOWN ANY MORE. The
+   * clickable cards below are the stage's one status filter: "All statuses"
+   * repeated the Ready / Blocked / Initialized cards, and "All employees"
+   * (Active / Exited) repeated the Exited card - an exited employee's row
+   * still shows its Ready / Blocked / Initialized badge, so the Exited list
+   * answers "Exited + Initialized" by reading down it. The server still
+   * accepts `status` and `lifecycle`; only the duplicate controls are gone.
    */
-  const [lifecycle, setLifecycle] = useState("");
   /*
    * WHICH STAGE OF THE MONTH IS ON SCREEN. It is a view of the SAME month -
    * the year, month and branch above are shared - so switching stages never
@@ -217,11 +211,12 @@ function Payrun() {
   const [search, setSearch] = useState("");
 
   /*
-   * THE WORKING TAB, PER STAGE. Each stage opens on its own most actionable
-   * queue - see `DEFAULT_TAB` - so the screen opens on the work rather than on
-   * two hundred finished employees. ALL is always one click away.
+   * THE SELECTED CARD - one filter at a time, All Employees by default. The
+   * cards show every queue's size at once, so nothing is hidden by opening on
+   * the whole month; clicking a selected card again goes back to All.
    */
   const [initTab, setInitTab] = useState(DEFAULT_TAB.INITIALIZATION);
+  const selectCard = (key) => setInitTab((active) => nextCard(active, key));
 
   /* The employee whose attendance detail is open, and the close in flight. */
   const [attendanceRow, setAttendanceRow] = useState(null);
@@ -261,16 +256,13 @@ function Payrun() {
       store_ids: storeId,
       search,
       /*
-       * THE TAB CONTRIBUTES ITS OWN NARROWING and the two selects contribute
-       * theirs. They compose on the server, exactly as `status` and
-       * `lifecycle` already did - "Attendance Pending" plus "Exited" is one
-       * request and one answer.
+       * THE SELECTED CARD CONTRIBUTES ITS ONE NARROWING - `status`,
+       * `lifecycle`, `absence` or `attendance_status` - and the server
+       * applies it together with the location and the search.
        */
       ...tabFilters(INITIALIZATION_TABS, initTab),
-      ...(status ? { status } : {}),
-      ...(lifecycle ? { lifecycle } : {}),
     }),
-    [year, month, storeId, status, lifecycle, search, initTab]
+    [year, month, storeId, search, initTab]
   );
 
   /*
@@ -467,32 +459,17 @@ function Payrun() {
     }
   };
 
-  /**
+  /*
    * HOW MUCH OF THIS MONTH IS LEFT, IN TWO DIMENSIONS THAT ARE LABELLED AS
-   * TWO.
+   * TWO - and every count is a card that filters the table to it.
    *
-   * THE WORKFLOW COUNTS PARTITION THE MONTH. Ready, Blocked and Initialized
-   * are mutually exclusive and add up to Total Eligible: every employee is in
-   * exactly one of them.
-   *
-   * THE ATTENDANCE COUNTS DO NOT JOIN THAT SUM, and the heading says so.
-   * Attendance readiness is a different question about the same people, and
-   * the two genuinely overlap - an INITIALIZED employee is very often
-   * attendance-pending, which is the ordinary state of a month end and the
-   * reason Close for Payroll exists. Printing all six in one row would invite
-   * somebody to add them up and get more employees than the month contains.
+   * Ready, Blocked and Initialized partition the month. Exited and 3-Day
+   * Absent are further questions about the same people and overlap them.
+   * Attendance Readiness is a separate group because it overlaps all of it:
+   * one employee can be Blocked AND Attendance Needs Action at once.
    */
-  const workflowCards = [
-    { label: "Total Eligible", value: summary.total_eligible },
-    { label: "Ready", value: summary.ready },
-    { label: "Blocked", value: summary.blocked },
-    { label: "Initialized", value: summary.initialized },
-  ];
-
-  const attendanceCards = [
-    { label: "Attendance Pending", value: summary.attendance_pending },
-    { label: "Closed for Payroll", value: summary.attendance_closed_for_payroll },
-  ];
+  const cardCount = (key) => tabCount("INITIALIZATION", key, summary);
+  const showAbsence = initTab === "THREE_DAY_ABSENT";
 
   const body = () => {
     if (!mayOpen) {
@@ -510,7 +487,7 @@ function Payrun() {
         {/* TWO ACROSS ON A PHONE. Month and Year belong side by side - they
             are one choice - and five full-width rows would push the summary
             and the first employee below the fold before anything was read. */}
-        <SimpleGrid columns={{ base: 2, md: stage === STAGE.INITIALIZATION ? 6 : 4 }} spacing={3}>
+        <SimpleGrid columns={{ base: 2, md: stage === STAGE.INITIALIZATION ? 5 : 4 }} spacing={3}>
           <Select
             size="sm"
             value={month}
@@ -547,11 +524,6 @@ function Payrun() {
               </option>
             ))}
           </Select>
-          {/* THE TWO INITIALIZATION FILTERS. They ask about initialization
-              eligibility and employment lifecycle, neither of which the
-              adjustments stage has an opinion about - its population is
-              simply "everybody initialized" - so they are not drawn there
-              rather than being drawn and ignored. */}
           {/*
             THE SEARCH, SHARED BY ALL THREE STAGES AND ALWAYS ON SCREEN.
             It sits with the month and the branch because it is the same kind
@@ -567,32 +539,6 @@ function Payrun() {
             aria-label="Search employee"
             gridColumn={{ base: "span 2", md: "auto" }}
           />
-          {stage === STAGE.INITIALIZATION ? (
-            <Select
-              size="sm"
-              placeholder="All statuses"
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-            >
-              <option value="READY">Ready</option>
-              <option value="BLOCKED">Blocked</option>
-              <option value="INITIALIZED">Initialized</option>
-            </Select>
-          ) : null}
-          {/* INDEPENDENT OF THE STATUS FILTER BESIDE IT - both are sent, and
-              the server applies both, so Exited + Blocked is one request. */}
-          {stage === STAGE.INITIALIZATION ? (
-            <Select
-              size="sm"
-              placeholder="All employees"
-              value={lifecycle}
-              onChange={(e) => setLifecycle(e.target.value)}
-              aria-label="Employee lifecycle"
-            >
-              <option value="ACTIVE">Active</option>
-              <option value="EXITED">Exited</option>
-            </Select>
-          ) : null}
           {stage === STAGE.INITIALIZATION ? (
             <Button
               size="sm"
@@ -682,42 +628,49 @@ function Payrun() {
         {/* ============================= THE INITIALIZATION STAGE, unchanged */}
         {stage === STAGE.INITIALIZATION ? (
           <>
-          <Box>
-            <Text fontSize="xs" color="gray.500" textTransform="uppercase" letterSpacing="0.06em" mb={1}>
-              Payrun progress
-            </Text>
-            <SimpleGrid columns={{ base: 2, md: 4 }} spacing={3}>
-              {workflowCards.map((card) => (
-                <Stat key={card.label} p={3} borderWidth="1px" borderRadius="md">
-                  <StatLabel fontSize="xs">{card.label}</StatLabel>
-                  <StatNumber fontSize="lg">{card.value ?? 0}</StatNumber>
-                </Stat>
-              ))}
-            </SimpleGrid>
-          </Box>
-
-          <Box>
-            <Text fontSize="xs" color="gray.500" textTransform="uppercase" letterSpacing="0.06em" mb={1}>
-              Attendance readiness — counted separately, and overlaps the above
-            </Text>
-            <SimpleGrid columns={{ base: 2, md: 4 }} spacing={3}>
-              {attendanceCards.map((card) => (
-                <Stat key={card.label} p={3} borderWidth="1px" borderRadius="md">
-                  <StatLabel fontSize="xs">{card.label}</StatLabel>
-                  <StatNumber fontSize="lg">{card.value ?? 0}</StatNumber>
-                </Stat>
-              ))}
-            </SimpleGrid>
-          </Box>
-
-          <PayrunTabs
-            tabs={INITIALIZATION_TABS}
+          {/* THE CARDS ARE THE FILTERS. There are no tabs under them and no
+              status dropdowns above them - one control per question. */}
+          <PayrunFilterCards
+            title="Payrun progress"
+            cards={INITIALIZATION_CARDS.progress}
             active={initTab}
-            counts={(key) => tabCount("INITIALIZATION", key, summary)}
-            onChange={setInitTab}
-            isDisabled={loading}
-            ariaLabel="Initialization workflow"
+            counts={cardCount}
+            onSelect={selectCard}
+            columns={{ base: 2, md: 3, lg: 6 }}
           />
+
+          <PayrunFilterCards
+            title="Attendance readiness — counted separately, and overlaps the above"
+            cards={INITIALIZATION_CARDS.attendance}
+            active={initTab}
+            counts={cardCount}
+            onSelect={selectCard}
+            columns={{ base: 2, md: 3, lg: 6 }}
+          />
+
+          {showAbsence ? (
+            <Alert status="info" fontSize="sm">
+              <AlertIcon />
+              3-Day Absent is a review list only: employees absent on the last three working
+              attendance days of this month (rest days and days with no shift are not counted).
+              Nobody is marked exited — check their attendance, and record an exit from the
+              employee record only if they have actually left.
+            </Alert>
+          ) : null}
+
+          {/* WHAT THE TABLE IS SHOWING, IN WORDS, and the way back to everybody. */}
+          {loaded ? (
+            <Stack direction="row" align="center" spacing={3} flexWrap="wrap">
+              <Text fontSize="sm" fontWeight="600" aria-live="polite" data-testid="filter-caption">
+                {filterCaption({ shown: rows.length, active: initTab, search })}
+              </Text>
+              {initTab !== ALL ? (
+                <Button size="xs" variant="link" colorScheme="purple" onClick={() => setInitTab(ALL)}>
+                  Show all employees
+                </Button>
+              ) : null}
+            </Stack>
+          ) : null}
 
           {monthLocked ? (
             <Alert status="warning" fontSize="sm">
@@ -797,9 +750,6 @@ function Payrun() {
                 >
                   <Text fontSize="xs">Select all Ready ({selectableIds.length})</Text>
                 </Checkbox>
-                <Text fontSize="xs" color="gray.600">
-                  {rows.length} employee{rows.length === 1 ? "" : "s"} shown.
-                </Text>
                 {selectedCount > 0 ? (
                   <>
                     <Text fontSize="xs" fontWeight="bold">
@@ -863,6 +813,7 @@ function Payrun() {
                 canChangePayType={mayChangePayType && !monthLocked}
                 busyEmployeeId={busyEmployeeId}
                 disabled={bulkBusy}
+                showAbsence={showAbsence}
               />
             </Stack>
           ) : null}

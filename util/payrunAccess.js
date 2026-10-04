@@ -163,6 +163,28 @@ function isRowInitializable(row) {
   return Boolean(row && row.status === "READY" && row.initialized !== true);
 }
 
+/**
+ * WHY A BLOCKED ROW IS BLOCKED, in words - built ONLY from the server's own
+ * blocking reasons, in the order it sent them. Nothing here names a blocker:
+ * a reason this screen has never heard of is still shown, by its label or its
+ * code. Attendance is not a blocker on the server, so it never appears here;
+ * it has its own column.
+ *
+ * @returns {{summary: string, cannotInitialize: string} | null}
+ *   null for a row that is not BLOCKED
+ */
+function blockedExplanation(row) {
+  if (!row || row.status !== "BLOCKED") return null;
+  const labels = (row.blocking_reasons || []).map((reason) => reason.label || reason.code);
+  if (labels.length === 0) {
+    return { summary: "Blocked", cannotInitialize: "Cannot initialize." };
+  }
+  return {
+    summary: `Blocked — ${labels.join("; ")}`,
+    cannotInitialize: `Cannot initialize. Resolve first: ${labels.join("; ")}.`,
+  };
+}
+
 /** Is the Payrun reachable at all? Decides whether the menu entry is drawn. */
 function canSeePayrunMenu(actor) {
   return canOpenPayrun(actor);
@@ -179,5 +201,6 @@ module.exports = {
   canUnlockPayrun,
   canPublishPayrun,
   isRowInitializable,
+  blockedExplanation,
   canSeePayrunMenu,
 };

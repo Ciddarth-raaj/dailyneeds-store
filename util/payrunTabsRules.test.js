@@ -25,10 +25,22 @@ const {
 
 /* ------------------------------------------------------------- the tabs */
 
-test("Initialization offers exactly the five working queues", () => {
+test("Initialization's cards: six for payrun progress, two for attendance readiness", () => {
+  const { INITIALIZATION_CARDS } = tabs;
+  assert.deepEqual(
+    INITIALIZATION_CARDS.progress.map((c) => c.label),
+    ["All Employees", "Ready", "Blocked", "Initialized", "Exited", "3-Day Absent"]
+  );
+  assert.deepEqual(
+    INITIALIZATION_CARDS.attendance.map((c) => c.label),
+    ["Attendance Needs Action", "Closed for Payroll"]
+  );
   assert.deepEqual(
     INITIALIZATION_TABS.map((t) => t.key),
-    [ALL, "ATTENDANCE_PENDING", "READY", "INITIALIZED", "EXITED"]
+    [
+      ALL, "READY", "BLOCKED", "INITIALIZED", "EXITED", "THREE_DAY_ABSENT",
+      "ATTENDANCE_NEEDS_ACTION", "CLOSED_FOR_PAYROLL",
+    ]
   );
 });
 
@@ -56,12 +68,12 @@ test("every stage keeps ALL, and it is always first", () => {
  * THE DEFAULT IS THE WORK, NOT THE ARCHIVE. Opening on ALL means scrolling
  * past two hundred finished employees to find the ten that need something.
  */
-test("each stage opens on an actionable queue, never on ALL", () => {
-  Object.entries(DEFAULT_TAB).forEach(([stage, key]) => {
-    assert.notEqual(key, ALL, `${stage} defaults to ALL`);
-  });
-  assert.equal(DEFAULT_TAB.INITIALIZATION, "ATTENDANCE_PENDING");
+test("Adjustments and Calculation open on an actionable queue; Initialization on All Employees", () => {
+  assert.notEqual(DEFAULT_TAB.ADJUSTMENTS, ALL);
   assert.equal(DEFAULT_TAB.CALCULATION, "ATTENDANCE_PENDING");
+  /* Initialization's cards show every queue's size at once, so it opens on
+     the whole month and one click narrows it. */
+  assert.equal(DEFAULT_TAB.INITIALIZATION, ALL);
 });
 
 test("finished work is never a default tab", () => {
@@ -73,7 +85,7 @@ test("finished work is never a default tab", () => {
 
 test("a tab narrows exactly one dimension, and ALL narrows none", () => {
   assert.deepEqual(tabs.tabFilters(INITIALIZATION_TABS, ALL), {});
-  assert.deepEqual(tabs.tabFilters(INITIALIZATION_TABS, "ATTENDANCE_PENDING"), {
+  assert.deepEqual(tabs.tabFilters(INITIALIZATION_TABS, "ATTENDANCE_NEEDS_ACTION"), {
     attendance_status: "PENDING",
   });
   assert.deepEqual(tabs.tabFilters(INITIALIZATION_TABS, "READY"), { status: "READY" });
@@ -97,7 +109,7 @@ test("the counts come from the server's summary, by the names it sends", () => {
     total_eligible: 200, ready: 165, initialized: 30, attendance_pending: 18,
   };
   assert.equal(tabs.tabCount("INITIALIZATION", ALL, summary), 200);
-  assert.equal(tabs.tabCount("INITIALIZATION", "ATTENDANCE_PENDING", summary), 18);
+  assert.equal(tabs.tabCount("INITIALIZATION", "ATTENDANCE_NEEDS_ACTION", summary), 18);
   assert.equal(tabs.tabCount("INITIALIZATION", "READY", summary), 165);
   assert.equal(tabs.tabCount("INITIALIZATION", "INITIALIZED", summary), 30);
 
@@ -119,7 +131,7 @@ test("the counts come from the server's summary, by the names it sends", () => {
  * no badge at all.
  */
 test("an uncounted tab shows no number rather than a zero", () => {
-  assert.equal(tabs.tabCount("INITIALIZATION", "EXITED", { total_eligible: 200 }), undefined);
+  assert.equal(tabs.tabCount("INITIALIZATION", "THREE_DAY_ABSENT", { total_eligible: 200 }), undefined);
   assert.equal(tabs.tabCount("CALCULATION", "READY_FOR_APPROVAL", {}), undefined);
   assert.equal(tabs.tabCount("CALCULATION", "READY_FOR_APPROVAL", undefined), undefined);
   /* But a real zero is a real answer and is shown. */
@@ -242,4 +254,70 @@ test("an empty selection is told so rather than offered a confirmation", () => {
 test("closeable ids are the server's verdict, never the browser's", () => {
   const rows = [row(1), row(2, { attendance_closeable: false }), row(3)];
   assert.deepEqual(tabs.closeableEmployeeIds(rows), [1, 3]);
+});
+
+/* ================================== the Initialization cards are the filters */
+
+/** Tests 1-5 and 8 of the request, at the rule level: every card filters. */
+test("EVERY initialization card filters by exactly one server parameter, counted by its summary field", () => {
+  const expected = {
+    [ALL]: [{}, "total_eligible"],
+    READY: [{ status: "READY" }, "ready"],
+    BLOCKED: [{ status: "BLOCKED" }, "blocked"],
+    INITIALIZED: [{ status: "INITIALIZED" }, "initialized"],
+    EXITED: [{ lifecycle: "EXITED" }, "exited"],
+    THREE_DAY_ABSENT: [{ absence: "THREE_DAY_ABSENT" }, "three_day_absent"],
+    ATTENDANCE_NEEDS_ACTION: [{ attendance_status: "PENDING" }, "attendance_pending"],
+    CLOSED_FOR_PAYROLL: [{ attendance_status: "CLOSED_FOR_PAYROLL" }, "attendance_closed_for_payroll"],
+  };
+  assert.deepEqual(INITIALIZATION_TABS.map((c) => c.key).sort(), Object.keys(expected).sort());
+  const summary = {
+    total_eligible: 230, ready: 5, blocked: 1, initialized: 223, exited: 4,
+    three_day_absent: 8, attendance_pending: 1, attendance_closed_for_payroll: 2,
+  };
+  for (const [key, [filters, countField]] of Object.entries(expected)) {
+    assert.deepEqual(tabs.tabFilters(INITIALIZATION_TABS, key), filters, `${key} filters`);
+    assert.equal(tabs.tabCount("INITIALIZATION", key, summary), summary[countField], `${key} count`);
+  }
+});
+
+test("Exited is a top card, with its own count", () => {
+  const exited = tabs.INITIALIZATION_CARDS.progress.find((c) => c.key === "EXITED");
+  assert.ok(exited);
+  assert.equal(tabs.tabCount("INITIALIZATION", "EXITED", { exited: 4 }), 4);
+});
+
+test("All Employees is always a card; clicking it, or the selected card again, resets", () => {
+  assert.equal(tabs.INITIALIZATION_CARDS.progress[0].key, ALL);
+  assert.equal(tabs.nextCard("BLOCKED", ALL), ALL);
+  assert.equal(tabs.nextCard("BLOCKED", "BLOCKED"), ALL);
+  assert.equal(tabs.nextCard(ALL, ALL), ALL);
+  assert.equal(tabs.nextCard(ALL, "EXITED"), "EXITED");
+  assert.equal(tabs.nextCard("EXITED", "THREE_DAY_ABSENT"), "THREE_DAY_ABSENT");
+});
+
+test("Attendance Needs Action is its own dimension - a separate group from Blocked", () => {
+  const { progress, attendance } = tabs.INITIALIZATION_CARDS;
+  const needs = attendance.find((c) => c.key === "ATTENDANCE_NEEDS_ACTION");
+  const blocked = progress.find((c) => c.key === "BLOCKED");
+  assert.ok(needs && blocked);
+  assert.ok(!needs.status && needs.attendance === "PENDING");
+  assert.ok(!blocked.attendance && blocked.status === "BLOCKED");
+});
+
+test("the line above the table says how many and which card, and honours the search", () => {
+  assert.equal(
+    tabs.filterCaption({ shown: 1, active: "ATTENDANCE_NEEDS_ACTION" }),
+    "Showing 1 employee — Attendance Needs Action"
+  );
+  assert.equal(tabs.filterCaption({ shown: 8, active: "THREE_DAY_ABSENT" }), "Showing 8 employees — 3-Day Absent");
+  assert.equal(tabs.filterCaption({ shown: 230, active: ALL }), "Showing 230 employees — All Employees");
+  assert.equal(
+    tabs.filterCaption({ shown: 0, active: "BLOCKED", search: " priya " }),
+    'Showing 0 employees — Blocked matching "priya"'
+  );
+});
+
+test("the attendance PENDING badge reads 'Needs action'", () => {
+  assert.equal(tabs.ATTENDANCE_STATUS_LABEL[ATTENDANCE_STATUS.PENDING], "Needs action");
 });

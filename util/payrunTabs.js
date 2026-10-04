@@ -36,7 +36,8 @@ const ATTENDANCE_STATUS = {
  */
 const ATTENDANCE_STATUS_LABEL = {
   [ATTENDANCE_STATUS.READY]: "Ready",
-  [ATTENDANCE_STATUS.PENDING]: "Pending",
+  /* "Pending" read like a payrun state beside BLOCKED; this says what to do. */
+  [ATTENDANCE_STATUS.PENDING]: "Needs action",
   [ATTENDANCE_STATUS.CLOSED_FOR_PAYROLL]: "Closed for payroll",
 };
 
@@ -84,17 +85,74 @@ function heldDateLink(employeeId, date) {
 const ALL = "ALL";
 
 /**
- * INITIALIZATION. `attendance` narrows the ATTENDANCE dimension, `status` the
- * payrun one and `lifecycle` the employment one - three independent questions,
- * which is why a tab names exactly one of them and leaves the others alone.
+ * INITIALIZATION - THE CLICKABLE SUMMARY CARDS, which are the stage's only
+ * status filter. There are no tabs and no status dropdowns under them: the
+ * same filter drawn twice on one screen is two places to disagree.
+ *
+ * TWO GROUPS, BECAUSE THEY ARE TWO DIMENSIONS. Payrun Progress is what the
+ * payrun and the employment record say; Attendance Readiness is what
+ * attendance says, and it overlaps the first - one employee can be Blocked
+ * AND Attendance Needs Action at once. Each card names exactly one server
+ * parameter (`status`, `lifecycle`, `absence` or `attendance`) and its count
+ * is the server's summary field of the same meaning.
  */
-const INITIALIZATION_TABS = [
-  { key: ALL, label: "All" },
-  { key: "ATTENDANCE_PENDING", label: "Attendance Pending", attendance: ATTENDANCE_STATUS.PENDING },
-  { key: "READY", label: "Ready", status: "READY" },
-  { key: "INITIALIZED", label: "Initialized", status: "INITIALIZED" },
-  { key: "EXITED", label: "Exited", lifecycle: "EXITED" },
-];
+const INITIALIZATION_CARDS = {
+  progress: [
+    { key: ALL, label: "All Employees", count: "total_eligible" },
+    { key: "READY", label: "Ready", status: "READY", count: "ready" },
+    { key: "BLOCKED", label: "Blocked", status: "BLOCKED", count: "blocked" },
+    { key: "INITIALIZED", label: "Initialized", status: "INITIALIZED", count: "initialized" },
+    /* The server's DATED exit - had they left by the end of THIS month. */
+    { key: "EXITED", label: "Exited", lifecycle: "EXITED", count: "exited" },
+    /* A warning for HR to review, never a state - see the backend rule. */
+    { key: "THREE_DAY_ABSENT", label: "3-Day Absent", absence: "THREE_DAY_ABSENT", count: "three_day_absent" },
+  ],
+  attendance: [
+    {
+      key: "ATTENDANCE_NEEDS_ACTION",
+      label: "Attendance Needs Action",
+      attendance: ATTENDANCE_STATUS.PENDING,
+      count: "attendance_pending",
+    },
+    {
+      key: "CLOSED_FOR_PAYROLL",
+      label: "Closed for Payroll",
+      attendance: ATTENDANCE_STATUS.CLOSED_FOR_PAYROLL,
+      count: "attendance_closed_for_payroll",
+    },
+  ],
+};
+
+/** Every initialization card, one list - what `tabFilters` and `tabCount` walk. */
+const INITIALIZATION_TABS = [...INITIALIZATION_CARDS.progress, ...INITIALIZATION_CARDS.attendance];
+
+/**
+ * CLICKING A CARD. A different card selects it; the selected card again goes
+ * back to All Employees - which is also always a card of its own.
+ */
+function nextCard(active, clicked) {
+  if (clicked === active) return ALL;
+  return clicked;
+}
+
+/** The label a card key is shown under, for the line above the table. */
+function cardLabel(key) {
+  const card = INITIALIZATION_TABS.find((c) => c.key === key);
+  return card ? card.label : "All Employees";
+}
+
+/**
+ * THE LINE ABOVE THE TABLE: "Showing 8 employees — 3-Day Absent".
+ *
+ * `shown` is the number of rows the server returned for this filter, so it
+ * honours the search as well; the cards above keep the month's counts.
+ */
+function filterCaption({ shown = 0, active = ALL, search = "" } = {}) {
+  const n = Number(shown) || 0;
+  const who = `${n} employee${n === 1 ? "" : "s"}`;
+  const needle = String(search || "").trim();
+  return `Showing ${who} — ${cardLabel(active)}${needle ? ` matching "${needle}"` : ""}`;
+}
 
 const ADJUSTMENT_TABS = [
   { key: ALL, label: "All" },
@@ -128,7 +186,9 @@ const CALCULATION_TABS = [
  * tab that is definitionally finished work.
  */
 const DEFAULT_TAB = {
-  INITIALIZATION: "ATTENDANCE_PENDING",
+  /* The cards show every queue's size at once, so the page opens on the
+     whole month and one click narrows it. */
+  INITIALIZATION: ALL,
   ADJUSTMENTS: "NO_ADJUSTMENT_PENDING_CONFIRMATION",
   CALCULATION: "ATTENDANCE_PENDING",
 };
@@ -142,6 +202,7 @@ function tabFilters(tabs, key) {
   if (tab.state) filters.state = tab.state;
   if (tab.lifecycle) filters.lifecycle = tab.lifecycle;
   if (tab.attendance) filters.attendance_status = tab.attendance;
+  if (tab.absence) filters.absence = tab.absence;
   return filters;
 }
 
@@ -156,11 +217,8 @@ function tabCount(stage, key, summary = {}) {
   const at = (name) => (summary && typeof summary[name] === "number" ? summary[name] : undefined);
 
   if (stage === "INITIALIZATION") {
-    if (key === ALL) return at("total_eligible");
-    if (key === "ATTENDANCE_PENDING") return at("attendance_pending");
-    if (key === "READY") return at("ready");
-    if (key === "INITIALIZED") return at("initialized");
-    return undefined; // EXITED is a lifecycle cut the summary does not carry
+    const card = INITIALIZATION_TABS.find((c) => c.key === key);
+    return card ? at(card.count) : undefined;
   }
 
   /* The adjustments stage names its counts `*_count`; they are read by the
@@ -268,7 +326,11 @@ module.exports = {
   ATTENDANCE_STATUS,
   ATTENDANCE_STATUS_LABEL,
   ATTENDANCE_STATUS_SCHEME,
+  INITIALIZATION_CARDS,
   INITIALIZATION_TABS,
+  nextCard,
+  cardLabel,
+  filterCaption,
   ADJUSTMENT_TABS,
   CALCULATION_TABS,
   DEFAULT_TAB,
