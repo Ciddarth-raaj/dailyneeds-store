@@ -23,6 +23,7 @@ import {
   otClaim,
   displayDate,
   formatMinutes,
+  isNotJoinedDay,
   timingMinutes,
   otExplanation,
   punchSummary,
@@ -205,7 +206,7 @@ function DayCard({ day, onSelect }) {
           <Metric
             label="OT"
             value={
-              <ExplainTooltip lines={otExplanation(day)}>{formatMinutes(day.candidate_ot_minutes)}</ExplainTooltip>
+              <ExplainTooltip lines={otExplanation(day)}>{isNotJoinedDay(day) ? "—" : formatMinutes(day.candidate_ot_minutes)}</ExplainTooltip>
             }
             accent={Number(day.candidate_ot_minutes) > 0 ? "blue.600" : undefined}
           />
@@ -266,7 +267,7 @@ function DayTable({ days, onSelect }) {
               {/* OT: the engine's minutes, with the CLAIM state under them -
                   never folded into the Status badge. */}
               <Td isNumeric fontSize="xs" whiteSpace="nowrap" color={Number(day.candidate_ot_minutes) > 0 ? "blue.600" : undefined}>
-                <ExplainTooltip lines={otExplanation(day)}>{formatMinutes(day.candidate_ot_minutes)}</ExplainTooltip>
+                <ExplainTooltip lines={otExplanation(day)}>{isNotJoinedDay(day) ? "—" : formatMinutes(day.candidate_ot_minutes)}</ExplainTooltip>
                 <OtLine day={day} />
               </Td>
               <Td>

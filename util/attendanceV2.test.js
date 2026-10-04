@@ -907,3 +907,61 @@ test("the two approved components are read from the backend, never inferred", ()
     assert.strictEqual(V2.dayIssue(noShift).label, "No Shift Assigned");
   });
 }
+
+/* ------------------------------------------------------------------ *
+ * BEFORE THE JOINING DATE - employee 2284, joined 09-09-2026.
+ *
+ * 01-09..08-09 arrive from the server as NOT_JOINED. They must read "Not
+ * Joined" with a dash in every figure - never No Shift Assigned, Absent or
+ * Need Action - and must not be counted in any summary card, All included.
+ * 09-09 onward is classified exactly as before.
+ * ------------------------------------------------------------------ */
+test("a Sep 9 joiner: 1-8 Sep are Not Joined, never an issue, never counted", () => {
+  const V2 = require("./attendanceV2");
+  const notJoined = (d) => ({
+    attendance_date: `2026-09-0${d}`, status: "NOT_JOINED", is_final: true, review_reasons: [],
+    punch_count: 0, nrm_minutes: 0, worked_minutes: 0, shortage_minutes: 0, candidate_ot_minutes: 0,
+    shift_name: null, shift_snapshot: null, attendance_calculation_mode: "SHIFT_BASED",
+  });
+  const worked = (date) => ({
+    attendance_date: date, status: "FINAL", is_final: true, review_reasons: [], punch_count: 2,
+    nrm_minutes: 660, worked_minutes: 660, shortage_minutes: 0, attendance_calculation_mode: "SHIFT_BASED",
+  });
+  const before = [1, 2, 3, 4, 5, 6, 7, 8].map(notJoined);
+  const after = [
+    worked("2026-09-09"),
+    { ...worked("2026-09-10"), status: "ABSENT", punch_count: 0, worked_minutes: 0 },
+    { ...worked("2026-09-11"), status: "NO_SHIFT_FOR_DATE", review_reasons: ["NO_SHIFT_FOR_DATE"], punch_count: 0 },
+  ];
+  const month = [...before, ...after];
+
+  before.forEach((d) => {
+    assert.equal(V2.dayIssue(d), null, `${d.attendance_date} is not an issue`);
+    assert.deepEqual(V2.presentBadge(d), { key: "NOT_JOINED", label: "Not Joined", color: "gray" });
+    assert.equal(V2.timingMinutes(d, d.nrm_minutes), "—");
+    assert.equal(V2.timingMinutes(d, d.shortage_minutes), "—");
+    assert.equal(V2.canRegularize(d), false);
+    assert.equal(V2.isNotJoinedDay(d), true);
+  });
+
+  // Counts are of employed days only: 3 days from the 9th, not 11.
+  const counts = V2.attendanceSummary(month);
+  assert.deepEqual(counts, { ALL: 3, PRESENT: 1, ABSENT: 1, NEED_ACTION: 1 });
+  // No filter card selects a pre-joining date; All still lists them.
+  assert.equal(V2.filterDaysBySummary(month, "PRESENT").some(V2.isNotJoinedDay), false);
+  assert.equal(V2.filterDaysBySummary(month, "NEED_ACTION").some(V2.isNotJoinedDay), false);
+  assert.equal(V2.filterDaysBySummary(month, "ABSENT").some(V2.isNotJoinedDay), false);
+  assert.equal(V2.filterDaysBySummary(month, "ALL").length, 11);
+
+  // 9 Sep onward is unchanged.
+  assert.equal(V2.dayIssue(after[0]), null);
+  assert.equal(V2.dayIssue(after[1]).key, "ABSENT");
+  assert.equal(V2.dayIssue(after[2]).key, "NO_SHIFT");
+  assert.equal(V2.timingMinutes(after[0], 660), "11h");
+});
+
+test("a Sep 9 joiner: no Permission request is offered before the joining date", () => {
+  const { canRequestPermissionForDay } = require("./attendancePermission");
+  assert.equal(canRequestPermissionForDay({ status: "NOT_JOINED", attendance_calculation_mode: "SHIFT_BASED" }), false);
+  assert.equal(canRequestPermissionForDay({ status: "FINAL", attendance_calculation_mode: "SHIFT_BASED" }), true);
+});

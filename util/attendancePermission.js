@@ -158,7 +158,9 @@ function dayPermission(day) {
  * only stops the screen offering an action that cannot succeed.
  */
 function canRequestPermissionForDay(day) {
-  return !!day && !require("./attendanceV2").isPresentAbsentOnlyDay(day);
+  const v2 = require("./attendanceV2");
+  // Nothing is short before the joining date either: it is not a working day.
+  return !!day && !v2.isPresentAbsentOnlyDay(day) && !v2.isNotJoinedDay(day);
 }
 
 /**

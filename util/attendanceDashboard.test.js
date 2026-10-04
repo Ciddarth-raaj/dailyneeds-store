@@ -73,6 +73,8 @@ const SHARED_ISSUE_TABLE = [
   { status: "REVIEW_REQUIRED", reasons: [], punch_count: 2, issue: null },
   // OT is a claim on a day, never a defect in it.
   { status: "OT_PENDING", reasons: [], punch_count: 2, issue: null },
+  // Before the joining date: not an attendance day, never an issue.
+  { status: "NOT_JOINED", reasons: [], punch_count: 0, issue: null },
 ];
 
 describe("the shared status -> issue table", () => {
