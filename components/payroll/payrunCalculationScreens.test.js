@@ -923,10 +923,17 @@ test("CALCULATION & REVIEW: Select all is explicitly the rows SHOWN", () => {
 test("CALCULATION & REVIEW: every not-ready row shows the server's reasons", () => {
   // The list renders each row's recalculation reasons and blockers by label.
   const list = codeOf(read("components/payroll/calculation/CalculationEmployeeList.jsx"));
-  assert.match(list, /const reasons = \[\.\.\.\(row\.recalculation_reasons \|\| \[\]\), \.\.\.\(row\.blockers \|\| \[\]\)\];/);
+  assert.match(list, /const reasons = \[\.\.\.\(row\.recalculation_reasons \|\| \[\]\), \.\.\.\(row\.blockers \|\| \[\]\)\]\.filter\(/);
   assert.match(list, /\{reason\.label\}/);
   assert.match(list, /\{row\.status_label\}/);
   // A Calculated, not ready row heads its reasons in words.
-  assert.match(list, /const notReady = row\.status === STATUS\.CALCULATED;/);
+  assert.match(list, /const notReady = row\.status === STATUS\.CALCULATED && reasons\.length > 0;/);
   assert.match(list, /Not ready for approval:/);
+  // THE EPFO STATUTORY HOLD IS STILL SHOWN FIRST, with the fields HR must
+  // complete, and its generic duplicate is not repeated under it.
+  assert.match(list, /const hold = row\.statutory_hold \|\| null;/);
+  assert.match(list, /On hold - statutory setup incomplete/);
+  assert.match(list, /HR to complete: \{\(hold\.missing_labels \|\| \[\]\)\.join\(", "\)\}/);
+  assert.match(list, /!\(hold && r\.code === "STATUTORY_SETUP_INCOMPLETE"\)/);
+  assert.ok(list.indexOf("const hold =") < list.indexOf("Not ready for approval:"), "the hold renders before the heading");
 });
