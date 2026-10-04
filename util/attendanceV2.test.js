@@ -965,3 +965,65 @@ test("a Sep 9 joiner: no Permission request is offered before the joining date",
   assert.equal(canRequestPermissionForDay({ status: "NOT_JOINED", attendance_calculation_mode: "SHIFT_BASED" }), false);
   assert.equal(canRequestPermissionForDay({ status: "FINAL", attendance_calculation_mode: "SHIFT_BASED" }), true);
 });
+
+/* ------------------------------------------------------------------ *
+ * AFTER THE LAST WORKING DATE - employee 2284: joined 09-09-2026, last
+ * working date 13-09-2026. 01-09..08-09 are NOT_JOINED, 09-09..13-09 are
+ * ordinary days (present 9-11, no punch 12-13), 14-09..30-09 are EXITED.
+ * The counters are of the 5 employed days only: All 5, Present 3, Absent 2,
+ * Need Action 0 - derived from the rows, not hard-coded per date.
+ * ------------------------------------------------------------------ */
+test("a 9 Sep joiner who left on 13 Sep: 14-30 Sep are Exited, never Absent, never counted", () => {
+  const V2 = require("./attendanceV2");
+  const date = (d) => `2026-09-${String(d).padStart(2, "0")}`;
+  const outside = (d, status) => ({
+    attendance_date: date(d), status, is_final: true, review_reasons: [], punch_count: 0,
+    nrm_minutes: 0, worked_minutes: 0, shortage_minutes: 0, candidate_ot_minutes: 0,
+    shift_name: null, shift_snapshot: null, attendance_calculation_mode: "SHIFT_BASED",
+  });
+  const worked = (d) => ({
+    attendance_date: date(d), status: "FINAL", is_final: true, review_reasons: [], punch_count: 2,
+    nrm_minutes: 660, worked_minutes: 660, shortage_minutes: 0, attendance_calculation_mode: "SHIFT_BASED",
+  });
+  const absent = (d) => ({ ...worked(d), status: "ABSENT", punch_count: 0, worked_minutes: 0 });
+
+  const month = [
+    ...[1, 2, 3, 4, 5, 6, 7, 8].map((d) => outside(d, "NOT_JOINED")),
+    worked(9), worked(10), worked(11), absent(12), absent(13),
+    ...Array.from({ length: 17 }, (_, i) => outside(14 + i, "EXITED")),
+  ];
+  assert.equal(month.length, 30);
+
+  const exited = month.filter((d) => d.status === "EXITED");
+  exited.forEach((d) => {
+    assert.equal(V2.dayIssue(d), null, `${d.attendance_date} is not an issue`);
+    assert.deepEqual(V2.presentBadge(d), { key: "EXITED", label: "Exited", color: "gray" });
+    for (const m of [d.nrm_minutes, d.worked_minutes, d.shortage_minutes]) assert.equal(V2.timingMinutes(d, m), "—");
+    assert.equal(V2.canRegularize(d), false);
+    assert.equal(V2.isExitedDay(d), true);
+    assert.equal(V2.isNotJoinedDay(d), false, "Exited is not Not Joined");
+    assert.equal(V2.isOutsideEmploymentDay(d), true);
+  });
+
+  // Expected counts derived from the employed rows, the same classification
+  // the cards use: 9-11 present, 12-13 absent.
+  const employedRows = month.filter((d) => !V2.isOutsideEmploymentDay(d));
+  const expected = {
+    ALL: employedRows.length,
+    PRESENT: employedRows.filter((d) => V2.dayIssue(d) === null).length,
+    ABSENT: employedRows.filter((d) => V2.dayIssue(d) && V2.dayIssue(d).key === "ABSENT").length,
+    NEED_ACTION: 0,
+  };
+  assert.deepEqual(expected, { ALL: 5, PRESENT: 3, ABSENT: 2, NEED_ACTION: 0 });
+  assert.deepEqual(V2.attendanceSummary(month), expected);
+
+  for (const f of ["PRESENT", "ABSENT", "NEED_ACTION"]) {
+    assert.equal(V2.filterDaysBySummary(month, f).some(V2.isOutsideEmploymentDay), false, `${f} has no outside-employment row`);
+  }
+  assert.equal(V2.filterDaysBySummary(month, "ALL").length, 30, "All still lists every row");
+});
+
+test("no Permission request is offered after the last working date", () => {
+  const { canRequestPermissionForDay } = require("./attendancePermission");
+  assert.equal(canRequestPermissionForDay({ status: "EXITED", attendance_calculation_mode: "SHIFT_BASED" }), false);
+});
