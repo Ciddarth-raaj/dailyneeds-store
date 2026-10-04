@@ -75,6 +75,8 @@ const SHARED_ISSUE_TABLE = [
   { status: "OT_PENDING", reasons: [], punch_count: 2, issue: null },
   // Before the joining date: not an attendance day, never an issue.
   { status: "NOT_JOINED", reasons: [], punch_count: 0, issue: null },
+  // After the last working date: not an attendance day, never an issue.
+  { status: "EXITED", reasons: [], punch_count: 0, issue: null },
 ];
 
 describe("the shared status -> issue table", () => {

@@ -159,8 +159,9 @@ function dayPermission(day) {
  */
 function canRequestPermissionForDay(day) {
   const v2 = require("./attendanceV2");
-  // Nothing is short before the joining date either: it is not a working day.
-  return !!day && !v2.isPresentAbsentOnlyDay(day) && !v2.isNotJoinedDay(day);
+  // Nothing is short outside the employment period either - before the
+  // joining date or after the last working date: not a working day.
+  return !!day && !v2.isPresentAbsentOnlyDay(day) && !v2.isOutsideEmploymentDay(day);
 }
 
 /**
