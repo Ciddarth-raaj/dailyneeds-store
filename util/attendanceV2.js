@@ -25,7 +25,21 @@ const STATUS = Object.freeze({
   OT_PENDING: "OT_PENDING",
   NO_SHIFT_FOR_DATE: "NO_SHIFT_FOR_DATE",
   NO_SCHEDULE_ROW: "NO_SCHEDULE_ROW",
+  // A date BEFORE the employee's joining date: not an attendance day at all.
+  NOT_JOINED: "NOT_JOINED",
 });
+
+/**
+ * BEFORE THE JOINING DATE. The backend reads such a date as NOT_JOINED: no
+ * shift is expected, nothing is calculated, and it is never Absent, Need
+ * Action, No Shift Assigned or counted in any summary. Screens show the badge
+ * below and a dash in every figure.
+ */
+const NOT_JOINED_LABEL = "Not Joined";
+
+function isNotJoinedDay(day) {
+  return !!day && day.status === STATUS.NOT_JOINED;
+}
 
 /** The exact labels staff see. Keys are what the screen renders on. */
 const LABEL = Object.freeze({
@@ -110,6 +124,9 @@ function dayIssue(day) {
   const punchCount = Number(day.punch_count) || 0;
 
   switch (status) {
+    case STATUS.NOT_JOINED:
+      // Not an attendance day, so never an issue - see `presentBadge`.
+      return null;
     case STATUS.REGULARIZATION_PENDING:
       return { key: "REGULARIZATION_PENDING", label: LABEL.REGULARIZATION_PENDING, color: "orange" };
     case STATUS.OT_PENDING:
@@ -156,6 +173,9 @@ function dayIssue(day) {
  * exactly as before.
  */
 function presentBadge(day) {
+  // A date before the joining date says so, rather than staying blank like
+  // an ordinary good day.
+  if (isNotJoinedDay(day)) return { key: "NOT_JOINED", label: NOT_JOINED_LABEL, color: "gray" };
   if (isPresentAbsentOnlyDay(day) && day.status === STATUS.FINAL) {
     return { key: "PRESENT", label: PRESENT_LABEL, color: "green" };
   }
@@ -176,7 +196,7 @@ function shiftChangeNotApplicable(optionsResponse) {
 
 /** A shift-timing figure (NRM, worked, short, OT): a dash when none is calculated. */
 function timingMinutes(day, minutes) {
-  return isPresentAbsentOnlyDay(day) ? "—" : formatMinutes(minutes);
+  return isPresentAbsentOnlyDay(day) || isNotJoinedDay(day) ? "—" : formatMinutes(minutes);
 }
 
 /**
@@ -649,6 +669,14 @@ const SUMMARY_FILTER = Object.freeze({
   NEED_ACTION: "NEED_ACTION",
 });
 
+/**
+ * The bucket a date before the joining date falls in. NOT a filter card and
+ * NOT part of any count - All included: the month's counts are of the days
+ * the employee was employed. The rows are still listed under All, labelled
+ * Not Joined.
+ */
+const NOT_JOINED_BUCKET = "NOT_JOINED";
+
 /** The issue keys that mean somebody has to act. */
 const NEED_ACTION_ISSUE_KEYS = Object.freeze([
   "MISSING_PUNCH",
@@ -665,6 +693,7 @@ const NEED_ACTION_ISSUE_KEYS = Object.freeze([
  * counting it as a good day would hide it.
  */
 function daySummaryBucket(day) {
+  if (isNotJoinedDay(day)) return NOT_JOINED_BUCKET;
   const issue = dayIssue(day);
   if (!issue) return SUMMARY_FILTER.PRESENT;
   if (issue.key === "ABSENT") return SUMMARY_FILTER.ABSENT;
@@ -674,13 +703,14 @@ function daySummaryBucket(day) {
 /** The four counts for a loaded month. No second request: this is the rows. */
 function attendanceSummary(days) {
   const rows = Array.isArray(days) ? days : [];
+  const employed = rows.filter((day) => !isNotJoinedDay(day));
   const counts = {
-    [SUMMARY_FILTER.ALL]: rows.length,
+    [SUMMARY_FILTER.ALL]: employed.length,
     [SUMMARY_FILTER.PRESENT]: 0,
     [SUMMARY_FILTER.ABSENT]: 0,
     [SUMMARY_FILTER.NEED_ACTION]: 0,
   };
-  rows.forEach((day) => {
+  employed.forEach((day) => {
     counts[daySummaryBucket(day)] += 1;
   });
   return counts;
@@ -1242,6 +1272,8 @@ function otExplanation(day) {
 
 module.exports = {
   STATUS,
+  NOT_JOINED_LABEL,
+  isNotJoinedDay,
   roleLabel,
   levelLabel,
   REVOKED_LABEL,

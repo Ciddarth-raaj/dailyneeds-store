@@ -10,6 +10,7 @@ import {
   canRegularize,
   dayIssue,
   presentBadge,
+  isNotJoinedDay,
   dayPunchRows,
   otClaim,
   displayDate,
@@ -111,11 +112,14 @@ export default function AttendanceDayDetail({
   onClose,
   onRegularize,
   onRequestOt,
-  onEditShift,
+  onEditShift: onEditShiftProp,
   onVoidPunch,
   onRequestPermission,
 }) {
   if (!day) return null;
+  // No shift exists before the joining date - the server refuses one - so
+  // Edit Shift is not offered on a Not Joined date.
+  const onEditShift = isNotJoinedDay(day) ? null : onEditShiftProp;
   const permission = dayPermission(day);
   // The issue, or an explicit Present on a Present/Absent Only day.
   const issue = dayIssue(day) || presentBadge(day);
@@ -262,7 +266,7 @@ export default function AttendanceDayDetail({
           <Row
             label="OT"
             value={
-              <ExplainTooltip lines={otExplanation(day)}>{formatMinutes(day.candidate_ot_minutes)}</ExplainTooltip>
+              <ExplainTooltip lines={otExplanation(day)}>{isNotJoinedDay(day) ? "—" : formatMinutes(day.candidate_ot_minutes)}</ExplainTooltip>
             }
             accent={Number(day.candidate_ot_minutes) > 0 ? "blue.600" : undefined}
           />
