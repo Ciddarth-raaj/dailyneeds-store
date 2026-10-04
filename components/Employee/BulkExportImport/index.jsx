@@ -18,6 +18,7 @@ import {
   Tbody,
   Td,
   Text,
+  Textarea,
   Th,
   Thead,
   Tr,
@@ -66,6 +67,8 @@ function BulkExportImport({ isOpen, onClose, filters = {}, onApplied }) {
   const [preview, setPreview] = useState(null);
   const [result, setResult] = useState(null);
   const [busy, setBusy] = useState(false);
+  // One reason for the file's historical joining-date corrections, if any.
+  const [correctionReason, setCorrectionReason] = useState("");
 
   /* ------------------------------------------------------------ catalogue */
 
@@ -97,6 +100,7 @@ function BulkExportImport({ isOpen, onClose, filters = {}, onApplied }) {
     setFile(null);
     setParsed(null);
     setPreview(null);
+    setCorrectionReason("");
     setResult(null);
   }, []);
 
@@ -170,8 +174,15 @@ function BulkExportImport({ isOpen, onClose, filters = {}, onApplied }) {
     if (!parsed || !preview) return;
     setBusy(true);
     try {
-      const data = await EmployeeBulkUpdateHelper.confirm({ ...parsed, preview });
+      const data = await EmployeeBulkUpdateHelper.confirm({ ...parsed, preview, correctionReason });
 
+      if (data?.code === 422 && data?.requires_correction_reason) {
+        // Historical joining-date corrections without a usable reason: the
+        // server applied NOTHING. The reason box stays open to fill in.
+        toast.error(data.msg || "A correction reason is required");
+        setPreview(data);
+        return;
+      }
       if (data?.code === 409) {
         // The file no longer validates against current data, so NOTHING was
         // applied. The refreshed preview comes back in the same response.
@@ -233,7 +244,7 @@ function BulkExportImport({ isOpen, onClose, filters = {}, onApplied }) {
               colorScheme="purple"
               size="sm"
               isLoading={busy}
-              isDisabled={!canConfirm(preview)}
+              isDisabled={!canConfirm(preview, correctionReason)}
               onClick={handleConfirm}
             >
               {`Confirm Bulk Update (${preview.rows_with_changes || 0})`}
@@ -372,6 +383,25 @@ function BulkExportImport({ isOpen, onClose, filters = {}, onApplied }) {
                 Fix every error row and upload the file again. Nothing can be
                 confirmed while there are errors.
               </Alert>
+            )}
+            {!result && shown.error_rows === 0 && shown.requires_correction_reason && (
+              <Box borderWidth="1px" borderColor="orange.300" borderRadius="md" p="12px" mb="12px">
+                <Alert status="warning" borderRadius="md" mb="10px" fontSize="sm">
+                  <AlertIcon />
+                  {`HISTORICAL JOINING-DATE CORRECTION: ${shown.historical_corrections} employee(s) get a joining date more than 30 days before today. A correction reason is required, and every change is audited with the old date, the new date, the reason and your name.`}
+                </Alert>
+                <Text fontSize="sm" fontWeight="600" mb="4px">
+                  Correction reason (required, at least 10 characters)
+                </Text>
+                <Textarea
+                  size="sm"
+                  rows={2}
+                  maxLength={500}
+                  value={correctionReason}
+                  onChange={(e) => setCorrectionReason(e.target.value)}
+                  placeholder="e.g. Joining dates corrected from the HR joining register"
+                />
+              </Box>
             )}
             {!result && shown.error_rows === 0 && shown.rows_with_changes === 0 && (
               <Alert status="info" borderRadius="md" mb="12px" fontSize="sm">

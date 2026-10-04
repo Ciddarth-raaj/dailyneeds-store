@@ -180,11 +180,18 @@ const hr = {
    * Corrects a wrongly recorded joining date. The backend moves the master
    * date and the current employment period's date together and records the
    * old and new value on the lifecycle timeline. `date_of_joining` is
-   * YYYY-MM-DD, not in the future.
+   * YYYY-MM-DD within 30 days either side of today - or older, as a
+   * historical correction, for a holder of the historical-correction key.
    */
-  correctJoiningDate: (employeeId, dateOfJoining) =>
+  correctJoiningDate: (employeeId, dateOfJoining, correctionReason = null) =>
     new Promise((resolve, reject) => {
-      API.post(`/hr/employee/${employeeId}/joining-date`, { date_of_joining: dateOfJoining })
+      // A reason is REQUIRED by the server for a historical correction (a date
+      // more than 30 days back, `employee_joining_date_historical_correction`)
+      // and recorded on the lifecycle event whenever one is sent.
+      API.post(`/hr/employee/${employeeId}/joining-date`, {
+        date_of_joining: dateOfJoining,
+        ...(correctionReason ? { correction_reason: correctionReason } : {}),
+      })
         .then((res) => resolve(res.data))
         .catch(reject);
     }),

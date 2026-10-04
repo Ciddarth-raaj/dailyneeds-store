@@ -10,12 +10,21 @@ import {
   FormControl,
   FormLabel,
   FormHelperText,
+  Textarea,
   useToast,
 } from "@chakra-ui/react";
 import CustomModal from "../CustomModal";
 import HrHelper from "../../helper/hr";
 import { rejoinNeedsPreviousEnd } from "../../util/hrStatus";
-import { joiningDateBounds, joiningDateWindowError } from "../../util/joiningDateWindow";
+import {
+  joiningDateBounds,
+  joiningDateWindowError,
+  historicalCorrectionBounds,
+  historicalCorrectionDateError,
+  correctionReasonError,
+  CORRECTION_REASON_MIN,
+} from "../../util/joiningDateWindow";
+import { displayDate } from "../../util/displayDate";
 
 /**
  * Stage 0C / C3 — resign and rejoin.
@@ -243,4 +252,120 @@ export function RejoinModal({ isOpen, onClose, employee, lifecycle, onDone }) {
   );
 }
 
-export default { ResignModal, RejoinModal };
+/**
+ * HISTORICAL JOINING-DATE CORRECTION - its own action, never part of New
+ * Employee, Rejoin or the ordinary Employment Details edit.
+ *
+ * Offered only to a holder of `employee_joining_date_historical_correction`
+ * (with `employee_edit`). An OLD date may be chosen - a genuine historical
+ * correction, or a legacy employee's missing date - but never one later than
+ * today + 30, and never without a reason. The server re-decides all of it
+ * from the caller's own key and records the old date, the new date, the
+ * reason, the user and the time on the lifecycle timeline.
+ */
+export function HistoricalJoiningDateModal({ isOpen, onClose, employee, currentJoiningDate, onDone }) {
+  const toast = useToast();
+  const [date, setDate] = useState("");
+  const [reason, setReason] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+
+  const close = () => {
+    setDate("");
+    setReason("");
+    setError(null);
+    onClose();
+  };
+
+  const submit = async () => {
+    setError(null);
+    const dateError = historicalCorrectionDateError(date);
+    if (dateError) return setError(dateError);
+    const reasonError = correctionReasonError(reason);
+    if (reasonError) return setError(reasonError);
+    setBusy(true);
+    try {
+      const res = await HrHelper.correctJoiningDate(employee.employee_id, date, reason.trim());
+      if (res && res.code && res.code !== 200) {
+        setError(String(res.msg || "The joining date was not changed.").replace(/^ValidationError:\s*/, ""));
+        return;
+      }
+      toast({ title: "Historical joining-date correction recorded", status: "success", duration: 4000 });
+      close();
+      onDone();
+    } catch (err) {
+      setError("Could not reach the server.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <CustomModal
+      isOpen={isOpen}
+      onClose={close}
+      title={`Historical joining-date correction — ${employee.employee_name}`}
+      size="md"
+      isCentered
+      footer={
+        <>
+          <Button variant="ghost" mr={3} size="sm" onClick={close}>
+            Cancel
+          </Button>
+          <Button
+            colorScheme="orange"
+            size="sm"
+            isLoading={busy}
+            isDisabled={!date || Boolean(correctionReasonError(reason))}
+            onClick={submit}
+          >
+            Save historical correction
+          </Button>
+        </>
+      }
+    >
+      <Stack spacing={3} fontSize="sm">
+        {error ? (
+          <Alert status="error" fontSize="sm">
+            <AlertIcon />
+            {error}
+          </Alert>
+        ) : null}
+        <Alert status="warning" fontSize="sm">
+          <AlertIcon />
+          This is a HISTORICAL CORRECTION. It may set a joining date older than 30 days, for example to
+          correct a long-standing record or fill in a missing one. The old date, the new date, your
+          reason and your name are recorded on the employee&apos;s timeline.
+        </Alert>
+        <Text>
+          Current joining date: <b>{currentJoiningDate ? displayDate(currentJoiningDate) : "not recorded"}</b>
+        </Text>
+        <FormControl isRequired>
+          <FormLabel fontSize="sm">Correct joining date</FormLabel>
+          <Input
+            type="date"
+            size="sm"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            {...historicalCorrectionBounds()}
+          />
+          <FormHelperText>Any past date; not more than 30 days after today.</FormHelperText>
+        </FormControl>
+        <FormControl isRequired>
+          <FormLabel fontSize="sm">Correction reason</FormLabel>
+          <Textarea
+            size="sm"
+            rows={3}
+            maxLength={500}
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="e.g. Appointment letter on file shows 01-Jun-2015"
+          />
+          <FormHelperText>Required — at least {CORRECTION_REASON_MIN} characters. Saved to the audit.</FormHelperText>
+        </FormControl>
+      </Stack>
+    </CustomModal>
+  );
+}
+
+export default { ResignModal, RejoinModal, HistoricalJoiningDateModal };

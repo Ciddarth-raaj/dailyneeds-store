@@ -59,7 +59,18 @@ export function exportErrorMessage(blobType, text) {
  * whole operation if anything still fails revalidation, so this is about
  * showing an honest button, not about enforcement.
  */
-export function canConfirm(preview) {
+export function canConfirm(preview, correctionReason = "") {
   if (!preview) return false;
-  return preview.error_rows === 0 && (preview.rows_with_changes || 0) > 0;
+  if (!(preview.error_rows === 0 && (preview.rows_with_changes || 0) > 0)) return false;
+  // A file with historical joining-date corrections (older than the 30-day
+  // window, allowed only for a holder of the historical-correction key) needs
+  // ONE reason for the batch. The server refuses the confirm without it too.
+  if (preview.requires_correction_reason) return correctionReasonOk(correctionReason);
+  return true;
+}
+
+/** The batch reason the server accepts: 10-500 characters once trimmed. */
+export function correctionReasonOk(value) {
+  const text = String(value === null || value === undefined ? "" : value).trim();
+  return text.length >= 10 && text.length <= 500;
 }

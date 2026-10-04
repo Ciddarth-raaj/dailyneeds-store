@@ -106,6 +106,10 @@ export const PERMISSIONS = {
     employee_create: "Add Employee",
     employee_resign: "Change Employee Status — Resign",
     employee_rejoin: "Change Employee Status — Rejoin",
+    // Historical joining-date correction: lets the dedicated correction (and
+    // bulk update) record a joining date OLDER than 30 days - with a reason,
+    // audited. Granted to nobody by its migration; listed so it can be granted.
+    employee_joining_date_historical_correction: "Historical Joining Date Correction",
     // M1. The two employee-master sections after a store manager's four
     // onboarding stages, each grantable on its own. Both sit on top of the
     // sensitive-edit pair, which stays out of this matrix on purpose.

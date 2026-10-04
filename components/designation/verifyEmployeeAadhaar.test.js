@@ -109,7 +109,9 @@ test("18. it is an ORDINARY checkbox - no exclusivity, no auto-selection", () =>
 });
 
 test("the catalog gained exactly one entry, and dragged nothing else on", () => {
-  assert.strictEqual(employeeKeys.length, 17, "sixteen before, seventeen after");
+  // Eighteen since the historical joining-date correction key was listed
+  // after it; that key is defended by employeeMasterPermissions.test.js.
+  assert.strictEqual(employeeKeys.length, 18, "sixteen before, seventeen after, eighteen now");
   for (const forbidden of [
     "view_aadhaar_full",
     "view_employee_sensitive",

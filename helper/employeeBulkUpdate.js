@@ -78,12 +78,17 @@ const EmployeeBulkUpdateHelper = {
    * It is sent from the preview response untouched - editing it here would be
    * defeating the check on the user's behalf.
    */
-  confirm: ({ headers, rows, filename, preview }) =>
+  confirm: ({ headers, rows, filename, preview, correctionReason }) =>
     API.post("/hr/employees/bulk/confirm", {
       headers,
       rows,
       filename,
       expected_before: buildExpectedBefore(preview),
+      // One reason for the file's historical joining-date corrections, sent
+      // only when there is one; the server requires it when the file has any.
+      ...(correctionReason && String(correctionReason).trim()
+        ? { joining_date_correction_reason: String(correctionReason).trim() }
+        : {}),
     }).then((res) => res.data),
 };
 

@@ -17,6 +17,10 @@ const {
   istTodayIso,
   joiningDateBounds,
   joiningDateWindowError,
+  canCorrectJoiningDateHistorically,
+  historicalCorrectionBounds,
+  historicalCorrectionDateError,
+  correctionReasonError,
 } = require("./joiningDateWindow");
 const { joiningDateChanged } = require("./joiningDate");
 
@@ -94,5 +98,46 @@ describe("every screen that records a joining date bounds its picker and checks 
     const src = read("components/hr/LifecycleActionModals.jsx");
     assert.match(src, /joiningDateBounds\(\)/);
     assert.match(src, /joiningDateWindowError\(date\)/);
+  });
+});
+
+describe("the historical joining-date correction (its own action)", () => {
+  const key = (k) => ({ permission_key: k });
+  it("is offered only with the historical key AND employee_edit, or to an administrator", () => {
+    assert.equal(canCorrectJoiningDateHistorically({ permissions: [key("employee_edit")] }), false);
+    assert.equal(
+      canCorrectJoiningDateHistorically({ permissions: [key("employee_joining_date_historical_correction")] }),
+      false
+    );
+    assert.equal(
+      canCorrectJoiningDateHistorically({
+        permissions: [key("employee_edit"), key("employee_joining_date_historical_correction")],
+      }),
+      true
+    );
+    assert.equal(canCorrectJoiningDateHistorically({ permissions: [], isAdmin: true }), true);
+    assert.equal(canCorrectJoiningDateHistorically({ permissions: [], isAdmin: "true" }), false);
+  });
+  it("allows any past date but still not today + 31", () => {
+    assert.deepEqual(historicalCorrectionBounds(TODAY), { max: "2026-11-03" });
+    assert.equal(historicalCorrectionDateError("2015-06-01", TODAY), null);
+    assert.equal(historicalCorrectionDateError("2026-11-03", TODAY), null);
+    assert.equal(historicalCorrectionDateError("2026-11-04", TODAY), JOINING_DATE_ERROR.TOO_LATE);
+  });
+  it("requires a reason of at least 10 characters", () => {
+    assert.ok(correctionReasonError(""));
+    assert.ok(correctionReasonError("typo fix"));
+    assert.equal(correctionReasonError("Appointment letter on file"), null);
+  });
+  it("is not exposed on New Employee or Rejoin, and is labelled on the profile", () => {
+    const read = (rel) => fs.readFileSync(path.join(__dirname, "..", rel), "utf8");
+    assert.ok(!/historicalCorrection|HistoricalJoiningDate/.test(read("pages/hr/employees/new.jsx")));
+    const modals = read("components/hr/LifecycleActionModals.jsx");
+    const rejoin = modals.slice(modals.indexOf("export function RejoinModal"), modals.indexOf("export function HistoricalJoiningDateModal"));
+    assert.ok(!/historicalCorrection/.test(rejoin), "Rejoin keeps the 30-day picker");
+    assert.match(modals, /This is a HISTORICAL CORRECTION/);
+    assert.match(modals, /isDisabled=\{!date \|\| Boolean\(correctionReasonError\(reason\)\)\}/);
+    const profile = read("pages/hr/employees/[id].jsx");
+    assert.match(profile, /mayCorrectHistorically && lifecycle \?/);
   });
 });

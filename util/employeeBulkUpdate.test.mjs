@@ -8,6 +8,7 @@ import {
   buildExpectedBefore,
   exportErrorMessage,
   canConfirm,
+  correctionReasonOk,
 } from "./employeeBulkUpdate.js";
 
 describe("the staleness echo sent at confirm time", () => {
@@ -92,5 +93,21 @@ describe("the Confirm button's enabled state", () => {
 
   it("is off with no preview at all", () => {
     assert.equal(canConfirm(null), false);
+  });
+});
+
+describe("historical joining-date corrections need one reason for the batch", () => {
+  const preview = { error_rows: 0, rows_with_changes: 2, requires_correction_reason: true, historical_corrections: 1 };
+  it("cannot confirm without a reason, or with a token one", () => {
+    assert.equal(canConfirm(preview), false);
+    assert.equal(canConfirm(preview, "   "), false);
+    assert.equal(canConfirm(preview, "typo"), false);
+  });
+  it("can confirm with a real reason", () => {
+    assert.equal(canConfirm(preview, "From the 2012 joining register"), true);
+    assert.equal(correctionReasonOk("x".repeat(501)), false);
+  });
+  it("a file without historical corrections needs no reason", () => {
+    assert.equal(canConfirm({ error_rows: 0, rows_with_changes: 2 }), true);
   });
 });
