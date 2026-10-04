@@ -15,6 +15,7 @@ import {
 import CustomModal from "../CustomModal";
 import HrHelper from "../../helper/hr";
 import { rejoinNeedsPreviousEnd } from "../../util/hrStatus";
+import { joiningDateBounds, joiningDateWindowError } from "../../util/joiningDateWindow";
 
 /**
  * Stage 0C / C3 — resign and rejoin.
@@ -144,6 +145,14 @@ export function RejoinModal({ isOpen, onClose, employee, lifecycle, onDone }) {
       setError("A joining date is required.");
       return;
     }
+    // The rejoin date is a joining date being recorded, so the same entry
+    // window applies - 30 days either side of today (IST). The API refuses it
+    // too; this only says it before the request.
+    const windowError = joiningDateWindowError(date);
+    if (windowError) {
+      setError(windowError);
+      return;
+    }
     if (needsPreviousEnd && !previousEnd) {
       setError("The previous period's end date is required before a new one can be opened.");
       return;
@@ -206,7 +215,13 @@ export function RejoinModal({ isOpen, onClose, employee, lifecycle, onDone }) {
         </Alert>
         <FormControl isRequired>
           <FormLabel fontSize="sm">Joining date</FormLabel>
-          <Input type="date" size="sm" value={date} onChange={(e) => setDate(e.target.value)} />
+          <Input
+            type="date"
+            size="sm"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            {...joiningDateBounds()}
+          />
         </FormControl>
         {needsPreviousEnd ? (
           <FormControl isRequired>

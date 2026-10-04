@@ -127,10 +127,12 @@ test("the Employment stage is complete without them, and refuses a value off the
     designation_id: "2",
     department_id: "3",
   };
-  assert.deepEqual(validateStage("employment", stage, {}), {});
-  assert.deepEqual(validateStage("employment", { ...stage, employment_type: "Permanent", grade: "A" }, {}), {});
-  assert.ok(validateStage("employment", { ...stage, employment_type: "Intern" }, {}).employment_type);
-  assert.ok(validateStage("employment", { ...stage, grade: "Z" }, {}).grade);
+  // Today pinned beside the fixture's joining date, for the 30-day entry window.
+  const ctx = { today: "2026-01-10" };
+  assert.deepEqual(validateStage("employment", stage, ctx), {});
+  assert.deepEqual(validateStage("employment", { ...stage, employment_type: "Permanent", grade: "A" }, ctx), {});
+  assert.ok(validateStage("employment", { ...stage, employment_type: "Intern" }, ctx).employment_type);
+  assert.ok(validateStage("employment", { ...stage, grade: "Z" }, ctx).grade);
 });
 
 /* ------------------------------------------------------------ the screens */
