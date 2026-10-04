@@ -304,9 +304,28 @@ function Reasons({ row }) {
    * calculated or approved, and nothing is assumed for them. The generic
    * blocker with the same code is not repeated below it.
    */
+  /*
+   * NOT CALCULATED, TWO WAYS. An employee Calculate would accept is simply
+   * awaiting calculation; one it would refuse (`calculable === false`) -
+   * the statutory setup hold, or another readiness reason - is blocked from
+   * it, and says why. The bare "Not calculated" blocker repeats the status
+   * badge, so it is not listed again for either.
+   */
+  const notCalculated = row.status === STATUS.NOT_CALCULATED;
+  const blockedFromCalculation = notCalculated && row.calculable === false;
   const reasons = [...(row.recalculation_reasons || []), ...(row.blockers || [])].filter(
-    (r, i, all) => !(hold && r.code === "STATUTORY_SETUP_INCOMPLETE") && all.findIndex((x) => x.code === r.code) === i
+    (r, i, all) =>
+      !(hold && r.code === "STATUTORY_SETUP_INCOMPLETE") &&
+      !(notCalculated && r.code === "NOT_CALCULATED") &&
+      all.findIndex((x) => x.code === r.code) === i
   );
+  if (notCalculated && !blockedFromCalculation && !hold) {
+    return (
+      <Text fontSize="xs" color="gray.500" data-testid="awaiting-calculation">
+        Awaiting calculation
+      </Text>
+    );
+  }
   if (reasons.length === 0 && !hold) return null;
   /*
    * CALCULATED, NOT READY SAYS SO IN WORDS: these are the server's approval
@@ -316,6 +335,11 @@ function Reasons({ row }) {
   const notReady = row.status === STATUS.CALCULATED && reasons.length > 0;
   return (
     <Stack spacing={1}>
+      {blockedFromCalculation ? (
+        <Text fontSize="xs" fontWeight="600" color="orange.700" data-testid="blocked-from-calculation-heading">
+          Cannot be calculated yet:
+        </Text>
+      ) : null}
       {hold ? (
         <Box title={hold.message || undefined}>
           <Badge colorScheme="orange" fontSize="0.65rem">

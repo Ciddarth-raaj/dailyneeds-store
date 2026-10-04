@@ -361,6 +361,7 @@ test("the summary cards' counts come from the server", () => {
   for (const label of [
     "All Employees",
     "Attendance Needs Action",
+    "Not Calculated",
     "Calculated",
     "Calculated, Not Ready",
     "Recalculation Required",
@@ -937,3 +938,31 @@ test("CALCULATION & REVIEW: every not-ready row shows the server's reasons", () 
   assert.match(list, /!\(hold && r\.code === "STATUTORY_SETUP_INCOMPLETE"\)/);
   assert.ok(list.indexOf("const hold =") < list.indexOf("Not ready for approval:"), "the hold renders before the heading");
 });
+
+test("CALCULATION & REVIEW: Not Calculated is a server card, counted and filtered like the others", () => {
+  const { CALCULATION_CARDS, tabFilters, tabCount } = require("../../util/payrunTabs");
+  const card = CALCULATION_CARDS.find((c) => c.key === "NOT_CALCULATED");
+  assert.equal(card.label, "Not Calculated");
+  assert.deepEqual(tabFilters(CALCULATION_CARDS, "NOT_CALCULATED"), { card: "NOT_CALCULATED" });
+  assert.equal(tabCount("CALCULATION", "NOT_CALCULATED", { cards: { NOT_CALCULATED: 2 } }), 2);
+  // Lifecycle order on screen: after the side state, before Calculated.
+  const keys = CALCULATION_CARDS.map((c) => c.key);
+  assert.ok(keys.indexOf("NOT_CALCULATED") < keys.indexOf("CALCULATED"));
+  assert.match(workflowCode, /columns=\{\{ base: 2, md: 3, lg: 9 \}\}/);
+});
+
+test("CALCULATION & REVIEW: an ordinary Not Calculated row reads 'Awaiting calculation'; a held one 'Cannot be calculated yet:' with On hold and the fields", () => {
+  const list = codeOf(read("components/payroll/calculation/CalculationEmployeeList.jsx"));
+  assert.match(list, /const notCalculated = row\.status === STATUS\.NOT_CALCULATED;/);
+  assert.match(list, /const blockedFromCalculation = notCalculated && row\.calculable === false;/);
+  assert.match(list, /Awaiting calculation/);
+  assert.match(list, /Cannot be calculated yet:/);
+  // The heading comes before EPFO's On hold block, which stays intact.
+  assert.ok(list.indexOf("Cannot be calculated yet:") < list.indexOf("On hold - statutory setup incomplete"));
+  assert.match(list, /HR to complete: \{\(hold\.missing_labels \|\| \[\]\)\.join\(", "\)\}/);
+  // An ordinary row is only "awaiting" when it is calculable and not held.
+  assert.match(list, /if \(notCalculated && !blockedFromCalculation && !hold\) \{/);
+  // The bare "Not calculated" blocker is not repeated under the status badge.
+  assert.match(list, /!\(notCalculated && r\.code === "NOT_CALCULATED"\)/);
+});
+

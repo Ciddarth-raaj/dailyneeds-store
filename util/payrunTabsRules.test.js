@@ -51,11 +51,11 @@ test("Adjustments offers exactly its four", () => {
   );
 });
 
-test("Calculation & Review offers exactly its eight cards - Calculated, Not Ready is its own", () => {
+test("Calculation & Review offers exactly its nine cards - Not Calculated and Calculated, Not Ready are their own", () => {
   assert.deepEqual(
     CALCULATION_TABS.map((t) => t.key),
     [
-      ALL, "ATTENDANCE_NEEDS_ACTION", "CALCULATED", "CALCULATED_NOT_READY",
+      ALL, "ATTENDANCE_NEEDS_ACTION", "NOT_CALCULATED", "CALCULATED", "CALCULATED_NOT_READY",
       "RECALCULATION_REQUIRED", "READY_FOR_APPROVAL", "APPROVED_LOCKED", "PUBLISHED",
     ]
   );

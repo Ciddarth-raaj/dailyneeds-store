@@ -512,11 +512,12 @@ function PayrunCalculation({
         active={tab}
         counts={cardCount}
         onSelect={selectCard}
-        columns={{ base: 2, md: 4, lg: 8 }}
+        columns={{ base: 2, md: 3, lg: 9 }}
       />
       <Text fontSize="xs" color="gray.600">
-        Calculated = Calculated, Not Ready + Ready for Approval. Attendance Needs Action can overlap
-        other cards. Counts are for the whole month and location; search narrows the list only.
+        Calculated = Calculated, Not Ready + Ready for Approval. Not Calculated includes employees on
+        statutory hold. Attendance Needs Action can overlap other cards. Counts are for the whole month
+        and location; search narrows the list only.
       </Text>
 
       {monthLocked ? (

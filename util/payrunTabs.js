@@ -177,10 +177,13 @@ const ADJUSTMENT_TABS = [
  *   Calculated, Not Ready    calculated but refused by Approve & Lock today;
  *                            every row says why
  *   Attendance Needs Action  overlaps the others (e.g. Recalculation Required)
+ *   Not Calculated           no calculation yet - awaiting it, or blocked from
+ *                            it (the EPFO statutory setup hold shows On hold)
  */
 const CALCULATION_CARDS = [
   { key: ALL, label: "All Employees", card: ALL },
   { key: "ATTENDANCE_NEEDS_ACTION", label: "Attendance Needs Action", card: "ATTENDANCE_NEEDS_ACTION" },
+  { key: "NOT_CALCULATED", label: "Not Calculated", card: "NOT_CALCULATED" },
   { key: "CALCULATED", label: "Calculated", card: "CALCULATED" },
   { key: "CALCULATED_NOT_READY", label: "Calculated, Not Ready", card: "CALCULATED_NOT_READY" },
   { key: "RECALCULATION_REQUIRED", label: "Recalculation Required", card: "RECALCULATION_REQUIRED" },
