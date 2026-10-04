@@ -82,6 +82,8 @@ function reportCsv(report) {
     "Current Employer EPF", "Current Employer EPS", "Revised October Employer EPF", "Revised October Employer EPS",
     "Current Employer Cost (12% + EDLI + Admin)", "Revised October Employer Cost", "Monthly Employer Cost Increase",
     "If Enrolled from 17-09: September EE", "If Enrolled: October EE", "If Enrolled: October Employer Cost",
+    "PF Contribution Basis", "September Scenario",
+    "EPS correction: old August EPS", "EPS correction: corrected August EPS",
     "Category", "Flags", "Reason",
   ];
   const rows = (report.employees || []).map((e) => [
@@ -91,6 +93,8 @@ function reportCsv(report) {
     e.current && e.current.employer_epf, e.current && e.current.employer_eps, e.october && e.october.employer_epf, e.october && e.october.employer_eps,
     e.current && e.current.employer_cost, e.october && e.october.employer_cost, e.monthly_employer_cost_increase,
     e.if_enrolled && e.if_enrolled.september.employee_pf, e.if_enrolled && e.if_enrolled.october.employee_pf, e.if_enrolled && e.if_enrolled.october.employer_cost,
+    e.pf_contribution_basis, e.september_scenario,
+    e.eps_correction && e.eps_correction.old_employer_eps, e.eps_correction && e.eps_correction.corrected_employer_eps,
     e.category_label, (e.flags || []).join(" | "), e.reason,
   ]);
   return [head, ...rows].map((r) => r.map(csvCell).join(",")).join("\n");
@@ -191,10 +195,14 @@ function PfCeilingRevisionModal({ isOpen, onClose, year, month }) {
                     </Stat>
                   ))}
                 </SimpleGrid>
-                <SimpleGrid columns={{ base: 1, md: 3 }} spacing={3}>
+                <SimpleGrid columns={{ base: 1, md: 4 }} spacing={3}>
                   <Stat p={3} borderWidth="1px" borderRadius="md">
                     <StatLabel fontSize="xs">Monthly employer cost increase (enrolled members)</StatLabel>
                     <StatNumber fontSize="lg">₹{money(summary.monthly_employer_cost_increase)}</StatNumber>
+                  </Stat>
+                  <Stat p={3} borderWidth="1px" borderRadius="md">
+                    <StatLabel fontSize="xs">EPS eligibility correction changes EPS (separate fix)</StatLabel>
+                    <StatNumber fontSize="lg">{summary.eps_correction_affected ?? 0}</StatNumber>
                   </Stat>
                   <Stat p={3} borderWidth="1px" borderRadius="md">
                     <StatLabel fontSize="xs">May require PF enrolment from 17-09-2026</StatLabel>
@@ -218,6 +226,7 @@ function PfCeilingRevisionModal({ isOpen, onClose, year, month }) {
                         <Th isNumeric>EE Sep</Th>
                         <Th isNumeric>EE Oct</Th>
                         <Th isNumeric>Employer +/month</Th>
+                        <Th>September scenario</Th>
                         <Th>Reason</Th>
                       </Tr>
                     </Thead>
@@ -234,6 +243,7 @@ function PfCeilingRevisionModal({ isOpen, onClose, year, month }) {
                           <Td isNumeric>{money(e.september && e.september.employee_pf)}</Td>
                           <Td isNumeric>{money(e.october && e.october.employee_pf)}</Td>
                           <Td isNumeric>{money(e.monthly_employer_cost_increase)}</Td>
+                          <Td fontSize="xs">{e.september_scenario || "—"}</Td>
                           <Td fontSize="xs">{e.reason}</Td>
                         </Tr>
                       ))}
@@ -269,7 +279,8 @@ function PfCeilingRevisionModal({ isOpen, onClose, year, month }) {
                   <Text fontSize="sm">
                     {ecr.totals.members} members · EPF wages ₹{money(ecr.totals.epf_wages)} · EE ₹
                     {money(ecr.totals.ee_share)} · EPS ₹{money(ecr.totals.eps_share)} · ER EPF ₹
-                    {money(ecr.totals.er_epf_share)}
+                    {money(ecr.totals.er_epf_share)} · EDLI ₹{money(ecr.totals.edli_contribution)} · Admin ₹
+                    {money(ecr.totals.admin_charge)} · Total ₹{money(ecr.totals.total_remittance)}
                   </Text>
                   {ecr.errors.length > 0 ? (
                     <Alert status="warning" fontSize="sm">
