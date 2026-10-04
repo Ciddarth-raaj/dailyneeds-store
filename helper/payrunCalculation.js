@@ -153,6 +153,21 @@ const PayrunCalculationHelper = {
   /** GET one employee's calculation and approval history for the month. */
   getHistory: (params) =>
     API.get("/payrun/calculation/history", { params }).then((res) => res.data),
+
+  /**
+   * EPFO 2026 WAGE CEILING REVISION (15,000 -> 25,000 w.e.f. 17-09-2026) -
+   * the affected-employee report. READ-ONLY on the server: it classifies the
+   * September 2026 population and changes nobody's PF / EPS status.
+   */
+  getPfCeilingImpact: (params) =>
+    API.get("/payrun/calculation/pf-ceiling-impact", { params }).then((res) => res.data),
+
+  /**
+   * THE EPFO ECR for a month, built by the server from the STORED, APPROVED
+   * calculations only. There is no unapproved preview.
+   */
+  getEcr: (params) =>
+    API.get("/payrun/calculation/ecr", { params }).then((res) => res.data),
 };
 
 export default PayrunCalculationHelper;

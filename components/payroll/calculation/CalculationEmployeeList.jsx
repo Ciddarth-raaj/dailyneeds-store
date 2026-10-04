@@ -296,10 +296,30 @@ function RowActions({
  * a pending OT approval is somebody else's job.
  */
 function Reasons({ row }) {
-  const reasons = [...(row.recalculation_reasons || []), ...(row.blockers || [])];
-  if (reasons.length === 0) return null;
+  const hold = row.statutory_hold || null;
+  /*
+   * THE STATUTORY SETUP HOLD COMES FIRST AND STANDS OUT. It is not something
+   * payroll can fix by pressing a button: HR must complete the named fields in
+   * Employee Master (Statutory details). Until then the employee cannot be
+   * calculated or approved, and nothing is assumed for them. The generic
+   * blocker with the same code is not repeated below it.
+   */
+  const reasons = [...(row.recalculation_reasons || []), ...(row.blockers || [])].filter(
+    (r, i, all) => !(hold && r.code === "STATUTORY_SETUP_INCOMPLETE") && all.findIndex((x) => x.code === r.code) === i
+  );
+  if (reasons.length === 0 && !hold) return null;
   return (
     <Stack spacing={1}>
+      {hold ? (
+        <Box title={hold.message || undefined}>
+          <Badge colorScheme="orange" fontSize="0.65rem">
+            On hold - statutory setup incomplete
+          </Badge>
+          <Text fontSize="xs" color="orange.700" whiteSpace="normal" mt={1}>
+            HR to complete: {(hold.missing_labels || []).join(", ")}
+          </Text>
+        </Box>
+      ) : null}
       {reasons.map((reason) => (
         <Text
           key={reason.code}

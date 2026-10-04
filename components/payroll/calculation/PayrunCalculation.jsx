@@ -22,6 +22,7 @@ import CalculationBreakup from "./CalculationBreakup";
 import ResetCalculationModal from "./ResetCalculationModal";
 import LifecycleActionModal from "./LifecycleActionModal";
 import PayslipViewModal from "./PayslipViewModal";
+import PfCeilingRevisionModal from "./PfCeilingRevisionModal";
 import usePayrunCalculationMonth from "../../../customHooks/usePayrunCalculationMonth";
 import PayrunCalculationHelper from "../../../helper/payrunCalculation";
 import { describeApiResult, KIND } from "../../../util/salaryApiError";
@@ -137,6 +138,8 @@ function PayrunCalculation({
   const [lifecycleTarget, setLifecycleTarget] = useState(null);
   /* The employee whose published payslip is open in View Payslip. */
   const [payslipTarget, setPayslipTarget] = useState(null);
+  // EPFO 2026 wage ceiling revision: the read-only affected-employee report and ECR.
+  const [pfRevisionOpen, setPfRevisionOpen] = useState(false);
 
   /* The employee whose breakup is open, and the read behind it. */
   const [detail, setDetail] = useState(null);
@@ -541,6 +544,9 @@ function PayrunCalculation({
         <Button size="sm" variant="outline" onClick={refresh} isDisabled={loading} flexShrink={0}>
           Refresh
         </Button>
+        <Button size="sm" variant="outline" onClick={() => setPfRevisionOpen(true)} flexShrink={0}>
+          PF ceiling 2026 / ECR
+        </Button>
       </Stack>
 
       {/*
@@ -811,6 +817,13 @@ function PayrunCalculation({
         target={lifecycleTarget}
         monthLabel={monthLabel}
         busy={busy}
+      />
+
+      <PfCeilingRevisionModal
+        isOpen={pfRevisionOpen}
+        onClose={() => setPfRevisionOpen(false)}
+        year={year}
+        month={month}
       />
 
       <PayslipViewModal
