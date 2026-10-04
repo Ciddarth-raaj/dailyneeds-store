@@ -312,6 +312,37 @@ function CalculationBreakup({ isOpen, onClose, employee, loading, error }) {
                 <Line label="Employee PF" value={money(breakup.statutory.employee_pf)} />
                 <Line label="Employer EPF" value={money(breakup.statutory.employer_epf)} />
                 <Line label="Employer EPS" value={money(breakup.statutory.employer_eps)} />
+                {breakup.statutory.eps_wage !== null && breakup.statutory.eps_wage !== undefined ? (
+                  <Line label="EPS Wage" value={money(breakup.statutory.eps_wage)} muted />
+                ) : null}
+                {breakup.statutory.edli !== null && breakup.statutory.edli !== undefined ? (
+                  <Line
+                    label="EDLI (Employer)"
+                    value={money(breakup.statutory.edli)}
+                    note={`On EDLI wage ${money(breakup.statutory.edli_wage)}`}
+                    muted
+                  />
+                ) : null}
+                {/*
+                  A MONTH CUT BY A PF CEILING CHANGE. September 2026 is charged
+                  on 15,000 for 01-16 and on 25,000 for 17-30 (EPFO revision
+                  w.e.f. 17-09-2026). The server computed both periods; this
+                  prints each one so the single PF figure above can be checked.
+                */}
+                {Array.isArray(breakup.statutory.pf_segments) && breakup.statutory.pf_segments.length > 1
+                  ? breakup.statutory.pf_segments.map((p) => (
+                      <Line
+                        key={p.from}
+                        label={`PF ${p.from} to ${p.to}`}
+                        value={`${money(p.employee_pf)} EE / ${money(p.employer_eps)} EPS`}
+                        note={`Ceiling ${money(p.monthly_wage_ceiling)} (applied ${money(p.applied_wage_ceiling)} for ${p.calendar_days} days) - PF wage ${money(p.pf_wage)}, EPS wage ${money(p.eps_wage)}`}
+                        muted
+                      />
+                    ))
+                  : null}
+                {breakup.statutory.pf_ceiling_version ? (
+                  <Line label="PF ceiling rule" value={breakup.statutory.pf_ceiling_version} muted />
+                ) : null}
                 <Line
                   label="ESI Wage"
                   value={money(breakup.statutory.esi_wage)}
