@@ -226,14 +226,15 @@ test("4 & 5. every key that was offered before is still offered, unrenamed", () 
 });
 
 test("7. the Employee module offers exactly one more permission than before", () => {
-  // Sixteen after the Aadhaar STATUS key landed, and seventeen after the
-  // Aadhaar VERIFICATION key beside it - one key added each time, none
-  // removed. `verifyEmployeeAadhaar.test.js` is what defends the second.
+  // Sixteen after the Aadhaar STATUS key landed, seventeen after the
+  // Aadhaar VERIFICATION key beside it, and eighteen after the historical
+  // joining-date correction key - one key added each time, none removed.
   assert.strictEqual(
     employeeKeys.length,
-    17,
+    18,
     "one key added and none removed"
   );
+  assert.ok(employeeKeys.includes("employee_joining_date_historical_correction"));
   assert.strictEqual(
     employeeKeys.filter((k) => k === "view_employee_aadhaar").length,
     1,

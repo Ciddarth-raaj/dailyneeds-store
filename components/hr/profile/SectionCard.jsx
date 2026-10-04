@@ -131,6 +131,9 @@ export function EditField({
   error,
   /** An action beside the label - "Copy from Aadhaar Name", and the like. */
   action,
+  /** Bounds for a date input's picker; ignored by every other type. */
+  min,
+  max,
 }) {
   const set = (e) => onChange(name, e.target.value);
   const blur = onBlur ? () => onBlur(name) : undefined;
@@ -159,6 +162,8 @@ export function EditField({
           value={value ?? ""}
           onChange={set}
           onBlur={blur}
+          min={min}
+          max={max}
           isDisabled={isDisabled}
           isReadOnly={isReadOnly}
           // Read-only rather than disabled: the value still matters and is

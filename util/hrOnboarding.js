@@ -51,6 +51,7 @@
 
 const { validatePersonalDetails } = require("./personalDetails");
 const { EMPLOYMENT_TYPES, GRADES } = require("./employmentClassification");
+const { joiningDateWindowError, istTodayIso } = require("./joiningDateWindow");
 
 /** The manager's four stages, in order. Nothing else is a stage. */
 const ONBOARDING_STAGES = [
@@ -102,9 +103,8 @@ const isIsoDate = (value) => /^\d{4}-\d{2}-\d{2}$/.test(text(value));
 
 /**
  * Today, as the browser's own calendar day. Used ONLY to reject a future
- * date, never as a value: the backend refuses a future joining date because
- * C2 applies a transition immediately and has no scheduler, and a manager
- * should hear that here rather than as a 422 after filling in three stages.
+ * date of birth, never as a value. The joining date is judged against the
+ * IST business date instead - see `util/joiningDateWindow.js`.
  */
 function todayIso(now = new Date()) {
   const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
@@ -175,8 +175,12 @@ function validateStage(key, form = {}, context = {}) {
   if (key === "employment") {
     if (!text(form.date_of_joining)) errors.date_of_joining = "A joining date is required.";
     else if (!isIsoDate(form.date_of_joining)) errors.date_of_joining = "Use a full date.";
-    else if (text(form.date_of_joining) > today) {
-      errors.date_of_joining = "A joining date cannot be in the future.";
+    else {
+      // THE JOINING-DATE ENTRY WINDOW: 30 days either side of today's IST
+      // date - the same rule POST /hr/employee applies, said before the
+      // request. It catches a year typed wrong (03/10/2006 for 03/10/2026).
+      const windowError = joiningDateWindowError(form.date_of_joining, context.today || istTodayIso());
+      if (windowError) errors.date_of_joining = windowError;
     }
     // All three are required by POST /hr/employee itself. Asking here is not
     // a new rule - it is the same rule, said before the request rather than

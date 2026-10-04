@@ -14,7 +14,12 @@ import GlobalWrapper from "../../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../../components/CustomContainer";
 import LifecycleTimeline from "../../../components/hr/LifecycleTimeline";
 import AadhaarVerifyModal from "../../../components/hr/AadhaarVerifyModal";
-import { ResignModal, RejoinModal } from "../../../components/hr/LifecycleActionModals";
+import {
+  ResignModal,
+  RejoinModal,
+  HistoricalJoiningDateModal,
+} from "../../../components/hr/LifecycleActionModals";
+import { canCorrectJoiningDateHistorically } from "../../../util/joiningDateWindow";
 import AadhaarSection from "../../../components/hr/profile/AadhaarSection";
 import PersonalSection from "../../../components/hr/profile/PersonalSection";
 import EmployeePhotoHeader from "../../../components/hr/profile/EmployeePhotoHeader";
@@ -141,6 +146,13 @@ function EmployeeProfile() {
   const actor = { permissions, isAdmin };
 
   const canEdit = canEditEmployee(actor);
+  /*
+   * HISTORICAL JOINING-DATE CORRECTION - a separate, labelled action for a
+   * holder of `employee_joining_date_historical_correction` (with
+   * `employee_edit`). The ordinary Employment Details edit keeps the 30-day
+   * window; the backend decides the exception from the caller's own key.
+   */
+  const mayCorrectHistorically = canCorrectJoiningDateHistorically(actor);
   /**
    * Telegram setup. `employee_create` AND `employee_edit`, BOTH, exactly as
    * `routes/employee_telegram.js` now enforces with `requireAll` - and still
@@ -221,6 +233,7 @@ function EmployeeProfile() {
   const [aadhaarOpen, setAadhaarOpen] = useState(false);
   const [resignOpen, setResignOpen] = useState(false);
   const [rejoinOpen, setRejoinOpen] = useState(false);
+  const [historicalOpen, setHistoricalOpen] = useState(false);
   const [bankEditOpen, setBankEditOpen] = useState(false);
 
   const load = useCallback(async () => {
@@ -731,6 +744,11 @@ function EmployeeProfile() {
                 Rejoin
               </Button>
             ) : null}
+            {mayCorrectHistorically && lifecycle ? (
+              <Button size="sm" colorScheme="orange" variant="outline" onClick={() => setHistoricalOpen(true)}>
+                Historical DOJ correction
+              </Button>
+            ) : null}
           </Stack>
         }
       >
@@ -988,6 +1006,15 @@ function EmployeeProfile() {
             lifecycle={lifecycle}
             onDone={load}
           />
+          {mayCorrectHistorically ? (
+            <HistoricalJoiningDateModal
+              isOpen={historicalOpen}
+              onClose={() => setHistoricalOpen(false)}
+              employee={lifecycle}
+              currentJoiningDate={(employee && employee.date_of_joining) || null}
+              onDone={load}
+            />
+          ) : null}
         </>
       ) : null}
     </GlobalWrapper>

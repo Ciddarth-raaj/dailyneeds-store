@@ -30,6 +30,7 @@ import { ConfidenceBadge, EmploymentBadge } from "../../../components/hr/StatusB
 import usePermissions from "../../../customHooks/usePermissions";
 import { useUser } from "../../../contexts/UserContext";
 import { canManageTelegram } from "../../../util/employeeTelegram";
+import { joiningDateBounds } from "../../../util/joiningDateWindow";
 import useEmployeeOutlets from "../../../customHooks/useEmployeeOutlets";
 import useDesignations from "../../../customHooks/useDesignations";
 import useDepartments from "../../../customHooks/useDepartments";
@@ -614,16 +615,20 @@ function AddEmployee() {
               <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
                 <FormControl isRequired isInvalid={Boolean(errors.date_of_joining)}>
                   <FormLabel fontSize="sm">Joining date</FormLabel>
+                  {/* The picker offers only the entry window (30 days either
+                      side of today, IST); the stage check and the API refuse
+                      anything outside it typed by hand. */}
                   <Input
                     type="date"
                     size="sm"
                     value={form.date_of_joining}
                     onChange={set("date_of_joining")}
+                    {...joiningDateBounds()}
                   />
                   {errors.date_of_joining ? (
                     <FormErrorMessage fontSize="xs">{errors.date_of_joining}</FormErrorMessage>
                   ) : (
-                    <FormHelperText fontSize="xs">Cannot be in the future.</FormHelperText>
+                    <FormHelperText fontSize="xs">Within 30 days before or after today.</FormHelperText>
                   )}
                 </FormControl>
                 <FormControl isRequired isInvalid={Boolean(errors.store_id)}>

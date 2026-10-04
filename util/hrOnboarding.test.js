@@ -249,16 +249,17 @@ test("stage 3 requires exactly what the backend requires of a create", () => {
   assert.deepStrictEqual(validateStage("employment", employment, ctx()), {});
 });
 
-test("a future joining date is refused here rather than by a 422 afterwards", () => {
-  // C2 applies a transition immediately and has no scheduler, so the backend
-  // refuses it. Saying so on the form is the same rule, said earlier.
-  const errors = validateStage("employment", { ...employment, date_of_joining: "2026-12-01" }, ctx());
-  assert.match(errors.date_of_joining, /future/);
-  // Today itself is fine.
-  assert.deepStrictEqual(
-    validateStage("employment", { ...employment, date_of_joining: TODAY }, ctx()),
-    {}
-  );
+test("the joining date must be within 30 days either side of today (IST), said before the request", () => {
+  // TODAY is 2026-09-11: the window is 2026-08-12 .. 2026-10-11, both inclusive.
+  const doj = (date) => validateStage("employment", { ...employment, date_of_joining: date }, ctx()).date_of_joining;
+  assert.strictEqual(doj(TODAY), undefined);
+  assert.strictEqual(doj("2026-09-10"), undefined);
+  assert.strictEqual(doj("2026-08-12"), undefined);
+  assert.strictEqual(doj("2026-09-12"), undefined);
+  assert.strictEqual(doj("2026-10-11"), undefined);
+  assert.strictEqual(doj("2026-08-11"), "Joining date cannot be more than 30 days before today.");
+  assert.strictEqual(doj("2026-10-12"), "Joining date cannot be more than 30 days after today.");
+  assert.strictEqual(doj("2006-09-11"), "Joining date cannot be more than 30 days before today.");
 });
 
 /* ============================================================== the create */

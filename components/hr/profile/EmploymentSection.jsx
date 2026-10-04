@@ -6,6 +6,7 @@ import { currentEmploymentStatus, currentPlacement } from "../../../util/hrStatu
 import { currentShiftLabel } from "../../../util/currentShift";
 import { displayDate } from "../../../util/displayDate";
 import { toDateInputValue, joiningDateChanged } from "../../../util/joiningDate";
+import { joiningDateBounds, joiningDateWindowError } from "../../../util/joiningDateWindow";
 import {
   EMPLOYMENT_TYPE_OPTIONS,
   GRADE_OPTIONS,
@@ -133,6 +134,7 @@ function EmploymentSection({
 }) {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({});
+  const [joiningDateError, setJoiningDateError] = useState(null);
 
   const currentShiftId =
     currentShift && currentShift.shift && currentShift.shift.assigned
@@ -153,6 +155,7 @@ function EmploymentSection({
   const joiningDate = placement.date_of_joining;
 
   const start = () => {
+    setJoiningDateError(null);
     setForm({
       // The ISO the native date input requires, or "" when there is genuinely
       // no readable date to show. Never a truncation of one.
@@ -209,6 +212,13 @@ function EmploymentSection({
     const joiningChanged = Boolean(
       typeof onSaveJoiningDate === "function" && joiningDateChanged(date_of_joining, joiningDate)
     );
+    // THE ENTRY WINDOW JUDGES ONLY A CHANGED DATE. An untouched 2015 date is
+    // never sent, so it is never judged; a new one outside 30 days either
+    // side of today stops the whole save before anything is written. The
+    // joining-date endpoint refuses it as well - this only says it sooner.
+    const joiningError = joiningChanged ? joiningDateWindowError(date_of_joining) : null;
+    setJoiningDateError(joiningError);
+    if (joiningError) return;
     // A shift-only or date-only change must not be stopped by the editor's
     // own "nothing was changed" guard, and a placement-only change must not
     // call the other two.
@@ -279,8 +289,13 @@ function EmploymentSection({
             name="date_of_joining"
             type="date"
             value={toDateInputValue(form.date_of_joining)}
-            onChange={set}
-            help="Corrects the start of the current spell of employment. The change is recorded on the timeline."
+            onChange={(name, value) => {
+              setJoiningDateError(null);
+              set(name, value);
+            }}
+            error={joiningDateError}
+            {...joiningDateBounds()}
+            help="Corrects the start of the current spell of employment. A new date must be within 30 days before or after today. The change is recorded on the timeline."
           />
         ) : (
           <Field label="Joining date" value={displayDate(joiningDate)} />
