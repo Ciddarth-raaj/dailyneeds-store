@@ -34,6 +34,7 @@ const META = {
   ],
   groups: GROUPS,
   esic_reason_codes: [{ code: 1, label: "On Leave", requires_last_working_day: false }],
+  filter_options: { employment_types: ["Permanent", "Contract"] },
   max_fields: 60,
   can_export: true,
   can_download_statutory: true,
@@ -115,6 +116,8 @@ if (!unavailable) {
   stubModule("components/globalWrapper/globalWrapper", Passthrough);
   stubModule("customHooks/usePayrollActor", () => ({ isAdmin: true, permissions: [] }));
   stubModule("customHooks/useEmployeeOutlets", () => ({ outlets: [{ outlet_id: 1, outlet_name: "Outlet A" }] }));
+  stubModule("customHooks/useDepartments", () => ({ departments: [{ department_id: 3, department_name: "Grocery" }] }));
+  stubModule("customHooks/useDesignations", () => ({ designations: [{ designation_id: 7, designation_name: "Cashier" }] }));
 }
 
 const settle = async () => {
@@ -236,4 +239,29 @@ test("Payroll Register: a non-finalized payrun row is shown, highlighted, and th
   assert.match(document.body.textContent, /listed \(highlighted\), their payroll figures shown as "Not finalized"/);
   const cells = [...document.querySelectorAll('[data-testid="payroll-report-table"] tbody tr td')].map((td) => td.textContent);
   assert.ok(cells.includes("Not finalized"), "a figure of a not-finalized row is never a blank that reads as zero");
+});
+
+test("Department, Designation and Employment Type filters are saved for the month and sent with the report and exports", skip, async () => {
+  await open();
+  const pick = async (label, value) => {
+    const el = document.querySelector(`select[aria-label="${label}"]`);
+    assert.ok(el, `${label} filter is on the screen`);
+    await act(async () => {
+      el.value = value;
+      el.dispatchEvent(new window.Event("change", { bubbles: true }));
+    });
+    await settle();
+  };
+  assert.match(document.querySelector('select[aria-label="Employment type"]').textContent, /Contract \(current master\)/);
+  await pick("Department", "3");
+  await pick("Designation", "7");
+  await pick("Employment type", "Contract");
+  const saved = callsOf("saveLayout").pop();
+  assert.deepEqual(saved.filters, { outlet_ids: [], department_ids: [3], designation_ids: [7], employment_types: ["Contract"], pay_type: null });
+  assert.equal(saved.month, 10);
+  const sent = callsOf("preview").pop();
+  assert.deepEqual([sent.filters.department_ids, sent.filters.designation_ids, sent.filters.employment_types], [[3], [7], ["Contract"]]);
+  ui.click(button("Excel"));
+  await settle();
+  assert.deepEqual(callsOf("exportXlsx")[0].filters.employment_types, ["Contract"]);
 });

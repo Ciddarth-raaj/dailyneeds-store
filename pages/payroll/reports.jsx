@@ -29,6 +29,8 @@ import PayrollReportTable from "../../components/payroll/reports/PayrollReportTa
 import StatutoryValidationPanel from "../../components/payroll/reports/StatutoryValidationPanel";
 import usePayrollActor from "../../customHooks/usePayrollActor";
 import useEmployeeOutlets from "../../customHooks/useEmployeeOutlets";
+import useDepartments from "../../customHooks/useDepartments";
+import useDesignations from "../../customHooks/useDesignations";
 import PayrollReportHelper from "../../helper/payrollReport";
 import {
   canDownloadStatutoryFiles,
@@ -64,6 +66,18 @@ import { availableOnly, monthLabel, monthValue, parseMonthValue } from "../../ut
  * and they are all or nothing: one blocked employee disables the download.
  */
 const ok = (body) => body && !(Number(body.code) >= 400);
+
+/** The filters a layout or template keeps - every reusable one, never the search. */
+const reusableFilters = (f = {}) => ({
+  outlet_ids: f.outlet_ids || [],
+  department_ids: f.department_ids || [],
+  designation_ids: f.designation_ids || [],
+  employment_types: f.employment_types || [],
+  pay_type: f.pay_type || null,
+});
+const activeFilterCount = (f = {}) =>
+  ["outlet_ids", "department_ids", "designation_ids", "employment_types"].filter((k) => (f[k] || []).length > 0).length +
+  (f.pay_type ? 1 : 0);
 const msgOf = (body, fallback) => (body && body.msg) || fallback;
 
 function PayrollReports() {
@@ -74,6 +88,8 @@ function PayrollReports() {
   const mayStatutory = canDownloadStatutoryFiles(actor);
   const mayShare = canShareReportTemplates(actor);
   const { outlets } = useEmployeeOutlets({ skip: !mayOpen });
+  const { departments } = useDepartments();
+  const { designations } = useDesignations();
 
   const [meta, setMeta] = useState(null);
   const [months, setMonths] = useState(null);
@@ -217,7 +233,7 @@ function PayrollReports() {
         month: period.month,
         field_keys: next.field_keys,
         display: next.display,
-        filters: { outlet_ids: next.filters.outlet_ids || [], department_ids: next.filters.department_ids || [], pay_type: next.filters.pay_type || null },
+        filters: reusableFilters(next.filters),
         template_id: next.template_id || null,
       });
       if (!ok(body)) return fail(body, "The columns could not be saved");
@@ -290,7 +306,7 @@ function PayrollReports() {
   const structure = () => ({
     field_keys: layout.field_keys,
     display: layout.display,
-    filters: { outlet_ids: layout.filters.outlet_ids || [], department_ids: layout.filters.department_ids || [], pay_type: layout.filters.pay_type || null },
+    filters: reusableFilters(layout.filters),
   });
 
   /* ---------------------------------------------- exports */
@@ -480,6 +496,57 @@ function PayrollReports() {
                 </Select>
                 <Select
                   size="sm"
+                  maxW="190px"
+                  placeholder="All departments"
+                  value={(layout.filters.department_ids || [])[0] || ""}
+                  onChange={(e) =>
+                    saveLayout({ ...layout, filters: { ...layout.filters, department_ids: e.target.value ? [Number(e.target.value)] : [] } })
+                  }
+                  aria-label="Department"
+                  title="Department as at the payroll month (payrun snapshot)"
+                >
+                  {(departments || []).map((d) => (
+                    <option key={d.department_id} value={d.department_id}>
+                      {d.department_name}
+                    </option>
+                  ))}
+                </Select>
+                <Select
+                  size="sm"
+                  maxW="190px"
+                  placeholder="All designations"
+                  value={(layout.filters.designation_ids || [])[0] || ""}
+                  onChange={(e) =>
+                    saveLayout({ ...layout, filters: { ...layout.filters, designation_ids: e.target.value ? [Number(e.target.value)] : [] } })
+                  }
+                  aria-label="Designation"
+                  title="Designation as at the payroll month (payrun snapshot)"
+                >
+                  {(designations || []).map((d) => (
+                    <option key={d.designation_id} value={d.designation_id}>
+                      {d.designation_name}
+                    </option>
+                  ))}
+                </Select>
+                <Select
+                  size="sm"
+                  maxW="220px"
+                  placeholder="All employment types"
+                  value={(layout.filters.employment_types || [])[0] || ""}
+                  onChange={(e) =>
+                    saveLayout({ ...layout, filters: { ...layout.filters, employment_types: e.target.value ? [e.target.value] : [] } })
+                  }
+                  aria-label="Employment type"
+                  title="Employment type is not stored on the payrun, so this filters on the current Employee Master"
+                >
+                  {((meta.filter_options && meta.filter_options.employment_types) || []).map((t) => (
+                    <option key={t} value={t}>
+                      {t} (current master)
+                    </option>
+                  ))}
+                </Select>
+                <Select
+                  size="sm"
                   maxW="160px"
                   placeholder="Bank and cash"
                   value={layout.filters.pay_type || ""}
@@ -559,7 +626,7 @@ function PayrollReports() {
                 {preview.reconciliation.reconciled
                   ? `Reconciled with the payrun: ${preview.reconciliation.payrun.employees} employees (${preview.reconciliation.payrun.finalized} finalized); Gross, Deductions and Net Pay totals match.`
                   : `Does NOT reconcile with the payrun: payrun ${preview.reconciliation.payrun.employees} employees / net ${preview.reconciliation.payrun.net_pay}, report ${preview.reconciliation.report.employees} employees / net ${preview.reconciliation.report.net_pay}. Please report this.`}
-                {preview.reconciliation.reconciled && (layout.filters.outlet_ids || []).length + (layout.filters.pay_type ? 1 : 0) + (appliedSearch ? 1 : 0) > 0
+                {preview.reconciliation.reconciled && activeFilterCount(layout.filters) + (appliedSearch ? 1 : 0) > 0
                   ? " (Reconciled for your full scope; the table below is filtered.)"
                   : ""}
               </Alert>
