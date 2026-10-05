@@ -18,7 +18,7 @@ import {
 } from "@chakra-ui/react";
 
 import { formatMoney } from "../../../util/salaryView";
-import { statusScheme } from "../../../util/payrunCalculation";
+import { statusScheme, formatViewedAt } from "../../../util/payrunCalculation";
 
 /**
  * ONE EMPLOYEE'S FULL BREAKUP - the whole of what they are being paid, and why.
@@ -430,7 +430,7 @@ function CalculationBreakup({ isOpen, onClose, employee, loading, error }) {
               {employee.approved_at ? (
                 <SimpleGrid columns={{ base: 1, md: 2 }} spacing={2}>
                   <Text fontSize="xs" color="gray.600">
-                    Approved and locked at {employee.approved_at}
+                    Approved and locked at {formatViewedAt(employee.approved_at) || employee.approved_at} IST
                   </Text>
                   <Text fontSize="xs" color="gray.600">
                     Calculation reference {employee.calculation_hash}

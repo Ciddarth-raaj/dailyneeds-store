@@ -88,7 +88,14 @@ test("badges: Telegram Queued / Sending / Sent / Failed / No Telegram Link / Not
   assert.equal(calc.notificationBadge({ notification_status: "NOT_ATTEMPTED" }).label, "Not Notified");
   assert.equal(calc.notificationBadge(null), null);
   assert.equal(calc.viewBadge({ viewed: false }).label, "Not Viewed");
-  assert.equal(calc.viewBadge({ viewed: true, first_viewed_at: "2026-10-04 09:42:10" }).label, "Viewed on 4 Oct 2026, 09:42");
+  // The stored time is UTC (CURRENT_TIMESTAMP); it is shown in IST.
+  assert.equal(calc.viewBadge({ viewed: true, first_viewed_at: "2026-10-04 09:42:10" }).label, "Viewed on 4 Oct 2026, 15:12");
+  assert.equal(calc.formatViewedAt("2026-10-04 20:15:00"), "5 Oct 2026, 01:45", "the IST date rolls over");
+  assert.equal(calc.formatViewedAt(null), "");
+  const line = calc.payslipSummary({ notification_status: "SENT", viewed: true, first_viewed_at: "2026-10-05 08:44:00" });
+  assert.deepEqual([line.notification.text, line.viewed.text], ["Telegram sent", "Viewed 5 Oct, 14:14"]);
+  assert.equal(calc.payslipSummary({ notification_status: "FAILED", viewed: false }).notification.tone, "problem");
+  assert.equal(calc.payslipSummary(null), null);
 });
 
 test("Retry Notification is offered only for a published payslip whose employee was not reached", () => {
