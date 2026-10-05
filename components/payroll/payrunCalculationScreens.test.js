@@ -1144,3 +1144,33 @@ test("DOWNLOAD PAYSLIPS: the server plans and re-resolves the export; the screen
 test("BULK: a filter change clears the selection rather than carrying it to the new list", () => {
   assert.match(workflowCode, /useEffect\(\(\) => \{\s*setSelectedIds\(\[\]\);\s*\}, \[filters\]\);/);
 });
+
+/* ======== Download Payslips: its own key, payroll_export_payslips ========= */
+
+test("EXPORT PERMISSION: canExportPayslips needs payroll_export_payslips ON TOP of the payroll view keys", () => {
+  const { canExportPayslips, canOpenPayrun } = require("../../util/payrunAccess");
+  const VIEW = ["view_employees", "view_payroll", "view_salary"];
+  assert.strictEqual(canOpenPayrun({ permissions: VIEW }), true, "a payroll viewer can open the screen and View Payslip");
+  assert.strictEqual(canExportPayslips({ permissions: VIEW }), false, "...but cannot bulk export");
+  assert.strictEqual(canExportPayslips({ permissions: [...VIEW, "payroll_export_payslips"] }), true);
+  assert.strictEqual(canExportPayslips({ permissions: ["view_employees", "payroll_export_payslips"] }), false, "the key alone is not enough");
+  assert.strictEqual(canExportPayslips({ permissions: [{ permission_key: "payroll_export_payslips" }, ...VIEW.map((k) => ({ permission_key: k }))] }), true);
+  assert.strictEqual(canExportPayslips({ isAdmin: true }), true, "administrators, as on the server (user_type 2)");
+  assert.strictEqual(canExportPayslips(), false);
+});
+
+test("EXPORT PERMISSION: the screen draws Download Payslips only with the key - matching the server", () => {
+  const pageSrc = codeOf(read("pages/payroll/payrun.jsx"));
+  assert.match(pageSrc, /const mayExportPayslips = canExportPayslips\(actor\);/);
+  assert.match(pageSrc, /mayExportPayslips=\{mayExportPayslips\}/);
+  assert.ok(workflowCode.includes("mayExportPayslips && exportableCount > 0 && {"));
+  assert.ok(workflowCode.includes("mayExportPayslips && selectedExportable.length > 0 && {"));
+  assert.ok(workflowCode.includes("isOpen={mayExportPayslips && exportTarget !== null}"));
+  // View Payslip (one employee) is not gated on the export key.
+  assert.ok(!/canViewPayslip|onViewPayslip=\{[^}]*mayExportPayslips/.test(workflowCode));
+  const backendRoutes = fs.readFileSync(path.join(ROOT, "..", "dailyneeds-store-backend", "routes", "payrun_calculation.js"), "utf8");
+  for (const p of ["/payrun/calculation/payslips/export/plan", "/payrun/calculation/payslips/export"]) {
+    const at = backendRoutes.indexOf(`"${p}",`);
+    assert.ok(backendRoutes.slice(at, at + 200).includes("P.PAYROLL_EXPORT_PAYSLIPS"), `${p} enforces the key on the server`);
+  }
+});

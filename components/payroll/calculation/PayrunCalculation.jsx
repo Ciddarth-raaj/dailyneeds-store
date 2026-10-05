@@ -126,6 +126,8 @@ function PayrunCalculation({
   mayUnlock = false,
   mayPublish = false,
   mayConfigureCompany = false,
+  /* Download Payslips (bulk ZIP export): payroll_export_payslips. */
+  mayExportPayslips = false,
   search = "",
   departmentId = "",
   designationId = "",
@@ -625,7 +627,7 @@ function PayrunCalculation({
           blockedReason: publishBlockedReason,
           onClick: publishAll,
         },
-        exportableCount > 0 && {
+        mayExportPayslips && exportableCount > 0 && {
           key: "export",
           label: `Download Payslips (${exportableCount})`,
           colorScheme: "blue",
@@ -654,7 +656,7 @@ function PayrunCalculation({
           blockedReason: publishBlockedReason,
           onClick: () => openLifecycle("PUBLISH", rowsOf(selectedPublishable), "BULK"),
         },
-        selectedExportable.length > 0 && {
+        mayExportPayslips && selectedExportable.length > 0 && {
           key: "export-selected",
           label: `Download Payslips (${selectedExportable.length})`,
           colorScheme: "blue",
@@ -975,7 +977,7 @@ function PayrunCalculation({
       />
 
       <PayslipExportModal
-        isOpen={exportTarget !== null}
+        isOpen={mayExportPayslips && exportTarget !== null}
         onClose={() => setExportTarget(null)}
         year={year}
         month={month}
