@@ -136,3 +136,12 @@ export const Undo2Icon = line(
     <path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11" />
   </>
 );
+
+export const MoreVerticalIcon = line(
+  "MoreVerticalIcon",
+  <>
+    <circle cx="12" cy="12" r="1" />
+    <circle cx="12" cy="5" r="1" />
+    <circle cx="12" cy="19" r="1" />
+  </>
+);

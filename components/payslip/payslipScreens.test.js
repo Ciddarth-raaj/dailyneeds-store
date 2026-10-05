@@ -216,9 +216,10 @@ test("the actions are named for the payslip", () => {
   assert.match(modal, /carries no salary figure/);
 });
 
-test("Publish All sends the month only; Retry sends ids only - never a chat id", () => {
+test("Publish All sends the month and the list's filters only; Retry sends ids only - never a chat id", () => {
   const publishAll = payrollHelper.slice(payrollHelper.indexOf("publishAll:"), payrollHelper.indexOf("retryNotification:"));
-  assert.match(publishAll, /"\/payrun\/calculation\/publish-all", \{ year, month \}/);
+  assert.match(publishAll, /"\/payrun\/calculation\/publish-all", \{ year, month, \.\.\.listFilters\(filters\) \}/);
+  assert.ok(!/chat|employee_ids/i.test(code(publishAll)), "publish-all carries no ids and no chat id");
   const retry = payrollHelper.slice(payrollHelper.indexOf("retryNotification:"), payrollHelper.indexOf("getPayslip:"));
   assert.match(retry, /\{ year, month, employee_ids \}/);
   assert.ok(!/chat/i.test(code(retry)));

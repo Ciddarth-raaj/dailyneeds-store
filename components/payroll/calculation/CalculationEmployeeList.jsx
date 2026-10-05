@@ -4,6 +4,11 @@ import {
   Box,
   Checkbox,
   IconButton,
+  Menu,
+  MenuButton,
+  MenuItem,
+  MenuList,
+  Portal,
   SimpleGrid,
   Stack,
   Table,
@@ -26,6 +31,7 @@ import {
   CalendarCheckIcon,
   FileTextIcon,
   LockOpenIcon,
+  MoreVerticalIcon,
   ReceiptIcon,
   RefreshCwIcon,
   RotateCcwIcon,
@@ -208,10 +214,10 @@ function ActionIcon({ label, reason, icon, onClick, isDisabled, isLoading, color
  *
  *   [Detail] [Calculate | Recalculate] [Approve & Lock] [Reset Calculation]
  *
- * followed by whichever lifecycle actions this row's status offers. The four
- * fixed slots are drawn on every row so the icons line up down the table; one
- * that does not apply to this row is drawn disabled, with the reason, rather
- * than dropped. WHICH ACTION APPLIES, AND WHETHER IT IS ENABLED, IS DECIDED BY
+ * then [More], which holds whichever lifecycle actions this row's status
+ * offers. The slots are drawn on every row so the icons line up down the table
+ * and never wrap; one that does not apply to this row is drawn disabled, with
+ * the reason, rather than dropped. WHICH ACTION APPLIES, AND WHETHER IT IS ENABLED, IS DECIDED BY
  * EXACTLY THE PREDICATES AND PERMISSIONS IT ALWAYS WAS - only the drawing
  * changed.
  */
@@ -239,7 +245,7 @@ function RowActions({
   const approveReason = disabled ? BUSY_REASON : !canApprove ? NO_APPROVE_REASON : null;
   const gap = size === "sm" ? "4px" : "8px";
   return (
-    <Box display="flex" flexWrap="wrap" alignItems="center" sx={{ gap }} data-testid="row-actions">
+    <Box display="flex" flexWrap="nowrap" alignItems="center" sx={{ gap }} data-testid="row-actions">
       <Box display="flex" flexWrap="nowrap" alignItems="center" sx={{ gap }} data-testid="row-actions-core">
         <ActionIcon
           label="Detail"
@@ -338,94 +344,119 @@ function RowActions({
           />
         )}
       </Box>
-      {/* THE ROW-SPECIFIC ACTIONS FOLLOW AS THEIR OWN GROUP: on a narrow
-          column the group moves under the four fixed slots as a whole, so
-          those always stay on one line and aligned down the table. */}
-      <Box display="flex" flexWrap="nowrap" alignItems="center" sx={{ gap }}>
-        {/* PROCESS ATTENDANCE, where the server says re-running the attendance
-            month would clear what blocks this employee. */}
-        {isAttendanceProcessable(row) && canProcessAttendance ? (
-          <ActionIcon
-            label="Process Attendance"
-            icon={<CalendarCheckIcon />}
-            size={size}
-            colorScheme="blue"
-            onClick={() => onProcessAttendance(row)}
-            isDisabled={disabled}
-            isLoading={busy}
-            reason={BUSY_REASON}
-          />
-        ) : null}
-        {/* THE LIFECYCLE: Unlock and Publish Payslip on an approved row; View
-            Payslip, Retry Notification and Unpublish Payslip on a published one,
-            whose Unlock is shown blocked until it is unpublished. */}
-        {isUnlockable(row) && canUnlock ? (
-          <ActionIcon
-            label="Unlock"
-            icon={<LockOpenIcon />}
-            size={size}
-            colorScheme="orange"
-            onClick={() => onLifecycle("UNLOCK", row)}
-            isDisabled={disabled}
-            reason={BUSY_REASON}
-          />
-        ) : null}
-        {isPublishable(row) && canPublish ? (
-          <ActionIcon
-            label="Publish Payslip"
-            icon={<SendIcon />}
-            size={size}
-            colorScheme="blue"
-            onClick={() => onLifecycle("PUBLISH", row)}
-            isDisabled={disabled}
-            reason={BUSY_REASON}
-          />
-        ) : null}
-        {hasPayslip(row) && onViewPayslip ? (
-          <ActionIcon
-            label="View Payslip"
-            icon={<ReceiptIcon />}
-            size={size}
-            colorScheme="blue"
-            onClick={() => onViewPayslip(row)}
-            isDisabled={disabled}
-            reason={BUSY_REASON}
-          />
-        ) : null}
-        {isNotificationRetryable(row) && canPublish && onRetryNotification ? (
-          <ActionIcon
-            label="Retry Notification"
-            icon={<BellRingIcon />}
-            size={size}
-            colorScheme="teal"
-            onClick={() => onRetryNotification(row)}
-            isDisabled={disabled}
-            isLoading={busy}
-            reason={BUSY_REASON}
-          />
-        ) : null}
-        {isUnpublishable(row) && canPublish ? (
-          <ActionIcon
-            label="Unpublish Payslip"
-            icon={<Undo2Icon />}
-            size={size}
-            colorScheme="blue"
-            onClick={() => onLifecycle("UNPUBLISH", row)}
-            isDisabled={disabled}
-            reason={BUSY_REASON}
-          />
-        ) : null}
-        {isUnpublishable(row) && canUnlock ? (
-          <ActionIcon
-            label="Unlock"
-            icon={<LockOpenIcon />}
-            size={size}
-            isDisabled
-            reason="Published payroll must be unpublished before it can be unlocked."
-          />
-        ) : null}
-      </Box>
+      <MoreActions
+        items={[
+          /* PROCESS ATTENDANCE, where the server says re-running the attendance
+             month would clear what blocks this employee. */
+          isAttendanceProcessable(row) && canProcessAttendance
+            ? {
+                label: "Process Attendance",
+                icon: <CalendarCheckIcon />,
+                onClick: () => onProcessAttendance(row),
+                isDisabled: disabled || busy,
+                showsLoading: true,
+              }
+            : null,
+          /* THE LIFECYCLE: Unlock and Publish Payslip on an approved row; View
+             Payslip, Retry Notification and Unpublish Payslip on a published
+             one, whose Unlock is shown blocked until it is unpublished. */
+          isUnlockable(row) && canUnlock
+            ? { label: "Unlock", icon: <LockOpenIcon />, onClick: () => onLifecycle("UNLOCK", row), isDisabled: disabled }
+            : null,
+          isPublishable(row) && canPublish
+            ? { label: "Publish Payslip", icon: <SendIcon />, onClick: () => onLifecycle("PUBLISH", row), isDisabled: disabled }
+            : null,
+          hasPayslip(row) && onViewPayslip
+            ? { label: "View Payslip", icon: <ReceiptIcon />, onClick: () => onViewPayslip(row), isDisabled: disabled }
+            : null,
+          isNotificationRetryable(row) && canPublish && onRetryNotification
+            ? {
+                label: "Retry Notification",
+                icon: <BellRingIcon />,
+                onClick: () => onRetryNotification(row),
+                isDisabled: disabled || busy,
+                showsLoading: true,
+              }
+            : null,
+          isUnpublishable(row) && canPublish
+            ? { label: "Unpublish Payslip", icon: <Undo2Icon />, onClick: () => onLifecycle("UNPUBLISH", row), isDisabled: disabled }
+            : null,
+          isUnpublishable(row) && canUnlock
+            ? {
+                label: "Unlock",
+                icon: <LockOpenIcon />,
+                isDisabled: true,
+                reason: "Published payroll must be unpublished before it can be unlocked.",
+              }
+            : null,
+        ].filter(Boolean)}
+        busy={busy}
+        disabled={disabled}
+        size={size}
+      />
     </Box>
+  );
+}
+
+/**
+ * THE LESS-COMMON ACTIONS, BEHIND ONE "MORE" BUTTON, so every row keeps its
+ * four primary icons on one line. Which items appear, and whether each is
+ * enabled, is decided by the same predicates and permissions the inline
+ * buttons used; a blocked item stays listed with its reason in words.
+ *
+ * The button is drawn on every row so the column lines up; on a row with
+ * nothing more to do it is disabled and says so. The list renders in a portal
+ * so the table's horizontal scroll box cannot clip it.
+ */
+function MoreActions({ items, busy, disabled, size }) {
+  const none = items.length === 0;
+  const loading = busy && items.some((item) => item.showsLoading);
+  if (none || disabled) {
+    return (
+      <ActionIcon
+        label="More actions"
+        icon={<MoreVerticalIcon />}
+        size={size}
+        isDisabled
+        reason={none ? "No other actions for this employee." : BUSY_REASON}
+      />
+    );
+  }
+  return (
+    <Menu placement="bottom-end" isLazy>
+      <Tooltip label="More actions" hasArrow placement="top">
+        <MenuButton
+          as={IconButton}
+          aria-label="More actions"
+          icon={<MoreVerticalIcon />}
+          size={size}
+          variant="outline"
+          isLoading={loading}
+          aria-busy={loading ? true : undefined}
+        />
+      </Tooltip>
+      <Portal>
+        <MenuList fontSize="sm" minWidth="220px" maxWidth="300px" zIndex="dropdown">
+          {items.map((item, index) => (
+            <MenuItem
+              key={`${item.label}-${index}`}
+              icon={item.icon}
+              onClick={item.onClick}
+              isDisabled={item.isDisabled}
+            >
+              <Text as="span" display="block">
+                {item.label}
+              </Text>
+              {item.isDisabled && item.reason ? (
+                <Text as="span" display="block" fontSize="xs" color="gray.600" whiteSpace="normal">
+                  {item.reason}
+                </Text>
+              ) : null}
+            </MenuItem>
+          ))}
+        </MenuList>
+      </Portal>
+    </Menu>
   );
 }
 
@@ -602,7 +633,7 @@ function CalculationTable(props) {
                 <PayslipBadges row={row} />
                 <Reasons row={row} />
               </Td>
-              <Td minWidth="156px">
+              <Td minWidth="190px">
                 <RowActions {...props} row={row} />
               </Td>
             </Tr>

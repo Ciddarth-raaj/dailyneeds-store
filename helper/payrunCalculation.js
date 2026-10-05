@@ -23,13 +23,31 @@ import API from "../util/api";
  * Who is eligible and who is ready is re-decided by the server at the moment
  * of the request; a browser sending the ids it believes qualify would be
  * acting on a month that may be minutes old - an OT approval could have landed
- * since, or a colleague could have approved somebody.
+ * since, or a colleague could have approved somebody. It does send the LIST'S
+ * FILTERS, so the server's "everybody" is everybody the screen was listing.
  *
  * NOTHING HERE SENDS A FIGURE. There is no amount, no rate, no net pay and no
  * hash in any body below; the endpoints' schemas refuse one.
  *
  * REFUSALS ARE ROUTINE AND ARRIVE AS DATA - see `helper/payrun.js`.
  */
+
+/**
+ * THE LIST'S FILTERS, SENT WITH A SELECT-ALL (Calculate All Eligible, Approve
+ * All Ready, Publish All) so the server acts only on the employees the screen
+ * was listing: location, department, designation, card and search. Empty
+ * values are left out - "All" is the absence of a filter.
+ */
+const LIST_FILTER_KEYS = ["store_ids", "department_id", "designation_id", "card", "status", "search"];
+const listFilters = (filters) => {
+  const out = {};
+  LIST_FILTER_KEYS.forEach((key) => {
+    const value = filters ? filters[key] : undefined;
+    if (value !== "" && value !== null && value !== undefined) out[key] = value;
+  });
+  return out;
+};
+
 const PayrunCalculationHelper = {
   /** GET the month: the initialized population, their statuses, the counts. */
   getMonth: (params) =>
@@ -44,22 +62,22 @@ const PayrunCalculationHelper = {
    * who has no calculation yet - never both, which the server refuses rather
    * than resolving.
    */
-  calculate: ({ year, month, employee_ids, all_eligible }) =>
+  calculate: ({ year, month, employee_ids, all_eligible, filters }) =>
     API.post("/payrun/calculation/calculate", {
       year,
       month,
-      ...(all_eligible ? { all_eligible: true } : { employee_ids }),
+      ...(all_eligible ? { all_eligible: true, ...listFilters(filters) } : { employee_ids }),
     }).then((res) => res.data),
 
   /**
    * Recalculate - the explicit act a RECALCULATION_REQUIRED row is waiting
    * for. Nothing recalculates anybody because a source moved; a person does.
    */
-  recalculate: ({ year, month, employee_ids, all_eligible }) =>
+  recalculate: ({ year, month, employee_ids, all_eligible, filters }) =>
     API.post("/payrun/calculation/recalculate", {
       year,
       month,
-      ...(all_eligible ? { all_eligible: true } : { employee_ids }),
+      ...(all_eligible ? { all_eligible: true, ...listFilters(filters) } : { employee_ids }),
     }).then((res) => res.data),
 
   /**
@@ -70,11 +88,11 @@ const PayrunCalculationHelper = {
    * records the approval against the calculation it holds, refusing it if that
    * calculation has moved since this screen read it.
    */
-  approve: ({ year, month, employee_ids, all_ready, mode }) =>
+  approve: ({ year, month, employee_ids, all_ready, mode, filters }) =>
     API.post("/payrun/calculation/approve", {
       year,
       month,
-      ...(all_ready ? { all_ready: true } : { employee_ids }),
+      ...(all_ready ? { all_ready: true, ...listFilters(filters) } : { employee_ids }),
       ...(mode ? { mode } : {}),
     }).then((res) => res.data),
 
@@ -132,11 +150,13 @@ const PayrunCalculationHelper = {
     }).then((res) => res.data),
 
   /**
-   * PUBLISH ALL APPROVED PAYSLIPS. The month only: who is approved is decided
-   * on the server, inside the caller's branch scope.
+   * PUBLISH ALL APPROVED PAYSLIPS. Who is approved is decided on the server,
+   * inside the caller's branch scope and the list's filters.
    */
-  publishAll: ({ year, month }) =>
-    API.post("/payrun/calculation/publish-all", { year, month }).then((res) => res.data),
+  publishAll: ({ year, month, filters }) =>
+    API.post("/payrun/calculation/publish-all", { year, month, ...listFilters(filters) }).then(
+      (res) => res.data
+    ),
 
   /**
    * RETRY NOTIFICATION - send the "payslip available" Telegram message again.
