@@ -44,6 +44,7 @@ import {
   isAllSelected,
   isApprovable,
   isAttendanceProcessable,
+  isCalculable,
   isNotificationPending,
   isNotificationRetryable,
   isPublishable,
@@ -119,6 +120,10 @@ function PayrunCalculation({
   mayPublish = false,
   mayConfigureCompany = false,
   search = "",
+  departmentId = "",
+  designationId = "",
+  onFilterOptions = null,
+  clearFiltersToken = 0,
 }) {
   const toast = useToast();
 
@@ -162,6 +167,10 @@ function PayrunCalculation({
    */
   const [tab, setTab] = useState(DEFAULT_TAB.CALCULATION);
   const selectCard = (key) => setTab((active) => nextCard(active, key));
+  /* CLEAR FILTERS (on the page) also goes back to All Employees. */
+  useEffect(() => {
+    if (clearFiltersToken) setTab(ALL);
+  }, [clearFiltersToken]);
   const [selectedIds, setSelectedIds] = useState([]);
   const [busyEmployeeId, setBusyEmployeeId] = useState(null);
   const [bulkBusy, setBulkBusy] = useState(false);
@@ -188,13 +197,32 @@ function PayrunCalculation({
       store_ids: storeId,
       /* Typed once at the top of the payrun and carried into every stage. */
       search,
+      /* Department / Designation - this stage's own, chosen on the page. */
+      department_id: departmentId,
+      designation_id: designationId,
       ...tabFilters(CALCULATION_TABS, tab),
     }),
-    [year, month, storeId, tab, search]
+    [year, month, storeId, tab, search, departmentId, designationId]
   );
 
-  const { rows, summary, monthLocked, loading, loaded, denied, error, refresh } =
+  const { rows, summary, filterOptions, monthLocked, loading, loaded, denied, error, refresh } =
     usePayrunCalculationMonth(filters, true);
+
+  /* The page draws the Department / Designation dropdowns from this read. */
+  useEffect(() => {
+    if (onFilterOptions) onFilterOptions(filterOptions);
+  }, [filterOptions, onFilterOptions]);
+
+  /*
+   * WHAT A SELECT-ALL IS SENT WITH: every filter the list was read with except
+   * the month itself. The server resolves "all eligible" / "all ready" / "all
+   * approved" INSIDE them, so a select-all can never reach an employee that a
+   * location, department, designation, card or search had hidden.
+   */
+  const listScope = useMemo(
+    () => Object.fromEntries(Object.entries(filters).filter(([key]) => key !== "year" && key !== "month")),
+    [filters]
+  );
 
   /* A selection never outlives the rows it was made on - most obviously the
      rows that were just approved and can no longer be acted on. */
@@ -205,6 +233,12 @@ function PayrunCalculation({
   useEffect(() => {
     setSelectedIds((prev) => pruneSelection(prev, selectableIds));
   }, [selectableIds]);
+  /* A NEW FILTER IS A NEW LIST: the selection made on the old one is cleared,
+     never carried across, so a bulk action can only act on rows chosen from
+     the list that is on screen now. */
+  useEffect(() => {
+    setSelectedIds([]);
+  }, [filters]);
 
   const selectedRecalculable = eligibleWithin(rows, selectedIds, isRecalculable);
   const selectedApprovable = eligibleWithin(rows, selectedIds, isApprovable);
@@ -236,15 +270,23 @@ function PayrunCalculation({
     return () => clearTimeout(timer);
   }, [pendingNotifications, pendingPolls, loading, bulkBusy, refresh]);
   /*
-   * APPROVE ALL READY IS THE SERVER'S READY POPULATION, NOT THE VISIBLE ROWS.
-   * It sends `all_ready` and the server approves every READY_FOR_APPROVAL
-   * employee in scope - so its count is the month's, from the summary. Counted
-   * from `rows` it read 0 whenever a card or a search hid the ready rows,
-   * while the action would still have approved all of them.
+   * THE SELECT-ALL COUNTS ARE THE LISTED ROWS THEY WOULD ACT ON. Each
+   * select-all is sent with the list's filters (`listScope`) and the server
+   * resolves it inside them, so the employees it can reach are exactly the
+   * eligible rows on screen - counted here by the same predicates the row
+   * buttons use, and re-decided by the server when the request lands.
    */
-  const readyCount = Number(summary.ready_for_approval || 0);
+  const eligibleCount = rows.filter(isCalculable).length;
+  const readyCount = rows.filter(isApprovable).length;
+  const publishableCount = rows.filter(isPublishable).length;
 
   const busy = bulkBusy || busyEmployeeId !== null;
+  /*
+   * NO BULK ACTION WHILE THE LIST IS RE-READING. Between a filter changing
+   * and its rows arriving, the rows on screen belong to the previous filters;
+   * a bulk click in that window could act on a set nobody is looking at.
+   */
+  const bulkLocked = busy || loading;
 
   /**
    * EVERY ACTION GOES THROUGH ONE FUNCTION, so that a single row and a bulk
@@ -317,7 +359,7 @@ function PayrunCalculation({
         PayrunCalculationHelper.calculate({
           year,
           month,
-          ...(all ? { all_eligible: true } : { employee_ids: employeeIds }),
+          ...(all ? { all_eligible: true, filters: listScope } : { employee_ids: employeeIds }),
         }),
       { employeeId: !all && employeeIds.length === 1 ? employeeIds[0] : null }
     );
@@ -337,7 +379,7 @@ function PayrunCalculation({
         PayrunCalculationHelper.approve({
           year,
           month,
-          ...(all ? { all_ready: true } : { employee_ids: employeeIds }),
+          ...(all ? { all_ready: true, filters: listScope } : { employee_ids: employeeIds }),
           // A row's own button, or a selection / Approve All Ready.
           mode: mode || (all || employeeIds.length > 1 ? "BULK" : "INDIVIDUAL"),
         }),
@@ -413,9 +455,9 @@ function PayrunCalculation({
    * is decided by the server inside this viewer's branch scope.
    */
   const publishAll = () =>
-    run(() => PayrunCalculationHelper.publishAll({ year, month }), {
+    run(() => PayrunCalculationHelper.publishAll({ year, month, filters: listScope }), {
       confirmText:
-        `Publish the payslips of every Approved & Locked employee for ${monthName ? `${monthName} ${year}` : `${year}-${month}`}?\n\n` +
+        `Publish the payslips of the ${publishableCount} Approved & Locked employee${publishableCount === 1 ? "" : "s"} shown for ${monthName ? `${monthName} ${year}` : `${year}-${month}`}?\n\n` +
         "Each payslip is frozen from the approved figures and appears in the employee's Telegram Mini App. " +
         "Each employee is then sent a Telegram message, in the background, that their payslip is available " +
         "(no salary figures in the message). " +
@@ -532,7 +574,8 @@ function PayrunCalculation({
   /*
    * THE SUMMARY CARDS ARE THE FILTERS. Each count is the server's
    * `summary.cards`, decided by the same rule as the card's filter and taken
-   * over the WHOLE month in scope - a search narrows the rows, never a count.
+   * over everybody the location, department, designation and search select -
+   * the same population the rows and the select-all counts come from.
    *
    * CALCULATED = Calculated, Not Ready + Ready for Approval. The difference is
    * its own card, and every row in it carries the approval blockers.
@@ -551,8 +594,8 @@ function PayrunCalculation({
       />
       <Text fontSize="xs" color="gray.600">
         Calculated = Calculated, Not Ready + Ready for Approval. Not Calculated includes employees on
-        statutory hold. Attendance Needs Action can overlap other cards. Counts are for the whole month
-        and location; search narrows the list only.
+        statutory hold. Attendance Needs Action can overlap other cards. Counts follow the location,
+        department, designation and search; the selected card narrows the list only.
       </Text>
 
       {monthLocked ? (
@@ -616,23 +659,24 @@ function PayrunCalculation({
         "CALCULATE ALL ELIGIBLE" AND "APPROVE ALL READY" SEND NO LIST. Who is
         eligible and who is ready is re-decided by the server at the moment of
         the request; sending the ids this screen believes qualify would act on
-        a month that may be minutes old.
+        a month that may be minutes old. They send the LIST'S FILTERS instead,
+        so they act only inside what is listed - and say how many that is.
       */}
       <Stack direction="row" spacing={2} flexWrap="wrap">
         <Button
           size="sm"
           colorScheme="purple"
-          isDisabled={!mayCalculate || monthLocked || busy || summary.eligible_to_calculate === 0}
+          isDisabled={!mayCalculate || monthLocked || bulkLocked || eligibleCount === 0}
           isLoading={bulkBusy}
           onClick={() => calculate([], { all: true })}
         >
-          Calculate All Eligible ({summary.eligible_to_calculate})
+          Calculate All Eligible ({eligibleCount})
         </Button>
         <Button
           size="sm"
           colorScheme="orange"
           variant="outline"
-          isDisabled={!mayCalculate || monthLocked || busy || selectedRecalculable.length === 0}
+          isDisabled={!mayCalculate || monthLocked || bulkLocked || selectedRecalculable.length === 0}
           onClick={() => recalculate(selectedRecalculable)}
         >
           Recalculate Selected ({selectedRecalculable.length})
@@ -641,7 +685,7 @@ function PayrunCalculation({
           size="sm"
           colorScheme="green"
           variant="outline"
-          isDisabled={!mayApprove || monthLocked || busy || selectedApprovable.length === 0}
+          isDisabled={!mayApprove || monthLocked || bulkLocked || selectedApprovable.length === 0}
           onClick={() => approve(selectedApprovable, { mode: "BULK" })}
         >
           Approve Selected ({selectedApprovable.length})
@@ -649,7 +693,7 @@ function PayrunCalculation({
         <Button
           size="sm"
           colorScheme="green"
-          isDisabled={!mayApprove || monthLocked || busy || readyCount === 0}
+          isDisabled={!mayApprove || monthLocked || bulkLocked || readyCount === 0}
           onClick={() => approve([], { all: true })}
         >
           Approve All Ready ({readyCount})
@@ -660,11 +704,11 @@ function PayrunCalculation({
           <Button
             size="sm"
             colorScheme="blue"
-            isDisabled={monthLocked || busy || !summary.approved_locked || publishGate.publishDisabled}
+            isDisabled={monthLocked || bulkLocked || publishableCount === 0 || publishGate.publishDisabled}
             title={publishGate.publishDisabled ? publishGate.message : undefined}
             onClick={publishAll}
           >
-            Publish All Approved Payslips ({summary.approved_locked || 0})
+            Publish All Approved Payslips ({publishableCount})
           </Button>
         ) : null}
         {/* THE LIFECYCLE ACTIONS, shown once rows are selected and each
@@ -674,7 +718,7 @@ function PayrunCalculation({
             size="sm"
             colorScheme="orange"
             variant="outline"
-            isDisabled={monthLocked || busy || selectedUnlockable.length === 0}
+            isDisabled={monthLocked || bulkLocked || selectedUnlockable.length === 0}
             onClick={() => openLifecycle("UNLOCK", rowsOf(selectedUnlockable), "BULK")}
           >
             Unlock Selected ({selectedUnlockable.length})
@@ -685,7 +729,7 @@ function PayrunCalculation({
             <Button
               size="sm"
               colorScheme="blue"
-              isDisabled={monthLocked || busy || selectedPublishable.length === 0 || publishGate.publishDisabled}
+              isDisabled={monthLocked || bulkLocked || selectedPublishable.length === 0 || publishGate.publishDisabled}
               title={publishGate.publishDisabled ? publishGate.message : undefined}
               onClick={() => openLifecycle("PUBLISH", rowsOf(selectedPublishable), "BULK")}
             >
@@ -695,7 +739,7 @@ function PayrunCalculation({
               size="sm"
               colorScheme="blue"
               variant="outline"
-              isDisabled={monthLocked || busy || selectedUnpublishable.length === 0}
+              isDisabled={monthLocked || bulkLocked || selectedUnpublishable.length === 0}
               onClick={() => openLifecycle("UNPUBLISH", rowsOf(selectedUnpublishable), "BULK")}
             >
               Unpublish Payslips Selected ({selectedUnpublishable.length})
@@ -704,7 +748,7 @@ function PayrunCalculation({
               size="sm"
               colorScheme="teal"
               variant="outline"
-              isDisabled={busy || selectedRetryable.length === 0}
+              isDisabled={bulkLocked || selectedRetryable.length === 0}
               onClick={() => retryNotification(selectedRetryable)}
             >
               Retry Notification Selected ({selectedRetryable.length})
@@ -716,7 +760,7 @@ function PayrunCalculation({
             size="sm"
             colorScheme="blue"
             variant="outline"
-            isDisabled={monthLocked || busy || selectedProcessable.length === 0}
+            isDisabled={monthLocked || bulkLocked || selectedProcessable.length === 0}
             onClick={() => processAttendance(selectedProcessable)}
           >
             Process Attendance ({selectedProcessable.length})
@@ -729,7 +773,7 @@ function PayrunCalculation({
             size="sm"
             colorScheme="red"
             variant="outline"
-            isDisabled={!mayCalculate || monthLocked || busy || selectedResettable.length === 0}
+            isDisabled={!mayCalculate || monthLocked || bulkLocked || selectedResettable.length === 0}
             onClick={() =>
               openReset(
                 rows.filter((row) => selectedResettable.includes(row.employee_id)),

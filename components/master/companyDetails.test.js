@@ -67,15 +67,16 @@ test("Payroll UI disables all three Publish affordances while Company Details is
   assert.match(workflow, /PayrunCalculationHelper\.getPayslipCompany\(\)/);
   assert.match(workflow, /const publishGate = payslipPublishGate\(payslipCompany, \{ canConfigure: mayConfigureCompany \}\)/);
   // Publish All Approved Payslips
-  assert.match(workflow, /isDisabled=\{monthLocked \|\| busy \|\| !summary\.approved_locked \|\| publishGate\.publishDisabled\}/);
+  assert.match(workflow, /isDisabled=\{monthLocked \|\| bulkLocked \|\| publishableCount === 0 \|\| publishGate\.publishDisabled\}/);
   // Publish Payslips Selected
   assert.match(
     workflow,
-    /isDisabled=\{monthLocked \|\| busy \|\| selectedPublishable\.length === 0 \|\| publishGate\.publishDisabled\}/
+    /isDisabled=\{monthLocked \|\| bulkLocked \|\| selectedPublishable\.length === 0 \|\| publishGate\.publishDisabled\}/
   );
   // Publish Payslip (each row)
   assert.match(workflow, /publishBlockedReason=\{publishGate\.publishDisabled \? publishGate\.message : null\}/);
-  assert.match(list, /isDisabled=\{disabled \|\| Boolean\(publishBlockedReason\)\}/);
+  // (the row's Publish Payslip lives in the More menu; disabled with the reason)
+  assert.match(list, /isDisabled: disabled \|\| Boolean\(publishBlockedReason\),\s*reason: publishBlockedReason \|\| undefined,/);
   // The message, and the shortcut for those who may configure it.
   assert.match(workflow, /\{publishGate\.message\}/);
   assert.match(workflow, /Configure Company Details/);
@@ -84,6 +85,6 @@ test("Payroll UI disables all three Publish affordances while Company Details is
 });
 
 test("Unpublish and Retry Notification are not gated on Company Details", () => {
-  assert.match(workflow, /isDisabled=\{monthLocked \|\| busy \|\| selectedUnpublishable\.length === 0\}/);
-  assert.match(workflow, /isDisabled=\{busy \|\| selectedRetryable\.length === 0\}/);
+  assert.match(workflow, /isDisabled=\{monthLocked \|\| bulkLocked \|\| selectedUnpublishable\.length === 0\}/);
+  assert.match(workflow, /isDisabled=\{bulkLocked \|\| selectedRetryable\.length === 0\}/);
 });

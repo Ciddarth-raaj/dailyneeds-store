@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
   AlertIcon,
@@ -18,6 +18,13 @@ import PayrunEmployeeList from "../../components/payroll/PayrunEmployeeList";
 import PayrunAdjustments from "../../components/payroll/adjustments/PayrunAdjustments";
 import PayrunCalculation from "../../components/payroll/calculation/PayrunCalculation";
 import PayrunFilterCards from "../../components/payroll/PayrunFilterCards";
+import {
+  EMPTY_FILTER_OPTIONS,
+  designationChoices,
+  keepsDesignation,
+  optionLabel,
+  withSelected,
+} from "../../util/payrunCalculationFilters";
 import AttendancePendingDrawer from "../../components/payroll/AttendancePendingDrawer";
 import usePayrollActor from "../../customHooks/usePayrollActor";
 import usePayrunMonth from "../../customHooks/usePayrunMonth";
@@ -212,6 +219,33 @@ function Payrun() {
    * everything else that is about a particular month's rows.
    */
   const [search, setSearch] = useState("");
+
+  /*
+   * DEPARTMENT AND DESIGNATION - Calculation & Review's own two filters.
+   * Their choices come back with the calculation month itself
+   * (`filter_options`): the departments and designations among the month's
+   * employees in this user's branch scope and location. Choosing a Department
+   * narrows the Designation list to the designations found in it.
+   */
+  const [departmentId, setDepartmentId] = useState("");
+  const [designationId, setDesignationId] = useState("");
+  const [calcFilterOptions, setCalcFilterOptions] = useState(EMPTY_FILTER_OPTIONS);
+  const onCalcFilterOptions = useCallback((options) => setCalcFilterOptions(options || EMPTY_FILTER_OPTIONS), []);
+  const designationOptions = designationChoices(calcFilterOptions, departmentId);
+  const chooseDepartment = (value) => {
+    setDepartmentId(value);
+    if (!keepsDesignation(calcFilterOptions, value, designationId)) setDesignationId("");
+  };
+  /* CLEAR FILTERS: location, department, designation, search - and, through
+     the token, the selected card. The month stays: it is not a filter. */
+  const [clearFiltersToken, setClearFiltersToken] = useState(0);
+  const clearFilters = () => {
+    setStoreId("");
+    setDepartmentId("");
+    setDesignationId("");
+    setSearch("");
+    setClearFiltersToken((n) => n + 1);
+  };
 
   /*
    * THE SELECTED CARD - one filter at a time, All Employees by default. The
@@ -490,7 +524,14 @@ function Payrun() {
         {/* TWO ACROSS ON A PHONE. Month and Year belong side by side - they
             are one choice - and five full-width rows would push the summary
             and the first employee below the fold before anything was read. */}
-        <SimpleGrid columns={{ base: 2, md: stage === STAGE.INITIALIZATION ? 5 : 4 }} spacing={3}>
+        <SimpleGrid
+          columns={
+            stage === STAGE.CALCULATION
+              ? { base: 2, md: 4, xl: 7 }
+              : { base: 2, md: stage === STAGE.INITIALIZATION ? 5 : 4 }
+          }
+          spacing={3}
+        >
           <Select
             size="sm"
             value={month}
@@ -520,6 +561,7 @@ function Payrun() {
             placeholder="All locations"
             value={storeId}
             onChange={(e) => setStoreId(e.target.value)}
+            aria-label="Location"
           >
             {outlets.map((o) => (
               <option key={o.outlet_id} value={o.outlet_id}>
@@ -534,6 +576,36 @@ function Payrun() {
             showing it. On a phone it spans the row, so it is reachable without
             scrolling past the filters.
           */}
+          {stage === STAGE.CALCULATION ? (
+            <>
+              <Select
+                size="sm"
+                value={departmentId}
+                onChange={(e) => chooseDepartment(e.target.value)}
+                aria-label="Department"
+              >
+                <option value="">All Departments</option>
+                {withSelected(calcFilterOptions.departments, departmentId, "Department").map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {optionLabel(d)}
+                  </option>
+                ))}
+              </Select>
+              <Select
+                size="sm"
+                value={designationId}
+                onChange={(e) => setDesignationId(e.target.value)}
+                aria-label="Designation"
+              >
+                <option value="">All Designations</option>
+                {withSelected(designationOptions, designationId, "Designation").map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {optionLabel(d)}
+                  </option>
+                ))}
+              </Select>
+            </>
+          ) : null}
           <Input
             size="sm"
             placeholder="Search employee or ID"
@@ -542,6 +614,11 @@ function Payrun() {
             aria-label="Search employee"
             gridColumn={{ base: "span 2", md: "auto" }}
           />
+          {stage === STAGE.CALCULATION ? (
+            <Button size="sm" variant="outline" onClick={clearFilters} gridColumn={{ base: "span 2", md: "auto" }}>
+              Clear Filters
+            </Button>
+          ) : null}
           {stage === STAGE.INITIALIZATION ? (
             <Button
               size="sm"
@@ -619,6 +696,10 @@ function Payrun() {
             storeId={storeId}
             monthName={MONTH_NAMES[month - 1]}
             search={search}
+            departmentId={departmentId}
+            designationId={designationId}
+            onFilterOptions={onCalcFilterOptions}
+            clearFiltersToken={clearFiltersToken}
             mayCalculate={mayCalculate}
             mayApprove={mayApprove}
             mayChangePayType={mayChangePayType}

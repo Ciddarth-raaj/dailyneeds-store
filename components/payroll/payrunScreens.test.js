@@ -574,10 +574,10 @@ test("the top area is mobile-friendly, and the bulk actions stay reachable", () 
    * about. The count follows the stage rather than being fixed.
    */
   // Month | Year | Location | Search | Refresh - the two dropdowns are gone.
-  assert.match(
-    pageCode,
-    /columns=\{\{ base: 2, md: stage === STAGE\.INITIALIZATION \? 5 : 4 \}\}/
-  );
+  assert.match(pageCode, /: \{ base: 2, md: stage === STAGE\.INITIALIZATION \? 5 : 4 \}/);
+  // Calculation & Review adds Department | Designation | Clear Filters: seven
+  // across on a wide desktop, four on a tablet, two on a phone.
+  assert.match(pageCode, /stage === STAGE\.CALCULATION\s*\? \{ base: 2, md: 4, xl: 7 \}/);
   // Summary cards two-across on a phone, three on a tablet, six on a desktop.
   assert.match(pageCode, /columns=\{\{ base: 2, md: 3, lg: 6 \}\}/);
   // Bulk controls stick on a phone only.
