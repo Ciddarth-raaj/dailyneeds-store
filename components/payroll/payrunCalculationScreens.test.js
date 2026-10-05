@@ -191,8 +191,10 @@ test("approving is its own permission and is not implied by calculating", () => 
 });
 
 test("every action is disabled without its key, and in a locked month", () => {
-  assert.ok(workflowCode.includes("!mayCalculate || monthLocked"));
-  assert.ok(workflowCode.includes("!mayApprove || monthLocked"));
+  /* A bulk action without its key, or in a locked month, is not offered at all. */
+  assert.ok(workflowCode.includes("const writable = !monthLocked;"));
+  assert.ok(workflowCode.includes("mayCalculate && writable && eligibleCount > 0"));
+  assert.ok(workflowCode.includes("mayApprove && writable && readyCount > 0"));
   assert.ok(pageCode.includes("canApprovePayrun(actor)"));
   assert.ok(pageCode.includes("canCalculatePayrun(actor)"));
 });
@@ -298,9 +300,11 @@ test("the stage is a step of the payrun and not a menu entry of its own", () => 
  * NO PAYSLIP AFFORDANCE. Generating and publishing payslips is the next stage
  * and is not built; a button for it would be a promise the system cannot keep.
  */
-test("there is no payslip-generation affordance - Publish releases, it does not generate", () => {
-  /* Unlock, Publish and Unpublish are built; generating a payslip is not. */
-  for (const forbidden of ["Generate Payslip", "Download Payslip"]) {
+test("there is no payslip-generation affordance - Publish releases, Download exports, neither generates", () => {
+  /* Publishing freezes a payslip; Download Payslips exports the PUBLISHED ones
+     through the server's export endpoints. Nothing on this screen builds one. */
+  assert.ok(workflowCode.includes("<PayslipExportModal"));
+  for (const forbidden of ["Generate Payslip"]) {
     assert.ok(
       !workflowCode.includes(forbidden) &&
         !listCode.includes(forbidden) &&
@@ -763,9 +767,7 @@ test("Reset Selected (N) appears with a selection, narrowed and gated like the o
   assert.ok(workflow.includes("Reset Selected ("));
   assert.ok(workflowCode.includes("selectedIds.length > 0 ?"));
   assert.ok(workflowCode.includes("eligibleWithin(rows, selectedIds, isResettable)"));
-  assert.ok(
-    workflowCode.includes("!mayCalculate || monthLocked || bulkLocked || selectedResettable.length === 0")
-  );
+  assert.ok(workflowCode.includes("mayCalculate && writable && selectedResettable.length > 0"));
   assert.ok(workflowCode.includes('openReset([row], "INDIVIDUAL")'));
   assert.ok(workflowCode.includes('"BULK"'));
 });
@@ -794,9 +796,9 @@ test("Calculate All Eligible counts what Calculate will accept, not every uncalc
   /* What Calculate will accept among the rows listed - which is exactly what
      the select-all, sent with the list's filters, can reach. */
   assert.ok(workflowCode.includes("const eligibleCount = rows.filter(isCalculable).length;"));
-  assert.ok(workflowCode.includes("Calculate All Eligible ({eligibleCount})"));
+  assert.ok(workflowCode.includes("label: `Calculate All Eligible (${eligibleCount})`"));
   assert.ok(!workflowCode.includes("Calculate All Eligible ({summary.not_calculated})"));
-  assert.ok(workflowCode.includes("eligibleCount === 0"));
+  assert.ok(workflowCode.includes("mayCalculate && writable && eligibleCount > 0"));
   assert.match(rulesCode, /const isCalculable = \(row\) =>\s*Boolean\(row && row\.status === STATUS\.NOT_CALCULATED && row\.calculable !== false\);/);
   assert.ok(workflowCode.includes("summary.not_calculated_blocked"), "the blocked remainder is said out loud");
   assert.ok(listCode.includes("isCalculable(row)"), "a row's Calculate button follows the server's verdict");
@@ -814,7 +816,7 @@ test("Process Attendance calls its own endpoint with explicit ids, behind its ow
   assert.match(access, /canProcessPayrunAttendance[\s\S]{0,400}recalculate_attendance/);
   assert.ok(pageCode.includes("canProcessPayrunAttendance(actor)"));
   assert.ok(workflowCode.includes("eligibleWithin(rows, selectedIds, isAttendanceProcessable)"));
-  assert.ok(workflowCode.includes("selectedIds.length > 0 && mayProcessAttendance"));
+  assert.ok(workflowCode.includes("mayProcessAttendance && writable && selectedProcessable.length > 0"));
   assert.ok(listCode.includes("isAttendanceProcessable(row) && canProcessAttendance"));
   assert.ok(workflowCode.includes("confirmText:"), "it confirms before running the engine");
 });
@@ -838,9 +840,9 @@ test("each lifecycle action has its own permission, and a bulk button per action
     assert.ok(workflow.includes(label), label);
     assert.ok(workflowCode.includes(`eligibleWithin(rows, selectedIds, ${predicate})`), predicate);
   }
-  assert.ok(workflowCode.includes("selectedUnlockable.length === 0"));
-  assert.ok(workflowCode.includes("selectedPublishable.length === 0"));
-  assert.ok(workflowCode.includes("selectedUnpublishable.length === 0"));
+  assert.ok(workflowCode.includes("mayUnlock && writable && selectedUnlockable.length > 0"));
+  assert.ok(workflowCode.includes("mayPublish && writable && selectedPublishable.length > 0"));
+  assert.ok(workflowCode.includes("mayPublish && writable && selectedUnpublishable.length > 0"));
 });
 
 test("a published row offers Unpublish, and its Unlock is shown blocked until then", () => {
@@ -921,7 +923,7 @@ test("CALCULATION & REVIEW: every card filter is ONE server word; the browser de
  */
 test("CALCULATION & REVIEW: Approve All Ready is limited to the listed rows and counts them", () => {
   assert.match(workflowCode, /const readyCount = rows\.filter\(isApprovable\)\.length;/);
-  assert.match(workflowCode, /Approve All Ready \(\{readyCount\}\)/);
+  assert.match(workflowCode, /label: `Approve All Ready \(\$\{readyCount\}\)`/);
   assert.match(workflowCode, /\.\.\.\(all \? \{ all_ready: true, filters: listScope \} : \{ employee_ids: employeeIds \}\)/);
   assert.match(
     workflowCode,
@@ -936,7 +938,7 @@ test("CALCULATION & REVIEW: Approve All Ready is limited to the listed rows and 
 
 test("CALCULATION & REVIEW: Publish All publishes only the Approved & Locked employees listed", () => {
   assert.match(workflowCode, /const publishableCount = rows\.filter\(isPublishable\)\.length;/);
-  assert.match(workflowCode, /Publish All Approved Payslips \(\{publishableCount\}\)/);
+  assert.match(workflowCode, /label: `Publish All Approved Payslips \(\$\{publishableCount\}\)`/);
   assert.match(workflowCode, /PayrunCalculationHelper\.publishAll\(\{ year, month, filters: listScope \}\)/);
   assert.match(workflowCode, /PayrunCalculationHelper\.calculate\(\{\s*year,\s*month,\s*\.\.\.\(all \? \{ all_eligible: true, filters: listScope \}/);
   assert.match(rulesCode, /const isPublishable = \(row\) => Boolean\(row && row\.status === STATUS\.APPROVED_LOCKED\);/);
@@ -1099,12 +1101,76 @@ test("FILTERS: they are sent to the server and narrow the read; Clear Filters al
 
 test("BULK: nothing bulk runs while the list is re-reading for new filters", () => {
   assert.match(workflowCode, /const bulkLocked = busy \|\| loading;/);
-  for (const label of ["eligibleCount === 0", "readyCount === 0", "publishableCount === 0", "selectedApprovable.length === 0"]) {
-    const at = workflowCode.indexOf(label);
-    assert.ok(at > 0 && workflowCode.slice(at - 80, at).includes("bulkLocked"), `${label} is not gated by bulkLocked`);
+  assert.ok(workflowCode.includes("isDisabled={bulkLocked || Boolean(action.blockedReason)}"), "every toolbar button");
+  assert.ok(workflowCode.includes('<MenuButton as={Button} size="sm" variant="outline" isDisabled={bulkLocked}>'), "the More menu");
+});
+
+test("BULK TOOLBAR: only actions that can run are drawn - zero counts, missing keys and a locked month hide them", () => {
+  assert.ok(workflowCode.includes("const bulkActions = (selectedIds.length === 0"));
+  assert.ok(workflowCode.includes("const moreBulkActions = (selectedIds.length === 0"));
+  assert.ok((workflowCode.match(/\]\s*\)\.filter\(Boolean\);/g) || []).length >= 2, "falsy entries are dropped");
+  for (const cond of [
+    "mayCalculate && writable && eligibleCount > 0",
+    "mayApprove && writable && readyCount > 0",
+    "mayPublish && writable && publishableCount > 0",
+    "exportableCount > 0",
+    "mayCalculate && writable && selectedRecalculable.length > 0",
+    "mayApprove && writable && selectedApprovable.length > 0",
+    "mayPublish && writable && selectedPublishable.length > 0",
+    "selectedExportable.length > 0",
+    "mayUnlock && writable && selectedUnlockable.length > 0",
+    "mayPublish && writable && selectedUnpublishable.length > 0",
+    "mayPublish && selectedRetryable.length > 0",
+    "mayProcessAttendance && writable && selectedProcessable.length > 0",
+    "mayCalculate && writable && selectedResettable.length > 0",
+  ]) {
+    assert.ok(workflowCode.includes(cond), cond);
   }
+  assert.ok(!/label: `[^`]*\(0\)`/.test(workflow), "no action label is a hard-coded zero count");
+});
+
+test("DOWNLOAD PAYSLIPS: the server plans and re-resolves the export; the screen only counts", () => {
+  const modal = codeOf(read("components/payroll/calculation/PayslipExportModal.jsx"));
+  assert.match(modal, /PayrunCalculationHelper\.planPayslipExport\(\{ year, month, filters, employee_ids: selectionIds \}\)/);
+  assert.match(modal, /plan: \{ employee_ids: ids, batch_size: plan\.batch_size \}/);
+  assert.match(modal, /PayrunCalculationHelper\.exportPayslipBatch\(\{ year, month, filters, employee_ids: batch \}\)/);
+  assert.match(workflowCode, /filters=\{listScope\}/);
+  assert.ok(!/recordView|viewed_at\s*=/.test(modal), "an export never records a view");
+  const helperExport = helperCode.slice(helperCode.indexOf("planPayslipExport:"), helperCode.indexOf("publishAll:"));
+  assert.ok(helperExport.includes('"/payrun/calculation/payslips/export/plan"') && helperExport.includes('"/payrun/calculation/payslips/export"'));
+  assert.ok(helperExport.includes("...listFilters(filters)"));
 });
 
 test("BULK: a filter change clears the selection rather than carrying it to the new list", () => {
   assert.match(workflowCode, /useEffect\(\(\) => \{\s*setSelectedIds\(\[\]\);\s*\}, \[filters\]\);/);
+});
+
+/* ======== Download Payslips: its own key, payroll_export_payslips ========= */
+
+test("EXPORT PERMISSION: canExportPayslips needs payroll_export_payslips ON TOP of the payroll view keys", () => {
+  const { canExportPayslips, canOpenPayrun } = require("../../util/payrunAccess");
+  const VIEW = ["view_employees", "view_payroll", "view_salary"];
+  assert.strictEqual(canOpenPayrun({ permissions: VIEW }), true, "a payroll viewer can open the screen and View Payslip");
+  assert.strictEqual(canExportPayslips({ permissions: VIEW }), false, "...but cannot bulk export");
+  assert.strictEqual(canExportPayslips({ permissions: [...VIEW, "payroll_export_payslips"] }), true);
+  assert.strictEqual(canExportPayslips({ permissions: ["view_employees", "payroll_export_payslips"] }), false, "the key alone is not enough");
+  assert.strictEqual(canExportPayslips({ permissions: [{ permission_key: "payroll_export_payslips" }, ...VIEW.map((k) => ({ permission_key: k }))] }), true);
+  assert.strictEqual(canExportPayslips({ isAdmin: true }), true, "administrators, as on the server (user_type 2)");
+  assert.strictEqual(canExportPayslips(), false);
+});
+
+test("EXPORT PERMISSION: the screen draws Download Payslips only with the key - matching the server", () => {
+  const pageSrc = codeOf(read("pages/payroll/payrun.jsx"));
+  assert.match(pageSrc, /const mayExportPayslips = canExportPayslips\(actor\);/);
+  assert.match(pageSrc, /mayExportPayslips=\{mayExportPayslips\}/);
+  assert.ok(workflowCode.includes("mayExportPayslips && exportableCount > 0 && {"));
+  assert.ok(workflowCode.includes("mayExportPayslips && selectedExportable.length > 0 && {"));
+  assert.ok(workflowCode.includes("isOpen={mayExportPayslips && exportTarget !== null}"));
+  // View Payslip (one employee) is not gated on the export key.
+  assert.ok(!/canViewPayslip|onViewPayslip=\{[^}]*mayExportPayslips/.test(workflowCode));
+  const backendRoutes = fs.readFileSync(path.join(ROOT, "..", "dailyneeds-store-backend", "routes", "payrun_calculation.js"), "utf8");
+  for (const p of ["/payrun/calculation/payslips/export/plan", "/payrun/calculation/payslips/export"]) {
+    const at = backendRoutes.indexOf(`"${p}",`);
+    assert.ok(backendRoutes.slice(at, at + 200).includes("P.PAYROLL_EXPORT_PAYSLIPS"), `${p} enforces the key on the server`);
+  }
 });

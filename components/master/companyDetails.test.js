@@ -66,13 +66,12 @@ test("the form has the General, Statutory and Payslip groups, Save and Edit, and
 test("Payroll UI disables all three Publish affordances while Company Details is missing", () => {
   assert.match(workflow, /PayrunCalculationHelper\.getPayslipCompany\(\)/);
   assert.match(workflow, /const publishGate = payslipPublishGate\(payslipCompany, \{ canConfigure: mayConfigureCompany \}\)/);
-  // Publish All Approved Payslips
-  assert.match(workflow, /isDisabled=\{monthLocked \|\| bulkLocked \|\| publishableCount === 0 \|\| publishGate\.publishDisabled\}/);
-  // Publish Payslips Selected
-  assert.match(
-    workflow,
-    /isDisabled=\{monthLocked \|\| bulkLocked \|\| selectedPublishable\.length === 0 \|\| publishGate\.publishDisabled\}/
-  );
+  // Publish All Approved Payslips and Publish Payslips Selected carry the gate
+  // as their blocked reason; the toolbar disables any action that has one.
+  assert.match(workflow, /const publishBlockedReason = publishGate\.publishDisabled \? publishGate\.message : null;/);
+  assert.equal((workflow.match(/blockedReason: publishBlockedReason,/g) || []).length, 2);
+  assert.match(workflow, /isDisabled=\{bulkLocked \|\| Boolean\(action\.blockedReason\)\}/);
+  assert.match(workflow, /title=\{action\.blockedReason \|\| undefined\}/);
   // Publish Payslip (each row)
   assert.match(workflow, /publishBlockedReason=\{publishGate\.publishDisabled \? publishGate\.message : null\}/);
   // (the row's Publish Payslip lives in the More menu; disabled with the reason)
@@ -85,6 +84,7 @@ test("Payroll UI disables all three Publish affordances while Company Details is
 });
 
 test("Unpublish and Retry Notification are not gated on Company Details", () => {
-  assert.match(workflow, /isDisabled=\{monthLocked \|\| bulkLocked \|\| selectedUnpublishable\.length === 0\}/);
-  assert.match(workflow, /isDisabled=\{bulkLocked \|\| selectedRetryable\.length === 0\}/);
+  const block = (key) => workflow.slice(workflow.indexOf(`key: "${key}"`), workflow.indexOf("onClick", workflow.indexOf(`key: "${key}"`)));
+  assert.ok(!block("unpublish-selected").includes("blockedReason"));
+  assert.ok(!block("retry-selected").includes("blockedReason"));
 });

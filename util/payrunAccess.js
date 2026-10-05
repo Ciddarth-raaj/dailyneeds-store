@@ -143,6 +143,23 @@ function canPublishPayrun({ permissions = [], isAdmin = false } = {}) {
   return has(permissions, "view_employees") && has(permissions, "publish_payrun");
 }
 
+/**
+ * DOWNLOAD PAYSLIPS - the bulk ZIP export of published payslips. Its own key,
+ * `payroll_export_payslips`, ON TOP of what reading a payslip here needs
+ * (view_employees + view_payroll + view_salary): reading one payslip does not
+ * grant exporting a month of them. The server enforces the same rule; this
+ * only decides whether the action is drawn.
+ */
+function canExportPayslips({ permissions = [], isAdmin = false } = {}) {
+  if (isAdminUser(isAdmin)) return true;
+  return (
+    has(permissions, "view_employees") &&
+    has(permissions, "view_payroll") &&
+    has(permissions, "view_salary") &&
+    has(permissions, "payroll_export_payslips")
+  );
+}
+
 function canCloseAttendanceForPayroll({ permissions = [], isAdmin = false } = {}) {
   if (isAdminUser(isAdmin)) return true;
   return has(permissions, "view_employees") && has(permissions, "close_payrun_attendance");
@@ -200,6 +217,7 @@ module.exports = {
   canProcessPayrunAttendance,
   canUnlockPayrun,
   canPublishPayrun,
+  canExportPayslips,
   isRowInitializable,
   blockedExplanation,
   canSeePayrunMenu,

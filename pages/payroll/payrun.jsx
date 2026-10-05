@@ -38,6 +38,7 @@ import {
   canProcessPayrunAttendance,
   canUnlockPayrun,
   canPublishPayrun,
+  canExportPayslips,
   canChangePayrunPayType,
   canInitializePayrun,
   canOpenPayrun,
@@ -181,6 +182,8 @@ function Payrun() {
   const mayProcessAttendance = canProcessPayrunAttendance(actor);
   const mayUnlock = canUnlockPayrun(actor);
   const mayPublish = canPublishPayrun(actor);
+  /* Download Payslips (bulk ZIP) is its own key: payroll_export_payslips. */
+  const mayExportPayslips = canExportPayslips(actor);
   // The Configure Company Details shortcut beside a disabled Publish.
   const mayConfigureCompany = canManageCompanyDetails(actor);
 
@@ -706,6 +709,7 @@ function Payrun() {
             mayProcessAttendance={mayProcessAttendance}
             mayUnlock={mayUnlock}
             mayPublish={mayPublish}
+            mayExportPayslips={mayExportPayslips}
             mayConfigureCompany={mayConfigureCompany}
           />
         ) : null}
