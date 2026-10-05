@@ -246,6 +246,12 @@ const isNotificationRetryable = (row) =>
       !["SENT", "QUEUED", "SENDING"].includes(row.payslip.notification_status)
   );
 
+/**
+ * A row the bulk payslip export can include: its payslip is PUBLISHED. Only
+ * for COUNTING on screen - who is exported is resolved by the server.
+ */
+const isPayslipExportable = (row) => Boolean(row && row.status === STATUS.PUBLISHED);
+
 /** View Payslip is offered on a published row that has a payslip. */
 const hasPayslip = (row) => Boolean(row && row.status === STATUS.PUBLISHED && row.payslip);
 
@@ -525,6 +531,7 @@ function statusScheme(status) {
 }
 
 module.exports = {
+  isPayslipExportable,
   payslipSummary,
   formatViewedAtShort,
   STATUS,

@@ -150,6 +150,27 @@ const PayrunCalculationHelper = {
     }).then((res) => res.data),
 
   /**
+   * BULK PAYSLIP EXPORT. The plan is the server's list of who is exported for
+   * these filters (and an optional selection); each batch sends the same
+   * filters with up to 25 of those ids, and the server re-resolves them. A
+   * read: nothing is written, and the employees' "viewed" record is untouched.
+   */
+  planPayslipExport: ({ year, month, filters, employee_ids }) =>
+    API.post("/payrun/calculation/payslips/export/plan", {
+      year,
+      month,
+      ...listFilters(filters),
+      ...(Array.isArray(employee_ids) && employee_ids.length ? { employee_ids } : {}),
+    }).then((res) => res.data),
+  exportPayslipBatch: ({ year, month, filters, employee_ids }) =>
+    API.post("/payrun/calculation/payslips/export", {
+      year,
+      month,
+      ...listFilters(filters),
+      employee_ids,
+    }).then((res) => res.data),
+
+  /**
    * PUBLISH ALL APPROVED PAYSLIPS. Who is approved is decided on the server,
    * inside the caller's branch scope and the list's filters.
    */
