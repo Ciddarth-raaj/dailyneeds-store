@@ -24,6 +24,8 @@ import { describeApiResult, KIND } from "../util/salaryApiError";
  * salary approved a minute ago turns up as RECALCULATION_REQUIRED on the next
  * refresh - with the stored figures unchanged, which is the point.
  */
+const EMPTY_FILTER_OPTIONS = { departments: [], designations: [] };
+
 function usePayrunCalculationMonth(filters, canView) {
   const [month, setMonth] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -110,10 +112,14 @@ function usePayrunCalculationMonth(filters, canView) {
     attendance_processable: 0,
   };
 
+  /* The Department / Designation choices in scope, from the same read. */
+  const filterOptions = (month && month.filter_options) || EMPTY_FILTER_OPTIONS;
+
   return {
     month,
     rows,
     summary,
+    filterOptions,
     monthLocked: Boolean(month && month.month_locked),
     loading,
     loaded,

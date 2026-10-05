@@ -6,6 +6,11 @@ import {
   Box,
   Button,
   Checkbox,
+  Menu,
+  MenuButton,
+  MenuItem,
+  MenuList,
+  Portal,
   Input,
   Select,
   Spinner,
@@ -20,6 +25,7 @@ import ResetCalculationModal from "./ResetCalculationModal";
 import LifecycleActionModal from "./LifecycleActionModal";
 import PayslipViewModal from "./PayslipViewModal";
 import PfCeilingRevisionModal from "./PfCeilingRevisionModal";
+import PayslipExportModal from "./PayslipExportModal";
 import usePayrunCalculationMonth from "../../../customHooks/usePayrunCalculationMonth";
 import PayrunCalculationHelper from "../../../helper/payrunCalculation";
 import { describeApiResult, KIND } from "../../../util/salaryApiError";
@@ -44,6 +50,8 @@ import {
   isAllSelected,
   isApprovable,
   isAttendanceProcessable,
+  isCalculable,
+  isPayslipExportable,
   isNotificationPending,
   isNotificationRetryable,
   isPublishable,
@@ -118,7 +126,13 @@ function PayrunCalculation({
   mayUnlock = false,
   mayPublish = false,
   mayConfigureCompany = false,
+  /* Download Payslips (bulk ZIP export): payroll_export_payslips. */
+  mayExportPayslips = false,
   search = "",
+  departmentId = "",
+  designationId = "",
+  onFilterOptions = null,
+  clearFiltersToken = 0,
 }) {
   const toast = useToast();
 
@@ -162,6 +176,10 @@ function PayrunCalculation({
    */
   const [tab, setTab] = useState(DEFAULT_TAB.CALCULATION);
   const selectCard = (key) => setTab((active) => nextCard(active, key));
+  /* CLEAR FILTERS (on the page) also goes back to All Employees. */
+  useEffect(() => {
+    if (clearFiltersToken) setTab(ALL);
+  }, [clearFiltersToken]);
   const [selectedIds, setSelectedIds] = useState([]);
   const [busyEmployeeId, setBusyEmployeeId] = useState(null);
   const [bulkBusy, setBulkBusy] = useState(false);
@@ -170,6 +188,8 @@ function PayrunCalculation({
 
   /* Who the Unlock / Publish / Unpublish dialog is open for: { action, mode, rows }. */
   const [lifecycleTarget, setLifecycleTarget] = useState(null);
+  /* The bulk payslip export, while its dialog is open: { selectionIds }. */
+  const [exportTarget, setExportTarget] = useState(null);
   /* The employee whose published payslip is open in View Payslip. */
   const [payslipTarget, setPayslipTarget] = useState(null);
   // EPFO 2026 wage ceiling revision: the read-only affected-employee report and ECR.
@@ -188,13 +208,32 @@ function PayrunCalculation({
       store_ids: storeId,
       /* Typed once at the top of the payrun and carried into every stage. */
       search,
+      /* Department / Designation - this stage's own, chosen on the page. */
+      department_id: departmentId,
+      designation_id: designationId,
       ...tabFilters(CALCULATION_TABS, tab),
     }),
-    [year, month, storeId, tab, search]
+    [year, month, storeId, tab, search, departmentId, designationId]
   );
 
-  const { rows, summary, monthLocked, loading, loaded, denied, error, refresh } =
+  const { rows, summary, filterOptions, monthLocked, loading, loaded, denied, error, refresh } =
     usePayrunCalculationMonth(filters, true);
+
+  /* The page draws the Department / Designation dropdowns from this read. */
+  useEffect(() => {
+    if (onFilterOptions) onFilterOptions(filterOptions);
+  }, [filterOptions, onFilterOptions]);
+
+  /*
+   * WHAT A SELECT-ALL IS SENT WITH: every filter the list was read with except
+   * the month itself. The server resolves "all eligible" / "all ready" / "all
+   * approved" INSIDE them, so a select-all can never reach an employee that a
+   * location, department, designation, card or search had hidden.
+   */
+  const listScope = useMemo(
+    () => Object.fromEntries(Object.entries(filters).filter(([key]) => key !== "year" && key !== "month")),
+    [filters]
+  );
 
   /* A selection never outlives the rows it was made on - most obviously the
      rows that were just approved and can no longer be acted on. */
@@ -205,6 +244,12 @@ function PayrunCalculation({
   useEffect(() => {
     setSelectedIds((prev) => pruneSelection(prev, selectableIds));
   }, [selectableIds]);
+  /* A NEW FILTER IS A NEW LIST: the selection made on the old one is cleared,
+     never carried across, so a bulk action can only act on rows chosen from
+     the list that is on screen now. */
+  useEffect(() => {
+    setSelectedIds([]);
+  }, [filters]);
 
   const selectedRecalculable = eligibleWithin(rows, selectedIds, isRecalculable);
   const selectedApprovable = eligibleWithin(rows, selectedIds, isApprovable);
@@ -236,15 +281,23 @@ function PayrunCalculation({
     return () => clearTimeout(timer);
   }, [pendingNotifications, pendingPolls, loading, bulkBusy, refresh]);
   /*
-   * APPROVE ALL READY IS THE SERVER'S READY POPULATION, NOT THE VISIBLE ROWS.
-   * It sends `all_ready` and the server approves every READY_FOR_APPROVAL
-   * employee in scope - so its count is the month's, from the summary. Counted
-   * from `rows` it read 0 whenever a card or a search hid the ready rows,
-   * while the action would still have approved all of them.
+   * THE SELECT-ALL COUNTS ARE THE LISTED ROWS THEY WOULD ACT ON. Each
+   * select-all is sent with the list's filters (`listScope`) and the server
+   * resolves it inside them, so the employees it can reach are exactly the
+   * eligible rows on screen - counted here by the same predicates the row
+   * buttons use, and re-decided by the server when the request lands.
    */
-  const readyCount = Number(summary.ready_for_approval || 0);
+  const eligibleCount = rows.filter(isCalculable).length;
+  const readyCount = rows.filter(isApprovable).length;
+  const publishableCount = rows.filter(isPublishable).length;
 
   const busy = bulkBusy || busyEmployeeId !== null;
+  /*
+   * NO BULK ACTION WHILE THE LIST IS RE-READING. Between a filter changing
+   * and its rows arriving, the rows on screen belong to the previous filters;
+   * a bulk click in that window could act on a set nobody is looking at.
+   */
+  const bulkLocked = busy || loading;
 
   /**
    * EVERY ACTION GOES THROUGH ONE FUNCTION, so that a single row and a bulk
@@ -317,7 +370,7 @@ function PayrunCalculation({
         PayrunCalculationHelper.calculate({
           year,
           month,
-          ...(all ? { all_eligible: true } : { employee_ids: employeeIds }),
+          ...(all ? { all_eligible: true, filters: listScope } : { employee_ids: employeeIds }),
         }),
       { employeeId: !all && employeeIds.length === 1 ? employeeIds[0] : null }
     );
@@ -337,7 +390,7 @@ function PayrunCalculation({
         PayrunCalculationHelper.approve({
           year,
           month,
-          ...(all ? { all_ready: true } : { employee_ids: employeeIds }),
+          ...(all ? { all_ready: true, filters: listScope } : { employee_ids: employeeIds }),
           // A row's own button, or a selection / Approve All Ready.
           mode: mode || (all || employeeIds.length > 1 ? "BULK" : "INDIVIDUAL"),
         }),
@@ -413,9 +466,9 @@ function PayrunCalculation({
    * is decided by the server inside this viewer's branch scope.
    */
   const publishAll = () =>
-    run(() => PayrunCalculationHelper.publishAll({ year, month }), {
+    run(() => PayrunCalculationHelper.publishAll({ year, month, filters: listScope }), {
       confirmText:
-        `Publish the payslips of every Approved & Locked employee for ${monthName ? `${monthName} ${year}` : `${year}-${month}`}?\n\n` +
+        `Publish the payslips of the ${publishableCount} Approved & Locked employee${publishableCount === 1 ? "" : "s"} shown for ${monthName ? `${monthName} ${year}` : `${year}-${month}`}?\n\n` +
         "Each payslip is frozen from the approved figures and appears in the employee's Telegram Mini App. " +
         "Each employee is then sent a Telegram message, in the background, that their payslip is available " +
         "(no salary figures in the message). " +
@@ -532,12 +585,119 @@ function PayrunCalculation({
   /*
    * THE SUMMARY CARDS ARE THE FILTERS. Each count is the server's
    * `summary.cards`, decided by the same rule as the card's filter and taken
-   * over the WHOLE month in scope - a search narrows the rows, never a count.
+   * over everybody the location, department, designation and search select -
+   * the same population the rows and the select-all counts come from.
    *
    * CALCULATED = Calculated, Not Ready + Ready for Approval. The difference is
    * its own card, and every row in it carries the approval blockers.
    */
   const cardCount = (key) => tabCount("CALCULATION", key, summary);
+
+  /*
+   * THE BULK ACTIONS THAT CAN RUN NOW. Each is listed only when its count is
+   * above zero, its permission is held and - for anything that writes - the
+   * month is not locked. The conditions are the ones the buttons always had;
+   * what changed is that an action which cannot run is not drawn.
+   */
+  const exportableCount = rows.filter(isPayslipExportable).length;
+  const selectedExportable = eligibleWithin(rows, selectedIds, isPayslipExportable);
+  const publishBlockedReason = publishGate.publishDisabled ? publishGate.message : null;
+  const writable = !monthLocked;
+  const bulkActions = (selectedIds.length === 0
+    ? [
+        mayCalculate && writable && eligibleCount > 0 && {
+          key: "calculate-all",
+          label: `Calculate All Eligible (${eligibleCount})`,
+          colorScheme: "purple",
+          showsLoading: true,
+          onClick: () => calculate([], { all: true }),
+        },
+        mayApprove && writable && readyCount > 0 && {
+          key: "approve-all",
+          label: `Approve All Ready (${readyCount})`,
+          colorScheme: "green",
+          onClick: () => approve([], { all: true }),
+        },
+        /* PUBLISH ALL sends the list's filters; the server publishes whoever
+           is Approved & Locked inside them when the request lands. */
+        mayPublish && writable && publishableCount > 0 && {
+          key: "publish-all",
+          label: `Publish All Approved Payslips (${publishableCount})`,
+          colorScheme: "blue",
+          blockedReason: publishBlockedReason,
+          onClick: publishAll,
+        },
+        mayExportPayslips && exportableCount > 0 && {
+          key: "export",
+          label: `Download Payslips (${exportableCount})`,
+          colorScheme: "blue",
+          variant: "outline",
+          onClick: () => setExportTarget({ selectionIds: null }),
+        },
+      ]
+    : [
+        mayCalculate && writable && selectedRecalculable.length > 0 && {
+          key: "recalculate-selected",
+          label: `Recalculate Selected (${selectedRecalculable.length})`,
+          colorScheme: "orange",
+          variant: "outline",
+          onClick: () => recalculate(selectedRecalculable),
+        },
+        mayApprove && writable && selectedApprovable.length > 0 && {
+          key: "approve-selected",
+          label: `Approve Selected (${selectedApprovable.length})`,
+          colorScheme: "green",
+          onClick: () => approve(selectedApprovable, { mode: "BULK" }),
+        },
+        mayPublish && writable && selectedPublishable.length > 0 && {
+          key: "publish-selected",
+          label: `Publish Payslips Selected (${selectedPublishable.length})`,
+          colorScheme: "blue",
+          blockedReason: publishBlockedReason,
+          onClick: () => openLifecycle("PUBLISH", rowsOf(selectedPublishable), "BULK"),
+        },
+        mayExportPayslips && selectedExportable.length > 0 && {
+          key: "export-selected",
+          label: `Download Payslips (${selectedExportable.length})`,
+          colorScheme: "blue",
+          variant: "outline",
+          onClick: () => setExportTarget({ selectionIds: selectedExportable }),
+        },
+      ]
+  ).filter(Boolean);
+  /* The rare selection actions, in one menu. */
+  const moreBulkActions = (selectedIds.length === 0
+    ? []
+    : [
+        mayUnlock && writable && selectedUnlockable.length > 0 && {
+          key: "unlock-selected",
+          label: `Unlock Selected (${selectedUnlockable.length})`,
+          onClick: () => openLifecycle("UNLOCK", rowsOf(selectedUnlockable), "BULK"),
+        },
+        mayPublish && writable && selectedUnpublishable.length > 0 && {
+          key: "unpublish-selected",
+          label: `Unpublish Payslips Selected (${selectedUnpublishable.length})`,
+          onClick: () => openLifecycle("UNPUBLISH", rowsOf(selectedUnpublishable), "BULK"),
+        },
+        mayPublish && selectedRetryable.length > 0 && {
+          key: "retry-selected",
+          label: `Retry Notification Selected (${selectedRetryable.length})`,
+          onClick: () => retryNotification(selectedRetryable),
+        },
+        mayProcessAttendance && writable && selectedProcessable.length > 0 && {
+          key: "process-attendance",
+          label: `Process Attendance (${selectedProcessable.length})`,
+          onClick: () => processAttendance(selectedProcessable),
+        },
+        /* It counts only the selected rows that HAVE a calculation to reset;
+           the server re-decides each of them. */
+        mayCalculate && writable && selectedResettable.length > 0 && {
+          key: "reset-selected",
+          label: `Reset Selected (${selectedResettable.length})`,
+          onClick: () => openReset(rows.filter((row) => selectedResettable.includes(row.employee_id)), "BULK"),
+        },
+      ]
+  ).filter(Boolean);
 
   return (
     <Stack spacing={4}>
@@ -551,8 +711,8 @@ function PayrunCalculation({
       />
       <Text fontSize="xs" color="gray.600">
         Calculated = Calculated, Not Ready + Ready for Approval. Not Calculated includes employees on
-        statutory hold. Attendance Needs Action can overlap other cards. Counts are for the whole month
-        and location; search narrows the list only.
+        statutory hold. Attendance Needs Action can overlap other cards. Counts follow the location,
+        department, designation and search; the selected card narrows the list only.
       </Text>
 
       {monthLocked ? (
@@ -606,140 +766,6 @@ function PayrunCalculation({
         <Button size="sm" variant="outline" onClick={() => setPfRevisionOpen(true)} flexShrink={0}>
           PF ceiling 2026 / ECR
         </Button>
-      </Stack>
-
-      {/*
-        THE FOUR ACTIONS THE STAGE HAS, and each says how many rows it would
-        touch. A bulk button whose count is zero is disabled rather than hidden,
-        so the screen reads the same whether or not there is work to do.
-
-        "CALCULATE ALL ELIGIBLE" AND "APPROVE ALL READY" SEND NO LIST. Who is
-        eligible and who is ready is re-decided by the server at the moment of
-        the request; sending the ids this screen believes qualify would act on
-        a month that may be minutes old.
-      */}
-      <Stack direction="row" spacing={2} flexWrap="wrap">
-        <Button
-          size="sm"
-          colorScheme="purple"
-          isDisabled={!mayCalculate || monthLocked || busy || summary.eligible_to_calculate === 0}
-          isLoading={bulkBusy}
-          onClick={() => calculate([], { all: true })}
-        >
-          Calculate All Eligible ({summary.eligible_to_calculate})
-        </Button>
-        <Button
-          size="sm"
-          colorScheme="orange"
-          variant="outline"
-          isDisabled={!mayCalculate || monthLocked || busy || selectedRecalculable.length === 0}
-          onClick={() => recalculate(selectedRecalculable)}
-        >
-          Recalculate Selected ({selectedRecalculable.length})
-        </Button>
-        <Button
-          size="sm"
-          colorScheme="green"
-          variant="outline"
-          isDisabled={!mayApprove || monthLocked || busy || selectedApprovable.length === 0}
-          onClick={() => approve(selectedApprovable, { mode: "BULK" })}
-        >
-          Approve Selected ({selectedApprovable.length})
-        </Button>
-        <Button
-          size="sm"
-          colorScheme="green"
-          isDisabled={!mayApprove || monthLocked || busy || readyCount === 0}
-          onClick={() => approve([], { all: true })}
-        >
-          Approve All Ready ({readyCount})
-        </Button>
-        {/* PUBLISH ALL APPROVED PAYSLIPS sends no list either: the server
-            publishes whoever is Approved & Locked when the request lands. */}
-        {mayPublish ? (
-          <Button
-            size="sm"
-            colorScheme="blue"
-            isDisabled={monthLocked || busy || !summary.approved_locked || publishGate.publishDisabled}
-            title={publishGate.publishDisabled ? publishGate.message : undefined}
-            onClick={publishAll}
-          >
-            Publish All Approved Payslips ({summary.approved_locked || 0})
-          </Button>
-        ) : null}
-        {/* THE LIFECYCLE ACTIONS, shown once rows are selected and each
-            counting only the selected rows it fits. */}
-        {selectedIds.length > 0 && mayUnlock ? (
-          <Button
-            size="sm"
-            colorScheme="orange"
-            variant="outline"
-            isDisabled={monthLocked || busy || selectedUnlockable.length === 0}
-            onClick={() => openLifecycle("UNLOCK", rowsOf(selectedUnlockable), "BULK")}
-          >
-            Unlock Selected ({selectedUnlockable.length})
-          </Button>
-        ) : null}
-        {selectedIds.length > 0 && mayPublish ? (
-          <>
-            <Button
-              size="sm"
-              colorScheme="blue"
-              isDisabled={monthLocked || busy || selectedPublishable.length === 0 || publishGate.publishDisabled}
-              title={publishGate.publishDisabled ? publishGate.message : undefined}
-              onClick={() => openLifecycle("PUBLISH", rowsOf(selectedPublishable), "BULK")}
-            >
-              Publish Payslips Selected ({selectedPublishable.length})
-            </Button>
-            <Button
-              size="sm"
-              colorScheme="blue"
-              variant="outline"
-              isDisabled={monthLocked || busy || selectedUnpublishable.length === 0}
-              onClick={() => openLifecycle("UNPUBLISH", rowsOf(selectedUnpublishable), "BULK")}
-            >
-              Unpublish Payslips Selected ({selectedUnpublishable.length})
-            </Button>
-            <Button
-              size="sm"
-              colorScheme="teal"
-              variant="outline"
-              isDisabled={busy || selectedRetryable.length === 0}
-              onClick={() => retryNotification(selectedRetryable)}
-            >
-              Retry Notification Selected ({selectedRetryable.length})
-            </Button>
-          </>
-        ) : null}
-        {selectedIds.length > 0 && mayProcessAttendance ? (
-          <Button
-            size="sm"
-            colorScheme="blue"
-            variant="outline"
-            isDisabled={monthLocked || busy || selectedProcessable.length === 0}
-            onClick={() => processAttendance(selectedProcessable)}
-          >
-            Process Attendance ({selectedProcessable.length})
-          </Button>
-        ) : null}
-        {/* Shown once rows are selected. It counts only the selected rows that
-            HAVE a calculation to reset; the server re-decides each of them. */}
-        {selectedIds.length > 0 ? (
-          <Button
-            size="sm"
-            colorScheme="red"
-            variant="outline"
-            isDisabled={!mayCalculate || monthLocked || busy || selectedResettable.length === 0}
-            onClick={() =>
-              openReset(
-                rows.filter((row) => selectedResettable.includes(row.employee_id)),
-                "BULK"
-              )
-            }
-          >
-            Reset Selected ({selectedResettable.length})
-          </Button>
-        ) : null}
       </Stack>
 
       {/* THE ELIGIBLE COUNT IS TRUTHFUL: it is what Calculate will accept. The
@@ -798,20 +824,35 @@ function PayrunCalculation({
 
       {loaded && rows.length > 0 ? (
         <Stack spacing={2}>
-          {/* THE SELECTION BAR STICKS TO THE TOP ON A PHONE, for the reason
-              the initialization screen's does: the cards are tall, and a bulk
-              action you cannot see is one you perform by scrolling back up to
-              find, every time. */}
+          {/*
+            ONE TOOLBAR: Select all shown, the selection, and ONLY THE BULK
+            ACTIONS THAT CAN RUN NOW. An action with nothing to act on - a zero
+            count, a locked month, a missing permission - is not drawn at all.
+            Without a selection the select-all actions are offered; with one,
+            the selection's. The rare selection actions live in one "More"
+            menu, so the bar stays a single line on a desktop.
+
+            Every count is the listed rows the action would reach - the same
+            server-side filters (location, department, designation, search,
+            card) the rows were read with - and the server re-decides each
+            employee when the request lands.
+
+            IT STICKS TO THE TOP ON A PHONE, for the reason the initialization
+            screen's does: a bulk action you cannot see is one you perform by
+            scrolling back up to find, every time.
+          */}
           <Stack
             direction="row"
             align="center"
-            spacing={3}
+            spacing={2}
             flexWrap="wrap"
+            rowGap={2}
             position={{ base: "sticky", md: "static" }}
             top={{ base: 0, md: "auto" }}
             zIndex={{ base: 1, md: "auto" }}
             bg="white"
             py={{ base: 2, md: 0 }}
+            data-testid="bulk-toolbar"
           >
             <Checkbox
               colorScheme="purple"
@@ -820,6 +861,7 @@ function PayrunCalculation({
               isDisabled={selectableIds.length === 0 || busy}
               onChange={() => setSelectedIds(nextSelectAll(selectableIds, selectedIds))}
               aria-label="Select all employees shown"
+              mr={1}
             >
               {/* THE ROWS SHOWN - this card and search - and nothing else.
                   Each bulk button then counts only the selected rows it fits,
@@ -835,6 +877,36 @@ function PayrunCalculation({
                   Clear
                 </Button>
               </>
+            ) : null}
+            {bulkActions.map((action) => (
+              <Button
+                key={action.key}
+                size="sm"
+                colorScheme={action.colorScheme}
+                variant={action.variant || "solid"}
+                isDisabled={bulkLocked || Boolean(action.blockedReason)}
+                title={action.blockedReason || undefined}
+                isLoading={action.showsLoading ? bulkBusy : false}
+                onClick={action.onClick}
+              >
+                {action.label}
+              </Button>
+            ))}
+            {moreBulkActions.length > 0 ? (
+              <Menu placement="bottom-end" isLazy>
+                <MenuButton as={Button} size="sm" variant="outline" isDisabled={bulkLocked}>
+                  More ({moreBulkActions.length})
+                </MenuButton>
+                <Portal>
+                  <MenuList fontSize="sm" zIndex="dropdown">
+                    {moreBulkActions.map((action) => (
+                      <MenuItem key={action.key} onClick={action.onClick}>
+                        {action.label}
+                      </MenuItem>
+                    ))}
+                  </MenuList>
+                </Portal>
+              </Menu>
             ) : null}
           </Stack>
 
@@ -902,6 +974,17 @@ function PayrunCalculation({
         target={resetTarget}
         monthLabel={monthLabel}
         busy={busy}
+      />
+
+      <PayslipExportModal
+        isOpen={mayExportPayslips && exportTarget !== null}
+        onClose={() => setExportTarget(null)}
+        year={year}
+        month={month}
+        monthLabel={monthLabel}
+        filters={listScope}
+        selectionIds={exportTarget ? exportTarget.selectionIds : null}
+        rows={rows}
       />
 
       <CalculationBreakup

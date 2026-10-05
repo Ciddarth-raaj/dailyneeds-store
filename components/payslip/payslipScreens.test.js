@@ -88,7 +88,14 @@ test("badges: Telegram Queued / Sending / Sent / Failed / No Telegram Link / Not
   assert.equal(calc.notificationBadge({ notification_status: "NOT_ATTEMPTED" }).label, "Not Notified");
   assert.equal(calc.notificationBadge(null), null);
   assert.equal(calc.viewBadge({ viewed: false }).label, "Not Viewed");
-  assert.equal(calc.viewBadge({ viewed: true, first_viewed_at: "2026-10-04 09:42:10" }).label, "Viewed on 4 Oct 2026, 09:42");
+  // The stored time is UTC (CURRENT_TIMESTAMP); it is shown in IST.
+  assert.equal(calc.viewBadge({ viewed: true, first_viewed_at: "2026-10-04 09:42:10" }).label, "Viewed on 4 Oct 2026, 15:12");
+  assert.equal(calc.formatViewedAt("2026-10-04 20:15:00"), "5 Oct 2026, 01:45", "the IST date rolls over");
+  assert.equal(calc.formatViewedAt(null), "");
+  const line = calc.payslipSummary({ notification_status: "SENT", viewed: true, first_viewed_at: "2026-10-05 08:44:00" });
+  assert.deepEqual([line.notification.text, line.viewed.text], ["Telegram sent", "Viewed 5 Oct, 14:14"]);
+  assert.equal(calc.payslipSummary({ notification_status: "FAILED", viewed: false }).notification.tone, "problem");
+  assert.equal(calc.payslipSummary(null), null);
 });
 
 test("Retry Notification is offered only for a published payslip whose employee was not reached", () => {
@@ -216,9 +223,10 @@ test("the actions are named for the payslip", () => {
   assert.match(modal, /carries no salary figure/);
 });
 
-test("Publish All sends the month only; Retry sends ids only - never a chat id", () => {
+test("Publish All sends the month and the list's filters only; Retry sends ids only - never a chat id", () => {
   const publishAll = payrollHelper.slice(payrollHelper.indexOf("publishAll:"), payrollHelper.indexOf("retryNotification:"));
-  assert.match(publishAll, /"\/payrun\/calculation\/publish-all", \{ year, month \}/);
+  assert.match(publishAll, /"\/payrun\/calculation\/publish-all", \{ year, month, \.\.\.listFilters\(filters\) \}/);
+  assert.ok(!/chat|employee_ids/i.test(code(publishAll)), "publish-all carries no ids and no chat id");
   const retry = payrollHelper.slice(payrollHelper.indexOf("retryNotification:"), payrollHelper.indexOf("getPayslip:"));
   assert.match(retry, /\{ year, month, employee_ids \}/);
   assert.ok(!/chat/i.test(code(retry)));

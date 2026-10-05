@@ -113,5 +113,5 @@ function istDateTimeLocalValue(value) {
   return `${t.year}-${t.month}-${t.day}T${t.hour}:${t.minute}`;
 }
 
-module.exports = { displayDate, displayDateTime, displayIstDateTime, istDateTimeLocalValue, IST_OFFSET_MINUTES, IST_TIME_ZONE };
+module.exports = { displayDate, displayDateTime, displayIstDateTime, istDateTimeLocalValue, istParts, IST_OFFSET_MINUTES, IST_TIME_ZONE };
 

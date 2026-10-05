@@ -159,6 +159,15 @@ function lifecycleRefusalDetail(result) {
 
 /* ------------------------------------------------------------ payslips */
 
+/*
+ * THE PAYSLIP TIMES ARE UTC. `published_at`, `first_viewed_at`,
+ * `last_viewed_at` and the notification attempt times are written with the
+ * database's CURRENT_TIMESTAMP, which runs in UTC, so they are converted to
+ * IST here - through the same `istParts` every other screen uses - before
+ * anybody reads them. Printed unconverted they were 5:30 behind.
+ */
+const { istParts } = require("./displayDate");
+
 /** Telegram notification status of a published payslip, as a badge. */
 const NOTIFICATION_BADGE = {
   QUEUED: { label: "Telegram Queued", scheme: "purple" },
@@ -174,11 +183,42 @@ function notificationBadge(payslip) {
 }
 
 const MONTH_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-/** "2026-10-04 09:42:10" -> "4 Oct 2026, 09:42". The server's clock, unconverted. */
+/** UTC "2026-10-04 09:42:10" -> "4 Oct 2026, 15:12" (IST). */
 function formatViewedAt(value) {
-  const m = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/.exec(String(value || ""));
-  if (!m) return "";
-  return `${Number(m[3])} ${MONTH_SHORT[Number(m[2]) - 1]} ${m[1]}, ${m[4]}:${m[5]}`;
+  const t = istParts(value);
+  if (!t) return "";
+  return `${Number(t.day)} ${MONTH_SHORT[Number(t.month) - 1]} ${t.year}, ${t.hour}:${t.minute}`;
+}
+
+/** The same, without the year, for the compact row line: "4 Oct, 15:12" (IST). */
+function formatViewedAtShort(value) {
+  const t = istParts(value);
+  if (!t) return "";
+  return `${Number(t.day)} ${MONTH_SHORT[Number(t.month) - 1]}, ${t.hour}:${t.minute}`;
+}
+
+/**
+ * A PUBLISHED PAYSLIP'S TWO FACTS, AS ONE QUIET LINE for the employee row:
+ * "Telegram sent · Viewed 5 Oct, 14:14". Only what needs attention is
+ * coloured - a failed or impossible notification - and the colour is never
+ * the only signal: the words say it. The full badges stay in View Payslip.
+ */
+const NOTIFICATION_TEXT = {
+  QUEUED: { text: "Telegram queued", tone: "muted" },
+  SENDING: { text: "Telegram sending", tone: "muted" },
+  SENT: { text: "Telegram sent", tone: "muted" },
+  FAILED: { text: "Telegram failed", tone: "problem" },
+  NO_TELEGRAM_LINK: { text: "No Telegram link", tone: "warning" },
+  NOT_ATTEMPTED: { text: "Not notified", tone: "warning" },
+};
+function payslipSummary(payslip) {
+  if (!payslip) return null;
+  const notification = NOTIFICATION_TEXT[payslip.notification_status] || NOTIFICATION_TEXT.NOT_ATTEMPTED;
+  const viewed =
+    payslip.viewed && payslip.first_viewed_at
+      ? { text: `Viewed ${formatViewedAtShort(payslip.first_viewed_at)}`, title: `First viewed ${formatViewedAt(payslip.first_viewed_at)} IST` }
+      : { text: "Not viewed", title: "The employee has not opened this payslip yet" };
+  return { notification, viewed };
 }
 
 /**
@@ -205,6 +245,12 @@ const isNotificationRetryable = (row) =>
       row.payslip &&
       !["SENT", "QUEUED", "SENDING"].includes(row.payslip.notification_status)
   );
+
+/**
+ * A row the bulk payslip export can include: its payslip is PUBLISHED. Only
+ * for COUNTING on screen - who is exported is resolved by the server.
+ */
+const isPayslipExportable = (row) => Boolean(row && row.status === STATUS.PUBLISHED);
 
 /** View Payslip is offered on a published row that has a payslip. */
 const hasPayslip = (row) => Boolean(row && row.status === STATUS.PUBLISHED && row.payslip);
@@ -485,6 +531,9 @@ function statusScheme(status) {
 }
 
 module.exports = {
+  isPayslipExportable,
+  payslipSummary,
+  formatViewedAtShort,
   STATUS,
   isCalculable,
   isRecalculable,

@@ -138,17 +138,23 @@ test("status labels and reasons are rendered from the server's strings", () => {
  * qualifies is re-decided by the server at the moment of the request; sending
  * the ids this screen believes qualify would act on a month that may be minutes
  * old - an OT approval could have landed, or a colleague could have approved
- * somebody already.
+ * somebody already. They send the LIST'S FILTERS with the flag, so the
+ * server's "all" is all of what the screen was listing.
  */
-test("the select-all actions send a flag, never a list of ids", () => {
+test("the select-all actions send a flag and the list's filters, never a list of ids", () => {
   assert.ok(helperCode.includes("all_eligible: true"));
   assert.ok(helperCode.includes("all_ready: true"));
   assert.ok(workflowCode.includes("{ all: true }"));
   assert.match(
     helperCode,
-    /all_eligible\s*\?\s*\{\s*all_eligible:\s*true\s*\}\s*:\s*\{\s*employee_ids\s*\}/,
+    /all_eligible\s*\?\s*\{\s*all_eligible:\s*true,\s*\.\.\.listFilters\(filters\)\s*\}\s*:\s*\{\s*employee_ids\s*\}/,
     "a bulk call must send one or the other, never both"
   );
+  assert.match(
+    helperCode,
+    /const LIST_FILTER_KEYS = \["store_ids", "department_id", "designation_id", "card", "status", "search"\];/
+  );
+  assert.ok(!/LIST_FILTER_KEYS[^\n]*employee_ids/.test(helperCode), "a filter is never a list of ids");
 });
 
 /** A selection is narrowed per action rather than posted whole to each. */
@@ -185,8 +191,10 @@ test("approving is its own permission and is not implied by calculating", () => 
 });
 
 test("every action is disabled without its key, and in a locked month", () => {
-  assert.ok(workflowCode.includes("!mayCalculate || monthLocked"));
-  assert.ok(workflowCode.includes("!mayApprove || monthLocked"));
+  /* A bulk action without its key, or in a locked month, is not offered at all. */
+  assert.ok(workflowCode.includes("const writable = !monthLocked;"));
+  assert.ok(workflowCode.includes("mayCalculate && writable && eligibleCount > 0"));
+  assert.ok(workflowCode.includes("mayApprove && writable && readyCount > 0"));
   assert.ok(pageCode.includes("canApprovePayrun(actor)"));
   assert.ok(pageCode.includes("canCalculatePayrun(actor)"));
 });
@@ -292,9 +300,11 @@ test("the stage is a step of the payrun and not a menu entry of its own", () => 
  * NO PAYSLIP AFFORDANCE. Generating and publishing payslips is the next stage
  * and is not built; a button for it would be a promise the system cannot keep.
  */
-test("there is no payslip-generation affordance - Publish releases, it does not generate", () => {
-  /* Unlock, Publish and Unpublish are built; generating a payslip is not. */
-  for (const forbidden of ["Generate Payslip", "Download Payslip"]) {
+test("there is no payslip-generation affordance - Publish releases, Download exports, neither generates", () => {
+  /* Publishing freezes a payslip; Download Payslips exports the PUBLISHED ones
+     through the server's export endpoints. Nothing on this screen builds one. */
+  assert.ok(workflowCode.includes("<PayslipExportModal"));
+  for (const forbidden of ["Generate Payslip"]) {
     assert.ok(
       !workflowCode.includes(forbidden) &&
         !listCode.includes(forbidden) &&
@@ -635,9 +645,11 @@ test("the tab counts are the server's summary, never recounted from the rows", (
   assert.match(pageCode2, /tabCount\("INITIALIZATION", key, summary\)/);
   assert.match(adjustmentsCode, /tabCount\("ADJUSTMENTS", key, summary\)/);
   assert.match(workflowCode, /tabCount\("CALCULATION", key, summary\)/);
-  for (const [name, source] of [["the page", pageCode2], ["the calculation stage", workflowCode]]) {
-    assert.ok(!/rows\.filter\([^)]*\)\.length/.test(source), `${name} recounts a tab from the rows`);
-  }
+  assert.ok(!/rows\.filter\([^)]*\)\.length/.test(pageCode2), "the page recounts a tab from the rows");
+  /* The calculation stage counts its SELECT-ALL buttons from the listed rows
+     (see below), but its cards are the server's summary and nothing else. */
+  assert.match(workflowCode, /const cardCount = \(key\) => tabCount\("CALCULATION", key, summary\);/);
+  assert.match(workflowCode, /counts=\{cardCount\}/);
 });
 
 /* ------------------------------ 29, 32: the attendance detail ----------- */
@@ -755,9 +767,7 @@ test("Reset Selected (N) appears with a selection, narrowed and gated like the o
   assert.ok(workflow.includes("Reset Selected ("));
   assert.ok(workflowCode.includes("selectedIds.length > 0 ?"));
   assert.ok(workflowCode.includes("eligibleWithin(rows, selectedIds, isResettable)"));
-  assert.ok(
-    workflowCode.includes("!mayCalculate || monthLocked || busy || selectedResettable.length === 0")
-  );
+  assert.ok(workflowCode.includes("mayCalculate && writable && selectedResettable.length > 0"));
   assert.ok(workflowCode.includes('openReset([row], "INDIVIDUAL")'));
   assert.ok(workflowCode.includes('"BULK"'));
 });
@@ -783,9 +793,13 @@ test("a reset goes through the shared run, which reports and refreshes the month
 /* =================================================== payroll readiness */
 
 test("Calculate All Eligible counts what Calculate will accept, not every uncalculated row", () => {
-  assert.ok(workflowCode.includes("Calculate All Eligible ({summary.eligible_to_calculate})"));
+  /* What Calculate will accept among the rows listed - which is exactly what
+     the select-all, sent with the list's filters, can reach. */
+  assert.ok(workflowCode.includes("const eligibleCount = rows.filter(isCalculable).length;"));
+  assert.ok(workflowCode.includes("label: `Calculate All Eligible (${eligibleCount})`"));
   assert.ok(!workflowCode.includes("Calculate All Eligible ({summary.not_calculated})"));
-  assert.ok(workflowCode.includes("summary.eligible_to_calculate === 0"));
+  assert.ok(workflowCode.includes("mayCalculate && writable && eligibleCount > 0"));
+  assert.match(rulesCode, /const isCalculable = \(row\) =>\s*Boolean\(row && row\.status === STATUS\.NOT_CALCULATED && row\.calculable !== false\);/);
   assert.ok(workflowCode.includes("summary.not_calculated_blocked"), "the blocked remainder is said out loud");
   assert.ok(listCode.includes("isCalculable(row)"), "a row's Calculate button follows the server's verdict");
 });
@@ -802,7 +816,7 @@ test("Process Attendance calls its own endpoint with explicit ids, behind its ow
   assert.match(access, /canProcessPayrunAttendance[\s\S]{0,400}recalculate_attendance/);
   assert.ok(pageCode.includes("canProcessPayrunAttendance(actor)"));
   assert.ok(workflowCode.includes("eligibleWithin(rows, selectedIds, isAttendanceProcessable)"));
-  assert.ok(workflowCode.includes("selectedIds.length > 0 && mayProcessAttendance"));
+  assert.ok(workflowCode.includes("mayProcessAttendance && writable && selectedProcessable.length > 0"));
   assert.ok(listCode.includes("isAttendanceProcessable(row) && canProcessAttendance"));
   assert.ok(workflowCode.includes("confirmText:"), "it confirms before running the engine");
 });
@@ -826,9 +840,9 @@ test("each lifecycle action has its own permission, and a bulk button per action
     assert.ok(workflow.includes(label), label);
     assert.ok(workflowCode.includes(`eligibleWithin(rows, selectedIds, ${predicate})`), predicate);
   }
-  assert.ok(workflowCode.includes("selectedUnlockable.length === 0"));
-  assert.ok(workflowCode.includes("selectedPublishable.length === 0"));
-  assert.ok(workflowCode.includes("selectedUnpublishable.length === 0"));
+  assert.ok(workflowCode.includes("mayUnlock && writable && selectedUnlockable.length > 0"));
+  assert.ok(workflowCode.includes("mayPublish && writable && selectedPublishable.length > 0"));
+  assert.ok(workflowCode.includes("mayPublish && writable && selectedUnpublishable.length > 0"));
 });
 
 test("a published row offers Unpublish, and its Unlock is shown blocked until then", () => {
@@ -901,18 +915,32 @@ test("CALCULATION & REVIEW: every card filter is ONE server word; the browser de
   assert.ok(!/ready_for_approval\s*-|calculated\s*-\s*summary/.test(workflowCode), "no subtraction in the browser");
 });
 
-test("CALCULATION & REVIEW: Approve All Ready counts the server's ready population, not the visible rows", () => {
-  assert.match(workflowCode, /const readyCount = Number\(summary\.ready_for_approval \|\| 0\);/);
-  assert.match(workflowCode, /Approve All Ready \(\{readyCount\}\)/);
-  assert.match(workflowCode, /\.\.\.\(all \? \{ all_ready: true \} : \{ employee_ids: employeeIds \}\)/);
+/*
+ * BULK ACTIONS NEVER REACH OUTSIDE THE FILTERED LIST. Approve All Ready is
+ * sent with every filter the list was read with (location, department,
+ * designation, card, search) and the server approves the ready employees
+ * INSIDE them; its count is therefore the ready rows listed.
+ */
+test("CALCULATION & REVIEW: Approve All Ready is limited to the listed rows and counts them", () => {
+  assert.match(workflowCode, /const readyCount = rows\.filter\(isApprovable\)\.length;/);
+  assert.match(workflowCode, /label: `Approve All Ready \(\$\{readyCount\}\)`/);
+  assert.match(workflowCode, /\.\.\.\(all \? \{ all_ready: true, filters: listScope \} : \{ employee_ids: employeeIds \}\)/);
+  assert.match(
+    workflowCode,
+    /Object\.entries\(filters\)\.filter\(\(\[key\]\) => key !== "year" && key !== "month"\)/,
+    "the select-all carries every list filter except the month itself"
+  );
   assert.ok(!/approvableEmployeeIds\(rows\)/.test(workflowCode));
   // Approve Selected still acts only on selected rows the server says are ready.
   assert.match(workflowCode, /eligibleWithin\(rows, selectedIds, isApprovable\)/);
   assert.match(rulesCode, /const isApprovable = \(row\) => Boolean\(row && row\.status === STATUS\.READY_FOR_APPROVAL\);/);
 });
 
-test("CALCULATION & REVIEW: Publish All still publishes only the Approved & Locked population", () => {
-  assert.match(workflowCode, /Publish All Approved Payslips \(\{summary\.approved_locked \|\| 0\}\)/);
+test("CALCULATION & REVIEW: Publish All publishes only the Approved & Locked employees listed", () => {
+  assert.match(workflowCode, /const publishableCount = rows\.filter\(isPublishable\)\.length;/);
+  assert.match(workflowCode, /label: `Publish All Approved Payslips \(\$\{publishableCount\}\)`/);
+  assert.match(workflowCode, /PayrunCalculationHelper\.publishAll\(\{ year, month, filters: listScope \}\)/);
+  assert.match(workflowCode, /PayrunCalculationHelper\.calculate\(\{\s*year,\s*month,\s*\.\.\.\(all \? \{ all_eligible: true, filters: listScope \}/);
   assert.match(rulesCode, /const isPublishable = \(row\) => Boolean\(row && row\.status === STATUS\.APPROVED_LOCKED\);/);
 });
 
@@ -966,3 +994,183 @@ test("CALCULATION & REVIEW: an ordinary Not Calculated row reads 'Awaiting calcu
   assert.match(list, /!\(notCalculated && r\.code === "NOT_CALCULATED"\)/);
 });
 
+
+/* ============================ Calculation & Review: compact row actions == */
+
+const rowIcons = read("components/payroll/calculation/rowActionIcons.jsx");
+const rowActionsCode = listCode.slice(listCode.indexOf("function RowActions("), listCode.indexOf("function StatusIndicator("));
+
+test("ROW ACTIONS: each row action is an icon button with an aria-label and a tooltip, not a text button", () => {
+  assert.match(listCode, /function ActionIcon\(/);
+  assert.match(listCode, /<IconButton\s+aria-label=\{label\}/);
+  assert.match(listCode, /<Tooltip\s+label=/);
+  assert.ok(!/<Button[\s>]/.test(rowActionsCode), "a row still draws a text button");
+  for (const [label, icon] of [
+    ["Detail", "FileTextIcon"],
+    ["Recalculate", "RefreshCwIcon"],
+    ["Approve & Lock", "BadgeCheckIcon"],
+    ["Reset Calculation", "RotateCcwIcon"],
+  ]) {
+    assert.ok(
+      new RegExp(`label="${label}"\\s+icon=\\{<${icon} />\\}`).test(rowActionsCode),
+      `${label} is not drawn with ${icon}`
+    );
+  }
+  assert.ok(!/eye/i.test(rowIcons) && !/eye/i.test(rowActionsCode), "Detail must not use an eye icon");
+});
+
+test("ROW ACTIONS: an unavailable action is drawn disabled with its reason, reachable on hover and focus", () => {
+  assert.match(listCode, /shouldWrapChildren=\{unavailable\}/);
+  assert.match(listCode, /unavailable && reason \? `\$\{label\} - \$\{reason\}` : label/);
+  assert.ok(rowActionsCode.includes("Only employees Ready for Approval can be approved."));
+  assert.ok(rowActionsCode.includes("Nothing to reset - this employee has not been calculated."));
+});
+
+test("ROW ACTIONS: the handlers, gates and loading states are the ones the text buttons had", () => {
+  for (const wiring of [
+    "onClick={() => onOpen(row)}",
+    "onClick={() => onRecalculate(row, { first: true })}",
+    "onClick={() => onRecalculate(row, { first: false })}",
+    "onClick={() => onApprove([row.employee_id])}",
+    "onClick={() => onReset(row)}",
+    "isDisabled={!canCalculate || disabled}",
+    "isDisabled={!canApprove || disabled}",
+    "isLoading={busy}",
+    "isApprovable(row) ?",
+    "isRecalculable(row) ?",
+  ]) {
+    assert.ok(rowActionsCode.includes(wiring), `missing ${wiring}`);
+  }
+});
+
+test("ROW STATUS: a small indicator with the server's label, not a large badge per row", () => {
+  assert.match(listCode, /function StatusIndicator\(\{ row \}\)/);
+  assert.ok((listCode.match(/<StatusIndicator row=\{row\} \/>/g) || []).length === 2);
+  assert.ok(!/<Badge colorScheme=\{statusScheme\(row\.status\)\}/.test(listCode));
+});
+
+/* ===== Calculation & Review: the More menu, and Department / Designation == */
+
+test("ROW ACTIONS: the lifecycle actions live in one More menu, with the same predicates and handlers", () => {
+  assert.match(listCode, /function MoreActions\(/);
+  assert.match(listCode, /<MenuButton\s+as=\{IconButton\}\s+aria-label="More actions"/);
+  assert.match(listCode, /<Portal>/, "the menu is not clipped by the table's scroll box");
+  for (const wiring of [
+    "isAttendanceProcessable(row) && canProcessAttendance",
+    "onClick: () => onProcessAttendance(row)",
+    "isUnlockable(row) && canUnlock",
+    'onClick: () => onLifecycle("UNLOCK", row)',
+    "isPublishable(row) && canPublish",
+    'onClick: () => onLifecycle("PUBLISH", row)',
+    "hasPayslip(row) && onViewPayslip",
+    "onClick: () => onViewPayslip(row)",
+    "isNotificationRetryable(row) && canPublish && onRetryNotification",
+    "onClick: () => onRetryNotification(row)",
+    "isUnpublishable(row) && canPublish",
+    'onClick: () => onLifecycle("UNPUBLISH", row)',
+    "isUnpublishable(row) && canUnlock",
+  ]) {
+    assert.ok(rowActionsCode.includes(wiring) || listCode.includes(wiring), `missing ${wiring}`);
+  }
+  assert.ok(listCode.includes('label="Calculate"') && listCode.includes("icon={<CalculatorIcon />}"));
+  assert.ok(listCode.includes('reason={none ? "No other actions for this employee." : BUSY_REASON}'));
+});
+
+test("FILTERS: the page offers Department, Designation and Clear Filters on this stage only", () => {
+  const pageSrc = codeOf(read("pages/payroll/payrun.jsx"));
+  assert.match(pageSrc, /aria-label="Department"/);
+  assert.match(pageSrc, /<option value="">All Departments<\/option>/);
+  assert.match(pageSrc, /aria-label="Designation"/);
+  assert.match(pageSrc, /<option value="">All Designations<\/option>/);
+  assert.match(pageSrc, /designationChoices\(calcFilterOptions, departmentId\)/);
+  assert.match(pageSrc, /if \(!keepsDesignation\(calcFilterOptions, value, designationId\)\) setDesignationId\(""\);/);
+  assert.match(pageSrc, /Clear Filters/);
+  const clear = pageSrc.slice(pageSrc.indexOf("const clearFilters"), pageSrc.indexOf("const clearFilters") + 300);
+  for (const reset of ['setStoreId("")', 'setDepartmentId("")', 'setDesignationId("")', 'setSearch("")', "setClearFiltersToken"]) {
+    assert.ok(clear.includes(reset), `Clear Filters does not ${reset}`);
+  }
+  assert.match(pageSrc, /departmentId=\{departmentId\}\s+designationId=\{designationId\}\s+onFilterOptions=\{onCalcFilterOptions\}/);
+});
+
+test("FILTERS: they are sent to the server and narrow the read; Clear Filters also returns to All Employees", () => {
+  assert.match(workflowCode, /department_id: departmentId,\s+designation_id: designationId,/);
+  assert.match(workflowCode, /if \(clearFiltersToken\) setTab\(ALL\);/);
+  assert.match(hook, /month\.filter_options/);
+  assert.ok(!/rows\.filter\([^)]*department/.test(workflowCode + listCode), "the browser never filters rows by department itself");
+});
+
+test("BULK: nothing bulk runs while the list is re-reading for new filters", () => {
+  assert.match(workflowCode, /const bulkLocked = busy \|\| loading;/);
+  assert.ok(workflowCode.includes("isDisabled={bulkLocked || Boolean(action.blockedReason)}"), "every toolbar button");
+  assert.ok(workflowCode.includes('<MenuButton as={Button} size="sm" variant="outline" isDisabled={bulkLocked}>'), "the More menu");
+});
+
+test("BULK TOOLBAR: only actions that can run are drawn - zero counts, missing keys and a locked month hide them", () => {
+  assert.ok(workflowCode.includes("const bulkActions = (selectedIds.length === 0"));
+  assert.ok(workflowCode.includes("const moreBulkActions = (selectedIds.length === 0"));
+  assert.ok((workflowCode.match(/\]\s*\)\.filter\(Boolean\);/g) || []).length >= 2, "falsy entries are dropped");
+  for (const cond of [
+    "mayCalculate && writable && eligibleCount > 0",
+    "mayApprove && writable && readyCount > 0",
+    "mayPublish && writable && publishableCount > 0",
+    "exportableCount > 0",
+    "mayCalculate && writable && selectedRecalculable.length > 0",
+    "mayApprove && writable && selectedApprovable.length > 0",
+    "mayPublish && writable && selectedPublishable.length > 0",
+    "selectedExportable.length > 0",
+    "mayUnlock && writable && selectedUnlockable.length > 0",
+    "mayPublish && writable && selectedUnpublishable.length > 0",
+    "mayPublish && selectedRetryable.length > 0",
+    "mayProcessAttendance && writable && selectedProcessable.length > 0",
+    "mayCalculate && writable && selectedResettable.length > 0",
+  ]) {
+    assert.ok(workflowCode.includes(cond), cond);
+  }
+  assert.ok(!/label: `[^`]*\(0\)`/.test(workflow), "no action label is a hard-coded zero count");
+});
+
+test("DOWNLOAD PAYSLIPS: the server plans and re-resolves the export; the screen only counts", () => {
+  const modal = codeOf(read("components/payroll/calculation/PayslipExportModal.jsx"));
+  assert.match(modal, /PayrunCalculationHelper\.planPayslipExport\(\{ year, month, filters, employee_ids: selectionIds \}\)/);
+  assert.match(modal, /plan: \{ employee_ids: ids, batch_size: plan\.batch_size \}/);
+  assert.match(modal, /PayrunCalculationHelper\.exportPayslipBatch\(\{ year, month, filters, employee_ids: batch \}\)/);
+  assert.match(workflowCode, /filters=\{listScope\}/);
+  assert.ok(!/recordView|viewed_at\s*=/.test(modal), "an export never records a view");
+  const helperExport = helperCode.slice(helperCode.indexOf("planPayslipExport:"), helperCode.indexOf("publishAll:"));
+  assert.ok(helperExport.includes('"/payrun/calculation/payslips/export/plan"') && helperExport.includes('"/payrun/calculation/payslips/export"'));
+  assert.ok(helperExport.includes("...listFilters(filters)"));
+});
+
+test("BULK: a filter change clears the selection rather than carrying it to the new list", () => {
+  assert.match(workflowCode, /useEffect\(\(\) => \{\s*setSelectedIds\(\[\]\);\s*\}, \[filters\]\);/);
+});
+
+/* ======== Download Payslips: its own key, payroll_export_payslips ========= */
+
+test("EXPORT PERMISSION: canExportPayslips needs payroll_export_payslips ON TOP of the payroll view keys", () => {
+  const { canExportPayslips, canOpenPayrun } = require("../../util/payrunAccess");
+  const VIEW = ["view_employees", "view_payroll", "view_salary"];
+  assert.strictEqual(canOpenPayrun({ permissions: VIEW }), true, "a payroll viewer can open the screen and View Payslip");
+  assert.strictEqual(canExportPayslips({ permissions: VIEW }), false, "...but cannot bulk export");
+  assert.strictEqual(canExportPayslips({ permissions: [...VIEW, "payroll_export_payslips"] }), true);
+  assert.strictEqual(canExportPayslips({ permissions: ["view_employees", "payroll_export_payslips"] }), false, "the key alone is not enough");
+  assert.strictEqual(canExportPayslips({ permissions: [{ permission_key: "payroll_export_payslips" }, ...VIEW.map((k) => ({ permission_key: k }))] }), true);
+  assert.strictEqual(canExportPayslips({ isAdmin: true }), true, "administrators, as on the server (user_type 2)");
+  assert.strictEqual(canExportPayslips(), false);
+});
+
+test("EXPORT PERMISSION: the screen draws Download Payslips only with the key - matching the server", () => {
+  const pageSrc = codeOf(read("pages/payroll/payrun.jsx"));
+  assert.match(pageSrc, /const mayExportPayslips = canExportPayslips\(actor\);/);
+  assert.match(pageSrc, /mayExportPayslips=\{mayExportPayslips\}/);
+  assert.ok(workflowCode.includes("mayExportPayslips && exportableCount > 0 && {"));
+  assert.ok(workflowCode.includes("mayExportPayslips && selectedExportable.length > 0 && {"));
+  assert.ok(workflowCode.includes("isOpen={mayExportPayslips && exportTarget !== null}"));
+  // View Payslip (one employee) is not gated on the export key.
+  assert.ok(!/canViewPayslip|onViewPayslip=\{[^}]*mayExportPayslips/.test(workflowCode));
+  const backendRoutes = fs.readFileSync(path.join(ROOT, "..", "dailyneeds-store-backend", "routes", "payrun_calculation.js"), "utf8");
+  for (const p of ["/payrun/calculation/payslips/export/plan", "/payrun/calculation/payslips/export"]) {
+    const at = backendRoutes.indexOf(`"${p}",`);
+    assert.ok(backendRoutes.slice(at, at + 200).includes("P.PAYROLL_EXPORT_PAYSLIPS"), `${p} enforces the key on the server`);
+  }
+});
