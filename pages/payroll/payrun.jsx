@@ -43,6 +43,7 @@ import {
   canOpenPayrun,
   canCloseAttendanceForPayroll,
 } from "../../util/payrunAccess";
+import { canManageCompanyDetails } from "../../util/companyDetails";
 import {
   ALL,
   INITIALIZATION_CARDS,
@@ -180,6 +181,8 @@ function Payrun() {
   const mayProcessAttendance = canProcessPayrunAttendance(actor);
   const mayUnlock = canUnlockPayrun(actor);
   const mayPublish = canPublishPayrun(actor);
+  // The Configure Company Details shortcut beside a disabled Publish.
+  const mayConfigureCompany = canManageCompanyDetails(actor);
 
   const initial = currentPeriod();
   const [year, setYear] = useState(initial.year);
@@ -703,6 +706,7 @@ function Payrun() {
             mayProcessAttendance={mayProcessAttendance}
             mayUnlock={mayUnlock}
             mayPublish={mayPublish}
+            mayConfigureCompany={mayConfigureCompany}
           />
         ) : null}
 

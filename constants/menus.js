@@ -75,6 +75,15 @@ const ALL_PAGES_MENU = {
         selected: false,
         location: "/master/telegram-groups",
       },
+      // The company payslips are issued by (and its statutory codes). Behind
+      // `manage_company_details`, which its migration grants to NO
+      // designation: administrators only until somebody is given the key.
+      company_details: {
+        title: "Company Details",
+        permission: "manage_company_details",
+        selected: false,
+        location: "/master/company-details",
+      },
       branch_and_restrictions: {
         title: "Branch and Restrictions",
         subMenu: {

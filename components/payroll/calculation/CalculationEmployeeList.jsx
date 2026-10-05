@@ -231,6 +231,7 @@ function RowActions({
   onLifecycle,
   canUnlock,
   canPublish,
+  publishBlockedReason = null,
   onRetryNotification,
   onViewPayslip,
   onOpen,
@@ -363,8 +364,15 @@ function RowActions({
           isUnlockable(row) && canUnlock
             ? { label: "Unlock", icon: <LockOpenIcon />, onClick: () => onLifecycle("UNLOCK", row), isDisabled: disabled }
             : null,
+          /* Disabled, with the reason, until a payslip company is configured. */
           isPublishable(row) && canPublish
-            ? { label: "Publish Payslip", icon: <SendIcon />, onClick: () => onLifecycle("PUBLISH", row), isDisabled: disabled }
+            ? {
+                label: "Publish Payslip",
+                icon: <SendIcon />,
+                onClick: () => onLifecycle("PUBLISH", row),
+                isDisabled: disabled || Boolean(publishBlockedReason),
+                reason: publishBlockedReason || undefined,
+              }
             : null,
           hasPayslip(row) && onViewPayslip
             ? { label: "View Payslip", icon: <ReceiptIcon />, onClick: () => onViewPayslip(row), isDisabled: disabled }

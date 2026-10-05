@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import {
   Alert,
   AlertIcon,
@@ -24,6 +25,7 @@ import PayrunCalculationHelper from "../../../helper/payrunCalculation";
 import { describeApiResult, KIND } from "../../../util/salaryApiError";
 import { changeMonthlyPayType } from "../../../util/payrunPayType";
 import PayrunFilterCards from "../PayrunFilterCards";
+import { payslipPublishGate } from "../../../util/companyDetails";
 import {
   ALL,
   CALCULATION_CARDS,
@@ -116,6 +118,7 @@ function PayrunCalculation({
   mayProcessAttendance = false,
   mayUnlock = false,
   mayPublish = false,
+  mayConfigureCompany = false,
   search = "",
   departmentId = "",
   designationId = "",
@@ -123,6 +126,38 @@ function PayrunCalculation({
   clearFiltersToken = 0,
 }) {
   const toast = useToast();
+
+  /*
+   * IS THERE A PAYSLIP COMPANY. Read from the server (exactly one company
+   * Active for Payslip in Master → Company Details); until it says yes,
+   * every Publish affordance is disabled and the screen says why. Publish is
+   * refused on the server regardless - this only stops offering a button that
+   * cannot work. Unpublish and Retry Notification are not affected.
+   */
+  const [payslipCompany, setPayslipCompany] = useState(null);
+  const [payslipCompanyChecked, setPayslipCompanyChecked] = useState(false);
+  const loadPayslipCompany = useCallback(() => {
+    if (!mayPublish) return;
+    PayrunCalculationHelper.getPayslipCompany()
+      .then((res) =>
+        setPayslipCompany(
+          res && res.code === 200
+            ? res
+            : { configured: false, message: "Could not check Company Details, so payslip publishing is unavailable. Refresh to try again." }
+        )
+      )
+      .catch(() =>
+        setPayslipCompany({
+          configured: false,
+          message: "Could not check Company Details, so payslip publishing is unavailable. Refresh to try again.",
+        })
+      )
+      .finally(() => setPayslipCompanyChecked(true));
+  }, [mayPublish]);
+  useEffect(() => {
+    loadPayslipCompany();
+  }, [loadPayslipCompany]);
+  const publishGate = payslipPublishGate(payslipCompany, { canConfigure: mayConfigureCompany });
 
   /*
    * THE SELECTED SUMMARY CARD - one filter at a time, All Employees by
@@ -570,6 +605,22 @@ function PayrunCalculation({
         </Alert>
       ) : null}
 
+      {mayPublish && payslipCompanyChecked && publishGate.publishDisabled ? (
+        <Alert status="warning" fontSize="sm" data-testid="payslip-company-missing">
+          <AlertIcon />
+          <Stack direction={{ base: "column", md: "row" }} spacing={3} align={{ md: "center" }}>
+            <Text>{publishGate.message}</Text>
+            {publishGate.configureLink ? (
+              <Link href={publishGate.configureLink} passHref>
+                <Button as="a" size="xs" colorScheme="orange" variant="outline" flexShrink={0}>
+                  Configure Company Details
+                </Button>
+              </Link>
+            ) : null}
+          </Stack>
+        </Alert>
+      ) : null}
+
       {/* WHAT THE TABLE IS SHOWING, IN WORDS, and the way back to everybody. */}
       <Stack direction="row" align="center" spacing={3} flexWrap="wrap">
         {loaded ? (
@@ -583,7 +634,16 @@ function PayrunCalculation({
           </Button>
         ) : null}
         <Box flex="1" />
-        <Button size="sm" variant="outline" onClick={refresh} isDisabled={loading} flexShrink={0}>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => {
+            refresh();
+            loadPayslipCompany();
+          }}
+          isDisabled={loading}
+          flexShrink={0}
+        >
           Refresh
         </Button>
         <Button size="sm" variant="outline" onClick={() => setPfRevisionOpen(true)} flexShrink={0}>
@@ -644,7 +704,8 @@ function PayrunCalculation({
           <Button
             size="sm"
             colorScheme="blue"
-            isDisabled={monthLocked || bulkLocked || publishableCount === 0}
+            isDisabled={monthLocked || bulkLocked || publishableCount === 0 || publishGate.publishDisabled}
+            title={publishGate.publishDisabled ? publishGate.message : undefined}
             onClick={publishAll}
           >
             Publish All Approved Payslips ({publishableCount})
@@ -668,7 +729,8 @@ function PayrunCalculation({
             <Button
               size="sm"
               colorScheme="blue"
-              isDisabled={monthLocked || bulkLocked || selectedPublishable.length === 0}
+              isDisabled={monthLocked || bulkLocked || selectedPublishable.length === 0 || publishGate.publishDisabled}
+              title={publishGate.publishDisabled ? publishGate.message : undefined}
               onClick={() => openLifecycle("PUBLISH", rowsOf(selectedPublishable), "BULK")}
             >
               Publish Payslips Selected ({selectedPublishable.length})
@@ -837,6 +899,7 @@ function PayrunCalculation({
             onLifecycle={(action, row) => openLifecycle(action, [row], "INDIVIDUAL")}
             canUnlock={mayUnlock && !monthLocked}
             canPublish={mayPublish && !monthLocked}
+            publishBlockedReason={publishGate.publishDisabled ? publishGate.message : null}
             onRetryNotification={(row) => retryNotification([row.employee_id])}
             onViewPayslip={(row) => setPayslipTarget(row)}
             onProcessAttendance={(row) => processAttendance([row.employee_id])}

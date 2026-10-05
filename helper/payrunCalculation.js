@@ -159,6 +159,14 @@ const PayrunCalculationHelper = {
     ),
 
   /**
+   * IS A PAYSLIP COMPANY CONFIGURED - exactly one company Active for Payslip
+   * in Master → Company Details. The screen disables Publish while it is not;
+   * Publish itself is refused on the server either way.
+   */
+  getPayslipCompany: () =>
+    API.get("/payrun/calculation/payslip-company").then((res) => res.data),
+
+  /**
    * RETRY NOTIFICATION - send the "payslip available" Telegram message again.
    * Ids only: the Telegram destination is the server's to resolve. Never
    * republishes.
