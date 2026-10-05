@@ -99,6 +99,7 @@ test("Employees, Department and Designation are all inside HR", () => {
     // that is about a MONTH rather than about one employee's pay.
     "/payroll/bulk-salary-upload",
     "/payroll/payrun",
+    "/payroll/reports",
     "/payroll/salary-approval",
     "/payroll/salary-revision",
     // Staff Budget: the approved headcount plan, its own section of HR. It is
@@ -377,6 +378,7 @@ test("HR navigation still appears exactly once, and still holds its pages", () =
     // that is about a MONTH rather than about one employee's pay.
     "/payroll/bulk-salary-upload",
     "/payroll/payrun",
+    "/payroll/reports",
     "/payroll/salary-approval",
     "/payroll/salary-revision",
     // Staff Budget: the approved headcount plan, its own section of HR. It is
@@ -407,7 +409,10 @@ test("REPORTS IS A TOP-LEVEL MODULE, BESIDE HR RATHER THAN INSIDE IT", () => {
 
 test("HR NO LONGER OWNS REPORTS", () => {
   const hrMenu = treeNamed("HR_MENU");
-  assert.ok(!/reports/i.test(hrMenu), "HR must not contain a Reports section");
+  // The shared Reports MODULE is not an HR section. Payroll's own month-wise
+  // Payroll -> Reports page (/payroll/reports) is a Payroll screen, not that
+  // module, and stays in the Payroll section where the payrun lives.
+  assert.ok(!/\breports:\s*\{/i.test(hrMenu), "HR must not contain a Reports section");
   assert.ok(
     !locationsIn(hrMenu).some((l) => l.startsWith("/reports")),
     "no report page may be reached through the HR menu"
@@ -468,13 +473,14 @@ test("the module rail reads All, HR, Reports, WMS, GST", () => {
   assert.deepStrictEqual(ids, ["all", "hr", "reports", "wms", "gst"]);
 });
 
-test("HR > Payroll is the three salary screens plus the Payrun, each behind ALL of its keys", () => {
+test("HR > Payroll is the three salary screens, the Payrun and Payroll Reports, each behind ALL of its keys", () => {
   const hrMenu = treeNamed("HR_MENU");
   const pay = sectionOf(hrMenu, "payroll");
 
   assert.deepStrictEqual(locationsIn(pay).sort(), [
     "/payroll/bulk-salary-upload",
     "/payroll/payrun",
+    "/payroll/reports",
     "/payroll/salary-approval",
     "/payroll/salary-revision",
   ]);
@@ -482,6 +488,12 @@ test("HR > Payroll is the three salary screens plus the Payrun, each behind ALL 
   assert.match(pay, /title:\s*"Salary Approval"/);
   assert.match(pay, /title:\s*"Bulk Salary Upload"/);
   assert.match(pay, /title:\s*"Payrun"/);
+  // Payroll -> Reports: the Payrun's three read keys plus the reporting key,
+  // exactly the conjunction `routes/payroll_report.js` requires.
+  assert.match(
+    pay,
+    /title:\s*"Reports"[\s\S]*?permission:\s*\["view_reports", "view_employees", "view_payroll", "view_salary"\][\s\S]*?location:\s*"\/payroll\/reports"/
+  );
 
   /*
    * THE PAYRUN TAKES THE THREE READ KEYS AND NOT `process_payroll`.

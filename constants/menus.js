@@ -1321,6 +1321,17 @@ const HR_MENU = {
         selected: false,
         location: "/payroll/payrun",
       },
+      // Payroll Reports - month-wise reports read from the FINALIZED payrun
+      // (Register, EPF, ESI, Bank, OT, Deductions, Attendance / Payroll Days).
+      // The Payrun's three read keys plus `view_reports`, exactly as
+      // `routes/payroll_report.js` requires them; exporting and the statutory
+      // files are further keys checked inside the screen and on the server.
+      payroll_reports: {
+        title: "Reports",
+        permission: ["view_reports", "view_employees", "view_payroll", "view_salary"],
+        selected: false,
+        location: "/payroll/reports",
+      },
     },
   },
 };

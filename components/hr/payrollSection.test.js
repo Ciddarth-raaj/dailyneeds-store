@@ -563,6 +563,10 @@ test("PAYROLL'S SCREENS EXIST, AND THE SALARY ONES ARE STILL ONLY ABOUT SALARY",
     // asserts what the SALARY screens must not reach into, and the Payrun is
     // the module several of those words were being held for.
     "payrun.jsx",
+    // Payroll -> Reports: month-wise reports READ from the finalized payrun.
+    // Like the Payrun, it is about a month and is not a salary screen, so it
+    // is not in `payrollFiles` below either.
+    "reports.jsx",
     "salary-approval.jsx",
     "salary-revision.jsx",
   ]);

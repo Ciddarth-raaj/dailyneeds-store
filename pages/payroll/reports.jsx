@@ -1,0 +1,596 @@
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import {
+  Alert,
+  AlertIcon,
+  Badge,
+  Box,
+  Button,
+  ButtonGroup,
+  Checkbox,
+  Flex,
+  Heading,
+  HStack,
+  Input,
+  Select,
+  Spacer,
+  Spinner,
+  Stack,
+  Tab,
+  TabList,
+  Tabs,
+  Text,
+  useToast,
+} from "@chakra-ui/react";
+import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
+import CustomContainer from "../../components/CustomContainer";
+import PayrollColumnsDrawer from "../../components/payroll/reports/PayrollColumnsDrawer";
+import PayrollTemplateBar from "../../components/payroll/reports/PayrollTemplateBar";
+import PayrollReportTable from "../../components/payroll/reports/PayrollReportTable";
+import StatutoryValidationPanel from "../../components/payroll/reports/StatutoryValidationPanel";
+import usePayrollActor from "../../customHooks/usePayrollActor";
+import useEmployeeOutlets from "../../customHooks/useEmployeeOutlets";
+import PayrollReportHelper from "../../helper/payrollReport";
+import {
+  canDownloadStatutoryFiles,
+  canExportPayrollReports,
+  canOpenPayrollReports,
+  canShareReportTemplates,
+} from "../../util/payrollReportAccess";
+import { availableOnly, monthLabel, monthValue, parseMonthValue } from "../../util/payrollReportColumns";
+
+/**
+ * Payroll → Reports.
+ *
+ *   Payroll Reports - <Month Year>
+ *   [Month ▼] [Report type tabs]
+ *   [Template ▼] [Select Columns] [Copy Previous Month]        Excel | PDF (+ statutory file)
+ *   table
+ *
+ * EVERY FIGURE IS THE FINALIZED PAYRUN. The month list only offers months
+ * with approved & locked employees, and the server reads only those rows -
+ * opening a report never recalculates payroll or attendance.
+ *
+ * COLUMNS ARE REMEMBERED PER MONTH. Applying columns, a template or a copied
+ * layout saves it for this user + report type + payroll month; another month
+ * keeps its own. A month never set up opens with the user's default template,
+ * or the report's built-in columns.
+ *
+ * The statutory files are generated for download - DnDS does not send
+ * anything to the EPFO or ESIC portals - and they ignore the visible columns.
+ */
+const ok = (body) => body && !(Number(body.code) >= 400);
+const msgOf = (body, fallback) => (body && body.msg) || fallback;
+
+function PayrollReports() {
+  const toast = useToast();
+  const actor = usePayrollActor();
+  const mayOpen = canOpenPayrollReports(actor);
+  const mayExport = canExportPayrollReports(actor);
+  const mayStatutory = canDownloadStatutoryFiles(actor);
+  const mayShare = canShareReportTemplates(actor);
+  const { outlets } = useEmployeeOutlets({ skip: !mayOpen });
+
+  const [meta, setMeta] = useState(null);
+  const [months, setMonths] = useState(null);
+  const [monthKey, setMonthKey] = useState("");
+  const [reportType, setReportType] = useState("PAYROLL_REGISTER");
+  const [layout, setLayout] = useState(null);
+  const [templates, setTemplates] = useState([]);
+  const [templateId, setTemplateId] = useState(null);
+  const [search, setSearch] = useState("");
+  const [appliedSearch, setAppliedSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [preview, setPreview] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [exporting, setExporting] = useState(null);
+  const [loadError, setLoadError] = useState(null);
+
+  const [validation, setValidation] = useState(null);
+  const [validating, setValidating] = useState(false);
+  const [validationError, setValidationError] = useState(null);
+  const [overrides, setOverrides] = useState({});
+  const [acknowledged, setAcknowledged] = useState(false);
+
+  const period = parseMonthValue(monthKey);
+  const type = meta ? meta.report_types.find((t) => t.key === reportType) : null;
+  const ticket = useRef(0);
+
+  const fail = useCallback(
+    (body, fallback) => toast({ status: "error", title: msgOf(body, fallback), duration: 6000, isClosable: true }),
+    [toast]
+  );
+
+  /* ---------------------------------------------- meta and months */
+  useEffect(() => {
+    if (!mayOpen) return;
+    Promise.all([PayrollReportHelper.getMeta(), PayrollReportHelper.getMonths()])
+      .then(([m, list]) => {
+        if (!ok(m) || !ok(list)) {
+          setLoadError(msgOf(!ok(m) ? m : list, "Payroll reports could not be loaded"));
+          return;
+        }
+        setMeta(m);
+        setMonths(list.months || []);
+        if ((list.months || []).length) setMonthKey(monthValue(list.months[0]));
+      })
+      .catch(() => setLoadError("Payroll reports could not be loaded"));
+  }, [mayOpen]);
+
+  /* ---------------------------------------------- layout + templates for type / month */
+  const loadTemplates = useCallback(async () => {
+    const body = await PayrollReportHelper.listTemplates(reportType);
+    if (ok(body)) setTemplates(body.templates || []);
+  }, [reportType]);
+
+  useEffect(() => {
+    if (!period || !meta) return;
+    let live = true;
+    setPreview(null);
+    setPage(1);
+    PayrollReportHelper.getLayout({ report_type: reportType, year: period.year, month: period.month }).then((body) => {
+      if (!live) return;
+      if (!ok(body)) return fail(body, "The saved columns could not be loaded");
+      setLayout(body.layout);
+      setTemplateId(body.layout.template_id || null);
+    });
+    loadTemplates();
+    return () => {
+      live = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reportType, monthKey, meta]);
+
+  /* ---------------------------------------------- the report */
+  const request = useCallback(
+    () => ({
+      report_type: reportType,
+      year: period.year,
+      month: period.month,
+      field_keys: layout.field_keys,
+      display: layout.display,
+      filters: { ...layout.filters, pay_type: layout.filters.pay_type || null, search: appliedSearch },
+      template_id: templateId || null,
+    }),
+    [reportType, period, layout, appliedSearch, templateId]
+  );
+
+  useEffect(() => {
+    if (!period || !layout || layout.report_type !== reportType) return;
+    const mine = ++ticket.current;
+    setLoading(true);
+    PayrollReportHelper.preview({ ...request(), page })
+      .then((body) => {
+        if (mine !== ticket.current) return;
+        if (!ok(body)) return fail(body, "The report could not be loaded");
+        setPreview(body);
+      })
+      .finally(() => mine === ticket.current && setLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [layout, page, appliedSearch]);
+
+  /* ---------------------------------------------- statutory validation */
+  const statutoryKind = reportType === "EPF" ? "EPF" : reportType === "ESI" ? "ESI" : null;
+  const overrideList = () =>
+    Object.entries(overrides)
+      .filter(([, o]) => o && o.reason_code !== null && o.reason_code !== undefined)
+      .map(([id, o]) => ({ employee_id: Number(id), reason_code: o.reason_code, last_working_day: o.last_working_day || null }));
+
+  const validate = useCallback(async () => {
+    if (!statutoryKind || !period) return;
+    setValidating(true);
+    setValidationError(null);
+    try {
+      const body =
+        statutoryKind === "EPF"
+          ? await PayrollReportHelper.getEpfValidation({ year: period.year, month: period.month })
+          : await PayrollReportHelper.getEsiValidation({ year: period.year, month: period.month, overrides: overrideList() });
+      if (!ok(body)) setValidationError(msgOf(body, "Validation could not be run"));
+      else setValidation(body);
+    } catch (err) {
+      setValidationError("Validation could not be run");
+    } finally {
+      setValidating(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statutoryKind, monthKey, overrides]);
+
+  useEffect(() => {
+    setValidation(null);
+    setOverrides({});
+    setAcknowledged(false);
+    if (statutoryKind && period) validate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statutoryKind, monthKey]);
+
+  /* ---------------------------------------------- layout changes are saved for this month */
+  const saveLayout = async (next, message) => {
+    setBusy(true);
+    try {
+      const body = await PayrollReportHelper.saveLayout({
+        report_type: reportType,
+        year: period.year,
+        month: period.month,
+        field_keys: next.field_keys,
+        display: next.display,
+        filters: { outlet_ids: next.filters.outlet_ids || [], department_ids: next.filters.department_ids || [], pay_type: next.filters.pay_type || null },
+        template_id: next.template_id || null,
+      });
+      if (!ok(body)) return fail(body, "The columns could not be saved");
+      setLayout(body.layout);
+      setPage(1);
+      if (message) toast({ status: "success", title: message, duration: 3000 });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const applyColumns = (keys) =>
+    saveLayout({ ...layout, field_keys: keys }, `Columns saved for ${monthLabel(period.year, period.month)}`);
+
+  const applyTemplate = (t) => {
+    setTemplateId(t.template_id);
+    saveLayout(
+      { field_keys: t.field_keys, display: t.display, filters: t.filters, template_id: t.template_id },
+      `Template "${t.template_name}" applied to ${monthLabel(period.year, period.month)}`
+    );
+    if (t.warnings && t.warnings.length) {
+      toast({ status: "warning", title: "Some template columns are not available to you and were left out.", duration: 5000 });
+    }
+  };
+
+  const copyPrevious = async () => {
+    setBusy(true);
+    try {
+      const body = await PayrollReportHelper.copyPreviousMonth({ report_type: reportType, year: period.year, month: period.month });
+      if (!ok(body)) return fail(body, "There is no earlier layout to copy");
+      setLayout(body.layout);
+      setTemplateId(body.layout.template_id || null);
+      setPage(1);
+      toast({ status: "success", title: `Columns copied from ${body.layout.copied_from.label}`, duration: 4000 });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const resetMonth = async () => {
+    setBusy(true);
+    try {
+      const body = await PayrollReportHelper.resetLayout({ report_type: reportType, year: period.year, month: period.month });
+      if (!ok(body)) return fail(body, "The layout could not be reset");
+      setLayout(body.layout);
+      setTemplateId(body.layout.template_id || null);
+      setPage(1);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  /* ---------------------------------------------- templates */
+  const templateCall = async (promise, success) => {
+    setBusy(true);
+    try {
+      const body = await promise;
+      if (!ok(body)) {
+        fail(body, "The template could not be saved");
+        return null;
+      }
+      await loadTemplates();
+      if (success) toast({ status: "success", title: success, duration: 3000 });
+      return body;
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const structure = () => ({
+    field_keys: layout.field_keys,
+    display: layout.display,
+    filters: { outlet_ids: layout.filters.outlet_ids || [], department_ids: layout.filters.department_ids || [], pay_type: layout.filters.pay_type || null },
+  });
+
+  /* ---------------------------------------------- exports */
+  const exportFile = async (kind) => {
+    setExporting(kind);
+    try {
+      if (kind === "xlsx") await PayrollReportHelper.exportXlsx(request());
+      else if (kind === "pdf") await PayrollReportHelper.exportPdf(request());
+      else if (kind === "ecr") {
+        const out = await PayrollReportHelper.downloadEcr({ year: period.year, month: period.month, acknowledge_blocked: acknowledged });
+        toast({ status: "success", title: `ECR file downloaded${out.blocked ? ` - ${out.blocked} blocked employee(s) not included` : ""}`, duration: 5000 });
+      } else if (kind === "esic") {
+        const out = await PayrollReportHelper.downloadEsiContribution({
+          year: period.year,
+          month: period.month,
+          acknowledge_blocked: acknowledged,
+          overrides: overrideList(),
+        });
+        toast({ status: "success", title: `Contribution file downloaded${out.blocked ? ` - ${out.blocked} blocked employee(s) not included` : ""}`, duration: 5000 });
+      }
+    } catch (err) {
+      if (err && err.code === "BLOCKED_EMPLOYEES" && err.detail && err.detail.summary) {
+        setValidation((v) => ({ ...(v || {}), summary: err.detail.summary, blocked: err.detail.blocked || [] }));
+      }
+      fail(err && err.detail, (err && err.message) || "The file could not be produced");
+    } finally {
+      setExporting(null);
+    }
+  };
+
+  /* ---------------------------------------------- render */
+  if (!mayOpen) {
+    return (
+      <GlobalWrapper title="Payroll Reports">
+        <CustomContainer title="Payroll Reports">
+          <Alert status="info" fontSize="sm">
+            <AlertIcon />
+            You do not have permission to open Payroll Reports. This screen needs View Reports, View Employees, View
+            Payroll and View Salary.
+          </Alert>
+        </CustomContainer>
+      </GlobalWrapper>
+    );
+  }
+
+  const groups = meta ? meta.groups : [];
+  const typeDefaults = type ? type.default_field_keys : [];
+  const statutoryBlocked = validation && validation.summary ? validation.summary.blocked : 0;
+  const statutoryReady = validation && validation.summary ? validation.summary.ready : 0;
+  const statutoryDisabled = !validation || statutoryReady === 0 || (statutoryBlocked > 0 && !acknowledged);
+
+  return (
+    <GlobalWrapper title="Payroll Reports">
+      <CustomContainer
+        title="Payroll Reports"
+        subtitle="Month-wise reports from the finalized payrun. Opening a report never recalculates payroll or attendance."
+      >
+        {loadError ? (
+          <Alert status="error" fontSize="sm">
+            <AlertIcon />
+            {loadError}
+          </Alert>
+        ) : !meta || months === null ? (
+          <HStack>
+            <Spinner size="sm" />
+            <Text fontSize="sm">Loading...</Text>
+          </HStack>
+        ) : months.length === 0 ? (
+          <Alert status="info" fontSize="sm">
+            <AlertIcon />
+            No payroll month has an approved &amp; locked payrun yet. Reports become available once a month is approved.
+          </Alert>
+        ) : (
+          <Stack spacing={4}>
+            {/* -------- month, clearly visible -------- */}
+            <Flex align="center" gap="12px" wrap="wrap">
+              <Heading size="md" data-testid="payroll-month-heading">
+                {period ? monthLabel(period.year, period.month) : ""}
+              </Heading>
+              <Select size="sm" maxW="260px" value={monthKey} onChange={(e) => setMonthKey(e.target.value)} aria-label="Payroll month">
+                {months.map((m) => (
+                  <option key={monthValue(m)} value={monthValue(m)}>
+                    {m.label}
+                    {m.finalized < m.payrun_employees ? ` (${m.finalized} of ${m.payrun_employees} finalized)` : ""}
+                  </option>
+                ))}
+              </Select>
+            </Flex>
+
+            {/* -------- report type -------- */}
+            <Tabs
+              size="sm"
+              variant="soft-rounded"
+              colorScheme="purple"
+              index={Math.max(0, meta.report_types.findIndex((t) => t.key === reportType))}
+              onChange={(i) => setReportType(meta.report_types[i].key)}
+              isLazy
+            >
+              <TabList flexWrap="wrap" gap="4px">
+                {meta.report_types.map((t) => (
+                  <Tab key={t.key}>{t.label}</Tab>
+                ))}
+              </TabList>
+            </Tabs>
+
+            {/* -------- template / columns / copy, and the actions -------- */}
+            <Flex align="center" gap="8px" wrap="wrap">
+              <PayrollTemplateBar
+                templates={templates}
+                selectedId={templateId}
+                onSelect={setTemplateId}
+                onApply={applyTemplate}
+                canShare={mayShare}
+                busy={busy}
+                onSaveNew={async (name, { shared, makeDefault }) => {
+                  const body = await templateCall(
+                    PayrollReportHelper.createTemplate({ report_type: reportType, template_name: name, is_shared: shared, set_default: makeDefault, ...structure() }),
+                    `Template "${name}" saved`
+                  );
+                  if (body) setTemplateId(body.template.template_id);
+                }}
+                onUpdate={(t) => templateCall(PayrollReportHelper.updateTemplate(t.template_id, structure()), `Template "${t.template_name}" updated`)}
+                onRename={(t, name) => templateCall(PayrollReportHelper.renameTemplate(t.template_id, name), "Template renamed")}
+                onDuplicate={async (t, name) => {
+                  const body = await templateCall(PayrollReportHelper.duplicateTemplate(t.template_id, name), `Template "${name}" created`);
+                  if (body) setTemplateId(body.template.template_id);
+                }}
+                onDelete={async (t) => {
+                  const body = await templateCall(PayrollReportHelper.deleteTemplate(t.template_id), "Template deleted");
+                  if (body) setTemplateId(null);
+                }}
+                onSetDefault={(t) =>
+                  templateCall(
+                    PayrollReportHelper.setDefaultTemplate(reportType, t ? t.template_id : null),
+                    t ? `"${t.template_name}" is now your default for ${type ? type.label : "this report"}` : "Default cleared"
+                  )
+                }
+              />
+              <Button size="sm" colorScheme="purple" variant="outline" onClick={() => setDrawerOpen(true)} isDisabled={!layout}>
+                Select Columns{layout ? ` (${layout.field_keys.length})` : ""}
+              </Button>
+              <Button size="sm" variant="outline" onClick={copyPrevious} isDisabled={!layout || busy}>
+                Copy Previous Month
+              </Button>
+              <Spacer />
+              {mayExport ? (
+                <ButtonGroup size="sm" isAttached variant="outline">
+                  <Button onClick={() => exportFile("xlsx")} isLoading={exporting === "xlsx"} isDisabled={!preview || Boolean(exporting)}>
+                    Excel
+                  </Button>
+                  <Button onClick={() => exportFile("pdf")} isLoading={exporting === "pdf"} isDisabled={!preview || Boolean(exporting)}>
+                    PDF
+                  </Button>
+                </ButtonGroup>
+              ) : null}
+              {statutoryKind && mayStatutory ? (
+                <Button
+                  size="sm"
+                  colorScheme="green"
+                  onClick={() => exportFile(statutoryKind === "EPF" ? "ecr" : "esic")}
+                  isLoading={exporting === "ecr" || exporting === "esic"}
+                  isDisabled={statutoryDisabled || Boolean(exporting)}
+                >
+                  {statutoryKind === "EPF" ? "Download ECR File" : "Download Contribution File"}
+                </Button>
+              ) : null}
+            </Flex>
+
+            {/* -------- filters + where this layout came from -------- */}
+            {layout ? (
+              <Flex align="center" gap="8px" wrap="wrap" fontSize="sm">
+                <Select
+                  size="sm"
+                  maxW="200px"
+                  placeholder="All outlets"
+                  value={(layout.filters.outlet_ids || [])[0] || ""}
+                  onChange={(e) =>
+                    saveLayout({ ...layout, filters: { ...layout.filters, outlet_ids: e.target.value ? [Number(e.target.value)] : [] } })
+                  }
+                  aria-label="Outlet"
+                >
+                  {(outlets || []).map((o) => (
+                    <option key={o.outlet_id} value={o.outlet_id}>
+                      {o.outlet_name}
+                    </option>
+                  ))}
+                </Select>
+                <Select
+                  size="sm"
+                  maxW="160px"
+                  placeholder="Bank and cash"
+                  value={layout.filters.pay_type || ""}
+                  onChange={(e) => saveLayout({ ...layout, filters: { ...layout.filters, pay_type: e.target.value || null } })}
+                  aria-label="Pay type"
+                >
+                  <option value="BANK">Bank only</option>
+                  <option value="CASH">Cash only</option>
+                </Select>
+                <Input
+                  size="sm"
+                  maxW="220px"
+                  placeholder="Search name or ID"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      setPage(1);
+                      setAppliedSearch(search.trim());
+                    }
+                  }}
+                  aria-label="Search employees"
+                />
+                <Checkbox
+                  size="sm"
+                  isChecked={layout.display.show_totals}
+                  onChange={(e) => saveLayout({ ...layout, display: { ...layout.display, show_totals: e.target.checked } })}
+                >
+                  Totals
+                </Checkbox>
+                <Select
+                  size="sm"
+                  maxW="200px"
+                  value={layout.display.sort_by || ""}
+                  onChange={(e) => saveLayout({ ...layout, display: { ...layout.display, sort_by: e.target.value || null } })}
+                  aria-label="Sort by"
+                >
+                  <option value="">Sort: Employee ID</option>
+                  {(preview ? preview.columns : []).map((c) => (
+                    <option key={c.key} value={c.key}>
+                      Sort: {c.label}
+                    </option>
+                  ))}
+                </Select>
+                <Spacer />
+                <Badge colorScheme={layout.source === "MONTH" ? "purple" : "gray"} fontSize="10px">
+                  {layout.source === "MONTH"
+                    ? `Saved for ${monthLabel(period.year, period.month)}`
+                    : layout.source === "DEFAULT_TEMPLATE"
+                    ? "Your default template"
+                    : "Report default"}
+                </Badge>
+                {layout.source === "MONTH" ? (
+                  <Button size="xs" variant="link" onClick={resetMonth} isDisabled={busy}>
+                    Reset this month
+                  </Button>
+                ) : null}
+              </Flex>
+            ) : null}
+
+            {layout && layout.warnings && layout.warnings.length ? (
+              <Alert status="warning" fontSize="sm">
+                <AlertIcon />
+                Some saved columns are not available to you and were left out.
+              </Alert>
+            ) : null}
+            {preview && preview.not_finalized_count > 0 ? (
+              <Alert status="info" fontSize="sm">
+                <AlertIcon />
+                {preview.not_finalized_count} employee(s) in this month&apos;s payrun are not approved &amp; locked yet and are
+                not in this report.
+              </Alert>
+            ) : null}
+
+            {statutoryKind ? (
+              <StatutoryValidationPanel
+                kind={statutoryKind}
+                validation={validation}
+                loading={validating}
+                error={validationError}
+                reasonCodes={meta.esic_reason_codes}
+                overrides={overrides}
+                onOverride={(id, value) => setOverrides((o) => ({ ...o, [id]: value }))}
+                onRevalidate={validate}
+                acknowledged={acknowledged}
+                onAcknowledge={setAcknowledged}
+              />
+            ) : null}
+
+            <Box>
+              {!preview && loading ? (
+                <HStack>
+                  <Spinner size="sm" />
+                  <Text fontSize="sm">Loading report...</Text>
+                </HStack>
+              ) : (
+                <PayrollReportTable preview={preview} loading={loading} onPage={setPage} />
+              )}
+            </Box>
+          </Stack>
+        )}
+      </CustomContainer>
+
+      <PayrollColumnsDrawer
+        isOpen={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        groups={groups}
+        selected={layout ? availableOnly(layout.field_keys, groups) : []}
+        maxFields={meta ? meta.max_fields : 0}
+        defaultSelected={typeDefaults}
+        onApply={applyColumns}
+      />
+    </GlobalWrapper>
+  );
+}
+
+export default PayrollReports;
