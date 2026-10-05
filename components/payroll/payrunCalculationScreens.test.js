@@ -1104,3 +1104,7 @@ test("BULK: nothing bulk runs while the list is re-reading for new filters", () 
     assert.ok(at > 0 && workflowCode.slice(at - 80, at).includes("bulkLocked"), `${label} is not gated by bulkLocked`);
   }
 });
+
+test("BULK: a filter change clears the selection rather than carrying it to the new list", () => {
+  assert.match(workflowCode, /useEffect\(\(\) => \{\s*setSelectedIds\(\[\]\);\s*\}, \[filters\]\);/);
+});

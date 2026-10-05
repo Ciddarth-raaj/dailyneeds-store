@@ -198,6 +198,12 @@ function PayrunCalculation({
   useEffect(() => {
     setSelectedIds((prev) => pruneSelection(prev, selectableIds));
   }, [selectableIds]);
+  /* A NEW FILTER IS A NEW LIST: the selection made on the old one is cleared,
+     never carried across, so a bulk action can only act on rows chosen from
+     the list that is on screen now. */
+  useEffect(() => {
+    setSelectedIds([]);
+  }, [filters]);
 
   const selectedRecalculable = eligibleWithin(rows, selectedIds, isRecalculable);
   const selectedApprovable = eligibleWithin(rows, selectedIds, isApprovable);
@@ -533,7 +539,8 @@ function PayrunCalculation({
   /*
    * THE SUMMARY CARDS ARE THE FILTERS. Each count is the server's
    * `summary.cards`, decided by the same rule as the card's filter and taken
-   * over the WHOLE month in scope - a search narrows the rows, never a count.
+   * over everybody the location, department, designation and search select -
+   * the same population the rows and the select-all counts come from.
    *
    * CALCULATED = Calculated, Not Ready + Ready for Approval. The difference is
    * its own card, and every row in it carries the approval blockers.
@@ -552,8 +559,8 @@ function PayrunCalculation({
       />
       <Text fontSize="xs" color="gray.600">
         Calculated = Calculated, Not Ready + Ready for Approval. Not Calculated includes employees on
-        statutory hold. Attendance Needs Action can overlap other cards. Counts are for the month,
-        location, department and designation; search narrows the list only.
+        statutory hold. Attendance Needs Action can overlap other cards. Counts follow the location,
+        department, designation and search; the selected card narrows the list only.
       </Text>
 
       {monthLocked ? (
