@@ -220,7 +220,8 @@ test("Payroll Register: a non-finalized payrun row is shown, highlighted, and th
   const realPreview = helper.preview;
   helper.preview = async (p) => ({
     ...(await realPreview(p)),
-    row_status: [{ status: "NOT_APPROVED", label: "Not approved & locked - figures not shown" }],
+    row_status: [{ status: "PENDING_APPROVAL", finalized: false, label: "Not Finalized - Pending Approval" }],
+    figure_keys: ["net_pay"],
     not_finalized_count: 1,
     reconciliation: { reconciled: true, payrun: { employees: 1, finalized: 0, net_pay: 0 }, report: { employees: 1, net_pay: 0 } },
   });
@@ -232,5 +233,7 @@ test("Payroll Register: a non-finalized payrun row is shown, highlighted, and th
   await settle();
   assert.match(document.querySelector('[data-testid="payrun-reconciliation"]').textContent, /Reconciled with the payrun: 1 employees/);
   assert.equal(document.querySelector('[data-testid="payroll-report-table"] tbody tr').getAttribute("data-finalized"), "false");
-  assert.match(document.body.textContent, /listed \(highlighted\) with their figures blank/);
+  assert.match(document.body.textContent, /listed \(highlighted\), their payroll figures shown as "Not finalized"/);
+  const cells = [...document.querySelectorAll('[data-testid="payroll-report-table"] tbody tr td')].map((td) => td.textContent);
+  assert.ok(cells.includes("Not finalized"), "a figure of a not-finalized row is never a blank that reads as zero");
 });

@@ -6,7 +6,8 @@ import { Box, Button, HStack, Table, Tbody, Td, Text, Tfoot, Th, Thead, Tr } fro
  * selected order; this renders them in that order and adds nothing.
  * Totals are over the WHOLE report (every page), computed by the server, and
  * are finalized totals. A payrun employee whose month is not approved &
- * locked is highlighted: in the report, figures blank, never dropped.
+ * locked is highlighted, each payroll figure reads "Not finalized" (never a
+ * blank that looks like zero), and its Payrun Status names the state.
  */
 const numeric = (c) => c.type === "amount" || c.type === "number";
 
@@ -22,6 +23,7 @@ function PayrollReportTable({ preview, onPage, loading }) {
   if (!preview) return null;
   const { columns, rows, totals, page, page_size: pageSize, matching_count: total } = preview;
   const pages = Math.max(1, Math.ceil(total / pageSize));
+  const figures = new Set(preview.figure_keys || []);
 
   return (
     <Box>
@@ -39,7 +41,7 @@ function PayrollReportTable({ preview, onPage, loading }) {
           <Tbody>
             {rows.map((row, i) => {
               const status = (preview.row_status || [])[i];
-              const pending = status && status.status !== "APPROVED_LOCKED" && status.status !== "PUBLISHED";
+              const pending = Boolean(status && status.finalized === false);
               return (
               <Tr
                 key={`${row.employee_id || ""}-${i}`}
@@ -47,11 +49,18 @@ function PayrollReportTable({ preview, onPage, loading }) {
                 title={pending ? status.label : undefined}
                 data-finalized={pending ? "false" : "true"}
               >
-                {columns.map((c) => (
-                  <Td key={c.key} isNumeric={numeric(c)} whiteSpace="nowrap" fontSize="13px">
-                    {show(c, row[c.key])}
-                  </Td>
-                ))}
+                {columns.map((c) =>
+                  pending && figures.has(c.key) ? (
+                    // NEVER a blank that reads as a zero salary.
+                    <Td key={c.key} isNumeric={numeric(c)} whiteSpace="nowrap" fontSize="12px" color="orange.700" fontStyle="italic">
+                      Not finalized
+                    </Td>
+                  ) : (
+                    <Td key={c.key} isNumeric={numeric(c)} whiteSpace="nowrap" fontSize="13px">
+                      {show(c, row[c.key])}
+                    </Td>
+                  )
+                )}
               </Tr>
               );
             })}
@@ -59,7 +68,7 @@ function PayrollReportTable({ preview, onPage, loading }) {
               <Tr>
                 <Td colSpan={columns.length}>
                   <Text fontSize="sm" color="gray.500">
-                    No finalized payroll rows match this report.
+                    No payrun employees match this report.
                   </Text>
                 </Td>
               </Tr>

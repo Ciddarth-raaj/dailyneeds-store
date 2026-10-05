@@ -550,7 +550,7 @@ function PayrollReports() {
               <Alert status="warning" fontSize="sm">
                 <AlertIcon />
                 {preview.not_finalized_count} employee(s) in this month&apos;s payrun are not approved &amp; locked. They are
-                listed (highlighted) with their figures blank - add the Payrun Status column to see why.
+                listed (highlighted), their payroll figures shown as &quot;Not finalized&quot; - add the Payrun Status column to see each state.
               </Alert>
             ) : null}
             {preview && preview.reconciliation ? (
