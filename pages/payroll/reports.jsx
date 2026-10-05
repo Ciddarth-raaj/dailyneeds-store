@@ -55,8 +55,13 @@ import { availableOnly, monthLabel, monthValue, parseMonthValue } from "../../ut
  * keeps its own. A month never set up opens with the user's default template,
  * or the report's built-in columns.
  *
+ * The report's rows are the month's PAYRUN employees: an employee whose
+ * month is not approved & locked is listed with blank figures, never
+ * dropped, and the Payroll Register shows its reconciliation to the payrun.
+ *
  * The statutory files are generated for download - DnDS does not send
- * anything to the EPFO or ESIC portals - and they ignore the visible columns.
+ * anything to the EPFO or ESIC portals - they ignore the visible columns,
+ * and they are all or nothing: one blocked employee disables the download.
  */
 const ok = (body) => body && !(Number(body.code) >= 400);
 const msgOf = (body, fallback) => (body && body.msg) || fallback;
@@ -91,7 +96,6 @@ function PayrollReports() {
   const [validating, setValidating] = useState(false);
   const [validationError, setValidationError] = useState(null);
   const [overrides, setOverrides] = useState({});
-  const [acknowledged, setAcknowledged] = useState(false);
 
   const period = parseMonthValue(monthKey);
   const type = meta ? meta.report_types.find((t) => t.key === reportType) : null;
@@ -199,7 +203,6 @@ function PayrollReports() {
   useEffect(() => {
     setValidation(null);
     setOverrides({});
-    setAcknowledged(false);
     if (statutoryKind && period) validate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statutoryKind, monthKey]);
@@ -297,16 +300,15 @@ function PayrollReports() {
       if (kind === "xlsx") await PayrollReportHelper.exportXlsx(request());
       else if (kind === "pdf") await PayrollReportHelper.exportPdf(request());
       else if (kind === "ecr") {
-        const out = await PayrollReportHelper.downloadEcr({ year: period.year, month: period.month, acknowledge_blocked: acknowledged });
-        toast({ status: "success", title: `ECR file downloaded${out.blocked ? ` - ${out.blocked} blocked employee(s) not included` : ""}`, duration: 5000 });
+        const out = await PayrollReportHelper.downloadEcr({ year: period.year, month: period.month });
+        toast({ status: "success", title: `ECR file downloaded (${out.filename})`, duration: 5000 });
       } else if (kind === "esic") {
         const out = await PayrollReportHelper.downloadEsiContribution({
           year: period.year,
           month: period.month,
-          acknowledge_blocked: acknowledged,
           overrides: overrideList(),
         });
-        toast({ status: "success", title: `Contribution file downloaded${out.blocked ? ` - ${out.blocked} blocked employee(s) not included` : ""}`, duration: 5000 });
+        toast({ status: "success", title: `Contribution file downloaded (${out.filename})`, duration: 5000 });
       }
     } catch (err) {
       if (err && err.code === "BLOCKED_EMPLOYEES" && err.detail && err.detail.summary) {
@@ -337,7 +339,8 @@ function PayrollReports() {
   const typeDefaults = type ? type.default_field_keys : [];
   const statutoryBlocked = validation && validation.summary ? validation.summary.blocked : 0;
   const statutoryReady = validation && validation.summary ? validation.summary.ready : 0;
-  const statutoryDisabled = !validation || statutoryReady === 0 || (statutoryBlocked > 0 && !acknowledged);
+  // ALL OR NOTHING: one blocked employee disables the statutory download.
+  const statutoryDisabled = !validation || statutoryReady === 0 || statutoryBlocked > 0;
 
   return (
     <GlobalWrapper title="Payroll Reports">
@@ -544,10 +547,21 @@ function PayrollReports() {
               </Alert>
             ) : null}
             {preview && preview.not_finalized_count > 0 ? (
-              <Alert status="info" fontSize="sm">
+              <Alert status="warning" fontSize="sm">
                 <AlertIcon />
-                {preview.not_finalized_count} employee(s) in this month&apos;s payrun are not approved &amp; locked yet and are
-                not in this report.
+                {preview.not_finalized_count} employee(s) in this month&apos;s payrun are not approved &amp; locked. They are
+                listed (highlighted) with their figures blank - add the Payrun Status column to see why.
+              </Alert>
+            ) : null}
+            {preview && preview.reconciliation ? (
+              <Alert status={preview.reconciliation.reconciled ? "success" : "error"} fontSize="sm" data-testid="payrun-reconciliation">
+                <AlertIcon />
+                {preview.reconciliation.reconciled
+                  ? `Reconciled with the payrun: ${preview.reconciliation.payrun.employees} employees (${preview.reconciliation.payrun.finalized} finalized); Gross, Deductions and Net Pay totals match.`
+                  : `Does NOT reconcile with the payrun: payrun ${preview.reconciliation.payrun.employees} employees / net ${preview.reconciliation.payrun.net_pay}, report ${preview.reconciliation.report.employees} employees / net ${preview.reconciliation.report.net_pay}. Please report this.`}
+                {preview.reconciliation.reconciled && (layout.filters.outlet_ids || []).length + (layout.filters.pay_type ? 1 : 0) + (appliedSearch ? 1 : 0) > 0
+                  ? " (Reconciled for your full scope; the table below is filtered.)"
+                  : ""}
               </Alert>
             ) : null}
 
@@ -561,8 +575,6 @@ function PayrollReports() {
                 overrides={overrides}
                 onOverride={(id, value) => setOverrides((o) => ({ ...o, [id]: value }))}
                 onRevalidate={validate}
-                acknowledged={acknowledged}
-                onAcknowledge={setAcknowledged}
               />
             ) : null}
 

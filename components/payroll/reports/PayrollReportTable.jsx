@@ -4,7 +4,9 @@ import { Box, Button, HStack, Table, Tbody, Td, Text, Tfoot, Th, Thead, Tr } fro
 /**
  * Payroll Reports - the table. Columns arrive from the server in exactly the
  * selected order; this renders them in that order and adds nothing.
- * Totals are over the WHOLE report (every page), computed by the server.
+ * Totals are over the WHOLE report (every page), computed by the server, and
+ * are finalized totals. A payrun employee whose month is not approved &
+ * locked is highlighted: in the report, figures blank, never dropped.
  */
 const numeric = (c) => c.type === "amount" || c.type === "number";
 
@@ -35,15 +37,24 @@ function PayrollReportTable({ preview, onPage, loading }) {
             </Tr>
           </Thead>
           <Tbody>
-            {rows.map((row, i) => (
-              <Tr key={`${row.employee_id || ""}-${i}`}>
+            {rows.map((row, i) => {
+              const status = (preview.row_status || [])[i];
+              const pending = status && status.status !== "APPROVED_LOCKED" && status.status !== "PUBLISHED";
+              return (
+              <Tr
+                key={`${row.employee_id || ""}-${i}`}
+                bg={pending ? "orange.50" : undefined}
+                title={pending ? status.label : undefined}
+                data-finalized={pending ? "false" : "true"}
+              >
                 {columns.map((c) => (
                   <Td key={c.key} isNumeric={numeric(c)} whiteSpace="nowrap" fontSize="13px">
                     {show(c, row[c.key])}
                   </Td>
                 ))}
               </Tr>
-            ))}
+              );
+            })}
             {rows.length === 0 ? (
               <Tr>
                 <Td colSpan={columns.length}>

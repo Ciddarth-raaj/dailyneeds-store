@@ -5,7 +5,6 @@ import {
   Badge,
   Box,
   Button,
-  Checkbox,
   HStack,
   Input,
   Select,
@@ -24,10 +23,9 @@ import {
  * Payroll Reports - the EPF (ECR) / ESI (contribution file) validation.
  *
  * Every relevant employee is Ready or Blocked, and a blocked employee is
- * listed by name with every reason. Nobody is left out of a statutory file
- * silently: while anybody is blocked, the download needs the explicit
- * "ready employees only" confirmation below, and the server refuses it
- * without that.
+ * listed by name with every reason. A statutory file is ALL OR NOTHING:
+ * while anybody is blocked the download stays disabled, and the server
+ * refuses it too. There is no "ready employees only" file.
  *
  * The statutory file does not depend on the columns chosen for the visible
  * report - it is a fixed layout generated on the server.
@@ -47,8 +45,6 @@ function StatutoryValidationPanel({
   overrides,
   onOverride,
   onRevalidate,
-  acknowledged,
-  onAcknowledge,
 }) {
   const fileName = kind === "EPF" ? "ECR file" : "contribution file";
   if (loading && !validation) {
@@ -163,16 +159,10 @@ function StatutoryValidationPanel({
               </Tbody>
             </Table>
           </Box>
-          {summary.ready > 0 ? (
-            <Checkbox size="sm" isChecked={acknowledged} onChange={(e) => onAcknowledge(e.target.checked)}>
-              Generate the {fileName} for the {summary.ready} ready employee{summary.ready === 1 ? "" : "s"} only. The{" "}
-              {summary.blocked} blocked employee{summary.blocked === 1 ? "" : "s"} listed above will NOT be in the file.
-            </Checkbox>
-          ) : (
-            <Text fontSize="sm" color="red.700">
-              No employee is ready, so the {fileName} cannot be generated yet.
-            </Text>
-          )}
+          <Text fontSize="sm" color="red.700" fontWeight="semibold" data-testid="statutory-blocked-note">
+            The {fileName} cannot be generated while any employee is blocked. Resolve every employee listed above
+            {kind === "ESI" ? " (choose a reason for zero-day employees, then Re-validate)" : ""}.
+          </Text>
         </Stack>
       ) : null}
     </Box>

@@ -43,12 +43,13 @@ test("the word Upload is never used for the statutory actions", () => {
   assert.match(page, /Download Contribution File/);
 });
 
-test("the statutory downloads send no column list - only the month, the acknowledgement and ESI reasons", () => {
+test("the statutory downloads send no column list and no partial-file flag - only the month and ESI reasons", () => {
   const ecr = page.slice(page.indexOf("downloadEcr("), page.indexOf("downloadEcr(") + 200);
   const esic = page.slice(page.indexOf("downloadEsiContribution("), page.indexOf("downloadEsiContribution(") + 250);
   for (const call of [ecr, esic]) {
     assert.ok(!/field_keys/.test(call), call);
-    assert.match(call, /acknowledge_blocked: acknowledged/);
+    assert.ok(!/acknowledge/.test(call), call);
+    assert.match(call, /year: period\.year/);
   }
 });
 
@@ -83,11 +84,26 @@ test("the column selector has search, count, Select All, Clear optional, Reset t
   assert.match(drawer, /SOURCE_BADGE\[field\.source\]/, "every field says where its value comes from");
 });
 
-test("blocked employees are listed and a partial file needs an explicit acknowledgement", () => {
+test("blocked employees are listed and ONE blocked employee disables the statutory download - no partial path", () => {
   assert.match(panel, /Ready: \{summary\.ready\}/);
   assert.match(panel, /Blocked: \{summary\.blocked\}/);
   assert.match(panel, /Why blocked/);
-  assert.match(page, /statutoryBlocked > 0 && !acknowledged/);
+  assert.match(page, /const statutoryDisabled = !validation \|\| statutoryReady === 0 \|\| statutoryBlocked > 0;/);
+  for (const src of [page, panel, helper]) {
+    assert.ok(!/acknowledg|ready employees only|ready employee\{/i.test(src), "no partial-file option anywhere");
+  }
+});
+
+test("the Payroll Register shows its reconciliation to the payrun and marks rows that are not finalized", () => {
+  assert.match(page, /preview\.reconciliation\.reconciled/);
+  assert.match(page, /data-testid="payrun-reconciliation"/);
+  const table = strip(read("components/payroll/reports/PayrollReportTable.jsx"));
+  assert.match(table, /preview\.row_status/);
+  assert.match(table, /data-finalized=/);
+});
+
+test("the ESIC file is saved as .xls", () => {
+  assert.match(helper, /"ESIC_Contribution\.xls"/);
 });
 
 test("exports and statutory files are gated on their own keys", () => {

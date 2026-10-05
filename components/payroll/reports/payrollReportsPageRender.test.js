@@ -187,7 +187,7 @@ test("Excel and PDF send the selected columns in the selected order for the sele
   }
 });
 
-test("EPF: blocked employees are listed; the ECR needs the explicit confirmation and carries no column list", skip, async () => {
+test("EPF: blocked employees are listed and ONE blocked employee keeps Download ECR File disabled - no confirmation can enable it", skip, async () => {
   await open();
   const epfTab = [...document.querySelectorAll('[role="tab"]')].find((t) => t.textContent === "EPF");
   ui.click(epfTab);
@@ -196,15 +196,41 @@ test("EPF: blocked employees are listed; the ECR needs the explicit confirmation
   assert.match(text, /Ready: 2 employees/);
   assert.match(text, /Blocked: 1 employee/);
   assert.match(text, /UAN is not recorded/);
-  const download = button("Download ECR File");
-  assert.equal(download.disabled, true, "disabled while somebody is blocked and nobody confirmed");
-  const confirm = [...document.querySelectorAll('input[type="checkbox"]')].find((c) => /ready employee/.test(c.parentElement.textContent));
-  ui.click(confirm);
+  assert.match(text, /cannot be generated while any employee is blocked/);
+  assert.equal(button("Download ECR File").disabled, true);
+  assert.equal(document.querySelectorAll('[data-testid="statutory-validation"] input[type="checkbox"]').length, 0, "no ready-only option");
+  assert.equal(callsOf("downloadEcr").length, 0);
+  assert.ok(!/upload/i.test(document.body.textContent), "never called Upload");
+});
+
+test("EPF with nobody blocked: Download ECR File sends the month only", skip, async () => {
+  await open();
+  helper.getEpfValidation = async () => ({ kind: "EPF", summary: { considered: 2, ready: 2, blocked: 0 }, blocked: [] });
+  const epfTab = [...document.querySelectorAll('[role="tab"]')].find((t) => t.textContent === "EPF");
+  ui.click(epfTab);
   await settle();
   assert.equal(button("Download ECR File").disabled, false);
   ui.click(button("Download ECR File"));
   await settle();
-  const payload = callsOf("downloadEcr")[0];
-  assert.deepEqual(payload, { year: 2026, month: 10, acknowledge_blocked: true });
-  assert.ok(!/upload/i.test(document.body.textContent), "never called Upload");
+  assert.deepEqual(callsOf("downloadEcr")[0], { year: 2026, month: 10 });
+});
+
+test("Payroll Register: a non-finalized payrun row is shown, highlighted, and the reconciliation is displayed", skip, async () => {
+  await open();
+  const realPreview = helper.preview;
+  helper.preview = async (p) => ({
+    ...(await realPreview(p)),
+    row_status: [{ status: "NOT_APPROVED", label: "Not approved & locked - figures not shown" }],
+    not_finalized_count: 1,
+    reconciliation: { reconciled: true, payrun: { employees: 1, finalized: 0, net_pay: 0 }, report: { employees: 1, net_pay: 0 } },
+  });
+  const monthSelect = document.querySelector('select[aria-label="Payroll month"]');
+  await act(async () => {
+    monthSelect.value = "2026-9";
+    monthSelect.dispatchEvent(new window.Event("change", { bubbles: true }));
+  });
+  await settle();
+  assert.match(document.querySelector('[data-testid="payrun-reconciliation"]').textContent, /Reconciled with the payrun: 1 employees/);
+  assert.equal(document.querySelector('[data-testid="payroll-report-table"] tbody tr').getAttribute("data-finalized"), "false");
+  assert.match(document.body.textContent, /listed \(highlighted\) with their figures blank/);
 });

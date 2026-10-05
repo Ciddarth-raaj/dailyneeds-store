@@ -8,7 +8,9 @@ import API from "../util/api";
  * arrives as `{ code, error, msg }` and callers check `code >= 400`. Files
  * resolve `{ filename }` once saved, or throw `PayrollReportFileError`
  * carrying the server's code and detail - a 409 BLOCKED_EMPLOYEES needs its
- * blocked list shown, not a generic "download failed".
+ * blocked list shown, not a generic "download failed". The statutory files
+ * take the month (and ESI zero-day reasons) only: there is no column list
+ * and no partial-file option.
  */
 
 const BASE = "/reports/payroll";
@@ -58,11 +60,7 @@ async function download(path, body, fallbackName) {
   link.click();
   document.body.removeChild(link);
   setTimeout(() => URL.revokeObjectURL(url), 0);
-  return {
-    filename,
-    ready: Number(res.headers && res.headers["x-statutory-ready"]) || null,
-    blocked: Number(res.headers && res.headers["x-statutory-blocked"]) || 0,
-  };
+  return { filename };
 }
 
 const data = (promise) => promise.then((res) => res.data);
@@ -99,7 +97,7 @@ const payrollReport = {
   getEpfValidation: (params) => data(API.get(`${BASE}/epf/validation`, { params })),
   downloadEcr: (payload) => download("/epf/ecr", payload, "ECR.txt"),
   getEsiValidation: (payload) => data(API.post(`${BASE}/esi/validation`, payload)),
-  downloadEsiContribution: (payload) => download("/esi/contribution-file", payload, "ESIC_Contribution.xlsx"),
+  downloadEsiContribution: (payload) => download("/esi/contribution-file", payload, "ESIC_Contribution.xls"),
 };
 
 export default payrollReport;
