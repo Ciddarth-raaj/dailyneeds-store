@@ -155,21 +155,6 @@ export const BranchValidation = Yup.object({
   gofrugal_id: Yup.string().nullable().optional(),
   outlet_code: Yup.string().nullable().optional(),
 });
-export const CompanyDetailsValidation = Yup.object({
-  company_name: Yup.string().nullable().required("Fill Company Name"),
-  contact_number: Yup.number()
-    .nullable()
-    .typeError("Must be a number")
-    .min(123456789, "Must be 9 or More")
-    .max(12345678900, "Must be 10 characters or less")
-    .required("Fill Contact Number"),
-  reg_address: Yup.string().nullable().required("Fill Address"),
-  gst_number: Yup.string().nullable().required("Fill GST"),
-  tan_number: Yup.string().nullable().required("Fill TAN"),
-  pan_number: Yup.string().nullable().required("Fill PAN"),
-  pf_number: Yup.string().nullable().required("Fill PS"),
-  esi_number: Yup.string().nullable().required("Fill ESI"),
-});
 export const ProductItemsValidation = Yup.object({
   return: Yup.number().nullable().required("Choose Return"),
   packaging_type: Yup.number().nullable().required("Choose Packaging Type"),

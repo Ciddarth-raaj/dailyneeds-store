@@ -1,47 +1,22 @@
 import API from "../util/api";
 
-const company = {
-	updateStatus: (data) =>
-	new Promise(function (resolve, reject) {
-		API.post("/company/update-status", data)
-			.then(async (res) => {
-				if (res.status === 200) {
-					resolve(res.data);
-				} else {
-					reject(res.data.msg);
-				}
-			})
-			.catch((err) => {
-				reject(err);
-			});
-	}),
-    createCompany: (data) =>
-		new Promise(function (resolve, reject) {
-			API.post("/company", data)
-				.then(async (res) => {
-                    if (res.status === 200) {
-					resolve(res.data);
-                    } else {
-                        reject(res.data.msg);
-                    }
-				})
-				.catch((err) => {
-					reject(err);
-				});
-		}),
-	getCompanyById: (company_id) => 
-		new Promise(function (resolve, reject) {
-		API.get("/company/company_id?company_id=" + company_id)
-			.then(async (res) => {
-				if (res.status === 200) {
-				resolve(res.data);
-				} else {
-					reject(res.data.msg);
-				}
-			})
-			.catch((err) => {
-				reject(err);
-			});
-	}),
+/**
+ * Master → Company Details - the browser's side of /company. Every call is
+ * behind `manage_company_details` on the server.
+ *
+ * Refusals (403, 404, 422) come back as data - `{ code, msg, errors }` - for
+ * the screen to show; nothing here decides anything.
+ */
+const CompanyHelper = {
+  /** Every company, and whether payslips can be published from them. */
+  list: () => API.get("/company").then((res) => res.data),
+
+  create: (body) => API.post("/company", body).then((res) => res.data),
+
+  update: (companyId, body) => API.put(`/company/${companyId}`, body).then((res) => res.data),
+
+  /** Make this THE payslip company; every other company stops being active. */
+  setPayslipCompany: (companyId) => API.post(`/company/${companyId}/payslip`, {}).then((res) => res.data),
 };
-export default company;
+
+export default CompanyHelper;

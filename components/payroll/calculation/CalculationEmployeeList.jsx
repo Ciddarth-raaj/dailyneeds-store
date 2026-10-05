@@ -152,6 +152,7 @@ function RowActions({
   onLifecycle,
   canUnlock,
   canPublish,
+  publishBlockedReason = null,
   onRetryNotification,
   onViewPayslip,
   onOpen,
@@ -244,7 +245,13 @@ function RowActions({
         </Button>
       ) : null}
       {isPublishable(row) && canPublish ? (
-        <Button size="xs" colorScheme="blue" onClick={() => onLifecycle("PUBLISH", row)} isDisabled={disabled}>
+        <Button
+          size="xs"
+          colorScheme="blue"
+          onClick={() => onLifecycle("PUBLISH", row)}
+          isDisabled={disabled || Boolean(publishBlockedReason)}
+          title={publishBlockedReason || undefined}
+        >
           Publish Payslip
         </Button>
       ) : null}

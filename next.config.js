@@ -13,6 +13,8 @@ module.exports = {
       { source: "/branch-details", destination: "/master/branch", permanent: true },
       { source: "/branch-details/:mode", destination: "/master/branch/:mode", permanent: true },
       { source: "/misc/ip-restrictions", destination: "/master/ip-restrictions", permanent: true },
+      // The old create-only Company Details page; the screen is under Master now.
+      { source: "/company-details", destination: "/master/company-details", permanent: true },
       { source: "/lr-workflow/advance-request", destination: "/advance-request", permanent: true },
       {
         source: "/lr-workflow/advance-request/:path*",
