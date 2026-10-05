@@ -51,8 +51,7 @@ import {
   isLocked,
   isNotificationRetryable,
   hasPayslip,
-  notificationBadge,
-  viewBadge,
+  payslipSummary,
   statusScheme,
 } from "../../../util/payrunCalculation";
 
@@ -61,23 +60,28 @@ import {
  * Telegram notification reached the employee, and whether they have opened
  * it. Opening is proof of access only - never an acceptance.
  */
+const TONE_COLOR = { muted: "gray.500", warning: "orange.700", problem: "red.600" };
+
+/*
+ * ONE QUIET LINE, NOT TWO BADGES: "Telegram sent · Viewed 5 Oct, 14:14".
+ * The row already says Payslip Published; this only adds whether the employee
+ * was told and has opened it. Only a problem is coloured, and its words say
+ * it too. The time is IST; the full date is on hover and in View Payslip.
+ */
 function PayslipBadges({ row }) {
-  const n = notificationBadge(row.payslip);
-  const v = viewBadge(row.payslip);
-  if (!n && !v) return null;
+  const summary = payslipSummary(row.payslip);
+  if (!summary) return null;
+  const { notification, viewed } = summary;
   return (
-    <Stack direction="row" spacing={1} mt={1} flexWrap="wrap">
-      {n ? (
-        <Badge colorScheme={n.scheme} variant="subtle" fontSize="10px">
-          {n.label}
-        </Badge>
-      ) : null}
-      {v ? (
-        <Badge colorScheme={v.scheme} variant="outline" fontSize="10px" whiteSpace="normal">
-          {v.label}
-        </Badge>
-      ) : null}
-    </Stack>
+    <Text fontSize="xs" color="gray.500" lineHeight="short" mt={0.5} whiteSpace="nowrap" data-testid="payslip-summary">
+      <Text as="span" color={TONE_COLOR[notification.tone]} fontWeight={notification.tone === "muted" ? "normal" : "600"}>
+        {notification.text}
+      </Text>
+      {" · "}
+      <Text as="span" title={viewed.title}>
+        {viewed.text}
+      </Text>
+    </Text>
   );
 }
 
@@ -484,7 +488,7 @@ function StatusIndicator({ row }) {
         bg={`${statusScheme(row.status)}.400`}
         aria-hidden="true"
       />
-      <Text fontSize="xs" color="gray.700" fontWeight="500" lineHeight="short">
+      <Text fontSize="xs" color="gray.700" fontWeight="500" lineHeight="short" whiteSpace="nowrap">
         {row.status_label}
       </Text>
     </Stack>
@@ -520,6 +524,8 @@ function Reasons({ row }) {
     (r, i, all) =>
       !(hold && r.code === "STATUTORY_SETUP_INCOMPLETE") &&
       !(notCalculated && r.code === "NOT_CALCULATED") &&
+      /* "Already approved" only repeats an Approved & Locked / Published status. */
+      !(isLocked(row) && r.code === "ALREADY_LOCKED") &&
       all.findIndex((x) => x.code === r.code) === i
   );
   if (notCalculated && !blockedFromCalculation && !hold) {
