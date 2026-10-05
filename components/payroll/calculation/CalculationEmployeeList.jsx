@@ -2,8 +2,8 @@ import React from "react";
 import {
   Badge,
   Box,
-  Button,
   Checkbox,
+  IconButton,
   SimpleGrid,
   Stack,
   Table,
@@ -12,12 +12,26 @@ import {
   Text,
   Th,
   Thead,
+  Tooltip,
   Tr,
   useBreakpointValue,
 } from "@chakra-ui/react";
 
 import { formatMoney } from "../../../util/salaryView";
 import { PayTypeControl } from "../payrunPresentation";
+import {
+  BadgeCheckIcon,
+  BellRingIcon,
+  CalculatorIcon,
+  CalendarCheckIcon,
+  FileTextIcon,
+  LockOpenIcon,
+  ReceiptIcon,
+  RefreshCwIcon,
+  RotateCcwIcon,
+  SendIcon,
+  Undo2Icon,
+} from "./rowActionIcons";
 import {
   STATUS,
   isApprovable,
@@ -142,6 +156,65 @@ function Money({ value }) {
  */
 const count = (value) => (value === null || value === undefined ? "—" : String(value));
 
+/**
+ * WHY A DISABLED ICON IS DISABLED, in words, for its tooltip. The business
+ * rule is already decided by the caller; this only names it. A bulk action in
+ * flight comes first because it is the one that clears by itself.
+ */
+const BUSY_REASON = "Please wait - a bulk action is running.";
+const NO_CALCULATE_REASON =
+  "You do not have permission to calculate payroll, or this payroll month is locked.";
+const NO_APPROVE_REASON =
+  "You do not have permission to approve payroll, or this payroll month is locked.";
+
+/**
+ * ONE ROW ACTION AS AN ICON BUTTON, with its name on hover and focus.
+ *
+ * THE NAME IS NEVER ONLY A COLOUR OR A SHAPE: every button carries its action
+ * as `aria-label` and as a tooltip, and an unavailable one says why in the
+ * tooltip. A disabled button fires no pointer events, so it sits inside a
+ * focusable span that does - the reason is reachable by mouse and keyboard.
+ */
+function ActionIcon({ label, reason, icon, onClick, isDisabled, isLoading, colorScheme = "gray", size }) {
+  const unavailable = Boolean(isDisabled);
+  const button = (
+    <IconButton
+      aria-label={label}
+      icon={icon}
+      size={size}
+      variant="outline"
+      colorScheme={colorScheme}
+      onClick={onClick}
+      isDisabled={unavailable}
+      isLoading={isLoading}
+      aria-busy={isLoading ? true : undefined}
+      pointerEvents={unavailable ? "none" : undefined}
+    />
+  );
+  return (
+    <Tooltip
+      label={unavailable && reason ? `${label} - ${reason}` : label}
+      hasArrow
+      placement="top"
+      shouldWrapChildren={unavailable}
+    >
+      {button}
+    </Tooltip>
+  );
+}
+
+/**
+ * THE ROW'S ACTIONS, AS COMPACT ICONS IN FIXED SLOTS.
+ *
+ *   [Detail] [Calculate | Recalculate] [Approve & Lock] [Reset Calculation]
+ *
+ * followed by whichever lifecycle actions this row's status offers. The four
+ * fixed slots are drawn on every row so the icons line up down the table; one
+ * that does not apply to this row is drawn disabled, with the reason, rather
+ * than dropped. WHICH ACTION APPLIES, AND WHETHER IT IS ENABLED, IS DECIDED BY
+ * EXACTLY THE PREDICATES AND PERMISSIONS IT ALWAYS WAS - only the drawing
+ * changed.
+ */
 function RowActions({
   row,
   onRecalculate,
@@ -159,131 +232,222 @@ function RowActions({
   canApprove,
   busyEmployeeId,
   disabled,
+  size = "sm",
 }) {
   const busy = busyEmployeeId === row.employee_id;
+  const calculateReason = disabled ? BUSY_REASON : !canCalculate ? NO_CALCULATE_REASON : null;
+  const approveReason = disabled ? BUSY_REASON : !canApprove ? NO_APPROVE_REASON : null;
+  const gap = size === "sm" ? "4px" : "8px";
   return (
-    <Stack direction="row" spacing={1} flexWrap="wrap">
-      <Button size="xs" variant="outline" onClick={() => onOpen(row)} isDisabled={disabled}>
-        Detail
-      </Button>
-      {/* CALCULATE AND RECALCULATE ARE ONE BUTTON PER ROW, LABELLED FOR WHAT
-          IT WOULD DO. Two buttons where only one is ever enabled is two
-          controls to read for one decision. */}
-      {/* PROCESS ATTENDANCE, where the server says re-running the attendance
-          month would clear what blocks this employee. */}
-      {isAttendanceProcessable(row) && canProcessAttendance ? (
-        <Button
-          size="xs"
-          colorScheme="blue"
-          variant="outline"
-          onClick={() => onProcessAttendance(row)}
+    <Box display="flex" flexWrap="wrap" alignItems="center" sx={{ gap }} data-testid="row-actions">
+      <Box display="flex" flexWrap="nowrap" alignItems="center" sx={{ gap }} data-testid="row-actions-core">
+        <ActionIcon
+          label="Detail"
+          icon={<FileTextIcon />}
+          size={size}
+          onClick={() => onOpen(row)}
           isDisabled={disabled}
-          isLoading={busy}
-        >
-          Process Attendance
-        </Button>
-      ) : null}
-      {/* CALCULATE ONLY WHERE THE SERVER SAYS IT WOULD BE ACCEPTED. */}
-      {isCalculable(row) ? (
-        <Button
-          size="xs"
-          colorScheme="purple"
-          onClick={() => onRecalculate(row, { first: true })}
-          isDisabled={!canCalculate || disabled}
-          isLoading={busy}
-        >
-          Calculate
-        </Button>
-      ) : null}
-      {isRecalculable(row) ? (
-        <Button
-          size="xs"
-          colorScheme={row.status === STATUS.RECALCULATION_REQUIRED ? "orange" : "gray"}
-          variant="outline"
-          onClick={() => onRecalculate(row, { first: false })}
-          isDisabled={!canCalculate || disabled}
-          isLoading={busy}
-        >
-          Recalculate
-        </Button>
-      ) : null}
-      {/* APPROVE IS OFFERED ONLY WHERE IT WOULD SUCCEED. The server refuses an
-          employee who is not READY, so drawing the button on a blocked row
-          would be drawing a button that always fails. */}
-      {isApprovable(row) ? (
-        <Button
-          size="xs"
-          colorScheme="green"
-          onClick={() => onApprove([row.employee_id])}
-          isDisabled={!canApprove || disabled}
-          isLoading={busy}
-        >
-          Approve &amp; Lock
-        </Button>
-      ) : null}
-      {/* RESET CALCULATION opens the dialog; nothing is reset by this click.
-          On an approved row it is drawn disabled, with the reason, so the
-          answer to "why can't I reset this?" is on the row itself. */}
-      {isResettable(row) ? (
-        <Button
-          size="xs"
-          colorScheme="red"
-          variant="ghost"
-          onClick={() => onReset(row)}
-          isDisabled={!canCalculate || disabled}
-        >
-          Reset Calculation
-        </Button>
-      ) : null}
-      {/* THE LIFECYCLE: Unlock and Publish Payslip on an approved row; View
-          Payslip, Retry Notification and Unpublish Payslip on a published one,
-          whose Unlock is shown blocked until it is unpublished. */}
-      {isUnlockable(row) && canUnlock ? (
-        <Button size="xs" colorScheme="orange" variant="outline" onClick={() => onLifecycle("UNLOCK", row)} isDisabled={disabled}>
-          Unlock
-        </Button>
-      ) : null}
-      {isPublishable(row) && canPublish ? (
-        <Button size="xs" colorScheme="blue" onClick={() => onLifecycle("PUBLISH", row)} isDisabled={disabled}>
-          Publish Payslip
-        </Button>
-      ) : null}
-      {hasPayslip(row) && onViewPayslip ? (
-        <Button size="xs" colorScheme="blue" variant="ghost" onClick={() => onViewPayslip(row)} isDisabled={disabled}>
-          View Payslip
-        </Button>
-      ) : null}
-      {isNotificationRetryable(row) && canPublish && onRetryNotification ? (
-        <Button
-          size="xs"
-          colorScheme="teal"
-          variant="outline"
-          onClick={() => onRetryNotification(row)}
-          isDisabled={disabled}
-          isLoading={busy}
-        >
-          Retry Notification
-        </Button>
-      ) : null}
-      {isUnpublishable(row) && canPublish ? (
-        <Button size="xs" colorScheme="blue" variant="outline" onClick={() => onLifecycle("UNPUBLISH", row)} isDisabled={disabled}>
-          Unpublish Payslip
-        </Button>
-      ) : null}
-      {isUnpublishable(row) && canUnlock ? (
-        <span title="Published payroll must be unpublished before it can be unlocked.">
-          <Button size="xs" colorScheme="orange" variant="outline" isDisabled>
-            Unlock
-          </Button>
-        </span>
-      ) : null}
-      {isLocked(row) ? (
-        <span title="Payroll is Approved & Locked for this employee. It cannot be reset.">
-          <Button size="xs" colorScheme="red" variant="ghost" isDisabled>
-            Reset Calculation
-          </Button>
-        </span>
-      ) : null}
+          reason={BUSY_REASON}
+        />
+        {/* CALCULATE AND RECALCULATE SHARE ONE SLOT, drawn for what it would do.
+            CALCULATE ONLY WHERE THE SERVER SAYS IT WOULD BE ACCEPTED. */}
+        {isCalculable(row) ? (
+          <ActionIcon
+            label="Calculate"
+            icon={<CalculatorIcon />}
+            size={size}
+            colorScheme="purple"
+            onClick={() => onRecalculate(row, { first: true })}
+            isDisabled={!canCalculate || disabled}
+            isLoading={busy}
+            reason={calculateReason}
+          />
+        ) : isRecalculable(row) ? (
+          <ActionIcon
+            label="Recalculate"
+            icon={<RefreshCwIcon />}
+            size={size}
+            colorScheme={row.status === STATUS.RECALCULATION_REQUIRED ? "orange" : "gray"}
+            onClick={() => onRecalculate(row, { first: false })}
+            isDisabled={!canCalculate || disabled}
+            isLoading={busy}
+            reason={calculateReason}
+          />
+        ) : (
+          <ActionIcon
+            label="Recalculate"
+            icon={<RefreshCwIcon />}
+            size={size}
+            isDisabled
+            reason={
+              isLocked(row)
+                ? "Payroll is Approved & Locked for this employee. It cannot be recalculated."
+                : "Cannot be calculated yet - see the reasons on this row."
+            }
+          />
+        )}
+        {/* APPROVE IS ENABLED ONLY WHERE IT WOULD SUCCEED. The server refuses an
+            employee who is not READY, so on any other row it is drawn disabled. */}
+        {isApprovable(row) ? (
+          <ActionIcon
+            label="Approve & Lock"
+            icon={<BadgeCheckIcon />}
+            size={size}
+            colorScheme="green"
+            onClick={() => onApprove([row.employee_id])}
+            isDisabled={!canApprove || disabled}
+            isLoading={busy}
+            reason={approveReason}
+          />
+        ) : (
+          <ActionIcon
+            label="Approve & Lock"
+            icon={<BadgeCheckIcon />}
+            size={size}
+            isDisabled
+            reason={
+              isLocked(row)
+                ? "Already Approved & Locked."
+                : "Only employees Ready for Approval can be approved."
+            }
+          />
+        )}
+        {/* RESET CALCULATION opens the dialog; nothing is reset by this click.
+            On an approved row it is drawn disabled, with the reason, so the
+            answer to "why can't I reset this?" is on the row itself. */}
+        {isResettable(row) ? (
+          <ActionIcon
+            label="Reset Calculation"
+            icon={<RotateCcwIcon />}
+            size={size}
+            onClick={() => onReset(row)}
+            isDisabled={!canCalculate || disabled}
+            reason={calculateReason}
+          />
+        ) : (
+          <ActionIcon
+            label="Reset Calculation"
+            icon={<RotateCcwIcon />}
+            size={size}
+            isDisabled
+            reason={
+              isLocked(row)
+                ? "Payroll is Approved & Locked for this employee. It cannot be reset."
+                : "Nothing to reset - this employee has not been calculated."
+            }
+          />
+        )}
+      </Box>
+      {/* THE ROW-SPECIFIC ACTIONS FOLLOW AS THEIR OWN GROUP: on a narrow
+          column the group moves under the four fixed slots as a whole, so
+          those always stay on one line and aligned down the table. */}
+      <Box display="flex" flexWrap="nowrap" alignItems="center" sx={{ gap }}>
+        {/* PROCESS ATTENDANCE, where the server says re-running the attendance
+            month would clear what blocks this employee. */}
+        {isAttendanceProcessable(row) && canProcessAttendance ? (
+          <ActionIcon
+            label="Process Attendance"
+            icon={<CalendarCheckIcon />}
+            size={size}
+            colorScheme="blue"
+            onClick={() => onProcessAttendance(row)}
+            isDisabled={disabled}
+            isLoading={busy}
+            reason={BUSY_REASON}
+          />
+        ) : null}
+        {/* THE LIFECYCLE: Unlock and Publish Payslip on an approved row; View
+            Payslip, Retry Notification and Unpublish Payslip on a published one,
+            whose Unlock is shown blocked until it is unpublished. */}
+        {isUnlockable(row) && canUnlock ? (
+          <ActionIcon
+            label="Unlock"
+            icon={<LockOpenIcon />}
+            size={size}
+            colorScheme="orange"
+            onClick={() => onLifecycle("UNLOCK", row)}
+            isDisabled={disabled}
+            reason={BUSY_REASON}
+          />
+        ) : null}
+        {isPublishable(row) && canPublish ? (
+          <ActionIcon
+            label="Publish Payslip"
+            icon={<SendIcon />}
+            size={size}
+            colorScheme="blue"
+            onClick={() => onLifecycle("PUBLISH", row)}
+            isDisabled={disabled}
+            reason={BUSY_REASON}
+          />
+        ) : null}
+        {hasPayslip(row) && onViewPayslip ? (
+          <ActionIcon
+            label="View Payslip"
+            icon={<ReceiptIcon />}
+            size={size}
+            colorScheme="blue"
+            onClick={() => onViewPayslip(row)}
+            isDisabled={disabled}
+            reason={BUSY_REASON}
+          />
+        ) : null}
+        {isNotificationRetryable(row) && canPublish && onRetryNotification ? (
+          <ActionIcon
+            label="Retry Notification"
+            icon={<BellRingIcon />}
+            size={size}
+            colorScheme="teal"
+            onClick={() => onRetryNotification(row)}
+            isDisabled={disabled}
+            isLoading={busy}
+            reason={BUSY_REASON}
+          />
+        ) : null}
+        {isUnpublishable(row) && canPublish ? (
+          <ActionIcon
+            label="Unpublish Payslip"
+            icon={<Undo2Icon />}
+            size={size}
+            colorScheme="blue"
+            onClick={() => onLifecycle("UNPUBLISH", row)}
+            isDisabled={disabled}
+            reason={BUSY_REASON}
+          />
+        ) : null}
+        {isUnpublishable(row) && canUnlock ? (
+          <ActionIcon
+            label="Unlock"
+            icon={<LockOpenIcon />}
+            size={size}
+            isDisabled
+            reason="Published payroll must be unpublished before it can be unlocked."
+          />
+        ) : null}
+      </Box>
+    </Box>
+  );
+}
+
+/**
+ * THE ROW'S STATUS, SMALL. A dot for the eye and the server's label for the
+ * meaning - the colour is never the only signal. The summary cards above
+ * already group the month by status, so the row does not repeat a large badge.
+ */
+function StatusIndicator({ row }) {
+  return (
+    <Stack direction="row" spacing={1.5} align="baseline" data-testid="row-status">
+      <Box
+        as="span"
+        flexShrink={0}
+        boxSize="8px"
+        borderRadius="full"
+        bg={`${statusScheme(row.status)}.400`}
+        aria-hidden="true"
+      />
+      <Text fontSize="xs" color="gray.700" fontWeight="500" lineHeight="short">
+        {row.status_label}
+      </Text>
     </Stack>
   );
 }
@@ -395,7 +559,7 @@ function CalculationTable(props) {
             <Th isNumeric>Net Pay</Th>
             <Th>Pay Type</Th>
             <Th>Status</Th>
-            <Th />
+            <Th>Actions</Th>
           </Tr>
         </Thead>
         <Tbody>
@@ -434,14 +598,12 @@ function CalculationTable(props) {
                 <PayTypeCell {...props} row={row} />
               </Td>
               <Td>
-                <Badge colorScheme={statusScheme(row.status)} whiteSpace="normal" textAlign="left">
-                  {row.status_label}
-                </Badge>
+                <StatusIndicator row={row} />
                 <PayslipBadges row={row} />
                 <Reasons row={row} />
               </Td>
-              <Td>
-                <RowActions row={row} {...props} />
+              <Td minWidth="156px">
+                <RowActions {...props} row={row} />
               </Td>
             </Tr>
           ))}
@@ -507,9 +669,7 @@ function CalculationCard(props) {
               {row.employee_id} · {row.location || "—"}
             </Text>
           </Box>
-          <Badge colorScheme={statusScheme(row.status)} whiteSpace="normal" textAlign="right">
-            {row.status_label}
-          </Badge>
+          <StatusIndicator row={row} />
         </Stack>
         <PayslipBadges row={row} />
 
@@ -532,7 +692,9 @@ function CalculationCard(props) {
         </SimpleGrid>
 
         <Reasons row={row} />
-        <RowActions {...props} />
+        <Box overflowX="auto">
+          <RowActions {...props} size="md" />
+        </Box>
       </Stack>
     </Box>
   );

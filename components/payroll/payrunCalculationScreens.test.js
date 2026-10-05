@@ -966,3 +966,57 @@ test("CALCULATION & REVIEW: an ordinary Not Calculated row reads 'Awaiting calcu
   assert.match(list, /!\(notCalculated && r\.code === "NOT_CALCULATED"\)/);
 });
 
+
+/* ============================ Calculation & Review: compact row actions == */
+
+const rowIcons = read("components/payroll/calculation/rowActionIcons.jsx");
+const rowActionsCode = listCode.slice(listCode.indexOf("function RowActions("), listCode.indexOf("function StatusIndicator("));
+
+test("ROW ACTIONS: each row action is an icon button with an aria-label and a tooltip, not a text button", () => {
+  assert.match(listCode, /function ActionIcon\(/);
+  assert.match(listCode, /<IconButton\s+aria-label=\{label\}/);
+  assert.match(listCode, /<Tooltip\s+label=/);
+  assert.ok(!/<Button[\s>]/.test(rowActionsCode), "a row still draws a text button");
+  for (const [label, icon] of [
+    ["Detail", "FileTextIcon"],
+    ["Recalculate", "RefreshCwIcon"],
+    ["Approve & Lock", "BadgeCheckIcon"],
+    ["Reset Calculation", "RotateCcwIcon"],
+  ]) {
+    assert.ok(
+      new RegExp(`label="${label}"\\s+icon=\\{<${icon} />\\}`).test(rowActionsCode),
+      `${label} is not drawn with ${icon}`
+    );
+  }
+  assert.ok(!/eye/i.test(rowIcons) && !/eye/i.test(rowActionsCode), "Detail must not use an eye icon");
+});
+
+test("ROW ACTIONS: an unavailable action is drawn disabled with its reason, reachable on hover and focus", () => {
+  assert.match(listCode, /shouldWrapChildren=\{unavailable\}/);
+  assert.match(listCode, /unavailable && reason \? `\$\{label\} - \$\{reason\}` : label/);
+  assert.ok(rowActionsCode.includes("Only employees Ready for Approval can be approved."));
+  assert.ok(rowActionsCode.includes("Nothing to reset - this employee has not been calculated."));
+});
+
+test("ROW ACTIONS: the handlers, gates and loading states are the ones the text buttons had", () => {
+  for (const wiring of [
+    "onClick={() => onOpen(row)}",
+    "onClick={() => onRecalculate(row, { first: true })}",
+    "onClick={() => onRecalculate(row, { first: false })}",
+    "onClick={() => onApprove([row.employee_id])}",
+    "onClick={() => onReset(row)}",
+    "isDisabled={!canCalculate || disabled}",
+    "isDisabled={!canApprove || disabled}",
+    "isLoading={busy}",
+    "isApprovable(row) ?",
+    "isRecalculable(row) ?",
+  ]) {
+    assert.ok(rowActionsCode.includes(wiring), `missing ${wiring}`);
+  }
+});
+
+test("ROW STATUS: a small indicator with the server's label, not a large badge per row", () => {
+  assert.match(listCode, /function StatusIndicator\(\{ row \}\)/);
+  assert.ok((listCode.match(/<StatusIndicator row=\{row\} \/>/g) || []).length === 2);
+  assert.ok(!/<Badge colorScheme=\{statusScheme\(row\.status\)\}/.test(listCode));
+});
