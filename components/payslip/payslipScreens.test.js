@@ -102,6 +102,8 @@ test("schema 2: UAN / PF / ESI in full; advance and CTC sections from the snapsh
   assert.equal(ctc["Annual CTC"], "₹3,40,961.28");
   assert.equal(ctc["Total Employer Contribution"], "₹2,400.07");
   assert.ok(!("Other Employer Contribution" in ctc), "zero rows hidden");
+  const noEmployerCost = { ...v2, employer_contribution: { ...v2.employer_contribution, employer_pf: "0.00", employer_esi: "0.00", total: "0.00", monthly_ctc: "26013.37", annual_ctc: "312160.44" } };
+  assert.deepEqual(view.employerContributionFacts(noEmployerCost), [], "no employer cost -> no CTC section");
 });
 
 /* ------------------------------------------- payroll screen predicates */

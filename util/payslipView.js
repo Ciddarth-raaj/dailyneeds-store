@@ -101,12 +101,12 @@ function advanceFacts(snapshot) {
  */
 function employerContributionFacts(snapshot) {
   const c = snapshot && snapshot.employer_contribution;
-  if (!c || !c.monthly_ctc) return [];
+  if (!c || !c.monthly_ctc || isZero(c.total)) return [];
   return facts([
     ["Employer PF Contribution", isZero(c.employer_pf) ? null : formatRupees(c.employer_pf)],
     ["Employer ESI Contribution", isZero(c.employer_esi) ? null : formatRupees(c.employer_esi)],
     ["Other Employer Contribution", isZero(c.other) ? null : formatRupees(c.other)],
-    ["Total Employer Contribution", isZero(c.total) ? null : formatRupees(c.total)],
+    ["Total Employer Contribution", formatRupees(c.total)],
     ["Monthly Gross (Fixed)", formatRupees(c.monthly_gross)],
     ["Monthly CTC", formatRupees(c.monthly_ctc)],
     ["Annual CTC", formatRupees(c.annual_ctc)],
