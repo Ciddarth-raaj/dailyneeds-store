@@ -5,6 +5,7 @@ import {
   Badge,
   Box,
   Divider,
+  Flex,
   Modal,
   ModalBody,
   ModalCloseButton,
@@ -19,6 +20,7 @@ import {
 
 import { formatMoney } from "../../../util/salaryView";
 import { statusScheme, formatViewedAt } from "../../../util/payrunCalculation";
+import { describePfScenario, identifierPieces, pfRuleReferences } from "../../../util/pfScenarioDisplay";
 
 /**
  * ONE EMPLOYEE'S FULL BREAKUP - the whole of what they are being paid, and why.
@@ -46,30 +48,118 @@ import { statusScheme, formatViewedAt } from "../../../util/payrunCalculation";
  * deductions without saying so is how somebody reads it as a third one.
  */
 
-/** One line of a breakup: a label on the left, a figure on the right. */
+/**
+ * ONE LINE OF A BREAKUP: a label on the left, a figure on the right - and, on a
+ * screen too narrow for both, the figure on its own line under the label.
+ *
+ * WHY IT IS BUILT THIS WAY. The line used to be a two-item row whose figure
+ * could not wrap (`nowrap`) or shrink, beside a label allowed to shrink to
+ * nothing (`minWidth: 0`). A long figure - a PF rule reference is sixty
+ * characters with no space in it - therefore ran out of the modal, and took the
+ * label's width with it until "PF ceiling rule" was printed one letter per
+ * line. Now:
+ *
+ *   the row WRAPS, so a figure that does not fit beside its label moves below
+ *     it instead of squeezing it;
+ *   the label keeps a real minimum width (10rem, or the whole line when the
+ *     line is narrower) and wraps between words only;
+ *   a short figure (money, a count) never breaks; a long one wraps, at any
+ *     point only when it has to, and only inside its own line;
+ *   the note takes the whole width under both, and may break anywhere - it is
+ *     where explanatory text and identifiers go.
+ */
+const LONG_VALUE = 24;
+
 function Line({ label, value, note, strong = false, muted = false }) {
   const text = typeof value === "number" || typeof value === "string" ? value : null;
+  const shown = text === null || text === undefined || text === "" ? "—" : text;
+  const long = String(shown).length > LONG_VALUE;
   return (
-    <Stack direction="row" justify="space-between" align="baseline" spacing={4}>
-      <Box minWidth={0}>
-        <Text fontSize="sm" color={muted ? "gray.500" : "gray.700"} fontWeight={strong ? "bold" : "normal"}>
-          {label}
-        </Text>
-        {note ? (
-          <Text fontSize="xs" color="gray.500" whiteSpace="normal">
-            {note}
-          </Text>
-        ) : null}
-      </Box>
+    <Flex
+      data-breakup-line=""
+      wrap="wrap"
+      align="baseline"
+      minWidth={0}
+      sx={{ columnGap: "1rem", rowGap: "2px" }}
+    >
       <Text
+        data-breakup-label=""
+        as="span"
+        flex="1 1 10rem"
+        minWidth="min(10rem, 100%)"
+        fontSize="sm"
+        color={muted ? "gray.500" : "gray.700"}
+        fontWeight={strong ? "bold" : "normal"}
+        whiteSpace="normal"
+        sx={{ overflowWrap: "break-word", wordBreak: "normal" }}
+      >
+        {label}
+      </Text>
+      <Text
+        data-breakup-value=""
+        as="span"
+        marginLeft="auto"
+        maxWidth="100%"
+        minWidth={0}
+        textAlign="right"
+        flex={long ? "0 1 auto" : "0 0 auto"}
         fontSize={strong ? "md" : "sm"}
         fontWeight={strong ? "bold" : "medium"}
-        whiteSpace="nowrap"
+        whiteSpace={long ? "normal" : "nowrap"}
+        sx={long ? { overflowWrap: "anywhere" } : undefined}
         color={muted ? "gray.500" : undefined}
       >
-        {text === null || text === undefined || text === "" ? "—" : text}
+        {shown}
       </Text>
-    </Stack>
+      {note ? (
+        <Text
+          data-breakup-note=""
+          flexBasis="100%"
+          minWidth={0}
+          fontSize="xs"
+          color="gray.500"
+          whiteSpace="normal"
+          sx={{ overflowWrap: "anywhere" }}
+        >
+          {note}
+        </Text>
+      ) : null}
+    </Flex>
+  );
+}
+
+/**
+ * A MACHINE REFERENCE UNDER ITS LABEL - one per line, breaking after its own
+ * separators (EPFO- / CEILING- / 15000- ...) before it would ever break
+ * mid-word, and never wider than the modal.
+ */
+function ReferenceLine({ label, items, muted = true }) {
+  if (!items || items.length === 0) return null;
+  return (
+    <Box data-breakup-line="" minWidth={0}>
+      <Text data-breakup-label="" fontSize="sm" color={muted ? "gray.500" : "gray.700"}>
+        {label}
+      </Text>
+      {items.map((item) => (
+        <Text
+          key={item}
+          data-breakup-reference=""
+          fontSize="xs"
+          color="gray.500"
+          fontFamily="mono"
+          whiteSpace="normal"
+          sx={{ overflowWrap: "anywhere" }}
+        >
+          {identifierPieces(item).map((piece, i) => (
+            // eslint-disable-next-line react/no-array-index-key
+            <React.Fragment key={i}>
+              {piece}
+              <wbr />
+            </React.Fragment>
+          ))}
+        </Text>
+      ))}
+    </Box>
   );
 }
 
@@ -120,6 +210,8 @@ function CalculationBreakup({ isOpen, onClose, employee, loading, error }) {
     otGroups.length === 1 ? otGroups[0].nrm_minutes : breakup && breakup.ot.effective_nrm_minutes;
   const effectiveNrmSource =
     otGroups.length === 1 ? otGroups[0].nrm_source : breakup && breakup.ot.effective_nrm_source;
+  const pfScenario = breakup ? describePfScenario(breakup.statutory.pf_scenario) : null;
+  const pfRules = breakup ? pfRuleReferences(breakup.statutory.pf_ceiling_version) : [];
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="lg" scrollBehavior="inside">
@@ -159,7 +251,7 @@ function CalculationBreakup({ isOpen, onClose, employee, loading, error }) {
           ) : null}
 
           {breakup ? (
-            <Stack spacing={5}>
+            <Stack spacing={5} minWidth={0}>
               {/* THE STALE WARNING SITS ABOVE THE FIGURES, not beside them.
                   Somebody reading a net pay has to know, before they read it,
                   that it no longer describes the current sources. */}
@@ -334,27 +426,36 @@ function CalculationBreakup({ isOpen, onClose, employee, loading, error }) {
                       <Line
                         key={p.from}
                         label={`PF ${p.from} to ${p.to}`}
-                        value={`${p.state || ""} ${money(p.employee_pf)} EE / ${money(p.employer_eps)} EPS`}
-                        note={`Ceiling ${money(p.monthly_wage_ceiling)} (applied ${money(p.applied_wage_ceiling)} for ${p.calendar_days} days) - PF wage ${money(p.pf_wage)}, EPS wage ${money(p.eps_wage)}`}
+                        value={p.state ? (describePfScenario(p.state) || {}).status : null}
+                        note={`EE ${money(p.employee_pf)} · EPS ${money(p.employer_eps)} · Ceiling ${money(p.monthly_wage_ceiling)} (applied ${money(p.applied_wage_ceiling)} for ${p.calendar_days} days) · PF wage ${money(p.pf_wage)} · EPS wage ${money(p.eps_wage)}`}
                         muted
                       />
                     ))
                   : null}
-                {breakup.statutory.pf_ceiling_version ? (
-                  <Line label="PF ceiling rule" value={breakup.statutory.pf_ceiling_version} muted />
-                ) : null}
                 {/*
-                  WHICH CASE THE MONTH WAS: each period's status (excluded /
-                  EPF only / EPF + EPS) and the contribution basis, e.g.
-                  FAQ_B:EPF_ONLY>EPF_EPS|ACTUAL_WAGE, and the exact (paisa)
-                  figures the rounded ones above were filed from.
+                  WHICH CASE THE MONTH WAS. The server stores it as one code -
+                  e.g. FAQ_B:EPF_ONLY>EPF_EPS|ACTUAL_WAGE - which carries the
+                  period state(s), the contribution basis and the EPFO FAQ case.
+                  Each is shown as its own labelled line, in words; nothing is
+                  decided here (see util/pfScenarioDisplay.js).
                 */}
-                {breakup.statutory.pf_scenario ? (
-                  <Line label="PF scenario" value={breakup.statutory.pf_scenario} muted />
+                {pfScenario ? (
+                  <>
+                    <Line label="PF Scenario" value={pfScenario.status} muted />
+                    {pfScenario.basis ? (
+                      <Line label="PF Contribution Basis" value={pfScenario.basis} muted />
+                    ) : null}
+                    {pfScenario.faq ? <Line label="PF Case" value={pfScenario.faq} muted /> : null}
+                  </>
                 ) : null}
+                {/* The rule reference(s): one per line, wrapping at their own separators. */}
+                <ReferenceLine
+                  label={pfRules.length > 1 ? "PF ceiling rules" : "PF ceiling rule"}
+                  items={pfRules}
+                />
                 {breakup.statutory.pf_exact ? (
                   <Line
-                    label="PF exact (before rounding)"
+                    label="PF Exact (before rounding)"
                     value={money(breakup.statutory.pf_exact.total_remittance)}
                     note={`EE ${money(breakup.statutory.pf_exact.employee_pf)} · EPS ${money(breakup.statutory.pf_exact.employer_eps)} · ER EPF ${money(breakup.statutory.pf_exact.employer_epf)} · EDLI ${money(breakup.statutory.pf_exact.edli)} · Admin ${money(breakup.statutory.pf_exact.pf_admin_charge)}`}
                     muted
@@ -432,7 +533,7 @@ function CalculationBreakup({ isOpen, onClose, employee, loading, error }) {
                   <Text fontSize="xs" color="gray.600">
                     Approved and locked at {formatViewedAt(employee.approved_at) || employee.approved_at} IST
                   </Text>
-                  <Text fontSize="xs" color="gray.600">
+                  <Text fontSize="xs" color="gray.600" minWidth={0} sx={{ overflowWrap: "anywhere" }}>
                     Calculation reference {employee.calculation_hash}
                   </Text>
                 </SimpleGrid>
