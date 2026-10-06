@@ -62,17 +62,46 @@ test("the facts read straight from the snapshot - masked identifiers only, the r
   assert.equal(employee["Payment Type"], "Bank");
   const final = Object.fromEntries(view.finalFacts(SNAPSHOT));
   assert.equal(final["Final Net Pay"], "₹24,834.00");
-  assert.equal(final["Net Pay Rounding"], "-₹0.39");
+  assert.equal(final["Round-off"], "-₹0.39");
+  assert.equal(final["Net Pay Before Rounding"], "₹24,834.39");
   const attendance = Object.fromEntries(view.attendanceFacts(SNAPSHOT));
   assert.equal(attendance["OT Rate"], "₹125.06 / hour");
   const statutory = Object.fromEntries(view.statutoryFacts(SNAPSHOT));
-  assert.equal(statutory.UAN, "XXXXXXXX0400", "masked, as frozen");
+  assert.equal(statutory.UAN, "XXXXXXXX0400", "a schema-1 snapshot shows the masked number it was frozen with");
   assert.equal(statutory["PF Number"], "XXXXXXXX/101");
   assert.equal(statutory["ESI Number"], undefined, "not applicable is not shown");
   assert.equal(statutory["PF Establishment Code"], "TN/MAS/0012345");
   assert.equal(statutory["ESI Establishment Code"], undefined, "ESI not applicable");
   assert.equal(attendance["Standard Working Hours / Day"], 8);
   assert.ok(!view.attendanceFacts(SNAPSHOT).some(([k]) => /NRM/.test(k)));
+  assert.deepEqual(view.advanceFacts(SNAPSHOT), [], "no advance block, no section");
+  assert.deepEqual(view.employerContributionFacts(SNAPSHOT), [], "no CTC block, no section");
+});
+
+test("schema 2: UAN / PF / ESI in full; advance and CTC sections from the snapshot's own figures", () => {
+  const v2 = {
+    ...SNAPSHOT,
+    statutory: { ...SNAPSHOT.statutory, esi_applicable: true, uan: "100200300400", pf_number: "TN/MAS/1/101", esi_number: "3100000000" },
+    advance: { opening_balance: "4000.00", recovery_this_month: "1000.00", closing_balance: "3000.00" },
+    employer_contribution: {
+      employer_pf: "1560.74", employer_esi: "839.33", other: "0.00", total: "2400.07",
+      monthly_gross: "26013.37", monthly_ctc: "28413.44", annual_ctc: "340961.28",
+    },
+  };
+  const statutory = Object.fromEntries(view.statutoryFacts(v2));
+  assert.equal(statutory.UAN, "100200300400");
+  assert.equal(statutory["PF Number"], "TN/MAS/1/101");
+  assert.equal(statutory["ESI Number"], "3100000000");
+  assert.deepEqual(view.advanceFacts(v2), [
+    ["Advance Opening Balance", "₹4,000.00"],
+    ["Recovery This Month", "₹1,000.00"],
+    ["Advance Closing Balance", "₹3,000.00"],
+  ]);
+  const ctc = Object.fromEntries(view.employerContributionFacts(v2));
+  assert.equal(ctc["Monthly CTC"], "₹28,413.44");
+  assert.equal(ctc["Annual CTC"], "₹3,40,961.28");
+  assert.equal(ctc["Total Employer Contribution"], "₹2,400.07");
+  assert.ok(!("Other Employer Contribution (EDLI & PF Admin)" in ctc), "zero rows hidden");
 });
 
 /* ------------------------------------------- payroll screen predicates */
@@ -187,8 +216,9 @@ test("download: the authenticated header path is the normal one; the link is the
 
 test("the detail puts Final Net Pay first, then the sections; nothing reads as acceptance", () => {
   const body = code(detail);
-  assert.ok(body.indexOf("Final Net Pay") < body.indexOf('title="Employee"'));
-  for (const section of ["Employee", "Attendance / Salary Basis", "Earnings", "Deductions", "Statutory Information", "Net Pay"]) {
+  assert.ok(body.indexOf("Final Net Pay") < body.indexOf('title="Employee Details"'));
+  for (const section of ["Employee Details", "Attendance / Salary Basis", "Earnings / Additions", "Deductions / Less",
+    "Statutory Information", "Advance Details", "CTC / Employer Contribution", "Net Pay"]) {
     assert.ok(body.includes(`title="${section}"`), section);
   }
   for (const src of [miniApp, detail]) assert.ok(!/accept|agree|approve/i.test(code(src)), "no acceptance control");

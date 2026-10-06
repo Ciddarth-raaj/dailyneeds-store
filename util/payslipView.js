@@ -36,12 +36,12 @@ function employeeFacts(snapshot) {
     ["Name", e.employee_name],
     ["Employee ID", e.employee_id],
     ["Designation", e.designation_name],
-    ["Outlet", e.store_name],
     ["Department", e.department_name],
+    ["Outlet", e.store_name],
+    ["Date of Joining", e.date_of_joining],
     ["Payroll Month", snapshot && snapshot.period && snapshot.period.label],
     ["Payment Type", payTypeLabel(e.pay_type)],
-    ["Date of Joining", e.date_of_joining],
-    ["Bank", e.bank_name],
+    ["Bank Name", e.bank_name],
     ["Bank Account", e.bank_account_masked],
     ["PAN", e.pan_masked],
   ]);
@@ -50,7 +50,7 @@ function employeeFacts(snapshot) {
 function attendanceFacts(snapshot) {
   const a = (snapshot && snapshot.attendance) || {};
   return facts([
-    ["Monthly Gross", a.monthly_gross ? formatRupees(a.monthly_gross) : null],
+    ["Monthly Gross (Fixed)", a.monthly_gross ? formatRupees(a.monthly_gross) : null],
     ["Salary Days", a.salary_days],
     ["Daily Rate", a.daily_rate ? formatRupees(a.daily_rate) : null],
     ["Standard Working Hours / Day", a.nrm_hours],
@@ -63,26 +63,61 @@ function attendanceFacts(snapshot) {
   ]);
 }
 
-/** Statutory numbers arrive MASKED in the snapshot (last four only). */
+/**
+ * UAN / PF / ESI numbers in full (snapshot schema 2). A schema-1 snapshot
+ * carries only the masked form, which is shown as it was frozen.
+ */
+const full = (value, masked) => (value !== undefined ? value : masked);
+
 function statutoryFacts(snapshot) {
   const s = (snapshot && snapshot.statutory) || {};
   const c = (snapshot && snapshot.company) || {};
   return facts([
-    ["UAN", s.uan_masked],
-    ["PF Number", s.pf_number_masked],
+    ["UAN", s.pf_applicable ? full(s.uan, s.uan_masked) : null],
+    ["PF Number", s.pf_applicable ? full(s.pf_number, s.pf_number_masked) : null],
     ["PF Wage", s.pf_wage ? formatRupees(s.pf_wage) : null],
-    ["ESI Number", s.esi_number_masked],
+    ["ESI Number", s.esi_applicable ? full(s.esi_number, s.esi_number_masked) : null],
     ["ESI Wage", s.esi_wage ? formatRupees(s.esi_wage) : null],
     ["PF Establishment Code", s.pf_applicable ? c.pf_establishment_code : null],
     ["ESI Establishment Code", s.esi_applicable ? c.esi_establishment_code : null],
   ]);
 }
 
+/** Advance Details - only when the snapshot has an advance block (balance or recovery). */
+function advanceFacts(snapshot) {
+  const a = snapshot && snapshot.advance;
+  if (!a || (isZero(a.closing_balance) && isZero(a.recovery_this_month))) return [];
+  return facts([
+    ["Advance Opening Balance", formatRupees(a.opening_balance)],
+    ["Recovery This Month", formatRupees(a.recovery_this_month)],
+    ["Advance Closing Balance", formatRupees(a.closing_balance)],
+  ]);
+}
+
+/**
+ * CTC / Employer Contribution - informational, never part of Earnings or
+ * Deductions. The figures are the snapshot's own (Monthly CTC = Monthly Gross
+ * + Total Employer Contribution, frozen at Publish); zero rows are hidden.
+ */
+function employerContributionFacts(snapshot) {
+  const c = snapshot && snapshot.employer_contribution;
+  if (!c || !c.monthly_ctc) return [];
+  return facts([
+    ["Employer PF Contribution", isZero(c.employer_pf) ? null : formatRupees(c.employer_pf)],
+    ["Employer ESI Contribution", isZero(c.employer_esi) ? null : formatRupees(c.employer_esi)],
+    ["Other Employer Contribution (EDLI & PF Admin)", isZero(c.other) ? null : formatRupees(c.other)],
+    ["Total Employer Contribution", isZero(c.total) ? null : formatRupees(c.total)],
+    ["Monthly Gross (Fixed)", formatRupees(c.monthly_gross)],
+    ["Monthly CTC", formatRupees(c.monthly_ctc)],
+    ["Annual CTC", formatRupees(c.annual_ctc)],
+  ]);
+}
+
 function finalFacts(snapshot) {
   const f = (snapshot && snapshot.final) || {};
   return facts([
-    ["Net Pay before rounding", formatRupees(f.net_pay_before_rounding)],
-    ["Net Pay Rounding", formatRupees(f.net_pay_rounding)],
+    ["Net Pay Before Rounding", formatRupees(f.net_pay_before_rounding)],
+    ["Round-off", formatRupees(f.net_pay_rounding)],
     ["Final Net Pay", formatRupees(f.net_pay)],
   ]);
 }
@@ -97,6 +132,8 @@ module.exports = {
   employeeFacts,
   attendanceFacts,
   statutoryFacts,
+  advanceFacts,
+  employerContributionFacts,
   finalFacts,
   payslipListLabel,
 };

@@ -18,6 +18,8 @@ import {
   employeeFacts,
   attendanceFacts,
   statutoryFacts,
+  advanceFacts,
+  employerContributionFacts,
   finalFacts,
 } from "../../util/payslipView";
 
@@ -44,7 +46,8 @@ function FactList({ rows }) {
   );
 }
 
-function LineList({ lines, totalLabel, total }) {
+/** Earnings in green, deductions in red - the PDF's colours, and nowhere else. */
+function LineList({ lines, totalLabel, total, tone }) {
   return (
     <Stack spacing={1}>
       {printableLines(lines).map((line) => (
@@ -53,8 +56,8 @@ function LineList({ lines, totalLabel, total }) {
           <Text whiteSpace="nowrap">{formatRupees(line.amount)}</Text>
         </Stack>
       ))}
-      <Divider />
-      <Stack direction="row" justify="space-between" fontSize="sm" fontWeight="bold">
+      <Divider borderColor={`${tone}.200`} />
+      <Stack direction="row" justify="space-between" fontSize="sm" fontWeight="bold" color={`${tone}.700`}>
         <Text>{totalLabel}</Text>
         <Text whiteSpace="nowrap">{formatRupees(total)}</Text>
       </Stack>
@@ -62,12 +65,15 @@ function LineList({ lines, totalLabel, total }) {
   );
 }
 
-function Section({ title, children }) {
+/* Daily Needs brand purple (the logo's own); orange is an accent only. */
+const BRAND = { purple: "#732f8d", purpleDark: "#4a1a63", purpleTint: "#f5effa", orange: "#f15a22" };
+
+function Section({ title, children, color = BRAND.purpleDark }) {
   return (
     <AccordionItem>
       <h3>
         <AccordionButton px={2}>
-          <Box flex="1" textAlign="left" fontWeight="semibold" fontSize="sm">
+          <Box flex="1" textAlign="left" fontWeight="semibold" fontSize="sm" color={color}>
             {title}
           </Box>
           <AccordionIcon />
@@ -84,36 +90,47 @@ function PayslipDetail({ snapshot }) {
   if (!snapshot) return null;
   const e = snapshot.employee || {};
   const statutory = statutoryFacts(snapshot);
+  const advance = advanceFacts(snapshot);
+  const ctc = employerContributionFacts(snapshot);
   return (
     <Stack spacing={3}>
-      <Box borderWidth="1px" borderColor="green.200" bg="green.50" borderRadius="md" p={4}>
-        <Text fontSize="xs" color="gray.600" textTransform="uppercase" letterSpacing="0.04em">
+      <Box
+        bg={BRAND.purpleDark}
+        color="white"
+        borderRadius="md"
+        borderBottomWidth="3px"
+        borderBottomColor={BRAND.orange}
+        p={4}
+      >
+        <Text fontSize="xs" opacity={0.85} textTransform="uppercase" letterSpacing="0.04em">
           Final Net Pay · {snapshot.period && snapshot.period.label}
         </Text>
         <Text fontSize="3xl" fontWeight="bold" lineHeight="short">
           {formatRupees(snapshot.final && snapshot.final.net_pay)}
         </Text>
-        <Text fontSize="xs" color="gray.600">
+        <Text fontSize="xs" opacity={0.85}>
           {[e.employee_name, payTypeLabel(e.pay_type)].filter(Boolean).join(" · ")}
         </Text>
       </Box>
 
       <Accordion allowMultiple defaultIndex={[2, 3]}>
-        <Section title="Employee">
+        <Section title="Employee Details">
           <FactList rows={employeeFacts(snapshot)} />
         </Section>
         <Section title="Attendance / Salary Basis">
           <FactList rows={attendanceFacts(snapshot)} />
         </Section>
-        <Section title="Earnings">
+        <Section title="Earnings / Additions" color="green.700">
           <LineList
+            tone="green"
             lines={snapshot.earnings && snapshot.earnings.lines}
             totalLabel="Total Earnings"
             total={snapshot.earnings && snapshot.earnings.total}
           />
         </Section>
-        <Section title="Deductions">
+        <Section title="Deductions / Less" color="red.700">
           <LineList
+            tone="red"
             lines={snapshot.deductions && snapshot.deductions.lines}
             totalLabel="Total Deductions"
             total={snapshot.deductions && snapshot.deductions.total}
@@ -122,6 +139,16 @@ function PayslipDetail({ snapshot }) {
         {statutory.length > 0 ? (
           <Section title="Statutory Information">
             <FactList rows={statutory} />
+          </Section>
+        ) : null}
+        {advance.length > 0 ? (
+          <Section title="Advance Details">
+            <FactList rows={advance} />
+          </Section>
+        ) : null}
+        {ctc.length > 0 ? (
+          <Section title="CTC / Employer Contribution">
+            <FactList rows={ctc} />
           </Section>
         ) : null}
         <Section title="Net Pay">
