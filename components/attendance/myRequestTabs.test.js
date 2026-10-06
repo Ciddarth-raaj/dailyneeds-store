@@ -14,7 +14,7 @@ const path = require("path");
 const read = (rel) => fs.readFileSync(path.join(__dirname, "..", "..", rel), "utf8");
 const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
 
-const myPage = strip(read("pages/attendance/my/index.jsx"));
+const myPage = strip(read("components/attendance/MyAttendanceView.jsx"));
 const otList = strip(read("components/attendance/OtRequestList.jsx"));
 const correctionList = strip(read("components/attendance/CorrectionRequestList.jsx"));
 const otForm = strip(read("components/attendance/OtRequestForm.jsx"));
@@ -47,7 +47,7 @@ test("the employee's own page shows the four tabs, Attendance first", () => {
 });
 
 test("the OT tab is visible to every employee: no permission key anywhere on the page", () => {
-  assert.match(myPage, /<GlobalWrapper title="My Attendance">/);
+  assert.match(myPage, /<CustomContainer title="My Attendance"/);
   assert.ok(!/permissionKey/.test(myPage), "no permission gate on the employee's own page");
   assert.ok(!/employee_id/.test(myPage), "the page never names an employee id");
 });

@@ -138,7 +138,7 @@ async function open(over = {}) {
   actor = over.actor || { isAdmin: false, permissions: FULL };
   server = fakeServer();
   if (over.forbid) server.forbid = true;
-  ui = mount("pages/payroll/dashboard.jsx", {});
+  ui = mount("components/payroll/dashboard/PayrollDashboardView.jsx", {});
   // jsdom has no animation frames; Chakra's Drawer transition asks for one.
   if (!window.requestAnimationFrame) {
     window.requestAnimationFrame = (cb) => setTimeout(() => cb(Date.now()), 0);

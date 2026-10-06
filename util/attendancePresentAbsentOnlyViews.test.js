@@ -61,7 +61,7 @@ describe("the One-Day Shift Change form", () => {
 });
 
 describe("the dashboard's Present/Absent Only row opens its own list, by mode", () => {
-  const page = fs.readFileSync(path.join(__dirname, "../pages/attendance/dashboard/index.jsx"), "utf8");
+  const page = fs.readFileSync(path.join(__dirname, "../components/attendance/dashboard/AttendanceStaffingDashboard.jsx"), "utf8");
   const helper = fs.readFileSync(path.join(__dirname, "../helper/attendanceDashboard.js"), "utf8");
   const modal = fs.readFileSync(path.join(__dirname, "../components/attendance/dashboard/DrilldownModal.jsx"), "utf8");
 

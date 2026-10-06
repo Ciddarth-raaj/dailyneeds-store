@@ -928,6 +928,18 @@ const GST_MENU = {
  * so existing links and bookmarks still resolve.
  */
 const HR_MENU = {
+  // ONE DASHBOARD: Attendance Today, Attendance & Staffing, Payroll and My
+  // Attendance as tabs of /dashboard. No key: every signed-in user has at
+  // least My Attendance, and the page offers each tab on its own screen's
+  // rule. The three entries below that used to open those screens as pages
+  // now open their tab, and stay listed until the consolidation is settled.
+  dashboard: {
+    title: "Dashboard",
+    selected: false,
+    isDirect: true,
+    icon: "fa-pie-chart",
+    location: "/dashboard",
+  },
   employee_master: {
     title: "Employee Master",
     selected: true,
@@ -1130,12 +1142,12 @@ const HR_MENU = {
         title: "Attendance & Staffing",
         permission: "view_attendance_dashboard",
         selected: false,
-        location: "/attendance/dashboard",
+        location: "/dashboard?tab=staffing",
       },
       my_attendance: {
         title: "My Attendance",
         selected: false,
-        location: "/attendance/my",
+        location: "/dashboard?tab=my-attendance",
       },
       employee_attendance: {
         title: "Employee Attendance",
@@ -1272,7 +1284,7 @@ const HR_MENU = {
         title: "Payroll Dashboard",
         permission: ["view_employees", "view_payroll", "view_salary"],
         selected: false,
-        location: "/payroll/dashboard",
+        location: "/dashboard?tab=payroll",
       },
       salary_revision: {
         title: "Salary Revision & History",

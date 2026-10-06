@@ -15,6 +15,11 @@ export function UserProvider({ children }) {
     employeeId: null,
     permissions: [],
     fetched: {},
+    // False until the permission request has answered (either way). Screens
+    // that choose what to MOUNT from permissions - `/dashboard` picks its tab
+    // from them - wait for it rather than reading the empty starting list as
+    // "no access". Kept out of localStorage: it describes this page load.
+    permissionsLoaded: false,
   });
 
   const accessAllStores =
@@ -61,7 +66,8 @@ export function UserProvider({ children }) {
           console.error("Error processing permissions:", error);
         }
       })
-      .catch((err) => console.log(err));
+      .catch((err) => console.log(err))
+      .finally(() => setUserConfig((prev) => ({ ...prev, permissionsLoaded: true })));
   };
 
   const updateUserConfig = (newConfig) => {
