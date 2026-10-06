@@ -71,7 +71,6 @@ test("Employees, Department and Designation are all inside HR", () => {
     "/attendance/approval?type=OT",
     "/attendance/approver-setup",
     "/attendance/calculated",
-    "/attendance/dashboard",
     // Device Time Correction: administrators only (the page and the server
     // check user_type 2); drawn on the device-administration key.
     "/attendance/device-time-correction",
@@ -80,13 +79,18 @@ test("Employees, Department and Designation are all inside HR", () => {
     "/attendance/list",
     "/attendance/list?tab=audit",
     "/attendance/missing-attendance",
-    "/attendance/my",
     // Permission: the register, the management grant and the bulk log.
     "/attendance/permissions",
     "/attendance/recalculate",
     // Shift Change Eligibility: who may raise a one-day shift change, by the
     // SERVER's own production rule, and who already has.
     "/attendance/shift-change-eligibility",
+    // ONE DASHBOARD: the direct entry, and the three entries that used to
+    // open the dashboard screens as pages, now opening their tab.
+    "/dashboard",
+    "/dashboard?tab=my-attendance",
+    "/dashboard?tab=payroll",
+    "/dashboard?tab=staffing",
     "/department",
     "/designation",
     "/employee-shift-assignment",
@@ -98,7 +102,6 @@ test("Employees, Department and Designation are all inside HR", () => {
     // Payrun Initialization adds the fourth, and it is the first entry here
     // that is about a MONTH rather than about one employee's pay.
     "/payroll/bulk-salary-upload",
-    "/payroll/dashboard",
     "/payroll/payrun",
     "/payroll/reports",
     "/payroll/salary-approval",
@@ -243,7 +246,6 @@ test("HR > Attendance: list, punch audit, devices and the DigiSME import, on the
     "/attendance/approval?type=OT",
     "/attendance/approver-setup",
     "/attendance/calculated",
-    "/attendance/dashboard",
     // Device Time Correction: administrators only (the page and the server
     // check user_type 2); drawn on the device-administration key.
     "/attendance/device-time-correction",
@@ -252,13 +254,16 @@ test("HR > Attendance: list, punch audit, devices and the DigiSME import, on the
     "/attendance/list",
     "/attendance/list?tab=audit",
     "/attendance/missing-attendance",
-    "/attendance/my",
     // Permission: the register, the management grant and the bulk log.
     "/attendance/permissions",
     "/attendance/recalculate",
     // Shift Change Eligibility: who may raise a one-day shift change, by the
     // SERVER's own production rule, and who already has.
     "/attendance/shift-change-eligibility",
+    // The dashboard screens are tabs of /dashboard now; these two entries
+    // open their tab rather than a page of their own.
+    "/dashboard?tab=my-attendance",
+    "/dashboard?tab=staffing",
   ]);
   assert.match(att, /title:\s*"Attendance Approvals"[\s\S]*?permission:\s*"view_attendance_approvals"/);
   assert.match(att, /title:\s*"OT Approval"[\s\S]*?permission:\s*"view_attendance_approvals"/);
@@ -351,7 +356,6 @@ test("HR navigation still appears exactly once, and still holds its pages", () =
     "/attendance/approval?type=OT",
     "/attendance/approver-setup",
     "/attendance/calculated",
-    "/attendance/dashboard",
     // Device Time Correction: administrators only (the page and the server
     // check user_type 2); drawn on the device-administration key.
     "/attendance/device-time-correction",
@@ -360,13 +364,18 @@ test("HR navigation still appears exactly once, and still holds its pages", () =
     "/attendance/list",
     "/attendance/list?tab=audit",
     "/attendance/missing-attendance",
-    "/attendance/my",
     // Permission: the register, the management grant and the bulk log.
     "/attendance/permissions",
     "/attendance/recalculate",
     // Shift Change Eligibility: who may raise a one-day shift change, by the
     // SERVER's own production rule, and who already has.
     "/attendance/shift-change-eligibility",
+    // ONE DASHBOARD: the direct entry, and the three entries that used to
+    // open the dashboard screens as pages, now opening their tab.
+    "/dashboard",
+    "/dashboard?tab=my-attendance",
+    "/dashboard?tab=payroll",
+    "/dashboard?tab=staffing",
     "/department",
     "/designation",
     "/employee-shift-assignment",
@@ -378,7 +387,6 @@ test("HR navigation still appears exactly once, and still holds its pages", () =
     // Payrun Initialization adds the fourth, and it is the first entry here
     // that is about a MONTH rather than about one employee's pay.
     "/payroll/bulk-salary-upload",
-    "/payroll/dashboard",
     "/payroll/payrun",
     "/payroll/reports",
     "/payroll/salary-approval",
@@ -480,8 +488,9 @@ test("HR > Payroll is the dashboard, the three salary screens, the Payrun and Pa
   const pay = sectionOf(hrMenu, "payroll");
 
   assert.deepStrictEqual(locationsIn(pay).sort(), [
+    // The Payroll Dashboard is the Payroll tab of /dashboard now.
+    "/dashboard?tab=payroll",
     "/payroll/bulk-salary-upload",
-    "/payroll/dashboard",
     "/payroll/payrun",
     "/payroll/reports",
     "/payroll/salary-approval",
@@ -490,7 +499,7 @@ test("HR > Payroll is the dashboard, the three salary screens, the Payrun and Pa
   // The Payroll Dashboard: the Payrun's three read keys, nothing more.
   assert.match(
     pay,
-    /title:\s*"Payroll Dashboard"[\s\S]*?permission:\s*\["view_employees", "view_payroll", "view_salary"\][\s\S]*?location:\s*"\/payroll\/dashboard"/
+    /title:\s*"Payroll Dashboard"[\s\S]*?permission:\s*\["view_employees", "view_payroll", "view_salary"\][\s\S]*?location:\s*"\/dashboard\?tab=payroll"/
   );
   assert.match(pay, /title:\s*"Salary Revision & History"/);
   assert.match(pay, /title:\s*"Salary Approval"/);

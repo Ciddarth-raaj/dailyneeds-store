@@ -34,7 +34,7 @@ const flat = (s) => s.replace(/\s+/g, " ");
  */
 const prose = (s) => flat(s.replace(/^\s*\*\s?/gm, " "));
 
-const page = strip(read("pages/attendance/dashboard/index.jsx"));
+const page = strip(read("components/attendance/dashboard/AttendanceStaffingDashboard.jsx"));
 const helper = strip(read("helper/attendanceDashboard.js"));
 const cards = strip(read("components/attendance/dashboard/DashboardCards.jsx"));
 const filters = strip(read("components/attendance/dashboard/DashboardFilters.jsx"));
@@ -50,7 +50,7 @@ const permissions = read("constants/permissions.js");
 const menus = read("constants/menus.js");
 
 /* Unstripped, for assertions about the reasoning recorded in the comments. */
-const pageRaw = read("pages/attendance/dashboard/index.jsx");
+const pageRaw = read("components/attendance/dashboard/AttendanceStaffingDashboard.jsx");
 const overviewRaw = read("components/attendance/dashboard/AttendanceOverviewPanel.jsx");
 const drilldownRaw = read("components/attendance/dashboard/DrilldownModal.jsx");
 const trendRaw = read("components/attendance/dashboard/TrendPanel.jsx");
@@ -89,8 +89,12 @@ const ALL_PANELS = [
 
 /* ================================================ permission ==== */
 
-test("the page is behind view_attendance_dashboard", () => {
-  assert.match(page, /permissionKey=\{\["view_attendance_dashboard"\]\}/);
+test("the screen is behind view_attendance_dashboard - now as its /dashboard tabs", () => {
+  // The page became two tabs of /dashboard; the tabs are offered on the same
+  // key the page's GlobalWrapper used to check.
+  const access = read("customHooks/useDashboardTabAccess.js");
+  assert.match(access, /usePermissions\(\["view_attendance_dashboard"\]\)/);
+  assert.match(access, /attendance: canAttendance,\s*staffing: canAttendance,/);
 });
 
 test("the permission is declared for the designation rights screen", () => {
@@ -99,7 +103,7 @@ test("the permission is declared for the designation rights screen", () => {
 
 test("the menu entry carries the same key and points at the page", () => {
   assert.match(menus, /permission: "view_attendance_dashboard"/);
-  assert.match(menus, /location: "\/attendance\/dashboard"/);
+  assert.match(menus, /location: "\/dashboard\?tab=staffing"/);
 });
 
 test("a permission refusal is shown as a refusal, not as an error or as zero", () => {
@@ -156,7 +160,10 @@ test("the shift-assignment link requires BOTH keys, not either", () => {
 /* ================================================ the layout ==== */
 
 test("it reuses the existing application shell, not a shell of its own", () => {
-  assert.match(page, /import GlobalWrapper from/);
+  // The shell (sidebar, header) is the /dashboard page's GlobalWrapper; this
+  // screen renders inside it.
+  assert.match(read("pages/dashboard/index.jsx"), /import GlobalWrapper from/);
+  assert.ok(!/GlobalWrapper/.test(page), "no second shell inside the tab");
   assert.match(page, /import CustomContainer from/);
   assert.ok(!/SideBar|<Header/.test(page), "no second nested sidebar or header");
 });
@@ -475,7 +482,8 @@ test("no late or early-departure penalty is introduced", () => {
 
 test("the title and route are the approved ones", () => {
   assert.match(page, /title="Attendance & Staffing Dashboard"/);
-  assert.match(menus, /location: "\/attendance\/dashboard"/, "the route is unchanged");
+  assert.match(menus, /location: "\/dashboard\?tab=staffing"/, "the menu opens its tab");
+  assert.match(read("next.config.js"), /source: "\/attendance\/dashboard", destination: "\/dashboard\?tab=staffing"/, "the old route redirects");
   assert.match(menus, /permission: "view_attendance_dashboard"/, "the key is unchanged");
 });
 
@@ -829,9 +837,9 @@ test("the active branch is stated plainly on the page", () => {
 });
 
 test("THE SCOPE IS PRESENTATION, AND THE PAGE SAYS SO", () => {
-  assert.match(prose(read("pages/attendance/dashboard/index.jsx")), /It is NOT authorization/i);
+  assert.match(prose(read("components/attendance/dashboard/AttendanceStaffingDashboard.jsx")), /It is NOT authorization/i);
   assert.match(
-    prose(read("pages/attendance/dashboard/index.jsx")),
+    prose(read("components/attendance/dashboard/AttendanceStaffingDashboard.jsx")),
     /every endpoint re-resolves the scope on the server/i
   );
   // The browser never decides a scope of its own: no localStorage, no default

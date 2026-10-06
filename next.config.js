@@ -21,6 +21,14 @@ module.exports = {
         destination: "/advance-request/:path*",
         permanent: true,
       },
+      // The dashboard screens are tabs of /dashboard now. TEMPORARY (307)
+      // rather than permanent while the consolidation beds in: a browser
+      // caches a 308 for good, and these routes may yet need to come back.
+      // The old page files redirect too, for in-app navigations; the tab map
+      // is util/dashboardTabs.js#LEGACY_DASHBOARD_ROUTES.
+      { source: "/attendance/dashboard", destination: "/dashboard?tab=staffing", permanent: false },
+      { source: "/payroll/dashboard", destination: "/dashboard?tab=payroll", permanent: false },
+      { source: "/attendance/my", destination: "/dashboard?tab=my-attendance", permanent: false },
     ];
   },
 };

@@ -15,7 +15,7 @@ const path = require("path");
 const read = (rel) => fs.readFileSync(path.join(__dirname, "..", "..", rel), "utf8");
 const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
 
-const myPage = strip(read("pages/attendance/my/index.jsx"));
+const myPage = strip(read("components/attendance/MyAttendanceView.jsx"));
 const hrPage = strip(read("pages/attendance/calculated/index.jsx"));
 const list = strip(read("components/attendance/AttendanceDayList.jsx"));
 const detail = strip(read("components/attendance/AttendanceDayDetail.jsx"));
@@ -54,7 +54,7 @@ test("My Attendance makes ONE month request, only for a real month, and shows on
 });
 
 test("My Attendance needs no permission key; Employee Attendance is behind view_calculated_attendance", () => {
-  assert.match(myPage, /<GlobalWrapper title="My Attendance">/);
+  assert.match(myPage, /<CustomContainer title="My Attendance"/);
   assert.match(hrPage, /permissionKey=\{\["view_calculated_attendance"\]\}/);
   assert.match(hrPage, /<SearchableEmployeePicker/);
 });
