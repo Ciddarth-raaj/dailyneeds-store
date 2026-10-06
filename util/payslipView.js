@@ -4,7 +4,7 @@
  * The snapshot arrives from the server already frozen at Publish (Mini App:
  * `GET /telegram/payslips/detail`; admin: `GET /payrun/calculation/payslip`).
  * NOTHING HERE COMPUTES A FIGURE: every amount is the snapshot's own string,
- * formatted. Lines are hidden only when they are optional AND zero - the same
+ * formatted. Zero lines are hidden - the same
  * rule the server's PDF uses - so the screen and the PDF list the same lines.
  */
 
@@ -22,8 +22,8 @@ function formatRupees(amount) {
 
 const isZero = (amount) => amount === null || amount === undefined || Number(amount) === 0;
 
-/** Every non-optional line, and optional lines only when non-zero. */
-const printableLines = (lines) => (lines || []).filter((l) => l && (!l.optional || !isZero(l.amount)));
+/** Only the non-zero lines - the PDF's rule (a zero Special Allowance is clutter). */
+const printableLines = (lines) => (lines || []).filter((l) => l && !isZero(l.amount));
 
 const payTypeLabel = (payType) => (payType === "BANK" ? "Bank" : payType === "CASH" ? "Cash" : payType || null);
 

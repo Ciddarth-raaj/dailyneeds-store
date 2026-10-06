@@ -53,6 +53,8 @@ test("rupees: Indian grouping from the snapshot's text, no float arithmetic", ()
 
 test("lines: non-optional always, optional only when non-zero (the PDF's rule)", () => {
   assert.deepEqual(view.printableLines(SNAPSHOT.earnings.lines).map((l) => l.key), ["basic", "incentive"]);
+  const zeroSpecial = [...SNAPSHOT.earnings.lines, { key: "special_allowance", label: "Special Allowance", amount: "0.00", optional: false }];
+  assert.ok(!view.printableLines(zeroSpecial).some((l) => l.key === "special_allowance"), "a zero component is not shown");
 });
 
 test("the facts read straight from the snapshot - masked identifiers only, the rounded Net Pay exactly", () => {
