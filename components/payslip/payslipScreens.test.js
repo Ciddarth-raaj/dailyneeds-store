@@ -101,7 +101,7 @@ test("schema 2: UAN / PF / ESI in full; advance and CTC sections from the snapsh
   assert.equal(ctc["Monthly CTC"], "₹28,413.44");
   assert.equal(ctc["Annual CTC"], "₹3,40,961.28");
   assert.equal(ctc["Total Employer Contribution"], "₹2,400.07");
-  assert.ok(!("Other Employer Contribution (EDLI & PF Admin)" in ctc), "zero rows hidden");
+  assert.ok(!("Other Employer Contribution" in ctc), "zero rows hidden");
 });
 
 /* ------------------------------------------- payroll screen predicates */

@@ -105,7 +105,7 @@ function employerContributionFacts(snapshot) {
   return facts([
     ["Employer PF Contribution", isZero(c.employer_pf) ? null : formatRupees(c.employer_pf)],
     ["Employer ESI Contribution", isZero(c.employer_esi) ? null : formatRupees(c.employer_esi)],
-    ["Other Employer Contribution (EDLI & PF Admin)", isZero(c.other) ? null : formatRupees(c.other)],
+    ["Other Employer Contribution", isZero(c.other) ? null : formatRupees(c.other)],
     ["Total Employer Contribution", isZero(c.total) ? null : formatRupees(c.total)],
     ["Monthly Gross (Fixed)", formatRupees(c.monthly_gross)],
     ["Monthly CTC", formatRupees(c.monthly_ctc)],
