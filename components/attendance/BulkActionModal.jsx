@@ -42,7 +42,7 @@ const EFFECT = {
       : type === "PERMISSION"
       ? "Each permission request is cancelled - it does not go back to Pending. Its window stops being paid, the date is recalculated without it, and the employee can raise a fresh request."
       : type === "OT"
-      ? "Each OT request is cancelled - it does not go back to Pending. Its OT stops reaching payroll, the day shows OT as Not Requested again, and the employee can raise a fresh request."
+      ? "Each OT request is cancelled - it does not go back to Pending. Its OT stops reaching payroll; where the day still has eligible OT, the system raises a fresh pending OT for approval."
       : "Each request is cancelled - it does not go back to Pending. Its punch stops counting, the date is recalculated, and the employee can raise a fresh request.",
 };
 

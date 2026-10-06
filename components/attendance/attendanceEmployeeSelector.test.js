@@ -268,7 +268,7 @@ test("28. the OT claim stays out of the attendance Status badge", () => {
   assert.match(list, /const ot = otClaim\(day\)/);
   const issue = strip(util.slice(util.indexOf("function dayIssue"), util.indexOf("const OT_CLOSURE_LABEL")));
   assert.ok(!/ot_claim_state/.test(issue), "the issue never reads the OT claim");
-  for (const state of ["OT Available", "OT Request Pending", "OT Approved", "OT Rejected"]) {
+  for (const state of ["OT Calculated", "OT Pending Approval", "OT Approved", "OT Rejected"]) {
     assert.ok(util.includes(state), `${state} still an OT claim label`);
   }
 });

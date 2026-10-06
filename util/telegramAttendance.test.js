@@ -328,15 +328,15 @@ test("the tab index maps back to a section for the controlled Tabs", () => {
   assert.equal(sectionAtIndex(-1), SECTION.ATTENDANCE);
 });
 
-test("the Help text covers all three request sections and offers no approval control", () => {
+test("the Help text covers each section, says OT needs no request, and offers no approval control", () => {
   const { HELP_LINES } = require("./telegramAttendance");
   assert.equal(HELP_LINES.length, 7);
   assert.match(HELP_LINES[0], /My Attendance shows your attendance/);
   assert.match(HELP_LINES[1], /Corrections is for missing-punch requests/);
   assert.match(HELP_LINES[2], /missing punch time and reason/);
-  assert.match(HELP_LINES[3], /OT Requests is for claiming the overtime/);
-  // The one thing an employee must not expect to be able to do.
-  assert.match(HELP_LINES[4], /cannot be typed in; you enter only the reason/);
+  assert.match(HELP_LINES[3], /My OT shows the overtime the system calculated/);
+  // The one thing an employee must not expect to have to do.
+  assert.match(HELP_LINES[4], /do not need to request OT: it is sent for approval automatically/);
   assert.match(HELP_LINES[5], /go for approval/);
   assert.match(HELP_LINES[6], /manager or HR/);
   const all = HELP_LINES.join(" ");
@@ -376,16 +376,17 @@ test("the OT card is built from the day the server sent, figures and all", () =>
   // THE ENGINE's eligible OT, formatted and not recomputed.
   assert.equal(card.eligible_ot, "01:30");
   assert.equal(card.state, "NOT_REQUESTED");
-  assert.equal(card.label, "Not Requested");
-  assert.equal(card.can_submit, true);
+  assert.equal(card.label, "Awaiting Approval Queue");
+  assert.equal(card.can_submit, false, "OT is never requested");
+  assert.equal(card.next_step, "Sent for approval automatically - no request needed");
   assert.equal(card.blocked_reason, null);
 });
 
 test("the four OT states render with their own label and colour", () => {
   const { otCard } = require("./telegramAttendance");
   const cases = [
-    [{ ot_claim_state: "AVAILABLE" }, "Not Requested", "orange"],
-    [{ ot_claim_state: "REQUEST_PENDING", ot_requested_minutes: 90 }, "Pending", "purple"],
+    [{ ot_claim_state: "AVAILABLE" }, "Awaiting Approval Queue", "orange"],
+    [{ ot_claim_state: "REQUEST_PENDING", ot_requested_minutes: 90 }, "Pending Approval", "purple"],
     [{ ot_claim_state: "APPROVED", approved_ot_minutes: 90 }, "Approved", "green"],
     [{ ot_claim_state: "REJECTED", ot_requested_minutes: 90 }, "Rejected", "red"],
   ];
@@ -393,8 +394,8 @@ test("the four OT states render with their own label and colour", () => {
     const card = otCard(otDay(patch));
     assert.equal(card.label, label, JSON.stringify(patch));
     assert.equal(card.color, color);
-    // Only an unclaimed day may be submitted.
-    assert.equal(card.can_submit, label === "Not Requested");
+    // Nothing is ever submitted from the Mini App.
+    assert.equal(card.can_submit, false);
   });
 });
 
@@ -437,11 +438,11 @@ test("an approved card states what was approved, which may differ from what was 
   assert.equal(card.approved_ot, "01:15");
 });
 
-test("a pending correction blocks the OT request and says what to do", () => {
+test("a pending correction holds the OT back from approval and says so", () => {
   const { otCard } = require("./telegramAttendance");
   const card = otCard(otDay({ correction_state: "PENDING" }));
   assert.equal(card.can_submit, false);
-  assert.equal(card.blocked_reason, "Complete attendance correction first.");
+  assert.equal(card.blocked_reason, "OT goes to approval once the attendance correction is complete.");
 
   // A missing punch is the same: the day is not settled yet.
   const missing = otCard(otDay({
@@ -452,7 +453,7 @@ test("a pending correction blocks the OT request and says what to do", () => {
     ot_claim_state: "NONE",
   }));
   assert.equal(missing.can_submit, false);
-  assert.equal(missing.blocked_reason, "Complete attendance correction first.");
+  assert.equal(missing.blocked_reason, "OT goes to approval once the attendance correction is complete.");
 });
 
 test("an approved correction unblocks OT, on the refreshed day's own figure", () => {
@@ -460,7 +461,7 @@ test("an approved correction unblocks OT, on the refreshed day's own figure", ()
   // The corrected day: the punch is now effective and the engine found OT.
   const card = otCard(otDay({ correction_state: "APPROVED", candidate_ot_minutes: 90 }));
   assert.equal(card.blocked_reason, null);
-  assert.equal(card.can_submit, true);
+  assert.equal(card.can_submit, false, "it goes to approval automatically");
   assert.equal(card.eligible_ot, "01:30");
 });
 
@@ -518,7 +519,7 @@ test("the OT list is a filter over the month's days, not a second read", () => {
  * request the employee made and what came of it. The rule is "OT to claim
  * OR a claim already made", never candidate OT alone.
  */
-test("a submitted OT request stays in the Telegram list after candidate OT falls to zero", () => {
+test("an OT record stays in the Telegram list after candidate OT falls to zero", () => {
   const { otCards } = require("./telegramAttendance");
   const cards = otCards([
     otDay({ attendance_date: "2026-09-01", candidate_ot_minutes: 90, ot_claim_state: "AVAILABLE" }),
@@ -541,8 +542,8 @@ test("a submitted OT request stays in the Telegram list after candidate OT falls
     ["01:30", "01:30", "01:30", "01:30"]
   );
   assert.deepEqual(cards.map((c) => c.label), [
-    "Not Requested",
-    "Pending",
+    "Awaiting Approval Queue",
+    "Pending Approval",
     "Approved",
     "Rejected",
     "Closed – Payroll Locked",

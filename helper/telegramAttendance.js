@@ -5,11 +5,10 @@ import constants from "../constants/api.js";
  * The Telegram Attendance Mini App API, as `routes/telegram_attendance.js`
  * defines it.
  *
- * NO BUSINESS LOGIC LIVES HERE AND NONE IS DUPLICATED BELOW. Both writes go
- * to thin authenticated routes that delegate to the very usecases the web
- * app uses - `raiseRequest` for a correction, `raiseOtRequest` for OT - so
- * there is one correction engine and one OT engine in this system, not two
- * of each.
+ * NO BUSINESS LOGIC LIVES HERE AND NONE IS DUPLICATED BELOW. The one write
+ * goes to a thin authenticated route that delegates to the very usecase the
+ * web app uses - `raiseRequest` for a correction. OT is never requested: it
+ * is sent for approval automatically.
  *
  * ============================== ITS OWN AXIOS INSTANCE, ON PURPOSE =========
  *
@@ -96,26 +95,12 @@ const telegramAttendance = {
       )
       .then((r) => r.data),
 
-  /**
-   * OT: `{ attendance_date, reason }`. TWO FIELDS, AND NEITHER IS A
-   * DURATION.
-   *
-   * The arguments are destructured rather than spread precisely so that a
-   * caller who passes a whole day object cannot leak `candidate_ot_minutes`
-   * onto the wire - only these two names are read, and the API refuses any
-   * other key with a 422 anyway. The minutes are recalculated on the server
-   * at submission by the same `raiseOtRequest` the web app reaches through
-   * `POST /attendance/me/ot-request`; this route exists only because a Mini
-   * App has no dnds.co.in session to present to that one.
+  /*
+   * NO OT SUBMISSION. Employees no longer request OT: the attendance engine
+   * sends eligible OT for approval itself, and `POST
+   * /telegram/attendance/ot-request` answers 410. There is deliberately no
+   * helper that could call it.
    */
-  submitOtRequest: ({ attendance_date, reason }) =>
-    client
-      .post(
-        "/telegram/attendance/ot-request",
-        { attendance_date, reason },
-        { headers: authHeaders() }
-      )
-      .then((r) => r.data),
 
   /*
    * MY PAYSLIPS. No employee field exists on any of these - the employee is

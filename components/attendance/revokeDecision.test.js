@@ -51,7 +51,7 @@ test("the confirmation states employee, date, type, stage/level, current decisio
 test("OT and Attendance: the request is CANCELLED - never reopened", () => {
   const plain = modal.slice(modal.indexOf("  return {\n    verb: \"cancelled\",\n    text: `Request #${id} will be cancelled. It will not come back for approval, and its approval history is kept as it is. ${"));
   assert.match(plain, /will be cancelled\. It will not come back for approval/);
-  assert.match(plain, /the day shows OT as Not Requested again/);
+  assert.match(plain, /the system raises a fresh pending OT for approval/);
   assert.match(plain, /raise a fresh request, which starts a new approval chain/);
   assert.match(plain, /The original decision and your reason are kept in the audit/);
   assert.ok(!/reopen/i.test(plain), "nothing for OT or Attendance promises a reopening");

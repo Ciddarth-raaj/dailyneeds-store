@@ -1,5 +1,5 @@
 /**
- * My Attendance - the Attendance / Correction Requests / OT Requests tabs.
+ * My Attendance - the Attendance / Correction Requests / OT Approvals tabs.
  *
  *   node --test components/attendance/myRequestTabs.test.js
  *
@@ -17,7 +17,6 @@ const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm,
 const myPage = strip(read("components/attendance/MyAttendanceView.jsx"));
 const otList = strip(read("components/attendance/OtRequestList.jsx"));
 const correctionList = strip(read("components/attendance/CorrectionRequestList.jsx"));
-const otForm = strip(read("components/attendance/OtRequestForm.jsx"));
 const helper = strip(read("helper/attendanceV2.js"));
 
 /* ================================================== the tab shell ==== */
@@ -79,7 +78,7 @@ test("the OT row renders the BACKEND's eligible OT, never a figure derived here"
   assert.match(otList, /Eligible OT/);
   assert.match(otList, /otRequestStatus\(day\)/);
   // The columns the tab must carry.
-  ["Date", "Shift", "Punches", "Worked / NRM", "Eligible OT", "Status", "Action"].forEach((header) => {
+  ["Date", "Shift", "Punches", "Worked / NRM", "Eligible OT", "Status", "Next"].forEach((header) => {
     assert.ok(otList.includes(`>${header}<`), `the ${header} column`);
   });
 });
@@ -91,12 +90,12 @@ test("no OT arithmetic is done in the OT tab", () => {
   assert.ok(!/new Date\(/.test(otList), "no date maths on the punch times it displays");
 });
 
-test("the OT status uses the four request words, and the tab reads them from one place", () => {
+test("the OT status uses the approval words, and the tab reads them from one place", () => {
   assert.match(otList, /otRequestStatus\(day\)/);
-  assert.ok(!/"Pending"|"Approved"|"Rejected"|"Not Requested"/.test(otList), "no status word is spelled here");
+  assert.ok(!/"Pending Approval"|"Approved"|"Rejected"|"Awaiting Approval Queue"/.test(otList), "no status word is spelled here");
   const util = read("util/attendanceV2.js");
-  assert.match(util, /NOT_REQUESTED: "Not Requested"/);
-  assert.match(util, /PENDING: "Pending"/);
+  assert.match(util, /NOT_REQUESTED: "Awaiting Approval Queue"/);
+  assert.match(util, /PENDING: "Pending Approval"/);
   assert.match(util, /APPROVED: "Approved"/);
   assert.match(util, /REJECTED: "Rejected"/);
 });
@@ -108,46 +107,30 @@ test("the web OT tab also separates a payroll closure from a rejection", () => {
   assert.match(util, /CLOSED: "Closed – Payroll Locked"/);
 });
 
-test("an existing request shows requested OT, reason, submitted time and the rejection reason", () => {
-  assert.match(otList, /Requested OT:/);
-  assert.match(otList, /Reason: \{status\.reason\}/);
+test("an existing OT record shows the minutes sent for approval, times and the rejection reason", () => {
+  assert.match(otList, /Sent for approval:/);
   assert.match(otList, /Rejected: \{status\.rejectionReason\}/);
   assert.match(otList, /Submitted \$\{displayDateTime\(status\.requestedAt\)\}/);
   assert.match(otList, /Decided \$\{displayDateTime\(status\.decidedAt\)\}/);
 });
 
-test("a blocked date offers no button and shows the correction message instead", () => {
+test("a blocked date shows the correction message; nothing on the tab requests OT", () => {
   assert.match(otList, /const blocked = otBlockedReason\(day\)/);
   assert.match(otList, /if \(blocked\)/);
-  assert.match(otList, /if \(!canRequestOt\(day\)\) return/);
   const util = read("util/attendanceV2.js");
-  assert.match(util, /OT_BLOCKED_BY_CORRECTION = "Complete attendance correction first\."/);
+  assert.match(util, /OT_BLOCKED_BY_CORRECTION = "OT goes to approval once the attendance correction is complete\."/);
 });
 
-/* ============================================== the OT request form ==== */
+/* ============================================ NO OT REQUEST, ANYWHERE ==== */
 
-test("the OT form has no field for a duration and submits a date and a reason only", () => {
-  assert.ok(!/type="number"/.test(otForm), "no numeric input anywhere on the form");
-  assert.ok(!/<Input/.test(otForm), "the only free text is the reason Textarea");
-  assert.equal((otForm.match(/<Textarea/g) || []).length, 1);
-  assert.match(otForm, /Calculated OT \(read only\)/);
-  assert.match(otForm, /raiseMyOtRequest\(\{\s*attendance_date: date,\s*reason: reason\.trim\(\),\s*\}\)/);
-  assert.ok(!/minutes:/.test(otForm), "no minutes field is ever sent");
-  assert.ok(!/employee_id/.test(otForm), "no employee id is ever sent");
-});
-
-test("the form requires a reason before it will submit", () => {
-  assert.match(otForm, /if \(reason\.trim\(\)\.length < 5\)/);
-  assert.match(otForm, /Enter a reason for the overtime/);
-  assert.match(otForm, /isRequired/);
-});
-
-test("the helper posts the date and the reason to the self-only OT endpoint", () => {
-  const fn = helper.slice(helper.indexOf("raiseMyOtRequest"), helper.indexOf("getApprovals"));
-  assert.match(fn, /"\/attendance\/me\/ot-request"/);
-  assert.match(fn, /\{ attendance_date, reason \}/);
-  assert.ok(!/employee_id/.test(fn));
-  assert.ok(!/minutes/.test(fn));
+test("employees no longer request OT: no form, no button, no API call", () => {
+  assert.ok(!fs.existsSync(path.join(__dirname, "OtRequestForm.jsx")), "the OT request form is gone");
+  assert.ok(!/Request OT|onRequestOt|<Button/.test(otList), "the OT tab offers no request");
+  assert.ok(!/OtRequestForm|onRequestOt|setRequestingOt/.test(myPage), "the page wires no OT request");
+  assert.ok(!/raiseMyOtRequest|\/attendance\/me\/ot-request"/.test(helper), "no helper posts an OT request");
+  // What the tab says instead.
+  assert.match(otList, /OT_AUTOMATIC_NOTE/);
+  assert.match(read("util/attendanceV2.js"), /OT_AUTOMATIC_NOTE = "Sent for approval automatically - no request needed"/);
 });
 
 /* ====================================== the Correction Requests tab ==== */
@@ -159,9 +142,8 @@ test("the Correction tab shows the request state and stays out of OT", () => {
   assert.ok(!/ot_claim_state|candidate_ot_minutes|Request OT/.test(correctionList), "no OT on the correction tab");
 });
 
-test("the two tabs raise two separate requests", () => {
+test("only the correction tab raises anything; the OT tab raises nothing at all", () => {
   assert.match(myPage, /onRegularize=\{\(day\) => setRegularizing\(day\)\}/);
-  assert.match(myPage, /onRequestOt=\{\(day\) => setRequestingOt\(day\)\}/);
   assert.ok(!/RegularizationForm/.test(otList), "the OT tab cannot raise a correction");
   assert.ok(!/OtRequestForm/.test(correctionList), "the correction tab cannot raise OT");
 });
@@ -175,8 +157,7 @@ test("the OT tab says Approved via Shift Change, and never offers to claim it ag
   assert.match(otList, /status\.key !== "APPROVED_VIA_SHIFT_CHANGE"/);
   assert.match(otList, /Approved by your shift change/);
   assert.match(otList, /no OT request needed/);
-  assert.match(otList, /outside the approved shift is still to be requested/);
-  // Request OT is still gated on `canRequestOt`, which is false once the
-  // shift change has authorised the whole of it.
-  assert.match(otList, /if \(!canRequestOt\(day\)\) return/);
+  // The excess outside the approved shift goes to approval by itself.
+  assert.match(otList, /outside the approved shift goes to approval automatically/);
+  assert.ok(!/canRequestOt/.test(otList), "nothing on the tab asks whether OT may be requested");
 });

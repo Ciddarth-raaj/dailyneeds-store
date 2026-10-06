@@ -16,7 +16,7 @@ import { SUMMARY_FILTER } from "../../util/attendanceV2";
  * makes no request. Changing employee or month reloads as it always did.
  *
  * CLASSIFICATION IS THE ATTENDANCE STATUS, NEVER THE OT CLAIM - see
- * `daySummaryBucket`. A day with OT Available, Pending, Approved or Rejected
+ * `daySummaryBucket`. A day with OT Calculated, Pending Approval, Approved or Rejected
  * is counted on its attendance alone.
  */
 const CARDS = [

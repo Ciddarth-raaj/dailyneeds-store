@@ -251,14 +251,20 @@ function Detail({ row, kind, onDecide, deciding, onRevoke = null }) {
           <Field label="Eligible OT (read only)">
             <Text fontFamily="mono" fontSize="lg" color="blue.700">{formatOtClock(row.eligible_ot_minutes)}</Text>
             {Number(row.claimed_ot_minutes) !== Number(row.eligible_ot_minutes) ? (
-              <Text fontSize="xs" color="gray.500" fontWeight="400">Claimed {formatOtClock(row.claimed_ot_minutes)}; the approval is limited to what the system finds eligible.</Text>
+              <Text fontSize="xs" color="gray.500" fontWeight="400">Sent for approval as {formatOtClock(row.claimed_ot_minutes)}; the approval is limited to what the system finds eligible now.</Text>
             ) : null}
           </Field>
         )}
       </SimpleGrid>
       )}
 
-      <Field label="Employee reason"><Text fontWeight="400">{row.reason || "—"}</Text></Field>
+      {/* OT RAISED BY THE ATTENDANCE ENGINE has no employee reason: nobody
+          requested it. Historical OT an employee requested keeps theirs. */}
+      {isOt && row.ot_source === "SYSTEM" ? (
+        <Field label="Raised by"><Text fontWeight="400">System - eligible OT calculated by the attendance engine from the punches</Text></Field>
+      ) : (
+        <Field label="Employee reason"><Text fontWeight="400">{row.reason || "—"}</Text></Field>
+      )}
 
       {isShift ? null : (
       <SimpleGrid columns={{ base: 3, md: 4 }} spacing={3}>
@@ -434,7 +440,7 @@ export default function ApprovalQueue({ rows, kind, loading, onDecide, deciding,
                 ) : (
                   <Text fontSize="xs" color="orange.700" fontWeight="600">Proposed {row.proposed_punch_time ? clock(row.proposed_punch_time) : "—"}</Text>
                 )}
-                <Text fontSize="xs" color="gray.600" noOfLines={expanded ? undefined : 1}>{row.reason}</Text>
+                <Text fontSize="xs" color="gray.600" noOfLines={expanded ? undefined : 1}>{isOt && row.ot_source === "SYSTEM" ? "System-calculated OT" : row.reason}</Text>
                 <Text fontSize="10px" color="gray.500">Submitted {displayDateTime(row.submitted_at)}</Text>
               </Box>
               </Flex>
@@ -463,7 +469,7 @@ export default function ApprovalQueue({ rows, kind, loading, onDecide, deciding,
             {isShift ? null : isOt ? <Th isNumeric>Regular NRM</Th> : <Th>{isPermission ? "Permission" : "Proposed Punch"}</Th>}
             {isOt ? <Th isNumeric>{history ? "Eligible / Claimed OT" : "OT"}</Th> : null}
             {isOt && history ? <Th isNumeric>Approved OT</Th> : null}
-            <Th>{isOt ? "Employee Reason" : "Reason"}</Th>
+            <Th>{isOt ? "Source / Reason" : "Reason"}</Th>
             <Th>{history ? "Decided" : "Submitted"}</Th>
             {isShift ? <Th>Approval Stage</Th> : null}
             <Th>{history ? "Final Status" : "Action"}</Th>
@@ -484,7 +490,11 @@ export default function ApprovalQueue({ rows, kind, loading, onDecide, deciding,
                   {selection ? <Td onClick={(e) => e.stopPropagation()}><RowCheck row={row} selection={selection} /></Td> : null}
                   <Td whiteSpace="nowrap">{row.employee_name || row.employee_id}</Td>
                   <Td whiteSpace="nowrap">{displayDate(row.attendance_date)}</Td>
-                  <Td fontSize="xs">{isShift ? namedShift(row.base_shift_code, row.base_shift_name) : shiftText(row)}</Td>
+                  <Td fontSize="xs">
+                    {isShift ? namedShift(row.base_shift_code, row.base_shift_name) : shiftText(row)}
+                    {/* OT: the punch in / out beside the shift, so the decision needs no click. */}
+                    {isOt ? <Text fontFamily="mono" fontSize="10px" color="gray.600" whiteSpace="nowrap">{summaryPunches(row)}</Text> : null}
+                  </Td>
                   {isShift ? (
                     <Td fontSize="xs" color="purple.700" fontWeight="600">{namedShift(row.requested_shift_code, row.requested_shift_name)}</Td>
                   ) : isOt ? (
@@ -503,7 +513,13 @@ export default function ApprovalQueue({ rows, kind, loading, onDecide, deciding,
                     <Td isNumeric fontFamily="mono">{formatOtClock(row.eligible_ot_minutes)}{history && Number(row.claimed_ot_minutes) !== Number(row.eligible_ot_minutes) ? ` / ${formatOtClock(row.claimed_ot_minutes)}` : ""}</Td>
                   ) : null}
                   {isOt && history ? <Td isNumeric fontFamily="mono">{row.status === "APPROVED" ? formatOtClock(row.approved_ot_minutes) : "—"}</Td> : null}
-                  <Td fontSize="xs" maxW="260px"><Text noOfLines={1}>{row.reason}</Text></Td>
+                  <Td fontSize="xs" maxW="260px">
+                    {isOt && row.ot_source === "SYSTEM" ? (
+                      <Badge colorScheme="blue" fontSize="10px" variant="subtle">System</Badge>
+                    ) : (
+                      <Text noOfLines={1}>{row.reason}</Text>
+                    )}
+                  </Td>
                   <Td fontSize="xs" whiteSpace="nowrap">{history ? `${row.decided_by_name || "—"} · ${displayDateTime(row.decided_at)}` : displayDateTime(row.submitted_at)}</Td>
                   {isShift ? (
                     <Td fontSize="xs" whiteSpace="nowrap">

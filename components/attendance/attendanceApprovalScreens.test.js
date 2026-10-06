@@ -131,9 +131,15 @@ test("10. pending rows expand inline; 11. the employee's OT reason is shown; 12.
   assert.ok(!/<Input|<NumberInput|type="number"/.test(queue));
   // The OT table's approved columns, including the REGULAR NRM the base shift
   // decides - which on a covered day is deliberately not the day's own NRM.
-  for (const h of ["Employee", "Date", "Shift", "Working Time", "Regular NRM", "OT", "Employee Reason", "Submitted", "Action"]) {
+  for (const h of ["Employee", "Date", "Shift", "Working Time", "Regular NRM", "OT", "Source / Reason", "Submitted", "Action"]) {
     assert.ok(list.includes(h), `column ${h}`);
   }
+  // OT RAISED BY THE ATTENDANCE ENGINE is labelled as such - nobody requested
+  // it, so there is no employee reason to show - and its punches are on the
+  // row itself, beside the shift.
+  assert.match(detail, /row\.ot_source === "SYSTEM"/);
+  assert.match(detail, /label="Raised by"/);
+  assert.match(list, /isOt \? <Text fontFamily="mono" fontSize="10px"[^>]*>\{summaryPunches\(row\)\}/);
   assert.match(detail, /label="Regular NRM"[\s\S]*?row\.base_nrm_minutes/);
 });
 

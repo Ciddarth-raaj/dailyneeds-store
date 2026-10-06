@@ -23,7 +23,6 @@ import OtRequestList from "./OtRequestList";
 import ShiftRequestList from "./ShiftRequestList";
 import AttendanceDayDetail from "./AttendanceDayDetail";
 import RegularizationForm from "./RegularizationForm";
-import OtRequestForm from "./OtRequestForm";
 import ShiftChangeRequestForm from "./ShiftChangeRequestForm";
 import PermissionRequestForm from "./PermissionRequestForm";
 import usePermissions from "../../customHooks/usePermissions";
@@ -62,9 +61,8 @@ import {
  *
  * Mobile-first: cards on a phone, a compact table on a desktop. Tapping a
  * day opens the Day Detail; a Missing Punch day offers Regularize from
- * there, and a day whose OT is Available offers Request OT - two separate
- * requests, never combined. The OT minutes are the engine's and the form
- * has no field for them. The shift is read-only here - there is no Edit Shift on this page,
+ * there. OT is never requested: the engine's eligible OT is sent for
+ * approval automatically, and the OT tab shows where it is. The shift is read-only here - there is no Edit Shift on this page,
  * and the backend would refuse it anyway.
  *
  * ================================================== FOUR TABS, ONE READ ====
@@ -112,7 +110,6 @@ export default function MyAttendanceView({ isActive = true } = {}) {
   const [error, setError] = useState(null);
   const [selected, setSelected] = useState(null);
   const [regularizing, setRegularizing] = useState(null);
-  const [requestingOt, setRequestingOt] = useState(null);
   const [requestingShift, setRequestingShift] = useState(false);
   // PERMISSION: offered only to a holder of the self-request key; the
   // server checks it again and takes the employee from the session.
@@ -166,19 +163,6 @@ export default function MyAttendanceView({ isActive = true } = {}) {
     toast({
       title: "Regularization submitted",
       description: "The day now shows Regularization Pending until it is approved.",
-      status: "success",
-      duration: 5000,
-    });
-    await load();
-  };
-
-  const onOtSubmitted = async () => {
-    setRequestingOt(null);
-    setSelected(null);
-    setTab(MY_TAB.OT);
-    toast({
-      title: "OT request submitted",
-      description: "The day now shows OT Request Pending until it is approved.",
       status: "success",
       duration: 5000,
     });
@@ -272,7 +256,6 @@ export default function MyAttendanceView({ isActive = true } = {}) {
                   days={otRequestRows(days)}
                   loading={loading}
                   onSelect={setSelected}
-                  onRequestOt={(day) => setRequestingOt(day)}
                 />
               </TabPanel>
               <TabPanel px={0}>
@@ -295,7 +278,6 @@ export default function MyAttendanceView({ isActive = true } = {}) {
         isOpen={isActive && !!selected}
         onClose={() => setSelected(null)}
         onRegularize={(day) => setRegularizing(day)}
-        onRequestOt={(day) => setRequestingOt(day)}
         onRequestPermission={canRequestPermission ? (day) => setRequestingPermission({ date: day.attendance_date }) : null}
       />
       <PermissionRequestForm
@@ -303,12 +285,6 @@ export default function MyAttendanceView({ isActive = true } = {}) {
         onClose={() => setRequestingPermission(null)}
         onSubmitted={onPermissionSubmitted}
         defaultDate={requestingPermission ? requestingPermission.date : ""}
-      />
-      <OtRequestForm
-        day={requestingOt}
-        isOpen={isActive && !!requestingOt}
-        onClose={() => setRequestingOt(null)}
-        onSubmitted={onOtSubmitted}
       />
       <ShiftChangeRequestForm
         isOpen={isActive && requestingShift}

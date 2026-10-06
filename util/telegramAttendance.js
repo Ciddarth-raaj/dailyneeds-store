@@ -34,6 +34,7 @@ const {
   canRequestOt,
   formatMinutes,
   formatOtClock,
+  OT_AUTOMATIC_NOTE,
   otBlockedReason,
   otRequestRows,
   otRequestStatus,
@@ -78,7 +79,8 @@ const SECTION_ORDER = Object.freeze([
 const SECTION_LABEL = Object.freeze({
   ATTENDANCE: "My Attendance",
   CORRECTIONS: "Corrections",
-  OT: "OT Requests",
+  // The OT the engine found and sent for approval - nothing is requested here.
+  OT: "My OT",
   PAYSLIPS: "My Payslips",
   HELP: "Help",
 });
@@ -177,9 +179,9 @@ const HELP_LINES = Object.freeze([
   "My Attendance shows your attendance.",
   "Corrections is for missing-punch requests.",
   "Select the missing date, enter the missing punch time and reason, and submit.",
-  "OT Requests is for claiming the overtime the system calculated for a day.",
-  "The OT hours are calculated for you and cannot be typed in; you enter only the reason.",
-  "Submitted requests go for approval.",
+  "My OT shows the overtime the system calculated from your punches.",
+  "You do not need to request OT: it is sent for approval automatically.",
+  "Submitted corrections go for approval.",
   "Contact your manager or HR if your Telegram or employee details are incorrect.",
 ]);
 
@@ -268,7 +270,7 @@ function dateCard(row) {
  * Every value below is taken from the day the server sent or from the shared
  * web helpers that read it - `otRequestStatus` (the status, off
  * `ot_claim_state`), `otBlockedReason` (the correction dependency),
- * `canRequestOt` (whether the action is offered), `punchSummary`,
+ * `canRequestOt` (always false: OT is never requested), `punchSummary`,
  * `shiftLabel`, `formatMinutes`, `formatOtClock`. Those are the SAME
  * functions the web `/attendance/my` OT tab uses, so a date reads
  * identically on a phone in Telegram and on a desktop, and neither can
@@ -306,8 +308,10 @@ function otCard(day) {
     // `otRequestStatus` in `util/attendanceV2.js`.
     rejection_reason: status.rejectionReason,
     closure_reason: status.closureReason,
-    // The server's answer, carried through - never a rule decided here.
+    // Always false: eligible OT goes to approval automatically.
     can_submit: canRequestOt(day),
+    // What happens next, for a day whose OT is not in the approval queue yet.
+    next_step: status.key === "NOT_REQUESTED" ? OT_AUTOMATIC_NOTE : null,
     blocked_reason: otBlockedReason(day),
   };
 }

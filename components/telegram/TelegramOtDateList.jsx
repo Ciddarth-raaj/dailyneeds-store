@@ -4,8 +4,10 @@ import { displayDateTime } from "../../util/attendanceV2";
 import { otCard } from "../../util/telegramAttendance";
 
 /**
- * OT REQUESTS, as a phone shows it: one tappable card per date with
- * overtime to talk about.
+ * MY OT, as a phone shows it: one card per date with overtime, READ-ONLY.
+ * The employee requests nothing - the attendance engine sends eligible OT
+ * for approval by itself - so no card is a tap target any more; each says
+ * where its OT is (on its way, Pending Approval, Approved, Rejected, Closed).
  *
  * THE SAME CARD LANGUAGE AS CORRECTIONS - a rounded tile, the date and
  * weekday on the left, a state badge on the right, the whole tile the tap
@@ -27,10 +29,8 @@ import { otCard } from "../../util/telegramAttendance";
  * FROM THE PUNCH SUMMARY DISPLAYED ABOVE IT - the punches are context for a
  * human, and there is no arithmetic in this component at all.
  *
- * A date whose attendance is still in question shows "Complete attendance
- * correction first." and is NOT tappable: `can_submit` is the server's
- * answer carried through, exactly as the Corrections list carries it, so
- * this screen never invites a submission the backend would refuse.
+ * A date whose attendance is still in question says its OT goes to approval
+ * once the correction is complete (`blocked_reason`).
  */
 function Field({ label, value, accent }) {
   return (
@@ -45,7 +45,7 @@ function Field({ label, value, accent }) {
   );
 }
 
-export default function TelegramOtDateList({ days, loading, highlight, onSelect }) {
+export default function TelegramOtDateList({ days, loading, highlight }) {
   if (loading) {
     return (
       <Flex justify="center" py={10}>
@@ -75,8 +75,6 @@ export default function TelegramOtDateList({ days, loading, highlight, onSelect 
         return (
           <Box
             key={card.attendance_date}
-            as={card.can_submit ? "button" : "div"}
-            type={card.can_submit ? "button" : undefined}
             textAlign="left"
             w="100%"
             p={4}
@@ -85,7 +83,6 @@ export default function TelegramOtDateList({ days, loading, highlight, onSelect 
             borderColor={isHint ? "purple.400" : "gray.200"}
             boxShadow={isHint ? "0 0 0 2px var(--chakra-colors-purple-100)" : "sm"}
             bg="white"
-            onClick={card.can_submit ? () => onSelect(card.attendance_date) : undefined}
           >
             <Stack spacing={3}>
               <Flex align="center" justify="space-between" gap={3}>
@@ -125,14 +122,9 @@ export default function TelegramOtDateList({ days, loading, highlight, onSelect 
                   <Divider />
                   <Stack spacing={1}>
                     <Text fontSize="xs" color="gray.700">
-                      Requested OT: <strong>{card.requested_ot}</strong>
+                      Sent for approval: <strong>{card.requested_ot}</strong>
                       {card.approved_ot ? ` · Approved ${card.approved_ot}` : null}
                     </Text>
-                    {card.reason ? (
-                      <Text fontSize="xs" color="gray.600">
-                        Reason: {card.reason}
-                      </Text>
-                    ) : null}
                     {/* An approver's refusal ... */}
                     {card.rejection_reason ? (
                       <Text fontSize="xs" color="red.600">
@@ -147,7 +139,7 @@ export default function TelegramOtDateList({ days, loading, highlight, onSelect 
                     ) : null}
                     {card.requested_at ? (
                       <Text fontSize="10px" color="gray.500">
-                        Submitted {displayDateTime(card.requested_at)}
+                        Sent {displayDateTime(card.requested_at)}
                       </Text>
                     ) : null}
                     {card.decided_at ? (
@@ -163,9 +155,9 @@ export default function TelegramOtDateList({ days, loading, highlight, onSelect 
                 <Text fontSize="xs" fontWeight="700" color="orange.700">
                   {card.blocked_reason}
                 </Text>
-              ) : card.can_submit ? (
-                <Text fontSize="xs" fontWeight="700" color="purple.600">
-                  Tap to request OT →
+              ) : card.next_step ? (
+                <Text fontSize="xs" color="blue.700">
+                  {card.next_step}
                 </Text>
               ) : null}
             </Stack>

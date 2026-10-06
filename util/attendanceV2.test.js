@@ -85,18 +85,19 @@ test("a FINAL day has no badge at all, and OT is never an attendance issue", () 
 
 /* ===================================================== OT claim ==== */
 
-test("1. candidate OT with no request -> OT Available with a Request OT action", () => {
+test("1. candidate OT with no OT record yet -> OT Calculated, sent for approval automatically, no Request OT", () => {
   const ot = otClaim(day({ candidate_ot_minutes: 28, ot_claim_state: "AVAILABLE" }));
-  assert.equal(ot.label, "OT Available: 00:28");
-  assert.equal(ot.canRequest, true);
+  assert.equal(ot.label, "OT Calculated: 00:28");
+  assert.equal(ot.canRequest, false, "nobody requests OT any more");
+  assert.equal(ot.detail, "Sent for approval automatically - no request needed");
   assert.equal(ot.minutes, 28);
 });
 
-test("5. a pending request -> OT Request Pending, no Request OT action", () => {
-  const ot = otClaim(day({ candidate_ot_minutes: 28, ot_claim_state: "REQUEST_PENDING", ot_requested_minutes: 28, ot_reason: "Stock count" }));
-  assert.equal(ot.label, "OT Request Pending: 00:28");
+test("5. a pending OT -> OT Pending Approval, no Request OT action", () => {
+  const ot = otClaim(day({ candidate_ot_minutes: 28, ot_claim_state: "REQUEST_PENDING", ot_requested_minutes: 28, ot_reason: "System: 28 min" }));
+  assert.equal(ot.label, "OT Pending Approval: 00:28");
   assert.equal(ot.canRequest, false);
-  assert.equal(ot.detail, "Stock count");
+  assert.equal(ot.detail, null, "no request reason - the system raised it");
 });
 
 test("6. approved -> OT Approved with the approved minutes", () => {
@@ -506,11 +507,12 @@ test("OT hover walks the engine's chain: surplus, pre-shift dropped, minimum exc
 
 /* ============================ the employee's own request tabs ==== */
 
-test("the four tabs are Attendance, Correction Requests, OT Requests and Shift Requests, in that order", () => {
+test("the four tabs are Attendance, Correction Requests, OT Approvals and Shift Requests, in that order", () => {
   assert.deepEqual(MY_TAB_ORDER.map((k) => MY_TAB_LABEL[k]), [
     "Attendance",
     "Correction Requests",
-    "OT Requests",
+    // The employee requests nothing: it is the status of the OT sent for approval.
+    "OT Approvals",
     // Added at the END, so the index every existing tab already had is the
     // index it still has - a controlled `<Tabs>` is driven by that number.
     "Shift Requests",
@@ -557,14 +559,14 @@ test("the shift request status is read off shift_change_state, in the same four 
   );
 });
 
-test("the OT status is read off ot_claim_state, in the four request words", () => {
+test("the OT status is read off ot_claim_state, in the approval words", () => {
   const cases = [
-    [{ ot_claim_state: "AVAILABLE", candidate_ot_minutes: 90 }, "NOT_REQUESTED", "Not Requested"],
-    [{ ot_claim_state: "REQUEST_PENDING", ot_requested_minutes: 90 }, "PENDING", "Pending"],
+    [{ ot_claim_state: "AVAILABLE", candidate_ot_minutes: 90 }, "NOT_REQUESTED", "Awaiting Approval Queue"],
+    [{ ot_claim_state: "REQUEST_PENDING", ot_requested_minutes: 90 }, "PENDING", "Pending Approval"],
     [{ ot_claim_state: "APPROVED", approved_ot_minutes: 90 }, "APPROVED", "Approved"],
     [{ ot_claim_state: "REJECTED", ot_requested_minutes: 90 }, "REJECTED", "Rejected"],
     [{ ot_claim_state: "CLOSED_AT_PAYROLL_LOCK", ot_requested_minutes: 90 }, "CLOSED", "Closed – Payroll Locked"],
-    [{ candidate_ot_minutes: 0 }, "NOT_REQUESTED", "Not Requested"],
+    [{ candidate_ot_minutes: 0 }, "NOT_REQUESTED", "Awaiting Approval Queue"],
   ];
   cases.forEach(([d, key, label]) => {
     const status = otRequestStatus(day(d));
@@ -632,10 +634,10 @@ test("a submitted OT request shows its reason and the time it was submitted", ()
   assert.equal(status.requestId, 901);
 });
 
-test("a pending correction blocks the OT request and says so", () => {
+test("a pending correction holds the OT back from approval and says so", () => {
   const blocked = day({ ot_claim_state: "AVAILABLE", candidate_ot_minutes: 90, correction_state: "PENDING" });
   assert.equal(otBlockedReason(blocked), OT_BLOCKED_BY_CORRECTION);
-  assert.equal(OT_BLOCKED_BY_CORRECTION, "Complete attendance correction first.");
+  assert.equal(OT_BLOCKED_BY_CORRECTION, "OT goes to approval once the attendance correction is complete.");
   assert.equal(canRequestOt(blocked), false);
 
   // A missing punch is the same message: the day is not settled yet.
@@ -644,20 +646,19 @@ test("a pending correction blocks the OT request and says so", () => {
   assert.equal(canRequestOt(missing), false);
 });
 
-test("an approved correction unblocks OT, on whatever the refreshed day now says", () => {
+test("an approved correction unblocks OT, on whatever the refreshed day now says - still no request", () => {
   const settled = day({
     correction_state: "APPROVED",
     ot_claim_state: "AVAILABLE",
     candidate_ot_minutes: 90,
   });
   assert.equal(otBlockedReason(settled), null);
-  assert.equal(canRequestOt(settled), true);
+  assert.equal(canRequestOt(settled), false, "it is sent for approval automatically");
   assert.equal(otRequestStatus(settled).minutes, 90);
 });
 
-test("OT is offered only where the backend's claim state says AVAILABLE", () => {
-  assert.equal(canRequestOt(day({ ot_claim_state: "AVAILABLE", candidate_ot_minutes: 90 })), true);
-  ["REQUEST_PENDING", "APPROVED", "REJECTED", "CLOSED_AT_PAYROLL_LOCK", "NONE"].forEach((state) => {
+test("Request OT is never offered, in any claim state", () => {
+  ["AVAILABLE", "REQUEST_PENDING", "APPROVED", "REJECTED", "CLOSED_AT_PAYROLL_LOCK", "APPROVED_VIA_SHIFT_CHANGE", "NONE"].forEach((state) => {
     assert.equal(canRequestOt(day({ ot_claim_state: state, candidate_ot_minutes: 90 })), false, state);
   });
 });
@@ -759,7 +760,7 @@ test("an approved shift change shows Approved via Shift Change, and offers no re
   assert.strictEqual(status.requestId, null);
 });
 
-test("only the part OUTSIDE the approved shift is still requestable", () => {
+test("the part OUTSIDE the approved shift goes to approval automatically, not by request", () => {
   const { otRequestStatus, canRequestOt } = require("./attendanceV2");
   const day = {
     ot_claim_state: "APPROVED_VIA_SHIFT_CHANGE",
@@ -770,11 +771,12 @@ test("only the part OUTSIDE the approved shift is still requestable", () => {
     is_final: true,
     status: "FINAL",
   };
-  assert.strictEqual(canRequestOt(day), true, "the excess follows the ordinary path");
+  assert.strictEqual(canRequestOt(day), false, "the excess follows the ordinary automatic path");
+  assert.match(require("./attendanceV2").otClaim(day).detail, /goes to approval automatically/);
   assert.strictEqual(otRequestStatus(day).minutes, 480, "and the badge reports what was authorised");
 });
 
-test("an ordinary OT day is untouched: Not Requested, and requestable", () => {
+test("an ordinary OT day with no record yet: awaiting the approval queue, never requestable", () => {
   const { otRequestStatus, canRequestOt } = require("./attendanceV2");
   const day = {
     ot_claim_state: "AVAILABLE",
@@ -785,7 +787,7 @@ test("an ordinary OT day is untouched: Not Requested, and requestable", () => {
     status: "FINAL",
   };
   assert.strictEqual(otRequestStatus(day).key, "NOT_REQUESTED");
-  assert.strictEqual(canRequestOt(day), true);
+  assert.strictEqual(canRequestOt(day), false);
 });
 
 test("a closed excess does not un-approve what the shift change authorised", () => {
@@ -830,9 +832,9 @@ test("a pending or approved excess reads as itself, and neither offers a second 
   assert.match(otClaim(approved).detail, /was also approved/);
   assert.strictEqual(canRequestOt(approved), false);
 
-  // Only an unclaimed excess may still be claimed.
+  // Not even an unclaimed excess is requested: it goes to approval by itself.
   const available = { ...base, ot_excess_state: "AVAILABLE" };
-  assert.strictEqual(canRequestOt(available), true);
+  assert.strictEqual(canRequestOt(available), false);
 });
 
 test("the two approved components are read from the backend, never inferred", () => {

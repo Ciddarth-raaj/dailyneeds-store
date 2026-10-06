@@ -48,11 +48,10 @@ import {
  * position and take part in NRM / Worked / Short / OT.
  *
  * THE OT CLAIM is its own line, from the OT request state (never from the
- * attendance status): OT Available with a Request OT button, OT Request
- * Pending, OT Approved, or OT Rejected. `onRequestOt` is passed by My
- * Attendance only - an employee requests their own OT - and the button
- * appears only while the OT is AVAILABLE. Missing Punch stays a separate
- * action (Regularize) and a separate request.
+ * attendance status): OT Calculated (on its way to approval), OT Pending
+ * Approval, OT Approved, or OT Rejected. There is NO Request OT button -
+ * the attendance engine sends eligible OT for approval by itself. Missing
+ * Punch stays a separate action (Regularize) and a separate request.
  *
  * What is NOT here, on purpose: fixed Clk1-Clk4, separate In/Out fields,
  * late or early penalties, OT10/15/20/30, a lock, or a generic "Review
@@ -111,7 +110,6 @@ export default function AttendanceDayDetail({
   isOpen,
   onClose,
   onRegularize,
-  onRequestOt,
   onEditShift: onEditShiftProp,
   onVoidPunch,
   onRequestPermission,
@@ -127,7 +125,6 @@ export default function AttendanceDayDetail({
   const approvedOt = Number(day.approved_ot_minutes) || 0;
   const showRegularize = !!onRegularize && canRegularize(day);
   const ot = otClaim(day);
-  const showRequestOt = !!onRequestOt && !!ot && ot.canRequest;
   // Not offered on a Present/Absent Only date: nothing is short to forgive.
   const showRequestPermission = !!onRequestPermission && canRequestPermissionForDay(day);
 
@@ -153,11 +150,6 @@ export default function AttendanceDayDetail({
           {showRequestPermission ? (
             <Button size="sm" variant="outline" colorScheme="teal" onClick={() => onRequestPermission(day)}>
               Request Permission
-            </Button>
-          ) : null}
-          {showRequestOt ? (
-            <Button size="sm" colorScheme="blue" onClick={() => onRequestOt(day)}>
-              Request OT
             </Button>
           ) : null}
           <Button size="sm" variant="ghost" onClick={onClose}>

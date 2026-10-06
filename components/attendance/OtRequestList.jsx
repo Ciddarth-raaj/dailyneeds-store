@@ -2,7 +2,6 @@ import React from "react";
 import {
   Badge,
   Box,
-  Button,
   Flex,
   SimpleGrid,
   Spinner,
@@ -19,7 +18,7 @@ import {
 } from "@chakra-ui/react";
 import { ExplainTooltip } from "./AttendanceDayList";
 import {
-  canRequestOt,
+  OT_AUTOMATIC_NOTE,
   displayDate,
   displayDateTime,
   formatMinutes,
@@ -33,38 +32,28 @@ import {
 } from "../../util/attendanceV2";
 
 /**
- * THE OT REQUESTS TAB - one row per OT-requestable date of the loaded month.
+ * THE OT APPROVALS TAB - one row per date of the loaded month that has OT.
+ *
+ * ================================================= NOBODY REQUESTS OT ======
+ *
+ * The attendance engine finds eligible OT on a closed day and the system
+ * raises it for approval by itself; the employee files nothing, so this tab
+ * has no Request OT button. Each row says where that OT is: about to be sent
+ * (`OT_AUTOMATIC_NOTE`), Pending Approval, Approved, Rejected, or Closed –
+ * Payroll Locked (which is deliberately NOT a Rejected: an approver refusing
+ * and a payroll month being shut are different events).
  *
  * ==================================== EVERY FIGURE ON IT IS THE BACKEND'S ==
  *
- * Eligible OT is `candidate_ot_minutes`, the engine's own number on the day
- * `/attendance/me` returned; Requested OT is `ot_requested_minutes`, the
- * candidate the SERVER recalculated and stored when the request was
- * submitted; Approved OT is `approved_ot_minutes`. Worked and NRM are the
- * day's. NOTHING HERE IS DERIVED FROM THE PUNCH TIMES SHOWN BESIDE THEM -
- * the punches are context for a human, not an input to a calculation, and
- * there is no arithmetic in this file at all.
- *
- * The status is `otRequestStatus`, which reads `ot_claim_state` - the state
- * of the actual request row - and maps it onto the four request words
- * everything else in this system uses: Not Requested, Pending, Approved,
- * Rejected - plus Closed – Payroll Locked, which is deliberately NOT a
- * Rejected. An approver rejecting a claim and a payroll month being shut
- * are different events and are shown as different states.
- *
- * =========================================== THE CORRECTION DEPENDENCY =====
+ * Eligible OT is `candidate_ot_minutes`, the engine's own number on the day;
+ * "Sent for approval" is `ot_requested_minutes`, the figure on the pending
+ * OT record (it follows the engine while nobody has decided it); Approved OT
+ * is `approved_ot_minutes`. Worked and NRM are the day's. Nothing here is
+ * derived from the punch times shown beside them.
  *
  * A date whose attendance is still in question - a missing punch, or a
- * correction nobody has decided - offers no Request OT button and says
- * "Complete attendance correction first." instead. That is
- * `otBlockedReason`, and it is the SCREEN's explanation of a refusal the
- * backend makes anyway: `raiseOtRequest` refuses an open request on the date
- * and refuses a day that is not a complete FINAL one. Removing the check
- * here would change the message, not the outcome.
- *
- * Correction Requests and OT Requests remain SEPARATE records: nothing on
- * this tab raises, edits or decides a correction, and the button it does
- * offer opens `OtRequestForm`, whose body is a date and a reason.
+ * correction nobody has decided - says so (`otBlockedReason`): its OT goes
+ * to approval once the corrected day is settled, again with no request.
  */
 function StatusBadge({ status }) {
   return (
@@ -79,12 +68,11 @@ function StatusBadge({ status }) {
  *
  * It is NOT an OT request and there is none to link to: the approval happened
  * under Shift, and this says so rather than leaving a green "Approved" badge
- * on a row the employee never filed. `RowAction` still offers Request OT when
- * some of the day fell outside the approved shift - that part follows the
- * ordinary path.
+ * on a row the employee never filed. Any OT outside the approved shift goes
+ * to approval automatically, like every other day's.
  */
 const EXCESS_SENTENCE = {
-  AVAILABLE: (m) => `${formatOtClock(m)} outside the approved shift is still to be requested`,
+  AVAILABLE: (m) => `${formatOtClock(m)} outside the approved shift goes to approval automatically`,
   REQUEST_PENDING: (m) => `${formatOtClock(m)} outside the approved shift is awaiting approval`,
   // Note the second argument: the APPROVED sentence prints the backend's own
   // approved component, not the claimable figure - a later correction can
@@ -172,10 +160,11 @@ function Timestamps({ status }) {
 }
 
 /**
- * The one action a row can offer. A blocked date shows the sentence instead
- * of a button - never a button that would be refused on submit.
+ * What happens next, in place of an action: a blocked date says why, an OT
+ * not yet in the approval queue says it is on its way. There is no button -
+ * an employee never requests OT.
  */
-function RowAction({ day, onRequestOt }) {
+function RowNote({ day, status }) {
   const blocked = otBlockedReason(day);
   if (blocked) {
     return (
@@ -186,24 +175,17 @@ function RowAction({ day, onRequestOt }) {
       </Tooltip>
     );
   }
-  if (!canRequestOt(day)) return <Text fontSize="10px" color="gray.400">—</Text>;
-  return (
-    <Button
-      size="xs"
-      colorScheme="purple"
-      fontWeight="600"
-      whiteSpace="nowrap"
-      onClick={(e) => {
-        e.stopPropagation();
-        onRequestOt(day);
-      }}
-    >
-      Request OT
-    </Button>
-  );
+  if (status.key === "NOT_REQUESTED") {
+    return (
+      <Text fontSize="10px" color="blue.700">
+        {OT_AUTOMATIC_NOTE}
+      </Text>
+    );
+  }
+  return <Text fontSize="10px" color="gray.400">—</Text>;
 }
 
-function OtCard({ day, onSelect, onRequestOt }) {
+function OtCard({ day, onSelect }) {
   const status = otRequestStatus(day);
   const punches = punchSummary(day);
   return (
@@ -247,7 +229,7 @@ function OtCard({ day, onSelect, onRequestOt }) {
         </SimpleGrid>
         {status.key !== "NOT_REQUESTED" ? (
           <Text fontSize="xs" color="gray.700">
-            Requested OT: <strong>{formatOtClock(status.minutes)}</strong>
+            Sent for approval: <strong>{formatOtClock(status.minutes)}</strong>
             {status.key === "APPROVED" ? ` · Approved ${formatOtClock(day.approved_ot_minutes)}` : null}
           </Text>
         ) : null}
@@ -255,14 +237,14 @@ function OtCard({ day, onSelect, onRequestOt }) {
         <Reasons status={status} />
         <Timestamps status={status} />
         <Box>
-          <RowAction day={day} onRequestOt={onRequestOt} />
+          <RowNote day={day} status={status} />
         </Box>
       </Stack>
     </Box>
   );
 }
 
-function OtTable({ days, onSelect, onRequestOt }) {
+function OtTable({ days, onSelect }) {
   return (
     <Box overflowX="auto" borderWidth="1px" borderColor="gray.200" borderRadius="md" bg="white">
       <Table size="sm" variant="simple" sx={{ "th, td": { px: 2, py: 1.5 } }}>
@@ -274,7 +256,7 @@ function OtTable({ days, onSelect, onRequestOt }) {
             <Th fontSize="10px" isNumeric>Worked / NRM</Th>
             <Th fontSize="10px" isNumeric>Eligible OT</Th>
             <Th fontSize="10px">Status</Th>
-            <Th fontSize="10px" textAlign="right">Action</Th>
+            <Th fontSize="10px" textAlign="right">Next</Th>
           </Tr>
         </Thead>
         <Tbody>
@@ -311,7 +293,7 @@ function OtTable({ days, onSelect, onRequestOt }) {
                   </ExplainTooltip>
                   {status.key !== "NOT_REQUESTED" ? (
                     <Text fontSize="10px" color="gray.600" fontFamily="body" fontWeight="400">
-                      Requested {formatOtClock(status.minutes)}
+                      For approval {formatOtClock(status.minutes)}
                       {status.key === "APPROVED" ? ` · Approved ${formatOtClock(day.approved_ot_minutes)}` : null}
                     </Text>
                   ) : null}
@@ -323,7 +305,7 @@ function OtTable({ days, onSelect, onRequestOt }) {
                   <Timestamps status={status} />
                 </Td>
                 <Td textAlign="right">
-                  <RowAction day={day} onRequestOt={onRequestOt} />
+                  <RowNote day={day} status={status} />
                 </Td>
               </Tr>
             );
@@ -334,14 +316,14 @@ function OtTable({ days, onSelect, onRequestOt }) {
   );
 }
 
-export default function OtRequestList({ days, loading, onSelect, onRequestOt }) {
+export default function OtRequestList({ days, loading, onSelect }) {
   const isMobile = useBreakpointValue({ base: true, md: false });
 
   if (loading) {
     return (
       <Flex align="center" gap={2} py={6} justify="center">
         <Spinner size="sm" color="purple.500" />
-        <Text fontSize="sm" color="gray.600">Loading OT requests…</Text>
+        <Text fontSize="sm" color="gray.600">Loading OT…</Text>
       </Flex>
     );
   }
@@ -356,10 +338,10 @@ export default function OtRequestList({ days, loading, onSelect, onRequestOt }) 
     return (
       <Stack spacing={2}>
         {days.map((day) => (
-          <OtCard key={day.attendance_date} day={day} onSelect={onSelect} onRequestOt={onRequestOt} />
+          <OtCard key={day.attendance_date} day={day} onSelect={onSelect} />
         ))}
       </Stack>
     );
   }
-  return <OtTable days={days} onSelect={onSelect} onRequestOt={onRequestOt} />;
+  return <OtTable days={days} onSelect={onSelect} />;
 }

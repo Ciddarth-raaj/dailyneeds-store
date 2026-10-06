@@ -72,7 +72,7 @@ function effectOf(row, stageNo) {
     verb: "cancelled",
     text: `Request #${id} will be cancelled. It will not come back for approval, and its approval history is kept as it is. ${
       row.request_type === "OT"
-        ? "Its OT stops reaching payroll, and the day shows OT as Not Requested again."
+        ? "Its OT stops reaching payroll; if the day still has eligible OT, the system raises a fresh pending OT for approval."
         : row.request_type === "PERMISSION"
         ? "Its permission window stops being paid: whatever it covered is charged as shortage again."
         : "Its punch stops counting on the day."

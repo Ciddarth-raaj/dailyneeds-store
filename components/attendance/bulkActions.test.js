@@ -58,7 +58,7 @@ test("the confirmation states the count, requires the reason for Reject/Revoke, 
   assert.match(modal, /confirmTitle\(action, items\.length, type\)/);
   assert.match(modal, /isDisabled=\{reasonRequired\(action\) && reason\.trim\(\)\.length < 5\}/);
   assert.match(modal, /does not go back to Pending/);
-  assert.match(modal, /the day shows OT as Not Requested again/);
+  assert.match(modal, /the system raises a fresh pending OT for approval/);
   assert.match(page, /setBulk\(\{ action, type, status, items: \[\.\.\.selected\.values\(\)\] \}\)/, "the tab's status tells the modal which Shift outcome applies");
   assert.match(modal, /type === "SHIFT_CHANGE" && status === "REJECTED"\s*\? "Each rejected shift request is reopened/);
   assert.match(modal, /Each approved shift request is cancelled - it does not go back to Pending\. Its one-day shift stops applying/);

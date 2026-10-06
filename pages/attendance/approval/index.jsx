@@ -115,8 +115,9 @@ const decisionMessage = (type, res) => {
       ? "Permission approved. The date has been recalculated: the permitted time is paid, not counted as worked."
       : "Permission approved. It is applied when the attendance day closes.";
   }
-  return res.ot_now_available > 0
-    ? "Attendance corrected. The day now offers OT Available for the employee to request."
+  const raised = res.ot_auto_pending && Array.isArray(res.ot_auto_pending.created) ? res.ot_auto_pending.created.length : 0;
+  return raised > 0 || res.ot_now_available > 0
+    ? "Attendance corrected. The corrected day's OT has been sent for approval automatically."
     : "Attendance corrected.";
 };
 

@@ -52,8 +52,9 @@ import { formatYYYYMMDD } from "../../../util/dateRange";
  * applied on THAT date - the dated assignment, the one-date override, the
  * break override and any approved regularized punch - and under the shift's
  * CURRENT configuration, because an open month follows the rule as it stands
- * today. A payroll-locked month is refused outright. No punch is edited and
- * no OT request is created; candidate OT becomes OT Available.
+ * today. A payroll-locked month is refused outright. No punch is edited;
+ * eligible OT on a stored day is sent for approval automatically (pending,
+ * never paid until approved).
  *
  * RUNS A WORK SHIFT SAVE QUEUED appear in the same list, marked "Shift rule
  * change", and start as Queued: that work is done by a background worker
@@ -247,7 +248,7 @@ export default function RecalculateAttendancePage() {
           </Box>
 
           <Text fontSize="xs" color="gray.500">
-            Only dates whose attendance day has closed are stored; today and later dates are shown live. Recalculation uses the shift that applied on each date, the single-date shift override, the break override and approved regularized punches. Biomax punches are never changed, and no OT request is created: candidate OT becomes OT Available for the employee to request.
+            Only dates whose attendance day has closed are stored; today and later dates are shown live. Recalculation uses the shift that applied on each date, the single-date shift override, the break override and approved regularized punches. Biomax punches are never changed. Eligible OT on a recalculated day is sent for approval automatically - pending, and paid only once approved; an approved or rejected OT decision is never changed by a recalculation.
           </Text>
         </Stack>
       </CustomContainer>

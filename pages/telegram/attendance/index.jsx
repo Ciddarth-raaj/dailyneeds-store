@@ -22,7 +22,6 @@ import TelegramMissingDateList from "../../../components/telegram/TelegramMissin
 import TelegramMonthNav from "../../../components/telegram/TelegramMonthNav";
 import TelegramRegularizationForm from "../../../components/telegram/TelegramRegularizationForm";
 import TelegramOtDateList from "../../../components/telegram/TelegramOtDateList";
-import TelegramOtRequestForm from "../../../components/telegram/TelegramOtRequestForm";
 import TelegramAttendanceHelper from "../../../helper/telegramAttendance";
 import TelegramHelp from "../../../components/telegram/TelegramHelp";
 import TelegramPayslips from "../../../components/telegram/TelegramPayslips";
@@ -55,11 +54,11 @@ import { otRequestRows } from "../../../util/attendanceV2";
  *                  Regularisation Rejected. An actionable date opens the
  *                  form; Submit raises the ORDINARY Daily Needs request.
  *
- *   OT REQUESTS    every date of the loaded month with overtime to talk
- *                  about - one the engine found, or one already claimed -
- *                  with its Eligible OT and its state: Not Requested,
- *                  Pending, Approved, Rejected. An actionable date opens the
- *                  form; Submit raises the ORDINARY Daily Needs OT request.
+ *   MY OT          every date of the loaded month with overtime - with its
+ *                  Eligible OT and where it is: on its way to approval,
+ *                  Pending Approval, Approved, Rejected, Closed. READ-ONLY:
+ *                  the employee requests nothing; the attendance engine
+ *                  sends eligible OT for approval by itself.
  *
  *   MY PAYSLIPS    the employee's own PUBLISHED payslips, newest month first.
  *                  A month opens the frozen payslip (Net Pay first) with a
@@ -78,12 +77,9 @@ import { otRequestRows } from "../../../util/attendanceV2";
  * message is `otBlockedReason`, all from `util/attendanceV2.js` - the same
  * functions the web `/attendance/my` OT tab uses.
  *
- * WHAT SUBMIT SENDS IS A DATE AND A REASON. `POST
- * /telegram/attendance/ot-request` is a thin authenticated route: it
- * resolves the employee from the verified Telegram session and delegates to
- * `raiseOtRequest` - the one OT business path in the backend, which the web
- * app reaches through `POST /attendance/me/ot-request`. The minutes are
- * recalculated there and the request body has no field for them.
+ * THERE IS NO OT SUBMIT. `POST /telegram/attendance/ot-request` is retired
+ * (410) and nothing here calls it: OT approval happens on the same backend
+ * record from DnDS or from the bot's own OT approval cards.
  *
  * ======================================= `?section=` IS NAVIGATION ONLY ====
  *
@@ -161,8 +157,6 @@ export default function TelegramAttendancePage() {
   // OT REQUESTS. No list state: the tab is a view of `days` above, and the
   // form holds the DAY the employee tapped - the row the month already
   // returned, so no second read is made to open it.
-  const [otDay, setOtDay] = useState(null);
-  const [otSaving, setOtSaving] = useState(false);
 
   // CORRECTIONS
   const [corrections, setCorrections] = useState([]);
@@ -336,45 +330,6 @@ export default function TelegramAttendancePage() {
     }
   };
 
-  /**
-   * Raise the OT request. The body is the form's two fields, passed through
-   * untouched - this function adds nothing to it and could not add minutes
-   * if it wanted to, because the helper reads only those two names and the
-   * API refuses any other key.
-   *
-   * On success the month is reloaded, so the date comes back showing "OT
-   * Request Pending" with the SERVER's figure on it and can no longer be
-   * submitted. The duplicate refusal is the engine's; the screen simply
-   * stops inviting it.
-   */
-  const submitOt = async (body, onError) => {
-    setOtSaving(true);
-    try {
-      const res = await TelegramAttendanceHelper.submitOtRequest(body);
-      if (!isOk(res)) {
-        onError(apiMessage(res));
-        return;
-      }
-      setOtDay(null);
-      setNotice({
-        status: "success",
-        title: "OT request submitted",
-        text: "Your request has been sent for approval.",
-      });
-      await loadMonth(month);
-    } catch (err) {
-      onError("Could not reach the server. Please try again.");
-    } finally {
-      setOtSaving(false);
-    }
-  };
-
-  /** Open one OT date's form, from the day the month already returned. */
-  const openOt = (attendanceDate) => {
-    setNotice(null);
-    setOtDay(otRequestRows(days).find((d) => d.attendance_date === attendanceDate) || null);
-  };
-
   const banner = fatal ? (
     <Alert status="error" fontSize="sm" borderRadius="md">
       <AlertIcon />
@@ -424,13 +379,6 @@ export default function TelegramAttendancePage() {
               saving={saving}
               onSubmit={submit}
               onBack={() => setDetail(null)}
-            />
-          ) : otDay ? (
-            <TelegramOtRequestForm
-              day={otDay}
-              saving={otSaving}
-              onSubmit={submitOt}
-              onBack={() => setOtDay(null)}
             />
           ) : (
             /*
@@ -488,8 +436,8 @@ export default function TelegramAttendancePage() {
                 <TabPanel px={0}>
                   <Stack spacing={3}>
                     <Text fontSize="xs" color="gray.500">
-                      Overtime the system calculated for you, and what happened to what you
-                      claimed. The hours are calculated - you enter only a reason.
+                      Overtime the system calculated from your punches. It is sent for approval
+                      automatically - you do not need to request it.
                     </Text>
                     {/* THE SAME `days`, FILTERED. No second request is made
                         for this tab, and no figure on it is computed here. */}
@@ -497,7 +445,6 @@ export default function TelegramAttendancePage() {
                       days={otRequestRows(days)}
                       loading={daysLoading}
                       highlight={hint}
-                      onSelect={openOt}
                     />
                   </Stack>
                 </TabPanel>

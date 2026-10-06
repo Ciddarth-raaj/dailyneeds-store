@@ -226,8 +226,14 @@ function timingMinutes(day, minutes) {
  * (`ot_claim_state`), never from the attendance status. The minutes shown are
  * the engine's: the employee never enters or edits them.
  *
- *   AVAILABLE               "OT Available: 00:28"        + Request OT
- *   REQUEST_PENDING         "OT Request Pending: 00:28"
+ * NOBODY REQUESTS OT. The attendance engine raises a day's eligible OT for
+ * approval by itself, so no state offers a Request OT action (`canRequest`
+ * is always false). AVAILABLE is the short moment between the engine finding
+ * the OT and the system raising it - it is shown as on its way, not as
+ * something the employee has to do.
+ *
+ *   AVAILABLE               "OT Calculated: 00:28"       goes to approval automatically
+ *   REQUEST_PENDING         "OT Pending Approval: 00:28"
  *   APPROVED                "OT Approved: 00:28"
  *   REJECTED                "OT Rejected"                 an APPROVER said no
  *   CLOSED_AT_PAYROLL_LOCK  "OT Closed – Payroll Locked"  the PERIOD said no
@@ -263,6 +269,9 @@ const OT_CLOSURE_EMPLOYEE_LABEL = Object.freeze({
   NOT_REQUESTED_BEFORE_PAYROLL_LOCK: "Payroll for this month was locked before this OT was requested",
   NOT_APPROVED_BEFORE_PAYROLL_LOCK: "Payroll for this month was locked before this OT was approved",
 });
+
+/** What every screen says instead of a Request OT button. */
+const OT_AUTOMATIC_NOTE = "Sent for approval automatically - no request needed";
 
 /** The user-facing name of the closed state, wherever it is shown. */
 const OT_CLOSED_LABEL = "Closed – Payroll Locked";
@@ -311,8 +320,8 @@ function otClaim(day) {
        */
       const excessState = day.ot_excess_state || (claimable > 0 ? "AVAILABLE" : "NONE");
       const excessDetail = {
-        AVAILABLE: `${formatOtClock(claimable)} worked outside the approved shift is still to be requested`,
-        REQUEST_PENDING: `${formatOtClock(claimable)} outside the approved shift is requested and awaiting approval`,
+        AVAILABLE: `${formatOtClock(claimable)} worked outside the approved shift goes to approval automatically`,
+        REQUEST_PENDING: `${formatOtClock(claimable)} outside the approved shift is awaiting approval`,
         // The APPROVED figure is the backend's own component, not the
         // claimable remainder: they differ the moment a later correction
         // clamps what the request may be paid, and showing the wrong one
@@ -330,16 +339,23 @@ function otClaim(day) {
         state,
         label: `OT Approved via Shift Change: ${formatOtClock(shiftAuthorised)}`,
         minutes: shiftAuthorised,
-        // Only an excess nobody has claimed yet may still be claimed.
-        canRequest: claimable > 0 && excessState === "AVAILABLE",
+        // Nothing is ever requested: the excess goes to approval by itself.
+        canRequest: false,
         color: "green",
         detail: excessDetail,
       };
     }
     case "AVAILABLE":
-      return { state, label: `OT Available: ${formatOtClock(claimable)}`, minutes: claimable, canRequest: true, color: "blue", detail: null };
+      return {
+        state,
+        label: `OT Calculated: ${formatOtClock(claimable)}`,
+        minutes: claimable,
+        canRequest: false,
+        color: "blue",
+        detail: OT_AUTOMATIC_NOTE,
+      };
     case "REQUEST_PENDING":
-      return { state, label: `OT Request Pending: ${formatOtClock(requested)}`, minutes: requested, canRequest: false, color: "orange", detail: day.ot_reason || null };
+      return { state, label: `OT Pending Approval: ${formatOtClock(requested)}`, minutes: requested, canRequest: false, color: "orange", detail: null };
     case "APPROVED":
       return { state, label: `OT Approved: ${formatOtClock(approved)}`, minutes: approved, canRequest: false, color: "green", detail: null };
     case "REJECTED":
@@ -390,7 +406,9 @@ const MY_TAB_ORDER = Object.freeze([MY_TAB.ATTENDANCE, MY_TAB.CORRECTIONS, MY_TA
 const MY_TAB_LABEL = Object.freeze({
   ATTENDANCE: "Attendance",
   CORRECTIONS: "Correction Requests",
-  OT: "OT Requests",
+  // Not "OT Requests": the employee requests nothing. This tab is the status
+  // of the OT the engine found and sent for approval.
+  OT: "OT Approvals",
   SHIFT: "Shift Requests",
 });
 
@@ -417,12 +435,15 @@ function myTabAtIndex(index) {
  *   decidedAt:string|null, requestId:number|null}}
  */
 const OT_REQUEST_STATUS = Object.freeze({
-  NOT_REQUESTED: "Not Requested",
+  // The key keeps its historical name (screens and tests read it); the words
+  // say what it now means - the engine found OT and the system is about to
+  // raise it for approval, which nobody has to ask for.
+  NOT_REQUESTED: "Awaiting Approval Queue",
   // A SIXTH STATUS, and not "Approved": an approved one-day shift change
   // authorises the overtime it produces, so the employee never filed - and
   // must never be asked to file - a request for it.
   APPROVED_VIA_SHIFT_CHANGE: "Approved via Shift Change",
-  PENDING: "Pending",
+  PENDING: "Pending Approval",
   APPROVED: "Approved",
   REJECTED: "Rejected",
   // A FIFTH STATUS, because a closed period is not a decision. `Rejected`
@@ -515,7 +536,7 @@ function otRequestStatus(day) {
  *
  * @returns {string|null} the message, or null when nothing blocks OT
  */
-const OT_BLOCKED_BY_CORRECTION = "Complete attendance correction first.";
+const OT_BLOCKED_BY_CORRECTION = "OT goes to approval once the attendance correction is complete.";
 
 function otBlockedReason(day) {
   if (!day) return null;
@@ -528,15 +549,14 @@ function otBlockedReason(day) {
 }
 
 /**
- * Whether the Request OT action is offered on a day.
- *
- * `canRequest` is the backend's claim state - AVAILABLE and nothing else -
- * and the correction dependency is checked on top of it. Both have to agree,
- * and neither is computed from punch times on this side.
+ * Whether a Request OT action is offered on a day: NEVER. Employees no longer
+ * request OT - the attendance engine raises eligible OT for approval itself,
+ * and the backend's request endpoints answer 410. Kept as a function (always
+ * false) so a screen that still asks gets the right answer.
  */
+// eslint-disable-next-line no-unused-vars
 function canRequestOt(day) {
-  const claim = otClaim(day);
-  return !!claim && claim.canRequest === true && otBlockedReason(day) === null;
+  return false;
 }
 
 /**
@@ -1320,6 +1340,7 @@ module.exports = {
   OT_CLOSURE_LABEL,
   OT_CLOSURE_EMPLOYEE_LABEL,
   OT_CLOSED_LABEL,
+  OT_AUTOMATIC_NOTE,
   otClosureReason,
   dayIssue,
   ATTENDANCE_MODE,
