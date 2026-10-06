@@ -1265,6 +1265,15 @@ const HR_MENU = {
     openPage: true,
     icon: "fa-money",
     subMenu: {
+      // The Payroll Dashboard - the month at a glance and the way into what
+      // is left to do. The Payrun's own three keys, exactly what
+      // `routes/payroll_dashboard.js` requires.
+      payroll_dashboard: {
+        title: "Payroll Dashboard",
+        permission: ["view_employees", "view_payroll", "view_salary"],
+        selected: false,
+        location: "/payroll/dashboard",
+      },
       salary_revision: {
         title: "Salary Revision & History",
         permission: ["view_employees", "view_salary"],

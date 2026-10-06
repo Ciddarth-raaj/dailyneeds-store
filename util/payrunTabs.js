@@ -340,7 +340,21 @@ function closeMessage(summary) {
 const closeableEmployeeIds = (rows) =>
   (rows || []).filter((row) => row.attendance_closeable === true).map((row) => row.employee_id);
 
+/**
+ * A CARD NAMED IN A LINK (the Payroll Dashboard's "Fix in Payrun"), accepted
+ * only if it is one of that stage's own cards - anything else opens the
+ * stage's default, never an unknown filter.
+ */
+function cardForStage(stage, key) {
+  const tabs =
+    stage === "CALCULATION" ? CALCULATION_TABS : stage === "ADJUSTMENTS" ? ADJUSTMENT_TABS : INITIALIZATION_TABS;
+  const wanted = key === null || key === undefined ? "" : String(key).toUpperCase();
+  if (wanted === ALL) return ALL;
+  return tabs.some((t) => t.key === wanted) ? wanted : DEFAULT_TAB[stage] || ALL;
+}
+
 module.exports = {
+  cardForStage,
   ALL,
   ATTENDANCE_STATUS,
   ATTENDANCE_STATUS_LABEL,

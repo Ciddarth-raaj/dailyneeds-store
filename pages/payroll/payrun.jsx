@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/router";
 import {
   Alert,
   AlertIcon,
@@ -45,6 +46,7 @@ import {
   canCloseAttendanceForPayroll,
 } from "../../util/payrunAccess";
 import { canManageCompanyDetails } from "../../util/companyDetails";
+import { parsePayrunLink } from "../../util/payrollDashboard";
 import {
   ALL,
   INITIALIZATION_CARDS,
@@ -53,6 +55,7 @@ import {
   tabFilters,
   tabCount,
   nextCard,
+  cardForStage,
   filterCaption,
   closeSelectionSummary,
   closeMessage,
@@ -258,6 +261,46 @@ function Payrun() {
   const [initTab, setInitTab] = useState(DEFAULT_TAB.INITIALIZATION);
   const selectCard = (key) => setInitTab((active) => nextCard(active, key));
 
+  /*
+   * A LINK FROM THE PAYROLL DASHBOARD - `?year&month&stage&card&store_id&
+   * department_id&designation_id&search` - opens this screen on exactly the
+   * month, stage, card and employees it named. Read once, when the router is
+   * ready; anything malformed is dropped by `parsePayrunLink`, and the server
+   * still decides what the caller may see (a branch outside their scope is
+   * refused there, whatever the URL says).
+   */
+  const router = useRouter();
+  const linkApplied = useRef(false);
+  const linkedSearch = useRef(null);
+  const [linkedCalcCard, setLinkedCalcCard] = useState(null);
+  const [linkedAdjustmentCard, setLinkedAdjustmentCard] = useState(null);
+  useEffect(() => {
+    if (!router || !router.isReady || linkApplied.current) return;
+    linkApplied.current = true;
+    const link = parsePayrunLink(router.query || {});
+    if (!link.present) return;
+    if (link.year) setYear(link.year);
+    if (link.month) setMonth(link.month);
+    setStoreId(link.store_id);
+    setDepartmentId(link.department_id);
+    setDesignationId(link.designation_id);
+    // The month-change reset below would clear the search; carry it over once
+    // when the link changes the month, and set it directly either way.
+    const monthChanges = (link.year && link.year !== year) || (link.month && link.month !== month);
+    linkedSearch.current = monthChanges ? link.search : null;
+    setSearch(link.search);
+    const stageNow = link.stage || STAGE.INITIALIZATION;
+    if (link.card) {
+      const card = cardForStage(stageNow, link.card);
+      if (stageNow === STAGE.CALCULATION) setLinkedCalcCard(card);
+      else if (stageNow === STAGE.ADJUSTMENTS) setLinkedAdjustmentCard(card);
+      else setInitTab(card);
+    }
+    setStage(stageNow);
+    // Runs once; `year` and `month` are read only to compare with the link.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router]);
+
   /* The employee whose attendance detail is open, and the close in flight. */
   const [attendanceRow, setAttendanceRow] = useState(null);
   const [closing, setClosing] = useState(false);
@@ -285,6 +328,13 @@ function Payrun() {
      narrowing the old one no longer means anything. */
   useEffect(() => {
     setSearch("");
+  }, [year, month]);
+  /* ...except the search a dashboard link arrived with, applied once after
+     the reset above (effects run in order, so this one wins). */
+  useEffect(() => {
+    if (linkedSearch.current === null) return;
+    setSearch(linkedSearch.current);
+    linkedSearch.current = null;
   }, [year, month]);
 
   // Sent to the server, so rows that do not match are never read out of the
@@ -553,7 +603,7 @@ function Payrun() {
             onChange={(e) => setYear(Number(e.target.value))}
             aria-label="Payroll year"
           >
-            {[initial.year - 2, initial.year - 1, initial.year, initial.year + 1].map((y) => (
+            {[...new Set([initial.year - 2, initial.year - 1, initial.year, initial.year + 1, year])].sort().map((y) => (
               <option key={y} value={y}>
                 {y}
               </option>
@@ -680,6 +730,7 @@ function Payrun() {
             monthName={MONTH_NAMES[month - 1]}
             /* The search typed once, above, and carried into this stage. */
             search={search}
+            initialCard={linkedAdjustmentCard}
             /* The same key that initializes a month is the key that puts
                figures into it - see `routes/payrun_adjustment.js`. */
             mayEdit={mayInitialize}
@@ -703,6 +754,7 @@ function Payrun() {
             designationId={designationId}
             onFilterOptions={onCalcFilterOptions}
             clearFiltersToken={clearFiltersToken}
+            initialCard={linkedCalcCard}
             mayCalculate={mayCalculate}
             mayApprove={mayApprove}
             mayChangePayType={mayChangePayType}
