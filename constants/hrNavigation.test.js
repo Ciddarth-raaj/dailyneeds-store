@@ -98,6 +98,7 @@ test("Employees, Department and Designation are all inside HR", () => {
     // Payrun Initialization adds the fourth, and it is the first entry here
     // that is about a MONTH rather than about one employee's pay.
     "/payroll/bulk-salary-upload",
+    "/payroll/dashboard",
     "/payroll/payrun",
     "/payroll/reports",
     "/payroll/salary-approval",
@@ -377,6 +378,7 @@ test("HR navigation still appears exactly once, and still holds its pages", () =
     // Payrun Initialization adds the fourth, and it is the first entry here
     // that is about a MONTH rather than about one employee's pay.
     "/payroll/bulk-salary-upload",
+    "/payroll/dashboard",
     "/payroll/payrun",
     "/payroll/reports",
     "/payroll/salary-approval",
@@ -473,17 +475,23 @@ test("the module rail reads All, HR, Reports, WMS, GST", () => {
   assert.deepStrictEqual(ids, ["all", "hr", "reports", "wms", "gst"]);
 });
 
-test("HR > Payroll is the three salary screens, the Payrun and Payroll Reports, each behind ALL of its keys", () => {
+test("HR > Payroll is the dashboard, the three salary screens, the Payrun and Payroll Reports, each behind ALL of its keys", () => {
   const hrMenu = treeNamed("HR_MENU");
   const pay = sectionOf(hrMenu, "payroll");
 
   assert.deepStrictEqual(locationsIn(pay).sort(), [
     "/payroll/bulk-salary-upload",
+    "/payroll/dashboard",
     "/payroll/payrun",
     "/payroll/reports",
     "/payroll/salary-approval",
     "/payroll/salary-revision",
   ]);
+  // The Payroll Dashboard: the Payrun's three read keys, nothing more.
+  assert.match(
+    pay,
+    /title:\s*"Payroll Dashboard"[\s\S]*?permission:\s*\["view_employees", "view_payroll", "view_salary"\][\s\S]*?location:\s*"\/payroll\/dashboard"/
+  );
   assert.match(pay, /title:\s*"Salary Revision & History"/);
   assert.match(pay, /title:\s*"Salary Approval"/);
   assert.match(pay, /title:\s*"Bulk Salary Upload"/);

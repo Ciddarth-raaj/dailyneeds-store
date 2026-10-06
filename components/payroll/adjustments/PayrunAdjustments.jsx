@@ -80,7 +80,7 @@ import {
  * an affordance for a stage that does not exist is a promise the system cannot
  * keep.
  */
-function PayrunAdjustments({ year, month, storeId, mayEdit, monthName, search = "" }) {
+function PayrunAdjustments({ year, month, storeId, mayEdit, monthName, search = "", initialCard = null }) {
   const toast = useToast();
 
   const [catalogue, setCatalogue] = useState(null);
@@ -89,7 +89,7 @@ function PayrunAdjustments({ year, month, storeId, mayEdit, monthName, search = 
    * only queue on this stage with work in it - rather than on all two hundred.
    * ALL is one click away and never hidden.
    */
-  const [tab, setTab] = useState(DEFAULT_TAB.ADJUSTMENTS);
+  const [tab, setTab] = useState(initialCard || DEFAULT_TAB.ADJUSTMENTS);
   const [selectedIds, setSelectedIds] = useState([]);
   const [busyEmployeeId, setBusyEmployeeId] = useState(null);
   const [bulkBusy, setBulkBusy] = useState(false);

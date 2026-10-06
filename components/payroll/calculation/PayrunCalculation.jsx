@@ -133,6 +133,8 @@ function PayrunCalculation({
   designationId = "",
   onFilterOptions = null,
   clearFiltersToken = 0,
+  /* The card a Payroll Dashboard link opened this stage on. */
+  initialCard = null,
 }) {
   const toast = useToast();
 
@@ -174,7 +176,7 @@ function PayrunCalculation({
    * card, so opening on the whole month hides nothing; clicking the selected
    * card again goes back to All Employees.
    */
-  const [tab, setTab] = useState(DEFAULT_TAB.CALCULATION);
+  const [tab, setTab] = useState(initialCard || DEFAULT_TAB.CALCULATION);
   const selectCard = (key) => setTab((active) => nextCard(active, key));
   /* CLEAR FILTERS (on the page) also goes back to All Employees. */
   useEffect(() => {
