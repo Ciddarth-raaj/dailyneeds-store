@@ -131,8 +131,10 @@ const MONTH_STATUS = Object.freeze({
   NOT_STARTED: { label: "Not started", color: "gray.400" },
   INITIALIZED: { label: "Initialized", color: "blue.400" },
   CALCULATING: { label: "In progress", color: "orange.400" },
-  APPROVED: { label: "Approved & locked", color: "green.500" },
-  PUBLISHED: { label: "Payslips published", color: "green.700" },
+  // About the INITIALIZED employees only - the month may still have people
+  // not initialized (the Not Initialized card says how many).
+  APPROVED: { label: "All initialized approved & locked", color: "green.500" },
+  PUBLISHED: { label: "All initialized payslips published", color: "green.700" },
 });
 
 function monthStatusMeta(status) {

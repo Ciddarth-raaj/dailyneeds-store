@@ -69,7 +69,7 @@ function fakeServer() {
     const months = [4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2, 3].map((m) => {
       const year = m >= 4 ? p.fy : p.fy + 1;
       const started = year === 2026 && m <= 8;
-      return { year, month: m, label: `M${m}`, status: started ? "PUBLISHED" : "NOT_STARTED", initialized: started ? 5 : 0, calculated: started ? 5 : 0, approved: 0, published: 0, gross: started ? "2907375.00" : null };
+      return { year, month: m, label: `M${m}`, status: started ? "PUBLISHED" : "NOT_STARTED", initialized: started ? 5 : 0, calculated: started ? 5 : 0, approved: started ? 5 : 0, published: 0, approved_gross: started ? "2907375.00" : null };
     });
     return { code: 200, fy: p.fy, label: "FY", months };
   };
@@ -159,6 +159,9 @@ test("opens on the latest started month of the financial year and shows the serv
   assert.match(text, /₹29,07,375\.00/);
   assert.match(text, /Not tracked/, "PT is not tracked, not ₹0");
   assert.equal(document.body.querySelectorAll('[role="tab"]').length, 12, "all twelve months");
+  const tabs = [...document.body.querySelectorAll('[role="tab"]')];
+  assert.match(tabs[4].textContent, /₹29\.07L/, "AUG shows its approved gross");
+  assert.match(tabs[5].textContent, /—/, "an unstarted month shows no amount");
 });
 
 test("clicking a month refreshes the whole dashboard for it", skip, async () => {

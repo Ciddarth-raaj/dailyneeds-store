@@ -4,8 +4,9 @@ import { compactINR, monthStatusMeta } from "../../../util/payrollDashboard";
 
 /**
  * The twelve payroll months of the financial year. Each shows its state (a
- * coloured dot and the label in the tooltip) and, once anything is calculated,
- * the stored gross. Clicking a month reloads the whole dashboard for it.
+ * coloured dot and the label in the tooltip) and the APPROVED & LOCKED gross -
+ * final figures only; a calculated but unapproved month shows no amount rather
+ * than a provisional one. Clicking a month reloads the whole dashboard for it.
  */
 export default function MonthStrip({ months, selected, onSelect, loading }) {
   if (loading && !months) {
@@ -23,7 +24,9 @@ export default function MonthStrip({ months, selected, onSelect, loading }) {
         const meta = monthStatusMeta(m.status);
         const active = selected && selected.year === m.year && selected.month === m.month;
         const future = m.status === "FUTURE";
-        const detail = `${meta.label}${m.initialized ? ` · ${m.initialized} initialized · ${m.calculated} calculated · ${m.approved} approved` : ""}`;
+        const detail = `${meta.label}${m.initialized ? ` · ${m.initialized} initialized · ${m.calculated} calculated · ${m.approved} approved` : ""}${
+          m.approved_gross ? ` · approved gross ${compactINR(m.approved_gross)}` : m.initialized ? " · no amount until employees are approved" : ""
+        }`;
         return (
           <Tooltip key={`${m.year}-${m.month}`} label={detail} hasArrow openDelay={300}>
             <Box
@@ -50,7 +53,7 @@ export default function MonthStrip({ months, selected, onSelect, loading }) {
                   </Text>
                 </Flex>
                 <Text fontSize="xs" color="gray.600" fontWeight="600">
-                  {m.gross === null || m.gross === undefined ? "—" : compactINR(m.gross)}
+                  {m.approved_gross === null || m.approved_gross === undefined ? "—" : compactINR(m.approved_gross)}
                 </Text>
               </Flex>
             </Box>
