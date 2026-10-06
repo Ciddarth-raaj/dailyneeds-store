@@ -86,7 +86,10 @@ class LogIn extends React.Component {
             return;
           }
 
-          window.location.href = "/";
+          // Everyone lands on the unified Dashboard: every signed-in user can
+          // open it (My Attendance at least), whereas "/" is the store sales
+          // page behind the `dashboard` key and turns most staff away.
+          window.location.href = "/dashboard";
         }
       })
       .catch((err) => console.log(err));

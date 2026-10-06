@@ -123,3 +123,11 @@ test("the old page files still exist, as redirects to their tab", () => {
     assert.match(src, new RegExp(`<LegacyDashboardRedirect tab="${tab}" />`), file);
   }
 });
+
+test("signing in lands on /dashboard, not the store sales page at /", () => {
+  const login = fs.readFileSync(path.join(__dirname, "..", "pages", "login.js"), "utf8");
+  assert.match(login, /window\.location\.href = "\/dashboard";/);
+  assert.ok(!/window\.location\.href = "\/";/.test(login), "no post-login redirect to /");
+  // A forced password change still goes to its own screen first.
+  assert.match(login, /window\.location\.href = "\/change-password\?required=1";/);
+});
