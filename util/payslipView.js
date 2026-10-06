@@ -95,21 +95,33 @@ function advanceFacts(snapshot) {
 }
 
 /**
- * CTC / Employer Contribution - informational, never part of Earnings or
- * Deductions. The figures are the snapshot's own (Monthly CTC = Monthly Gross
- * + Total Employer Contribution, frozen at Publish); zero rows are hidden.
+ * EMPLOYER CONTRIBUTION - THIS MONTH'S, informational, never part of Earnings
+ * or Deductions. Zero rows hidden; no section when the total is zero.
  */
 function employerContributionFacts(snapshot) {
   const c = snapshot && snapshot.employer_contribution;
-  if (!c || !c.monthly_ctc || isZero(c.total)) return [];
+  if (!c || isZero(c.total)) return [];
   return facts([
     ["Employer PF Contribution", isZero(c.employer_pf) ? null : formatRupees(c.employer_pf)],
     ["Employer ESI Contribution", isZero(c.employer_esi) ? null : formatRupees(c.employer_esi)],
     ["Other Employer Contribution", isZero(c.other) ? null : formatRupees(c.other)],
     ["Total Employer Contribution", formatRupees(c.total)],
-    ["Monthly Gross (Fixed)", formatRupees(c.monthly_gross)],
+  ]);
+}
+
+/**
+ * CTC & TAKE HOME - FIXED by the salary structure, changing only on a salary
+ * revision (snapshot schema 3). No section when there is no fixed CTC, or when
+ * the CTC is just the Monthly Gross (no employer cost on top).
+ */
+function ctcFacts(snapshot) {
+  const c = snapshot && snapshot.employer_contribution;
+  const gross = snapshot && snapshot.attendance && snapshot.attendance.monthly_gross;
+  if (!c || isZero(c.monthly_ctc) || Number(c.monthly_ctc) === Number(gross)) return [];
+  return facts([
     ["Monthly CTC", formatRupees(c.monthly_ctc)],
-    ["Annual CTC", formatRupees(c.annual_ctc)],
+    ["Annual CTC", isZero(c.annual_ctc) ? null : formatRupees(c.annual_ctc)],
+    ["Monthly Take Home", isZero(c.monthly_take_home) ? null : formatRupees(c.monthly_take_home)],
   ]);
 }
 
@@ -134,6 +146,7 @@ module.exports = {
   statutoryFacts,
   advanceFacts,
   employerContributionFacts,
+  ctcFacts,
   finalFacts,
   payslipListLabel,
 };

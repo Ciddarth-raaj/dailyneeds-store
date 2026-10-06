@@ -75,7 +75,8 @@ test("the facts read straight from the snapshot - masked identifiers only, the r
   assert.equal(attendance["Standard Working Hours / Day"], 8);
   assert.ok(!view.attendanceFacts(SNAPSHOT).some(([k]) => /NRM/.test(k)));
   assert.deepEqual(view.advanceFacts(SNAPSHOT), [], "no advance block, no section");
-  assert.deepEqual(view.employerContributionFacts(SNAPSHOT), [], "no CTC block, no section");
+  assert.deepEqual(view.employerContributionFacts(SNAPSHOT), [], "no contribution block, no section");
+  assert.deepEqual(view.ctcFacts(SNAPSHOT), [], "no CTC block, no section");
 });
 
 test("schema 2: UAN / PF / ESI in full; advance and CTC sections from the snapshot's own figures", () => {
@@ -85,7 +86,7 @@ test("schema 2: UAN / PF / ESI in full; advance and CTC sections from the snapsh
     advance: { opening_balance: "4000.00", recovery_this_month: "1000.00", closing_balance: "3000.00" },
     employer_contribution: {
       employer_pf: "1560.74", employer_esi: "839.33", other: "0.00", total: "2400.07",
-      monthly_gross: "26013.37", monthly_ctc: "28413.44", annual_ctc: "340961.28",
+      monthly_ctc: "28500.00", annual_ctc: "342000.00", monthly_take_home: "24300.00",
     },
   };
   const statutory = Object.fromEntries(view.statutoryFacts(v2));
@@ -97,13 +98,17 @@ test("schema 2: UAN / PF / ESI in full; advance and CTC sections from the snapsh
     ["Recovery This Month", "₹1,000.00"],
     ["Advance Closing Balance", "₹3,000.00"],
   ]);
-  const ctc = Object.fromEntries(view.employerContributionFacts(v2));
-  assert.equal(ctc["Monthly CTC"], "₹28,413.44");
-  assert.equal(ctc["Annual CTC"], "₹3,40,961.28");
-  assert.equal(ctc["Total Employer Contribution"], "₹2,400.07");
-  assert.ok(!("Other Employer Contribution" in ctc), "zero rows hidden");
-  const noEmployerCost = { ...v2, employer_contribution: { ...v2.employer_contribution, employer_pf: "0.00", employer_esi: "0.00", total: "0.00", monthly_ctc: "26013.37", annual_ctc: "312160.44" } };
-  assert.deepEqual(view.employerContributionFacts(noEmployerCost), [], "no employer cost -> no CTC section");
+  const contribution = Object.fromEntries(view.employerContributionFacts(v2));
+  assert.equal(contribution["Total Employer Contribution"], "₹2,400.07");
+  assert.ok(!("Monthly CTC" in contribution), "CTC is its own section");
+  const ctc = Object.fromEntries(view.ctcFacts(v2));
+  assert.equal(ctc["Monthly CTC"], "₹28,500.00", "the salary record's fixed CTC");
+  assert.equal(ctc["Annual CTC"], "₹3,42,000.00");
+  assert.equal(ctc["Monthly Take Home"], "₹24,300.00");
+  assert.ok(!("Other Employer Contribution" in contribution), "zero rows hidden");
+  const noEmployerCost = { ...v2, employer_contribution: { ...v2.employer_contribution, employer_pf: "0.00", employer_esi: "0.00", total: "0.00", monthly_ctc: "26013.37", annual_ctc: "312160.44", monthly_take_home: "26013.37" } };
+  assert.deepEqual(view.employerContributionFacts(noEmployerCost), [], "no employer cost -> no contribution section");
+  assert.deepEqual(view.ctcFacts(noEmployerCost), [], "CTC = gross -> no CTC section");
 });
 
 /* ------------------------------------------- payroll screen predicates */
@@ -220,7 +225,7 @@ test("the detail puts Final Net Pay first, then the sections; nothing reads as a
   const body = code(detail);
   assert.ok(body.indexOf("Final Net Pay") < body.indexOf('title="Employee Details"'));
   for (const section of ["Employee Details", "Attendance / Salary Basis", "Earnings / Additions", "Deductions / Less",
-    "Statutory Information", "Advance Details", "CTC / Employer Contribution", "Net Pay"]) {
+    "Statutory Information", "Advance Details", "Employer Contribution", "CTC &amp; Take Home", "Net Pay"]) {
     assert.ok(body.includes(`title="${section}"`), section);
   }
   for (const src of [miniApp, detail]) assert.ok(!/accept|agree|approve/i.test(code(src)), "no acceptance control");

@@ -20,6 +20,7 @@ import {
   statutoryFacts,
   advanceFacts,
   employerContributionFacts,
+  ctcFacts,
   finalFacts,
 } from "../../util/payslipView";
 
@@ -91,7 +92,8 @@ function PayslipDetail({ snapshot }) {
   const e = snapshot.employee || {};
   const statutory = statutoryFacts(snapshot);
   const advance = advanceFacts(snapshot);
-  const ctc = employerContributionFacts(snapshot);
+  const contribution = employerContributionFacts(snapshot);
+  const ctc = ctcFacts(snapshot);
   return (
     <Stack spacing={3}>
       <Box
@@ -146,9 +148,21 @@ function PayslipDetail({ snapshot }) {
             <FactList rows={advance} />
           </Section>
         ) : null}
+        {contribution.length > 0 ? (
+          <Section title="Employer Contribution">
+            <FactList rows={contribution} />
+            <Text fontSize="xs" color="gray.500" mt={2}>
+              This month&apos;s, paid by the company over and above your salary; not part of Earnings or
+              Deductions.
+            </Text>
+          </Section>
+        ) : null}
         {ctc.length > 0 ? (
-          <Section title="CTC / Employer Contribution">
+          <Section title="CTC &amp; Take Home">
             <FactList rows={ctc} />
+            <Text fontSize="xs" color="gray.500" mt={2}>
+              Fixed by your salary structure; changes only on a salary revision.
+            </Text>
           </Section>
         ) : null}
         <Section title="Net Pay">
