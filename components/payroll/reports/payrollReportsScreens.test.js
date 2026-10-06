@@ -110,3 +110,14 @@ test("exports and statutory files are gated on their own keys", () => {
   assert.match(page, /\{mayExport \? \(/);
   assert.match(page, /statutoryKind && mayStatutory \?/);
 });
+
+test("Cash Payment Excel: its own route, the month only, behind the export permission", () => {
+  assert.match(helper, /download\("\/cash-payment\/xlsx", payload/);
+  const call = page.slice(page.indexOf("downloadCashPayment("), page.indexOf("downloadCashPayment(") + 120);
+  assert.match(call, /\{ year: period\.year, month: period\.month \}\)/);
+  assert.ok(!/field_keys|filters/.test(call), call);
+  const label = page.search(/>\s*Cash Payment Excel\s*</);
+  assert.ok(label > 0, "the button");
+  const button = page.slice(page.lastIndexOf("{mayExport ?", label), label);
+  assert.match(button, /exportFile\("cash"\)/);
+});

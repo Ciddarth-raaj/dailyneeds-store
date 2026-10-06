@@ -45,7 +45,7 @@ import { availableOnly, monthLabel, monthValue, parseMonthValue } from "../../ut
  *
  *   Payroll Reports - <Month Year>
  *   [Month ▼] [Report type tabs]
- *   [Template ▼] [Select Columns] [Copy Previous Month]        Excel | PDF (+ statutory file)
+ *   [Template ▼] [Select Columns] [Copy Previous Month]        Excel | PDF (+ statutory file)  Cash Payment Excel
  *   table
  *
  * EVERY FIGURE IS THE FINALIZED PAYRUN. The month list only offers months
@@ -64,6 +64,10 @@ import { availableOnly, monthLabel, monthValue, parseMonthValue } from "../../ut
  * The statutory files are generated for download - DnDS does not send
  * anything to the EPFO or ESIC portals - they ignore the visible columns,
  * and they are all or nothing: one blocked employee disables the download.
+ *
+ * CASH PAYMENT EXCEL is the month's Cash employees with the note / coin
+ * breakup and a signature sheet, for whichever report tab is open. The server
+ * refuses it until every Cash employee of the month is approved & locked.
  */
 const ok = (body) => body && !(Number(body.code) >= 400);
 
@@ -79,6 +83,14 @@ const activeFilterCount = (f = {}) =>
   ["outlet_ids", "department_ids", "designation_ids", "employment_types"].filter((k) => (f[k] || []).length > 0).length +
   (f.pay_type ? 1 : 0);
 const msgOf = (body, fallback) => (body && body.msg) || fallback;
+
+/** The employees a refused file names (pending, or with an unusable net pay), as one short line. */
+const namedEmployees = (detail = {}) => {
+  const list = detail.pending || detail.employees || [];
+  if (!list.length) return undefined;
+  const shown = list.slice(0, 5).map((e) => `${e.employee_id} ${e.employee_name || ""}`.trim());
+  return `${list.length} employee(s): ${shown.join(", ")}${list.length > shown.length ? ", ..." : ""}`;
+};
 
 function PayrollReports() {
   const toast = useToast();
@@ -325,10 +337,17 @@ function PayrollReports() {
           overrides: overrideList(),
         });
         toast({ status: "success", title: `Contribution file downloaded (${out.filename})`, duration: 5000 });
+      } else if (kind === "cash") {
+        const out = await PayrollReportHelper.downloadCashPayment({ year: period.year, month: period.month });
+        toast({ status: "success", title: `Cash Payment Excel downloaded (${out.filename})`, duration: 5000 });
       }
     } catch (err) {
       if (err && err.code === "BLOCKED_EMPLOYEES" && err.detail && err.detail.summary) {
         setValidation((v) => ({ ...(v || {}), summary: err.detail.summary, blocked: err.detail.blocked || [] }));
+      }
+      if (kind === "cash" && err && err.detail && namedEmployees(err.detail)) {
+        toast({ status: "error", title: msgOf(err.detail, err.message), description: namedEmployees(err.detail), duration: 8000, isClosable: true });
+        return;
       }
       fail(err && err.detail, (err && err.message) || "The file could not be produced");
     } finally {
@@ -471,6 +490,18 @@ function PayrollReports() {
                   isDisabled={statutoryDisabled || Boolean(exporting)}
                 >
                   {statutoryKind === "EPF" ? "Download ECR File" : "Download Contribution File"}
+                </Button>
+              ) : null}
+              {mayExport ? (
+                <Button
+                  size="sm"
+                  colorScheme="purple"
+                  variant="outline"
+                  onClick={() => exportFile("cash")}
+                  isLoading={exporting === "cash"}
+                  isDisabled={!period || Boolean(exporting)}
+                >
+                  Cash Payment Excel
                 </Button>
               ) : null}
             </Flex>

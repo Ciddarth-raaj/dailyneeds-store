@@ -98,6 +98,9 @@ const payrollReport = {
   downloadEcr: (payload) => download("/epf/ecr", payload, "ECR.txt"),
   getEsiValidation: (payload) => data(API.post(`${BASE}/esi/validation`, payload)),
   downloadEsiContribution: (payload) => download("/esi/contribution-file", payload, "ESIC_Contribution.xls"),
+
+  /* Cash Payment Excel - the month only; refused unless every Cash employee is finalized */
+  downloadCashPayment: (payload) => download("/cash-payment/xlsx", payload, "Cash Payment.xlsx"),
 };
 
 export default payrollReport;

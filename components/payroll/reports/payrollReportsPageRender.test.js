@@ -99,6 +99,10 @@ function fakeServer() {
     s.calls.push(["downloadEcr", p]);
     return { filename: "ECR.txt", blocked: 1 };
   };
+  helper.downloadCashPayment = async (p) => {
+    s.calls.push(["downloadCashPayment", p]);
+    return { filename: `Cash Payment - ${p.month === 9 ? "Sep" : "Oct"} ${p.year}.xlsx` };
+  };
   return s;
 }
 
@@ -264,4 +268,35 @@ test("Department, Designation and Employment Type filters are saved for the mont
   ui.click(button("Excel"));
   await settle();
   assert.deepEqual(callsOf("exportXlsx")[0].filters.employment_types, ["Contract"]);
+});
+
+test("Cash Payment Excel sends the selected month only, from any report tab", skip, async () => {
+  await open();
+  const esiTab = [...document.querySelectorAll('[role="tab"]')].find((t) => t.textContent === "ESI");
+  ui.click(esiTab);
+  await settle();
+  ui.click(button("Cash Payment Excel"));
+  await settle();
+  assert.deepEqual(callsOf("downloadCashPayment")[0], { year: 2026, month: 10 });
+  assert.match(document.body.textContent, /Cash Payment Excel downloaded \(Cash Payment - Oct 2026\.xlsx\)/);
+});
+
+test("Cash Payment Excel refused: the server's message is shown with the employees it names", skip, async () => {
+  await open();
+  const { PayrollReportFileError } = require(path.join(root, "helper/payrollReport.js"));
+  helper.downloadCashPayment = async () => {
+    throw new PayrollReportFileError(
+      {
+        error: "PAYROLL_NOT_FINALIZED",
+        msg: "Cash Payment Report can be generated only after payroll is finalized.",
+        pending: [{ employee_id: 12, employee_name: "Ravi", status: "CALCULATED" }],
+      },
+      409
+    );
+  };
+  ui.click(button("Cash Payment Excel"));
+  await settle();
+  assert.match(document.body.textContent, /Cash Payment Report can be generated only after payroll is finalized\./);
+  assert.match(document.body.textContent, /1 employee\(s\): 12 Ravi/);
+  assert.equal(button("Cash Payment Excel").disabled, false, "ready to try again");
 });
