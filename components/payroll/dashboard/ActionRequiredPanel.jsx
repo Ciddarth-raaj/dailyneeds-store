@@ -22,7 +22,7 @@ export default function ActionRequiredPanel({ actions, onOpen, hrefFor, onNaviga
       size="xs"
       filledHeader
     >
-      <SimpleGrid columns={{ base: 1, md: 2, xl: 5 }} spacing={3}>
+      <SimpleGrid columns={{ base: 1, md: 2, lg: 3, "2xl": 5 }} spacing={3}>
         {items.map((a) => {
           const tone = severityTone(a.severity);
           const has = Number(a.count) > 0;

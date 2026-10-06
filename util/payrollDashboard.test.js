@@ -8,14 +8,32 @@ const assert = require("node:assert/strict");
 const U = require("./payrollDashboard");
 const { cardForStage } = require("./payrunTabs");
 
-test("compact INR uses lakh and crore", () => {
-  assert.equal(U.compactINR("2907375.00"), "₹29.07L");
-  assert.equal(U.compactINR(14600000), "₹1.46Cr");
-  assert.equal(U.compactINR(45200), "₹45.2K");
-  assert.equal(U.compactINR(950), "₹950");
-  assert.equal(U.compactINR(100000), "₹1L");
-  assert.equal(U.compactINR("-250000"), "-₹2.5L");
+test("compact INR: in full below a lakh, two fixed decimals in lakh and crore, no zero stripped", () => {
+  const cases = [
+    [0, "₹0"],
+    [9, "₹9"],
+    [95, "₹95"],
+    [950, "₹950"],
+    [9500, "₹9,500"],
+    [95000, "₹95,000"],
+    [99999, "₹99,999"],
+    [100000, "₹1.00L"],
+    [950000, "₹9.50L"],
+    ["2907375.00", "₹29.07L"],
+    [9999999, "₹1.00Cr"],
+    [14600000, "₹1.46Cr"],
+    [1234500000, "₹123.45Cr"],
+    [9.5, "₹9.50"],
+    ["950.25", "₹950.25"],
+    ["9500.00", "₹9,500"],
+    [-950, "-₹950"],
+    ["-250000", "-₹2.50L"],
+    [-14600000, "-₹1.46Cr"],
+    [-0.5, "-₹0.50"],
+  ];
+  cases.forEach(([v, want]) => assert.equal(U.compactINR(v), want, String(v)));
   assert.equal(U.compactINR(null), "—");
+  assert.equal(U.compactINR(""), "—");
   assert.equal(U.compactINR("abc"), "—");
 });
 

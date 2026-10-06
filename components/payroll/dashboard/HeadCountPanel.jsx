@@ -19,6 +19,11 @@ const GROUPS = [
   { key: "employment_type", label: "Employee Type" },
 ];
 const BAR = "#1B2A5B";
+/* Long location / department names are cut on the axis; the tooltip has the whole name. */
+const shortName = (name) => {
+  const s = String(name || "");
+  return s.length > 22 ? `${s.slice(0, 21)}…` : s;
+};
 const ROW = 30;
 
 function HeadTooltip({ active, payload }) {
@@ -71,7 +76,7 @@ export default function HeadCountPanel({ headcount, periodLabel, onOpen }) {
               <BarChart data={data} layout="vertical" margin={{ top: 4, right: 36, bottom: 4, left: 4 }} barCategoryGap={6}>
                 <CartesianGrid horizontal={false} stroke="#EDF2F7" />
                 <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11, fill: "#718096" }} axisLine={false} tickLine={false} />
-                <YAxis type="category" dataKey="name" width={140} tick={{ fontSize: 11, fill: "#4A5568" }} axisLine={false} tickLine={false} interval={0} />
+                <YAxis type="category" dataKey="name" width={150} tickFormatter={shortName} tick={{ fontSize: 11, fill: "#4A5568" }} axisLine={false} tickLine={false} interval={0} />
                 <Tooltip content={<HeadTooltip />} cursor={{ fill: "#EDF2F7" }} />
                 <Bar dataKey="count" fill={BAR} radius={[0, 4, 4, 0]} maxBarSize={18} cursor="pointer" onClick={open} isAnimationActive={false}>
                   <LabelList dataKey="count" position="right" style={{ fontSize: 11, fill: "#2D3748", fontWeight: 600 }} />

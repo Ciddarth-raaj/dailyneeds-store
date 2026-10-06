@@ -242,6 +242,47 @@ test("no permission: explained, and nothing is read", skip, async () => {
   assert.equal(server.calls.length, 0);
 });
 
+test("initialized but not yet costed is visible and drillable, never hidden", skip, async () => {
+  await open();
+  assert.match(document.body.textContent, /4 initialized · 3 costed into Payroll Cost, Deductions and Net Payable · 1 initialized but not yet costed/);
+  ui.click(byText("View 1"));
+  await settle();
+  assert.equal(callsOf("getEmployees").at(-1).metric, "UNCOSTED");
+});
+
+test("Comparison: an empty comparison month says so; PT/TDS read Not tracked, never ₹0", skip, async () => {
+  const panel = mount("components/payroll/dashboard/ComparisonPanel.jsx", {
+    comparison: {
+      base: { year: 2026, month: 8, label: "August 2026" },
+      compare: { year: 2026, month: 9, label: "September 2026" },
+      metrics: [
+        { key: "EMPLOYEE_COUNT", label: "Employee Count", tracked: true, money: false, base: 5, compare: 0, difference: 5, percent: null },
+        { key: "PT", label: "Professional Tax", tracked: false, money: true, base: null, compare: null, difference: null, percent: null },
+        { key: "IT", label: "Income Tax / TDS", tracked: false, money: true, base: null, compare: null, difference: null, percent: null },
+      ],
+    },
+    choices: [],
+    compareKey: "2026-9",
+    onCompareChange: () => {},
+  });
+  const text = panel.text().join(" ");
+  assert.match(text, /September 2026 has no payroll for these filters/);
+  assert.equal((text.match(/Not tracked/g) || []).length, 2);
+  assert.ok(!/₹0\.00/.test(text), "no ₹0 for an untracked deduction");
+  panel.unmount();
+});
+
+test("Head Count cuts a very long name on the axis but keeps it whole for readers", skip, async () => {
+  const long = "Daily Needs Department Store - Moolakulam Main Road Branch";
+  const panel = mount("components/payroll/dashboard/HeadCountPanel.jsx", {
+    headcount: { location: [{ id: "1", name: long, count: 3, initialized: 3 }], department: [], designation: [], employment_type: [] },
+    periodLabel: "August 2026",
+    onOpen: () => {},
+  });
+  assert.match(panel.text().join(" "), new RegExp(`${long}: 3 employees`));
+  panel.unmount();
+});
+
 test("a server refusal (branch scope) is shown as the server worded it", skip, async () => {
   await open({ forbid: true });
   assert.match(ui.text().join(" "), /You are not authorized for this branch\./);

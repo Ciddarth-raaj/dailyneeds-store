@@ -23,8 +23,16 @@ function formatINR(value) {
 }
 
 /**
- * "₹29.07L", "₹1.46Cr", "₹45.2K", "₹950" - the compact Indian form for cards
- * and chart labels. Lakh and crore, never million.
+ * THE COMPACT INDIAN FORM, for cards and chart labels.
+ *
+ *   below one lakh   in full, Indian grouping: ₹0, ₹9, ₹950, ₹9,500, ₹95,000
+ *                    (paise shown only when there are any: ₹9.50)
+ *   lakh             two fixed decimals: ₹9.50L, ₹29.07L
+ *   crore            two fixed decimals: ₹1.46Cr
+ *
+ * Decimals are FIXED, never trimmed - ₹9.50L stays ₹9.50L - and no
+ * meaningful zero is ever removed (the ₹950 -> ₹95 bug). A value that rounds
+ * up to the next unit moves to it (99,99,999 -> ₹1.00Cr, not ₹100.00L).
  */
 function compactINR(value) {
   if (value === null || value === undefined || value === "") return "—";
@@ -32,14 +40,19 @@ function compactINR(value) {
   if (!Number.isFinite(n)) return "—";
   const sign = n < 0 ? "-" : "";
   const abs = Math.abs(n);
-  const trim = (x, dp) => {
-    const fixed = x.toFixed(dp);
-    return fixed.includes(".") ? fixed.replace(/\.?0+$/, "") : fixed;
-  };
-  if (abs >= 1e7) return `${sign}₹${trim(abs / 1e7, 2)}Cr`;
-  if (abs >= 1e5) return `${sign}₹${trim(abs / 1e5, 2)}L`;
-  if (abs >= 1e3) return `${sign}₹${trim(abs / 1e3, 1)}K`;
-  return `${sign}₹${trim(abs, 0)}`;
+  const r2 = (x) => Math.round(x * 100) / 100;
+  if (abs >= 1e5) {
+    const lakh = r2(abs / 1e5);
+    if (abs >= 1e7 || lakh >= 100) return `${sign}₹${r2(abs / 1e7).toFixed(2)}Cr`;
+    return `${sign}₹${lakh.toFixed(2)}L`;
+  }
+  const paise = Math.round(abs * 100);
+  const whole = paise % 100 === 0;
+  const text = new Intl.NumberFormat("en-IN", {
+    minimumFractionDigits: whole ? 0 : 2,
+    maximumFractionDigits: whole ? 0 : 2,
+  }).format(paise / 100);
+  return `${sign}₹${text}`;
 }
 
 /* ----------------------------------------------------------------- months */

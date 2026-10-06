@@ -278,6 +278,12 @@ function PayrollDashboard() {
                       <AlertIcon />
                       No payroll employees for {periodLabel} with these filters.
                     </Alert>
+                  ) : summary.kpis.initialized === 0 ? (
+                    <Alert status="info" fontSize="sm" borderRadius="md">
+                      <AlertIcon />
+                      Payroll for {periodLabel} has not been started: {summary.kpis.total_employees} employees are in the
+                      month's population and none is initialized yet.
+                    </Alert>
                   ) : null}
 
                   {pending.length ? (
@@ -303,12 +309,35 @@ function PayrollDashboard() {
 
                   <KpiCards kpis={summary.kpis} onOpen={openDrill} />
 
+                  {/* INITIALIZED IS NOT COSTED. The money cards cover only the
+                      employees with stored figures; the rest are named here. */}
+                  {Number(summary.kpis.uncosted_initialized) > 0 ? (
+                    <Alert status="info" fontSize="sm" borderRadius="md" py={2}>
+                      <AlertIcon />
+                      <Text>
+                        <strong>{summary.kpis.initialized}</strong> initialized ·{" "}
+                        <strong>{summary.kpis.costed_employees}</strong> costed into Payroll Cost, Deductions and Net Payable ·{" "}
+                        <strong>{summary.kpis.uncosted_initialized}</strong> initialized but not yet costed (not calculated, or attendance not
+                        settled). Their pay is not in the totals above.
+                      </Text>
+                      <Button
+                        size="xs"
+                        ml="auto"
+                        variant="outline"
+                        onClick={() => openDrill({ metric: "UNCOSTED", title: "Initialized, not yet costed" })}
+                      >
+                        View {summary.kpis.uncosted_initialized}
+                      </Button>
+                    </Alert>
+                  ) : null}
+
                   <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={4}>
                     <HeadCountPanel headcount={summary.headcount} periodLabel={periodLabel} onOpen={openDrill} />
                     <EarningsDeductionsPanel earnings={summary.earnings} periodLabel={periodLabel} onOpen={openDrill} />
                   </SimpleGrid>
 
-                  <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={4}>
+                  {/* The comparison table needs the width: side by side only on wide screens. */}
+                  <SimpleGrid columns={{ base: 1, "2xl": 2 }} spacing={4}>
                     <ComparisonPanel
                       comparison={summary.comparison}
                       choices={choices}

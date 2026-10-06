@@ -11,9 +11,9 @@ const CARDS = [
   { key: "total_employees", label: "Total Employees", metric: "ALL", color: "#1B2A5B", bg: "#EEF1F8", help: "Payroll population for the month and filters" },
   { key: "initialized", label: "Initialized", metric: "INITIALIZED", color: "green.700", bg: "green.50", help: "Payroll snapshot taken for the month" },
   { key: "not_initialized", label: "Not Initialized", metric: "NOT_INITIALIZED", color: "red.700", bg: "red.50", help: "Still pending initialization (ready or blocked)" },
-  { key: "payroll_cost", label: "Payroll Cost", metric: "COSTED", money: true, color: "#1B2A5B", bg: "white", help: "Gross wages of the calculated employees" },
-  { key: "total_deductions", label: "Total Deductions", metric: "COSTED", money: true, color: "red.700", bg: "white", help: "Employee deductions of the calculated employees" },
-  { key: "net_payable", label: "Net Payable", metric: "COSTED", money: true, color: "green.700", bg: "white", help: "Final net salary payable" },
+  { key: "payroll_cost", label: "Payroll Cost", metric: "COSTED", money: true, color: "#1B2A5B", bg: "white", help: "Gross earnings of the costed employees (salary, extra days, OT, incentive, bonus, arrears). Excludes employer PF/ESI" },
+  { key: "total_deductions", label: "Total Deductions", metric: "COSTED", money: true, color: "red.700", bg: "white", help: "Employee deductions of the costed employees (PF, ESI, advance, shortage, missing hours)" },
+  { key: "net_payable", label: "Net Payable", metric: "COSTED", money: true, color: "green.700", bg: "white", help: "Stored net pay, paid in whole rupees (gross - deductions + rounding)" },
 ];
 
 export default function KpiCards({ kpis, onOpen }) {
@@ -24,7 +24,7 @@ export default function KpiCards({ kpis, onOpen }) {
       {CARDS.map((card) => {
         const value = kpis[card.key];
         const sub = card.money
-          ? `${kpis.costed_employees} calculated${uncosted ? ` · ${uncosted} not yet costed` : ""}`
+          ? `${kpis.costed_employees} of ${kpis.initialized} initialized costed${uncosted ? ` · ${uncosted} not yet` : ""}`
           : null;
         return (
           <Tooltip key={card.key} label={card.money ? `${card.help}: ${formatINR(value)}` : card.help} hasArrow openDelay={300}>

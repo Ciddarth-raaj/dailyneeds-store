@@ -558,6 +558,9 @@ test("PAYROLL'S SCREENS EXIST, AND THE SALARY ONES ARE STILL ONLY ABOUT SALARY",
   assert.ok(fs.existsSync(payroll), "the Payroll screens exist");
   assert.deepStrictEqual(fs.readdirSync(payroll).sort(), [
     "bulk-salary-upload.jsx",
+    // Payroll Dashboard: a read of the month over the Payrun's own figures.
+    // About a month, not a salary screen - not in `payrollFiles` below.
+    "dashboard.jsx",
     // Payrun Initialization: the first stage of the Monthly Payrun. It is
     // deliberately NOT in the `payrollFiles` list below, because that list
     // asserts what the SALARY screens must not reach into, and the Payrun is

@@ -35,6 +35,10 @@ export default function PeopleMovementPanel({ movement, periodLabel, onOpen }) {
   return (
     <CustomContainer title="People Movement" subtitle={periodLabel} size="xs" filledHeader>
       <Flex direction="column" gap={3}>
+        <Text fontSize="10px" color="gray.500">
+          From the employment history. A rejoin is counted when it was recorded through DnDS Rejoin; older rejoins
+          read as New Joined. Hold and pre-joining are not payroll statuses in DnDS, so they are not shown.
+        </Text>
         {(movement || []).map((m) => {
           const t = TONE[m.key] || TONE.JOINED;
           return (

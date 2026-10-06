@@ -81,7 +81,11 @@ export default function EarningsDeductionsPanel({ earnings, periodLabel, onOpen 
           <Legend color={NET} label="Net Payable" value={earnings.net} onClick={() => openCosted("Net Payable")} />
           <Legend color={DEDUCTED} label="Deductions" value={earnings.deductions} onClick={() => openCosted("Total Deductions")} />
           <Text fontSize="xs" color="gray.500">
-            From {earnings.costed_employees} calculated employees
+            From {earnings.costed_employees} costed employees
+            {Number(earnings.net_pay_rounding) !== 0 ? ` · net pay rounding ${formatINR(earnings.net_pay_rounding)}` : ""}
+          </Text>
+          <Text fontSize="10px" color="gray.400">
+            Gross − Deductions + Rounding = Net Payable. Employer PF/ESI not included.
           </Text>
         </Flex>
       </Flex>
