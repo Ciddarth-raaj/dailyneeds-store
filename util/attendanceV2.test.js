@@ -492,16 +492,17 @@ test("OT hover walks the engine's chain: surplus, pre-shift dropped, minimum exc
       nrm_minutes: 510, worked_minutes: 678,
       actual_gap_minutes: 86, break_allowance_minutes: 90,
       pre_shift_minutes: 12, post_shift_minutes: 152,
-      raw_ot_minutes: 168, ot_offset_minutes: 0, candidate_ot_minutes: 136,
+      raw_ot_minutes: 164, ot_offset_minutes: 0, candidate_ot_minutes: 132,
     })
   );
   assert.deepEqual(lines, [
     "Worked 11h 18m against NRM 8h 30m: 2h 48m over",
-    "Lunch 1h 26m against 1h 30m allowed: 4m under, counted as worked",
-    "Before in-time 12m dropped (pre-shift OT off): 2h 36m",
+    "Lunch 1h 26m against 1h 30m allowed: 4m under, not counted as OT",
+    "Unused lunch is not OT: 2h 44m",
+    "Before in-time 12m dropped (pre-shift OT off): 2h 32m",
     "After out-time 2h 32m",
-    "Minimum 20m excluded: 2h 36m − 20m = 2h 16m",
-    "OT 2h 16m",
+    "Minimum 20m excluded: 2h 32m − 20m = 2h 12m",
+    "OT 2h 12m",
   ]);
 });
 
