@@ -335,6 +335,12 @@ function Detail({ row, kind, onDecide, deciding, onRevoke = null }) {
             </Button>
           </Flex>
         </Box>
+      ) : row.status === "PENDING" && row.waiting_for_correction ? (
+        // ATTENDANCE CORRECTION FIRST: the OT is re-synced from the corrected
+        // day once the correction is decided; until then it cannot be decided.
+        <Text fontSize="xs" color="orange.700">
+          {row.waiting_status_label || "Waiting for attendance correction"} - OT will be recalculated before approval.
+        </Text>
       ) : row.status === "PENDING" && row.not_actionable_reason ? (
         <Text fontSize="xs" color="gray.500">{row.not_actionable_reason}</Text>
       ) : null}
@@ -418,7 +424,9 @@ export default function ApprovalQueue({ rows, kind, loading, onDecide, deciding,
               <Box as="button" type="button" textAlign="left" w="100%" onClick={() => toggle(id)} aria-expanded={expanded}>
                 <Flex justify="space-between" align="center" gap={2}>
                   <Text fontWeight="600" fontSize="sm" color="purple.700">{row.employee_name || row.employee_id}</Text>
-                  {row.status === "PENDING" ? (
+                  {row.status === "PENDING" && row.waiting_for_correction ? (
+                    <Badge colorScheme="orange" fontSize="10px">{row.waiting_status_label || "Waiting for attendance correction"}</Badge>
+                  ) : row.status === "PENDING" ? (
                     <Badge colorScheme={row.actionable ? "purple" : "gray"} fontSize="10px">{stageLabel(row)}</Badge>
                   ) : (
                     <Badge colorScheme={row.status === "APPROVED" ? "green" : "red"} fontSize="10px">{decisionLabel(row)}</Badge>
@@ -530,7 +538,9 @@ export default function ApprovalQueue({ rows, kind, loading, onDecide, deciding,
                     </Td>
                   ) : null}
                   <Td>
-                    {row.status === "PENDING" ? (
+                    {row.status === "PENDING" && row.waiting_for_correction ? (
+                      <Badge colorScheme="orange" fontSize="10px">{row.waiting_status_label || "Waiting for attendance correction"}</Badge>
+                    ) : row.status === "PENDING" ? (
                       <Badge colorScheme={row.actionable ? "purple" : "gray"} fontSize="10px">{row.actionable ? "Decide" : stageLabel(row)}</Badge>
                     ) : (
                       <Badge colorScheme={row.status === "APPROVED" ? "green" : "red"} fontSize="10px">{decisionLabel(row)}</Badge>

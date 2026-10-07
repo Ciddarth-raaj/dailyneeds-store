@@ -104,7 +104,7 @@ test("6. Approve / Reject decide the current stage and refresh the list and the 
   // OT: the minutes the row showed travel with the decision, and a figure a
   // recalculation moved meanwhile reloads the queue instead of deciding unseen.
   assert.match(approval, /expected_ot_minutes: type === "OT" \? row\.claimed_ot_minutes : undefined/);
-  assert.match(approval, /if \(res && res\.ot_minutes_changed\) await load\(\);/);
+  assert.match(approval, /if \(res && \(res\.ot_minutes_changed \|\| res\.waiting_for_correction\)\) await load\(\);/);
   assert.match(approval, /await load\(\);/);
   assert.match(helper, /`\/attendance\/regularization\/\$\{request_id\}\/decision`/);
   assert.match(helper, /decision,\s*remarks: remarks \|\| "",/);
@@ -390,4 +390,20 @@ test("Recalculate Attendance says which open/future days were NOT stored, and Ed
   const calculated = strip(read("pages/attendance/calculated/index.jsx"));
   assert.match(calculated, /res\.attendance_persisted === false/);
   assert.match(calculated, /is still open, so it is shown live under/);
+});
+
+/* ====================== ATTENDANCE CORRECTION FIRST: a waiting OT ==== */
+
+test("an OT waiting for an attendance correction says so, in the list and the detail, and offers no Approve", () => {
+  // The badge, in both list layouts, from the server's own flag and label.
+  const badges = queue.match(/row\.status === "PENDING" && row\.waiting_for_correction \? \(\s*<Badge colorScheme="orange"/g) || [];
+  assert.equal(badges.length, 2, "the cards and the table");
+  assert.match(queue, /row\.waiting_status_label \|\| "Waiting for attendance correction"/);
+  // The detail: the decision buttons render only for an ACTIONABLE row (the
+  // server marks a waiting OT not actionable), and the waiting note instead.
+  assert.match(queue, /row\.status === "PENDING" && row\.actionable && onDecide \?/);
+  assert.match(queue, /OT will be recalculated before approval\./);
+  // ...and a waiting row cannot be ticked for a bulk approval either.
+  const { isSelectable } = require("../../util/approvalBulk");
+  assert.equal(isSelectable({ status: "PENDING", actionable: false, waiting_for_correction: true }, "PENDING"), false);
 });
