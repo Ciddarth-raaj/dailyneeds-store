@@ -931,8 +931,9 @@ const HR_MENU = {
   // ONE DASHBOARD: Attendance Today, Attendance & Staffing, Payroll and My
   // Attendance as tabs of /dashboard. No key: every signed-in user has at
   // least My Attendance, and the page offers each tab on its own screen's
-  // rule. The three entries below that used to open those screens as pages
-  // now open their tab, and stay listed until the consolidation is settled.
+  // rule. It REPLACES the Attendance & Staffing, My Attendance and Payroll
+  // Dashboard entries that used to sit under Attendance and Payroll; their
+  // old routes redirect to the matching tab (next.config.js).
   dashboard: {
     title: "Dashboard",
     selected: false,
@@ -993,69 +994,31 @@ const HR_MENU = {
         selected: false,
         location: "/designation",
       },
-    },
-  },
-  // The new payroll/attendance shift master, on `work_shift`. Gated on the
-  // Work Shift system's OWN keys, which the backend's /work-shift and
-  // /hr/work-shift-assignments routes require.
-  //
-  // These entries used to say `view_shift`, borrowed from the legacy shift
-  // master. That key is granted to designations with no payroll role at all,
-  // so it put the roster on the rail of people who were never meant to see
-  // it. `view_work_shifts` and `view_shift_assignments` are granted to HR and
-  // to administrators, and to nobody else.
-  //
-  // The legacy /shift screen is untouched and stays unlisted, exactly as it
-  // has been since C3. Two shift masters in the navigation would put the
-  // choice of which one to edit in front of people who have no way to make it.
-  // Staff Budget - the APPROVED HEADCOUNT PLAN, one section of HR in its own
-  // right.
-  //
-  // NOT UNDER EMPLOYEE MASTER, deliberately. That section is the staff list
-  // and the two masters behind it, and everything in it is about people who
-  // exist. This is about positions management has approved, whether or not
-  // anybody is in them, and it is read by people who have no business in the
-  // employee master at all.
-  //
-  // Gated on its own `view_staff_budget`, which is what the backend's
-  // /staff-budget routes require on every endpoint. The entry being hidden is
-  // convenience; the routes are the control.
-  //
-  // The legacy /store-budget "Employee Count" screen stays unlisted, exactly
-  // as it has been. This feature supersedes it and does not touch it.
-  staff_budget: {
-    title: "Staff Budget",
-    selected: false,
-    openPage: true,
-    icon: "fa-sitemap",
-    subMenu: {
+      // Staff Budget - the APPROVED HEADCOUNT PLAN: positions management has
+      // approved, whether or not anybody is in them. Gated on its own
+      // `view_staff_budget`, which the backend's /staff-budget routes require
+      // on every endpoint. The legacy /store-budget "Employee Count" screen
+      // stays unlisted; this supersedes it.
       view_staff_budget: {
         title: "Staff Budget",
         permission: "view_staff_budget",
         selected: false,
         location: "/staff-budget",
       },
-    },
-  },
-
-  shifts: {
-    title: "Shifts",
-    selected: false,
-    openPage: true,
-    icon: "fa-clock",
-    subMenu: {
+      // The payroll/attendance shift master, on `work_shift`, gated on the
+      // Work Shift system's OWN keys - never the legacy `view_shift`, which is
+      // granted to designations with no payroll role. The legacy /shift
+      // screen stays unlisted: two shift masters would put the choice of
+      // which one to edit in front of people who cannot make it.
       view_work_shift: {
         title: "Work Shift Master",
         permission: "view_work_shifts",
         selected: false,
         location: "/work-shift",
       },
-      // Where employees are put ONTO those shifts. Two keys, and an array
-      // means ALL of them (see util/menuPermissions.js), matching the
-      // `requireAll(view_employees, view_shift_assignments)` the backend's
-      // read endpoint uses - the screen joins the employee master to the
-      // shift master, so showing it to somebody holding only one key would
-      // put an entry on their rail that 403s the moment they open it.
+      // Where employees are put ONTO those shifts. An array means ALL of the
+      // keys (util/menuPermissions.js), matching the backend's
+      // `requireAll(view_employees, view_shift_assignments)`.
       employee_shift_assignment: {
         title: "Employee Shift Assignment",
         permission: ["view_employees", "view_shift_assignments"],
@@ -1127,28 +1090,9 @@ const HR_MENU = {
         selected: false,
         location: "/attendance/imports",
       },
-      // Attendance v2, the first calculated screens. My Attendance has NO
-      // permission: it is every employee's own month, and the backend takes
-      // the employee from the session rather than from the page. Employee
-      // Attendance is the HR/Admin view of somebody else's month, behind the
-      // key the backend checks on that read.
-      // The management overview of one attendance date across the company.
-      // FIRST in the Attendance section because it is the screen a manager
-      // opens to decide where to look; the per-employee screens below it are
-      // where they then look. Behind its own read-only key, which the backend
-      // grants only to designations that already hold
-      // `view_calculated_attendance`.
-      attendance_dashboard: {
-        title: "Attendance & Staffing",
-        permission: "view_attendance_dashboard",
-        selected: false,
-        location: "/dashboard?tab=staffing",
-      },
-      my_attendance: {
-        title: "My Attendance",
-        selected: false,
-        location: "/dashboard?tab=my-attendance",
-      },
+      // Employee Attendance is the HR/Admin view of somebody else's month,
+      // behind the key the backend checks on that read. Attendance & Staffing
+      // and My Attendance are tabs of the Dashboard entry at the top of HR.
       employee_attendance: {
         title: "Employee Attendance",
         permission: "view_calculated_attendance",
@@ -1192,21 +1136,15 @@ const HR_MENU = {
       },
       // ONE approval screen, with Attendance | OT | Shift on it. What each
       // approver sees is their own role's and outlet's, decided on the
-      // server. The OT entry stays in the menu and deep-links to the OT tab -
-      // people look for it by name - but it is the same screen, not a second
-      // one. Recalculate is behind the key the backend grants to nobody by
-      // migration.
+      // server. ONE entry for all three tabs: a separate OT entry opened the
+      // same screen and only looked like a second one. Links that need the OT
+      // tab still deep-link with ?type=OT. Recalculate is behind the key the
+      // backend grants to nobody by migration.
       attendance_approval: {
-        title: "Attendance Approvals",
+        title: "Approvals",
         permission: "view_attendance_approvals",
         selected: false,
         location: "/attendance/approval",
-      },
-      ot_approval: {
-        title: "OT Approval",
-        permission: "view_attendance_approvals",
-        selected: false,
-        location: "/attendance/approval?type=OT",
       },
       // PERMISSION: the register, the management grant (one employee, a
       // list, outlets, or everybody in scope - the festival early release)
@@ -1277,15 +1215,8 @@ const HR_MENU = {
     openPage: true,
     icon: "fa-money",
     subMenu: {
-      // The Payroll Dashboard - the month at a glance and the way into what
-      // is left to do. The Payrun's own three keys, exactly what
-      // `routes/payroll_dashboard.js` requires.
-      payroll_dashboard: {
-        title: "Payroll Dashboard",
-        permission: ["view_employees", "view_payroll", "view_salary"],
-        selected: false,
-        location: "/dashboard?tab=payroll",
-      },
+      // The Payroll Dashboard is the Payroll tab of the Dashboard entry at
+      // the top of HR; this section holds the screens where payroll is done.
       salary_revision: {
         title: "Salary Revision & History",
         permission: ["view_employees", "view_salary"],
