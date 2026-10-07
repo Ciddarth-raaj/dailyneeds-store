@@ -1136,21 +1136,15 @@ const HR_MENU = {
       },
       // ONE approval screen, with Attendance | OT | Shift on it. What each
       // approver sees is their own role's and outlet's, decided on the
-      // server. The OT entry stays in the menu and deep-links to the OT tab -
-      // people look for it by name - but it is the same screen, not a second
-      // one. Recalculate is behind the key the backend grants to nobody by
-      // migration.
+      // server. ONE entry for all three tabs: a separate OT entry opened the
+      // same screen and only looked like a second one. Links that need the OT
+      // tab still deep-link with ?type=OT. Recalculate is behind the key the
+      // backend grants to nobody by migration.
       attendance_approval: {
-        title: "Attendance Approvals",
+        title: "Approvals",
         permission: "view_attendance_approvals",
         selected: false,
         location: "/attendance/approval",
-      },
-      ot_approval: {
-        title: "OT Approval",
-        permission: "view_attendance_approvals",
-        selected: false,
-        location: "/attendance/approval?type=OT",
       },
       // PERMISSION: the register, the management grant (one employee, a
       // list, outlets, or everybody in scope - the festival early release)

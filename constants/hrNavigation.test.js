@@ -66,9 +66,7 @@ test("Employees, Department and Designation are all inside HR", () => {
     // Attendance v2: the HR/Admin view of a calculated month, and every
     // employee's own.
     "/attendance/approval",
-    // One approval screen. The OT entry keeps its name in the menu, because
-    // that is what people look for, and deep-links to its tab.
-    "/attendance/approval?type=OT",
+    // One Approvals entry for the Attendance | OT | Shift tabs of one screen.
     "/attendance/approver-setup",
     "/attendance/calculated",
     // Device Time Correction: administrators only (the page and the server
@@ -238,9 +236,7 @@ test("HR > Attendance: list, punch audit, devices and the DigiSME import, on the
   const att = sectionOf(hrMenu, "attendance");
   assert.deepStrictEqual(locationsIn(att).sort(), [
     "/attendance/approval",
-    // One approval screen. The OT entry keeps its name in the menu, because
-    // that is what people look for, and deep-links to its tab.
-    "/attendance/approval?type=OT",
+    // One Approvals entry for the Attendance | OT | Shift tabs of one screen.
     "/attendance/approver-setup",
     "/attendance/calculated",
     // Device Time Correction: administrators only (the page and the server
@@ -258,8 +254,10 @@ test("HR > Attendance: list, punch audit, devices and the DigiSME import, on the
     // SERVER's own production rule, and who already has.
     "/attendance/shift-change-eligibility",
   ]);
-  assert.match(att, /title:\s*"Attendance Approvals"[\s\S]*?permission:\s*"view_attendance_approvals"/);
-  assert.match(att, /title:\s*"OT Approval"[\s\S]*?permission:\s*"view_attendance_approvals"/);
+  // ONE Approvals entry for the Attendance | OT | Shift tabs of one screen.
+  assert.match(att, /title:\s*"Approvals"[\s\S]*?permission:\s*"view_attendance_approvals"/);
+  assert.ok(!/title:\s*"OT Approval"/.test(att), "no second entry for the OT tab");
+  assert.ok(!att.includes("/attendance/approval?type=OT"), "the menu opens the screen once");
   assert.match(att, /title:\s*"Recalculate Attendance"[\s\S]*?permission:\s*"recalculate_attendance"/);
   assert.match(att, /title:\s*"Permissions"[\s\S]*?permission:\s*"view_attendance_permissions"/);
   assert.match(att, /title:\s*"Attendance Approver Setup"[\s\S]*?permission:\s*"manage_attendance_approvers"/);
@@ -345,9 +343,7 @@ test("HR navigation still appears exactly once, and still holds its pages", () =
     // Attendance v2: the HR/Admin view of a calculated month, and every
     // employee's own.
     "/attendance/approval",
-    // One approval screen. The OT entry keeps its name in the menu, because
-    // that is what people look for, and deep-links to its tab.
-    "/attendance/approval?type=OT",
+    // One Approvals entry for the Attendance | OT | Shift tabs of one screen.
     "/attendance/approver-setup",
     "/attendance/calculated",
     // Device Time Correction: administrators only (the page and the server
