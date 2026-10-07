@@ -253,6 +253,13 @@ function Detail({ row, kind, onDecide, deciding, onRevoke = null }) {
             {Number(row.claimed_ot_minutes) !== Number(row.eligible_ot_minutes) ? (
               <Text fontSize="xs" color="gray.500" fontWeight="400">Sent for approval as {formatOtClock(row.claimed_ot_minutes)}; the approval is limited to what the system finds eligible now.</Text>
             ) : null}
+            {/* The source month's payroll is locked: approving settles this
+                OT forward as Prior-Month OT - the old payroll never changes. */}
+            {row.source_payroll_locked ? (
+              <Text fontSize="xs" color="purple.700" fontWeight="600">
+                {row.late_settlement_note || "Source payroll locked — if approved, this OT will be settled in the next eligible payroll."}
+              </Text>
+            ) : null}
           </Field>
         )}
       </SimpleGrid>

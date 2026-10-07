@@ -407,3 +407,10 @@ test("an OT waiting for an attendance correction says so, in the list and the de
   const { isSelectable } = require("../../util/approvalBulk");
   assert.equal(isSelectable({ status: "PENDING", actionable: false, waiting_for_correction: true }, "PENDING"), false);
 });
+
+test("a pending OT whose source payroll is locked says approval settles it forward - never that the old payroll changes", () => {
+  assert.match(queue, /row\.source_payroll_locked \? \(/);
+  assert.match(queue, /row\.late_settlement_note \|\| "Source payroll locked — if approved, this OT will be settled in the next eligible payroll\."/);
+  // The decision buttons are the ordinary ones: it is an ordinary pending OT.
+  assert.match(queue, /row\.status === "PENDING" && row\.actionable && onDecide \?/);
+});
