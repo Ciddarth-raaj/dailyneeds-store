@@ -21,7 +21,6 @@ import {
 
 import CalculationEmployeeList from "./CalculationEmployeeList";
 import CalculationBreakup from "./CalculationBreakup";
-import ResetCalculationModal from "./ResetCalculationModal";
 import LifecycleActionModal from "./LifecycleActionModal";
 import PayslipViewModal from "./PayslipViewModal";
 import PfCeilingRevisionModal from "./PfCeilingRevisionModal";
@@ -186,7 +185,6 @@ function PayrunCalculation({
   const [busyEmployeeId, setBusyEmployeeId] = useState(null);
   const [bulkBusy, setBulkBusy] = useState(false);
   /* Who the Reset Calculation dialog is open for: { mode, rows }, or null. */
-  const [resetTarget, setResetTarget] = useState(null);
 
   /* Who the Unlock / Publish / Unpublish dialog is open for: { action, mode, rows }. */
   const [lifecycleTarget, setLifecycleTarget] = useState(null);
@@ -503,23 +501,22 @@ function PayrunCalculation({
     });
 
   const monthLabel = monthName ? `${monthName} ${year}` : `${year}-${String(month).padStart(2, "0")}`;
-  const openReset = (targetRows, mode) => setResetTarget({ mode, rows: targetRows });
-  const confirmReset = async ({ reason, remark }) => {
-    const target = resetTarget;
-    if (!target) return;
-    const employeeIds = target.rows.map((row) => row.employee_id);
-    await run(
+  /**
+   * RESET CALCULATION acts on the click: no dialog, reason or remark. The
+   * server records it on its audit (who, when, mode, and the removed row).
+   */
+  const openReset = (targetRows, mode) => {
+    const employeeIds = targetRows.map((row) => row.employee_id);
+    return run(
       () =>
         PayrunCalculationHelper.reset({
           year,
           month,
           employee_ids: employeeIds,
-          reason,
-          remark,
-          mode: target.mode,
+          mode,
         }),
       {
-        employeeId: target.mode === "INDIVIDUAL" ? employeeIds[0] : null,
+        employeeId: mode === "INDIVIDUAL" ? employeeIds[0] : null,
         report: {
           message: resetOutcomeMessage,
           refused: resetHasRefusals,
@@ -527,7 +524,6 @@ function PayrunCalculation({
         },
       }
     );
-    setResetTarget(null);
   };
 
   /**
@@ -977,15 +973,6 @@ function PayrunCalculation({
         target={payslipTarget}
         year={year}
         month={month}
-      />
-
-      <ResetCalculationModal
-        isOpen={resetTarget !== null}
-        onClose={() => setResetTarget(null)}
-        onConfirm={confirmReset}
-        target={resetTarget}
-        monthLabel={monthLabel}
-        busy={busy}
       />
 
       <PayslipExportModal
