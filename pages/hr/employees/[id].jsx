@@ -362,6 +362,8 @@ function EmployeeProfile() {
     }
   };
 
+  const loadPayrollEligible = useCallback(() => (id ? HrHelper.getPayrollEligible(id) : Promise.resolve(null)), [id]);
+
   const savePayrollEligible = async (eligible) => {
     setSaving(true);
     try {
@@ -372,8 +374,8 @@ function EmployeeProfile() {
       }
       toast({
         title: eligible
-          ? "This employee is payroll eligible again"
-          : "Salary Not Applicable - this employee is now left out of payroll",
+          ? "Payroll Eligible set to Yes"
+          : "Payroll Eligible set to No - excluded from future payroll months",
         status: "success",
         duration: 3500,
       });
@@ -909,6 +911,17 @@ function EmployeeProfile() {
             saving={saving}
           />
 
+          {/* Whether the employee is paid through payroll at all (No =
+              Salary Not Applicable). Administrators only, like Attendance
+              Required; everybody who may see the profile sees the value. */}
+          <PayrollEligibleSection
+            value={employee ? employee.payroll_eligible !== 0 : true}
+            isAdmin={isAdmin}
+            onChange={savePayrollEligible}
+            saving={saving}
+            loadDetails={loadPayrollEligible}
+          />
+
           {/* ========================================= 7. Payroll ====
               THE OPENING SALARY, AND NOTHING ELSE. This is where an employee's
               FIRST salary is entered during onboarding - the one moment they
@@ -920,16 +933,6 @@ function EmployeeProfile() {
               here. The id comes from the lifecycle read, which is the one
               record this page is certain of - a missing one means no request
               is made. */}
-          {/* Whether the employee is paid through payroll at all (No =
-              Salary Not Applicable). Administrators only, like Attendance
-              Required; everybody who may see the profile sees the value. */}
-          <PayrollEligibleSection
-            value={employee ? employee.payroll_eligible !== 0 : true}
-            isAdmin={isAdmin}
-            onChange={savePayrollEligible}
-            saving={saving}
-          />
-
           <PayrollSection
             employeeId={identity.employee_id}
             canView={mayViewSalary}
