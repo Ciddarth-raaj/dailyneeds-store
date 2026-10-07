@@ -104,7 +104,7 @@ test("6. Approve / Reject decide the current stage and refresh the list and the 
   // OT: the minutes the row showed travel with the decision, and a figure a
   // recalculation moved meanwhile reloads the queue instead of deciding unseen.
   assert.match(approval, /expected_ot_minutes: type === "OT" \? row\.claimed_ot_minutes : undefined/);
-  assert.match(approval, /if \(res && \(res\.ot_minutes_changed \|\| res\.waiting_for_correction\)\) await load\(\);/);
+  assert.match(approval, /if \(res && \(res\.ot_minutes_changed \|\| res\.waiting_for_correction \|\| res\.attendance_incomplete\)\) await load\(\);/);
   assert.match(approval, /await load\(\);/);
   assert.match(helper, /`\/attendance\/regularization\/\$\{request_id\}\/decision`/);
   assert.match(helper, /decision,\s*remarks: remarks \|\| "",/);

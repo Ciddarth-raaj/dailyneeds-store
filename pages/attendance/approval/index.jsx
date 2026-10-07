@@ -299,9 +299,10 @@ export default function AttendanceApprovalCentrePage() {
       });
       if (!isOk(res)) {
         toast({ title: "Could not record the decision", description: apiMessage(res), status: "error", duration: 6000 });
-        // The OT moved, or its date's attendance is being corrected: show
-        // the current state (the figure, or "Waiting for attendance correction").
-        if (res && (res.ot_minutes_changed || res.waiting_for_correction)) await load();
+        // The OT moved, its date's attendance is being corrected, or the
+        // attendance is incomplete (the OT is withdrawn - no OT until it is
+        // complete): show the current state.
+        if (res && (res.ot_minutes_changed || res.waiting_for_correction || res.attendance_incomplete)) await load();
         return;
       }
       toast({
