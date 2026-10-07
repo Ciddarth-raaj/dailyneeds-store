@@ -293,25 +293,31 @@ test("the object URL is revoked, so a large export is not held in memory", () =>
 
 /* ================================================== navigation ========== */
 
-test("Reports is its own top-level module, behind both required keys", () => {
+/** HR > Reports, from its `reports: {` to the end of the HR tree. */
+const reportsSection = () => {
+  const hr = menus.slice(menus.indexOf("const HR_MENU = {"), menus.indexOf("\n};", menus.indexOf("const HR_MENU = {")));
+  return hr.slice(hr.indexOf("\n  reports: {"));
+};
+
+test("the Employee Master reports are under HR > Reports, behind both required keys", () => {
   // Placement is asserted in full by constants/hrNavigation.test.js; what
   // matters here is that the screen this file tests is actually reachable,
   // and reachable only by somebody holding the permission it checks.
-  const reportsMenu = menus.slice(menus.indexOf("const REPORTS_MENU = {"), menus.indexOf("\n};", menus.indexOf("const REPORTS_MENU = {")));
+  const reportsMenu = reportsSection();
   assert.match(reportsMenu, /location: "\/reports\/employee-master"/);
   assert.match(reportsMenu, /location: "\/reports\/employee-master\/new"/);
-  assert.match(reportsMenu, /title: "Saved Reports"/);
-  assert.match(reportsMenu, /title: "Create Report"/);
+  assert.match(reportsMenu, /title: "Employee Master Reports"/);
+  assert.match(reportsMenu, /title: "Create Employee Report"/);
   // The same pair the screen and the backend require, so the entry cannot
   // appear on a rail belonging to somebody who would be refused on opening it.
   assert.match(reportsMenu, /permission: \["view_reports", "view_employees"\]/);
-  assert.match(menus, /menu: REPORTS_MENU/);
 });
 
-test("only the dataset that exists is listed", () => {
+test("only reports that exist are listed", () => {
   // An entry that leads nowhere is a promise the navigation cannot keep.
-  // Attendance and Payroll reports arrive with their datasets.
-  const reportsMenu = menus.slice(menus.indexOf("const REPORTS_MENU = {"), menus.indexOf("\n};", menus.indexOf("const REPORTS_MENU = {")));
-  assert.ok(!/attendance/i.test(reportsMenu));
-  assert.ok(!/payroll/i.test(reportsMenu));
+  // Payroll Reports exists and is listed; Attendance reports arrive with
+  // their dataset.
+  const reportsMenu = reportsSection();
+  assert.ok(!/location: "[^"]*attendance/i.test(reportsMenu));
+  assert.match(reportsMenu, /location: "\/payroll\/reports"/);
 });

@@ -1273,66 +1273,40 @@ const HR_MENU = {
         selected: false,
         location: "/payroll/payrun",
       },
-      // Payroll Reports - month-wise reports read from the FINALIZED payrun
-      // (Register, EPF, ESI, Bank, OT, Deductions, Attendance / Payroll Days).
-      // The Payrun's three read keys plus `view_reports`, exactly as
-      // `routes/payroll_report.js` requires them; exporting and the statutory
-      // files are further keys checked inside the screen and on the server.
+    },
+  },
+  // HR > Reports - every HR report in one section: Payroll's month-wise
+  // reports and the Employee Master report builder. Routes and keys are the
+  // ones the screens and the backend already check.
+  reports: {
+    title: "Reports",
+    selected: false,
+    openPage: true,
+    icon: "fa-file-text-o",
+    subMenu: {
+      // Month-wise reports read from the FINALIZED payrun (Register, EPF, ESI,
+      // Bank, OT, Deductions, Attendance / Payroll Days). The Payrun's three
+      // read keys plus `view_reports`, exactly as `routes/payroll_report.js`
+      // requires them; exporting and the statutory files are further keys
+      // checked inside the screen and on the server.
       payroll_reports: {
-        title: "Reports",
+        title: "Payroll Reports",
         permission: ["view_reports", "view_employees", "view_payroll", "view_salary"],
         selected: false,
         location: "/payroll/reports",
       },
-    },
-  },
-};
-
-/**
- * Reports — a SHARED top-level module, not a section of HR.
- *
- * The reporting machinery is per-dataset and the datasets belong to different
- * modules: Employee Master is HR's, Attendance and Payroll will be their own.
- * Putting the reports inside HR would mean an Attendance report either living
- * under HR - which is not where anyone would look for it - or Reports existing
- * twice. So Reports is a module on the rail beside HR, and each dataset adds an
- * entry to it.
- *
- * Only the Employee Master dataset is built today, so only it is listed. There
- * are deliberately no Attendance or Payroll placeholders: an entry that leads
- * nowhere is a promise the navigation cannot keep.
- *
- * `view_reports` is discovery and preview. It confers no field access of its
- * own - somebody who reaches the screen still sees exactly the columns their
- * existing permissions allow - and exporting is the separate `export_reports`
- * decision.
- */
-const REPORTS_MENU = {
-  employee_master: {
-    title: "Employee Master",
-    selected: true,
-    openPage: true,
-    icon: "fa-file-text-o",
-    subMenu: {
-      // Two entries, because they are two jobs. Saved Reports is the
-      // catalogue - which reports exist - and it renders no employee data at
-      // all. Create Report is the builder. The old screen was both at once,
-      // plus the results, which is the crowding this splits up.
-      //
-      // BOTH permissions on each, not either. `view_reports` is a reporting
-      // capability; the Employee Master dataset is HR's, and reaching it needs
-      // the same key that guards the HR directory. The backend requires
-      // exactly this pair with `requireAll`, so showing an entry on
-      // `view_reports` alone would put a module on somebody's rail that 403s
-      // when they open it.
+      // Employee Master reports: the saved-report catalogue and the builder.
+      // BOTH keys on each, not either - `view_reports` is a capability, the
+      // dataset is HR's, and the backend requires exactly this pair with
+      // `requireAll`.
       saved_reports: {
-        title: "Saved Reports",
+        title: "Employee Master Reports",
         permission: ["view_reports", "view_employees"],
         selected: false,
         location: "/reports/employee-master",
       },
       create_report: {
-        title: "Create Report",
+        title: "Create Employee Report",
         permission: ["view_reports", "view_employees"],
         selected: false,
         location: "/reports/employee-master/new",
@@ -1361,16 +1335,6 @@ export const MENU_MODULES = {
     iconClass: "fa-solid fa-users",
     accent: "purple",
     menu: HR_MENU,
-  },
-  // Reports reads across the modules rather than belonging to one, so it sits
-  // beside them on the rail. Purple, like HR and the rest of the application
-  // shell: it is the same product looked at a different way, not a separate
-  // one.
-  reports: {
-    title: "Reports",
-    iconClass: "fa-solid fa-file-lines",
-    accent: "purple",
-    menu: REPORTS_MENU,
   },
   wms: {
     title: "WMS",

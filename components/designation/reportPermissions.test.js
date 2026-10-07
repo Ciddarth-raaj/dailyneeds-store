@@ -122,7 +122,9 @@ test("the Reports module gets its own header icon rather than the fallback folde
 
 test("EVERY REPORT NAVIGATION ENTRY REQUIRES view_employees AS WELL", () => {
   const src = strip(menusSrc);
-  const menu = src.slice(src.indexOf("const REPORTS_MENU"), src.indexOf("export const MENU_MODULES"));
+  // HR > Reports: from its section to the end of the HR tree.
+  const hr = src.slice(src.indexOf("const HR_MENU"), src.indexOf("export const MENU_MODULES"));
+  const menu = hr.slice(hr.indexOf("\n  reports: {"));
   const entries = menu.match(/permission:\s*\[[^\]]*\]/g) || [];
   assert.ok(entries.length >= 2, "both report entries declare a permission");
   for (const entry of entries) {

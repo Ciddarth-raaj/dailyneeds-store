@@ -101,6 +101,9 @@ test("Employees, Department and Designation are all inside HR", () => {
     "/payroll/reports",
     "/payroll/salary-approval",
     "/payroll/salary-revision",
+    // HR > Reports: the Employee Master report catalogue and builder.
+    "/reports/employee-master",
+    "/reports/employee-master/new",
     // Staff Budget: the approved headcount plan, its own section of HR. It is
     // deliberately NOT under Employee Master - that section is the staff list
     // and its two masters, and this is about approved positions rather than
@@ -378,6 +381,9 @@ test("HR navigation still appears exactly once, and still holds its pages", () =
     "/payroll/reports",
     "/payroll/salary-approval",
     "/payroll/salary-revision",
+    // HR > Reports: the Employee Master report catalogue and builder.
+    "/reports/employee-master",
+    "/reports/employee-master/new",
     // Staff Budget: the approved headcount plan, its own section of HR. It is
     // deliberately NOT under Employee Master - that section is the staff list
     // and its two masters, and this is about approved positions rather than
@@ -387,97 +393,57 @@ test("HR navigation still appears exactly once, and still holds its pages", () =
   ]);
 });
 
-/* ============================== Reports is its own module, not HR's ===== */
-test("REPORTS IS A TOP-LEVEL MODULE, BESIDE HR RATHER THAN INSIDE IT", () => {
-  // The reporting machinery is per-dataset and the datasets belong to
-  // different modules: Employee Master is HR's, Attendance and Payroll will be
-  // their own. Nesting the reports under HR would mean an Attendance report
-  // living somewhere nobody would look for it, or Reports existing twice.
-  const modules = code.slice(code.indexOf("export const MENU_MODULES"));
-  assert.strictEqual((modules.match(/\breports:\s*\{/g) || []).length, 1, "one Reports module");
-
-  const reports = modules.slice(modules.indexOf("reports: {"), modules.indexOf("wms: {"));
-  assert.match(reports, /title:\s*"Reports"/);
-  assert.match(reports, /menu:\s*REPORTS_MENU/);
-  // The application shell keeps its purple; Reports is the same product
-  // looked at a different way, not a separate one.
-  assert.match(reports, /accent:\s*"purple"/);
-});
-
-test("HR NO LONGER OWNS REPORTS", () => {
+/* ===================================== HR > Reports holds every report == */
+test("HR > Reports holds Payroll Reports and the Employee Master reports", () => {
   const hrMenu = treeNamed("HR_MENU");
-  // The shared Reports MODULE is not an HR section. Payroll's own month-wise
-  // Payroll -> Reports page (/payroll/reports) is a Payroll screen, not that
-  // module, and stays in the Payroll section where the payrun lives.
-  assert.ok(!/\breports:\s*\{/i.test(hrMenu), "HR must not contain a Reports section");
-  assert.ok(
-    !locationsIn(hrMenu).some((l) => l.startsWith("/reports")),
-    "no report page may be reached through the HR menu"
-  );
-});
-
-test("the Reports module contains only Employee Master, for now", () => {
-  // Two entries, one dataset. Saved Reports is the catalogue and Create
-  // Report is the builder - the split that took the column picker and the
-  // results off the page somebody uses to CHOOSE a report. Still no
-  // Attendance or Payroll: an entry that leads nowhere is a promise the
-  // navigation cannot keep.
-  const reportsMenu = treeNamed("REPORTS_MENU");
-  assert.deepStrictEqual(locationsIn(reportsMenu), [
+  const reports = sectionOf(hrMenu, "reports");
+  assert.match(reports, /title:\s*"Reports"/);
+  assert.deepStrictEqual(locationsIn(reports), [
+    "/payroll/reports",
     "/reports/employee-master",
     "/reports/employee-master/new",
   ]);
+  // Payroll Reports: the Payrun's three read keys plus the reporting key,
+  // exactly the conjunction `routes/payroll_report.js` requires.
+  assert.match(
+    reports,
+    /title:\s*"Payroll Reports"[\s\S]*?permission:\s*\["view_reports", "view_employees", "view_payroll", "view_salary"\][\s\S]*?location:\s*"\/payroll\/reports"/
+  );
 });
 
-test("THERE ARE NO ATTENDANCE OR PAYROLL REPORT PLACEHOLDERS", () => {
-  // An entry that leads nowhere is a promise the navigation cannot keep. They
-  // arrive with their datasets.
-  const reportsMenu = treeNamed("REPORTS_MENU");
-  for (const notYet of ["attendance", "Attendance", "payroll", "Payroll"]) {
-    assert.ok(!reportsMenu.includes(notYet), `Reports must not contain ${notYet}`);
-  }
-  assert.ok(!locationsIn(reportsMenu).some((l) => /attendance|payroll/i.test(l)));
-});
-
-test("THE REPORT ENTRY REQUIRES view_reports AND view_employees", () => {
-  // `view_reports` is a reporting capability, not a doorway into a dataset.
-  // The Employee Master dataset is HR's, and the backend requires both keys
-  // with `requireAll`; an entry shown on `view_reports` alone would put a
-  // module on somebody's rail that 403s the moment they open it.
-  //
-  // It still confers no FIELD access: the columns somebody sees are decided by
-  // their existing permissions, and exporting is the separate `export_reports`
-  // decision - so neither the move between modules nor this pair widens
-  // anyone's access to employee data.
-  const reportsMenu = treeNamed("REPORTS_MENU");
-  // BOTH entries, not just the first: a route reachable without the pair is
-  // the same hole wherever it is.
+test("THE EMPLOYEE MASTER REPORT ENTRIES REQUIRE view_reports AND view_employees", () => {
+  // `view_reports` is a reporting capability, not a doorway into a dataset;
+  // the backend requires both keys with `requireAll`. Exporting is the
+  // separate `export_reports` decision, checked inside the screen.
+  const reports = sectionOf(treeNamed("HR_MENU"), "reports");
   for (const name of ["saved_reports:", "create_report:"]) {
-    const entry = reportsMenu.slice(reportsMenu.indexOf(name));
+    const entry = reports.slice(reports.indexOf(name));
     assert.match(entry.slice(0, 200), /permission:\s*\["view_reports", "view_employees"\]/, name);
   }
-  assert.ok(!/export_reports/.test(reportsMenu), "the menu does not gate on the export verb");
+  assert.ok(!/export_reports/.test(reports), "the menu does not gate on the export verb");
 });
 
-test("the report route itself is unchanged by the move", () => {
-  const reportsMenu = treeNamed("REPORTS_MENU");
-  assert.match(reportsMenu, /location:\s*"\/reports\/employee-master"/);
+test("there is no separate Reports module on the rail, and no Reports entry under Payroll", () => {
+  const modules = code.slice(code.indexOf("export const MENU_MODULES"));
+  assert.ok(!/\breports:\s*\{/.test(modules), "Reports is an HR section, not a rail module");
+  assert.ok(!code.includes("REPORTS_MENU"), "the old Reports tree is gone");
+  const pay = sectionOf(treeNamed("HR_MENU"), "payroll");
+  assert.ok(!pay.includes("/payroll/reports"), "Payroll Reports lives under HR > Reports");
 });
 
-test("the module rail reads All, HR, Reports, WMS, GST", () => {
+test("the module rail reads All, HR, WMS, GST", () => {
   const modules = code.slice(code.indexOf("export const MENU_MODULES"));
   const ids = (modules.match(/^  (\w+):\s*\{/gm) || []).map((m) => m.trim().replace(/:.*/, ""));
-  assert.deepStrictEqual(ids, ["all", "hr", "reports", "wms", "gst"]);
+  assert.deepStrictEqual(ids, ["all", "hr", "wms", "gst"]);
 });
 
-test("HR > Payroll is the three salary screens, the Payrun and Payroll Reports, each behind ALL of its keys", () => {
+test("HR > Payroll is the three salary screens and the Payrun, each behind ALL of its keys", () => {
   const hrMenu = treeNamed("HR_MENU");
   const pay = sectionOf(hrMenu, "payroll");
 
   assert.deepStrictEqual(locationsIn(pay).sort(), [
     "/payroll/bulk-salary-upload",
     "/payroll/payrun",
-    "/payroll/reports",
     "/payroll/salary-approval",
     "/payroll/salary-revision",
   ]);
@@ -487,12 +453,6 @@ test("HR > Payroll is the three salary screens, the Payrun and Payroll Reports, 
   assert.match(pay, /title:\s*"Salary Approval"/);
   assert.match(pay, /title:\s*"Bulk Salary Upload"/);
   assert.match(pay, /title:\s*"Payrun"/);
-  // Payroll -> Reports: the Payrun's three read keys plus the reporting key,
-  // exactly the conjunction `routes/payroll_report.js` requires.
-  assert.match(
-    pay,
-    /title:\s*"Reports"[\s\S]*?permission:\s*\["view_reports", "view_employees", "view_payroll", "view_salary"\][\s\S]*?location:\s*"\/payroll\/reports"/
-  );
 
   /*
    * THE PAYRUN TAKES THE THREE READ KEYS AND NOT `process_payroll`.
