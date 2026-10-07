@@ -113,19 +113,19 @@ test("Employees, Department and Designation are all inside HR", () => {
 });
 
 /* ===================================================== the staff budget == */
-test("Staff Budget is its own HR section, on its own key", () => {
+test("Staff Budget sits inside Employee Master, on its own key", () => {
   const hrMenu = treeNamed("HR_MENU");
-  const section = sectionOf(hrMenu, "staff_budget");
-
-  assert.deepStrictEqual(locationsIn(section).sort(), ["/staff-budget"]);
-  assert.match(section, /title:\s*"Staff Budget"/);
+  const master = sectionOf(hrMenu, "employee_master");
+  const entry = master.slice(master.indexOf("view_staff_budget: {"), master.indexOf('"/staff-budget"') + 16);
+  assert.match(entry, /title:\s*"Staff Budget"/);
   // The key the backend's /staff-budget routes require on every endpoint.
-  // NOT the legacy `view_store_budget` of the old Employee Count screen,
-  // which is granted on a different feature and stays commented out.
-  assert.match(section, /permission:\s*"view_staff_budget"/);
-  assert.ok(!section.includes("view_store_budget"));
+  // NOT the legacy `view_store_budget` of the old Employee Count screen.
+  assert.match(entry, /permission:\s*"view_staff_budget"/);
+  assert.ok(!hrMenu.includes("view_store_budget"));
   // Editing is a separate decision and is never what opens the screen.
-  assert.ok(!section.includes("edit_staff_budget"));
+  assert.ok(!hrMenu.includes("edit_staff_budget"));
+  assert.ok(!/^ {2}staff_budget:\s*\{/m.test(hrMenu), "no separate Staff Budget section");
+  assert.ok(!/^ {2}shifts:\s*\{/m.test(hrMenu), "no separate Shifts section");
 });
 
 test("the legacy Employee Count screen is still not in the navigation", () => {
@@ -565,15 +565,19 @@ test("HR > Payroll is the three salary screens, the Payrun and Payroll Reports, 
 
 test("SALARY IS ENTERED FROM PAYROLL, AND THE EMPLOYEE MASTER STILL LINKS NOWHERE NEAR IT", () => {
   // Employee Master keeps its own entries - the list, its compliance queue,
-  // Department and Designation. A salary screen listed under it would be the
-  // second place to type a salary that M3 exists to prevent.
+  // Department, Designation, Staff Budget and the two shift screens. A salary
+  // screen listed under it would be the second place to type a salary that M3
+  // exists to prevent.
   const hrMenu = treeNamed("HR_MENU");
   const master = sectionOf(hrMenu, "employee_master");
   assert.deepStrictEqual(locationsIn(master).sort(), [
     "/department",
     "/designation",
+    "/employee-shift-assignment",
     "/hr/employees",
     "/hr/onboarding",
+    "/staff-budget",
+    "/work-shift",
   ]);
   for (const forbidden of ["salary", "Salary", "payroll"]) {
     assert.ok(!master.includes(forbidden), `Employee Master must not list ${forbidden}`);
