@@ -100,11 +100,21 @@ test("6. Approve / Reject decide the current stage and refresh the list and the 
   assert.match(detail, /onDecide\(row, "REJECTED", remarks\)/);
   assert.match(detail, /onDecide\(row, "APPROVED", remarks\)/);
   assert.match(detail, /<Textarea[^>]*value=\{remarks\}/);
-  assert.match(approval, /decideApproval\(row\.attendance_approval_request_id, \{ decision, remarks \}\)/);
+  assert.match(approval, /decideApproval\(row\.attendance_approval_request_id, \{\s*decision,\s*remarks,/);
+  // OT: the minutes the row showed travel with the decision, and a figure a
+  // recalculation moved meanwhile reloads the queue instead of deciding unseen.
+  assert.match(approval, /expected_ot_minutes: type === "OT" \? row\.claimed_ot_minutes : undefined/);
+  assert.match(approval, /if \(res && res\.ot_minutes_changed\) await load\(\);/);
   assert.match(approval, /await load\(\);/);
   assert.match(helper, /`\/attendance\/regularization\/\$\{request_id\}\/decision`/);
-  assert.match(helper, /\{ decision, remarks: remarks \|\| "" \}/);
-  assert.ok(!/minutes/.test(helper.slice(helper.indexOf("decideApproval"), helper.indexOf("recalculateBulk"))), "the decision carries no minutes");
+  assert.match(helper, /decision,\s*remarks: remarks \|\| "",/);
+  assert.match(helper, /expected_ot_minutes: Math\.max\(0, Math\.trunc\(Number\(expected_ot_minutes\) \|\| 0\)\)/);
+  // No minutes to PAY travel with a decision: the only figure is the one the
+  // approver was shown, which the server compares and never pays.
+  assert.ok(
+    !/minutes/.test(helper.slice(helper.indexOf("decideApproval"), helper.indexOf("recalculateBulk")).replace(/expected_ot_minutes/g, "")),
+    "the decision carries no minutes beyond the compared expected_ot_minutes"
+  );
 });
 
 test("7. no minutes can be typed anywhere, on any tab", () => {
@@ -113,7 +123,7 @@ test("7. no minutes can be typed anywhere, on any tab", () => {
   // offers an input for a duration.
   assert.match(detail, /!isOt \? \([\s\S]*?Proposed missing punch/, "the OT block is the OT tab's only");
   assert.ok(!/<Input|<NumberInput|type="number"/.test(queue), "no input for minutes anywhere in the queue");
-  assert.ok(!/eligible_ot_minutes:|approved_ot_minutes:|ot_minutes:/.test(approval), "the page sends no minutes");
+  assert.ok(!/eligible_ot_minutes:|approved_ot_minutes:|(?<!expected_)ot_minutes:/.test(approval), "the page sends no minutes to pay");
 });
 
 /* ================================================== OT Approval ==== */

@@ -290,9 +290,17 @@ export default function AttendanceApprovalCentrePage() {
   const onDecide = async (row, decision, remarks) => {
     setDeciding({ id: row.attendance_approval_request_id, decision });
     try {
-      const res = await AttendanceV2Helper.decideApproval(row.attendance_approval_request_id, { decision, remarks });
+      const res = await AttendanceV2Helper.decideApproval(row.attendance_approval_request_id, {
+        decision,
+        remarks,
+        // OT: the minutes this row showed, so a figure a recalculation moved
+        // meanwhile is refused rather than decided unseen.
+        expected_ot_minutes: type === "OT" ? row.claimed_ot_minutes : undefined,
+      });
       if (!isOk(res)) {
         toast({ title: "Could not record the decision", description: apiMessage(res), status: "error", duration: 6000 });
+        // The OT moved: show the current figure to decide on.
+        if (res && res.ot_minutes_changed) await load();
         return;
       }
       toast({

@@ -126,9 +126,18 @@ const attendanceV2 = {
     }),
 
   /** Decide the current stage. Takes NO minutes: an approver cannot change OT. */
-  decideApproval: (request_id, { decision, remarks }) =>
+  // `expected_ot_minutes` (OT only): the minutes the approver was shown. The
+  // server refuses a figure a recalculation has moved since (409
+  // `ot_minutes_changed`); it is compared, never paid.
+  decideApproval: (request_id, { decision, remarks, expected_ot_minutes }) =>
     new Promise((resolve, reject) => {
-      API.post(`/attendance/regularization/${request_id}/decision`, { decision, remarks: remarks || "" })
+      API.post(`/attendance/regularization/${request_id}/decision`, {
+        decision,
+        remarks: remarks || "",
+        ...(expected_ot_minutes === undefined || expected_ot_minutes === null
+          ? {}
+          : { expected_ot_minutes: Math.max(0, Math.trunc(Number(expected_ot_minutes) || 0)) }),
+      })
         .then((res) => resolve(res.data))
         .catch(reject);
     }),

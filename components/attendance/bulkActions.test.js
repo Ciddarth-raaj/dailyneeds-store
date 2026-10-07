@@ -85,7 +85,7 @@ test("the results show successful, skipped and failed counts and the reason for 
 });
 
 test("13. the single-record controls are untouched: Approve / Reject / Revoke still call their own endpoints", () => {
-  assert.match(page, /AttendanceV2Helper\.decideApproval\(row\.attendance_approval_request_id, \{ decision, remarks \}\)/);
+  assert.match(page, /AttendanceV2Helper\.decideApproval\(row\.attendance_approval_request_id, \{\s*decision,\s*remarks,/);
   assert.match(page, /onRevoke=\{isAdmin \? \(row\) => setRevoking\(\{ row \}\) : null\}/);
   assert.match(helper, /API\.post\(`\/attendance\/regularization\/\$\{request_id\}\/decision`/);
   assert.match(helper, /API\.post\(`\/attendance\/approvals\/\$\{request_id\}\/revoke`, \{ reason \}\)/);
