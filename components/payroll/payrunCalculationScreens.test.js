@@ -851,10 +851,10 @@ test("a published row offers Unpublish, and its Unlock is shown blocked until th
   assert.ok(listCode.includes("isUnlockable(row) && canUnlock"));
 });
 
-test("the dialog requires a reason for Unlock and Unpublish, and the breakup shows the Net Pay rounding", () => {
+test("the dialog requires a reason for Unlock only, Unpublish asks for nothing, and the breakup shows the Net Pay rounding", () => {
   const modal = read("components/payroll/calculation/LifecycleActionModal.jsx");
   assert.match(modal, /UNLOCK: \{[\s\S]*?reasonRequired: true/);
-  assert.match(modal, /UNPUBLISH: \{[\s\S]*?reasonRequired: true/);
+  assert.match(modal, /UNPUBLISH: \{[\s\S]*?reasonRequired: false,\s*showNotes: false/);
   assert.match(modal, /PUBLISH: \{[\s\S]*?reasonRequired: false/);
   assert.ok(breakup.includes("Net Pay Rounding") && breakupCode.includes("breakup.final.net_pay_rounding"));
 });

@@ -389,9 +389,9 @@ export default function AttendanceApprovalCentrePage() {
   };
 
   return (
-    <GlobalWrapper title="Attendance Approvals" permissionKey={["view_attendance_approvals"]}>
+    <GlobalWrapper title="Approvals" permissionKey={["view_attendance_approvals"]}>
       <CustomContainer
-        title="Attendance Approvals"
+        title="Approvals"
         filledHeader
         rightSection={
           <Flex align="center" gap={2}>

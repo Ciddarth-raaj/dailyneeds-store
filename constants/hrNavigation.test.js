@@ -66,9 +66,7 @@ test("Employees, Department and Designation are all inside HR", () => {
     // Attendance v2: the HR/Admin view of a calculated month, and every
     // employee's own.
     "/attendance/approval",
-    // One approval screen. The OT entry keeps its name in the menu, because
-    // that is what people look for, and deep-links to its tab.
-    "/attendance/approval?type=OT",
+    // One Approvals entry for the Attendance | OT | Shift tabs of one screen.
     "/attendance/approver-setup",
     "/attendance/calculated",
     // Device Time Correction: administrators only (the page and the server
@@ -85,12 +83,9 @@ test("Employees, Department and Designation are all inside HR", () => {
     // Shift Change Eligibility: who may raise a one-day shift change, by the
     // SERVER's own production rule, and who already has.
     "/attendance/shift-change-eligibility",
-    // ONE DASHBOARD: the direct entry, and the three entries that used to
-    // open the dashboard screens as pages, now opening their tab.
+    // ONE DASHBOARD: the single entry for Attendance Today, Attendance &
+    // Staffing, Payroll and My Attendance.
     "/dashboard",
-    "/dashboard?tab=my-attendance",
-    "/dashboard?tab=payroll",
-    "/dashboard?tab=staffing",
     "/department",
     "/designation",
     "/employee-shift-assignment",
@@ -106,6 +101,9 @@ test("Employees, Department and Designation are all inside HR", () => {
     "/payroll/reports",
     "/payroll/salary-approval",
     "/payroll/salary-revision",
+    // HR > Reports: the Employee Master report catalogue and builder.
+    "/reports/employee-master",
+    "/reports/employee-master/new",
     // Staff Budget: the approved headcount plan, its own section of HR. It is
     // deliberately NOT under Employee Master - that section is the staff list
     // and its two masters, and this is about approved positions rather than
@@ -116,19 +114,19 @@ test("Employees, Department and Designation are all inside HR", () => {
 });
 
 /* ===================================================== the staff budget == */
-test("Staff Budget is its own HR section, on its own key", () => {
+test("Staff Budget sits inside Employee Master, on its own key", () => {
   const hrMenu = treeNamed("HR_MENU");
-  const section = sectionOf(hrMenu, "staff_budget");
-
-  assert.deepStrictEqual(locationsIn(section).sort(), ["/staff-budget"]);
-  assert.match(section, /title:\s*"Staff Budget"/);
+  const master = sectionOf(hrMenu, "employee_master");
+  const entry = master.slice(master.indexOf("view_staff_budget: {"), master.indexOf('"/staff-budget"') + 16);
+  assert.match(entry, /title:\s*"Staff Budget"/);
   // The key the backend's /staff-budget routes require on every endpoint.
-  // NOT the legacy `view_store_budget` of the old Employee Count screen,
-  // which is granted on a different feature and stays commented out.
-  assert.match(section, /permission:\s*"view_staff_budget"/);
-  assert.ok(!section.includes("view_store_budget"));
+  // NOT the legacy `view_store_budget` of the old Employee Count screen.
+  assert.match(entry, /permission:\s*"view_staff_budget"/);
+  assert.ok(!hrMenu.includes("view_store_budget"));
   // Editing is a separate decision and is never what opens the screen.
-  assert.ok(!section.includes("edit_staff_budget"));
+  assert.ok(!hrMenu.includes("edit_staff_budget"));
+  assert.ok(!/^ {2}staff_budget:\s*\{/m.test(hrMenu), "no separate Staff Budget section");
+  assert.ok(!/^ {2}shifts:\s*\{/m.test(hrMenu), "no separate Shifts section");
 });
 
 test("the legacy Employee Count screen is still not in the navigation", () => {
@@ -241,9 +239,7 @@ test("HR > Attendance: list, punch audit, devices and the DigiSME import, on the
   const att = sectionOf(hrMenu, "attendance");
   assert.deepStrictEqual(locationsIn(att).sort(), [
     "/attendance/approval",
-    // One approval screen. The OT entry keeps its name in the menu, because
-    // that is what people look for, and deep-links to its tab.
-    "/attendance/approval?type=OT",
+    // One Approvals entry for the Attendance | OT | Shift tabs of one screen.
     "/attendance/approver-setup",
     "/attendance/calculated",
     // Device Time Correction: administrators only (the page and the server
@@ -260,13 +256,11 @@ test("HR > Attendance: list, punch audit, devices and the DigiSME import, on the
     // Shift Change Eligibility: who may raise a one-day shift change, by the
     // SERVER's own production rule, and who already has.
     "/attendance/shift-change-eligibility",
-    // The dashboard screens are tabs of /dashboard now; these two entries
-    // open their tab rather than a page of their own.
-    "/dashboard?tab=my-attendance",
-    "/dashboard?tab=staffing",
   ]);
-  assert.match(att, /title:\s*"Attendance Approvals"[\s\S]*?permission:\s*"view_attendance_approvals"/);
-  assert.match(att, /title:\s*"OT Approval"[\s\S]*?permission:\s*"view_attendance_approvals"/);
+  // ONE Approvals entry for the Attendance | OT | Shift tabs of one screen.
+  assert.match(att, /title:\s*"Approvals"[\s\S]*?permission:\s*"view_attendance_approvals"/);
+  assert.ok(!/title:\s*"OT Approval"/.test(att), "no second entry for the OT tab");
+  assert.ok(!att.includes("/attendance/approval?type=OT"), "the menu opens the screen once");
   assert.match(att, /title:\s*"Recalculate Attendance"[\s\S]*?permission:\s*"recalculate_attendance"/);
   assert.match(att, /title:\s*"Permissions"[\s\S]*?permission:\s*"view_attendance_permissions"/);
   assert.match(att, /title:\s*"Attendance Approver Setup"[\s\S]*?permission:\s*"manage_attendance_approvers"/);
@@ -279,8 +273,9 @@ test("HR > Attendance: list, punch audit, devices and the DigiSME import, on the
   // is the employee's own month and the backend derives the employee from
   // the session; Employee Attendance is behind the read key the backend
   // checks. Neither is payroll, and nothing here is a payroll screen.
-  assert.match(att, /my_attendance:\s*\{[^}]*title:\s*"My Attendance"/);
-  assert.ok(!/my_attendance:\s*\{[^}]*permission:/.test(att), "My Attendance has no permission key");
+  // My Attendance and Attendance & Staffing are Dashboard tabs, not entries.
+  assert.ok(!/my_attendance:\s*\{/.test(att), "My Attendance is a Dashboard tab now");
+  assert.ok(!/attendance_dashboard:\s*\{/.test(att), "Attendance & Staffing is a Dashboard tab now");
   assert.match(att, /title:\s*"Employee Attendance"[\s\S]*?permission:\s*"view_calculated_attendance"/);
   assert.ok(!/\bpayroll\b|\bsalary\b|\block payroll\b/i.test(att), "no payroll screen in Attendance");
 });
@@ -351,9 +346,7 @@ test("HR navigation still appears exactly once, and still holds its pages", () =
     // Attendance v2: the HR/Admin view of a calculated month, and every
     // employee's own.
     "/attendance/approval",
-    // One approval screen. The OT entry keeps its name in the menu, because
-    // that is what people look for, and deep-links to its tab.
-    "/attendance/approval?type=OT",
+    // One Approvals entry for the Attendance | OT | Shift tabs of one screen.
     "/attendance/approver-setup",
     "/attendance/calculated",
     // Device Time Correction: administrators only (the page and the server
@@ -370,12 +363,9 @@ test("HR navigation still appears exactly once, and still holds its pages", () =
     // Shift Change Eligibility: who may raise a one-day shift change, by the
     // SERVER's own production rule, and who already has.
     "/attendance/shift-change-eligibility",
-    // ONE DASHBOARD: the direct entry, and the three entries that used to
-    // open the dashboard screens as pages, now opening their tab.
+    // ONE DASHBOARD: the single entry for Attendance Today, Attendance &
+    // Staffing, Payroll and My Attendance.
     "/dashboard",
-    "/dashboard?tab=my-attendance",
-    "/dashboard?tab=payroll",
-    "/dashboard?tab=staffing",
     "/department",
     "/designation",
     "/employee-shift-assignment",
@@ -391,6 +381,9 @@ test("HR navigation still appears exactly once, and still holds its pages", () =
     "/payroll/reports",
     "/payroll/salary-approval",
     "/payroll/salary-revision",
+    // HR > Reports: the Employee Master report catalogue and builder.
+    "/reports/employee-master",
+    "/reports/employee-master/new",
     // Staff Budget: the approved headcount plan, its own section of HR. It is
     // deliberately NOT under Employee Master - that section is the staff list
     // and its two masters, and this is about approved positions rather than
@@ -400,117 +393,66 @@ test("HR navigation still appears exactly once, and still holds its pages", () =
   ]);
 });
 
-/* ============================== Reports is its own module, not HR's ===== */
-test("REPORTS IS A TOP-LEVEL MODULE, BESIDE HR RATHER THAN INSIDE IT", () => {
-  // The reporting machinery is per-dataset and the datasets belong to
-  // different modules: Employee Master is HR's, Attendance and Payroll will be
-  // their own. Nesting the reports under HR would mean an Attendance report
-  // living somewhere nobody would look for it, or Reports existing twice.
-  const modules = code.slice(code.indexOf("export const MENU_MODULES"));
-  assert.strictEqual((modules.match(/\breports:\s*\{/g) || []).length, 1, "one Reports module");
-
-  const reports = modules.slice(modules.indexOf("reports: {"), modules.indexOf("wms: {"));
-  assert.match(reports, /title:\s*"Reports"/);
-  assert.match(reports, /menu:\s*REPORTS_MENU/);
-  // The application shell keeps its purple; Reports is the same product
-  // looked at a different way, not a separate one.
-  assert.match(reports, /accent:\s*"purple"/);
-});
-
-test("HR NO LONGER OWNS REPORTS", () => {
+/* ===================================== HR > Reports holds every report == */
+test("HR > Reports holds Payroll Reports and the Employee Master reports", () => {
   const hrMenu = treeNamed("HR_MENU");
-  // The shared Reports MODULE is not an HR section. Payroll's own month-wise
-  // Payroll -> Reports page (/payroll/reports) is a Payroll screen, not that
-  // module, and stays in the Payroll section where the payrun lives.
-  assert.ok(!/\breports:\s*\{/i.test(hrMenu), "HR must not contain a Reports section");
-  assert.ok(
-    !locationsIn(hrMenu).some((l) => l.startsWith("/reports")),
-    "no report page may be reached through the HR menu"
-  );
-});
-
-test("the Reports module contains only Employee Master, for now", () => {
-  // Two entries, one dataset. Saved Reports is the catalogue and Create
-  // Report is the builder - the split that took the column picker and the
-  // results off the page somebody uses to CHOOSE a report. Still no
-  // Attendance or Payroll: an entry that leads nowhere is a promise the
-  // navigation cannot keep.
-  const reportsMenu = treeNamed("REPORTS_MENU");
-  assert.deepStrictEqual(locationsIn(reportsMenu), [
+  const reports = sectionOf(hrMenu, "reports");
+  assert.match(reports, /title:\s*"Reports"/);
+  assert.deepStrictEqual(locationsIn(reports), [
+    "/payroll/reports",
     "/reports/employee-master",
     "/reports/employee-master/new",
   ]);
+  // Payroll Reports: the Payrun's three read keys plus the reporting key,
+  // exactly the conjunction `routes/payroll_report.js` requires.
+  assert.match(
+    reports,
+    /title:\s*"Payroll Reports"[\s\S]*?permission:\s*\["view_reports", "view_employees", "view_payroll", "view_salary"\][\s\S]*?location:\s*"\/payroll\/reports"/
+  );
 });
 
-test("THERE ARE NO ATTENDANCE OR PAYROLL REPORT PLACEHOLDERS", () => {
-  // An entry that leads nowhere is a promise the navigation cannot keep. They
-  // arrive with their datasets.
-  const reportsMenu = treeNamed("REPORTS_MENU");
-  for (const notYet of ["attendance", "Attendance", "payroll", "Payroll"]) {
-    assert.ok(!reportsMenu.includes(notYet), `Reports must not contain ${notYet}`);
-  }
-  assert.ok(!locationsIn(reportsMenu).some((l) => /attendance|payroll/i.test(l)));
-});
-
-test("THE REPORT ENTRY REQUIRES view_reports AND view_employees", () => {
-  // `view_reports` is a reporting capability, not a doorway into a dataset.
-  // The Employee Master dataset is HR's, and the backend requires both keys
-  // with `requireAll`; an entry shown on `view_reports` alone would put a
-  // module on somebody's rail that 403s the moment they open it.
-  //
-  // It still confers no FIELD access: the columns somebody sees are decided by
-  // their existing permissions, and exporting is the separate `export_reports`
-  // decision - so neither the move between modules nor this pair widens
-  // anyone's access to employee data.
-  const reportsMenu = treeNamed("REPORTS_MENU");
-  // BOTH entries, not just the first: a route reachable without the pair is
-  // the same hole wherever it is.
+test("THE EMPLOYEE MASTER REPORT ENTRIES REQUIRE view_reports AND view_employees", () => {
+  // `view_reports` is a reporting capability, not a doorway into a dataset;
+  // the backend requires both keys with `requireAll`. Exporting is the
+  // separate `export_reports` decision, checked inside the screen.
+  const reports = sectionOf(treeNamed("HR_MENU"), "reports");
   for (const name of ["saved_reports:", "create_report:"]) {
-    const entry = reportsMenu.slice(reportsMenu.indexOf(name));
+    const entry = reports.slice(reports.indexOf(name));
     assert.match(entry.slice(0, 200), /permission:\s*\["view_reports", "view_employees"\]/, name);
   }
-  assert.ok(!/export_reports/.test(reportsMenu), "the menu does not gate on the export verb");
+  assert.ok(!/export_reports/.test(reports), "the menu does not gate on the export verb");
 });
 
-test("the report route itself is unchanged by the move", () => {
-  const reportsMenu = treeNamed("REPORTS_MENU");
-  assert.match(reportsMenu, /location:\s*"\/reports\/employee-master"/);
+test("there is no separate Reports module on the rail, and no Reports entry under Payroll", () => {
+  const modules = code.slice(code.indexOf("export const MENU_MODULES"));
+  assert.ok(!/\breports:\s*\{/.test(modules), "Reports is an HR section, not a rail module");
+  assert.ok(!code.includes("REPORTS_MENU"), "the old Reports tree is gone");
+  const pay = sectionOf(treeNamed("HR_MENU"), "payroll");
+  assert.ok(!pay.includes("/payroll/reports"), "Payroll Reports lives under HR > Reports");
 });
 
-test("the module rail reads All, HR, Reports, WMS, GST", () => {
+test("the module rail reads All, HR, WMS, GST", () => {
   const modules = code.slice(code.indexOf("export const MENU_MODULES"));
   const ids = (modules.match(/^  (\w+):\s*\{/gm) || []).map((m) => m.trim().replace(/:.*/, ""));
-  assert.deepStrictEqual(ids, ["all", "hr", "reports", "wms", "gst"]);
+  assert.deepStrictEqual(ids, ["all", "hr", "wms", "gst"]);
 });
 
-test("HR > Payroll is the dashboard, the three salary screens, the Payrun and Payroll Reports, each behind ALL of its keys", () => {
+test("HR > Payroll is the three salary screens and the Payrun, each behind ALL of its keys", () => {
   const hrMenu = treeNamed("HR_MENU");
   const pay = sectionOf(hrMenu, "payroll");
 
   assert.deepStrictEqual(locationsIn(pay).sort(), [
-    // The Payroll Dashboard is the Payroll tab of /dashboard now.
-    "/dashboard?tab=payroll",
     "/payroll/bulk-salary-upload",
     "/payroll/payrun",
-    "/payroll/reports",
     "/payroll/salary-approval",
     "/payroll/salary-revision",
   ]);
-  // The Payroll Dashboard: the Payrun's three read keys, nothing more.
-  assert.match(
-    pay,
-    /title:\s*"Payroll Dashboard"[\s\S]*?permission:\s*\["view_employees", "view_payroll", "view_salary"\][\s\S]*?location:\s*"\/dashboard\?tab=payroll"/
-  );
+  // The Payroll Dashboard is the Payroll tab of /dashboard, not an entry here.
+  assert.ok(!/title:\s*"Payroll Dashboard"/.test(pay));
   assert.match(pay, /title:\s*"Salary Revision & History"/);
   assert.match(pay, /title:\s*"Salary Approval"/);
   assert.match(pay, /title:\s*"Bulk Salary Upload"/);
   assert.match(pay, /title:\s*"Payrun"/);
-  // Payroll -> Reports: the Payrun's three read keys plus the reporting key,
-  // exactly the conjunction `routes/payroll_report.js` requires.
-  assert.match(
-    pay,
-    /title:\s*"Reports"[\s\S]*?permission:\s*\["view_reports", "view_employees", "view_payroll", "view_salary"\][\s\S]*?location:\s*"\/payroll\/reports"/
-  );
 
   /*
    * THE PAYRUN TAKES THE THREE READ KEYS AND NOT `process_payroll`.
@@ -579,15 +521,19 @@ test("HR > Payroll is the dashboard, the three salary screens, the Payrun and Pa
 
 test("SALARY IS ENTERED FROM PAYROLL, AND THE EMPLOYEE MASTER STILL LINKS NOWHERE NEAR IT", () => {
   // Employee Master keeps its own entries - the list, its compliance queue,
-  // Department and Designation. A salary screen listed under it would be the
-  // second place to type a salary that M3 exists to prevent.
+  // Department, Designation, Staff Budget and the two shift screens. A salary
+  // screen listed under it would be the second place to type a salary that M3
+  // exists to prevent.
   const hrMenu = treeNamed("HR_MENU");
   const master = sectionOf(hrMenu, "employee_master");
   assert.deepStrictEqual(locationsIn(master).sort(), [
     "/department",
     "/designation",
+    "/employee-shift-assignment",
     "/hr/employees",
     "/hr/onboarding",
+    "/staff-budget",
+    "/work-shift",
   ]);
   for (const forbidden of ["salary", "Salary", "payroll"]) {
     assert.ok(!master.includes(forbidden), `Employee Master must not list ${forbidden}`);

@@ -170,17 +170,9 @@ function validateRevisionForm(form = {}, options = {}) {
       }
     }
 
-    // The caps, when a preview has told us what they are.
-    if (limits.conveyance_cap != null && paise.conveyance !== null) {
-      if (paise.conveyance > Math.round(limits.conveyance_cap * 100)) {
-        errors.conveyance = `Conveyance cannot exceed ${limits.conveyance_cap}.`;
-      }
-    }
-    if (limits.hra_cap != null && paise.hra !== null) {
-      if (paise.hra > Math.round(limits.hra_cap * 100)) {
-        errors.hra = `HRA cannot exceed ${limits.hra_cap}.`;
-      }
-    }
+    // NO CAPS on a manual breakup. The Conveyance and HRA caps are the
+    // automatic breakup's policy; a manual breakup overrides it, and the
+    // server accepts any non-negative split that adds up to the gross.
 
     /*
      * A REASON FOR THE OVERRIDE, AND IT IS NOT THE REVISION REASON.
