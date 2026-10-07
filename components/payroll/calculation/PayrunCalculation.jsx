@@ -435,19 +435,19 @@ function PayrunCalculation({
 
   /**
    * UNLOCK / PUBLISH / UNPUBLISH - one row or a selection, through `run`.
-   * The dialog is the confirmation; the server decides each employee.
+   * Unlock and Unpublish act on the click: no dialog, no reason, no remark.
+   * Publish keeps its dialog because it releases payslips and messages
+   * employees. The server decides each employee either way.
    */
   const LIFECYCLE_CALL = {
     UNLOCK: PayrunCalculationHelper.unlock,
     PUBLISH: PayrunCalculationHelper.publish,
     UNPUBLISH: PayrunCalculationHelper.unpublish,
   };
-  const openLifecycle = (action, targetRows, mode) => setLifecycleTarget({ action, mode, rows: targetRows });
-  const confirmLifecycle = async ({ reason, remark }) => {
-    const target = lifecycleTarget;
-    if (!target) return;
+  const DIRECT_LIFECYCLE = ["UNLOCK", "UNPUBLISH"];
+  const runLifecycle = (target, { reason = "", remark = "" } = {}) => {
     const employeeIds = target.rows.map((row) => row.employee_id);
-    await run(
+    return run(
       () =>
         LIFECYCLE_CALL[target.action]({ year, month, employee_ids: employeeIds, reason, remark, mode: target.mode }),
       {
@@ -459,6 +459,16 @@ function PayrunCalculation({
         },
       }
     );
+  };
+  const openLifecycle = (action, targetRows, mode) => {
+    const target = { action, mode, rows: targetRows };
+    if (DIRECT_LIFECYCLE.includes(action)) runLifecycle(target);
+    else setLifecycleTarget(target);
+  };
+  const confirmLifecycle = async ({ reason, remark }) => {
+    const target = lifecycleTarget;
+    if (!target) return;
+    await runLifecycle(target, { reason, remark });
     setLifecycleTarget(null);
   };
   const rowsOf = (ids) => rows.filter((row) => ids.includes(row.employee_id));

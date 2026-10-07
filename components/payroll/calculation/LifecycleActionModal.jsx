@@ -19,23 +19,14 @@ import {
 } from "@chakra-ui/react";
 
 /**
- * UNLOCK / PUBLISH PAYSLIP / UNPUBLISH PAYSLIP - the confirmation, for one employee or a
- * selection. It names the month and who, says what the act does and does not
- * change, and asks for the reason the server requires (Unlock only).
+ * PUBLISH PAYSLIP - the confirmation, for one employee or a selection. It
+ * names the month and who and says what publishing does, with an optional
+ * reason and remark for the audit.
  *
- * UNPUBLISH ASKS FOR NOTHING. It is a one-click confirmation with no Reason
- * or Remark fields; the audit still records who unpublished and when.
+ * Unlock and Unpublish have no dialog: they act on the click
+ * (`PayrunCalculation.jsx#openLifecycle`).
  */
 const COPY = {
-  UNLOCK: {
-    title: "Unlock Payroll",
-    confirm: "Unlock",
-    reasonRequired: true,
-    text:
-      "Unlocking returns the payroll to a reviewable state so it can be corrected, recalculated and approved again. " +
-      "The calculation and every figure are kept until somebody recalculates. Attendance, Salary Master, OT, adjustments " +
-      "and the Employee Master are not changed. Published payroll must be unpublished first.",
-  },
   PUBLISH: {
     title: "Publish Payslip",
     confirm: "Publish Payslip",
@@ -47,17 +38,6 @@ const COPY = {
       "The employee gets a Telegram message saying it is available - the message carries no salary figure. " +
       "A Telegram failure or a missing Telegram link does not undo publication; use Retry Notification. " +
       "An employee whose salary, attendance or adjustments changed since the calculation is refused and must be unlocked and recalculated.",
-  },
-  UNPUBLISH: {
-    title: "Unpublish Payslip",
-    confirm: "Unpublish Payslip",
-    confirmMany: "Unpublish Payslips",
-    reasonRequired: false,
-    showNotes: false,
-    text:
-      "Unpublishing removes the payslip from the employee's Mini App immediately and archives it (kept for the audit, not deleted). " +
-      "The payroll returns to Approved & Locked with the calculation unchanged; it can then be unlocked if it needs correcting. " +
-      "The Telegram notification already sent contained no salary figures and no attachment.",
   },
 };
 const REASON_MIN = 5;
@@ -78,8 +58,6 @@ function LifecycleActionModal({ isOpen, onClose, onConfirm, target, monthLabel, 
   const individual = target && target.mode === "INDIVIDUAL";
   const single = rows[0];
   const missingReason = copy.reasonRequired && reason.trim().length < REASON_MIN;
-  // Reason and Remark are shown unless an action opts out (Unpublish does).
-  const showNotes = copy.showNotes !== false;
 
   return (
     <Modal isOpen={isOpen} onClose={busy ? () => {} : onClose} size="lg" isCentered>
@@ -112,36 +90,32 @@ function LifecycleActionModal({ isOpen, onClose, onConfirm, target, monthLabel, 
               <AlertIcon />
               <Text>{copy.text}</Text>
             </Alert>
-            {showNotes ? (
-              <>
-                <FormControl isRequired={copy.reasonRequired}>
-                  <FormLabel fontSize="sm">Reason</FormLabel>
-                  <Textarea
-                    size="sm"
-                    value={reason}
-                    maxLength={MAX}
-                    onChange={(e) => setReason(e.target.value)}
-                    placeholder={copy.reasonRequired ? "Required" : "Optional"}
-                    isDisabled={busy}
-                  />
-                  {copy.reasonRequired ? (
-                    <FormHelperText fontSize="xs">At least {REASON_MIN} characters.</FormHelperText>
-                  ) : null}
-                </FormControl>
-                <FormControl>
-                  <FormLabel fontSize="sm">Remark</FormLabel>
-                  <Textarea
-                    size="sm"
-                    value={remark}
-                    maxLength={MAX}
-                    onChange={(e) => setRemark(e.target.value)}
-                    placeholder="Optional"
-                    isDisabled={busy}
-                  />
-                  <FormHelperText fontSize="xs">Recorded on the audit with your name and the time.</FormHelperText>
-                </FormControl>
-              </>
-            ) : null}
+            <FormControl isRequired={copy.reasonRequired}>
+              <FormLabel fontSize="sm">Reason</FormLabel>
+              <Textarea
+                size="sm"
+                value={reason}
+                maxLength={MAX}
+                onChange={(e) => setReason(e.target.value)}
+                placeholder={copy.reasonRequired ? "Required" : "Optional"}
+                isDisabled={busy}
+              />
+              {copy.reasonRequired ? (
+                <FormHelperText fontSize="xs">At least {REASON_MIN} characters.</FormHelperText>
+              ) : null}
+            </FormControl>
+            <FormControl>
+              <FormLabel fontSize="sm">Remark</FormLabel>
+              <Textarea
+                size="sm"
+                value={remark}
+                maxLength={MAX}
+                onChange={(e) => setRemark(e.target.value)}
+                placeholder="Optional"
+                isDisabled={busy}
+              />
+              <FormHelperText fontSize="xs">Recorded on the audit with your name and the time.</FormHelperText>
+            </FormControl>
           </Stack>
         </ModalBody>
         <ModalFooter>
@@ -154,7 +128,7 @@ function LifecycleActionModal({ isOpen, onClose, onConfirm, target, monthLabel, 
               colorScheme={target && target.action === "PUBLISH" ? "blue" : "orange"}
               isDisabled={missingReason}
               isLoading={busy}
-              onClick={() => onConfirm(showNotes ? { reason: reason.trim(), remark: remark.trim() } : { reason: "", remark: "" })}
+              onClick={() => onConfirm({ reason: reason.trim(), remark: remark.trim() })}
             >
               {individual ? copy.confirm : `${copy.confirmMany || copy.confirm} (${rows.length})`}
             </Button>

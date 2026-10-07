@@ -258,7 +258,8 @@ test("the actions are named for the payslip", () => {
     assert.ok(workflow.includes(label), label);
   }
   assert.match(modal, /title: "Publish Payslip"/);
-  assert.match(modal, /title: "Unpublish Payslip"/);
+  // Unpublish has no dialog: it acts on the click.
+  assert.ok(!/title: "Unpublish Payslip"/.test(modal));
   assert.match(modal, /carries no salary figure/);
 });
 
