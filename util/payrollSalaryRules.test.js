@@ -205,7 +205,7 @@ test("A MANUAL OVERRIDE MUST ADD UP TO THE GROSS, TO THE PAISA", () => {
   assert.ok(offByAPaisa.errors.components);
 });
 
-test("THE CAPS ARE THE SERVER'S, READ OFF THE PREVIEW - never typed in here", () => {
+test("A MANUAL BREAKUP IS NOT HELD TO THE AUTOMATIC CAPS, even once a preview has reported them", () => {
   // A cap compiled into a bundle is a second copy of a statutory rule, and the
   // day it moves there are two answers and no way to tell which one was used.
   const limits = form.limitsFromPreview({
@@ -224,11 +224,13 @@ test("THE CAPS ARE THE SERVER'S, READ OFF THE PREVIEW - never typed in here", ()
     },
     { can_override: true, limits }
   );
-  assert.match(over.errors.conveyance, /2500/);
-  assert.match(over.errors.hra, /10000/);
+  // Conveyance 3000 and HRA 11000 are above the automatic caps; a manual
+  // breakup overrides that policy, as the server does.
+  assert.strictEqual(over.errors.conveyance, undefined);
+  assert.strictEqual(over.errors.hra, undefined);
+  assert.strictEqual(over.valid, true, JSON.stringify(over.errors));
 
-  // With no preview yet there is nothing to check against, and the screen says
-  // nothing rather than inventing a limit. The server still refuses it.
+  // With no preview yet there are no limits to read at all.
   const noLimits = form.limitsFromPreview(null);
   assert.deepStrictEqual(noLimits, { conveyance_cap: null, hra_cap: null, automatic_basic: null });
 });
