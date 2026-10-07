@@ -109,7 +109,12 @@ const decisionMessage = (type, res) => {
   if (type === "SHIFT_CHANGE") {
     return "Approved. The requested shift applies to that date only, and the date has been recalculated.";
   }
-  if (type === "OT") return "Finally approved. Only this approved OT reaches payroll.";
+  if (type === "OT") {
+    // Approved after the month's payroll was locked: the locked payroll is
+    // not touched; the OT is paid forward as Prior-Month OT.
+    if (res.late_settlement && res.late_settlement.message) return res.late_settlement.message;
+    return "Finally approved. Only this approved OT reaches payroll.";
+  }
   if (type === "PERMISSION") {
     return res.attendance_persisted
       ? "Permission approved. The date has been recalculated: the permitted time is paid, not counted as worked."

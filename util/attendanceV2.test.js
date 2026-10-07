@@ -1029,3 +1029,31 @@ test("no Permission request is offered after the last working date", () => {
   const { canRequestPermissionForDay } = require("./attendancePermission");
   assert.equal(canRequestPermissionForDay({ status: "EXITED", attendance_calculation_mode: "SHIFT_BASED" }), false);
 });
+
+/* ---------------------------------------------- Prior-Month OT (late approval) */
+
+test("OT approved after its month was locked: shows the approved minutes and where they are paid", () => {
+  const { otRequestStatus, otLateSettlementDetail } = require("./attendanceV2");
+  const pending = day({
+    candidate_ot_minutes: 180,
+    approved_ot_minutes: 0, // the locked day itself pays nothing
+    ot_claim_state: "APPROVED",
+    ot_late_settlement: { status: "PENDING_SETTLEMENT", approved_ot_minutes: 180, settlement_year: null, settlement_month: null },
+  });
+  const ot = otClaim(pending);
+  assert.equal(ot.label, "OT Approved: 03:00");
+  assert.equal(ot.minutes, 180);
+  assert.equal(ot.detail, "Approved — will be settled in the next eligible payroll");
+  assert.equal(otRequestStatus(pending).settlement.status, "PENDING_SETTLEMENT");
+
+  const settled = otLateSettlementDetail({
+    ot_late_settlement: { status: "SETTLED", approved_ot_minutes: 180, settlement_year: 2026, settlement_month: 10 },
+  });
+  assert.equal(settled.detail, "Paid as Prior-Month OT in the Oct 2026 payroll");
+
+  // A normal approved day is unchanged.
+  const normal = otClaim(day({ candidate_ot_minutes: 150, approved_ot_minutes: 150, ot_claim_state: "APPROVED" }));
+  assert.equal(normal.detail, null);
+  assert.equal(normal.minutes, 150);
+  assert.equal(otLateSettlementDetail(day({})), null);
+});

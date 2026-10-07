@@ -356,8 +356,17 @@ function otClaim(day) {
       };
     case "REQUEST_PENDING":
       return { state, label: `OT Pending Approval: ${formatOtClock(requested)}`, minutes: requested, canRequest: false, color: "orange", detail: null };
-    case "APPROVED":
+    case "APPROVED": {
+      // APPROVED AFTER ITS MONTH WAS LOCKED: the day itself pays nothing
+      // (`approved_ot_minutes` is 0), and the minutes travel to a later
+      // payroll as Prior-Month OT. Show the approved minutes and where they
+      // are paid, never "OT Approved: 00:00".
+      const late = otLateSettlementDetail(day);
+      if (late) {
+        return { state, label: `OT Approved: ${formatOtClock(late.minutes)}`, minutes: late.minutes, canRequest: false, color: "green", detail: late.detail };
+      }
       return { state, label: `OT Approved: ${formatOtClock(approved)}`, minutes: approved, canRequest: false, color: "green", detail: null };
+    }
     case "REJECTED":
       return { state, label: "OT Rejected", minutes: requested, canRequest: false, color: "red", detail: null };
     case "CLOSED_AT_PAYROLL_LOCK":
@@ -373,6 +382,31 @@ function otClaim(day) {
     default:
       return null;
   }
+}
+
+const MONTH_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/**
+ * PRIOR-MONTH OT. An OT request approved after its payroll month was locked
+ * is not paid on its own day: the backend records a settlement
+ * (`day.ot_late_settlement`) that a later open payroll pays as a separate
+ * "Prior-Month OT" line. Returns null for every other day.
+ */
+function otLateSettlementDetail(day) {
+  const late = day && day.ot_late_settlement;
+  if (!late || !late.status || late.status === "CANCELLED") return null;
+  const minutes = Math.max(0, Math.trunc(Number(late.approved_ot_minutes) || 0));
+  const period =
+    late.settlement_year && late.settlement_month
+      ? `${MONTH_SHORT[Number(late.settlement_month) - 1]} ${late.settlement_year}`
+      : null;
+  const detail =
+    late.status === "SETTLED"
+      ? `Paid as Prior-Month OT in the ${period} payroll`
+      : late.status === "INCLUDED" && period
+        ? `Included as Prior-Month OT in the ${period} payroll`
+        : "Approved — will be settled in the next eligible payroll";
+  return { status: late.status, minutes, period, detail };
 }
 
 /** `00:28`, `02:30`: the hh:mm form the OT labels use. */
@@ -494,8 +528,12 @@ function otRequestStatus(day) {
       };
     case "REQUEST_PENDING":
       return { ...base, key: "PENDING", label: OT_REQUEST_STATUS.PENDING, color: "orange" };
-    case "APPROVED":
-      return { ...base, key: "APPROVED", label: OT_REQUEST_STATUS.APPROVED, color: "green" };
+    case "APPROVED": {
+      const late = otLateSettlementDetail(day);
+      return late
+        ? { ...base, key: "APPROVED", label: OT_REQUEST_STATUS.APPROVED, color: "green", settlement: late }
+        : { ...base, key: "APPROVED", label: OT_REQUEST_STATUS.APPROVED, color: "green" };
+    }
     case "REJECTED":
       return {
         ...base,
@@ -1358,6 +1396,7 @@ module.exports = {
   SUMMARY_EMPTY_MESSAGE,
   summaryEmptyMessage,
   otClaim,
+  otLateSettlementDetail,
   MY_TAB,
   MY_TAB_ORDER,
   MY_TAB_LABEL,

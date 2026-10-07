@@ -206,6 +206,7 @@ function CalculationBreakup({ isOpen, onClose, employee, loading, error }) {
    * browser groups nothing and prices nothing - it renders what came back.
    */
   const otGroups = (breakup && Array.isArray(breakup.ot.ot_groups) ? breakup.ot.ot_groups : []);
+  const priorMonthOt = breakup && Array.isArray(breakup.ot.prior_month_ot) ? breakup.ot.prior_month_ot : [];
   const effectiveNrm =
     otGroups.length === 1 ? otGroups[0].nrm_minutes : breakup && breakup.ot.effective_nrm_minutes;
   const effectiveNrmSource =
@@ -376,6 +377,29 @@ function CalculationBreakup({ isOpen, onClose, employee, loading, error }) {
 
                 <Line label="OT Amount" value={money(breakup.ot.ot_amount)} strong={otGroups.length > 1} />
               </Group>
+
+              {priorMonthOt.length > 0 ? (
+                <>
+                  <Divider />
+                  {/* OT approved after its own month was locked, paid here at
+                      that month's rate. Not part of this month's OT Amount. */}
+                  <Group title="Prior-Month OT">
+                    {priorMonthOt.map((item) => (
+                      <Line
+                        key={item.attendance_approval_request_id}
+                        label={`${item.attendance_date}: ${item.approved_ot_minutes} min`}
+                        value={money(item.amount)}
+                        note={
+                          item.ot_hourly_rate
+                            ? `${money(item.ot_hourly_rate)} / hour from the ${item.source_month}/${item.source_year} daily rate`
+                            : null
+                        }
+                      />
+                    ))}
+                    <Line label="Prior-Month OT Amount" value={money(breakup.ot.prior_month_ot_amount)} strong />
+                  </Group>
+                </>
+              ) : null}
 
               <Divider />
 
