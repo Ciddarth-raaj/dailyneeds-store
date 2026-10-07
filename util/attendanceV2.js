@@ -1218,12 +1218,12 @@ function otExplanation(day) {
     lines.push(`Worked ${formatMinutes(worked)} against NRM ${formatMinutes(nrm)}: nothing over`);
   }
 
-  // The break, so a short lunch that fed the surplus is visible.
+  // The break, so it is visible that a short lunch did not feed OT.
   if (punches >= 4) {
     const gaps = n0(day.actual_gap_minutes);
     const allowed = n0(day.break_allowance_minutes);
     if (gaps < allowed) {
-      lines.push(`Lunch ${formatMinutes(gaps)} against ${formatMinutes(allowed)} allowed: ${formatMinutes(allowed - gaps)} under, counted as worked`);
+      lines.push(`Lunch ${formatMinutes(gaps)} against ${formatMinutes(allowed)} allowed: ${formatMinutes(allowed - gaps)} under, not counted as OT`);
     } else if (gaps > allowed) {
       lines.push(`Lunch ${formatMinutes(gaps)} against ${formatMinutes(allowed)} allowed: ${formatMinutes(gaps - allowed)} over`);
     } else {
@@ -1238,8 +1238,8 @@ function otExplanation(day) {
   // The engine's chain, as a running figure: the surplus, less the part
   // before in-time (its own rules, or dropped), less the offsets, then the
   // minimum, rounding and cap.
-  if (punches === 2 && worked > nrm && raw < worked - nrm) {
-    lines.push(`Two punches only: OT counts time after out-time, not an unused break: ${formatMinutes(raw)}`);
+  if (worked > nrm && raw < worked - nrm) {
+    lines.push(`Unused lunch is not OT: ${formatMinutes(raw)}`);
   }
   let running = raw;
   if (pre > 0) {
