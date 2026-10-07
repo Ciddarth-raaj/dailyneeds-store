@@ -851,10 +851,15 @@ test("a published row offers Unpublish, and its Unlock is shown blocked until th
   assert.ok(listCode.includes("isUnlockable(row) && canUnlock"));
 });
 
-test("the dialog requires a reason for Unlock only, Unpublish asks for nothing, and the breakup shows the Net Pay rounding", () => {
+test("Unlock and Unpublish act on the click, only Publish confirms, and the breakup shows the Net Pay rounding", () => {
   const modal = read("components/payroll/calculation/LifecycleActionModal.jsx");
-  assert.match(modal, /UNLOCK: \{[\s\S]*?reasonRequired: true/);
-  assert.match(modal, /UNPUBLISH: \{[\s\S]*?reasonRequired: false,\s*showNotes: false/);
+  const page = read("components/payroll/calculation/PayrunCalculation.jsx");
+  // No dialog, reason or remark for Unlock / Unpublish: they run straight away.
+  assert.match(page, /const DIRECT_LIFECYCLE = \["UNLOCK", "UNPUBLISH"\];/);
+  assert.match(page, /if \(DIRECT_LIFECYCLE\.includes\(action\)\) runLifecycle\(target\);/);
+  assert.ok(!/UNLOCK: \{/.test(modal), "no Unlock dialog copy");
+  assert.ok(!/UNPUBLISH: \{/.test(modal), "no Unpublish dialog copy");
+  // Publish keeps its confirmation, with an optional reason.
   assert.match(modal, /PUBLISH: \{[\s\S]*?reasonRequired: false/);
   assert.ok(breakup.includes("Net Pay Rounding") && breakupCode.includes("breakup.final.net_pay_rounding"));
 });
