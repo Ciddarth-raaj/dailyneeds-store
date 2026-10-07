@@ -101,9 +101,10 @@ test("the permission is declared for the designation rights screen", () => {
   assert.match(permissions, /view_attendance_dashboard: "View Attendance & Staffing Dashboard"/);
 });
 
-test("the menu entry carries the same key and points at the page", () => {
-  assert.match(menus, /permission: "view_attendance_dashboard"/);
-  assert.match(menus, /location: "\/dashboard\?tab=staffing"/);
+test("the menu reaches the screen through the one Dashboard entry, not an entry of its own", () => {
+  assert.match(menus, /location: "\/dashboard",/);
+  assert.ok(!/location: "\/dashboard\?tab=/.test(menus), "no per-tab menu entries");
+  assert.ok(!/attendance_dashboard:\s*\{/.test(menus), "the old Attendance & Staffing entry is gone");
 });
 
 test("a permission refusal is shown as a refusal, not as an error or as zero", () => {
@@ -482,9 +483,8 @@ test("no late or early-departure penalty is introduced", () => {
 
 test("the title and route are the approved ones", () => {
   assert.match(page, /title="Attendance & Staffing Dashboard"/);
-  assert.match(menus, /location: "\/dashboard\?tab=staffing"/, "the menu opens its tab");
   assert.match(read("next.config.js"), /source: "\/attendance\/dashboard", destination: "\/dashboard\?tab=staffing"/, "the old route redirects");
-  assert.match(menus, /permission: "view_attendance_dashboard"/, "the key is unchanged");
+  assert.match(read("customHooks/useDashboardTabAccess.js"), /usePermissions\(\["view_attendance_dashboard"\]\)/, "the key is unchanged");
 });
 
 test("Now and By-date are separate views, so a past date never sits under 'Now'", () => {

@@ -85,12 +85,9 @@ test("Employees, Department and Designation are all inside HR", () => {
     // Shift Change Eligibility: who may raise a one-day shift change, by the
     // SERVER's own production rule, and who already has.
     "/attendance/shift-change-eligibility",
-    // ONE DASHBOARD: the direct entry, and the three entries that used to
-    // open the dashboard screens as pages, now opening their tab.
+    // ONE DASHBOARD: the single entry for Attendance Today, Attendance &
+    // Staffing, Payroll and My Attendance.
     "/dashboard",
-    "/dashboard?tab=my-attendance",
-    "/dashboard?tab=payroll",
-    "/dashboard?tab=staffing",
     "/department",
     "/designation",
     "/employee-shift-assignment",
@@ -260,10 +257,6 @@ test("HR > Attendance: list, punch audit, devices and the DigiSME import, on the
     // Shift Change Eligibility: who may raise a one-day shift change, by the
     // SERVER's own production rule, and who already has.
     "/attendance/shift-change-eligibility",
-    // The dashboard screens are tabs of /dashboard now; these two entries
-    // open their tab rather than a page of their own.
-    "/dashboard?tab=my-attendance",
-    "/dashboard?tab=staffing",
   ]);
   assert.match(att, /title:\s*"Attendance Approvals"[\s\S]*?permission:\s*"view_attendance_approvals"/);
   assert.match(att, /title:\s*"OT Approval"[\s\S]*?permission:\s*"view_attendance_approvals"/);
@@ -279,8 +272,9 @@ test("HR > Attendance: list, punch audit, devices and the DigiSME import, on the
   // is the employee's own month and the backend derives the employee from
   // the session; Employee Attendance is behind the read key the backend
   // checks. Neither is payroll, and nothing here is a payroll screen.
-  assert.match(att, /my_attendance:\s*\{[^}]*title:\s*"My Attendance"/);
-  assert.ok(!/my_attendance:\s*\{[^}]*permission:/.test(att), "My Attendance has no permission key");
+  // My Attendance and Attendance & Staffing are Dashboard tabs, not entries.
+  assert.ok(!/my_attendance:\s*\{/.test(att), "My Attendance is a Dashboard tab now");
+  assert.ok(!/attendance_dashboard:\s*\{/.test(att), "Attendance & Staffing is a Dashboard tab now");
   assert.match(att, /title:\s*"Employee Attendance"[\s\S]*?permission:\s*"view_calculated_attendance"/);
   assert.ok(!/\bpayroll\b|\bsalary\b|\block payroll\b/i.test(att), "no payroll screen in Attendance");
 });
@@ -370,12 +364,9 @@ test("HR navigation still appears exactly once, and still holds its pages", () =
     // Shift Change Eligibility: who may raise a one-day shift change, by the
     // SERVER's own production rule, and who already has.
     "/attendance/shift-change-eligibility",
-    // ONE DASHBOARD: the direct entry, and the three entries that used to
-    // open the dashboard screens as pages, now opening their tab.
+    // ONE DASHBOARD: the single entry for Attendance Today, Attendance &
+    // Staffing, Payroll and My Attendance.
     "/dashboard",
-    "/dashboard?tab=my-attendance",
-    "/dashboard?tab=payroll",
-    "/dashboard?tab=staffing",
     "/department",
     "/designation",
     "/employee-shift-assignment",
@@ -483,24 +474,19 @@ test("the module rail reads All, HR, Reports, WMS, GST", () => {
   assert.deepStrictEqual(ids, ["all", "hr", "reports", "wms", "gst"]);
 });
 
-test("HR > Payroll is the dashboard, the three salary screens, the Payrun and Payroll Reports, each behind ALL of its keys", () => {
+test("HR > Payroll is the three salary screens, the Payrun and Payroll Reports, each behind ALL of its keys", () => {
   const hrMenu = treeNamed("HR_MENU");
   const pay = sectionOf(hrMenu, "payroll");
 
   assert.deepStrictEqual(locationsIn(pay).sort(), [
-    // The Payroll Dashboard is the Payroll tab of /dashboard now.
-    "/dashboard?tab=payroll",
     "/payroll/bulk-salary-upload",
     "/payroll/payrun",
     "/payroll/reports",
     "/payroll/salary-approval",
     "/payroll/salary-revision",
   ]);
-  // The Payroll Dashboard: the Payrun's three read keys, nothing more.
-  assert.match(
-    pay,
-    /title:\s*"Payroll Dashboard"[\s\S]*?permission:\s*\["view_employees", "view_payroll", "view_salary"\][\s\S]*?location:\s*"\/dashboard\?tab=payroll"/
-  );
+  // The Payroll Dashboard is the Payroll tab of /dashboard, not an entry here.
+  assert.ok(!/title:\s*"Payroll Dashboard"/.test(pay));
   assert.match(pay, /title:\s*"Salary Revision & History"/);
   assert.match(pay, /title:\s*"Salary Approval"/);
   assert.match(pay, /title:\s*"Bulk Salary Upload"/);

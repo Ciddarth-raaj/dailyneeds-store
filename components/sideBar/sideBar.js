@@ -87,7 +87,11 @@ export default function Sidebar() {
     });
 
     Object.keys(updatedMenu).forEach((key) => {
-      if (updatedMenu[key].location === asPath) {
+      // A direct entry owns its page whatever the query string says, so
+      // Dashboard stays highlighted on /dashboard?tab=payroll.
+      const location = updatedMenu[key].location;
+      const samePage = updatedMenu[key].isDirect && location && asPath.split("?")[0] === location;
+      if (location === asPath || samePage) {
         updatedMenu[key].selected = true;
         updatedMenu[key].isOpen = true;
         return;

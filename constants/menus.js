@@ -931,8 +931,9 @@ const HR_MENU = {
   // ONE DASHBOARD: Attendance Today, Attendance & Staffing, Payroll and My
   // Attendance as tabs of /dashboard. No key: every signed-in user has at
   // least My Attendance, and the page offers each tab on its own screen's
-  // rule. The three entries below that used to open those screens as pages
-  // now open their tab, and stay listed until the consolidation is settled.
+  // rule. It REPLACES the Attendance & Staffing, My Attendance and Payroll
+  // Dashboard entries that used to sit under Attendance and Payroll; their
+  // old routes redirect to the matching tab (next.config.js).
   dashboard: {
     title: "Dashboard",
     selected: false,
@@ -1127,28 +1128,9 @@ const HR_MENU = {
         selected: false,
         location: "/attendance/imports",
       },
-      // Attendance v2, the first calculated screens. My Attendance has NO
-      // permission: it is every employee's own month, and the backend takes
-      // the employee from the session rather than from the page. Employee
-      // Attendance is the HR/Admin view of somebody else's month, behind the
-      // key the backend checks on that read.
-      // The management overview of one attendance date across the company.
-      // FIRST in the Attendance section because it is the screen a manager
-      // opens to decide where to look; the per-employee screens below it are
-      // where they then look. Behind its own read-only key, which the backend
-      // grants only to designations that already hold
-      // `view_calculated_attendance`.
-      attendance_dashboard: {
-        title: "Attendance & Staffing",
-        permission: "view_attendance_dashboard",
-        selected: false,
-        location: "/dashboard?tab=staffing",
-      },
-      my_attendance: {
-        title: "My Attendance",
-        selected: false,
-        location: "/dashboard?tab=my-attendance",
-      },
+      // Employee Attendance is the HR/Admin view of somebody else's month,
+      // behind the key the backend checks on that read. Attendance & Staffing
+      // and My Attendance are tabs of the Dashboard entry at the top of HR.
       employee_attendance: {
         title: "Employee Attendance",
         permission: "view_calculated_attendance",
@@ -1277,15 +1259,8 @@ const HR_MENU = {
     openPage: true,
     icon: "fa-money",
     subMenu: {
-      // The Payroll Dashboard - the month at a glance and the way into what
-      // is left to do. The Payrun's own three keys, exactly what
-      // `routes/payroll_dashboard.js` requires.
-      payroll_dashboard: {
-        title: "Payroll Dashboard",
-        permission: ["view_employees", "view_payroll", "view_salary"],
-        selected: false,
-        location: "/dashboard?tab=payroll",
-      },
+      // The Payroll Dashboard is the Payroll tab of the Dashboard entry at
+      // the top of HR; this section holds the screens where payroll is done.
       salary_revision: {
         title: "Salary Revision & History",
         permission: ["view_employees", "view_salary"],
