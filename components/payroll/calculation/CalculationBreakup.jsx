@@ -485,16 +485,10 @@ function CalculationBreakup({ isOpen, onClose, employee, loading, error }) {
                     muted
                   />
                 ) : null}
-                {/* ESI is charged on overtime but coverage is decided without
-                    it, so the wage is shown with the overtime inside it named. */}
                 <Line
                   label="ESI Wage"
                   value={money(breakup.statutory.esi_wage)}
-                  note={
-                    Number(breakup.statutory.esi_ot_wage) > 0
-                      ? `Eligible normal salary earnings + OT ${money(breakup.statutory.esi_ot_wage)} (OT is charged ESI; coverage is decided without it)`
-                      : "Eligible normal salary earnings (+ OT, which is charged ESI but not counted for coverage)"
-                  }
+                  note="Eligible normal salary earnings only"
                 />
                 <Line label="Employee ESI" value={money(breakup.statutory.employee_esi)} />
                 <Line label="Employer ESI" value={money(breakup.statutory.employer_esi)} />
