@@ -744,10 +744,7 @@ test("Approved & Locked is a queue of its own and never the default", () => {
 
 /* ======================================================= Reset Calculation */
 
-const resetModal = read("components/payroll/calculation/ResetCalculationModal.jsx");
-const resetModalCode = codeOf(resetModal);
-
-test("reset posts an explicit id list with reason, remark and mode - never a select-all flag", () => {
+test("reset posts an explicit id list and mode - never a select-all flag", () => {
   const call = helperCode.slice(helperCode.indexOf("reset:"), helperCode.indexOf("getHistory:"));
   assert.ok(call.includes('"/payrun/calculation/reset"'));
   for (const field of ["employee_ids", "reason", "remark", "mode"]) {
@@ -772,19 +769,17 @@ test("Reset Selected (N) appears with a selection, narrowed and gated like the o
   assert.ok(workflowCode.includes('"BULK"'));
 });
 
-test("the reset dialog shows the month and who, and requires a reason before confirming", () => {
-  assert.ok(resetModal.includes("Payroll month:"));
-  assert.ok(resetModal.includes("Employee ID:"));
-  assert.ok(resetModal.includes("Selected employees:"));
-  assert.ok(resetModalCode.includes("RESET_REASON_OPTIONS.map"));
-  assert.ok(resetModalCode.includes("isDisabled={problem !== null}"));
-  assert.ok(resetModalCode.includes('isRequired={reason === "OTHER"}'));
-  assert.ok(workflowCode.includes("monthLabel={monthLabel}"));
+test("Reset acts on the click: no dialog, no reason, no remark", () => {
+  assert.ok(!fs.existsSync(path.join(ROOT, "components/payroll/calculation/ResetCalculationModal.jsx")), "the reset dialog is gone");
+  assert.ok(!workflowCode.includes("ResetCalculationModal"));
+  assert.ok(!workflowCode.includes("resetTarget"));
+  const call = helperCode.slice(helperCode.indexOf("reset:"), helperCode.indexOf("getHistory:"));
+  assert.ok(call.includes("...(reason ? { reason } : {})"), "a reason is sent only when there is one");
 });
 
 test("a reset goes through the shared run, which reports and refreshes the month", () => {
-  const confirm = workflowCode.slice(workflowCode.indexOf("const confirmReset"), workflowCode.indexOf("setResetTarget(null);\n  };"));
-  assert.ok(confirm.includes("await run("));
+  const confirm = workflowCode.slice(workflowCode.indexOf("const openReset"), workflowCode.indexOf("const openReset") + 900);
+  assert.ok(confirm.includes("return run("));
   assert.ok(confirm.includes("resetOutcomeMessage"));
   const run = workflowCode.slice(workflowCode.indexOf("const run = async"), workflowCode.indexOf("const calculate ="));
   assert.ok(run.includes("await refresh()"), "the list and the summary counts are re-read");

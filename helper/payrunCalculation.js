@@ -132,7 +132,7 @@ const PayrunCalculationHelper = {
       year,
       month,
       employee_ids,
-      reason,
+      ...(reason ? { reason } : {}),
       ...(remark ? { remark } : {}),
       mode,
     }).then((res) => res.data),
