@@ -32,6 +32,7 @@ import EducationSection from "../../../components/hr/profile/EducationSection";
 import PaymentDetailsSection from "../../../components/hr/profile/PaymentDetailsSection";
 import StatutorySection from "../../../components/hr/profile/StatutorySection";
 import PayrollSection from "../../../components/hr/profile/PayrollSection";
+import PayrollEligibleSection from "../../../components/hr/profile/PayrollEligibleSection";
 import DocumentsSection from "../../../components/hr/profile/DocumentsSection";
 import BankDetailsEditor from "../../../components/hr/profile/BankDetailsEditor";
 import usePermissions from "../../../customHooks/usePermissions";
@@ -348,6 +349,31 @@ function EmployeeProfile() {
         title: worksAllLocations
           ? "This employee now works across all locations and is counted in no single outlet's staffing"
           : "This employee is now expected at the outlet on their record",
+        status: "success",
+        duration: 3500,
+      });
+      await load();
+      return true;
+    } catch (err) {
+      toast({ title: "Could not reach the server", status: "error", duration: 5000 });
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const savePayrollEligible = async (eligible) => {
+    setSaving(true);
+    try {
+      const res = await HrHelper.setPayrollEligible(id, eligible);
+      if (failed(res)) {
+        toast({ title: res.msg || "The change was not saved", status: "error", duration: 7000 });
+        return false;
+      }
+      toast({
+        title: eligible
+          ? "This employee is payroll eligible again"
+          : "Salary Not Applicable - this employee is now left out of payroll",
         status: "success",
         duration: 3500,
       });
@@ -894,6 +920,16 @@ function EmployeeProfile() {
               here. The id comes from the lifecycle read, which is the one
               record this page is certain of - a missing one means no request
               is made. */}
+          {/* Whether the employee is paid through payroll at all (No =
+              Salary Not Applicable). Administrators only, like Attendance
+              Required; everybody who may see the profile sees the value. */}
+          <PayrollEligibleSection
+            value={employee ? employee.payroll_eligible !== 0 : true}
+            isAdmin={isAdmin}
+            onChange={savePayrollEligible}
+            saving={saving}
+          />
+
           <PayrollSection
             employeeId={identity.employee_id}
             canView={mayViewSalary}

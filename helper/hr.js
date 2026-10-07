@@ -144,6 +144,32 @@ const hr = {
     }),
 
   /**
+   * GET /hr/employee/:id/payroll-eligible — view_employees.
+   *
+   * Whether this employee is paid through DnDS payroll (No = Salary Not
+   * Applicable). Anybody who may see the profile may see the value.
+   */
+  getPayrollEligible: (employeeId) =>
+    new Promise((resolve, reject) => {
+      API.get(`/hr/employee/${employeeId}/payroll-eligible`)
+        .then((res) => resolve(res.data))
+        .catch(reject);
+    }),
+
+  /**
+   * POST /hr/employee/:id/payroll-eligible — ADMINISTRATORS ONLY, enforced by
+   * the server on `user_type = 2`, exactly like Attendance Required.
+   */
+  setPayrollEligible: (employeeId, payrollEligible) =>
+    new Promise((resolve, reject) => {
+      API.post(`/hr/employee/${employeeId}/payroll-eligible`, {
+        payroll_eligible: Boolean(payrollEligible),
+      })
+        .then((res) => resolve(res.data))
+        .catch(reject);
+    }),
+
+  /**
    * GET /hr/employee/:id/location-scope — view_employees.
    *
    * Whether this employee's duty is tied to one outlet. Anybody who may see
