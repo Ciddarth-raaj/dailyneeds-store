@@ -24,6 +24,9 @@ import {
 } from "@chakra-ui/react";
 import { bucketTitle, clock, displayDate } from "../../../util/attendanceDashboard";
 
+/** A run of absences this long before the date is highlighted on the row. */
+const ABSENT_STREAK_HIGHLIGHT = 3;
+
 /**
  * The drilldown behind every card, slice and issue.
  *
@@ -106,10 +109,16 @@ export default function DrilldownModal({
                   </Tr>
                 </Thead>
                 <Tbody>
-                  {rows.map((e) => (
+                  {rows.map((e) => {
+                    const streak = Number(e.absent_streak) || 0;
+                    const longAbsent = streak >= ABSENT_STREAK_HIGHLIGHT;
+                    return (
                     <Tr
                       key={e.employee_id}
-                      _hover={{ bg: "gray.50", cursor: "pointer" }}
+                      bg={longAbsent ? "red.50" : undefined}
+                      borderLeft={longAbsent ? "3px solid" : undefined}
+                      borderLeftColor={longAbsent ? "red.400" : undefined}
+                      _hover={{ bg: longAbsent ? "red.100" : "gray.50", cursor: "pointer" }}
                       onClick={() => onOpenEmployee(e)}
                       title="Open this employee's attendance for the date"
                     >
@@ -170,9 +179,21 @@ export default function DrilldownModal({
                             OT pending
                           </Badge>
                         ) : null}
+                        {longAbsent ? (
+                          <Text
+                            fontSize="9px"
+                            color="red.600"
+                            fontWeight="600"
+                            title="Consecutive working days absent before this date"
+                          >
+                            Absent {streak}
+                            {e.absent_streak_capped ? "+" : ""} days before
+                          </Text>
+                        ) : null}
                       </Td>
                     </Tr>
-                  ))}
+                    );
+                  })}
                 </Tbody>
               </Table>
             </Box>
