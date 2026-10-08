@@ -206,7 +206,25 @@ function CalculationBreakup({ isOpen, onClose, employee, loading, error }) {
    * browser groups nothing and prices nothing - it renders what came back.
    */
   const otGroups = (breakup && Array.isArray(breakup.ot.ot_groups) ? breakup.ot.ot_groups : []);
-  const priorMonthOt = breakup && Array.isArray(breakup.ot.prior_month_ot) ? breakup.ot.prior_month_ot : [];
+  /*
+   * THIS MONTH'S OWN OT, APPROVED WHILE THE MONTH WAS LOCKED and paid here
+   * once it was unlocked, as the server split it. It is shown as this month's
+   * approved OT - not as Prior-Month OT - and the Prior-Month section lists
+   * only the genuinely earlier months. A server without the split sends
+   * neither field, and the screen reads exactly as it did before.
+   */
+  const hasLateSplit = breakup && Array.isArray(breakup.ot.late_approved_ot);
+  const lateApprovedOt = hasLateSplit ? breakup.ot.late_approved_ot : [];
+  const priorMonthOt = hasLateSplit
+    ? Array.isArray(breakup.ot.earlier_month_ot)
+      ? breakup.ot.earlier_month_ot
+      : []
+    : breakup && Array.isArray(breakup.ot.prior_month_ot)
+    ? breakup.ot.prior_month_ot
+    : [];
+  const priorMonthOtAmount = hasLateSplit
+    ? breakup.ot.earlier_month_ot_amount
+    : breakup && breakup.ot.prior_month_ot_amount;
   const effectiveNrm =
     otGroups.length === 1 ? otGroups[0].nrm_minutes : breakup && breakup.ot.effective_nrm_minutes;
   const effectiveNrmSource =
@@ -320,7 +338,19 @@ function CalculationBreakup({ isOpen, onClose, employee, loading, error }) {
               <Divider />
 
               <Group title="Overtime">
-                <Line label="Approved OT Hours" value={numberOrDash(breakup.ot.approved_ot_hours)} />
+                <Line
+                  label="Approved OT Hours"
+                  value={numberOrDash(
+                    hasLateSplit && breakup.ot.total_approved_ot_hours !== undefined
+                      ? breakup.ot.total_approved_ot_hours
+                      : breakup.ot.approved_ot_hours
+                  )}
+                  note={
+                    lateApprovedOt.length > 0
+                      ? `Includes ${breakup.ot.late_approved_ot_minutes} min approved after this month was locked`
+                      : null
+                  }
+                />
 
                 {/*
                   ONE NRM OR SEVERAL, AND THE SCREEN SAYS WHICH.
@@ -376,6 +406,29 @@ function CalculationBreakup({ isOpen, onClose, employee, loading, error }) {
                 )}
 
                 <Line label="OT Amount" value={money(breakup.ot.ot_amount)} strong={otGroups.length > 1} />
+
+                {/* Approved after this month was locked; paid here because the
+                    month was unlocked again. Priced by the same formula, at
+                    this month's daily rate and the date's own NRM. */}
+                {lateApprovedOt.map((item) => (
+                  <Line
+                    key={item.attendance_approval_request_id}
+                    label={`OT approved after lock · ${item.attendance_date}: ${item.approved_ot_minutes} min`}
+                    value={money(item.amount)}
+                    note={
+                      item.ot_hourly_rate
+                        ? `${money(item.ot_hourly_rate)} per hour · NRM ${item.nrm_minutes} min`
+                        : null
+                    }
+                  />
+                ))}
+                {lateApprovedOt.length > 0 ? (
+                  <Line
+                    label="OT Approved After Lock Amount"
+                    value={money(breakup.ot.late_approved_ot_amount)}
+                    strong
+                  />
+                ) : null}
               </Group>
 
               {priorMonthOt.length > 0 ? (
@@ -396,7 +449,7 @@ function CalculationBreakup({ isOpen, onClose, employee, loading, error }) {
                         }
                       />
                     ))}
-                    <Line label="Prior-Month OT Amount" value={money(breakup.ot.prior_month_ot_amount)} strong />
+                    <Line label="Prior-Month OT Amount" value={money(priorMonthOtAmount)} strong />
                   </Group>
                 </>
               ) : null}

@@ -349,3 +349,43 @@ test("describePfScenario: words for each part, nothing decided, unknown codes ve
   assert.deepEqual(identifierPieces("EPFO-CEILING-15000"), ["EPFO-", "CEILING-", "15000"]);
   assert.equal(identifierPieces("ABC_DEF-1").join(""), "ABC_DEF-1");
 });
+
+/* ------------------------------ OT approved after the month was locked */
+
+/** Pavadai N, September 2026: 28 min on 30 Sep approved while September was locked, paid after it was unlocked. */
+const pavadai = () => {
+  const e = employee1355();
+  e.employee_name = "Pavadai N";
+  e.breakup.ot = {
+    approved_ot_hours: 0, effective_nrm_minutes: 570, effective_nrm_source: "SHIFT",
+    ot_hourly_rate: 121.46, ot_amount: 0, ot_groups: [],
+    prior_month_ot_amount: 56.68,
+    prior_month_ot: [{ attendance_approval_request_id: 601, attendance_date: "2026-09-30", source_year: 2026, source_month: 9,
+      approved_ot_minutes: 28, nrm_minutes: 570, daily_rate: 1153.85, ot_hourly_rate: 121.46, amount: 56.68 }],
+    late_approved_ot: [{ attendance_approval_request_id: 601, attendance_date: "2026-09-30", source_year: 2026, source_month: 9,
+      approved_ot_minutes: 28, nrm_minutes: 570, daily_rate: 1153.85, ot_hourly_rate: 121.46, amount: 56.68 }],
+    late_approved_ot_minutes: 28, late_approved_ot_amount: 56.68,
+    earlier_month_ot: [], earlier_month_ot_amount: null,
+    total_approved_ot_minutes: 28, total_approved_ot_hours: 0.4667,
+  };
+  return e;
+};
+
+test("7. OT approved after the month was locked is shown as this month's approved OT, with its amount - not as Prior-Month OT", skip, () => {
+  const dialog = open(pavadai());
+  const lines = Object.fromEntries(pairs(dialog));
+  assert.equal(lines["Approved OT Hours"], "0.4667");
+  assert.match(lines["OT approved after lock · 2026-09-30: 28 min"], /56\.68/);
+  assert.match(lines["OT Approved After Lock Amount"], /56\.68/);
+  assert.match(clean(lineOf(dialog, "Approved OT Hours")), /Includes 28 min approved after this month was locked/);
+  assert.equal(lines["Prior-Month OT Amount"], undefined, "no Prior-Month OT section for September's own OT");
+});
+
+test("7b. a breakup without the split (older server) reads exactly as before", skip, () => {
+  const e = pavadai();
+  ["late_approved_ot", "late_approved_ot_minutes", "late_approved_ot_amount", "earlier_month_ot", "earlier_month_ot_amount",
+    "total_approved_ot_minutes", "total_approved_ot_hours"].forEach((k) => delete e.breakup.ot[k]);
+  const lines = Object.fromEntries(pairs(open(e)));
+  assert.equal(lines["Approved OT Hours"], "0");
+  assert.match(lines["Prior-Month OT Amount"], /56\.68/);
+});

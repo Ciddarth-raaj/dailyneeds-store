@@ -400,11 +400,21 @@ function otLateSettlementDetail(day) {
     late.settlement_year && late.settlement_month
       ? `${MONTH_SHORT[Number(late.settlement_month) - 1]} ${late.settlement_year}`
       : null;
+  // Paid in the OT date's OWN month: approved while that month was locked,
+  // and the month was unlocked again - it is not Prior-Month OT there.
+  const date = day && day.attendance_date ? String(day.attendance_date) : "";
+  const ownMonth =
+    !!period &&
+    date.slice(0, 7) === `${late.settlement_year}-${String(late.settlement_month).padStart(2, "0")}`;
   const detail =
     late.status === "SETTLED"
-      ? `Paid as Prior-Month OT in the ${period} payroll`
+      ? ownMonth
+        ? `Approved after the month was locked — paid in the ${period} payroll`
+        : `Paid as Prior-Month OT in the ${period} payroll`
       : late.status === "INCLUDED" && period
-        ? `Included as Prior-Month OT in the ${period} payroll`
+        ? ownMonth
+          ? `Approved after the month was locked — included in the ${period} payroll`
+          : `Included as Prior-Month OT in the ${period} payroll`
         : "Approved — will be settled in the next eligible payroll";
   return { status: late.status, minutes, period, detail };
 }
