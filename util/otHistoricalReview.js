@@ -17,6 +17,8 @@ const ACTION_LABEL = Object.freeze({
   SKIP_CLOSED_AT_PAYROLL_LOCK: "Closed at payroll lock",
   SKIP_ALREADY_PAID: "Already paid / settling",
   SKIP_ALREADY_REVIEWED: "Already raised by a review",
+  SKIP_PREVIOUSLY_WITHDRAWN: "Previously withdrawn – not reopened",
+  SKIP_PREVIOUSLY_REVOKED: "Decision revoked by an administrator – not reopened",
   SKIP_ATTENDANCE_INCOMPLETE: "Attendance incomplete",
   SKIP_CORRECTION_PENDING: "Attendance correction pending",
   SKIP_OUTSIDE_EMPLOYMENT: "Outside employment",

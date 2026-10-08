@@ -25,6 +25,8 @@ test("labels name the server's decision in words, including dry-run reasons", ()
   assert.equal(r.actionLabel("CREATE_PENDING_OT_PRIOR_MONTH_SETTLEMENT"), "Create Pending OT – Prior-Month OT if approved");
   assert.equal(r.actionLabel("SKIP_INCOMPLETE_DAY"), "Not raised: incomplete day");
   assert.equal(r.PAYROLL_LABEL.PUBLISHED, "Published");
+  assert.equal(r.actionLabel("SKIP_PREVIOUSLY_WITHDRAWN"), "Previously withdrawn – not reopened");
+  assert.equal(r.isCreatable({ proposed_action: "SKIP_PREVIOUSLY_WITHDRAWN" }), false);
 });
 
 test("the screen: behind its key, preview first, an explicit confirmation, the preview's hash sent, and no approve action", () => {
