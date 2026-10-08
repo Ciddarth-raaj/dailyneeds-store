@@ -1079,3 +1079,50 @@ test("OT approved while its month was locked and paid in that same month once un
   });
   assert.equal(later.detail, "Paid as Prior-Month OT in the Oct 2026 payroll");
 });
+
+/* ------------- calculated OT that a rule keeps out of approval (Employee 945, 4 Sep) */
+
+test("calculated OT before the automatic-OT cutover is NOT shown as 'sent for approval'", () => {
+  const { otClaim, otRequestStatus } = require("./attendanceV2");
+  const sep4 = day({
+    attendance_date: "2026-09-04",
+    candidate_ot_minutes: 22,
+    ot_claim_state: "AVAILABLE",
+    ot_auto_status: {
+      state: "NOT_RAISED",
+      reason: "BEFORE_CUTOVER",
+      cutover_date: "2026-10-06",
+      detail: "Not sent for approval: dated before automatic OT approval started (6 Oct 2026)",
+    },
+  });
+  const ot = otClaim(sep4);
+  assert.equal(ot.label, "OT Calculated: 00:22", "calculated OT stays visible");
+  assert.equal(ot.color, "gray");
+  assert.equal(ot.not_raised_reason, "BEFORE_CUTOVER");
+  assert.match(ot.detail, /before automatic OT approval started \(6 Oct 2026\)/);
+  assert.doesNotMatch(ot.detail, /automatically/i);
+  const status = otRequestStatus(sep4);
+  assert.equal(status.key, "NOT_RAISED");
+  assert.equal(status.label, "Not Sent for Approval");
+  assert.equal(status.notRaisedReason, "BEFORE_CUTOVER");
+});
+
+test("calculated OT the automation WILL raise still reads as on its way; a server without the field reads as before", () => {
+  const { otClaim, otRequestStatus } = require("./attendanceV2");
+  const awaiting = day({ candidate_ot_minutes: 30, ot_claim_state: "AVAILABLE", ot_auto_status: { state: "AWAITING_AUTOMATIC_REQUEST", reason: null } });
+  assert.equal(otClaim(awaiting).color, "blue");
+  assert.equal(otRequestStatus(awaiting).key, "NOT_REQUESTED");
+  const legacy = day({ candidate_ot_minutes: 30, ot_claim_state: "AVAILABLE" });
+  assert.equal(otRequestStatus(legacy).key, "NOT_REQUESTED");
+  assert.equal(otClaim(legacy).not_raised_reason, null);
+});
+
+test("a payroll-locked month's calculated OT says the month is locked", () => {
+  const { otClaim } = require("./attendanceV2");
+  const ot = otClaim(day({
+    candidate_ot_minutes: 22,
+    ot_claim_state: "AVAILABLE",
+    ot_auto_status: { state: "NOT_RAISED", reason: "PAYROLL_LOCKED", detail: "Not sent for approval: payroll for this month is locked" },
+  }));
+  assert.equal(ot.detail, "Not sent for approval: payroll for this month is locked");
+});

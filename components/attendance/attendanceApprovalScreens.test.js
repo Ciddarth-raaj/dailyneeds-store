@@ -414,3 +414,10 @@ test("a pending OT whose source payroll is locked says approval settles it forwa
   // The decision buttons are the ordinary ones: it is an ordinary pending OT.
   assert.match(queue, /row\.status === "PENDING" && row\.actionable && onDecide \?/);
 });
+
+test("Approvals: the screen pages - it shows 'Showing N of M' and loads the next page with the same tab and filters", () => {
+  assert.match(approval, /setTotal\(Number\.isFinite\(Number\(list\.total\)\)/);
+  assert.match(approval, /Showing \{rows\.length\} of \{total\}/);
+  assert.match(approval, /getApprovals\(\{\s*request_type: type,\s*status,\s*\.\.\.queryFilters,\s*offset: rows\.length,?\s*\}\)/);
+  assert.match(approval, /Load more/);
+});

@@ -549,3 +549,17 @@ test("an OT record stays in the Telegram list after candidate OT falls to zero",
     "Closed – Payroll Locked",
   ]);
 });
+
+test("Telegram OT card: calculated OT a rule keeps out of approval names the rule, and claims no 'sent for approval'", () => {
+  const { otCard } = require("./telegramAttendance");
+  const card = otCard({
+    attendance_date: "2026-09-04",
+    candidate_ot_minutes: 22,
+    ot_claim_state: "AVAILABLE",
+    ot_auto_status: { state: "NOT_RAISED", reason: "BEFORE_CUTOVER", detail: "Not sent for approval: dated before automatic OT approval started (6 Oct 2026)" },
+  });
+  assert.equal(card.state, "NOT_RAISED");
+  assert.equal(card.color, "gray");
+  assert.equal(card.requested_ot, null);
+  assert.match(card.next_step, /before automatic OT approval started/);
+});

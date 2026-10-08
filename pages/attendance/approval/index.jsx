@@ -152,6 +152,14 @@ export default function AttendanceApprovalCentrePage() {
   const [tab, setTab] = useState(0);
   const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [rows, setRows] = useState([]);
+  /*
+   * HOW MANY REQUESTS MATCH, not how many arrived. The API pages (200 a
+   * page) and returns `total`; the screen used to ignore it, so on a busy
+   * Approved or All tab everything past the first page - oldest dates last -
+   * was silently missing. It now says "Showing N of M" and loads the rest.
+   */
+  const [total, setTotal] = useState(null);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [count, setCount] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -240,6 +248,7 @@ export default function AttendanceApprovalCentrePage() {
       } else {
         const loaded = Array.isArray(list.rows) ? list.rows : [];
         setRows(loaded);
+        setTotal(Number.isFinite(Number(list.total)) ? Number(list.total) : loaded.length);
         if (!queryFilters.employee_id) {
           const seen = new Map();
           loaded.forEach((r) => {
@@ -271,6 +280,29 @@ export default function AttendanceApprovalCentrePage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  /** The next page under the same tab and filters, appended. */
+  const loadMore = useCallback(async () => {
+    setLoadingMore(true);
+    try {
+      const list = await AttendanceV2Helper.getApprovals({
+        request_type: type,
+        status,
+        ...queryFilters,
+        offset: rows.length,
+      });
+      if (isOk(list)) {
+        const more = Array.isArray(list.rows) ? list.rows : [];
+        const seen = new Set(rows.map((r) => r.attendance_approval_request_id));
+        setRows([...rows, ...more.filter((r) => !seen.has(r.attendance_approval_request_id))]);
+        if (Number.isFinite(Number(list.total))) setTotal(Number(list.total));
+      } else {
+        toast({ status: "error", title: apiMessage(list, "More requests could not be loaded") });
+      }
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [type, status, queryFilters, rows, toast]);
 
   const setFilter = (key, value) => setFilters((current) => ({ ...current, [key]: value }));
 
@@ -487,6 +519,16 @@ export default function AttendanceApprovalCentrePage() {
                       onRevoke={isAdmin ? (row) => setRevoking({ row }) : null}
                       selection={name === status ? selection : null}
                     />
+                    {name === status && total !== null && total > rows.length ? (
+                      <Flex align="center" justify="space-between" gap={2} data-approvals-more="">
+                        <Text fontSize="sm" color="gray.600">
+                          Showing {rows.length} of {total}
+                        </Text>
+                        <Button size="sm" onClick={loadMore} isLoading={loadingMore}>
+                          Load more
+                        </Button>
+                      </Flex>
+                    ) : null}
                   </Stack>
                 </TabPanel>
               ))}
