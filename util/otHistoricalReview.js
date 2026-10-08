@@ -63,4 +63,49 @@ function confirmationSummary(lines, selected) {
   };
 }
 
-module.exports = { CREATE_ACTIONS, ACTION_LABEL, PAYROLL_LABEL, actionLabel, isCreatable, keyOf, selectedItems, confirmationSummary };
+/*
+ * THE SUMMARY CARDS ARE FILTERS. Each card narrows the table to the lines it
+ * counts, by the same rule the server counted them with - so the rows shown
+ * under a card always add up to the card.
+ */
+const LOCKED_PAYROLL = Object.freeze(["APPROVED_LOCKED", "PUBLISHED"]);
+const CARD_FILTER = Object.freeze({
+  ALL: "ALL",
+  WITHOUT_REQUEST: "WITHOUT_REQUEST",
+  TO_CREATE: "TO_CREATE",
+  LOCKED: "LOCKED",
+});
+const CARD_FILTER_LABEL = Object.freeze({
+  ALL: "all calculated OT",
+  WITHOUT_REQUEST: "without an approval request",
+  TO_CREATE: "to create",
+  LOCKED: "locked / published payroll",
+});
+const CARD_TEST = {
+  ALL: () => true,
+  // `summarize` on the server: no live (non-cancelled) request.
+  WITHOUT_REQUEST: (l) => !l.existing_status,
+  TO_CREATE: isCreatable,
+  LOCKED: (l) => LOCKED_PAYROLL.includes(l.payroll_status),
+};
+
+function filterLines(lines, filter) {
+  const test = CARD_TEST[filter] || CARD_TEST.ALL;
+  return (lines || []).filter(test);
+}
+
+/** Entries, minutes and DISTINCT employees of the lines a card counts. */
+function cardTotals(lines, filter) {
+  const chosen = filterLines(lines, filter);
+  return {
+    entries: chosen.length,
+    minutes: chosen.reduce((n, l) => n + (Number(l.calculated_ot_minutes) || 0), 0),
+    employees: new Set(chosen.map((l) => l.employee_id)).size,
+  };
+}
+
+module.exports = {
+  CARD_FILTER,
+  CARD_FILTER_LABEL,
+  filterLines,
+  cardTotals, CREATE_ACTIONS, ACTION_LABEL, PAYROLL_LABEL, actionLabel, isCreatable, keyOf, selectedItems, confirmationSummary };
