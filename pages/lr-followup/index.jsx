@@ -43,9 +43,9 @@ const HEADINGS = {
   ref: "Follow-up Ref",
   source: "Source",
   supplier: "Supplier",
-  kind: "Advance / Credit",
+  kind: "Advance / Manual",
   amount: "Amount",
-  source_date: "Paid / Purchase Date",
+  source_date: "Paid / Created Date",
   lr_no: "LR No.",
   transporter: "Transporter",
   dispatch_date: "Dispatch Date",
@@ -67,10 +67,11 @@ const EMPTY_FILTERS = {
   overdue_only: false,
 };
 
-/** "Purchase / LR Follow-up" - everything paid for or bought on credit that has not arrived. */
+/** "LR Follow-up" - everything paid for or dispatched on credit that has not arrived. */
 function LrFollowupDashboard() {
   const router = useRouter();
   const canManage = usePermissions([PERMISSIONS.MANAGE_LEGACY]);
+  const canCreate = usePermissions([PERMISSIONS.CREATE_MANUAL]);
   const { distributors } = useDistributors();
 
   const [filters, setFilters] = useState(EMPTY_FILTERS);
@@ -142,7 +143,8 @@ function LrFollowupDashboard() {
               {(SOURCE_META[f.source_type] || {}).label || f.source_type}
             </Badge>
           ),
-          amount: <NoWrap>{currencyFormatter(f.amount)}</NoWrap>,
+          // A manual follow-up carries no amount.
+          amount: <NoWrap>{f.amount === null || f.amount === undefined ? "-" : currencyFormatter(f.amount)}</NoWrap>,
           source_date: <NoWrap>{formatDate(f.source_date)}</NoWrap>,
           lr_no: f.lr_no || "-",
           transporter: transporterLabel(f),
@@ -179,11 +181,11 @@ function LrFollowupDashboard() {
     ? [
         { label: "Total Open Follow-ups", value: summary.total_open, onClick: () => setFilters(EMPTY_FILTERS) },
         { label: "Advance Paid Pending", value: summary.advance_open, onClick: () => set({ status: "OPEN", source_type: "ADVANCE_REQUEST" }) },
-        { label: "Credit Purchase Pending", value: summary.credit_open, onClick: () => set({ status: "OPEN", source_type: "CREDIT_PURCHASE" }) },
+        { label: "Manual LR Pending", value: summary.manual_open, onClick: () => set({ status: "OPEN", source_type: "MANUAL" }) },
         { label: "Dispatch / LR Pending", value: summary.dispatch_pending, onClick: () => set({ status: "DISPATCH_PENDING" }) },
         { label: "In Transit", value: summary.in_transit, onClick: () => set({ status: "IN_TRANSIT" }) },
         { label: "Overdue", value: summary.overdue, tone: "red", onClick: () => set({ status: "OPEN", overdue_only: true }) },
-        { label: "Total Outstanding Amount", value: currencyFormatter(summary.outstanding_amount) },
+        { label: "Advance Outstanding Amount", value: currencyFormatter(summary.outstanding_amount) },
       ]
     : [];
 
@@ -208,8 +210,15 @@ function LrFollowupDashboard() {
     : [];
 
   return (
-    <GlobalWrapper title="Purchase / LR Follow-up" permissionKey={["view_lr_followup"]}>
-      <CustomContainer title="Purchase / LR Follow-up" filledHeader>
+    <GlobalWrapper title="LR Follow-up" permissionKey={["view_lr_followup"]}>
+      <CustomContainer title="LR Follow-up List / Dashboard" filledHeader>
+        {canCreate && (
+          <Flex justify="flex-end" mb="12px">
+            <Button size="sm" colorScheme="purple" onClick={() => router.push("/lr-followup/create")}>
+              Create LR Follow-up
+            </Button>
+          </Flex>
+        )}
         {summary && (summary.missing_advance_followups > 0 || summary.verification_required > 0) && (
           <Flex
             mb="14px"
@@ -309,9 +318,9 @@ function LrFollowupDashboard() {
           </FilterBox>
           <FilterBox label="Source Type">
             <Select size="sm" value={filters.source_type} onChange={(e) => set({ source_type: e.target.value })}>
-              <option value="">Advance and Credit</option>
+              <option value="">Advance and Manual</option>
               <option value="ADVANCE_REQUEST">Advance</option>
-              <option value="CREDIT_PURCHASE">Credit</option>
+              <option value="MANUAL">Manual</option>
             </Select>
           </FilterBox>
           <FilterBox label="Supplier" width="220px">
@@ -322,7 +331,7 @@ function LrFollowupDashboard() {
               placeholder="All suppliers"
             />
           </FilterBox>
-          <FilterBox label="Paid / Purchase from">
+          <FilterBox label="Paid / Created from">
             <Input size="sm" type="date" value={filters.from_date} onChange={(e) => set({ from_date: e.target.value })} />
           </FilterBox>
           <FilterBox label="to">

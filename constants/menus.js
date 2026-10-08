@@ -57,7 +57,7 @@ const ALL_PAGES_MENU = {
         selected: false,
         location: "/master/remarks",
       },
-      // One Transporter Master for the Advance and Credit LR follow-ups.
+      // One Transporter Master for every LR follow-up, advance or manual.
       view_transporter_master: {
         title: "Transporters",
         permission: "view_transporter_master",
@@ -221,31 +221,26 @@ const ALL_PAGES_MENU = {
       },
     },
   },
-  // Purchase / LR Follow-up: what has been paid for (advance) or bought on
-  // credit and has not physically arrived yet.
+  // LR Follow-up: what has been paid for (advance) or dispatched by a
+  // supplier on credit and has not physically arrived yet.
   lr_followup: {
-    title: "Purchase / LR Follow-up",
+    title: "LR Follow-up",
     selected: false,
     openPage: false,
     icon: "fa-truck-loading",
     subMenu: {
       view_lr_followup: {
-        title: "Follow-up Dashboard",
+        title: "LR Follow-up List / Dashboard",
         permission: "view_lr_followup",
         selected: false,
         location: "/lr-followup",
       },
-      view_credit_purchase: {
-        title: "Credit Purchases",
-        permission: "view_credit_purchase",
-        selected: false,
-        location: "/credit-purchase",
-      },
+      // The key keeps the name it shipped with (create_credit_purchase).
       create_credit_purchase: {
-        title: "Create Credit Purchase",
+        title: "Create LR Follow-up",
         permission: "create_credit_purchase",
         selected: false,
-        location: "/credit-purchase/create",
+        location: "/lr-followup/create",
       },
       manage_lr_legacy_verification: {
         title: "Legacy Follow-up Verification",

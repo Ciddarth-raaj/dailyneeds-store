@@ -376,7 +376,7 @@ function DecisionDialog({ followup, mode, options, title, onClose, onDone }) {
       )}
       <Text fontSize="xs" color="gray.500">
         The decision, your remark, your name and the time are kept in the follow-up history. The original Advance
-        Request or Credit Purchase is not changed.
+        Request is not changed.
       </Text>
       <Field label={mode === "verify" ? "Decision" : "Closure Reason"} isRequired>
         <Select size="sm" placeholder="Select" value={decision} onChange={(e) => setDecision(e.target.value)}>

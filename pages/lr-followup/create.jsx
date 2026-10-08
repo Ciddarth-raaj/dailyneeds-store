@@ -17,16 +17,11 @@ import CustomContainer from "../../components/CustomContainer";
 import SearchableDropdown from "../../components/customInput/SearchableDropdown";
 import TransporterSelect from "../../components/lrFollowup/TransporterSelect";
 import { useDistributors } from "../../customHooks/useDistributors";
-import useOutlets from "../../customHooks/useOutlets";
-import { createCreditPurchase, unwrap } from "../../helper/lrFollowup";
-import { localToday, newRequestKey, validateCreditPurchase } from "../../util/lrFollowup";
+import { createManualFollowup, unwrap } from "../../helper/lrFollowup";
+import { followupRef, localToday, newRequestKey, validateManualFollowup } from "../../util/lrFollowup";
 
 const EMPTY = {
   distributor_code: null,
-  bill_reference: "",
-  amount: "",
-  bill_date: "",
-  outlet_id: null,
   transporter_id: null,
   lr_no: "",
   dispatch_date: "",
@@ -35,17 +30,18 @@ const EMPTY = {
 };
 
 /**
- * The minimal Credit Purchase entry. Saving it creates the purchase AND its
- * LR Follow-up in one step on the server - there is nothing else to do here.
+ * Create LR Follow-up - for goods a supplier dispatches on credit. Saving
+ * opens the follow-up directly; from then on it is worked exactly like one
+ * opened by a paid Advance Request. Delivery is always to the Warehouse, so
+ * there is no outlet to choose, and no bill or amount is asked for.
  */
-function CreateCreditPurchase() {
+function CreateLrFollowup() {
   const router = useRouter();
   const { distributors } = useDistributors();
-  const { outlets } = useOutlets({ directory: true });
   const [form, setForm] = useState(EMPTY);
   const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState(false);
-  // One key per form: a double click or a retried request makes one purchase.
+  // One key per form: a double click or a retried request makes one follow-up.
   const [requestKey] = useState(newRequestKey);
 
   const suppliers = useMemo(
@@ -55,15 +51,11 @@ function CreateCreditPurchase() {
         .map((d) => ({ id: d.HQ_DIST_CODE, value: d.MDM_DIST_NAME || String(d.HQ_DIST_CODE) })),
     [distributors]
   );
-  const outletOptions = useMemo(
-    () => (outlets || []).map((o) => ({ id: o.outlet_id, value: o.outlet_name })),
-    [outlets]
-  );
 
   const set = (patch) => setForm((f) => ({ ...f, ...patch }));
 
   const save = async () => {
-    const { errors: found, payload } = validateCreditPurchase(form, localToday());
+    const { errors: found, payload } = validateManualFollowup(form, localToday());
     setErrors(found);
     if (!payload) {
       toast.error(Object.values(found)[0]);
@@ -71,9 +63,9 @@ function CreateCreditPurchase() {
     }
     setBusy(true);
     try {
-      const created = unwrap(await createCreditPurchase({ ...payload, request_key: requestKey }));
-      toast.success(`Credit purchase CP-${created.credit_purchase_id} saved — LR follow-up opened`);
-      router.push(`/credit-purchase/${created.credit_purchase_id}`);
+      const created = unwrap(await createManualFollowup({ ...payload, request_key: requestKey }));
+      toast.success(`LR Follow-up ${followupRef(created)} created`);
+      router.push(`/lr-followup/${created.lr_followup_id}`);
     } catch (err) {
       toast.error(err.message);
     } finally {
@@ -82,11 +74,11 @@ function CreateCreditPurchase() {
   };
 
   return (
-    <GlobalWrapper title="Create Credit Purchase" permissionKey={["create_credit_purchase"]}>
-      <CustomContainer title="Create Credit Purchase" filledHeader>
+    <GlobalWrapper title="Create LR Follow-up" permissionKey={["create_credit_purchase"]}>
+      <CustomContainer title="Create LR Follow-up" filledHeader>
         <Text fontSize="sm" color="gray.600" mb="14px">
-          Saving opens an LR Follow-up for this purchase automatically. It stays open until the goods are
-          physically received.
+          For goods dispatched by a supplier to the Warehouse. The follow-up stays open until the goods are
+          physically received. Entering an LR No. or Dispatch Date marks it In Transit.
         </Text>
         <Grid templateColumns={{ base: "1fr", md: "1fr 1fr" }} gap="14px">
           <Field label="Supplier" isRequired error={errors.distributor_code}>
@@ -95,23 +87,6 @@ function CreateCreditPurchase() {
               value={form.distributor_code}
               onChange={(id) => set({ distributor_code: id || null })}
               placeholder="Select supplier"
-            />
-          </Field>
-          <Field label="Bill / Invoice Reference" isRequired error={errors.bill_reference}>
-            <Input size="sm" maxLength={100} value={form.bill_reference} onChange={(e) => set({ bill_reference: e.target.value })} />
-          </Field>
-          <Field label="Amount" isRequired error={errors.amount}>
-            <Input size="sm" type="number" min="0" step="0.01" value={form.amount} onChange={(e) => set({ amount: e.target.value })} />
-          </Field>
-          <Field label="Bill / Invoice Date" isRequired error={errors.bill_date}>
-            <Input size="sm" type="date" max={localToday()} value={form.bill_date} onChange={(e) => set({ bill_date: e.target.value })} />
-          </Field>
-          <Field label="Receiving Outlet / Location" isRequired error={errors.outlet_id}>
-            <SearchableDropdown
-              options={outletOptions}
-              value={form.outlet_id}
-              onChange={(id) => set({ outlet_id: id || null })}
-              placeholder="Select outlet"
             />
           </Field>
           <TransporterSelect
@@ -139,11 +114,11 @@ function CreateCreditPurchase() {
           </Field>
         </Grid>
         <Flex justify="flex-end" gap="10px" mt="20px">
-          <Button variant="ghost" onClick={() => router.push("/credit-purchase")} isDisabled={busy}>
+          <Button variant="ghost" onClick={() => router.push("/lr-followup")} isDisabled={busy}>
             Cancel
           </Button>
           <Button colorScheme="purple" onClick={save} isLoading={busy}>
-            Save Credit Purchase
+            Create LR Follow-up
           </Button>
         </Flex>
       </CustomContainer>
@@ -163,4 +138,4 @@ function Field({ label, isRequired, error, children }) {
   );
 }
 
-export default CreateCreditPurchase;
+export default CreateLrFollowup;
