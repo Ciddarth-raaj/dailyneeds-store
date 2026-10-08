@@ -48,8 +48,8 @@ const HEADINGS = {
 };
 
 /**
- * Transporter Master - the one list both the Advance and the Credit Purchase
- * follow-ups pick from. Transporters are never deleted: one no longer used
+ * Transporter Master - the one list every LR follow-up, advance or manual,
+ * picks from. Transporters are never deleted: one no longer used
  * is made Inactive, which keeps it on every old record and takes it out of
  * the dropdown for new ones.
  */
@@ -279,7 +279,7 @@ function AuditDialog({ id, onClose }) {
           {data && (
             <Flex direction="column" gap="8px">
               <Text fontSize="sm" color="gray.600">
-                Used by {data.usage.credit_purchases} credit purchase(s) and {data.usage.lr_followups} LR follow-up(s).
+                Used by {data.usage.lr_followups} LR follow-up(s).
                 Created {formatDateTime(data.created_at)}
                 {data.created_by_name ? ` by ${data.created_by_name}` : ""}.
               </Text>

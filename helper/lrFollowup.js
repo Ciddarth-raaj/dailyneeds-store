@@ -2,7 +2,7 @@ import API from "../util/api";
 import { toQueryString } from "../util/lrFollowup";
 
 /**
- * Purchase / LR Follow-up, Credit Purchase and Transporter Master API calls.
+ * LR Follow-up (including Create LR Follow-up) and Transporter Master API calls.
  * Each returns the response body; an error body carries `code` and `msg`.
  */
 
@@ -38,14 +38,10 @@ export const getLegacyQueue = async (filters = {}) =>
 
 export const runLegacyBackfill = async () => (await API.post(`/lr-followup/legacy/backfill`, {})).data;
 
-// --------------------------------------------------------- Credit Purchase
+// ----------------------------------------------------- Create LR Follow-up
 
-export const getCreditPurchases = async (filters = {}) =>
-  (await API.get(`/credit-purchase?${toQueryString(filters)}`)).data;
-
-export const getCreditPurchase = async (id) => (await API.get(`/credit-purchase/${id}`)).data;
-
-export const createCreditPurchase = async (payload) => (await API.post(`/credit-purchase`, payload)).data;
+/** Supplier + transporter (+ optional LR details); answers with the follow-up. */
+export const createManualFollowup = async (payload) => (await API.post(`/lr-followup/manual`, payload)).data;
 
 // ------------------------------------------------------ Transporter Master
 

@@ -14,10 +14,9 @@ import {
 } from "../../util/lrFollowup";
 
 /**
- * The small read-only LR Follow-up card on an Advance Request (once paid)
- * and on a Credit Purchase. It creates nothing and changes nothing: the
- * follow-up is created by the backend when the advance is paid or the
- * purchase is saved, and is worked from its own screen.
+ * The small read-only LR Follow-up card on an Advance Request (once paid).
+ * It creates nothing and changes nothing: the follow-up is created by the
+ * backend when the advance is paid, and is worked from its own screen.
  *
  * A source that should have a follow-up and has none is shown as an
  * exception, never as an empty space.

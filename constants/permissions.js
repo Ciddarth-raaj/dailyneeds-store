@@ -449,27 +449,26 @@ export const PERMISSIONS = {
     edit_advance_request: "Edit Advance Request",
   },
 
-  // Purchase / LR Follow-up. Follow-ups open on their own - when an advance
-  // request is paid, or a credit purchase is created - so there is no
-  // "create follow-up" right. Which branches are visible is decided by
+  // LR Follow-up. A follow-up opens on its own when an advance request is
+  // paid, or by hand through "Create LR Follow-up" (key
+  // create_credit_purchase, named before the rename). Which branches are visible is decided by
   // `lr_followup_all_stores` below (else the user's own branch), not by the
   // Dashboard Store Scope.
   lr_followup: {
-    view_lr_followup: "View Purchase / LR Follow-up",
+    view_lr_followup: "View LR Follow-up",
     update_lr_followup: "Update LR Details / Add Follow-up",
     mark_lr_goods_received: "Mark LR Goods Received",
     manage_lr_legacy_verification: "Manage Legacy Follow-up Verification",
     close_lr_followup_without_receipt: "Close LR Follow-up Without Receipt (Refunded / Adjusted / Cancelled)",
-    // WHERE, not what: every branch's follow-ups and credit purchases. For
+    // WHERE, not what: every branch's follow-ups. For
     // the company-wide follow-up desk. Separate from the Dashboard Store
     // Scope above - it widens no dashboard, and those keys widen no
     // follow-up. Without it, a user sees their own branch only.
     lr_followup_all_stores: "LR Follow-up: All Stores (company-wide follow-up desk)",
-    view_credit_purchase: "View Credit Purchase",
-    create_credit_purchase: "Create Credit Purchase",
+    create_credit_purchase: "Create LR Follow-up",
   },
 
-  // Transporter Master - one list for Advance and Credit follow-ups alike.
+  // Transporter Master - one list for every LR follow-up, advance or manual.
   // Never deleted: Edit includes making a transporter Inactive.
   transporter_master: {
     view_transporter_master: "View Transporter Master",

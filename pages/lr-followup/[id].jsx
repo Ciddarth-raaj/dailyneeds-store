@@ -49,6 +49,7 @@ function LrFollowupDetail() {
   // A closed follow-up is badged with its outcome, never just "Closed".
   const meta = followup ? outcomeMeta(followup) : null;
   const href = followup ? sourceHref(followup) : null;
+  const manual = Boolean(followup) && followup.source_type === "MANUAL";
 
   return (
     <GlobalWrapper title={title} permissionKey={["view_lr_followup"]}>
@@ -101,13 +102,11 @@ function LrFollowupDetail() {
               <Info label="Follow-up ID" value={followupRef(followup)} />
               <Info label="Source Type" value={(SOURCE_META[followup.source_type] || {}).label} />
               <Info label="Supplier" value={followup.supplier_name ? `${followup.supplier_name} (${followup.distributor_code})` : followup.distributor_code} />
-              <Info label="Amount" value={currencyFormatter(followup.amount)} />
-              <Info
-                label={followup.source_type === "ADVANCE_REQUEST" ? "Advance Paid Date" : "Credit Purchase Date"}
-                value={formatDate(followup.source_date)}
-              />
-              <Info label="Invoice / PI / Bill No." value={followup.invoice_number || "-"} />
-              <Info label="Receiving Outlet" value={followup.outlet_name || "-"} />
+              {/* A manual follow-up has no amount, bill or outlet: delivery is always to the Warehouse. */}
+              {!manual && <Info label="Amount" value={currencyFormatter(followup.amount)} />}
+              <Info label={manual ? "Created Date" : "Advance Paid Date"} value={formatDate(followup.source_date)} />
+              {!manual && <Info label="Invoice / PI No." value={followup.invoice_number || "-"} />}
+              {!manual && <Info label="Receiving Outlet" value={followup.outlet_name || "-"} />}
               <Info label="Ageing" value={ageingLabel(followup.ageing_days)} />
               <Info label="LR No." value={followup.lr_no || "-"} />
               <Info label="Transporter" value={transporterLabel(followup)} />
@@ -162,7 +161,7 @@ function LrFollowupDetail() {
             </Grid>
 
             {followup.source && (
-              <CustomContainer title={`Source — ${followup.source.ref}`} smallHeader>
+              <CustomContainer title={manual ? "Created Manually" : `Source — ${followup.source.ref}`} smallHeader>
                 <Grid templateColumns={{ base: "1fr 1fr", md: "repeat(4, 1fr)" }} gap="12px">
                   {followup.source.type === "ADVANCE_REQUEST" ? (
                     <>
@@ -178,11 +177,9 @@ function LrFollowupDetail() {
                     </>
                   ) : (
                     <>
-                      <Info label="Credit Purchase" value={followup.source.ref} />
-                      <Info label="Bill Reference" value={followup.source.bill_reference} />
-                      <Info label="Bill Date" value={formatDate(followup.source.bill_date)} />
+                      <Info label="Remarks" value={followup.source.remarks || "-"} />
                       <Info
-                        label="Raised"
+                        label="Created"
                         value={`${formatDateTime(followup.source.created_at)}${
                           followup.source.created_by_name ? ` by ${followup.source.created_by_name}` : ""
                         }`}

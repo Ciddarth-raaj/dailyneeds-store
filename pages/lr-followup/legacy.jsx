@@ -14,10 +14,10 @@ import { SOURCE_META, ageingLabel, followupRef, formatDate, outcomeMeta, sourceH
 const HEADINGS = {
   ref: "Follow-up",
   source_type: "Source Type",
-  source: "Advance Request / Purchase Ref",
+  source: "Source Ref",
   supplier: "Supplier",
   amount: "Amount",
-  source_date: "Paid / Purchase Date",
+  source_date: "Paid / Created Date",
   ageing: "Days Since",
   evidence: "Existing Receipt Evidence",
   finding: "Current System Finding",
@@ -90,7 +90,7 @@ function LegacyVerification() {
             sourceRef(f)
           ),
           supplier: f.supplier_name || "-",
-          amount: currencyFormatter(f.amount),
+          amount: f.amount === null || f.amount === undefined ? "-" : currencyFormatter(f.amount),
           source_date: formatDate(f.source_date),
           ageing: ageingLabel(f.ageing_days),
           evidence: f.receipt_evidence,

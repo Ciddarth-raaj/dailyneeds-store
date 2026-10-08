@@ -5,8 +5,8 @@ import { getTransporterOptions } from "../../helper/lrFollowup";
 import { transporterOptions } from "../../util/lrFollowup";
 
 /**
- * The one transporter picker, used by the Credit Purchase entry and by the
- * LR / dispatch update of every follow-up (Advance and Credit alike).
+ * The one transporter picker, used by Create LR Follow-up and by the
+ * LR / dispatch update of every follow-up (Advance and Manual alike).
  *
  * Offers ACTIVE transporters from the Transporter Master, shown as name and
  * contact number. A record that already holds a transporter which has since

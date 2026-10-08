@@ -1,5 +1,5 @@
 /**
- * Purchase / LR Follow-up screens - vocabulary, payloads and the card rule.
+ * LR Follow-up screens - vocabulary, payloads and the card rule.
  *
  *   node --test util/lrFollowup.test.js
  */
@@ -21,11 +21,14 @@ describe("labels", () => {
 
   it("names the source and links to it", () => {
     const adv = { source_type: "ADVANCE_REQUEST", advance_request_id: 1025 };
-    const cp = { source_type: "CREDIT_PURCHASE", credit_purchase_id: 4587 };
+    const manual = { source_type: "MANUAL", lr_followup_id: 9, source_ref: null };
     assert.equal(U.sourceLabel(adv), "Source: Advance Request AR-1025");
-    assert.equal(U.sourceLabel(cp), "Source: Credit Purchase CP-4587");
+    assert.equal(U.sourceLabel(manual), "Source: Created manually");
+    assert.equal(U.sourceRef(manual), "Manual");
     assert.equal(U.sourceHref(adv), "/advance-request/view/1025");
-    assert.equal(U.sourceHref(cp), "/credit-purchase/4587");
+    assert.equal(U.sourceHref(manual), null);
+    assert.equal(U.SOURCE_META.MANUAL.label, "Manual");
+    assert.equal(U.SOURCE_META.CREDIT_PURCHASE, undefined);
     assert.equal(U.followupRef({ lr_followup_id: 9 }), "LRF-9");
   });
 
@@ -90,33 +93,33 @@ describe("payloads", () => {
   });
 });
 
-describe("the Credit Purchase form", () => {
+describe("the Create LR Follow-up form", () => {
   const TODAY = "2026-10-01";
-  const good = {
-    distributor_code: "11", bill_reference: " KF/101 ", amount: "12500", bill_date: "2026-09-29",
-    outlet_id: "1", transporter_id: "3",
-  };
+  const good = { distributor_code: "11", transporter_id: "3" };
 
-  it("needs supplier, bill reference, amount, bill date, outlet and transporter", () => {
-    const { errors } = U.validateCreditPurchase({}, TODAY);
-    assert.deepEqual(Object.keys(errors).sort(), ["amount", "bill_date", "bill_reference", "distributor_code", "outlet_id", "transporter_id"]);
+  it("needs only supplier and transporter", () => {
+    const { errors } = U.validateManualFollowup({}, TODAY);
+    assert.deepEqual(Object.keys(errors).sort(), ["distributor_code", "transporter_id"]);
   });
 
-  it("LR No., dispatch and expected delivery are optional", () => {
-    const { errors, payload } = U.validateCreditPurchase(good, TODAY);
+  it("LR No., dispatch, expected delivery and remarks are optional; no bill, amount or outlet is sent", () => {
+    const { errors, payload } = U.validateManualFollowup(good, TODAY);
     assert.deepEqual(errors, {});
-    assert.equal(payload.bill_reference, "KF/101");
-    assert.equal(payload.transporter_id, 3);
-    assert.equal(payload.lr_no, null);
+    assert.deepEqual(payload, {
+      distributor_code: 11, transporter_id: 3, lr_no: null, dispatch_date: null, expected_delivery_date: null, remarks: null,
+    });
   });
 
-  it("refuses future bill and dispatch dates", () => {
-    assert.ok(U.validateCreditPurchase({ ...good, bill_date: "2026-10-02" }, TODAY).errors.bill_date);
-    assert.ok(U.validateCreditPurchase({ ...good, dispatch_date: "2026-10-02" }, TODAY).errors.dispatch_date);
+  it("refuses a future dispatch date, and an expected delivery before dispatch", () => {
+    assert.ok(U.validateManualFollowup({ ...good, dispatch_date: "2026-10-02" }, TODAY).errors.dispatch_date);
+    assert.ok(
+      U.validateManualFollowup({ ...good, dispatch_date: "2026-09-30", expected_delivery_date: "2026-09-29" }, TODAY).errors
+        .expected_delivery_date
+    );
   });
 });
 
-describe("the read-only card on Advance Request / Credit Purchase", () => {
+describe("the read-only card on Advance Request", () => {
   it("is not shown before the advance is paid, or without the view key", () => {
     assert.equal(U.cardState({ sourceType: "ADVANCE_REQUEST", sourceStatus: "approved", canView: true }).kind, "hidden");
     assert.equal(U.cardState({ sourceType: "ADVANCE_REQUEST", sourceStatus: "paid", canView: false }).kind, "hidden");
@@ -140,14 +143,34 @@ describe("the screens", () => {
   const root = path.join(__dirname, "..");
   const read = (f) => fs.readFileSync(path.join(root, f), "utf8");
 
-  it("never offer a way to create a follow-up by hand", () => {
-    for (const f of ["pages/lr-followup/index.jsx", "pages/lr-followup/[id].jsx", "pages/credit-purchase/[id].jsx"]) {
-      assert.doesNotMatch(read(f), /createFollowup|POST.*\/lr-followup["`]\s*,/);
+  it("create a follow-up by hand only through Create LR Follow-up", () => {
+    const helper = read("helper/lrFollowup.js");
+    assert.match(helper, /API\.post\(`\/lr-followup\/manual`/);
+    assert.doesNotMatch(helper, /credit-purchase/);
+    for (const f of ["pages/lr-followup/index.jsx", "pages/lr-followup/[id].jsx"]) {
+      assert.doesNotMatch(read(f), /createManualFollowup/);
+    }
+    assert.match(read("pages/lr-followup/create.jsx"), /createManualFollowup/);
+  });
+
+  it("the Credit Purchase screens and menu entries are gone", () => {
+    assert.equal(fs.existsSync(path.join(root, "pages/credit-purchase")), false);
+    const menus = read("constants/menus.js");
+    assert.doesNotMatch(menus, /Credit Purchase|\/credit-purchase/);
+    assert.match(menus, /title: "Create LR Follow-up"/);
+    assert.match(menus, /title: "LR Follow-up List \/ Dashboard"/);
+    assert.doesNotMatch(read("constants/permissions.js"), /Credit Purchase/);
+  });
+
+  it("Create LR Follow-up asks for no bill, amount, bill date or outlet", () => {
+    const src = read("pages/lr-followup/create.jsx");
+    for (const gone of [/Bill \/ Invoice/, /Amount/, /Receiving Outlet/, /outlet_id/, /useOutlets/]) {
+      assert.doesNotMatch(src, gone);
     }
   });
 
   it("pick transporters from the master, never as free text", () => {
-    for (const f of ["pages/credit-purchase/create.jsx", "components/lrFollowup/FollowupActions.jsx"]) {
+    for (const f of ["pages/lr-followup/create.jsx", "components/lrFollowup/FollowupActions.jsx"]) {
       const src = read(f);
       assert.match(src, /TransporterSelect/);
       assert.doesNotMatch(src, /name="transporter"\b/);
@@ -157,7 +180,7 @@ describe("the screens", () => {
   it("every page is gated on its key", () => {
     assert.match(read("pages/lr-followup/index.jsx"), /permissionKey=\{?\[?["']view_lr_followup/);
     assert.match(read("pages/lr-followup/legacy.jsx"), /manage_lr_legacy_verification/);
-    assert.match(read("pages/credit-purchase/create.jsx"), /create_credit_purchase/);
+    assert.match(read("pages/lr-followup/create.jsx"), /create_credit_purchase/);
     assert.match(read("pages/master/transporters/index.jsx"), /view_transporter_master/);
   });
 
@@ -200,7 +223,7 @@ describe("closure outcomes are never confused", () => {
   });
 
   it("the transporter error says it must come from the master", () => {
-    const { errors } = U.validateCreditPurchase({ distributor_code: 1, bill_reference: "B", amount: 1, bill_date: "2026-09-30", outlet_id: 1 }, "2026-10-01");
+    const { errors } = U.validateManualFollowup({ distributor_code: 1 }, "2026-10-01");
     assert.deepEqual(Object.keys(errors), ["transporter_id"]);
     assert.match(errors.transporter_id, /Transporter Master/);
   });
