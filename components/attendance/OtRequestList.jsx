@@ -175,6 +175,14 @@ function RowNote({ day, status }) {
       </Tooltip>
     );
   }
+  if (status.key === "NOT_RAISED") {
+    // Calculated, but a rule keeps it out of approval - and says which.
+    return (
+      <Text fontSize="10px" color="gray.600">
+        {status.notRaisedDetail}
+      </Text>
+    );
+  }
   if (status.key === "NOT_REQUESTED") {
     return (
       <Text fontSize="10px" color="blue.700">
@@ -227,7 +235,7 @@ function OtCard({ day, onSelect }) {
             </Text>
           </Box>
         </SimpleGrid>
-        {status.key !== "NOT_REQUESTED" ? (
+        {status.key !== "NOT_REQUESTED" && status.key !== "NOT_RAISED" ? (
           <Text fontSize="xs" color="gray.700">
             Sent for approval: <strong>{formatOtClock(status.minutes)}</strong>
             {status.key === "APPROVED" ? ` · Approved ${formatOtClock(day.approved_ot_minutes)}` : null}
@@ -291,7 +299,7 @@ function OtTable({ days, onSelect }) {
                   <ExplainTooltip lines={otExplanation(day)}>
                     {formatOtClock(day.candidate_ot_minutes)}
                   </ExplainTooltip>
-                  {status.key !== "NOT_REQUESTED" ? (
+                  {status.key !== "NOT_REQUESTED" && status.key !== "NOT_RAISED" ? (
                     <Text fontSize="10px" color="gray.600" fontFamily="body" fontWeight="400">
                       For approval {formatOtClock(status.minutes)}
                       {status.key === "APPROVED" ? ` · Approved ${formatOtClock(day.approved_ot_minutes)}` : null}

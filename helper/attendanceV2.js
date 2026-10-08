@@ -91,6 +91,35 @@ const attendanceV2 = {
    * "Pending with me", counted on the server - under the SAME filters the
    * table is showing, so the number is a count of what the reader can see.
    */
+  /**
+   * HISTORICAL OT REVIEW. The preview is read only; `authoriseHistoricalOt`
+   * creates PENDING OT for the named dates of the preview whose hash it
+   * names (refused, 409, if the data has moved since) - it approves nothing.
+   */
+  previewHistoricalOt: ({ from_date = null, to_date = null, employee_id = null } = {}) =>
+    call("get", "/attendance/ot/historical-review/preview", {
+      params: {
+        ...(from_date ? { from_date } : {}),
+        ...(to_date ? { to_date } : {}),
+        ...(employee_id ? { employee_id } : {}),
+      },
+    }),
+  authoriseHistoricalOt: ({ from_date, to_date, preview_hash, items, note = null }) =>
+    new Promise((resolve, reject) => {
+      API.post("/attendance/ot/historical-review/authorise", {
+        from_date,
+        to_date,
+        preview_hash,
+        items,
+        ...(note ? { note } : {}),
+        confirm: true,
+      })
+        .then((res) => resolve(res.data))
+        // A refusal the screen must show (a stale preview is 409) comes back as data.
+        .catch((err) => (err && err.response && err.response.data ? resolve(err.response.data) : reject(err)));
+    }),
+  listHistoricalOtBatches: () => call("get", "/attendance/ot/historical-review/batches", {}),
+
   getApprovalCount: (request_type, filters = {}) =>
     call("get", "/attendance/approvals/count", {
       params: {

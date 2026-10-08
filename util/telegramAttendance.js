@@ -297,7 +297,7 @@ function otCard(day) {
     state: status.key,
     label: status.label,
     color: otStateColor(status.key),
-    requested_ot: status.key === "NOT_REQUESTED" ? null : formatOtClock(status.minutes),
+    requested_ot: status.key === "NOT_REQUESTED" || status.key === "NOT_RAISED" ? null : formatOtClock(status.minutes),
     approved_ot: status.key === "APPROVED" ? formatOtClock(day.approved_ot_minutes) : null,
     reason: status.reason,
     requested_at: status.requestedAt,
@@ -311,7 +311,13 @@ function otCard(day) {
     // Always false: eligible OT goes to approval automatically.
     can_submit: canRequestOt(day),
     // What happens next, for a day whose OT is not in the approval queue yet.
-    next_step: status.key === "NOT_REQUESTED" ? OT_AUTOMATIC_NOTE : null,
+    // ...or, for OT a rule keeps out of approval, which rule.
+    next_step:
+      status.key === "NOT_REQUESTED"
+        ? OT_AUTOMATIC_NOTE
+        : status.key === "NOT_RAISED"
+        ? status.notRaisedDetail
+        : null,
     blocked_reason: otBlockedReason(day),
   };
 }
@@ -326,7 +332,7 @@ function otStateColor(state) {
   if (state === "PENDING") return "purple";
   if (state === "APPROVED") return "green";
   if (state === "REJECTED") return "red";
-  if (state === "CLOSED") return "gray";
+  if (state === "CLOSED" || state === "NOT_RAISED") return "gray";
   return "orange";
 }
 

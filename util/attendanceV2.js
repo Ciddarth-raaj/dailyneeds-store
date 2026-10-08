@@ -320,7 +320,10 @@ function otClaim(day) {
        */
       const excessState = day.ot_excess_state || (claimable > 0 ? "AVAILABLE" : "NONE");
       const excessDetail = {
-        AVAILABLE: `${formatOtClock(claimable)} worked outside the approved shift goes to approval automatically`,
+        AVAILABLE:
+          day.ot_auto_status && day.ot_auto_status.state === "NOT_RAISED"
+            ? `${formatOtClock(claimable)} worked outside the approved shift: ${day.ot_auto_status.detail || "not sent for approval"}`
+            : `${formatOtClock(claimable)} worked outside the approved shift goes to approval automatically`,
         REQUEST_PENDING: `${formatOtClock(claimable)} outside the approved shift is awaiting approval`,
         // The APPROVED figure is the backend's own component, not the
         // claimable remainder: they differ the moment a later correction
@@ -345,15 +348,27 @@ function otClaim(day) {
         detail: excessDetail,
       };
     }
-    case "AVAILABLE":
+    case "AVAILABLE": {
+      /*
+       * CALCULATED IS NOT "ON ITS WAY". The server says whether the
+       * automation will raise this OT (`ot_auto_status`) or which rule keeps
+       * it from ever doing so - dated before automatic OT started, outside the
+       * window, payroll locked, automation off. Such OT is shown grey with
+       * that reason, never as "sent for approval automatically": it is not
+       * in OT Approvals and will not appear there by itself.
+       */
+      const auto = day.ot_auto_status || null;
+      const notRaised = !!auto && auto.state === "NOT_RAISED";
       return {
         state,
         label: `OT Calculated: ${formatOtClock(claimable)}`,
         minutes: claimable,
         canRequest: false,
-        color: "blue",
-        detail: OT_AUTOMATIC_NOTE,
+        color: notRaised ? "gray" : "blue",
+        detail: notRaised ? auto.detail || "Not sent for approval" : OT_AUTOMATIC_NOTE,
+        not_raised_reason: notRaised ? auto.reason || null : null,
       };
+    }
     case "REQUEST_PENDING":
       return { state, label: `OT Pending Approval: ${formatOtClock(requested)}`, minutes: requested, canRequest: false, color: "orange", detail: null };
     case "APPROVED": {
@@ -483,6 +498,9 @@ const OT_REQUEST_STATUS = Object.freeze({
   // say what it now means - the engine found OT and the system is about to
   // raise it for approval, which nobody has to ask for.
   NOT_REQUESTED: "Awaiting Approval Queue",
+  // Calculated, but a rule (automatic OT cutover, window, payroll lock,
+  // automation off) keeps it from being raised. Not in OT Approvals.
+  NOT_RAISED: "Not Sent for Approval",
   // A SIXTH STATUS, and not "Approved": an approved one-day shift change
   // authorises the overtime it produces, so the employee never filed - and
   // must never be asked to file - a request for it.
@@ -564,6 +582,18 @@ function otRequestStatus(day) {
         closureReason: otClosureReason(day),
       };
     default:
+      // Calculated OT a rule keeps out of approval is NOT "Awaiting Approval
+      // Queue": it says so, with the reason the server gave.
+      if (claim.state === "AVAILABLE" && claim.not_raised_reason) {
+        return {
+          ...base,
+          key: "NOT_RAISED",
+          label: OT_REQUEST_STATUS.NOT_RAISED,
+          color: "gray",
+          notRaisedReason: claim.not_raised_reason,
+          notRaisedDetail: claim.detail,
+        };
+      }
       return { ...base, key: "NOT_REQUESTED", label: OT_REQUEST_STATUS.NOT_REQUESTED, color: "gray" };
   }
 }

@@ -117,7 +117,7 @@ export default function TelegramOtDateList({ days, loading, highlight }) {
                 <Field label="Eligible OT" value={card.eligible_ot} accent="blue.700" />
               </SimpleGrid>
 
-              {card.state === "NOT_REQUESTED" ? null : (
+              {card.state === "NOT_REQUESTED" || card.state === "NOT_RAISED" ? null : (
                 <>
                   <Divider />
                   <Stack spacing={1}>

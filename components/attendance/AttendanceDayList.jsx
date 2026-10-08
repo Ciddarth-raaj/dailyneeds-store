@@ -107,8 +107,15 @@ function OtLine({ day }) {
   const ot = otClaim(day);
   if (!ot) return null;
   return (
-    <Text fontSize="10px" fontWeight="600" color={`${ot.color}.700`} whiteSpace="nowrap">
+    <Text
+      fontSize="10px"
+      fontWeight="600"
+      color={`${ot.color}.700`}
+      whiteSpace="nowrap"
+      title={ot.not_raised_reason ? ot.detail : undefined}
+    >
       {ot.label}
+      {ot.not_raised_reason ? " · not sent for approval" : null}
     </Text>
   );
 }
