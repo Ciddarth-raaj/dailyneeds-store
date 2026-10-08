@@ -77,6 +77,7 @@ test("Employees, Department and Designation are all inside HR", () => {
     "/attendance/list",
     "/attendance/list?tab=audit",
     "/attendance/missing-attendance",
+    "/attendance/ot-historical-review",
     // Permission: the register, the management grant and the bulk log.
     "/attendance/permissions",
     "/attendance/recalculate",
@@ -250,6 +251,7 @@ test("HR > Attendance: list, punch audit, devices and the DigiSME import, on the
     "/attendance/list",
     "/attendance/list?tab=audit",
     "/attendance/missing-attendance",
+    "/attendance/ot-historical-review",
     // Permission: the register, the management grant and the bulk log.
     "/attendance/permissions",
     "/attendance/recalculate",
@@ -357,6 +359,7 @@ test("HR navigation still appears exactly once, and still holds its pages", () =
     "/attendance/list",
     "/attendance/list?tab=audit",
     "/attendance/missing-attendance",
+    "/attendance/ot-historical-review",
     // Permission: the register, the management grant and the bulk log.
     "/attendance/permissions",
     "/attendance/recalculate",

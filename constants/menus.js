@@ -1173,6 +1173,16 @@ const HR_MENU = {
         selected: false,
         location: "/attendance/approver-setup",
       },
+      // Historical OT Review: calculated OT the automatic-OT cutover left
+      // without an approval request. Preview, then an authorised creation of
+      // PENDING OT on the normal chain - it approves and pays nothing. Behind
+      // a key the backend grants to nobody (administrators by bypass).
+      attendance_ot_historical_review: {
+        title: "Historical OT Review",
+        permission: "attendance_ot_historical_review",
+        selected: false,
+        location: "/attendance/ot-historical-review",
+      },
     },
   },
   // M4 — Payroll. A SECTION OF HR, never a module of its own, exactly as the
