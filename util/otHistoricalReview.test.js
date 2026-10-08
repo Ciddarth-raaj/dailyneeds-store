@@ -44,3 +44,31 @@ test("the screen: behind its key, preview first, an explicit confirmation, the p
   assert.match(helper, /"\/attendance\/ot\/historical-review\/authorise"/);
   assert.match(helper, /confirm: true/);
 });
+
+test("summary cards filter the table by the rule each card counts with", () => {
+  const rows = [
+    { employee_id: 1, attendance_date: "2026-09-01", calculated_ot_minutes: 30, existing_status: "APPROVED", payroll_status: "PUBLISHED", proposed_action: "SKIP_EXISTING_APPROVED" },
+    { employee_id: 2, attendance_date: "2026-09-01", calculated_ot_minutes: 45, existing_status: null, payroll_status: "PUBLISHED", proposed_action: "SKIP_NO_ELIGIBLE_OT" },
+    { employee_id: 2, attendance_date: "2026-09-02", calculated_ot_minutes: 20, existing_status: null, payroll_status: "APPROVED_LOCKED", proposed_action: "CREATE_PENDING_OT_PRIOR_MONTH_SETTLEMENT" },
+    { employee_id: 3, attendance_date: "2026-10-02", calculated_ot_minutes: 10, existing_status: null, payroll_status: "NOT_CALCULATED", proposed_action: "CREATE_PENDING_OT" },
+  ];
+  const ids = (f) => r.filterLines(rows, f).map((l) => `${l.employee_id}|${l.attendance_date}`);
+  assert.equal(r.filterLines(rows, r.CARD_FILTER.ALL).length, 4);
+  assert.deepEqual(ids(r.CARD_FILTER.WITHOUT_REQUEST), ["2|2026-09-01", "2|2026-09-02", "3|2026-10-02"]);
+  assert.deepEqual(ids(r.CARD_FILTER.TO_CREATE), ["2|2026-09-02", "3|2026-10-02"]);
+  assert.deepEqual(ids(r.CARD_FILTER.LOCKED), ["1|2026-09-01", "2|2026-09-01", "2|2026-09-02"]);
+  // The locked card now has a real employee count: distinct across locked AND published.
+  assert.deepEqual(r.cardTotals(rows, r.CARD_FILTER.LOCKED), { entries: 3, minutes: 95, employees: 2 });
+});
+
+test("the cards are buttons that toggle the filter; select-all acts on the rows in view", () => {
+  const fs = require("fs");
+  const path = require("path");
+  const src = fs.readFileSync(path.join(__dirname, "..", "pages/attendance/ot-historical-review/index.jsx"), "utf8");
+  assert.match(src, /as="button"/);
+  assert.match(src, /aria-pressed=\{active\}/);
+  assert.match(src, /onClick=\{\(\) => setCardFilter\(active \? CARD_FILTER\.ALL : filter\)\}/);
+  assert.match(src, /\{visible\.map\(\(l\) => \(/);
+  assert.match(src, /visibleCreatable\.forEach/);
+  assert.doesNotMatch(src, /employees: "—"/);
+});

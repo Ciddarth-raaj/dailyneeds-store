@@ -38,8 +38,12 @@ import CustomContainer from "../../../components/CustomContainer";
 import AttendanceV2Helper from "../../../helper/attendanceV2";
 import { apiMessage, isOk } from "../../../util/attendanceV2";
 import {
+  CARD_FILTER,
+  CARD_FILTER_LABEL,
   PAYROLL_LABEL,
   actionLabel,
+  cardTotals,
+  filterLines,
   confirmationSummary,
   isCreatable,
   keyOf,
@@ -107,7 +111,13 @@ function HistoricalOtReview() {
   }, []);
 
   const lines = useMemo(() => (preview && Array.isArray(preview.lines) ? preview.lines : []), [preview]);
+  /* The summary card the table is narrowed to; clicking it again shows all. */
+  const [cardFilter, setCardFilter] = useState(CARD_FILTER.ALL);
+  const visible = useMemo(() => filterLines(lines, cardFilter), [lines, cardFilter]);
   const creatable = useMemo(() => lines.filter(isCreatable), [lines]);
+  const visibleCreatable = useMemo(() => visible.filter(isCreatable), [visible]);
+  const allVisibleSelected = visibleCreatable.length > 0 && visibleCreatable.every((l) => selected.has(keyOf(l)));
+  const someVisibleSelected = visibleCreatable.some((l) => selected.has(keyOf(l)));
   const pending = confirmationSummary(lines, selected);
 
   const toggle = (line) =>
@@ -118,8 +128,15 @@ function HistoricalOtReview() {
       else next.add(key);
       return next;
     });
+  // The header checkbox selects (or clears) the creatable rows IN VIEW only;
+  // a selection made under another card is kept.
   const toggleAll = () =>
-    setSelected((current) => (current.size === creatable.length ? new Set() : new Set(creatable.map(keyOf))));
+    setSelected((current) => {
+      const next = new Set(current);
+      if (allVisibleSelected) visibleCreatable.forEach((l) => next.delete(keyOf(l)));
+      else visibleCreatable.forEach((l) => next.add(keyOf(l)));
+      return next;
+    });
 
   const apply = async () => {
     setApplying(true);
@@ -148,13 +165,33 @@ function HistoricalOtReview() {
   };
 
   const s = preview ? preview.summary : null;
-  const stat = (label, b, help) => (
-    <Stat borderWidth="1px" borderRadius="md" p={3} bg="white">
-      <StatLabel>{label}</StatLabel>
-      <StatNumber fontSize="xl">{b ? b.entries : "—"}</StatNumber>
-      <StatHelpText mb={0}>{b ? `${b.minutes} min · ${b.employees} employees` : help}</StatHelpText>
-    </Stat>
-  );
+  const stat = (filter, label, b) => {
+    const active = cardFilter === filter;
+    return (
+      <Stat
+        as="button"
+        type="button"
+        textAlign="left"
+        data-review-card={filter}
+        aria-pressed={active}
+        title={active ? "Show all dates" : `Show only ${CARD_FILTER_LABEL[filter]}`}
+        onClick={() => setCardFilter(active ? CARD_FILTER.ALL : filter)}
+        borderWidth={active ? "2px" : "1px"}
+        borderColor={active ? "purple.500" : "gray.200"}
+        borderRadius="md"
+        p={3}
+        bg={active ? "purple.50" : "white"}
+        cursor="pointer"
+        transition="all 0.15s"
+        _hover={{ borderColor: "purple.400", shadow: "sm" }}
+        _focusVisible={{ outline: "2px solid", outlineColor: "purple.400" }}
+      >
+        <StatLabel>{label}</StatLabel>
+        <StatNumber fontSize="xl">{b ? b.entries : "—"}</StatNumber>
+        <StatHelpText mb={0}>{b ? `${b.minutes} min · ${b.employees} employees` : ""}</StatHelpText>
+      </Stat>
+    );
+  };
 
   return (
     <GlobalWrapper title="Historical OT Review" permissionKey={["attendance_ot_historical_review"]}>
@@ -194,14 +231,11 @@ function HistoricalOtReview() {
 
           {s ? (
             <SimpleGrid columns={{ base: 1, md: 4 }} spacing={3} data-review-summary="">
-              {stat("Calculated OT entries", s.calculated_ot)}
-              {stat("Without an approval request", s.without_request)}
-              {stat("To create", s.to_create)}
-              {stat("Locked / published payroll", {
-                entries: ((s.by_payroll_status.APPROVED_LOCKED || {}).entries || 0) + ((s.by_payroll_status.PUBLISHED || {}).entries || 0),
-                minutes: ((s.by_payroll_status.APPROVED_LOCKED || {}).minutes || 0) + ((s.by_payroll_status.PUBLISHED || {}).minutes || 0),
-                employees: "—",
-              })}
+              {stat(CARD_FILTER.ALL, "Calculated OT entries", s.calculated_ot)}
+              {stat(CARD_FILTER.WITHOUT_REQUEST, "Without an approval request", s.without_request)}
+              {stat(CARD_FILTER.TO_CREATE, "To create", s.to_create)}
+              {/* Counted from the lines: distinct employees across locked AND published. */}
+              {stat(CARD_FILTER.LOCKED, "Locked / published payroll", cardTotals(lines, CARD_FILTER.LOCKED))}
             </SimpleGrid>
           ) : null}
 
@@ -214,9 +248,19 @@ function HistoricalOtReview() {
           ) : null}
 
           <Flex justify="space-between" align="center" gap={2} wrap="wrap">
-            <Text fontSize="sm" color="gray.600">
-              {lines.length} dates · {creatable.length} can be created · {selected.size} selected
-            </Text>
+            <Flex align="center" gap={2} wrap="wrap">
+              <Text fontSize="sm" color="gray.600" data-review-count="">
+                {cardFilter === CARD_FILTER.ALL
+                  ? `${lines.length} dates`
+                  : `Showing ${visible.length} of ${lines.length} dates (${CARD_FILTER_LABEL[cardFilter]})`}{" "}
+                · {creatable.length} can be created · {selected.size} selected
+              </Text>
+              {cardFilter !== CARD_FILTER.ALL ? (
+                <Button size="xs" variant="ghost" onClick={() => setCardFilter(CARD_FILTER.ALL)}>
+                  Show all
+                </Button>
+              ) : null}
+            </Flex>
             <Button
               colorScheme="purple"
               size="sm"
@@ -233,10 +277,10 @@ function HistoricalOtReview() {
                 <Tr>
                   <Th>
                     <Checkbox
-                      isChecked={creatable.length > 0 && selected.size === creatable.length}
-                      isIndeterminate={selected.size > 0 && selected.size < creatable.length}
+                      isChecked={allVisibleSelected}
+                      isIndeterminate={someVisibleSelected && !allVisibleSelected}
                       onChange={toggleAll}
-                      isDisabled={creatable.length === 0}
+                      isDisabled={visibleCreatable.length === 0}
                     />
                   </Th>
                   <Th>Employee</Th>
@@ -249,7 +293,7 @@ function HistoricalOtReview() {
                 </Tr>
               </Thead>
               <Tbody>
-                {lines.map((l) => (
+                {visible.map((l) => (
                   <Tr key={keyOf(l)}>
                     <Td>
                       {isCreatable(l) ? <Checkbox isChecked={selected.has(keyOf(l))} onChange={() => toggle(l)} /> : null}
@@ -277,10 +321,12 @@ function HistoricalOtReview() {
                     </Td>
                   </Tr>
                 ))}
-                {lines.length === 0 && !loading ? (
+                {visible.length === 0 && !loading ? (
                   <Tr>
                     <Td colSpan={8}>
-                      <Text fontSize="sm" color="gray.500">No calculated OT in this window.</Text>
+                      <Text fontSize="sm" color="gray.500">
+                        {lines.length === 0 ? "No calculated OT in this window." : `No dates ${CARD_FILTER_LABEL[cardFilter]}.`}
+                      </Text>
                     </Td>
                   </Tr>
                 ) : null}
