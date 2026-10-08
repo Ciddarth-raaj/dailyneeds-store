@@ -1058,3 +1058,24 @@ test("OT approved after its month was locked: shows the approved minutes and whe
   assert.equal(normal.minutes, 150);
   assert.equal(otLateSettlementDetail(day({})), null);
 });
+
+test("OT approved while its month was locked and paid in that same month once unlocked is not called Prior-Month OT", () => {
+  const { otLateSettlementDetail } = require("./attendanceV2");
+  const included = otLateSettlementDetail({
+    attendance_date: "2026-09-30",
+    ot_late_settlement: { status: "INCLUDED", approved_ot_minutes: 28, settlement_year: 2026, settlement_month: 9 },
+  });
+  assert.equal(included.minutes, 28);
+  assert.equal(included.detail, "Approved after the month was locked — included in the Sep 2026 payroll");
+  const settled = otLateSettlementDetail({
+    attendance_date: "2026-09-30",
+    ot_late_settlement: { status: "SETTLED", approved_ot_minutes: 28, settlement_year: 2026, settlement_month: 9 },
+  });
+  assert.equal(settled.detail, "Approved after the month was locked — paid in the Sep 2026 payroll");
+  // Settled in a LATER month it is still Prior-Month OT.
+  const later = otLateSettlementDetail({
+    attendance_date: "2026-09-30",
+    ot_late_settlement: { status: "SETTLED", approved_ot_minutes: 28, settlement_year: 2026, settlement_month: 10 },
+  });
+  assert.equal(later.detail, "Paid as Prior-Month OT in the Oct 2026 payroll");
+});
