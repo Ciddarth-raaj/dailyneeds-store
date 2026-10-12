@@ -1,18 +1,28 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { getSalesByOutlet } from "../helper/accounts";
 
 function useSalesByStore(filters) {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  // The filters the current `data`/`error` answer. A screen that must not act
+  // on another day's figures (Sales Reconciliation's Save) compares this with
+  // the filters it asked for.
+  const [loadedFilters, setLoadedFilters] = useState(null);
+  // Only the latest request may write state: a slow answer for a previous date
+  // must not land on top of the current one.
+  const requestId = useRef(0);
 
   const fetchSales = useCallback(async () => {
     if (!filters?.from_date || !filters?.to_date) return;
 
+    const id = ++requestId.current;
     try {
       setLoading(true);
       setError(null);
+      setLoadedFilters(null);
       const response = await getSalesByOutlet(filters);
+      if (id !== requestId.current) return;
 
       if (response.code === 200) {
         setData(response.data || []);
@@ -20,11 +30,15 @@ function useSalesByStore(filters) {
         throw new Error(response.message || "Failed to fetch sales data");
       }
     } catch (err) {
+      if (id !== requestId.current) return;
       console.error("Error fetching sales by store:", err);
       setError(err.message);
       setData([]);
     } finally {
-      setLoading(false);
+      if (id === requestId.current) {
+        setLoadedFilters(filters);
+        setLoading(false);
+      }
     }
   }, [filters]);
 
@@ -111,15 +125,18 @@ function useSalesByStore(filters) {
   }, [data]);
 
   const reset = () => {
+    requestId.current += 1;
     setData([]);
     setLoading(false);
     setError(null);
+    setLoadedFilters(null);
   };
 
   return {
     data,
     loading,
     error,
+    loadedFilters,
     refetch: fetchSales,
     getTotalSales,
     getTotalLoyalty,
