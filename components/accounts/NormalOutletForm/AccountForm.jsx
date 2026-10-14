@@ -11,11 +11,20 @@ import {
   MODIFIED_PEOPLE_TYPES,
 } from "../../../constants/accounts";
 import currencyFormatter from "../../../util/currencyFormatter";
+import { getDifferenceStatus } from "../../../util/accountDifference";
 import styles from "../../../styles/master.module.css";
 import { PAYMENT_TYPES_ACCOUNTS } from "../../../constants/values";
 import usePeople from "../../../customHooks/usePeople";
 import useEmployeeDirectory from "../../../customHooks/useEmployeeDirectory";
 import { CASHIER_DESIGNATION } from "../../../constants/designations";
+
+// Short (positive) is red and Excess (negative) green, as before; a balanced
+// sheet is neutral.
+const DIFFERENCE_COLORS = { SHORT: "red", EXCESS: "green", BALANCED: "inherit" };
+
+// -₹259.87 / ₹0.00 / ₹1,234.50
+const formatDifference = (amount) =>
+  `${amount < 0 ? "-" : ""}₹${currencyFormatter(Math.abs(amount))}`;
 
 function AccountForm({ formikProps, isViewMode, isSaved, onDateChange, mode }) {
   const { handleSubmit, resetForm, values, setFieldValue } = formikProps;
@@ -32,7 +41,10 @@ function AccountForm({ formikProps, isViewMode, isSaved, onDateChange, mode }) {
 
   const [isDenominationOpen, setIsDenominationOpen] = useState(false);
 
+  // Recomputed on every render from the live form values, so it follows each
+  // keystroke, row add/delete and Payment/Receipt change without a save.
   const differenceAmount = getAmmountDifference(values);
+  const differenceStatus = getDifferenceStatus(differenceAmount);
 
   // Already sorted by name in the hook.
   const EMPLOYEES_MENU = allEmployees
@@ -316,8 +328,10 @@ function AccountForm({ formikProps, isViewMode, isSaved, onDateChange, mode }) {
       <div className={styles.buttonContainer}>
         <Badge className={styles.badgeStyle} style={{ marginTop: 0 }}>
           Total Difference
-          <p style={{ color: differenceAmount >= 0 ? "red" : "green" }}>
-            {` ${currencyFormatter(differenceAmount)}`}
+          <p style={{ color: DIFFERENCE_COLORS[differenceStatus] }}>
+            {formatDifference(differenceAmount)}
+            {differenceStatus !== "BALANCED" &&
+              ` (${differenceStatus === "SHORT" ? "Short" : "Excess"})`}
           </p>
         </Badge>
 
