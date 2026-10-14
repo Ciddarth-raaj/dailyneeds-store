@@ -12,6 +12,7 @@ import {
 } from "../../../constants/accounts";
 import currencyFormatter from "../../../util/currencyFormatter";
 import { getDifferenceStatus } from "../../../util/accountDifference";
+import { getNetWalletMovement } from "../../../util/accountWallet";
 import styles from "../../../styles/master.module.css";
 import { PAYMENT_TYPES_ACCOUNTS } from "../../../constants/values";
 import usePeople from "../../../customHooks/usePeople";
@@ -23,7 +24,7 @@ import { CASHIER_DESIGNATION } from "../../../constants/designations";
 const DIFFERENCE_COLORS = { SHORT: "red", EXCESS: "green", BALANCED: "inherit" };
 
 // -₹259.87 / ₹0.00 / ₹1,234.50
-const formatDifference = (amount) =>
+const formatSignedRupees = (amount) =>
   `${amount < 0 ? "-" : ""}₹${currencyFormatter(Math.abs(amount))}`;
 
 function AccountForm({ formikProps, isViewMode, isSaved, onDateChange, mode }) {
@@ -45,6 +46,8 @@ function AccountForm({ formikProps, isViewMode, isSaved, onDateChange, mode }) {
   // keystroke, row add/delete and Payment/Receipt change without a save.
   const differenceAmount = getAmmountDifference(values);
   const differenceStatus = getDifferenceStatus(differenceAmount);
+  // Wallet amounts are shown on their own; they never enter the difference.
+  const netWalletMovement = getNetWalletMovement(values);
 
   // Already sorted by name in the hook.
   const EMPLOYEES_MENU = allEmployees
@@ -236,6 +239,30 @@ function AccountForm({ formikProps, isViewMode, isSaved, onDateChange, mode }) {
               values
             )}`}</Badge>
           </div>
+
+          <label className={styles.label} style={{ marginTop: "22px" }}>
+            Wallet Transactions
+          </label>
+          <div className={styles.cashHandoverContainer}>
+            <CustomInput
+              label="Wallet Receipt (₹)"
+              name="wallet_receipt"
+              type="number"
+              editable={editable}
+              disabled={isSaved}
+            />
+            <CustomInput
+              label="Wallet Payment (₹)"
+              name="wallet_payment"
+              type="number"
+              editable={editable}
+              disabled={isSaved}
+            />
+            <Badge className={styles.badgeStyle}>
+              Net Wallet Movement
+              <p>{formatSignedRupees(netWalletMovement)}</p>
+            </Badge>
+          </div>
         </div>
       </div>
 
@@ -329,7 +356,7 @@ function AccountForm({ formikProps, isViewMode, isSaved, onDateChange, mode }) {
         <Badge className={styles.badgeStyle} style={{ marginTop: 0 }}>
           Total Difference
           <p style={{ color: DIFFERENCE_COLORS[differenceStatus] }}>
-            {formatDifference(differenceAmount)}
+            {formatSignedRupees(differenceAmount)}
             {differenceStatus !== "BALANCED" &&
               ` (${differenceStatus === "SHORT" ? "Short" : "Excess"})`}
           </p>

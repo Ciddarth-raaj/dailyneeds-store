@@ -28,6 +28,7 @@ import { deleteAccount } from "../../helper/accounts";
 import useEmployees from "../../customHooks/useEmployees";
 import useOutlets from "../../customHooks/useOutlets";
 import { exportToExcel } from "../../util/exportCSVFile";
+import { getNetWalletMovement } from "../../util/accountWallet";
 import useWarehouseSales from "../../customHooks/useWarehouseSales";
 import useWarehouseDenomination from "../../customHooks/useWarehouseDenomination";
 
@@ -47,6 +48,9 @@ const HEADINGS = {
   sales_return: "Sales Return",
   loyalty: "Loyalty",
   total_sales: "Total Sales",
+  wallet_receipt: "Wallet Receipt",
+  wallet_payment: "Wallet Payment",
+  net_wallet: "Net Wallet",
   actions: "Actions",
 };
 
@@ -321,9 +325,26 @@ function NormalOutletView({
           : item.Credit,
     }));
 
+    // Wallet Transactions go on their own sheet; the Journal, Cash and Bank
+    // sheets above are unchanged by them.
+    const walletList = [];
+    Object.keys(mappedAccounts).forEach((key) => {
+      const outlet = getOutletById(key);
+      mappedAccounts[key].accountsList.forEach((item) => {
+        walletList.push({
+          Date: date,
+          "Cost Centre": outlet?.outlet_name ?? "",
+          Cashier: item.cashier_name ?? "",
+          "Wallet Receipt": Number(item.wallet_receipt ?? 0),
+          "Wallet Payment": Number(item.wallet_payment ?? 0),
+          "Net Wallet Movement": getNetWalletMovement(item),
+        });
+      });
+    });
+
     exportToExcel(
-      [unformattedList, unformattedCashList, unformattedBankList],
-      ["Journal", "Cash", "Bank"],
+      [unformattedList, unformattedCashList, unformattedBankList, walletList],
+      ["Journal", "Cash", "Bank", "Wallet"],
       `account_sheet-${moment(selectedDate).format("DD/MM/YYYY")}.xlsx`
     );
   };
@@ -343,6 +364,9 @@ function NormalOutletView({
       sales_return: currencyFormatter(item.sales_return),
       loyalty: currencyFormatter(item.loyalty),
       cash_sales: currencyFormatter(getCashSales(item)),
+      wallet_receipt: currencyFormatter(item.wallet_receipt ?? 0),
+      wallet_payment: currencyFormatter(item.wallet_payment ?? 0),
+      net_wallet: currencyFormatter(getNetWalletMovement(item)),
       actions: (
         <Menu
           align="end"
