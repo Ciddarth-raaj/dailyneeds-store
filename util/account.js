@@ -4,6 +4,7 @@ import {
   getAccountDifference,
   getTotalCashHandover as getCashHandoverTotal,
 } from "./accountDifference";
+import { getWalletTotals } from "./accountWallet";
 
 export function getCashSales(accountData) {
   const { total_sales, card_sales, loyalty } = accountData;
@@ -92,8 +93,14 @@ export function getTotals(accounts, noFormat = false) {
     return totals;
   }
 
+  // Wallet totals are shown in their own columns, apart from sales and cash.
+  const walletTotals = getWalletTotals(accounts);
+
   // Format all values
   return {
+    wallet_receipt: <b>{currencyFormatter(walletTotals.wallet_receipt)}</b>,
+    wallet_payment: <b>{currencyFormatter(walletTotals.wallet_payment)}</b>,
+    net_wallet: <b>{currencyFormatter(walletTotals.net_wallet)}</b>,
     total_sales: (
       <b style={{ color: "var(--chakra-colors-purple-500)" }}>
         {currencyFormatter(totals.total_sales)}

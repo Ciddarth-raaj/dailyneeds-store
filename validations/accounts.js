@@ -1,4 +1,13 @@
 import * as Yup from "yup";
+import { isValidWalletAmount } from "../util/accountWallet";
+
+// Optional; blank counts as 0.
+const walletAmount = () =>
+  Yup.mixed().test(
+    "wallet-amount",
+    "Enter a non-negative amount (up to 2 decimals)",
+    (value) => isValidWalletAmount(value)
+  );
 
 export const ACCOUNT_VALIDATION_SCHEMA = Yup.object({
   date: Yup.date().required("Fill Date"),
@@ -18,6 +27,8 @@ export const ACCOUNT_VALIDATION_SCHEMA = Yup.object({
   sales_return: Yup.number()
     .typeError("Must be a number")
     .required("Fill Sales Return"),
+  wallet_receipt: walletAmount(),
+  wallet_payment: walletAmount(),
   accounts: Yup.array(
     Yup.object({
       person_type: Yup.number()
