@@ -74,6 +74,7 @@ test("NO OTHER SCREEN asks for it", () => {
   assert.deepStrictEqual(hits.sort(), [
     "components/attendance/SearchableEmployeePicker.jsx",
     "helper/employee.js",
+    "pages/attendance/recalculate/index.jsx",
     "pages/hr/employees/index.jsx",
   ]);
 });

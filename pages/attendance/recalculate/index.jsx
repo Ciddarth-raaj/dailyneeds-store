@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import ReactSelect from "react-select";
 import {
   Alert,
   AlertIcon,
@@ -26,7 +27,14 @@ import GlobalWrapper from "../../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../../components/CustomContainer";
 import useOutlets from "../../../customHooks/useOutlets";
 import useDesignations from "../../../customHooks/useDesignations";
-import useEmployeeDirectory from "../../../customHooks/useEmployeeDirectory";
+import EmployeeHelper from "../../../helper/employee";
+import unwrapList from "../../../util/apiList";
+import {
+  EmployeeOption,
+  matchesNeedle,
+  optionLabel,
+  selectStyles,
+} from "../../../components/attendance/SearchableEmployeePicker";
 import AttendanceV2Helper from "../../../helper/attendanceV2";
 import {
   apiMessage,
@@ -69,11 +77,51 @@ import { formatYYYYMMDD } from "../../../util/dateRange";
  */
 const EMPTY = { employee_id: "", store_id: "", designation_id: "" };
 
+/**
+ * THE EMPLOYEES THIS SCREEN CAN PICK FROM.
+ *
+ * Recalculation is company-wide on the server (`recalculate_attendance`), so
+ * the picker lists every employee the caller may see - the same
+ * `GET /employee/employees` the Calculated Attendance picker uses, resigned
+ * included because a leaver's last month is still recalculated. It used to
+ * read `/employee/directory`, which only ever returns the caller's OWN
+ * outlet, so staff from every other branch could not be found at all.
+ *
+ * Without `view_employees` that list is refused; the own-outlet directory is
+ * then used, which is exactly what this screen offered before.
+ */
+function useRecalcEmployees() {
+  const [employees, setEmployees] = useState([]);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        let result = unwrapList(await EmployeeHelper.getEmployee({ include_resigned: true }));
+        if (result.accessDenied) result = unwrapList(await EmployeeHelper.getDirectory());
+        if (cancelled) return;
+        setEmployees(
+          [...result.items].sort((a, b) => ("" + a.employee_name).localeCompare(b.employee_name))
+        );
+      } catch (err) {
+        if (!cancelled) setEmployees([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  return employees;
+}
+
 export default function RecalculateAttendancePage() {
   const isMobile = useBreakpointValue({ base: true, md: false });
   const { outlets } = useOutlets({ directory: true });
   const { designations } = useDesignations();
-  const { employees } = useEmployeeDirectory();
+  const employees = useRecalcEmployees();
+  const employeeOptions = useMemo(
+    () => employees.map((e) => ({ value: String(e.employee_id), label: optionLabel(e), employee: e })),
+    [employees]
+  );
 
   const today = formatYYYYMMDD(new Date());
   const [from, setFrom] = useState(today.slice(0, 8) + "01");
@@ -171,11 +219,21 @@ export default function RecalculateAttendancePage() {
             </FormControl>
             <FormControl flex={1} minW={isMobile ? undefined : "180px"}>
               <FormLabel fontSize="sm">Employee</FormLabel>
-              <Select size="sm" placeholder="All employees" value={filters.employee_id} onChange={(e) => setFilter("employee_id", e.target.value)} isDisabled={state === "RUNNING"}>
-                {employees.map((e) => (
-                  <option key={e.employee_id} value={e.employee_id}>{e.employee_id} — {e.employee_name}</option>
-                ))}
-              </Select>
+              {/* Type an employee ID or name to find them; empty is All employees. */}
+              <ReactSelect
+                inputId="recalc-employee-select"
+                aria-label="Employee"
+                placeholder="All employees"
+                isClearable
+                isDisabled={state === "RUNNING"}
+                options={employeeOptions}
+                value={employeeOptions.find((o) => o.value === String(filters.employee_id)) || null}
+                onChange={(option) => setFilter("employee_id", option ? option.value : "")}
+                filterOption={(option, input) => matchesNeedle(option.data.employee, input)}
+                formatOptionLabel={(option) => <EmployeeOption employee={option.employee} />}
+                noOptionsMessage={() => "No employee matches that search."}
+                styles={selectStyles}
+              />
             </FormControl>
             <FormControl flex={1} minW={isMobile ? undefined : "150px"}>
               <FormLabel fontSize="sm">Store</FormLabel>
