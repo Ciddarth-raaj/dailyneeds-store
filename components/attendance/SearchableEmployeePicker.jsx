@@ -279,4 +279,8 @@ function SearchableEmployeePicker({ selectedId, onSelect, disabled = false, trai
   );
 }
 
+// The combobox parts, for a screen that keeps its own filter row (Recalculate
+// Attendance) rather than taking this component's Outlet cell with it.
+export { EmployeeOption, matchesNeedle, optionLabel, selectStyles };
+
 export default SearchableEmployeePicker;
