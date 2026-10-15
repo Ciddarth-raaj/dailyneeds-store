@@ -49,9 +49,10 @@ test("B2 permission denial does not redirect", async (t) => {
     );
   });
 
-  await t.test("the message is matched exactly, not loosely", () => {
-    assert.strictEqual(classify403({ code: 403, msg: "You do not have permission" }, "/x").href, "/login");
-    assert.strictEqual(classify403({ code: 403, msg: PERMISSION_DENIED_MSG.toUpperCase() }, "/x").href, "/login");
+  await t.test("only the authentication message is matched, exactly", () => {
+    // A near-miss of "Access Denied" is not the auth refusal, so it stays.
+    assert.strictEqual(classify403({ code: 403, msg: "Access denied" }, "/x").href, null);
+    assert.strictEqual(classify403({ code: 403, msg: "You do not have permission" }, "/x").href, null);
   });
 });
 
