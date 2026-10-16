@@ -34,7 +34,7 @@ test("F&F list: view_employees + view_salary + view_fnf_settlement, all three", 
 test("the confidential exit record is never reachable through a payroll or F&F key", () => {
   const payrollEverything = keys(
     "view_employees", "view_payroll", "view_salary", "process_payroll", "approve_payrun", "publish_payrun",
-    "view_fnf_settlement", "manage_fnf_settlement"
+    "view_fnf_settlement", "confirm_fnf_payment"
   );
   assert.equal(access.canViewExitInterview({ permissions: payrollEverything }), false);
   assert.equal(access.canManageExitInterview({ permissions: payrollEverything }), false);
@@ -42,24 +42,29 @@ test("the confidential exit record is never reachable through a payroll or F&F k
   assert.equal(access.canViewExitInterview({ permissions: keys("view_employees", "view_exit_interview") }), true);
 });
 
-test("row actions follow the stage: items before approval, settle once published, reopen once settled", () => {
-  const manager = { permissions: keys("view_employees", "manage_fnf_settlement") };
-  const at = (stage, initialized = true) => access.rowActions({ stage, initialized }, manager);
-  assert.deepEqual(at("IN_PAYROLL"), { editItems: true, settle: false, reopen: false, reconcile: false, exitInterview: false });
-  assert.equal(at("APPROVED").editItems, false);
+test("row actions follow the stage: Accounts confirms payment once published, reopens once confirmed", () => {
+  const accounts = { permissions: keys("view_employees", "confirm_fnf_payment") };
+  const at = (stage, extra = {}) => access.rowActions({ stage, initialized: true, ...extra }, accounts);
+  assert.deepEqual(at("IN_PAYROLL"), { settle: false, reopen: false, reconcile: false, exitInterview: false });
+  assert.equal(at("APPROVED").settle, false, "approved is not paid");
   assert.equal(at("PUBLISHED").settle, true);
   assert.equal(at("SETTLED").settle, false);
   assert.equal(at("SETTLED").reopen, true);
-  assert.equal(at("NOT_IN_PAYROLL", false).editItems, false);
   const viewer = { permissions: keys("view_employees", "view_salary", "view_fnf_settlement") };
   assert.deepEqual(access.rowActions({ stage: "PUBLISHED", initialized: true }, viewer), {
-    editItems: false, settle: false, reopen: false, reconcile: false, exitInterview: false,
+    settle: false, reopen: false, reconcile: false, exitInterview: false,
   });
-  // Outstanding OT or an unreconciled exit: Settle is not offered (the server refuses it too).
-  assert.equal(access.rowActions({ stage: "PUBLISHED", initialized: true, outstanding_ot: { items: 1 } }, manager).settle, false);
-  const processor = { permissions: keys("view_employees", "process_payroll", "manage_fnf_settlement") };
+  // Publishing payroll is not confirming payment.
+  const payroll = { permissions: keys("view_employees", "view_salary", "view_fnf_settlement", "process_payroll", "publish_payrun") };
+  assert.equal(access.rowActions({ stage: "PUBLISHED", initialized: true }, payroll).settle, false);
+  // Outstanding OT, an undecided OT request or an unreconciled exit: not offered (the server refuses it too).
+  assert.equal(at("PUBLISHED", { outstanding_ot: { items: 1 } }).settle, false);
+  assert.equal(at("PUBLISHED", { open_ot_requests: 2 }).settle, false);
+  assert.equal(at("PUBLISHED", { needs_reconcile: true }).settle, false);
+  // Reconcile Exit is a payroll correction.
+  const processor = { permissions: keys("view_employees", "process_payroll") };
   assert.equal(access.rowActions({ stage: "NOT_IN_PAYROLL", needs_reconcile: true }, processor).reconcile, true);
-  assert.equal(access.rowActions({ stage: "NOT_IN_PAYROLL", needs_reconcile: true }, manager).reconcile, false);
+  assert.equal(access.rowActions({ stage: "NOT_IN_PAYROLL", needs_reconcile: true }, accounts).reconcile, false);
 });
 
 test("a negative F&F is shown as recoverable, never as a negative payment", () => {
@@ -77,7 +82,7 @@ const FNF = {
   final: { net_pay: "-969.00", net_pay_before_rounding: "-968.79", net_pay_rounding: "-0.21" },
   fnf: {
     last_working_day: "2026-08-16", date_of_joining: "2026-02-02", lop_days: 3, actual_working_days: 13,
-    lateness_amount: "1.44", additions_total: "1500.00", deductions_total: "0.00",
+    lateness_amount: "1.44",
     net_payable_label: "Total Recoverable from Employee", recoverable: true,
     net_payable_words: "Nine Hundred Sixty Nine Rupees Only", declaration: "I, the undersigned...",
   },
@@ -91,7 +96,6 @@ test("an F&F snapshot shows its exit facts and the net as payable / recoverable,
     ["LOP Days", 3],
     ["Actual Working Days", 13],
     ["Lateness Amount", "₹1.44"],
-    ["F&F Earnings", "₹1,500.00"],
   ]);
   assert.deepEqual(view.fnfNetLine(FNF), {
     label: "Total Recoverable from Employee", amount: "₹969.00", words: "Nine Hundred Sixty Nine Rupees Only", recoverable: true,
@@ -116,9 +120,10 @@ test("the F&F menu entry asks for exactly what GET /payrun/fnf/month requires", 
 
 test("the helper calls exactly the backend's endpoints and sends no computed figure", () => {
   const helper = code(read("helper/employeeExit.js"));
-  for (const url of ["/payrun/fnf/month", "/payrun/fnf/items", "/payrun/fnf/settle", "/payrun/fnf/reopen", "/hr/exit/employee/"]) {
+  for (const url of ["/payrun/fnf/month", "/payrun/fnf/settle", "/payrun/fnf/reopen", "/payrun/fnf/reconcile-exit", "/hr/exit/employee/"]) {
     assert.ok(helper.includes(url), url);
   }
+  assert.ok(!helper.includes("/payrun/fnf/items"), "there is no F&F items endpoint");
   for (const forbidden of ["net_pay", "settled_net_amount", "calculation_hash", "total_earnings", "status:"]) {
     assert.ok(!helper.includes(forbidden), forbidden);
   }
@@ -134,9 +139,9 @@ test("the confidential page states it, and the payslip detail never renders inte
   }
 });
 
-test("the calculation list badges an F&F month and the breakup lists its items", () => {
+test("the calculation list badges an F&F month; the breakup is the ordinary one, with no F&F group", () => {
   assert.match(read("components/payroll/calculation/CalculationEmployeeList.jsx"), /row\.is_fnf/);
-  assert.match(read("components/payroll/calculation/CalculationBreakup.jsx"), /breakup\.fnf/);
+  assert.doesNotMatch(read("components/payroll/calculation/CalculationBreakup.jsx"), /fnf/i);
 });
 
 test("rejoin: shows the previous exit's assessment to confidential readers; the SERVER's gate decides, and the modal collects the approval reason", () => {
@@ -152,7 +157,7 @@ test("every new key can be granted on the Designation screen, in one F&F group",
   const perms = read("constants/permissions.js");
   const block = perms.slice(perms.indexOf("fnf_settlement: {"), perms.indexOf("Miscellaneous: {"));
   for (const key of [
-    "view_fnf_settlement", "manage_fnf_settlement", "view_exit_interview",
+    "view_fnf_settlement", "confirm_fnf_payment", "view_exit_interview",
     "manage_exit_interview", "override_rehire_eligibility", "approve_rehire_exception",
   ]) {
     assert.match(block, new RegExp(`\\b${key}: "`), key);
@@ -160,6 +165,10 @@ test("every new key can be granted on the Designation screen, in one F&F group",
   assert.match(read("util/permissionCatalog.js"), /fnf_settlement: "F&F Settlement & Exit"/);
 });
 
-test("the F&F items modal shows when a component's PF / ESI treatment is not confirmed", () => {
-  assert.match(read("pages/payroll/fnf.jsx"), /c\.statutory !== "CONFIRMED"/);
+test("the F&F screen has no F&F-only amount: no encashment, gratuity, notice pay or recovery entry", () => {
+  const page = code(read("pages/payroll/fnf.jsx"));
+  for (const word of ["ItemsModal", "Encashment", "Gratuity", "Notice", "fnf_additions", "fnf_deductions", "saveItems"]) {
+    assert.ok(!page.includes(word), word);
+  }
+  assert.match(page, /Confirm payment/);
 });

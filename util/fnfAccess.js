@@ -18,9 +18,13 @@ function canViewFnf({ permissions = [], isAdmin = false } = {}) {
   return isAdmin === true || all(permissions, ["view_employees", "view_salary", "view_fnf_settlement"]);
 }
 
-/** Enter F&F amounts, mark settled, reopen: view_employees + manage_fnf_settlement. */
-function canManageFnf({ permissions = [], isAdmin = false } = {}) {
-  return isAdmin === true || all(permissions, ["view_employees", "manage_fnf_settlement"]);
+/**
+ * ACCOUNTS: confirm that the F&F was actually paid, or reopen that
+ * confirmation - view_employees + confirm_fnf_payment. Publishing the
+ * statement is not payment; running payroll does not grant this.
+ */
+function canConfirmFnfPayment({ permissions = [], isAdmin = false } = {}) {
+  return isAdmin === true || all(permissions, ["view_employees", "confirm_fnf_payment"]);
 }
 
 /** CONFIDENTIAL: the interview and the rehire assessment. */
@@ -48,21 +52,20 @@ const STAGE_COLOR = {
 const REHIRE_COLOR = { YES: "green", NO: "red", CONDITIONAL: "orange" };
 const REHIRE_LABEL = { YES: "Fit for rehire", NO: "Not fit for rehire", CONDITIONAL: "Conditional" };
 
-/** Reconcile a late-recorded exit: view_employees + process_payroll + manage_fnf_settlement. */
+/** Reconcile a late-recorded exit - a payroll correction: view_employees + process_payroll. */
 function canReconcileExit({ permissions = [], isAdmin = false } = {}) {
-  return isAdmin === true || all(permissions, ["view_employees", "process_payroll", "manage_fnf_settlement"]);
+  return isAdmin === true || all(permissions, ["view_employees", "process_payroll"]);
 }
 
 /** What a row may do next, given its stage and the caller's rights. */
 function rowActions(row, actor) {
-  const manage = canManageFnf(actor);
+  const accounts = canConfirmFnfPayment(actor);
   const stage = row && row.stage;
-  const blocked = Boolean(row && (row.needs_reconcile || row.outstanding_ot));
+  // The server refuses while the exit is unreconciled or any OT is undecided / unpaid; so does the screen.
+  const blocked = Boolean(row && (row.needs_reconcile || row.outstanding_ot || Number(row.open_ot_requests || 0) > 0));
   return {
-    editItems: manage && Boolean(row && row.initialized) && (stage === "IN_PAYROLL"),
-    // The server refuses Settle while approved OT is outstanding; so does the screen.
-    settle: manage && stage === "PUBLISHED" && !blocked,
-    reopen: manage && stage === "SETTLED",
+    settle: accounts && stage === "PUBLISHED" && !blocked,
+    reopen: accounts && stage === "SETTLED",
     reconcile: canReconcileExit(actor) && Boolean(row && row.needs_reconcile),
     exitInterview: canViewExitInterview(actor),
   };
@@ -78,7 +81,7 @@ function netLabel(netPay) {
 
 module.exports = {
   canViewFnf,
-  canManageFnf,
+  canConfirmFnfPayment,
   canViewExitInterview,
   canManageExitInterview,
   canOverrideRehire,

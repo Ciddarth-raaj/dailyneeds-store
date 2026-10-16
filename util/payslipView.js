@@ -150,8 +150,6 @@ function fnfFacts(snapshot) {
     ["LOP Days", x.lop_days],
     ["Actual Working Days", x.actual_working_days],
     ["Lateness Amount", isZero(x.lateness_amount) ? null : formatRupees(x.lateness_amount)],
-    ["F&F Earnings", isZero(x.additions_total) ? null : formatRupees(x.additions_total)],
-    ["F&F Recoveries", isZero(x.deductions_total) ? null : formatRupees(x.deductions_total)],
   ]);
 }
 

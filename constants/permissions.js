@@ -630,8 +630,8 @@ export const PERMISSIONS = {
   //
   //   view_fnf_settlement        the F&F list (with view_employees +
   //                              view_salary: it shows net pay)
-  //   manage_fnf_settlement      F&F amounts, mark settled, reopen; with
-  //                              process_payroll also Reconcile Exit
+  //   confirm_fnf_payment        ACCOUNTS: confirm the F&F was actually
+  //                              paid (or reopen that confirmation)
   //   view_exit_interview        CONFIDENTIAL interview + rehire assessment
   //   manage_exit_interview      record the interview / first rehire assessment
   //   override_rehire_eligibility change a rehire assessment (with a reason)
@@ -639,7 +639,7 @@ export const PERMISSIONS = {
   //                              CONDITIONAL, with a reason
   fnf_settlement: {
     view_fnf_settlement: "View F&F Settlements",
-    manage_fnf_settlement: "Manage F&F Settlements (amounts, settle, reopen)",
+    confirm_fnf_payment: "Confirm F&F Payment (Accounts)",
     view_exit_interview: "View Exit Interviews & Rehire Assessments (confidential)",
     manage_exit_interview: "Record Exit Interviews & Rehire Assessments",
     override_rehire_eligibility: "Override Rehire Assessment",

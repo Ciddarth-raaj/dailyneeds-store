@@ -35,7 +35,7 @@ import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../components/CustomContainer";
 import usePayrollActor from "../../customHooks/usePayrollActor";
 import EmployeeExitHelper from "../../helper/employeeExit";
-import { canViewFnf, canManageFnf, rowActions, netLabel, STAGE_COLOR } from "../../util/fnfAccess";
+import { canViewFnf, rowActions, netLabel, STAGE_COLOR } from "../../util/fnfAccess";
 
 /**
  * Payroll -> F&F Settlement.
@@ -44,150 +44,23 @@ import { canViewFnf, canManageFnf, rowActions, netLabel, STAGE_COLOR } from "../
  * month is calculated, approved and published on the Payrun screen like any
  * other month - this screen adds what is particular to an exit:
  *
- *   F&F ITEMS     Leave Encashment, Notice Pay, Gratuity and Notice Period
- *                 Recovery, entered before the month is approved (the server
- *                 refuses them after). The month must then be recalculated.
- *   MARK SETTLED  once the F&F statement is published and the money has
- *                 moved: payment mode, reference and date. Settled months
- *                 cannot be unpublished or unlocked until reopened.
- *   REOPEN        with a reason - the one way back.
+ *   CONFIRM PAYMENT  ACCOUNTS ONLY (confirm_fnf_payment), once the F&F
+ *                    statement is published AND the money has actually
+ *                    moved: payment mode, reference and date. Publishing is
+ *                    not payment. A confirmed month cannot be unpublished or
+ *                    unlocked until reopened.
+ *   REOPEN           with a reason - the one way back.
+ *   RECONCILE EXIT   payroll (process_payroll): bring a late-recorded exit
+ *                    into the month's payroll snapshot.
+ *
+ * There are no F&F-only amounts: the exit month is paid exactly as the
+ * ordinary payrun pays any month.
  *
  * NOTHING IS CALCULATED HERE. Net pay, totals and stages are the server's.
  */
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const today = () => new Date().toISOString().slice(0, 10);
-
-function ItemsModal({ open, onClose, target, components, canEdit, onSaved }) {
-  const toast = useToast();
-  const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [detail, setDetail] = useState(null);
-  const [values, setValues] = useState({});
-
-  useEffect(() => {
-    if (!open || !target) return;
-    setLoading(true);
-    EmployeeExitHelper.getItems({ year: target.year, month: target.month, employee_id: target.employee_id })
-      .then((res) => {
-        if (res.code !== 200) throw new Error(res.msg || "Could not load the F&F items");
-        setDetail(res);
-        const v = {};
-        (res.items || []).forEach((i) => {
-          v[i.component] = { amount: i.amount === null ? "" : String(i.amount), remarks: i.remarks || "" };
-        });
-        setValues(v);
-      })
-      .catch((err) => toast({ status: "error", title: err.message }))
-      .finally(() => setLoading(false));
-  }, [open, target, toast]);
-
-  const editable = canEdit && detail && detail.editable;
-  const save = async () => {
-    setSaving(true);
-    try {
-      const items = components.map((c) => {
-        const v = values[c.key] || {};
-        return { component: c.key, amount: v.amount === "" || v.amount === undefined ? null : Number(v.amount), remarks: v.remarks || "" };
-      });
-      const res = await EmployeeExitHelper.saveItems({ year: target.year, month: target.month, employee_id: target.employee_id, items });
-      if (res.code !== 200) throw new Error(res.msg || "Not saved");
-      toast({ status: "success", title: res.message || "Saved" });
-      onSaved();
-      onClose();
-    } catch (err) {
-      toast({ status: "error", title: err.message });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <Modal isOpen={open} onClose={onClose} size="xl">
-      <ModalOverlay />
-      <ModalContent>
-        <ModalHeader>F&amp;F earnings &amp; recoveries — {target && target.employee_name}</ModalHeader>
-        <ModalCloseButton />
-        <ModalBody>
-          {loading || !detail ? (
-            <Spinner />
-          ) : (
-            <Stack spacing={3}>
-              <Text fontSize="sm" color="gray.600">
-                Last working day {detail.exit_date}. Amounts are entered by HR; they are not derived. Advance and
-                shortage recovery are entered on the Adjustments stage, not here.
-              </Text>
-              {!detail.editable ? (
-                <Alert status="info" fontSize="sm">
-                  <AlertIcon />
-                  This month is approved &amp; locked. Unlock it on the Payrun screen to change F&amp;F amounts.
-                </Alert>
-              ) : null}
-              {components.map((c) => (
-                <FormControl key={c.key}>
-                  <FormLabel fontSize="sm" mb={1}>
-                    {c.label}{" "}
-                    <Badge colorScheme={c.kind === "DEDUCTION" ? "red" : "green"}>{c.kind === "DEDUCTION" ? "Recovery" : "Earning"}</Badge>
-                  </FormLabel>
-                  <HStack>
-                    <Input
-                      type="number"
-                      min={0}
-                      step="0.01"
-                      placeholder="0.00"
-                      isDisabled={!editable}
-                      value={(values[c.key] && values[c.key].amount) || ""}
-                      onChange={(e) => setValues((v) => ({ ...v, [c.key]: { ...(v[c.key] || {}), amount: e.target.value } }))}
-                    />
-                    <Input
-                      placeholder="Remarks"
-                      isDisabled={!editable}
-                      maxLength={500}
-                      value={(values[c.key] && values[c.key].remarks) || ""}
-                      onChange={(e) => setValues((v) => ({ ...v, [c.key]: { ...(v[c.key] || {}), remarks: e.target.value } }))}
-                    />
-                  </HStack>
-                  <Text fontSize="xs" color="gray.500">
-                    {c.help}
-                  </Text>
-                  {c.statutory !== "CONFIRMED" ? (
-                    <Text fontSize="xs" color="orange.600">
-                      PF / ESI treatment not yet confirmed by the business: a month using this component is calculated but
-                      cannot be approved until it is.
-                    </Text>
-                  ) : null}
-                </FormControl>
-              ))}
-              {(detail.audit || []).length > 0 ? (
-                <Box>
-                  <Text fontSize="sm" fontWeight="semibold" mb={1}>
-                    History
-                  </Text>
-                  {detail.audit.slice(0, 10).map((a, i) => (
-                    <Text key={i} fontSize="xs" color="gray.600">
-                      {a.changed_at} · {a.component} · {a.old_amount === null ? "—" : a.old_amount} → {a.new_amount === null ? "cleared" : a.new_amount}
-                      {a.changed_by ? ` · by ${a.changed_by}` : ""}
-                    </Text>
-                  ))}
-                </Box>
-              ) : null}
-            </Stack>
-          )}
-        </ModalBody>
-        <ModalFooter>
-          <Button variant="ghost" mr={3} onClick={onClose}>
-            Close
-          </Button>
-          {editable ? (
-            <Button colorScheme="purple" onClick={save} isLoading={saving}>
-              Save
-            </Button>
-          ) : null}
-        </ModalFooter>
-      </ModalContent>
-    </Modal>
-  );
-}
 
 function SettleModal({ open, onClose, target, mode, onDone }) {
   const toast = useToast();
@@ -205,7 +78,7 @@ function SettleModal({ open, onClose, target, mode, onDone }) {
           ? await EmployeeExitHelper.reopen({ ...base, reason: form.reason })
           : await EmployeeExitHelper.settle({ ...base, payment_mode: form.payment_mode, payment_reference: form.payment_reference, paid_on: form.paid_on });
       if (res.code !== 200) throw new Error(res.msg || "Not saved");
-      toast({ status: "success", title: mode === "reopen" ? "Settlement reopened" : "Marked as settled" });
+      toast({ status: "success", title: mode === "reopen" ? "Payment confirmation reopened" : "F&F payment confirmed" });
       onDone();
       onClose();
     } catch (err) {
@@ -219,7 +92,7 @@ function SettleModal({ open, onClose, target, mode, onDone }) {
       <ModalOverlay />
       <ModalContent>
         <ModalHeader>
-          {mode === "reopen" ? "Reopen settlement" : "Mark F&F as settled"} — {target && target.employee_name}
+          {mode === "reopen" ? "Reopen payment confirmation" : "Confirm F&F payment (Accounts)"} — {target && target.employee_name}
         </ModalHeader>
         <ModalCloseButton />
         <ModalBody>
@@ -236,8 +109,9 @@ function SettleModal({ open, onClose, target, mode, onDone }) {
           ) : (
             <Stack spacing={3}>
               <Text fontSize="sm">
-                Records that {netLabel(target && target.net_pay)} was settled. The amount is taken from the published
-                F&amp;F statement; once settled, the month cannot be unpublished or unlocked until reopened.
+                Confirms that {netLabel(target && target.net_pay)} has actually been paid. Publishing the statement is not
+                payment. The amount is taken from the published F&amp;F statement; once confirmed, the month cannot be
+                unpublished or unlocked until reopened.
               </Text>
               <FormControl isRequired>
                 <FormLabel fontSize="sm">Payment mode</FormLabel>
@@ -262,7 +136,7 @@ function SettleModal({ open, onClose, target, mode, onDone }) {
             Cancel
           </Button>
           <Button colorScheme={mode === "reopen" ? "red" : "green"} onClick={submit} isLoading={busy}>
-            {mode === "reopen" ? "Reopen" : "Mark settled"}
+            {mode === "reopen" ? "Reopen" : "Confirm payment"}
           </Button>
         </ModalFooter>
       </ModalContent>
@@ -279,7 +153,6 @@ function FnfSettlement() {
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [itemsFor, setItemsFor] = useState(null);
   const [settleFor, setSettleFor] = useState(null);
   const canView = canViewFnf(actor);
 
@@ -360,8 +233,6 @@ function FnfSettlement() {
                   <Th>Employee</Th>
                   <Th>Last working day</Th>
                   <Th>Stage</Th>
-                  <Th isNumeric>F&amp;F earnings</Th>
-                  <Th isNumeric>F&amp;F recoveries</Th>
                   <Th isNumeric>Net</Th>
                   <Th>Settlement</Th>
                   <Th />
@@ -385,24 +256,17 @@ function FnfSettlement() {
                       <Td>
                         <Badge colorScheme={STAGE_COLOR[row.stage] || "gray"}>{row.stage_label}</Badge>
                       </Td>
-                      <Td isNumeric>{row.fnf_additions === null ? "—" : netLabel(row.fnf_additions)}</Td>
-                      <Td isNumeric>{row.fnf_deductions === null ? "—" : netLabel(row.fnf_deductions)}</Td>
                       <Td isNumeric>{netLabel(row.net_pay)}</Td>
                       <Td fontSize="xs">
                         {row.settlement_status === "SETTLED"
                           ? `${row.payment_mode || ""} ${row.payment_reference || ""} · ${row.paid_on || ""}`
-                          : "Pending"}
+                          : "Payment not confirmed"}
                       </Td>
                       <Td>
                         <Stack spacing={1} align="flex-end">
-                          {row.initialized ? (
-                            <Button size="xs" variant="outline" onClick={() => setItemsFor(target)}>
-                              {a.editItems ? "F&F items" : "View items"}
-                            </Button>
-                          ) : null}
                           {a.settle ? (
                             <Button size="xs" colorScheme="green" onClick={() => setSettleFor({ target, mode: "settle" })}>
-                              Mark settled
+                              Confirm payment
                             </Button>
                           ) : null}
                           {a.reconcile ? (
@@ -424,9 +288,9 @@ function FnfSettlement() {
                       </Td>
                     </Tr>
                     {/* What stops this exit from moving on, across the whole row. */}
-                    {row.outstanding_ot || row.warning ? (
+                    {row.outstanding_ot || row.open_ot_requests || row.warning ? (
                       <Tr>
-                        <Td colSpan={8} pt={0} borderTopWidth={0}>
+                        <Td colSpan={6} pt={0} borderTopWidth={0}>
                           {row.outstanding_ot ? (
                             <Text fontSize="xs" color="red.600">
                               Outstanding approved OT: {row.outstanding_ot.items} item(s), {netLabel(row.outstanding_ot.amount)}
@@ -447,14 +311,6 @@ function FnfSettlement() {
             </Table>
           </Box>
         ) : null}
-        <ItemsModal
-          open={Boolean(itemsFor)}
-          onClose={() => setItemsFor(null)}
-          target={itemsFor}
-          components={(data && data.components) || []}
-          canEdit={canManageFnf(actor)}
-          onSaved={load}
-        />
         <SettleModal
           open={Boolean(settleFor)}
           onClose={() => setSettleFor(null)}

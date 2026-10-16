@@ -470,22 +470,6 @@ function CalculationBreakup({ isOpen, onClose, employee, loading, error }) {
                 />
               </Group>
 
-              {breakup.fnf && (breakup.fnf.items || []).length > 0 ? (
-                <>
-                  <Divider />
-                  {/* FULL & FINAL - the exit month's entered earnings and recoveries, as calculated. */}
-                  <Group title="Full &amp; Final Settlement">
-                    {breakup.fnf.items.map((item) => (
-                      <Line
-                        key={item.component}
-                        label={`${item.label}${item.kind === "DEDUCTION" ? " (recovery)" : ""}`}
-                        value={money(item.amount)}
-                      />
-                    ))}
-                  </Group>
-                </>
-              ) : null}
-
               <Divider />
 
               <Group title="Statutory">
