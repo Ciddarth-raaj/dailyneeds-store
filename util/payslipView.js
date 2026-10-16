@@ -134,6 +134,45 @@ function finalFacts(snapshot) {
   ]);
 }
 
+/** Is this frozen snapshot a Full & Final Settlement statement (an exit month)? */
+const isFnf = (snapshot) => Boolean(snapshot && snapshot.document_type === "FNF");
+
+/**
+ * FULL & FINAL - the exit facts the statement prints beyond a payslip, all
+ * copied from the frozen snapshot's `fnf` block. Empty for a payslip.
+ */
+function fnfFacts(snapshot) {
+  if (!isFnf(snapshot)) return [];
+  const x = snapshot.fnf || {};
+  return facts([
+    ["Last Working Day", x.last_working_day],
+    ["Date of Joining", x.date_of_joining],
+    ["LOP Days", x.lop_days],
+    ["Actual Working Days", x.actual_working_days],
+    ["Lateness Amount", isZero(x.lateness_amount) ? null : formatRupees(x.lateness_amount)],
+    ["F&F Earnings", isZero(x.additions_total) ? null : formatRupees(x.additions_total)],
+    ["F&F Recoveries", isZero(x.deductions_total) ? null : formatRupees(x.deductions_total)],
+  ]);
+}
+
+/**
+ * "Total Net Payable ₹5,031.00" / "Total Recoverable from Employee ₹969.00" -
+ * a negative F&F is an amount the employee owes, shown without the sign and
+ * named as such, exactly as the PDF prints it.
+ */
+function fnfNetLine(snapshot) {
+  if (!isFnf(snapshot)) return null;
+  const x = snapshot.fnf || {};
+  const net = snapshot.final && snapshot.final.net_pay;
+  const abs = net === null || net === undefined ? net : String(net).replace("-", "");
+  return {
+    label: x.net_payable_label || "Total Net Payable",
+    amount: formatRupees(abs),
+    words: x.net_payable_words || null,
+    recoverable: x.recoverable === true,
+  };
+}
+
 /** "September 2026 - Published", newest first, as the server sent it. */
 const payslipListLabel = (p) => `${p.label} — ${p.status || "Published"}`;
 
@@ -149,4 +188,7 @@ module.exports = {
   ctcFacts,
   finalFacts,
   payslipListLabel,
+  isFnf,
+  fnfFacts,
+  fnfNetLine,
 };

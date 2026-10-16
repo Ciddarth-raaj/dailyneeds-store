@@ -22,6 +22,9 @@ import {
   employerContributionFacts,
   ctcFacts,
   finalFacts,
+  isFnf,
+  fnfFacts,
+  fnfNetLine,
 } from "../../util/payslipView";
 
 /**
@@ -94,6 +97,10 @@ function PayslipDetail({ snapshot }) {
   const advance = advanceFacts(snapshot);
   const contribution = employerContributionFacts(snapshot);
   const ctc = ctcFacts(snapshot);
+  // An exit month is a Full & Final Settlement statement: same frozen figures,
+  // its own heading, the exit facts and the receiver's declaration.
+  const fnf = isFnf(snapshot);
+  const fnfNet = fnfNetLine(snapshot);
   return (
     <Stack spacing={3}>
       <Box
@@ -105,11 +112,16 @@ function PayslipDetail({ snapshot }) {
         p={4}
       >
         <Text fontSize="xs" opacity={0.85} textTransform="uppercase" letterSpacing="0.04em">
-          Final Net Pay · {snapshot.period && snapshot.period.label}
+          {fnf ? `Full & Final Settlement · ${fnfNet.label}` : "Final Net Pay"} · {snapshot.period && snapshot.period.label}
         </Text>
         <Text fontSize="3xl" fontWeight="bold" lineHeight="short">
-          {formatRupees(snapshot.final && snapshot.final.net_pay)}
+          {fnf ? fnfNet.amount : formatRupees(snapshot.final && snapshot.final.net_pay)}
         </Text>
+        {fnf && fnfNet.words ? (
+          <Text fontSize="xs" opacity={0.9}>
+            In words: {fnfNet.words}
+          </Text>
+        ) : null}
         <Text fontSize="xs" opacity={0.85}>
           {[e.employee_name, payTypeLabel(e.pay_type)].filter(Boolean).join(" · ")}
         </Text>
@@ -119,6 +131,11 @@ function PayslipDetail({ snapshot }) {
         <Section title="Employee Details">
           <FactList rows={employeeFacts(snapshot)} />
         </Section>
+        {fnf ? (
+          <Section title="Full &amp; Final Settlement">
+            <FactList rows={fnfFacts(snapshot)} />
+          </Section>
+        ) : null}
         <Section title="Attendance / Salary Basis">
           <FactList rows={attendanceFacts(snapshot)} />
         </Section>
@@ -168,6 +185,13 @@ function PayslipDetail({ snapshot }) {
         <Section title="Net Pay">
           <FactList rows={finalFacts(snapshot)} />
         </Section>
+        {fnf && snapshot.fnf && snapshot.fnf.declaration ? (
+          <Section title="Declaration By the Receiver">
+            <Text fontSize="sm" color="gray.700">
+              {snapshot.fnf.declaration}
+            </Text>
+          </Section>
+        ) : null}
       </Accordion>
     </Stack>
   );
