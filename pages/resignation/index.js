@@ -47,7 +47,8 @@ export default class viewResignation extends React.Component {
           toast.success("Successfully Removed");
           this.getResignationData();
         } else {
-          toast.error("Error Removing Resignation Value");
+          // e.g. 409: the exit is recorded in the employee lifecycle - use Rejoin.
+          toast.error((data && data.msg) || "Error Removing Resignation Value");
         }
       })
       .catch((err) => console.log(err));
