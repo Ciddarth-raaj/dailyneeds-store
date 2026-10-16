@@ -84,9 +84,9 @@ const FNF = {
     last_working_day: "2026-08-16", date_of_joining: "2026-02-02", lop_days: 3, actual_working_days: 13,
     lateness_amount: "1.44",
     net_payable_label: "Total Recoverable from Employee", recoverable: true,
-    net_payable_words: "Nine Hundred Sixty Nine Rupees Only", acknowledgement_heading: "Employee Acknowledgement",
-    acknowledgement: "I acknowledge that, as calculated in the monthly payroll ...",
-    statutory_note: "Gratuity, leave encashment and any other statutory dues payable separately are outside this payroll statement. ...",
+    net_payable_words: "Nine Hundred Sixty Nine Rupees Only", declaration_heading: "Employee Acknowledgement of Recoverable Amount",
+    declaration: "I acknowledge that, as calculated in the monthly payroll for my final month of service, ₹969.00 (...) stated above is recoverable from me.",
+    declaration_signing: "To be signed by the employee in acknowledgement of the recoverable amount.",
   },
 };
 
@@ -131,11 +131,12 @@ test("the helper calls exactly the backend's endpoints and sends no computed fig
   }
 });
 
-test("the payslip detail shows the frozen acknowledgement and statutory-dues note, never a waiver declaration", () => {
+test("the payslip detail shows the snapshot's frozen declaration and signing instruction; no statutory-dues note", () => {
   const detail = read("components/payslip/PayslipDetail.jsx");
-  assert.match(detail, /snapshot\.fnf\.acknowledgement/);
-  assert.match(detail, /snapshot\.fnf\.statutory_note/);
-  assert.doesNotMatch(detail, /Declaration By the Receiver|fnf\.declaration/);
+  assert.match(detail, /snapshot\.fnf\.declaration_heading/);
+  assert.match(detail, /snapshot\.fnf\.declaration\b/);
+  assert.match(detail, /snapshot\.fnf\.declaration_signing/);
+  assert.doesNotMatch(detail, /statutory_note|gratuity|encashment|Declaration By the Receiver/i);
 });
 
 test("the confidential page states it, and the payslip detail never renders interview or rehire data", () => {

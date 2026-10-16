@@ -98,9 +98,10 @@ function PayslipDetail({ snapshot }) {
   const contribution = employerContributionFacts(snapshot);
   const ctc = ctcFacts(snapshot);
   // An exit month is a Full & Final Settlement statement: same frozen figures,
-  // its own heading, the exit facts, the employee's payroll-payment
-  // acknowledgement and the note that separate statutory dues are outside it -
-  // all text frozen in the snapshot.
+  // its own heading, the exit facts and the employee declaration (receipt) or,
+  // for a negative Net Pay, the acknowledgement of the recoverable amount - text
+  // frozen in the snapshot, printed unsigned: the employee signs it on paper
+  // only after payment. Nothing here records payment.
   const fnf = isFnf(snapshot);
   const fnfNet = fnfNetLine(snapshot);
   return (
@@ -187,16 +188,14 @@ function PayslipDetail({ snapshot }) {
         <Section title="Net Pay">
           <FactList rows={finalFacts(snapshot)} />
         </Section>
-        {fnf && snapshot.fnf && (snapshot.fnf.acknowledgement || snapshot.fnf.statutory_note) ? (
-          <Section title={snapshot.fnf.acknowledgement_heading || "Employee Acknowledgement"}>
-            {snapshot.fnf.acknowledgement ? (
-              <Text fontSize="sm" color="gray.700">
-                {snapshot.fnf.acknowledgement}
-              </Text>
-            ) : null}
-            {snapshot.fnf.statutory_note ? (
-              <Text fontSize="sm" color="gray.600" mt={2}>
-                <b>Note:</b> {snapshot.fnf.statutory_note}
+        {fnf && snapshot.fnf && snapshot.fnf.declaration ? (
+          <Section title={snapshot.fnf.declaration_heading || "Employee Declaration"}>
+            <Text fontSize="sm" color="gray.700">
+              {snapshot.fnf.declaration}
+            </Text>
+            {snapshot.fnf.declaration_signing ? (
+              <Text fontSize="sm" color="gray.600" fontStyle="italic" mt={2}>
+                {snapshot.fnf.declaration_signing}
               </Text>
             ) : null}
           </Section>
