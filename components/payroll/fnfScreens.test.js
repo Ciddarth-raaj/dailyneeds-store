@@ -45,7 +45,7 @@ test("the confidential exit record is never reachable through a payroll or F&F k
 test("row actions follow the stage: items before approval, settle once published, reopen once settled", () => {
   const manager = { permissions: keys("view_employees", "manage_fnf_settlement") };
   const at = (stage, initialized = true) => access.rowActions({ stage, initialized }, manager);
-  assert.deepEqual(at("IN_PAYROLL"), { editItems: true, settle: false, reopen: false, exitInterview: false });
+  assert.deepEqual(at("IN_PAYROLL"), { editItems: true, settle: false, reopen: false, reconcile: false, exitInterview: false });
   assert.equal(at("APPROVED").editItems, false);
   assert.equal(at("PUBLISHED").settle, true);
   assert.equal(at("SETTLED").settle, false);
@@ -53,8 +53,13 @@ test("row actions follow the stage: items before approval, settle once published
   assert.equal(at("NOT_IN_PAYROLL", false).editItems, false);
   const viewer = { permissions: keys("view_employees", "view_salary", "view_fnf_settlement") };
   assert.deepEqual(access.rowActions({ stage: "PUBLISHED", initialized: true }, viewer), {
-    editItems: false, settle: false, reopen: false, exitInterview: false,
+    editItems: false, settle: false, reopen: false, reconcile: false, exitInterview: false,
   });
+  // Outstanding OT or an unreconciled exit: Settle is not offered (the server refuses it too).
+  assert.equal(access.rowActions({ stage: "PUBLISHED", initialized: true, outstanding_ot: { items: 1 } }, manager).settle, false);
+  const processor = { permissions: keys("view_employees", "process_payroll", "manage_fnf_settlement") };
+  assert.equal(access.rowActions({ stage: "NOT_IN_PAYROLL", needs_reconcile: true }, processor).reconcile, true);
+  assert.equal(access.rowActions({ stage: "NOT_IN_PAYROLL", needs_reconcile: true }, manager).reconcile, false);
 });
 
 test("a negative F&F is shown as recoverable, never as a negative payment", () => {
@@ -134,9 +139,11 @@ test("the calculation list badges an F&F month and the breakup lists its items",
   assert.match(read("components/payroll/calculation/CalculationBreakup.jsx"), /breakup\.fnf/);
 });
 
-test("rejoin shows the previous exit's rehire assessment to confidential readers only, and does not block", () => {
+test("rejoin: shows the previous exit's assessment to confidential readers; the SERVER's gate decides, and the modal collects the approval reason", () => {
   const modal = code(read("components/hr/LifecycleActionModals.jsx"));
   assert.match(modal, /canViewExitInterview\(actor\)/);
   assert.match(modal, /<RehireStanding employeeId=\{employee\.employee_id\} isOpen=\{isOpen\} \/>/);
-  assert.ok(!/rehire[\s\S]{0,80}isDisabled/.test(modal), "the Rejoin button is not disabled by the assessment");
+  // The refusal's code opens the reason field; the reason is sent back.
+  assert.match(modal, /res\.error && \/\^REHIRE_\/\.test\(res\.error\)/);
+  assert.match(modal, /rehire_exception_reason: rehireReason\.trim\(\)/);
 });

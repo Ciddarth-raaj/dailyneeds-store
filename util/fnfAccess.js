@@ -48,14 +48,22 @@ const STAGE_COLOR = {
 const REHIRE_COLOR = { YES: "green", NO: "red", CONDITIONAL: "orange" };
 const REHIRE_LABEL = { YES: "Fit for rehire", NO: "Not fit for rehire", CONDITIONAL: "Conditional" };
 
+/** Reconcile a late-recorded exit: view_employees + process_payroll + manage_fnf_settlement. */
+function canReconcileExit({ permissions = [], isAdmin = false } = {}) {
+  return isAdmin === true || all(permissions, ["view_employees", "process_payroll", "manage_fnf_settlement"]);
+}
+
 /** What a row may do next, given its stage and the caller's rights. */
 function rowActions(row, actor) {
   const manage = canManageFnf(actor);
   const stage = row && row.stage;
+  const blocked = Boolean(row && (row.needs_reconcile || row.outstanding_ot));
   return {
     editItems: manage && Boolean(row && row.initialized) && (stage === "IN_PAYROLL"),
-    settle: manage && stage === "PUBLISHED",
+    // The server refuses Settle while approved OT is outstanding; so does the screen.
+    settle: manage && stage === "PUBLISHED" && !blocked,
     reopen: manage && stage === "SETTLED",
+    reconcile: canReconcileExit(actor) && Boolean(row && row.needs_reconcile),
     exitInterview: canViewExitInterview(actor),
   };
 }
@@ -74,6 +82,7 @@ module.exports = {
   canViewExitInterview,
   canManageExitInterview,
   canOverrideRehire,
+  canReconcileExit,
   STAGE_COLOR,
   REHIRE_COLOR,
   REHIRE_LABEL,

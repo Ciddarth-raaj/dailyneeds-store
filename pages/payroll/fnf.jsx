@@ -296,6 +296,18 @@ function FnfSettlement() {
     load();
   }, [load]);
 
+  /* The explicit correction for an exit recorded after initialization. */
+  const reconcile = async (row) => {
+    try {
+      const res = await EmployeeExitHelper.reconcileExit({ year, month, employee_id: row.employee_id });
+      if (res.code !== 200) throw new Error(res.msg || "Not reconciled");
+      toast({ status: "success", title: res.message || "Exit reconciled" });
+      load();
+    } catch (err) {
+      toast({ status: "error", title: err.message, duration: 9000 });
+    }
+  };
+
   const years = useMemo(() => [now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1], []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const body = () => {
@@ -365,6 +377,11 @@ function FnfSettlement() {
                       <Td>{row.exit_date}</Td>
                       <Td>
                         <Badge colorScheme={STAGE_COLOR[row.stage] || "gray"}>{row.stage_label}</Badge>
+                        {row.outstanding_ot ? (
+                          <Text fontSize="xs" color="red.600" mt={1}>
+                            Outstanding approved OT: {row.outstanding_ot.items} item(s), {netLabel(row.outstanding_ot.amount)}
+                          </Text>
+                        ) : null}
                         {row.warning ? (
                           <Text fontSize="xs" color="orange.600" maxWidth="260px" mt={1}>
                             {row.warning}
@@ -389,6 +406,11 @@ function FnfSettlement() {
                           {a.settle ? (
                             <Button size="xs" colorScheme="green" onClick={() => setSettleFor({ target, mode: "settle" })}>
                               Mark settled
+                            </Button>
+                          ) : null}
+                          {a.reconcile ? (
+                            <Button size="xs" colorScheme="orange" onClick={() => reconcile(row)}>
+                              Reconcile exit
                             </Button>
                           ) : null}
                           {a.reopen ? (

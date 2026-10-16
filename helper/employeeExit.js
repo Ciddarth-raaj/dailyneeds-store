@@ -25,6 +25,9 @@ const EmployeeExitHelper = {
     API.post("/payrun/fnf/settle", { year, month, employee_id, payment_mode, payment_reference, paid_on }).then(data),
   reopen: ({ year, month, employee_id, reason }) =>
     API.post("/payrun/fnf/reopen", { year, month, employee_id, reason }).then(data),
+  /** Bring a late-recorded exit into the month's payroll snapshot (after a Reset). */
+  reconcileExit: ({ year, month, employee_id }) =>
+    API.post("/payrun/fnf/reconcile-exit", { year, month, employee_id }).then(data),
 
   /* --------------------------------- exit interview / rehire (HR only) */
   getEmployeeExits: (employeeId) => API.get(`/hr/exit/employee/${employeeId}`).then(data),

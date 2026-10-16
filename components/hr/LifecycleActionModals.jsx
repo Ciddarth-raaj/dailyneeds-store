@@ -182,6 +182,10 @@ export function RejoinModal({ isOpen, onClose, employee, lifecycle, onDone }) {
   const [previousEnd, setPreviousEnd] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
+  // Set when the server's rehire gate refused: the previous exit was assessed
+  // NO / CONDITIONAL, so a management approval with a reason is required.
+  const [rehireNeed, setRehireNeed] = useState(null);
+  const [rehireReason, setRehireReason] = useState("");
 
   const needsPreviousEnd = rejoinNeedsPreviousEnd(lifecycle);
 
@@ -208,8 +212,12 @@ export function RejoinModal({ isOpen, onClose, employee, lifecycle, onDone }) {
       const res = await HrHelper.rejoinEmployee(employee.employee_id, {
         date_of_joining: date,
         ...(needsPreviousEnd ? { previous_ended_on: previousEnd } : {}),
+        ...(rehireNeed && rehireReason.trim() ? { rehire_exception_reason: rehireReason.trim() } : {}),
       });
       if (res && res.code && res.code !== 200) {
+        if (res.error && /^REHIRE_/.test(res.error)) {
+          setRehireNeed({ error: res.error, eligibility: res.rehire_eligibility || null });
+        }
         setError(res.msg || "Could not record the rejoining.");
         return;
       }
@@ -260,6 +268,18 @@ export function RejoinModal({ isOpen, onClose, employee, lifecycle, onDone }) {
           earlier service history is kept.
         </Alert>
         <RehireStanding employeeId={employee.employee_id} isOpen={isOpen} />
+        {rehireNeed ? (
+          <FormControl isRequired>
+            <FormLabel fontSize="sm">
+              Reason for rehiring despite the {rehireNeed.eligibility === "NO" ? "NOT fit for rehire" : "conditional"} assessment
+            </FormLabel>
+            <Textarea size="sm" maxLength={500} value={rehireReason} onChange={(e) => setRehireReason(e.target.value)} />
+            <FormHelperText>
+              Needs the Approve Rehire Exception permission (management). The approval and this reason are recorded with
+              the rejoin.
+            </FormHelperText>
+          </FormControl>
+        ) : null}
         <FormControl isRequired>
           <FormLabel fontSize="sm">Joining date</FormLabel>
           <Input
