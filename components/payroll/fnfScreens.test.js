@@ -147,3 +147,19 @@ test("rejoin: shows the previous exit's assessment to confidential readers; the 
   assert.match(modal, /res\.error && \/\^REHIRE_\/\.test\(res\.error\)/);
   assert.match(modal, /rehire_exception_reason: rehireReason\.trim\(\)/);
 });
+
+test("every new key can be granted on the Designation screen, in one F&F group", () => {
+  const perms = read("constants/permissions.js");
+  const block = perms.slice(perms.indexOf("fnf_settlement: {"), perms.indexOf("Miscellaneous: {"));
+  for (const key of [
+    "view_fnf_settlement", "manage_fnf_settlement", "view_exit_interview",
+    "manage_exit_interview", "override_rehire_eligibility", "approve_rehire_exception",
+  ]) {
+    assert.match(block, new RegExp(`\\b${key}: "`), key);
+  }
+  assert.match(read("util/permissionCatalog.js"), /fnf_settlement: "F&F Settlement & Exit"/);
+});
+
+test("the F&F items modal shows when a component's PF / ESI treatment is not confirmed", () => {
+  assert.match(read("pages/payroll/fnf.jsx"), /c\.statutory !== "CONFIRMED"/);
+});

@@ -150,6 +150,12 @@ function ItemsModal({ open, onClose, target, components, canEdit, onSaved }) {
                   <Text fontSize="xs" color="gray.500">
                     {c.help}
                   </Text>
+                  {c.statutory !== "CONFIRMED" ? (
+                    <Text fontSize="xs" color="orange.600">
+                      PF / ESI treatment not yet confirmed by the business: a month using this component is calculated but
+                      cannot be approved until it is.
+                    </Text>
+                  ) : null}
                 </FormControl>
               ))}
               {(detail.audit || []).length > 0 ? (

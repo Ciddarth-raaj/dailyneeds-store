@@ -624,6 +624,28 @@ export const PERMISSIONS = {
     },
   },
 
+  // FULL & FINAL SETTLEMENT, EXIT INTERVIEW AND REHIRE (backend migration
+  // 20261201120000-fnf-settlement). Each key is enforced by the server on
+  // its own route with `requireAll(...)`; ticking one here only grants it.
+  //
+  //   view_fnf_settlement        the F&F list (with view_employees +
+  //                              view_salary: it shows net pay)
+  //   manage_fnf_settlement      F&F amounts, mark settled, reopen; with
+  //                              process_payroll also Reconcile Exit
+  //   view_exit_interview        CONFIDENTIAL interview + rehire assessment
+  //   manage_exit_interview      record the interview / first rehire assessment
+  //   override_rehire_eligibility change a rehire assessment (with a reason)
+  //   approve_rehire_exception   MANAGEMENT: rejoin somebody assessed NO /
+  //                              CONDITIONAL, with a reason
+  fnf_settlement: {
+    view_fnf_settlement: "View F&F Settlements",
+    manage_fnf_settlement: "Manage F&F Settlements (amounts, settle, reopen)",
+    view_exit_interview: "View Exit Interviews & Rehire Assessments (confidential)",
+    manage_exit_interview: "Record Exit Interviews & Rehire Assessments",
+    override_rehire_eligibility: "Override Rehire Assessment",
+    approve_rehire_exception: "Approve Rejoin Despite Rehire Assessment (management)",
+  },
+
   // Misc
   Miscellaneous: {
     all_stores: "Access All Stores",
