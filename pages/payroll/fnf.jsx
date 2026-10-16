@@ -372,7 +372,8 @@ function FnfSettlement() {
                   const a = rowActions(row, actor);
                   const target = { ...row, year, month };
                   return (
-                    <Tr key={`${row.employee_id}-${row.exit_date}`}>
+                    <React.Fragment key={`${row.employee_id}-${row.exit_date}`}>
+                    <Tr>
                       <Td>
                         <Text fontWeight="medium">{row.employee_name}</Text>
                         <Text fontSize="xs" color="gray.500">
@@ -383,16 +384,6 @@ function FnfSettlement() {
                       <Td>{row.exit_date}</Td>
                       <Td>
                         <Badge colorScheme={STAGE_COLOR[row.stage] || "gray"}>{row.stage_label}</Badge>
-                        {row.outstanding_ot ? (
-                          <Text fontSize="xs" color="red.600" mt={1}>
-                            Outstanding approved OT: {row.outstanding_ot.items} item(s), {netLabel(row.outstanding_ot.amount)}
-                          </Text>
-                        ) : null}
-                        {row.warning ? (
-                          <Text fontSize="xs" color="orange.600" maxWidth="260px" mt={1}>
-                            {row.warning}
-                          </Text>
-                        ) : null}
                       </Td>
                       <Td isNumeric>{row.fnf_additions === null ? "—" : netLabel(row.fnf_additions)}</Td>
                       <Td isNumeric>{row.fnf_deductions === null ? "—" : netLabel(row.fnf_deductions)}</Td>
@@ -403,7 +394,7 @@ function FnfSettlement() {
                           : "Pending"}
                       </Td>
                       <Td>
-                        <HStack spacing={1} justify="flex-end">
+                        <Stack spacing={1} align="flex-end">
                           {row.initialized ? (
                             <Button size="xs" variant="outline" onClick={() => setItemsFor(target)}>
                               {a.editItems ? "F&F items" : "View items"}
@@ -429,9 +420,27 @@ function FnfSettlement() {
                               Exit interview
                             </Button>
                           ) : null}
-                        </HStack>
+                        </Stack>
                       </Td>
                     </Tr>
+                    {/* What stops this exit from moving on, across the whole row. */}
+                    {row.outstanding_ot || row.warning ? (
+                      <Tr>
+                        <Td colSpan={8} pt={0} borderTopWidth={0}>
+                          {row.outstanding_ot ? (
+                            <Text fontSize="xs" color="red.600">
+                              Outstanding approved OT: {row.outstanding_ot.items} item(s), {netLabel(row.outstanding_ot.amount)}
+                            </Text>
+                          ) : null}
+                          {row.warning ? (
+                            <Text fontSize="xs" color="orange.600">
+                              {row.warning}
+                            </Text>
+                          ) : null}
+                        </Td>
+                      </Tr>
+                    ) : null}
+                    </React.Fragment>
                   );
                 })}
               </Tbody>
