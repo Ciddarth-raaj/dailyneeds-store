@@ -84,7 +84,9 @@ const FNF = {
     last_working_day: "2026-08-16", date_of_joining: "2026-02-02", lop_days: 3, actual_working_days: 13,
     lateness_amount: "1.44",
     net_payable_label: "Total Recoverable from Employee", recoverable: true,
-    net_payable_words: "Nine Hundred Sixty Nine Rupees Only", declaration: "I, the undersigned...",
+    net_payable_words: "Nine Hundred Sixty Nine Rupees Only", acknowledgement_heading: "Employee Acknowledgement",
+    acknowledgement: "I acknowledge that, as calculated in the monthly payroll ...",
+    statutory_note: "Gratuity, leave encashment and any other statutory dues payable separately are outside this payroll statement. ...",
   },
 };
 
@@ -127,6 +129,13 @@ test("the helper calls exactly the backend's endpoints and sends no computed fig
   for (const forbidden of ["net_pay", "settled_net_amount", "calculation_hash", "total_earnings", "status:"]) {
     assert.ok(!helper.includes(forbidden), forbidden);
   }
+});
+
+test("the payslip detail shows the frozen acknowledgement and statutory-dues note, never a waiver declaration", () => {
+  const detail = read("components/payslip/PayslipDetail.jsx");
+  assert.match(detail, /snapshot\.fnf\.acknowledgement/);
+  assert.match(detail, /snapshot\.fnf\.statutory_note/);
+  assert.doesNotMatch(detail, /Declaration By the Receiver|fnf\.declaration/);
 });
 
 test("the confidential page states it, and the payslip detail never renders interview or rehire data", () => {

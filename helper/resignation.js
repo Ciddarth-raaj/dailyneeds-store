@@ -25,20 +25,6 @@ const resignation = {
 
 		return formattedData;
 	},
-	deleteResignation: (resignation_id) => 
-	new Promise(function (resolve, reject) {
-	API.post("/resignation/resignation_id?resignation_id="+resignation_id)
-		.then(async (res) => {
-			if (res.status === 200) {
-				resolve(res.data);
-			} else {
-				reject(res.data.msg);
-			}
-		})
-		.catch((err) => {
-			reject(err);
-		});
-}),
 getResignationById: (resignation_id) => 
 new Promise(function (resolve, reject) {
 API.get("/resignation/get/resignation_id?resignation_id="+resignation_id)
@@ -53,20 +39,6 @@ API.get("/resignation/get/resignation_id?resignation_id="+resignation_id)
 		reject(err);
 	});
 }),
-    createResignation: (data) =>
-		new Promise(function (resolve, reject) {
-			API.post("/resignation/create", data)
-				.then(async (res) => {
-                    if (res.status === 200) {
-					resolve(res.data);
-                    } else {
-                        reject(res.data.msg);
-                    }
-				})
-				.catch((err) => {
-					reject(err);
-				});
-		}),
 	getResignationByName: (employee_name) => 
 		new Promise(function (resolve, reject) {
 		API.get("/resignation/employee_name?employee_name=" + employee_name)
@@ -81,20 +53,6 @@ API.get("/resignation/get/resignation_id?resignation_id="+resignation_id)
 				reject(err);
 			});
 	}),
-	updateResignation: (data) =>
-	new Promise(function (resolve, reject) {
-		API.post("/resignation/update-resignation", data)
-			.then(async (res) => {
-				if (res.status === 200) {
-					resolve(res.data);
-				} else {
-					reject(res.data.msg);
-				}
-			})
-			.catch((err) => {
-				reject(err);
-			});
-	})
 		
 };
 export default resignation;
