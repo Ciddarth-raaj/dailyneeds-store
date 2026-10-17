@@ -22,6 +22,7 @@ const MODULE_TITLES = {
   grn: "GRN",
   purchase_ref: "Purchase Ref",
   gst: "GST",
+  fnf_settlement: "F&F Settlement & Exit",
   Miscellaneous: "Miscellaneous",
 };
 
@@ -56,6 +57,7 @@ const MODULE_ICONS = {
   grn: "fa-file-import",
   purchase_ref: "fa-receipt",
   gst: "fa-file-invoice-dollar",
+  fnf_settlement: "fa-handshake",
   Miscellaneous: "fa-ellipsis",
 };
 

@@ -27,6 +27,7 @@ import AttendanceRequiredSection from "../../../components/hr/profile/Attendance
 import LocationScopeSection from "../../../components/hr/profile/LocationScopeSection";
 import TelegramSection from "../../../components/hr/profile/TelegramSection";
 import { canManageTelegram } from "../../../util/employeeTelegram";
+import { canViewExitInterview } from "../../../util/fnfAccess";
 import EmploymentSection from "../../../components/hr/profile/EmploymentSection";
 import EducationSection from "../../../components/hr/profile/EducationSection";
 import PaymentDetailsSection from "../../../components/hr/profile/PaymentDetailsSection";
@@ -770,6 +771,12 @@ function EmployeeProfile() {
             {canRejoin ? (
               <Button size="sm" colorScheme="green" onClick={() => setRejoinOpen(true)}>
                 Rejoin
+              </Button>
+            ) : null}
+            {/* CONFIDENTIAL exit record: offered once the employee has ever left. */}
+            {lifecycle && (lifecycle.is_active === false || hasEmploymentHistory) && canViewExitInterview({ permissions, isAdmin }) ? (
+              <Button size="sm" variant="outline" onClick={() => router.push(`/hr/exit/${identity.employee_id}`)}>
+                Exit &amp; Rehire
               </Button>
             ) : null}
             {mayCorrectHistorically && lifecycle ? (

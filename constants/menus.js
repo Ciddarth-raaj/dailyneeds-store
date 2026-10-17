@@ -1278,6 +1278,15 @@ const HR_MENU = {
         selected: false,
         location: "/payroll/payrun",
       },
+      // Full & Final Settlement - every exit of a month and where its F&F
+      // stands. The three keys `GET /payrun/fnf/month` requires: the list
+      // carries net pay, which is the `view_salary` disclosure.
+      fnf_settlement: {
+        title: "F&F Settlement",
+        permission: ["view_employees", "view_salary", "view_fnf_settlement"],
+        selected: false,
+        location: "/payroll/fnf",
+      },
     },
   },
   // HR > Reports - every HR report in one section: Payroll's month-wise

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Button,
   Stack,
@@ -25,6 +25,43 @@ import {
   CORRECTION_REASON_MIN,
 } from "../../util/joiningDateWindow";
 import { displayDate } from "../../util/displayDate";
+import EmployeeExitHelper from "../../helper/employeeExit";
+import usePayrollActor from "../../customHooks/usePayrollActor";
+import { canViewExitInterview, REHIRE_LABEL } from "../../util/fnfAccess";
+
+/**
+ * THE REHIRE ASSESSMENT OF THE EMPLOYEE'S LAST EXIT, shown when rejoining -
+ * only to those who may read the confidential exit record. It informs; it
+ * does not block (whether "Not fit for rehire" should stop a rejoin is a
+ * business rule nobody has set yet).
+ */
+function RehireStanding({ employeeId, isOpen }) {
+  const actor = usePayrollActor();
+  const allowed = canViewExitInterview(actor);
+  const [rehire, setRehire] = useState(undefined);
+  useEffect(() => {
+    if (!isOpen || !allowed || !employeeId) return;
+    EmployeeExitHelper.getRehireStatus(employeeId)
+      .then((res) => setRehire(res && res.code === 200 ? res.rehire : null))
+      .catch(() => setRehire(null));
+  }, [isOpen, allowed, employeeId]);
+  if (!allowed || rehire === undefined) return null;
+  if (!rehire) {
+    return (
+      <Alert status="info" fontSize="sm">
+        <AlertIcon />
+        No rehire assessment was recorded for their previous exit.
+      </Alert>
+    );
+  }
+  return (
+    <Alert status={rehire.eligibility === "YES" ? "success" : "warning"} fontSize="sm">
+      <AlertIcon />
+      Previous exit ({rehire.exit_date}): {REHIRE_LABEL[rehire.eligibility]}
+      {rehire.conditions ? ` — ${rehire.conditions}` : ""}.
+    </Alert>
+  );
+}
 
 /**
  * Stage 0C / C3 — resign and rejoin.
@@ -145,6 +182,10 @@ export function RejoinModal({ isOpen, onClose, employee, lifecycle, onDone }) {
   const [previousEnd, setPreviousEnd] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
+  // Set when the server's rehire gate refused: the previous exit was assessed
+  // NO / CONDITIONAL, so a management approval with a reason is required.
+  const [rehireNeed, setRehireNeed] = useState(null);
+  const [rehireReason, setRehireReason] = useState("");
 
   const needsPreviousEnd = rejoinNeedsPreviousEnd(lifecycle);
 
@@ -171,8 +212,12 @@ export function RejoinModal({ isOpen, onClose, employee, lifecycle, onDone }) {
       const res = await HrHelper.rejoinEmployee(employee.employee_id, {
         date_of_joining: date,
         ...(needsPreviousEnd ? { previous_ended_on: previousEnd } : {}),
+        ...(rehireNeed && rehireReason.trim() ? { rehire_exception_reason: rehireReason.trim() } : {}),
       });
       if (res && res.code && res.code !== 200) {
+        if (res.error && /^REHIRE_/.test(res.error)) {
+          setRehireNeed({ error: res.error, eligibility: res.rehire_eligibility || null });
+        }
         setError(res.msg || "Could not record the rejoining.");
         return;
       }
@@ -222,6 +267,19 @@ export function RejoinModal({ isOpen, onClose, employee, lifecycle, onDone }) {
           This opens a new employment period under the same employee ID {employee.employee_id}. Their
           earlier service history is kept.
         </Alert>
+        <RehireStanding employeeId={employee.employee_id} isOpen={isOpen} />
+        {rehireNeed ? (
+          <FormControl isRequired>
+            <FormLabel fontSize="sm">
+              Reason for rehiring despite the {rehireNeed.eligibility === "NO" ? "NOT fit for rehire" : "conditional"} assessment
+            </FormLabel>
+            <Textarea size="sm" maxLength={500} value={rehireReason} onChange={(e) => setRehireReason(e.target.value)} />
+            <FormHelperText>
+              Needs the Approve Rehire Exception permission (management). The approval and this reason are recorded with
+              the rejoin.
+            </FormHelperText>
+          </FormControl>
+        ) : null}
         <FormControl isRequired>
           <FormLabel fontSize="sm">Joining date</FormLabel>
           <Input

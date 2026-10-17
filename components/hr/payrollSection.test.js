@@ -561,6 +561,10 @@ test("PAYROLL'S SCREENS EXIST, AND THE SALARY ONES ARE STILL ONLY ABOUT SALARY",
     // Payroll Dashboard: a read of the month over the Payrun's own figures.
     // About a month, not a salary screen - not in `payrollFiles` below.
     "dashboard.jsx",
+    // F&F Settlement: the exits of a month and where each Full & Final
+    // stands. About a month's leavers, not a salary screen - not in
+    // `payrollFiles` below.
+    "fnf.jsx",
     // Payrun Initialization: the first stage of the Monthly Payrun. It is
     // deliberately NOT in the `payrollFiles` list below, because that list
     // asserts what the SALARY screens must not reach into, and the Payrun is

@@ -98,6 +98,8 @@ test("Employees, Department and Designation are all inside HR", () => {
     // Payrun Initialization adds the fourth, and it is the first entry here
     // that is about a MONTH rather than about one employee's pay.
     "/payroll/bulk-salary-upload",
+    // F&F Settlement: the exits of a payroll month and where each stands.
+    "/payroll/fnf",
     "/payroll/payrun",
     "/payroll/reports",
     "/payroll/salary-approval",
@@ -380,6 +382,8 @@ test("HR navigation still appears exactly once, and still holds its pages", () =
     // Payrun Initialization adds the fourth, and it is the first entry here
     // that is about a MONTH rather than about one employee's pay.
     "/payroll/bulk-salary-upload",
+    // F&F Settlement: the exits of a payroll month and where each stands.
+    "/payroll/fnf",
     "/payroll/payrun",
     "/payroll/reports",
     "/payroll/salary-approval",
@@ -446,6 +450,8 @@ test("HR > Payroll is the three salary screens and the Payrun, each behind ALL o
 
   assert.deepStrictEqual(locationsIn(pay).sort(), [
     "/payroll/bulk-salary-upload",
+    // F&F Settlement: the exits of a payroll month and where each stands.
+    "/payroll/fnf",
     "/payroll/payrun",
     "/payroll/salary-approval",
     "/payroll/salary-revision",
@@ -456,6 +462,12 @@ test("HR > Payroll is the three salary screens and the Payrun, each behind ALL o
   assert.match(pay, /title:\s*"Salary Approval"/);
   assert.match(pay, /title:\s*"Bulk Salary Upload"/);
   assert.match(pay, /title:\s*"Payrun"/);
+  // F&F Settlement takes the three keys `GET /payrun/fnf/month` requires: the
+  // list carries net pay (the view_salary disclosure).
+  assert.match(
+    pay,
+    /title:\s*"F&F Settlement"[\s\S]*?permission:\s*\["view_employees", "view_salary", "view_fnf_settlement"\]/
+  );
 
   /*
    * THE PAYRUN TAKES THE THREE READ KEYS AND NOT `process_payroll`.

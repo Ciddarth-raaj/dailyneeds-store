@@ -68,6 +68,19 @@ const TONE_COLOR = { muted: "gray.500", warning: "orange.700", problem: "red.600
  * was told and has opened it. Only a problem is coloured, and its words say
  * it too. The time is IST; the full date is on hover and in View Payslip.
  */
+/**
+ * THE F&F MONTH: the employee's last working day falls in this month, so
+ * Publish issues a Full & Final Settlement statement instead of a payslip.
+ */
+function FnfBadge({ row }) {
+  if (!row || !row.is_fnf) return null;
+  return (
+    <Badge ml={2} colorScheme="orange" variant="subtle" title={`Last working day ${row.last_working_day || ""}`}>
+      F&amp;F
+    </Badge>
+  );
+}
+
 function PayslipBadges({ row }) {
   const summary = payslipSummary(row.payslip);
   if (!summary) return null;
@@ -622,6 +635,7 @@ function CalculationTable(props) {
               <Td>
                 <Text fontSize="sm" fontWeight="medium">
                   {row.employee_name}
+                  <FnfBadge row={row} />
                 </Text>
                 <Text fontSize="xs" color="gray.500">
                   {row.employee_id} · {row.location || "—"}
@@ -709,6 +723,7 @@ function CalculationCard(props) {
           <Box flex="1" minWidth={0}>
             <Text fontSize="sm" fontWeight="bold">
               {row.employee_name}
+              <FnfBadge row={row} />
             </Text>
             <Text fontSize="xs" color="gray.500">
               {row.employee_id} · {row.location || "—"}
