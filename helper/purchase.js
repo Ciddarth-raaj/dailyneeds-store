@@ -73,6 +73,21 @@ export const deletePurchaseTallyResponseForPurchase = async (purchaseId) => {
   }
 };
 
+// RetailPilot purchase sync, run by hand. dry_run true: a preview that writes
+// nothing. Needs sync_retailpilot_purchases (admins always have it).
+export const runRetailPilotPurchaseSync = async ({ days, dryRun }) => {
+  try {
+    const response = await API.post(`/purchase/retailpilot-sync`, {
+      days,
+      dry_run: dryRun,
+    });
+    return response.data;
+  } catch (err) {
+    console.log(err);
+    throw err;
+  }
+};
+
 export const deletePurchaseTallyResponse = async (VoucherNo) => {
   try {
     const response = await API.delete(`/purchase/delete-tally/${VoucherNo}`);
