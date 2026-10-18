@@ -64,6 +64,7 @@ function Branches() {
       { field: "outlet_name", headerName: "Branch", resizable: true, flex: 2 },
       { field: "outlet_nickname", headerName: "Nickname", resizable: true, flex: 1 },
       { field: "gofrugal_id", headerName: "GoFrugal ID", hideByDefault: true },
+      { field: "retailpilot_id", headerName: "RetailPilot ID", hideByDefault: true },
       { field: "outlet_code", headerName: "Outlet Code", resizable: true, hideByDefault: true },
     ];
 
