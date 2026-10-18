@@ -10,6 +10,7 @@ import { Checkbox, Flex, Input, Text } from "@chakra-ui/react";
 
 import PurchaseModal from "../../components/Purchase/PurchaseModal";
 import RetailPilotSync from "../../components/Purchase/RetailPilotSync";
+import { compareRefno } from "../../util/purchaseRefno";
 import FromToDateOutletPicker from "../../components/DateOutletPicker/FromToDateOutletPicker";
 import { exportToExcel } from "../../util/exportCSVFile";
 
@@ -137,6 +138,7 @@ function Purchase() {
       {
         field: "mmh_mrc_refno",
         headerName: "MRC Ref No",
+        comparator: compareRefno,
       },
       {
         field: "supplier_name",
