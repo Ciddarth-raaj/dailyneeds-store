@@ -1,8 +1,14 @@
 import {
+  Alert,
+  AlertDescription,
+  AlertIcon,
   Badge,
   Button,
+  Checkbox,
   Divider,
   Flex,
+  Stack,
+  Text,
   Modal,
   ModalBody,
   ModalCloseButton,
@@ -11,8 +17,8 @@ import {
   ModalHeader,
   ModalOverlay,
 } from "@chakra-ui/react";
-import { Formik } from "formik";
-import React, { useEffect, useState } from "react";
+import { Formik, useFormikContext } from "formik";
+import React, { useEffect, useRef, useState } from "react";
 import CustomInput from "../../customInput/customInput";
 
 import styles from "./styles.module.css";
@@ -28,6 +34,10 @@ import {
   LOCAL_PURCHASE_40_PERC,
   shouldShowIGST,
 } from "../../../util/purchase";
+import {
+  asLegacy,
+  purchaseDiscrepancies,
+} from "../../../util/purchaseDiscrepancy";
 
 const JV_LEDGER_LIST = [
   { id: 1, value: "Ready to Pay" },
@@ -78,6 +88,70 @@ const INITIAL_VALUES = {
   supplier_credit_note: 0.0,
 };
 
+/**
+ * The modal's GST rows for a purchase: one row per slab, taken from IGST for
+ * an other-state supplier and from CGST/SGST otherwise (shouldShowIGST).
+ */
+function buildModalGstRows(item) {
+  let gst = buildPurchaseGstRows(item);
+
+  const isIgst = shouldShowIGST(item);
+  const requiredPercs = isIgst ? IGST_DISPLAY_PERCS : LOCAL_GST_HALF_PERCS;
+
+  const existingPercs = gst.map((taxItem) =>
+    isIgst ? taxItem.PERC : taxItem.PERC / 2
+  );
+
+  const missingGstItems = requiredPercs
+    .filter((perc) => !existingPercs.includes(perc))
+    .map((perc) => ({
+      VALUE: null,
+      PERC: isIgst ? perc : perc * 2,
+      TAXABLE: null,
+    }));
+
+  gst = [...gst, ...missingGstItems].sort((a, b) => a.PERC - b.PERC);
+
+  if (!isIgst) {
+    [LOCAL_PURCHASE_40_PERC, LOCAL_PURCHASE_28_PERC].forEach((perc) => {
+      if (!gst.some((g) => Number(g.PERC) === perc)) {
+        gst.push({
+          VALUE: null,
+          PERC: perc,
+          TAXABLE: null,
+        });
+      }
+    });
+    gst.sort((a, b) => a.PERC - b.PERC);
+  }
+
+  return gst;
+}
+
+/** A DATE value as the YYYY-MM-DD a date input takes, in local time. */
+const toDateInput = (value) =>
+  value ? moment(value).format("YYYY-MM-DD") : "";
+
+/**
+ * When Accounts change the GSTIN between local and other-state, the rows
+ * switch to the tax the stored bill has of that kind (IGST or CGST/SGST),
+ * the same rows the screen shows when the bill is opened with that GSTIN.
+ */
+function GstTypeWatcher({ item }) {
+  const { values, setFieldValue } = useFormikContext();
+  const isIgst = shouldShowIGST(values);
+  const previous = useRef(isIgst);
+  useEffect(() => {
+    if (previous.current === isIgst) return;
+    previous.current = isIgst;
+    setFieldValue(
+      "gst",
+      buildModalGstRows({ ...item, supplier_gstn: values.supplier_gstn })
+    );
+  }, [isIgst]);
+  return null;
+}
+
 function PurchaseModal({
   isOpen,
   onClose,
@@ -88,6 +162,10 @@ function PurchaseModal({
 }) {
   const [initialValues, setInitialValues] = useState(INITIAL_VALUES);
   const [editable, setEditable] = useState(true);
+  // Accounts confirm that tax of the kind this supplier's GSTIN does not
+  // show (e.g. IGST from a supplier with no GSTIN) is re-entered below as
+  // the kind it does show. Without it, saving would drop that tax silently.
+  const [taxOverride, setTaxOverride] = useState(false);
 
   useEffect(() => {
     if (item) {
@@ -97,45 +175,63 @@ function PurchaseModal({
         setEditable(true);
       }
 
-      item.gst = buildPurchaseGstRows(item);
+      item.gst = buildModalGstRows(item);
 
-      const isIgst = shouldShowIGST(item);
-      const requiredPercs = isIgst ? IGST_DISPLAY_PERCS : LOCAL_GST_HALF_PERCS;
-
-      const existingPercs = item.gst.map((taxItem) =>
-        isIgst ? taxItem.PERC : taxItem.PERC / 2
+      setTaxOverride(false);
+      setInitialValues(
+        structuredClone({
+          ...INITIAL_VALUES,
+          ...item,
+          mmh_mrc_dt: toDateInput(item.mmh_mrc_dt),
+          mmh_dist_bill_dt: toDateInput(item.mmh_dist_bill_dt),
+        })
       );
-
-      const missingGstItems = requiredPercs
-        .filter((perc) => !existingPercs.includes(perc))
-        .map((perc) => ({
-          VALUE: null,
-          PERC: isIgst ? perc : perc * 2,
-          TAXABLE: null,
-        }));
-
-      item.gst = [...item.gst, ...missingGstItems].sort(
-        (a, b) => a.PERC - b.PERC
-      );
-
-      if (!shouldShowIGST(item)) {
-        [LOCAL_PURCHASE_40_PERC, LOCAL_PURCHASE_28_PERC].forEach((perc) => {
-          if (!item.gst.some((g) => Number(g.PERC) === perc)) {
-            item.gst.push({
-              VALUE: null,
-              PERC: perc,
-              TAXABLE: null,
-            });
-          }
-        });
-        item.gst.sort((a, b) => a.PERC - b.PERC);
-      }
-
-      setInitialValues(structuredClone({ ...INITIAL_VALUES, ...item }));
     }
   }, [item]);
 
+  // The bill as being edited. A GoFrugal bill's findings are shown for
+  // review only, as the backend does, so its save and approval are unchanged.
+  const liveDiscrepancies = (values) => {
+    const list = purchaseDiscrepancies({
+      supplier_gstn: values.supplier_gstn,
+      sgst: item?.sgst,
+      cgst: item?.cgst,
+      igst: item?.igst,
+      mmh_mrc_dt: values.mmh_mrc_dt,
+      mmh_dist_bill_dt: values.mmh_dist_bill_dt,
+      mmh_mrc_refno: values.mmh_mrc_refno,
+      voucher_fy: item?.voucher_fy,
+      entered_at: item?.entered_at,
+    });
+    return item?.retailpilot ? list : asLegacy(list);
+  };
+
+  // Save is held while a blocking discrepancy is open on a RetailPilot bill:
+  // a tax one until the GSTIN or the tax is corrected, or Accounts confirm
+  // the tax they entered below; the MRC date one until the date is in its
+  // ref no's financial year. A blank GSTIN alone never holds it.
+  const TAX_CODES = ["TAX_TYPE_MISMATCH", "UNREGISTERED_SUPPLIER_TAX"];
+  const isTaxBlocked = (values) =>
+    liveDiscrepancies(values).some(
+      (d) =>
+        d.severity === "block" &&
+        !(TAX_CODES.includes(d.code) && taxOverride)
+    );
+
+  // Bill amount minus what the screen adds up before the round-off: the
+  // full difference, whatever its size or sign.
+  const calculatedDifference = (values) => {
+    const before = calculateTotalAmount({ ...values, round_off: 0 }).total_amount;
+    const diff = parseFloat(values.mmh_mrc_amt) - parseFloat(before);
+    return isNaN(diff) ? null : parseFloat(diff.toFixed(2));
+  };
+
   const onSubmitHandler = (values) => {
+    if (isTaxBlocked(values)) {
+      toast.error("Review the flagged tax or MRC date first");
+      return;
+    }
+
     const isTotalAmountMismatch =
       Math.floor(calculateTotalAmount(values).total_amount) !=
       Math.floor(item.mmh_mrc_amt);
@@ -160,7 +256,7 @@ function PurchaseModal({
     const convertedGst = values.gst
       .filter((taxItem) => taxItem.TAXABLE)
       .map((taxItem) => {
-        const PERC = shouldShowIGST(item) ? taxItem.PERC : taxItem.PERC / 2;
+        const PERC = shouldShowIGST(values) ? taxItem.PERC : taxItem.PERC / 2;
         return {
           PERC: PERC,
           VALUE: taxItem.TAXABLE
@@ -221,16 +317,15 @@ function PurchaseModal({
       {
         loading: "Updating Purchase Record!",
         success: (response) => {
-          if (response.code === 200) {
+          if (response?.code === 200) {
             onClose();
             return "Purchase Record Updated!";
-          } else {
-            throw err;
           }
+          throw new Error(response?.msg || "Error updating Purchase Record!");
         },
         error: (err) => {
           console.log(err);
-          return "Error updating Purchase Record!";
+          return err?.message || "Error updating Purchase Record!";
         },
       }
     );
@@ -256,6 +351,15 @@ function PurchaseModal({
           {({ values, handleSubmit }) => (
             <>
               <ModalBody>
+                <GstTypeWatcher item={item} />
+                <DiscrepancyPanel
+                  live={liveDiscrepancies(values)}
+                  stored={item.discrepancies}
+                  editable={editable}
+                  taxOverride={taxOverride}
+                  setTaxOverride={setTaxOverride}
+                  isIgst={shouldShowIGST(values)}
+                />
                 <div className={styles.purchaseForm}>
                   <div className={styles.topContainer}>
                     <CustomInput
@@ -274,19 +378,29 @@ function PurchaseModal({
                       label="Supplier GSTN"
                       name={`supplier_gstn`}
                       type="text"
-                      editable={false}
+                      editable={editable}
                     />
                     <CustomInput
                       label="MRC Date"
                       name={`mmh_mrc_dt`}
-                      editable={false}
-                      value={moment(item.mmh_mrc_dt).format("DD-MM-YYYY")}
+                      type="date"
+                      editable={editable}
+                      value={
+                        editable
+                          ? values.mmh_mrc_dt
+                          : moment(item.mmh_mrc_dt).format("DD-MM-YYYY")
+                      }
                     />
                     <CustomInput
                       label="Distributor Bill Date"
                       name={`mmh_dist_bill_dt`}
-                      editable={false}
-                      value={moment(item.mmh_dist_bill_dt).format("DD-MM-YYYY")}
+                      type="date"
+                      editable={editable}
+                      value={
+                        editable
+                          ? values.mmh_dist_bill_dt
+                          : moment(item.mmh_dist_bill_dt).format("DD-MM-YYYY")
+                      }
                     />
                     <CustomInput
                       label="MRC Amount"
@@ -427,6 +541,12 @@ function PurchaseModal({
                     />
                   </div>
 
+                  <RoundOffDifference
+                    difference={calculatedDifference(values)}
+                    roundOff={values.round_off}
+                    editable={editable}
+                  />
+
                   <div className={styles.inputContainer}>
                     <CustomInput
                       label="JV Ledger"
@@ -477,7 +597,16 @@ function PurchaseModal({
                   </Button>
                   {!readOnly &&
                     (editable ? (
-                      <Button colorScheme="purple" onClick={handleSubmit}>
+                      <Button
+                        colorScheme="purple"
+                        onClick={handleSubmit}
+                        isDisabled={isTaxBlocked(values)}
+                        title={
+                          isTaxBlocked(values)
+                            ? "Review the flagged tax or MRC date first"
+                            : undefined
+                        }
+                      >
                         Save & Approve
                       </Button>
                     ) : (
@@ -495,6 +624,84 @@ function PurchaseModal({
         </Formik>
       </ModalContent>
     </Modal>
+  );
+}
+
+const TAX_KIND_LABEL = { true: "IGST", false: "CGST/SGST" };
+
+/**
+ * What Accounts must look at on this bill: the live check of the GSTIN and
+ * dates being edited (util/purchaseDiscrepancy.js), and what the server
+ * flagged (e.g. a RetailPilot change not applied over a correction).
+ */
+function DiscrepancyPanel({ live, stored, editable, taxOverride, setTaxOverride, isIgst }) {
+  const liveCodes = new Set(live.map((d) => d.code));
+  const serverOnly = (stored || []).filter(
+    (d) =>
+      !liveCodes.has(d.code) &&
+      ["RETAILPILOT_CHANGE_NOT_APPLIED", "ROUND_OFF_PREFILLED"].includes(d.code)
+  );
+  const list = [...live, ...serverOnly];
+  if (!list.length) return null;
+  const taxIssue = live.find(
+    (d) =>
+      d.severity === "block" &&
+      ["TAX_TYPE_MISMATCH", "UNREGISTERED_SUPPLIER_TAX"].includes(d.code)
+  );
+
+  return (
+    <Stack spacing={2} mb={4}>
+      {list.map((d) => (
+        <Alert
+          key={d.code}
+          status={
+            d.severity === "block"
+              ? "error"
+              : d.severity === "info"
+              ? "info"
+              : "warning"
+          }
+          borderRadius="6px"
+          fontSize="sm"
+        >
+          <AlertIcon />
+          <AlertDescription>{d.message}</AlertDescription>
+        </Alert>
+      ))}
+      {taxIssue && editable && (
+        <Checkbox
+          isChecked={taxOverride}
+          onChange={(e) => setTaxOverride(e.target.checked)}
+          colorScheme="red"
+          fontSize="sm"
+        >
+          I have reviewed the tax treatment: the rows below are what goes to
+          Tally (as {TAX_KIND_LABEL[isIgst]}), and the tax lines flagged above
+          are replaced by them on save
+        </Checkbox>
+      )}
+    </Stack>
+  );
+}
+
+/** The bill's difference, shown next to the round-off Accounts enter. */
+function RoundOffDifference({ difference, roundOff, editable }) {
+  const { setFieldValue } = useFormikContext();
+  if (difference == null) return null;
+  const same = parseFloat(roundOff || 0).toFixed(2) === difference.toFixed(2);
+  return (
+    <Flex align="center" gap={3} mb={4} fontSize="sm">
+      <Text>
+        Bill amount minus calculated total:{" "}
+        <b>{currencyFormatter(difference, 2)}</b>
+        {same ? " (the round-off above)" : ""}
+      </Text>
+      {editable && !same && (
+        <Button size="xs" variant="outline" onClick={() => setFieldValue("round_off", difference)}>
+          Use as round-off
+        </Button>
+      )}
+    </Flex>
   );
 }
 

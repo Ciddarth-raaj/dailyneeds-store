@@ -27,6 +27,18 @@ function getStatusLabel(item) {
   return getStatusBadge(item)?.label ?? "";
 }
 
+/** The bill's discrepancies (util/purchaseDiscrepancy.js), as one badge. */
+function getCheckBadge(item) {
+  const list = item?.discrepancies || [];
+  if (list.some((d) => d.severity === "block")) {
+    return { label: "Correct before approval", colorScheme: "red" };
+  }
+  if (list.length) {
+    return { label: "Check", colorScheme: "orange" };
+  }
+  return null;
+}
+
 function Purchase() {
   const [search, setSearch] = useState("");
   const [fromDate, setFromDate] = useState(new Date(new Date().setDate(1)));
@@ -162,6 +174,15 @@ function Purchase() {
         valueGetter: (params) => getStatusBadge(params.data),
       },
       {
+        colId: "check",
+        headerName: "Check",
+        type: "badge-column",
+        minWidth: 170,
+        valueGetter: (params) => getCheckBadge(params.data),
+        tooltipValueGetter: (params) =>
+          (params.data?.discrepancies || []).map((d) => d.message).join("\n"),
+      },
+      {
         field: "purchase_id",
         headerName: "Action",
         type: "action-icons",
@@ -181,7 +202,7 @@ function Purchase() {
               label: "Delete Tally Response",
               icon: "fa-solid fa-trash",
               colorScheme: "red",
-              onClick: () => deletePurchaseTallyResponse(item.VoucherNo),
+              onClick: () => deletePurchaseTallyResponse(item.purchase_id),
             });
           }
           return actions;
