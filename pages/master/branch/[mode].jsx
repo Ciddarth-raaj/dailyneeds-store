@@ -5,6 +5,7 @@ import { Formik } from "formik";
 import CustomInput from "../../../components/customInput/customInput";
 import styles from "./branchModal.module.css";
 import { BranchValidation } from "../../../util/validation";
+import { normalizeRetailPilotId } from "../../../util/retailPilotId";
 import useDesignations from "../../../customHooks/useDesignations";
 import usePermissions from "../../../customHooks/usePermissions";
 import { Button } from "@chakra-ui/button";
@@ -36,6 +37,7 @@ function BranchEditor() {
     outlet_address: null,
     store_id: null,
     gofrugal_id: null,
+    retailpilot_id: null,
     outlet_code: null,
     budget: [],
   });
@@ -114,6 +116,7 @@ function BranchEditor() {
         telegram_username: values.telegram_username,
         opening_cash: values.opening_cash,
         gofrugal_id: values.gofrugal_id,
+        retailpilot_id: normalizeRetailPilotId(values.retailpilot_id),
         outlet_code: values.outlet_code,
       },
       budget: values.budget,
@@ -126,12 +129,12 @@ function BranchEditor() {
           router.push("/master/branch");
           return "Outlet Created!";
         } else {
-          throw err;
+          throw response;
         }
       },
       error: (err) => {
         console.log(err);
-        return "Error creating Outlet!";
+        return err?.msg || "Error creating Outlet!";
       },
     });
   };
@@ -148,6 +151,7 @@ function BranchEditor() {
         telegram_username: values.telegram_username,
         opening_cash: values.opening_cash,
         gofrugal_id: values.gofrugal_id,
+        retailpilot_id: normalizeRetailPilotId(values.retailpilot_id),
         outlet_code: values.outlet_code,
       },
       budget: values.budget,
@@ -166,7 +170,7 @@ function BranchEditor() {
       },
       error: (err) => {
         console.log(err);
-        return "Error updating Outlet!";
+        return err?.msg || "Error updating Outlet!";
       },
     });
   };
@@ -249,6 +253,12 @@ function BranchEditor() {
                     <CustomInput
                       label="GoFrugal ID"
                       name="gofrugal_id"
+                      type="text"
+                      editable={editable}
+                    />
+                    <CustomInput
+                      label="RetailPilot ID"
+                      name="retailpilot_id"
                       type="text"
                       editable={editable}
                     />

@@ -1,4 +1,5 @@
 import * as Yup from "yup";
+import { retailPilotIdError } from "./retailPilotId";
 
 export const Validation = Yup.object({
   employee_name: Yup.string().nullable().required("Fill Name"),
@@ -153,6 +154,13 @@ export const BranchValidation = Yup.object({
     .required("Fill Contact Number"),
   outlet_address: Yup.string().nullable().required("Fill Address"),
   gofrugal_id: Yup.string().nullable().optional(),
+  retailpilot_id: Yup.string()
+    .nullable()
+    .optional()
+    .test("retailpilot-id", function (value) {
+      const message = retailPilotIdError(value);
+      return message ? this.createError({ message }) : true;
+    }),
   outlet_code: Yup.string().nullable().optional(),
 });
 export const ProductItemsValidation = Yup.object({
