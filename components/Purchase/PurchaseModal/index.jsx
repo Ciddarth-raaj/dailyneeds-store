@@ -210,7 +210,7 @@ function PurchaseModal({
   // a tax one until the GSTIN or the tax is corrected, or Accounts confirm
   // the tax they entered below; the MRC date one until the date is in its
   // ref no's financial year. A blank GSTIN alone never holds it.
-  const TAX_CODES = ["TAX_TYPE_MISMATCH", "UNREGISTERED_SUPPLIER_TAX"];
+  const TAX_CODES = ["UNREGISTERED_SUPPLIER_TAX"];
   const isTaxBlocked = (values) =>
     liveDiscrepancies(values).some(
       (d) =>
@@ -646,7 +646,7 @@ function DiscrepancyPanel({ live, stored, editable, taxOverride, setTaxOverride,
   const taxIssue = live.find(
     (d) =>
       d.severity === "block" &&
-      ["TAX_TYPE_MISMATCH", "UNREGISTERED_SUPPLIER_TAX"].includes(d.code)
+      d.code === "UNREGISTERED_SUPPLIER_TAX"
   );
 
   return (

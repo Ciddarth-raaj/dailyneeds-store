@@ -21,6 +21,19 @@ test("k.r.candles (unregistered, IGST 5%): the tax needs Accounts' review; a bla
   assert.deepEqual(purchaseDiscrepancies({ supplier_gstn: "" }), []);
 });
 
+test("bill 811 (ID Fresh Food, 33AAICM3930G1ZO): no CGST/SGST-versus-IGST warning", () => {
+  const bill = {
+    supplier_gstn: "33AAICM3930G1ZO",
+    cgst: [{ PERC: 0, TAXABLE: 2911.22, VALUE: 0 }],
+    sgst: [{ PERC: 0, TAXABLE: 2911.22, VALUE: 0 }],
+    igst: [{ PERC: 0, TAXABLE: 2340.04, VALUE: 0 }, { PERC: 5, TAXABLE: 571.18, VALUE: 28.56 }],
+    mmh_mrc_dt: "2026-10-10",
+    mmh_dist_bill_dt: "2026-10-10",
+  };
+  assert.deepEqual(purchaseDiscrepancies(bill), []);
+  assert.doesNotMatch(read("components/Purchase/PurchaseModal/index.jsx"), /TAX_TYPE_MISMATCH/);
+});
+
 test("blocks apply to RetailPilot bills only: a GoFrugal bill's save and approval are unchanged", () => {
   const modal = read("components/Purchase/PurchaseModal/index.jsx");
   assert.match(modal, /return item\?\.retailpilot \? list : asLegacy\(list\);/);
