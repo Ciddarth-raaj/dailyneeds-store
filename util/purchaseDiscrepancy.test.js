@@ -13,10 +13,24 @@ const { purchaseDiscrepancies, hasBlockingDiscrepancy } = require("./purchaseDis
 const root = path.join(__dirname, "..");
 const read = (f) => fs.readFileSync(path.join(root, f), "utf8");
 
-test("k.r.candles: IGST from a supplier with no GSTIN blocks approval until corrected", () => {
+test("k.r.candles (unregistered, IGST 5%): the tax needs Accounts' review; a blank GSTIN alone never does", () => {
   const krc = { supplier_gstn: "", sgst: [], cgst: [], igst: [{ PERC: 5, TAXABLE: 4271.43, VALUE: 213.57 }] };
-  assert.ok(hasBlockingDiscrepancy(purchaseDiscrepancies(krc)));
-  assert.deepEqual(purchaseDiscrepancies({ ...krc, supplier_gstn: "33KRCAN0000K1Z5" }), []);
+  assert.deepEqual(purchaseDiscrepancies(krc).map((d) => d.code), ["UNREGISTERED_SUPPLIER_TAX"]);
+  const nil = [{ PERC: 0, TAXABLE: 4485, VALUE: 0 }];
+  assert.deepEqual(purchaseDiscrepancies({ supplier_gstn: "", sgst: nil, cgst: nil, igst: [] }), [], "reviewed: no input tax");
+  assert.deepEqual(purchaseDiscrepancies({ supplier_gstn: "" }), []);
+});
+
+test("blocks apply to RetailPilot bills only: a GoFrugal bill's save and approval are unchanged", () => {
+  const modal = read("components/Purchase/PurchaseModal/index.jsx");
+  assert.match(modal, /return item\?\.retailpilot \? list : asLegacy\(list\);/);
+  const { asLegacy } = require("./purchaseDiscrepancy");
+  const legacy = asLegacy(purchaseDiscrepancies({ supplier_gstn: "", igst: [{ PERC: 5, TAXABLE: 1, VALUE: 1 }] }));
+  assert.equal(hasBlockingDiscrepancy(legacy), false);
+});
+
+test("the round-off the sync pre-filled is shown as not confirmed", () => {
+  assert.match(read("components/Purchase/PurchaseModal/index.jsx"), /"ROUND_OFF_PREFILLED"/);
 });
 
 test("DN1 bill 271: dated 16-01-2026 with ref no 961 of the FY 2026-27 series - blocked until the MRC date is corrected", () => {
@@ -54,7 +68,7 @@ test("saving files the tax by the GSTIN being saved, not the one the bill was op
 test("tax the GSTIN does not show is never dropped silently: Save waits for a correction or an explicit confirmation", () => {
   const modal = read("components/Purchase/PurchaseModal/index.jsx");
   assert.match(modal, /isDisabled=\{isTaxBlocked\(values\)\}/);
-  assert.match(modal, /d\.severity === "block" &&\s*!\(d\.code === "TAX_TYPE_MISMATCH" && taxOverride\)/);
+  assert.match(modal, /d\.severity === "block" &&\s*!\(TAX_CODES\.includes\(d\.code\) && taxOverride\)/);
 });
 
 test("the full round-off difference is shown, with no amount limit", () => {

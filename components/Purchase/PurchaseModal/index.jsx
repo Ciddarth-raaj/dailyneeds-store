@@ -34,7 +34,10 @@ import {
   LOCAL_PURCHASE_40_PERC,
   shouldShowIGST,
 } from "../../../util/purchase";
-import { purchaseDiscrepancies } from "../../../util/purchaseDiscrepancy";
+import {
+  asLegacy,
+  purchaseDiscrepancies,
+} from "../../../util/purchaseDiscrepancy";
 
 const JV_LEDGER_LIST = [
   { id: 1, value: "Ready to Pay" },
@@ -186,8 +189,10 @@ function PurchaseModal({
     }
   }, [item]);
 
-  const liveDiscrepancies = (values) =>
-    purchaseDiscrepancies({
+  // The bill as being edited. A GoFrugal bill's findings are shown for
+  // review only, as the backend does, so its save and approval are unchanged.
+  const liveDiscrepancies = (values) => {
+    const list = purchaseDiscrepancies({
       supplier_gstn: values.supplier_gstn,
       sgst: item?.sgst,
       cgst: item?.cgst,
@@ -198,15 +203,19 @@ function PurchaseModal({
       voucher_fy: item?.voucher_fy,
       entered_at: item?.entered_at,
     });
+    return item?.retailpilot ? list : asLegacy(list);
+  };
 
-  // Save is held while a blocking discrepancy is open: the tax one until
-  // the GSTIN is corrected or Accounts confirm the re-entered tax, the MRC
-  // date one until the date is in its ref no's financial year.
+  // Save is held while a blocking discrepancy is open on a RetailPilot bill:
+  // a tax one until the GSTIN or the tax is corrected, or Accounts confirm
+  // the tax they entered below; the MRC date one until the date is in its
+  // ref no's financial year. A blank GSTIN alone never holds it.
+  const TAX_CODES = ["TAX_TYPE_MISMATCH", "UNREGISTERED_SUPPLIER_TAX"];
   const isTaxBlocked = (values) =>
     liveDiscrepancies(values).some(
       (d) =>
         d.severity === "block" &&
-        !(d.code === "TAX_TYPE_MISMATCH" && taxOverride)
+        !(TAX_CODES.includes(d.code) && taxOverride)
     );
 
   // Bill amount minus what the screen adds up before the round-off: the
@@ -219,7 +228,7 @@ function PurchaseModal({
 
   const onSubmitHandler = (values) => {
     if (isTaxBlocked(values)) {
-      toast.error("Correct the flagged GSTIN, tax or MRC date first");
+      toast.error("Review the flagged tax or MRC date first");
       return;
     }
 
@@ -594,7 +603,7 @@ function PurchaseModal({
                         isDisabled={isTaxBlocked(values)}
                         title={
                           isTaxBlocked(values)
-                            ? "Correct the flagged GSTIN, tax or MRC date first"
+                            ? "Review the flagged tax or MRC date first"
                             : undefined
                         }
                       >
@@ -627,17 +636,31 @@ const TAX_KIND_LABEL = { true: "IGST", false: "CGST/SGST" };
  */
 function DiscrepancyPanel({ live, stored, editable, taxOverride, setTaxOverride, isIgst }) {
   const liveCodes = new Set(live.map((d) => d.code));
-  const serverOnly = (stored || []).filter((d) => !liveCodes.has(d.code) && d.code === "RETAILPILOT_CHANGE_NOT_APPLIED");
+  const serverOnly = (stored || []).filter(
+    (d) =>
+      !liveCodes.has(d.code) &&
+      ["RETAILPILOT_CHANGE_NOT_APPLIED", "ROUND_OFF_PREFILLED"].includes(d.code)
+  );
   const list = [...live, ...serverOnly];
   if (!list.length) return null;
-  const taxMismatch = live.find((d) => d.code === "TAX_TYPE_MISMATCH");
+  const taxIssue = live.find(
+    (d) =>
+      d.severity === "block" &&
+      ["TAX_TYPE_MISMATCH", "UNREGISTERED_SUPPLIER_TAX"].includes(d.code)
+  );
 
   return (
     <Stack spacing={2} mb={4}>
       {list.map((d) => (
         <Alert
           key={d.code}
-          status={d.severity === "block" ? "error" : "warning"}
+          status={
+            d.severity === "block"
+              ? "error"
+              : d.severity === "info"
+              ? "info"
+              : "warning"
+          }
           borderRadius="6px"
           fontSize="sm"
         >
@@ -645,15 +668,16 @@ function DiscrepancyPanel({ live, stored, editable, taxOverride, setTaxOverride,
           <AlertDescription>{d.message}</AlertDescription>
         </Alert>
       ))}
-      {taxMismatch && editable && (
+      {taxIssue && editable && (
         <Checkbox
           isChecked={taxOverride}
           onChange={(e) => setTaxOverride(e.target.checked)}
           colorScheme="red"
           fontSize="sm"
         >
-          The supplier's GSTIN is right: I have entered the tax below as{" "}
-          {TAX_KIND_LABEL[isIgst]}, and the other tax will be removed on save
+          I have reviewed the tax treatment: the rows below are what goes to
+          Tally (as {TAX_KIND_LABEL[isIgst]}), and the tax lines flagged above
+          are replaced by them on save
         </Checkbox>
       )}
     </Stack>
