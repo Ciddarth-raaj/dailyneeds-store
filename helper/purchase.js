@@ -62,6 +62,17 @@ export const getAllPurchasesFromTally = async (filters) => {
   }
 };
 
+/** Removes the Tally response of one purchase, by its id. */
+export const deletePurchaseTallyResponseForPurchase = async (purchaseId) => {
+  try {
+    const response = await API.delete(`/purchase/${purchaseId}/tally-response`);
+    return response.data;
+  } catch (err) {
+    console.log(err);
+    throw err;
+  }
+};
+
 export const deletePurchaseTallyResponse = async (VoucherNo) => {
   try {
     const response = await API.delete(`/purchase/delete-tally/${VoucherNo}`);

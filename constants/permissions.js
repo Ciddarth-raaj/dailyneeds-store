@@ -484,6 +484,7 @@ export const PERMISSIONS = {
     unsave_account_sheet: "Unsave Account Sheet",
     view_purchases: "View Purchases",
     view_purchases_difference: "View Purchases Difference",
+    sync_retailpilot_purchases: "Run RetailPilot Purchase Sync",
   },
 
   // Reconciliation
