@@ -9,6 +9,7 @@ import { Button } from "@chakra-ui/button";
 import { Checkbox, Flex, Input, Text } from "@chakra-ui/react";
 
 import PurchaseModal from "../../components/Purchase/PurchaseModal";
+import RetailPilotSync from "../../components/Purchase/RetailPilotSync";
 import FromToDateOutletPicker from "../../components/DateOutletPicker/FromToDateOutletPicker";
 import { exportToExcel } from "../../util/exportCSVFile";
 
@@ -104,6 +105,7 @@ function Purchase() {
     updatePurchase,
     unapprovePurchase,
     deletePurchaseTallyResponse,
+    refetch,
   } = usePurchase(filters);
 
   const filteredPurchases = useMemo(() => {
@@ -257,9 +259,12 @@ function Purchase() {
         title="All Purchases"
         filledHeader
         rightSection={
-          <Button colorScheme="purple" onClick={exportData} size="sm">
-            Export
-          </Button>
+          <Flex gap="12px">
+            <RetailPilotSync onSynced={() => refetch(true)} />
+            <Button colorScheme="purple" onClick={exportData} size="sm">
+              Export
+            </Button>
+          </Flex>
         }
       >
         <Input
