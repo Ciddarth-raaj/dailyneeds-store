@@ -651,9 +651,6 @@ export const PERMISSIONS = {
   Miscellaneous: {
     all_stores: "Access All Stores",
     allow_product_sync: "Allow Product Sync",
-    view_sto: "View STO Comparison",
-    add_sto: "Add STO Comparison",
-    delete_sto: "Delete STO Comparison",
     view_price_checker: "View Price Checker",
     view_images_download_log: "View Image Download Log",
     view_api_logs: "View API Logs",
