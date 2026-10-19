@@ -548,6 +548,12 @@ const ALL_PAGES_MENU = {
         selected: false,
         location: "/misc/api-logs",
       },
+      retailpilot_sync: {
+        title: "RetailPilot Sync",
+        permission: "sync_retailpilot_stock",
+        selected: false,
+        location: "/retailpilot-sync",
+      },
       stock_checker: {
         title: "Stock Checker",
         subMenu: {

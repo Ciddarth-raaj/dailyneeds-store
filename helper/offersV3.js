@@ -224,10 +224,6 @@ const offersV3 = {
   uploadMeta: () => unwrap(API.get("/offers-v3/upload-meta"), "Failed to fetch upload meta").then((d) => d.data ?? {}),
 
   import: (rows) => unwrap(API.post("/offers-v3/import", rows), "Failed to import offers"),
-
-  // Start the RetailPilot sync now (what runs daily at 6:00): products, then
-  // Offers V3 price and stock, then the Price Checker. Runs in the background.
-  retailPilotSync: () => unwrap(API.post("/offers-v3/retailpilot-sync", {}), "Failed to start RetailPilot sync"),
 };
 
 export default offersV3;

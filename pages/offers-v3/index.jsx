@@ -1025,19 +1025,6 @@ function MismatchesTab({ refreshKey }) {
 
 function OffersV3Listing() {
   const canAdd = usePermissions("add_offers_v3");
-  const canSyncRetailPilot = usePermissions("sync_retailpilot_stock");
-  const [rpSyncing, setRpSyncing] = useState(false);
-  const handleRetailPilotSync = async () => {
-    setRpSyncing(true);
-    try {
-      const res = await offersV3.retailPilotSync();
-      toast.success(res?.msg || "RetailPilot sync started");
-    } catch (err) {
-      toast.error(err?.message ?? "Failed to start RetailPilot sync");
-    } finally {
-      setRpSyncing(false);
-    }
-  };
   const [tabIndex, setTabIndex] = useState(0);
   const [dataVersion, setDataVersion] = useState(0);
   const {
@@ -1114,24 +1101,17 @@ function OffersV3Listing() {
         title="Offers V3"
         filledHeader
         rightSection={
-          <Flex gap={2}>
-            {canSyncRetailPilot ? (
-              <Button onClick={handleRetailPilotSync} isLoading={rpSyncing} colorScheme="purple" size="sm">
-                Sync from RetailPilot
-              </Button>
-            ) : null}
-            {canAdd ? (
-              <FileUploaderWithColumnMapping
-                config={IMPORT_COLUMNS}
-                onMappedData={handleImportMappedData}
-                renderer={(openFileBrowser) => (
-                  <Button onClick={openFileBrowser} colorScheme="purple" variant="outline" size="sm">
-                    One-Time Go-Live Import
-                  </Button>
-                )}
-              />
-            ) : null}
-          </Flex>
+          canAdd ? (
+            <FileUploaderWithColumnMapping
+              config={IMPORT_COLUMNS}
+              onMappedData={handleImportMappedData}
+              renderer={(openFileBrowser) => (
+                <Button onClick={openFileBrowser} colorScheme="purple" variant="outline" size="sm">
+                  One-Time Go-Live Import
+                </Button>
+              )}
+            />
+          ) : null
         }
       >
         {lastImportResult || importUploadMeta ? (
