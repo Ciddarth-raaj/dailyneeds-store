@@ -485,6 +485,7 @@ export const PERMISSIONS = {
     view_purchases: "View Purchases",
     view_purchases_difference: "View Purchases Difference",
     sync_retailpilot_purchases: "Run RetailPilot Purchase Sync",
+    sync_retailpilot_stock: "Run RetailPilot Stock & Price Sync",
   },
 
   // Reconciliation
