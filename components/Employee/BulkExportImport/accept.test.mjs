@@ -81,7 +81,6 @@ describe("the Bulk Import dropzone accepts the files it is given", () => {
     const callers = [
       "pages/price-checker/index.jsx",
       "pages/master/distributors/index.jsx",
-      "pages/sto/[mode].jsx",
     ];
     for (const file of callers) {
       const src = fs.readFileSync(path.join(root, file), "utf8");

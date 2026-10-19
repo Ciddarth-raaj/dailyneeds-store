@@ -720,12 +720,6 @@ const WMS_MENU = {
     openPage: false,
     icon: "fa-boxes-packing",
     subMenu: {
-      sto_comparison: {
-        title: "STO Comparison",
-        permission: "view_sto",
-        selected: false,
-        location: "/sto",
-      },
       price_checker: {
         title: "Price Checker",
         permission: "view_price_checker",
