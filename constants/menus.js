@@ -824,20 +824,6 @@ const WMS_MENU = {
       },
     },
   },
-  cleaning: {
-    title: "Cleaning and Packing",
-    selected: false,
-    openPage: false,
-    icon: "fa-boxes-packing",
-    subMenu: {
-      view_cleaning: {
-        title: "View List",
-        permission: "view_cleaning_packing",
-        selected: false,
-        location: "/cleaning-packing",
-      },
-    },
-  },
 };
 
 /** Menu tree for the GST module (module rail → GST). */

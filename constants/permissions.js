@@ -426,11 +426,6 @@ export const PERMISSIONS = {
     view_items: "View Items",
   },
 
-  // Cleaning and Packing
-  cleaning: {
-    view_cleaning_packing: "View Cleaning and Packing",
-  },
-
   // EB Consumption
   eb_consumption: {
     view_eb_consumption: "View EB Consumption",

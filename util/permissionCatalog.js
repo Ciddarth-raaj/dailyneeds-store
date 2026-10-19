@@ -12,7 +12,6 @@ import MENUS, { MENU_MODULES } from "../constants/menus";
 /** Display titles for permission groups that have no matching sidebar menu. */
 const MODULE_TITLES = {
   items: "Items",
-  cleaning: "Cleaning & Packing",
   Products: "Products",
   indents: "Indents & Transportations",
   pick_pack: "Pick & Pack",
@@ -40,7 +39,6 @@ const MODULE_ICONS = {
   purchase_order: "fa-file-signature",
   invoice: "fa-file-invoice",
   items: "fa-box",
-  cleaning: "fa-broom",
   eb_consumption: "fa-bolt",
   advance_request: "fa-hand-holding-dollar",
   accounts: "fa-calculator",
