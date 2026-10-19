@@ -500,8 +500,6 @@ export const PERMISSIONS = {
     view_purchase_return: "View Purchase Return",
     add_purchase_return: "Add Purchase Return Extra",
     update_purchase_return_status: "Update Purchase Return Status",
-    view_purchase_acknowledgement: "View Purchase Acknowledgement",
-    add_purchase_acknowledgement: "Add Purchase Acknowledgement",
   },
 
   // Debit Note

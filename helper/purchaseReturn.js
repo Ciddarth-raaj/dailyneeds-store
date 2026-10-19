@@ -13,21 +13,6 @@ export const getPurchaseReturns = () => {
   });
 };
 
-/**
- * Get purchase returns for a distributor (open only). See PURCHASE_ACKNOWLEDGEMENT_APIS.md.
- * @param {string} distributorId - MDM_DIST_CODE / mprh_dist_code
- * @param {string} purchaseAcknowledgementId - Purchase acknowledgement ID
- */
-export const getPurchaseReturnsByDistributor = (distributorId, purchaseAcknowledgementId) => {
-  return API.get(
-    `/purchase-return/by-distributor/${encodeURIComponent(distributorId)}?purchase_acknowledgement_id=${purchaseAcknowledgementId != null ? encodeURIComponent(purchaseAcknowledgementId) : ""}`
-  ).then((res) => {
-    const data = res?.data ?? res;
-    if (data?.code === 200) return data;
-    throw new Error(data?.msg || "Failed to fetch purchase returns by distributor");
-  });
-};
-
 export const getPurchaseReturnById = (mprh_pr_no) => {
   return API.get(`/purchase-return/${encodeURIComponent(mprh_pr_no)}`).then(
     (res) => {

@@ -678,20 +678,6 @@ const WMS_MENU = {
       },
     },
   },
-  purchase: {
-    title: "Purchase",
-    selected: false,
-    openPage: false,
-    icon: "fa-dollar-sign",
-    subMenu: {
-      view_purchase_acknowledgement: {
-        title: "Purchase Acknowledgement",
-        permission: "view_purchase_acknowledgement",
-        selected: false,
-        location: "/purchase/purchase-acknowledgement",
-      },
-    },
-  },
   purchase_ref: {
     title: "Purchase Ref",
     selected: false,
