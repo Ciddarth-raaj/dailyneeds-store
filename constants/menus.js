@@ -796,32 +796,6 @@ const WMS_MENU = {
         selected: false,
         location: "/offers-v3",
       },
-      view_talker_capture: {
-        title: "Talker Check",
-        permission: "add_offers_v3_talker_proofs",
-        selected: false,
-        location: "/offers-v3/talker-capture",
-      },
-      view_talker_board: {
-        title: "Talker Board",
-        permission: "view_offers_v3_talker_proofs",
-        selected: false,
-        location: "/offers-v3/talker-board",
-      },
-      view_talker_groups: {
-        title: "Talkers",
-        permission: "manage_offers_v3_talker_groups",
-        selected: false,
-        location: "/offers-v3/talker-groups",
-      },
-      view_talker_print: {
-        // Outlets print; HQ creates. This is the one talker page an outlet
-        // needs, so it hangs off its own permission.
-        title: "Print Talkers",
-        permission: "print_offers_v3_talkers",
-        selected: false,
-        location: "/offers-v3/talker-print",
-      },
     },
   },
 };
