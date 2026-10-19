@@ -35,11 +35,12 @@ function PurchaseUom() {
     }
   }, [error]);
 
-  // Ordered by the GRN's own line number (mmd_mrc_sl_no).
+  // Ordered by the GRN's own line number (line_no on RetailPilot GRNs,
+  // mmd_mrc_sl_no on GoFrugal ones).
   const sortedItems = useMemo(
     () =>
       [...items].sort(
-        (a, b) => (a.mmd_mrc_sl_no ?? 0) - (b.mmd_mrc_sl_no ?? 0)
+        (a, b) => (a.line_no ?? a.mmd_mrc_sl_no ?? 0) - (b.line_no ?? b.mmd_mrc_sl_no ?? 0)
       ),
     [items]
   );

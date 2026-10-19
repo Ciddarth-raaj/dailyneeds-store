@@ -211,7 +211,8 @@ function GrnDetailPage() {
         sortable: false,
         filter: false,
         suppressSizeToFit: true,
-        valueGetter: (params) => params.data?.mmd_mrc_sl_no ?? "",
+        // RetailPilot GRN lines carry a line number; their sl_no is an id.
+        valueGetter: (params) => params.data?.line_no ?? params.data?.mmd_mrc_sl_no ?? "",
       },
       {
         field: "product_id",
