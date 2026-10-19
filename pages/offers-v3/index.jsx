@@ -232,6 +232,7 @@ function ItemOffersTab({ canAdd }) {
     () => [
       { field: "id", headerName: "ID", type: "id" },
       { field: "item_code", headerName: "Item Code", flex: 1 },
+      { field: "retailpilot_article_id", headerName: "RetailPilot ID", flex: 1 },
       { field: "item_name", headerName: "Item Name", flex: 2 },
       {
         field: "offer_type",
@@ -340,6 +341,7 @@ function BatchOffersTab({ canAdd }) {
     () => [
       { field: "id", headerName: "ID", type: "id" },
       { field: "item_code", headerName: "Item Code", flex: 1 },
+      { field: "retailpilot_article_id", headerName: "RetailPilot ID", flex: 1 },
       { field: "item_name", headerName: "Item Name", flex: 1.5 },
       { field: "outlet_name", headerName: "Outlet", flex: 1 },
       { field: "batch_no", headerName: "Batch No", flex: 1 },
@@ -748,6 +750,7 @@ function UntaggedBatchesTab({ canAdd, refreshKey }) {
   const colDefs = useMemo(
     () => [
       { field: "item_code", headerName: "Item Code", flex: 1 },
+      { field: "retailpilot_article_id", headerName: "RetailPilot ID", flex: 1 },
       { field: "item_name", headerName: "Item Name", flex: 1.5 },
       { field: "outlet_name", headerName: "Outlet", flex: 1 },
       { field: "batch_no", headerName: "Batch No", flex: 1 },
@@ -868,6 +871,7 @@ function LowStockWarningsTab({ refreshKey }) {
   const colDefs = useMemo(
     () => [
       { field: "item_code", headerName: "Item Code", flex: 1 },
+      { field: "retailpilot_article_id", headerName: "RetailPilot ID", flex: 1 },
       { field: "item_name", headerName: "Item Name", flex: 1.5 },
       { field: "total_stock_qty", headerName: "Total Stock (All Stores)", type: "number" },
       { field: "threshold_qty", headerName: "Threshold Qty", type: "number" },

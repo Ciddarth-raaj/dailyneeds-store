@@ -461,6 +461,11 @@ function PriceChecker() {
         type: "id",
       },
       {
+        field: "RetailPilot_Article_ID",
+        headerName: "RetailPilot ID",
+        type: "id",
+      },
+      {
         field: "Item_Name",
         headerName: "Name",
         type: "capitalized",
