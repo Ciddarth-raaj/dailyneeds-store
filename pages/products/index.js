@@ -70,7 +70,7 @@ function Products() {
           isLoading={syncing}
           leftIcon={<i className="fa fa-sync-alt" />}
         >
-          Sync
+          Sync from RetailPilot
         </Button>
       ) : null}
       {canViewImageDownloadLog ? <ImagesArchiveDownloadControl /> : null}
