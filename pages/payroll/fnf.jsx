@@ -35,6 +35,8 @@ import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../components/CustomContainer";
 import usePayrollActor from "../../customHooks/usePayrollActor";
 import EmployeeExitHelper from "../../helper/employeeExit";
+import PayrunCalculationHelper from "../../helper/payrunCalculation";
+import { canExportPayslips } from "../../util/payrunAccess";
 import { canViewFnf, rowActions, netLabel, STAGE_COLOR } from "../../util/fnfAccess";
 
 /**
@@ -174,6 +176,19 @@ function FnfSettlement() {
     load();
   }, [load]);
 
+  /* The exit month's published payslip (its F&F statement) as a PDF, for printing. */
+  const [downloadingId, setDownloadingId] = useState(null);
+  const downloadPdf = async (row) => {
+    setDownloadingId(row.employee_id);
+    try {
+      await PayrunCalculationHelper.downloadPayslipPdf({ year, month, employee_id: row.employee_id });
+    } catch (err) {
+      toast({ status: "error", title: err.message });
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
   const years = useMemo(() => [now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1], []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const body = () => {
@@ -254,6 +269,12 @@ function FnfSettlement() {
                           {a.settle ? (
                             <Button size="xs" colorScheme="green" onClick={() => setSettleFor({ target, mode: "settle" })}>
                               Confirm payment
+                            </Button>
+                          ) : null}
+                          {(row.stage === "PUBLISHED" || row.stage === "SETTLED") && canExportPayslips(actor) ? (
+                            <Button size="xs" variant="outline" colorScheme="blue" onClick={() => downloadPdf(row)}
+                              isLoading={downloadingId === row.employee_id}>
+                              Download PDF
                             </Button>
                           ) : null}
                           {a.reopen ? (

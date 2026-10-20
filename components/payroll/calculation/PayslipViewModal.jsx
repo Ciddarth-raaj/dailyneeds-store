@@ -14,10 +14,13 @@ import {
   Spinner,
   Stack,
   Text,
+  useToast,
 } from "@chakra-ui/react";
 
 import PayrunCalculationHelper from "../../../helper/payrunCalculation";
 import PayslipDetail from "../../payslip/PayslipDetail";
+import usePayrollActor from "../../../customHooks/usePayrollActor";
+import { canExportPayslips } from "../../../util/payrunAccess";
 import { describeApiResult, KIND } from "../../../util/salaryApiError";
 import { notificationBadge, viewBadge, formatViewedAt } from "../../../util/payrunCalculation";
 
@@ -32,6 +35,19 @@ function PayslipViewModal({ isOpen, onClose, target, year, month }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [data, setData] = useState(null);
+  const [downloading, setDownloading] = useState(false);
+  const actor = usePayrollActor();
+  const toast = useToast();
+  const downloadPdf = async () => {
+    setDownloading(true);
+    try {
+      await PayrunCalculationHelper.downloadPayslipPdf({ year, month, employee_id: target.employee_id });
+    } catch (err) {
+      toast({ status: "error", title: err.message });
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   useEffect(() => {
     if (!isOpen || !target) return undefined;
@@ -119,6 +135,11 @@ function PayslipViewModal({ isOpen, onClose, target, year, month }) {
           ) : null}
         </ModalBody>
         <ModalFooter>
+          {payslip && canExportPayslips(actor) ? (
+            <Button size="sm" colorScheme="blue" variant="outline" mr={3} onClick={downloadPdf} isLoading={downloading}>
+              Download PDF
+            </Button>
+          ) : null}
           <Button size="sm" onClick={onClose}>
             Close
           </Button>
