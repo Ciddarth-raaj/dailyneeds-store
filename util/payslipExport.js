@@ -101,4 +101,17 @@ async function buildExportZip(JSZip, { result, year, month, nameOf }) {
   return zip.generateAsync({ type: "blob", compression: "STORE" });
 }
 
-module.exports = { runPayslipExport, buildExportZip, exportReport, zipName, chunk };
+/**
+ * ONE EMPLOYEE'S PDF from an export batch of one: the file, or the server's
+ * reason it was not exported (not published, outside the caller's scope).
+ */
+function singlePayslipPdf(res) {
+  if (!res || res.code !== 200) return { error: (res && res.msg) || "The payslip PDF could not be downloaded." };
+  const file = Array.isArray(res.files) ? res.files[0] : null;
+  if (!file || !file.pdf_base64) {
+    return { error: "No published payslip for this employee and month, or it is outside your branch." };
+  }
+  return { fileName: file.file_name || "payslip.pdf", base64: file.pdf_base64 };
+}
+
+module.exports = { runPayslipExport, buildExportZip, exportReport, zipName, chunk, singlePayslipPdf };

@@ -1,4 +1,5 @@
 import API from "../util/api";
+import { singlePayslipPdf } from "../util/payslipExport";
 
 /**
  * Payrun Calculation & Review - the browser's side of /payrun/calculation.
@@ -169,6 +170,28 @@ const PayrunCalculationHelper = {
       ...listFilters(filters),
       employee_ids,
     }).then((res) => res.data),
+
+  /**
+   * DOWNLOAD ONE PUBLISHED PAYSLIP AS A PDF - the same server export (and the
+   * same `payroll_export_payslips` rule and branch scope) for one employee,
+   * saved straight to a .pdf: the document exactly as published, in its
+   * payslip or F&F form. Throws the server's reason when there is none.
+   */
+  downloadPayslipPdf: async ({ year, month, employee_id }) => {
+    const res = await API.post("/payrun/calculation/payslips/export", { year, month, employee_ids: [employee_id] }).then((r) => r.data);
+    const picked = singlePayslipPdf(res);
+    if (picked.error) throw new Error(picked.error);
+    const bytes = Uint8Array.from(atob(picked.base64), (c) => c.charCodeAt(0));
+    const url = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = picked.fileName;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+    return picked.fileName;
+  },
 
   /**
    * PUBLISH ALL APPROVED PAYSLIPS. Who is approved is decided on the server,
