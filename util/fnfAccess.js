@@ -52,21 +52,15 @@ const STAGE_COLOR = {
 const REHIRE_COLOR = { YES: "green", NO: "red", CONDITIONAL: "orange" };
 const REHIRE_LABEL = { YES: "Fit for rehire", NO: "Not fit for rehire", CONDITIONAL: "Conditional" };
 
-/** Reconcile a late-recorded exit - a payroll correction: view_employees + process_payroll. */
-function canReconcileExit({ permissions = [], isAdmin = false } = {}) {
-  return isAdmin === true || all(permissions, ["view_employees", "process_payroll"]);
-}
-
 /** What a row may do next, given its stage and the caller's rights. */
 function rowActions(row, actor) {
   const accounts = canConfirmFnfPayment(actor);
   const stage = row && row.stage;
-  // The server refuses while the exit is unreconciled or any OT is undecided / unpaid; so does the screen.
-  const blocked = Boolean(row && (row.needs_reconcile || row.outstanding_ot || Number(row.open_ot_requests || 0) > 0));
+  // The server refuses while any OT is undecided / unpaid; so does the screen.
+  const blocked = Boolean(row && (row.outstanding_ot || Number(row.open_ot_requests || 0) > 0));
   return {
     settle: accounts && stage === "PUBLISHED" && !blocked,
     reopen: accounts && stage === "SETTLED",
-    reconcile: canReconcileExit(actor) && Boolean(row && row.needs_reconcile),
     exitInterview: canViewExitInterview(actor),
   };
 }
@@ -85,7 +79,6 @@ module.exports = {
   canViewExitInterview,
   canManageExitInterview,
   canOverrideRehire,
-  canReconcileExit,
   STAGE_COLOR,
   REHIRE_COLOR,
   REHIRE_LABEL,

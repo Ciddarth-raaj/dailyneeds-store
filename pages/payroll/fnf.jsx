@@ -50,11 +50,10 @@ import { canViewFnf, rowActions, netLabel, STAGE_COLOR } from "../../util/fnfAcc
  *                    not payment. A confirmed month cannot be unpublished or
  *                    unlocked until reopened.
  *   REOPEN           with a reason - the one way back.
- *   RECONCILE EXIT   payroll (process_payroll): bring a late-recorded exit
- *                    into the month's payroll snapshot.
  *
- * There are no F&F-only amounts: the exit month is paid exactly as the
- * ordinary payrun pays any month.
+ * The F&F is just the exit month's payslip: no F&F-only amounts, no extra
+ * steps. An exit recorded after the month was initialized is listed with its
+ * payroll status like any other.
  *
  * NOTHING IS CALCULATED HERE. Net pay, totals and stages are the server's.
  */
@@ -175,18 +174,6 @@ function FnfSettlement() {
     load();
   }, [load]);
 
-  /* The explicit correction for an exit recorded after initialization. */
-  const reconcile = async (row) => {
-    try {
-      const res = await EmployeeExitHelper.reconcileExit({ year, month, employee_id: row.employee_id });
-      if (res.code !== 200) throw new Error(res.msg || "Not reconciled");
-      toast({ status: "success", title: res.message || "Exit reconciled" });
-      load();
-    } catch (err) {
-      toast({ status: "error", title: err.message, duration: 9000 });
-    }
-  };
-
   const years = useMemo(() => [now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1], []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const body = () => {
@@ -267,11 +254,6 @@ function FnfSettlement() {
                           {a.settle ? (
                             <Button size="xs" colorScheme="green" onClick={() => setSettleFor({ target, mode: "settle" })}>
                               Confirm payment
-                            </Button>
-                          ) : null}
-                          {a.reconcile ? (
-                            <Button size="xs" colorScheme="orange" onClick={() => reconcile(row)}>
-                              Reconcile exit
                             </Button>
                           ) : null}
                           {a.reopen ? (

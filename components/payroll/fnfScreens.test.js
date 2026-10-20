@@ -45,26 +45,23 @@ test("the confidential exit record is never reachable through a payroll or F&F k
 test("row actions follow the stage: Accounts confirms payment once published, reopens once confirmed", () => {
   const accounts = { permissions: keys("view_employees", "confirm_fnf_payment") };
   const at = (stage, extra = {}) => access.rowActions({ stage, initialized: true, ...extra }, accounts);
-  assert.deepEqual(at("IN_PAYROLL"), { settle: false, reopen: false, reconcile: false, exitInterview: false });
+  assert.deepEqual(at("IN_PAYROLL"), { settle: false, reopen: false, exitInterview: false });
   assert.equal(at("APPROVED").settle, false, "approved is not paid");
   assert.equal(at("PUBLISHED").settle, true);
   assert.equal(at("SETTLED").settle, false);
   assert.equal(at("SETTLED").reopen, true);
   const viewer = { permissions: keys("view_employees", "view_salary", "view_fnf_settlement") };
   assert.deepEqual(access.rowActions({ stage: "PUBLISHED", initialized: true }, viewer), {
-    settle: false, reopen: false, reconcile: false, exitInterview: false,
+    settle: false, reopen: false, exitInterview: false,
   });
   // Publishing payroll is not confirming payment.
   const payroll = { permissions: keys("view_employees", "view_salary", "view_fnf_settlement", "process_payroll", "publish_payrun") };
   assert.equal(access.rowActions({ stage: "PUBLISHED", initialized: true }, payroll).settle, false);
-  // Outstanding OT, an undecided OT request or an unreconciled exit: not offered (the server refuses it too).
+  // Outstanding OT or an undecided OT request: not offered (the server refuses it too).
   assert.equal(at("PUBLISHED", { outstanding_ot: { items: 1 } }).settle, false);
   assert.equal(at("PUBLISHED", { open_ot_requests: 2 }).settle, false);
-  assert.equal(at("PUBLISHED", { needs_reconcile: true }).settle, false);
-  // Reconcile Exit is a payroll correction.
-  const processor = { permissions: keys("view_employees", "process_payroll") };
-  assert.equal(access.rowActions({ stage: "NOT_IN_PAYROLL", needs_reconcile: true }, processor).reconcile, true);
-  assert.equal(access.rowActions({ stage: "NOT_IN_PAYROLL", needs_reconcile: true }, accounts).reconcile, false);
+  // No Reconcile Exit step exists.
+  assert.equal("canReconcileExit" in access, false);
 });
 
 test("a negative F&F is shown as recoverable, never as a negative payment", () => {
@@ -122,7 +119,8 @@ test("the F&F menu entry asks for exactly what GET /payrun/fnf/month requires", 
 
 test("the helper calls exactly the backend's endpoints and sends no computed figure", () => {
   const helper = code(read("helper/employeeExit.js"));
-  for (const url of ["/payrun/fnf/month", "/payrun/fnf/settle", "/payrun/fnf/reopen", "/payrun/fnf/reconcile-exit", "/hr/exit/employee/"]) {
+  assert.ok(!helper.includes("/payrun/fnf/reconcile-exit"), "no Reconcile Exit call");
+  for (const url of ["/payrun/fnf/month", "/payrun/fnf/settle", "/payrun/fnf/reopen", "/hr/exit/employee/"]) {
     assert.ok(helper.includes(url), url);
   }
   assert.ok(!helper.includes("/payrun/fnf/items"), "there is no F&F items endpoint");
