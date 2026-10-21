@@ -477,6 +477,7 @@ export const PERMISSIONS = {
     add_account_sheet: "Add Account Sheet",
     save_account_sheet: "Save Account Sheet",
     unsave_account_sheet: "Unsave Account Sheet",
+    account_sheet_all_stores: "Account Sheet: All Stores",
     view_purchases: "View Purchases",
     view_purchases_difference: "View Purchases Difference",
     sync_retailpilot_purchases: "Run RetailPilot Purchase Sync",

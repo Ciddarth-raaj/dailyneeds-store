@@ -4,7 +4,6 @@ import Link from "next/link";
 import { Button, IconButton } from "@chakra-ui/button";
 import usePermissions from "../../customHooks/usePermissions";
 import { Badge } from "@chakra-ui/react";
-import { useUser } from "../../contexts/UserContext";
 import styles from "../../styles/accounts.module.css";
 import Table from "../../components/table/table";
 import { useAccounts } from "../../customHooks/useAccounts";
@@ -73,10 +72,11 @@ function NormalOutletView({
   selectedOutlet,
   setSelectedOutlet,
   OUTLETS_LIST,
+  storeId,
 }) {
-  const { outlets } = useOutlets();
+  // Only `outlet_name` is read from these, for the export's cost centre.
+  const { outlets } = useOutlets({ directory: true });
   const cashDenominationRef = useRef(null);
-  const { storeId } = useUser().userConfig;
   const { confirm } = useConfirmation();
   const { employees: allEmployees } = useEmployees({
     store_ids: storeId === null ? [] : [storeId],
