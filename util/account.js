@@ -204,7 +204,8 @@ export function getCashBook(accounts, outletData, allEmployees) {
           );
 
           rows.push({
-            particulars: employee?.employee_name ?? "N/A",
+            particulars:
+              item.employee_name ?? employee?.employee_name ?? "N/A",
             narration: item.description,
             debit: item.payment_type === 2 ? item.amount : "",
             credit: item.payment_type === 1 ? item.amount : "",
@@ -529,9 +530,11 @@ export function getWarehouseCashbook(
     sales.forEach((item) => {
       let person_name = item.person_name;
       if (item.person_type === 5) {
-        person_name = allEmployees.find(
-          (employee) => employee.employee_id === item.person_id
-        )?.employee_name;
+        person_name =
+          item.employee_name ??
+          allEmployees.find(
+            (employee) => employee.employee_id === item.person_id
+          )?.employee_name;
       }
 
       modified.push({

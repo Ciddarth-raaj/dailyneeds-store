@@ -193,7 +193,8 @@ function Difference() {
               );
 
               rows.push({
-                particulars: employee?.employee_name ?? "N/A",
+                particulars:
+                  item.employee_name ?? employee?.employee_name ?? "N/A",
                 narration: item.description,
                 debit: item.payment_type === 2 ? item.amount : "",
                 credit: item.payment_type === 1 ? item.amount : "",
