@@ -126,6 +126,23 @@ function countdownText(expiresAt, now = Date.now()) {
 }
 
 /**
+ * `https://t.me/<bot>?start=<payload>` -> `tg://resolve?domain=<bot>&start=<payload>`,
+ * or null when the link is not that shape.
+ *
+ * WHY. The `t.me` web page is unreachable on some mobile networks, so the
+ * https link dead-ends at "This site can't be reached" while the Telegram app
+ * itself works fine. The `tg://` form is handed straight to the installed app
+ * and never touches `t.me`. Same bot, same payload - nothing about the
+ * credential changes.
+ */
+function telegramAppLink(link) {
+  if (typeof link !== "string") return null;
+  const match = link.match(/^https:\/\/t\.me\/([A-Za-z0-9_]{5,32})\?start=([A-Za-z0-9_-]{1,64})$/);
+  if (!match) return null;
+  return `tg://resolve?domain=${match[1]}&start=${match[2]}`;
+}
+
+/**
  * What the CURRENT link attempt has come to, as the backend reports it.
  *
  * SEPARATE FROM THE STATUS, and that separation is what makes reconnect work.
@@ -335,6 +352,7 @@ module.exports = {
   isLinkExpired,
   secondsUntil,
   countdownText,
+  telegramAppLink,
   shouldPollTelegram,
   canManageTelegram,
   canViewTelegram,
