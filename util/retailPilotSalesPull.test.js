@@ -46,3 +46,9 @@ test("the page pulls one day from GET /reconciliation/retailpilot-sales and pars
   assert.match(page, /parseRetailPilotRows\(retailPilotApiRowsToCsvRows\(response\.rows\)\)/);
   assert.match(page, /onClick=\{onPullFromRetailPilot\}/);
 });
+
+test("pulled rows are shown: the table does not wait for an uploaded file", () => {
+  const page = read("pages/reconciliation/sales.jsx");
+  assert.match(page, /\(isRetailPilot \|\| file\) && importData\?\.data \? \(\s*<Table heading=\{HEADERS\}/);
+  assert.doesNotMatch(page, /isRetailPilot \? retailPilotFile : file/);
+});
