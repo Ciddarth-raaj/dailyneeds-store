@@ -75,6 +75,16 @@ export const saveReconciliationEpayment = (params) => {
   });
 };
 
+// One day's POS sales per outlet from RetailPilot, in the Retail Pilot CSV's
+// columns (date, outletname, total_bill_amount, total_sales_return, loyalty).
+// `day` is YYYY-MM-DD. Read-only: nothing is saved by this call.
+export const getRetailPilotSales = async (day) => {
+  const response = await API.get("/reconciliation/retailpilot-sales", {
+    params: { date: day },
+  });
+  return response.data;
+};
+
 export const getReconciliationData = (filters = {}) => {
   return new Promise(async (resolve, reject) => {
     try {

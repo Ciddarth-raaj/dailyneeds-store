@@ -271,8 +271,23 @@ const retailPilotSaveBlockers = ({
   return blockers;
 };
 
+/**
+ * Rows pulled from RetailPilot (GET /reconciliation/retailpilot-sales) as the
+ * CSV would have them - header first, one array per outlet - so a pull goes
+ * through parseRetailPilotRows exactly like an uploaded file.
+ */
+const retailPilotApiRowsToCsvRows = (rows) => [
+  REQUIRED_RETAIL_PILOT_COLUMNS,
+  ...(rows ?? []).map((row) =>
+    REQUIRED_RETAIL_PILOT_COLUMNS.map((column) =>
+      row?.[column] === null || row?.[column] === undefined ? "" : String(row[column])
+    )
+  ),
+];
+
 module.exports = {
   POS_FORMAT,
+  retailPilotApiRowsToCsvRows,
   RETAIL_PILOT_COLUMNS,
   REQUIRED_RETAIL_PILOT_COLUMNS,
   TOLERANCE,
