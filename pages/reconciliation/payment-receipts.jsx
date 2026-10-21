@@ -10,6 +10,7 @@ import DateOutletPicker from "../../components/DateOutletPicker";
 import { useUser } from "../../contexts/UserContext";
 import { updateSales } from "../../helper/accounts";
 import EmptyData from "../../components/EmptyData";
+import usePermissions from "../../customHooks/usePermissions";
 
 const HEADINGS_CASHBOOK = {
   checkbox: "",
@@ -20,7 +21,10 @@ const HEADINGS_CASHBOOK = {
 };
 
 function PaymentReceipts() {
-  const { storeId } = useUser().userConfig;
+  const { storeId: ownStoreId } = useUser().userConfig;
+  // Same key as the Account Sheet: these are that sheet's entries.
+  const canViewAllStores = usePermissions(["account_sheet_all_stores"]);
+  const storeId = canViewAllStores ? null : ownStoreId;
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedOutlet, setSelectedOutlet] = useState(null);
 
