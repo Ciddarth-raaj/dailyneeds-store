@@ -751,12 +751,28 @@ test("the five salary keys are all grantable on the Permission Matrix", () => {
   // different speeds, and a second key to grant is the one somebody forgets.
   assert.ok(!/bulk_salary/i.test(strip), "no bulk-salary permission was invented");
 
-  // AND THE MONTHLY-PAYROLL KEYS STAY OFF IT. `process_payroll` and
-  // `hr_reports` gate nothing that exists.
-  for (const later of ["process_payroll", "hr_reports", "view_payroll"]) {
+  // `hr_reports` STAYS OFF IT: it gates nothing that exists. The Payrun keys
+  // (`view_payroll`, `process_payroll`, ...) are offered now that the Payrun
+  // screen uses them - see the next test.
+  for (const later of ["hr_reports"]) {
     assert.ok(
       !new RegExp(`\\b${later}\\s*:`).test(strip),
       `${later} gates no screen yet and must not be offered`
     );
+  }
+});
+
+test("the Payrun keys are all grantable on the Permission Matrix", () => {
+  // Without an entry here a Payrun key cannot be granted at all, and the
+  // Payrun is visible to administrators and to nobody else - which is how HR
+  // came to have no Payrun.
+  const permissions = read("constants/permissions.js");
+  const strip = permissions.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  for (const key of [
+    "view_payroll", "process_payroll", "change_payrun_pay_type",
+    "close_payrun_attendance", "approve_payrun", "publish_payrun",
+    "unlock_payrun", "payroll_export_payslips",
+  ]) {
+    assert.ok(new RegExp(`\\b${key}\\s*:`).test(strip), `${key} must be grantable`);
   }
 });

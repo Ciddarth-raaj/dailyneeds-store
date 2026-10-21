@@ -628,6 +628,31 @@ export const PERMISSIONS = {
   //   override_rehire_eligibility change a rehire assessment (with a reason)
   //   approve_rehire_exception   MANAGEMENT: rejoin somebody assessed NO /
   //                              CONDITIONAL, with a reason
+  // Payroll - the Monthly Payrun. The backend has checked these since the
+  // payrun migrations, but this file is what the rights screen renders, so
+  // until they were listed here nobody but an administrator could be given
+  // the Payrun.
+  //
+  //   view_payroll              see the Payrun and Payroll Reports (with
+  //                             view_employees and view_salary)
+  //   process_payroll           initialize and recalculate a month
+  //   change_payrun_pay_type    change an employee's pay type in a payrun
+  //   close_payrun_attendance   close a month's attendance for payroll
+  //   approve_payrun            approve a calculated payrun
+  //   publish_payrun            release payslips
+  //   unlock_payrun             reopen an approved or published payrun
+  //   payroll_export_payslips   bulk-export a month's payslips
+  payroll: {
+    view_payroll: "View Payroll (Payrun, Payroll Reports)",
+    process_payroll: "Process Payroll (initialize / recalculate)",
+    change_payrun_pay_type: "Change Payrun Pay Type",
+    close_payrun_attendance: "Close Payrun Attendance",
+    approve_payrun: "Approve Payrun",
+    publish_payrun: "Publish Payrun",
+    unlock_payrun: "Unlock Payrun",
+    payroll_export_payslips: "Export Payslips (bulk)",
+  },
+
   fnf_settlement: {
     view_fnf_settlement: "View F&F Settlements",
     confirm_fnf_payment: "Confirm F&F Payment (Accounts)",
