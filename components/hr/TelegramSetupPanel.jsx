@@ -21,6 +21,7 @@ import {
   attemptMismatched,
   countdownText,
   isConnected,
+  telegramAppLink,
   isReconnectInFlight,
   telegramBadgeScheme,
   telegramLabel,
@@ -98,6 +99,10 @@ function TelegramSetupPanel({
   }, [link]);
 
   const [confirmingDisconnect, setConfirmingDisconnect] = useState(false);
+
+  // The QR and button open the Telegram app directly; `t.me` is blocked on
+  // some mobile networks. The https link stays as the fallback.
+  const appLink = telegramAppLink(link) || link;
 
   const current = (status && status.status) || null;
   const connected = isConnected(current);
@@ -263,13 +268,13 @@ function TelegramSetupPanel({
           {/* The link is encoded, never printed. `maxWidth: 100%` is what
               keeps it on a phone screen without horizontal scrolling. */}
           <Box bg="white" p={3} borderRadius="md" borderWidth="1px" maxWidth="100%">
-            <QRCodeSVG value={link} size={200} includeMargin style={{ maxWidth: "100%", height: "auto" }} />
+            <QRCodeSVG value={appLink} size={200} includeMargin style={{ maxWidth: "100%", height: "auto" }} />
           </Box>
           <Text fontSize="sm" color="gray.600">
             QR expires in {countdownText(expiresAt)}
           </Text>
           <Stack direction={{ base: "column", sm: "row" }} spacing={2} width="100%" justify="center">
-            <Link href={link} isExternal _hover={{ textDecoration: "none" }}>
+            <Link href={appLink} isExternal _hover={{ textDecoration: "none" }}>
               <Button size="sm" colorScheme="telegram" width="100%">
                 Open Telegram
               </Button>
@@ -281,6 +286,14 @@ function TelegramSetupPanel({
           <Text fontSize="xs" color="gray.600" textAlign="center">
             After opening Telegram, tap Share Phone Number. Do not type the number manually.
           </Text>
+          {appLink !== link && (
+            <Text fontSize="xs" color="gray.600" textAlign="center">
+              Telegram not opening?{" "}
+              <Link href={link} isExternal color="telegram.600" textDecoration="underline">
+                Try the web link
+              </Link>
+            </Text>
+          )}
         </Stack>
       )}
 

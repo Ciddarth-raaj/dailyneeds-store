@@ -407,3 +407,16 @@ test("THE WHOLE RECONNECT, in the order it happens", () => {
   assert.equal(shouldPollTelegram({ ...connected, attempt: "VERIFIED", hasLiveLink: true }), false);
   assert.equal(settles({ attempt: "VERIFIED", statusIsCurrent: true }), true, "now it closes");
 });
+
+test("telegramAppLink opens the app directly, bypassing t.me", () => {
+  const { telegramAppLink } = require("./employeeTelegram");
+  const token = "e_" + "a1".repeat(24);
+  assert.equal(
+    telegramAppLink(`https://t.me/DailyNeedsBot?start=${token}`),
+    `tg://resolve?domain=DailyNeedsBot&start=${token}`
+  );
+  assert.equal(telegramAppLink("https://example.com/DailyNeedsBot?start=x"), null);
+  assert.equal(telegramAppLink("https://t.me/DailyNeedsBot"), null);
+  assert.equal(telegramAppLink("https://t.me/DailyNeedsBot?start=a&b=c"), null);
+  assert.equal(telegramAppLink(null), null);
+});
