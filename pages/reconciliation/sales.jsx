@@ -712,7 +712,9 @@ function Sales() {
         >
           {isRetailPilot && importData?.data && !salesLoadedForDate ? (
             <EmptyData message="Loading DnDS sales for this date…" />
-          ) : (isRetailPilot ? retailPilotFile : file) && importData?.data ? (
+          ) : // Retail Pilot rows come from an uploaded CSV or a Pull - no file
+            // for a Pull - and importData exists only once they parsed.
+            (isRetailPilot || file) && importData?.data ? (
             <Table heading={HEADERS} rows={rows ?? []} />
           ) : (
             <EmptyData message="Import data to continue" />
