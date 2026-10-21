@@ -242,6 +242,58 @@ function navigationHint(search) {
 }
 
 /**
+ * TELEGRAM'S SIGNED `initData`, READ FROM THE LAUNCH URL ITSELF.
+ *
+ * Telegram opens a Mini App at `<url>#tgWebAppData=<initData>&tgWebAppVersion=…`.
+ * The SDK (`telegram-web-app.js`) does nothing more than parse that hash, so
+ * the page reads it directly rather than depending on the SDK to arrive in
+ * time. The SDK is loaded from telegram.org only after the page hydrates, and
+ * on a slow phone connection it routinely took longer than the page waited -
+ * every such employee saw "Please open this page from the Daily Needs bot"
+ * from a perfectly good bot button.
+ *
+ * `sessionStorage` is the SDK's own copy (`__telegram__initParams`), written
+ * when it parsed the hash; it is what survives an in-app reload, where
+ * Telegram does not repeat the hash. Pass its raw JSON string.
+ *
+ * This is the SAME string the SDK would have exposed as `initData`. It grants
+ * nothing by itself: the server verifies its signature with the bot token.
+ */
+function launchParam(raw, key) {
+  const text = typeof raw === "string" ? raw.replace(/^[#?]/, "") : "";
+  if (text === "") return "";
+  for (const part of text.split("&")) {
+    const eq = part.indexOf("=");
+    const name = eq < 0 ? part : part.slice(0, eq);
+    if (name !== key) continue;
+    const value = eq < 0 ? "" : part.slice(eq + 1);
+    try {
+      // The SDK's own `urlSafeDecode`: `+` is a space, then percent-decode.
+      return decodeURIComponent(value.replace(/\+/g, "%20"));
+    } catch (err) {
+      return "";
+    }
+  }
+  return "";
+}
+
+function launchInitData({ hash = "", search = "", stored = null } = {}) {
+  const fromHash = launchParam(hash, "tgWebAppData");
+  if (fromHash) return fromHash;
+  const fromSearch = launchParam(search, "tgWebAppData");
+  if (fromSearch) return fromSearch;
+  if (typeof stored === "string" && stored !== "") {
+    try {
+      const params = JSON.parse(stored);
+      if (params && typeof params.tgWebAppData === "string") return params.tgWebAppData;
+    } catch (err) {
+      return "";
+    }
+  }
+  return "";
+}
+
+/**
  * The card the employee taps, from a server row.
  *
  * `can_submit` is the SERVER's answer, carried through rather than
@@ -399,6 +451,7 @@ module.exports = {
   canGoNext,
   monthLabel,
   navigationHint,
+  launchInitData,
   dateCard,
   stateColor,
   buildSubmission,

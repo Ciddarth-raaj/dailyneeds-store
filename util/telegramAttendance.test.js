@@ -563,3 +563,18 @@ test("Telegram OT card: calculated OT a rule keeps out of approval names the rul
   assert.equal(card.requested_ot, null);
   assert.match(card.next_step, /before automatic OT approval started/);
 });
+
+test("initData is read from Telegram's launch hash without the SDK", () => {
+  const { launchInitData } = require("./telegramAttendance");
+  const initData = "query_id=AAE&user=%7B%22id%22%3A42%7D&auth_date=1700000000&hash=abc";
+  const hash = `#tgWebAppData=${encodeURIComponent(initData)}&tgWebAppVersion=7.0&tgWebAppPlatform=android`;
+  assert.equal(launchInitData({ hash }), initData);
+  // Some clients put the launch params in the query string instead.
+  assert.equal(launchInitData({ search: `?section=corrections&tgWebAppData=${encodeURIComponent(initData)}` }), initData);
+  // An in-app reload: the hash is gone, the SDK's sessionStorage copy remains.
+  assert.equal(launchInitData({ hash: "", stored: JSON.stringify({ tgWebAppData: initData }) }), initData);
+  // Nothing to go on.
+  assert.equal(launchInitData({}), "");
+  assert.equal(launchInitData({ hash: "#section", search: "?date=2026-09-18", stored: "not json" }), "");
+  assert.equal(launchInitData({ hash: "#tgWebAppData=%E0%A4%A" }), "");
+});
