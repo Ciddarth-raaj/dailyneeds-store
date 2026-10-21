@@ -105,11 +105,12 @@ test("THEY ARE THREE SEPARATE DECISIONS, NOT ONE", () => {
 });
 
 test("NO NOT-YET-BUILT REPORTING KEY RIDES IN WITH THEM", () => {
-  // `hr_reports` and `process_payroll` are declared by the M2 migration and
-  // gate no screen. A key that can be granted before its screen exists grants
-  // nothing while being remembered as if it did.
+  // `hr_reports` is declared by the M2 migration and gates no screen. A key
+  // that can be granted before its screen exists grants nothing while being
+  // remembered as if it did. (`process_payroll` left this list when the
+  // Payrun screen began to use it.)
   const everywhere = offeredKeys(strip(permissionsSrc));
-  for (const notYet of ["hr_reports", "process_payroll"]) {
+  for (const notYet of ["hr_reports"]) {
     assert.ok(!everywhere.includes(notYet), `${notYet} must not be offered yet`);
   }
 });
