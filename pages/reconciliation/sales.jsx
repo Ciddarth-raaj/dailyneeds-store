@@ -17,18 +17,23 @@ import {
   AlertIcon,
   Box,
   Flex,
+  Input,
   Radio,
   RadioGroup,
   Stack,
   Text,
 } from "@chakra-ui/react";
 import Papa from "papaparse";
-import { saveReconciliation } from "../../helper/reconciliation";
+import {
+  getRetailPilotSales,
+  saveReconciliation,
+} from "../../helper/reconciliation";
 import {
   POS_FORMAT,
   computeDifferences,
   matchOutlets,
   parseRetailPilotRows,
+  retailPilotApiRowsToCsvRows,
   retailPilotSaveBlockers,
 } from "../../util/salesReconciliation";
 
@@ -73,6 +78,10 @@ function Sales() {
   const [retailPilotFile, setRetailPilotFile] = useState(null);
   const [retailPilotParsed, setRetailPilotParsed] = useState(null);
   const retailPilotRead = useRef(0);
+  const [pullDate, setPullDate] = useState(
+    moment().subtract(1, "day").format("YYYY-MM-DD")
+  );
+  const [pulling, setPulling] = useState(false);
   const [saving, setSaving] = useState(false);
   const [file, setFile] = useState(null);
   const [salesReturnFile, setSalesReturnFile] = useState(null);
@@ -396,7 +405,11 @@ function Sales() {
         result = { ok: false, errors: [error.message], date: null, data: [] };
       }
     }
-    // A newer upload (or a format switch) has replaced this file meanwhile.
+    applyRetailPilotResult(read, result, "The Retail Pilot file could not be imported");
+  };
+
+  const applyRetailPilotResult = (read, result, failureMessage) => {
+    // A newer upload or pull (or a format switch) has replaced this one meanwhile.
     if (read !== retailPilotRead.current) return;
 
     setRetailPilotParsed(result);
@@ -409,8 +422,47 @@ function Sales() {
         ).format("DD-MM-YYYY")}`
       );
     } else {
-      toast.error("The Retail Pilot file could not be imported");
+      toast.error(failureMessage);
     }
+  };
+
+  // The same rows as the Retail Pilot CSV, straight from RetailPilot: they
+  // go through parseRetailPilotRows, outlet matching and save unchanged.
+  const onPullFromRetailPilot = async () => {
+    if (pulling || !pullDate) return;
+    const read = ++retailPilotRead.current;
+    setRetailPilotFile(null);
+    setRetailPilotParsed(null);
+    reset();
+    setPulling(true);
+    let result;
+    try {
+      const response = await getRetailPilotSales(pullDate);
+      if (response?.code !== 200) {
+        result = {
+          ok: false,
+          errors: [response?.msg || "RetailPilot sales could not be pulled"],
+          date: null,
+          data: [],
+        };
+      } else if (!response.rows?.length) {
+        result = {
+          ok: false,
+          errors: [
+            `RetailPilot has no sales for ${moment(pullDate, "YYYY-MM-DD").format("DD-MM-YYYY")}.`,
+          ],
+          date: null,
+          data: [],
+        };
+      } else {
+        result = parseRetailPilotRows(retailPilotApiRowsToCsvRows(response.rows));
+      }
+    } catch (error) {
+      result = { ok: false, errors: [error.message], date: null, data: [] };
+    } finally {
+      setPulling(false);
+    }
+    applyRetailPilotResult(read, result, "RetailPilot sales could not be pulled");
   };
 
   const handleSave = async () => {
@@ -514,19 +566,46 @@ function Sales() {
         </RadioGroup>
 
         {isRetailPilot ? (
-          <FileUpload
-            value={retailPilotFile}
-            onChange={onRetailPilotFileChange}
-            accept={CSV_ACCEPT}
-            maxSize={5242880}
-            disabled={saving}
-            placeholderText={
-              <span>
-                {purpleLabel("Upload Retail Pilot Sales CSV")} — drag & drop
-                the daily .csv here, or click to select
-              </span>
-            }
-          />
+          <>
+            <Flex gap={3} align="center" mb={4} wrap="wrap">
+              <Text fontWeight="600">Pull from RetailPilot</Text>
+              <Input
+                type="date"
+                value={pullDate}
+                max={moment().format("YYYY-MM-DD")}
+                onChange={(e) => setPullDate(e.target.value)}
+                isDisabled={pulling || saving}
+                maxW="200px"
+                size="sm"
+              />
+              <Button
+                colorScheme="purple"
+                size="sm"
+                onClick={onPullFromRetailPilot}
+                isLoading={pulling}
+                loadingText="Pulling"
+                isDisabled={!pullDate || saving}
+              >
+                Pull
+              </Button>
+              <Text fontSize="sm" color="gray.500">
+                or upload the CSV below
+              </Text>
+            </Flex>
+            <FileUpload
+              value={retailPilotFile}
+              onChange={onRetailPilotFileChange}
+              accept={CSV_ACCEPT}
+              maxSize={5242880}
+              disabled={saving || pulling}
+              placeholderText={
+                <span>
+                  {purpleLabel("Upload Retail Pilot Sales CSV")} — drag & drop
+                  the daily .csv here, or click to select
+                </span>
+              }
+            />
+          </>
         ) : (
           <Flex gap={4}>
             <FileUpload
