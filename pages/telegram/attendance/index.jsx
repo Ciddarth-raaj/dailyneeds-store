@@ -31,6 +31,7 @@ import {
   apiMessage,
   currentMonth,
   isOk,
+  launchInitData,
   navigationHint,
   sectionAtIndex,
   sectionFromQuery,
@@ -140,6 +141,22 @@ import { otRequestRows } from "../../../util/attendanceV2";
  * chain on the ordinary screens. Nobody approves anything from inside
  * Telegram.
  */
+/**
+ * THE LAUNCH URL, CAPTURED WHEN THIS MODULE FIRST RUNS - before hydration and
+ * before any client-side routing can touch the address bar. Telegram's signed
+ * `initData` is in its hash; see `launchInitData`.
+ */
+const LAUNCH = (() => {
+  if (typeof window === "undefined") return null;
+  let stored = null;
+  try {
+    stored = window.sessionStorage.getItem("__telegram__initParams");
+  } catch (err) {
+    stored = null;
+  }
+  return { hash: window.location.hash, search: window.location.search, stored };
+})();
+
 export default function TelegramAttendancePage() {
   const [ready, setReady] = useState(false);
   // CONTROLLED TABS. The index is state, seeded from `?section=` on load, so
@@ -223,7 +240,12 @@ export default function TelegramAttendancePage() {
       // Navigation only - see the header. An unknown section lands on tab 0.
       setTabIndex(sectionIndex(sectionFromQuery(search)));
 
-      const initData = webApp && webApp.initData ? webApp.initData : "";
+      // The SDK's value when it has loaded; otherwise the very same string,
+      // read from the launch URL this module captured. The SDK is not needed
+      // to authenticate - only to tell Telegram the page is ready.
+      const initData =
+        (webApp && webApp.initData) ||
+        launchInitData(LAUNCH || { hash: window.location.hash, search: window.location.search });
       if (!initData) {
         setDaysLoading(false);
         setCorrectionsLoading(false);
@@ -251,18 +273,24 @@ export default function TelegramAttendancePage() {
     };
 
     /**
-     * WAIT FOR THE SDK, BUT NOT FOREVER. `next/script` loads it after the
-     * page becomes interactive, so `window.Telegram` is usually a moment
-     * behind this effect. Poll briefly, then start anyway - `start` handles
-     * the no-SDK case with an honest message rather than a spinner that
-     * never resolves.
+     * WAIT FOR THE SDK ONLY WHEN WE MUST. `next/script` loads it after the
+     * page becomes interactive, from telegram.org, and on a slow phone
+     * connection that took longer than the 5 seconds this used to wait -
+     * which showed "Please open this page from the Daily Needs bot" to
+     * employees who had done exactly that.
+     *
+     * When the launch URL already carries `initData`, start at once; the
+     * Script's `onLoad` calls `ready()`/`expand()` whenever the SDK lands.
+     * Only with no launch data at all is the SDK the last hope, and then it
+     * gets a generous wait before the honest message.
      */
-    const DEADLINE = Date.now() + 5000;
+    const haveLaunchData = !!launchInitData(LAUNCH || {});
+    const DEADLINE = Date.now() + 15000;
     let timer = null;
     const waitForSdk = () => {
       if (cancelled) return;
       const sdk = typeof window !== "undefined" && window.Telegram && window.Telegram.WebApp;
-      if (sdk || Date.now() > DEADLINE) {
+      if (sdk || haveLaunchData || Date.now() > DEADLINE) {
         start();
         return;
       }
@@ -358,7 +386,16 @@ export default function TelegramAttendancePage() {
         script in `_document` would load it on every page of the whole app.
         The effect above waits for it.
       */}
-      <Script src="https://telegram.org/js/telegram-web-app.js" strategy="afterInteractive" />
+      <Script
+        src="https://telegram.org/js/telegram-web-app.js"
+        strategy="afterInteractive"
+        onLoad={() => {
+          const webApp = window.Telegram && window.Telegram.WebApp;
+          if (!webApp) return;
+          if (typeof webApp.ready === "function") webApp.ready();
+          if (typeof webApp.expand === "function") webApp.expand();
+        }}
+      />
 
       <Box minH="100vh" bg="gray.50">
         <Container maxW="560px" px={4} py={5}>
