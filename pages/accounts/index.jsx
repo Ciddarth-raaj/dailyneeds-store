@@ -16,12 +16,19 @@ import WarehouseView from "../../components/accounts/WarehouseView";
 import { WAREHHOUSE_ID } from "../../constants";
 
 function Index() {
-  const { storeId } = useUser().userConfig;
+  const { storeId: ownStoreId } = useUser().userConfig;
+  // Accounts Executive reviews every branch's sheet without being given
+  // `all_stores`, which unlocks the store on every screen. This key unlocks
+  // it here only.
+  const canViewAllStores = usePermissions(["account_sheet_all_stores"]);
+  const storeId = canViewAllStores ? null : ownStoreId;
 
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedOutlet, setSelectedOutlet] = useState(null);
 
-  const { outlets } = useOutlets();
+  // The dropdown needs an id and a name; the full outlet record is gated on
+  // `view_stores`, which an accounts user does not hold.
+  const { outlets } = useOutlets({ directory: true });
   const OUTLETS_LIST = outlets.map((item) => ({
     id: item.outlet_id,
     value: item.outlet_name,
@@ -80,6 +87,7 @@ function Index() {
               selectedOutlet={selectedOutlet}
               setSelectedOutlet={setSelectedOutlet}
               OUTLETS_LIST={OUTLETS_LIST}
+              storeId={storeId}
             />
           )}
         </div>

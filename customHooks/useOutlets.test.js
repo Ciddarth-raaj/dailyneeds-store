@@ -104,6 +104,9 @@ test("no other consumer was switched to the directory", () => {
   assert.deepEqual(optedIn.sort(), [
     "components/DateOutletPicker/FromToDateOutletPicker.jsx",
     "components/DateOutletPicker/index.jsx",
+    // Account Sheet: the Outlet dropdown and the export's cost-centre name,
+    // for Accounts Executive working across every store without `view_stores`.
+    "components/accounts/NormalOutletView.jsx",
     // Attendance: the Outlet filter on the searchable employee picker for
     // Employee Attendance - an id and a name, on a screen reached on
     // `view_calculated_attendance` and never on `view_stores`.
@@ -126,6 +129,8 @@ test("no other consumer was switched to the directory", () => {
     // work for HR without `view_stores`. It moved out of the page and into
     // the shared catalogue hook when the Reports screens were split up.
     "customHooks/useReportCatalogue.js",
+    // Account Sheet: the Outlet dropdown on /accounts.
+    "pages/accounts/index.jsx",
     "pages/attendance/approver-setup/index.jsx",
     "pages/attendance/devices/[id].jsx",
     "pages/attendance/devices/new.jsx",
