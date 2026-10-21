@@ -215,6 +215,8 @@ test("no other consumer was switched to the directory", () => {
     // design is a payroll decision and is untouched here - this change does
     // not alter salary logic, approval rules or who may approve.)
     "pages/payroll/salary-approval.jsx",
+    // Difference: outlet names in the Sales Difference table.
+    "pages/reconciliation/difference.jsx",
     "pages/stock-checker/[mode].jsx",
     "pages/stock-checker/assigned-products.jsx",
     "pages/stock-checker/index.jsx",

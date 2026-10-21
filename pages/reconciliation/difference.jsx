@@ -77,7 +77,8 @@ function Difference() {
     };
   }, [storeId, fromDate, toDate]);
 
-  const { outlets } = useOutlets();
+  // Only `outlet_name` is read, for the Sales Difference table.
+  const { outlets } = useOutlets({ directory: true });
   const { sales } = useSalesReconciliation(filters);
   const { epayments, refetch } = useEpaymentReconciliation(filters);
   const { accounts } = useAccounts(filters);
