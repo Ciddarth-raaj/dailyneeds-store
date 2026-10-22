@@ -14,6 +14,7 @@ import toast from "react-hot-toast";
 import moment from "moment";
 import currencyFormatter from "../../util/currencyFormatter";
 import * as Yup from "yup";
+import { supplierOptions } from "../../util/supplierOptions";
 import {
   APPROVAL_DECISIONS,
   BALANCE_ACTIONS,
@@ -237,15 +238,10 @@ function AdvanceRequestForm() {
 
   // HQ_DIST_CODE is the master's own primary key, which is what a request
   // stores; MDM_DIST_NAME is the name the team knows the supplier by.
+  // RetailPilot's suppliers; an old one only as the request's own value.
   const suppliers = useMemo(
-    () =>
-      (distributors || [])
-        .filter((item) => item.HQ_DIST_CODE != null)
-        .map((item) => ({
-          id: item.HQ_DIST_CODE,
-          value: item.MDM_DIST_NAME || String(item.HQ_DIST_CODE),
-        })),
-    [distributors]
+    () => supplierOptions(distributors, request?.distributor_code),
+    [distributors, request?.distributor_code]
   );
 
   const canCreate = usePermissions(["create_advance_request"]);

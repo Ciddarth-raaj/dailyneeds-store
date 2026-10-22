@@ -17,6 +17,7 @@ import CustomContainer from "../../components/CustomContainer";
 import SearchableDropdown from "../../components/customInput/SearchableDropdown";
 import TransporterSelect from "../../components/lrFollowup/TransporterSelect";
 import { useDistributors } from "../../customHooks/useDistributors";
+import { supplierOptions } from "../../util/supplierOptions";
 import { createManualFollowup, unwrap } from "../../helper/lrFollowup";
 import { followupRef, localToday, newRequestKey, validateManualFollowup } from "../../util/lrFollowup";
 
@@ -44,13 +45,8 @@ function CreateLrFollowup() {
   // One key per form: a double click or a retried request makes one follow-up.
   const [requestKey] = useState(newRequestKey);
 
-  const suppliers = useMemo(
-    () =>
-      (distributors || [])
-        .filter((d) => d.HQ_DIST_CODE != null)
-        .map((d) => ({ id: d.HQ_DIST_CODE, value: d.MDM_DIST_NAME || String(d.HQ_DIST_CODE) })),
-    [distributors]
-  );
+  // RetailPilot's suppliers only: an old one is never a new choice.
+  const suppliers = useMemo(() => supplierOptions(distributors), [distributors]);
 
   const set = (patch) => setForm((f) => ({ ...f, ...patch }));
 
