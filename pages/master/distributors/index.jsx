@@ -7,6 +7,8 @@ import AgGrid from "../../../components/AgGrid";
 import { useDistributors } from "../../../customHooks/useDistributors";
 import usePermissions from "../../../customHooks/usePermissions";
 import FileUploaderWithColumnMapping from "../../../components/FileUploaderWithColumnMapping";
+import RetailPilotSupplierSync from "../../../components/master/RetailPilotSupplierSync";
+import { currentSuppliers } from "../../../util/supplierOptions";
 import {
   bulkUpsertProductDistributorMappings,
   bulkImportProductDistributorHoldingDays,
@@ -96,6 +98,9 @@ function DistributorListing() {
   } = useDisclosure();
   const [holdingDaysPreviewRows, setHoldingDaysPreviewRows] = useState([]);
   const [savingHoldingDays, setSavingHoldingDays] = useState(false);
+
+  // RetailPilot's suppliers; old ones kept only for history are not listed.
+  const suppliersShown = useMemo(() => currentSuppliers(distributors), [distributors]);
 
   const knownCids = useMemo(() => {
     const set = new Set();
@@ -293,18 +298,6 @@ function DistributorListing() {
         maxWidth: 120,
       },
       {
-        field: "MDM_DIST_CODE",
-        headerName: "Medishop Code",
-        hideByDefault: true,
-        type: "id",
-      },
-      {
-        field: "HQ_DIST_CODE",
-        headerName: "HQ Code",
-        hideByDefault: true,
-        type: "id",
-      },
-      {
         field: "MDM_DIST_NAME",
         headerName: "Name",
         type: "capitalized",
@@ -323,6 +316,11 @@ function DistributorListing() {
         field: "holding_days",
         headerName: "H. Days",
         type: "number",
+      },
+      {
+        colId: "status",
+        headerName: "Status",
+        valueGetter: (params) => (params.data?.mdm_tag === "i" ? "Inactive" : "Active"),
       },
       {
         colId: "actions",
@@ -368,6 +366,7 @@ function DistributorListing() {
         rightSection={
           canAssignBuyer ? (
             <Box display="flex" gap={2}>
+              <RetailPilotSupplierSync onSynced={refetch} />
               <FileUploaderWithColumnMapping
                 config={HOLDING_DAYS_IMPORT_COLUMN_CONFIG}
                 onMappedData={handleHoldingDaysMappedData}
@@ -406,7 +405,7 @@ function DistributorListing() {
           <Text>Loading...</Text>
         ) : (
           <AgGrid
-            rowData={distributors}
+            rowData={suppliersShown}
             columnDefs={colDefs}
             tableKey="master-distributors"
             gridOptions={{

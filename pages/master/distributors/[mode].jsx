@@ -222,20 +222,8 @@ function DistributorMode() {
                 mb={6}
               >
                 <CustomInput
-                  label="CID"
+                  label="CID (RetailPilot supplier)"
                   name="CID"
-                  type="text"
-                  editable={false}
-                />
-                <CustomInput
-                  label="Medishop Code"
-                  name="MDM_DIST_CODE"
-                  type="text"
-                  editable={false}
-                />
-                <CustomInput
-                  label="HQ Code"
-                  name="HQ_DIST_CODE"
                   type="text"
                   editable={false}
                 />
