@@ -638,6 +638,12 @@ const WMS_MENU = {
         selected: false,
         location: "/products/report",
       },
+      view_article_store_master: {
+        title: "Article Store Master",
+        permission: "view_products",
+        selected: false,
+        location: "/products/article-store-master",
+      },
       images_download_log: {
         title: "Image Download Log",
         permission: "view_images_download_log",
