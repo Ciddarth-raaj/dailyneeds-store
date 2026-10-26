@@ -374,6 +374,26 @@ const hr = {
     }),
 
   /**
+   * POST /hr/bank/check — verify_employee_bank, view_employee_sensitive AND
+   * edit_employee_sensitive.
+   *
+   * Checks ANY account, for the standalone "Check Bank Account" screen. Spends
+   * one paid Penny-Less check, takes no employee and saves nothing. The
+   * account number goes in the body, never the URL. `expectedName` is
+   * optional; when given, the backend compares the bank's name with it.
+   */
+  checkBankAccount: (accountNumber, ifsc, expectedName) =>
+    new Promise((resolve, reject) => {
+      API.post(`/hr/bank/check`, {
+        account_number: accountNumber,
+        ifsc,
+        expected_name: expectedName || "",
+      })
+        .then((res) => resolve(res.data))
+        .catch(reject);
+    }),
+
+  /**
    * POST /hr/employee/:id/bank/name-review — confirm_bank_name_mismatch AND
    * view_employee_sensitive.
    *
