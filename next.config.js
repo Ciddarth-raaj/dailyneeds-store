@@ -15,6 +15,8 @@ module.exports = {
       { source: "/misc/ip-restrictions", destination: "/master/ip-restrictions", permanent: true },
       // The old create-only Company Details page; the screen is under Master now.
       { source: "/company-details", destination: "/master/company-details", permanent: true },
+      // Check Bank Account moved from HR to Accounts.
+      { source: "/hr/bank-check", destination: "/accounts/bank-check", permanent: true },
       { source: "/lr-workflow/advance-request", destination: "/advance-request", permanent: true },
       {
         source: "/lr-workflow/advance-request/:path*",

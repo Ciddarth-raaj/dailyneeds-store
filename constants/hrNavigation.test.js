@@ -90,7 +90,6 @@ test("Employees, Department and Designation are all inside HR", () => {
     "/department",
     "/designation",
     "/employee-shift-assignment",
-    "/hr/bank-check",
     "/hr/employees",
     // The compliance work queue beside the employee master, on the same key.
     "/hr/onboarding",
@@ -375,7 +374,6 @@ test("HR navigation still appears exactly once, and still holds its pages", () =
     "/department",
     "/designation",
     "/employee-shift-assignment",
-    "/hr/bank-check",
     "/hr/employees",
     // The compliance work queue beside the employee master, on the same key.
     "/hr/onboarding",
@@ -547,7 +545,6 @@ test("SALARY IS ENTERED FROM PAYROLL, AND THE EMPLOYEE MASTER STILL LINKS NOWHER
     "/department",
     "/designation",
     "/employee-shift-assignment",
-    "/hr/bank-check",
     "/hr/employees",
     "/hr/onboarding",
     "/staff-budget",

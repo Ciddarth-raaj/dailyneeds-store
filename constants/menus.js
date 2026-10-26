@@ -275,6 +275,16 @@ const ALL_PAGES_MENU = {
         selected: false,
         location: "/accounts/epayment/create",
       },
+      // A standalone Penny-Less check of any account number, saved to no
+      // employee. ALL three keys, matching the backend's
+      // `requireAll(verify_employee_bank, view_employee_sensitive,
+      // edit_employee_sensitive)` on POST /hr/bank/check.
+      bank_check: {
+        title: "Check Bank Account",
+        permission: ["verify_employee_bank", "view_employee_sensitive", "edit_employee_sensitive"],
+        selected: false,
+        location: "/accounts/bank-check",
+      },
       view_purchase_order: {
         title: "All Purchases",
         permission: "view_purchases",
@@ -928,16 +938,6 @@ const HR_MENU = {
         permission: ["view_hr_onboarding_dashboard", "view_employees"],
         selected: false,
         location: "/hr/onboarding",
-      },
-      // A standalone Penny-Less check of any account number, saved to no
-      // employee. ALL three keys, matching the backend's
-      // `requireAll(verify_employee_bank, view_employee_sensitive,
-      // edit_employee_sensitive)` on POST /hr/bank/check.
-      bank_check: {
-        title: "Check Bank Account",
-        permission: ["verify_employee_bank", "view_employee_sensitive", "edit_employee_sensitive"],
-        selected: false,
-        location: "/hr/bank-check",
       },
       view_departments: {
         title: "Department",
