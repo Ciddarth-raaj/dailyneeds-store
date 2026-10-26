@@ -39,9 +39,10 @@ import HrHelper from "../../../helper/hr";
  */
 
 const IFSC_PATTERN = /^[A-Z]{4}0[A-Z0-9]{6}$/;
-const ACCOUNT_PATTERN = /^[0-9]{6,20}$/;
+// Letters allowed: virtual / collection accounts (e.g. "TMPL353030") carry them.
+const ACCOUNT_PATTERN = /^[A-Z0-9]{6,20}$/;
 
-const cleanAccount = (v) => String(v || "").replace(/[\s-]/g, "");
+const cleanAccount = (v) => String(v || "").replace(/[\s-]/g, "").toUpperCase();
 const cleanIfsc = (v) => String(v || "").replace(/[\s-]/g, "").toUpperCase();
 
 const VERDICT_COLOR = { MATCH: "green", REVIEW: "orange", MISMATCH: "red" };
@@ -158,13 +159,12 @@ function BankCheckPage() {
               <FormLabel>Account number</FormLabel>
               <Input
                 value={account}
-                onChange={(e) => setAccount(e.target.value)}
-                inputMode="numeric"
+                onChange={(e) => setAccount(e.target.value.toUpperCase())}
                 autoComplete="off"
-                placeholder="6 to 20 digits"
+                placeholder="6 to 20 letters or digits"
               />
               {account !== "" && !accountOk && (
-                <FormHelperText color="red.500">Account number must be 6 to 20 digits</FormHelperText>
+                <FormHelperText color="red.500">Account number must be 6 to 20 letters or digits</FormHelperText>
               )}
             </FormControl>
 
@@ -172,8 +172,7 @@ function BankCheckPage() {
               <FormLabel>Re-enter account number</FormLabel>
               <Input
                 value={confirmAccount}
-                onChange={(e) => setConfirmAccount(e.target.value)}
-                inputMode="numeric"
+                onChange={(e) => setConfirmAccount(e.target.value.toUpperCase())}
                 autoComplete="off"
                 onPaste={(e) => e.preventDefault()}
               />
