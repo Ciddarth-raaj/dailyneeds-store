@@ -1,5 +1,19 @@
 import React, { useRef, useState } from "react";
-import { Avatar, Box, Button, Stack, Text } from "@chakra-ui/react";
+import {
+  Avatar,
+  Box,
+  Button,
+  Image,
+  Modal,
+  ModalBody,
+  ModalCloseButton,
+  ModalContent,
+  ModalHeader,
+  ModalOverlay,
+  Stack,
+  Text,
+  useDisclosure,
+} from "@chakra-ui/react";
 import { resizeToDataUri, ACCEPTED_TYPES } from "../../../util/employeePhoto";
 
 /**
@@ -26,6 +40,7 @@ import { resizeToDataUri, ACCEPTED_TYPES } from "../../../util/employeePhoto";
 function EmployeePhotoHeader({ employee = {}, canEdit = false, onSave, saving = false, toast }) {
   const inputRef = useRef(null);
   const [busy, setBusy] = useState(false);
+  const viewer = useDisclosure();
 
   const photo = employee.employee_image || "";
 
@@ -66,7 +81,34 @@ function EmployeePhotoHeader({ employee = {}, canEdit = false, onSave, saving = 
 
   return (
     <Stack direction="row" spacing={4} align="center">
-      <Avatar size="lg" name={employee.employee_name || undefined} src={photo || undefined} />
+      {/* Clicking the photo opens it full size; initials have nothing to open. */}
+      <Avatar
+        size="lg"
+        name={employee.employee_name || undefined}
+        src={photo || undefined}
+        cursor={photo ? "pointer" : "default"}
+        onClick={photo ? viewer.onOpen : undefined}
+        title={photo ? "View photo" : undefined}
+      />
+      {photo ? (
+        <Modal isOpen={viewer.isOpen} onClose={viewer.onClose} size="lg" isCentered>
+          <ModalOverlay />
+          <ModalContent>
+            <ModalHeader fontSize="md">{employee.employee_name || "Employee photo"}</ModalHeader>
+            <ModalCloseButton />
+            <ModalBody pb={6}>
+              <Image
+                src={photo}
+                alt={employee.employee_name || "Employee photo"}
+                w="100%"
+                maxH="70vh"
+                objectFit="contain"
+                borderRadius="md"
+              />
+            </ModalBody>
+          </ModalContent>
+        </Modal>
+      ) : null}
       <Box minW="0">
         <Text fontWeight="semibold" fontSize="md" color="gray.900" noOfLines={2}>
           {employee.employee_name || "Unnamed"}
