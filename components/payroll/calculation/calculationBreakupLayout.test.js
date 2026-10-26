@@ -366,17 +366,18 @@ const pavadai = () => {
       approved_ot_minutes: 28, nrm_minutes: 570, daily_rate: 1153.85, ot_hourly_rate: 121.46, amount: 56.68 }],
     late_approved_ot_minutes: 28, late_approved_ot_amount: 56.68,
     earlier_month_ot: [], earlier_month_ot_amount: null,
-    total_approved_ot_minutes: 28, total_approved_ot_hours: 0.4667,
+    total_approved_ot_minutes: 28, total_approved_ot_hours: 0.4667, total_ot_amount: 56.68,
   };
   return e;
 };
 
-test("7. OT approved after the month was locked is shown as this month's approved OT, with its amount - not as Prior-Month OT", skip, () => {
+test("7. OT approved after the month was locked is in this month's one OT Amount - not a second OT line, not Prior-Month OT", skip, () => {
   const dialog = open(pavadai());
   const lines = Object.fromEntries(pairs(dialog));
   assert.equal(lines["Approved OT Hours"], "0.4667");
-  assert.match(lines["OT approved after lock · 2026-09-30: 28 min"], /56\.68/);
-  assert.match(lines["OT Approved After Lock Amount"], /56\.68/);
+  assert.match(lines["OT Amount"], /56\.68/);
+  assert.match(clean(lineOf(dialog, "OT Amount")), /Includes .*56\.68 for 2026-09-30 \(28 min\) approved after this month was locked/);
+  assert.ok(!Object.keys(lines).some((l) => /after lock/i.test(l)), JSON.stringify(Object.keys(lines)));
   assert.match(clean(lineOf(dialog, "Approved OT Hours")), /Includes 28 min approved after this month was locked/);
   assert.equal(lines["Prior-Month OT Amount"], undefined, "no Prior-Month OT section for September's own OT");
 });

@@ -405,30 +405,25 @@ function CalculationBreakup({ isOpen, onClose, employee, loading, error }) {
                   </>
                 )}
 
-                <Line label="OT Amount" value={money(breakup.ot.ot_amount)} strong={otGroups.length > 1} />
-
-                {/* Approved after this month was locked; paid here because the
-                    month was unlocked again. Priced by the same formula, at
-                    this month's daily rate and the date's own NRM. */}
-                {lateApprovedOt.map((item) => (
-                  <Line
-                    key={item.attendance_approval_request_id}
-                    label={`OT approved after lock · ${item.attendance_date}: ${item.approved_ot_minutes} min`}
-                    value={money(item.amount)}
-                    note={
-                      item.ot_hourly_rate
-                        ? `${money(item.ot_hourly_rate)} per hour · NRM ${item.nrm_minutes} min`
-                        : null
-                    }
-                  />
-                ))}
-                {lateApprovedOt.length > 0 ? (
-                  <Line
-                    label="OT Approved After Lock Amount"
-                    value={money(breakup.ot.late_approved_ot_amount)}
-                    strong
-                  />
-                ) : null}
+                {/* ONE OT AMOUNT: this month's OT approved after the month
+                    was locked (paid here once it was unlocked) is part of it,
+                    as on the payslip, never a second OT line. */}
+                <Line
+                  label="OT Amount"
+                  value={money(
+                    lateApprovedOt.length > 0 && breakup.ot.total_ot_amount !== undefined
+                      ? breakup.ot.total_ot_amount
+                      : breakup.ot.ot_amount
+                  )}
+                  strong={otGroups.length > 1}
+                  note={
+                    lateApprovedOt.length > 0 && breakup.ot.total_ot_amount !== undefined
+                      ? `Includes ${money(breakup.ot.late_approved_ot_amount)} for ${lateApprovedOt
+                          .map((item) => `${item.attendance_date} (${item.approved_ot_minutes} min)`)
+                          .join(", ")} approved after this month was locked`
+                      : null
+                  }
+                />
               </Group>
 
               {priorMonthOt.length > 0 ? (
