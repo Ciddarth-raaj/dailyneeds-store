@@ -116,7 +116,7 @@ function PendingProposalCard({
       </Stack>
 
       {/* ------------------------------------------------- from what, to what */}
-      <SimpleGrid columns={{ base: 2, md: 4 }} spacing={3} mt={3}>
+      <SimpleGrid columns={{ base: 2, md: 5 }} spacing={3} mt={3}>
         <Box minW="0">
           <Text fontSize="10px" textTransform="uppercase" color="gray.500">
             Current Gross
@@ -156,6 +156,14 @@ function PendingProposalCard({
           </Text>
           <Text fontSize="sm" color="gray.800">
             {row.effective_from}
+          </Text>
+        </Box>
+        <Box minW="0">
+          <Text fontSize="10px" textTransform="uppercase" color="gray.500">
+            Current Shift
+          </Text>
+          <Text fontSize="sm" color={row.current_shift ? "gray.800" : "gray.500"}>
+            {row.current_shift || "No shift assigned"}
           </Text>
         </Box>
       </SimpleGrid>

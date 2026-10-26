@@ -56,6 +56,18 @@ function differenceTone(amount) {
 }
 
 /**
+ * The employee's current work shift as one line: "G · General (09:00-18:00)".
+ * Null when no shift is assigned, so the card can say so rather than print a
+ * dash that looks like a timing.
+ */
+function formatCurrentShift(item) {
+  if (!item) return null;
+  const label = [item.work_shift_code, item.work_shift_name].filter(Boolean).join(" · ");
+  if (!label) return null;
+  return item.work_shift_timings ? `${label} (${item.work_shift_timings})` : label;
+}
+
+/**
  * One queue row.
  *
  * Everything an approver needs to decide WITHOUT opening the detail panel:
@@ -73,6 +85,7 @@ function presentQueueRow(item) {
     employee_name: item.employee_name || null,
     outlet_name: item.outlet_name || null,
     designation_name: item.designation_name || null,
+    current_shift: formatCurrentShift(item),
 
     // "From what" is null for an opening salary, and the screen says so rather
     // than printing ₹0.00 - nothing approved and a salary of nothing are
@@ -167,6 +180,7 @@ function outletsInQueue(items) {
 }
 
 module.exports = {
+  formatCurrentShift,
   formatDifferenceAmount,
   formatDifferencePercentage,
   differenceTone,

@@ -658,6 +658,17 @@ test("no change is 'No change', not a blank and not ₹0.00 with a plus sign", (
   assert.strictEqual(row.difference.percentage, null);
 });
 
+test("the queue row carries the employee's current shift and its timing", () => {
+  const row = queue.presentQueueRow({
+    ...PROPOSAL,
+    work_shift_code: "G",
+    work_shift_name: "General",
+    work_shift_timings: "09:00-18:00",
+  });
+  assert.strictEqual(row.current_shift, "G · General (09:00-18:00)");
+  assert.strictEqual(queue.presentQueueRow({ ...PROPOSAL, work_shift_code: null }).current_shift, null);
+});
+
 test("THE SCREEN NEVER SUBTRACTS TWO SALARIES ITSELF", () => {
   // The difference is the server's figure. A screen doing its own arithmetic
   // on pay is a screen that can disagree with the record it is approving.
