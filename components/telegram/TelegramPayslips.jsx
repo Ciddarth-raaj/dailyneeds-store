@@ -14,27 +14,34 @@ import { isOk, apiMessage } from "../../util/telegramAttendance";
  * THE DETAIL IS THE FROZEN SNAPSHOT, and the PDF is rendered on the server
  * from the same snapshot - the two always show the same figures.
  *
- * DOWNLOAD. THE NORMAL PATH IS AUTHENTICATED: the PDF is fetched with the
- * `x-telegram-session` header and saved from memory - no token in any URL.
+ * DOWNLOAD. INSIDE THE TELEGRAM APPS A BLOB CANNOT BE SAVED: the Android
+ * and iOS WebViews ignore `<a download>` on a `blob:` URL, so the button did
+ * nothing. There Telegram's own downloader (`WebApp.downloadFile`, 8.0+) is
+ * used, or on an older app the system browser (`openLink`). Both fetch a URL
+ * themselves, without our header, so they are handed a link the server
+ * issues for this one payslip: opaque, few-use, 60 seconds.
  *
- * ONLY WHERE THAT CANNOT WORK - Telegram on iOS, whose WebView will not save
- * a blob - is Telegram's own downloader (`WebApp.downloadFile`, 8.0+) used.
- * It fetches a URL itself, without our header, so it is handed a link the
- * server issues for this one payslip: opaque, single-use, 60 seconds.
+ * ONLY IN A BROWSER (Telegram Web, or the page opened directly) is the PDF
+ * fetched with the `x-telegram-session` header and saved from memory.
  */
 function telegramWebApp() {
   return typeof window !== "undefined" && window.Telegram ? window.Telegram.WebApp : null;
 }
 
-/** The link fallback: iOS Telegram only, and only where downloadFile exists. */
-function needsLinkDownload(webApp) {
-  return Boolean(
-    webApp &&
-      webApp.platform === "ios" &&
-      typeof webApp.downloadFile === "function" &&
-      typeof webApp.isVersionAtLeast === "function" &&
-      webApp.isVersionAtLeast("8.0")
-  );
+/** Telegram Web runs in a real browser tab, where a blob saves normally. */
+const BROWSER_PLATFORMS = ["web", "weba", "webk", "unknown"];
+
+/** How the PDF is saved: "downloader", "browser" (openLink) or "blob". */
+function downloadMode(webApp) {
+  if (!webApp || !webApp.platform || BROWSER_PLATFORMS.includes(webApp.platform)) return "blob";
+  if (
+    typeof webApp.downloadFile === "function" &&
+    typeof webApp.isVersionAtLeast === "function" &&
+    webApp.isVersionAtLeast("8.0")
+  ) {
+    return "downloader";
+  }
+  return typeof webApp.openLink === "function" ? "browser" : "blob";
 }
 
 function saveBlob(blob, filename) {
@@ -102,16 +109,21 @@ export default function TelegramPayslips() {
     setNotice(null);
     try {
       const webApp = telegramWebApp();
-      if (needsLinkDownload(webApp)) {
+      const mode = downloadMode(webApp);
+      if (mode !== "blob") {
         const link = await TelegramAttendanceHelper.payslipPdfLink(open.ref);
         if (!isOk(link)) {
           setNotice({ status: "error", text: apiMessage(link, "The PDF could not be prepared") });
           return;
         }
-        webApp.downloadFile({
-          url: TelegramAttendanceHelper.absoluteUrl(link.path),
-          file_name: link.filename,
-        });
+        const url = TelegramAttendanceHelper.absoluteUrl(link.path);
+        if (mode === "downloader") {
+          webApp.downloadFile({ url, file_name: link.filename }, (confirmed) => {
+            if (confirmed) setNotice({ status: "success", text: "Download started. Find the PDF in your Downloads." });
+          });
+        } else {
+          webApp.openLink(url);
+        }
         return;
       }
       const res = await TelegramAttendanceHelper.payslipPdf(open.ref);

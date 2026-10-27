@@ -212,11 +212,15 @@ test("the list opens a month by its ref; the detail is the shared PayslipDetail 
   assert.match(code(miniApp), /payslipPdfLink\(open\.ref\)/);
 });
 
-test("download: the authenticated header path is the normal one; the link is the iOS-only fallback", () => {
+test("download: inside the Telegram apps the link goes to Telegram's downloader; a blob only in a browser", () => {
   const src = code(miniApp);
-  assert.match(src, /webApp\.platform === "ios"/);
+  // Android and iOS alike: no platform is singled out but the browser ones.
+  assert.ok(!/platform === "ios"/.test(src), "Android needs the downloader too");
+  assert.match(src, /BROWSER_PLATFORMS = \["web", "weba", "webk", "unknown"\]/);
   const dl = src.slice(src.indexOf("const download = async"));
-  assert.ok(dl.indexOf("needsLinkDownload(webApp)") < dl.indexOf("payslipPdfLink"));
+  assert.ok(dl.indexOf("downloadMode(webApp)") < dl.indexOf("payslipPdfLink"));
+  assert.match(dl, /webApp\.downloadFile\(\{ url, file_name: link\.filename \}/);
+  assert.match(dl, /webApp\.openLink\(url\)/, "an app older than 8.0 opens the link in the browser");
   assert.match(dl, /TelegramAttendanceHelper\.payslipPdf\(open\.ref\)/);
   const helperPdf = helper.slice(helper.indexOf("payslipPdf:"), helper.indexOf("absoluteUrl:"));
   assert.match(helperPdf, /headers: authHeaders\(\)/);
