@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { Alert, AlertIcon, Box, Button, Flex, Spinner, Stack, Text } from "@chakra-ui/react";
 import PayslipDetail from "../payslip/PayslipDetail";
 import TelegramAttendanceHelper from "../../helper/telegramAttendance";
-import { isOk, apiMessage } from "../../util/telegramAttendance";
+import { isOk, apiMessage, launchValue, versionAtLeast } from "../../util/telegramAttendance";
 
 /**
  * MY PAYSLIPS - the employee's own published payslips, newest month first.
@@ -15,33 +15,59 @@ import { isOk, apiMessage } from "../../util/telegramAttendance";
  * from the same snapshot - the two always show the same figures.
  *
  * DOWNLOAD. INSIDE THE TELEGRAM APPS A BLOB CANNOT BE SAVED: the Android
- * and iOS WebViews ignore `<a download>` on a `blob:` URL, so the button did
- * nothing. There Telegram's own downloader (`WebApp.downloadFile`, 8.0+) is
- * used, or on an older app the system browser (`openLink`). Both fetch a URL
- * themselves, without our header, so they are handed a link the server
- * issues for this one payslip: opaque, few-use, 60 seconds.
+ * and iOS WebViews ignore `<a download>` on a `blob:` URL. There the request
+ * goes to Telegram's own downloader (`web_app_request_file_download`, app
+ * version 8.0+), or on an older app to the system browser
+ * (`web_app_open_link`). Both fetch a URL themselves, without our header, so
+ * they are handed a link the server issues for this one payslip: opaque,
+ * few-use, 60 seconds.
  *
- * ONLY IN A BROWSER (Telegram Web, or the page opened directly) is the PDF
- * fetched with the `x-telegram-session` header and saved from memory.
+ * NOT THROUGH THE SDK'S `downloadFile`. The SDK learns the platform and
+ * version from the launch hash when its script loads, and on this page that
+ * hash can already be gone: it then reports "unknown" / "6.0", refuses
+ * `downloadFile`, and the tap did nothing. A Telegram app is recognised by
+ * its native bridge (`TelegramWebviewProxy`), the version is read from the
+ * launch URL the page captured, and the event is posted on that bridge.
+ *
+ * ONLY OUTSIDE THE APPS (Telegram Web, or the page opened directly) is the
+ * PDF fetched with the `x-telegram-session` header and saved from memory.
  */
-function telegramWebApp() {
-  return typeof window !== "undefined" && window.Telegram ? window.Telegram.WebApp : null;
+function nativeBridge() {
+  return typeof window !== "undefined" && window.TelegramWebviewProxy && typeof window.TelegramWebviewProxy.postEvent === "function"
+    ? window.TelegramWebviewProxy
+    : null;
 }
 
-/** Telegram Web runs in a real browser tab, where a blob saves normally. */
-const BROWSER_PLATFORMS = ["web", "weba", "webk", "unknown"];
+/** The app's Mini App version: the launch URL first, then the SDK unless it is only guessing. */
+function appVersion(launch) {
+  const fromLaunch = launch ? launchValue(launch, "tgWebAppVersion") : "";
+  if (fromLaunch) return fromLaunch;
+  const webApp = typeof window !== "undefined" && window.Telegram ? window.Telegram.WebApp : null;
+  return webApp && webApp.version && webApp.version !== "6.0" ? webApp.version : "";
+}
 
-/** How the PDF is saved: "downloader", "browser" (openLink) or "blob". */
-function downloadMode(webApp) {
-  if (!webApp || !webApp.platform || BROWSER_PLATFORMS.includes(webApp.platform)) return "blob";
-  if (
-    typeof webApp.downloadFile === "function" &&
-    typeof webApp.isVersionAtLeast === "function" &&
-    webApp.isVersionAtLeast("8.0")
-  ) {
-    return "downloader";
-  }
-  return typeof webApp.openLink === "function" ? "browser" : "blob";
+/** How the PDF is saved: "downloader", "browser" (open the link) or "blob". */
+function downloadMode(launch) {
+  if (!nativeBridge()) return "blob";
+  const version = appVersion(launch);
+  // An unknown version is tried with the downloader; "Open in browser" stays offered.
+  return version && !versionAtLeast(version, "8.0") ? "browser" : "downloader";
+}
+
+function postToTelegram(eventType, eventData) {
+  nativeBridge().postEvent(eventType, JSON.stringify(eventData));
+}
+
+/** Telegram's answer to the download popup, through the SDK's event hub when it is loaded. */
+function onDownloadAnswer(handler) {
+  const webView = typeof window !== "undefined" && window.Telegram ? window.Telegram.WebView : null;
+  if (!webView || typeof webView.onEvent !== "function") return () => {};
+  const listener = (eventType, eventData) => {
+    webView.offEvent("file_download_requested", listener);
+    handler(Boolean(eventData && eventData.status === "downloading"));
+  };
+  webView.onEvent("file_download_requested", listener);
+  return () => webView.offEvent("file_download_requested", listener);
 }
 
 function saveBlob(blob, filename) {
@@ -56,7 +82,7 @@ function saveBlob(blob, filename) {
   setTimeout(() => URL.revokeObjectURL(url), 30000);
 }
 
-export default function TelegramPayslips() {
+export default function TelegramPayslips({ launch = null } = {}) {
   const [list, setList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState(null);
@@ -103,26 +129,42 @@ export default function TelegramPayslips() {
     }
   };
 
+  /** A fresh link for this payslip, or null with the notice already set. */
+  const freshLink = async () => {
+    const link = await TelegramAttendanceHelper.payslipPdfLink(open.ref);
+    if (!isOk(link)) {
+      setNotice({ status: "error", text: apiMessage(link, "The PDF could not be prepared") });
+      return null;
+    }
+    return link;
+  };
+
   const download = async () => {
     if (!open || !open.payslip) return;
     setDownloading(true);
     setNotice(null);
     try {
-      const webApp = telegramWebApp();
-      const mode = downloadMode(webApp);
+      const mode = downloadMode(launch);
       if (mode !== "blob") {
-        const link = await TelegramAttendanceHelper.payslipPdfLink(open.ref);
-        if (!isOk(link)) {
-          setNotice({ status: "error", text: apiMessage(link, "The PDF could not be prepared") });
-          return;
-        }
+        const link = await freshLink();
+        if (!link) return;
         const url = TelegramAttendanceHelper.absoluteUrl(link.path);
         if (mode === "downloader") {
-          webApp.downloadFile({ url, file_name: link.filename }, (confirmed) => {
-            if (confirmed) setNotice({ status: "success", text: "Download started. Find the PDF in your Downloads." });
+          onDownloadAnswer((started) => {
+            setNotice(
+              started
+                ? { status: "success", text: "Download started. Find the PDF in your Downloads." }
+                : { status: "info", text: "Download cancelled." }
+            );
+          });
+          postToTelegram("web_app_request_file_download", { url, file_name: link.filename });
+          setNotice({
+            status: "info",
+            text: "Confirm the download in Telegram's popup. No popup? Use Open in browser.",
+            browser: true,
           });
         } else {
-          webApp.openLink(url);
+          postToTelegram("web_app_open_link", { url });
         }
         return;
       }
@@ -139,10 +181,30 @@ export default function TelegramPayslips() {
     }
   };
 
+  /** The way out when Telegram's downloader says nothing: the system browser saves it. */
+  const openInBrowser = async () => {
+    if (!open || !open.payslip || !nativeBridge()) return;
+    setDownloading(true);
+    try {
+      const link = await freshLink();
+      if (!link) return;
+      postToTelegram("web_app_open_link", { url: TelegramAttendanceHelper.absoluteUrl(link.path) });
+    } catch (err) {
+      setNotice({ status: "error", text: "The PDF could not be downloaded. Please try again." });
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   const banner = notice ? (
     <Alert status={notice.status} fontSize="sm" borderRadius="md" mb={3}>
       <AlertIcon />
-      {notice.text}
+      <Box flex="1">{notice.text}</Box>
+      {notice.browser ? (
+        <Button size="xs" ml={2} onClick={openInBrowser} isLoading={downloading}>
+          Open in browser
+        </Button>
+      ) : null}
     </Alert>
   ) : null;
 

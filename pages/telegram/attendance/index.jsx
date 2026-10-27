@@ -489,7 +489,7 @@ export default function TelegramAttendancePage() {
                 {/* MY PAYSLIPS. Lazy like every tab: nothing is read until it
                     is opened, and then only this session's own payslips. */}
                 <TabPanel px={0}>
-                  <TelegramPayslips />
+                  <TelegramPayslips launch={LAUNCH} />
                 </TabPanel>
 
                 <TabPanel px={0}>

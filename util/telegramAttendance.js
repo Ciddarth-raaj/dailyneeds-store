@@ -277,6 +277,38 @@ function launchParam(raw, key) {
   return "";
 }
 
+/**
+ * Any launch parameter (`tgWebAppPlatform`, `tgWebAppVersion`, ...) from the
+ * same three places as `launchInitData`. The SDK's own `platform` and
+ * `version` read only the hash when the script loads; by then it can be gone,
+ * and the SDK then reports "unknown" and "6.0".
+ */
+function launchValue({ hash = "", search = "", stored = null } = {}, key) {
+  const fromHash = launchParam(hash, key);
+  if (fromHash) return fromHash;
+  const fromSearch = launchParam(search, key);
+  if (fromSearch) return fromSearch;
+  if (typeof stored === "string" && stored !== "") {
+    try {
+      const params = JSON.parse(stored);
+      if (params && typeof params[key] === "string") return params[key];
+    } catch (err) {
+      return "";
+    }
+  }
+  return "";
+}
+
+/** "8.0" >= "7.10"? Missing parts count as 0. */
+function versionAtLeast(version, min) {
+  const a = String(version || "").split(".").map((n) => parseInt(n, 10) || 0);
+  const b = String(min || "").split(".").map((n) => parseInt(n, 10) || 0);
+  for (let i = 0; i < Math.max(a.length, b.length); i += 1) {
+    if ((a[i] || 0) !== (b[i] || 0)) return (a[i] || 0) > (b[i] || 0);
+  }
+  return true;
+}
+
 function launchInitData({ hash = "", search = "", stored = null } = {}) {
   const fromHash = launchParam(hash, "tgWebAppData");
   if (fromHash) return fromHash;
@@ -452,6 +484,8 @@ module.exports = {
   monthLabel,
   navigationHint,
   launchInitData,
+  launchValue,
+  versionAtLeast,
   dateCard,
   stateColor,
   buildSubmission,

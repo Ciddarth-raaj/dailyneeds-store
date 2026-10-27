@@ -208,23 +208,39 @@ test("the list opens a month by its ref; the detail is the shared PayslipDetail 
   assert.match(code(miniApp), /view\(p\.payslip_ref\)/);
   assert.match(code(miniApp), /<PayslipDetail snapshot=\{open\.payslip\.snapshot\} \/>/);
   assert.match(miniApp, /Download PDF/);
-  assert.match(code(miniApp), /isVersionAtLeast\("8\.0"\)/);
+  assert.match(code(miniApp), /versionAtLeast\(version, "8\.0"\)/);
   assert.match(code(miniApp), /payslipPdfLink\(open\.ref\)/);
 });
 
-test("download: inside the Telegram apps the link goes to Telegram's downloader; a blob only in a browser", () => {
+test("download: inside the Telegram apps the link goes to Telegram's downloader on the native bridge; a blob only outside", () => {
   const src = code(miniApp);
-  // Android and iOS alike: no platform is singled out but the browser ones.
-  assert.ok(!/platform === "ios"/.test(src), "Android needs the downloader too");
-  assert.match(src, /BROWSER_PLATFORMS = \["web", "weba", "webk", "unknown"\]/);
+  // Not the SDK's platform/version: they read a launch hash that can be gone.
+  assert.ok(!/webApp\.platform/.test(src), "the SDK's platform guess decides nothing");
+  assert.ok(!/webApp\.downloadFile/.test(src), "the SDK's version gate is not in the way");
+  assert.match(src, /window\.TelegramWebviewProxy/);
+  assert.match(src, /launchValue\(launch, "tgWebAppVersion"\)/);
   const dl = src.slice(src.indexOf("const download = async"));
-  assert.ok(dl.indexOf("downloadMode(webApp)") < dl.indexOf("payslipPdfLink"));
-  assert.match(dl, /webApp\.downloadFile\(\{ url, file_name: link\.filename \}/);
-  assert.match(dl, /webApp\.openLink\(url\)/, "an app older than 8.0 opens the link in the browser");
+  assert.ok(dl.indexOf("downloadMode(launch)") < dl.indexOf("freshLink()"));
+  assert.match(dl, /postToTelegram\("web_app_request_file_download", \{ url, file_name: link\.filename \}\)/);
+  assert.match(dl, /postToTelegram\("web_app_open_link", \{ url \}\)/, "an app older than 8.0 opens the link in the browser");
+  assert.match(src, /Open in browser/, "a silent downloader still leaves a way out");
+  assert.match(code(read("pages/telegram/attendance/index.jsx")), /<TelegramPayslips launch=\{LAUNCH\} \/>/);
   assert.match(dl, /TelegramAttendanceHelper\.payslipPdf\(open\.ref\)/);
   const helperPdf = helper.slice(helper.indexOf("payslipPdf:"), helper.indexOf("absoluteUrl:"));
   assert.match(helperPdf, /headers: authHeaders\(\)/);
   assert.match(helperPdf, /params: \{ ref \}/);
+});
+
+test("launch values and version comparison", () => {
+  const { launchValue, versionAtLeast } = require("../../util/telegramAttendance");
+  const hash = "#tgWebAppData=x&tgWebAppVersion=8.0&tgWebAppPlatform=android";
+  assert.equal(launchValue({ hash }, "tgWebAppPlatform"), "android");
+  assert.equal(launchValue({ hash: "", stored: JSON.stringify({ tgWebAppVersion: "7.10" }) }, "tgWebAppVersion"), "7.10");
+  assert.equal(launchValue({}, "tgWebAppVersion"), "");
+  assert.equal(versionAtLeast("8.0", "8.0"), true);
+  assert.equal(versionAtLeast("9.1", "8.0"), true);
+  assert.equal(versionAtLeast("7.10", "8.0"), false);
+  assert.equal(versionAtLeast("8", "8.0"), true);
 });
 
 test("the detail puts Final Net Pay first, then the sections; nothing reads as acceptance", () => {
@@ -242,8 +258,8 @@ test("the Mini App page carries a My Payslips tab, in SECTION_ORDER position", (
   const { SECTION_ORDER, SECTION } = require("../../util/telegramAttendance");
   assert.equal(SECTION_ORDER.indexOf(SECTION.PAYSLIPS), 3);
   const panels = code(page).slice(code(page).indexOf("<TabPanels>"));
-  assert.ok(panels.indexOf("<TelegramPayslips />") < panels.indexOf("<TelegramHelp />"));
-  assert.ok(panels.indexOf("otRequestRows(days)") < panels.indexOf("<TelegramPayslips />"));
+  assert.ok(panels.indexOf("<TelegramPayslips launch={LAUNCH} />") < panels.indexOf("<TelegramHelp />"));
+  assert.ok(panels.indexOf("otRequestRows(days)") < panels.indexOf("<TelegramPayslips launch={LAUNCH} />"));
 });
 
 /* ------------------------------------------------- the payroll screen */
