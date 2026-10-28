@@ -262,7 +262,8 @@ const hr = {
   /**
    * POST /hr/aadhaar/initiate — employee_create, plus edit_employee_sensitive
    * because the body carries an Aadhaar number and B3 guards the write.
-   * Returns an opaque `verification_token`; the number never comes back.
+   * Opens a DigiLocker session. Returns an opaque `verification_token` and
+   * the `authorization_url` the employee opens; the number never comes back.
    */
   initiateAadhaar: ({ aadhaar_number, consent_given }) =>
     new Promise((resolve, reject) => {
@@ -272,12 +273,13 @@ const hr = {
     }),
 
   /**
-   * POST /hr/aadhaar/verify-otp — employee_create.
-   * The OTP is sent once and never stored, logged or echoed back.
+   * POST /hr/aadhaar/complete — employee_create.
+   * `status: "pending"` until the employee has consented on DigiLocker; then
+   * the verified result and the duplicate decision. Safe to call repeatedly.
    */
-  verifyAadhaarOtp: ({ verification_token, otp }) =>
+  completeAadhaar: ({ verification_token }) =>
     new Promise((resolve, reject) => {
-      API.post("/hr/aadhaar/verify-otp", { verification_token, otp })
+      API.post("/hr/aadhaar/complete", { verification_token })
         .then((res) => resolve(res.data))
         .catch(reject);
     }),
@@ -301,13 +303,13 @@ const hr = {
     }),
 
   /**
-   * POST /hr/employee/:id/aadhaar/verify-otp — the EXISTING-EMPLOYEE path.
-   * The same narrow authorization as the step above; the OTP is sent once and
-   * is never stored, logged or echoed back.
+   * POST /hr/employee/:id/aadhaar/complete — the EXISTING-EMPLOYEE path.
+   * The same narrow authorization as the step above; `status: "pending"`
+   * until the employee has consented on DigiLocker.
    */
-  verifyAadhaarOtpForEmployee: (employeeId, { verification_token, otp }) =>
+  completeAadhaarForEmployee: (employeeId, { verification_token }) =>
     new Promise((resolve, reject) => {
-      API.post(`/hr/employee/${employeeId}/aadhaar/verify-otp`, { verification_token, otp })
+      API.post(`/hr/employee/${employeeId}/aadhaar/complete`, { verification_token })
         .then((res) => resolve(res.data))
         .catch(reject);
     }),

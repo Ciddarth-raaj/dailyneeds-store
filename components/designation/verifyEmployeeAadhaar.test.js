@@ -231,18 +231,18 @@ test("the profile gates the button on the whole workflow, not on Edit alone", ()
 test("the profile's modal uses the EXISTING-EMPLOYEE endpoints", () => {
   assert.match(profile, /employeeId=\{identity\.employee_id\}/);
   assert.match(modal, /initiateAadhaarForEmployee/);
-  assert.match(modal, /verifyAadhaarOtpForEmployee/);
+  assert.match(modal, /completeAadhaarForEmployee/);
   assert.match(helper, /\/hr\/employee\/\$\{employeeId\}\/aadhaar\/initiate/);
-  assert.match(helper, /\/hr\/employee\/\$\{employeeId\}\/aadhaar\/verify-otp/);
+  assert.match(helper, /\/hr\/employee\/\$\{employeeId\}\/aadhaar\/complete/);
 });
 
 test("ADD EMPLOYEE IS UNTOUCHED: with no employeeId the onboarding calls are used", () => {
   // The onboarding helpers still exist and are still what the modal falls back
   // to, so new-hire onboarding keeps its existing authorization exactly.
   assert.match(helper, /initiateAadhaar:\s*\(/);
-  assert.match(helper, /verifyAadhaarOtp:\s*\(/);
+  assert.match(helper, /completeAadhaar:\s*\(/);
   assert.match(modal, /:\s*await HrHelper\.initiateAadhaar\(payload\)/);
-  assert.match(modal, /:\s*await HrHelper\.verifyAadhaarOtp\(payload\)/);
+  assert.match(modal, /:\s*await HrHelper\.completeAadhaar\(payload\)/);
 
   const newEmployee = strip(read("pages/hr/employees/new.jsx"));
   assert.ok(

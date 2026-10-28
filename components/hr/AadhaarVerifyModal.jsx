@@ -6,6 +6,7 @@ import {
   Text,
   Alert,
   AlertIcon,
+  Link,
   Stack,
   FormControl,
   FormLabel,
@@ -17,7 +18,18 @@ import HrHelper from "../../helper/hr";
 import { aadhaarOutcome } from "../../util/hrStatus";
 
 /**
- * Stage 0C / C3 — the Aadhaar OTP flow, used from two places.
+ * Stage 0C / C3 — Aadhaar verification through DigiLocker, used from two
+ * places.
+ *
+ * It used to be an OTP typed in here (Aadhaar OKYC). UIDAI discontinued OKYC,
+ * so the employee now consents on DigiLocker instead:
+ *
+ *   enter       HR types the Aadhaar number and records consent
+ *   digilocker  the EMPLOYEE opens the DigiLocker link, logs in with the OTP
+ *               sent to their Aadhaar-linked mobile, and allows Aadhaar
+ *   outcome     "Check status" reads the result; the last four digits must
+ *               match the number typed here
+ *
  *
  *   Add Employee    verify first, then create with the verification attached
  *   Employee profile verify later, then attach to the existing employee_id
@@ -41,19 +53,19 @@ import { aadhaarOutcome } from "../../util/hrStatus";
  * component calls exactly what it always called.
  *
  * WHAT NEVER LEAVES THIS COMPONENT: the Aadhaar number is held in local state
- * only long enough to POST it, and the OTP likewise. Neither is logged, stored
- * or put in a URL, and the backend never sends either back. What comes back is
- * an opaque token, the last four digits, and a decision.
+ * only long enough to POST it. It is never logged, stored or put in a URL, and
+ * the backend never sends it back. What comes back is an opaque token, the
+ * DigiLocker link, the last four digits, and a decision.
  */
 function AadhaarVerifyModal({ isOpen, onClose, onVerified, employeeName, employeeId = null }) {
   const toast = useToast();
 
-  const [step, setStep] = useState("enter"); // enter -> otp -> outcome
+  const [step, setStep] = useState("enter"); // enter -> digilocker -> outcome
   const [aadhaar, setAadhaar] = useState("");
   const [consent, setConsent] = useState(false);
-  const [otp, setOtp] = useState("");
   const [session, setSession] = useState(null);
   const [decision, setDecision] = useState(null);
+  const [notice, setNotice] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
 
@@ -61,9 +73,9 @@ function AadhaarVerifyModal({ isOpen, onClose, onVerified, employeeName, employe
     setStep("enter");
     setAadhaar("");
     setConsent(false);
-    setOtp("");
     setSession(null);
     setDecision(null);
+    setNotice(null);
     setError(null);
     setBusy(false);
   };
@@ -89,14 +101,13 @@ function AadhaarVerifyModal({ isOpen, onClose, onVerified, employeeName, employe
         ? await HrHelper.initiateAadhaarForEmployee(employeeId, payload)
         : await HrHelper.initiateAadhaar(payload);
       if (failed(res)) {
-        setError(res.msg || "Could not send the OTP.");
+        setError(res.msg || "Could not start DigiLocker verification.");
         return;
       }
       setSession(res);
-      setStep("otp");
+      setStep("digilocker");
       // The number has done its job; drop it rather than leaving it in state.
       setAadhaar("");
-      toast({ title: "OTP sent to the registered mobile number", status: "info", duration: 4000 });
     } catch (err) {
       setError("Could not reach the verification service. Try again in a moment.");
     } finally {
@@ -104,23 +115,37 @@ function AadhaarVerifyModal({ isOpen, onClose, onVerified, employeeName, employe
     }
   };
 
-  const verify = async () => {
+  /** Lets HR send the link to the employee's own phone. */
+  const copyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(session.authorization_url);
+      toast({ title: "DigiLocker link copied", status: "info", duration: 3000 });
+    } catch (err) {
+      setError("Could not copy the link. Open it instead, or copy it from the address bar.");
+    }
+  };
+
+  const check = async () => {
     setError(null);
+    setNotice(null);
     setBusy(true);
     try {
-      const payload = { verification_token: session.verification_token, otp: otp.trim() };
+      const payload = { verification_token: session.verification_token };
       const res = employeeId
-        ? await HrHelper.verifyAadhaarOtpForEmployee(employeeId, payload)
-        : await HrHelper.verifyAadhaarOtp(payload);
+        ? await HrHelper.completeAadhaarForEmployee(employeeId, payload)
+        : await HrHelper.completeAadhaar(payload);
       if (failed(res)) {
-        // A wrong digit is retryable and the session survives; anything else
-        // means starting again, and the message says which.
-        setError(res.msg || "The OTP could not be verified.");
+        // A provider hiccup is retryable and the session survives; anything
+        // else means starting again, and the message says which.
+        setError(res.msg || "The Aadhaar could not be verified.");
+        return;
+      }
+      if (res.status === "pending") {
+        setNotice(res.message || "Not finished on DigiLocker yet.");
         return;
       }
       setDecision(res);
       setStep("outcome");
-      setOtp("");
     } catch (err) {
       setError("Could not reach the verification service. Try again in a moment.");
     } finally {
@@ -139,6 +164,13 @@ function AadhaarVerifyModal({ isOpen, onClose, onVerified, employeeName, employe
         </Alert>
       ) : null}
 
+      {notice ? (
+        <Alert status="info" fontSize="sm">
+          <AlertIcon />
+          {notice}
+        </Alert>
+      ) : null}
+
       {step === "enter" ? (
         <>
           <FormControl>
@@ -152,8 +184,8 @@ function AadhaarVerifyModal({ isOpen, onClose, onVerified, employeeName, employe
               maxLength={14}
             />
             <FormHelperText>
-              An OTP goes to the mobile registered against this Aadhaar. The number is encrypted and
-              never shown again - only the last four digits.
+              The employee then confirms it on DigiLocker with an OTP sent to their Aadhaar-linked
+              mobile. The number is encrypted and never shown again - only the last four digits.
             </FormHelperText>
           </FormControl>
           <Checkbox isChecked={consent} onChange={(e) => setConsent(e.target.checked)}>
@@ -165,23 +197,32 @@ function AadhaarVerifyModal({ isOpen, onClose, onVerified, employeeName, employe
         </>
       ) : null}
 
-      {step === "otp" ? (
+      {step === "digilocker" && session ? (
         <>
           <Text fontSize="sm">
-            Enter the OTP sent to the mobile registered against Aadhaar ending{" "}
-            <strong>{session && session.aadhaar_last4}</strong>.
+            Ask {employeeName || "the employee"} to open DigiLocker, log in with the OTP sent to the
+            mobile registered against Aadhaar ending <strong>{session.aadhaar_last4}</strong>, and allow
+            their Aadhaar to be shared.
           </Text>
-          <FormControl>
-            <FormLabel fontSize="sm">OTP</FormLabel>
-            <Input
-              value={otp}
-              onChange={(e) => setOtp(e.target.value)}
-              placeholder="6 digits"
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              maxLength={8}
-            />
-          </FormControl>
+          <Stack direction="row" spacing={3}>
+            <Button
+              as={Link}
+              href={session.authorization_url}
+              isExternal
+              colorScheme="purple"
+              variant="outline"
+              size="sm"
+              _hover={{ textDecoration: "none" }}
+            >
+              Open DigiLocker
+            </Button>
+            <Button variant="outline" size="sm" onClick={copyLink}>
+              Copy link
+            </Button>
+          </Stack>
+          <Text fontSize="sm" color="gray.600">
+            When DigiLocker says it is done, click Check status.
+          </Text>
         </>
       ) : null}
 
@@ -214,12 +255,12 @@ function AadhaarVerifyModal({ isOpen, onClose, onVerified, employeeName, employe
       </Button>
       {step === "enter" ? (
         <Button colorScheme="purple" size="sm" isLoading={busy} onClick={initiate}>
-          Send OTP
+          Continue to DigiLocker
         </Button>
       ) : null}
-      {step === "otp" ? (
-        <Button colorScheme="purple" size="sm" isLoading={busy} onClick={verify} isDisabled={!otp.trim()}>
-          Verify OTP
+      {step === "digilocker" ? (
+        <Button colorScheme="purple" size="sm" isLoading={busy} onClick={check}>
+          Check status
         </Button>
       ) : null}
       {step === "outcome" ? (

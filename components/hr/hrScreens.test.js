@@ -83,7 +83,7 @@ test("the helper covers the whole workflow", () => {
     "getLifecycle",
     "checkDuplicate",
     "initiateAadhaar",
-    "verifyAadhaarOtp",
+    "completeAadhaar",
     "getAadhaarStatus",
     "attachAadhaar",
     "getBankStatus",
@@ -152,11 +152,10 @@ test("`aadhaar_number` appears ONLY as the outbound request field, never rendere
   }
 });
 
-test("the Aadhaar number and OTP are sent, never stored or logged", () => {
-  // The modal holds both in local state only long enough to POST them.
+test("the Aadhaar number is sent, never stored or logged", () => {
+  // The modal holds it in local state only long enough to POST it.
   assert.match(aadhaarModal, /aadhaar_number: aadhaar\.replace/);
-  assert.match(aadhaarModal, /setAadhaar\(""\)/, "the number is dropped once the OTP is sent");
-  assert.match(aadhaarModal, /setOtp\(""\)/, "and the OTP once it is verified");
+  assert.match(aadhaarModal, /setAadhaar\(""\)/, "the number is dropped once DigiLocker is started");
   assert.ok(!/console\.log/.test(aadhaarModal), "nothing here is logged");
   assert.ok(!/localStorage/.test(aadhaarModal), "and nothing is persisted");
 });
