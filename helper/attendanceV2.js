@@ -120,6 +120,18 @@ const attendanceV2 = {
     }),
   listHistoricalOtBatches: () => call("get", "/attendance/ot/historical-review/batches", {}),
 
+  /**
+   * OT AUTO-APPROVAL (manage_ot_auto_approval). `max_minutes` null = no cap.
+   * A refusal comes back as data, like the review's authorise.
+   */
+  getOtAutoApproval: () => call("get", "/attendance/ot/auto-approval", {}),
+  saveOtAutoApproval: ({ auto_approve, max_minutes = null }) =>
+    new Promise((resolve, reject) => {
+      API.put("/attendance/ot/auto-approval", { auto_approve, max_minutes })
+        .then((res) => resolve(res.data))
+        .catch((err) => (err && err.response && err.response.data ? resolve(err.response.data) : reject(err)));
+    }),
+
   getApprovalCount: (request_type, filters = {}) =>
     call("get", "/attendance/approvals/count", {
       params: {

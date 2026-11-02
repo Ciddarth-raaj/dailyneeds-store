@@ -1140,6 +1140,15 @@ const HR_MENU = {
         selected: false,
         location: "/attendance/ot-historical-review",
       },
+      // OT Auto-Approval: the switch (and optional daily cap) under which the
+      // system approves pending OT itself. Behind a key the backend grants to
+      // nobody (administrators by bypass).
+      attendance_ot_auto_approval: {
+        title: "OT Auto-Approval",
+        permission: "manage_ot_auto_approval",
+        selected: false,
+        location: "/attendance/ot-auto-approval",
+      },
     },
   },
   // M4 — Payroll. A SECTION OF HR, never a module of its own, exactly as the
