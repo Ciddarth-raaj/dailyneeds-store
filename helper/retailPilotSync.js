@@ -14,8 +14,8 @@ const retailPilotSync = {
   status: () =>
     unwrap(API.get("/retailpilot/status"), "Failed to fetch RetailPilot sync status").then((b) => b.data ?? []),
 
-  // Start a sync now. Stock & Prices, GRNs and Article Store Master run in the background; Products
-  // and Purchases answer when done.
+  // Start a sync now. Stock & Prices, GRNs and Article Store Master run in the background; Products,
+  // Purchases and Debit Notes answer when done.
   start: async (key) => {
     if (key === "stock") return unwrap(API.post("/retailpilot/stock-sync", {}), "Failed to start the sync");
     if (key === "grn") return unwrap(API.post("/retailpilot/grn-sync", {}), "Failed to start the sync");
@@ -31,6 +31,9 @@ const retailPilotSync = {
       const body = await runRetailPilotPurchaseSync({ dryRun: false });
       if (body?.code !== 200) throw new Error(body?.msg || body?.message || "Purchase sync failed");
       return body;
+    }
+    if (key === "debit_notes") {
+      return unwrap(API.post("/debit-note/retailpilot-sync", { dry_run: false }), "Debit note sync failed");
     }
     throw new Error(`Unknown sync ${key}`);
   },
