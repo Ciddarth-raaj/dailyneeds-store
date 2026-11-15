@@ -146,32 +146,6 @@ function aggregate(data, store = "") {
   return { totals, byDay, byStore };
 }
 
-/**
- * Open gate passes for the chosen store, oldest first, each with its age now
- * (from entry_time, so a cached list still ages) and whether unloading has
- * started (a GRN inspection exists).
- */
-function openGatePasses(data, store = "", nowMs = Date.now()) {
-  const rows = ((data && data.gate_passes && data.gate_passes.rows) || []).filter((r) => !store || r.store === store);
-  return rows
-    .map((r) => {
-      const entered = Date.parse(r.entry_time);
-      const hours = Number.isFinite(entered) ? Math.max(0, (nowMs - entered) / 3600000) : r.open_hours;
-      return { ...r, open_hours: hours === null || hours === undefined ? null : Math.round(hours * 10) / 10, unloading: (r.inspections || []).length > 0 };
-    })
-    .sort((a, b) => (b.open_hours || 0) - (a.open_hours || 0));
-}
-
-/** "45m", "5h 20m", "2d 3h". */
-function ageText(hours) {
-  if (hours === null || hours === undefined) return "—";
-  const mins = Math.round(hours * 60);
-  if (mins < 60) return `${mins}m`;
-  const h = Math.floor(mins / 60);
-  if (h < 24) return `${h}h ${mins % 60}m`;
-  return `${Math.floor(h / 24)}d ${h % 24}h`;
-}
-
 /** "12 Nov" for a YYYY-MM-DD day. */
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 function shortDay(day) {
@@ -179,4 +153,4 @@ function shortDay(day) {
   return m ? `${d} ${MONTHS[m - 1]}` : "";
 }
 
-module.exports = { PRESETS, presetRange, daysBetween, aggregate, shortDay, openGatePasses, ageText };
+module.exports = { PRESETS, presetRange, daysBetween, aggregate, shortDay };
