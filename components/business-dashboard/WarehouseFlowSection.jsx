@@ -22,6 +22,7 @@ import {
   ageText,
   hasInvoiceNotStarted,
   hasInvoiceStarted,
+  docStateText,
   invoiceLine,
   rowStatus,
   stateText,
@@ -34,7 +35,20 @@ const timeText = (iso) =>
   iso ? new Date(iso).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "—";
 const qty = (n) => (n === null || n === undefined ? "—" : Number(n).toLocaleString("en-IN", { maximumFractionDigits: 3 }));
 
-const STATUS_COLOR = { "GRN started": "blue", "GRN not started": "gray", "No inspection yet": "gray", "Written off": "red" };
+/** What a row is called when it has no gate pass: its invoice, or its inspection. */
+const refText = (r) =>
+  r.gate_pass ||
+  (r.kind === "document"
+    ? `Invoice ${(r.documents && r.documents[0] && r.documents[0].invoice_no) || "(number not read yet)"} · no gate pass`
+    : `Inspection ${r.ref}`);
+
+const STATUS_COLOR = {
+  "GRN started": "blue",
+  "GRN not started": "gray",
+  "No inspection yet": "gray",
+  "Written off": "red",
+  "Invoice not uploaded": "orange",
+};
 
 // GRN splits into these two lists; "all" is both.
 const GRN_FILTERS = [
@@ -79,6 +93,8 @@ function StepTile({ index, step, summary, onSelect }) {
   const built = step.built;
   const split = built && step.ok && step.key === "grn";
   const clickable = built && !split;
+  // Invoices are known once uploaded for the GRN; before that, count gate passes.
+  const byGatePass = step.key === "gate_pass" || step.key === "inspection";
   return (
     <Box
       as={clickable ? "button" : "div"}
@@ -110,7 +126,7 @@ function StepTile({ index, step, summary, onSelect }) {
       </Text>
       {split ? (
         <Text fontSize="10px" color="gray.500">
-          from {summary.count} gate pass{summary.count === 1 ? "" : "es"}
+          from {summary.gate_passes} gate pass{summary.gate_passes === 1 ? "" : "es"}
         </Text>
       ) : null}
       {!built ? (
@@ -129,12 +145,14 @@ function StepTile({ index, step, summary, onSelect }) {
       ) : (
         <>
           <Text fontSize="2xl" fontWeight="700" color="gray.800" lineHeight="short">
-            {step.key === "gate_pass" ? summary.count : summary.invoices}
+            {byGatePass ? summary.count : summary.invoices}
           </Text>
           <Text fontSize="xs" color="gray.700" fontWeight="600">
             {step.key === "gate_pass"
               ? `gate pass${summary.count === 1 ? "" : "es"}, not inspected`
-              : `invoice${summary.invoices === 1 ? "" : "s"} · from ${summary.count} gate pass${summary.count === 1 ? "" : "es"}`}
+              : step.key === "inspection"
+              ? `gate pass${summary.count === 1 ? "" : "es"} being inspected`
+              : `invoice${summary.invoices === 1 ? "" : "s"} · from ${summary.gate_passes} gate pass${summary.gate_passes === 1 ? "" : "es"}`}
           </Text>
           <Text fontSize="xs" color="gray.600">
             {!summary.count ? "Nothing here" : `oldest ${ageText(summary.oldest_hours)}`}
@@ -209,18 +227,16 @@ function InspectionCard({ i }) {
       <Flex justify="space-between" align="center" mb={2} gap={2} wrap="wrap">
         <Box>
           <Text fontSize="sm" fontWeight="700">
-            {i.supplier_invoice_id ? `Invoice ${i.supplier_invoice_id}` : "Invoice number not entered"}
+            Inspection {i.slug}
           </Text>
           <Text fontSize="xs" color="gray.500">
-            Inspection {i.slug}
-            {i.invoice_amount === null || i.invoice_amount === undefined ? "" : ` · ${formatINR(i.invoice_amount)}`}
+            {[i.supplier_invoice_id ? `Invoice ${i.supplier_invoice_id}` : null, i.invoice_amount === null || i.invoice_amount === undefined ? null : formatINR(i.invoice_amount)]
+              .filter(Boolean)
+              .join(" · ")}
           </Text>
         </Box>
         <Flex gap={1}>
           <Badge colorScheme={i.state === "WRITTEN_OFF" ? "red" : "blue"}>{stateText(i.state)}</Badge>
-          {i.state === "COMPLETED" ? (
-            <Badge colorScheme={i.grn_started ? "blue" : "gray"}>{i.grn_started ? "GRN started" : "GRN not started"}</Badge>
-          ) : null}
         </Flex>
       </Flex>
       <SimpleGrid columns={2} spacing={3}>
@@ -242,7 +258,73 @@ function InspectionCard({ i }) {
   );
 }
 
-/** One gate pass in full: vehicle, times, and every inspection on it. */
+/** One supplier invoice waiting for (or through) its GRN. */
+function DocumentCard({ d }) {
+  const started = d.grn_started;
+  return (
+    <Box borderWidth="1px" borderColor="gray.200" borderRadius="md" p={3}>
+      <Flex justify="space-between" align="flex-start" gap={2} wrap="wrap">
+        <Box minW={0}>
+          <Text fontSize="sm" fontWeight="700">
+            {d.invoice_no ? `Invoice ${d.invoice_no}` : "Invoice number not read yet"}
+          </Text>
+          <Text fontSize="xs" color="gray.500">
+            Uploaded {timeText(d.uploaded_at)}
+            {d.invoice_date ? ` · dated ${new Date(d.invoice_date).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}` : ""}
+          </Text>
+        </Box>
+        <Flex gap={1} wrap="wrap">
+          <Badge colorScheme={d.done ? "green" : started ? "blue" : "gray"}>{d.done ? "GRN done" : started ? "GRN started" : "GRN not started"}</Badge>
+          {!d.done && started ? <Badge colorScheme="purple">{docStateText(d.state)}</Badge> : null}
+        </Flex>
+      </Flex>
+      {d.message && !d.done ? (
+        <Text fontSize="xs" color="gray.600" mt={2}>
+          {d.message}
+        </Text>
+      ) : null}
+    </Box>
+  );
+}
+
+function DocumentList({ docs, error }) {
+  return (
+    <Box>
+      <Text fontSize="sm" fontWeight="700" color="gray.700" mb={2}>
+        Invoices{docs.length ? ` (${docs.length})` : ""}
+      </Text>
+      {error ? (
+        <Text fontSize="xs" color="orange.600">
+          Invoices could not be read from RetailPilot: {error}
+        </Text>
+      ) : !docs.length ? (
+        <Text fontSize="sm" color="gray.600">
+          No supplier invoice uploaded yet.
+        </Text>
+      ) : (
+        <Flex direction="column" gap={2}>
+          {docs.map((d) => (
+            <DocumentCard key={d.slug} d={d} />
+          ))}
+        </Flex>
+      )}
+    </Box>
+  );
+}
+
+/** An invoice with no gate pass: shown from its row, there is nothing more to read. */
+function DocumentDetail({ row }) {
+  return (
+    <Flex direction="column" gap={5} py={2}>
+      <Text fontSize="sm" color="gray.600">
+        This invoice has no gate pass.
+      </Text>
+      <DocumentList docs={row.documents || []} error={null} />
+    </Flex>
+  );
+}
+
+/** One gate pass in full: vehicle, times, its invoices and its inspection. */
 function GatePassDetail({ slug }) {
   const state = useDetail(WarehouseFlowHelper.getGatePass, slug);
   return (
@@ -264,13 +346,14 @@ function GatePassDetail({ slug }) {
             <Field label="Out at">{p.exit_time ? timeText(p.exit_time) : "Still open"}</Field>
             <Field label="Created by">{p.created_by}</Field>
           </SimpleGrid>
+          <DocumentList docs={p.documents || []} error={p.documents_error} />
           <Box>
             <Text fontSize="sm" fontWeight="700" color="gray.700" mb={2}>
-              Invoices{p.inspections.length ? ` (${p.inspections.length})` : ""}
+              Inspection
             </Text>
             {!p.inspections.length ? (
               <Text fontSize="sm" color="gray.600">
-                None inspected yet — waiting for inspection, or going direct to purchase.
+                Not inspected{(p.documents || []).length ? " — going direct to purchase." : " yet."}
               </Text>
             ) : (
               <Flex direction="column" gap={3}>
@@ -351,7 +434,7 @@ function StepList({ section, rows, storeName, onOpen }) {
               onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onOpen(r)}
               tabIndex={0}
               role="button"
-              aria-label={`Open ${r.gate_pass || r.ref}`}
+              aria-label={`Open ${r.kind === "document" ? `invoice ${r.invoice_no || r.ref}` : r.gate_pass || r.ref}`}
               cursor="pointer"
               px={2}
               py={3}
@@ -364,13 +447,17 @@ function StepList({ section, rows, storeName, onOpen }) {
                   <Text color="gray.900" fontWeight="700" fontSize="md" noOfLines={2} textTransform="capitalize">
                     {r.supplier_name || r.supplier_id || "Unknown supplier"}
                   </Text>
-                  {invoiceLine(r, compactINR) ? (
+                  {r.kind === "document" ? (
+                    <Text fontSize="sm" color="gray.700" fontWeight="600" wordBreak="break-all">
+                      Invoice {r.invoice_no || "(number not read yet)"}
+                    </Text>
+                  ) : invoiceLine(r, compactINR) ? (
                     <Text fontSize="sm" color="gray.700" fontWeight="600">
                       {invoiceLine(r, compactINR)}
                     </Text>
                   ) : null}
                   <Text fontSize="xs" color="gray.500" wordBreak="break-all">
-                    {r.gate_pass || `Inspection ${r.ref}`}
+                    {r.kind === "document" ? r.gate_pass || "No gate pass" : refText(r)}
                   </Text>
                   <Text fontSize="xs" color="gray.500">
                     {[storeName(r.store), r.vehicle_number].filter(Boolean).join(" · ")}
@@ -388,6 +475,11 @@ function StepList({ section, rows, storeName, onOpen }) {
                   <Badge colorScheme={STATUS_COLOR[status] || "blue"} fontSize="9px">
                     {status}
                   </Badge>
+                  {r.kind === "document" && r.grn_started ? (
+                    <Badge colorScheme="purple" fontSize="9px">
+                      {docStateText(r.doc_state)}
+                    </Badge>
+                  ) : null}
                 </Flex>
               </Flex>
             </Box>
@@ -420,14 +512,22 @@ function StepPanel({ section, rows, storeName, open, onOpen, onBack, onClose, gr
             </Button>
           ) : null}
           <Text fontSize="xs" color="gray.500" fontWeight="600">
-            {open ? (open.gate_pass ? "GATE PASS" : "INSPECTION") : section && section.step ? `STEP ${section.step}` : "NEEDS ATTENTION"}
+            {open
+              ? open.gate_pass
+                ? "GATE PASS"
+                : open.kind === "document"
+                ? "INVOICE"
+                : "INSPECTION"
+              : section && section.step
+              ? `STEP ${section.step}`
+              : "NEEDS ATTENTION"}
           </Text>
           <Text fontSize="md" textTransform={open ? "capitalize" : undefined}>
             {title}
           </Text>
           {open ? (
             <Text fontSize="xs" color="gray.500" fontWeight="400">
-              {open.gate_pass || `Inspection ${open.ref}`}
+              {open.kind === "document" ? [`Invoice ${open.invoice_no || "(number not read yet)"}`, open.gate_pass].filter(Boolean).join(" · ") : refText(open)}
             </Text>
           ) : null}
         </DrawerHeader>
@@ -435,6 +535,8 @@ function StepPanel({ section, rows, storeName, open, onOpen, onBack, onClose, gr
           {!section ? null : open ? (
             open.gate_pass ? (
               <GatePassDetail slug={open.gate_pass} />
+            ) : open.kind === "document" ? (
+              <DocumentDetail row={open} />
             ) : (
               <InspectionDetail slug={open.inspection || open.ref} />
             )
@@ -557,7 +659,7 @@ export default function WarehouseFlowSection({ store = "", refreshTick = 0 }) {
       {flagged.length ? (
         <Flex mt={3} gap={4} wrap="wrap" align="center">
           {flagged.map((a) => (
-            <Button key={a.key} size="xs" variant="link" colorScheme="red" onClick={() => choose(a.key)} title={a.hint}>
+            <Button key={a.key} size="xs" variant="link" colorScheme={a.key === "written_off" ? "red" : "orange"} onClick={() => choose(a.key)} title={a.hint}>
               {a.label}: {rowsByKey[a.key].length}
             </Button>
           ))}

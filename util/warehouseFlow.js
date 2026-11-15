@@ -35,6 +35,8 @@ function stepSummary(rows) {
     oldest_hours: list.length ? Math.max(...list.map((r) => r.hours || 0)) : null,
     over_day: list.filter((r) => (r.hours || 0) >= 24).length,
     grn_started: list.filter((r) => r.grn_started).length,
+    // Distinct gate passes: a GRN row is an invoice, and several share a pass.
+    gate_passes: new Set(list.map((r) => r.gate_pass || `${r.kind}:${r.ref}`)).size,
     invoices: list.reduce((t, r) => t + (r.invoices || 0), 0),
     invoices_started: list.reduce((t, r) => t + (r.invoices_grn_started || 0), 0),
   };
@@ -58,6 +60,7 @@ function rowStatus(stepKey, row) {
     return row.grn_started ? "GRN started" : "GRN not started";
   }
   if (stepKey === "written_off") return "Written off";
+  if (stepKey === "no_invoice") return "Invoice not uploaded";
   return stateText(row.state);
 }
 
@@ -67,6 +70,25 @@ function invoiceLine(row, compactINR) {
   if (!n) return null;
   const amount = row.invoice_amount !== null && row.invoice_amount !== undefined && compactINR ? ` · ${compactINR(row.invoice_amount)}` : "";
   return `${n} invoice${n === 1 ? "" : "s"}${amount}`;
+}
+
+// RetailPilot's invoice document states, as its own invoice screen names them.
+const DOC_STATE_TEXT = {
+  no_template: "Yet to start",
+  header_captured: "Header captured",
+  inspection_link_pending: "Inspection link pending",
+  manual_entry_started: "Manual entry started",
+  pricing_review_pending: "Pricing review pending",
+  cost_qc_failed: "Cost variance detected",
+  digitized: "GRN done",
+  cancelled: "Cancelled",
+  duplicate_invoice: "Duplicate",
+};
+
+/** An invoice document's state, readable: "cost_qc_failed" -> "Cost variance detected". */
+function docStateText(state) {
+  const s = String(state || "").toLowerCase();
+  return DOC_STATE_TEXT[s] || stateText(s);
 }
 
 /** "45m", "5h 20m", "2d 3h". */
@@ -85,4 +107,15 @@ function stateText(state) {
   return s ? s[0].toUpperCase() + s.slice(1) : "Started";
 }
 
-module.exports = { hoursSince, stepRows, stepSummary, rowStatus, invoiceLine, hasInvoiceNotStarted, hasInvoiceStarted, ageText, stateText };
+module.exports = {
+  hoursSince,
+  stepRows,
+  stepSummary,
+  rowStatus,
+  invoiceLine,
+  hasInvoiceNotStarted,
+  hasInvoiceStarted,
+  docStateText,
+  ageText,
+  stateText,
+};

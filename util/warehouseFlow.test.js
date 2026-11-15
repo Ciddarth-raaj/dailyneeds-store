@@ -3,7 +3,17 @@
  */
 const { describe, it } = require("node:test");
 const assert = require("node:assert/strict");
-const { stepRows, stepSummary, rowStatus, invoiceLine, hasInvoiceNotStarted, hasInvoiceStarted, ageText, stateText } = require("./warehouseFlow");
+const {
+  stepRows,
+  stepSummary,
+  rowStatus,
+  invoiceLine,
+  hasInvoiceNotStarted,
+  hasInvoiceStarted,
+  docStateText,
+  ageText,
+  stateText,
+} = require("./warehouseFlow");
 
 const NOW = Date.parse("2026-11-15T06:00:00Z");
 const GRN = {
@@ -23,8 +33,16 @@ describe("steps", () => {
     assert.deepEqual(stepRows(null), []);
   });
   it("a tile counts, finds the oldest, the ones over a day and GRNs started", () => {
-    assert.deepEqual(stepSummary(stepRows(GRN, "", NOW)), { count: 3, oldest_hours: 51, over_day: 1, grn_started: 1, invoices: 4, invoices_started: 1 });
-    assert.deepEqual(stepSummary([]), { count: 0, oldest_hours: null, over_day: 0, grn_started: 0, invoices: 0, invoices_started: 0 });
+    assert.deepEqual(stepSummary(stepRows(GRN, "", NOW)), { count: 3, oldest_hours: 51, over_day: 1, grn_started: 1, gate_passes: 3, invoices: 4, invoices_started: 1 });
+    assert.deepEqual(stepSummary([]), { count: 0, oldest_hours: null, over_day: 0, grn_started: 0, gate_passes: 0, invoices: 0, invoices_started: 0 });
+  });
+  it("invoices on one gate pass count it once", () => {
+    const rows = [
+      { kind: "document", ref: "d1", gate_pass: "GP-1", invoices: 1 },
+      { kind: "document", ref: "d2", gate_pass: "GP-1", invoices: 1 },
+      { kind: "document", ref: "d3", gate_pass: null, invoices: 1 },
+    ];
+    assert.deepEqual([stepSummary(rows).invoices, stepSummary(rows).gate_passes], [3, 2]);
   });
   it("GRN splits by invoice: a pass part way through is under both", () => {
     const partly = { invoices: 3, invoices_grn_started: 1 };
@@ -55,5 +73,9 @@ describe("steps", () => {
     assert.equal(ageText(51), "2d 3h");
     assert.equal(ageText(null), "—");
     assert.equal(stateText(null), "Started");
+    assert.equal(docStateText("no_template"), "Yet to start");
+    assert.equal(docStateText("cost_qc_failed"), "Cost variance detected");
+    assert.equal(docStateText("some_new_state"), "Some new state");
+    assert.equal(rowStatus("no_invoice", {}), "Invoice not uploaded");
   });
 });
