@@ -3,40 +3,41 @@
  */
 const { describe, it } = require("node:test");
 const assert = require("node:assert/strict");
-const { gatePasses, gatePassSummary, ageText, stateText } = require("./warehouseFlow");
+const { stepRows, stepSummary, rowStatus, ageText, stateText } = require("./warehouseFlow");
 
-const STAGE = {
-  key: "gate_pass",
+const NOW = Date.parse("2026-11-15T06:00:00Z");
+const GRN = {
+  key: "grn",
   ok: true,
   rows: [
-    { slug: "GP-1", store: "outlet:3", entry_time: "2026-11-15T05:00:00Z", inspections: [] },
-    { slug: "GP-2", store: "outlet:2", entry_time: "2026-11-13T03:00:00Z", inspections: [{ slug: "IN-1", state: "IN_PROGRESS" }] },
-    { slug: "GP-3", store: "outlet:2", entry_time: "2026-11-15T05:30:00Z", inspections: [] },
+    { ref: "GP-1", store: "outlet:2", since: "2026-11-15T05:00:00Z", grn_started: true },
+    { ref: "IN-9", store: "outlet:3", since: "2026-11-13T03:00:00Z", grn_started: false },
+    { ref: "GP-3", store: "outlet:2", since: "2026-11-15T05:30:00Z", grn_started: false },
   ],
 };
-const NOW = Date.parse("2026-11-15T06:00:00Z");
 
-describe("gate pass stage", () => {
-  it("oldest first, aged now, inspecting once an inspection exists", () => {
-    const rows = gatePasses(STAGE, "", NOW);
-    assert.deepEqual(rows.map((r) => [r.slug, r.open_hours, r.inspecting]), [
-      ["GP-2", 51, true],
-      ["GP-1", 1, false],
-      ["GP-3", 0.5, false],
-    ]);
-    assert.deepEqual(gatePasses(STAGE, "outlet:3", NOW).map((r) => r.slug), ["GP-1"]);
-    assert.deepEqual(gatePasses(null), []);
+describe("steps", () => {
+  it("longest waiting first, aged now, narrowed by store", () => {
+    assert.deepEqual(stepRows(GRN, "", NOW).map((r) => [r.ref, r.hours]), [["IN-9", 51], ["GP-1", 1], ["GP-3", 0.5]]);
+    assert.deepEqual(stepRows(GRN, "outlet:2", NOW).map((r) => r.ref), ["GP-1", "GP-3"]);
+    assert.deepEqual(stepRows(null), []);
   });
-  it("the tile counts open, waiting, over a day and the oldest", () => {
-    assert.deepEqual(gatePassSummary(gatePasses(STAGE, "", NOW)), { count: 3, waiting: 2, over_day: 1, oldest_hours: 51 });
-    assert.deepEqual(gatePassSummary([]), { count: 0, waiting: 0, over_day: 0, oldest_hours: null });
+  it("a tile counts, finds the oldest, the ones over a day and GRNs started", () => {
+    assert.deepEqual(stepSummary(stepRows(GRN, "", NOW)), { count: 3, oldest_hours: 51, over_day: 1, grn_started: 1 });
+    assert.deepEqual(stepSummary([]), { count: 0, oldest_hours: null, over_day: 0, grn_started: 0 });
+  });
+  it("a row's status reads for its step", () => {
+    assert.equal(rowStatus("gate_pass", {}), "No inspection yet");
+    assert.equal(rowStatus("grn", { grn_started: true }), "GRN started");
+    assert.equal(rowStatus("grn", { grn_started: false }), "GRN not started");
+    assert.equal(rowStatus("inspection", { state: "IN_PROGRESS" }), "In progress");
+    assert.equal(rowStatus("written_off", {}), "Written off");
   });
   it("ages and states read plainly", () => {
     assert.equal(ageText(0.5), "30m");
     assert.equal(ageText(5.25), "5h 15m");
     assert.equal(ageText(51), "2d 3h");
     assert.equal(ageText(null), "—");
-    assert.equal(stateText("IN_PROGRESS"), "In progress");
     assert.equal(stateText(null), "Started");
   });
 });

@@ -7,6 +7,7 @@ import API from "../util/api";
  */
 const WarehouseFlowHelper = {
   getFlow: (params) => API.get("/warehouse-flow/flow", { params }).then((res) => res.data),
+  getInspection: (slug) => API.get(`/warehouse-flow/inspection/${encodeURIComponent(slug)}`).then((res) => res.data),
   getGatePass: (slug) => API.get(`/warehouse-flow/gate-pass/${encodeURIComponent(slug)}`).then((res) => res.data),
 };
 

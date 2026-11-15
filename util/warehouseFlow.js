@@ -1,8 +1,11 @@
 /**
- * Warehouse Flow on the Business Dashboard - what is in each stage, for the
+ * Warehouse Flow on the Business Dashboard - what is in each step, for the
  * chosen store, from `GET /warehouse-flow/flow`.
  *
  *   1. Gate pass -> 2. Inspection -> 3. GRN -> 4. Allocation -> 5. Ready to dispatch
+ *
+ * Every row says when it entered its step (`since`); its age is worked out
+ * here against now, so a list read a minute ago still ages.
  *
  * CommonJS, so it is unit-tested with `node --test` and no bundler.
  */
@@ -13,30 +16,31 @@ function hoursSince(isoTime, nowMs = Date.now()) {
   return Number.isFinite(t) ? Math.round((Math.max(0, nowMs - t) / 3600000) * 10) / 10 : null;
 }
 
-/**
- * Open gate passes for the chosen store, oldest first, each aged now (from
- * entry_time, so a cached list still ages) and marked `inspecting` once a GRN
- * inspection has started on it.
- */
-function gatePasses(stage, store = "", nowMs = Date.now()) {
-  const rows = ((stage && stage.rows) || []).filter((r) => !store || r.store === store);
-  return rows
-    .map((r) => {
-      const h = hoursSince(r.entry_time, nowMs);
-      return { ...r, open_hours: h === null ? r.open_hours : h, inspecting: (r.inspections || []).length > 0 };
-    })
-    .sort((a, b) => (b.open_hours || 0) - (a.open_hours || 0));
+/** A step's (or a list's) rows for the chosen store, longest waiting first, each with `hours`. */
+function stepRows(section, store = "", nowMs = Date.now()) {
+  return ((section && section.rows) || [])
+    .filter((r) => !store || r.store === store)
+    .map((r) => ({ ...r, hours: hoursSince(r.since, nowMs) }))
+    .sort((a, b) => (b.hours || 0) - (a.hours || 0));
 }
 
-/** The tile's numbers for the gate pass stage. */
-function gatePassSummary(rows) {
+/** A tile's numbers: how many, the longest wait, how many over a day, GRNs started. */
+function stepSummary(rows) {
   const list = rows || [];
   return {
     count: list.length,
-    waiting: list.filter((r) => !r.inspecting).length,
-    over_day: list.filter((r) => (r.open_hours || 0) >= 24).length,
-    oldest_hours: list.length ? Math.max(...list.map((r) => r.open_hours || 0)) : null,
+    oldest_hours: list.length ? Math.max(...list.map((r) => r.hours || 0)) : null,
+    over_day: list.filter((r) => (r.hours || 0) >= 24).length,
+    grn_started: list.filter((r) => r.grn_started).length,
   };
+}
+
+/** What a row's status reads as, in the step it is in. */
+function rowStatus(stepKey, row) {
+  if (stepKey === "gate_pass") return "No inspection yet";
+  if (stepKey === "grn") return row.grn_started ? "GRN started" : "GRN not started";
+  if (stepKey === "written_off") return "Written off";
+  return stateText(row.state);
 }
 
 /** "45m", "5h 20m", "2d 3h". */
@@ -49,10 +53,10 @@ function ageText(hours) {
   return `${Math.floor(h / 24)}d ${h % 24}h`;
 }
 
-/** "in_progress" -> "In progress". */
+/** "IN_PROGRESS" -> "In progress". */
 function stateText(state) {
   const s = String(state || "").replace(/_/g, " ").trim().toLowerCase();
   return s ? s[0].toUpperCase() + s.slice(1) : "Started";
 }
 
-module.exports = { hoursSince, gatePasses, gatePassSummary, ageText, stateText };
+module.exports = { hoursSince, stepRows, stepSummary, rowStatus, ageText, stateText };
