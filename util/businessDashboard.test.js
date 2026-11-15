@@ -3,7 +3,7 @@
  */
 const { describe, it } = require("node:test");
 const assert = require("node:assert/strict");
-const { presetRange, daysBetween, aggregate, shortDay } = require("./businessDashboard");
+const { presetRange, daysBetween, aggregate, shortDay, openGatePasses, ageText } = require("./businessDashboard");
 
 const DATA = {
   from_date: "2026-11-01",
@@ -76,5 +76,30 @@ describe("aggregate", () => {
     assert.equal(totals.sales, 0);
     assert.equal(totals.avg_bill, null);
     assert.deepEqual(byDay, []);
+  });
+});
+
+describe("open gate passes", () => {
+  const data = {
+    gate_passes: {
+      ok: true,
+      rows: [
+        { slug: "GP-1", store: "outlet:3", entry_time: "2026-11-15T05:00:00Z", inspections: [] },
+        { slug: "GP-2", store: "outlet:4", entry_time: "2026-11-13T03:00:00Z", inspections: [{ slug: "IN-1", state: "IN_PROGRESS" }] },
+      ],
+    },
+  };
+  const now = Date.parse("2026-11-15T06:00:00Z");
+  it("oldest first, aged from entry, unloading when an inspection exists", () => {
+    const rows = openGatePasses(data, "", now);
+    assert.deepEqual(rows.map((r) => [r.slug, r.open_hours, r.unloading]), [["GP-2", 51, true], ["GP-1", 1, false]]);
+    assert.deepEqual(openGatePasses(data, "outlet:3", now).map((r) => r.slug), ["GP-1"]);
+    assert.deepEqual(openGatePasses(null), []);
+  });
+  it("ages read as minutes, hours or days", () => {
+    assert.equal(ageText(0.5), "30m");
+    assert.equal(ageText(5.25), "5h 15m");
+    assert.equal(ageText(51), "2d 3h");
+    assert.equal(ageText(null), "—");
   });
 });

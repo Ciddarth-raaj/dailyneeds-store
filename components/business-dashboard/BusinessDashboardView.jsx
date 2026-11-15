@@ -25,7 +25,7 @@ import {
 } from "@chakra-ui/react";
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip as ChartTooltip, XAxis, YAxis } from "recharts";
 import BusinessDashboardHelper from "../../helper/businessDashboard";
-import { PRESETS, aggregate, presetRange, shortDay } from "../../util/businessDashboard";
+import { PRESETS, aggregate, ageText, openGatePasses, presetRange, shortDay } from "../../util/businessDashboard";
 import { compactINR, formatINR } from "../../util/payrollDashboard";
 
 // Categorical slots 1 and 2 (validated together: CVD and normal-vision separation pass).
@@ -67,6 +67,92 @@ function KpiCard({ label, value, sub, help, accent = "#1B2A5B", unavailable }) {
         )}
       </Box>
     </Tooltip>
+  );
+}
+
+const timeText = (iso) =>
+  iso ? new Date(iso).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "—";
+
+/** Open gate passes - every vehicle in through the gate and not yet out, oldest first. */
+function GatePassPanel({ section, passes, storeName }) {
+  const waiting = passes.filter((p) => !p.unloading).length;
+  const overDay = passes.filter((p) => (p.open_hours || 0) >= 24).length;
+  return (
+    <Box bg="white" borderWidth="1px" borderColor="gray.200" borderRadius="md" p={4} overflowX="auto">
+      <Flex align="baseline" gap={3} wrap="wrap" mb={2}>
+        <Text fontSize="sm" fontWeight="600" color="gray.700">
+          Open gate passes
+        </Text>
+        {section && section.ok ? (
+          <Text fontSize="xs" color="gray.600">
+            {passes.length} open · {waiting} waiting to unload{overDay ? ` · ${overDay} open over 24h` : ""}
+          </Text>
+        ) : null}
+      </Flex>
+      {!section || !section.ok ? (
+        <Text fontSize="sm" color="gray.500">
+          Not available
+        </Text>
+      ) : !passes.length ? (
+        <Text fontSize="sm" color="gray.500">
+          No open gate passes.
+        </Text>
+      ) : (
+        <Table size="sm">
+          <Thead>
+            <Tr>
+              <Th>Gate pass</Th>
+              <Th>Store</Th>
+              <Th>Supplier</Th>
+              <Th>Vehicle</Th>
+              <Th>Driver</Th>
+              <Th>In at</Th>
+              <Th isNumeric>Open for</Th>
+              <Th>GRN</Th>
+            </Tr>
+          </Thead>
+          <Tbody>
+            {passes.map((p) => (
+              <Tr key={p.slug}>
+                <Td whiteSpace="nowrap">{p.slug}</Td>
+                <Td>{storeName(p.store)}</Td>
+                <Td>{p.supplier_name || p.supplier_id || "—"}</Td>
+                <Td whiteSpace="nowrap">{p.vehicle_number || "—"}</Td>
+                <Td>
+                  {p.driver_name || "—"}
+                  {p.driver_phone ? (
+                    <Text as="span" color="gray.500">
+                      {" "}
+                      · {p.driver_phone}
+                    </Text>
+                  ) : null}
+                </Td>
+                <Td whiteSpace="nowrap">{timeText(p.entry_time)}</Td>
+                <Td isNumeric whiteSpace="nowrap" fontWeight={(p.open_hours || 0) >= 24 ? "700" : "400"}>
+                  {ageText(p.open_hours)}
+                  {(p.open_hours || 0) >= 24 ? (
+                    <Badge ml={2} colorScheme="orange" fontSize="9px">
+                      over 24h
+                    </Badge>
+                  ) : null}
+                </Td>
+                <Td>
+                  {p.unloading ? (
+                    <Badge colorScheme="blue" fontSize="9px">
+                      {p.inspections.map((i) => (i.state || "started").replace(/_/g, " ").toLowerCase()).join(", ")}
+                    </Badge>
+                  ) : (
+                    <Badge colorScheme="gray" fontSize="9px">
+                      waiting
+                    </Badge>
+                  )}
+                </Td>
+              </Tr>
+            ))}
+          </Tbody>
+        </Table>
+      )}
+    </Box>
   );
 }
 
@@ -125,6 +211,8 @@ export default function BusinessDashboardView() {
   }, [stores, store]);
 
   const { totals, byDay, byStore } = useMemo(() => aggregate(data, store), [data, store]);
+  const gatePasses = useMemo(() => openGatePasses(data, store), [data, store]);
+  const storeName = (key) => (stores.find((s) => s.key === key) || {}).name || key;
 
   const choosePreset = (key) => {
     setPreset(key);
@@ -141,6 +229,7 @@ export default function BusinessDashboardView() {
         ["Purchases", data.purchases],
         ["Stock", data.stock],
         ["Margin", data.margin],
+        ["Open gate passes", data.gate_passes],
       ].filter(([, s]) => s && !s.ok)
     : [];
   const prFound = data && data.purchases && data.purchases.purchase_return_found;
@@ -285,6 +374,8 @@ export default function BusinessDashboardView() {
               unavailable={data.margin && data.margin.ok ? null : "Not available"}
             />
           </SimpleGrid>
+
+          <GatePassPanel section={data.gate_passes} passes={gatePasses} storeName={storeName} />
 
           <Box bg="white" borderWidth="1px" borderColor="gray.200" borderRadius="md" p={4}>
             <Text fontSize="sm" fontWeight="600" color="gray.700" mb={2}>
