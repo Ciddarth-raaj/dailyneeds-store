@@ -14,6 +14,12 @@ const ALL_PAGES_MENU = {
         selected: false,
         location: "/",
       },
+      view_business_dashboard: {
+        title: "Business Dashboard",
+        permission: "view_sales_dashboard",
+        selected: false,
+        location: "/dashboard/business",
+      },
       view_stock_dashboard: {
         title: "Stock Dashboard",
         permission: "view_stock_dashboard",

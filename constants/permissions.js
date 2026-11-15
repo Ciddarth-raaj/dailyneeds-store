@@ -24,7 +24,7 @@ export const PERMISSIONS = {
     view_stock_holding_dashboard: "View Stock Holding Dashboard",
     view_attendance_dashboard: "View Attendance & Staffing Dashboard",
     view_hr_dashboard: "View HR Dashboard (not built yet)",
-    view_sales_dashboard: "View Sales Dashboard (not built yet)",
+    view_sales_dashboard: "View Business Dashboard (Sales, Purchase, Stock)",
     view_my_dashboard: "View My Dashboard (not built yet)",
     dashboard_scope_own_store: "Dashboard Store Scope: Own Store",
     dashboard_scope_all_stores: "Dashboard Store Scope: All Stores",
