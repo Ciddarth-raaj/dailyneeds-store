@@ -128,6 +128,15 @@ class MyApp extends React.Component {
     this.initUser();
   }
 
+  /**
+   * Registers public/sw.js, which makes the app installable on a phone. It
+   * caches nothing (see that file), so it never serves an old page.
+   */
+  componentDidMount() {
+    if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
+    navigator.serviceWorker.register("/sw.js").catch((err) => console.log("Service worker not registered", err));
+  }
+
   /** The current route, from props where Next provides it. */
   get pathname() {
     return pathnameOf(this.props);
