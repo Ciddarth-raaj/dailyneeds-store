@@ -23,6 +23,7 @@ import {
   hasInvoiceNotStarted,
   hasInvoiceStarted,
   docStateText,
+  mixText,
   invoiceLine,
   rowStatus,
   stateText,
@@ -48,6 +49,8 @@ const STATUS_COLOR = {
   "No inspection yet": "gray",
   "Written off": "red",
   "Invoice not uploaded": "orange",
+  "In transit": "purple",
+  "Partly received": "blue",
 };
 
 // GRN splits into these two lists; "all" is both.
@@ -94,7 +97,7 @@ function StepTile({ index, step, summary, onSelect }) {
   const split = built && step.ok && step.key === "grn";
   const clickable = built && !split;
   // Invoices are known once uploaded for the GRN; before that, count gate passes.
-  const byGatePass = step.key === "gate_pass" || step.key === "inspection";
+  const byGatePass = step.key === "gate_pass" || step.key === "inspection" || step.key === "in_transit";
   return (
     <Box
       as={clickable ? "button" : "div"}
@@ -152,6 +155,8 @@ function StepTile({ index, step, summary, onSelect }) {
               ? `gate pass${summary.count === 1 ? "" : "es"}, not inspected`
               : step.key === "inspection"
               ? `gate pass${summary.count === 1 ? "" : "es"} being inspected`
+              : step.key === "in_transit"
+              ? `transfer${summary.count === 1 ? "" : "s"} on the road`
               : `invoice${summary.invoices === 1 ? "" : "s"} · from ${summary.gate_passes} gate pass${summary.gate_passes === 1 ? "" : "es"}`}
           </Text>
           <Text fontSize="xs" color="gray.600">
@@ -324,6 +329,45 @@ function DocumentDetail({ row }) {
   );
 }
 
+/** One dispatch to a store: what it carries, its truck, and what the store found short. */
+function TransferDetail({ t, storeName }) {
+  return (
+    <Flex direction="column" gap={5} py={2}>
+      <Flex gap={2} align="center" wrap="wrap">
+        <Badge colorScheme={t.status === "RECEIVED" ? "green" : t.status === "PARTIALLY_RECEIVED" ? "blue" : "purple"}>
+          {t.status === "RECEIVED" ? "Received" : t.status === "PARTIALLY_RECEIVED" ? "Partly received" : "In transit"}
+        </Badge>
+        {t.short ? <Badge colorScheme="orange">{t.short.returned_qty} units short</Badge> : null}
+      </Flex>
+      <SimpleGrid columns={2} spacing={4}>
+        <Field label="From">{storeName(t.origin)}</Field>
+        <Field label="To">{storeName(t.store)}</Field>
+        <Field label="Dispatched">{timeText(t.dispatched_at)}</Field>
+        <Field label="Received">{t.received_at ? timeText(t.received_at) : "Not yet"}</Field>
+        <Field label="Truck">{t.truck_id}</Field>
+        <Field label="E-way bill">{t.eway_bill_no || "Not generated"}</Field>
+        <Field label="Boxes">{qty(t.box_count)}</Field>
+        <Field label="Articles">{qty(t.article_count)}</Field>
+        <Field label="Units">{qty(t.total_qty)}</Field>
+        <Field label="Value (landing cost)">{t.total_landing_cost === null ? null : formatINR(t.total_landing_cost)}</Field>
+        <Field label="MRP value">{t.total_mrp_value === null ? null : formatINR(t.total_mrp_value)}</Field>
+        <Field label="Carries">{mixText(t.documents_mix) || "—"}</Field>
+      </SimpleGrid>
+      {t.short ? (
+        <Box borderWidth="1px" borderColor="orange.200" bg="orange.50" borderRadius="md" p={3}>
+          <Text fontSize="sm" fontWeight="700" mb={1}>
+            Store verification
+          </Text>
+          <Text fontSize="sm">
+            {qty(t.short.returned_qty)} units sent back on {t.short.short_lines} line{t.short.short_lines === 1 ? "" : "s"} (
+            {formatINR(t.short.returned_value)} at landing cost), last on {timeText(t.short.returned_at)}.
+          </Text>
+        </Box>
+      ) : null}
+    </Flex>
+  );
+}
+
 /** One gate pass in full: vehicle, times, its invoices and its inspection. */
 function GatePassDetail({ slug }) {
   const state = useDetail(WarehouseFlowHelper.getGatePass, slug);
@@ -445,9 +489,21 @@ function StepList({ section, rows, storeName, onOpen }) {
               <Flex justify="space-between" align="flex-start" gap={3}>
                 <Box minW={0}>
                   <Text color="gray.900" fontWeight="700" fontSize="md" noOfLines={2} textTransform="capitalize">
-                    {r.supplier_name || r.supplier_id || "Unknown supplier"}
+                    {r.kind === "transfer" ? `To ${storeName(r.store)}` : r.supplier_name || r.supplier_id || "Unknown supplier"}
                   </Text>
-                  {r.kind === "document" ? (
+                  {r.kind === "transfer" ? (
+                    <>
+                      <Text fontSize="sm" color="gray.700" fontWeight="600">
+                        {[`${r.box_count} box${r.box_count === 1 ? "" : "es"}`, r.total_landing_cost === null ? null : compactINR(r.total_landing_cost)]
+                          .filter(Boolean)
+                          .join(" · ")}
+                        {r.short ? ` · ${compactINR(r.short.returned_value)} short` : ""}
+                      </Text>
+                      <Text fontSize="xs" color="gray.500">
+                        {[mixText(r.documents_mix), `dispatched ${timeText(r.dispatched_at)}`].filter(Boolean).join(" · ")}
+                      </Text>
+                    </>
+                  ) : r.kind === "document" ? (
                     <Text fontSize="sm" color="gray.700" fontWeight="600" wordBreak="break-all">
                       Invoice {r.invoice_no || "(number not read yet)"}
                     </Text>
@@ -456,12 +512,20 @@ function StepList({ section, rows, storeName, onOpen }) {
                       {invoiceLine(r, compactINR)}
                     </Text>
                   ) : null}
-                  <Text fontSize="xs" color="gray.500" wordBreak="break-all">
-                    {r.kind === "document" ? r.gate_pass || "No gate pass" : refText(r)}
-                  </Text>
-                  <Text fontSize="xs" color="gray.500">
-                    {[storeName(r.store), r.vehicle_number].filter(Boolean).join(" · ")}
-                  </Text>
+                  {r.kind === "transfer" ? (
+                    <Text fontSize="xs" color="gray.500" wordBreak="break-all">
+                      Transfer {r.transfer} · {r.job_type}
+                    </Text>
+                  ) : (
+                    <>
+                      <Text fontSize="xs" color="gray.500" wordBreak="break-all">
+                        {r.kind === "document" ? r.gate_pass || "No gate pass" : refText(r)}
+                      </Text>
+                      <Text fontSize="xs" color="gray.500">
+                        {[storeName(r.store), r.vehicle_number].filter(Boolean).join(" · ")}
+                      </Text>
+                    </>
+                  )}
                 </Box>
                 <Flex direction="column" align="flex-end" gap={1} flexShrink={0}>
                   <Text fontSize="sm" fontWeight={late ? "700" : "400"} whiteSpace="nowrap">
@@ -499,7 +563,13 @@ function StepPanel({ section, rows, storeName, open, onOpen, onBack, onClose, gr
   const filter = isGrn ? GRN_FILTERS.find((f) => f.key === grnFilter) || GRN_FILTERS[2] : null;
   const shown = filter ? rows.filter(filter.test) : rows;
   const label = section ? (isGrn && filter.key !== "all" ? `${section.label} ${filter.label.toLowerCase()}` : section.label) : "";
-  const title = open ? open.supplier_name || open.supplier_id || "Unknown supplier" : section ? `${label} · ${shown.length}` : "";
+  const title = open
+    ? open.kind === "transfer"
+      ? `To ${storeName(open.store)}`
+      : open.supplier_name || open.supplier_id || "Unknown supplier"
+    : section
+    ? `${label} · ${shown.length}`
+    : "";
   return (
     <Drawer isOpen={Boolean(section)} placement="right" onClose={onClose} size="lg">
       <DrawerOverlay />
@@ -513,7 +583,9 @@ function StepPanel({ section, rows, storeName, open, onOpen, onBack, onClose, gr
           ) : null}
           <Text fontSize="xs" color="gray.500" fontWeight="600">
             {open
-              ? open.gate_pass
+              ? open.kind === "transfer"
+                ? "TRANSFER"
+                : open.gate_pass
                 ? "GATE PASS"
                 : open.kind === "document"
                 ? "INVOICE"
@@ -527,13 +599,15 @@ function StepPanel({ section, rows, storeName, open, onOpen, onBack, onClose, gr
           </Text>
           {open ? (
             <Text fontSize="xs" color="gray.500" fontWeight="400">
-              {open.kind === "document" ? [`Invoice ${open.invoice_no || "(number not read yet)"}`, open.gate_pass].filter(Boolean).join(" · ") : refText(open)}
+              {open.kind === "transfer" ? `Transfer ${open.transfer} · ${open.job_type}` : open.kind === "document" ? [`Invoice ${open.invoice_no || "(number not read yet)"}`, open.gate_pass].filter(Boolean).join(" · ") : refText(open)}
             </Text>
           ) : null}
         </DrawerHeader>
         <DrawerBody>
           {!section ? null : open ? (
-            open.gate_pass ? (
+            open.kind === "transfer" ? (
+              <TransferDetail t={open} storeName={storeName} />
+            ) : open.gate_pass ? (
               <GatePassDetail slug={open.gate_pass} />
             ) : open.kind === "document" ? (
               <DocumentDetail row={open} />
@@ -649,7 +723,7 @@ export default function WarehouseFlowSection({ store = "", refreshTick = 0 }) {
       ) : null}
 
       {stages.length ? (
-        <SimpleGrid columns={{ base: 2, md: 5 }} spacing={3}>
+        <SimpleGrid columns={{ base: 2, md: 3, xl: 6 }} spacing={3}>
           {stages.map((step, i) => (
             <StepTile key={step.key} index={i} step={step} summary={stepSummary(rowsByKey[step.key])} onSelect={(filter) => choose(step.key, filter)} />
           ))}

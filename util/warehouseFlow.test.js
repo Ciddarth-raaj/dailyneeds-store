@@ -11,6 +11,7 @@ const {
   hasInvoiceNotStarted,
   hasInvoiceStarted,
   docStateText,
+  mixText,
   ageText,
   stateText,
 } = require("./warehouseFlow");
@@ -77,5 +78,9 @@ describe("steps", () => {
     assert.equal(docStateText("cost_qc_failed"), "Cost variance detected");
     assert.equal(docStateText("some_new_state"), "Some new state");
     assert.equal(rowStatus("no_invoice", {}), "Invoice not uploaded");
+    assert.equal(rowStatus("in_transit", { status: "IN_TRANSIT" }), "In transit");
+    assert.equal(rowStatus("in_transit", { status: "PARTIALLY_RECEIVED" }), "Partly received");
+    assert.equal(rowStatus("short_received", { short: { returned_qty: 4 } }), "4 units short");
+    assert.equal(mixText({ invoices: 2, adhoc: 1, sta: 0 }), "2 invoices · 1 ad-hoc");
   });
 });
