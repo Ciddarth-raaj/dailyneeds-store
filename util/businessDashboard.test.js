@@ -24,6 +24,13 @@ const DATA = {
     rows: [{ day: "2026-11-02", store: "outlet:3", purchase: 800, purchase_invoices: 2, purchase_return: 100, purchase_return_invoices: 1 }],
   },
   stock: { ok: true, rows: [{ store: "outlet:4", cost_value: 5000, sellable_cost_value: 4500, mrp_value: 7000 }] },
+  margin: {
+    ok: true,
+    rows: [
+      { day: "2026-11-01", store: "outlet:3", sales_ex_tax: 900, costed_sales: 800, cost: 600, margin: 200, uncosted_sales: 100 },
+      { day: "2026-11-02", store: "outlet:4", sales_ex_tax: 2700, costed_sales: 2700, cost: 2160, margin: 540, uncosted_sales: 0 },
+    ],
+  },
 };
 
 describe("ranges", () => {
@@ -52,6 +59,10 @@ describe("aggregate", () => {
     assert.deepEqual(byDay.map((d) => d.day), ["2026-11-01", "2026-11-02", "2026-11-03"]);
     assert.equal(byDay[2].sales, 0);
     assert.deepEqual(byStore.map((s) => s.key), ["outlet:4", "outlet:3"]);
+    assert.equal(totals.margin, 740);
+    assert.equal(totals.margin_pct, 21.14);
+    assert.equal(totals.margin_coverage_pct, 97.22);
+    assert.equal(byStore[1].margin_pct, 25);
   });
   it("one store narrows everything", () => {
     const { totals, byStore } = aggregate(DATA, "outlet:3");

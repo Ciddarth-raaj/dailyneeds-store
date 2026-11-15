@@ -140,6 +140,7 @@ export default function BusinessDashboardView() {
         ["Sales and sales returns", data.sales],
         ["Purchases", data.purchases],
         ["Stock", data.stock],
+        ["Margin", data.margin],
       ].filter(([, s]) => s && !s.ok)
     : [];
   const prFound = data && data.purchases && data.purchases.purchase_return_found;
@@ -271,7 +272,18 @@ export default function BusinessDashboardView() {
               )}. Stock is now, not for the chosen dates.`}
               unavailable={data.stock.ok ? null : "Not available"}
             />
-            <KpiCard label="Margin" unavailable="Coming soon" help={data.margin && data.margin.pending} />
+            <KpiCard
+              label="Margin"
+              value={totals.margin}
+              accent={SALES_COLOR}
+              sub={`${pctText(totals.margin_pct)} margin${
+                totals.margin_coverage_pct !== null && totals.margin_coverage_pct < 99.5 ? ` · on ${pctText(totals.margin_coverage_pct)} of sales` : ""
+              }`}
+              help={`Sales before tax minus cost before tax (batch basic cost × quantity), returns netted. Lines with no cost in RetailPilot are left out: ${formatINR(
+                totals.uncosted_sales
+              )} of sales. Margin ${formatINR(totals.margin)} on ${formatINR(totals.costed_sales)}.`}
+              unavailable={data.margin && data.margin.ok ? null : "Not available"}
+            />
           </SimpleGrid>
 
           <Box bg="white" borderWidth="1px" borderColor="gray.200" borderRadius="md" p={4}>
@@ -312,6 +324,8 @@ export default function BusinessDashboardView() {
                   <Th isNumeric>SR %</Th>
                   <Th isNumeric>Net sales</Th>
                   <Th isNumeric>Bills</Th>
+                  <Th isNumeric>Margin</Th>
+                  <Th isNumeric>Margin %</Th>
                   <Th isNumeric>Purchase</Th>
                   <Th isNumeric>PR</Th>
                   <Th isNumeric>Stock (cost)</Th>
@@ -335,6 +349,8 @@ export default function BusinessDashboardView() {
                       {formatINR(s.net_sales)}
                     </Td>
                     <Td isNumeric>{s.bills}</Td>
+                    <Td isNumeric>{data.margin.ok ? formatINR(s.margin) : "—"}</Td>
+                    <Td isNumeric>{data.margin.ok ? pctText(s.margin_pct) : "—"}</Td>
                     <Td isNumeric>{formatINR(s.purchase)}</Td>
                     <Td isNumeric>{prFound ? formatINR(s.purchase_return) : "—"}</Td>
                     <Td isNumeric>{formatINR(s.stock_cost)}</Td>
@@ -350,6 +366,8 @@ export default function BusinessDashboardView() {
                     <Th isNumeric>{pctText(totals.return_pct)}</Th>
                     <Th isNumeric>{formatINR(totals.net_sales)}</Th>
                     <Th isNumeric>{totals.bills}</Th>
+                    <Th isNumeric>{data.margin.ok ? formatINR(totals.margin) : "—"}</Th>
+                    <Th isNumeric>{data.margin.ok ? pctText(totals.margin_pct) : "—"}</Th>
                     <Th isNumeric>{formatINR(totals.purchase)}</Th>
                     <Th isNumeric>{prFound ? formatINR(totals.purchase_return) : "—"}</Th>
                     <Th isNumeric>{formatINR(totals.stock_cost)}</Th>

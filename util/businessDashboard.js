@@ -69,6 +69,7 @@ function aggregate(data, store = "") {
   const sales = ((data && data.sales && data.sales.rows) || []).filter(keep);
   const purchases = ((data && data.purchases && data.purchases.rows) || []).filter(keep);
   const stock = ((data && data.stock && data.stock.rows) || []).filter(keep);
+  const margin = ((data && data.margin && data.margin.rows) || []).filter(keep);
   const stores = ((data && data.stores) || []).filter((s) => !store || s.key === store);
 
   const sum = (rows, k) => round2(rows.reduce((s, r) => s + (Number(r[k]) || 0), 0));
@@ -85,6 +86,14 @@ function aggregate(data, store = "") {
     stock_sellable_cost: sum(stock, "sellable_cost_value"),
     stock_mrp: sum(stock, "mrp_value"),
   };
+  totals.sales_ex_tax = sum(margin, "sales_ex_tax");
+  totals.costed_sales = sum(margin, "costed_sales");
+  totals.cost = sum(margin, "cost");
+  totals.margin = round2(totals.costed_sales - totals.cost);
+  totals.uncosted_sales = sum(margin, "uncosted_sales");
+  // Margin % is over the sales that have a cost; coverage says how much of sales that is.
+  totals.margin_pct = pct(totals.margin, totals.costed_sales);
+  totals.margin_coverage_pct = pct(totals.costed_sales, totals.costed_sales + totals.uncosted_sales);
   totals.net_sales = round2(totals.sales - totals.returns);
   totals.net_purchase = round2(totals.purchase - totals.purchase_return);
   totals.avg_bill = totals.bills ? round2(totals.sales / totals.bills) : null;
@@ -123,7 +132,11 @@ function aggregate(data, store = "") {
       purchase_return: sum(mine(purchases), "purchase_return"),
       stock_cost: sum(mine(stock), "cost_value"),
       stock_mrp: sum(mine(stock), "mrp_value"),
+      costed_sales: sum(mine(margin), "costed_sales"),
+      cost: sum(mine(margin), "cost"),
     };
+    row.margin = round2(row.costed_sales - row.cost);
+    row.margin_pct = pct(row.margin, row.costed_sales);
     row.net_sales = round2(row.sales - row.returns);
     row.return_pct = pct(row.returns, row.sales);
     return row;
