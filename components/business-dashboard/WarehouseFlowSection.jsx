@@ -15,13 +15,7 @@ import {
   Flex,
   SimpleGrid,
   Spinner,
-  Table,
-  Tbody,
-  Td,
   Text,
-  Th,
-  Thead,
-  Tr,
 } from "@chakra-ui/react";
 import WarehouseFlowHelper from "../../helper/warehouseFlow";
 import { ageText, rowStatus, stateText, stepRows, stepSummary } from "../../util/warehouseFlow";
@@ -33,14 +27,52 @@ const qty = (n) => (n === null || n === undefined ? "—" : Number(n).toLocaleSt
 
 const STATUS_COLOR = { "GRN started": "blue", "GRN not started": "gray", "No inspection yet": "gray", "Written off": "red" };
 
-/** One step tile. A built step is a button that opens its list at the side. */
-function StepTile({ index, step, summary, onSelect }) {
-  const built = step.built;
+// GRN splits into these two lists; "all" is both.
+const GRN_FILTERS = [
+  { key: "not_started", label: "Not started", test: (r) => !r.grn_started },
+  { key: "started", label: "Started", test: (r) => r.grn_started },
+  { key: "all", label: "All", test: () => true },
+];
+
+/** One half of the GRN tile: a count that opens its own list. */
+function GrnSplit({ label, count, color, onClick }) {
   return (
     <Box
-      as={built ? "button" : "div"}
-      type={built ? "button" : undefined}
-      onClick={built ? onSelect : undefined}
+      as="button"
+      type="button"
+      onClick={onClick}
+      flex="1"
+      textAlign="left"
+      px={2}
+      py={1}
+      borderRadius="md"
+      bg={`${color}.50`}
+      _hover={{ boxShadow: "sm", bg: `${color}.100` }}
+      aria-label={`GRN ${label.toLowerCase()}: ${count}`}
+    >
+      <Text fontSize="xl" fontWeight="700" color="gray.800" lineHeight="short">
+        {count}
+      </Text>
+      <Text fontSize="xs" color="gray.700">
+        {label}
+      </Text>
+    </Box>
+  );
+}
+
+/**
+ * One step tile. A built step is a button that opens its list at the side;
+ * the GRN tile is split in two, not started and started, each opening its own.
+ */
+function StepTile({ index, step, summary, onSelect }) {
+  const built = step.built;
+  const split = built && step.ok && step.key === "grn";
+  const clickable = built && !split;
+  return (
+    <Box
+      as={clickable ? "button" : "div"}
+      type={clickable ? "button" : undefined}
+      onClick={clickable ? () => onSelect() : undefined}
       title={built ? step.hint : undefined}
       textAlign="left"
       px={3}
@@ -50,14 +82,20 @@ function StepTile({ index, step, summary, onSelect }) {
       borderColor="gray.200"
       borderRadius="md"
       opacity={built ? 1 : 0.6}
-      cursor={built ? "pointer" : "default"}
-      _hover={built ? { boxShadow: "md", borderColor: "purple.300" } : undefined}
+      cursor={clickable ? "pointer" : "default"}
+      _hover={clickable ? { boxShadow: "md", borderColor: "purple.300" } : undefined}
     >
       <Text fontSize="10px" color="gray.500" fontWeight="600" letterSpacing="wide">
         STEP {index + 1}
       </Text>
       <Text fontSize="sm" fontWeight="700" color="gray.800">
         {step.label}
+        {split ? (
+          <Text as="span" fontWeight="400" color="gray.500">
+            {" "}
+            · {summary.count}
+          </Text>
+        ) : null}
       </Text>
       {!built ? (
         <Text fontSize="xs" color="gray.500" mt={1}>
@@ -67,17 +105,18 @@ function StepTile({ index, step, summary, onSelect }) {
         <Text fontSize="xs" color="gray.500" mt={1}>
           Not available
         </Text>
+      ) : split ? (
+        <Flex gap={2} mt={1}>
+          <GrnSplit label="Not started" count={summary.count - summary.grn_started} color="gray" onClick={() => onSelect("not_started")} />
+          <GrnSplit label="Started" count={summary.grn_started} color="blue" onClick={() => onSelect("started")} />
+        </Flex>
       ) : (
         <>
           <Text fontSize="2xl" fontWeight="700" color="gray.800" lineHeight="short">
             {summary.count}
           </Text>
           <Text fontSize="xs" color="gray.600">
-            {!summary.count
-              ? "Nothing here"
-              : step.key === "grn"
-              ? `${summary.grn_started} started · ${summary.count - summary.grn_started} not started`
-              : `oldest ${ageText(summary.oldest_hours)}`}
+            {!summary.count ? "Nothing here" : `oldest ${ageText(summary.oldest_hours)}`}
           </Text>
           {summary.over_day ? (
             <Badge mt={1} colorScheme="orange" fontSize="9px">
@@ -254,7 +293,7 @@ function InspectionDetail({ slug }) {
   );
 }
 
-/** A step's list; a row opens that consignment. */
+/** A step's list; a row opens that consignment. Stacked, so it reads on a phone. */
 function StepList({ section, rows, storeName, onOpen }) {
   if (!section.ok) {
     return (
@@ -272,60 +311,59 @@ function StepList({ section, rows, storeName, onOpen }) {
     );
   }
   return (
-    <Box overflowX="auto">
+    <Box>
       <Text fontSize="xs" color="gray.600" mb={2}>
-        {section.hint}. Longest waiting first; click one for its detail.
+        {section.hint}. Longest waiting first; tap one for its detail.
       </Text>
-      <Table size="sm">
-        <Thead>
-          <Tr>
-            <Th>Consignment</Th>
-            <Th>Supplier</Th>
-            <Th isNumeric>In this step</Th>
-            <Th>Status</Th>
-          </Tr>
-        </Thead>
-        <Tbody>
-          {rows.map((r) => {
-            const status = rowStatus(section.key, r);
-            return (
-              <Tr
-                key={`${r.kind}:${r.ref}`}
-                onClick={() => onOpen(r)}
-                onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onOpen(r)}
-                tabIndex={0}
-                role="button"
-                aria-label={`Open ${r.gate_pass || r.ref}`}
-                cursor="pointer"
-                _hover={{ bg: "purple.50" }}
-              >
-                <Td>
-                  <Text color="purple.700" fontWeight="600" whiteSpace="nowrap">
+      <Flex direction="column" borderTopWidth="1px" borderColor="gray.100">
+        {rows.map((r) => {
+          const status = rowStatus(section.key, r);
+          const late = (r.hours || 0) >= 24;
+          return (
+            <Box
+              key={`${r.kind}:${r.ref}`}
+              onClick={() => onOpen(r)}
+              onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onOpen(r)}
+              tabIndex={0}
+              role="button"
+              aria-label={`Open ${r.gate_pass || r.ref}`}
+              cursor="pointer"
+              px={2}
+              py={3}
+              borderBottomWidth="1px"
+              borderColor="gray.100"
+              _hover={{ bg: "purple.50" }}
+            >
+              <Flex justify="space-between" align="flex-start" gap={3}>
+                <Box minW={0}>
+                  <Text color="purple.700" fontWeight="600" fontSize="sm" wordBreak="break-all">
                     {r.gate_pass || `Inspection ${r.ref}`}
                   </Text>
-                  <Text fontSize="xs" color="gray.500" whiteSpace="nowrap">
+                  <Text fontSize="sm" color="gray.800" noOfLines={2}>
+                    {r.supplier_name || r.supplier_id || "—"}
+                  </Text>
+                  <Text fontSize="xs" color="gray.500">
                     {[storeName(r.store), r.vehicle_number].filter(Boolean).join(" · ")}
                   </Text>
-                </Td>
-                <Td>{r.supplier_name || r.supplier_id || "—"}</Td>
-                <Td isNumeric whiteSpace="nowrap" fontWeight={(r.hours || 0) >= 24 ? "700" : "400"}>
-                  {ageText(r.hours)}
-                  {(r.hours || 0) >= 24 ? (
-                    <Badge ml={2} colorScheme="orange" fontSize="9px">
+                </Box>
+                <Flex direction="column" align="flex-end" gap={1} flexShrink={0}>
+                  <Text fontSize="sm" fontWeight={late ? "700" : "400"} whiteSpace="nowrap">
+                    {ageText(r.hours)}
+                  </Text>
+                  {late ? (
+                    <Badge colorScheme="orange" fontSize="9px">
                       over 24h
                     </Badge>
                   ) : null}
-                </Td>
-                <Td>
                   <Badge colorScheme={STATUS_COLOR[status] || "blue"} fontSize="9px">
                     {status}
                   </Badge>
-                </Td>
-              </Tr>
-            );
-          })}
-        </Tbody>
-      </Table>
+                </Flex>
+              </Flex>
+            </Box>
+          );
+        })}
+      </Flex>
     </Box>
   );
 }
@@ -334,8 +372,12 @@ function StepList({ section, rows, storeName, onOpen }) {
  * The side panel a step opens in: its list, and - after a row is clicked -
  * that consignment in full, with Back to the list.
  */
-function StepPanel({ section, rows, storeName, open, onOpen, onBack, onClose }) {
-  const title = open ? open.gate_pass || `Inspection ${open.ref}` : section ? `${section.label} · ${rows.length}` : "";
+function StepPanel({ section, rows, storeName, open, onOpen, onBack, onClose, grnFilter, onGrnFilter }) {
+  const isGrn = section && section.key === "grn";
+  const filter = isGrn ? GRN_FILTERS.find((f) => f.key === grnFilter) || GRN_FILTERS[2] : null;
+  const shown = filter ? rows.filter(filter.test) : rows;
+  const label = section ? (isGrn && filter.key !== "all" ? `${section.label} ${filter.label.toLowerCase()}` : section.label) : "";
+  const title = open ? open.gate_pass || `Inspection ${open.ref}` : section ? `${label} · ${shown.length}` : "";
   return (
     <Drawer isOpen={Boolean(section)} placement="right" onClose={onClose} size="lg">
       <DrawerOverlay />
@@ -360,7 +402,24 @@ function StepPanel({ section, rows, storeName, open, onOpen, onBack, onClose }) 
               <InspectionDetail slug={open.inspection || open.ref} />
             )
           ) : (
-            <StepList section={section} rows={rows} storeName={storeName} onOpen={onOpen} />
+            <>
+              {isGrn ? (
+                <Flex gap={2} mb={3} wrap="wrap">
+                  {GRN_FILTERS.map((f) => (
+                    <Button
+                      key={f.key}
+                      size="sm"
+                      variant={f.key === filter.key ? "solid" : "outline"}
+                      colorScheme="purple"
+                      onClick={() => onGrnFilter(f.key)}
+                    >
+                      {f.label} ({rows.filter(f.test).length})
+                    </Button>
+                  ))}
+                </Flex>
+              ) : null}
+              <StepList section={section} rows={shown} storeName={storeName} onOpen={onOpen} />
+            </>
           )}
         </DrawerBody>
       </DrawerContent>
@@ -378,6 +437,7 @@ function StepPanel({ section, rows, storeName, open, onOpen, onBack, onClose }) 
 export default function WarehouseFlowSection({ store = "", refreshTick = 0 }) {
   const [state, setState] = useState({ loading: true, error: null, data: null });
   const [selected, setSelected] = useState(null);
+  const [grnFilter, setGrnFilter] = useState("all");
   const [open, setOpen] = useState(null);
   const [now, setNow] = useState(() => Date.now());
 
@@ -414,8 +474,9 @@ export default function WarehouseFlowSection({ store = "", refreshTick = 0 }) {
   }, [sections, store, now]);
 
   const active = sections.find((s) => s.key === selected) || null;
-  const choose = (key) => {
+  const choose = (key, filter) => {
     setOpen(null);
+    setGrnFilter(filter || "all");
     setSelected(key);
   };
   const close = () => {
@@ -451,7 +512,7 @@ export default function WarehouseFlowSection({ store = "", refreshTick = 0 }) {
       {stages.length ? (
         <SimpleGrid columns={{ base: 2, md: 5 }} spacing={3}>
           {stages.map((step, i) => (
-            <StepTile key={step.key} index={i} step={step} summary={stepSummary(rowsByKey[step.key])} onSelect={() => choose(step.key)} />
+            <StepTile key={step.key} index={i} step={step} summary={stepSummary(rowsByKey[step.key])} onSelect={(filter) => choose(step.key, filter)} />
           ))}
         </SimpleGrid>
       ) : null}
@@ -474,6 +535,8 @@ export default function WarehouseFlowSection({ store = "", refreshTick = 0 }) {
         onOpen={setOpen}
         onBack={() => setOpen(null)}
         onClose={close}
+        grnFilter={grnFilter}
+        onGrnFilter={setGrnFilter}
       />
     </Box>
   );
