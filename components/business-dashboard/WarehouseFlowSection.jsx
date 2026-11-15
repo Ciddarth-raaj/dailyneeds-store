@@ -5,6 +5,7 @@ import {
   AlertIcon,
   Badge,
   Box,
+  Button,
   Drawer,
   DrawerBody,
   DrawerCloseButton,
@@ -98,7 +99,7 @@ function Field({ label, children }) {
 }
 
 /** One gate pass in full: vehicle, times, and every inspection started on it. */
-function GatePassDrawer({ slug, onClose }) {
+function GatePassDetail({ slug }) {
   const [state, setState] = useState({ loading: true, error: null, pass: null });
   useEffect(() => {
     if (!slug) return;
@@ -118,17 +119,7 @@ function GatePassDrawer({ slug, onClose }) {
 
   const p = state.pass;
   return (
-    <Drawer isOpen={Boolean(slug)} placement="right" onClose={onClose} size="md">
-      <DrawerOverlay />
-      <DrawerContent>
-        <DrawerCloseButton />
-        <DrawerHeader borderBottomWidth="1px">
-          <Text fontSize="xs" color="gray.500" fontWeight="600">
-            GATE PASS
-          </Text>
-          <Text fontSize="md">{slug}</Text>
-        </DrawerHeader>
-        <DrawerBody>
+    <>
           {state.loading ? (
             <Flex minH="200px" align="center" justify="center">
               <Spinner color="purple.500" />
@@ -201,6 +192,119 @@ function GatePassDrawer({ slug, onClose }) {
               </Box>
             </Flex>
           ) : null}
+    </>
+  );
+}
+
+/** The gate pass list, oldest first; a row opens that pass. */
+function GatePassList({ stage, passes, storeName, onOpen }) {
+  if (!stage.ok) {
+    return (
+      <Alert status="warning" borderRadius="md">
+        <AlertIcon />
+        <AlertDescription fontSize="sm">Gate passes could not be read from RetailPilot: {stage.error}</AlertDescription>
+      </Alert>
+    );
+  }
+  if (!passes.length) {
+    return (
+      <Text fontSize="sm" color="gray.500">
+        No open gate passes.
+      </Text>
+    );
+  }
+  return (
+    <Box overflowX="auto">
+      <Text fontSize="xs" color="gray.600" mb={2}>
+        Oldest first. Click one for its detail.
+      </Text>
+      <Table size="sm">
+        <Thead>
+          <Tr>
+            <Th>Gate pass</Th>
+            <Th>Supplier</Th>
+            <Th isNumeric>Open for</Th>
+            <Th>Inspection</Th>
+          </Tr>
+        </Thead>
+        <Tbody>
+          {passes.map((p) => (
+            <Tr
+              key={p.slug}
+              onClick={() => onOpen(p.slug)}
+              onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onOpen(p.slug)}
+              tabIndex={0}
+              role="button"
+              aria-label={`Open gate pass ${p.slug}`}
+              cursor="pointer"
+              _hover={{ bg: "purple.50" }}
+            >
+              <Td>
+                <Text color="purple.700" fontWeight="600" whiteSpace="nowrap">
+                  {p.slug}
+                </Text>
+                <Text fontSize="xs" color="gray.500" whiteSpace="nowrap">
+                  {storeName(p.store)} · {timeText(p.entry_time)}
+                  {p.vehicle_number ? ` · ${p.vehicle_number}` : ""}
+                </Text>
+              </Td>
+              <Td>{p.supplier_name || p.supplier_id || "—"}</Td>
+              <Td isNumeric whiteSpace="nowrap" fontWeight={(p.open_hours || 0) >= 24 ? "700" : "400"}>
+                {ageText(p.open_hours)}
+                {(p.open_hours || 0) >= 24 ? (
+                  <Badge ml={2} colorScheme="orange" fontSize="9px">
+                    over 24h
+                  </Badge>
+                ) : null}
+              </Td>
+              <Td>
+                {p.inspecting ? (
+                  <Badge colorScheme="blue" fontSize="9px">
+                    {p.inspections.map((i) => stateText(i.state)).join(", ")}
+                  </Badge>
+                ) : (
+                  <Badge colorScheme="gray" fontSize="9px">
+                    waiting
+                  </Badge>
+                )}
+              </Td>
+            </Tr>
+          ))}
+        </Tbody>
+      </Table>
+    </Box>
+  );
+}
+
+/**
+ * The side panel a stage opens in: its list, and - after a row is clicked -
+ * that one in full, with Back to the list. Nothing shows until a tile is clicked.
+ */
+function StagePanel({ stage, passes, storeName, slug, onOpen, onBack, onClose }) {
+  return (
+    <Drawer isOpen={Boolean(stage)} placement="right" onClose={onClose} size="lg">
+      <DrawerOverlay />
+      <DrawerContent>
+        <DrawerCloseButton />
+        <DrawerHeader borderBottomWidth="1px" pr={12}>
+          {slug ? (
+            <Button size="xs" variant="ghost" colorScheme="purple" px={1} mb={1} onClick={onBack}>
+              ← {stage ? stage.label : ""} list
+            </Button>
+          ) : null}
+          <Text fontSize="xs" color="gray.500" fontWeight="600">
+            {slug ? "GATE PASS" : stage ? `STEP ${stage.step} · OPEN GATE PASSES` : ""}
+          </Text>
+          <Text fontSize="md">{slug || (stage ? `${stage.label} · ${passes.length}` : "")}</Text>
+        </DrawerHeader>
+        <DrawerBody>
+          {stage ? (
+            slug ? (
+              <GatePassDetail slug={slug} />
+            ) : (
+              <GatePassList stage={stage} passes={passes} storeName={storeName} onOpen={onOpen} />
+            )
+          ) : null}
         </DrawerBody>
       </DrawerContent>
     </Drawer>
@@ -215,7 +319,8 @@ function GatePassDrawer({ slug, onClose }) {
  */
 export default function WarehouseFlowSection({ store = "", refreshTick = 0 }) {
   const [state, setState] = useState({ loading: true, error: null, data: null });
-  const [selected, setSelected] = useState("gate_pass");
+  // Nothing is open until a tile is clicked; then its list slides in at the side.
+  const [selected, setSelected] = useState(null);
   const [openSlug, setOpenSlug] = useState(null);
   const [now, setNow] = useState(() => Date.now());
 
@@ -240,7 +345,12 @@ export default function WarehouseFlowSection({ store = "", refreshTick = 0 }) {
   const gateStage = stages.find((s) => s.key === "gate_pass");
   const passes = useMemo(() => gatePasses(gateStage, store, now), [gateStage, store, now]);
   const summary = gatePassSummary(passes);
-  const active = stages.find((s) => s.key === selected);
+  const activeIndex = stages.findIndex((s) => s.key === selected);
+  const active = activeIndex >= 0 ? { ...stages[activeIndex], step: activeIndex + 1 } : null;
+  const closePanel = () => {
+    setSelected(null);
+    setOpenSlug(null);
+  };
 
   return (
     <Box bg="white" borderWidth="1px" borderColor="gray.200" borderRadius="md" p={4}>
@@ -275,88 +385,24 @@ export default function WarehouseFlowSection({ store = "", refreshTick = 0 }) {
               stage={stage}
               summary={stage.key === "gate_pass" ? summary : null}
               selected={selected === stage.key}
-              onSelect={() => setSelected(stage.key)}
+              onSelect={() => {
+                setOpenSlug(null);
+                setSelected(stage.key);
+              }}
             />
           ))}
         </SimpleGrid>
       ) : null}
 
-      {active && active.key === "gate_pass" ? (
-        <Box mt={4} overflowX="auto">
-          {!active.ok ? (
-            <Alert status="warning" borderRadius="md">
-              <AlertIcon />
-              <AlertDescription fontSize="sm">Gate passes could not be read from RetailPilot: {active.error}</AlertDescription>
-            </Alert>
-          ) : !passes.length ? (
-            <Text fontSize="sm" color="gray.500">
-              No open gate passes.
-            </Text>
-          ) : (
-            <>
-              <Text fontSize="xs" color="gray.600" mb={2}>
-                Open gate passes, oldest first. Click one for its detail.
-              </Text>
-              <Table size="sm">
-                <Thead>
-                  <Tr>
-                    <Th>Gate pass</Th>
-                    <Th>Store</Th>
-                    <Th>Supplier</Th>
-                    <Th>Vehicle</Th>
-                    <Th>In at</Th>
-                    <Th isNumeric>Open for</Th>
-                    <Th>Inspection</Th>
-                  </Tr>
-                </Thead>
-                <Tbody>
-                  {passes.map((p) => (
-                    <Tr
-                      key={p.slug}
-                      onClick={() => setOpenSlug(p.slug)}
-                      onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && setOpenSlug(p.slug)}
-                      tabIndex={0}
-                      role="button"
-                      aria-label={`Open gate pass ${p.slug}`}
-                      cursor="pointer"
-                      _hover={{ bg: "purple.50" }}
-                    >
-                      <Td whiteSpace="nowrap" color="purple.700" fontWeight="600">
-                        {p.slug}
-                      </Td>
-                      <Td>{storeName(p.store)}</Td>
-                      <Td>{p.supplier_name || p.supplier_id || "—"}</Td>
-                      <Td whiteSpace="nowrap">{p.vehicle_number || "—"}</Td>
-                      <Td whiteSpace="nowrap">{timeText(p.entry_time)}</Td>
-                      <Td isNumeric whiteSpace="nowrap" fontWeight={(p.open_hours || 0) >= 24 ? "700" : "400"}>
-                        {ageText(p.open_hours)}
-                        {(p.open_hours || 0) >= 24 ? (
-                          <Badge ml={2} colorScheme="orange" fontSize="9px">
-                            over 24h
-                          </Badge>
-                        ) : null}
-                      </Td>
-                      <Td>
-                        {p.inspecting ? (
-                          <Badge colorScheme="blue" fontSize="9px">
-                            {p.inspections.map((i) => stateText(i.state)).join(", ")}
-                          </Badge>
-                        ) : (
-                          <Badge colorScheme="gray" fontSize="9px">
-                            waiting
-                          </Badge>
-                        )}
-                      </Td>
-                    </Tr>
-                  ))}
-                </Tbody>
-              </Table>
-            </>
-          )}
-        </Box>
-      ) : null}
-
-      <GatePassDrawer slug={openSlug} onClose={() => setOpenSlug(null)} />
+      <StagePanel
+        stage={active}
+        passes={passes}
+        storeName={storeName}
+        slug={openSlug}
+        onOpen={setOpenSlug}
+        onBack={() => setOpenSlug(null)}
+        onClose={closePanel}
+      />
     </Box>
   );
 }
