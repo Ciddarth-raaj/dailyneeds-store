@@ -3,7 +3,7 @@
  */
 const { describe, it } = require("node:test");
 const assert = require("node:assert/strict");
-const { stepRows, stepSummary, rowStatus, ageText, stateText } = require("./warehouseFlow");
+const { stepRows, stepSummary, rowStatus, invoiceLine, ageText, stateText } = require("./warehouseFlow");
 
 const NOW = Date.parse("2026-11-15T06:00:00Z");
 const GRN = {
@@ -32,6 +32,14 @@ describe("steps", () => {
     assert.equal(rowStatus("grn", { grn_started: false }), "GRN not started");
     assert.equal(rowStatus("inspection", { state: "IN_PROGRESS" }), "In progress");
     assert.equal(rowStatus("written_off", {}), "Written off");
+    assert.equal(rowStatus("grn", { grn_started: true, invoices: 3, invoices_grn_started: 2 }), "GRN started 2/3");
+    assert.equal(rowStatus("grn", { grn_started: true, invoices: 3, invoices_grn_started: 3 }), "GRN started");
+  });
+  it("a consignment's invoices read as a count and amount", () => {
+    const inr = (v) => `₹${v}`;
+    assert.equal(invoiceLine({ invoices: 3, invoice_amount: 1250.5 }, inr), "3 invoices · ₹1250.5");
+    assert.equal(invoiceLine({ invoices: 1, invoice_amount: null }, inr), "1 invoice");
+    assert.equal(invoiceLine({ invoices: 0 }, inr), null);
   });
   it("ages and states read plainly", () => {
     assert.equal(ageText(0.5), "30m");

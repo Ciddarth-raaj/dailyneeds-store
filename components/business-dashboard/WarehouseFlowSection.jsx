@@ -18,8 +18,8 @@ import {
   Text,
 } from "@chakra-ui/react";
 import WarehouseFlowHelper from "../../helper/warehouseFlow";
-import { ageText, rowStatus, stateText, stepRows, stepSummary } from "../../util/warehouseFlow";
-import { formatINR } from "../../util/payrollDashboard";
+import { ageText, invoiceLine, rowStatus, stateText, stepRows, stepSummary } from "../../util/warehouseFlow";
+import { compactINR, formatINR } from "../../util/payrollDashboard";
 
 const timeText = (iso) =>
   iso ? new Date(iso).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "—";
@@ -186,9 +186,15 @@ function InspectionCard({ i }) {
   return (
     <Box borderWidth="1px" borderColor="gray.200" borderRadius="md" p={3}>
       <Flex justify="space-between" align="center" mb={2} gap={2} wrap="wrap">
-        <Text fontSize="sm" fontWeight="600">
-          Inspection {i.slug}
-        </Text>
+        <Box>
+          <Text fontSize="sm" fontWeight="700">
+            {i.supplier_invoice_id ? `Invoice ${i.supplier_invoice_id}` : "Invoice number not entered"}
+          </Text>
+          <Text fontSize="xs" color="gray.500">
+            Inspection {i.slug}
+            {i.invoice_amount === null || i.invoice_amount === undefined ? "" : ` · ${formatINR(i.invoice_amount)}`}
+          </Text>
+        </Box>
         <Flex gap={1}>
           <Badge colorScheme={i.state === "WRITTEN_OFF" ? "red" : "blue"}>{stateText(i.state)}</Badge>
           {i.state === "COMPLETED" ? (
@@ -199,8 +205,6 @@ function InspectionCard({ i }) {
       <SimpleGrid columns={2} spacing={3}>
         <Field label="Started">{timeText(i.created_at)}</Field>
         <Field label="Last update">{timeText(i.updated_at)}</Field>
-        <Field label="Supplier invoice">{i.supplier_invoice_id}</Field>
-        <Field label="Invoice amount">{i.invoice_amount === null || i.invoice_amount === undefined ? null : formatINR(i.invoice_amount)}</Field>
         <Field label="PO">{i.po_id}</Field>
         {i.updated_by ? <Field label="Inspected by">{i.updated_by}</Field> : null}
         {i.totals ? (
@@ -241,11 +245,11 @@ function GatePassDetail({ slug }) {
           </SimpleGrid>
           <Box>
             <Text fontSize="sm" fontWeight="700" color="gray.700" mb={2}>
-              Inspection
+              Invoices{p.inspections.length ? ` (${p.inspections.length})` : ""}
             </Text>
             {!p.inspections.length ? (
               <Text fontSize="sm" color="gray.600">
-                None yet — waiting for inspection, or going direct to purchase.
+                None inspected yet — waiting for inspection, or going direct to purchase.
               </Text>
             ) : (
               <Flex direction="column" gap={3}>
@@ -339,6 +343,11 @@ function StepList({ section, rows, storeName, onOpen }) {
                   <Text color="gray.900" fontWeight="700" fontSize="md" noOfLines={2} textTransform="capitalize">
                     {r.supplier_name || r.supplier_id || "Unknown supplier"}
                   </Text>
+                  {invoiceLine(r, compactINR) ? (
+                    <Text fontSize="sm" color="gray.700" fontWeight="600">
+                      {invoiceLine(r, compactINR)}
+                    </Text>
+                  ) : null}
                   <Text fontSize="xs" color="gray.500" wordBreak="break-all">
                     {r.gate_pass || `Inspection ${r.ref}`}
                   </Text>

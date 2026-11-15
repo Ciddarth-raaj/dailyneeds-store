@@ -38,9 +38,22 @@ function stepSummary(rows) {
 /** What a row's status reads as, in the step it is in. */
 function rowStatus(stepKey, row) {
   if (stepKey === "gate_pass") return "No inspection yet";
-  if (stepKey === "grn") return row.grn_started ? "GRN started" : "GRN not started";
+  if (stepKey === "grn") {
+    const n = row.invoices || 0;
+    const started = row.invoices_grn_started || 0;
+    if (n > 1 && started > 0 && started < n) return `GRN started ${started}/${n}`;
+    return row.grn_started ? "GRN started" : "GRN not started";
+  }
   if (stepKey === "written_off") return "Written off";
   return stateText(row.state);
+}
+
+/** "3 invoices · ₹1.24L"; null when the consignment has no invoice yet. */
+function invoiceLine(row, compactINR) {
+  const n = row && row.invoices;
+  if (!n) return null;
+  const amount = row.invoice_amount !== null && row.invoice_amount !== undefined && compactINR ? ` · ${compactINR(row.invoice_amount)}` : "";
+  return `${n} invoice${n === 1 ? "" : "s"}${amount}`;
 }
 
 /** "45m", "5h 20m", "2d 3h". */
@@ -59,4 +72,4 @@ function stateText(state) {
   return s ? s[0].toUpperCase() + s.slice(1) : "Started";
 }
 
-module.exports = { hoursSince, stepRows, stepSummary, rowStatus, ageText, stateText };
+module.exports = { hoursSince, stepRows, stepSummary, rowStatus, invoiceLine, ageText, stateText };
