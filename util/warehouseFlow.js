@@ -61,11 +61,6 @@ function rowStatus(stepKey, row) {
   }
   if (stepKey === "written_off") return "Written off";
   if (stepKey === "no_invoice") return "Invoice not uploaded";
-  if (stepKey === "in_transit") return row.status === "PARTIALLY_RECEIVED" ? "Partly received" : "In transit";
-  if (stepKey === "short_received") {
-    const n = row.short ? row.short.returned_qty : 0;
-    return `${Number(n).toLocaleString("en-IN")} unit${n === 1 ? "" : "s"} short`;
-  }
   return stateText(row.state);
 }
 
@@ -96,15 +91,6 @@ function docStateText(state) {
   return DOC_STATE_TEXT[s] || stateText(s);
 }
 
-/** "2 invoices · 1 ad-hoc · 1 STA" - what a transfer carries. */
-function mixText(mix) {
-  if (!mix) return "";
-  const part = (n, one, many) => (n ? `${n} ${n === 1 ? one : many}` : null);
-  return [part(mix.invoices, "invoice", "invoices"), part(mix.adhoc, "ad-hoc", "ad-hoc"), part(mix.sta, "STA", "STAs")]
-    .filter(Boolean)
-    .join(" · ");
-}
-
 /** "45m", "5h 20m", "2d 3h". */
 function ageText(hours) {
   if (hours === null || hours === undefined) return "—";
@@ -130,7 +116,6 @@ module.exports = {
   hasInvoiceNotStarted,
   hasInvoiceStarted,
   docStateText,
-  mixText,
   ageText,
   stateText,
 };
