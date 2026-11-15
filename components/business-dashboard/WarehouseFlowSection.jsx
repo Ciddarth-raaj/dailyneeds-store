@@ -18,7 +18,16 @@ import {
   Text,
 } from "@chakra-ui/react";
 import WarehouseFlowHelper from "../../helper/warehouseFlow";
-import { ageText, invoiceLine, rowStatus, stateText, stepRows, stepSummary } from "../../util/warehouseFlow";
+import {
+  ageText,
+  hasInvoiceNotStarted,
+  hasInvoiceStarted,
+  invoiceLine,
+  rowStatus,
+  stateText,
+  stepRows,
+  stepSummary,
+} from "../../util/warehouseFlow";
 import { compactINR, formatINR } from "../../util/payrollDashboard";
 
 const timeText = (iso) =>
@@ -29,13 +38,15 @@ const STATUS_COLOR = { "GRN started": "blue", "GRN not started": "gray", "No ins
 
 // GRN splits into these two lists; "all" is both.
 const GRN_FILTERS = [
-  { key: "not_started", label: "Not started", test: (r) => !r.grn_started },
-  { key: "started", label: "Started", test: (r) => r.grn_started },
+  { key: "not_started", label: "Not started", test: hasInvoiceNotStarted },
+  { key: "started", label: "Started", test: hasInvoiceStarted },
   { key: "all", label: "All", test: () => true },
 ];
 
 /** One half of the GRN tile: a count that opens its own list. */
-function GrnSplit({ label, count, color, onClick }) {
+const invoicesText = (n) => `${n} invoice${n === 1 ? "" : "s"}`;
+
+function GrnSplit({ label, invoices, color, onClick }) {
   return (
     <Box
       as="button"
@@ -48,10 +59,10 @@ function GrnSplit({ label, count, color, onClick }) {
       borderRadius="md"
       bg={`${color}.50`}
       _hover={{ boxShadow: "sm", bg: `${color}.100` }}
-      aria-label={`GRN ${label.toLowerCase()}: ${count}`}
+      aria-label={`GRN ${label.toLowerCase()}: ${invoicesText(invoices)}`}
     >
       <Text fontSize="xl" fontWeight="700" color="gray.800" lineHeight="short">
-        {count}
+        {invoices}
       </Text>
       <Text fontSize="xs" color="gray.700">
         {label}
@@ -93,10 +104,15 @@ function StepTile({ index, step, summary, onSelect }) {
         {split ? (
           <Text as="span" fontWeight="400" color="gray.500">
             {" "}
-            · {summary.count}
+            · {invoicesText(summary.invoices)}
           </Text>
         ) : null}
       </Text>
+      {split ? (
+        <Text fontSize="10px" color="gray.500">
+          from {summary.count} gate pass{summary.count === 1 ? "" : "es"}
+        </Text>
+      ) : null}
       {!built ? (
         <Text fontSize="xs" color="gray.500" mt={1}>
           Coming next
@@ -107,13 +123,18 @@ function StepTile({ index, step, summary, onSelect }) {
         </Text>
       ) : split ? (
         <Flex gap={2} mt={1}>
-          <GrnSplit label="Not started" count={summary.count - summary.grn_started} color="gray" onClick={() => onSelect("not_started")} />
-          <GrnSplit label="Started" count={summary.grn_started} color="blue" onClick={() => onSelect("started")} />
+          <GrnSplit label="Not started" invoices={summary.invoices - summary.invoices_started} color="gray" onClick={() => onSelect("not_started")} />
+          <GrnSplit label="Started" invoices={summary.invoices_started} color="blue" onClick={() => onSelect("started")} />
         </Flex>
       ) : (
         <>
           <Text fontSize="2xl" fontWeight="700" color="gray.800" lineHeight="short">
-            {summary.count}
+            {step.key === "gate_pass" ? summary.count : summary.invoices}
+          </Text>
+          <Text fontSize="xs" color="gray.700" fontWeight="600">
+            {step.key === "gate_pass"
+              ? `gate pass${summary.count === 1 ? "" : "es"}, not inspected`
+              : `invoice${summary.invoices === 1 ? "" : "s"} · from ${summary.count} gate pass${summary.count === 1 ? "" : "es"}`}
           </Text>
           <Text fontSize="xs" color="gray.600">
             {!summary.count ? "Nothing here" : `oldest ${ageText(summary.oldest_hours)}`}

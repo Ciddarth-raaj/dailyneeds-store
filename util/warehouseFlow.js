@@ -24,7 +24,10 @@ function stepRows(section, store = "", nowMs = Date.now()) {
     .sort((a, b) => (b.hours || 0) - (a.hours || 0));
 }
 
-/** A tile's numbers: how many, the longest wait, how many over a day, GRNs started. */
+/**
+ * A tile's numbers: how many, the longest wait, how many over a day, GRNs
+ * started, and the invoices on them (all, and on the GRN-started ones).
+ */
 function stepSummary(rows) {
   const list = rows || [];
   return {
@@ -32,8 +35,18 @@ function stepSummary(rows) {
     oldest_hours: list.length ? Math.max(...list.map((r) => r.hours || 0)) : null,
     over_day: list.filter((r) => (r.hours || 0) >= 24).length,
     grn_started: list.filter((r) => r.grn_started).length,
+    invoices: list.reduce((t, r) => t + (r.invoices || 0), 0),
+    invoices_started: list.reduce((t, r) => t + (r.invoices_grn_started || 0), 0),
   };
 }
+
+/**
+ * The GRN step, by invoice: a gate pass is under "not started" while any of
+ * its invoices has no GRN started, and under "started" once any has - so a
+ * pass part way through is in both.
+ */
+const hasInvoiceNotStarted = (r) => (r.invoices ? (r.invoices || 0) - (r.invoices_grn_started || 0) > 0 : !r.grn_started);
+const hasInvoiceStarted = (r) => (r.invoices ? (r.invoices_grn_started || 0) > 0 : Boolean(r.grn_started));
 
 /** What a row's status reads as, in the step it is in. */
 function rowStatus(stepKey, row) {
@@ -72,4 +85,4 @@ function stateText(state) {
   return s ? s[0].toUpperCase() + s.slice(1) : "Started";
 }
 
-module.exports = { hoursSince, stepRows, stepSummary, rowStatus, invoiceLine, ageText, stateText };
+module.exports = { hoursSince, stepRows, stepSummary, rowStatus, invoiceLine, hasInvoiceNotStarted, hasInvoiceStarted, ageText, stateText };

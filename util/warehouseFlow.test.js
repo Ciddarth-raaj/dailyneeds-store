@@ -3,15 +3,15 @@
  */
 const { describe, it } = require("node:test");
 const assert = require("node:assert/strict");
-const { stepRows, stepSummary, rowStatus, invoiceLine, ageText, stateText } = require("./warehouseFlow");
+const { stepRows, stepSummary, rowStatus, invoiceLine, hasInvoiceNotStarted, hasInvoiceStarted, ageText, stateText } = require("./warehouseFlow");
 
 const NOW = Date.parse("2026-11-15T06:00:00Z");
 const GRN = {
   key: "grn",
   ok: true,
   rows: [
-    { ref: "GP-1", store: "outlet:2", since: "2026-11-15T05:00:00Z", grn_started: true },
-    { ref: "IN-9", store: "outlet:3", since: "2026-11-13T03:00:00Z", grn_started: false },
+    { ref: "GP-1", store: "outlet:2", since: "2026-11-15T05:00:00Z", grn_started: true, invoices: 3, invoices_grn_started: 1 },
+    { ref: "IN-9", store: "outlet:3", since: "2026-11-13T03:00:00Z", grn_started: false, invoices: 1 },
     { ref: "GP-3", store: "outlet:2", since: "2026-11-15T05:30:00Z", grn_started: false },
   ],
 };
@@ -23,8 +23,16 @@ describe("steps", () => {
     assert.deepEqual(stepRows(null), []);
   });
   it("a tile counts, finds the oldest, the ones over a day and GRNs started", () => {
-    assert.deepEqual(stepSummary(stepRows(GRN, "", NOW)), { count: 3, oldest_hours: 51, over_day: 1, grn_started: 1 });
-    assert.deepEqual(stepSummary([]), { count: 0, oldest_hours: null, over_day: 0, grn_started: 0 });
+    assert.deepEqual(stepSummary(stepRows(GRN, "", NOW)), { count: 3, oldest_hours: 51, over_day: 1, grn_started: 1, invoices: 4, invoices_started: 1 });
+    assert.deepEqual(stepSummary([]), { count: 0, oldest_hours: null, over_day: 0, grn_started: 0, invoices: 0, invoices_started: 0 });
+  });
+  it("GRN splits by invoice: a pass part way through is under both", () => {
+    const partly = { invoices: 3, invoices_grn_started: 1 };
+    assert.deepEqual([hasInvoiceNotStarted(partly), hasInvoiceStarted(partly)], [true, true]);
+    const none = { invoices: 2, invoices_grn_started: 0 };
+    assert.deepEqual([hasInvoiceNotStarted(none), hasInvoiceStarted(none)], [true, false]);
+    const all = { invoices: 2, invoices_grn_started: 2 };
+    assert.deepEqual([hasInvoiceNotStarted(all), hasInvoiceStarted(all)], [false, true]);
   });
   it("a row's status reads for its step", () => {
     assert.equal(rowStatus("gate_pass", {}), "No inspection yet");
