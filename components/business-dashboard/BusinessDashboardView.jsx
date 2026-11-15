@@ -59,7 +59,7 @@ function KpiCard({ label, value, sub, help, accent = "#1B2A5B", unavailable }) {
         ) : (
           <>
             <Text fontSize="2xl" fontWeight="700" color="gray.800" lineHeight="short" isTruncated>
-              {compactINR(value)}
+              {compactINR(value === null || value === undefined ? value : Math.round(value))}
             </Text>
             <Text fontSize="xs" color="gray.600" noOfLines={2}>
               {sub || formatINR(value)}
@@ -93,9 +93,9 @@ function TrendTooltip({ active, payload, label }) {
  * choosing a store narrows the rows already here.
  */
 export default function BusinessDashboardView() {
-  const initial = useMemo(() => presetRange("this_month"), []);
+  const initial = useMemo(() => presetRange("today"), []);
   const [range, setRange] = useState(initial);
-  const [preset, setPreset] = useState("this_month");
+  const [preset, setPreset] = useState("today");
   const [store, setStore] = useState("");
   const [state, setState] = useState({ loading: true, error: null, data: null, scope: null });
   // Bumped by Refresh so the warehouse flow re-reads RetailPilot too.
