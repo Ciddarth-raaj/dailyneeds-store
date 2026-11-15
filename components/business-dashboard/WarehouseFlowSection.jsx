@@ -336,11 +336,11 @@ function StepList({ section, rows, storeName, onOpen }) {
             >
               <Flex justify="space-between" align="flex-start" gap={3}>
                 <Box minW={0}>
-                  <Text color="purple.700" fontWeight="600" fontSize="sm" wordBreak="break-all">
-                    {r.gate_pass || `Inspection ${r.ref}`}
+                  <Text color="gray.900" fontWeight="700" fontSize="md" noOfLines={2} textTransform="capitalize">
+                    {r.supplier_name || r.supplier_id || "Unknown supplier"}
                   </Text>
-                  <Text fontSize="sm" color="gray.800" noOfLines={2}>
-                    {r.supplier_name || r.supplier_id || "—"}
+                  <Text fontSize="xs" color="gray.500" wordBreak="break-all">
+                    {r.gate_pass || `Inspection ${r.ref}`}
                   </Text>
                   <Text fontSize="xs" color="gray.500">
                     {[storeName(r.store), r.vehicle_number].filter(Boolean).join(" · ")}
@@ -377,7 +377,7 @@ function StepPanel({ section, rows, storeName, open, onOpen, onBack, onClose, gr
   const filter = isGrn ? GRN_FILTERS.find((f) => f.key === grnFilter) || GRN_FILTERS[2] : null;
   const shown = filter ? rows.filter(filter.test) : rows;
   const label = section ? (isGrn && filter.key !== "all" ? `${section.label} ${filter.label.toLowerCase()}` : section.label) : "";
-  const title = open ? open.gate_pass || `Inspection ${open.ref}` : section ? `${label} · ${shown.length}` : "";
+  const title = open ? open.supplier_name || open.supplier_id || "Unknown supplier" : section ? `${label} · ${shown.length}` : "";
   return (
     <Drawer isOpen={Boolean(section)} placement="right" onClose={onClose} size="lg">
       <DrawerOverlay />
@@ -392,7 +392,14 @@ function StepPanel({ section, rows, storeName, open, onOpen, onBack, onClose, gr
           <Text fontSize="xs" color="gray.500" fontWeight="600">
             {open ? (open.gate_pass ? "GATE PASS" : "INSPECTION") : section && section.step ? `STEP ${section.step}` : "NEEDS ATTENTION"}
           </Text>
-          <Text fontSize="md">{title}</Text>
+          <Text fontSize="md" textTransform={open ? "capitalize" : undefined}>
+            {title}
+          </Text>
+          {open ? (
+            <Text fontSize="xs" color="gray.500" fontWeight="400">
+              {open.gate_pass || `Inspection ${open.ref}`}
+            </Text>
+          ) : null}
         </DrawerHeader>
         <DrawerBody>
           {!section ? null : open ? (
@@ -428,7 +435,7 @@ function StepPanel({ section, rows, storeName, open, onOpen, onBack, onClose, gr
 }
 
 /**
- * WAREHOUSE FLOW, on the Business Dashboard: Gate pass -> Inspection -> GRN ->
+ * INVOICE PIPELINE (was "warehouse flow"), on the Business Dashboard: Gate pass -> Inspection -> GRN ->
  * Allocation -> Ready to dispatch. Each built step is a tile with what is in
  * it now; clicking one opens its list at the side, and a row there opens that
  * consignment. Nothing is listed until a tile is clicked. Follows the page's
@@ -447,9 +454,9 @@ export default function WarehouseFlowSection({ store = "", refreshTick = 0 }) {
       .then((res) => {
         setNow(Date.now());
         if (res && res.code === 200) setState({ loading: false, error: null, data: res.data });
-        else setState({ loading: false, error: (res && (res.msg || res.message)) || "Could not load the warehouse flow", data: null });
+        else setState({ loading: false, error: (res && (res.msg || res.message)) || "Could not load the invoice pipeline", data: null });
       })
-      .catch((err) => setState({ loading: false, error: err.message || "Could not load the warehouse flow", data: null }));
+      .catch((err) => setState({ loading: false, error: err.message || "Could not load the invoice pipeline", data: null }));
   }, []);
 
   useEffect(() => {
@@ -489,7 +496,7 @@ export default function WarehouseFlowSection({ store = "", refreshTick = 0 }) {
     <Box bg="white" borderWidth="1px" borderColor="gray.200" borderRadius="md" p={4}>
       <Flex align="baseline" justify="space-between" mb={3} wrap="wrap" gap={2}>
         <Text fontSize="sm" fontWeight="600" color="gray.700">
-          Warehouse flow
+          Invoice pipeline
         </Text>
         <Text fontSize="xs" color="gray.500">
           Now, live from RetailPilot{state.loading ? " · loading…" : ""}
