@@ -25,6 +25,7 @@ import {
 } from "@chakra-ui/react";
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip as ChartTooltip, XAxis, YAxis } from "recharts";
 import BusinessDashboardHelper from "../../helper/businessDashboard";
+import WarehouseFlowSection from "./WarehouseFlowSection";
 import { PRESETS, aggregate, presetRange, shortDay } from "../../util/businessDashboard";
 import { compactINR, formatINR } from "../../util/payrollDashboard";
 
@@ -97,6 +98,8 @@ export default function BusinessDashboardView() {
   const [preset, setPreset] = useState("this_month");
   const [store, setStore] = useState("");
   const [state, setState] = useState({ loading: true, error: null, data: null, scope: null });
+  // Bumped by Refresh so the warehouse flow re-reads RetailPilot too.
+  const [refreshTick, setRefreshTick] = useState(0);
 
   const load = useCallback(
     (refresh = false) => {
@@ -200,7 +203,10 @@ export default function BusinessDashboardView() {
               ))}
             </Select>
           </FormControl>
-          <Button size="sm" colorScheme="purple" variant="outline" onClick={() => load(true)} isLoading={state.loading}>
+          <Button size="sm" colorScheme="purple" variant="outline" onClick={() => {
+              load(true);
+              setRefreshTick((t) => t + 1);
+            }} isLoading={state.loading}>
             Refresh
           </Button>
         </Flex>
@@ -285,6 +291,8 @@ export default function BusinessDashboardView() {
               unavailable={data.margin && data.margin.ok ? null : "Not available"}
             />
           </SimpleGrid>
+
+          <WarehouseFlowSection store={store} refreshTick={refreshTick} />
 
           <Box bg="white" borderWidth="1px" borderColor="gray.200" borderRadius="md" p={4}>
             <Text fontSize="sm" fontWeight="600" color="gray.700" mb={2}>
