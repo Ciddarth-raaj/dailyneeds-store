@@ -415,6 +415,15 @@ export default function PoTrackerView() {
   const [stageKey, setStageKey] = useState("followup");
   const [openSlug, setOpenSlug] = useState(null);
   const canAdd = usePermissions(["add_po_followup"]);
+  const getsSummary = usePermissions(["receive_po_daily_summary"]);
+  const [sendingSummary, setSendingSummary] = useState(false);
+  const sendSummary = () => {
+    setSendingSummary(true);
+    PoTrackerHelper.sendSummaryToMe()
+      .then((res) => (res && res.code === 200 ? toast.success("Sent to your Telegram") : toast.error((res && res.msg) || "Could not send")))
+      .catch((err) => toast.error(err.message || "Could not send"))
+      .finally(() => setSendingSummary(false));
+  };
   const [store, setStore] = useState("");
   const [raisedBy, setRaisedBy] = useState("");
   const [search, setSearch] = useState("");
@@ -489,7 +498,14 @@ export default function PoTrackerView() {
             {data && data.fetched_at ? ` · updated ${new Date(data.fetched_at).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" })}` : ""}
           </Text>
         </Box>
-        <Flex gap={2}>
+        <Flex gap={2} wrap="wrap">
+          {getsSummary ? (
+            <Tooltip label="Today's follow-up summary so far, to your Telegram. The 7 pm summary still comes as usual." hasArrow>
+              <Button size="sm" variant="outline" colorScheme="teal" onClick={sendSummary} isLoading={sendingSummary} leftIcon={<i className="fa-brands fa-telegram" />}>
+                Send me today's summary
+              </Button>
+            </Tooltip>
+          ) : null}
           <Button size="sm" variant="outline" colorScheme="teal" onClick={downloadAll} isDisabled={!data} leftIcon={<i className="fa-solid fa-file-excel" />}>
             All stages
           </Button>

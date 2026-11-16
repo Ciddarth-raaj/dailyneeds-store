@@ -415,6 +415,7 @@ export const PERMISSIONS = {
     // add_purchase_order: "Add Purchase Order",
     view_po_tracker: "View PO Tracker",
     add_po_followup: "Add PO Follow-up Remarks",
+    receive_po_daily_summary: "Receive PO Daily Summary (Telegram, 7 pm)",
   },
 
   // Invoice
