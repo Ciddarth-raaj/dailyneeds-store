@@ -5,11 +5,11 @@ import PoTrackerView from "../../components/poTracker/PoTrackerView";
 /**
  * `/purchase-order/tracker` - buyers follow their purchase orders: the
  * latest POs per store and supplier, live from RetailPilot. Behind
- * `view_purchase_order`.
+ * `view_po_tracker`.
  */
 export default function PoTrackerPage() {
   return (
-    <GlobalWrapper title="PO Tracker" permissionKey={["view_purchase_order"]}>
+    <GlobalWrapper title="PO Tracker" permissionKey={["view_po_tracker"]}>
       <PoTrackerView />
     </GlobalWrapper>
   );

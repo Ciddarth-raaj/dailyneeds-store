@@ -413,6 +413,7 @@ export const PERMISSIONS = {
   purchase_order: {
     // view_purchase_order: "View Purchase Order",
     // add_purchase_order: "Add Purchase Order",
+    view_po_tracker: "View PO Tracker",
   },
 
   // Invoice

@@ -714,7 +714,7 @@ const WMS_MENU = {
     subMenu: {
       view_po_tracker: {
         title: "PO Tracker",
-        permission: "view_purchase_order",
+        permission: "view_po_tracker",
         selected: false,
         location: "/purchase-order/tracker",
       },
