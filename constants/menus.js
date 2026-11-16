@@ -159,6 +159,12 @@ const ALL_PAGES_MENU = {
         selected: false,
         location: "/purchase-order",
       },
+      view_po_tracker: {
+        title: "PO Tracker",
+        permission: "view_purchase_order",
+        selected: false,
+        location: "/purchase-order/tracker",
+      },
       add_purchase: {
         title: "Add Purchase Order",
         permission: "add_purchase_order",
