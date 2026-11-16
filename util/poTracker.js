@@ -23,6 +23,29 @@ const STAGES = [
   { key: "other", label: "Other", hint: "Draft, closed or other status", color: "gray", test: () => true },
 ];
 
+/** The follow-up view: not a stage - a PO in it is also in Awaiting delivery or Expired. */
+const FOLLOW_UP_VIEW = { key: "followup", label: "Needs follow-up", hint: "Approved 2+ days ago, not chased recently", color: "purple" };
+
+const CHANNELS = [
+  { key: "CALL", label: "Call" },
+  { key: "WHATSAPP", label: "WhatsApp" },
+  { key: "EMAIL", label: "Email" },
+  { key: "VISIT", label: "Visit" },
+];
+const channelText = (key) => (CHANNELS.find((c) => c.key === key) || {}).label || key || "";
+
+/** "just now", "3h ago", "2d ago" from an ISO time. */
+function ago(iso, now = Date.now()) {
+  const t = Date.parse(iso);
+  if (!Number.isFinite(t)) return "";
+  const mins = Math.max(0, Math.round((now - t) / 60000));
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.round(hours / 24)}d ago`;
+}
+
 const stageOf = (o) => STAGES.find((s) => s.test(o)).key;
 
 /** Orders -> { [stage key]: orders }. */
@@ -92,6 +115,7 @@ function daysFrom(day, today) {
 
 /** One PO as an Excel row. */
 function excelRow(o) {
+  const f = o.last_followup || {};
   const stage = STAGES.find((s) => s.key === stageOf(o));
   return {
     Stage: stage.label,
@@ -114,7 +138,14 @@ function excelRow(o) {
     "Received % (qty)": o.qty_fill_pct,
     "Received % (value)": o.value_fill_pct,
     "Older POs for this supplier & store": o.older_pos_ignored,
+    "Needs follow-up": o.needs_followup ? "Yes" : "No",
+    "Last follow-up": f.remark || null,
+    "Follow-up by": f.created_by_name || null,
+    "Followed up on": f.created_day || null,
+    "Follow-up via": f.channel ? channelText(f.channel) : null,
+    "Promised delivery": f.promised_delivery_date || null,
+    "Next follow-up": f.next_follow_up_date || null,
   };
 }
 
-module.exports = { STAGES, SORTS, stageOf, splitByStage, statusText, options, filterOrders, sortOrders, totals, daysFrom, excelRow };
+module.exports = { FOLLOW_UP_VIEW, CHANNELS, channelText, ago, STAGES, SORTS, stageOf, splitByStage, statusText, options, filterOrders, sortOrders, totals, daysFrom, excelRow };

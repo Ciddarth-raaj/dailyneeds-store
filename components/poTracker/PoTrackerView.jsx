@@ -3,9 +3,20 @@ import {
   Alert,
   AlertDescription,
   AlertIcon,
+  Badge,
   Box,
   Button,
+  ButtonGroup,
+  Divider,
+  Drawer,
+  DrawerBody,
+  DrawerCloseButton,
+  DrawerContent,
+  DrawerHeader,
+  DrawerOverlay,
   Flex,
+  FormControl,
+  FormLabel,
   Input,
   InputGroup,
   InputLeftElement,
@@ -17,13 +28,16 @@ import {
   Tbody,
   Td,
   Text,
+  Textarea,
   Th,
   Thead,
   Tooltip,
   Tr,
 } from "@chakra-ui/react";
 import PoTrackerHelper from "../../helper/poTracker";
-import { SORTS, STAGES, daysFrom, excelRow, filterOrders, options, sortOrders, splitByStage, totals } from "../../util/poTracker";
+import toast from "react-hot-toast";
+import usePermissions from "../../customHooks/usePermissions";
+import { CHANNELS, FOLLOW_UP_VIEW, ago, channelText, SORTS, STAGES, daysFrom, excelRow, filterOrders, options, sortOrders, splitByStage, totals } from "../../util/poTracker";
 import { exportToExcel } from "../../util/exportCSVFile";
 
 const qty = (n) => (n === null || n === undefined ? "—" : Number(n).toLocaleString("en-IN", { maximumFractionDigits: 3 }));
@@ -111,19 +125,266 @@ function Validity({ o, today }) {
   );
 }
 
-/** Expected delivery: the date, and how late it is if it has passed. */
+/** Expected delivery: the date, how late it is, and the supplier's promised date next to it. */
 function Expected({ o, today }) {
   const d = daysFrom(o.expected_delivery_date, today);
-  const late = d !== null && d < 0 && o.status !== "FULFILLED";
+  const open = o.status !== "FULFILLED";
+  const late = d !== null && d < 0 && open;
+  const promised = o.last_followup && o.last_followup.promised_delivery_date;
+  const p = promised ? daysFrom(promised, today) : null;
   return (
     <Box>
-      <Text>{dayText(o.expected_delivery_date)}</Text>
-      {late ? (
-        <Text fontSize="xs" color="orange.600">
-          {-d} day{d === -1 ? "" : "s"} late
+      <Text>
+        {dayText(o.expected_delivery_date)}
+        {late ? (
+          <Text as="span" fontSize="xs" color="orange.600">
+            {" "}
+            · {-d}d late
+          </Text>
+        ) : null}
+      </Text>
+      {promised ? (
+        <Text fontSize="xs" color={open && p < 0 ? "orange.600" : "teal.700"} fontWeight="600">
+          Promised {dayText(promised)}
         </Text>
       ) : null}
     </Box>
+  );
+}
+
+/** The latest follow-up on a PO, or a prompt to add one. */
+function LastFollowup({ o, now }) {
+  const f = o.last_followup;
+  if (!f) {
+    return (
+      <Box>
+        {o.needs_followup ? (
+          <Badge colorScheme="purple" fontSize="9px" mb={1}>
+            Follow-up due
+          </Badge>
+        ) : null}
+        <Text fontSize="xs" color="teal.600" fontWeight="600">
+          + Add follow-up
+        </Text>
+      </Box>
+    );
+  }
+  return (
+    <Box maxW="260px">
+      {o.needs_followup ? (
+        <Badge colorScheme="purple" fontSize="9px" mb={1}>
+          Follow-up due
+        </Badge>
+      ) : null}
+      <Text fontSize="xs" color="gray.800" noOfLines={2} title={f.remark}>
+        {f.remark}
+      </Text>
+      <Text fontSize="10px" color="gray.500" textTransform="capitalize">
+        {[f.created_by_name, channelText(f.channel), ago(f.created_at, now)].filter(Boolean).join(" · ")}
+        {f.remark_count > 1 ? ` · ${f.remark_count} remarks` : ""}
+      </Text>
+      {f.next_follow_up_date && !o.needs_followup ? (
+        <Text fontSize="10px" color="gray.500">
+          Next: {dayText(f.next_follow_up_date)}
+        </Text>
+      ) : null}
+    </Box>
+  );
+}
+
+/** One remark in the history list. */
+function RemarkItem({ r, now, showPo }) {
+  return (
+    <Box py={3} borderBottomWidth="1px" borderColor="gray.100">
+      <Flex justify="space-between" gap={2} align="baseline">
+        <Text fontSize="xs" fontWeight="700" color="gray.700" textTransform="capitalize">
+          {r.created_by_name || "—"}
+          <Text as="span" fontWeight="400" color="gray.500" textTransform="none">
+            {" "}
+            · {channelText(r.channel)}
+            {showPo && r.po_ref ? ` · PO ${r.po_ref}` : ""}
+          </Text>
+        </Text>
+        <Text fontSize="10px" color="gray.500" whiteSpace="nowrap" title={r.created_at ? new Date(r.created_at).toLocaleString("en-IN") : ""}>
+          {r.created_at ? new Date(r.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short" }) : ""} · {ago(r.created_at, now)}
+        </Text>
+      </Flex>
+      <Text fontSize="sm" color="gray.800" mt={1} whiteSpace="pre-wrap">
+        {r.remark}
+      </Text>
+      {r.promised_delivery_date || r.next_follow_up_date ? (
+        <Text fontSize="xs" color="gray.600" mt={1}>
+          {[r.promised_delivery_date ? `Promised delivery ${dayText(r.promised_delivery_date)}` : null, r.next_follow_up_date ? `Next follow-up ${dayText(r.next_follow_up_date)}` : null]
+            .filter(Boolean)
+            .join(" · ")}
+        </Text>
+      ) : null}
+    </Box>
+  );
+}
+
+/** Side panel for one PO: add a follow-up, see this PO's and the supplier's history. */
+function FollowupDrawer({ order, today, canAdd, onClose, onSaved }) {
+  const [history, setHistory] = useState({ loading: true, error: null, remarks: [], supplier: [] });
+  const [form, setForm] = useState({ channel: "CALL", remark: "", promised_delivery_date: "", next_follow_up_date: "" });
+  const [saving, setSaving] = useState(false);
+  const slug = order && order.po_slug;
+  const now = Date.now();
+
+  const loadHistory = useCallback(() => {
+    if (!slug) return;
+    setHistory((h) => ({ ...h, loading: true, error: null }));
+    PoTrackerHelper.followups(slug)
+      .then((res) => {
+        if (res && res.code === 200) setHistory({ loading: false, error: null, remarks: res.data.remarks, supplier: res.data.supplier_remarks });
+        else setHistory({ loading: false, error: (res && res.msg) || "Could not load follow-ups", remarks: [], supplier: [] });
+      })
+      .catch((err) => setHistory({ loading: false, error: err.message || "Could not load follow-ups", remarks: [], supplier: [] }));
+  }, [slug]);
+
+  useEffect(() => {
+    setForm({ channel: "CALL", remark: "", promised_delivery_date: "", next_follow_up_date: "" });
+    loadHistory();
+  }, [loadHistory]);
+
+  const save = () => {
+    if (!form.remark.trim()) {
+      toast.error("Write what the supplier said");
+      return;
+    }
+    setSaving(true);
+    PoTrackerHelper.addFollowup(slug, {
+      channel: form.channel,
+      remark: form.remark.trim(),
+      promised_delivery_date: form.promised_delivery_date || null,
+      next_follow_up_date: form.next_follow_up_date || null,
+    })
+      .then((res) => {
+        if (res && res.code === 200) {
+          toast.success("Follow-up saved");
+          setForm({ channel: form.channel, remark: "", promised_delivery_date: "", next_follow_up_date: "" });
+          loadHistory();
+          onSaved(res.data);
+        } else toast.error((res && res.msg) || "Could not save");
+      })
+      .catch((err) => toast.error(err.message || "Could not save"))
+      .finally(() => setSaving(false));
+  };
+
+  return (
+    <Drawer isOpen={Boolean(order)} placement="right" onClose={onClose} size="md">
+      <DrawerOverlay />
+      <DrawerContent>
+        <DrawerCloseButton />
+        <DrawerHeader borderBottomWidth="1px" pr={12}>
+          <Text fontSize="xs" color="gray.500" fontWeight="600">
+            PO {order ? order.po_ref : ""} · {order ? order.store : ""}
+          </Text>
+          <Text fontSize="md" textTransform="capitalize">
+            {order ? order.supplier : ""}
+          </Text>
+          {order ? (
+            <Text fontSize="xs" color="gray.600" fontWeight="400">
+              {rupees(order.pending_value)} pending · {qty(order.open_lines)} of {qty(order.lines)} lines open · PO date {dayText(order.po_date)} · expected {dayText(order.expected_delivery_date)}
+              {Number(order.days_past_validity) > 0 ? ` · validity ended ${order.days_past_validity}d ago` : ""}
+            </Text>
+          ) : null}
+        </DrawerHeader>
+        <DrawerBody>
+          {canAdd ? (
+            <Box bg="gray.50" borderWidth="1px" borderColor="gray.200" borderRadius="md" p={3} mt={2}>
+              <Text fontSize="sm" fontWeight="700" mb={2}>
+                Add follow-up
+              </Text>
+              <FormControl mb={3}>
+                <FormLabel fontSize="xs" color="gray.600" mb={1}>
+                  How
+                </FormLabel>
+                <ButtonGroup size="sm" isAttached variant="outline">
+                  {CHANNELS.map((c) => (
+                    <Button
+                      key={c.key}
+                      colorScheme={form.channel === c.key ? "teal" : "gray"}
+                      variant={form.channel === c.key ? "solid" : "outline"}
+                      onClick={() => setForm((f) => ({ ...f, channel: c.key }))}
+                    >
+                      {c.label}
+                    </Button>
+                  ))}
+                </ButtonGroup>
+              </FormControl>
+              <FormControl mb={3} isRequired>
+                <FormLabel fontSize="xs" color="gray.600" mb={1}>
+                  Remark
+                </FormLabel>
+                <Textarea
+                  size="sm"
+                  bg="white"
+                  rows={3}
+                  maxLength={1000}
+                  placeholder="What did the supplier say?"
+                  value={form.remark}
+                  onChange={(e) => setForm((f) => ({ ...f, remark: e.target.value }))}
+                />
+              </FormControl>
+              <SimpleGrid columns={2} spacing={3} mb={3}>
+                <FormControl>
+                  <FormLabel fontSize="xs" color="gray.600" mb={1}>
+                    Promised delivery (optional)
+                  </FormLabel>
+                  <Input size="sm" bg="white" type="date" value={form.promised_delivery_date} onChange={(e) => setForm((f) => ({ ...f, promised_delivery_date: e.target.value }))} />
+                </FormControl>
+                <FormControl>
+                  <FormLabel fontSize="xs" color="gray.600" mb={1}>
+                    Next follow-up (optional)
+                  </FormLabel>
+                  <Input size="sm" bg="white" type="date" min={today} value={form.next_follow_up_date} onChange={(e) => setForm((f) => ({ ...f, next_follow_up_date: e.target.value }))} />
+                </FormControl>
+              </SimpleGrid>
+              <Text fontSize="10px" color="gray.500" mb={2}>
+                With no next follow-up date, this PO comes back to Needs follow-up in 2 days. Remarks cannot be edited once saved.
+              </Text>
+              <Button size="sm" colorScheme="teal" onClick={save} isLoading={saving} w="100%">
+                Save follow-up
+              </Button>
+            </Box>
+          ) : (
+            <Text fontSize="xs" color="gray.500" mt={2}>
+              You can read follow-ups; adding them needs the Add PO Follow-up Remarks right.
+            </Text>
+          )}
+
+          <Text fontSize="sm" fontWeight="700" mt={5}>
+            This PO ({history.remarks.length})
+          </Text>
+          {history.loading ? (
+            <Spinner size="sm" color="teal.500" mt={2} />
+          ) : history.error ? (
+            <Text fontSize="sm" color="red.600">
+              {history.error}
+            </Text>
+          ) : !history.remarks.length ? (
+            <Text fontSize="sm" color="gray.500" py={2}>
+              No follow-up yet.
+            </Text>
+          ) : (
+            history.remarks.map((r) => <RemarkItem key={r.id} r={r} now={now} />)
+          )}
+
+          {history.supplier.length ? (
+            <>
+              <Divider my={4} />
+              <Text fontSize="sm" fontWeight="700">
+                Earlier POs with this supplier
+              </Text>
+              {history.supplier.map((r) => (
+                <RemarkItem key={r.id} r={r} now={now} showPo />
+              ))}
+            </>
+          ) : null}
+        </DrawerBody>
+      </DrawerContent>
+    </Drawer>
   );
 }
 
@@ -151,7 +412,9 @@ function Received({ o }) {
  * tabs - pick one to list its POs, or download it as Excel.
  */
 export default function PoTrackerView() {
-  const [stageKey, setStageKey] = useState("awaiting");
+  const [stageKey, setStageKey] = useState("followup");
+  const [openSlug, setOpenSlug] = useState(null);
+  const canAdd = usePermissions(["add_po_followup"]);
   const [store, setStore] = useState("");
   const [raisedBy, setRaisedBy] = useState("");
   const [search, setSearch] = useState("");
@@ -174,20 +437,43 @@ export default function PoTrackerView() {
 
   const data = state.data;
   const all = (data && data.orders) || [];
-  const today = todayIso();
+  const today = (data && data.today) || todayIso();
+  const now = Date.now();
   const opts = useMemo(() => options(all), [all]);
   const stages = useMemo(() => splitByStage(filterOrders(all, { store, raisedBy, search })), [all, store, raisedBy, search]);
   const visibleStages = STAGES.filter((s) => s.key !== "other" || stages.other.length);
-  const stage = STAGES.find((s) => s.key === stageKey) || STAGES[0];
-  const rows = useMemo(() => sortOrders(stages[stage.key], sort), [stages, stage.key, sort]);
+  // Needs follow-up is a view across Awaiting delivery and Expired, not a stage of its own.
+  const lists = useMemo(
+    () => ({ ...stages, followup: [...stages.awaiting, ...stages.expired].filter((o) => o.needs_followup) }),
+    [stages]
+  );
+  const views = [FOLLOW_UP_VIEW, ...visibleStages];
+  const stage = views.find((s) => s.key === stageKey) || views[0];
+  const rows = useMemo(() => sortOrders(lists[stage.key], sort), [lists, stage.key, sort]);
+  // Received is only worth a column where something can have been received.
+  const showReceived = stage.key === "partly" || stage.key === "fulfilled" || stage.key === "other";
+  const openOrder = all.find((o) => o.po_slug === openSlug) || null;
+
+  // A saved remark shows at once: patch the row instead of re-reading RetailPilot.
+  const onSaved = (f) =>
+    setState((st) => {
+      if (!st.data) return st;
+      const orders = st.data.orders.map((o) => {
+        if (o.po_slug !== f.po_slug) return o;
+        const count = ((o.last_followup && o.last_followup.remark_count) || 0) + 1;
+        const due = f.next_follow_up_date ? f.next_follow_up_date <= today : false;
+        return { ...o, last_followup: { ...f, remark_count: count }, needs_followup: due };
+      });
+      return { ...st, data: { ...st.data, orders } };
+    });
   const filtered = Boolean(store || raisedBy || search.trim());
 
   const stamp = () => new Date().toISOString().slice(0, 10);
-  const download = (st) => exportToExcel([sortOrders(stages[st.key], sort).map(excelRow)], [st.label], `PO Tracker - ${st.label} - ${stamp()}.xlsx`);
+  const download = (st) => exportToExcel([sortOrders(lists[st.key], sort).map(excelRow)], [st.label], `PO Tracker - ${st.label} - ${stamp()}.xlsx`);
   const downloadAll = () =>
     exportToExcel(
-      visibleStages.map((st) => sortOrders(stages[st.key], sort).map(excelRow)),
-      visibleStages.map((st) => st.label),
+      views.map((st) => sortOrders(lists[st.key], sort).map(excelRow)),
+      views.map((st) => st.label),
       `PO Tracker - all stages - ${stamp()}.xlsx`
     );
 
@@ -228,9 +514,15 @@ export default function PoTrackerView() {
 
       {data ? (
         <>
-          <SimpleGrid columns={{ base: 2, md: visibleStages.length }} spacing={3}>
-            {visibleStages.map((st) => (
-              <StageCard key={st.key} stage={st} list={stages[st.key]} active={st.key === stage.key} onSelect={() => setStageKey(st.key)} onDownload={() => download(st)} />
+          {data.followups_error ? (
+            <Alert status="warning" borderRadius="md">
+              <AlertIcon />
+              <AlertDescription fontSize="sm">{data.followups_error}</AlertDescription>
+            </Alert>
+          ) : null}
+          <SimpleGrid columns={{ base: 2, md: views.length }} spacing={3}>
+            {views.map((st) => (
+              <StageCard key={st.key} stage={st} list={lists[st.key]} active={st.key === stage.key} onSelect={() => setStageKey(st.key)} onDownload={() => download(st)} />
             ))}
           </SimpleGrid>
 
@@ -283,8 +575,9 @@ export default function PoTrackerView() {
             </Flex>
             {!rows.length ? (
               <Text fontSize="sm" color="gray.500" p={4}>
-                No POs in {stage.label.toLowerCase()}
-                {filtered ? " for these filters" : ""}.
+                {stage.key === "followup" ? "Nothing to chase right now." : `No POs in ${stage.label.toLowerCase()}`}
+                {filtered ? " for these filters" : ""}
+                {stage.key === "followup" ? "" : "."}
               </Text>
             ) : (
               <Table size="sm">
@@ -299,12 +592,21 @@ export default function PoTrackerView() {
                     <Th>Valid till</Th>
                     <Th isNumeric>PO value</Th>
                     <Th isNumeric>Pending</Th>
-                    <Th>Received</Th>
+                    {showReceived ? <Th>Received</Th> : null}
+                    <Th>Follow-up</Th>
                   </Tr>
                 </Thead>
                 <Tbody>
                   {rows.map((o) => (
-                    <Tr key={o.po_slug} _hover={{ bg: "gray.50" }}>
+                    <Tr
+                      key={o.po_slug}
+                      cursor="pointer"
+                      tabIndex={0}
+                      onClick={() => setOpenSlug(o.po_slug)}
+                      onKeyDown={(e) => e.key === "Enter" && setOpenSlug(o.po_slug)}
+                      bg={o.needs_followup ? "purple.50" : undefined}
+                      _hover={{ bg: o.needs_followup ? "purple.100" : "gray.50" }}
+                    >
                       <Td maxW="260px">
                         <Text fontWeight="600" color="gray.800" textTransform="capitalize" noOfLines={2}>
                           {o.supplier}
@@ -329,8 +631,13 @@ export default function PoTrackerView() {
                           {qty(o.open_lines)} of {qty(o.lines)} lines open
                         </Text>
                       </Td>
-                      <Td>
-                        <Received o={o} />
+                      {showReceived ? (
+                        <Td>
+                          <Received o={o} />
+                        </Td>
+                      ) : null}
+                      <Td minW="200px" maxW="280px">
+                        <LastFollowup o={o} now={now} />
                       </Td>
                     </Tr>
                   ))}
@@ -340,6 +647,8 @@ export default function PoTrackerView() {
           </Box>
         </>
       ) : null}
+
+      <FollowupDrawer order={openOrder} today={today} canAdd={canAdd} onClose={() => setOpenSlug(null)} onSaved={onSaved} />
     </Flex>
   );
 }

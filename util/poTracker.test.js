@@ -3,7 +3,7 @@
  */
 const { describe, it } = require("node:test");
 const assert = require("node:assert/strict");
-const { splitByStage, excelRow, statusText, options, filterOrders, sortOrders, totals, daysFrom } = require("./poTracker");
+const { ago, channelText, splitByStage, excelRow, statusText, options, filterOrders, sortOrders, totals, daysFrom } = require("./poTracker");
 
 const LIST = [
   { po_slug: "a", po_ref: "PO-1", supplier: "Acme", store: "Warehouse", raised_by: "Ravi", status: "APPROVED", days_past_validity: 3, pending_value: 100, po_date: "2026-11-02" },
@@ -44,5 +44,16 @@ describe("po tracker page", () => {
   it("Excel row carries the stage", () => {
     assert.equal(excelRow(LIST[1]).Stage, "Partly received");
     assert.equal(excelRow(LIST[3])["Days past validity"], null);
+  });
+  it("follow-up columns and helpers", () => {
+    const row = excelRow({ ...LIST[3], needs_followup: true, last_followup: { remark: "Truck Friday", channel: "WHATSAPP", promised_delivery_date: "2026-11-21" } });
+    assert.equal(row["Needs follow-up"], "Yes");
+    assert.equal(row["Follow-up via"], "WhatsApp");
+    assert.equal(row["Promised delivery"], "2026-11-21");
+    assert.equal(excelRow(LIST[0])["Last follow-up"], null);
+    assert.equal(channelText("CALL"), "Call");
+    const now = Date.parse("2026-11-16T10:00:00Z");
+    assert.equal(ago("2026-11-16T07:00:00Z", now), "3h ago");
+    assert.equal(ago("2026-11-14T10:00:00Z", now), "2d ago");
   });
 });
