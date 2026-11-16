@@ -159,12 +159,6 @@ const ALL_PAGES_MENU = {
         selected: false,
         location: "/purchase-order",
       },
-      view_po_tracker: {
-        title: "PO Tracker",
-        permission: "view_purchase_order",
-        selected: false,
-        location: "/purchase-order/tracker",
-      },
       add_purchase: {
         title: "Add Purchase Order",
         permission: "add_purchase_order",
@@ -709,6 +703,20 @@ const WMS_MENU = {
         permission: "view_issue_grn",
         selected: false,
         location: "/grn/issue",
+      },
+    },
+  },
+  purchase_order: {
+    title: "Purchase Order",
+    selected: false,
+    openPage: false,
+    icon: "fa-credit-card",
+    subMenu: {
+      view_po_tracker: {
+        title: "PO Tracker",
+        permission: "view_purchase_order",
+        selected: false,
+        location: "/purchase-order/tracker",
       },
     },
   },

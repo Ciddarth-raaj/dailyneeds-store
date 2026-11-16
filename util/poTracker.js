@@ -74,4 +74,53 @@ function summarize(orders) {
   };
 }
 
-module.exports = { STATUSES, statusText, options, filterOrders, groupBySupplier, summarize };
+/**
+ * Stages for the Excel downloads. Each PO is in exactly one: an open PO past
+ * its validity is Expired, not Approved / Partly fulfilled.
+ */
+const STAGES = [
+  { key: "approved", label: "Approved", test: (o) => o.status === "APPROVED" && !o.expired },
+  { key: "partly", label: "Partly fulfilled", test: (o) => o.status === "PARTIALLY_FULFILLED" && !o.expired },
+  { key: "expired", label: "Expired", test: (o) => o.expired },
+  { key: "fulfilled", label: "Fulfilled", test: (o) => o.status === "FULFILLED" },
+  { key: "other", label: "Other", test: (o) => !OPEN.has(o.status) && o.status !== "FULFILLED" && !o.expired },
+];
+
+const stageOf = (o) => (STAGES.find((s) => s.test(o)) || STAGES[STAGES.length - 1]).key;
+
+/** Orders -> { [stage key]: orders }. */
+function splitByStage(orders) {
+  const out = Object.fromEntries(STAGES.map((s) => [s.key, []]));
+  for (const o of orders || []) out[stageOf(o)].push(o);
+  return out;
+}
+
+/** One PO as an Excel row: the query's columns, with readable headers. */
+function excelRow(o) {
+  return {
+    "PO ref": o.po_ref,
+    "PO slug": o.po_slug,
+    Store: o.store,
+    Supplier: o.supplier,
+    "Raised by": o.raised_by,
+    Status: o.status,
+    "Fulfillment status": o.fulfillment_status,
+    "PO date": o.po_date,
+    "Expected delivery": o.expected_delivery_date,
+    "Valid till": o.validity_date,
+    Expired: o.expired ? "Yes" : "No",
+    "Days past validity": o.days_past_validity,
+    "Older POs not shown": o.older_pos_ignored,
+    "Net amount": o.net_amount,
+    Lines: o.lines,
+    "Open lines": o.open_lines,
+    "Pending qty": o.pending_qty,
+    "Pending value": o.pending_value,
+    "Ordered qty": o.ordered_qty,
+    "Received qty": o.received_qty,
+    "Qty fill %": o.qty_fill_pct,
+    "Value fill %": o.value_fill_pct,
+  };
+}
+
+module.exports = { STAGES, stageOf, splitByStage, excelRow, STATUSES, statusText, options, filterOrders, groupBySupplier, summarize };

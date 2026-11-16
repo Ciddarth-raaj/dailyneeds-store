@@ -10,6 +10,11 @@ import {
   FormControl,
   FormLabel,
   Input,
+  Menu,
+  MenuButton,
+  MenuDivider,
+  MenuItem,
+  MenuList,
   Progress,
   Select,
   SimpleGrid,
@@ -23,8 +28,9 @@ import {
   Tr,
 } from "@chakra-ui/react";
 import PoTrackerHelper from "../../helper/poTracker";
-import { STATUSES, filterOrders, groupBySupplier, options, statusText, summarize } from "../../util/poTracker";
+import { STAGES, STATUSES, excelRow, splitByStage, filterOrders, groupBySupplier, options, statusText, summarize } from "../../util/poTracker";
 import { compactINR } from "../../util/payrollDashboard";
+import { exportToExcel } from "../../util/exportCSVFile";
 
 const STATUS_COLOR = { APPROVED: "blue", PARTIALLY_FULFILLED: "orange", FULFILLED: "green", DRAFT: "gray", CLOSED: "gray" };
 const qty = (n) => (n === null || n === undefined ? "—" : Number(n).toLocaleString("en-IN", { maximumFractionDigits: 3 }));
@@ -110,6 +116,18 @@ export default function PoTrackerView() {
   const groups = useMemo(() => groupBySupplier(rows), [rows]);
   const sum = summarize(rows);
 
+  // Downloads follow store / raised-by / search, not the status filter: each
+  // stage is its own file (or sheet).
+  const stages = useMemo(() => splitByStage(filterOrders(all, { status: "", store, raisedBy, search })), [all, store, raisedBy, search]);
+  const stamp = () => new Date().toISOString().slice(0, 10);
+  const downloadStage = (st) => exportToExcel([stages[st.key].map(excelRow)], [st.label], `PO Tracker - ${st.label} - ${stamp()}.xlsx`);
+  const downloadAll = () =>
+    exportToExcel(
+      STAGES.map((st) => stages[st.key].map(excelRow)),
+      STAGES.map((st) => st.label),
+      `PO Tracker - all stages - ${stamp()}.xlsx`
+    );
+
   return (
     <Flex direction="column" gap={4}>
       <Flex justify="space-between" align="flex-end" wrap="wrap" gap={3}>
@@ -167,6 +185,20 @@ export default function PoTrackerView() {
               ))}
             </Select>
           </FormControl>
+          <Menu placement="bottom-end">
+            <MenuButton as={Button} size="sm" colorScheme="purple" isDisabled={!data}>
+              Download Excel ▾
+            </MenuButton>
+            <MenuList fontSize="sm">
+              {STAGES.map((st) => (
+                <MenuItem key={st.key} onClick={() => downloadStage(st)} isDisabled={!stages[st.key].length}>
+                  {st.label} ({stages[st.key].length})
+                </MenuItem>
+              ))}
+              <MenuDivider />
+              <MenuItem onClick={downloadAll}>All stages (one sheet each)</MenuItem>
+            </MenuList>
+          </Menu>
           <Button size="sm" colorScheme="purple" variant="outline" onClick={() => load(true)} isLoading={state.loading}>
             Refresh
           </Button>

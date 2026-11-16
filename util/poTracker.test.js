@@ -3,7 +3,7 @@
  */
 const { describe, it } = require("node:test");
 const assert = require("node:assert/strict");
-const { statusText, options, filterOrders, groupBySupplier, summarize } = require("./poTracker");
+const { splitByStage, excelRow, statusText, options, filterOrders, groupBySupplier, summarize } = require("./poTracker");
 
 const LIST = [
   { po_slug: "a", po_ref: "PO-1", supplier: "Acme", store: "Warehouse", raised_by: "Ravi", status: "APPROVED", expired: true, pending_value: 100, net_amount: 500, open_lines: 2 },
@@ -28,5 +28,12 @@ describe("po tracker page", () => {
     assert.equal(s.pending_value, 150);
     assert.equal(s.expired.count, 1);
     assert.equal(s.partly.avg_value_fill, 80);
+  });
+  it("puts each PO in exactly one stage", () => {
+    const st = splitByStage(LIST);
+    assert.deepEqual(Object.fromEntries(Object.entries(st).map(([k, v]) => [k, v.map((o) => o.po_slug)])), {
+      approved: [], partly: ["b"], expired: ["a"], fulfilled: ["c"], other: [],
+    });
+    assert.equal(excelRow(LIST[0])["Expired"], "Yes");
   });
 });
