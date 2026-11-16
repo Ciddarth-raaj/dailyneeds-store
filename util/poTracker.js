@@ -1,20 +1,36 @@
 /**
- * PO Tracker page - filtering, grouping and summing the POs the server sent.
+ * PO Tracker page - stages, filtering, sorting and the Excel rows for the
+ * POs the server sent.
  *
  * CommonJS, so it is unit-tested with `node --test` and no bundler.
  */
 
-/** Status filter: "open" = still waiting on the supplier (APPROVED or PARTIALLY_FULFILLED). */
-const STATUSES = [
-  { key: "open", label: "Open (approved / part filled)" },
-  { key: "", label: "All statuses" },
-  { key: "APPROVED", label: "Approved" },
-  { key: "PARTIALLY_FULFILLED", label: "Partly fulfilled" },
-  { key: "FULFILLED", label: "Fulfilled" },
-  { key: "expired", label: "Expired only" },
+const pastValidity = (o) => Number(o.days_past_validity) > 0;
+
+/**
+ * The stages a PO moves through. Each PO is in exactly one:
+ *   Awaiting delivery  approved, nothing received, still valid
+ *   Partly received    some received (even if past validity - flagged in the row)
+ *   Expired            approved, nothing received, past validity
+ *   Fulfilled          everything received
+ *   Other              any other status (draft, closed, ...)
+ */
+const STAGES = [
+  { key: "awaiting", label: "Awaiting delivery", hint: "Approved, nothing received yet", color: "blue", test: (o) => o.status === "APPROVED" && !pastValidity(o) },
+  { key: "partly", label: "Partly received", hint: "Some items received, rest pending", color: "orange", test: (o) => o.status === "PARTIALLY_FULFILLED" },
+  { key: "expired", label: "Expired", hint: "Nothing received and past validity", color: "red", test: (o) => o.status === "APPROVED" && pastValidity(o) },
+  { key: "fulfilled", label: "Fulfilled", hint: "Fully received", color: "green", test: (o) => o.status === "FULFILLED" },
+  { key: "other", label: "Other", hint: "Draft, closed or other status", color: "gray", test: () => true },
 ];
 
-const OPEN = new Set(["APPROVED", "PARTIALLY_FULFILLED"]);
+const stageOf = (o) => STAGES.find((s) => s.test(o)).key;
+
+/** Orders -> { [stage key]: orders }. */
+function splitByStage(orders) {
+  const out = Object.fromEntries(STAGES.map((s) => [s.key, []]));
+  for (const o of orders || []) out[stageOf(o)].push(o);
+  return out;
+}
 
 const statusText = (s) =>
   String(s || "")
@@ -32,12 +48,10 @@ function options(orders) {
   return { stores: uniq(list.map((o) => o.store)), raisedBy: uniq(list.map((o) => o.raised_by)) };
 }
 
-function filterOrders(orders, { status = "open", store = "", raisedBy = "", search = "" } = {}) {
+/** Store, raised-by and search (supplier or PO ref). */
+function filterOrders(orders, { store = "", raisedBy = "", search = "" } = {}) {
   const q = String(search || "").trim().toLowerCase();
   return (orders || []).filter((o) => {
-    if (status === "open" && !OPEN.has(o.status)) return false;
-    if (status === "expired" && !o.expired) return false;
-    if (status && status !== "open" && status !== "expired" && o.status !== status) return false;
     if (store && o.store !== store) return false;
     if (raisedBy && o.raised_by !== raisedBy) return false;
     if (q && ![o.supplier, o.po_ref, o.po_slug].some((v) => String(v || "").toLowerCase().includes(q))) return false;
@@ -45,82 +59,62 @@ function filterOrders(orders, { status = "open", store = "", raisedBy = "", sear
   });
 }
 
-/** Orders (already sorted by supplier, PO date) -> [{ supplier, orders, pending_value }]. */
-function groupBySupplier(orders) {
-  const groups = new Map();
-  for (const o of orders || []) {
-    if (!groups.has(o.supplier)) groups.set(o.supplier, { supplier: o.supplier, orders: [], pending_value: 0 });
-    const g = groups.get(o.supplier);
-    g.orders.push(o);
-    g.pending_value += Number(o.pending_value) || 0;
-  }
-  return [...groups.values()];
-}
-
-function summarize(orders) {
-  const list = orders || [];
-  const sum = (rows, f) => rows.reduce((s, r) => s + (Number(f(r)) || 0), 0);
-  const partly = list.filter((o) => o.status === "PARTIALLY_FULFILLED");
-  const expired = list.filter((o) => o.expired);
-  const fills = partly.map((o) => o.value_fill_pct).filter((v) => v !== null && v !== undefined);
-  return {
-    count: list.length,
-    suppliers: new Set(list.map((o) => o.supplier)).size,
-    net_amount: sum(list, (o) => o.net_amount),
-    pending_value: sum(list, (o) => o.pending_value),
-    open_lines: sum(list, (o) => o.open_lines),
-    partly: { count: partly.length, avg_value_fill: fills.length ? Math.round((fills.reduce((a, b) => a + b, 0) / fills.length) * 10) / 10 : null },
-    expired: { count: expired.length, pending_value: sum(expired, (o) => o.pending_value) },
-  };
-}
-
-/**
- * Stages for the Excel downloads. Each PO is in exactly one: an open PO past
- * its validity is Expired, not Approved / Partly fulfilled.
- */
-const STAGES = [
-  { key: "approved", label: "Approved", test: (o) => o.status === "APPROVED" && !o.expired },
-  { key: "partly", label: "Partly fulfilled", test: (o) => o.status === "PARTIALLY_FULFILLED" && !o.expired },
-  { key: "expired", label: "Expired", test: (o) => o.expired },
-  { key: "fulfilled", label: "Fulfilled", test: (o) => o.status === "FULFILLED" },
-  { key: "other", label: "Other", test: (o) => !OPEN.has(o.status) && o.status !== "FULFILLED" && !o.expired },
+const SORTS = [
+  { key: "supplier", label: "Supplier A–Z" },
+  { key: "pending", label: "Pending value, highest first" },
+  { key: "oldest", label: "PO date, oldest first" },
+  { key: "fill", label: "Received %, lowest first" },
 ];
 
-const stageOf = (o) => (STAGES.find((s) => s.test(o)) || STAGES[STAGES.length - 1]).key;
-
-/** Orders -> { [stage key]: orders }. */
-function splitByStage(orders) {
-  const out = Object.fromEntries(STAGES.map((s) => [s.key, []]));
-  for (const o of orders || []) out[stageOf(o)].push(o);
-  return out;
+function sortOrders(orders, key = "supplier") {
+  const list = [...(orders || [])];
+  const n = (v, d) => (v === null || v === undefined ? d : Number(v));
+  const by = {
+    supplier: (a, b) => a.supplier.localeCompare(b.supplier) || String(a.po_date).localeCompare(String(b.po_date)),
+    pending: (a, b) => n(b.pending_value, 0) - n(a.pending_value, 0),
+    oldest: (a, b) => String(a.po_date).localeCompare(String(b.po_date)),
+    fill: (a, b) => n(a.value_fill_pct, 101) - n(b.value_fill_pct, 101),
+  }[key];
+  return by ? list.sort(by) : list;
 }
 
-/** One PO as an Excel row: the query's columns, with readable headers. */
+/** Count and pending value of a list of POs. */
+function totals(orders) {
+  const list = orders || [];
+  return { count: list.length, pending_value: list.reduce((s, o) => s + (Number(o.pending_value) || 0), 0) };
+}
+
+/** Whole days from `today` (YYYY-MM-DD) to `day`; negative = in the past. */
+function daysFrom(day, today) {
+  if (!day || !today) return null;
+  return Math.round((Date.parse(`${day}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86400000);
+}
+
+/** One PO as an Excel row. */
 function excelRow(o) {
+  const stage = STAGES.find((s) => s.key === stageOf(o));
   return {
-    "PO ref": o.po_ref,
-    "PO slug": o.po_slug,
-    Store: o.store,
+    Stage: stage.label,
     Supplier: o.supplier,
+    "PO no.": o.po_ref,
+    Store: o.store,
     "Raised by": o.raised_by,
-    Status: o.status,
-    "Fulfillment status": o.fulfillment_status,
+    "RetailPilot status": statusText(o.status),
     "PO date": o.po_date,
     "Expected delivery": o.expected_delivery_date,
     "Valid till": o.validity_date,
-    Expired: o.expired ? "Yes" : "No",
-    "Days past validity": o.days_past_validity,
-    "Older POs not shown": o.older_pos_ignored,
-    "Net amount": o.net_amount,
+    "Days past validity": pastValidity(o) ? Number(o.days_past_validity) : null,
+    "PO value": o.net_amount,
     Lines: o.lines,
     "Open lines": o.open_lines,
     "Pending qty": o.pending_qty,
     "Pending value": o.pending_value,
     "Ordered qty": o.ordered_qty,
     "Received qty": o.received_qty,
-    "Qty fill %": o.qty_fill_pct,
-    "Value fill %": o.value_fill_pct,
+    "Received % (qty)": o.qty_fill_pct,
+    "Received % (value)": o.value_fill_pct,
+    "Older POs for this supplier & store": o.older_pos_ignored,
   };
 }
 
-module.exports = { STAGES, stageOf, splitByStage, excelRow, STATUSES, statusText, options, filterOrders, groupBySupplier, summarize };
+module.exports = { STAGES, SORTS, stageOf, splitByStage, statusText, options, filterOrders, sortOrders, totals, daysFrom, excelRow };
