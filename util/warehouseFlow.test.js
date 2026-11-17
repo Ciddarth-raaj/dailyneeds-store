@@ -12,6 +12,7 @@ const {
   hasInvoiceNotStarted,
   hasInvoiceStarted,
   docStateText,
+  grnStages,
   ageText,
   stateText,
 } = require("./warehouseFlow");
@@ -84,6 +85,22 @@ describe("steps", () => {
     assert.equal(invoiceLine({ invoices: 3, invoice_amount: 1250.5 }, inr), "3 invoices · ₹1250.5");
     assert.equal(invoiceLine({ invoices: 1, invoice_amount: null }, inr), "1 invoice");
     assert.equal(invoiceLine({ invoices: 0 }, inr), null);
+  });
+  it("GRN stage by stage, in RetailPilot's order, only stages with invoices", () => {
+    const rows = [
+      { doc_state: "cost_qc_failed" },
+      { doc_state: "no_template" },
+      { doc_state: "no_template" },
+      { doc_state: "pricing_review_pending" },
+      { doc_state: "brand_new_state" },
+    ];
+    assert.deepEqual(grnStages(rows), [
+      { state: "no_template", label: "Yet to start", count: 2 },
+      { state: "pricing_review_pending", label: "Pricing review pending", count: 1 },
+      { state: "cost_qc_failed", label: "Cost variance detected", count: 1 },
+      { state: "brand_new_state", label: "Brand new state", count: 1 },
+    ]);
+    assert.deepEqual(grnStages([]), []);
   });
   it("ages and states read plainly", () => {
     assert.equal(ageText(0.5), "30m");

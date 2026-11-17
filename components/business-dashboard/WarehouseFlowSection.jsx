@@ -25,6 +25,8 @@ import {
   hasInvoiceStarted,
   sinceLabel,
   docStateText,
+  grnStageOf,
+  grnStages,
   invoiceLine,
   rowStatus,
   stateText,
@@ -61,6 +63,14 @@ const SPLIT_LABELS = {
   grn: ["Not started", "Started"],
   allocation: ["Not allocated", "Allocated"],
 };
+/**
+ * GRN is shown stage by stage (RetailPilot's own stages); its filters are All
+ * and one per stage that has invoices. Allocation keeps its two-way split.
+ */
+const grnFilters = (rows) => [
+  { key: "all", label: "All", test: () => true },
+  ...grnStages(rows).map((st) => ({ key: `stage:${st.state}`, label: st.label, test: (r) => grnStageOf(r) === st.state })),
+];
 const splitFilters = (stepKey) => {
   const [notYet, done] = SPLIT_LABELS[stepKey] || SPLIT_LABELS.grn;
   return [
@@ -104,10 +114,11 @@ function GrnSplit({ step = "GRN", label, invoices, color, onClick }) {
  * One step tile. A built step is a button that opens its list at the side;
  * the GRN tile is split in two, not started and started, each opening its own.
  */
-function StepTile({ index, step, summary, onSelect }) {
+function StepTile({ index, step, summary, rows = [], onSelect }) {
   const built = step.built;
   const split = built && step.ok && Boolean(SPLIT_LABELS[step.key]);
   const [notYetLabel, doneLabel] = SPLIT_LABELS[step.key] || SPLIT_LABELS.grn;
+  const stages = step.key === "grn" ? grnStages(rows) : [];
   const clickable = built && !split;
   // Invoices are known once uploaded for the GRN; before that, count gate passes.
   const byGatePass = step.key === "gate_pass" || step.key === "inspection";
@@ -153,6 +164,25 @@ function StepTile({ index, step, summary, onSelect }) {
         <Text fontSize="xs" color="gray.500" mt={1}>
           Not available
         </Text>
+      ) : split && step.key === "grn" ? (
+        <Flex direction="column" gap={1} mt={1}>
+          {stages.length ? (
+            stages.map((st) => (
+              <GrnSplit
+                key={st.state}
+                step="GRN"
+                label={st.label}
+                invoices={st.count}
+                color={st.state === "no_template" ? "gray" : st.state === "cost_qc_failed" ? "orange" : "blue"}
+                onClick={() => onSelect(`stage:${st.state}`)}
+              />
+            ))
+          ) : (
+            <Text fontSize="xs" color="gray.600">
+              Nothing here
+            </Text>
+          )}
+        </Flex>
       ) : split ? (
         <Flex direction="column" gap={1} mt={1}>
           <GrnSplit step={step.label} label={notYetLabel} invoices={summary.invoices - summary.invoices_started} color="gray" onClick={() => onSelect("not_started")} />
@@ -552,13 +582,13 @@ function StepList({ section, rows, storeName, onOpen }) {
  */
 function StepPanel({ section, rows, storeName, open, onOpen, onBack, onClose, grnFilter, onGrnFilter }) {
   const isGrn = Boolean(section && SPLIT_LABELS[section.key]);
-  const filters = isGrn ? splitFilters(section.key) : [];
-  const filter = isGrn ? filters.find((f) => f.key === grnFilter) || filters[2] : null;
+  const filters = !isGrn ? [] : section.key === "grn" ? grnFilters(rows) : splitFilters(section.key);
+  const filter = isGrn ? filters.find((f) => f.key === grnFilter) || filters.find((f) => f.key === "all") : null;
   const shown = filter ? rows.filter(filter.test) : rows;
   const label = section
     ? isGrn && filter.key !== "all"
       ? section.key === "grn"
-        ? `GRN ${filter.label.toLowerCase()}`
+        ? `GRN · ${filter.label}`
         : filter.label
       : section.label
     : "";
@@ -737,7 +767,14 @@ export default function WarehouseFlowSection({ store: storeProp = "", refreshTic
       {stages.length ? (
         <SimpleGrid columns={{ base: 2, md: 5 }} spacing={3}>
           {stages.map((step, i) => (
-            <StepTile key={step.key} index={i} step={step} summary={stepSummary(rowsByKey[step.key])} onSelect={(filter) => choose(step.key, filter)} />
+            <StepTile
+              key={step.key}
+              index={i}
+              step={step}
+              summary={stepSummary(rowsByKey[step.key])}
+              rows={rowsByKey[step.key]}
+              onSelect={(filter) => choose(step.key, filter)}
+            />
           ))}
         </SimpleGrid>
       ) : null}

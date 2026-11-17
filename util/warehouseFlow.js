@@ -114,6 +114,36 @@ function docStateText(state) {
   return DOC_STATE_TEXT[s] || stateText(s);
 }
 
+// RetailPilot's GRN stages, in the order an invoice moves through them.
+const GRN_STAGE_ORDER = [
+  "no_template",
+  "header_captured",
+  "inspection_link_pending",
+  "manual_entry_started",
+  "pricing_review_pending",
+  "cost_qc_failed",
+];
+
+/** A GRN row's RetailPilot stage (its invoice document's state). */
+const grnStageOf = (r) => String((r && (r.doc_state || r.state)) || "").toLowerCase();
+
+/**
+ * The GRN step stage by stage: [{ state, label, count }] in RetailPilot's
+ * order, only stages with invoices in them; a stage RetailPilot adds later
+ * still shows, after the known ones.
+ */
+function grnStages(rows) {
+  const counts = new Map();
+  (rows || []).forEach((r) => {
+    const st = grnStageOf(r);
+    if (!st) return;
+    counts.set(st, (counts.get(st) || 0) + 1);
+  });
+  const known = GRN_STAGE_ORDER.filter((st) => counts.has(st));
+  const other = [...counts.keys()].filter((st) => !GRN_STAGE_ORDER.includes(st)).sort();
+  return [...known, ...other].map((state) => ({ state, label: docStateText(state), count: counts.get(state) }));
+}
+
 /** "45m", "5h 20m", "2d 3h". */
 function ageText(hours) {
   if (hours === null || hours === undefined) return "—";
@@ -140,6 +170,8 @@ module.exports = {
   hasInvoiceNotStarted,
   hasInvoiceStarted,
   docStateText,
+  grnStageOf,
+  grnStages,
   ageText,
   stateText,
 };
