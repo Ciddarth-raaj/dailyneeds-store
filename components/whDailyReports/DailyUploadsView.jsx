@@ -44,7 +44,7 @@ async function readFile(file) {
 }
 
 /** What one upload found, for the toast. */
-function summaryText(type, s) {
+function summaryText(type, s, date) {
   if (!s) return "";
   if (s.boxes !== undefined) return `${count(s.rows)} rows · ${count(s.boxes)} boxes · ${count(s.trucks)} trucks`;
   const parts = [`${count(s.rows)} rows`, `${count(s.short_lines)} short lines`, `write-off ${count(s.short_qty)} qty`];
@@ -52,10 +52,15 @@ function summaryText(type, s) {
   if (s.short_unpriced_lines) parts.push(`${s.short_unpriced_lines} without MRP`);
   const v = s.verification_page;
   if (v) {
-    const page = [`${v.added} added`, v.updated ? `${v.updated} updated` : null, v.unchanged ? `${v.unchanged} already there` : null, v.kept_verified ? `${v.kept_verified} already verified, left as is` : null]
-      .filter(Boolean)
-      .join(", ");
-    parts.push(`Verification page: ${page}`);
+    const where = `Pick & Pack → Verification${date ? ` (${dayText(date)})` : ""}`;
+    if (!s.short_lines) {
+      parts.push(`No write-off in this Verification report - nothing added to ${where}`);
+    } else {
+      const page = [v.added ? `${v.added} added` : null, v.updated ? `${v.updated} updated` : null, v.unchanged ? `${v.unchanged} already there` : null, v.kept_verified ? `${v.kept_verified} already verified, left as is` : null]
+        .filter(Boolean)
+        .join(", ");
+      parts.push(`${where}: ${page || "nothing added"}`);
+    }
     if (v.unknown_articles) parts.push(`${v.unknown_articles} article(s) not in the product master, not added`);
     if (v.other_job_type_lines) parts.push(`${v.other_job_type_lines} line(s) not GRN/STA, not added`);
   }
@@ -166,7 +171,7 @@ export default function DailyUploadsView() {
         }
       }
       const d = res.data;
-      toast.success(`${LABEL[type]} ${d.replaced ? "replaced" : "uploaded"}: ${summaryText(type, d.summary)}`, { duration: 6000 });
+      toast.success(`${LABEL[type]} ${d.replaced ? "replaced" : "uploaded"}: ${summaryText(type, d.summary, d.report_date)}`, { duration: 6000 });
       return true;
     } catch (err) {
       toast.error(`${LABEL[type]}: ${errMsg(err, "Upload failed")}`, { duration: 8000 });
