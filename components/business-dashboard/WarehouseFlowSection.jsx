@@ -45,42 +45,55 @@ const refText = (r) =>
 const STATUS_COLOR = {
   "GRN started": "blue",
   "GRN not started": "gray",
+  "Not allocated": "gray",
+  Allocated: "blue",
   "No inspection yet": "gray",
   "Written off": "red",
   "Invoice not uploaded": "orange",
 };
 
-// GRN splits into these two lists; "all" is both.
-const GRN_FILTERS = [
-  { key: "not_started", label: "Not started", test: hasInvoiceNotStarted },
-  { key: "started", label: "Started", test: hasInvoiceStarted },
-  { key: "all", label: "All", test: () => true },
-];
+// GRN and Allocation each split into two lists; "all" is both. The rows of
+// both carry the same fields (invoices / invoices_grn_started / grn_started);
+// for Allocation "started" means allocated.
+const SPLIT_LABELS = {
+  grn: ["Not started", "Started"],
+  allocation: ["Not allocated", "Allocated"],
+};
+const splitFilters = (stepKey) => {
+  const [notYet, done] = SPLIT_LABELS[stepKey] || SPLIT_LABELS.grn;
+  return [
+    { key: "not_started", label: notYet, test: hasInvoiceNotStarted },
+    { key: "started", label: done, test: hasInvoiceStarted },
+    { key: "all", label: "All", test: () => true },
+  ];
+};
 
-/** One half of the GRN tile: a count that opens its own list. */
+/** One half of a split tile (GRN, Allocation): a count that opens its own list. */
 const invoicesText = (n) => `${n} invoice${n === 1 ? "" : "s"}`;
 
-function GrnSplit({ label, invoices, color, onClick }) {
+function GrnSplit({ step = "GRN", label, invoices, color, onClick }) {
   return (
     <Box
       as="button"
       type="button"
       onClick={onClick}
-      flex="1"
+      w="100%"
       textAlign="left"
       px={2}
       py={1}
       borderRadius="md"
       bg={`${color}.50`}
       _hover={{ boxShadow: "sm", bg: `${color}.100` }}
-      aria-label={`GRN ${label.toLowerCase()}: ${invoicesText(invoices)}`}
+      aria-label={`${step} ${label.toLowerCase()}: ${invoicesText(invoices)}`}
     >
-      <Text fontSize="xl" fontWeight="700" color="gray.800" lineHeight="short">
-        {invoices}
-      </Text>
-      <Text fontSize="xs" color="gray.700">
-        {label}
-      </Text>
+      <Flex align="baseline" gap={2}>
+        <Text fontSize="xl" fontWeight="700" color="gray.800" lineHeight="short">
+          {invoices}
+        </Text>
+        <Text fontSize="xs" color="gray.700" whiteSpace="nowrap">
+          {label}
+        </Text>
+      </Flex>
     </Box>
   );
 }
@@ -91,7 +104,8 @@ function GrnSplit({ label, invoices, color, onClick }) {
  */
 function StepTile({ index, step, summary, onSelect }) {
   const built = step.built;
-  const split = built && step.ok && step.key === "grn";
+  const split = built && step.ok && Boolean(SPLIT_LABELS[step.key]);
+  const [notYetLabel, doneLabel] = SPLIT_LABELS[step.key] || SPLIT_LABELS.grn;
   const clickable = built && !split;
   // Invoices are known once uploaded for the GRN; before that, count gate passes.
   const byGatePass = step.key === "gate_pass" || step.key === "inspection";
@@ -124,7 +138,7 @@ function StepTile({ index, step, summary, onSelect }) {
           </Text>
         ) : null}
       </Text>
-      {split ? (
+      {split && step.key === "grn" ? (
         <Text fontSize="10px" color="gray.500">
           from {summary.gate_passes} gate pass{summary.gate_passes === 1 ? "" : "es"}
         </Text>
@@ -138,9 +152,9 @@ function StepTile({ index, step, summary, onSelect }) {
           Not available
         </Text>
       ) : split ? (
-        <Flex gap={2} mt={1}>
-          <GrnSplit label="Not started" invoices={summary.invoices - summary.invoices_started} color="gray" onClick={() => onSelect("not_started")} />
-          <GrnSplit label="Started" invoices={summary.invoices_started} color="blue" onClick={() => onSelect("started")} />
+        <Flex direction="column" gap={1} mt={1}>
+          <GrnSplit step={step.label} label={notYetLabel} invoices={summary.invoices - summary.invoices_started} color="gray" onClick={() => onSelect("not_started")} />
+          <GrnSplit step={step.label} label={doneLabel} invoices={summary.invoices_started} color="blue" onClick={() => onSelect("started")} />
         </Flex>
       ) : (
         <>
@@ -324,6 +338,31 @@ function DocumentDetail({ row }) {
   );
 }
 
+/** One GRN'd invoice in allocation: shown from its row, there is nothing more to read. */
+function AllocationDetail({ a, storeName }) {
+  return (
+    <Flex direction="column" gap={5} py={2}>
+      <Flex gap={2} wrap="wrap">
+        <Badge colorScheme={a.allocated ? "blue" : "gray"}>{a.allocated ? "Allocated" : "Not allocated"}</Badge>
+        {a.retries ? <Badge colorScheme="orange">{a.retries} retries</Badge> : null}
+        {a.mode_override ? <Badge colorScheme="purple">Mode: {a.mode_override}</Badge> : null}
+      </Flex>
+      <SimpleGrid columns={2} spacing={4}>
+        <Field label="Store">{storeName(a.store)}</Field>
+        <Field label="Supplier">{a.supplier_name || a.supplier_id}</Field>
+        <Field label="Supplier invoice">{a.invoice_no}</Field>
+        <Field label="Invoice date">{a.invoice_date ? new Date(a.invoice_date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : null}</Field>
+        <Field label="Value">{a.invoice_amount === null || a.invoice_amount === undefined ? null : formatINR(a.invoice_amount)}</Field>
+        <Field label="PO">{a.po}</Field>
+        <Field label="GRN entered">{timeText(a.since)}</Field>
+        <Field label="Last attempt">{timeText(a.last_attempt)}</Field>
+        <Field label="Waiting">{ageText(a.hours)}</Field>
+        <Field label="GRN ref">{a.ref}</Field>
+      </SimpleGrid>
+    </Flex>
+  );
+}
+
 /** One gate pass in full: vehicle, times, its invoices and its inspection. */
 function GatePassDetail({ slug }) {
   const state = useDetail(WarehouseFlowHelper.getGatePass, slug);
@@ -447,7 +486,19 @@ function StepList({ section, rows, storeName, onOpen }) {
                   <Text color="gray.900" fontWeight="700" fontSize="md" noOfLines={2} textTransform="capitalize">
                     {r.supplier_name || r.supplier_id || "Unknown supplier"}
                   </Text>
-                  {r.kind === "document" ? (
+                  {r.kind === "allocation" ? (
+                    <>
+                      <Text fontSize="sm" color="gray.700" fontWeight="600" wordBreak="break-all">
+                        Invoice {r.invoice_no || "—"}
+                        {r.invoice_amount !== null && r.invoice_amount !== undefined ? ` · ${compactINR(Math.round(r.invoice_amount))}` : ""}
+                      </Text>
+                      {r.retries ? (
+                        <Text fontSize="xs" color="orange.600">
+                          {r.retries} allocation retr{r.retries === 1 ? "y" : "ies"} · last tried {timeText(r.last_attempt)}
+                        </Text>
+                      ) : null}
+                    </>
+                  ) : r.kind === "document" ? (
                     <Text fontSize="sm" color="gray.700" fontWeight="600" wordBreak="break-all">
                       Invoice {r.invoice_no || "(number not read yet)"}
                     </Text>
@@ -457,7 +508,7 @@ function StepList({ section, rows, storeName, onOpen }) {
                     </Text>
                   ) : null}
                   <Text fontSize="xs" color="gray.500" wordBreak="break-all">
-                    {r.kind === "document" ? r.gate_pass || "No gate pass" : refText(r)}
+                    {r.kind === "allocation" ? `GRN ${r.ref}` : r.kind === "document" ? r.gate_pass || "No gate pass" : refText(r)}
                   </Text>
                   <Text fontSize="xs" color="gray.500">
                     {[storeName(r.store), r.vehicle_number].filter(Boolean).join(" · ")}
@@ -495,10 +546,17 @@ function StepList({ section, rows, storeName, onOpen }) {
  * that consignment in full, with Back to the list.
  */
 function StepPanel({ section, rows, storeName, open, onOpen, onBack, onClose, grnFilter, onGrnFilter }) {
-  const isGrn = section && section.key === "grn";
-  const filter = isGrn ? GRN_FILTERS.find((f) => f.key === grnFilter) || GRN_FILTERS[2] : null;
+  const isGrn = Boolean(section && SPLIT_LABELS[section.key]);
+  const filters = isGrn ? splitFilters(section.key) : [];
+  const filter = isGrn ? filters.find((f) => f.key === grnFilter) || filters[2] : null;
   const shown = filter ? rows.filter(filter.test) : rows;
-  const label = section ? (isGrn && filter.key !== "all" ? `${section.label} ${filter.label.toLowerCase()}` : section.label) : "";
+  const label = section
+    ? isGrn && filter.key !== "all"
+      ? section.key === "grn"
+        ? `GRN ${filter.label.toLowerCase()}`
+        : filter.label
+      : section.label
+    : "";
   const title = open ? open.supplier_name || open.supplier_id || "Unknown supplier" : section ? `${label} · ${shown.length}` : "";
   return (
     <Drawer isOpen={Boolean(section)} placement="right" onClose={onClose} size="lg">
@@ -513,7 +571,9 @@ function StepPanel({ section, rows, storeName, open, onOpen, onBack, onClose, gr
           ) : null}
           <Text fontSize="xs" color="gray.500" fontWeight="600">
             {open
-              ? open.gate_pass
+              ? open.kind === "allocation"
+                ? "ALLOCATION"
+                : open.gate_pass
                 ? "GATE PASS"
                 : open.kind === "document"
                 ? "INVOICE"
@@ -527,13 +587,15 @@ function StepPanel({ section, rows, storeName, open, onOpen, onBack, onClose, gr
           </Text>
           {open ? (
             <Text fontSize="xs" color="gray.500" fontWeight="400">
-              {open.kind === "document" ? [`Invoice ${open.invoice_no || "(number not read yet)"}`, open.gate_pass].filter(Boolean).join(" · ") : refText(open)}
+              {open.kind === "allocation" ? `Invoice ${open.invoice_no || "—"} · GRN ${open.ref}` : open.kind === "document" ? [`Invoice ${open.invoice_no || "(number not read yet)"}`, open.gate_pass].filter(Boolean).join(" · ") : refText(open)}
             </Text>
           ) : null}
         </DrawerHeader>
         <DrawerBody>
           {!section ? null : open ? (
-            open.gate_pass ? (
+            open.kind === "allocation" ? (
+              <AllocationDetail a={open} storeName={storeName} />
+            ) : open.gate_pass ? (
               <GatePassDetail slug={open.gate_pass} />
             ) : open.kind === "document" ? (
               <DocumentDetail row={open} />
@@ -544,7 +606,7 @@ function StepPanel({ section, rows, storeName, open, onOpen, onBack, onClose, gr
             <>
               {isGrn ? (
                 <Flex gap={2} mb={3} wrap="wrap">
-                  {GRN_FILTERS.map((f) => (
+                  {filters.map((f) => (
                     <Button
                       key={f.key}
                       size="sm"

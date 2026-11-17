@@ -59,6 +59,7 @@ function rowStatus(stepKey, row) {
     if (n > 1 && started > 0 && started < n) return `GRN started ${started}/${n}`;
     return row.grn_started ? "GRN started" : "GRN not started";
   }
+  if (stepKey === "allocation") return row.allocated ? "Allocated" : "Not allocated";
   if (stepKey === "written_off") return "Written off";
   if (stepKey === "no_invoice") return "Invoice not uploaded";
   return stateText(row.state);

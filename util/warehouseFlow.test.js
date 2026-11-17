@@ -77,5 +77,7 @@ describe("steps", () => {
     assert.equal(docStateText("cost_qc_failed"), "Cost variance detected");
     assert.equal(docStateText("some_new_state"), "Some new state");
     assert.equal(rowStatus("no_invoice", {}), "Invoice not uploaded");
+    assert.equal(rowStatus("allocation", { allocated: false }), "Not allocated");
+    assert.equal(rowStatus("allocation", { allocated: true }), "Allocated");
   });
 });
