@@ -58,6 +58,39 @@ function typeFromFileName(name) {
 }
 
 /**
+ * Plan an upload of many files at once (a month of reports, say): each file
+ * goes to the report and the date its name says (Picking_Report_2026-11-03_ALL.csv);
+ * a name with no date goes to `selectedDate`. Two files for the same report
+ * and day: the first is kept, the rest are listed as duplicates.
+ * Answers { items: [{ index, name, type, date }], unknown: [name], duplicates: [name], dates }
+ * with items in date order, then report order.
+ */
+function planUploads(names, selectedDate) {
+  const order = Object.fromEntries(REPORTS.map((r, i) => [r.key, i]));
+  const items = [];
+  const unknown = [];
+  const duplicates = [];
+  const seen = new Set();
+  (names || []).forEach((name, index) => {
+    const type = typeFromFileName(name);
+    if (!type) {
+      unknown.push(name);
+      return;
+    }
+    const date = dateFromFileName(name) || selectedDate;
+    const key = `${type}|${date}`;
+    if (seen.has(key)) {
+      duplicates.push(name);
+      return;
+    }
+    seen.add(key);
+    items.push({ index, name, type, date });
+  });
+  items.sort((a, b) => a.date.localeCompare(b.date) || order[a.type] - order[b.type]);
+  return { items, unknown, duplicates, dates: [...new Set(items.map((i) => i.date))] };
+}
+
+/**
  * A sheet read as rows of cells (XLSX sheet_to_json with header: 1) -> the
  * upload body's headers and rows. Blank rows at the end are dropped.
  */
@@ -281,6 +314,7 @@ module.exports = {
   dateFromFileName,
   typeFromFileName,
   toPayload,
+  planUploads,
   slotsFor,
   uploadGrid,
   totalsByReport,

@@ -21,6 +21,21 @@ describe("warehouse daily reports page", () => {
     assert.deepEqual(p.headers, ["Job Type", "Box ID"]);
     assert.deepEqual(p.rows, [["STA", "0380903545"]]);
   });
+  it("plans a month of files: report and date from each name, duplicates and unknown names set aside", () => {
+    const plan = W.planUploads(
+      ["Verification_Report_2026-11-02_ALL.csv", "Picking_Report_2026-11-02_ALL.csv", "Picking_Report_2026-11-01_ALL.csv", "Picking_Report_2026-11-01_ALL (1).csv", "notes.csv", "Loading report.xlsx"],
+      "2026-11-16"
+    );
+    assert.deepEqual(plan.items.map((i) => [i.date, i.type, i.index]), [
+      ["2026-11-01", "PICKING", 2],
+      ["2026-11-02", "PICKING", 1],
+      ["2026-11-02", "VERIFICATION", 0],
+      ["2026-11-16", "LOADING", 5],
+    ]);
+    assert.deepEqual(plan.duplicates, ["Picking_Report_2026-11-01_ALL (1).csv"]);
+    assert.deepEqual(plan.unknown, ["notes.csv"]);
+    assert.deepEqual(plan.dates, ["2026-11-01", "2026-11-02", "2026-11-16"]);
+  });
   it("five slots a day, and a grid of days", () => {
     const uploads = [{ report_date: "2026-11-16", report_type: "LOADING", upload_id: 1 }];
     const slots = W.slotsFor("2026-11-16", uploads);

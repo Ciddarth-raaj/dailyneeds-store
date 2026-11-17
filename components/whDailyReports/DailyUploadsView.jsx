@@ -24,9 +24,11 @@ import {
 import toast from "react-hot-toast";
 import WhDailyReportsHelper from "../../helper/whDailyReports";
 import usePermissions from "../../customHooks/usePermissions";
-import { LABEL, REPORTS, addDays, dateFromFileName, slotsFor, toPayload, typeFromFileName, uploadGrid, yesterdayIso } from "../../util/whDailyReports";
+import { LABEL, REPORTS, addDays, planUploads, slotsFor, toPayload, uploadGrid, yesterdayIso } from "../../util/whDailyReports";
 
-const HISTORY_DAYS = 14;
+const HISTORY_DAYS = 31;
+/** More files than this, or more than one day, upload as a batch: one progress message and one summary. */
+const BATCH_FROM = 6;
 const count = (n) => Number(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 });
 const rupees = (n) => `₹${Math.round(Number(n) || 0).toLocaleString("en-IN")}`;
 const dayText = (d) => (d ? new Date(`${d}T00:00:00`).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" }) : "—");
@@ -129,6 +131,7 @@ export default function DailyUploadsView() {
   const [date, setDate] = useState(yesterdayIso());
   const [state, setState] = useState({ loading: true, error: null, data: null });
   const [busy, setBusy] = useState({});
+  const [batching, setBatching] = useState(false);
   const slotInput = useRef(null);
   const slotFor = useRef(null);
   const multiInput = useRef(null);
@@ -151,8 +154,11 @@ export default function DailyUploadsView() {
   const done = slots.filter((s) => s.upload).length;
   const grid = useMemo(() => uploadGrid(historyFrom, date, uploads), [historyFrom, date, uploads]);
 
-  /** Upload one file as `type` for `forDate`. Answers true when saved. */
-  const uploadOne = async (file, type, forDate) => {
+  /**
+   * Upload one file as `type` for `forDate`. Answers { ok, msg }. `quiet`
+   * (a batch) shows no message of its own and never asks about the date.
+   */
+  const uploadOne = async (file, type, forDate, { quiet = false } = {}) => {
     setBusy((b) => ({ ...b, [type]: true }));
     try {
       const { headers, rows } = await readFile(file);
@@ -162,9 +168,9 @@ export default function DailyUploadsView() {
         res = await WhDailyReportsHelper.upload(body);
       } catch (err) {
         const data = err.response && err.response.data;
-        if (err.response && err.response.status === 409) {
+        if (err.response && err.response.status === 409 && !quiet) {
           const ok = window.confirm(`${data.msg}\n\nUpload it for ${dayText(forDate)} anyway?`);
-          if (!ok) return false;
+          if (!ok) return { ok: false, msg: "Not uploaded" };
           res = await WhDailyReportsHelper.upload({ ...body, allow_date_mismatch: true });
         } else {
           const more = data && Array.isArray(data.errors) && data.errors.length > 1 ? `\n${data.errors.slice(1, 5).join("\n")}` : "";
@@ -172,11 +178,12 @@ export default function DailyUploadsView() {
         }
       }
       const d = res.data;
-      toast.success(`${LABEL[type]} ${d.replaced ? "replaced" : "uploaded"}: ${summaryText(type, d.summary, d.report_date)}`, { duration: 6000 });
-      return true;
+      if (!quiet) toast.success(`${LABEL[type]} ${d.replaced ? "replaced" : "uploaded"}: ${summaryText(type, d.summary, d.report_date)}`, { duration: 6000 });
+      return { ok: true };
     } catch (err) {
-      toast.error(`${LABEL[type]}: ${errMsg(err, "Upload failed")}`, { duration: 8000 });
-      return false;
+      const msg = errMsg(err, "Upload failed");
+      if (!quiet) toast.error(`${LABEL[type]}: ${msg}`, { duration: 8000 });
+      return { ok: false, msg };
     } finally {
       setBusy((b) => ({ ...b, [type]: false }));
     }
@@ -190,29 +197,60 @@ export default function DailyUploadsView() {
     load();
   };
 
-  /** Several files at once: each goes to the report its name says. */
+  /**
+   * Several files at once - one day's five, or a whole month's: each goes to
+   * the report and the date its name says (Picking_Report_2026-11-03_ALL.csv).
+   */
   const onManyFiles = async (e) => {
     const files = Array.from(e.target.files || []);
     e.target.value = "";
     if (!files.length) return;
-    const unknown = files.filter((f) => !typeFromFileName(f.name));
-    if (unknown.length) {
-      toast.error(`Could not tell which report ${unknown.map((f) => `"${f.name}"`).join(", ")} is. Use the Upload button on its card.`, { duration: 8000 });
+    const plan = planUploads(files.map((f) => f.name), date);
+    if (plan.unknown.length) {
+      toast.error(`Could not tell which report ${plan.unknown.map((n) => `"${n}"`).join(", ")} is. Use the Upload button on its card.`, { duration: 8000 });
     }
-    const known = files.filter((f) => typeFromFileName(f.name));
-    const dates = [...new Set(known.map((f) => dateFromFileName(f.name)).filter(Boolean))];
-    // Files all dated one day (as RetailPilot names them) go to that day.
-    let target = date;
-    if (dates.length === 1 && dates[0] !== date) {
-      if (!window.confirm(`These files are for ${dayText(dates[0])}, but ${dayText(date)} is selected.\n\nUpload them for ${dayText(dates[0])}?`)) return;
-      target = dates[0];
+    if (plan.duplicates.length) {
+      toast.error(`Skipped ${plan.duplicates.length} duplicate file(s) for a report and day already chosen: ${plan.duplicates.slice(0, 5).join(", ")}`, { duration: 8000 });
     }
-    for (const f of known) {
-      // One at a time: one transaction at a time, and at most one confirm dialog open.
+    if (!plan.items.length) return;
+    const first = plan.dates[0];
+    const last = plan.dates[plan.dates.length - 1];
+    const batch = plan.items.length >= BATCH_FROM || plan.dates.length > 1;
+
+    if (!batch) {
+      // One day's files: each with its own message, and the day switched to if it is not the one shown.
+      if (first !== date && !window.confirm(`These files are for ${dayText(first)}, but ${dayText(date)} is selected.\n\nUpload them for ${dayText(first)}?`)) return;
+      for (const it of plan.items) {
+        // One at a time: one transaction at a time, and at most one confirm dialog open.
+        // eslint-disable-next-line no-await-in-loop
+        await uploadOne(files[it.index], it.type, it.date);
+      }
+      if (first !== date) setDate(first);
+      else load();
+      return;
+    }
+
+    const span = plan.dates.length === 1 ? dayText(first) : `${plan.dates.length} days, ${dayText(first)} to ${dayText(last)}`;
+    if (!window.confirm(`Upload ${plan.items.length} files for ${span}?\n\nA report already uploaded for a day is replaced.`)) return;
+    setBatching(true);
+    const progress = toast.loading(`Uploading 0 of ${plan.items.length}…`);
+    const failed = [];
+    let done = 0;
+    for (const it of plan.items) {
+      toast.loading(`Uploading ${done + 1} of ${plan.items.length} - ${LABEL[it.type]}, ${dayText(it.date)}`, { id: progress });
       // eslint-disable-next-line no-await-in-loop
-      await uploadOne(f, typeFromFileName(f.name), target);
+      const r = await uploadOne(files[it.index], it.type, it.date, { quiet: true });
+      if (!r.ok) failed.push(`${it.name}: ${r.msg}`);
+      done += 1;
     }
-    if (target !== date) setDate(target);
+    setBatching(false);
+    const ok = plan.items.length - failed.length;
+    if (failed.length) {
+      toast.error(`${ok} of ${plan.items.length} uploaded. Not uploaded:\n${failed.slice(0, 6).join("\n")}${failed.length > 6 ? `\n…and ${failed.length - 6} more` : ""}`, { id: progress, duration: 20000 });
+    } else {
+      toast.success(`All ${ok} files uploaded for ${span}.`, { id: progress, duration: 8000 });
+    }
+    if (last !== date) setDate(last);
     else load();
   };
 
@@ -244,8 +282,8 @@ export default function DailyUploadsView() {
         <Flex gap={2} wrap="wrap" align="center">
           <Input type="date" size="sm" w="auto" value={date} max={today || undefined} onChange={(e) => e.target.value && setDate(e.target.value)} aria-label="Report date" bg="white" />
           {canUpload ? (
-            <Tooltip label="Choose all five files at once - each goes to the report its file name says (Picking_Report_..., Loading_Report_...)" hasArrow>
-              <Button size="sm" colorScheme="teal" onClick={() => multiInput.current && multiInput.current.click()} leftIcon={<i className="fa-solid fa-file-arrow-up" />}>
+            <Tooltip label="Choose many files at once - a day's five, or a whole month's. Each goes to the report and date its file name says (Picking_Report_2026-11-03_ALL.csv)." hasArrow>
+              <Button size="sm" colorScheme="teal" isLoading={batching} loadingText="Uploading…" onClick={() => multiInput.current && multiInput.current.click()} leftIcon={<i className="fa-solid fa-file-arrow-up" />}>
                 Upload files
               </Button>
             </Tooltip>
