@@ -22,6 +22,7 @@ import {
   ageText,
   hasInvoiceNotStarted,
   hasInvoiceStarted,
+  sinceLabel,
   docStateText,
   invoiceLine,
   rowStatus,
@@ -460,7 +461,7 @@ function StepList({ section, rows, storeName, onOpen }) {
   return (
     <Box>
       <Text fontSize="xs" color="gray.600" mb={2}>
-        {section.hint}. Longest waiting first; tap one for its detail.
+        {section.hint}. Oldest first; tap one for its detail.
       </Text>
       <Flex direction="column" borderTopWidth="1px" borderColor="gray.100">
         {rows.map((r) => {
@@ -517,6 +518,9 @@ function StepList({ section, rows, storeName, onOpen }) {
                 <Flex direction="column" align="flex-end" gap={1} flexShrink={0}>
                   <Text fontSize="sm" fontWeight={late ? "700" : "400"} whiteSpace="nowrap">
                     {ageText(r.hours)}
+                  </Text>
+                  <Text fontSize="10px" color="gray.500" whiteSpace="nowrap">
+                    {sinceLabel(section.key)} {timeText(r.since)}
                   </Text>
                   {late ? (
                     <Badge colorScheme="orange" fontSize="9px">

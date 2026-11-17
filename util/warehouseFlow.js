@@ -16,13 +16,35 @@ function hoursSince(isoTime, nowMs = Date.now()) {
   return Number.isFinite(t) ? Math.round((Math.max(0, nowMs - t) / 3600000) * 10) / 10 : null;
 }
 
-/** A step's (or a list's) rows for the chosen store, longest waiting first, each with `hours`. */
+/** A step's (or a list's) rows for the chosen store, oldest date first, each with `hours`. */
 function stepRows(section, store = "", nowMs = Date.now()) {
   return ((section && section.rows) || [])
     .filter((r) => !store || r.store === store)
     .map((r) => ({ ...r, hours: hoursSince(r.since, nowMs) }))
-    .sort((a, b) => (b.hours || 0) - (a.hours || 0));
+    .sort(byDateOldestFirst);
 }
+
+/** Oldest `since` first; a row with no date goes last; ties by reference, so the order is stable. */
+function byDateOldestFirst(a, b) {
+  const ta = Date.parse(a.since);
+  const tb = Date.parse(b.since);
+  const okA = Number.isFinite(ta);
+  const okB = Number.isFinite(tb);
+  if (okA !== okB) return okA ? -1 : 1;
+  if (okA && ta !== tb) return ta - tb;
+  return String(a.ref || "").localeCompare(String(b.ref || ""));
+}
+
+/** What a step's date means on each of its rows. */
+const SINCE_LABEL = {
+  gate_pass: "In at",
+  inspection: "Inspection started",
+  grn: "Uploaded",
+  allocation: "GRN entered",
+  no_invoice: "Inspected",
+  written_off: "Written off",
+};
+const sinceLabel = (stepKey) => SINCE_LABEL[stepKey] || "Since";
 
 /**
  * A tile's numbers: how many, the longest wait, how many over a day, GRNs
@@ -110,6 +132,7 @@ function stateText(state) {
 
 module.exports = {
   hoursSince,
+  sinceLabel,
   stepRows,
   stepSummary,
   rowStatus,

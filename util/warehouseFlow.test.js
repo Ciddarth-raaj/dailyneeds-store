@@ -4,6 +4,7 @@
 const { describe, it } = require("node:test");
 const assert = require("node:assert/strict");
 const {
+  sinceLabel,
   stepRows,
   stepSummary,
   rowStatus,
@@ -31,6 +32,23 @@ describe("steps", () => {
     assert.deepEqual(stepRows(GRN, "", NOW).map((r) => [r.ref, r.hours]), [["IN-9", 51], ["GP-1", 1], ["GP-3", 0.5]]);
     assert.deepEqual(stepRows(GRN, "outlet:2", NOW).map((r) => r.ref), ["GP-1", "GP-3"]);
     assert.deepEqual(stepRows(null), []);
+  });
+  it("rows are oldest date first; a row without a date goes last", () => {
+    const rows = stepRows(
+      {
+        rows: [
+          { ref: "b", since: "2026-11-15T05:00:00Z" },
+          { ref: "none", since: null },
+          { ref: "a", since: "2026-11-01T05:00:00Z" },
+          { ref: "c", since: "2026-11-15T05:00:00Z" },
+        ],
+      },
+      "",
+      NOW
+    );
+    assert.deepEqual(rows.map((r) => r.ref), ["a", "b", "c", "none"]);
+    assert.equal(sinceLabel("grn"), "Uploaded");
+    assert.equal(sinceLabel("allocation"), "GRN entered");
   });
   it("a tile counts, finds the oldest, the ones over a day and GRNs started", () => {
     assert.deepEqual(stepSummary(stepRows(GRN, "", NOW)), { count: 3, oldest_hours: 51, over_day: 1, grn_started: 1, gate_passes: 3, invoices: 4, invoices_started: 1 });
