@@ -720,6 +720,26 @@ const WMS_MENU = {
       },
     },
   },
+  warehouse_reports: {
+    title: "Warehouse Reports",
+    selected: false,
+    openPage: false,
+    icon: "fa-clipboard-list",
+    subMenu: {
+      wh_daily_uploads: {
+        title: "Daily Uploads",
+        permission: "view_wh_daily_reports",
+        selected: false,
+        location: "/warehouse-reports/daily-uploads",
+      },
+      wh_reports_analysis: {
+        title: "Analysis",
+        permission: "view_wh_daily_reports",
+        selected: false,
+        location: "/warehouse-reports/analysis",
+      },
+    },
+  },
   purchase_ref: {
     title: "Purchase Ref",
     selected: false,

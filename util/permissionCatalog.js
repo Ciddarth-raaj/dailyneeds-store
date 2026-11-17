@@ -38,6 +38,7 @@ const MODULE_ICONS = {
   master: "fa-database",
   materials: "fa-boxes-stacked",
   purchase_order: "fa-file-signature",
+  warehouse_reports: "fa-clipboard-list",
   invoice: "fa-file-invoice",
   items: "fa-box",
   eb_consumption: "fa-bolt",

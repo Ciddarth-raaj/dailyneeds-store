@@ -418,6 +418,12 @@ export const PERMISSIONS = {
     receive_po_daily_summary: "Receive PO Daily Summary (Telegram, 7 pm)",
   },
 
+  // Warehouse Daily Reports (WMS > Warehouse Reports)
+  warehouse_reports: {
+    view_wh_daily_reports: "View Warehouse Daily Reports & Analysis",
+    upload_wh_daily_reports: "Upload Warehouse Daily Reports",
+  },
+
   // Invoice
   invoice: {
     view_invoice: "View Invoices",

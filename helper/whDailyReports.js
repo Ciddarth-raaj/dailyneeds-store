@@ -1,0 +1,16 @@
+import API from "../util/api";
+
+/**
+ * Warehouse Daily Reports (`routes/wh_daily_reports.js` on the server):
+ * viewing needs view_wh_daily_reports, uploading and removing need
+ * upload_wh_daily_reports. Refusals arrive as `{ code, msg }`.
+ */
+const WhDailyReportsHelper = {
+  status: (params) => API.get("/wh-daily-reports/status", { params }).then((res) => res.data),
+  analysis: (params) => API.get("/wh-daily-reports/analysis", { params }).then((res) => res.data),
+  rows: (params) => API.get("/wh-daily-reports/rows", { params }).then((res) => res.data),
+  upload: (body) => API.post("/wh-daily-reports/upload", body).then((res) => res.data),
+  remove: (uploadId) => API.delete(`/wh-daily-reports/uploads/${encodeURIComponent(uploadId)}`).then((res) => res.data),
+};
+
+export default WhDailyReportsHelper;
