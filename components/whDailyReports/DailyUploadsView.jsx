@@ -243,8 +243,10 @@ export default function DailyUploadsView() {
         </Flex>
       </Flex>
 
-      <input ref={slotInput} type="file" accept=".csv,.xlsx,.xls" style={{ display: "none" }} onChange={onSlotFile} />
-      <input ref={multiInput} type="file" accept=".csv,.xlsx,.xls" multiple style={{ display: "none" }} onChange={onManyFiles} />
+      {/* No `accept` filter: Android labels CSV downloads with types that filter does not list and greys them out.
+          Any file can be picked; its columns are checked before anything is saved. */}
+      <input ref={slotInput} type="file" style={{ display: "none" }} onChange={onSlotFile} />
+      <input ref={multiInput} type="file" multiple style={{ display: "none" }} onChange={onManyFiles} />
 
       {state.error ? (
         <Alert status="error" borderRadius="md">
