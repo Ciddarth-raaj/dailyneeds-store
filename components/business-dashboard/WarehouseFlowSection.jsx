@@ -100,11 +100,12 @@ function GrnSplit({ step = "GRN", label, invoices, color, onClick }) {
       _hover={{ boxShadow: "sm", bg: `${color}.100` }}
       aria-label={`${step} ${label.toLowerCase()}: ${invoicesText(invoices)}`}
     >
-      <Flex align="baseline" gap={2}>
-        <Text fontSize="xl" fontWeight="700" color="gray.800" lineHeight="short">
+      <Flex align="center" gap={2} minW={0}>
+        <Text fontSize="xl" fontWeight="700" color="gray.800" lineHeight="short" flexShrink={0}>
           {invoices}
         </Text>
-        <Text fontSize="xs" color="gray.700" whiteSpace="nowrap">
+        {/* Long stage names ("Pricing review pending") wrap at a space on a phone rather than run out of the tile. */}
+        <Text fontSize="xs" color="gray.700" lineHeight="short" minW={0} overflowWrap="normal" wordBreak="normal">
           {label}
         </Text>
       </Flex>
