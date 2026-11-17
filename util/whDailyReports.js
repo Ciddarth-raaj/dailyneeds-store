@@ -12,7 +12,7 @@ const REPORTS = [
   { key: "PACKING", label: "Packing", shape: "JOB", hint: "Write-off = Short Qty", color: "purple" },
   { key: "LOADING", label: "Loading", shape: "BOX", hint: "Boxes put on trucks", color: "blue" },
   { key: "UNLOADING", label: "Unloading", shape: "BOX", hint: "Boxes taken off at stores", color: "cyan" },
-  { key: "VERIFICATION", label: "Verification", shape: "JOB", hint: "Short / returned at verification", color: "green" },
+  { key: "VERIFICATION", label: "Verification", shape: "JOB", hint: "Short goes to Pick & Pack → Verification", color: "green" },
 ];
 const JOB_REPORTS = REPORTS.filter((r) => r.shape === "JOB");
 const LABEL = Object.fromEntries(REPORTS.map((r) => [r.key, r.label]));

@@ -50,6 +50,15 @@ function summaryText(type, s) {
   const parts = [`${count(s.rows)} rows`, `${count(s.short_lines)} short lines`, `write-off ${count(s.short_qty)} qty`];
   if (s.short_value) parts.push(rupees(s.short_value));
   if (s.short_unpriced_lines) parts.push(`${s.short_unpriced_lines} without MRP`);
+  const v = s.verification_page;
+  if (v) {
+    const page = [`${v.added} added`, v.updated ? `${v.updated} updated` : null, v.unchanged ? `${v.unchanged} already there` : null, v.kept_verified ? `${v.kept_verified} already verified, left as is` : null]
+      .filter(Boolean)
+      .join(", ");
+    parts.push(`Verification page: ${page}`);
+    if (v.unknown_articles) parts.push(`${v.unknown_articles} article(s) not in the product master, not added`);
+    if (v.other_job_type_lines) parts.push(`${v.other_job_type_lines} line(s) not GRN/STA, not added`);
+  }
   return parts.join(" · ");
 }
 
