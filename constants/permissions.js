@@ -25,6 +25,7 @@ export const PERMISSIONS = {
     view_attendance_dashboard: "View Attendance & Staffing Dashboard",
     view_hr_dashboard: "View HR Dashboard (not built yet)",
     view_sales_dashboard: "View Business Dashboard (Sales, Purchase, Stock)",
+    view_invoice_pipeline: "View Invoice Pipeline (gate pass to allocation, without sales)",
     view_my_dashboard: "View My Dashboard (not built yet)",
     dashboard_scope_own_store: "Dashboard Store Scope: Own Store",
     dashboard_scope_all_stores: "Dashboard Store Scope: All Stores",

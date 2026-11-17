@@ -13,6 +13,7 @@ import {
   DrawerHeader,
   DrawerOverlay,
   Flex,
+  Select,
   SimpleGrid,
   Spinner,
   Text,
@@ -639,8 +640,12 @@ function StepPanel({ section, rows, storeName, open, onOpen, onBack, onClose, gr
  * consignment. Nothing is listed until a tile is clicked. Follows the page's
  * store choice; `refreshTick` changing re-reads RetailPilot.
  */
-export default function WarehouseFlowSection({ store = "", refreshTick = 0 }) {
+export default function WarehouseFlowSection({ store: storeProp = "", refreshTick = 0, standalone = false }) {
   const [state, setState] = useState({ loading: true, error: null, data: null });
+  // On its own page the section has its own Store filter and Refresh; on the
+  // Business Dashboard it follows the page's.
+  const [ownStore, setOwnStore] = useState("");
+  const store = standalone ? ownStore : storeProp;
   const [selected, setSelected] = useState(null);
   const [grnFilter, setGrnFilter] = useState("all");
   const [open, setOpen] = useState(null);
@@ -700,6 +705,21 @@ export default function WarehouseFlowSection({ store = "", refreshTick = 0 }) {
           Now, live from RetailPilot{state.loading ? " · loading…" : ""}
         </Text>
       </Flex>
+      {standalone ? (
+        <Flex gap={3} mb={3} wrap="wrap" align="center">
+          <Select size="sm" maxW="220px" value={ownStore} onChange={(e) => setOwnStore(e.target.value)} aria-label="Store">
+            {stores.length !== 1 ? <option value="">All stores</option> : null}
+            {stores.map((s) => (
+              <option key={s.key} value={s.key}>
+                {s.name}
+              </option>
+            ))}
+          </Select>
+          <Button size="sm" colorScheme="purple" variant="outline" onClick={() => load(true)} isLoading={state.loading}>
+            Refresh
+          </Button>
+        </Flex>
+      ) : null}
 
       {state.error ? (
         <Alert status="error" borderRadius="md" mb={3}>

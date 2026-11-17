@@ -20,6 +20,12 @@ const ALL_PAGES_MENU = {
         selected: false,
         location: "/dashboard/business",
       },
+      view_invoice_pipeline: {
+        title: "Invoice Pipeline",
+        permission: "view_invoice_pipeline",
+        selected: false,
+        location: "/dashboard/invoice-pipeline",
+      },
       view_transfers: {
         title: "Transfers",
         permission: "view_sales_dashboard",
