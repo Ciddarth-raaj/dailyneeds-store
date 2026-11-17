@@ -21,7 +21,6 @@ import GlobalWrapper from "../../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../../components/CustomContainer";
 import AgGrid from "../../../components/AgGrid";
 import VerificationMonthCalendar from "../../../components/pick-pack/VerificationMonthCalendar";
-import FileUploaderWithColumnMapping from "../../../components/FileUploaderWithColumnMapping";
 import VerificationRemarkCell from "../../../components/pick-pack/VerificationRemarkCell";
 import usePermissions from "../../../customHooks/usePermissions";
 import { usePickPackVerificationRemarks } from "../../../customHooks/usePickPackVerificationRemarks";
@@ -30,7 +29,6 @@ import { useProducts } from "../../../customHooks/useProducts";
 import { useModuleTableTheme } from "../../../contexts/ModuleTableThemeContext";
 import {
   listPickPackVerifications,
-  createPickPackVerification,
   deletePickPackVerification,
 } from "../../../helper/pickPackVerifications";
 import WhDailyReportsHelper from "../../../helper/whDailyReports";
@@ -48,37 +46,6 @@ function normalizeVerificationRow(row) {
     is_verified: isVerificationVerified(row.is_verified),
   };
 }
-
-function normalizeJobType(value) {
-  const upper = String(value ?? "")
-    .trim()
-    .toUpperCase();
-  return JOB_TYPES.includes(upper) ? upper : null;
-}
-
-const VERIFICATION_IMPORT_CONFIG = [
-  {
-    key: "product_id",
-    label: "Article Id",
-    required: true,
-    suggestedKey: "Article Id",
-    type: "number",
-  },
-  {
-    key: "mismatch_qty",
-    label: "Mismatch Quantity",
-    required: true,
-    suggestedKey: "Mismatch Quantity",
-    type: "number",
-  },
-  {
-    key: "job_type",
-    label: "Job Type",
-    required: true,
-    suggestedKey: "Job Type",
-    type: "text",
-  },
-];
 
 function PickPackVerificationsPage() {
   const { colorScheme } = useModuleTableTheme();
@@ -108,7 +75,6 @@ function PickPackVerificationsPage() {
   );
   const [monthRows, setMonthRows] = useState([]);
   const [loadingMonth, setLoadingMonth] = useState(false);
-  const [importing, setImporting] = useState(false);
   const [clearingDay, setClearingDay] = useState(false);
 
   const canAdd = usePermissions("add_pick_pack_verifications");
@@ -212,73 +178,6 @@ function PickPackVerificationsPage() {
       await refetchAfterUpdate();
     },
     [refetchAfterUpdate]
-  );
-
-  const mergeImportRows = useCallback((rows) => {
-    const byKey = new Map();
-    for (const r of rows) {
-      const pid = Number(r.product_id);
-      const qty = Number(r.mismatch_qty);
-      const jt = normalizeJobType(r.job_type);
-      if (Number.isNaN(pid) || Number.isNaN(qty) || !jt) continue;
-      const key = `${pid}:${jt}`;
-      byKey.set(key, {
-        product_id: pid,
-        mismatch_qty: (byKey.get(key)?.mismatch_qty ?? 0) + qty,
-        job_type: jt,
-      });
-    }
-    return Array.from(byKey.values());
-  }, []);
-
-  const handleImportMapped = useCallback(
-    async (mappedRows) => {
-      if (!selectedDate) return;
-      const valid = mappedRows.filter((r) => {
-        const jt = normalizeJobType(r.job_type);
-        return (
-          r.product_id != null &&
-          r.mismatch_qty != null &&
-          jt != null &&
-          !Number.isNaN(Number(r.product_id)) &&
-          !Number.isNaN(Number(r.mismatch_qty))
-        );
-      });
-      if (!valid.length) {
-        toast.error("No valid rows to import (check Job Type is GRN or STA)");
-        return;
-      }
-      const merged = mergeImportRows(
-        valid.map((r) => ({
-          ...r,
-          job_type: normalizeJobType(r.job_type),
-        }))
-      );
-      setImporting(true);
-      try {
-        await Promise.all(
-          merged.map((r) =>
-            createPickPackVerification({
-              product_id: r.product_id,
-              mismatch_qty: r.mismatch_qty,
-              date: selectedDate,
-              job_type: r.job_type,
-            })
-          )
-        );
-        const mergedNote =
-          valid.length !== merged.length
-            ? ` (${valid.length} file rows → ${merged.length} products, qty combined)`
-            : "";
-        toast.success(`Imported ${merged.length} row(s)${mergedNote}`);
-        await loadMonth();
-      } catch (e) {
-        toast.error(e?.message || "Import failed");
-      } finally {
-        setImporting(false);
-      }
-    },
-    [selectedDate, loadMonth, mergeImportRows]
   );
 
   const handleClearDay = useCallback(() => {
@@ -423,21 +322,6 @@ function PickPackVerificationsPage() {
                         >
                           Clear
                         </Button>
-                        <FileUploaderWithColumnMapping
-                          config={VERIFICATION_IMPORT_CONFIG}
-                          onMappedData={handleImportMapped}
-                          accept=".xlsx,.xls,.csv"
-                          renderer={(openFileBrowser) => (
-                            <Button
-                              onClick={openFileBrowser}
-                              size="sm"
-                              isLoading={importing}
-                              loadingText="Importing..."
-                            >
-                              Import file
-                            </Button>
-                          )}
-                        />
                       </Flex>
                     ) : null
                   }
