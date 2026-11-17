@@ -18,7 +18,9 @@ import {
   Spinner,
   Text,
 } from "@chakra-ui/react";
+import toast from "react-hot-toast";
 import WarehouseFlowHelper from "../../helper/warehouseFlow";
+import { useUser } from "../../contexts/UserContext";
 import {
   ageText,
   hasInvoiceNotStarted,
@@ -664,6 +666,62 @@ function StepPanel({ section, rows, storeName, open, onOpen, onBack, onClose, gr
 }
 
 /**
+ * The 9 pm end-of-day PDF on demand, for administrators (the server refuses
+ * anyone else): Preview downloads it without sending; Send now posts
+ * it to the Purchase Telegram group after a confirmation.
+ */
+function EodReportButtons() {
+  const [busy, setBusy] = useState(null);
+
+  // Preview downloads the PDF: every browser, phone included, opens a
+  // downloaded PDF in its viewer, while a PDF opened into a new tab is blocked
+  // or left blank by some.
+  const preview = async () => {
+    setBusy("preview");
+    try {
+      const blob = await WarehouseFlowHelper.getEodReportPdf();
+      const url = URL.createObjectURL(new Blob([blob], { type: "application/pdf" }));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `invoice-pipeline-eod-${new Date().toISOString().slice(0, 10)}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } catch (err) {
+      toast.error(err.message || "Could not make the PDF");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const sendNow = async () => {
+    if (typeof window !== "undefined" && !window.confirm("Send the end-of-day Invoice pipeline PDF to the Purchase Telegram group now?")) return;
+    setBusy("send");
+    try {
+      const res = await WarehouseFlowHelper.sendEodReport();
+      if (res && res.code === 200) toast.success("Sent to the Purchase group on Telegram");
+      else toast.error((res && (res.msg || res.message)) || "Could not send the report");
+    } catch (err) {
+      toast.error(err.message || "Could not send the report");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  return (
+    <>
+      <Button size="sm" variant="outline" onClick={preview} isLoading={busy === "preview"} isDisabled={Boolean(busy)} loadingText="Making PDF">
+        Preview EOD PDF
+      </Button>
+      <Button size="sm" colorScheme="purple" onClick={sendNow} isLoading={busy === "send"} isDisabled={Boolean(busy)} loadingText="Sending">
+        Send EOD report now
+      </Button>
+    </>
+  );
+}
+
+/**
  * INVOICE PIPELINE (was "warehouse flow"), on the Business Dashboard: Gate pass -> Inspection -> GRN ->
  * Allocation -> Ready to dispatch. Each built step is a tile with what is in
  * it now; clicking one opens its list at the side, and a row there opens that
@@ -675,6 +733,9 @@ export default function WarehouseFlowSection({ store: storeProp = "", refreshTic
   // On its own page the section has its own Store filter and Refresh; on the
   // Business Dashboard it follows the page's.
   const [ownStore, setOwnStore] = useState("");
+  const { userConfig } = useUser();
+  // The EOD buttons are for administrators; the server checks again.
+  const isAdmin = String(userConfig && userConfig.userType) === "2";
   const store = standalone ? ownStore : storeProp;
   const [selected, setSelected] = useState(null);
   const [grnFilter, setGrnFilter] = useState("all");
@@ -748,6 +809,7 @@ export default function WarehouseFlowSection({ store: storeProp = "", refreshTic
           <Button size="sm" colorScheme="purple" variant="outline" onClick={() => load(true)} isLoading={state.loading}>
             Refresh
           </Button>
+          {isAdmin ? <EodReportButtons /> : null}
         </Flex>
       ) : null}
 
