@@ -343,6 +343,15 @@ function PickPackVerificationsPage() {
         type: "number",
       },
       {
+        field: "stores",
+        headerName: "Store",
+        type: "capitalized",
+        flex: 1.5,
+        wrapText: true,
+        autoHeight: true,
+        valueGetter: (params) => params.data?.stores || "—",
+      },
+      {
         field: "remark_id",
         headerName: "Remark",
         flex: 1.5,
