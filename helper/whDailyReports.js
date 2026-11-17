@@ -2,8 +2,8 @@ import API from "../util/api";
 
 /**
  * Warehouse Daily Reports (`routes/wh_daily_reports.js` on the server):
- * viewing needs view_wh_daily_reports, uploading and removing need
- * upload_wh_daily_reports. Refusals arrive as `{ code, msg }`.
+ * the Daily Uploads page (status, upload, remove) needs upload_wh_daily_reports,
+ * the Analysis page (analysis, rows) view_wh_daily_reports. Refusals arrive as `{ code, msg }`.
  */
 const WhDailyReportsHelper = {
   status: (params) => API.get("/wh-daily-reports/status", { params }).then((res) => res.data),

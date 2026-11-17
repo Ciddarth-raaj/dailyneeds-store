@@ -728,7 +728,7 @@ const WMS_MENU = {
     subMenu: {
       wh_daily_uploads: {
         title: "Daily Uploads",
-        permission: "view_wh_daily_reports",
+        permission: "upload_wh_daily_reports",
         selected: false,
         location: "/warehouse-reports/daily-uploads",
       },

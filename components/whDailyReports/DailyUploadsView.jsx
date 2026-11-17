@@ -125,6 +125,7 @@ function Slot({ slot, canUpload, busy, onPick, onRemove }) {
 
 export default function DailyUploadsView() {
   const canUpload = usePermissions(["upload_wh_daily_reports"]);
+  const canAnalyse = usePermissions(["view_wh_daily_reports"]);
   const [date, setDate] = useState(yesterdayIso());
   const [state, setState] = useState({ loading: true, error: null, data: null });
   const [busy, setBusy] = useState({});
@@ -249,11 +250,13 @@ export default function DailyUploadsView() {
               </Button>
             </Tooltip>
           ) : null}
-          <Link href={`/warehouse-reports/analysis?from=${date}&to=${date}`} passHref>
-            <Button as="a" size="sm" variant="outline" colorScheme="teal" leftIcon={<i className="fa-solid fa-chart-column" />}>
-              Analyse this day
-            </Button>
-          </Link>
+          {canAnalyse ? (
+            <Link href={`/warehouse-reports/analysis?from=${date}&to=${date}`} passHref>
+              <Button as="a" size="sm" variant="outline" colorScheme="teal" leftIcon={<i className="fa-solid fa-chart-column" />}>
+                Analyse this day
+              </Button>
+            </Link>
+          ) : null}
         </Flex>
       </Flex>
 

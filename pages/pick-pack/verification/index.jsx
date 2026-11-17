@@ -33,6 +33,7 @@ import {
   createPickPackVerification,
   deletePickPackVerification,
 } from "../../../helper/pickPackVerifications";
+import WhDailyReportsHelper from "../../../helper/whDailyReports";
 
 const JOB_TYPES = ["GRN", "STA"];
 
@@ -177,6 +178,25 @@ function PickPackVerificationsPage() {
   useEffect(() => {
     loadMonth();
   }, [loadMonth]);
+
+  // Days whose Verification report was uploaded (Warehouse Reports > Daily
+  // Uploads): with no rows here, the calendar shows them as "no write-off".
+  const [uploadedDates, setUploadedDates] = useState(() => new Set());
+  useEffect(() => {
+    let live = true;
+    WhDailyReportsHelper.status({
+      from: viewingMonth.clone().startOf("month").format("YYYY-MM-DD"),
+      to: viewingMonth.clone().endOf("month").format("YYYY-MM-DD"),
+    })
+      .then((res) => {
+        const uploads = (res && res.code === 200 && res.data && res.data.uploads) || [];
+        if (live) setUploadedDates(new Set(uploads.filter((u) => u.report_type === "VERIFICATION").map((u) => u.report_date)));
+      })
+      .catch(() => live && setUploadedDates(new Set()));
+    return () => {
+      live = false;
+    };
+  }, [viewingMonth]);
 
   const rowsForSelectedDay = useMemo(
     () => getRowsForDay(jobType),
@@ -370,6 +390,7 @@ function PickPackVerificationsPage() {
                   verificationsList={monthRows.filter(
                     (r) => String(r.job_type) === type
                   )}
+                  uploadedDates={uploadedDates}
                   viewingMonth={viewingMonth}
                   onViewingMonthChange={setViewingMonth}
                 />

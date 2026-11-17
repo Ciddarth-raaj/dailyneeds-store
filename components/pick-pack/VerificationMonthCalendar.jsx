@@ -36,6 +36,7 @@ function VerificationMonthCalendar({
   selectedDate,
   onSelectDate,
   verificationsList = [],
+  uploadedDates = null,
   viewingMonth,
   onViewingMonthChange,
 }) {
@@ -116,7 +117,9 @@ function VerificationMonthCalendar({
       <Flex flexWrap="wrap" gap="8px">
         {dates.map((date, index) => {
           const key = date.format("YYYY-MM-DD");
-          const visual = getPickPackDayVisual(dayAggregation[key]);
+          const visual = getPickPackDayVisual(dayAggregation[key], {
+            uploadedNoWriteOff: Boolean(uploadedDates && uploadedDates.has(key)),
+          });
           const selected = isSelected(date);
 
           return (
@@ -154,6 +157,21 @@ function VerificationMonthCalendar({
           );
         })}
       </Flex>
+      <HStack spacing={4} mt={3} flexWrap="wrap">
+        {[
+          { label: "No records", bg: "red.50", border: "red.200" },
+          { label: "Uploaded - no write-off", bg: "blue.50", border: "blue.300" },
+          { label: "Remarks pending", bg: "yellow.50", border: "yellow.300" },
+          { label: "All remarks filled", bg: "green.50", border: "green.200" },
+        ].map((l) => (
+          <HStack key={l.label} spacing={1}>
+            <Box w="12px" h="12px" borderRadius="3px" bg={l.bg} border="1px solid" borderColor={l.border} />
+            <Text fontSize="xs" color="gray.600">
+              {l.label}
+            </Text>
+          </HStack>
+        ))}
+      </HStack>
     </CustomContainer>
   );
 }

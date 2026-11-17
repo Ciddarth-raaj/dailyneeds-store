@@ -420,8 +420,8 @@ export const PERMISSIONS = {
 
   // Warehouse Daily Reports (WMS > Warehouse Reports)
   warehouse_reports: {
-    view_wh_daily_reports: "View Warehouse Daily Reports & Analysis",
-    upload_wh_daily_reports: "Upload Warehouse Daily Reports",
+    upload_wh_daily_reports: "Daily Uploads page (upload the five reports)",
+    view_wh_daily_reports: "Analysis page",
   },
 
   // Invoice
