@@ -12,7 +12,6 @@ import GlobalWrapper from "../../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../../components/CustomContainer";
 import AgGrid from "../../../components/AgGrid";
 import WriteOffMonthCalendar from "../../../components/pick-pack/WriteOffMonthCalendar";
-import FileUploaderWithColumnMapping from "../../../components/FileUploaderWithColumnMapping";
 import WriteOffRemarkCell from "../../../components/pick-pack/WriteOffRemarkCell";
 import usePermissions from "../../../customHooks/usePermissions";
 import { usePickPackRemarks } from "../../../customHooks/usePickPackRemarks";
@@ -20,10 +19,10 @@ import { useConfirmDelete } from "../../../customHooks/useConfirmDelete";
 import { useProducts } from "../../../customHooks/useProducts";
 import {
   listPickPackWriteOffs,
-  createPickPackWriteOff,
   deletePickPackWriteOff,
 } from "../../../helper/pickPackWriteOff";
 import useEmployees from "../../../customHooks/useEmployees";
+import WhDailyReportsHelper from "../../../helper/whDailyReports";
 import WriteOffShortageEmployeeModal from "../../../components/pick-pack/WriteOffShortageEmployeeModal";
 
 /** List/detail APIs may return 1, "1", or true */
@@ -38,24 +37,6 @@ function normalizeWriteOffRow(row) {
     is_verified: isWriteOffVerified(row.is_verified),
   };
 }
-
-/** Matches FileUploaderWithColumnMapping: keys are API fields; labels are targets to map from file headers. */
-const WRITE_OFF_IMPORT_CONFIG = [
-  {
-    key: "product_id",
-    label: "Article Id",
-    required: true,
-    suggestedKey: "Article Id",
-    type: "number",
-  },
-  {
-    key: "mismatch_qty",
-    label: "Mismatch Quantity",
-    required: true,
-    suggestedKey: "Mismatch Quantity",
-    type: "number",
-  },
-];
 
 function PickPackWriteOffPage() {
   const { products } = useProducts({
@@ -82,7 +63,6 @@ function PickPackWriteOffPage() {
   );
   const [monthRows, setMonthRows] = useState([]);
   const [loadingMonth, setLoadingMonth] = useState(false);
-  const [importing, setImporting] = useState(false);
   const [clearingDay, setClearingDay] = useState(false);
 
   const canAdd = usePermissions("add_pick_pack_write_off");
@@ -148,6 +128,25 @@ function PickPackWriteOffPage() {
     loadMonth();
   }, [loadMonth]);
 
+  // Days whose Picking report was uploaded (Warehouse Reports > Daily
+  // Uploads): with no write-off here, the calendar shows them blue.
+  const [uploadedDates, setUploadedDates] = useState(() => new Set());
+  useEffect(() => {
+    let live = true;
+    WhDailyReportsHelper.status({
+      from: viewingMonth.clone().startOf("month").format("YYYY-MM-DD"),
+      to: viewingMonth.clone().endOf("month").format("YYYY-MM-DD"),
+    })
+      .then((res) => {
+        const uploads = (res && res.code === 200 && res.data && res.data.uploads) || [];
+        if (live) setUploadedDates(new Set(uploads.filter((u) => u.report_type === "PICKING").map((u) => u.report_date)));
+      })
+      .catch(() => live && setUploadedDates(new Set()));
+    return () => {
+      live = false;
+    };
+  }, [viewingMonth]);
+
   const rowsForSelectedDay = useMemo(() => {
     return monthRows.filter(
       (r) => r?.date && moment(r.date).format("YYYY-MM-DD") === selectedDate
@@ -169,64 +168,6 @@ function PickPackWriteOffPage() {
   const handleShortageEmployeeRequired = useCallback((payload) => {
     setShortageModal(payload);
   }, []);
-
-  /** Sum mismatch_qty when the same product_id appears multiple times in the file */
-  const mergeImportRowsByProduct = useCallback((rows) => {
-    const byProduct = new Map();
-    for (const r of rows) {
-      const pid = Number(r.product_id);
-      const qty = Number(r.mismatch_qty);
-      if (Number.isNaN(pid) || Number.isNaN(qty)) continue;
-      byProduct.set(pid, (byProduct.get(pid) ?? 0) + qty);
-    }
-    return Array.from(byProduct.entries()).map(
-      ([product_id, mismatch_qty]) => ({
-        product_id,
-        mismatch_qty,
-      })
-    );
-  }, []);
-
-  const handleImportMapped = useCallback(
-    async (mappedRows) => {
-      if (!selectedDate) return;
-      const valid = mappedRows.filter(
-        (r) =>
-          r.product_id != null &&
-          r.mismatch_qty != null &&
-          !Number.isNaN(Number(r.product_id)) &&
-          !Number.isNaN(Number(r.mismatch_qty))
-      );
-      if (!valid.length) {
-        toast.error("No valid rows to import");
-        return;
-      }
-      const merged = mergeImportRowsByProduct(valid);
-      setImporting(true);
-      try {
-        await Promise.all(
-          merged.map((r) =>
-            createPickPackWriteOff({
-              product_id: r.product_id,
-              mismatch_qty: r.mismatch_qty,
-              date: selectedDate,
-            })
-          )
-        );
-        const mergedNote =
-          valid.length !== merged.length
-            ? ` (${valid.length} file rows → ${merged.length} products, qty combined)`
-            : "";
-        toast.success(`Imported ${merged.length} row(s)${mergedNote}`);
-        await loadMonth();
-      } catch (e) {
-        toast.error(e?.message || "Import failed");
-      } finally {
-        setImporting(false);
-      }
-    },
-    [selectedDate, loadMonth, mergeImportRowsByProduct]
-  );
 
   const handleClearDay = useCallback(() => {
     const ids = rowsForSelectedDay
@@ -288,6 +229,15 @@ function PickPackWriteOffPage() {
         field: "mismatch_qty",
         headerName: "Mismatch Qty",
         type: "number",
+      },
+      {
+        field: "stores",
+        headerName: "Store",
+        type: "capitalized",
+        flex: 1.5,
+        wrapText: true,
+        autoHeight: true,
+        valueGetter: (params) => params.data?.stores || "—",
       },
       {
         field: "remark_id",
@@ -359,6 +309,7 @@ function PickPackWriteOffPage() {
           selectedDate={selectedDate}
           onSelectDate={setSelectedDate}
           writeOffsList={monthRows}
+          uploadedDates={uploadedDates}
           viewingMonth={viewingMonth}
           onViewingMonthChange={setViewingMonth}
         />
@@ -380,21 +331,6 @@ function PickPackWriteOffPage() {
                 >
                   Clear
                 </Button>
-                <FileUploaderWithColumnMapping
-                  config={WRITE_OFF_IMPORT_CONFIG}
-                  onMappedData={handleImportMapped}
-                  accept=".xlsx,.xls,.csv"
-                  renderer={(openFileBrowser) => (
-                            <Button
-                              onClick={openFileBrowser}
-                              size="sm"
-                              isLoading={importing}
-                              loadingText="Importing..."
-                            >
-                      Import file
-                    </Button>
-                  )}
-                />
               </Flex>
             ) : null
           }

@@ -8,7 +8,7 @@
  */
 
 const REPORTS = [
-  { key: "PICKING", label: "Picking", shape: "JOB", hint: "Write-off = Short Qty", color: "orange" },
+  { key: "PICKING", label: "Picking", shape: "JOB", hint: "Short goes to Pick & Pack → Write Off", color: "orange" },
   { key: "PACKING", label: "Packing", shape: "JOB", hint: "Write-off = Short Qty", color: "purple" },
   { key: "LOADING", label: "Loading", shape: "BOX", hint: "Boxes put on trucks", color: "blue" },
   { key: "UNLOADING", label: "Unloading", shape: "BOX", hint: "Boxes taken off at stores", color: "cyan" },

@@ -11,6 +11,7 @@ import {
 } from "@chakra-ui/react";
 import moment from "moment";
 import CustomContainer from "../CustomContainer";
+import PickPackCalendarLegend from "./PickPackCalendarLegend";
 import { useModuleTableTheme } from "../../contexts/ModuleTableThemeContext";
 import {
   aggregatePickPackDaysByReason,
@@ -39,6 +40,7 @@ function WriteOffMonthCalendar({
   selectedDate,
   onSelectDate,
   writeOffsList = [],
+  uploadedDates = null,
   viewingMonth,
   onViewingMonthChange,
 }) {
@@ -119,7 +121,9 @@ function WriteOffMonthCalendar({
       <Flex flexWrap="wrap" gap="8px">
         {dates.map((date, index) => {
           const key = date.format("YYYY-MM-DD");
-          const visual = getPickPackDayVisual(dayAggregation[key]);
+          const visual = getPickPackDayVisual(dayAggregation[key], {
+            uploadedNoWriteOff: Boolean(uploadedDates && uploadedDates.has(key)),
+          });
           const selected = isSelected(date);
 
           return (
@@ -157,6 +161,7 @@ function WriteOffMonthCalendar({
           );
         })}
       </Flex>
+      <PickPackCalendarLegend />
     </CustomContainer>
   );
 }

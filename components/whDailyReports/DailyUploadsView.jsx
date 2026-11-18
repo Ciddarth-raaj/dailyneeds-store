@@ -52,11 +52,16 @@ function summaryText(type, s, date) {
   const parts = [`${count(s.rows)} rows`, `${count(s.short_lines)} short lines`, `write-off ${count(s.short_qty)} qty`];
   if (s.short_value) parts.push(rupees(s.short_value));
   if (s.short_unpriced_lines) parts.push(`${s.short_unpriced_lines} without MRP`);
-  const v = s.verification_page;
-  if (v) {
-    const where = `Pick & Pack → Verification${date ? ` (${dayText(date)})` : ""}`;
+  // What a report sent to its Pick & Pack page.
+  const pages = [
+    [s.verification_page, "Pick & Pack → Verification", "Verification report"],
+    [s.write_off_page, "Pick & Pack → Write Off", "Picking report"],
+  ];
+  for (const [v, pageName, report] of pages) {
+    if (!v) continue;
+    const where = `${pageName}${date ? ` (${dayText(date)})` : ""}`;
     if (!s.short_lines) {
-      parts.push(`No write-off in this Verification report - nothing added to ${where}`);
+      parts.push(`No write-off in this ${report} - nothing added to ${where}`);
     } else {
       const page = [v.added ? `${v.added} added` : null, v.updated ? `${v.updated} updated` : null, v.unchanged ? `${v.unchanged} already there` : null, v.kept_verified ? `${v.kept_verified} already verified, left as is` : null]
         .filter(Boolean)
