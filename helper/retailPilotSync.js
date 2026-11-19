@@ -33,7 +33,10 @@ const retailPilotSync = {
       return body;
     }
     if (key === "debit_notes") {
-      return unwrap(API.post("/debit-note/retailpilot-sync", { dry_run: false }), "Debit note sync failed");
+      // 45 days: a run by hand also catches up on everything since RetailPilot
+      // started raising debit notes (12 Oct 2026). Approved and Accounts-saved
+      // debit notes are never overwritten, so re-reading them is harmless.
+      return unwrap(API.post("/debit-note/retailpilot-sync", { days: 45, dry_run: false }), "Debit note sync failed");
     }
     throw new Error(`Unknown sync ${key}`);
   },
