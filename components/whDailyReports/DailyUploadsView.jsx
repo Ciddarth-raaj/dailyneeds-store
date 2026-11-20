@@ -68,7 +68,7 @@ function summaryText(type, s, date) {
     if (!s.short_lines) {
       parts.push(`No write-off in this ${report} - nothing added to ${where}`);
     } else {
-      const page = [v.added ? `${v.added} added` : null, v.updated ? `${v.updated} updated` : null, v.unchanged ? `${v.unchanged} already there` : null, v.kept_verified ? `${v.kept_verified} already verified, left as is` : null]
+      const page = [v.added ? `${v.added} added` : null, v.updated ? `${v.updated} updated` : null, v.unchanged ? `${v.unchanged} already there` : null, v.kept_verified ? `${v.kept_verified} already verified, left as is` : null, v.removed ? `${v.removed} no longer in the report, removed` : null]
         .filter(Boolean)
         .join(", ");
       parts.push(`${where}: ${page || "nothing added"}`);
