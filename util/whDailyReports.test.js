@@ -12,6 +12,14 @@ describe("warehouse daily reports page", () => {
     assert.equal(W.typeFromFileName("Packing_Report_2026-11-16_ALL.csv"), "PACKING");
     assert.equal(W.dateFromFileName("Picking_Report_2026-11-16_ALL_1.csv"), "2026-11-16");
   });
+  it("today, yesterday and times are India's, whatever the device's time zone", () => {
+    // 20 Nov, 8:30 pm UTC is 21 Nov, 2:00 am IST: the reports are for 20 Nov.
+    const late = new Date(Date.UTC(2026, 10, 20, 20, 30));
+    assert.equal(W.istTodayIso(late), "2026-11-21");
+    assert.equal(W.yesterdayIso(late), "2026-11-20");
+    assert.equal(W.istDateTimeText("2026-11-20T17:49:00Z").replace(/\s+/g, " "), "20 Nov, 11:19 pm IST");
+    assert.equal(W.istDateTimeText(null), "");
+  });
   it("yesterday and day steps", () => {
     assert.equal(W.yesterdayIso(new Date(2026, 10, 1, 9)), "2026-10-31");
     assert.equal(W.addDays("2026-12-31", 1), "2027-01-01");

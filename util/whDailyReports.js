@@ -30,11 +30,13 @@ const BOX_ISSUE_KEYS = ["NOT_UNLOADED", "WRONG_STORE", "QTY_DIFF", "NOT_LOADED"]
 
 const pad = (n) => String(n).padStart(2, "0");
 const isoOf = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-/** Yesterday in local time: the day the morning's reports are for. */
-const yesterdayIso = (now = new Date()) => {
-  const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
-  return isoOf(d);
-};
+/** Today in India (IST), whatever the device's own time zone, as YYYY-MM-DD. */
+const istTodayIso = (now = new Date()) => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
+/** Yesterday in India: the day the morning's reports are for. */
+const yesterdayIso = (now = new Date()) => addDays(istTodayIso(now), -1);
+/** A moment as "20 Nov, 11:19 pm IST", whatever the device's own time zone. */
+const istDateTimeText = (iso) =>
+  iso ? `${new Date(iso).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })} IST` : "";
 const addDays = (iso, n) => {
   const [y, m, d] = iso.split("-").map(Number);
   return isoOf(new Date(y, m - 1, d + n));
@@ -257,10 +259,10 @@ const excel = {
       Boxes: t.boxes,
       "Loaded qty": t.loaded_qty,
       "Unloaded qty": t.unloaded_qty,
-      "First loaded": t.first_loaded_at,
-      "Last loaded": t.last_loaded_at,
-      "First unloaded": t.first_unloaded_at,
-      "Last unloaded": t.last_unloaded_at,
+      "First loaded (IST)": t.first_loaded_at,
+      "Last loaded (IST)": t.last_loaded_at,
+      "First unloaded (IST)": t.first_unloaded_at,
+      "Last unloaded (IST)": t.last_unloaded_at,
       "Loaded by": t.loaded_by || "",
       "Unloaded by": t.unloaded_by || "",
       Issues: t.issues,
@@ -281,8 +283,8 @@ const excel = {
       "Loaded qty": l.loaded_qty,
       "Unloaded qty": l.unloaded_qty,
       MRP: l.mrp,
-      "Loaded at": l.loaded_at,
-      "Unloaded at": l.unloaded_at,
+      "Loaded at (IST)": l.loaded_at,
+      "Unloaded at (IST)": l.unloaded_at,
     })),
   jobRows: (rows) =>
     rows.map((r) => ({
@@ -312,7 +314,9 @@ module.exports = {
   LABEL,
   BOX_STATUS,
   BOX_ISSUE_KEYS,
+  istTodayIso,
   yesterdayIso,
+  istDateTimeText,
   addDays,
   dateFromFileName,
   typeFromFileName,

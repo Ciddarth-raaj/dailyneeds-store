@@ -29,7 +29,7 @@ import {
 import toast from "react-hot-toast";
 import WhDailyReportsHelper from "../../helper/whDailyReports";
 import usePermissions from "../../customHooks/usePermissions";
-import { LABEL, REPORTS, addDays, planUploads, slotsFor, toPayload, uploadGrid, yesterdayIso } from "../../util/whDailyReports";
+import { LABEL, REPORTS, addDays, istDateTimeText, planUploads, slotsFor, toPayload, uploadGrid, yesterdayIso } from "../../util/whDailyReports";
 
 const HISTORY_DAYS = 31;
 /** More files than this, or more than one day, upload as a batch: one progress message and one summary. */
@@ -38,7 +38,7 @@ const count = (n) => Number(n || 0).toLocaleString("en-IN", { maximumFractionDig
 const rupees = (n) => `₹${Math.round(Number(n) || 0).toLocaleString("en-IN")}`;
 const dayText = (d) => (d ? new Date(`${d}T00:00:00`).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" }) : "—");
 const timeText = (iso) =>
-  iso ? new Date(iso).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }) : "";
+  istDateTimeText(iso) || "";
 const errMsg = (err, fallback) => (err && err.response && err.response.data && err.response.data.msg) || (err && err.message) || fallback;
 
 /** Read a CSV or Excel file into { headers, rows }, cells as text so ids keep their leading zeros. */

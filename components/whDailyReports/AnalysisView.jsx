@@ -39,6 +39,7 @@ import {
   dailyRows,
   excel,
   filterArticles,
+  istDateTimeText,
   funnelRows,
   jobTypesOf,
   pivotByReport,
@@ -553,8 +554,8 @@ export default function AnalysisView() {
                     { label: "Boxes", numeric: true, render: (t) => count(t.boxes) },
                     { label: "Loaded qty", numeric: true, render: (t) => count(t.loaded_qty) },
                     { label: "Unloaded qty", numeric: true, render: (t) => count(t.unloaded_qty) },
-                    { label: "Loading", render: (t) => `${timeText(t.first_loaded_at)} – ${timeText(t.last_loaded_at)}` },
-                    { label: "Unloading", render: (t) => `${timeText(t.first_unloaded_at)} – ${timeText(t.last_unloaded_at)}` },
+                    { label: "Loading (IST)", render: (t) => `${timeText(t.first_loaded_at)} – ${timeText(t.last_loaded_at)}` },
+                    { label: "Unloading (IST)", render: (t) => `${timeText(t.first_unloaded_at)} – ${timeText(t.last_unloaded_at)}` },
                     { label: "Loaded by", wrap: true, render: (t) => <Text fontSize="xs">{t.loaded_by || "—"}</Text> },
                     { label: "Unloaded by", wrap: true, render: (t) => <Text fontSize="xs">{t.unloaded_by || "—"}</Text> },
                     { label: "Issues", numeric: true, render: (t) => (t.issues ? <Badge colorScheme="red">{t.issues}</Badge> : 0) },
@@ -620,7 +621,7 @@ export default function AnalysisView() {
                     { label: "Rows", numeric: true, render: (u) => count(u.row_count) },
                     { label: "File", wrap: true, render: (u) => <Text fontSize="xs">{u.file_name || "—"}</Text> },
                     { label: "Uploaded by", render: (u) => u.uploaded_by_name || "—" },
-                    { label: "At", render: (u) => (u.uploaded_at ? new Date(u.uploaded_at).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }) : "—") },
+                    { label: "At", render: (u) => istDateTimeText(u.uploaded_at) || "—" },
                   ]}
                 />
               </TabPanel>
