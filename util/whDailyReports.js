@@ -261,6 +261,8 @@ const excel = {
       "Last loaded": t.last_loaded_at,
       "First unloaded": t.first_unloaded_at,
       "Last unloaded": t.last_unloaded_at,
+      "Loaded by": t.loaded_by || "",
+      "Unloaded by": t.unloaded_by || "",
       Issues: t.issues,
       "Damage return lines": t.returns,
     })),
@@ -300,6 +302,7 @@ const excel = {
       MRP: r.mrp,
       "MRP from": r.mrp_source === "FILE" ? "File" : r.mrp_source === "GRN" ? "Latest GRN" : "",
       "Short value": r.short_value == null ? null : r2(r.short_value),
+      "Worked by": r.worked_by || "",
     })),
 };
 

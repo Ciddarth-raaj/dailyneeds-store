@@ -206,6 +206,7 @@ export default function AnalysisView() {
   const byStore = useMemo(() => pivotByReport(d && d.by_store, "to_store"), [d]);
   const byDept = useMemo(() => pivotByReport(d && d.by_department, "department"), [d]);
   const byJob = useMemo(() => pivotByReport(d && d.by_job_type, "job_type"), [d]);
+  const byWorker = useMemo(() => pivotByReport(d && d.by_worker, "worked_by"), [d]);
   const daily = useMemo(() => dailyRows(d && d.daily, d && d.boxes && d.boxes.daily), [d]);
   const jobTypes = useMemo(() => jobTypesOf(d && d.funnel), [d]);
   const funnel = useMemo(() => funnelRows(d && d.funnel, funnelJob), [d, funnelJob]);
@@ -248,6 +249,7 @@ export default function AnalysisView() {
           excel.byKey(byStore, "Store"),
           excel.byKey(byDept, "Department"),
           excel.byKey(byJob, "Job type"),
+          excel.byKey(byWorker, "Staff (RetailPilot user)"),
           excel.articles(d.short_articles || []),
           excel.jobRows(res.data.rows || []),
           excel.daily(daily),
@@ -256,7 +258,7 @@ export default function AnalysisView() {
           excel.boxLines(boxIssues),
           excel.boxLines(d.boxes.returns || []),
         ],
-        ["By store", "By department", "By job type", "Articles", "Write-off lines", "Daily", "Store funnel", "Trucks", "Box issues", "Damage returns"],
+        ["By store", "By department", "By job type", "By staff", "Articles", "Write-off lines", "Daily", "Store funnel", "Trucks", "Box issues", "Damage returns"],
         name("analysis")
       );
     } catch (err) {
@@ -385,6 +387,7 @@ export default function AnalysisView() {
             <TabList overflowX="auto" overflowY="hidden">
               <Tab>By store</Tab>
               <Tab>By department</Tab>
+              <Tab>By staff</Tab>
               <Tab>Articles</Tab>
               <Tab>Daily trend</Tab>
               <Tab>Store funnel</Tab>
@@ -413,6 +416,22 @@ export default function AnalysisView() {
                   </Text>
                 </SectionBar>
                 <DataTable columns={pivotColumns("Department")} rows={byDept} rowKey={(r) => r.key} />
+              </TabPanel>
+
+              <TabPanel px={0}>
+                <SectionBar onDownload={() => exportToExcel([excel.byKey(byWorker, "Staff (RetailPilot user)")], ["By staff"], name("write-off by staff"))}>
+                  <Text fontSize="sm" color="gray.600" maxW="640px">
+                    Write-off by who did the job in RetailPilot - the picker, packer or verifier (RetailPilot user id). &quot;Not recorded&quot; is uploaded files and jobs the system finished.
+                  </Text>
+                </SectionBar>
+                <DataTable
+                  columns={[
+                    { label: "Staff (RetailPilot user)", render: (r) => <Text fontWeight="600">{r.key === "(blank)" ? "Not recorded" : r.key}</Text> },
+                    ...pivotColumns("Staff").slice(1),
+                  ]}
+                  rows={byWorker}
+                  rowKey={(r) => r.key}
+                />
               </TabPanel>
 
               <TabPanel px={0}>
@@ -536,6 +555,8 @@ export default function AnalysisView() {
                     { label: "Unloaded qty", numeric: true, render: (t) => count(t.unloaded_qty) },
                     { label: "Loading", render: (t) => `${timeText(t.first_loaded_at)} – ${timeText(t.last_loaded_at)}` },
                     { label: "Unloading", render: (t) => `${timeText(t.first_unloaded_at)} – ${timeText(t.last_unloaded_at)}` },
+                    { label: "Loaded by", wrap: true, render: (t) => <Text fontSize="xs">{t.loaded_by || "—"}</Text> },
+                    { label: "Unloaded by", wrap: true, render: (t) => <Text fontSize="xs">{t.unloaded_by || "—"}</Text> },
                     { label: "Issues", numeric: true, render: (t) => (t.issues ? <Badge colorScheme="red">{t.issues}</Badge> : 0) },
                     { label: "Damage returns", numeric: true, render: (t) => count(t.returns) },
                   ]}

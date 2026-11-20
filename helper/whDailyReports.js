@@ -10,6 +10,8 @@ const WhDailyReportsHelper = {
   analysis: (params) => API.get("/wh-daily-reports/analysis", { params }).then((res) => res.data),
   rows: (params) => API.get("/wh-daily-reports/rows", { params }).then((res) => res.data),
   upload: (body) => API.post("/wh-daily-reports/upload", body).then((res) => res.data),
+  /** The five reports for from..to, from RetailPilot's pick & pack jobs (replacing what was there). */
+  pull: (body) => API.post("/wh-daily-reports/pull", body).then((res) => res.data),
   remove: (uploadId) => API.delete(`/wh-daily-reports/uploads/${encodeURIComponent(uploadId)}`).then((res) => res.data),
 };
 

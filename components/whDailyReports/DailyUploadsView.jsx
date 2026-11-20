@@ -10,6 +10,11 @@ import {
   Button,
   Flex,
   Input,
+  Popover,
+  PopoverArrow,
+  PopoverBody,
+  PopoverContent,
+  PopoverTrigger,
   SimpleGrid,
   Spinner,
   Table,
@@ -84,8 +89,8 @@ function Slot({ slot, canUpload, busy, onPick, onRemove }) {
           {slot.label}
         </Text>
         {u ? (
-          <Badge colorScheme="green" variant="subtle">
-            <i className="fa-solid fa-check" /> Uploaded
+          <Badge colorScheme={u.source === "RETAILPILOT" ? "blue" : "green"} variant="subtle">
+            <i className="fa-solid fa-check" /> {u.source === "RETAILPILOT" ? "RetailPilot" : "Uploaded"}
           </Badge>
         ) : (
           <Badge colorScheme="gray" variant="subtle">
@@ -100,7 +105,7 @@ function Slot({ slot, canUpload, busy, onPick, onRemove }) {
         <Box fontSize="sm" color="gray.700" minH="54px">
           <Text fontWeight="600">{count(u.row_count)} rows</Text>
           <Text fontSize="xs" color="gray.500" noOfLines={1} title={u.file_name || ""}>
-            {u.file_name || "—"}
+            {u.source === "RETAILPILOT" ? "Pulled from RetailPilot" : u.file_name || "—"}
           </Text>
           <Text fontSize="xs" color="gray.500">
             {u.uploaded_by_name ? `${u.uploaded_by_name} · ` : ""}
@@ -137,6 +142,8 @@ export default function DailyUploadsView() {
   const [state, setState] = useState({ loading: true, error: null, data: null });
   const [busy, setBusy] = useState({});
   const [batching, setBatching] = useState(false);
+  const [pulling, setPulling] = useState(false);
+  const [pullRange, setPullRange] = useState(null);
   const slotInput = useRef(null);
   const slotFor = useRef(null);
   const multiInput = useRef(null);
@@ -259,6 +266,52 @@ export default function DailyUploadsView() {
     else load();
   };
 
+  /** Pull from..to from RetailPilot, one day per request (a month in one request could outlast the web server's timeout). */
+  const pull = async (range) => {
+    if (!range || !range.from || !range.to) return;
+    const from = range.from <= range.to ? range.from : range.to;
+    const to = range.from <= range.to ? range.to : range.from;
+    const days = [];
+    for (let d = from; d <= to; d = addDays(d, 1)) days.push(d);
+    if (days.length > 31) {
+      toast.error("Pull at most 31 days at a time");
+      return;
+    }
+    setPullRange(null);
+    setPulling(true);
+    const progress = toast.loading(`Pulling ${dayText(from)} from RetailPilot…`);
+    const failed = [];
+    let writeOff = 0;
+    let verification = 0;
+    for (const [i, d] of days.entries()) {
+      toast.loading(`Pulling ${i + 1} of ${days.length} - ${dayText(d)}`, { id: progress });
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        const res = await WhDailyReportsHelper.pull({ from: d, to: d });
+        if (!res || res.code !== 200) throw new Error((res && res.msg) || "Pull failed");
+        for (const day of res.data.days) {
+          for (const r of day.reports) {
+            if (!r.ok) failed.push(`${dayText(day.date)} ${LABEL[r.type]}: ${r.msg}`);
+            else if (r.type === "PICKING") writeOff += (r.summary.write_off_page && r.summary.write_off_page.added) || 0;
+            else if (r.type === "VERIFICATION") verification += (r.summary.verification_page && r.summary.verification_page.added) || 0;
+          }
+        }
+      } catch (err) {
+        failed.push(`${dayText(d)}: ${errMsg(err, "Pull failed")}`);
+      }
+    }
+    setPulling(false);
+    const span = days.length === 1 ? dayText(from) : `${days.length} days, ${dayText(from)} to ${dayText(to)}`;
+    const added = `${writeOff} new Write Off line(s), ${verification} new Verification line(s)`;
+    if (failed.length) {
+      toast.error(`Pulled ${span} with problems:\n${failed.slice(0, 6).join("\n")}${failed.length > 6 ? `\n…and ${failed.length - 6} more` : ""}\n${added}`, { id: progress, duration: 20000 });
+    } else {
+      toast.success(`Pulled ${span} from RetailPilot. ${added}.`, { id: progress, duration: 8000 });
+    }
+    if (to !== date) setDate(to);
+    else load();
+  };
+
   const remove = async (slot) => {
     if (!window.confirm(`Remove the ${slot.label} report for ${dayText(date)}? Its ${count(slot.upload.row_count)} rows are deleted.`)) return;
     setBusy((b) => ({ ...b, [slot.key]: true }));
@@ -281,11 +334,39 @@ export default function DailyUploadsView() {
             Daily Warehouse Reports
           </Text>
           <Text fontSize="sm" color="gray.500">
-            Upload the five RetailPilot exports for the day - CSV or Excel, as downloaded. Uploading a report again replaces it.
+            The five reports come from RetailPilot every night at 11:30 pm. Pull a day again any time, or upload the Excel exports if RetailPilot is down - either replaces that day&apos;s report.
           </Text>
         </Box>
         <Flex gap={2} wrap="wrap" align="center">
           <Input type="date" size="sm" w="auto" value={date} max={today || undefined} onChange={(e) => e.target.value && setDate(e.target.value)} aria-label="Report date" bg="white" />
+          {canUpload ? (
+            <Popover placement="bottom-end" isOpen={Boolean(pullRange)} onClose={() => setPullRange(null)}>
+              <PopoverTrigger>
+                <Button size="sm" colorScheme="blue" isLoading={pulling} loadingText="Pulling…" onClick={() => setPullRange({ from: date, to: date })} leftIcon={<i className="fa-solid fa-cloud-arrow-down" />}>
+                  Pull from RetailPilot
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent w="300px">
+                <PopoverArrow />
+                <PopoverBody>
+                  <Text fontSize="sm" fontWeight="600" mb={2}>
+                    Pull the five reports from RetailPilot
+                  </Text>
+                  <Flex gap={2} align="center" mb={2}>
+                    <Input type="date" size="sm" value={(pullRange && pullRange.from) || ""} max={today || undefined} onChange={(e) => e.target.value && setPullRange((r) => ({ ...r, from: e.target.value }))} aria-label="Pull from" />
+                    <Text fontSize="sm">to</Text>
+                    <Input type="date" size="sm" value={(pullRange && pullRange.to) || ""} max={today || undefined} onChange={(e) => e.target.value && setPullRange((r) => ({ ...r, to: e.target.value }))} aria-label="Pull to" />
+                  </Flex>
+                  <Text fontSize="xs" color="gray.500" mb={2}>
+                    Replaces those days&apos; reports. Remarks on the Write Off and Verification pages are kept.
+                  </Text>
+                  <Button size="sm" colorScheme="blue" w="100%" onClick={() => pull(pullRange)}>
+                    Pull
+                  </Button>
+                </PopoverBody>
+              </PopoverContent>
+            </Popover>
+          ) : null}
           {canUpload ? (
             <Tooltip label="Choose many files at once - a day's five, or a whole month's. Each goes to the report and date its file name says (Picking_Report_2026-11-03_ALL.csv)." hasArrow>
               <Button size="sm" colorScheme="teal" isLoading={batching} loadingText="Uploading…" onClick={() => multiInput.current && multiInput.current.click()} leftIcon={<i className="fa-solid fa-file-arrow-up" />}>
