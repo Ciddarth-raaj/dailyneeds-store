@@ -94,6 +94,8 @@ test("Employees, Department and Designation are all inside HR", () => {
     "/hr/employees",
     // The compliance work queue beside the employee master, on the same key.
     "/hr/onboarding",
+    // HR maps the RetailPilot user ids the warehouse reports record to employees.
+    "/hr/retailpilot-staff",
     // M4: Payroll, a section of HR like the three above it. M5 adds the third
     // entry - a faster way to raise the proposals the first one raises singly.
     // Payrun Initialization adds the fourth, and it is the first entry here
@@ -380,6 +382,8 @@ test("HR navigation still appears exactly once, and still holds its pages", () =
     "/hr/employees",
     // The compliance work queue beside the employee master, on the same key.
     "/hr/onboarding",
+    // HR maps the RetailPilot user ids the warehouse reports record to employees.
+    "/hr/retailpilot-staff",
     // M4: Payroll, a section of HR like the three above it. M5 adds the third
     // entry - a faster way to raise the proposals the first one raises singly.
     // Payrun Initialization adds the fourth, and it is the first entry here
@@ -550,6 +554,8 @@ test("SALARY IS ENTERED FROM PAYROLL, AND THE EMPLOYEE MASTER STILL LINKS NOWHER
     "/employee-shift-assignment",
     "/hr/employees",
     "/hr/onboarding",
+    // HR maps the RetailPilot user ids the warehouse reports record to employees.
+    "/hr/retailpilot-staff",
     "/staff-budget",
     "/work-shift",
   ]);

@@ -456,7 +456,7 @@ export default function AnalysisView() {
               <TabPanel px={0}>
                 <SectionBar onDownload={() => exportToExcel([excel.byKey(byWorker, "Staff")], ["By staff"], name("write-off by staff"))}>
                   <Text fontSize="sm" color="gray.600" maxW="640px">
-                    Write-off by who did the job in RetailPilot - the picker, packer or verifier. Map RetailPilot users to employees on Warehouse Reports &gt; Staff Mapping to see names. &quot;Not recorded&quot; is uploaded files and jobs the system finished.
+                    Write-off by who did the job in RetailPilot - the picker, packer or verifier. Names appear once HR maps RetailPilot users to employees (HR &gt; Employee Master &gt; RetailPilot Staff Mapping). &quot;Not recorded&quot; is uploaded files and jobs the system finished.
                   </Text>
                 </SectionBar>
                 <DataTable

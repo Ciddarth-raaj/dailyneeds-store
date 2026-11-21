@@ -162,6 +162,7 @@ export const PERMISSIONS = {
     approve_salary_revision: "Approve / Reject Salary Revision",
     view_department: "View Departments",
     view_designation: "View Designation",
+    manage_wh_staff_map: "RetailPilot Staff Mapping (map RetailPilot users to employees)",
     // view_shift: "View Shifts",
     // add_shifts: "Add Shifts",
     // view_family: "View Family",
@@ -423,7 +424,6 @@ export const PERMISSIONS = {
   warehouse_reports: {
     upload_wh_daily_reports: "Daily Uploads page (upload the five reports)",
     view_wh_daily_reports: "Analysis page",
-    manage_wh_staff_map: "Staff Mapping page (RetailPilot user -> employee)",
   },
 
   // Invoice

@@ -744,12 +744,6 @@ const WMS_MENU = {
         selected: false,
         location: "/warehouse-reports/analysis",
       },
-      wh_staff_mapping: {
-        title: "Staff Mapping",
-        permission: "manage_wh_staff_map",
-        selected: false,
-        location: "/warehouse-reports/staff",
-      },
     },
   },
   purchase_ref: {
@@ -1008,6 +1002,14 @@ const HR_MENU = {
         permission: "view_designation",
         selected: false,
         location: "/designation",
+      },
+      // HR maps the RetailPilot user ids the warehouse reports record (who
+      // picked, packed, loaded, verified) to employees.
+      manage_wh_staff_map: {
+        title: "RetailPilot Staff Mapping",
+        permission: "manage_wh_staff_map",
+        selected: false,
+        location: "/hr/retailpilot-staff",
       },
       // Staff Budget - the APPROVED HEADCOUNT PLAN: positions management has
       // approved, whether or not anybody is in them. Gated on its own

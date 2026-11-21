@@ -182,10 +182,10 @@ export default function StaffMappingView() {
     <Flex direction="column" gap={4}>
       <Box>
         <Text as="h1" fontSize="xl" fontWeight="700" color="gray.800">
-          Staff Mapping
+          RetailPilot Staff Mapping
         </Text>
         <Text fontSize="sm" color="gray.500">
-          RetailPilot records who picked, packed, loaded, unloaded and verified by their RetailPilot user id. Choose the employee each id is, and the Analysis shows names.
+          RetailPilot records who picked, packed, loaded, unloaded and verified in the warehouse by their RetailPilot user id. Choose the employee each id is, so the warehouse reports show names.
         </Text>
       </Box>
 
