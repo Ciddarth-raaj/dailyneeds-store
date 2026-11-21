@@ -59,6 +59,16 @@ const dayText = (d) =>
         timeZone: "UTC",
       })
     : "";
+/** "STA 80 · GRN 26" from [{ job_type, lines }] or { STA: { lines } }. */
+const typeSplit = (types) =>
+  (Array.isArray(types)
+    ? types
+    : Object.entries(types || {}).map(([job_type, v]) => ({ job_type, ...v }))
+  )
+    .filter((t) => t.lines)
+    .sort((a, b) => b.lines - a.lines)
+    .map((t) => `${t.job_type} ${num(t.lines)}`)
+    .join(" · ");
 const errMsg = (err, fallback) =>
   (err && err.response && err.response.data && err.response.data.msg) ||
   (err && err.message) ||
@@ -182,6 +192,30 @@ function Detail({ open, h }) {
         <Text fontWeight="700" fontSize="lg" mb={3}>
           Picking write-off by store
         </Text>
+        {(t.writeoff.by_job_type || []).length > 0 && (
+          <SimpleGrid columns={{ base: 2, md: 4 }} spacing={3} mb={4}>
+            {t.writeoff.by_job_type.map((j) => (
+              <Box
+                key={j.job_type}
+                bg="red.50"
+                borderWidth="1px"
+                borderColor="red.100"
+                borderRadius="lg"
+                p={3}
+              >
+                <Text fontSize="xs" fontWeight="700" color="gray.600">
+                  {j.job_type}
+                </Text>
+                <Text fontWeight="700" fontSize="xl">
+                  {plural(j.lines, "line")}
+                </Text>
+                <Text fontSize="sm" color="gray.600">
+                  {rupees(j.value)} · {num(j.qty)} qty
+                </Text>
+              </Box>
+            ))}
+          </SimpleGrid>
+        )}
         {!rows.length && <Text color="gray.500">No picking write-off.</Text>}
         <Stack spacing={3}>
           {rows.map((s) => (
@@ -198,6 +232,11 @@ function Detail({ open, h }) {
                 </Text>
               </Flex>
               <Bar value={s.picking_short_lines} max={max} />
+              {typeSplit(s.picking_by_type) && (
+                <Text fontSize="xs" color="gray.500" mt={1}>
+                  {typeSplit(s.picking_by_type)}
+                </Text>
+              )}
             </Box>
           ))}
         </Stack>
@@ -439,6 +478,11 @@ function Stores({ stores }) {
               <Text fontSize="sm">
                 Picking write-off: {plural(s.picking_short_lines, "line")} ·{" "}
                 {rupees(s.picking_short_value)}
+              </Text>
+            )}
+            {typeSplit(s.picking_by_type) && (
+              <Text fontSize="xs" color="gray.500">
+                {typeSplit(s.picking_by_type)}
               </Text>
             )}
             {s.verification_short_qty > 0 && (
@@ -819,7 +863,12 @@ export default function WarehouseHealthSection() {
               tone={h.tiles.writeoff.lines ? "red" : "green"}
               label="Picking write-off"
               value={plural(h.tiles.writeoff.lines, "line")}
-              sub={`${rupees(h.tiles.writeoff.value)} at NLC · ${num(h.tiles.writeoff.qty)} qty`}
+              sub={[
+                `${rupees(h.tiles.writeoff.value)} at NLC · ${num(h.tiles.writeoff.qty)} qty`,
+                typeSplit(h.tiles.writeoff.by_job_type),
+              ]
+                .filter(Boolean)
+                .join(" · ")}
               active={open === "writeoff"}
               onClick={() => toggle("writeoff")}
             />
