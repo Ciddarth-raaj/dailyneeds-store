@@ -206,7 +206,10 @@ function GapTable({ list }) {
         >
           {(BOX_STATUS[b.status] || {}).label || b.status}
         </Badge>,
-        title(b.store),
+        title(b.store) +
+          (b.status === "WRONG_STORE" && b.unloaded_store
+            ? ` → ${title(b.unloaded_store)}`
+            : ""),
         b.truck_no || "—",
         b.articles,
         b.qty,
@@ -284,59 +287,56 @@ function Detail({ open, h }) {
       </Card>
     );
   }
-  if (open === "boxes") {
-    const list = t.boxes.list || [];
+  if (open === "loading") {
+    const l = t.loading;
     return (
       <Card>
         <Text fontWeight="700" fontSize="lg" mb={1}>
-          Boxes
+          Loading
         </Text>
         <Text fontSize="sm" color="gray.600" mb={3}>
+          {plural(l.boxes, "box", "boxes")} on the loading list ·{" "}
+          {num(l.on_truck)} put on {plural(l.trucks, "truck")}.{" "}
           <b>Not on a truck</b>: on the loading list, never put on a truck
-          (still at the warehouse). <b>Not delivered</b>: on a truck, but not
-          unloaded, unloaded at the wrong store, or the quantity differs.
+          (still at the warehouse).
         </Text>
-        {!list.length && !(h.flow.not_unloaded || []).length && (
-          <Text color="gray.500">Every box reached its store.</Text>
+        {!l.list.length && (
+          <Text color="gray.500">Every box on the list went on a truck.</Text>
         )}
-        {!list.length && (h.flow.not_unloaded || []).length > 0 && (
-          <Box>
-            <Text color="gray.700" mb={2}>
-              No box problems. {gapText(h.flow.not_unloaded)} - loaded but not
-              unloaded yet, which is not a problem:
-            </Text>
-            <GapTable list={h.flow.not_unloaded} />
+        {l.list.length > 0 && <GapTable list={l.list} />}
+      </Card>
+    );
+  }
+  if (open === "unloading") {
+    const u = t.unloading;
+    return (
+      <Card>
+        <Text fontWeight="700" fontSize="lg" mb={1}>
+          Unloading
+        </Text>
+        <Text fontSize="sm" color="gray.600" mb={3}>
+          {num(u.unloaded_boxes)} of {plural(u.loaded_boxes, "box", "boxes")} on
+          trucks unloaded. Problems: not unloaded {num(u.not_unloaded)} · wrong
+          store {num(u.wrong_store)} · quantity differs {num(u.qty_diff)} ·
+          unloaded but not loaded {num(u.not_loaded)}.
+        </Text>
+        {!u.list.length && (
+          <Text color="gray.500" mb={u.waiting.length ? 3 : 0}>
+            No unloading problems.
+          </Text>
+        )}
+        {u.list.length > 0 && (
+          <Box mb={u.waiting.length ? 4 : 0}>
+            <GapTable list={u.list} />
           </Box>
         )}
-        {list.length > 0 && (
-          <SimpleTable
-            head={[
-              "Box",
-              "Problem",
-              "Store",
-              "Truck",
-              "Articles",
-              "Qty",
-              "Value",
-            ]}
-            rows={list.map((b) => [
-              b.box_id,
-              <Badge
-                key="s"
-                colorScheme={(BOX_STATUS[b.status] || {}).color || "gray"}
-              >
-                {(BOX_STATUS[b.status] || {}).label || b.status}
-              </Badge>,
-              title(b.store) +
-                (b.status === "WRONG_STORE" && b.unloaded_store
-                  ? ` → ${title(b.unloaded_store)}`
-                  : ""),
-              b.truck_no || "—",
-              b.articles,
-              b.qty,
-              rupees(b.value),
-            ])}
-          />
+        {u.waiting.length > 0 && (
+          <Box>
+            <Text fontWeight="600" mb={1}>
+              Not unloaded yet - not a problem ({gapText(u.waiting)})
+            </Text>
+            <GapTable list={u.waiting} />
+          </Box>
         )}
       </Card>
     );
@@ -513,7 +513,7 @@ function Flow({ f }) {
             Loaded but not unloaded
           </Text>
           <Text fontSize="sm" color="gray.600" mb={2}>
-            Every box on the loading list with no unloading. &quot;Awaiting
+            Every box put on a truck with no unloading. &quot;Awaiting
             unloading&quot; and &quot;Damage return&quot; are not problems; the
             others are counted in Box problems.
           </Text>
@@ -932,7 +932,7 @@ export default function WarehouseHealthSection() {
           </Box>
 
           <Grid
-            templateColumns={{ base: "1fr 1fr", lg: "repeat(5, 1fr)" }}
+            templateColumns={{ base: "1fr 1fr", lg: "repeat(3, 1fr)" }}
             gap={3}
           >
             <Tile
@@ -948,27 +948,27 @@ export default function WarehouseHealthSection() {
               active={open === "writeoff"}
               onClick={() => toggle("writeoff")}
             />
-            {(() => {
-              const b = h.tiles.boxes;
-              const notDelivered = b.not_unloaded + b.wrong_store + b.qty_diff;
-              const total = b.not_on_truck + notDelivered;
-              return (
-                <Tile
-                  tone={total ? "red" : "green"}
-                  label="Box problems"
-                  value={num(total)}
-                  sub={
-                    total
-                      ? `${num(b.not_on_truck)} not on a truck · ${num(notDelivered)} not delivered`
-                      : (h.flow.not_unloaded || []).length
-                        ? `None · ${gapText(h.flow.not_unloaded)}`
-                        : "All boxes reached"
-                  }
-                  active={open === "boxes"}
-                  onClick={() => toggle("boxes")}
-                />
-              );
-            })()}
+            <Tile
+              tone={h.tiles.loading.not_on_truck ? "red" : "green"}
+              label="Loading"
+              value={plural(h.tiles.loading.not_on_truck, "problem")}
+              sub={`${num(h.tiles.loading.not_on_truck)} not on a truck · ${plural(h.tiles.loading.boxes, "box", "boxes")} on ${plural(h.tiles.loading.trucks, "truck")}`}
+              active={open === "loading"}
+              onClick={() => toggle("loading")}
+            />
+            <Tile
+              tone={h.tiles.unloading.problems ? "red" : "green"}
+              label="Unloading"
+              value={plural(h.tiles.unloading.problems, "problem")}
+              sub={[
+                `${num(h.tiles.unloading.unloaded_boxes)} of ${num(h.tiles.unloading.loaded_boxes)} unloaded`,
+                gapText(h.tiles.unloading.waiting),
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+              active={open === "unloading"}
+              onClick={() => toggle("unloading")}
+            />
             <Tile
               tone={
                 h.tiles.verification.short_lines
