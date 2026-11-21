@@ -8,36 +8,118 @@
  */
 
 const REPORTS = [
-  { key: "PICKING", label: "Picking", shape: "JOB", hint: "Short goes to Pick & Pack → Write Off", color: "orange" },
-  { key: "PACKING", label: "Packing", shape: "JOB", hint: "Write-off = Short Qty", color: "purple" },
-  { key: "LOADING", label: "Loading", shape: "BOX", hint: "Boxes put on trucks", color: "blue" },
-  { key: "UNLOADING", label: "Unloading", shape: "BOX", hint: "Boxes taken off at stores", color: "cyan" },
-  { key: "VERIFICATION", label: "Verification", shape: "JOB", hint: "Short goes to Pick & Pack → Verification", color: "green" },
+  {
+    key: "PICKING",
+    label: "Picking",
+    shape: "JOB",
+    hint: "Short goes to Pick & Pack → Write Off",
+    color: "orange",
+  },
+  {
+    key: "PACKING",
+    label: "Packing",
+    shape: "JOB",
+    hint: "Write-off = Short Qty",
+    color: "purple",
+  },
+  {
+    key: "LOADING",
+    label: "Loading",
+    shape: "BOX",
+    hint: "Boxes put on trucks",
+    color: "blue",
+  },
+  {
+    key: "UNLOADING",
+    label: "Unloading",
+    shape: "BOX",
+    hint: "Boxes taken off at stores",
+    color: "cyan",
+  },
+  {
+    key: "VERIFICATION",
+    label: "Verification",
+    shape: "JOB",
+    hint: "Short goes to Pick & Pack → Verification",
+    color: "green",
+  },
 ];
 const JOB_REPORTS = REPORTS.filter((r) => r.shape === "JOB");
 const LABEL = Object.fromEntries(REPORTS.map((r) => [r.key, r.label]));
 
 const BOX_STATUS = {
-  OK: { label: "OK", color: "green", hint: "Unloaded at the planned store, same quantity" },
-  NOT_ON_TRUCK: { label: "Not on a truck", color: "red", hint: "On the loading list, but never put on a truck" },
-  QTY_DIFF: { label: "Quantity differs", color: "red", hint: "Unloaded quantity is not what was loaded" },
-  WRONG_STORE: { label: "Wrong store", color: "red", hint: "Unloaded at a different store than planned" },
-  NOT_UNLOADED: { label: "Not unloaded", color: "red", hint: "Loaded, but no unloading the same or next day" },
-  NOT_LOADED: { label: "Unloaded, not loaded", color: "orange", hint: "Unloaded, but not in any loading report" },
-  OPEN: { label: "Awaiting unloading", color: "gray", hint: "Loaded on the last day there is an unloading report for - may still arrive" },
-  RETURN: { label: "Damage return", color: "gray", hint: "Damage / return going back to the warehouse - not expected at a store" },
+  OK: {
+    label: "OK",
+    color: "green",
+    hint: "Unloaded at the planned store, same quantity",
+  },
+  NOT_ON_TRUCK: {
+    label: "Not on a truck",
+    color: "red",
+    hint: "On the loading list, but never put on a truck",
+  },
+  PART_UNLOADED: {
+    label: "Part unloaded - article missing",
+    color: "red",
+    hint: "The box was unloaded, but an article on its loading list was not in it",
+  },
+  QTY_DIFF: {
+    label: "Quantity differs",
+    color: "red",
+    hint: "Unloaded quantity is not what was loaded",
+  },
+  WRONG_STORE: {
+    label: "Wrong store",
+    color: "red",
+    hint: "Unloaded at a different store than planned",
+  },
+  NOT_UNLOADED: {
+    label: "Not unloaded",
+    color: "red",
+    hint: "Loaded, but no unloading the same or next day",
+  },
+  NOT_LOADED: {
+    label: "Unloaded, not loaded",
+    color: "orange",
+    hint: "Unloaded, but not in any loading report",
+  },
+  OPEN: {
+    label: "Awaiting unloading",
+    color: "gray",
+    hint: "Loaded on the last day there is an unloading report for - may still arrive",
+  },
+  RETURN: {
+    label: "Damage return",
+    color: "gray",
+    hint: "Damage / return going back to the warehouse - not expected at a store",
+  },
 };
-const BOX_ISSUE_KEYS = ["NOT_ON_TRUCK", "NOT_UNLOADED", "WRONG_STORE", "QTY_DIFF", "NOT_LOADED"];
+const BOX_ISSUE_KEYS = [
+  "NOT_ON_TRUCK",
+  "NOT_UNLOADED",
+  "WRONG_STORE",
+  "QTY_DIFF",
+  "NOT_LOADED",
+];
 
 const pad = (n) => String(n).padStart(2, "0");
-const isoOf = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const isoOf = (d) =>
+  `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 /** Today in India (IST), whatever the device's own time zone, as YYYY-MM-DD. */
-const istTodayIso = (now = new Date()) => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
+const istTodayIso = (now = new Date()) =>
+  new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now);
 /** Yesterday in India: the day the morning's reports are for. */
 const yesterdayIso = (now = new Date()) => addDays(istTodayIso(now), -1);
 /** A moment as "20 Nov, 11:19 pm IST", whatever the device's own time zone. */
 const istDateTimeText = (iso) =>
-  iso ? `${new Date(iso).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })} IST` : "";
+  iso
+    ? `${new Date(iso).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })} IST`
+    : "";
 const addDays = (iso, n) => {
   const [y, m, d] = iso.split("-").map(Number);
   return isoOf(new Date(y, m - 1, d + n));
@@ -89,8 +171,15 @@ function planUploads(names, selectedDate) {
     seen.add(key);
     items.push({ index, name, type, date });
   });
-  items.sort((a, b) => a.date.localeCompare(b.date) || order[a.type] - order[b.type]);
-  return { items, unknown, duplicates, dates: [...new Set(items.map((i) => i.date))] };
+  items.sort(
+    (a, b) => a.date.localeCompare(b.date) || order[a.type] - order[b.type],
+  );
+  return {
+    items,
+    unknown,
+    duplicates,
+    dates: [...new Set(items.map((i) => i.date))],
+  };
 }
 
 /**
@@ -100,16 +189,34 @@ function planUploads(names, selectedDate) {
 function toPayload(aoa) {
   const rows = (aoa || []).map((r) => (Array.isArray(r) ? r : []));
   let i = 0;
-  while (i < rows.length && rows[i].every((c) => String(c == null ? "" : c).trim() === "")) i += 1;
+  while (
+    i < rows.length &&
+    rows[i].every((c) => String(c == null ? "" : c).trim() === "")
+  )
+    i += 1;
   const headers = (rows[i] || []).map((h) => String(h == null ? "" : h).trim());
-  const data = rows.slice(i + 1).map((r) => r.map((c) => (c == null ? "" : typeof c === "number" ? c : String(c))));
-  while (data.length && data[data.length - 1].every((c) => String(c).trim() === "")) data.pop();
+  const data = rows
+    .slice(i + 1)
+    .map((r) =>
+      r.map((c) => (c == null ? "" : typeof c === "number" ? c : String(c))),
+    );
+  while (
+    data.length &&
+    data[data.length - 1].every((c) => String(c).trim() === "")
+  )
+    data.pop();
   return { headers, rows: data };
 }
 
 /** The five slots for one day: each report with its upload, if any. */
 function slotsFor(date, uploads) {
-  return REPORTS.map((r) => ({ ...r, upload: (uploads || []).find((u) => u.report_date === date && u.report_type === r.key) || null }));
+  return REPORTS.map((r) => ({
+    ...r,
+    upload:
+      (uploads || []).find(
+        (u) => u.report_date === date && u.report_type === r.key,
+      ) || null,
+  }));
 }
 
 /** Days from `from` to `to`, newest first, each with what was uploaded. */
@@ -123,7 +230,18 @@ function uploadGrid(from, to, uploads) {
 }
 
 const num = (v) => Number(v) || 0;
-const blank = () => ({ lines: 0, short_lines: 0, short_qty: 0, short_value: 0, short_unpriced_lines: 0, returned_qty: 0, open_lines: 0, open_jobs: 0, actual_qty: 0, planned_qty: 0 });
+const blank = () => ({
+  lines: 0,
+  short_lines: 0,
+  short_qty: 0,
+  short_value: 0,
+  short_unpriced_lines: 0,
+  returned_qty: 0,
+  open_lines: 0,
+  open_jobs: 0,
+  actual_qty: 0,
+  planned_qty: 0,
+});
 const add = (into, row) => {
   for (const k of Object.keys(blank())) into[k] += num(row[k]);
   return into;
@@ -132,7 +250,8 @@ const add = (into, row) => {
 /** Totals per report: { PICKING: {...}, PACKING: {...}, VERIFICATION: {...} }. */
 function totalsByReport(summary) {
   const out = Object.fromEntries(JOB_REPORTS.map((r) => [r.key, blank()]));
-  for (const s of summary || []) if (out[s.report_type]) add(out[s.report_type], s);
+  for (const s of summary || [])
+    if (out[s.report_type]) add(out[s.report_type], s);
   return out;
 }
 
@@ -144,23 +263,46 @@ function pivotByReport(rows, key) {
   const map = new Map();
   for (const r of rows || []) {
     const k = r[key] || "(blank)";
-    if (!map.has(k)) map.set(k, { key: k, PICKING: blank(), PACKING: blank(), VERIFICATION: blank(), total_short_qty: 0, total_short_value: 0 });
+    if (!map.has(k))
+      map.set(k, {
+        key: k,
+        PICKING: blank(),
+        PACKING: blank(),
+        VERIFICATION: blank(),
+        total_short_qty: 0,
+        total_short_value: 0,
+      });
     const m = map.get(k);
     if (m[r.report_type]) add(m[r.report_type], r);
     m.total_short_qty += num(r.short_qty);
     m.total_short_value += num(r.short_value);
   }
-  return [...map.values()].sort((a, b) => b.total_short_value - a.total_short_value || b.total_short_qty - a.total_short_qty || String(a.key).localeCompare(String(b.key)));
+  return [...map.values()].sort(
+    (a, b) =>
+      b.total_short_value - a.total_short_value ||
+      b.total_short_qty - a.total_short_qty ||
+      String(a.key).localeCompare(String(b.key)),
+  );
 }
 
 /** One row per day: each report's write-off and the box issues. */
 function dailyRows(daily, boxDaily) {
   const map = new Map();
   const row = (d) => {
-    if (!map.has(d)) map.set(d, { date: d, PICKING: blank(), PACKING: blank(), VERIFICATION: blank(), boxes: 0, box_issue_lines: 0 });
+    if (!map.has(d))
+      map.set(d, {
+        date: d,
+        PICKING: blank(),
+        PACKING: blank(),
+        VERIFICATION: blank(),
+        boxes: 0,
+        box_issue_lines: 0,
+      });
     return map.get(d);
   };
-  for (const r of daily || []) if (JOB_REPORTS.some((j) => j.key === r.report_type)) add(row(r.report_date)[r.report_type], r);
+  for (const r of daily || [])
+    if (JOB_REPORTS.some((j) => j.key === r.report_type))
+      add(row(r.report_date)[r.report_type], r);
   for (const b of boxDaily || []) {
     const r = row(b.report_date);
     r.boxes = num(b.boxes);
@@ -171,25 +313,43 @@ function dailyRows(daily, boxDaily) {
 
 /** Store funnel rows for one job type, or summed over all of them. */
 function funnelRows(funnel, jobType) {
-  const keys = ["picked", "packed", "loaded", "unloaded", "verified", "picking_short", "verification_short"];
+  const keys = [
+    "picked",
+    "packed",
+    "loaded",
+    "unloaded",
+    "verified",
+    "picking_short",
+    "verification_short",
+  ];
   const map = new Map();
   for (const f of funnel || []) {
     if (jobType && f.job_type !== jobType) continue;
     const k = f.store || "(blank)";
-    if (!map.has(k)) map.set(k, { store: k, ...Object.fromEntries(keys.map((x) => [x, 0])) });
+    if (!map.has(k))
+      map.set(k, { store: k, ...Object.fromEntries(keys.map((x) => [x, 0])) });
     const m = map.get(k);
     for (const x of keys) m[x] += num(f[x]);
   }
   return [...map.values()].sort((a, b) => a.store.localeCompare(b.store));
 }
 
-const jobTypesOf = (funnel) => [...new Set((funnel || []).map((f) => f.job_type).filter(Boolean))].sort();
+const jobTypesOf = (funnel) =>
+  [...new Set((funnel || []).map((f) => f.job_type).filter(Boolean))].sort();
 
 /** Articles filtered by report and a search on name or id. */
 function filterArticles(list, { report = "", search = "" } = {}) {
-  const s = String(search || "").trim().toLowerCase();
+  const s = String(search || "")
+    .trim()
+    .toLowerCase();
   return (list || []).filter(
-    (a) => (!report || a.report_type === report) && (!s || String(a.article_id).includes(s) || String(a.article_name || "").toLowerCase().includes(s))
+    (a) =>
+      (!report || a.report_type === report) &&
+      (!s ||
+        String(a.article_id).includes(s) ||
+        String(a.article_name || "")
+          .toLowerCase()
+          .includes(s)),
   );
 }
 

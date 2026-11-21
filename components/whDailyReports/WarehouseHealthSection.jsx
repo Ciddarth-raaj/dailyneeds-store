@@ -316,9 +316,10 @@ function Detail({ open, h }) {
         </Text>
         <Text fontSize="sm" color="gray.600" mb={3}>
           {num(u.unloaded_boxes)} of {plural(u.loaded_boxes, "box", "boxes")} on
-          trucks unloaded. Problems: not unloaded {num(u.not_unloaded)} · wrong
-          store {num(u.wrong_store)} · quantity differs {num(u.qty_diff)} ·
-          unloaded but not loaded {num(u.not_loaded)}.
+          trucks unloaded. Problems: not unloaded {num(u.not_unloaded)} ·
+          article missing {num(u.part_unloaded || 0)} · wrong store{" "}
+          {num(u.wrong_store)} · quantity differs {num(u.qty_diff)} · unloaded
+          but not loaded {num(u.not_loaded)}.
         </Text>
         {!u.list.length && (
           <Text color="gray.500" mb={u.waiting.length ? 3 : 0}>
@@ -962,6 +963,12 @@ export default function WarehouseHealthSection() {
               value={plural(h.tiles.unloading.problems, "problem")}
               sub={[
                 `${num(h.tiles.unloading.unloaded_boxes)} of ${num(h.tiles.unloading.loaded_boxes)} unloaded`,
+                h.tiles.unloading.not_unloaded
+                  ? `${num(h.tiles.unloading.not_unloaded)} not unloaded`
+                  : "",
+                h.tiles.unloading.part_unloaded
+                  ? `${num(h.tiles.unloading.part_unloaded)} with an article missing`
+                  : "",
                 gapText(h.tiles.unloading.waiting),
               ]
                 .filter(Boolean)
