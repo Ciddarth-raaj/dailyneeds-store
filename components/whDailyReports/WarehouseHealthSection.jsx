@@ -394,6 +394,8 @@ function Detail({ open, h }) {
 }
 
 function Flow({ f }) {
+  const [showGap, setShowGap] = useState(false);
+  const gap = f.not_unloaded || [];
   const steps = [
     {
       label: "Picked",
@@ -413,7 +415,10 @@ function Flow({ f }) {
     {
       label: "Unloaded",
       main: plural(f.unloaded_boxes, "box", "boxes"),
-      sub: "at stores",
+      sub: f.not_unloaded_boxes
+        ? `${plural(f.not_unloaded_boxes, "box", "boxes")} loaded, not unloaded`
+        : "at stores",
+      gap: f.not_unloaded_boxes > 0,
     },
     {
       label: "Verified",
@@ -428,7 +433,18 @@ function Flow({ f }) {
       </Text>
       <SimpleGrid columns={{ base: 2, md: 5 }} spacing={3}>
         {steps.map((s, i) => (
-          <Box key={s.label} bg="gray.50" borderRadius="lg" p={3}>
+          <Box
+            key={s.label}
+            bg={s.gap ? "orange.50" : "gray.50"}
+            borderWidth={s.gap ? "1px" : 0}
+            borderColor="orange.200"
+            borderRadius="lg"
+            p={3}
+            as={s.gap ? "button" : "div"}
+            type={s.gap ? "button" : undefined}
+            textAlign="left"
+            onClick={s.gap ? () => setShowGap((v) => !v) : undefined}
+          >
             <Text
               fontSize="xs"
               color="gray.500"
@@ -438,12 +454,42 @@ function Flow({ f }) {
               {i + 1}. {s.label}
             </Text>
             <Text fontWeight="700">{s.main}</Text>
-            <Text fontSize="sm" color="gray.600">
+            <Text fontSize="sm" color={s.gap ? "orange.800" : "gray.600"}>
               {s.sub}
+              {s.gap && (showGap ? " ▲" : " - tap to see")}
             </Text>
           </Box>
         ))}
       </SimpleGrid>
+      {showGap && gap.length > 0 && (
+        <Box mt={4}>
+          <Text fontWeight="600" mb={1}>
+            Loaded but not unloaded
+          </Text>
+          <Text fontSize="sm" color="gray.600" mb={2}>
+            Every box on the loading list with no unloading. &quot;Awaiting
+            unloading&quot; and &quot;Damage return&quot; are not problems; the
+            others are counted in Box problems.
+          </Text>
+          <SimpleTable
+            head={["Box", "Why", "To", "Truck", "Articles", "Qty", "Value"]}
+            rows={gap.map((b) => [
+              b.box_id,
+              <Badge
+                key="s"
+                colorScheme={(BOX_STATUS[b.status] || {}).color || "gray"}
+              >
+                {(BOX_STATUS[b.status] || {}).label || b.status}
+              </Badge>,
+              title(b.store),
+              b.truck_no || "—",
+              b.articles,
+              b.qty,
+              rupees(b.value),
+            ])}
+          />
+        </Box>
+      )}
     </Card>
   );
 }
