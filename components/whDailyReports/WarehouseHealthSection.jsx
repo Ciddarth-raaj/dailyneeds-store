@@ -1046,6 +1046,303 @@ function Pickers({ rows, target, from, to }) {
   );
 }
 
+/** The waiting lines of one gap: document · article · lane, qty, value, since. */
+function WaitingLines({ list, mode }) {
+  if (!list.length)
+    return (
+      <Text color="gray.500" fontSize="sm">
+        Nothing here.
+      </Text>
+    );
+  return (
+    <Box overflowX="auto">
+      <Table size="sm">
+        <Thead>
+          <Tr>
+            <Th>Article</Th>
+            <Th>Document</Th>
+            <Th>From → To</Th>
+            <Th isNumeric>Qty</Th>
+            <Th isNumeric>Value</Th>
+            <Th isNumeric>{mode === "jumped" ? "" : "Waiting"}</Th>
+          </Tr>
+        </Thead>
+        <Tbody>
+          {list.map((l, i) => (
+            // eslint-disable-next-line react/no-array-index-key
+            <Tr key={i} bg={l.days >= 2 ? "red.50" : undefined}>
+              <Td>
+                {l.article_name || "Article"}{" "}
+                <Text as="span" color="gray.500" fontSize="xs">
+                  ({l.article_id})
+                </Text>
+              </Td>
+              <Td fontSize="xs">{l.stage_id || "—"}</Td>
+              <Td whiteSpace="nowrap">
+                {title(l.from_store)} → {title(l.to_store)}
+              </Td>
+              <Td isNumeric>{num(l.qty)}</Td>
+              <Td isNumeric>{rupees(l.value)}</Td>
+              <Td isNumeric whiteSpace="nowrap">
+                {mode === "jumped"
+                  ? ""
+                  : l.days
+                    ? plural(l.days, "day")
+                    : "today"}
+              </Td>
+            </Tr>
+          ))}
+        </Tbody>
+      </Table>
+    </Box>
+  );
+}
+
+/**
+ * The stage chain at the top of Warehouse Health: Picked -> Packed ->
+ * Loaded -> Unloaded -> Verified, and what stands between each two stages
+ * tonight - waiting from earlier + arrived - moved on = stands here.
+ */
+function StageChain({ sc, onBoxes }) {
+  const [openGap, setOpenGap] = useState(null);
+  const g = Object.fromEntries(sc.gaps.map((x) => [x.key, x]));
+  const b = sc.boxes;
+  const stage = (n, label, main, sub) => (
+    <Flex align="center" gap={3}>
+      <Flex
+        w="34px"
+        h="34px"
+        borderRadius="full"
+        bg="purple.700"
+        color="white"
+        align="center"
+        justify="center"
+        fontWeight="700"
+        fontSize="sm"
+        flexShrink={0}
+      >
+        {n}
+      </Flex>
+      <Box>
+        <Text fontWeight="600">{label}</Text>
+        <Text fontSize="sm" color="gray.600">
+          {main}
+          {sub ? ` · ${sub}` : ""}
+        </Text>
+      </Box>
+    </Flex>
+  );
+  const waitTag = (key, text, bad, onClick) => (
+    <Box
+      ml="16px"
+      borderLeftWidth="2px"
+      borderStyle="dashed"
+      borderColor={bad ? "red.200" : "gray.300"}
+      py={2}
+      pl={6}
+    >
+      <Button
+        size="sm"
+        variant="ghost"
+        h="auto"
+        minH="32px"
+        py={1}
+        px={2}
+        whiteSpace="normal"
+        textAlign="left"
+        bg={bad ? "red.50" : "yellow.50"}
+        color={bad ? "red.800" : "yellow.900"}
+        fontWeight="600"
+        onClick={onClick}
+      >
+        {text}
+      </Button>
+    </Box>
+  );
+  const gapText = (x) =>
+    x.stands
+      ? `${num(x.stands)} qty in ${plural(x.lines, "line")} waiting${x.oldest_days ? ` · oldest ${plural(x.oldest_days, "day")}` : ""}`
+      : "nothing waiting";
+  const rows = [
+    { key: "to_pack", x: g.to_pack },
+    { key: "to_load", x: g.to_load },
+    b
+      ? {
+          key: "to_unload",
+          box: true,
+          label: "Loaded, not yet unloaded",
+          from_earlier: b.opening.boxes,
+          arrived: b.loaded.boxes,
+          moved_on: b.unloaded.boxes,
+          stands: b.still_open.boxes,
+          oldest: b.still_open.oldest_days,
+          unit: "boxes",
+        }
+      : null,
+    { key: "to_verify", x: g.to_verify },
+  ].filter(Boolean);
+  const open = openGap && g[openGap];
+  return (
+    <Card>
+      <Flex justify="space-between" align="baseline" wrap="wrap" gap={2} mb={3}>
+        <Text fontWeight="700" fontSize="lg">
+          Where everything stands tonight
+        </Text>
+        <Text fontSize="xs" color="gray.500">
+          followed by document since {dayText(sc.from)}
+        </Text>
+      </Flex>
+      {sc.days_without_state.length > 0 && (
+        <Box
+          bg="orange.50"
+          borderWidth="1px"
+          borderColor="orange.200"
+          borderRadius="md"
+          p={3}
+          mb={3}
+        >
+          <Text fontSize="sm" color="orange.800">
+            {plural(sc.days_without_state.length, "day")} since{" "}
+            {dayText(sc.from)} were pulled before job states were kept (or
+            uploaded as files), so pick-pack goods on those days may show as
+            waiting to be packed. Pull them again on Daily Uploads.
+          </Text>
+        </Box>
+      )}
+      <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={6}>
+        <Box>
+          {stage(1, "Picked", `${num(sc.stages.picked)} qty today`)}
+          {waitTag(
+            "to_pack",
+            `Waiting to be packed: ${gapText(g.to_pack)}`,
+            g.to_pack.stuck > 0,
+            () => setOpenGap(openGap === "to_pack" ? null : "to_pack"),
+          )}
+          {stage(2, "Packed", `${num(sc.stages.packed)} qty today`)}
+          {waitTag(
+            "to_load",
+            `Waiting to be loaded: ${gapText(g.to_load)}`,
+            g.to_load.stuck > 0,
+            () => setOpenGap(openGap === "to_load" ? null : "to_load"),
+          )}
+          {stage(
+            3,
+            "Loaded",
+            b
+              ? `${plural(b.loaded.boxes, "box", "boxes")} on ${plural(b.loaded.trucks, "truck")}`
+              : `${num(sc.stages.loaded)} qty`,
+          )}
+          {b &&
+            waitTag(
+              "to_unload",
+              `Waiting to be unloaded: ${b.still_open.boxes ? `${plural(b.still_open.boxes, "box", "boxes")} · ${num(b.still_open.qty)} qty${b.still_open.oldest_days ? ` · oldest ${plural(b.still_open.oldest_days, "day")}` : ""}` : "nothing waiting"}`,
+              b.still_open.boxes > 0,
+              onBoxes,
+            )}
+          {stage(
+            4,
+            "Unloaded",
+            b
+              ? `${plural(b.unloaded.boxes, "box", "boxes")}${b.unloaded.from_earlier ? ` · ${num(b.unloaded.from_earlier)} from earlier days` : ""}`
+              : `${num(sc.stages.unloaded)} qty`,
+          )}
+          {waitTag(
+            "to_verify",
+            `Waiting to be verified: ${gapText(g.to_verify)}`,
+            g.to_verify.stuck > 0 || g.to_verify.stands > 0,
+            () => setOpenGap(openGap === "to_verify" ? null : "to_verify"),
+          )}
+          {stage(5, "Verified", `${num(sc.stages.verified)} qty today`)}
+        </Box>
+        <Box overflowX="auto">
+          <Table size="sm">
+            <Thead>
+              <Tr>
+                <Th>Waiting to be</Th>
+                <Th isNumeric>From earlier</Th>
+                <Th isNumeric>+ Arrived</Th>
+                <Th isNumeric>− Moved on</Th>
+                <Th isNumeric>= Tonight</Th>
+                <Th isNumeric>Oldest</Th>
+              </Tr>
+            </Thead>
+            <Tbody>
+              {rows.map((r) => {
+                const x = r.x || r;
+                const label = r.x
+                  ? r.x.label.replace(", not yet ", " → ")
+                  : "Loaded → unloaded";
+                return (
+                  <Tr
+                    key={r.key}
+                    cursor="pointer"
+                    onClick={() =>
+                      r.box
+                        ? onBoxes()
+                        : setOpenGap(openGap === r.key ? null : r.key)
+                    }
+                    bg={openGap === r.key ? "purple.50" : undefined}
+                  >
+                    <Td>
+                      <Text fontWeight="600">{label}</Text>
+                      <Text fontSize="xs" color="gray.500">
+                        {r.box ? "boxes" : "qty"}
+                      </Text>
+                    </Td>
+                    <Td isNumeric>{num(x.from_earlier)}</Td>
+                    <Td isNumeric>{num(x.arrived)}</Td>
+                    <Td isNumeric>{num(x.moved_on)}</Td>
+                    <Td
+                      isNumeric
+                      fontWeight="700"
+                      color={x.stands ? "red.700" : undefined}
+                    >
+                      {num(x.stands)}
+                    </Td>
+                    <Td isNumeric whiteSpace="nowrap">
+                      {x.stands
+                        ? plural(r.box ? x.oldest : x.oldest_days, "day")
+                        : "—"}
+                    </Td>
+                  </Tr>
+                );
+              })}
+            </Tbody>
+          </Table>
+          <Text fontSize="xs" color="gray.500" mt={2}>
+            From earlier + arrived − moved on = tonight. Moved on includes what
+            the next stage found short. Tap a row to see the lines.
+          </Text>
+        </Box>
+      </SimpleGrid>
+      {open && (
+        <Box mt={4} borderTopWidth="1px" borderColor="gray.100" pt={4}>
+          <Text fontWeight="700" mb={1}>
+            {open.label} · {num(open.stands)} qty · {rupees(open.value)}
+          </Text>
+          <Text fontSize="sm" color="gray.600" mb={2}>
+            {plural(open.lines, "line")}
+            {open.stuck ? ` · ${num(open.stuck)} waiting 2 days or more` : ""}
+            {open.lost.lines
+              ? ` · lost today: ${num(open.lost.qty)} qty found short at the next stage`
+              : ""}
+          </Text>
+          <WaitingLines list={open.list} />
+          {open.jumped.lines > 0 && (
+            <Box mt={4}>
+              <Text fontWeight="600" mb={1} color="orange.800">
+                Skipped this stage today - reached the next stage with no record
+                here ({plural(open.jumped.lines, "line")})
+              </Text>
+              <WaitingLines list={open.jumped.list} mode="jumped" />
+            </Box>
+          )}
+        </Box>
+      )}
+    </Card>
+  );
+}
+
 export default function WarehouseHealthSection() {
   const [date, setDate] = useState(() => yesterdayIso());
   const [state, setState] = useState({
@@ -1170,6 +1467,12 @@ export default function WarehouseHealthSection() {
 
       {h && (
         <Stack spacing={4} opacity={state.loading ? 0.6 : 1}>
+          {h.stage_chain && (
+            <StageChain
+              sc={h.stage_chain}
+              onBoxes={() => setOpen("unloading")}
+            />
+          )}
           {h.missing_reports.length > 0 && (
             <Box
               bg="gray.50"
