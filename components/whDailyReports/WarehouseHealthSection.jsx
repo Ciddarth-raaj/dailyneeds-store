@@ -194,28 +194,96 @@ function SimpleTable({ head, rows }) {
   );
 }
 
+/** Boxes, each tappable to show the articles in it. */
 function GapTable({ list }) {
+  const [openBox, setOpenBox] = useState(null);
   return (
-    <SimpleTable
-      head={["Box", "Why", "To", "Truck", "Articles", "Qty", "Value"]}
-      rows={list.map((b) => [
-        b.box_id,
-        <Badge
-          key="s"
-          colorScheme={(BOX_STATUS[b.status] || {}).color || "gray"}
-        >
-          {(BOX_STATUS[b.status] || {}).label || b.status}
-        </Badge>,
-        title(b.store) +
-          (b.status === "WRONG_STORE" && b.unloaded_store
-            ? ` → ${title(b.unloaded_store)}`
-            : ""),
-        b.truck_no || "—",
-        b.articles,
-        b.qty,
-        rupees(b.value),
-      ])}
-    />
+    <Box overflowX="auto">
+      <Table size="sm">
+        <Thead>
+          <Tr>
+            <Th>Box</Th>
+            <Th>Why</Th>
+            <Th>To</Th>
+            <Th>Truck</Th>
+            <Th isNumeric>Articles</Th>
+            <Th isNumeric>Qty</Th>
+            <Th isNumeric>Value</Th>
+          </Tr>
+        </Thead>
+        <Tbody>
+          {list.map((b) => {
+            const key = `${b.box_id}|${b.status}`;
+            const isOpen = openBox === key;
+            return (
+              <React.Fragment key={key}>
+                <Tr
+                  cursor="pointer"
+                  onClick={() => setOpenBox(isOpen ? null : key)}
+                >
+                  <Td>
+                    {b.box_id}{" "}
+                    <Text as="span" color="gray.400">
+                      {isOpen ? "▲" : "▼"}
+                    </Text>
+                  </Td>
+                  <Td>
+                    <Badge
+                      colorScheme={(BOX_STATUS[b.status] || {}).color || "gray"}
+                    >
+                      {(BOX_STATUS[b.status] || {}).label || b.status}
+                    </Badge>
+                  </Td>
+                  <Td>
+                    {title(b.store) +
+                      (b.status === "WRONG_STORE" && b.unloaded_store
+                        ? ` → ${title(b.unloaded_store)}`
+                        : "")}
+                  </Td>
+                  <Td>{b.truck_no || "—"}</Td>
+                  <Td isNumeric>{num(b.articles)}</Td>
+                  <Td isNumeric>{num(b.qty)}</Td>
+                  <Td isNumeric>{rupees(b.value)}</Td>
+                </Tr>
+                {isOpen && (
+                  <Tr>
+                    <Td colSpan={7} bg="gray.50">
+                      <Text
+                        fontSize="xs"
+                        fontWeight="700"
+                        color="gray.600"
+                        mb={1}
+                      >
+                        In this box: {plural(b.articles, "article")} ·{" "}
+                        {num(b.qty)} qty
+                      </Text>
+                      {(b.items || []).map((it) => (
+                        <Flex
+                          key={it.article_id}
+                          justify="space-between"
+                          gap={3}
+                          fontSize="sm"
+                        >
+                          <Text>
+                            {it.article_name || "Article"}{" "}
+                            <Text as="span" color="gray.500">
+                              ({it.article_id})
+                            </Text>
+                          </Text>
+                          <Text whiteSpace="nowrap">
+                            {num(it.qty)} qty · {rupees(it.value)}
+                          </Text>
+                        </Flex>
+                      ))}
+                    </Td>
+                  </Tr>
+                )}
+              </React.Fragment>
+            );
+          })}
+        </Tbody>
+      </Table>
+    </Box>
   );
 }
 
