@@ -69,6 +69,19 @@ const typeSplit = (types) =>
     .sort((a, b) => b.lines - a.lines)
     .map((t) => `${t.job_type} ${num(t.lines)}`)
     .join(" · ");
+/** Loaded-but-not-unloaded boxes that are not problems: still awaiting unloading, or damage going back. */
+const NOT_A_PROBLEM = ["OPEN", "RETURN"];
+/** "1 awaiting unloading · 1 not on a truck" - the loaded-but-not-unloaded boxes by why. */
+const gapText = (list) => {
+  const by = new Map();
+  for (const b of list || []) by.set(b.status, (by.get(b.status) || 0) + 1);
+  return [...by]
+    .map(
+      ([st, c]) =>
+        `${num(c)} ${((BOX_STATUS[st] || {}).label || st).toLowerCase()}`,
+    )
+    .join(" · ");
+};
 const errMsg = (err, fallback) =>
   (err && err.response && err.response.data && err.response.data.msg) ||
   (err && err.message) ||
@@ -181,6 +194,28 @@ function SimpleTable({ head, rows }) {
   );
 }
 
+function GapTable({ list }) {
+  return (
+    <SimpleTable
+      head={["Box", "Why", "To", "Truck", "Articles", "Qty", "Value"]}
+      rows={list.map((b) => [
+        b.box_id,
+        <Badge
+          key="s"
+          colorScheme={(BOX_STATUS[b.status] || {}).color || "gray"}
+        >
+          {(BOX_STATUS[b.status] || {}).label || b.status}
+        </Badge>,
+        title(b.store),
+        b.truck_no || "—",
+        b.articles,
+        b.qty,
+        rupees(b.value),
+      ])}
+    />
+  );
+}
+
 function Detail({ open, h }) {
   if (!open) return null;
   const t = h.tiles;
@@ -261,8 +296,17 @@ function Detail({ open, h }) {
           (still at the warehouse). <b>Not delivered</b>: on a truck, but not
           unloaded, unloaded at the wrong store, or the quantity differs.
         </Text>
-        {!list.length && (
+        {!list.length && !(h.flow.not_unloaded || []).length && (
           <Text color="gray.500">Every box reached its store.</Text>
+        )}
+        {!list.length && (h.flow.not_unloaded || []).length > 0 && (
+          <Box>
+            <Text color="gray.700" mb={2}>
+              No box problems. {gapText(h.flow.not_unloaded)} - loaded but not
+              unloaded yet, which is not a problem:
+            </Text>
+            <GapTable list={h.flow.not_unloaded} />
+          </Box>
         )}
         {list.length > 0 && (
           <SimpleTable
@@ -415,10 +459,9 @@ function Flow({ f }) {
     {
       label: "Unloaded",
       main: plural(f.unloaded_boxes, "box", "boxes"),
-      sub: f.not_unloaded_boxes
-        ? `${plural(f.not_unloaded_boxes, "box", "boxes")} loaded, not unloaded`
-        : "at stores",
+      sub: f.not_unloaded_boxes ? gapText(gap) : "at stores",
       gap: f.not_unloaded_boxes > 0,
+      problem: gap.some((b) => !NOT_A_PROBLEM.includes(b.status)),
     },
     {
       label: "Verified",
@@ -435,9 +478,9 @@ function Flow({ f }) {
         {steps.map((s, i) => (
           <Box
             key={s.label}
-            bg={s.gap ? "orange.50" : "gray.50"}
+            bg={s.gap && s.problem ? "orange.50" : "gray.50"}
             borderWidth={s.gap ? "1px" : 0}
-            borderColor="orange.200"
+            borderColor={s.problem ? "orange.200" : "gray.300"}
             borderRadius="lg"
             p={3}
             as={s.gap ? "button" : "div"}
@@ -454,7 +497,10 @@ function Flow({ f }) {
               {i + 1}. {s.label}
             </Text>
             <Text fontWeight="700">{s.main}</Text>
-            <Text fontSize="sm" color={s.gap ? "orange.800" : "gray.600"}>
+            <Text
+              fontSize="sm"
+              color={s.gap && s.problem ? "orange.800" : "gray.600"}
+            >
               {s.sub}
               {s.gap && (showGap ? " ▲" : " - tap to see")}
             </Text>
@@ -471,23 +517,7 @@ function Flow({ f }) {
             unloading&quot; and &quot;Damage return&quot; are not problems; the
             others are counted in Box problems.
           </Text>
-          <SimpleTable
-            head={["Box", "Why", "To", "Truck", "Articles", "Qty", "Value"]}
-            rows={gap.map((b) => [
-              b.box_id,
-              <Badge
-                key="s"
-                colorScheme={(BOX_STATUS[b.status] || {}).color || "gray"}
-              >
-                {(BOX_STATUS[b.status] || {}).label || b.status}
-              </Badge>,
-              title(b.store),
-              b.truck_no || "—",
-              b.articles,
-              b.qty,
-              rupees(b.value),
-            ])}
-          />
+          <GapTable list={gap} />
         </Box>
       )}
     </Card>
@@ -930,7 +960,9 @@ export default function WarehouseHealthSection() {
                   sub={
                     total
                       ? `${num(b.not_on_truck)} not on a truck · ${num(notDelivered)} not delivered`
-                      : "All boxes reached"
+                      : (h.flow.not_unloaded || []).length
+                        ? `None · ${gapText(h.flow.not_unloaded)}`
+                        : "All boxes reached"
                   }
                   active={open === "boxes"}
                   onClick={() => toggle("boxes")}
