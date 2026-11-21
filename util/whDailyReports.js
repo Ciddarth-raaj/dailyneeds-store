@@ -19,6 +19,7 @@ const LABEL = Object.fromEntries(REPORTS.map((r) => [r.key, r.label]));
 
 const BOX_STATUS = {
   OK: { label: "OK", color: "green", hint: "Unloaded at the planned store, same quantity" },
+  NOT_ON_TRUCK: { label: "Not on a truck", color: "red", hint: "On the loading list, but never put on a truck" },
   QTY_DIFF: { label: "Quantity differs", color: "red", hint: "Unloaded quantity is not what was loaded" },
   WRONG_STORE: { label: "Wrong store", color: "red", hint: "Unloaded at a different store than planned" },
   NOT_UNLOADED: { label: "Not unloaded", color: "red", hint: "Loaded, but no unloading the same or next day" },
@@ -26,7 +27,7 @@ const BOX_STATUS = {
   OPEN: { label: "Awaiting unloading", color: "gray", hint: "Loaded on the last day there is an unloading report for - may still arrive" },
   RETURN: { label: "Damage return", color: "gray", hint: "Damage / return going back to the warehouse - not expected at a store" },
 };
-const BOX_ISSUE_KEYS = ["NOT_UNLOADED", "WRONG_STORE", "QTY_DIFF", "NOT_LOADED"];
+const BOX_ISSUE_KEYS = ["NOT_ON_TRUCK", "NOT_UNLOADED", "WRONG_STORE", "QTY_DIFF", "NOT_LOADED"];
 
 const pad = (n) => String(n).padStart(2, "0");
 const isoOf = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;

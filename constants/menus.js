@@ -26,6 +26,12 @@ const ALL_PAGES_MENU = {
         selected: false,
         location: "/dashboard/invoice-pipeline",
       },
+      view_warehouse_health: {
+        title: "Warehouse Health",
+        permission: "view_warehouse_health",
+        selected: false,
+        location: "/dashboard/invoice-pipeline#warehouse-health",
+      },
       view_transfers: {
         title: "Transfers",
         permission: "view_sales_dashboard",

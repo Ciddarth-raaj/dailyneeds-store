@@ -18,6 +18,10 @@ const WhDailyReportsHelper = {
   mapStaff: (rpUserId, body) => API.put(`/wh-daily-reports/staff/${encodeURIComponent(rpUserId)}`, body).then((res) => res.data),
   /** NLC from RetailPilot on rows from..to that have none. */
   fillNlc: (body) => API.post("/wh-daily-reports/fill-nlc", body).then((res) => res.data),
+  /** Warehouse Health (`routes/warehouse_health.js`): the day's dashboard (default yesterday). view_warehouse_health */
+  health: (params) => API.get("/warehouse-health", { params }).then((res) => res.data),
+  /** Yesterday's Warehouse Health summary to my own Telegram. */
+  sendHealthToMe: () => API.post("/warehouse-health/summary/send-me").then((res) => res.data),
   remove: (uploadId) => API.delete(`/wh-daily-reports/uploads/${encodeURIComponent(uploadId)}`).then((res) => res.data),
 };
 

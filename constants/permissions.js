@@ -424,6 +424,8 @@ export const PERMISSIONS = {
   warehouse_reports: {
     upload_wh_daily_reports: "Daily Uploads page (upload the five reports)",
     view_wh_daily_reports: "Analysis page",
+    view_warehouse_health: "Warehouse Health (manager dashboard under Invoice Pipeline)",
+    receive_warehouse_health_summary: "Receive Warehouse Health Summary (Telegram, 9 am)",
   },
 
   // Invoice
