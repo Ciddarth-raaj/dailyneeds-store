@@ -744,6 +744,12 @@ const WMS_MENU = {
         selected: false,
         location: "/warehouse-reports/analysis",
       },
+      wh_staff_mapping: {
+        title: "Staff Mapping",
+        permission: "manage_wh_staff_map",
+        selected: false,
+        location: "/warehouse-reports/staff",
+      },
     },
   },
   purchase_ref: {

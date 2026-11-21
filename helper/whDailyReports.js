@@ -12,6 +12,10 @@ const WhDailyReportsHelper = {
   upload: (body) => API.post("/wh-daily-reports/upload", body).then((res) => res.data),
   /** The five reports for from..to, from RetailPilot's pick & pack jobs (replacing what was there). */
   pull: (body) => API.post("/wh-daily-reports/pull", body).then((res) => res.data),
+  /** RetailPilot user ids with what they did and where, their employee, and the employees to choose from. */
+  staff: () => API.get("/wh-daily-reports/staff").then((res) => res.data),
+  /** Map (employee_id) or unmap (null) one RetailPilot user id. */
+  mapStaff: (rpUserId, body) => API.put(`/wh-daily-reports/staff/${encodeURIComponent(rpUserId)}`, body).then((res) => res.data),
   /** NLC from RetailPilot on rows from..to that have none. */
   fillNlc: (body) => API.post("/wh-daily-reports/fill-nlc", body).then((res) => res.data),
   remove: (uploadId) => API.delete(`/wh-daily-reports/uploads/${encodeURIComponent(uploadId)}`).then((res) => res.data),

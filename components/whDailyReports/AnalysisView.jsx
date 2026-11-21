@@ -207,7 +207,20 @@ export default function AnalysisView() {
   const byStore = useMemo(() => pivotByReport(d && d.by_store, "to_store"), [d]);
   const byDept = useMemo(() => pivotByReport(d && d.by_department, "department"), [d]);
   const byJob = useMemo(() => pivotByReport(d && d.by_job_type, "job_type"), [d]);
-  const byWorker = useMemo(() => pivotByReport(d && d.by_worker, "worked_by"), [d]);
+  const staffNames = (d && d.staff_names) || {};
+  /** A RetailPilot user id as "Name (id)" once mapped on Staff Mapping; a list of ids, each so. */
+  const staffLabel = (ids) =>
+    String(ids || "")
+      .split(",")
+      .map((x) => x.trim())
+      .filter(Boolean)
+      .map((id) => (staffNames[id] ? `${staffNames[id]} (${id})` : id))
+      .join(", ");
+  const byWorker = useMemo(
+    () => pivotByReport(d && d.by_worker, "worked_by").map((r) => ({ ...r, key: r.key === "(blank)" ? "Not recorded" : staffLabel(r.key) || r.key })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [d]
+  );
   const daily = useMemo(() => dailyRows(d && d.daily, d && d.boxes && d.boxes.daily), [d]);
   const jobTypes = useMemo(() => jobTypesOf(d && d.funnel), [d]);
   const funnel = useMemo(() => funnelRows(d && d.funnel, funnelJob), [d, funnelJob]);
@@ -266,7 +279,7 @@ export default function AnalysisView() {
           excel.byKey(byStore, "Store"),
           excel.byKey(byDept, "Department"),
           excel.byKey(byJob, "Job type"),
-          excel.byKey(byWorker, "Staff (RetailPilot user)"),
+          excel.byKey(byWorker, "Staff"),
           excel.articles(d.short_articles || []),
           excel.jobRows(res.data.rows || []),
           excel.daily(daily),
@@ -441,14 +454,14 @@ export default function AnalysisView() {
               </TabPanel>
 
               <TabPanel px={0}>
-                <SectionBar onDownload={() => exportToExcel([excel.byKey(byWorker, "Staff (RetailPilot user)")], ["By staff"], name("write-off by staff"))}>
+                <SectionBar onDownload={() => exportToExcel([excel.byKey(byWorker, "Staff")], ["By staff"], name("write-off by staff"))}>
                   <Text fontSize="sm" color="gray.600" maxW="640px">
-                    Write-off by who did the job in RetailPilot - the picker, packer or verifier (RetailPilot user id). &quot;Not recorded&quot; is uploaded files and jobs the system finished.
+                    Write-off by who did the job in RetailPilot - the picker, packer or verifier. Map RetailPilot users to employees on Warehouse Reports &gt; Staff Mapping to see names. &quot;Not recorded&quot; is uploaded files and jobs the system finished.
                   </Text>
                 </SectionBar>
                 <DataTable
                   columns={[
-                    { label: "Staff (RetailPilot user)", render: (r) => <Text fontWeight="600">{r.key === "(blank)" ? "Not recorded" : r.key}</Text> },
+                    { label: "Staff", render: (r) => <Text fontWeight="600">{r.key}</Text> },
                     ...pivotColumns("Staff").slice(1),
                   ]}
                   rows={byWorker}
@@ -577,8 +590,8 @@ export default function AnalysisView() {
                     { label: "Unloaded qty", numeric: true, render: (t) => count(t.unloaded_qty) },
                     { label: "Loading (IST)", render: (t) => `${timeText(t.first_loaded_at)} – ${timeText(t.last_loaded_at)}` },
                     { label: "Unloading (IST)", render: (t) => `${timeText(t.first_unloaded_at)} – ${timeText(t.last_unloaded_at)}` },
-                    { label: "Loaded by", wrap: true, render: (t) => <Text fontSize="xs">{t.loaded_by || "—"}</Text> },
-                    { label: "Unloaded by", wrap: true, render: (t) => <Text fontSize="xs">{t.unloaded_by || "—"}</Text> },
+                    { label: "Loaded by", wrap: true, render: (t) => <Text fontSize="xs">{staffLabel(t.loaded_by) || "—"}</Text> },
+                    { label: "Unloaded by", wrap: true, render: (t) => <Text fontSize="xs">{staffLabel(t.unloaded_by) || "—"}</Text> },
                     { label: "Issues", numeric: true, render: (t) => (t.issues ? <Badge colorScheme="red">{t.issues}</Badge> : 0) },
                     { label: "Damage returns", numeric: true, render: (t) => count(t.returns) },
                   ]}

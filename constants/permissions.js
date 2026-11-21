@@ -423,6 +423,7 @@ export const PERMISSIONS = {
   warehouse_reports: {
     upload_wh_daily_reports: "Daily Uploads page (upload the five reports)",
     view_wh_daily_reports: "Analysis page",
+    manage_wh_staff_map: "Staff Mapping page (RetailPilot user -> employee)",
   },
 
   // Invoice
