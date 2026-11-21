@@ -58,11 +58,6 @@ const BOX_STATUS = {
     color: "red",
     hint: "On the loading list, but never put on a truck",
   },
-  PART_UNLOADED: {
-    label: "Part unloaded - article missing",
-    color: "red",
-    hint: "The box was unloaded, but an article on its loading list was not in it",
-  },
   QTY_DIFF: {
     label: "Quantity differs",
     color: "red",
