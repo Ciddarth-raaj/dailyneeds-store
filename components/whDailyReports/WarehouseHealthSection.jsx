@@ -69,9 +69,9 @@ const typeSplit = (types) =>
     .sort((a, b) => b.lines - a.lines)
     .map((t) => `${t.job_type} ${num(t.lines)}`)
     .join(" · ");
-/** Loaded-but-not-unloaded boxes that are not problems: still awaiting unloading, or damage going back. */
+/** Loaded-but-not-unloaded boxes that are not problems: damage / returns going back to the warehouse. */
 const NOT_A_PROBLEM = ["OPEN", "RETURN"];
-/** "1 awaiting unloading · 1 not on a truck" - the loaded-but-not-unloaded boxes by why. */
+/** "1 not unloaded · 1 damage return" - the loaded-but-not-unloaded boxes by why. */
 const gapText = (list) => {
   const by = new Map();
   for (const b of list || []) by.set(b.status, (by.get(b.status) || 0) + 1);
@@ -333,7 +333,8 @@ function Detail({ open, h }) {
         {u.waiting.length > 0 && (
           <Box>
             <Text fontWeight="600" mb={1}>
-              Not unloaded yet - not a problem ({gapText(u.waiting)})
+              Damage returns going back to the warehouse - not a problem (
+              {gapText(u.waiting)})
             </Text>
             <GapTable list={u.waiting} />
           </Box>
@@ -513,9 +514,8 @@ function Flow({ f }) {
             Loaded but not unloaded
           </Text>
           <Text fontSize="sm" color="gray.600" mb={2}>
-            Every box put on a truck with no unloading. &quot;Awaiting
-            unloading&quot; and &quot;Damage return&quot; are not problems; the
-            others are counted in Box problems.
+            Every box put on a truck with no unloading. Each is an Unloading
+            problem, except damage returns going back to the warehouse.
           </Text>
           <GapTable list={gap} />
         </Box>
