@@ -318,7 +318,7 @@ function ChainTable({ list, mode }) {
                 <Tr
                   cursor="pointer"
                   onClick={() => setOpenBox(isOpen ? null : key)}
-                  bg={days >= 2 ? "red.50" : undefined}
+                  bg={days > 2 ? "red.50" : undefined}
                 >
                   <Td>
                     {b.box_id}{" "}
@@ -1070,7 +1070,7 @@ function WaitingLines({ list, mode }) {
         <Tbody>
           {list.map((l, i) => (
             // eslint-disable-next-line react/no-array-index-key
-            <Tr key={i} bg={l.days >= 2 ? "red.50" : undefined}>
+            <Tr key={i} bg={l.days > 2 ? "red.50" : undefined}>
               <Td>
                 {l.article_name || "Article"}{" "}
                 <Text as="span" color="gray.500" fontSize="xs">
@@ -1322,7 +1322,7 @@ function StageChain({ sc, onBoxes }) {
           </Text>
           <Text fontSize="sm" color="gray.600" mb={2}>
             {plural(open.lines, "line")}
-            {open.stuck ? ` · ${num(open.stuck)} waiting 2 days or more` : ""}
+            {open.stuck ? ` · ${num(open.stuck)} waiting more than 2 days` : ""}
             {open.lost.lines
               ? ` · lost today: ${num(open.lost.qty)} qty found short at the next stage`
               : ""}
