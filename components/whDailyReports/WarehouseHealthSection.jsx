@@ -287,6 +287,230 @@ function GapTable({ list }) {
   );
 }
 
+/** Box trips of the chain, each tappable to show the articles in it. */
+function ChainTable({ list, mode }) {
+  const [openBox, setOpenBox] = useState(null);
+  const late = mode === "closed";
+  return (
+    <Box overflowX="auto">
+      <Table size="sm">
+        <Thead>
+          <Tr>
+            <Th>Box</Th>
+            <Th>From → To</Th>
+            <Th>Truck</Th>
+            <Th>{mode === "not_loaded" ? "Unloaded" : "Loaded"}</Th>
+            <Th isNumeric>
+              {late ? "Days late" : mode === "not_loaded" ? "" : "Days open"}
+            </Th>
+            <Th isNumeric>Articles</Th>
+            <Th isNumeric>Qty</Th>
+            <Th isNumeric>Value</Th>
+          </Tr>
+        </Thead>
+        <Tbody>
+          {list.map((b, i) => {
+            const key = `${b.box_id}|${b.job_id || i}`;
+            const isOpen = openBox === key;
+            const days = late ? b.days_late : b.days_open;
+            return (
+              <React.Fragment key={key}>
+                <Tr
+                  cursor="pointer"
+                  onClick={() => setOpenBox(isOpen ? null : key)}
+                  bg={days >= 2 ? "red.50" : undefined}
+                >
+                  <Td>
+                    {b.box_id}{" "}
+                    <Text as="span" color="gray.400">
+                      {isOpen ? "▲" : "▼"}
+                    </Text>
+                  </Td>
+                  <Td>
+                    {title(b.from_store)} → {title(b.to_store)}
+                    {b.unloaded_store && b.unloaded_store !== b.to_store && (
+                      <Text fontSize="xs" color="red.600">
+                        unloaded at {title(b.unloaded_store)}
+                      </Text>
+                    )}
+                  </Td>
+                  <Td whiteSpace="nowrap">{b.truck_no || "—"}</Td>
+                  <Td whiteSpace="nowrap">
+                    {dayText(mode === "not_loaded" ? h_date(b) : b.loaded_on)}
+                  </Td>
+                  <Td isNumeric>{mode === "not_loaded" ? "" : num(days)}</Td>
+                  <Td isNumeric>{num(b.articles)}</Td>
+                  <Td isNumeric>{num(b.qty)}</Td>
+                  <Td isNumeric>{rupees(b.value)}</Td>
+                </Tr>
+                {isOpen && (
+                  <Tr>
+                    <Td colSpan={8} bg="gray.50">
+                      <Text fontSize="xs" color="gray.600" mb={1}>
+                        {b.job_id ? `Job ${b.job_id}` : "Uploaded file"}
+                        {b.stage_id ? ` · Document ${b.stage_id}` : ""}
+                        {b.job_type ? ` · ${b.job_type}` : ""}
+                      </Text>
+                      {(b.items || []).map((it) => (
+                        <Flex
+                          key={it.article_id}
+                          justify="space-between"
+                          gap={3}
+                          fontSize="sm"
+                        >
+                          <Text>
+                            {it.article_name || "Article"}{" "}
+                            <Text as="span" color="gray.500">
+                              ({it.article_id})
+                            </Text>
+                          </Text>
+                          <Text whiteSpace="nowrap">
+                            {num(it.qty)} qty · {rupees(it.value)}
+                          </Text>
+                        </Flex>
+                      ))}
+                    </Td>
+                  </Tr>
+                )}
+              </React.Fragment>
+            );
+          })}
+        </Tbody>
+      </Table>
+    </Box>
+  );
+}
+const h_date = (b) => b.unloaded_on || b.loaded_on || null;
+
+/** Unloading as a running ledger of box trips (from the chain start). */
+function UnloadingChain({ u }) {
+  const c = u.chain;
+  const row = (sign, label, boxes, note, strong) => (
+    <Tr>
+      <Td w="24px" fontWeight="700" color="gray.500">
+        {sign}
+      </Td>
+      <Td fontWeight={strong ? "700" : "400"}>{label}</Td>
+      <Td isNumeric fontWeight={strong ? "700" : "400"}>
+        {num(boxes)}
+      </Td>
+      <Td fontSize="sm" color="gray.600">
+        {note}
+      </Td>
+    </Tr>
+  );
+  return (
+    <Card>
+      <Text fontWeight="700" fontSize="lg" mb={1}>
+        Unloading - box chain
+      </Text>
+      <Text fontSize="sm" color="gray.600" mb={3}>
+        Every box trip followed from loading to unloading since{" "}
+        {dayText(c.from)}. Open from earlier days + loaded − unloaded = still
+        open.
+      </Text>
+      {c.missing_days.length > 0 && (
+        <Box
+          bg="orange.50"
+          borderWidth="1px"
+          borderColor="orange.200"
+          borderRadius="md"
+          p={3}
+          mb={3}
+        >
+          <Text fontSize="sm" color="orange.800">
+            {plural(c.missing_days.length, "day")} since {dayText(c.from)} have
+            no Loading or Unloading report, so the chain may miss boxes - pull
+            them on Daily Uploads:{" "}
+            {c.missing_days
+              .slice(0, 8)
+              .map((m) => dayText(m.date))
+              .join(", ")}
+            {c.missing_days.length > 8
+              ? ` and ${c.missing_days.length - 8} more`
+              : ""}
+            .
+          </Text>
+        </Box>
+      )}
+      <Box overflowX="auto" mb={4}>
+        <Table size="sm">
+          <Tbody>
+            {row(
+              "",
+              "Open from earlier days",
+              c.opening.boxes,
+              `${num(c.opening.qty)} qty`,
+            )}
+            {row(
+              "+",
+              "Loaded today",
+              c.loaded.boxes,
+              `on ${plural(c.loaded.trucks, "truck")}`,
+            )}
+            {row(
+              "−",
+              "Unloaded today",
+              c.unloaded.boxes,
+              `${num(c.unloaded.from_today)} from today's loading · ${num(c.unloaded.from_earlier)} from earlier days`,
+            )}
+            {row(
+              "=",
+              "Still open",
+              c.still_open.boxes,
+              c.still_open.boxes
+                ? `${num(c.still_open.qty)} qty · ${rupees(c.still_open.value)}${c.still_open.older ? ` · oldest ${plural(c.still_open.oldest_days, "day")}` : ""}`
+                : "nothing open",
+              true,
+            )}
+          </Tbody>
+        </Table>
+      </Box>
+      <Text fontWeight="600" mb={1}>
+        Still open - loaded, not unloaded ({num(u.still_open.length)})
+      </Text>
+      {u.still_open.length ? (
+        <ChainTable list={u.still_open} mode="open" />
+      ) : (
+        <Text color="gray.500" mb={2}>
+          Every box loaded has been unloaded.
+        </Text>
+      )}
+      {u.closed_old.length > 0 && (
+        <Box mt={4}>
+          <Text fontWeight="600" mb={1}>
+            Closed today - loaded on an earlier day ({num(u.closed_old.length)})
+          </Text>
+          <ChainTable list={u.closed_old} mode="closed" />
+        </Box>
+      )}
+      {c.wrong_store.boxes > 0 && (
+        <Box mt={4}>
+          <Text fontWeight="600" mb={1}>
+            Unloaded at the wrong store ({num(c.wrong_store.boxes)})
+          </Text>
+          <ChainTable
+            list={u.list.filter((b) => b.status === "WRONG_STORE")}
+            mode="closed"
+          />
+        </Box>
+      )}
+      {c.not_loaded.boxes > 0 && (
+        <Box mt={4}>
+          <Text fontWeight="600" mb={1}>
+            Unloaded today, no loading since {dayText(c.from)} (
+            {num(c.not_loaded.boxes)})
+          </Text>
+          <ChainTable
+            list={u.list.filter((b) => b.status === "NOT_LOADED")}
+            mode="not_loaded"
+          />
+        </Box>
+      )}
+    </Card>
+  );
+}
+
 function Detail({ open, h }) {
   if (!open) return null;
   const t = h.tiles;
@@ -375,6 +599,8 @@ function Detail({ open, h }) {
       </Card>
     );
   }
+  if (open === "unloading" && t.unloading.chain)
+    return <UnloadingChain u={t.unloading} />;
   if (open === "unloading") {
     const u = t.unloading;
     return (
@@ -1029,18 +1255,25 @@ export default function WarehouseHealthSection() {
               tone={h.tiles.unloading.problems ? "red" : "green"}
               label="Unloading"
               value={plural(h.tiles.unloading.problems, "problem")}
-              sub={[
-                `${num(h.tiles.unloading.unloaded_boxes)} of ${num(h.tiles.unloading.loaded_boxes)} unloaded`,
-                h.tiles.unloading.not_unloaded
-                  ? `${num(h.tiles.unloading.not_unloaded)} not unloaded`
-                  : "",
-                h.tiles.unloading.wrong_store
-                  ? `${num(h.tiles.unloading.wrong_store)} wrong store`
-                  : "",
-                gapText(h.tiles.unloading.waiting),
-              ]
-                .filter(Boolean)
-                .join(" · ")}
+              sub={
+                h.tiles.unloading.chain
+                  ? (() => {
+                      const c = h.tiles.unloading.chain;
+                      return `${num(c.opening.boxes)} open from earlier + ${num(c.loaded.boxes)} loaded − ${num(c.unloaded.boxes)} unloaded = ${num(c.still_open.boxes)} still open`;
+                    })()
+                  : [
+                      `${num(h.tiles.unloading.unloaded_boxes)} of ${num(h.tiles.unloading.loaded_boxes)} unloaded`,
+                      h.tiles.unloading.not_unloaded
+                        ? `${num(h.tiles.unloading.not_unloaded)} not unloaded`
+                        : "",
+                      h.tiles.unloading.wrong_store
+                        ? `${num(h.tiles.unloading.wrong_store)} wrong store`
+                        : "",
+                      gapText(h.tiles.unloading.waiting),
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")
+              }
               active={open === "unloading"}
               onClick={() => toggle("unloading")}
             />
