@@ -241,6 +241,22 @@ export default function AnalysisView() {
     }
   };
 
+  /** NLC from RetailPilot on this range's rows that have none, then reload. */
+  const fillNlc = async () => {
+    setDownloading("nlc");
+    try {
+      const res = await WhDailyReportsHelper.fillNlc({ from, to });
+      if (!res || res.code !== 200) throw new Error((res && res.msg) || "Could not fill NLC");
+      const left = res.data.still_unpriced;
+      toast.success(`NLC filled for ${res.data.priced} article(s)${left ? `; ${left} not found in RetailPilot` : ""}.`);
+      await load();
+    } catch (err) {
+      toast.error(errMsg(err, "Could not fill NLC"));
+    } finally {
+      setDownloading("");
+    }
+  };
+
   const downloadAll = async () => {
     setDownloading("all");
     try {
@@ -334,9 +350,14 @@ export default function AnalysisView() {
             </Alert>
           ) : null}
           {unpriced ? (
-            <Text fontSize="xs" color="gray.500">
-              {unpriced} write-off line{unpriced === 1 ? "" : "s"} have no MRP (not in the file and never received on a GRN) and count as ₹0.
-            </Text>
+            <Flex align="center" gap={2} wrap="wrap">
+              <Text fontSize="xs" color="gray.500">
+                {unpriced} write-off line{unpriced === 1 ? " has" : "s have"} no NLC yet and count{unpriced === 1 ? "s" : ""} as ₹0.
+              </Text>
+              <Button size="xs" variant="link" colorScheme="teal" isLoading={downloading === "nlc"} onClick={fillNlc}>
+                Fill NLC from RetailPilot
+              </Button>
+            </Flex>
           ) : null}
 
           <SimpleGrid columns={{ base: 2, md: 3, xl: 6 }} spacing={3}>
@@ -471,7 +492,7 @@ export default function AnalysisView() {
                     { label: "Days short", numeric: true, render: (a) => (a.days_short > 1 ? <Badge colorScheme="red">{a.days_short}</Badge> : a.days_short) },
                     { label: "Stores", wrap: true, render: (a) => <Text textTransform="capitalize" fontSize="xs">{a.stores}</Text> },
                     { label: "Short qty", numeric: true, render: (a) => count(a.short_qty) },
-                    { label: "MRP", numeric: true, render: (a) => (a.mrp == null ? "—" : rupees(a.mrp)) },
+                    { label: "NLC", numeric: true, render: (a) => (a.nlc == null ? "—" : rupees(a.nlc)) },
                     { label: "Value", numeric: true, render: (a) => rupees(a.short_value) },
                     { label: "Last short", render: (a) => dayText(a.last_short_date) },
                   ]}

@@ -12,6 +12,8 @@ const WhDailyReportsHelper = {
   upload: (body) => API.post("/wh-daily-reports/upload", body).then((res) => res.data),
   /** The five reports for from..to, from RetailPilot's pick & pack jobs (replacing what was there). */
   pull: (body) => API.post("/wh-daily-reports/pull", body).then((res) => res.data),
+  /** NLC from RetailPilot on rows from..to that have none. */
+  fillNlc: (body) => API.post("/wh-daily-reports/fill-nlc", body).then((res) => res.data),
   remove: (uploadId) => API.delete(`/wh-daily-reports/uploads/${encodeURIComponent(uploadId)}`).then((res) => res.data),
 };
 

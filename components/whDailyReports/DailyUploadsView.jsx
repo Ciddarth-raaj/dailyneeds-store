@@ -56,7 +56,7 @@ function summaryText(type, s, date) {
   if (s.boxes !== undefined) return `${count(s.rows)} rows · ${count(s.boxes)} boxes · ${count(s.trucks)} trucks`;
   const parts = [`${count(s.rows)} rows`, `${count(s.short_lines)} short lines`, `write-off ${count(s.short_qty)} qty`];
   if (s.short_value) parts.push(rupees(s.short_value));
-  if (s.short_unpriced_lines) parts.push(`${s.short_unpriced_lines} without MRP`);
+  if (s.short_unpriced_lines) parts.push(`${s.short_unpriced_lines} without NLC`);
   // What a report sent to its Pick & Pack page.
   const pages = [
     [s.verification_page, "Pick & Pack → Verification", "Verification report"],
