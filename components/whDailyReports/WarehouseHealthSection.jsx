@@ -1443,6 +1443,41 @@ function ChainStatus({ st, has }) {
   ) : null;
 }
 
+/** A gap's waiting lines: those waiting 2 days or more; the newer ones behind "Show all". */
+function StuckFirst({ list }) {
+  const [all, setAll] = useState(false);
+  const stuck = list.filter((l) => l.days >= 2);
+  const newer = list.length - stuck.length;
+  return (
+    <Box>
+      <Flex justify="space-between" align="center" wrap="wrap" gap={2} mb={2}>
+        <Text fontSize="sm" fontWeight="600">
+          {all
+            ? `All ${plural(list.length, "line")}`
+            : `${plural(stuck.length, "line")} waiting 2 days or more`}
+        </Text>
+        {newer > 0 && (
+          <Button
+            size="sm"
+            variant="outline"
+            minH="36px"
+            onClick={() => setAll((v) => !v)}
+          >
+            {all ? "Only 2 days or more" : `Show all (+${num(newer)} newer)`}
+          </Button>
+        )}
+      </Flex>
+      {!all && !stuck.length ? (
+        <Text color="gray.500" fontSize="sm">
+          Nothing has waited 2 days or more.
+        </Text>
+      ) : (
+        <WaitingLines list={all ? list : stuck} />
+      )}
+    </Box>
+  );
+}
+
 /**
  * The stage chain at the top of Warehouse Health: Picked -> Packed ->
  * Loaded -> Unloaded -> Verified, and what stands between each two stages
@@ -1681,7 +1716,7 @@ function StageChain({ sc, onBoxes }) {
               ? ` · lost today: ${num(open.lost.qty)} qty found short at the next stage`
               : ""}
           </Text>
-          <WaitingLines list={open.list} />
+          <StuckFirst list={open.list} />
           {open.jumped.lines > 0 && (
             <Box mt={4}>
               <Text fontWeight="600" mb={1} color="orange.800">
