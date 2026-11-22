@@ -833,70 +833,6 @@ function Detail({ open, h }) {
   return null;
 }
 
-function Stores({ stores }) {
-  // Only stores with something to see (open lines are normal every night).
-  const shown = stores.filter(
-    (s) =>
-      s.picking_short_lines ||
-      s.verification_short_qty ||
-      s.yet_to_verify_qty ||
-      s.box_issues,
-  );
-  if (!shown.length) return null;
-  return (
-    <Card>
-      <Text fontWeight="700" fontSize="lg" mb={3}>
-        Stores
-      </Text>
-      <SimpleGrid columns={{ base: 1, sm: 2, lg: 4 }} spacing={3}>
-        {shown.map((s) => (
-          <Box
-            key={s.store}
-            borderWidth="1px"
-            borderColor={s.needs_look ? "red.200" : "gray.200"}
-            bg={s.needs_look ? "red.50" : "white"}
-            borderRadius="lg"
-            p={3}
-          >
-            <Flex justify="space-between" align="center" mb={1}>
-              <Text fontWeight="700">{s.name}</Text>
-              {s.needs_look ? (
-                <Badge colorScheme="red">Look</Badge>
-              ) : (
-                <Badge colorScheme="green">OK</Badge>
-              )}
-            </Flex>
-            {s.picking_short_lines > 0 && (
-              <Text fontSize="sm">
-                Picking write-off: {plural(s.picking_short_lines, "line")} ·{" "}
-                {rupees(s.picking_short_value)}
-              </Text>
-            )}
-            {typeSplit(s.picking_by_type) && (
-              <Text fontSize="xs" color="gray.500">
-                {typeSplit(s.picking_by_type)}
-              </Text>
-            )}
-            {s.verification_short_qty > 0 && (
-              <Text fontSize="sm">
-                Found short at verification: {num(s.verification_short_qty)} qty
-              </Text>
-            )}
-            {s.yet_to_verify_qty > 0 && (
-              <Text fontSize="sm">
-                Yet to verify: {num(s.yet_to_verify_qty)} qty
-              </Text>
-            )}
-            {s.box_issues > 0 && (
-              <Text fontSize="sm">Box problems: {num(s.box_issues)}</Text>
-            )}
-          </Box>
-        ))}
-      </SimpleGrid>
-    </Card>
-  );
-}
-
 function Repeats({ rows }) {
   if (!rows.length) return null;
   return (
@@ -1861,7 +1797,6 @@ export default function WarehouseHealthSection() {
           </Grid>
 
           <Detail open={open} h={h} />
-          <Stores stores={h.stores} />
           <Repeats rows={h.repeats} />
           <Pickers
             rows={h.pickers}
