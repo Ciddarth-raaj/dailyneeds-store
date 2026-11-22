@@ -26,12 +26,6 @@ const ALL_PAGES_MENU = {
         selected: false,
         location: "/dashboard/invoice-pipeline",
       },
-      view_warehouse_health: {
-        title: "Warehouse Health",
-        permission: "view_warehouse_health",
-        selected: false,
-        location: "/dashboard/invoice-pipeline#warehouse-health",
-      },
       view_transfers: {
         title: "Transfers",
         permission: "view_sales_dashboard",
@@ -791,6 +785,12 @@ const WMS_MENU = {
         permission: "view_price_checker",
         selected: false,
         location: "/price-checker",
+      },
+      view_warehouse_health: {
+        title: "Pick Pack Daily Report",
+        permission: "view_warehouse_health",
+        selected: false,
+        location: "/pick-pack/daily-report",
       },
       view_pick_pack_remarks: {
         title: "Remarks Master",

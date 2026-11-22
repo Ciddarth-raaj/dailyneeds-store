@@ -1,7 +1,7 @@
-import React from "react";
+import React, { useEffect } from "react";
+import { useRouter } from "next/router";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import WarehouseFlowSection from "../../components/business-dashboard/WarehouseFlowSection";
-import WarehouseHealthSection from "../../components/whDailyReports/WarehouseHealthSection";
 import usePermissions from "../../customHooks/usePermissions";
 
 /**
@@ -10,10 +10,10 @@ import usePermissions from "../../customHooks/usePermissions";
  * sales and margin. Opens on `view_invoice_pipeline` (or the Business
  * Dashboard's key); the server also applies the dashboard store scope.
  *
- * Below it, Warehouse Health - the warehouse manager's day (write-off, boxes,
- * yet to verify, pickers) - for `view_warehouse_health`. Each part shows only
- * to those holding its right, so a warehouse manager can be given Warehouse
- * Health alone.
+ * Warehouse Health moved to Pick and Pack -> Pick Pack Daily Report
+ * (/pick-pack/daily-report). Old links here (#warehouse-health, ?site=, the
+ * Telegram button) and logins holding only `view_warehouse_health` are sent
+ * there.
  */
 export default function InvoicePipelinePage() {
   const canPipeline = usePermissions([
@@ -21,6 +21,16 @@ export default function InvoicePipelinePage() {
     "view_sales_dashboard",
   ]);
   const canHealth = usePermissions(["view_warehouse_health"]);
+  const router = useRouter();
+  useEffect(() => {
+    if (typeof window === "undefined" || !canHealth) return;
+    const site = new URLSearchParams(window.location.search).get("site");
+    if (window.location.hash === "#warehouse-health" || site || !canPipeline) {
+      router.replace(
+        `/pick-pack/daily-report${site ? `?site=${encodeURIComponent(site)}` : ""}`,
+      );
+    }
+  }, [canHealth, canPipeline, router]);
   return (
     <GlobalWrapper
       title="Invoice Pipeline"
@@ -31,7 +41,6 @@ export default function InvoicePipelinePage() {
       ]}
     >
       {canPipeline && <WarehouseFlowSection standalone />}
-      {canHealth && <WarehouseHealthSection />}
     </GlobalWrapper>
   );
 }

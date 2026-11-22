@@ -1618,14 +1618,15 @@ export default function WarehouseHealthSection() {
         else
           setState({
             loading: false,
-            error: (res && res.msg) || "Could not load Warehouse Health",
+            error:
+              (res && res.msg) || "Could not load the Pick Pack Daily Report",
             data: null,
           });
       })
       .catch((err) =>
         setState({
           loading: false,
-          error: errMsg(err, "Could not load Warehouse Health"),
+          error: errMsg(err, "Could not load the Pick Pack Daily Report"),
           data: null,
         }),
       );
@@ -1681,9 +1682,8 @@ export default function WarehouseHealthSection() {
       >
         <Box>
           <Text fontSize="2xl" fontWeight="700">
-            {site === "warehouse"
-              ? "Warehouse Health"
-              : `${(h && h.site_name) || site} Store Health`}
+            Pick Pack Daily Report –{" "}
+            {site === "warehouse" ? "Warehouse" : (h && h.site_name) || site}
           </Text>
           <Text color="gray.600" fontSize="sm">
             {h ? dayText(h.date) : dayText(date)} · values at NLC · from
