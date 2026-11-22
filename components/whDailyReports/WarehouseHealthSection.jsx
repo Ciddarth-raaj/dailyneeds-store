@@ -26,6 +26,7 @@ import {
   BOX_STATUS,
   yesterdayIso,
   istTodayIso,
+  istDateTimeText,
 } from "../../util/whDailyReports";
 
 /**
@@ -1380,6 +1381,69 @@ function WaitingLines({ list, mode }) {
 }
 
 /**
+ * Where the stored chain stands: it is worked out once per day in the
+ * background (after the nightly pull, and again after any re-pull), never on
+ * a page view.
+ */
+function ChainStatus({ st, has }) {
+  if (!st) return null;
+  const p = st.progress || {};
+  const total = (p.todo || 0) + (p.done || 0) + (p.failed || 0);
+  if (p.failed) {
+    return (
+      <Box
+        bg="orange.50"
+        borderWidth="1px"
+        borderColor="orange.200"
+        borderRadius="lg"
+        px={4}
+        py={3}
+      >
+        <Text fontSize="sm" color="orange.800">
+          The chain could not be worked out for {plural(p.failed, "day")}
+          {p.first_todo ? ` (from ${dayText(p.first_todo)})` : ""} - pulling
+          that day again on Daily Uploads retries it.
+        </Text>
+      </Box>
+    );
+  }
+  if (p.todo) {
+    const pct = total ? Math.round(((p.done || 0) / total) * 100) : 0;
+    return (
+      <Box
+        bg="blue.50"
+        borderWidth="1px"
+        borderColor="blue.200"
+        borderRadius="lg"
+        px={4}
+        py={3}
+      >
+        <Text fontSize="sm" fontWeight="600" color="blue.800">
+          {p.first_todo
+            ? `Updating the chain from ${dayText(p.first_todo)}`
+            : "Updating the chain"}
+        </Text>
+        <Box bg="blue.100" h="8px" borderRadius="full" my={2} overflow="hidden">
+          <Box bg="blue.500" h="8px" w={`${pct}%`} />
+        </Box>
+        <Text fontSize="xs" color="blue.800">
+          {num(p.done || 0)} of {num(total)} days done ·{" "}
+          {has
+            ? "the numbers below are from before the update until it finishes"
+            : "the chain shows here once this day is worked out"}{" "}
+          (a few minutes)
+        </Text>
+      </Box>
+    );
+  }
+  return st.computed_at ? (
+    <Text fontSize="xs" color="gray.500">
+      Chain worked out {istDateTimeText(st.computed_at)}
+    </Text>
+  ) : null;
+}
+
+/**
  * The stage chain at the top of Warehouse Health: Picked -> Packed ->
  * Loaded -> Unloaded -> Verified, and what stands between each two stages
  * tonight - waiting from earlier + arrived - moved on = stands here.
@@ -1907,6 +1971,7 @@ export default function WarehouseHealthSection() {
 
       {h && (
         <Stack spacing={4} opacity={state.loading ? 0.6 : 1}>
+          <ChainStatus st={h.chain_status} has={Boolean(h.stage_chain)} />
           {h.stage_chain && (
             <StageChain
               sc={h.stage_chain}
