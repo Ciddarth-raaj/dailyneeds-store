@@ -1760,21 +1760,6 @@ export default function WarehouseHealthSection() {
       {h && (
         <Stack spacing={4} opacity={state.loading ? 0.6 : 1}>
           <ChainStatus st={h.chain_status} has={Boolean(h.stage_chain)} />
-          {h.stage_chain && (
-            <StageChain
-              sc={h.stage_chain}
-              unloading={h.tiles.unloading}
-              notOnTruck={h.tiles.loading.not_on_truck}
-              title={h.main_title}
-            />
-          )}
-          {h.second && (
-            <StageChain
-              sc={h.second.stage_chain}
-              unloading={h.second.unloading}
-              title={h.second.title}
-            />
-          )}
           {h.missing_reports.length > 0 && (
             <Box
               bg="gray.50"
@@ -1851,6 +1836,21 @@ export default function WarehouseHealthSection() {
           </Grid>
 
           <Detail open={open} h={h} />
+          {h.stage_chain && (
+            <StageChain
+              sc={h.stage_chain}
+              unloading={h.tiles.unloading}
+              notOnTruck={h.tiles.loading.not_on_truck}
+              title={h.main_title}
+            />
+          )}
+          {h.second && (
+            <StageChain
+              sc={h.second.stage_chain}
+              unloading={h.second.unloading}
+              title={h.second.title}
+            />
+          )}
           <Repeats rows={h.repeats} />
           <Pickers
             rows={h.pickers}
