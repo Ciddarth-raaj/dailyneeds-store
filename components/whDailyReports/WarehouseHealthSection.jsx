@@ -1275,7 +1275,7 @@ function FoundShort({ gapKey, lost }) {
               <Th>From → To</Th>
               <Th isNumeric>Short</Th>
               <Th isNumeric>Value</Th>
-              <Th>By</Th>
+              <Th>{gapKey === "to_verify" ? "Picked by" : "By"}</Th>
               <Th>When</Th>
               <Th>Job</Th>
             </Tr>
@@ -1299,7 +1299,9 @@ function FoundShort({ gapKey, lost }) {
                 </Td>
                 <Td isNumeric>{rupees(l.value)}</Td>
                 <Td whiteSpace="nowrap">
-                  {l.worker_name || l.worked_by || "—"}
+                  {(gapKey === "to_verify"
+                    ? l.picked_by
+                    : l.worker_name || l.worked_by) || "—"}
                 </Td>
                 <Td whiteSpace="nowrap">
                   {l.finished_at
