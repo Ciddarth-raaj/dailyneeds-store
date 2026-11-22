@@ -1483,7 +1483,7 @@ function StuckFirst({ list }) {
  * Loaded -> Unloaded -> Verified, and what stands between each two stages
  * tonight - waiting from earlier + arrived - moved on = stands here.
  */
-function StageChain({ sc, onBoxes }) {
+function StageChain({ sc, unloading }) {
   const [openGap, setOpenGap] = useState(null);
   const g = Object.fromEntries(sc.gaps.map((x) => [x.key, x]));
   const b = sc.boxes;
@@ -1626,7 +1626,7 @@ function StageChain({ sc, onBoxes }) {
               "to_unload",
               `Waiting to be unloaded: ${b.still_open.boxes ? `${plural(b.still_open.boxes, "box", "boxes")} · ${num(b.still_open.qty)} qty${b.still_open.oldest_days ? ` · oldest ${plural(b.still_open.oldest_days, "day")}` : ""}` : "nothing waiting"}`,
               b.still_open.boxes > 0,
-              onBoxes,
+              () => setOpenGap(openGap === "to_unload" ? null : "to_unload"),
             )}
           {stage(
             4,
@@ -1665,11 +1665,7 @@ function StageChain({ sc, onBoxes }) {
                   <Tr
                     key={r.key}
                     cursor="pointer"
-                    onClick={() =>
-                      r.box
-                        ? onBoxes()
-                        : setOpenGap(openGap === r.key ? null : r.key)
-                    }
+                    onClick={() => setOpenGap(openGap === r.key ? null : r.key)}
                     bg={openGap === r.key ? "purple.50" : undefined}
                   >
                     <Td>
@@ -1704,6 +1700,11 @@ function StageChain({ sc, onBoxes }) {
           </Text>
         </Box>
       </SimpleGrid>
+      {openGap === "to_unload" && unloading && unloading.chain && (
+        <Box mt={4}>
+          <UnloadingChain u={unloading} />
+        </Box>
+      )}
       {open && (
         <Box mt={4} borderTopWidth="1px" borderColor="gray.100" pt={4}>
           <Text fontWeight="700" mb={1}>
@@ -2008,10 +2009,7 @@ export default function WarehouseHealthSection() {
         <Stack spacing={4} opacity={state.loading ? 0.6 : 1}>
           <ChainStatus st={h.chain_status} has={Boolean(h.stage_chain)} />
           {h.stage_chain && (
-            <StageChain
-              sc={h.stage_chain}
-              onBoxes={() => setOpen("unloading")}
-            />
+            <StageChain sc={h.stage_chain} unloading={h.tiles.unloading} />
           )}
           <StuckCartons s={h.stuck_cartons} />
           {h.missing_reports.length > 0 && (
