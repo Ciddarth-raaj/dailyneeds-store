@@ -793,62 +793,6 @@ function Detail({ open, h }) {
       </Card>
     );
   }
-  if (open === "remarks") {
-    const r = t.remarks;
-    return (
-      <Card>
-        <Text fontWeight="700" fontSize="lg" mb={3}>
-          Remarks pending
-        </Text>
-        <SimpleTable
-          head={[
-            "Page",
-            "Lines that day",
-            "Without remark",
-            "Older, still without (30 days)",
-          ]}
-          rows={[
-            [
-              <Link key="w" href="/pick-pack/write-off">
-                <a>Write Off</a>
-              </Link>,
-              r.write_off.total,
-              r.write_off.pending,
-              r.write_off.backlog,
-            ],
-            [
-              <Link key="v" href="/pick-pack/verification">
-                <a>Verification</a>
-              </Link>,
-              r.verification.total,
-              r.verification.pending,
-              r.verification.backlog,
-            ],
-          ]}
-        />
-      </Card>
-    );
-  }
-  if (open === "jobs") {
-    return (
-      <Card>
-        <Text fontWeight="700" fontSize="lg" mb={3}>
-          Jobs not finished
-        </Text>
-        <Text fontSize="sm" mb={3}>
-          Picking {plural(t.jobs.picking_open, "line")} open · Packing{" "}
-          {plural(t.jobs.packing_open, "line")} open · Verification{" "}
-          {plural(t.jobs.verification_open, "line")} open
-        </Text>
-        {t.jobs.by_store.length > 0 && (
-          <SimpleTable
-            head={["Store", "Open lines"]}
-            rows={t.jobs.by_store.map((s) => [s.name, s.open_lines])}
-          />
-        )}
-      </Card>
-    );
-  }
   if (open === "verification") {
     const v = t.verification;
     return (
@@ -1555,11 +1499,11 @@ function FoundShort({ gapKey, lost }) {
  * Loaded -> Unloaded -> Verified, and what stands between each two stages
  * tonight - waiting from earlier + arrived - moved on = stands here.
  */
-function StageChain({ sc, unloading }) {
+function StageChain({ sc, unloading, notOnTruck }) {
   const [openGap, setOpenGap] = useState(null);
   const g = Object.fromEntries(sc.gaps.map((x) => [x.key, x]));
   const b = sc.boxes;
-  const stage = (n, label, main, sub) => (
+  const stage = (n, label, main, sub, bad) => (
     <Flex align="center" gap={3}>
       <Flex
         w="34px"
@@ -1579,7 +1523,16 @@ function StageChain({ sc, unloading }) {
         <Text fontWeight="600">{label}</Text>
         <Text fontSize="sm" color="gray.600">
           {main}
-          {sub ? ` · ${sub}` : ""}
+          {sub ? " · " : ""}
+          {sub ? (
+            <Text
+              as="span"
+              color={bad ? "red.600" : undefined}
+              fontWeight={bad ? "600" : undefined}
+            >
+              {sub}
+            </Text>
+          ) : null}
         </Text>
       </Box>
     </Flex>
@@ -1692,6 +1645,8 @@ function StageChain({ sc, unloading }) {
             b
               ? `${plural(b.loaded.boxes, "box", "boxes")} on ${plural(b.loaded.trucks, "truck")}`
               : `${num(sc.stages.loaded)} qty`,
+            notOnTruck ? `${num(notOnTruck)} not on a truck` : "",
+            Boolean(notOnTruck),
           )}
           {b &&
             waitTag(
@@ -1932,7 +1887,11 @@ export default function WarehouseHealthSection() {
         <Stack spacing={4} opacity={state.loading ? 0.6 : 1}>
           <ChainStatus st={h.chain_status} has={Boolean(h.stage_chain)} />
           {h.stage_chain && (
-            <StageChain sc={h.stage_chain} unloading={h.tiles.unloading} />
+            <StageChain
+              sc={h.stage_chain}
+              unloading={h.tiles.unloading}
+              notOnTruck={h.tiles.loading.not_on_truck}
+            />
           )}
           {h.missing_reports.length > 0 && (
             <Box
@@ -2006,86 +1965,6 @@ export default function WarehouseHealthSection() {
                 .join(" · ")}
               active={open === "writeoff"}
               onClick={() => toggle("writeoff")}
-            />
-            <Tile
-              tone={h.tiles.loading.not_on_truck ? "red" : "green"}
-              label="Loading"
-              value={plural(h.tiles.loading.not_on_truck, "problem")}
-              sub={`${num(h.tiles.loading.not_on_truck)} not on a truck · ${plural(h.tiles.loading.boxes, "box", "boxes")} on ${plural(h.tiles.loading.trucks, "truck")}`}
-              active={open === "loading"}
-              onClick={() => toggle("loading")}
-            />
-            <Tile
-              tone={h.tiles.unloading.problems ? "red" : "green"}
-              label="Unloading"
-              value={plural(h.tiles.unloading.problems, "problem")}
-              sub={
-                h.tiles.unloading.chain
-                  ? (() => {
-                      const c = h.tiles.unloading.chain;
-                      return `${num(c.opening.boxes)} open from earlier + ${num(c.loaded.boxes)} loaded − ${num(c.unloaded.boxes)} unloaded = ${num(c.still_open.boxes)} still open`;
-                    })()
-                  : [
-                      `${num(h.tiles.unloading.unloaded_boxes)} of ${num(h.tiles.unloading.loaded_boxes)} unloaded`,
-                      h.tiles.unloading.not_unloaded
-                        ? `${num(h.tiles.unloading.not_unloaded)} not unloaded`
-                        : "",
-                      h.tiles.unloading.wrong_store
-                        ? `${num(h.tiles.unloading.wrong_store)} wrong store`
-                        : "",
-                      gapText(h.tiles.unloading.waiting),
-                    ]
-                      .filter(Boolean)
-                      .join(" · ")
-              }
-              active={open === "unloading"}
-              onClick={() => toggle("unloading")}
-            />
-            <Tile
-              tone={
-                h.tiles.verification.short_lines
-                  ? "red"
-                  : h.tiles.verification.yet_to_verify_qty
-                    ? "amber"
-                    : "green"
-              }
-              label="Verification"
-              value={plural(h.tiles.verification.short_lines, "line")}
-              sub={`short · ${num(h.tiles.verification.yet_to_verify_qty)} qty yet to verify`}
-              active={open === "verification"}
-              onClick={() => toggle("verification")}
-            />
-            {(() => {
-              const r = h.tiles.remarks;
-              const pending = r.write_off.pending + r.verification.pending;
-              return (
-                <Tile
-                  tone={
-                    pending
-                      ? r.write_off.backlog + r.verification.backlog
-                        ? "red"
-                        : "amber"
-                      : "green"
-                  }
-                  label="Remarks pending"
-                  value={num(pending)}
-                  sub={`Write Off ${num(r.write_off.pending)} · Verification ${num(r.verification.pending)}`}
-                  active={open === "remarks"}
-                  onClick={() => toggle("remarks")}
-                />
-              );
-            })()}
-            <Tile
-              tone={
-                h.tiles.jobs.picking_open + h.tiles.jobs.packing_open
-                  ? "amber"
-                  : "green"
-              }
-              label="Jobs not finished"
-              value={num(h.tiles.jobs.picking_open + h.tiles.jobs.packing_open)}
-              sub={`picking ${num(h.tiles.jobs.picking_open)} · packing ${num(h.tiles.jobs.packing_open)} lines open`}
-              active={open === "jobs"}
-              onClick={() => toggle("jobs")}
             />
           </Grid>
 
