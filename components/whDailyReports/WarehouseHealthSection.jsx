@@ -1327,7 +1327,7 @@ function FoundShort({ gapKey, lost }) {
  * Loaded -> Unloaded -> Verified, and what stands between each two stages
  * tonight - waiting from earlier + arrived - moved on = stands here.
  */
-function StageChain({ sc, unloading, notOnTruck }) {
+function StageChain({ sc, unloading, notOnTruck, title: heading }) {
   const [openGap, setOpenGap] = useState(null);
   const g = Object.fromEntries(sc.gaps.map((x) => [x.key, x]));
   const b = sc.boxes;
@@ -1419,7 +1419,9 @@ function StageChain({ sc, unloading, notOnTruck }) {
     <Card>
       <Flex justify="space-between" align="baseline" wrap="wrap" gap={2} mb={3}>
         <Text fontWeight="700" fontSize="lg">
-          Where everything stands tonight
+          {heading
+            ? `${heading} · where everything stands tonight`
+            : "Where everything stands tonight"}
         </Text>
         <Text fontSize="xs" color="gray.500">
           followed by document since {dayText(sc.from)}
@@ -1591,6 +1593,12 @@ function StageChain({ sc, unloading, notOnTruck }) {
 
 export default function WarehouseHealthSection() {
   const [date, setDate] = useState(() => yesterdayIso());
+  // The site looked at: the warehouse, or a store (?site=ecr opens a store).
+  const [site, setSite] = useState(() => {
+    if (typeof window === "undefined") return "warehouse";
+    const q = new URLSearchParams(window.location.search).get("site");
+    return q ? q.toLowerCase() : "warehouse";
+  });
   const [state, setState] = useState({
     loading: true,
     error: null,
@@ -1601,7 +1609,7 @@ export default function WarehouseHealthSection() {
 
   const load = useCallback(() => {
     setState((s) => ({ ...s, loading: true, error: null }));
-    WhDailyReportsHelper.health({ date })
+    WhDailyReportsHelper.health({ date, site })
       .then((res) => {
         if (res && res.code === 200)
           setState({ loading: false, error: null, data: res.data });
@@ -1619,7 +1627,16 @@ export default function WarehouseHealthSection() {
           data: null,
         }),
       );
-  }, [date]);
+  }, [date, site]);
+
+  // Keep the site in the address, so the page can be shared or reopened on it.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    if (site === "warehouse") url.searchParams.delete("site");
+    else url.searchParams.set("site", site);
+    window.history.replaceState(window.history.state, "", url.toString());
+  }, [site]);
 
   useEffect(() => {
     load();
@@ -1638,7 +1655,7 @@ export default function WarehouseHealthSection() {
   const sendMe = async () => {
     setSending(true);
     try {
-      const res = await WhDailyReportsHelper.sendHealthToMe();
+      const res = await WhDailyReportsHelper.sendHealthToMe(site);
       if (res && res.code === 200) toast.success("Sent to your Telegram");
       else toast.error((res && res.msg) || "Could not send");
     } catch (err) {
@@ -1662,7 +1679,9 @@ export default function WarehouseHealthSection() {
       >
         <Box>
           <Text fontSize="2xl" fontWeight="700">
-            Warehouse Health
+            {site === "warehouse"
+              ? "Warehouse Health"
+              : `${(h && h.site_name) || site} Store Health`}
           </Text>
           <Text color="gray.600" fontSize="sm">
             {h ? dayText(h.date) : dayText(date)} · values at NLC · from
@@ -1670,6 +1689,33 @@ export default function WarehouseHealthSection() {
           </Text>
         </Box>
         <Flex gap={2} wrap="wrap">
+          <Select
+            size="sm"
+            w="180px"
+            aria-label="Site"
+            value={site}
+            onChange={(e) => {
+              setOpen(null);
+              setSite(e.target.value);
+            }}
+          >
+            {(h && h.sites && h.sites.length
+              ? h.sites
+              : [{ site: "warehouse", name: "Warehouse" }]
+            )
+              .concat(
+                h && h.sites && h.sites.some((x) => x.site === site)
+                  ? []
+                  : site === "warehouse"
+                    ? []
+                    : [{ site, name: site }],
+              )
+              .map((x) => (
+                <option key={x.site} value={x.site}>
+                  {x.site === "warehouse" ? "Warehouse" : x.name}
+                </option>
+              ))}
+          </Select>
           <Input
             type="date"
             size="sm"
@@ -1719,6 +1765,14 @@ export default function WarehouseHealthSection() {
               sc={h.stage_chain}
               unloading={h.tiles.unloading}
               notOnTruck={h.tiles.loading.not_on_truck}
+              title={h.main_title}
+            />
+          )}
+          {h.second && (
+            <StageChain
+              sc={h.second.stage_chain}
+              unloading={h.second.unloading}
+              title={h.second.title}
             />
           )}
           {h.missing_reports.length > 0 && (

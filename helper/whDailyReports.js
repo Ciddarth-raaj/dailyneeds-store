@@ -34,9 +34,11 @@ const WhDailyReportsHelper = {
   /** One waiting line traced through every stage: { article_id, to_store, stage_id }. */
   trace: (params) =>
     API.get("/warehouse-health/trace", { params }).then((res) => res.data),
-  /** Yesterday's Warehouse Health summary to my own Telegram. */
-  sendHealthToMe: () =>
-    API.post("/warehouse-health/summary/send-me").then((res) => res.data),
+  /** Yesterday's summary of `site` (default the warehouse) to my own Telegram. */
+  sendHealthToMe: (site) =>
+    API.post("/warehouse-health/summary/send-me", { site: site || null }).then(
+      (res) => res.data,
+    ),
   remove: (uploadId) =>
     API.delete(
       `/wh-daily-reports/uploads/${encodeURIComponent(uploadId)}`,
