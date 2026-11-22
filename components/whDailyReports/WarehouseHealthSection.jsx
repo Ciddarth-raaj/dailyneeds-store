@@ -925,8 +925,88 @@ function Repeats({ rows }) {
   );
 }
 
-function Pickers({ rows, target, from, to }) {
+function PickerTable({ rows }) {
   const [openId, setOpenId] = useState(null);
+  return (
+    <Box overflowX="auto">
+      <Table size="sm" sx={{ "th, td": { px: { base: 2, md: 4 } } }}>
+        <Thead>
+          <Tr>
+            <Th>Picker</Th>
+            <Th isNumeric>Lines</Th>
+            <Th isNumeric>Value (NLC)</Th>
+            <Th isNumeric>Accuracy</Th>
+            <Th isNumeric>Mistakes</Th>
+          </Tr>
+        </Thead>
+        <Tbody>
+          {rows.map((p) => (
+            <React.Fragment key={p.id}>
+              <Tr
+                bg={p.below_target ? "red.50" : undefined}
+                cursor={p.mistakes.length ? "pointer" : undefined}
+                onClick={() =>
+                  p.mistakes.length && setOpenId(openId === p.id ? null : p.id)
+                }
+              >
+                <Td>
+                  <Text fontWeight="600">{p.name}</Text>
+                  {!p.mapped && (
+                    <Text fontSize="xs" color="gray.500">
+                      Not mapped yet
+                    </Text>
+                  )}
+                </Td>
+                <Td isNumeric>{num(p.lines)}</Td>
+                <Td isNumeric>{rupees(p.value)}</Td>
+                <Td isNumeric>
+                  <Badge
+                    colorScheme={
+                      p.accuracy == null
+                        ? "gray"
+                        : p.below_target
+                          ? "red"
+                          : "green"
+                    }
+                  >
+                    {pct(p.accuracy)}
+                  </Badge>
+                </Td>
+                <Td isNumeric>
+                  {num(p.mistake_lines)}
+                  {p.mistake_value > 0 && (
+                    <Text fontSize="xs" color="gray.500">
+                      {rupees(p.mistake_value)}
+                    </Text>
+                  )}
+                </Td>
+              </Tr>
+              {openId === p.id && (
+                <Tr>
+                  <Td colSpan={5} bg="gray.50">
+                    {p.mistakes.map((m, i) => (
+                      // eslint-disable-next-line react/no-array-index-key
+                      <Text key={i} fontSize="sm">
+                        {dayText(m.date)} · {title(m.store)} ·{" "}
+                        {m.article_name || m.article_id} · {num(m.short_qty)}{" "}
+                        short · {rupees(m.value)}
+                      </Text>
+                    ))}
+                  </Td>
+                </Tr>
+              )}
+            </React.Fragment>
+          ))}
+        </Tbody>
+      </Table>
+    </Box>
+  );
+}
+
+function Pickers({ rows, groups, target, from, to }) {
+  const list = (groups || [{ key: "all", label: "", rows }]).filter(
+    (g) => g.rows.length,
+  );
   return (
     <Card>
       <Text fontWeight="700" fontSize="lg" mb={1}>
@@ -937,86 +1017,23 @@ function Pickers({ rows, target, from, to }) {
         at verification in goods they picked. Below {Math.round(target * 100)}%
         accuracy is flagged. Names come from HR → RetailPilot Staff Mapping.
       </Text>
-      {!rows.length && (
+      {!list.length && (
         <Text color="gray.500">
           No picking recorded with a picker this month.
         </Text>
       )}
-      {rows.length > 0 && (
-        <Box overflowX="auto">
-          <Table size="sm" sx={{ "th, td": { px: { base: 2, md: 4 } } }}>
-            <Thead>
-              <Tr>
-                <Th>Picker</Th>
-                <Th isNumeric>Lines</Th>
-                <Th isNumeric>Value (NLC)</Th>
-                <Th isNumeric>Accuracy</Th>
-                <Th isNumeric>Mistakes</Th>
-              </Tr>
-            </Thead>
-            <Tbody>
-              {rows.map((p) => (
-                <React.Fragment key={p.id}>
-                  <Tr
-                    bg={p.below_target ? "red.50" : undefined}
-                    cursor={p.mistakes.length ? "pointer" : undefined}
-                    onClick={() =>
-                      p.mistakes.length &&
-                      setOpenId(openId === p.id ? null : p.id)
-                    }
-                  >
-                    <Td>
-                      <Text fontWeight="600">{p.name}</Text>
-                      {!p.mapped && (
-                        <Text fontSize="xs" color="gray.500">
-                          Not mapped yet
-                        </Text>
-                      )}
-                    </Td>
-                    <Td isNumeric>{num(p.lines)}</Td>
-                    <Td isNumeric>{rupees(p.value)}</Td>
-                    <Td isNumeric>
-                      <Badge
-                        colorScheme={
-                          p.accuracy == null
-                            ? "gray"
-                            : p.below_target
-                              ? "red"
-                              : "green"
-                        }
-                      >
-                        {pct(p.accuracy)}
-                      </Badge>
-                    </Td>
-                    <Td isNumeric>
-                      {num(p.mistake_lines)}
-                      {p.mistake_value > 0 && (
-                        <Text fontSize="xs" color="gray.500">
-                          {rupees(p.mistake_value)}
-                        </Text>
-                      )}
-                    </Td>
-                  </Tr>
-                  {openId === p.id && (
-                    <Tr>
-                      <Td colSpan={5} bg="gray.50">
-                        {p.mistakes.map((m, i) => (
-                          // eslint-disable-next-line react/no-array-index-key
-                          <Text key={i} fontSize="sm">
-                            {dayText(m.date)} · {title(m.store)} ·{" "}
-                            {m.article_name || m.article_id} ·{" "}
-                            {num(m.short_qty)} short · {rupees(m.value)}
-                          </Text>
-                        ))}
-                      </Td>
-                    </Tr>
-                  )}
-                </React.Fragment>
-              ))}
-            </Tbody>
-          </Table>
-        </Box>
-      )}
+      <Stack spacing={5}>
+        {list.map((g) => (
+          <Box key={g.key}>
+            {g.label && (
+              <Text fontWeight="700" color="purple.700" mb={1}>
+                {g.label}
+              </Text>
+            )}
+            <PickerTable rows={g.rows} />
+          </Box>
+        ))}
+      </Stack>
     </Card>
   );
 }
@@ -1848,6 +1865,7 @@ export default function WarehouseHealthSection() {
           <Repeats rows={h.repeats} />
           <Pickers
             rows={h.pickers}
+            groups={h.picker_groups}
             target={h.accuracy_target}
             from={h.month_from}
             to={h.date}
