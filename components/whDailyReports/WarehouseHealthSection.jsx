@@ -1201,8 +1201,121 @@ function Pickers({ rows, target, from, to }) {
   );
 }
 
-/** The waiting lines of one gap: document · article · lane, qty, value, since. */
+/** One waiting line traced through every stage: what we hold, how it links, which days were pulled. */
+function TraceView({ line }) {
+  const [state, setState] = useState({
+    loading: true,
+    data: null,
+    error: null,
+  });
+  useEffect(() => {
+    let live = true;
+    WhDailyReportsHelper.trace({
+      stage_id: line.stage_id || undefined,
+      article_id: line.article_id,
+      to_store: line.to_store,
+    })
+      .then(
+        (res) =>
+          live &&
+          setState(
+            res && res.code === 200
+              ? { loading: false, data: res.data, error: null }
+              : {
+                  loading: false,
+                  data: null,
+                  error: (res && res.msg) || "Could not trace",
+                },
+          ),
+      )
+      .catch(
+        (err) =>
+          live &&
+          setState({
+            loading: false,
+            data: null,
+            error: errMsg(err, "Could not trace"),
+          }),
+      );
+    return () => {
+      live = false;
+    };
+  }, [line.stage_id, line.article_id, line.to_store]);
+  if (state.loading) return <Spinner size="sm" />;
+  if (state.error) return <Text color="red.600">{state.error}</Text>;
+  const d = state.data;
+  const STAGES = [
+    ["PICKING", "Picked"],
+    ["PACKING", "Packed"],
+    ["LOADING", "Loaded"],
+    ["UNLOADING", "Unloaded"],
+    ["VERIFICATION", "Verified"],
+  ];
+  const days = Object.keys(d.pulled).sort();
+  const box = (k) => k === "LOADING" || k === "UNLOADING";
+  return (
+    <Box fontSize="sm">
+      {STAGES.map(([k, label]) => {
+        const rows = d.stages[k] || [];
+        return (
+          <Box key={k} mb={3}>
+            <Text fontWeight="700" color={rows.length ? "gray.800" : "red.700"}>
+              {label} ·{" "}
+              {rows.length
+                ? `${num(rows.reduce((s, r) => s + (box(k) ? r.qty : r.actual_qty), 0))} qty in ${plural(rows.length, box(k) ? "box" : "line", box(k) ? "boxes" : "lines")}`
+                : "nothing found in our data"}
+            </Text>
+            {rows.map((r, i) => (
+              // eslint-disable-next-line react/no-array-index-key
+              <Text key={i} color="gray.700" pl={3}>
+                {dayText(r.report_date)} · job {r.job_id || "—"}
+                {box(k)
+                  ? ` · box ${r.box_id} · ${num(r.qty)} qty${r.truck_no ? ` · truck ${r.truck_no}` : ""}${r.unloaded_store && r.unloaded_store !== r.planned_to_store ? ` · unloaded at ${title(r.unloaded_store)}` : ""}${r.links && r.links.length ? ` · from ${r.links.join(", ")}` : " · no job link (pull again)"}${r.linked ? " ✓" : ""}`
+                  : ` · ${r.job_state || (r.open_jobs ? "open" : "done")} · ${num(r.actual_qty)} of ${num(r.advised_qty)}${r.short_qty ? ` · ${num(r.short_qty)} short` : ""}${r.worker_name || r.worked_by ? ` · ${r.worker_name || r.worked_by}` : ""}${k === "PACKING" && r.picking_job ? ` · from ${r.picking_job}` : ""}${k === "VERIFICATION" && r.unloading_job ? ` · from ${r.unloading_job}` : ""}`}
+                {r.finished_at ? ` · ${r.finished_at.slice(11, 16)}` : ""}
+              </Text>
+            ))}
+          </Box>
+        );
+      })}
+      {days.length > 0 && (
+        <Box mt={2}>
+          <Text fontWeight="700">Reports pulled on these days</Text>
+          {days.map((day) => {
+            const have = d.pulled[day];
+            const lacks = [
+              "PICKING",
+              "PACKING",
+              "LOADING",
+              "UNLOADING",
+              "VERIFICATION",
+            ].filter((t) => !have.includes(t));
+            return (
+              <Text
+                key={day}
+                pl={3}
+                color={lacks.length ? "orange.700" : "gray.700"}
+              >
+                {dayText(day)}:{" "}
+                {lacks.length
+                  ? `missing ${lacks.map((t) => t.charAt(0) + t.slice(1).toLowerCase()).join(", ")} - pull this day again`
+                  : "all 5"}
+              </Text>
+            );
+          })}
+        </Box>
+      )}
+      <Text fontSize="xs" color="gray.500" mt={2}>
+        ✓ = the box names one of this document&apos;s jobs. Boxes without a job
+        link were pulled before links were kept.
+      </Text>
+    </Box>
+  );
+}
+
+/** The waiting lines of one gap: document · article · lane, qty, value, since - tap a line to trace it. */
 function WaitingLines({ list, mode }) {
+  const [openRow, setOpenRow] = useState(null);
   if (!list.length)
     return (
       <Text color="gray.500" fontSize="sm">
@@ -1225,27 +1338,40 @@ function WaitingLines({ list, mode }) {
         <Tbody>
           {list.map((l, i) => (
             // eslint-disable-next-line react/no-array-index-key
-            <Tr key={i} bg={l.days > 2 ? "red.50" : undefined}>
-              <Td>
-                {l.article_name || "Article"}{" "}
-                <Text as="span" color="gray.500" fontSize="xs">
-                  ({l.article_id})
-                </Text>
-              </Td>
-              <Td fontSize="xs">{l.stage_id || "—"}</Td>
-              <Td whiteSpace="nowrap">
-                {title(l.from_store)} → {title(l.to_store)}
-              </Td>
-              <Td isNumeric>{num(l.qty)}</Td>
-              <Td isNumeric>{rupees(l.value)}</Td>
-              <Td isNumeric whiteSpace="nowrap">
-                {mode === "jumped"
-                  ? ""
-                  : l.days
-                    ? plural(l.days, "day")
-                    : "today"}
-              </Td>
-            </Tr>
+            <React.Fragment key={i}>
+              <Tr
+                bg={l.days > 2 ? "red.50" : undefined}
+                cursor="pointer"
+                onClick={() => setOpenRow(openRow === i ? null : i)}
+              >
+                <Td>
+                  {l.article_name || "Article"}{" "}
+                  <Text as="span" color="gray.500" fontSize="xs">
+                    ({l.article_id}) {openRow === i ? "▲" : "▼ trace"}
+                  </Text>
+                </Td>
+                <Td fontSize="xs">{l.stage_id || "—"}</Td>
+                <Td whiteSpace="nowrap">
+                  {title(l.from_store)} → {title(l.to_store)}
+                </Td>
+                <Td isNumeric>{num(l.qty)}</Td>
+                <Td isNumeric>{rupees(l.value)}</Td>
+                <Td isNumeric whiteSpace="nowrap">
+                  {mode === "jumped"
+                    ? ""
+                    : l.days
+                      ? plural(l.days, "day")
+                      : "today"}
+                </Td>
+              </Tr>
+              {openRow === i && (
+                <Tr>
+                  <Td colSpan={6} bg="gray.50">
+                    <TraceView line={l} />
+                  </Td>
+                </Tr>
+              )}
+            </React.Fragment>
           ))}
         </Tbody>
       </Table>
