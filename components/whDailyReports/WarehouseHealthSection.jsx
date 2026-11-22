@@ -1358,9 +1358,18 @@ function StageChain({ sc, onBoxes }) {
         >
           <Text fontSize="sm" color="orange.800">
             {plural(sc.days_without_state.length, "day")} since{" "}
-            {dayText(sc.from)} were pulled before job states were kept (or
-            uploaded as files), so pick-pack goods on those days may show as
-            waiting to be packed. Pull them again on Daily Uploads.
+            {dayText(sc.from)} were pulled before each line kept the job it came
+            from (or were uploaded as files), so goods on those days can show as
+            waiting when they moved on - cartons reuse their barcode, only the
+            job links them exactly. Pull them again on Daily Uploads:{" "}
+            {sc.days_without_state
+              .slice(0, 10)
+              .map((d) => dayText(d))
+              .join(", ")}
+            {sc.days_without_state.length > 10
+              ? ` and ${sc.days_without_state.length - 10} more`
+              : ""}
+            .
           </Text>
         </Box>
       )}
