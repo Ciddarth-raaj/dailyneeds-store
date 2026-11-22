@@ -833,94 +833,15 @@ function Detail({ open, h }) {
   return null;
 }
 
-function Flow({ f }) {
-  const [showGap, setShowGap] = useState(false);
-  const gap = f.not_unloaded || [];
-  const steps = [
-    {
-      label: "Picked",
-      main: plural(f.picked_lines, "line"),
-      sub: `${rupees(f.picked_value)} · ${num(f.picking_short_lines)} short`,
-    },
-    {
-      label: "Packed",
-      main: plural(f.packed_lines, "line"),
-      sub: `${num(f.packing_short_lines)} short`,
-    },
-    {
-      label: "Loading list",
-      main: plural(f.loading_list_boxes, "box", "boxes"),
-      sub: `${num(f.on_truck_boxes)} on ${plural(f.trucks, "truck")}`,
-    },
-    {
-      label: "Unloaded",
-      main: plural(f.unloaded_boxes, "box", "boxes"),
-      sub: f.not_unloaded_boxes ? gapText(gap) : "at stores",
-      gap: f.not_unloaded_boxes > 0,
-      problem: gap.some((b) => !NOT_A_PROBLEM.includes(b.status)),
-    },
-    {
-      label: "Verified",
-      main: plural(f.verified_lines, "line"),
-      sub: `${num(f.verification_short_lines)} short`,
-    },
-  ];
-  return (
-    <Card>
-      <Text fontWeight="700" fontSize="lg" mb={3}>
-        Flow of goods
-      </Text>
-      <SimpleGrid columns={{ base: 2, md: 5 }} spacing={3}>
-        {steps.map((s, i) => (
-          <Box
-            key={s.label}
-            bg={s.gap && s.problem ? "orange.50" : "gray.50"}
-            borderWidth={s.gap ? "1px" : 0}
-            borderColor={s.problem ? "orange.200" : "gray.300"}
-            borderRadius="lg"
-            p={3}
-            as={s.gap ? "button" : "div"}
-            type={s.gap ? "button" : undefined}
-            textAlign="left"
-            onClick={s.gap ? () => setShowGap((v) => !v) : undefined}
-          >
-            <Text
-              fontSize="xs"
-              color="gray.500"
-              textTransform="uppercase"
-              letterSpacing="wide"
-            >
-              {i + 1}. {s.label}
-            </Text>
-            <Text fontWeight="700">{s.main}</Text>
-            <Text
-              fontSize="sm"
-              color={s.gap && s.problem ? "orange.800" : "gray.600"}
-            >
-              {s.sub}
-              {s.gap && (showGap ? " ▲" : " - tap to see")}
-            </Text>
-          </Box>
-        ))}
-      </SimpleGrid>
-      {showGap && gap.length > 0 && (
-        <Box mt={4}>
-          <Text fontWeight="600" mb={1}>
-            Loaded but not unloaded
-          </Text>
-          <Text fontSize="sm" color="gray.600" mb={2}>
-            Every box put on a truck with no unloading. Each is an Unloading
-            problem, except damage returns going back to the warehouse.
-          </Text>
-          <GapTable list={gap} />
-        </Box>
-      )}
-    </Card>
-  );
-}
-
 function Stores({ stores }) {
-  const shown = stores.filter((s) => s.store !== "warehouse" || s.needs_look);
+  // Only stores with something to see (open lines are normal every night).
+  const shown = stores.filter(
+    (s) =>
+      s.picking_short_lines ||
+      s.verification_short_qty ||
+      s.yet_to_verify_qty ||
+      s.box_issues,
+  );
   if (!shown.length) return null;
   return (
     <Card>
@@ -969,55 +890,9 @@ function Stores({ stores }) {
             {s.box_issues > 0 && (
               <Text fontSize="sm">Box problems: {num(s.box_issues)}</Text>
             )}
-            {s.open_lines > 0 && (
-              <Text fontSize="sm" color="gray.600">
-                Open lines: {num(s.open_lines)}
-              </Text>
-            )}
           </Box>
         ))}
       </SimpleGrid>
-    </Card>
-  );
-}
-
-function Trend({ rows }) {
-  const max = Math.max(0, ...rows.map((r) => r.short_lines));
-  return (
-    <Card>
-      <Text fontWeight="700" fontSize="lg" mb={1}>
-        Picking write-off, last 7 days
-      </Text>
-      <Text fontSize="sm" color="gray.600" mb={3}>
-        Lines short each day
-      </Text>
-      <Flex align="flex-end" gap={2} h="120px">
-        {rows.map((r) => (
-          <Flex
-            key={r.date}
-            direction="column"
-            align="center"
-            justify="flex-end"
-            flex="1"
-            h="100%"
-            title={`${dayText(r.date)}: ${r.short_lines} lines · ${rupees(r.short_value)}`}
-          >
-            <Text fontSize="xs" fontWeight="600">
-              {r.has_report ? num(r.short_lines) : "—"}
-            </Text>
-            <Box
-              w="100%"
-              maxW="36px"
-              bg={r.has_report ? "red.400" : "gray.200"}
-              borderRadius="md"
-              h={`${max > 0 && r.has_report ? Math.max(4, (r.short_lines / max) * 90) : 4}px`}
-            />
-            <Text fontSize="xs" color="gray.500" mt={1}>
-              {dayText(r.date).split(",")[0]}
-            </Text>
-          </Flex>
-        ))}
-      </Flex>
     </Card>
   );
 }
@@ -1969,10 +1844,8 @@ export default function WarehouseHealthSection() {
           </Grid>
 
           <Detail open={open} h={h} />
-          <Flow f={h.flow} />
           <Stores stores={h.stores} />
           <Repeats rows={h.repeats} />
-          <Trend rows={h.trend} />
           <Pickers
             rows={h.pickers}
             target={h.accuracy_target}
