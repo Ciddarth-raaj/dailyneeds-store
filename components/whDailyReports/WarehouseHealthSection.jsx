@@ -1478,6 +1478,78 @@ function StuckFirst({ list }) {
   );
 }
 
+/** What the next stage found short today, line by line: article, document, store, qty, value, who, when. */
+function FoundShort({ gapKey, lost }) {
+  if (!lost || !lost.lines) return null;
+  const title_ =
+    {
+      to_pack: "Packed less than picked today",
+      to_load: "Found short while splitting into cartons today",
+      to_verify: "Verified today with issues - found short at the store",
+    }[gapKey] || "Found short today";
+  const list = lost.list || [];
+  return (
+    <Box mt={4}>
+      <Text fontWeight="700" color="red.700" mb={1}>
+        {title_} · {plural(lost.lines, "line")} · {num(lost.qty)} qty ·{" "}
+        {rupees(lost.value)}
+      </Text>
+      <Box overflowX="auto">
+        <Table size="sm">
+          <Thead>
+            <Tr>
+              <Th>Article</Th>
+              <Th>Document</Th>
+              <Th>From → To</Th>
+              <Th isNumeric>Short</Th>
+              <Th isNumeric>Value</Th>
+              <Th>By</Th>
+              <Th>When</Th>
+              <Th>Job</Th>
+            </Tr>
+          </Thead>
+          <Tbody>
+            {list.map((l, i) => (
+              // eslint-disable-next-line react/no-array-index-key
+              <Tr key={i} bg="red.50">
+                <Td minW="160px">
+                  {l.article_name || "Article"}{" "}
+                  <Text as="span" color="gray.500" fontSize="xs">
+                    ({l.article_id})
+                  </Text>
+                </Td>
+                <Td fontSize="xs">{l.stage_id || "—"}</Td>
+                <Td whiteSpace="nowrap">
+                  {title(l.from_store)} → {title(l.to_store)}
+                </Td>
+                <Td isNumeric fontWeight="700">
+                  {num(l.qty)}
+                </Td>
+                <Td isNumeric>{rupees(l.value)}</Td>
+                <Td whiteSpace="nowrap">
+                  {l.worker_name || l.worked_by || "—"}
+                </Td>
+                <Td whiteSpace="nowrap">
+                  {l.finished_at
+                    ? `${dayText(l.finished_at.slice(0, 10))} ${l.finished_at.slice(11, 16)}`
+                    : "—"}
+                </Td>
+                <Td fontSize="xs">{l.job_id || "—"}</Td>
+              </Tr>
+            ))}
+          </Tbody>
+        </Table>
+      </Box>
+      {!list.length && (
+        <Text fontSize="xs" color="gray.500">
+          The lines show once the chain is worked out again (a few minutes after
+          the next update).
+        </Text>
+      )}
+    </Box>
+  );
+}
+
 /**
  * The stage chain at the top of Warehouse Health: Picked -> Packed ->
  * Loaded -> Unloaded -> Verified, and what stands between each two stages
@@ -1718,6 +1790,7 @@ function StageChain({ sc, unloading }) {
               : ""}
           </Text>
           <StuckFirst list={open.list} />
+          <FoundShort gapKey={openGap} lost={open.lost} />
           {open.jumped.lines > 0 && (
             <Box mt={4}>
               <Text fontWeight="600" mb={1} color="orange.800">
