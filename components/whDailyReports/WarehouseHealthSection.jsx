@@ -6,6 +6,7 @@ import {
   Flex,
   Grid,
   Input,
+  Select,
   SimpleGrid,
   Spinner,
   Stack,
@@ -20,6 +21,7 @@ import {
 import Link from "next/link";
 import toast from "react-hot-toast";
 import WhDailyReportsHelper from "../../helper/whDailyReports";
+import { exportToExcel } from "../../util/exportCSVFile";
 import {
   BOX_STATUS,
   yesterdayIso,
@@ -511,6 +513,158 @@ function UnloadingChain({ u }) {
   );
 }
 
+/** Every picking write-off line of the day: what, where, who, when - filter by job type and store, download. */
+function WriteoffLines({ list, date }) {
+  const [type, setType] = useState("ALL");
+  const [store, setStore] = useState("ALL");
+  if (!list || !list.length) return null;
+  const types = ["ALL", ...[...new Set(list.map((l) => l.job_type))].sort()];
+  const stores = [
+    "ALL",
+    ...[...new Set(list.map((l) => l.to_store).filter(Boolean))].sort(),
+  ];
+  const shown = list.filter(
+    (l) =>
+      (type === "ALL" || l.job_type === type) &&
+      (store === "ALL" || l.to_store === store),
+  );
+  const qty = shown.reduce((s, l) => s + l.short_qty, 0);
+  const value = shown.reduce((s, l) => s + l.value, 0);
+  const download = () =>
+    exportToExcel(
+      [
+        shown.map((l) => ({
+          Article: l.article_name || "",
+          "Article ID": l.article_id,
+          Department: l.department || "",
+          "Job type": l.job_type,
+          From: title(l.from_store),
+          To: title(l.to_store),
+          "To pick": l.advised_qty,
+          Picked: l.picked_qty,
+          Short: l.short_qty,
+          NLC: l.nlc,
+          "Short value": l.value,
+          Picker: l.picker_name || "",
+          "Picker ID": l.picker || "",
+          "Finished (IST)": l.finished_at || "",
+          Job: l.job_id || "",
+          Document: l.stage_id || "",
+        })),
+      ],
+      ["Picking write-off"],
+      `picking-write-off-${date}.xlsx`,
+    );
+  return (
+    <Box mt={5}>
+      <Flex justify="space-between" align="center" wrap="wrap" gap={2} mb={2}>
+        <Text fontWeight="700">
+          Every line · {plural(shown.length, "line")} · {num(qty)} qty ·{" "}
+          {rupees(value)}
+        </Text>
+        <Button size="sm" variant="outline" onClick={download}>
+          Download
+        </Button>
+      </Flex>
+      <Flex gap={2} wrap="wrap" mb={3}>
+        {types.map((x) => (
+          <Button
+            key={x}
+            size="sm"
+            minH="36px"
+            variant={type === x ? "solid" : "outline"}
+            colorScheme="purple"
+            onClick={() => setType(x)}
+          >
+            {x === "ALL" ? "All types" : x}
+          </Button>
+        ))}
+        <Select
+          size="sm"
+          w="auto"
+          minH="36px"
+          value={store}
+          onChange={(e) => setStore(e.target.value)}
+          aria-label="Write-off store"
+        >
+          {stores.map((x) => (
+            <option key={x} value={x}>
+              {x === "ALL" ? "All stores" : title(x)}
+            </option>
+          ))}
+        </Select>
+      </Flex>
+      <Box overflowX="auto">
+        <Table size="sm">
+          <Thead>
+            <Tr>
+              <Th>Article</Th>
+              <Th>From → To</Th>
+              <Th>Type</Th>
+              <Th isNumeric>Picked / to pick</Th>
+              <Th isNumeric>Short</Th>
+              <Th isNumeric>Value</Th>
+              <Th>Picker</Th>
+              <Th>When</Th>
+              <Th>Job</Th>
+            </Tr>
+          </Thead>
+          <Tbody>
+            {shown.slice(0, 500).map((l, i) => (
+              // eslint-disable-next-line react/no-array-index-key
+              <Tr key={i}>
+                <Td minW="180px">
+                  {l.article_name || "Article"}{" "}
+                  <Text as="span" color="gray.500" fontSize="xs">
+                    ({l.article_id})
+                  </Text>
+                </Td>
+                <Td whiteSpace="nowrap">
+                  {title(l.from_store)} → {title(l.to_store)}
+                </Td>
+                <Td>{l.job_type}</Td>
+                <Td isNumeric whiteSpace="nowrap">
+                  {num(l.picked_qty)} / {num(l.advised_qty)}
+                </Td>
+                <Td isNumeric fontWeight="700">
+                  {num(l.short_qty)}
+                </Td>
+                <Td isNumeric>{l.nlc == null ? "—" : rupees(l.value)}</Td>
+                <Td whiteSpace="nowrap">
+                  {l.picker_name || "—"}
+                  {l.picker && !l.picker_mapped && (
+                    <Text fontSize="xs" color="gray.500">
+                      not mapped
+                    </Text>
+                  )}
+                </Td>
+                <Td whiteSpace="nowrap">
+                  {l.finished_at ? l.finished_at.slice(11, 16) : "—"}
+                </Td>
+                <Td fontSize="xs" whiteSpace="nowrap">
+                  {l.job_id || "—"}
+                  {l.stage_id && <Text color="gray.500">{l.stage_id}</Text>}
+                </Td>
+              </Tr>
+            ))}
+          </Tbody>
+        </Table>
+      </Box>
+      {shown.length > 500 && (
+        <Text fontSize="xs" color="gray.500" mt={1}>
+          Showing 500 of {num(shown.length)} - download for all.
+        </Text>
+      )}
+      {list.some((l) => !l.finished_at) && (
+        <Text fontSize="xs" color="gray.500" mt={1}>
+          &quot;When&quot; shows from the next pull; pull the day again on Daily
+          Uploads to fill it.
+        </Text>
+      )}
+    </Box>
+  );
+}
+
 function Detail({ open, h }) {
   if (!open) return null;
   const t = h.tiles;
@@ -576,6 +730,7 @@ function Detail({ open, h }) {
             {rupees(t.writeoff.packing_value)}
           </Text>
         )}
+        <WriteoffLines list={t.writeoff.list} date={h.date} />
       </Card>
     );
   }
