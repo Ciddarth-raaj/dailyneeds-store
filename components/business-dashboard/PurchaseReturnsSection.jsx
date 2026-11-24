@@ -1,5 +1,26 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Alert, AlertDescription, AlertIcon, Box, Flex, SimpleGrid, Spinner, Table, Tbody, Td, Text, Th, Thead, Tr } from "@chakra-ui/react";
+import {
+  Alert,
+  AlertDescription,
+  AlertIcon,
+  Box,
+  Drawer,
+  DrawerBody,
+  DrawerCloseButton,
+  DrawerContent,
+  DrawerHeader,
+  DrawerOverlay,
+  Flex,
+  SimpleGrid,
+  Spinner,
+  Table,
+  Tbody,
+  Td,
+  Text,
+  Th,
+  Thead,
+  Tr,
+} from "@chakra-ui/react";
 import BusinessDashboardHelper from "../../helper/businessDashboard";
 import { ageTone, summarise } from "../../util/purchaseReturns";
 import { compactINR, formatINR } from "../../util/payrollDashboard";
@@ -16,9 +37,27 @@ const dayText = (day) => {
 const asOfText = (iso) =>
   iso ? new Date(iso).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hour12: false }) : "—";
 
-function Card({ label, value, sub, accent, valueColor, unavailable }) {
+function Card({ label, value, sub, accent, valueColor, unavailable, onClick, hint }) {
+  const clickable = Boolean(onClick) && !unavailable;
   return (
-    <Box px={4} py={3} bg="white" borderWidth="1px" borderColor="gray.200" borderLeftWidth="4px" borderLeftColor={unavailable ? "gray.300" : accent} borderRadius="md">
+    <Box
+      as={clickable ? "button" : "div"}
+      type={clickable ? "button" : undefined}
+      onClick={clickable ? onClick : undefined}
+      title={clickable ? hint : undefined}
+      textAlign="left"
+      w="100%"
+      px={4}
+      py={3}
+      bg="white"
+      borderWidth="1px"
+      borderColor="gray.200"
+      borderLeftWidth="4px"
+      borderLeftColor={unavailable ? "gray.300" : accent}
+      borderRadius="md"
+      cursor={clickable ? "pointer" : "default"}
+      _hover={clickable ? { boxShadow: "md", borderColor: "purple.300" } : undefined}
+    >
       <Text fontSize="xs" color="gray.600" fontWeight="600" textTransform="uppercase" letterSpacing="wide">
         {label}
       </Text>
@@ -36,6 +75,61 @@ function Card({ label, value, sub, accent, valueColor, unavailable }) {
           </Text>
         </>
       )}
+
+      <Drawer isOpen={showOpen} placement="right" onClose={() => setShowOpen(false)} size="lg">
+        <DrawerOverlay />
+        <DrawerContent>
+          <DrawerCloseButton />
+          <DrawerHeader borderBottomWidth="1px" pr={12}>
+            <Text fontSize="md" fontWeight="700">
+              Open returns
+            </Text>
+            <Text fontSize="xs" color="orange.600" fontWeight="400">
+              As of {asOf} · {totals.open_claims} claims · {formatINR(totals.open_value)} · not affected by the period
+            </Text>
+          </DrawerHeader>
+          <DrawerBody>
+            <Text fontSize="xs" color="gray.600" mb={3}>
+              Age = days since the return claim was raised; amber after 7 days, red after 15. Value = the claimed amount.
+            </Text>
+            {openOk && !open.length ? (
+              <Text fontSize="sm" color="gray.500">
+                No open returns.
+              </Text>
+            ) : null}
+            {open.length ? (
+              <Box overflow="auto" borderWidth="1px" borderColor="gray.100" borderRadius="md">
+                <Table size="sm">
+                  <Thead position="sticky" top={0} bg="gray.50" zIndex={1}>
+                    <Tr>
+                      <Th>Supplier</Th>
+                      <Th isNumeric>Age</Th>
+                      <Th isNumeric>Value</Th>
+                      <Th isNumeric>Claims</Th>
+                      <Th>Location</Th>
+                      <Th isNumeric>Raised on</Th>
+                    </Tr>
+                  </Thead>
+                  <Tbody>
+                    {open.map((r) => (
+                      <Tr key={r.key}>
+                        <Td>{r.supplier}</Td>
+                        <Td isNumeric fontWeight="600" color={AGE_COLOR[ageTone(r.age_days)]}>
+                          {r.age_days === null ? "—" : `${r.age_days}d`}
+                        </Td>
+                        <Td isNumeric>{formatINR(r.value)}</Td>
+                        <Td isNumeric>{r.claims}</Td>
+                        <Td>{r.location}</Td>
+                        <Td isNumeric>{dayText(r.raised_on)}</Td>
+                      </Tr>
+                    ))}
+                  </Tbody>
+                </Table>
+              </Box>
+            ) : null}
+          </DrawerBody>
+        </DrawerContent>
+      </Drawer>
     </Box>
   );
 }
@@ -67,6 +161,7 @@ const cell = (value, count) =>
  */
 export default function PurchaseReturnsSection({ range, periodLabel, store, purchase, refreshTick }) {
   const [state, setState] = useState({ loading: true, error: null, data: null });
+  const [showOpen, setShowOpen] = useState(false);
 
   useEffect(() => {
     let live = true;
@@ -149,6 +244,8 @@ export default function PurchaseReturnsSection({ range, periodLabel, store, purc
               valueColor={totals.open_claims ? "orange.600" : undefined}
               sub={`as of ${asOf} · ${totals.open_claims} with suppliers${totals.oldest_days !== null ? ` · oldest ${totals.oldest_days}d` : ""}`}
               unavailable={openOk ? null : "Not available"}
+              onClick={() => setShowOpen(true)}
+              hint="Show open returns by supplier"
             />
           </SimpleGrid>
 
@@ -204,49 +301,6 @@ export default function PurchaseReturnsSection({ range, periodLabel, store, purc
             </>
           ) : null}
 
-          <Flex justify="space-between" align="baseline" mb={1} wrap="wrap" gap={2}>
-            <Text fontSize="md" fontWeight="700" color="gray.800">
-              Open returns
-            </Text>
-            <Text fontSize="xs" color="orange.600">
-              As of {asOf}
-            </Text>
-          </Flex>
-          {openOk && !open.length ? (
-            <Text fontSize="sm" color="gray.500">
-              No open returns.
-            </Text>
-          ) : null}
-          {open.length ? (
-            <Box overflow="auto" maxH="420px" borderWidth="1px" borderColor="gray.100" borderRadius="md">
-              <Table size="sm">
-                <Thead position="sticky" top={0} bg="gray.50" zIndex={1}>
-                  <Tr>
-                    <Th>Supplier</Th>
-                    <Th isNumeric>Age</Th>
-                    <Th isNumeric>Value</Th>
-                    <Th isNumeric>Claims</Th>
-                    <Th>Location</Th>
-                    <Th isNumeric>Raised on</Th>
-                  </Tr>
-                </Thead>
-                <Tbody>
-                  {open.map((r) => (
-                    <Tr key={r.key}>
-                      <Td>{r.supplier}</Td>
-                      <Td isNumeric fontWeight="600" color={AGE_COLOR[ageTone(r.age_days)]}>
-                        {r.age_days === null ? "—" : `${r.age_days}d`}
-                      </Td>
-                      <Td isNumeric>{formatINR(r.value)}</Td>
-                      <Td isNumeric>{r.claims}</Td>
-                      <Td>{r.location}</Td>
-                      <Td isNumeric>{dayText(r.raised_on)}</Td>
-                    </Tr>
-                  ))}
-                </Tbody>
-              </Table>
-            </Box>
-          ) : null}
         </>
       ) : null}
     </Box>
