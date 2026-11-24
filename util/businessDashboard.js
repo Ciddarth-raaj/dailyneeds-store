@@ -128,8 +128,12 @@ function aggregate(data, store = "") {
       sales: sum(mine(sales), "sales"),
       returns: sum(mine(sales), "returns"),
       bills: sum(mine(sales), "bills"),
+      return_bills: sum(mine(sales), "return_bills"),
       purchase: sum(mine(purchases), "purchase"),
+      purchase_invoices: sum(mine(purchases), "purchase_invoices"),
       purchase_return: sum(mine(purchases), "purchase_return"),
+      purchase_return_invoices: sum(mine(purchases), "purchase_return_invoices"),
+      stock_sellable_cost: sum(mine(stock), "sellable_cost_value"),
       stock_cost: sum(mine(stock), "cost_value"),
       stock_mrp: sum(mine(stock), "mrp_value"),
       costed_sales: sum(mine(margin), "costed_sales"),
@@ -139,6 +143,7 @@ function aggregate(data, store = "") {
     row.margin_pct = pct(row.margin, row.costed_sales);
     row.net_sales = round2(row.sales - row.returns);
     row.return_pct = pct(row.returns, row.sales);
+    row.avg_bill = row.bills ? round2(row.sales / row.bills) : null;
     return row;
   });
   byStore.sort((a, b) => b.net_sales - a.net_sales || b.purchase - a.purchase || a.name.localeCompare(b.name));

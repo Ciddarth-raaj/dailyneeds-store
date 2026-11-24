@@ -20,13 +20,16 @@ import {
   Tfoot,
   Th,
   Thead,
-  Tooltip,
   Tr,
 } from "@chakra-ui/react";
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip as ChartTooltip, XAxis, YAxis } from "recharts";
 import BusinessDashboardHelper from "../../helper/businessDashboard";
 import WarehouseFlowSection from "./WarehouseFlowSection";
-import PurchaseReturnsSection from "./PurchaseReturnsSection";
+import OpenReturnsSection from "./OpenReturnsSection";
+import TileDrawer from "./TileDrawer";
+import usePurchaseReturns from "./usePurchaseReturns";
+import { KpiCard } from "./KpiCard";
+import { summarise as summarisePurchaseReturns } from "../../util/purchaseReturns";
 import { PRESETS, aggregate, presetRange, shortDay } from "../../util/businessDashboard";
 import { compactINR, formatINR } from "../../util/payrollDashboard";
 
@@ -36,41 +39,6 @@ const PURCHASE_COLOR = "#eb6834";
 
 const pctText = (v) => (v === null || v === undefined ? "—" : `${v}%`);
 const fetchedText = (iso) => (iso ? new Date(iso).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) : null);
-
-function KpiCard({ label, value, sub, help, accent = "#1B2A5B", unavailable }) {
-  return (
-    <Tooltip label={help} hasArrow openDelay={300} isDisabled={!help}>
-      <Box
-        px={4}
-        py={3}
-        bg="white"
-        borderWidth="1px"
-        borderColor="gray.200"
-        borderLeftWidth="4px"
-        borderLeftColor={unavailable ? "gray.300" : accent}
-        borderRadius="md"
-      >
-        <Text fontSize="xs" color="gray.600" fontWeight="600">
-          {label}
-        </Text>
-        {unavailable ? (
-          <Text fontSize="sm" color="gray.500" mt={1}>
-            {unavailable}
-          </Text>
-        ) : (
-          <>
-            <Text fontSize="2xl" fontWeight="700" color="gray.800" lineHeight="short" isTruncated>
-              {compactINR(value === null || value === undefined ? value : Math.round(value))}
-            </Text>
-            <Text fontSize="xs" color="gray.600" noOfLines={2}>
-              {sub || formatINR(value)}
-            </Text>
-          </>
-        )}
-      </Box>
-    </Tooltip>
-  );
-}
 
 function TrendTooltip({ active, payload, label }) {
   if (!active || !payload || !payload.length) return null;
@@ -129,6 +97,15 @@ export default function BusinessDashboardView() {
   }, [stores, store]);
 
   const { totals, byDay, byStore } = useMemo(() => aggregate(data, store), [data, store]);
+  // Debit notes, replacements and open returns: their own read, same period and store.
+  const pr = usePurchaseReturns(range, refreshTick);
+  const prSummary = useMemo(
+    () => summarisePurchaseReturns(pr.data, store, data && data.purchases.ok ? totals.purchase : null),
+    [pr.data, store, data, totals.purchase]
+  );
+  const prSettledOk = Boolean(pr.data && pr.data.settled.ok);
+  // Which top tile's drawer is open (its key), or null.
+  const [tile, setTile] = useState(null);
 
   const choosePreset = (key) => {
     setPreset(key);
@@ -145,6 +122,7 @@ export default function BusinessDashboardView() {
         ["Purchases", data.purchases],
         ["Stock", data.stock],
         ["Margin", data.margin],
+        ["Debit notes and replacements", pr.data ? pr.data.settled : pr.error ? { ok: false, error: pr.error } : null],
       ].filter(([, s]) => s && !s.ok)
     : [];
   const prFound = data && data.purchases && data.purchases.purchase_return_found;
@@ -237,9 +215,10 @@ export default function BusinessDashboardView() {
 
       {data ? (
         <>
-          <SimpleGrid columns={{ base: 2, md: 3, xl: 6 }} spacing={3}>
+          <SimpleGrid columns={{ base: 2, md: 4 }} spacing={3}>
             <KpiCard
               label="Sales"
+              onClick={() => setTile("sales")}
               value={totals.sales}
               accent={SALES_COLOR}
               sub={`${totals.bills} bills · avg ${formatINR(totals.avg_bill)}`}
@@ -248,6 +227,7 @@ export default function BusinessDashboardView() {
             />
             <KpiCard
               label="Sales Return (SR)"
+              onClick={() => setTile("returns")}
               value={totals.returns}
               accent={SALES_COLOR}
               sub={`${totals.return_bills} returns · ${pctText(totals.return_pct)} of sales`}
@@ -256,6 +236,7 @@ export default function BusinessDashboardView() {
             />
             <KpiCard
               label="Purchase"
+              onClick={() => setTile("purchase")}
               value={totals.purchase}
               accent={PURCHASE_COLOR}
               sub={`${totals.purchase_invoices} invoices`}
@@ -264,6 +245,7 @@ export default function BusinessDashboardView() {
             />
             <KpiCard
               label="Purchase Return (PR)"
+              onClick={() => setTile("purchase_return")}
               value={totals.purchase_return}
               accent={PURCHASE_COLOR}
               sub={`${totals.purchase_return_invoices} returns · ${pctText(totals.purchase_return_pct)} of purchase`}
@@ -271,7 +253,28 @@ export default function BusinessDashboardView() {
               help={prFound ? null : "No purchase-return invoice type was seen in RetailPilot for this period"}
             />
             <KpiCard
+              label="Debit notes"
+              onClick={() => setTile("debit_note")}
+              value={prSummary.totals.debit_note}
+              accent={PURCHASE_COLOR}
+              sub={`${prSummary.totals.debit_notes} notes${
+                prSummary.totals.debit_note_pct !== null ? ` · ${prSummary.totals.debit_note_pct}% of purchases` : ""
+              }`}
+              help="Debit notes raised against purchase returns in the period"
+              unavailable={pr.loading && !pr.data ? "Loading…" : prSettledOk ? null : "Not available"}
+            />
+            <KpiCard
+              label="Replacements"
+              onClick={() => setTile("replacement")}
+              value={prSummary.totals.replacement}
+              accent={PURCHASE_COLOR}
+              sub={`${prSummary.totals.replacements} claims`}
+              help="Replacements raised against purchase returns in the period"
+              unavailable={pr.loading && !pr.data ? "Loading…" : prSettledOk ? null : "Not available"}
+            />
+            <KpiCard
               label="Stock (at cost)"
+              onClick={() => setTile("stock")}
               value={totals.stock_cost}
               sub={`MRP value ${compactINR(totals.stock_mrp)}`}
               help={`Current stock, all locations, at landing cost: ${formatINR(totals.stock_cost)}. Main (sellable) location only: ${formatINR(
@@ -281,6 +284,7 @@ export default function BusinessDashboardView() {
             />
             <KpiCard
               label="Margin"
+              onClick={() => setTile("margin")}
               value={totals.margin}
               accent={SALES_COLOR}
               sub={`${pctText(totals.margin_pct)} margin${
@@ -295,12 +299,17 @@ export default function BusinessDashboardView() {
 
           <WarehouseFlowSection store={store} refreshTick={refreshTick} />
 
-          <PurchaseReturnsSection
+          <OpenReturnsSection pr={pr} summary={prSummary} />
+
+          <TileDrawer
+            metric={tile}
+            onClose={() => setTile(null)}
             range={range}
-            periodLabel={(PRESETS.find((p) => p.key === preset) || {}).label}
-            store={store}
-            purchase={data.purchases.ok ? totals.purchase : null}
-            refreshTick={refreshTick}
+            storeName={store ? (stores.find((s) => s.key === store) || {}).name || "Store" : ownStoreOnly && stores.length === 1 ? stores[0].name : "All stores"}
+            totals={totals}
+            byStore={byStore}
+            byDay={byDay}
+            pr={prSummary}
           />
 
           <Box bg="white" borderWidth="1px" borderColor="gray.200" borderRadius="md" p={4}>
