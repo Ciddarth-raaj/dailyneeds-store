@@ -22,7 +22,6 @@ import {
   Thead,
   Tr,
 } from "@chakra-ui/react";
-import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip as ChartTooltip, XAxis, YAxis } from "recharts";
 import BusinessDashboardHelper from "../../helper/businessDashboard";
 import WarehouseFlowSection from "./WarehouseFlowSection";
 import OpenReturnsSection from "./OpenReturnsSection";
@@ -30,7 +29,7 @@ import TileDrawer from "./TileDrawer";
 import usePurchaseReturns from "./usePurchaseReturns";
 import { KpiCard } from "./KpiCard";
 import { summarise as summarisePurchaseReturns } from "../../util/purchaseReturns";
-import { PRESETS, aggregate, presetRange, shortDay } from "../../util/businessDashboard";
+import { PRESETS, aggregate, presetRange } from "../../util/businessDashboard";
 import { compactINR, formatINR } from "../../util/payrollDashboard";
 
 // Categorical slots 1 and 2 (validated together: CVD and normal-vision separation pass).
@@ -39,22 +38,6 @@ const PURCHASE_COLOR = "#eb6834";
 
 const pctText = (v) => (v === null || v === undefined ? "—" : `${v}%`);
 const fetchedText = (iso) => (iso ? new Date(iso).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) : null);
-
-function TrendTooltip({ active, payload, label }) {
-  if (!active || !payload || !payload.length) return null;
-  const row = payload[0].payload;
-  return (
-    <Box bg="white" borderWidth="1px" borderColor="gray.200" borderRadius="md" px={3} py={2} boxShadow="md" fontSize="xs">
-      <Text fontWeight="600" mb={1}>
-        {shortDay(label)}
-      </Text>
-      <Text>Sales: {formatINR(row.sales)}</Text>
-      <Text color="gray.600">Sales return: {formatINR(row.returns)}</Text>
-      <Text>Purchase: {formatINR(row.purchase)}</Text>
-      <Text color="gray.600">Purchase return: {formatINR(row.purchase_return)}</Text>
-    </Box>
-  );
-}
 
 /**
  * BUSINESS DASHBOARD - Purchase, Sales, Sales Return, Purchase Return, Stock
@@ -311,31 +294,6 @@ export default function BusinessDashboardView() {
             byDay={byDay}
             pr={prSummary}
           />
-
-          <Box bg="white" borderWidth="1px" borderColor="gray.200" borderRadius="md" p={4}>
-            <Text fontSize="sm" fontWeight="600" color="gray.700" mb={2}>
-              Daily sales and purchase
-            </Text>
-            {byDay.length ? (
-              <Box h="280px">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={byDay} margin={{ top: 8, right: 16, bottom: 0, left: 8 }}>
-                    <CartesianGrid stroke="#edf2f7" vertical={false} />
-                    <XAxis dataKey="day" tickFormatter={shortDay} tick={{ fontSize: 11, fill: "#4a5568" }} tickLine={false} axisLine={{ stroke: "#cbd5e0" }} minTickGap={16} />
-                    <YAxis tickFormatter={compactINR} tick={{ fontSize: 11, fill: "#4a5568" }} tickLine={false} axisLine={false} width={64} />
-                    <ChartTooltip content={<TrendTooltip />} cursor={{ stroke: "#a0aec0", strokeWidth: 1 }} />
-                    <Legend wrapperStyle={{ fontSize: 12 }} iconType="plainline" />
-                    <Line type="monotone" dataKey="sales" name="Sales" stroke={SALES_COLOR} strokeWidth={2} dot={byDay.length <= 1 ? { r: 4 } : false} activeDot={{ r: 5, stroke: "#fff", strokeWidth: 2 }} />
-                    <Line type="monotone" dataKey="purchase" name="Purchase" stroke={PURCHASE_COLOR} strokeWidth={2} dot={byDay.length <= 1 ? { r: 4 } : false} activeDot={{ r: 5, stroke: "#fff", strokeWidth: 2 }} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </Box>
-            ) : (
-              <Text fontSize="sm" color="gray.500">
-                No days in range.
-              </Text>
-            )}
-          </Box>
 
           <Box bg="white" borderWidth="1px" borderColor="gray.200" borderRadius="md" p={4} overflowX="auto">
             <Text fontSize="sm" fontWeight="600" color="gray.700" mb={2}>
