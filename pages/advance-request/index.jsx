@@ -4,7 +4,15 @@ import CustomContainer from "../../components/CustomContainer";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { Button, IconButton } from "@chakra-ui/button";
-import { Badge, Flex, Spinner, Select } from "@chakra-ui/react";
+import {
+  Badge,
+  Box,
+  Flex,
+  Spinner,
+  Select,
+  Text,
+  useBreakpointValue,
+} from "@chakra-ui/react";
 import { Menu, MenuItem } from "@szhsin/react-menu";
 import EmptyData from "../../components/EmptyData";
 import Table from "../../components/table/table";
@@ -33,9 +41,75 @@ const HEADINGS = {
   actions: "Actions",
 };
 
+function CardField({ label, value }) {
+  return (
+    <Box minW={0}>
+      <Text fontSize="11px" color="gray.500">
+        {label}
+      </Text>
+      <Text fontSize="13px" color="gray.800" noOfLines={2}>
+        {value}
+      </Text>
+    </Box>
+  );
+}
+
+function AdvanceRequestCard({ row, onOpen }) {
+  return (
+    <Box
+      border="1px solid"
+      borderColor="gray.200"
+      borderRadius="8px"
+      bg="white"
+      p="12px"
+      cursor="pointer"
+      onClick={onOpen}
+    >
+      <Flex justify="space-between" align="flex-start" gap="8px">
+        <Box minW={0} flex={1}>
+          <Text fontWeight="600" fontSize="14px" noOfLines={2}>
+            {row.supplier_name}
+          </Text>
+          <Text fontSize="12px" color="gray.600">
+            {row.invoice_number}
+          </Text>
+        </Box>
+        {/* Keep menu taps from also opening the request. */}
+        <Box onClick={(event) => event.stopPropagation()} flexShrink={0}>
+          {row.actions}
+        </Box>
+      </Flex>
+
+      <Flex justify="space-between" align="center" mt="8px" gap="8px">
+        <Text fontWeight="700" fontSize="16px" color="purple.600">
+          {row.amount}
+        </Text>
+        {row.status}
+      </Flex>
+
+      <Box
+        display="grid"
+        gridTemplateColumns="1fr 1fr"
+        gap="8px"
+        mt="10px"
+        pt="10px"
+        borderTop="1px solid"
+        borderColor="gray.100"
+      >
+        <CardField label="Date Requested" value={row.created_at} />
+        <CardField label="Requested By" value={row.created_by_name} />
+        <CardField label="Balance" value={row.balance_action} />
+        <CardField label="Attachment" value={row.attachment} />
+      </Box>
+    </Box>
+  );
+}
+
 function AdvanceRequest() {
   const router = useRouter();
   const [status, setStatus] = useState("");
+  // Nine columns cannot fit a phone screen, so phones get a card per request.
+  const isMobile = useBreakpointValue({ base: true, md: false });
 
   const canCreateAdvanceRequest = usePermissions(["create_advance_request"]);
   const canEditAdvanceRequest = usePermissions(["edit_advance_request"]);
@@ -44,12 +118,45 @@ function AdvanceRequest() {
   const filters = useMemo(() => ({ status, limit: 200 }), [status]);
   const { requests, loading, error, refetch } = useAdvanceRequests(filters);
 
+  const renderActions = (request) => (
+    <Menu
+      align="end"
+      gap={5}
+      menuButton={
+        <IconButton
+          variant="ghost"
+          colorScheme="purple"
+          icon={<i className="fa fa-ellipsis-v" />}
+        />
+      }
+      transition
+    >
+      <MenuItem
+        onClick={() =>
+          router.push(`/advance-request/view/${request.advance_request_id}`)
+        }
+      >
+        View
+      </MenuItem>
+      {canEditAdvanceRequest && isEditableStatus(request.status) && (
+        <MenuItem
+          onClick={() =>
+            router.push(`/advance-request/edit/${request.advance_request_id}`)
+          }
+        >
+          Edit
+        </MenuItem>
+      )}
+    </Menu>
+  );
+
   const rows = useMemo(
     () =>
       requests.map((request) => {
         const meta = getStatusMeta(request.status);
 
         return {
+          request,
           supplier_name: request.supplier_name || "-",
           invoice_number: request.invoice_number || "-",
           amount: currencyFormatter(request.amount),
@@ -63,41 +170,7 @@ function AdvanceRequest() {
           created_by_name: request.created_by_name || "-",
           attachment: Number(request.document_count) > 0 ? "Yes" : "No",
           status: <Badge colorScheme={meta.colorScheme}>{meta.label}</Badge>,
-          actions: (
-            <Menu
-              align="end"
-              gap={5}
-              menuButton={
-                <IconButton
-                  variant="ghost"
-                  colorScheme="purple"
-                  icon={<i className="fa fa-ellipsis-v" />}
-                />
-              }
-              transition
-            >
-              <MenuItem
-                onClick={() =>
-                  router.push(
-                    `/advance-request/view/${request.advance_request_id}`
-                  )
-                }
-              >
-                View
-              </MenuItem>
-              {canEditAdvanceRequest && isEditableStatus(request.status) && (
-                <MenuItem
-                  onClick={() =>
-                    router.push(
-                      `/advance-request/edit/${request.advance_request_id}`
-                    )
-                  }
-                >
-                  Edit
-                </MenuItem>
-              )}
-            </Menu>
-          ),
+          actions: renderActions(request),
         };
       }),
     [requests, router, canEditAdvanceRequest]
@@ -117,7 +190,7 @@ function AdvanceRequest() {
               borderRadius="6px"
               value={status}
               onChange={(event) => setStatus(event.target.value)}
-              width="160px"
+              width={{ base: "130px", md: "160px" }}
             >
               <option value="">All statuses</option>
               {Object.keys(STATUS_META).map((key) => (
@@ -156,7 +229,23 @@ function AdvanceRequest() {
           <EmptyData message="No advance requests found" />
         )}
 
-        {!loading && !error && rows.length > 0 && (
+        {!loading && !error && rows.length > 0 && isMobile && (
+          <Flex direction="column" gap="10px">
+            {rows.map((row) => (
+              <AdvanceRequestCard
+                key={row.request.advance_request_id}
+                row={row}
+                onOpen={() =>
+                  router.push(
+                    `/advance-request/view/${row.request.advance_request_id}`
+                  )
+                }
+              />
+            ))}
+          </Flex>
+        )}
+
+        {!loading && !error && rows.length > 0 && !isMobile && (
           <Table
             variant="plain"
             heading={HEADINGS}
