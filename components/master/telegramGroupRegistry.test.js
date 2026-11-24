@@ -803,6 +803,15 @@ test("the toggle labels are a real CustomInput feature, defaulted for every othe
   assert.ok(!/onLabel/.test(spread[0].replace(/onLabel = "Active"/, "")), "labels are not in props");
 });
 
+test("the VIEW page shows a toggle's label, never a blank field", () => {
+  // React renders `true` as nothing, so a read-only Status / Bot Is Admin
+  // used to show a blank value.
+  const input = strip(read("components/customInput/customInput.js"));
+  const display = /const getDisplayValue = [\s\S]*?switch \(method\)/.exec(input);
+  assert.ok(display, "getDisplayValue is present");
+  assert.match(display[0], /method === "switch_toggle"\) return value \? onLabel : offLabel/);
+});
+
 test("BOT IS ADMIN MAPS ON->true, OFF->false, with no translation on save", () => {
   assert.match(formPage, /bot_is_admin: Boolean\(values\.bot_is_admin\)/);
   assert.match(formPage, /bot_is_admin: Boolean\(group\.bot_is_admin\)/);

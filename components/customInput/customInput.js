@@ -175,6 +175,9 @@ const TextFieldBody = ({
 
   const getDisplayValue = (value) => {
     if (props.value || props.value == 0) return props.value;
+    // A boolean renders as nothing in React, so a read-only toggle showed a
+    // blank field. Show its own label instead.
+    if (method === "switch_toggle") return value ? onLabel : offLabel;
     if (!value && value !== 0 && value !== "0") return "N/A";
 
     switch (method) {
