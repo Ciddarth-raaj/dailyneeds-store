@@ -35,6 +35,9 @@ const WhDailyReportsHelper = {
   trace: (params) =>
     API.get("/warehouse-health/trace", { params }).then((res) => res.data),
   /** Yesterday's summary of `site` (default the warehouse) to my own Telegram. */
+  /** Yesterday's reports to the Telegram groups set in Master -> Telegram Groups. receive_warehouse_health_summary */
+  sendHealthToGroups: () =>
+    API.post("/warehouse-health/summary/send-groups").then((res) => res.data),
   sendHealthToMe: (site) =>
     API.post("/warehouse-health/summary/send-me", { site: site || null }).then(
       (res) => res.data,

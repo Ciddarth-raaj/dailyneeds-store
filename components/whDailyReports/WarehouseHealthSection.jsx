@@ -21,6 +21,7 @@ import {
 import Link from "next/link";
 import toast from "react-hot-toast";
 import WhDailyReportsHelper from "../../helper/whDailyReports";
+import usePermissions from "../../customHooks/usePermissions";
 import { exportToExcel } from "../../util/exportCSVFile";
 import {
   BOX_STATUS,
@@ -1668,6 +1669,31 @@ export default function WarehouseHealthSection() {
     }
   };
 
+  // Yesterday's reports to the Telegram group(s) now - the same as the 9 am send.
+  const canSendGroups = usePermissions(["receive_warehouse_health_summary"]);
+  const [sendingGroups, setSendingGroups] = useState(false);
+  const sendGroups = async () => {
+    if (
+      !window.confirm(
+        "Send yesterday's Pick Pack Daily Report(s) to the Telegram group now? Everyone in the group will see it.",
+      )
+    )
+      return;
+    setSendingGroups(true);
+    try {
+      const res = await WhDailyReportsHelper.sendHealthToGroups();
+      const groups = (res && res.data && res.data.groups) || [];
+      const names = [...new Set(groups.map((g) => g.group))].join(", ");
+      if (res && res.code === 200)
+        toast.success(`Sent ${groups.length} report(s) to ${names}`);
+      else toast.error((res && res.msg) || "Could not send");
+    } catch (err) {
+      toast.error(errMsg(err, "Could not send"));
+    } finally {
+      setSendingGroups(false);
+    }
+  };
+
   const h = state.data;
   const toggle = (k) => setOpen((o) => (o === k ? null : k));
 
@@ -1742,6 +1768,17 @@ export default function WarehouseHealthSection() {
           >
             Send me on Telegram
           </Button>
+          {canSendGroups && (
+            <Button
+              size="sm"
+              colorScheme="purple"
+              variant="outline"
+              isLoading={sendingGroups}
+              onClick={sendGroups}
+            >
+              Send to Telegram group
+            </Button>
+          )}
         </Flex>
       </Flex>
 
