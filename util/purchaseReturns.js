@@ -31,6 +31,8 @@ function summarise(data, store = "", purchase = null, topN = 10) {
     byStore: [],
     topSuppliers: [],
     open: [],
+    debitNotes: [],
+    replacements: [],
   };
   if (!data) return empty;
   const pick = (rows) => (rows || []).filter((r) => !store || r.store === store);
@@ -85,8 +87,17 @@ function summarise(data, store = "", purchase = null, topN = 10) {
   }
   t.open_suppliers = supplierSet.size;
 
+  // Every debit note / replacement of the period, largest first.
+  const items = (kind) =>
+    settled
+      .filter((r) => r.kind === kind)
+      .map((r) => ({ key: r.slug, supplier: r.supplier_name, location: storeName.get(r.store) || r.store, value: r.amount, day: r.day }))
+      .sort((a, b) => b.value - a.value);
+
   return {
     totals: t,
+    debitNotes: items("debit_note"),
+    replacements: items("replacement"),
     byStore: [...per.values()].sort((a, b) => a.name.localeCompare(b.name)),
     topSuppliers: [...suppliers.values()].sort((a, b) => b.value - a.value).slice(0, topN),
     open: [...groups.values()].sort((a, b) => (b.age_days ?? -1) - (a.age_days ?? -1) || b.value - a.value),

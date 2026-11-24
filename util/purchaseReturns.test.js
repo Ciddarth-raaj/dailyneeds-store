@@ -13,7 +13,7 @@ const DATA = {
   settled: {
     ok: true,
     rows: [
-      { kind: "debit_note", amount: 8561, store: "outlet:9", supplier_id: "1", supplier_name: "Deva" },
+      { slug: "d1", kind: "debit_note", amount: 8561, store: "outlet:9", supplier_id: "1", supplier_name: "Deva", day: "2026-11-24" },
       { kind: "replacement", amount: 3000, store: "outlet:9", supplier_id: "2", supplier_name: "Hector" },
       { kind: "replacement", amount: 664, store: "outlet:9", supplier_id: "2", supplier_name: "Hector" },
       { kind: "debit_note", amount: 100, store: "outlet:3", supplier_id: "1", supplier_name: "Deva" },
@@ -42,6 +42,8 @@ describe("summarise", () => {
     assert.equal(s.totals.open_suppliers, 2);
     assert.equal(s.totals.oldest_days, 40);
     assert.deepEqual(s.byStore.map((r) => [r.name, r.debit_note, r.replacements]), [["Kathirkamam", 100, 0], ["Warehouse", 8561, 2]]);
+    assert.deepEqual(s.debitNotes[0], { key: "d1", supplier: "Deva", location: "Warehouse", value: 8561, day: "2026-11-24" });
+    assert.deepEqual(s.replacements.map((r) => r.value), [3000, 664]);
     assert.deepEqual(s.topSuppliers.map((r) => [r.name, r.notes, r.value]), [["Deva", 2, 8661]]);
     assert.deepEqual(s.open.map((r) => [r.supplier, r.location, r.claims, r.value, r.age_days, r.raised_on]), [
       ["B", "Kathirkamam", 1, 900, 40, "2026-10-15"],

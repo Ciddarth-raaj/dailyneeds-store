@@ -75,61 +75,6 @@ function Card({ label, value, sub, accent, valueColor, unavailable, onClick, hin
           </Text>
         </>
       )}
-
-      <Drawer isOpen={showOpen} placement="right" onClose={() => setShowOpen(false)} size="lg">
-        <DrawerOverlay />
-        <DrawerContent>
-          <DrawerCloseButton />
-          <DrawerHeader borderBottomWidth="1px" pr={12}>
-            <Text fontSize="md" fontWeight="700">
-              Open returns
-            </Text>
-            <Text fontSize="xs" color="orange.600" fontWeight="400">
-              As of {asOf} · {totals.open_claims} claims · {formatINR(totals.open_value)} · not affected by the period
-            </Text>
-          </DrawerHeader>
-          <DrawerBody>
-            <Text fontSize="xs" color="gray.600" mb={3}>
-              Age = days since the return claim was raised; amber after 7 days, red after 15. Value = the claimed amount.
-            </Text>
-            {openOk && !open.length ? (
-              <Text fontSize="sm" color="gray.500">
-                No open returns.
-              </Text>
-            ) : null}
-            {open.length ? (
-              <Box overflow="auto" borderWidth="1px" borderColor="gray.100" borderRadius="md">
-                <Table size="sm">
-                  <Thead position="sticky" top={0} bg="gray.50" zIndex={1}>
-                    <Tr>
-                      <Th>Supplier</Th>
-                      <Th isNumeric>Age</Th>
-                      <Th isNumeric>Value</Th>
-                      <Th isNumeric>Claims</Th>
-                      <Th>Location</Th>
-                      <Th isNumeric>Raised on</Th>
-                    </Tr>
-                  </Thead>
-                  <Tbody>
-                    {open.map((r) => (
-                      <Tr key={r.key}>
-                        <Td>{r.supplier}</Td>
-                        <Td isNumeric fontWeight="600" color={AGE_COLOR[ageTone(r.age_days)]}>
-                          {r.age_days === null ? "—" : `${r.age_days}d`}
-                        </Td>
-                        <Td isNumeric>{formatINR(r.value)}</Td>
-                        <Td isNumeric>{r.claims}</Td>
-                        <Td>{r.location}</Td>
-                        <Td isNumeric>{dayText(r.raised_on)}</Td>
-                      </Tr>
-                    ))}
-                  </Tbody>
-                </Table>
-              </Box>
-            ) : null}
-          </DrawerBody>
-        </DrawerContent>
-      </Drawer>
     </Box>
   );
 }
@@ -148,6 +93,104 @@ const cell = (value, count) =>
     </Text>
   );
 
+
+function SideDrawer({ isOpen, onClose, title, sub, subColor = "gray.600", children }) {
+  return (
+    <Drawer isOpen={isOpen} placement="right" onClose={onClose} size="lg">
+      <DrawerOverlay />
+      <DrawerContent>
+        <DrawerCloseButton />
+        <DrawerHeader borderBottomWidth="1px" pr={12}>
+          <Text fontSize="md" fontWeight="700">
+            {title}
+          </Text>
+          <Text fontSize="xs" color={subColor} fontWeight="400">
+            {sub}
+          </Text>
+        </DrawerHeader>
+        <DrawerBody>{children}</DrawerBody>
+      </DrawerContent>
+    </Drawer>
+  );
+}
+
+function Heading({ children }) {
+  return (
+    <Text fontSize="xs" color="gray.600" fontWeight="600" textTransform="uppercase" mt={4} mb={1}>
+      {children}
+    </Text>
+  );
+}
+
+function SimpleTable({ columns, rows }) {
+  return (
+    <Box overflowX="auto" borderWidth="1px" borderColor="gray.100" borderRadius="md">
+      <Table size="sm">
+        <Thead bg="gray.50">
+          <Tr>
+            {columns.map((c) => (
+              <Th key={c.label} isNumeric={c.numeric}>
+                {c.label}
+              </Th>
+            ))}
+          </Tr>
+        </Thead>
+        <Tbody>
+          {rows.map((r) => (
+            <Tr key={r.key}>
+              {columns.map((c) => (
+                <Td key={c.label} isNumeric={c.numeric}>
+                  {c.get(r)}
+                </Td>
+              ))}
+            </Tr>
+          ))}
+        </Tbody>
+      </Table>
+    </Box>
+  );
+}
+
+/** Every location, value (count) or a dash. */
+function ByLocation({ rows, value, count }) {
+  return (
+    <>
+      <Heading>By location</Heading>
+      <SimpleTable
+        columns={[
+          { label: "Location", get: (r) => r.name },
+          { label: "Value", get: (r) => cell(r[value], r[count]), numeric: true },
+        ]}
+        rows={rows}
+      />
+    </>
+  );
+}
+
+/** One line per debit note / replacement: supplier, location, date, value. */
+function ItemList({ title, rows, empty }) {
+  return (
+    <>
+      <Heading>{title}</Heading>
+      {rows.length ? (
+        <SimpleTable
+          columns={[
+            { label: "Supplier", get: (r) => r.supplier },
+            { label: "Location", get: (r) => r.location },
+            { label: "Date", get: (r) => dayText(r.day), numeric: true },
+            { label: "Value", get: (r) => formatINR(r.value), numeric: true },
+          ]}
+          rows={rows}
+        />
+      ) : (
+        <Text fontSize="sm" color="gray.500">
+          {empty}
+        </Text>
+      )}
+    </>
+  );
+}
+
 /**
  * Purchase returns, live from RetailPilot: debit notes and replacements raised
  * in the period, and every open return (goods back with the supplier, not yet
@@ -161,7 +204,8 @@ const cell = (value, count) =>
  */
 export default function PurchaseReturnsSection({ range, periodLabel, store, purchase, refreshTick }) {
   const [state, setState] = useState({ loading: true, error: null, data: null });
-  const [showOpen, setShowOpen] = useState(false);
+  // Which tile's drawer is open: "debit_note", "replacement", "open" or null.
+  const [drawer, setDrawer] = useState(null);
 
   useEffect(() => {
     let live = true;
@@ -179,7 +223,7 @@ export default function PurchaseReturnsSection({ range, periodLabel, store, purc
   }, [range.from, range.to, refreshTick]);
 
   const data = state.data;
-  const { totals, byStore, topSuppliers, open } = useMemo(() => summarise(data, store, purchase), [data, store, purchase]);
+  const { totals, byStore, topSuppliers, open, debitNotes, replacements } = useMemo(() => summarise(data, store, purchase), [data, store, purchase]);
   const settledOk = data && data.settled.ok;
   const openOk = data && data.open.ok;
   const asOf = asOfText(data && data.open.fetched_at);
@@ -195,10 +239,8 @@ export default function PurchaseReturnsSection({ range, periodLabel, store, purc
         Debit notes &amp; replacements raised — {periodLabel || "Custom"} · {periodText}
         {settledAt ? ` till ${settledAt}` : ""} · Open returns — as of {asOf}, not affected by the period · from RetailPilot
       </Text>
-      <Text fontSize="xs" color="gray.600" mt={1} mb={3}>
-        <b>Open returns</b> — every return whose goods have already been handed back to the supplier (return submitted in RetailPilot) but which the
-        supplier has not yet settled as a debit note or a replacement — however long ago it was raised. <b>Not affected by the period filter.</b> Age =
-        days since the return claim was raised; amber after 7 days, red after 15. Value = the claimed amount.
+      <Text fontSize="xs" color="gray.500" mt={1} mb={3}>
+        Click a tile for the details.
       </Text>
 
       {state.error ? (
@@ -227,82 +269,121 @@ export default function PurchaseReturnsSection({ range, periodLabel, store, purc
       ) : null}
 
       {data ? (
-        <>
-          <SimpleGrid columns={{ base: 1, md: 3 }} spacing={3} mb={4}>
-            <Card
-              label="Debit notes"
-              value={totals.debit_note}
-              accent={ACCENT}
-              sub={`${totals.debit_notes} notes${totals.debit_note_pct !== null ? ` · ${totals.debit_note_pct}% of purchases` : ""}`}
-              unavailable={settledOk ? null : "Not available"}
-            />
-            <Card label="Replacements" value={totals.replacement} accent={ACCENT} sub={`${totals.replacements} claims`} unavailable={settledOk ? null : "Not available"} />
-            <Card
-              label="Open returns"
-              value={totals.open_value}
-              accent={OPEN_ACCENT}
-              valueColor={totals.open_claims ? "orange.600" : undefined}
-              sub={`as of ${asOf} · ${totals.open_claims} with suppliers${totals.oldest_days !== null ? ` · oldest ${totals.oldest_days}d` : ""}`}
-              unavailable={openOk ? null : "Not available"}
-              onClick={() => setShowOpen(true)}
-              hint="Show open returns by supplier"
-            />
-          </SimpleGrid>
+        <SimpleGrid columns={{ base: 1, md: 3 }} spacing={3}>
+          <Card
+            label="Debit notes"
+            value={totals.debit_note}
+            accent={ACCENT}
+            sub={`${totals.debit_notes} notes${totals.debit_note_pct !== null ? ` · ${totals.debit_note_pct}% of purchases` : ""}`}
+            unavailable={settledOk ? null : "Not available"}
+            onClick={() => setDrawer("debit_note")}
+            hint="Show debit notes by location and supplier"
+          />
+          <Card
+            label="Replacements"
+            value={totals.replacement}
+            accent={ACCENT}
+            sub={`${totals.replacements} claims`}
+            unavailable={settledOk ? null : "Not available"}
+            onClick={() => setDrawer("replacement")}
+            hint="Show replacements by location"
+          />
+          <Card
+            label="Open returns"
+            value={totals.open_value}
+            accent={OPEN_ACCENT}
+            valueColor={totals.open_claims ? "orange.600" : undefined}
+            sub={`as of ${asOf} · ${totals.open_claims} with suppliers${totals.oldest_days !== null ? ` · oldest ${totals.oldest_days}d` : ""}`}
+            unavailable={openOk ? null : "Not available"}
+            onClick={() => setDrawer("open")}
+            hint="Show open returns by supplier"
+          />
+        </SimpleGrid>
+      ) : null}
 
-          <Text fontSize="xs" color="gray.600" fontWeight="600" textTransform="uppercase" mb={1}>
-            Raised in this period · {periodText}
+      <SideDrawer
+        isOpen={drawer === "debit_note"}
+        onClose={() => setDrawer(null)}
+        title="Debit notes"
+        sub={`Raised ${periodText} · ${totals.debit_notes} notes · ${formatINR(totals.debit_note)}${
+          totals.debit_note_pct !== null ? ` · ${totals.debit_note_pct}% of purchases` : ""
+        }`}
+      >
+        <ByLocation rows={byStore} value="debit_note" count="debit_notes" />
+        {topSuppliers.length ? (
+          <>
+            <Heading>Top suppliers by debit note value</Heading>
+            <SimpleTable
+              columns={[
+                { label: "Supplier", get: (r) => r.name },
+                { label: "Notes", get: (r) => r.notes, numeric: true },
+                { label: "Value", get: (r) => formatINR(r.value), numeric: true },
+              ]}
+              rows={topSuppliers}
+            />
+          </>
+        ) : null}
+        <ItemList title="Every debit note" rows={debitNotes} empty="No debit notes raised in this period." />
+      </SideDrawer>
+
+      <SideDrawer
+        isOpen={drawer === "replacement"}
+        onClose={() => setDrawer(null)}
+        title="Replacements"
+        sub={`Raised ${periodText} · ${totals.replacements} claims · ${formatINR(totals.replacement)}`}
+      >
+        <ByLocation rows={byStore} value="replacement" count="replacements" />
+        <ItemList title="Every replacement" rows={replacements} empty="No replacements raised in this period." />
+      </SideDrawer>
+
+      <SideDrawer
+        isOpen={drawer === "open"}
+        onClose={() => setDrawer(null)}
+        title="Open returns"
+        sub={`As of ${asOf} · ${totals.open_claims} claims · ${formatINR(totals.open_value)} · not affected by the period`}
+        subColor="orange.600"
+      >
+        <Text fontSize="xs" color="gray.600" mb={3}>
+          Every return whose goods have already been handed back to the supplier but which the supplier has not yet settled as a debit note or a
+          replacement, however long ago it was raised. Age = days since the return claim was raised; amber after 7 days, red after 15. Value = the
+          claimed amount.
+        </Text>
+        {openOk && !open.length ? (
+          <Text fontSize="sm" color="gray.500">
+            No open returns.
           </Text>
-          <Box overflowX="auto" mb={4}>
+        ) : null}
+        {open.length ? (
+          <Box overflow="auto" borderWidth="1px" borderColor="gray.100" borderRadius="md">
             <Table size="sm">
-              <Thead>
+              <Thead position="sticky" top={0} bg="gray.50" zIndex={1}>
                 <Tr>
+                  <Th>Supplier</Th>
+                  <Th isNumeric>Age</Th>
+                  <Th isNumeric>Value</Th>
+                  <Th isNumeric>Claims</Th>
                   <Th>Location</Th>
-                  <Th isNumeric>Debit notes</Th>
-                  <Th isNumeric>Replacements</Th>
+                  <Th isNumeric>Raised on</Th>
                 </Tr>
               </Thead>
               <Tbody>
-                {byStore.map((s) => (
-                  <Tr key={s.key}>
-                    <Td>{s.name}</Td>
-                    <Td isNumeric>{settledOk ? cell(s.debit_note, s.debit_notes) : "—"}</Td>
-                    <Td isNumeric>{settledOk ? cell(s.replacement, s.replacements) : "—"}</Td>
+                {open.map((r) => (
+                  <Tr key={r.key}>
+                    <Td>{r.supplier}</Td>
+                    <Td isNumeric fontWeight="600" color={AGE_COLOR[ageTone(r.age_days)]}>
+                      {r.age_days === null ? "—" : `${r.age_days}d`}
+                    </Td>
+                    <Td isNumeric>{formatINR(r.value)}</Td>
+                    <Td isNumeric>{r.claims}</Td>
+                    <Td>{r.location}</Td>
+                    <Td isNumeric>{dayText(r.raised_on)}</Td>
                   </Tr>
                 ))}
               </Tbody>
             </Table>
           </Box>
-
-          {topSuppliers.length ? (
-            <>
-              <Text fontSize="xs" color="gray.600" fontWeight="600" textTransform="uppercase" mb={1}>
-                Top suppliers by debit note value
-              </Text>
-              <Box overflowX="auto" mb={4}>
-                <Table size="sm">
-                  <Thead>
-                    <Tr>
-                      <Th>Supplier</Th>
-                      <Th isNumeric>Notes</Th>
-                      <Th isNumeric>Value</Th>
-                    </Tr>
-                  </Thead>
-                  <Tbody>
-                    {topSuppliers.map((s) => (
-                      <Tr key={s.key}>
-                        <Td>{s.name}</Td>
-                        <Td isNumeric>{s.notes}</Td>
-                        <Td isNumeric>{formatINR(s.value)}</Td>
-                      </Tr>
-                    ))}
-                  </Tbody>
-                </Table>
-              </Box>
-            </>
-          ) : null}
-
-        </>
-      ) : null}
+        ) : null}
+      </SideDrawer>
     </Box>
   );
 }
