@@ -26,6 +26,7 @@ import {
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip as ChartTooltip, XAxis, YAxis } from "recharts";
 import BusinessDashboardHelper from "../../helper/businessDashboard";
 import WarehouseFlowSection from "./WarehouseFlowSection";
+import PurchaseReturnsSection from "./PurchaseReturnsSection";
 import { PRESETS, aggregate, presetRange, shortDay } from "../../util/businessDashboard";
 import { compactINR, formatINR } from "../../util/payrollDashboard";
 
@@ -293,6 +294,14 @@ export default function BusinessDashboardView() {
           </SimpleGrid>
 
           <WarehouseFlowSection store={store} refreshTick={refreshTick} />
+
+          <PurchaseReturnsSection
+            range={range}
+            periodLabel={(PRESETS.find((p) => p.key === preset) || {}).label}
+            store={store}
+            purchase={data.purchases.ok ? totals.purchase : null}
+            refreshTick={refreshTick}
+          />
 
           <Box bg="white" borderWidth="1px" borderColor="gray.200" borderRadius="md" p={4}>
             <Text fontSize="sm" fontWeight="600" color="gray.700" mb={2}>

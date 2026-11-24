@@ -7,6 +7,7 @@ import API from "../util/api";
  */
 const BusinessDashboardHelper = {
   getSummary: (params) => API.get("/business-dashboard/summary", { params }).then((res) => res.data),
+  getPurchaseReturns: (params) => API.get("/business-dashboard/purchase-returns", { params }).then((res) => res.data),
 };
 
 export default BusinessDashboardHelper;
