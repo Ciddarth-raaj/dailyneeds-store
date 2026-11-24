@@ -51,6 +51,15 @@ export const submitBalanceAction = async (id, params) => {
   return response.data;
 };
 
+/**
+ * Posts a Telegram approval card to the Dn Urgent payments group for every
+ * request already Awaiting Approval or On Hold.
+ */
+export const sendPendingToTelegram = async () => {
+  const response = await API.post(`/advance-request/telegram/send-pending`);
+  return response.data;
+};
+
 /** A2 - the admin approves, holds, or rejects. */
 export const submitApproval = async (id, params) => {
   const response = await API.patch(`/advance-request/${id}/approval`, params);

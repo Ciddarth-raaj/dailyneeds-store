@@ -12,12 +12,14 @@ import {
   Select,
   Text,
   useBreakpointValue,
+  useToast,
 } from "@chakra-ui/react";
 import { Menu, MenuItem } from "@szhsin/react-menu";
 import EmptyData from "../../components/EmptyData";
 import Table from "../../components/table/table";
 import usePermissions from "../../customHooks/usePermissions";
 import useAdvanceRequests from "../../customHooks/useAdvanceRequests";
+import { sendPendingToTelegram } from "../../helper/advanceRequest";
 import currencyFormatter from "../../util/currencyFormatter";
 import moment from "moment";
 import {
@@ -113,6 +115,36 @@ function AdvanceRequest() {
 
   const canCreateAdvanceRequest = usePermissions(["create_advance_request"]);
   const canEditAdvanceRequest = usePermissions(["edit_advance_request"]);
+  const canApproveAdvanceRequest = usePermissions(["approve_advance_request"]);
+  const toast = useToast();
+  const [sendingToTelegram, setSendingToTelegram] = useState(false);
+
+  // Requests that reached the admin before the Telegram card existed (or
+  // whose card has scrolled away) get one posted on demand.
+  const handleSendPending = async () => {
+    setSendingToTelegram(true);
+    try {
+      const data = await sendPendingToTelegram();
+      if (data && data.code) throw new Error(data.msg);
+      toast({
+        status: "success",
+        title:
+          data.requests === 0
+            ? "Nothing is waiting for approval"
+            : `Sent ${data.sent} of ${data.requests} to Telegram`,
+      });
+    } catch (err) {
+      toast({
+        status: "error",
+        title:
+          (err && err.response && err.response.data && err.response.data.msg) ||
+          (err && err.message) ||
+          "Could not send to Telegram",
+      });
+    } finally {
+      setSendingToTelegram(false);
+    }
+  };
 
   // Memoised because the fetching hook takes this as its effect dependency.
   const filters = useMemo(() => ({ status, limit: 200 }), [status]);
@@ -210,6 +242,21 @@ function AdvanceRequest() {
           </Flex>
         }
       >
+        {canApproveAdvanceRequest && (
+          <Flex justify="flex-end" mb="12px">
+            <Button
+              size="sm"
+              variant="outline"
+              colorScheme="purple"
+              leftIcon={<i className="fa fa-paper-plane" />}
+              isLoading={sendingToTelegram}
+              onClick={handleSendPending}
+            >
+              Send pending to Telegram
+            </Button>
+          </Flex>
+        )}
+
         {loading && (
           <Flex justify="center" py="40px">
             <Spinner colorScheme="purple" />
