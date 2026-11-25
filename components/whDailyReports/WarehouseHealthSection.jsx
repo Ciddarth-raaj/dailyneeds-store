@@ -73,6 +73,15 @@ const typeSplit = (types) =>
     .sort((a, b) => b.lines - a.lines)
     .map((t) => `${t.job_type} ${num(t.lines)}`)
     .join(" · ");
+/** "103506 · fortune 5l": the article id in front of every article's name (as in the PDF). */
+const artText = (a) => {
+  const id =
+    a && a.article_id != null && a.article_id !== ""
+      ? String(a.article_id)
+      : "";
+  const name = (a && a.article_name) || "";
+  return id && name ? `${id} · ${name}` : name || id || "Article";
+};
 /** Loaded-but-not-unloaded boxes that are not problems: damage / returns going back to the warehouse. */
 const NOT_A_PROBLEM = ["OPEN", "RETURN"];
 /** "1 not unloaded · 1 damage return" - the loaded-but-not-unloaded boxes by why. */
@@ -268,12 +277,7 @@ function GapTable({ list }) {
                           gap={3}
                           fontSize="sm"
                         >
-                          <Text>
-                            {it.article_name || "Article"}{" "}
-                            <Text as="span" color="gray.500">
-                              ({it.article_id})
-                            </Text>
-                          </Text>
+                          <Text>{artText(it)}</Text>
                           <Text whiteSpace="nowrap">
                             {num(it.qty)} qty · {rupees(it.value)}
                           </Text>
@@ -362,12 +366,7 @@ function ChainTable({ list, mode }) {
                           gap={3}
                           fontSize="sm"
                         >
-                          <Text>
-                            {it.article_name || "Article"}{" "}
-                            <Text as="span" color="gray.500">
-                              ({it.article_id})
-                            </Text>
-                          </Text>
+                          <Text>{artText(it)}</Text>
                           <Text whiteSpace="nowrap">
                             {num(it.qty)} qty · {rupees(it.value)}
                           </Text>
@@ -615,12 +614,7 @@ function WriteoffLines({ list, date }) {
             {shown.slice(0, 500).map((l, i) => (
               // eslint-disable-next-line react/no-array-index-key
               <Tr key={i}>
-                <Td minW="180px">
-                  {l.article_name || "Article"}{" "}
-                  <Text as="span" color="gray.500" fontSize="xs">
-                    ({l.article_id})
-                  </Text>
-                </Td>
+                <Td minW="180px">{artText(l)}</Td>
                 <Td whiteSpace="nowrap">
                   {title(l.from_store)} → {title(l.to_store)}
                 </Td>
@@ -732,7 +726,84 @@ function Detail({ open, h }) {
             {rupees(t.writeoff.packing_value)}
           </Text>
         )}
+        {t.writeoff.picked_zero && t.writeoff.picked_zero.lines > 0 && (
+          <Text fontSize="sm" color="red.700" mt={2}>
+            {plural(t.writeoff.picked_zero.lines, "line")} (
+            {num(t.writeoff.picked_zero.qty)} qty ·{" "}
+            {rupees(t.writeoff.picked_zero.value)}) had nothing picked at all
+            (picked 0).
+          </Text>
+        )}
         <WriteoffLines list={t.writeoff.list} date={h.date} />
+        {(t.writeoff.packing_list || []).length > 0 && (
+          <Box mt={5}>
+            <Text fontWeight="700" mb={2}>
+              Packing short · {plural(t.writeoff.packing_list.length, "line")}
+            </Text>
+            <SimpleTable
+              head={[
+                "Article",
+                "Type",
+                "From → To",
+                "Asked",
+                "Packed",
+                "Short",
+                "Value",
+                "Packed by",
+                "When",
+              ]}
+              rows={t.writeoff.packing_list.map((l) => [
+                artText(l),
+                l.job_type || "—",
+                `${title(l.from_store)} → ${title(l.to_store)}`,
+                l.asked_qty,
+                l.packed_qty,
+                l.short_qty,
+                rupees(l.value),
+                l.packer_name || "—",
+                l.finished_at || "—",
+              ])}
+            />
+          </Box>
+        )}
+      </Card>
+    );
+  }
+  if (open === "extras") {
+    const x = t.verification.extra || { lines: 0, list: [] };
+    return (
+      <Card>
+        <Text fontWeight="700" fontSize="lg" mb={1}>
+          Extras at stores - counted more than sent
+        </Text>
+        <Text fontSize="sm" color="gray.600" mb={3}>
+          {plural(x.lines, "line")} · {num(x.qty)} qty · {rupees(x.value)}.
+          Often a short from another store or box.
+        </Text>
+        <SimpleTable
+          head={[
+            "Article",
+            "Document",
+            "From → To",
+            "Sent",
+            "Counted",
+            "Extra",
+            "Value",
+            "Picked by",
+            "When",
+          ]}
+          rows={(x.list || []).map((l) => [
+            artText(l),
+            l.stage_id || "—",
+            `${title(l.from_store)} → ${title(l.to_store)}`,
+            l.sent_qty,
+            l.counted_qty,
+            l.extra_qty,
+            rupees(l.value),
+            l.picked_by || "—",
+            l.finished_at || "—",
+          ])}
+        />
       </Card>
     );
   }
@@ -822,7 +893,7 @@ function Detail({ open, h }) {
                 )}
               </Flex>,
               title(p.from_store),
-              p.article_name || p.article_id,
+              artText(p),
               p.qty,
               rupees(p.value),
             ])}
@@ -848,7 +919,7 @@ function Repeats({ rows }) {
       <SimpleTable
         head={["Item", "Days short", "Lines", "Value", "Stores"]}
         rows={rows.map((a) => [
-          a.article_name || a.article_id,
+          artText(a),
           a.days_short,
           a.lines,
           rupees(a.short_value),
@@ -924,9 +995,8 @@ function PickerTable({ rows }) {
                     {p.mistakes.map((m, i) => (
                       // eslint-disable-next-line react/no-array-index-key
                       <Text key={i} fontSize="sm">
-                        {dayText(m.date)} · {title(m.store)} ·{" "}
-                        {m.article_name || m.article_id} · {num(m.short_qty)}{" "}
-                        short · {rupees(m.value)}
+                        {dayText(m.date)} · {title(m.store)} · {artText(m)} ·{" "}
+                        {num(m.short_qty)} short · {rupees(m.value)}
                       </Text>
                     ))}
                   </Td>
@@ -1119,9 +1189,9 @@ function WaitingLines({ list, mode }) {
                 onClick={() => setOpenRow(openRow === i ? null : i)}
               >
                 <Td>
-                  {l.article_name || "Article"}{" "}
+                  {artText(l)}{" "}
                   <Text as="span" color="gray.500" fontSize="xs">
-                    ({l.article_id}) {openRow === i ? "▲" : "▼ trace"}
+                    {openRow === i ? "▲" : "▼ trace"}
                   </Text>
                 </Td>
                 <Td fontSize="xs">{l.stage_id || "—"}</Td>
@@ -1285,12 +1355,7 @@ function FoundShort({ gapKey, lost }) {
             {list.map((l, i) => (
               // eslint-disable-next-line react/no-array-index-key
               <Tr key={i} bg="red.50">
-                <Td minW="160px">
-                  {l.article_name || "Article"}{" "}
-                  <Text as="span" color="gray.500" fontSize="xs">
-                    ({l.article_id})
-                  </Text>
-                </Td>
+                <Td minW="160px">{artText(l)}</Td>
                 <Td fontSize="xs">{l.stage_id || "—"}</Td>
                 <Td whiteSpace="nowrap">
                   {title(l.from_store)} → {title(l.to_store)}
