@@ -95,7 +95,7 @@ function ArticleStoreMaster() {
           <Text color="gray.600">
             Every article from RetailPilot with its supplier, buyer, brand, department, category,
             subcategory, HSN, tax, units and stock at each store. Built automatically every
-            morning at 5:45 AM.
+            morning right after the 6:00 AM Stock &amp; Prices sync.
           </Text>
 
           <Text>
