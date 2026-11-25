@@ -94,7 +94,8 @@ function ArticleStoreMaster() {
         <Stack spacing={5}>
           <Text color="gray.600">
             Every article from RetailPilot with its supplier, buyer, brand, department, category,
-            subcategory, HSN, tax, units and stock at each store. Built automatically every
+            subcategory, HSN, tax, latest MRP, net cost and selling price, units and stock at
+            each store. Built automatically every
             morning right after the 6:00 AM Stock &amp; Prices sync.
           </Text>
 
