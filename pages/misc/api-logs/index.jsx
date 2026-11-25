@@ -350,7 +350,9 @@ export default function ApiLogsPage() {
         >
           <TabList>
             <Tab>Sync Jobs</Tab>
-            <Tab>Bulk Imports</Tab>
+            {/* The GoFrugal bulk feeds were removed; the tab shows only
+                if a bulk import is configured again. */}
+            {bulkTimeline.length > 0 && <Tab>Bulk Imports</Tab>}
           </TabList>
 
           <TabPanels>
@@ -368,19 +370,15 @@ export default function ApiLogsPage() {
               )}
             </TabPanel>
 
-            <TabPanel px={0}>
-              {loading && bulkTimeline.length === 0 ? (
-                <Text py={4} fontSize="sm" color="gray.500">
-                  Loading...
-                </Text>
-              ) : (
+            {bulkTimeline.length > 0 && (
+              <TabPanel px={0}>
                 <VStack align="stretch" spacing={2} mb={6}>
                   {bulkTimeline.map((item) => (
                     <SyncTimelineCard key={item.log_type} item={item} />
                   ))}
                 </VStack>
-              )}
-            </TabPanel>
+              </TabPanel>
+            )}
           </TabPanels>
         </Tabs>
 
