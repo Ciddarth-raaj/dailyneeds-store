@@ -312,12 +312,6 @@ const ALL_PAGES_MENU = {
     openPage: false,
     icon: "fa-dollar-sign",
     subMenu: {
-      view_job_worksheet: {
-        title: "Job Worksheet",
-        permission: "view_job_worksheet",
-        selected: false,
-        location: "/purchase/job-worksheet",
-      },
       view_purchase_return: {
         title: "Purchase Return",
         permission: "view_purchase_return",
