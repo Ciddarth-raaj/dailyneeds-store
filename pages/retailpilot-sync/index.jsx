@@ -81,6 +81,8 @@ function SyncCard({ sync, starting, onStart }) {
                   <Spinner size="xs" /> Running
                 </Flex>
               </Badge>
+            ) : sync.waiting_for ? (
+              <Badge colorScheme="orange">Waiting for {sync.waiting_for}</Badge>
             ) : null}
           </Flex>
           <Text fontSize="sm" color="gray.600">
@@ -96,7 +98,7 @@ function SyncCard({ sync, starting, onStart }) {
             colorScheme="purple"
             onClick={() => onStart(sync)}
             isLoading={starting}
-            isDisabled={sync.running}
+            isDisabled={sync.running || Boolean(sync.waiting_for)}
           >
             Sync now
           </Button>
