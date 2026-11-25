@@ -774,7 +774,7 @@ function Detail({ open, h }) {
     return (
       <Card>
         <Text fontWeight="700" fontSize="lg" mb={1}>
-          Boxes written off outside the app
+          Boxes written off at loading
         </Text>
         <Text fontSize="sm" color="gray.600" mb={3}>
           {plural(w.boxes, "box", "boxes")} · {num(w.qty)} qty ·{" "}
