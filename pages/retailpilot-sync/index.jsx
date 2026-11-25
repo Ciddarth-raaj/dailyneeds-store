@@ -60,7 +60,13 @@ function RunLine({ label, run }) {
 
 function SyncCard({ sync, starting, onStart }) {
   const allowed = usePermissions([sync.permission]);
-  const lastIsSuccess = sync.last_run && sync.last_success && sync.last_run.at === sync.last_success.at;
+  // The card leads with the schedule: the last run the schedule made and
+  // when it runs next. A manual "Sync now" is shown only when it is newer.
+  const scheduled = sync.last_scheduled;
+  const atOf = (run) => (run ? new Date(run.at).getTime() : 0);
+  const manualNewer = sync.last_run && sync.last_run.source !== "cron" && atOf(sync.last_run) > atOf(scheduled);
+  const newest = manualNewer ? sync.last_run : scheduled;
+  const showLastSuccess = sync.last_success && (!newest || newest.status !== "success");
   return (
     <Box borderWidth="1px" borderRadius="md" p={4} bg="white">
       <Flex justify="space-between" align="flex-start" gap={3}>
@@ -97,8 +103,17 @@ function SyncCard({ sync, starting, onStart }) {
         ) : null}
       </Flex>
       <VStack align="stretch" spacing={2} mt={3}>
-        <RunLine label="Last sync" run={sync.last_run} />
-        {lastIsSuccess ? null : <RunLine label="Last successful sync" run={sync.last_success} />}
+        <RunLine label="Last scheduled sync" run={scheduled} />
+        <Text fontSize="sm">
+          <Text as="span" fontWeight="semibold">
+            Next scheduled sync:
+          </Text>{" "}
+          {sync.next_run ? `${formatIstDateTime(sync.next_run)} (${moment(sync.next_run).fromNow()})` : "not scheduled"}
+        </Text>
+        {manualNewer ? <RunLine label="Last manual sync" run={sync.last_run} /> : null}
+        {showLastSuccess && atOf(sync.last_success) !== atOf(newest) ? (
+          <RunLine label="Last successful sync" run={sync.last_success} />
+        ) : null}
       </VStack>
     </Box>
   );
