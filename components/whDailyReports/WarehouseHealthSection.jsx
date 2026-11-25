@@ -877,14 +877,14 @@ function Detail({ open, h }) {
           {rupees(v.short_value)}). {plural(v.verified_lines, "line")} verified.
         </Text>
         <Text fontWeight="600" mb={2}>
-          Yet to verify
+          Yet to verify - verification not finished
         </Text>
         {!v.yet_to_verify.length && (
           <Text color="gray.500">Nothing waiting.</Text>
         )}
         {v.yet_to_verify.length > 0 && (
           <SimpleTable
-            head={["Where", "From", "Item", "Qty", "Value"]}
+            head={["Where", "From", "Item", "Sent", "Counted so far", "Value"]}
             rows={v.yet_to_verify.map((p) => [
               <Flex key="w" gap={2} align="center">
                 {title(p.to_store)}
@@ -895,6 +895,7 @@ function Detail({ open, h }) {
               title(p.from_store),
               artText(p),
               p.qty,
+              p.counted_qty == null ? "—" : p.counted_qty,
               rupees(p.value),
             ])}
           />
