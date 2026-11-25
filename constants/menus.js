@@ -254,18 +254,6 @@ const ALL_PAGES_MENU = {
         selected: false,
         location: "/accounts/bank-check",
       },
-      view_purchase_order: {
-        title: "All Purchases",
-        permission: "view_purchases",
-        selected: false,
-        location: "/purchase",
-      },
-      view_purchases_difference: {
-        title: "Difference",
-        permission: "view_purchases_difference",
-        selected: false,
-        location: "/purchase/difference",
-      },
     },
   },
   reconcilation: {
@@ -320,21 +308,35 @@ const ALL_PAGES_MENU = {
       },
     },
   },
-  debit_note: {
-    title: "Debit Note",
+  // Everything posted to Tally: purchases and debit notes, each with the
+  // page comparing DNDS with what Tally holds.
+  tally_sync: {
+    title: "Tally Sync",
     selected: false,
     openPage: false,
     belowLine: true,
     icon: "fa-money-bill-alt",
     subMenu: {
       view_purchase_order: {
+        title: "All Purchases",
+        permission: "view_purchases",
+        selected: false,
+        location: "/purchase",
+      },
+      view_purchases_difference: {
+        title: "Purchase Difference",
+        permission: "view_purchases_difference",
+        selected: false,
+        location: "/purchase/difference",
+      },
+      view_debit_note: {
         title: "All Debit Notes",
         permission: "view_debit_note",
         selected: false,
         location: "/debit-note",
       },
       view_debit_note_difference: {
-        title: "Difference",
+        title: "Debit Note Difference",
         permission: "view_debit_note_difference",
         selected: false,
         location: "/debit-note/difference",
