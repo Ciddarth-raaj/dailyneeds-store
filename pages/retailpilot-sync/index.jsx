@@ -8,7 +8,7 @@ import usePermissions from "../../customHooks/usePermissions";
 import retailPilotSync from "../../helper/retailPilotSync";
 import { formatIstDateTime } from "../../util/apiSyncCron";
 
-const PAGE_PERMISSIONS = ["sync_retailpilot_stock", "allow_product_sync", "sync_retailpilot_purchases"];
+const PAGE_PERMISSIONS = ["sync_retailpilot_stock", "allow_product_sync", "sync_retailpilot_purchases", "add_product_distributor"];
 const STATUS_COLORS = { success: "green", failed: "red" };
 
 function formatDuration(ms) {
