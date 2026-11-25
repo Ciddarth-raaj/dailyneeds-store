@@ -769,6 +769,41 @@ function Detail({ open, h }) {
       </Card>
     );
   }
+  if (open === "writeoff_boxes") {
+    const w = t.writeoff_boxes || { boxes: 0, list: [] };
+    return (
+      <Card>
+        <Text fontWeight="700" fontSize="lg" mb={1}>
+          Boxes written off outside the app
+        </Text>
+        <Text fontSize="sm" color="gray.600" mb={3}>
+          {plural(w.boxes, "box", "boxes")} · {num(w.qty)} qty ·{" "}
+          {rupees(w.value)}. The loading job ended LOADING_WRITEOFF in
+          RetailPilot - trace the box and escalate to tech.
+        </Text>
+        <SimpleTable
+          head={[
+            "Box",
+            "Article",
+            "Document",
+            "From → To",
+            "Qty",
+            "Value",
+            "When",
+          ]}
+          rows={(w.list || []).map((x) => [
+            x.box_id,
+            artText(x),
+            x.stage_id || "—",
+            `${title(x.from_store)} → ${title(x.to_store)}`,
+            x.qty,
+            rupees(x.value),
+            x.finished_at || "—",
+          ])}
+        />
+      </Card>
+    );
+  }
   if (open === "extras") {
     const x = t.verification.extra || { lines: 0, list: [] };
     return (
