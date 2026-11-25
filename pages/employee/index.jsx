@@ -1,113 +1,48 @@
-import React, { useEffect, useRef } from "react";
+import { useEffect } from "react";
+import { useRouter } from "next/router";
+import { Spinner, Stack, Text } from "@chakra-ui/react";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../components/CustomContainer";
-import { Button } from "@chakra-ui/button";
-import useEmployees from "../../customHooks/useEmployees";
-import { Flex, Text } from "@chakra-ui/react";
-import AgGrid from "../../components/AgGrid";
-import moment from "moment";
 
-function EmployeeIndex() {
-  const { employees, handleSync } = useEmployees();
-
-  const colDefs = [
-    {
-      field: "employee_id",
-      headerName: "ID",
-      type: "id",
-    },
-    {
-      field: "employee_name",
-      headerName: "Name",
-      type: "capitalized",
-    },
-    {
-      field: "designation_name",
-      headerName: "Designation",
-      type: "capitalized",
-    },
-    {
-      field: "primary_contact_number",
-      headerName: "Mobile",
-    },
-    {
-      field: "store_name",
-      headerName: "Branch",
-      type: "capitalized",
-    },
-    {
-      field: "department_name",
-      headerName: "Department",
-      type: "capitalized",
-    },
-    {
-      field: "shift_code",
-      headerName: "Shift",
-    },
-    {
-      field: "status",
-      headerName: "Status",
-      type: "badge-column",
-      valueGetter: (props) =>
-        props.data.status === 1
-          ? { label: "Active", colorScheme: "green" }
-          : { label: "Terminated", colorScheme: "red" },
-    },
-  ];
-
-  const getLastSynced = () => {
-    const sorted = employees.sort(
-      (a, b) => new Date(b.updated_at) - new Date(a.updated_at)
-    );
-
-    if (sorted.length > 0) {
-      return (
-        <Text fontSize="sm" color="purple.700">{`Last Sync - ${moment(
-          sorted[0].updated_at
-        ).fromNow()}`}</Text>
-      );
-    }
-
-    return "";
-  };
-
-  const gridRef = useRef(null);
+/**
+ * Stage 0C / C3 — compatibility redirect.
+ *
+ * The employee master is /hr/employees now. This page used to be a second
+ * employee list with its own Sync button, and both of those are gone:
+ *
+ *   ONE LIST. Two employee lists in the navigation is how two employee
+ *   masters begin, and C1/C2 exist precisely so there is one permanent
+ *   employee record per person.
+ *
+ *   NO SYNC. The Sync button and the "Last Sync" line described a world where
+ *   Digisme owned the employee master and dnds.co.in displayed a copy. That
+ *   is no longer true: employees are created, edited, resigned and rejoined
+ *   HERE. A button offering to re-pull them from elsewhere is now, at best,
+ *   misleading about which system is authoritative.
+ *
+ * The route itself stays so that bookmarks, links in old Telegram messages
+ * and anyone's muscle memory keep working. `replace` rather than `push`, so
+ * Back does not bounce the user straight back here.
+ */
+function EmployeeIndexRedirect() {
+  const router = useRouter();
 
   useEffect(() => {
-    if (gridRef.current?.api && Array.isArray(employees)) {
-      const existing = gridRef.current.api.getFilterModel();
-      if (!existing || !existing.status) {
-        gridRef.current.api.setFilterModel({
-          status: { filterType: "number", type: "equals", filter: 1 },
-        });
-        gridRef.current.api.onFilterChanged();
-      }
-    }
-  }, [employees]);
+    router.replace("/hr/employees");
+  }, [router]);
 
   return (
-    <GlobalWrapper title="Employee">
-      <CustomContainer
-        title="Employee"
-        filledHeader
-        rightSection={
-          <Flex gap="12px" alignItems="center">
-            {/* <Button colorScheme="whiteAlpha" onClick={handleExport}>
-              Export
-            </Button> */}
-
-            {getLastSynced()}
-
-            <Button colorScheme="purple" size="sm" onClick={handleSync}>
-              Sync
-            </Button>
-          </Flex>
-        }
-      >
-        <AgGrid ref={gridRef} rowData={employees} columnDefs={colDefs} />
+    <GlobalWrapper title="Employees">
+      <CustomContainer title="Employees" filledHeader>
+        <Stack align="center" py={10} spacing={3}>
+          <Spinner />
+          <Text fontSize="sm" color="gray.600">
+            Employees have moved to HR. Taking you there…
+          </Text>
+        </Stack>
       </CustomContainer>
     </GlobalWrapper>
   );
 }
 
-export default EmployeeIndex;
+export default EmployeeIndexRedirect;

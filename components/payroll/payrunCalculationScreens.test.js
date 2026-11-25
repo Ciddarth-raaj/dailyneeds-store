@@ -1,0 +1,1176 @@
+/**
+ * Payrun Calculation & Review - the screen is wired to the real contract.
+ *
+ *   node --test components/payroll/payrunCalculationScreens.test.js
+ *
+ * There is no React test runner in this repo, so the screen is checked as
+ * SOURCE, the way `payrunScreens.test.js` and `payrunAdjustmentScreens.test.js`
+ * check the two stages before it. That is weaker than rendering it, and it
+ * catches the failures that actually happen here:
+ *
+ *   a screen calling an endpoint the backend does not declare
+ *   a browser computing a payroll figure - a rate, a PF, a net pay
+ *   a browser deciding a status, a blocker or who is ready
+ *   an "approve all" that sends the ids a stale screen believes are ready
+ *   an approval offered without the approval permission
+ *   a stage that renders a table with no mobile layout
+ *   an affordance for a payslip stage that does not exist
+ *
+ * The RULES behind this screen are pure modules and are proved properly in
+ * `util/payrunCalculationRules.test.js`.
+ */
+const test = require("node:test");
+const assert = require("node:assert");
+const fs = require("fs");
+const path = require("path");
+
+const ROOT = path.join(__dirname, "..", "..");
+const read = (p) => fs.readFileSync(path.join(ROOT, p), "utf8");
+/** Comments may NAME something to explain why it is absent; code may not. */
+const codeOf = (src) => src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+
+const helper = read("helper/payrunCalculation.js");
+const helperCode = codeOf(helper);
+const rules = read("util/payrunCalculation.js");
+const rulesCode = codeOf(rules);
+const access = read("util/payrunAccess.js");
+const workflow = read("components/payroll/calculation/PayrunCalculation.jsx");
+const workflowCode = codeOf(workflow);
+const list = read("components/payroll/calculation/CalculationEmployeeList.jsx");
+const listCode = codeOf(list);
+const breakup = read("components/payroll/calculation/CalculationBreakup.jsx");
+const breakupCode = codeOf(breakup);
+const hook = codeOf(read("customHooks/usePayrunCalculationMonth.js"));
+const page = read("pages/payroll/payrun.jsx");
+const pageCode = codeOf(page);
+const presentationCode = codeOf(read("components/payroll/payrunPresentation.jsx"));
+const payTypeActionCode = codeOf(read("util/payrunPayType.js"));
+
+const SCREEN_CODE = [workflowCode, listCode, breakupCode, rulesCode, hook].join("\n");
+
+/* ======================================== the endpoints the backend declares */
+
+test("every call the browser makes is an endpoint the backend declares", () => {
+  const backendRoutes = fs.readFileSync(
+    path.join(ROOT, "..", "dailyneeds-store-backend", "routes", "payrun_calculation.js"),
+    "utf8"
+  );
+  const declared = [...backendRoutes.matchAll(/"(\/payrun\/calculation[^"]*)"/g)].map((m) => m[1]);
+  const called = [...helperCode.matchAll(/"(\/payrun\/calculation[^"]*)"/g)].map((m) => m[1]);
+
+  assert.ok(called.length >= 6, `expected the whole surface, found ${called.length}`);
+  for (const url of called) {
+    assert.ok(declared.includes(url), `the backend does not declare ${url}`);
+  }
+});
+
+test("nothing else in the browser talks to /payrun/calculation", () => {
+  for (const [name, source] of [
+    ["the workflow", workflowCode],
+    ["the list", listCode],
+    ["the breakup", breakupCode],
+    ["the rules", rulesCode],
+  ]) {
+    assert.ok(!/API\.(get|post|request)/.test(source), `${name} calls the API directly`);
+  }
+});
+
+/* ============================================== the browser decides nothing */
+
+/**
+ * NOT ONE PAYROLL FIGURE IS COMPUTED IN A BROWSER. This is the single most
+ * important assertion in the file: a second implementation of a rate, a
+ * contribution or a net pay on a screen whose purpose is to show what somebody
+ * is about to be paid is a second answer, and it is the one people believe.
+ */
+test("no payroll arithmetic exists anywhere in the screen", () => {
+  for (const forbidden of [
+    /\/\s*26\b/,          // the daily rate
+    /\/\s*60\b/,          // OT hours from minutes
+    /12\s*\/\s*100|0\.12/, // the PF rate
+    /0\.0075/,            // the ESI employee rate
+    /3\.25|0\.0325/,      // and the employer's
+  ]) {
+    assert.ok(!forbidden.test(SCREEN_CODE), `the screen computes something: ${forbidden}`);
+  }
+  for (const word of ["pf_wage =", "net_pay =", "ot_hourly_rate =", "esi_wage ="]) {
+    assert.ok(!SCREEN_CODE.includes(word), `the screen assigns ${word}`);
+  }
+});
+
+/**
+ * THE STATUS IS THE SERVER'S VERDICT. The browser mirrors the five values so it
+ * can compare them; it must never DERIVE one from the figures on a row, which
+ * would be a second copy of the state machine - and the copy would be the one
+ * that lets somebody approve a stale month.
+ */
+test("the browser never derives a status, a blocker or a readiness", () => {
+  assert.ok(
+    /row\.status/.test(rulesCode),
+    "the rules read the server's status"
+  );
+  for (const forbidden of [
+    "derivedStatus",
+    "computeStatus",
+    "isReady(",
+    "blockers.push",
+    "recalculation_reasons.push",
+  ]) {
+    assert.ok(!SCREEN_CODE.includes(forbidden), `the screen derives ${forbidden}`);
+  }
+});
+
+/** The labels on the badges are the server's words, not a lookup in a browser. */
+test("status labels and reasons are rendered from the server's strings", () => {
+  assert.ok(listCode.includes("row.status_label"));
+  assert.ok(listCode.includes("reason.label"));
+  assert.ok(breakupCode.includes("reason.message"));
+  assert.ok(
+    !/STATUS_LABEL\s*=/.test(SCREEN_CODE),
+    "the browser must not keep its own label table"
+  );
+});
+
+/* =================================================== the bulk actions */
+
+/**
+ * "CALCULATE ALL ELIGIBLE" AND "APPROVE ALL READY" SEND NO ID LIST. Who
+ * qualifies is re-decided by the server at the moment of the request; sending
+ * the ids this screen believes qualify would act on a month that may be minutes
+ * old - an OT approval could have landed, or a colleague could have approved
+ * somebody already. They send the LIST'S FILTERS with the flag, so the
+ * server's "all" is all of what the screen was listing.
+ */
+test("the select-all actions send a flag and the list's filters, never a list of ids", () => {
+  assert.ok(helperCode.includes("all_eligible: true"));
+  assert.ok(helperCode.includes("all_ready: true"));
+  assert.ok(workflowCode.includes("{ all: true }"));
+  assert.match(
+    helperCode,
+    /all_eligible\s*\?\s*\{\s*all_eligible:\s*true,\s*\.\.\.listFilters\(filters\)\s*\}\s*:\s*\{\s*employee_ids\s*\}/,
+    "a bulk call must send one or the other, never both"
+  );
+  assert.match(
+    helperCode,
+    /const LIST_FILTER_KEYS = \["store_ids", "department_id", "designation_id", "card", "status", "search"\];/
+  );
+  assert.ok(!/LIST_FILTER_KEYS[^\n]*employee_ids/.test(helperCode), "a filter is never a list of ids");
+});
+
+/** A selection is narrowed per action rather than posted whole to each. */
+test("a mixed selection is narrowed before it is sent", () => {
+  assert.ok(workflowCode.includes("eligibleWithin(rows, selectedIds, isRecalculable)"));
+  assert.ok(workflowCode.includes("eligibleWithin(rows, selectedIds, isApprovable)"));
+});
+
+/**
+ * THE FOUR ACTIONS THE STAGE IS SPECIFIED TO HAVE, all present and all
+ * labelled with what they would touch.
+ */
+test("the four actions are on the screen", () => {
+  for (const label of [
+    "Calculate All Eligible",
+    "Recalculate Selected",
+    "Approve Selected",
+    "Approve All Ready",
+  ]) {
+    assert.ok(workflow.includes(label), `missing the ${label} action`);
+  }
+});
+
+/* ======================================================== the permissions */
+
+test("approving is its own permission and is not implied by calculating", () => {
+  assert.ok(access.includes("approve_payrun"));
+  assert.ok(access.includes("canApprovePayrun"));
+  assert.ok(access.includes("canCalculatePayrun"));
+  assert.ok(
+    !/canApprovePayrun[\s\S]{0,400}process_payroll/.test(access),
+    "approving must not be granted by the calculate key"
+  );
+});
+
+test("every action is disabled without its key, and in a locked month", () => {
+  /* A bulk action without its key, or in a locked month, is not offered at all. */
+  assert.ok(workflowCode.includes("const writable = !monthLocked;"));
+  assert.ok(workflowCode.includes("mayCalculate && writable && eligibleCount > 0"));
+  assert.ok(workflowCode.includes("mayApprove && writable && readyCount > 0"));
+  assert.ok(pageCode.includes("canApprovePayrun(actor)"));
+  assert.ok(pageCode.includes("canCalculatePayrun(actor)"));
+});
+
+/**
+ * THE APPROVAL DIALOG IS NOT OPTIONAL. Approving is the one act in this
+ * feature that cannot be taken back, so it is always behind a confirmation
+ * that says what it locks.
+ */
+test("approving always confirms first", () => {
+  assert.ok(workflowCode.includes("approveMessage("));
+  assert.ok(workflowCode.includes("window.confirm"));
+});
+
+/* ================================================== the stale-figure rule */
+
+/**
+ * OPENING OR REFRESHING THE SCREEN CALCULATES NOBODY. A screen that quietly
+ * refreshed a stale employee would be the silent mutation the whole payrun
+ * design exists to prevent, and it would do it at the moment somebody was
+ * about to approve them.
+ */
+test("nothing on the screen calculates or recalculates on load", () => {
+  assert.ok(
+    !/useEffect\([^)]*\)\s*=>\s*\{[^}]*(calculate|recalculate)\(/.test(workflowCode),
+    "an effect triggers a calculation"
+  );
+  assert.ok(!hook.includes("calculate("), "the hook must only read");
+  assert.ok(hook.includes("getMonth"), "the hook reads the month");
+});
+
+/** The stale warning is shown ABOVE the figures it applies to. */
+test("a stale calculation is warned about where the figures are read", () => {
+  assert.ok(breakupCode.includes("recalculation_reasons"));
+  assert.ok(breakup.includes("A source has changed since"));
+  assert.ok(listCode.includes("recalculation_reasons"));
+});
+
+/* ============================================ the breakup the spec asks for */
+
+test("the employee detail shows the whole specified breakup", () => {
+  for (const label of [
+    "Monthly Gross", "Daily Rate", "Salary Days", "Salary Earnings",
+    "Missing Hours", "Missing Hours Deduction", "Extra Days", "Extra Day Amount",
+    "Approved OT Hours", "Effective NRM", "OT Hourly Rate", "OT Amount",
+    "Incentive", "Bonus", "Arrears", "Advance Recovery", "Shortage Recovery",
+    "Balance Advance (Informational)",
+    "PF Wage", "Employee PF", "Employer EPF", "Employer EPS",
+    "ESI Wage", "Employee ESI", "Employer ESI",
+    "Total Earnings", "Total Employee Deductions", "Net Pay", "Pay Type",
+  ]) {
+    assert.ok(breakup.includes(label), `the breakup is missing ${label}`);
+  }
+});
+
+/**
+ * THE BALANCE ADVANCE IS DRAWN AS INFORMATIONAL AND APART FROM THE
+ * DEDUCTIONS. Printing it beside two real deductions without saying so is how
+ * somebody reads it as a third one.
+ */
+test("the Balance Advance is labelled informational and is in no total", () => {
+  assert.ok(breakup.includes("Balance Advance (Informational)"));
+  assert.ok(breakup.includes("It changes no figure"));
+  assert.ok(
+    !/total[\s\S]{0,80}balance_advance/i.test(breakupCode),
+    "the Balance Advance must not reach a total"
+  );
+});
+
+/** The compact list carries exactly the columns the stage is specified with. */
+test("the list shows the compact columns", () => {
+  for (const column of [
+    "Employee", "Salary Days", "Extra Days", "Approved OT", "Additions",
+    "Deductions", "PF", "ESI", "Net Pay", "Pay Type", "Status",
+  ]) {
+    assert.ok(list.includes(`<Th`) && list.includes(column), `missing the ${column} column`);
+  }
+});
+
+/* ==================================================== mobile and the stage */
+
+/**
+ * A TABLE WITH NO MOBILE LAYOUT IS THE FAILURE THIS ASSERTION EXISTS FOR. On a
+ * phone the thirteenth column - the actions - is off the right-hand edge
+ * behind a scroll nobody performs.
+ */
+test("the list has a responsive card layout, at the payroll breakpoint", () => {
+  assert.ok(listCode.includes("useBreakpointValue"));
+  assert.ok(/base:\s*true,\s*md:\s*false/.test(listCode));
+  assert.ok(listCode.includes("CalculationCard"));
+});
+
+test("the stage is a step of the payrun and not a menu entry of its own", () => {
+  assert.ok(pageCode.includes("CALCULATION: \"CALCULATION\""));
+  assert.ok(page.includes("Calculation & Review"));
+  assert.ok(pageCode.includes("<PayrunCalculation"));
+  // It receives the month chosen once at the top, never its own month picker.
+  assert.ok(!workflowCode.includes("MONTH_NAMES"), "the stage must not pick its own month");
+  assert.ok(/year=\{year\}/.test(page) && /month=\{month\}/.test(page));
+});
+
+/**
+ * NO PAYSLIP AFFORDANCE. Generating and publishing payslips is the next stage
+ * and is not built; a button for it would be a promise the system cannot keep.
+ */
+test("there is no payslip-generation affordance - Publish releases, Download exports, neither generates", () => {
+  /* Publishing freezes a payslip; Download Payslips exports the PUBLISHED ones
+     through the server's export endpoints. Nothing on this screen builds one. */
+  assert.ok(workflowCode.includes("<PayslipExportModal"));
+  for (const forbidden of ["Generate Payslip"]) {
+    assert.ok(
+      !workflowCode.includes(forbidden) &&
+        !listCode.includes(forbidden) &&
+        !breakupCode.includes(forbidden),
+      `the screen offers ${forbidden}, which is not built`
+    );
+  }
+});
+
+/* =================================== the two rules the review pass corrected */
+
+/**
+ * OT ACROSS MORE THAN ONE NRM IS SHOWN AS A BREAKDOWN, NOT AS ONE RATE.
+ *
+ * The server reports no single rate when the overtime was worked against
+ * several NRMs, so a screen that printed one anyway would be inventing a
+ * figure that priced none of the money.
+ */
+test("the breakup shows the OT group breakdown when there is more than one NRM", () => {
+  assert.ok(breakupCode.includes("ot_groups"));
+  assert.ok(/otGroups\.length > 1/.test(breakupCode), "it branches on the number of groups");
+  assert.ok(breakup.includes("more than one NRM"), "and says why there is no single rate");
+  // The single-NRM month still shows the simple NRM and hourly rate.
+  assert.ok(breakupCode.includes("Effective NRM"));
+  assert.ok(breakupCode.includes("OT Hourly Rate"));
+});
+
+test("the browser neither groups nor prices the overtime itself", () => {
+  for (const forbidden of ["reduce(", "nrm_minutes /", "/ 60", "approved_ot_minutes *"]) {
+    assert.ok(
+      !breakupCode.includes(forbidden),
+      `the breakup computes something about OT: ${forbidden}`
+    );
+  }
+});
+
+/**
+ * AND THE CONTRIBUTION-PERIOD ANSWER IS SHOWN WHERE THE CONTRIBUTION IS READ.
+ * A contribution charged on a wage above the ESI ceiling is correct when
+ * coverage continues from the period's entry, and somebody reviewing it should
+ * not have to take that on trust.
+ */
+test("the breakup explains a continuing ESI contribution period", () => {
+  assert.ok(breakupCode.includes("esi_contribution_period_continues"));
+  assert.ok(breakupCode.includes("esi_period_start"));
+  assert.ok(breakupCode.includes("esi_coverage_entry_date"));
+  assert.ok(breakup.includes("coverage continues"));
+  assert.ok(
+    !breakupCode.includes("21000"),
+    "the browser must not hold the ESI ceiling"
+  );
+});
+
+/** A failed read and an empty month are told apart. */
+test("a failed read is not rendered as an empty month", () => {
+  assert.ok(workflow.includes("it does not mean there is nothing to"));
+  assert.ok(workflowCode.includes("denied"));
+  assert.ok(workflowCode.includes("loaded && rows.length === 0"));
+});
+
+/** The summary is the server's and is never recounted in the browser. */
+test("the summary cards' counts come from the server", () => {
+  const { CALCULATION_CARDS } = require("../../util/payrunTabs");
+  for (const label of [
+    "All Employees",
+    "Attendance Needs Action",
+    "Not Calculated",
+    "Calculated",
+    "Calculated, Not Ready",
+    "Recalculation Required",
+    "Ready for Approval",
+    "Approved & Locked",
+    "Payslip Published",
+  ]) {
+    assert.ok(CALCULATION_CARDS.some((c) => c.label === label), `missing the ${label} card`);
+  }
+  assert.match(workflowCode, /const cardCount = \(key\) => tabCount\("CALCULATION", key, summary\);/);
+  assert.ok(!hook.includes("rows.filter("), "the hook must not recount the summary");
+});
+
+
+/* ============================================ the monthly pay type, here too */
+
+/**
+ * PAY TYPE IS EDITABLE ON THIS SCREEN, AND IT IS THE SAME CONTROL, THE SAME
+ * ENDPOINT AND THE SAME PERMISSION AS ON INITIALIZATION.
+ *
+ * WHY IT BELONGS HERE. Whoever is reading what an employee will actually be
+ * paid is the person who notices that it has to go out in cash. Showing the
+ * value but refusing to change it meant walking back a stage and forward
+ * again, which is how a month goes out on the wrong route.
+ *
+ * WHAT THESE PROVE, SOURCE-WISE: that this screen invented no second control,
+ * no second endpoint and no second rule about when a pay type may move.
+ */
+test("Calculation & Review draws the SHARED pay type control, not one of its own", () => {
+  assert.match(listCode, /import \{ PayTypeControl \} from "\.\.\/payrunPresentation"/);
+  // No select of its own anywhere in this stage.
+  assert.ok(
+    !/<Select[\s\S]*?value=\{row\.pay_type\}/.test(listCode),
+    "the calculation list must not draw its own pay type select"
+  );
+  // Both layouts render the same cell, so the phone and the desktop cannot
+  // disagree about who may change a pay type.
+  assert.ok(
+    (listCode.match(/<PayTypeCell \{\.\.\.props\} row=\{row\} \/>/g) || []).length === 2,
+    "the table and the card must render the same pay type cell"
+  );
+});
+
+test("it reuses the existing endpoint and the existing permission", () => {
+  // The change goes through the one shared module, which posts to the one
+  // existing route. This screen's own helper gains nothing.
+  assert.match(workflowCode, /changeMonthlyPayType\(/);
+  assert.ok(
+    !/pay-type/.test(helperCode),
+    "the calculation helper must not grow a second pay type call"
+  );
+  assert.match(payTypeActionCode, /PayrunHelper\.setPayType/);
+  // The permission is the initialization screen's key, passed down, never
+  // decided here.
+  assert.match(pageCode, /mayChangePayType=\{mayChangePayType\}/);
+  assert.match(workflowCode, /canChangePayType=\{mayChangePayType && !monthLocked\}/);
+  assert.ok(
+    !/change_payrun_pay_type/.test(workflowCode + listCode),
+    "the permission string belongs in util/payrunAccess.js, not on a screen"
+  );
+});
+
+test("a locked employee's pay type is read-only", () => {
+  assert.match(listCode, /editable=\{!isLocked\(row\)\}/);
+  assert.match(listCode, /approved and locked/);
+  // And the shared control renders a word rather than a select when it is not
+  // editable - proved over the module both screens use.
+  assert.match(presentationCode, /if \(mayEdit\)/);
+  assert.match(presentationCode, /<Tooltip label=\{reason\}>/);
+});
+
+test("changing it refreshes the month, so the stale status shows immediately", () => {
+  const handler = workflowCode.slice(
+    workflowCode.indexOf("const changePayType"),
+    workflowCode.indexOf("const openDetail")
+  );
+  assert.match(handler, /if \(ok\) await refresh\(\)/);
+  assert.match(handler, /setBusyEmployeeId\(employeeId\)/);
+  // The RECALCULATION REQUIRED status is the server's, arrived at through its
+  // own inputs hash - this screen computes nothing about it.
+  assert.ok(
+    !/RECALCULATION_REQUIRED\s*[:=]/.test(handler),
+    "the browser must not decide that a calculation went stale"
+  );
+  /* The stage offers a RECALCULATION REQUIRED queue - through the shared tab
+     list since the filter selects became tabs, which is where that status now
+     lives. The point of the assertion is unchanged: the screen surfaces the
+     server's status and derives none of its own. */
+  const { CALCULATION_TABS: queues } = require("../../util/payrunTabs");
+  assert.ok(queues.some((t) => t.card === "RECALCULATION_REQUIRED"));
+});
+
+/* ================== a provisional figure is not presented as a result ==== */
+
+/**
+ * THE SEPTEMBER 2026 FAILURE: the screen read CALCULATED, Salary Days 0, Net
+ * Pay 0.00 for an employee whose attendance month had never been settled -
+ * every one of those zeroes being arithmetic on a month that does not exist.
+ *
+ * THE FIX IS THE SERVER'S AND THE SCREEN'S TOGETHER, and the division is the
+ * thing these tests hold. The SERVER decides - it sends ATTENDANCE_PENDING and
+ * sends the attendance-dependent figures as null. The SCREEN renders an absent
+ * figure as an em dash, which it already did, and says why. What the screen
+ * must never do is decide for itself which figures to blank: that would be a
+ * second copy of the rule, in the place where it is hardest to see it drift.
+ */
+test("the browser does not decide which figures are provisional", () => {
+  /*
+   * No branch anywhere in the screen turns a figure into a dash BECAUSE of the
+   * pending flag. The flag may be read to render an explanation - and is, in
+   * the drawer - but a `attendance_pending ? null : row.net_pay` here would be
+   * the browser suppressing a payroll figure on its own authority.
+   */
+  for (const [name, source] of [
+    ["the list", listCode],
+    ["the workflow", workflowCode],
+    ["the rules", rulesCode],
+  ]) {
+    assert.ok(
+      !/attendance_pending\s*[?&|]/.test(source),
+      `${name} branches figures on attendance_pending`
+    );
+  }
+  assert.ok(
+    !/attendance_pending/.test(rulesCode),
+    "the pure rules module has no business knowing about the flag"
+  );
+});
+
+/**
+ * AND AN ABSENT FIGURE RENDERS AS A DASH RATHER THAN AS A ZERO, in both
+ * layouts and in the drawer. This is the mechanism the suppression relies on:
+ * if any of these fell back to 0, the server sending null would put the bug
+ * straight back.
+ */
+test("an absent figure is an em dash everywhere it can appear", () => {
+  /* The list's two helpers, and the net pay it formats inline. */
+  assert.match(listCode, /const count = \(value\) =>\s*\(value === null \|\| value === undefined \? "—"/);
+  assert.match(listCode, /text === null \? "—"/);
+  assert.match(listCode, /formatMoney\(row\.net_pay\) === null \? "—"/);
+
+  /* The drawer's two, and its Line component. */
+  assert.match(breakupCode, /const money = \(value\) => \{[\s\S]*?text === null \? "—"/);
+  assert.match(breakupCode, /const numberOrDash = \(value\) =>\s*value === null \|\| value === undefined \? "—"/);
+  assert.match(breakupCode, /text === null \|\| text === undefined \|\| text === "" \? "—"/);
+
+  /* And no "|| 0" fallback creeps in where a figure is rendered. */
+  for (const forbidden of [
+    "row.net_pay || 0",
+    "row.salary_days || 0",
+    "row.employee_pf || 0",
+    "row.employee_esi || 0",
+  ]) {
+    assert.ok(!SCREEN_CODE.includes(forbidden), `the screen falls back to a zero: ${forbidden}`);
+  }
+});
+
+test("the drawer says why the figures are dashes", () => {
+  assert.match(breakupCode, /employee\.attendance_pending/);
+  assert.match(breakup, /Attendance for this month is not settled yet/);
+  /* And it does not claim an NRM source the server did not resolve. */
+  assert.match(breakupCode, /if \(!source\) return null;/);
+});
+
+test("the month is summarised and filtered by attendance, now called Attendance Needs Action", () => {
+  /* A card of its own, filtered and counted by the SERVER's
+     `attendance_needs_action` - which overlaps the payroll status. */
+  const { CALCULATION_TABS: queues } = require("../../util/payrunTabs");
+  const card = queues.find((t) => t.card === "ATTENDANCE_NEEDS_ACTION");
+  assert.ok(card);
+  assert.equal(card.label, "Attendance Needs Action");
+  assert.ok(!/Attendance Pending/.test(workflow + JSON.stringify(queues)), "the old wording is gone");
+  /* It is its own card, not folded into the calculated one. */
+  assert.ok(
+    !/calculated \+ summary\.attendance_pending/.test(workflowCode),
+    "attendance pending must not be counted as calculated"
+  );
+  /* The hook's fallback summary carries it too, so a failed read shows 0
+     rather than NaN in that card. */
+  assert.match(hook, /attendance_pending: 0/);
+});
+
+/**
+ * THE APPROVAL GATE IS UNCHANGED BY ANY OF THIS. The new status is a way of
+ * describing a row, never a way of acting on one, and Approve is still offered
+ * on exactly one status.
+ */
+test("the new status opens no path to approval", () => {
+  const isApprovable = rulesCode.match(/const isApprovable = [\s\S]*?;\n/);
+  assert.ok(isApprovable, "isApprovable is not where it was");
+  assert.match(isApprovable[0], /STATUS\.READY_FOR_APPROVAL/);
+  /* One status and one only. Naming a second here is the whole of how a gate
+     like this gets widened by accident. */
+  const named = [...isApprovable[0].matchAll(/STATUS\.([A-Z_]+)/g)].map((m) => m[1]);
+  assert.deepEqual(named, ["READY_FOR_APPROVAL"]);
+});
+
+/* ===================== the payrun workflow: tabs, search, close ========== */
+
+const fs2 = require("fs");
+const path2 = require("path");
+const readRoot = (p) => fs2.readFileSync(path2.join(ROOT, p), "utf8");
+
+const pageCode2 = codeOf(readRoot("pages/payroll/payrun.jsx"));
+const adjustmentsCode = codeOf(readRoot("components/payroll/adjustments/PayrunAdjustments.jsx"));
+const tabsComponent = readRoot("components/payroll/PayrunTabs.jsx");
+const drawerSrc = readRoot("components/payroll/AttendancePendingDrawer.jsx");
+const drawerCode = codeOf(drawerSrc);
+const payrunHelper = codeOf(readRoot("helper/payrun.js"));
+const accessCode = codeOf(readRoot("util/payrunAccess.js"));
+const tableCode = codeOf(readRoot("components/payroll/PayrunTable.jsx"));
+const cardCode = codeOf(readRoot("components/payroll/PayrunEmployeeCard.jsx"));
+
+/* ------------------------------ 22-25: search across all three stages --- */
+
+test("the search is typed once, at the top, and reaches every stage", () => {
+  /* One input, on the shared header, beside the month and the branch. */
+  assert.match(pageCode2, /placeholder="Search employee or ID"/);
+  assert.match(pageCode2, /const \[search, setSearch\] = useState\(""\)/);
+
+  /* Initialization sends it with its own filters... */
+  assert.match(pageCode2, /search,/);
+  /* ...and the other two stages receive it as a prop rather than owning one. */
+  assert.match(pageCode2, /search=\{search\}/);
+  assert.match(adjustmentsCode, /search = ""/);
+  assert.match(workflowCode, /search = ""/);
+});
+
+test("the search survives a stage switch and is cleared by a month change", () => {
+  /* `search` is NOT in the stage state, so switching stages cannot reset it. */
+  assert.ok(
+    !/setStage\([^)]*\)[^;]*setSearch/.test(pageCode2),
+    "switching stages must not clear the search"
+  );
+  /* A different month is a different set of rows, so it does clear there. */
+  assert.match(pageCode2, /useEffect\(\(\) => \{\s*setSearch\(""\);\s*\}, \[year, month\]\)/);
+});
+
+test("neither stage keeps a second search box of its own", () => {
+  for (const [name, source] of [
+    ["the adjustments stage", adjustmentsCode],
+    ["the calculation stage", workflowCode],
+  ]) {
+    assert.ok(!/setSearch\(/.test(source), `${name} owns a second search`);
+  }
+});
+
+/* ------------------------------ 26-28: the tabs ------------------------- */
+
+test("every stage renders the shared tab strip rather than its own filter bar", () => {
+  /* Initialization's filters are its clickable summary cards instead - see
+     `components/payroll/payrunScreens.test.js`. */
+  assert.match(pageCode2, /<PayrunFilterCards/);
+  assert.ok(!/<PayrunTabs/.test(pageCode2), "Initialization must not draw the tabs as well as the cards");
+  assert.match(adjustmentsCode, /<PayrunTabs/);
+  /* Calculation & Review too: the cards, and no lower tab strip. */
+  assert.match(workflowCode, /<PayrunFilterCards/);
+  assert.ok(!/<PayrunTabs/.test(workflowCode), "Calculation must not draw the tabs as well as the cards");
+  assert.match(adjustmentsCode, /tabs=\{ADJUSTMENT_TABS\}/);
+  assert.match(workflowCode, /cards=\{CALCULATION_CARDS\}/);
+});
+
+test("the tab strip scrolls sideways rather than collapsing on a phone", () => {
+  assert.match(tabsComponent, /overflowX="auto"/);
+  assert.match(tabsComponent, /whiteSpace="nowrap"/);
+  /* A select would hide the counts, which are the reason to look. */
+  assert.ok(!/<Select/.test(tabsComponent));
+});
+
+test("the tab counts are the server's summary, never recounted from the rows", () => {
+  assert.match(pageCode2, /tabCount\("INITIALIZATION", key, summary\)/);
+  assert.match(adjustmentsCode, /tabCount\("ADJUSTMENTS", key, summary\)/);
+  assert.match(workflowCode, /tabCount\("CALCULATION", key, summary\)/);
+  assert.ok(!/rows\.filter\([^)]*\)\.length/.test(pageCode2), "the page recounts a tab from the rows");
+  /* The calculation stage counts its SELECT-ALL buttons from the listed rows
+     (see below), but its cards are the server's summary and nothing else. */
+  assert.match(workflowCode, /const cardCount = \(key\) => tabCount\("CALCULATION", key, summary\);/);
+  assert.match(workflowCode, /counts=\{cardCount\}/);
+});
+
+/* ------------------------------ 29, 32: the attendance detail ----------- */
+
+test("a pending attendance badge opens the unresolved detail", () => {
+  assert.match(pageCode2, /<AttendancePendingDrawer/);
+  assert.match(pageCode2, /setAttendanceRow/);
+  /* Both layouts - the badge is tappable on a phone exactly as it is
+     clickable on a desktop. */
+  assert.match(tableCode, /<AttendanceStatusBadge row=\{row\} onOpen=\{onOpenAttendance\}/);
+  assert.match(cardCode, /<AttendanceStatusBadge row=\{row\} onOpen=\{onOpenAttendance\}/);
+});
+
+test("the drawer shows the server's items and links to the screens that fix them", () => {
+  assert.match(drawerCode, /row\.attendance_unresolved/);
+  assert.match(drawerCode, /unresolvedLink\(/);
+  assert.match(drawerCode, /heldDateLink\(/);
+  /* It counts nothing and classifies nothing of its own. */
+  assert.ok(!/is_final/.test(drawerCode), "the drawer reads an attendance internal");
+  assert.ok(!/pending_regularizations\s*[><=]/.test(drawerCode));
+});
+
+test("a closed employee still shows what was accepted", () => {
+  assert.match(drawerSrc, /closed for payroll/i);
+  assert.match(drawerSrc, /were not approved or rejected/i);
+});
+
+test("CLOSED FOR PAYROLL is distinguishable from genuinely READY", () => {
+  const presentation = readRoot("components/payroll/payrunPresentation.jsx");
+  assert.match(presentation, /ATTENDANCE_STATUS_LABEL\[status\]/);
+  assert.match(presentation, /ATTENDANCE_STATUS_SCHEME\[status\]/);
+  /* READY opens nothing; the other two have something to say. */
+  assert.match(codeOf(presentation), /status !== ATTENDANCE_STATUS\.READY/);
+});
+
+/* ------------------------------ 30-31: the close actions ---------------- */
+
+test("the individual and the bulk close go through one function", () => {
+  assert.match(pageCode2, /const runCloseAttendance = async/);
+  /* The drawer's button and the bulk button both call it. */
+  assert.match(pageCode2, /onCloseForPayroll=\{\(row\) => runCloseAttendance\(\[row\.employee_id\]\)\}/);
+  assert.match(pageCode2, /onClick=\{\(\) => runCloseAttendance\(selectedIds\)\}/);
+});
+
+test("the bulk close confirms with a count of what it would actually change", () => {
+  assert.match(pageCode2, /closeSelectionSummary\(rows, employeeIds\)/);
+  assert.match(pageCode2, /window\.confirm\(closeMessage\(summaryOfClose\)\)/);
+  /* The button's number is the CLOSEABLE subset, not the selection. */
+  assert.match(pageCode2, /closeSelectionSummary\(rows, selectedIds\)\.employees/);
+});
+
+test("the close reports closed, skipped and failed separately", () => {
+  assert.match(pageCode2, /Closed: \$\{Number\(result\.closed_count \|\| 0\)\}/);
+  assert.match(pageCode2, /skipped: \$\{skipped\}/);
+  assert.match(pageCode2, /failed: \$\{failed\}/);
+});
+
+test("the browser sends no closed_by and names no attendance request", () => {
+  assert.match(payrunHelper, /closeAttendance: \(\{ year, month, employee_ids, all_pending \}\)/);
+  const call = payrunHelper.split("closeAttendance:")[1].split("getAttendanceCloseHistory")[0];
+  assert.ok(!/closed_by/.test(call), "the browser sends who closed it");
+  assert.ok(!/request_id|regularization_id|ot_id/.test(call));
+});
+
+/* ------------------------------ authorization is the server's ----------- */
+
+test("the close button is hidden without the key, and that is not the security", () => {
+  assert.match(accessCode, /function canCloseAttendanceForPayroll/);
+  assert.match(accessCode, /close_payrun_attendance/);
+  /* Not borrowed from the processing or the approval key. */
+  const fn = accessCode.split("function canCloseAttendanceForPayroll")[1].split("function ")[0];
+  assert.ok(!/process_payroll/.test(fn));
+  assert.ok(!/approve_payrun/.test(fn));
+  assert.match(pageCode2, /mayCloseAttendance/);
+});
+
+/* ------------------------------ 33-34: mobile and the locked queue ------ */
+
+test("the mobile card layout survives the new column", () => {
+  /* The list still chooses between a table and cards at the same breakpoint,
+     and both receive the same props. */
+  const listCode2 = codeOf(readRoot("components/payroll/PayrunEmployeeList.jsx"));
+  assert.match(listCode2, /useBreakpointValue\(\{ base: true, md: false \}\)/);
+  assert.match(listCode2, /<PayrunEmployeeCard key=\{row\.employee_id\} row=\{row\} \{\.\.\.props\} \/>/);
+});
+
+test("Approved & Locked is a queue of its own and never the default", () => {
+  const { CALCULATION_TABS: calcTabs, DEFAULT_TAB: defaults } = require("../../util/payrunTabs");
+  assert.ok(calcTabs.some((t) => t.key === "APPROVED_LOCKED"));
+  assert.notEqual(defaults.CALCULATION, "APPROVED_LOCKED");
+});
+
+/* ======================================================= Reset Calculation */
+
+test("reset posts an explicit id list and mode - never a select-all flag", () => {
+  const call = helperCode.slice(helperCode.indexOf("reset:"), helperCode.indexOf("getHistory:"));
+  assert.ok(call.includes('"/payrun/calculation/reset"'));
+  for (const field of ["employee_ids", "reason", "remark", "mode"]) {
+    assert.ok(call.includes(field), `the reset call does not send ${field}`);
+  }
+  assert.ok(!/all_eligible|all_ready|reset_by|store_ids/.test(call), "the reset body carries a flag or an actor");
+});
+
+test("each row has Reset Calculation, and a locked row shows it blocked with the reason", () => {
+  assert.ok(listCode.includes("isResettable(row)"));
+  assert.ok(listCode.includes("onReset(row)"));
+  assert.ok(list.includes("Reset Calculation"));
+  assert.match(list, /Approved & Locked for this employee\. It cannot be reset\./);
+});
+
+test("Reset Selected (N) appears with a selection, narrowed and gated like the other actions", () => {
+  assert.ok(workflow.includes("Reset Selected ("));
+  assert.ok(workflowCode.includes("selectedIds.length > 0 ?"));
+  assert.ok(workflowCode.includes("eligibleWithin(rows, selectedIds, isResettable)"));
+  assert.ok(workflowCode.includes("mayCalculate && writable && selectedResettable.length > 0"));
+  assert.ok(workflowCode.includes('openReset([row], "INDIVIDUAL")'));
+  assert.ok(workflowCode.includes('"BULK"'));
+});
+
+test("Reset acts on the click: no dialog, no reason, no remark", () => {
+  assert.ok(!fs.existsSync(path.join(ROOT, "components/payroll/calculation/ResetCalculationModal.jsx")), "the reset dialog is gone");
+  assert.ok(!workflowCode.includes("ResetCalculationModal"));
+  assert.ok(!workflowCode.includes("resetTarget"));
+  const call = helperCode.slice(helperCode.indexOf("reset:"), helperCode.indexOf("getHistory:"));
+  assert.ok(call.includes("...(reason ? { reason } : {})"), "a reason is sent only when there is one");
+});
+
+test("a reset goes through the shared run, which reports and refreshes the month", () => {
+  const confirm = workflowCode.slice(workflowCode.indexOf("const openReset"), workflowCode.indexOf("const openReset") + 900);
+  assert.ok(confirm.includes("return run("));
+  assert.ok(confirm.includes("resetOutcomeMessage"));
+  const run = workflowCode.slice(workflowCode.indexOf("const run = async"), workflowCode.indexOf("const calculate ="));
+  assert.ok(run.includes("await refresh()"), "the list and the summary counts are re-read");
+});
+
+/* =================================================== payroll readiness */
+
+test("Calculate All Eligible counts what Calculate will accept, not every uncalculated row", () => {
+  /* What Calculate will accept among the rows listed - which is exactly what
+     the select-all, sent with the list's filters, can reach. */
+  assert.ok(workflowCode.includes("const eligibleCount = rows.filter(isCalculable).length;"));
+  assert.ok(workflowCode.includes("label: `Calculate All Eligible (${eligibleCount})`"));
+  assert.ok(!workflowCode.includes("Calculate All Eligible ({summary.not_calculated})"));
+  assert.ok(workflowCode.includes("mayCalculate && writable && eligibleCount > 0"));
+  assert.match(rulesCode, /const isCalculable = \(row\) =>\s*Boolean\(row && row\.status === STATUS\.NOT_CALCULATED && row\.calculable !== false\);/);
+  assert.ok(workflowCode.includes("summary.not_calculated_blocked"), "the blocked remainder is said out loud");
+  assert.ok(listCode.includes("isCalculable(row)"), "a row's Calculate button follows the server's verdict");
+});
+
+test("the exact reason and its dates are shown on the row", () => {
+  assert.ok(listCode.includes("title={reason.message"));
+  assert.ok(listCode.includes("reason.not_final_dates"));
+});
+
+test("Process Attendance calls its own endpoint with explicit ids, behind its own permission", () => {
+  const call = helperCode.slice(helperCode.indexOf("processAttendance:"), helperCode.indexOf("getHistory:"));
+  assert.ok(call.includes('"/payrun/calculation/process-attendance"'));
+  assert.ok(!/all_eligible|persist|store_ids/.test(call));
+  assert.match(access, /canProcessPayrunAttendance[\s\S]{0,400}recalculate_attendance/);
+  assert.ok(pageCode.includes("canProcessPayrunAttendance(actor)"));
+  assert.ok(workflowCode.includes("eligibleWithin(rows, selectedIds, isAttendanceProcessable)"));
+  assert.ok(workflowCode.includes("mayProcessAttendance && writable && selectedProcessable.length > 0"));
+  assert.ok(listCode.includes("isAttendanceProcessable(row) && canProcessAttendance"));
+  assert.ok(workflowCode.includes("confirmText:"), "it confirms before running the engine");
+});
+
+/* ================================================ the payroll lifecycle */
+
+test("Unlock / Publish / Unpublish call their endpoints with explicit ids and a mode", () => {
+  for (const [name, url] of [["unlock", "unlock"], ["publish", "publish"], ["unpublish", "unpublish"]]) {
+    const call = helperCode.slice(helperCode.indexOf(`${name}:`), helperCode.indexOf("=> res.data", helperCode.indexOf(`${name}:`)));
+    assert.ok(call.includes(`"/payrun/calculation/${url}"`), name);
+    assert.ok(call.includes("employee_ids") && call.includes("mode"), name);
+    assert.ok(!/all_eligible|all_ready|store_ids|published_by/.test(call), name);
+  }
+});
+
+test("each lifecycle action has its own permission, and a bulk button per action narrowed to eligible rows", () => {
+  assert.match(access, /canUnlockPayrun[\s\S]{0,300}unlock_payrun/);
+  assert.match(access, /canPublishPayrun[\s\S]{0,300}publish_payrun/);
+  assert.ok(pageCode.includes("canUnlockPayrun(actor)") && pageCode.includes("canPublishPayrun(actor)"));
+  for (const [label, predicate] of [["Unlock Selected (", "isUnlockable"], ["Publish Payslips Selected (", "isPublishable"], ["Unpublish Payslips Selected (", "isUnpublishable"], ["Retry Notification Selected (", "isNotificationRetryable"]]) {
+    assert.ok(workflow.includes(label), label);
+    assert.ok(workflowCode.includes(`eligibleWithin(rows, selectedIds, ${predicate})`), predicate);
+  }
+  assert.ok(workflowCode.includes("mayUnlock && writable && selectedUnlockable.length > 0"));
+  assert.ok(workflowCode.includes("mayPublish && writable && selectedPublishable.length > 0"));
+  assert.ok(workflowCode.includes("mayPublish && writable && selectedUnpublishable.length > 0"));
+});
+
+test("a published row offers Unpublish, and its Unlock is shown blocked until then", () => {
+  assert.ok(listCode.includes('onLifecycle("UNPUBLISH", row)'));
+  assert.match(list, /Published payroll must be unpublished before it can be unlocked\./);
+  assert.ok(listCode.includes("isUnlockable(row) && canUnlock"));
+});
+
+test("Unlock and Unpublish act on the click, only Publish confirms, and the breakup shows the Net Pay rounding", () => {
+  const modal = read("components/payroll/calculation/LifecycleActionModal.jsx");
+  const page = read("components/payroll/calculation/PayrunCalculation.jsx");
+  // No dialog, reason or remark for Unlock / Unpublish: they run straight away.
+  assert.match(page, /const DIRECT_LIFECYCLE = \["UNLOCK", "UNPUBLISH"\];/);
+  assert.match(page, /if \(DIRECT_LIFECYCLE\.includes\(action\)\) runLifecycle\(target\);/);
+  assert.ok(!/UNLOCK: \{/.test(modal), "no Unlock dialog copy");
+  assert.ok(!/UNPUBLISH: \{/.test(modal), "no Unpublish dialog copy");
+  // Publish keeps its confirmation, with an optional reason.
+  assert.match(modal, /PUBLISH: \{[\s\S]*?reasonRequired: false/);
+  assert.ok(breakup.includes("Net Pay Rounding") && breakupCode.includes("breakup.final.net_pay_rounding"));
+});
+
+/* ======================== Calculation & Review: clickable summary cards == */
+
+const filterCards = codeOf(read("components/payroll/PayrunFilterCards.jsx"));
+
+test("CALCULATION & REVIEW: every card is a real, keyboard-reachable button that filters the list", () => {
+  assert.match(workflowCode, /<PayrunFilterCards/);
+  assert.match(workflowCode, /onSelect=\{selectCard\}/);
+  assert.match(workflowCode, /setTab\(\(active\) => nextCard\(active, key\)\)/);
+  // The selected card is what the request is filtered by - on the server.
+  assert.match(workflowCode, /\.\.\.tabFilters\(CALCULATION_TABS, tab\)/);
+  assert.match(filterCards, /<Button/);
+  assert.match(filterCards, /aria-pressed=\{selected\}/);
+  assert.match(filterCards, /cursor="pointer"/);
+  assert.ok(!/<Stat\b/.test(workflowCode), "the static statistics are gone");
+});
+
+test("CALCULATION & REVIEW: the selected card takes the purple active state", () => {
+  assert.match(filterCards, /borderColor=\{selected \? "purple\.500" : "gray\.200"\}/);
+  assert.match(filterCards, /bg=\{selected \? "purple\.50" : "white"\}/);
+});
+
+test("CALCULATION & REVIEW: All Employees resets - as a card and from the line above the list", () => {
+  const { CALCULATION_CARDS, nextCard, ALL } = require("../../util/payrunTabs");
+  assert.equal(CALCULATION_CARDS[0].key, ALL);
+  assert.equal(nextCard("CALCULATED_NOT_READY", "CALCULATED_NOT_READY"), ALL);
+  assert.match(workflowCode, /onClick=\{\(\) => setTab\(ALL\)\}/);
+  assert.match(workflow, /Show all employees/);
+  assert.match(workflowCode, /filterCaption\(\{ shown: rows\.length, active: tab, search, cards: CALCULATION_CARDS \}\)/);
+});
+
+test("CALCULATION & REVIEW: the caption names the card and the search", () => {
+  const { filterCaption, CALCULATION_CARDS } = require("../../util/payrunTabs");
+  assert.equal(
+    filterCaption({ shown: 3, active: "CALCULATED_NOT_READY", cards: CALCULATION_CARDS }),
+    "Showing 3 employees — Calculated, Not Ready"
+  );
+  assert.equal(
+    filterCaption({ shown: 220, active: "READY_FOR_APPROVAL", cards: CALCULATION_CARDS }),
+    "Showing 220 employees — Ready for Approval"
+  );
+  assert.equal(
+    filterCaption({ shown: 2, active: "CALCULATED_NOT_READY", search: "Priya", cards: CALCULATION_CARDS }),
+    'Showing 2 employees — Calculated, Not Ready matching "Priya"'
+  );
+});
+
+test("CALCULATION & REVIEW: every card filter is ONE server word; the browser decides no membership", () => {
+  const { CALCULATION_TABS, tabFilters, tabCount } = require("../../util/payrunTabs");
+  CALCULATION_TABS.filter((c) => c.key !== "ALL").forEach((c) =>
+    assert.deepEqual(tabFilters(CALCULATION_TABS, c.key), { card: c.key })
+  );
+  // Counts are the server's summary.cards - including the not-ready card.
+  assert.equal(tabCount("CALCULATION", "CALCULATED_NOT_READY", { cards: { CALCULATED_NOT_READY: 3 } }), 3);
+  assert.ok(!/ready_for_approval\s*-|calculated\s*-\s*summary/.test(workflowCode), "no subtraction in the browser");
+});
+
+/*
+ * BULK ACTIONS NEVER REACH OUTSIDE THE FILTERED LIST. Approve All Ready is
+ * sent with every filter the list was read with (location, department,
+ * designation, card, search) and the server approves the ready employees
+ * INSIDE them; its count is therefore the ready rows listed.
+ */
+test("CALCULATION & REVIEW: Approve All Ready is limited to the listed rows and counts them", () => {
+  assert.match(workflowCode, /const readyCount = rows\.filter\(isApprovable\)\.length;/);
+  assert.match(workflowCode, /label: `Approve All Ready \(\$\{readyCount\}\)`/);
+  assert.match(workflowCode, /\.\.\.\(all \? \{ all_ready: true, filters: listScope \} : \{ employee_ids: employeeIds \}\)/);
+  assert.match(
+    workflowCode,
+    /Object\.entries\(filters\)\.filter\(\(\[key\]\) => key !== "year" && key !== "month"\)/,
+    "the select-all carries every list filter except the month itself"
+  );
+  assert.ok(!/approvableEmployeeIds\(rows\)/.test(workflowCode));
+  // Approve Selected still acts only on selected rows the server says are ready.
+  assert.match(workflowCode, /eligibleWithin\(rows, selectedIds, isApprovable\)/);
+  assert.match(rulesCode, /const isApprovable = \(row\) => Boolean\(row && row\.status === STATUS\.READY_FOR_APPROVAL\);/);
+});
+
+test("CALCULATION & REVIEW: Publish All publishes only the Approved & Locked employees listed", () => {
+  assert.match(workflowCode, /const publishableCount = rows\.filter\(isPublishable\)\.length;/);
+  assert.match(workflowCode, /label: `Publish All Approved Payslips \(\$\{publishableCount\}\)`/);
+  assert.match(workflowCode, /PayrunCalculationHelper\.publishAll\(\{ year, month, filters: listScope \}\)/);
+  assert.match(workflowCode, /PayrunCalculationHelper\.calculate\(\{\s*year,\s*month,\s*\.\.\.\(all \? \{ all_eligible: true, filters: listScope \}/);
+  assert.match(rulesCode, /const isPublishable = \(row\) => Boolean\(row && row\.status === STATUS\.APPROVED_LOCKED\);/);
+});
+
+test("CALCULATION & REVIEW: Select all is explicitly the rows SHOWN", () => {
+  assert.match(workflow, /Select all shown \(\{selectableIds\.length\}\)/);
+  assert.match(workflowCode, /const selectableIds = useMemo\(\(\) => rows\.map\(\(row\) => row\.employee_id\), \[rows\]\);/);
+});
+
+test("CALCULATION & REVIEW: every not-ready row shows the server's reasons", () => {
+  // The list renders each row's recalculation reasons and blockers by label.
+  const list = codeOf(read("components/payroll/calculation/CalculationEmployeeList.jsx"));
+  assert.match(list, /const reasons = \[\.\.\.\(row\.recalculation_reasons \|\| \[\]\), \.\.\.\(row\.blockers \|\| \[\]\)\]\.filter\(/);
+  assert.match(list, /\{reason\.label\}/);
+  assert.match(list, /\{row\.status_label\}/);
+  // A Calculated, not ready row heads its reasons in words.
+  assert.match(list, /const notReady = row\.status === STATUS\.CALCULATED && reasons\.length > 0;/);
+  assert.match(list, /Not ready for approval:/);
+  // THE EPFO STATUTORY HOLD IS STILL SHOWN FIRST, with the fields HR must
+  // complete, and its generic duplicate is not repeated under it.
+  assert.match(list, /const hold = row\.statutory_hold \|\| null;/);
+  assert.match(list, /On hold - statutory setup incomplete/);
+  assert.match(list, /HR to complete: \{\(hold\.missing_labels \|\| \[\]\)\.join\(", "\)\}/);
+  assert.match(list, /!\(hold && r\.code === "STATUTORY_SETUP_INCOMPLETE"\)/);
+  assert.ok(list.indexOf("const hold =") < list.indexOf("Not ready for approval:"), "the hold renders before the heading");
+});
+
+test("CALCULATION & REVIEW: Not Calculated is a server card, counted and filtered like the others", () => {
+  const { CALCULATION_CARDS, tabFilters, tabCount } = require("../../util/payrunTabs");
+  const card = CALCULATION_CARDS.find((c) => c.key === "NOT_CALCULATED");
+  assert.equal(card.label, "Not Calculated");
+  assert.deepEqual(tabFilters(CALCULATION_CARDS, "NOT_CALCULATED"), { card: "NOT_CALCULATED" });
+  assert.equal(tabCount("CALCULATION", "NOT_CALCULATED", { cards: { NOT_CALCULATED: 2 } }), 2);
+  // Lifecycle order on screen: after the side state, before Calculated.
+  const keys = CALCULATION_CARDS.map((c) => c.key);
+  assert.ok(keys.indexOf("NOT_CALCULATED") < keys.indexOf("CALCULATED"));
+  assert.match(workflowCode, /columns=\{\{ base: 2, md: 3, lg: 9 \}\}/);
+});
+
+test("CALCULATION & REVIEW: an ordinary Not Calculated row reads 'Awaiting calculation'; a held one 'Cannot be calculated yet:' with On hold and the fields", () => {
+  const list = codeOf(read("components/payroll/calculation/CalculationEmployeeList.jsx"));
+  assert.match(list, /const notCalculated = row\.status === STATUS\.NOT_CALCULATED;/);
+  assert.match(list, /const blockedFromCalculation = notCalculated && row\.calculable === false;/);
+  assert.match(list, /Awaiting calculation/);
+  assert.match(list, /Cannot be calculated yet:/);
+  // The heading comes before EPFO's On hold block, which stays intact.
+  assert.ok(list.indexOf("Cannot be calculated yet:") < list.indexOf("On hold - statutory setup incomplete"));
+  assert.match(list, /HR to complete: \{\(hold\.missing_labels \|\| \[\]\)\.join\(", "\)\}/);
+  // An ordinary row is only "awaiting" when it is calculable and not held.
+  assert.match(list, /if \(notCalculated && !blockedFromCalculation && !hold\) \{/);
+  // The bare "Not calculated" blocker is not repeated under the status badge.
+  assert.match(list, /!\(notCalculated && r\.code === "NOT_CALCULATED"\)/);
+});
+
+
+/* ============================ Calculation & Review: compact row actions == */
+
+const rowIcons = read("components/payroll/calculation/rowActionIcons.jsx");
+const rowActionsCode = listCode.slice(listCode.indexOf("function RowActions("), listCode.indexOf("function StatusIndicator("));
+
+test("ROW ACTIONS: each row action is an icon button with an aria-label and a tooltip, not a text button", () => {
+  assert.match(listCode, /function ActionIcon\(/);
+  assert.match(listCode, /<IconButton\s+aria-label=\{label\}/);
+  assert.match(listCode, /<Tooltip\s+label=/);
+  assert.ok(!/<Button[\s>]/.test(rowActionsCode), "a row still draws a text button");
+  for (const [label, icon] of [
+    ["Detail", "FileTextIcon"],
+    ["Recalculate", "RefreshCwIcon"],
+    ["Approve & Lock", "BadgeCheckIcon"],
+    ["Reset Calculation", "RotateCcwIcon"],
+  ]) {
+    assert.ok(
+      new RegExp(`label="${label}"\\s+icon=\\{<${icon} />\\}`).test(rowActionsCode),
+      `${label} is not drawn with ${icon}`
+    );
+  }
+  assert.ok(!/eye/i.test(rowIcons) && !/eye/i.test(rowActionsCode), "Detail must not use an eye icon");
+});
+
+test("ROW ACTIONS: an unavailable action is drawn disabled with its reason, reachable on hover and focus", () => {
+  assert.match(listCode, /shouldWrapChildren=\{unavailable\}/);
+  assert.match(listCode, /unavailable && reason \? `\$\{label\} - \$\{reason\}` : label/);
+  assert.ok(rowActionsCode.includes("Only employees Ready for Approval can be approved."));
+  assert.ok(rowActionsCode.includes("Nothing to reset - this employee has not been calculated."));
+});
+
+test("ROW ACTIONS: the handlers, gates and loading states are the ones the text buttons had", () => {
+  for (const wiring of [
+    "onClick={() => onOpen(row)}",
+    "onClick={() => onRecalculate(row, { first: true })}",
+    "onClick={() => onRecalculate(row, { first: false })}",
+    "onClick={() => onApprove([row.employee_id])}",
+    "onClick={() => onReset(row)}",
+    "isDisabled={!canCalculate || disabled}",
+    "isDisabled={!canApprove || disabled}",
+    "isLoading={busy}",
+    "isApprovable(row) ?",
+    "isRecalculable(row) ?",
+  ]) {
+    assert.ok(rowActionsCode.includes(wiring), `missing ${wiring}`);
+  }
+});
+
+test("ROW STATUS: a small indicator with the server's label, not a large badge per row", () => {
+  assert.match(listCode, /function StatusIndicator\(\{ row \}\)/);
+  assert.ok((listCode.match(/<StatusIndicator row=\{row\} \/>/g) || []).length === 2);
+  assert.ok(!/<Badge colorScheme=\{statusScheme\(row\.status\)\}/.test(listCode));
+});
+
+/* ===== Calculation & Review: the More menu, and Department / Designation == */
+
+test("ROW ACTIONS: the lifecycle actions live in one More menu, with the same predicates and handlers", () => {
+  assert.match(listCode, /function MoreActions\(/);
+  assert.match(listCode, /<MenuButton\s+as=\{IconButton\}\s+aria-label="More actions"/);
+  assert.match(listCode, /<Portal>/, "the menu is not clipped by the table's scroll box");
+  for (const wiring of [
+    "isAttendanceProcessable(row) && canProcessAttendance",
+    "onClick: () => onProcessAttendance(row)",
+    "isUnlockable(row) && canUnlock",
+    'onClick: () => onLifecycle("UNLOCK", row)',
+    "isPublishable(row) && canPublish",
+    'onClick: () => onLifecycle("PUBLISH", row)',
+    "hasPayslip(row) && onViewPayslip",
+    "onClick: () => onViewPayslip(row)",
+    "isNotificationRetryable(row) && canPublish && onRetryNotification",
+    "onClick: () => onRetryNotification(row)",
+    "isUnpublishable(row) && canPublish",
+    'onClick: () => onLifecycle("UNPUBLISH", row)',
+    "isUnpublishable(row) && canUnlock",
+  ]) {
+    assert.ok(rowActionsCode.includes(wiring) || listCode.includes(wiring), `missing ${wiring}`);
+  }
+  assert.ok(listCode.includes('label="Calculate"') && listCode.includes("icon={<CalculatorIcon />}"));
+  assert.ok(listCode.includes('reason={none ? "No other actions for this employee." : BUSY_REASON}'));
+});
+
+test("FILTERS: the page offers Department, Designation and Clear Filters on this stage only", () => {
+  const pageSrc = codeOf(read("pages/payroll/payrun.jsx"));
+  assert.match(pageSrc, /aria-label="Department"/);
+  assert.match(pageSrc, /<option value="">All Departments<\/option>/);
+  assert.match(pageSrc, /aria-label="Designation"/);
+  assert.match(pageSrc, /<option value="">All Designations<\/option>/);
+  assert.match(pageSrc, /designationChoices\(calcFilterOptions, departmentId\)/);
+  assert.match(pageSrc, /if \(!keepsDesignation\(calcFilterOptions, value, designationId\)\) setDesignationId\(""\);/);
+  assert.match(pageSrc, /Clear Filters/);
+  const clear = pageSrc.slice(pageSrc.indexOf("const clearFilters"), pageSrc.indexOf("const clearFilters") + 300);
+  for (const reset of ['setStoreId("")', 'setDepartmentId("")', 'setDesignationId("")', 'setSearch("")', "setClearFiltersToken"]) {
+    assert.ok(clear.includes(reset), `Clear Filters does not ${reset}`);
+  }
+  assert.match(pageSrc, /departmentId=\{departmentId\}\s+designationId=\{designationId\}\s+onFilterOptions=\{onCalcFilterOptions\}/);
+});
+
+test("FILTERS: they are sent to the server and narrow the read; Clear Filters also returns to All Employees", () => {
+  assert.match(workflowCode, /department_id: departmentId,\s+designation_id: designationId,/);
+  assert.match(workflowCode, /if \(clearFiltersToken\) setTab\(ALL\);/);
+  assert.match(hook, /month\.filter_options/);
+  assert.ok(!/rows\.filter\([^)]*department/.test(workflowCode + listCode), "the browser never filters rows by department itself");
+});
+
+test("BULK: nothing bulk runs while the list is re-reading for new filters", () => {
+  assert.match(workflowCode, /const bulkLocked = busy \|\| loading;/);
+  assert.ok(workflowCode.includes("isDisabled={bulkLocked || Boolean(action.blockedReason)}"), "every toolbar button");
+  assert.ok(workflowCode.includes('<MenuButton as={Button} size="sm" variant="outline" isDisabled={bulkLocked}>'), "the More menu");
+});
+
+test("BULK TOOLBAR: only actions that can run are drawn - zero counts, missing keys and a locked month hide them", () => {
+  assert.ok(workflowCode.includes("const bulkActions = (selectedIds.length === 0"));
+  assert.ok(workflowCode.includes("const moreBulkActions = (selectedIds.length === 0"));
+  assert.ok((workflowCode.match(/\]\s*\)\.filter\(Boolean\);/g) || []).length >= 2, "falsy entries are dropped");
+  for (const cond of [
+    "mayCalculate && writable && eligibleCount > 0",
+    "mayApprove && writable && readyCount > 0",
+    "mayPublish && writable && publishableCount > 0",
+    "exportableCount > 0",
+    "mayCalculate && writable && selectedRecalculable.length > 0",
+    "mayApprove && writable && selectedApprovable.length > 0",
+    "mayPublish && writable && selectedPublishable.length > 0",
+    "selectedExportable.length > 0",
+    "mayUnlock && writable && selectedUnlockable.length > 0",
+    "mayPublish && writable && selectedUnpublishable.length > 0",
+    "mayPublish && selectedRetryable.length > 0",
+    "mayProcessAttendance && writable && selectedProcessable.length > 0",
+    "mayCalculate && writable && selectedResettable.length > 0",
+  ]) {
+    assert.ok(workflowCode.includes(cond), cond);
+  }
+  assert.ok(!/label: `[^`]*\(0\)`/.test(workflow), "no action label is a hard-coded zero count");
+});
+
+test("DOWNLOAD PAYSLIPS: the server plans and re-resolves the export; the screen only counts", () => {
+  const modal = codeOf(read("components/payroll/calculation/PayslipExportModal.jsx"));
+  assert.match(modal, /PayrunCalculationHelper\.planPayslipExport\(\{ year, month, filters, employee_ids: selectionIds \}\)/);
+  assert.match(modal, /plan: \{ employee_ids: ids, batch_size: plan\.batch_size \}/);
+  assert.match(modal, /PayrunCalculationHelper\.exportPayslipBatch\(\{ year, month, filters, employee_ids: batch \}\)/);
+  assert.match(workflowCode, /filters=\{listScope\}/);
+  assert.ok(!/recordView|viewed_at\s*=/.test(modal), "an export never records a view");
+  const helperExport = helperCode.slice(helperCode.indexOf("planPayslipExport:"), helperCode.indexOf("publishAll:"));
+  assert.ok(helperExport.includes('"/payrun/calculation/payslips/export/plan"') && helperExport.includes('"/payrun/calculation/payslips/export"'));
+  assert.ok(helperExport.includes("...listFilters(filters)"));
+});
+
+test("BULK: a filter change clears the selection rather than carrying it to the new list", () => {
+  assert.match(workflowCode, /useEffect\(\(\) => \{\s*setSelectedIds\(\[\]\);\s*\}, \[filters\]\);/);
+});
+
+/* ======== Download Payslips: its own key, payroll_export_payslips ========= */
+
+test("EXPORT PERMISSION: canExportPayslips needs payroll_export_payslips ON TOP of the payroll view keys", () => {
+  const { canExportPayslips, canOpenPayrun } = require("../../util/payrunAccess");
+  const VIEW = ["view_employees", "view_payroll", "view_salary"];
+  assert.strictEqual(canOpenPayrun({ permissions: VIEW }), true, "a payroll viewer can open the screen and View Payslip");
+  assert.strictEqual(canExportPayslips({ permissions: VIEW }), false, "...but cannot bulk export");
+  assert.strictEqual(canExportPayslips({ permissions: [...VIEW, "payroll_export_payslips"] }), true);
+  assert.strictEqual(canExportPayslips({ permissions: ["view_employees", "payroll_export_payslips"] }), false, "the key alone is not enough");
+  assert.strictEqual(canExportPayslips({ permissions: [{ permission_key: "payroll_export_payslips" }, ...VIEW.map((k) => ({ permission_key: k }))] }), true);
+  assert.strictEqual(canExportPayslips({ isAdmin: true }), true, "administrators, as on the server (user_type 2)");
+  assert.strictEqual(canExportPayslips(), false);
+});
+
+test("EXPORT PERMISSION: the screen draws Download Payslips only with the key - matching the server", () => {
+  const pageSrc = codeOf(read("pages/payroll/payrun.jsx"));
+  assert.match(pageSrc, /const mayExportPayslips = canExportPayslips\(actor\);/);
+  assert.match(pageSrc, /mayExportPayslips=\{mayExportPayslips\}/);
+  assert.ok(workflowCode.includes("mayExportPayslips && exportableCount > 0 && {"));
+  assert.ok(workflowCode.includes("mayExportPayslips && selectedExportable.length > 0 && {"));
+  assert.ok(workflowCode.includes("isOpen={mayExportPayslips && exportTarget !== null}"));
+  // View Payslip (one employee) is not gated on the export key.
+  assert.ok(!/canViewPayslip|onViewPayslip=\{[^}]*mayExportPayslips/.test(workflowCode));
+  const backendRoutes = fs.readFileSync(path.join(ROOT, "..", "dailyneeds-store-backend", "routes", "payrun_calculation.js"), "utf8");
+  for (const p of ["/payrun/calculation/payslips/export/plan", "/payrun/calculation/payslips/export"]) {
+    const at = backendRoutes.indexOf(`"${p}",`);
+    assert.ok(backendRoutes.slice(at, at + 200).includes("P.PAYROLL_EXPORT_PAYSLIPS"), `${p} enforces the key on the server`);
+  }
+});

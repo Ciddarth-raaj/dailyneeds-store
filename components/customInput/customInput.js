@@ -77,6 +77,8 @@ const TextFieldBody = ({
   containerStyle,
   editable,
   accept,
+  capture,
+  filePlaceholder,
   maxSize = 5242880,
   floatingLabel = false,
   position = "top",
@@ -87,6 +89,11 @@ const TextFieldBody = ({
   customRenderer,
   renderSelected,
   showErrors = true,
+  // `switch_toggle` labels. Defaulted to the pair it has always shown, so
+  // every existing use is unchanged; destructured here rather than left in
+  // `props` so they are never spread onto the DOM Switch.
+  onLabel = "Active",
+  offLabel = "Inactive",
   ...props
 }) => {
   let start = 1950;
@@ -168,6 +175,9 @@ const TextFieldBody = ({
 
   const getDisplayValue = (value) => {
     if (props.value || props.value == 0) return props.value;
+    // A boolean renders as nothing in React, so a read-only toggle showed a
+    // blank field. Show its own label instead.
+    if (method === "switch_toggle") return value ? onLabel : offLabel;
     if (!value && value !== 0 && value !== "0") return "N/A";
 
     switch (method) {
@@ -304,7 +314,13 @@ const TextFieldBody = ({
                           <Switch
                             id={field.name}
                             isChecked={!!field.value}
-                            onChange={onChange}
+                            // Falls back to Formik when no handler is passed,
+                            // so a toggle works the way every other field
+                            // here does; an explicit onChange still wins.
+                            onChange={
+                              onChange ||
+                              ((e) => setFieldValue(field.name, e.target.checked))
+                            }
                             isDisabled={props.isDisabled || !editable}
                             {...props}
                           />
@@ -312,7 +328,7 @@ const TextFieldBody = ({
                             fontSize="sm"
                             color={field.value ? "green.500" : "gray.400"}
                           >
-                            {field.value ? "Active" : "Inactive"}
+                            {field.value ? onLabel : offLabel}
                           </Text>
                         </Flex>
                       );
@@ -540,6 +556,9 @@ const TextFieldBody = ({
                       {...props}
                       selected={(field.value && new Date(field.value)) || null}
                       portalId="root-portal"
+                      showMonthDropdown
+                      showYearDropdown
+                      dropdownMode="select"
                       customInput={
                         <CustomDateTimeInput
                           disabled={props.disabled}
@@ -654,7 +673,7 @@ const TextFieldBody = ({
                       className={`${styles.dropzone} ${isDragActive ? styles.dragActive : ""
                         }`}
                     >
-                      <input {...getInputProps()} />
+                      <input {...getInputProps(capture ? { capture } : {})} />
                       {multiple ? (
                         <>
                           {Array.isArray(field.value) && field.value.length > 0 ? (
@@ -696,7 +715,8 @@ const TextFieldBody = ({
                               >
                                 {isDragActive
                                   ? "Drop the files here"
-                                  : "Drag & drop files here, or click to select"}
+                                  : filePlaceholder ??
+                                    "Drag & drop files here, or click to select"}
                               </p>
                             </div>
                           )}

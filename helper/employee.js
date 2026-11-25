@@ -2,6 +2,24 @@ import API from "../util/api";
 import moment from "moment";
 
 const EmployeeHelper = {
+  /**
+   * The operational employee directory: id and name only, active employees of
+   * the caller's own outlet. Unlike `getEmployee` it needs no HR permission,
+   * which is what an outlet screen's name dropdown actually requires.
+   *
+   * The outlet comes from the session on the server; nothing is sent from
+   * here, and a store_id from a normal user would be ignored anyway.
+   */
+  getDirectory: () =>
+    new Promise(function (resolve, reject) {
+      API.get("/employee/directory")
+        .then(async (res) => {
+          resolve(res.data);
+        })
+        .catch((err) => {
+          reject(err);
+        });
+    }),
   getEmployee: (filter) =>
     new Promise(function (resolve, reject) {
       const queryParams = new URLSearchParams();
@@ -18,6 +36,13 @@ const EmployeeHelper = {
         });
       }
 
+      // HR -> Employee Master only: ask for the population that includes
+      // resigned employees whose resignation was recorded. Every other caller
+      // omits it and gets the list exactly as before.
+      if (filter?.include_resigned) {
+        queryParams.append("include_resigned", "1");
+      }
+
       API.get(`/employee/employees?${queryParams}`)
         .then(async (res) => {
           resolve(res.data);
@@ -29,16 +54,6 @@ const EmployeeHelper = {
   getFilteredEmployee: (name) =>
     new Promise(function (resolve, reject) {
       API.get(`/employee/filter?filter=${name}`)
-        .then(async (res) => {
-          resolve(res.data);
-        })
-        .catch((err) => {
-          reject(err);
-        });
-    }),
-  sync: () =>
-    new Promise(function (resolve, reject) {
-      API.post(`/employee/sync`)
         .then(async (res) => {
           resolve(res.data);
         })
@@ -61,20 +76,6 @@ const EmployeeHelper = {
       API.get("/employee/familydet")
         .then(async (res) => {
           resolve(res.data);
-        })
-        .catch((err) => {
-          reject(err);
-        });
-    }),
-  updateStatus: (data) =>
-    new Promise(function (resolve, reject) {
-      API.post("/employee/update-status", data)
-        .then(async (res) => {
-          if (res.status === 200) {
-            resolve(res.data);
-          } else {
-            reject(res.data.msg);
-          }
         })
         .catch((err) => {
           reject(err);

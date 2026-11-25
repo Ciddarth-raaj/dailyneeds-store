@@ -19,6 +19,10 @@ class viewFamily extends React.Component {
     this.state = {
       employeeDet: [],
       hoverElement: false,
+      // Both are filled by the picker below. The id is what the lookup uses
+      // when there is one; the name is kept because it is what the table
+      // shows and what unattached records are still found by.
+      employee_id: null,
       employee_name: "",
       name: "",
       details: [],
@@ -41,8 +45,15 @@ class viewFamily extends React.Component {
   onClick = (m) => <Link href={`/family/${m.id}`}>{m.value}</Link>;
 
   getFamilyOnEmployee() {
-    const { employee_name } = this.state;
-    FamilyHelper.getFamilyOnEmployee(employee_name)
+    const { employee_id, employee_name } = this.state;
+    // By id when the employee was picked from the list - it survives a name
+    // correction and distinguishes two employees sharing a name. By name
+    // otherwise, which is also how records that could not be attached to an
+    // id are still reachable.
+    const lookup = employee_id
+      ? FamilyHelper.getFamilyOnEmployeeId(employee_id)
+      : FamilyHelper.getFamilyOnEmployee(employee_name);
+    lookup
       .then((data) => {
         this.setState({ updatedFamily: data });
       })
@@ -167,6 +178,7 @@ class viewFamily extends React.Component {
                           <a
                             onClick={() =>
                               this.setState({
+                                employee_id: m.employee_id,
                                 employee_name: m.employee_name,
                                 hoverElement: true,
                               })

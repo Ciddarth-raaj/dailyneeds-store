@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import priceChecker from "../helper/priceChecker";
+import offersV3 from "../helper/offersV3";
 
 export function useGrnPriceCheckerItems(productId, { enabled = true } = {}) {
   const [rows, setRows] = useState([]);
@@ -17,7 +17,7 @@ export function useGrnPriceCheckerItems(productId, { enabled = true } = {}) {
     try {
       setLoading(true);
       setError(null);
-      const res = await priceChecker.getItemsByProduct(productId);
+      const res = await offersV3.getItemsByProduct(productId);
       const payload = res?.data;
       setRows(Array.isArray(payload) ? payload : []);
     } catch (err) {

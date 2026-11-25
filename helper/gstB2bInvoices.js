@@ -23,3 +23,25 @@ export function getGstB2bInvoices(year, month) {
     }
   );
 }
+
+/**
+ * Stored GSTR-2A B2B invoices across an inclusive range of return periods.
+ * GET /gst/b2b/invoices?from_period=YYYY-MM&to_period=YYYY-MM
+ */
+export function getGstB2bInvoicesForRange(fromPeriod, toPeriod) {
+  return API.get("/gst/b2b/invoices", {
+    params: {
+      from_period: String(fromPeriod).trim(),
+      to_period: String(toPeriod).trim(),
+    },
+  }).then((res) => {
+    const body = res?.data ?? res;
+    if (body?.code === 200) {
+      return {
+        data: Array.isArray(body.data) ? body.data : [],
+        meta: body.meta ?? null,
+      };
+    }
+    throw new Error(body?.msg || "Failed to load GSTR-2A B2B invoices");
+  });
+}

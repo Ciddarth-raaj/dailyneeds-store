@@ -1,5 +1,6 @@
 import constants from "../constants/api.js";
 import axios from "axios";
+import classify403 from "./handle403";
 
 const axiosInstance = axios.create({
   baseURL: constants.BASE_URL,
@@ -15,8 +16,11 @@ const axiosInstance = axios.create({
         if (res === "") return res;
         res = JSON.parse(res);
 
-        if (res.code === 403 && window.location.pathname !== "/login") {
-          window.location.href = "/login";
+        // Which 403s cost the session and which are ordinary answers is one
+        // decision, kept in util/handle403.js so it can be unit-tested.
+        const { href } = classify403(res, window.location.pathname);
+        if (href) {
+          window.location.href = href;
         }
 
         return res;

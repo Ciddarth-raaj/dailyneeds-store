@@ -13,7 +13,7 @@ export default function GlobalWrapper({ children, title, permissionKey = [], loa
   const canViewPage = usePermissions(permissionKey);
   const isMobile = useBreakpointValue({ base: true, md: false });
   const [isSidebarMinimized, setIsSidebarMinimized] = useState(() => {
-    if (typeof window !== "undefined" && !window.matchMedia("(max-width: 480px)").matches) {
+    if (typeof window !== "undefined" && !window.matchMedia("(max-width: 767px)").matches) {
       const saved = localStorage.getItem("sidebarMinimized");
       return saved === "true";
     }

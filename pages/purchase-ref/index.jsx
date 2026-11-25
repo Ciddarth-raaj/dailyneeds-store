@@ -1,0 +1,194 @@
+import React, { useEffect, useMemo, useState } from "react";
+import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
+import CustomContainer from "../../components/CustomContainer";
+import AgGrid from "../../components/AgGrid";
+import EmptyData from "../../components/EmptyData";
+import PurchaseRefMobileCards from "../../components/purchase-ref/PurchaseRefMobileCards";
+import ProductImageZoom from "../../components/purchase-ref/ProductImageZoom";
+import {
+  Box,
+  Button,
+  Flex,
+  Input,
+  Spinner,
+  Text,
+  useBreakpointValue,
+} from "@chakra-ui/react";
+import moment from "moment";
+import { usePurchaseRef } from "../../customHooks/usePurchaseRef";
+import useDebounce from "../../customHooks/useDebounce";
+import toast from "react-hot-toast";
+
+function PurchaseRef() {
+  const { rows, builtAt, loading, refreshing, error, refetch } =
+    usePurchaseRef();
+  const [searchQuery, setSearchQuery] = useState("");
+  // Filtering is a couple of ms over ~14k rows and both views now render a
+  // bounded number of them, so the debounce only needs to coalesce a fast
+  // typist's keystrokes rather than hide expensive work.
+  const debouncedSearchQuery = useDebounce(searchQuery, 150);
+  const isMobile = useBreakpointValue({ base: true, md: false });
+
+  useEffect(() => {
+    if (error) {
+      toast.error(error?.message || "Failed to load Purchase Ref.");
+    }
+  }, [error]);
+
+  const filteredRows = useMemo(() => {
+    const query = debouncedSearchQuery.trim().toLowerCase();
+    if (!query) return rows;
+    // Numeric queries (PID) search immediately; text queries wait for 3+
+    // characters so a couple of keystrokes don't filter the whole list.
+    const isNumeric = /^\d+$/.test(query);
+    if (!isNumeric && query.length < 3) return rows;
+    return rows.filter((row) => {
+      const pid = row.product_id?.toString().toLowerCase() || "";
+      const name = row.name?.toLowerCase() || "";
+      const supplier = row.supplier_name?.toLowerCase() || "";
+      return (
+        pid.includes(query) || name.includes(query) || supplier.includes(query)
+      );
+    });
+  }, [rows, debouncedSearchQuery]);
+
+  const colDefs = useMemo(
+    () => [
+      {
+        field: "product_id",
+        headerName: "PID",
+        type: "id",
+        flex: 0,
+        minWidth: 120,
+      },
+      {
+        field: "image_url",
+        headerName: "Image",
+        flex: 0,
+        minWidth: 72,
+        width: 72,
+        sortable: false,
+        filter: false,
+        cellStyle: { lineHeight: 1, paddingTop: 4, paddingBottom: 4 },
+        cellRenderer: (params) =>
+          params.value ? (
+            <ProductImageZoom src={params.value} thumbSize="40px" />
+          ) : null,
+      },
+      {
+        field: "name",
+        headerName: "Name",
+        type: "capitalized",
+        flex: 2,
+        minWidth: 220,
+      },
+      {
+        field: "supplier_name",
+        headerName: "Supplier Name",
+        type: "capitalized",
+        flex: 2,
+        minWidth: 200,
+      },
+      {
+        field: "mrp",
+        headerName: "MRP",
+        type: "currency",
+        flex: 0,
+        minWidth: 120,
+      },
+      {
+        field: "net_cost",
+        headerName: "Net Cost",
+        type: "currency",
+        flex: 0,
+        minWidth: 120,
+      },
+      {
+        field: "current_stock",
+        headerName: "Current Stock",
+        type: "number",
+        flex: 0,
+        minWidth: 140,
+        cellRenderer: (params) =>
+          params.value != null
+            ? (Math.round(params.value * 100) / 100).toString()
+            : "—",
+      },
+      {
+        field: "avg_sales",
+        headerName: "Avg Sales (3mo)",
+        type: "number",
+        flex: 0,
+        minWidth: 150,
+        cellRenderer: (params) =>
+          params.value != null ? Math.round(params.value).toString() : "—",
+      },
+    ],
+    []
+  );
+
+  return (
+    <GlobalWrapper title="Purchase Ref" permissionKey="view_purchase_ref">
+      <CustomContainer
+        title="Purchase Ref"
+        filledHeader
+        rightSection={
+          <Flex alignItems="center" gap={3}>
+            {builtAt && (
+              <Text fontSize="xs" color="gray.600">
+                Updated {moment(builtAt).fromNow()}
+              </Text>
+            )}
+            <Button
+              size="sm"
+              variant="outline"
+              colorScheme="purple"
+              isLoading={refreshing}
+              loadingText="Refreshing"
+              isDisabled={loading}
+              onClick={() => refetch({ force: true })}
+            >
+              Refresh
+            </Button>
+          </Flex>
+        }
+      >
+        {loading ? (
+          <Flex w="100%" minH="200px" justifyContent="center" alignItems="center">
+            <Spinner size="lg" color="purple.500" thickness="3px" />
+          </Flex>
+        ) : (
+          <>
+            <Box mb={4}>
+              <Input
+                placeholder="Search by PID, Name, or Supplier..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                size="sm"
+              />
+            </Box>
+
+            {filteredRows.length === 0 ? (
+              <EmptyData
+                message="No products match your search"
+                faIcon="fa-file-invoice"
+              />
+            ) : isMobile ? (
+              <PurchaseRefMobileCards rows={filteredRows} />
+            ) : (
+              <Box overflowX="auto">
+                <AgGrid
+                  rowData={filteredRows}
+                  columnDefs={colDefs}
+                  tableKey="purchase-ref"
+                />
+              </Box>
+            )}
+          </>
+        )}
+      </CustomContainer>
+    </GlobalWrapper>
+  );
+}
+
+export default PurchaseRef;

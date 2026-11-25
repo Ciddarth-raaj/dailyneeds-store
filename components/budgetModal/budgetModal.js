@@ -61,7 +61,7 @@ export default class BudgetModal extends React.Component {
             .then((data) => {
                 if (data == 200) {
                     toast.success("Successfully Added Store")
-                    window.location = "/branch-details"
+                    window.location = "/master/branch"
                 } else {
                     toast.error("Error Adding Store!");
                     throw `${data.msg}`;
@@ -79,10 +79,10 @@ export default class BudgetModal extends React.Component {
                 // console.log({data: data});
                 if (data === 200) {
                     toast.success("Successfully updated Branch");
-                    window.location = "/branch-details"
+                    window.location = "/master/branch"
                 } else {
                     toast.error("Error updating Branch")
-                    window.location = "/branch-details"  
+                    window.location = "/master/branch"  
                 }
             })
             .catch((err) => console.log(err));
@@ -196,7 +196,7 @@ export default class BudgetModal extends React.Component {
                                      isLoading={isLoading}
                                      colorScheme="red"
                                      loadingText="Updating"
-                                     onClick={() => window.location = "/branch-details"}
+                                     onClick={() => window.location = "/master/branch"}
                                     >
                                         Cancel
                                     </Button>

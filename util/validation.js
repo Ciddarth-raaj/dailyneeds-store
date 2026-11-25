@@ -1,4 +1,5 @@
 import * as Yup from "yup";
+import { retailPilotIdError } from "./retailPilotId";
 
 export const Validation = Yup.object({
   employee_name: Yup.string().nullable().required("Fill Name"),
@@ -104,10 +105,10 @@ export const DepartmentValidation = Yup.object({
 
 export const DesignationValidation = Yup.object({
   designation_name: Yup.string().required("Fill designation Name"),
-  // designationName: Yup.string().required("Fill department Name"),
-  // status: Yup.string().required("Choose status"),
-  online_portal: Yup.string().nullable().required("Choose Access"),
-  login_access: Yup.string().nullable().required("Require Login Access"),
+  // `online_portal` and `login_access` were required here, which is why the
+  // form could not be submitted without them. Both are legacy and inert -
+  // nothing in the application reads either - so the controls are gone and so
+  // are their rules. The columns remain in the database for compatibility.
 });
 // export const OpenIssueValidation = Yup.object({
 // 	store_id: Yup.string().nullable().required("Choose Store"),
@@ -153,22 +154,14 @@ export const BranchValidation = Yup.object({
     .required("Fill Contact Number"),
   outlet_address: Yup.string().nullable().required("Fill Address"),
   gofrugal_id: Yup.string().nullable().optional(),
-  outlet_code: Yup.string().nullable().optional(),
-});
-export const CompanyDetailsValidation = Yup.object({
-  company_name: Yup.string().nullable().required("Fill Company Name"),
-  contact_number: Yup.number()
+  retailpilot_id: Yup.string()
     .nullable()
-    .typeError("Must be a number")
-    .min(123456789, "Must be 9 or More")
-    .max(12345678900, "Must be 10 characters or less")
-    .required("Fill Contact Number"),
-  reg_address: Yup.string().nullable().required("Fill Address"),
-  gst_number: Yup.string().nullable().required("Fill GST"),
-  tan_number: Yup.string().nullable().required("Fill TAN"),
-  pan_number: Yup.string().nullable().required("Fill PAN"),
-  pf_number: Yup.string().nullable().required("Fill PS"),
-  esi_number: Yup.string().nullable().required("Fill ESI"),
+    .optional()
+    .test("retailpilot-id", function (value) {
+      const message = retailPilotIdError(value);
+      return message ? this.createError({ message }) : true;
+    }),
+  outlet_code: Yup.string().nullable().optional(),
 });
 export const ProductItemsValidation = Yup.object({
   return: Yup.number().nullable().required("Choose Return"),

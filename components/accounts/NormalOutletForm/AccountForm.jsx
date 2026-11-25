@@ -11,12 +11,21 @@ import {
   MODIFIED_PEOPLE_TYPES,
 } from "../../../constants/accounts";
 import currencyFormatter from "../../../util/currencyFormatter";
+import { getDifferenceStatus } from "../../../util/accountDifference";
+import { getNetWalletMovement } from "../../../util/accountWallet";
 import styles from "../../../styles/master.module.css";
 import { PAYMENT_TYPES_ACCOUNTS } from "../../../constants/values";
 import usePeople from "../../../customHooks/usePeople";
-import { useUser } from "../../../contexts/UserContext";
-import useEmployees from "../../../customHooks/useEmployees";
+import useEmployeeDirectory from "../../../customHooks/useEmployeeDirectory";
 import { CASHIER_DESIGNATION } from "../../../constants/designations";
+
+// Short (positive) is red and Excess (negative) green, as before; a balanced
+// sheet is neutral.
+const DIFFERENCE_COLORS = { SHORT: "red", EXCESS: "green", BALANCED: "inherit" };
+
+// -₹259.87 / ₹0.00 / ₹1,234.50
+const formatSignedRupees = (amount) =>
+  `${amount < 0 ? "-" : ""}₹${currencyFormatter(Math.abs(amount))}`;
 
 function AccountForm({ formikProps, isViewMode, isSaved, onDateChange, mode }) {
   const { handleSubmit, resetForm, values, setFieldValue } = formikProps;
@@ -24,18 +33,24 @@ function AccountForm({ formikProps, isViewMode, isSaved, onDateChange, mode }) {
 
   // custom hooks
   const { peopleList } = usePeople();
-  const { storeId } = useUser().userConfig;
-  const { employees: allEmployees } = useEmployees({
-    store_ids: storeId === null ? [] : [storeId],
-    designation_ids: [],
-  });
+  // The directory returns id and name for the caller's own outlet and needs
+  // no HR permission. `useEmployees` calls /employee/employees, which B2 gates
+  // on `view_employees` - a permission accounts and outlet staff do not hold,
+  // which is what left this dropdown empty. The outlet is derived from the
+  // session on the server, so nothing is passed from here.
+  const { employees: allEmployees } = useEmployeeDirectory();
 
   const [isDenominationOpen, setIsDenominationOpen] = useState(false);
 
+  // Recomputed on every render from the live form values, so it follows each
+  // keystroke, row add/delete and Payment/Receipt change without a save.
   const differenceAmount = getAmmountDifference(values);
+  const differenceStatus = getDifferenceStatus(differenceAmount);
+  // Wallet amounts are shown on their own; they never enter the difference.
+  const netWalletMovement = getNetWalletMovement(values);
 
+  // Already sorted by name in the hook.
   const EMPLOYEES_MENU = allEmployees
-    .sort((a, b) => ("" + a.employee_name).localeCompare(b.employee_name))
     .map((item) => ({
       id: item.employee_id,
       value: item.employee_name,
@@ -224,6 +239,30 @@ function AccountForm({ formikProps, isViewMode, isSaved, onDateChange, mode }) {
               values
             )}`}</Badge>
           </div>
+
+          <label className={styles.label} style={{ marginTop: "22px" }}>
+            Wallet Transactions
+          </label>
+          <div className={styles.cashHandoverContainer}>
+            <CustomInput
+              label="Wallet Receipt (₹)"
+              name="wallet_receipt"
+              type="number"
+              editable={editable}
+              disabled={isSaved}
+            />
+            <CustomInput
+              label="Wallet Payment (₹)"
+              name="wallet_payment"
+              type="number"
+              editable={editable}
+              disabled={isSaved}
+            />
+            <Badge className={styles.badgeStyle}>
+              Net Wallet Movement
+              <p>{formatSignedRupees(netWalletMovement)}</p>
+            </Badge>
+          </div>
         </div>
       </div>
 
@@ -316,8 +355,10 @@ function AccountForm({ formikProps, isViewMode, isSaved, onDateChange, mode }) {
       <div className={styles.buttonContainer}>
         <Badge className={styles.badgeStyle} style={{ marginTop: 0 }}>
           Total Difference
-          <p style={{ color: differenceAmount >= 0 ? "red" : "green" }}>
-            {` ${currencyFormatter(differenceAmount)}`}
+          <p style={{ color: DIFFERENCE_COLORS[differenceStatus] }}>
+            {formatSignedRupees(differenceAmount)}
+            {differenceStatus !== "BALANCED" &&
+              ` (${differenceStatus === "SHORT" ? "Short" : "Excess"})`}
           </p>
         </Badge>
 

@@ -1,0 +1,571 @@
+import React, { useState } from "react";
+import {
+  Badge,
+  Box,
+  Button,
+  Checkbox,
+  Flex,
+  SimpleGrid,
+  Spinner,
+  Stack,
+  Table,
+  Tbody,
+  Td,
+  Text,
+  Textarea,
+  Th,
+  Thead,
+  Tr,
+  useBreakpointValue,
+} from "@chakra-ui/react";
+import {
+  clock,
+  decisionLabel,
+  displayDate,
+  displayDateTime,
+  formatMinutes,
+  formatOtClock,
+  levelLabel,
+  roleLabel,
+  stageLabel,
+  weekday,
+} from "../../util/attendanceV2";
+import {
+  PAID_NOT_WORKED,
+  permissionPreviewNotApplicable,
+  permissionWindowLabel,
+} from "../../util/attendancePermission";
+
+/**
+ * The approval queue used by ALL THREE tabs of the Attendance Approval Centre
+ * - REGULARIZATION, OT and SHIFT_CHANGE: one screen, rows that EXPAND INLINE.
+ * A compact table on a desktop, cards on a phone; the whole row or card is
+ * the tap target and there is no separate detail page.
+ *
+ * ONE COMPONENT AND NOT THREE. The three request types differ in four
+ * columns and one block of the detail; everything else - the chain, the
+ * decision, the actionable rule, the expand behaviour - is identical, and
+ * three copies of it would be three places for them to drift apart.
+ *
+ * WHAT IS NEVER HERE. No input for OT minutes: the eligible OT is the
+ * engine's figure and the decision endpoint takes none. An attendance
+ * approval shows no OT figure at all - attendance approval corrects
+ * attendance only, and any OT the corrected day earns is the employee's to
+ * request separately. Approve / Reject appear only on a row the backend
+ * marked actionable for this approver; history rows have no actions.
+ */
+const positional = (punches) =>
+  (Array.isArray(punches) ? punches : []).map((p, i) => ({
+    position: i + 1,
+    time: clock(p.io_time),
+    direction: i % 2 === 0 ? "IN" : "OUT",
+    regularized: p.source === "REGULARIZED",
+  }));
+
+function Punches({ punches }) {
+  const list = positional(punches);
+  if (list.length === 0) return <Text fontSize="sm" color="gray.500">None</Text>;
+  return (
+    <Stack spacing={1}>
+      {list.map((p) => (
+        <Flex key={p.position} align="center" gap={2} fontSize="sm">
+          <Text color="gray.500" w="1.5em" textAlign="right">{p.position}</Text>
+          <Text fontFamily="mono" fontWeight="600">{p.time}</Text>
+          <Badge colorScheme={p.direction === "IN" ? "green" : "gray"} fontSize="10px">{p.direction}</Badge>
+        </Flex>
+      ))}
+    </Stack>
+  );
+}
+
+function Field({ label, children }) {
+  return (
+    <Box>
+      <Text fontSize="10px" color="gray.500" textTransform="uppercase" letterSpacing="wide">{label}</Text>
+      <Box fontSize="sm" fontWeight="600">{children}</Box>
+    </Box>
+  );
+}
+
+/**
+ * Who a stage is addressed to. An employee-level stage (Attendance Approver
+ * Setup) names the snapshotted person and their level; a role-based stage,
+ * historical or fallback, names the role as before.
+ */
+const stageApproverLabel = (st) =>
+  st.approver_employee_id !== null && st.approver_employee_id !== undefined
+    ? `${st.approver_name || `Employee ${st.approver_employee_id}`}${st.approval_level ? ` · ${levelLabel(st.approval_level)}` : ""}`
+    : roleLabel(st.approver_role);
+
+function Chain({ chain, current }) {
+  return (
+    <Stack spacing={1}>
+      {(chain || []).map((st) => (
+        <Flex key={st.stage_no} align="center" gap={2} fontSize="xs" wrap="wrap">
+          <Badge
+            colorScheme={st.decision === "APPROVED" ? "green" : st.decision === "REJECTED" ? "red" : st.decision === "SKIPPED" ? "gray" : Number(st.stage_no) === Number(current) ? "purple" : "gray"}
+            fontSize="10px"
+          >
+            {st.stage_no}
+          </Badge>
+          <Text>{stageApproverLabel(st)}</Text>
+          <Text color="gray.500">{st.decision === "PENDING" ? (Number(st.stage_no) === Number(current) ? "current" : "waiting") : st.decision.toLowerCase()}</Text>
+          {st.decided_by_name ? <Text color="gray.600">by {st.decided_by_name}</Text> : null}
+          {st.decided_at ? <Text color="gray.500">{displayDateTime(st.decided_at)}</Text> : null}
+          {st.remarks ? <Text color="gray.600">“{st.remarks}”</Text> : null}
+        </Flex>
+      ))}
+    </Stack>
+  );
+}
+
+const shiftText = (row) =>
+  row.shift_name
+    ? row.shift_in_time && row.shift_out_time
+      ? `${row.shift_name} (${clock(row.shift_in_time)}–${clock(row.shift_out_time)})`
+      : row.shift_name
+    : row.shift_code || "—";
+
+/** "LONG 10:00–22:00", from whichever pair of columns the row carries. */
+const namedShift = (code, name, inTime, outTime) => {
+  const label = name || code;
+  if (!label) return "—";
+  return inTime && outTime ? `${label} (${clock(inTime)}–${clock(outTime)})` : label;
+};
+
+/** Every revocation of this request, newest first - the audit, read only. */
+function Revocations({ revocations }) {
+  if (!Array.isArray(revocations) || revocations.length === 0) return null;
+  return (
+    <Field label="Revoked decisions">
+      <Stack spacing={1}>
+        {revocations.map((v) => (
+          <Text key={v.attendance_approval_revocation_id} fontSize="xs" fontWeight="400" color="gray.700">
+            Stage {v.revoked_stage_no}
+            {v.revoked_approval_level ? ` (${levelLabel(v.revoked_approval_level)})` : ""} {String(v.original_decision).toLowerCase()}
+            {v.original_decided_by_name ? ` by ${v.original_decided_by_name}` : ""}
+            {v.original_approved_ot_minutes ? ` · ${formatOtClock(v.original_approved_ot_minutes)} OT` : ""} — revoked by{" "}
+            {v.revoked_by_name || "an administrator"} {displayDateTime(v.revoked_at)}: “{v.reason}”
+          </Text>
+        ))}
+      </Stack>
+    </Field>
+  );
+}
+
+/** The windows a Permission request asks for, one per line. */
+const permissionWindows = (row) =>
+  (row.permissions || []).map((p) => permissionWindowLabel(p)).join(", ") || "—";
+
+/**
+ * PERMISSION: the window asked for, and - for a pending request - what
+ * approving it would forgive, from the engine with the approval assumed.
+ * Paid, not worked: approving changes no punch, no shift and no OT.
+ */
+function PermissionDetail({ row }) {
+  // A Present/Absent Only date: nothing to forgive, so no figures - the
+  // server's reason instead, and the request can only be rejected.
+  const notApplicable = permissionPreviewNotApplicable(row);
+  const preview = notApplicable ? null : row.permission_preview;
+  return (
+    <SimpleGrid columns={{ base: 1, md: 2 }} spacing={3}>
+      <Field label="Permission asked for">
+        <Stack spacing={0}>
+          {(row.permissions || []).map((p) => (
+            <Text key={p.attendance_permission_id || permissionWindowLabel(p)} fontFamily="mono" color="teal.700">
+              {permissionWindowLabel(p)}
+            </Text>
+          ))}
+        </Stack>
+      </Field>
+      <Field label={notApplicable ? "Not applicable" : preview ? "If approved" : "Paid permission"}>
+        {notApplicable ? (
+          <Text fontWeight="400" fontSize="sm" color="gray.700">
+            {notApplicable}
+          </Text>
+        ) : preview ? (
+          <Text fontWeight="400" fontSize="sm">
+            Short {formatMinutes(preview.shortage_before_permission_minutes)} → permission covers{" "}
+            <Text as="span" fontWeight="700" color="teal.700">{formatMinutes(preview.permission_minutes)}</Text> → short{" "}
+            {formatMinutes(preview.shortage_after_permission_minutes)}
+          </Text>
+        ) : null}
+        {notApplicable ? null : (
+          <Text fontWeight="400" fontSize="xs" color="gray.600">
+            {PAID_NOT_WORKED}. Approving changes no punch, no shift and no overtime; only the shortage inside the window is
+            forgiven.
+          </Text>
+        )}
+      </Field>
+    </SimpleGrid>
+  );
+}
+
+function Detail({ row, kind, onDecide, deciding, onRevoke = null }) {
+  const [remarks, setRemarks] = useState("");
+  const isOt = kind === "OT";
+  const isShift = kind === "SHIFT_CHANGE";
+  const isPermission = kind === "PERMISSION";
+  // A REJECTION MUST SAY WHY, on every type - the backend refuses one without
+  // a reason, so the button is disabled rather than letting the refusal come
+  // back as an error the approver has to read twice.
+  const rejectBlocked = remarks.trim().length < 5;
+  return (
+    <Stack spacing={3}>
+      <SimpleGrid columns={{ base: 1, md: 3 }} spacing={3}>
+        <Field label="Employee">{row.employee_name || row.employee_id}{row.outlet_name ? <Text as="span" color="gray.500" fontWeight="400"> · {row.outlet_name}</Text> : null}</Field>
+        <Field label="Date">{displayDate(row.attendance_date)} · {weekday(row.attendance_date)}</Field>
+        {isShift ? (
+          <Field label="Normal shift">{namedShift(row.base_shift_code, row.base_shift_name)}</Field>
+        ) : (
+          <Field label="Shift">{shiftText(row)}</Field>
+        )}
+      </SimpleGrid>
+
+      {isShift ? (
+        <SimpleGrid columns={{ base: 1, md: 2 }} spacing={3}>
+          <Field label="Requested shift">
+            <Text color="purple.700">{namedShift(row.requested_shift_code, row.requested_shift_name)}</Text>
+          </Field>
+          <Field label="For that one date only">
+            <Text fontWeight="400" fontSize="xs" color="gray.600">
+              Approving applies the requested shift to {displayDate(row.attendance_date)} and to no other date. The
+              employee stays on their normal shift the next day, and their permanent shift and salary are not changed.
+            </Text>
+          </Field>
+        </SimpleGrid>
+      ) : isPermission ? (
+        <>
+          <Field label="Punches"><Punches punches={row.effective_punches} /></Field>
+          <PermissionDetail row={row} />
+        </>
+      ) : (
+      <SimpleGrid columns={{ base: 1, md: 2 }} spacing={3}>
+        <Field label={isOt ? "Punches" : "Existing punches"}><Punches punches={row.effective_punches} /></Field>
+        {!isOt ? (
+          <Field label="Proposed missing punch">
+            <Text fontFamily="mono" color="orange.700">{row.proposed_punch_time ? clock(row.proposed_punch_time) : "—"}</Text>
+            <Text fontSize="xs" color="gray.500" fontWeight="400">IN or OUT is decided by its position once added.</Text>
+          </Field>
+        ) : (
+          <Field label="Eligible OT (read only)">
+            <Text fontFamily="mono" fontSize="lg" color="blue.700">{formatOtClock(row.eligible_ot_minutes)}</Text>
+            {Number(row.claimed_ot_minutes) !== Number(row.eligible_ot_minutes) ? (
+              <Text fontSize="xs" color="gray.500" fontWeight="400">Sent for approval as {formatOtClock(row.claimed_ot_minutes)}; the approval is limited to what the system finds eligible now.</Text>
+            ) : null}
+            {/* The source month's payroll is locked: approving settles this
+                OT forward as Prior-Month OT - the old payroll never changes. */}
+            {row.source_payroll_locked ? (
+              <Text fontSize="xs" color="purple.700" fontWeight="600">
+                {row.late_settlement_note || "Source payroll locked — if approved, this OT will be settled in the next eligible payroll."}
+              </Text>
+            ) : null}
+          </Field>
+        )}
+      </SimpleGrid>
+      )}
+
+      {/* OT RAISED BY THE ATTENDANCE ENGINE has no employee reason: nobody
+          requested it. Historical OT an employee requested keeps theirs. */}
+      {isOt && row.ot_source === "SYSTEM" ? (
+        <Field label="Raised by"><Text fontWeight="400">System - eligible OT calculated by the attendance engine from the punches</Text></Field>
+      ) : (
+        <Field label="Employee reason"><Text fontWeight="400">{row.reason || "—"}</Text></Field>
+      )}
+
+      {isShift ? null : (
+      <SimpleGrid columns={{ base: 3, md: 4 }} spacing={3}>
+        <Field label="NRM">{formatMinutes(row.nrm_minutes)}</Field>
+        {/* The REGULAR NRM is the permanent shift's, and on a day carrying an
+            approved one-day shift it is deliberately not the NRM beside it. */}
+        {isOt ? <Field label="Regular NRM">{formatMinutes(row.base_nrm_minutes)}</Field> : null}
+        <Field label="Worked">{formatMinutes(row.worked_minutes)}</Field>
+        <Field label="Shortage">{formatMinutes(row.shortage_minutes)}</Field>
+        {isOt && row.status === "APPROVED" ? <Field label="Approved OT">{formatOtClock(row.approved_ot_minutes)}</Field> : null}
+      </SimpleGrid>
+      )}
+
+      <Field label={row.status === "PENDING" ? "Approval chain · current stage" : "Approval chain"}>
+        <Text fontSize="xs" color="purple.700" mb={1}>{stageLabel(row)}</Text>
+        <Chain chain={row.chain} current={row.current_stage_no} />
+      </Field>
+
+      <Revocations revocations={row.revocations} />
+
+      {row.status !== "PENDING" ? (
+        <Field label="Decision">
+          <Text color={row.status === "APPROVED" ? "green.700" : row.status === "CANCELLED" ? "gray.600" : "red.700"}>{decisionLabel(row)}</Text>
+          <Text fontSize="xs" color="gray.500" fontWeight="400">
+            {row.decided_by_name ? `${row.decided_by_name} · ` : ""}{displayDateTime(row.decided_at)}
+          </Text>
+        </Field>
+      ) : null}
+
+      {/*
+        ADMIN REVOKE: offered by the page to an administrator only, and here
+        only where the server marked the REQUEST revocable. It voids the whole
+        request; the endpoint checks the account and the request itself.
+      */}
+      {onRevoke && row.revocable ? (
+        <Flex justify="flex-end">
+          <Button size="sm" variant="outline" colorScheme="red" onClick={() => onRevoke(row)}>
+            Revoke
+          </Button>
+        </Flex>
+      ) : null}
+
+      {row.status === "PENDING" && row.actionable && onDecide ? (
+        <Box borderTopWidth="1px" borderColor="gray.100" pt={3}>
+          <Text fontSize="10px" color="gray.500" textTransform="uppercase" letterSpacing="wide" mb={1}>Remarks</Text>
+          <Textarea size="sm" rows={2} value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Optional for an approval, required to reject" />
+          <Flex gap={2} mt={2} justify="flex-end" wrap="wrap">
+            <Button
+              size="sm"
+              colorScheme="red"
+              variant="outline"
+              isLoading={deciding === "REJECTED"}
+              isDisabled={!!deciding || rejectBlocked}
+              title={rejectBlocked ? "A rejection reason is required" : undefined}
+              onClick={() => onDecide(row, "REJECTED", remarks)}
+            >
+              Reject
+            </Button>
+            <Button
+              size="sm"
+              colorScheme="green"
+              isLoading={deciding === "APPROVED"}
+              isDisabled={!!deciding || !!permissionPreviewNotApplicable(row)}
+              title={permissionPreviewNotApplicable(row) || undefined}
+              onClick={() => onDecide(row, "APPROVED", remarks)}
+            >
+              Approve
+            </Button>
+          </Flex>
+        </Box>
+      ) : row.status === "PENDING" && row.waiting_for_correction ? (
+        // ATTENDANCE CORRECTION FIRST: the OT is re-synced from the corrected
+        // day once the correction is decided; until then it cannot be decided.
+        <Text fontSize="xs" color="orange.700">
+          {row.waiting_status_label || "Waiting for attendance correction"} - OT will be recalculated before approval.
+        </Text>
+      ) : row.status === "PENDING" && row.not_actionable_reason ? (
+        <Text fontSize="xs" color="gray.500">{row.not_actionable_reason}</Text>
+      ) : null}
+    </Stack>
+  );
+}
+
+const summaryPunches = (row) => positional(row.effective_punches).map((p) => p.time).join(" → ") || "—";
+
+/**
+ * BULK SELECTION, when the page passes `selection`: a tick box on each row
+ * the tab may action (`selection.selectable(row)` - the server's own
+ * `actionable` / `revocable`), and a header box that ticks every such row on
+ * this page. Ticking never expands the row. Without `selection` the queue is
+ * exactly what it was.
+ */
+function RowCheck({ row, selection }) {
+  if (!selection) return null;
+  const selectable = selection.selectable(row);
+  return (
+    <Checkbox
+      colorScheme="purple"
+      isChecked={selectable && selection.isSelected(row.attendance_approval_request_id)}
+      isDisabled={!selectable}
+      onChange={() => selection.toggle(row)}
+      onClick={(e) => e.stopPropagation()}
+      aria-label={`Select request ${row.attendance_approval_request_id}`}
+      title={selectable ? undefined : "Not something you can action from this tab"}
+    />
+  );
+}
+
+export default function ApprovalQueue({ rows, kind, loading, onDecide, deciding, onRevoke = null, selection = null }) {
+  const isMobile = useBreakpointValue({ base: true, md: false });
+  const [open, setOpen] = useState(null);
+  const isOt = kind === "OT";
+  const isShift = kind === "SHIFT_CHANGE";
+  const isPermission = kind === "PERMISSION";
+  const toggle = (id) => setOpen((current) => (current === id ? null : id));
+  const history = rows.length > 0 && rows.every((r) => r.status !== "PENDING");
+
+  if (loading) {
+    return (
+      <Flex align="center" gap={2} py={6} justify="center">
+        <Spinner size="sm" color="purple.500" />
+        <Text fontSize="sm" color="gray.600">Loading…</Text>
+      </Flex>
+    );
+  }
+  if (!rows || rows.length === 0) {
+    return <Text fontSize="sm" color="gray.600" py={4}>Nothing here.</Text>;
+  }
+
+  const pageBox = selection ? (
+    <Checkbox
+      colorScheme="purple"
+      isChecked={selection.pageState === "all"}
+      isIndeterminate={selection.pageState === "some"}
+      isDisabled={!rows.some((r) => selection.selectable(r))}
+      onChange={() => selection.togglePage()}
+      aria-label="Select all on this page"
+    />
+  ) : null;
+
+  if (isMobile) {
+    return (
+      <Stack spacing={2}>
+        {selection ? (
+          <Flex align="center" gap={2} px={1}>
+            {pageBox}
+            <Text fontSize="sm" color="gray.600">Select all on this page</Text>
+          </Flex>
+        ) : null}
+        {rows.map((row) => {
+          const id = row.attendance_approval_request_id;
+          const expanded = open === id;
+          return (
+            <Box key={id} borderWidth="1px" borderRadius="md" borderColor={expanded ? "purple.300" : "gray.200"} bg="white" shadow="sm" p={3}>
+              <Flex gap={3} align="flex-start">
+              {selection ? <Box pt="2px"><RowCheck row={row} selection={selection} /></Box> : null}
+              <Box as="button" type="button" textAlign="left" w="100%" onClick={() => toggle(id)} aria-expanded={expanded}>
+                <Flex justify="space-between" align="center" gap={2}>
+                  <Text fontWeight="600" fontSize="sm" color="purple.700">{row.employee_name || row.employee_id}</Text>
+                  {row.status === "PENDING" && row.waiting_for_correction ? (
+                    <Badge colorScheme="orange" fontSize="10px">{row.waiting_status_label || "Waiting for attendance correction"}</Badge>
+                  ) : row.status === "PENDING" ? (
+                    <Badge colorScheme={row.actionable ? "purple" : "gray"} fontSize="10px">{stageLabel(row)}</Badge>
+                  ) : (
+                    <Badge colorScheme={row.status === "APPROVED" ? "green" : "red"} fontSize="10px">{decisionLabel(row)}</Badge>
+                  )}
+                </Flex>
+                <Text fontSize="xs" color="gray.600">
+                  {displayDate(row.attendance_date)} · {weekday(row.attendance_date)} ·{" "}
+                  {isShift ? namedShift(row.base_shift_code, row.base_shift_name) : shiftText(row)}
+                </Text>
+                {isShift ? null : <Text fontSize="xs" fontFamily="mono" color="gray.700">{summaryPunches(row)}</Text>}
+                {isShift ? (
+                  <Text fontSize="xs" color="purple.700" fontWeight="600">
+                    Requested {namedShift(row.requested_shift_code, row.requested_shift_name)}
+                  </Text>
+                ) : isPermission ? (
+                  <Text fontSize="xs" color="teal.700" fontWeight="600">Permission {permissionWindows(row)}</Text>
+                ) : isOt ? (
+                  <Text fontSize="xs" color="blue.700" fontWeight="600">Eligible OT {formatOtClock(row.eligible_ot_minutes)}{row.status === "APPROVED" ? ` · Approved ${formatOtClock(row.approved_ot_minutes)}` : ""}</Text>
+                ) : (
+                  <Text fontSize="xs" color="orange.700" fontWeight="600">Proposed {row.proposed_punch_time ? clock(row.proposed_punch_time) : "—"}</Text>
+                )}
+                <Text fontSize="xs" color="gray.600" noOfLines={expanded ? undefined : 1}>{isOt && row.ot_source === "SYSTEM" ? "System-calculated OT" : row.reason}</Text>
+                <Text fontSize="10px" color="gray.500">Submitted {displayDateTime(row.submitted_at)}</Text>
+              </Box>
+              </Flex>
+              {expanded ? (
+                <Box mt={3} pt={3} borderTopWidth="1px" borderColor="gray.100">
+                  <Detail row={row} kind={kind} onDecide={onDecide} deciding={deciding && deciding.id === id ? deciding.decision : null} onRevoke={onRevoke} />
+                </Box>
+              ) : null}
+            </Box>
+          );
+        })}
+      </Stack>
+    );
+  }
+
+  return (
+    <Box overflowX="auto" borderWidth="1px" borderColor="gray.200" borderRadius="md" bg="white">
+      <Table size="sm" variant="simple">
+        <Thead bg="gray.50">
+          <Tr>
+            {selection ? <Th w="1%">{pageBox}</Th> : null}
+            <Th>Employee</Th>
+            <Th>Date</Th>
+            <Th>{isShift ? "Normal Shift" : "Shift"}</Th>
+            {isShift ? <Th>Requested Shift</Th> : isOt ? <Th isNumeric>Working Time</Th> : <Th>{isPermission ? "Punches" : "Existing Punches"}</Th>}
+            {isShift ? null : isOt ? <Th isNumeric>Regular NRM</Th> : <Th>{isPermission ? "Permission" : "Proposed Punch"}</Th>}
+            {isOt ? <Th isNumeric>{history ? "Eligible / Claimed OT" : "OT"}</Th> : null}
+            {isOt && history ? <Th isNumeric>Approved OT</Th> : null}
+            <Th>{isOt ? "Source / Reason" : "Reason"}</Th>
+            <Th>{history ? "Decided" : "Submitted"}</Th>
+            {isShift ? <Th>Approval Stage</Th> : null}
+            <Th>{history ? "Final Status" : "Action"}</Th>
+          </Tr>
+        </Thead>
+        <Tbody>
+          {rows.map((row) => {
+            const id = row.attendance_approval_request_id;
+            const expanded = open === id;
+            // Employee, Date, Shift, the tab's own fourth column, Reason,
+            // Submitted and Action are on every tab - seven; then the extra
+            // columns each tab adds beyond that.
+            const columns = 7 + (isShift ? 1 : isOt ? 2 + (history ? 1 : 0) : 1) + (selection ? 1 : 0);
+            return (
+              <React.Fragment key={id}>
+                <Tr cursor="pointer" onClick={() => toggle(id)} _hover={{ bg: "purple.50" }} bg={expanded ? "purple.50" : undefined} role="button" tabIndex={0} aria-expanded={expanded}
+                  onKeyDown={(e) => { if (e.target !== e.currentTarget) return; if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(id); } }}>
+                  {selection ? <Td onClick={(e) => e.stopPropagation()}><RowCheck row={row} selection={selection} /></Td> : null}
+                  <Td whiteSpace="nowrap">{row.employee_name || row.employee_id}</Td>
+                  <Td whiteSpace="nowrap">{displayDate(row.attendance_date)}</Td>
+                  <Td fontSize="xs">
+                    {isShift ? namedShift(row.base_shift_code, row.base_shift_name) : shiftText(row)}
+                    {/* OT: the punch in / out beside the shift, so the decision needs no click. */}
+                    {isOt ? <Text fontFamily="mono" fontSize="10px" color="gray.600" whiteSpace="nowrap">{summaryPunches(row)}</Text> : null}
+                  </Td>
+                  {isShift ? (
+                    <Td fontSize="xs" color="purple.700" fontWeight="600">{namedShift(row.requested_shift_code, row.requested_shift_name)}</Td>
+                  ) : isOt ? (
+                    <Td isNumeric>{formatMinutes(row.worked_minutes)}</Td>
+                  ) : (
+                    <Td fontFamily="mono" fontSize="xs" whiteSpace="nowrap">{summaryPunches(row)}</Td>
+                  )}
+                  {isShift ? null : isOt ? (
+                    <Td isNumeric>{formatMinutes(row.base_nrm_minutes)}</Td>
+                  ) : isPermission ? (
+                    <Td fontFamily="mono" fontSize="xs" color="teal.700" whiteSpace="nowrap">{permissionWindows(row)}</Td>
+                  ) : (
+                    <Td fontFamily="mono" color="orange.700">{row.proposed_punch_time ? clock(row.proposed_punch_time) : "—"}</Td>
+                  )}
+                  {isOt ? (
+                    <Td isNumeric fontFamily="mono">{formatOtClock(row.eligible_ot_minutes)}{history && Number(row.claimed_ot_minutes) !== Number(row.eligible_ot_minutes) ? ` / ${formatOtClock(row.claimed_ot_minutes)}` : ""}</Td>
+                  ) : null}
+                  {isOt && history ? <Td isNumeric fontFamily="mono">{row.status === "APPROVED" ? formatOtClock(row.approved_ot_minutes) : "—"}</Td> : null}
+                  <Td fontSize="xs" maxW="260px">
+                    {isOt && row.ot_source === "SYSTEM" ? (
+                      <Badge colorScheme="blue" fontSize="10px" variant="subtle">System</Badge>
+                    ) : (
+                      <Text noOfLines={1}>{row.reason}</Text>
+                    )}
+                  </Td>
+                  <Td fontSize="xs" whiteSpace="nowrap">{history ? `${row.decided_by_name || "—"} · ${displayDateTime(row.decided_at)}` : displayDateTime(row.submitted_at)}</Td>
+                  {isShift ? (
+                    <Td fontSize="xs" whiteSpace="nowrap">
+                      {row.approval_stage}
+                      {row.current_stage_approver_name ? (
+                        <Text as="span" color="gray.500"> · {row.current_stage_approver_name}</Text>
+                      ) : null}
+                    </Td>
+                  ) : null}
+                  <Td>
+                    {row.status === "PENDING" && row.waiting_for_correction ? (
+                      <Badge colorScheme="orange" fontSize="10px">{row.waiting_status_label || "Waiting for attendance correction"}</Badge>
+                    ) : row.status === "PENDING" ? (
+                      <Badge colorScheme={row.actionable ? "purple" : "gray"} fontSize="10px">{row.actionable ? "Decide" : stageLabel(row)}</Badge>
+                    ) : (
+                      <Badge colorScheme={row.status === "APPROVED" ? "green" : "red"} fontSize="10px">{decisionLabel(row)}</Badge>
+                    )}
+                  </Td>
+                </Tr>
+                {expanded ? (
+                  <Tr>
+                    <Td colSpan={columns} bg="gray.50">
+                      <Detail row={row} kind={kind} onDecide={onDecide} deciding={deciding && deciding.id === id ? deciding.decision : null} onRevoke={onRevoke} />
+                    </Td>
+                  </Tr>
+                ) : null}
+              </React.Fragment>
+            );
+          })}
+        </Tbody>
+      </Table>
+    </Box>
+  );
+}

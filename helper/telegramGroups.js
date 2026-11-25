@@ -1,0 +1,180 @@
+import API from "../util/api";
+
+/**
+ * Telegram Group Registry API - `routes/telegram_group_registry.js`.
+ * Base path: /telegram-groups
+ *
+ *   list    view_telegram_groups
+ *   read    view_telegram_groups
+ *   write   manage_telegram_groups
+ *
+ * A refusal - a 403, a duplicate Chat ID, an unsupported category - arrives
+ * as `{ code, msg }` and is thrown as an Error carrying the server's own
+ * sentence, because the server's message is the one worth showing: it names
+ * the group the Chat ID is already registered to, and it is the message the
+ * user must act on. Shaped like `helper/remarksMaster.js`.
+ */
+
+const fail = (res, fallback) => {
+  throw new Error((res && res.data && res.data.msg) || fallback);
+};
+
+export const getTelegramGroups = (params = {}) =>
+  API.get("/telegram-groups", { params }).then((res) => {
+    if (res.data?.code === 200) return res.data;
+    return fail(res, "Failed to fetch Telegram groups");
+  });
+
+export const getTelegramGroupById = (id) =>
+  API.get(`/telegram-groups/${id}`).then((res) => {
+    if (res.data?.code === 200) return res.data.data;
+    if (res.data?.code === 404) return null;
+    return fail(res, "Failed to fetch the Telegram group");
+  });
+
+/**
+ * Groups that sent `/setup` and are not yet registered.
+ *
+ * Behind `manage_telegram_groups`, so a view-only user gets the ordinary
+ * 403 here rather than a list of groups they cannot register.
+ */
+export const getDetectedTelegramGroups = () =>
+  API.get("/telegram-groups/detected").then((res) => {
+    if (res.data?.code === 200) return Array.isArray(res.data.data) ? res.data.data : [];
+    return fail(res, "Could not check for detected Telegram groups");
+  });
+
+export const createTelegramGroup = (body) =>
+  API.post("/telegram-groups", body).then((res) => {
+    if (res.data?.code === 200) return res.data;
+    return fail(res, "Failed to create the Telegram group");
+  });
+
+export const updateTelegramGroup = (id, body) =>
+  API.put(`/telegram-groups/${id}`, body).then((res) => {
+    if (res.data?.code === 200) return res.data;
+    return fail(res, "Failed to update the Telegram group");
+  });
+
+export const deleteTelegramGroup = (id) =>
+  API.delete(`/telegram-groups/${id}`).then((res) => {
+    if (res.data?.code === 200) return res.data;
+    return fail(res, "Failed to delete the Telegram group");
+  });
+
+/* ------------------------------------------- Phase 3A: group mapping ---- */
+
+/**
+ * WHO SHOULD BELONG TO A GROUP. Configuration only.
+ *
+ * None of these adds, removes, invites or bans anybody on Telegram - there
+ * is no endpoint here that could. Reads need `view_telegram_groups`, writes
+ * need `manage_telegram_groups`; there is no third key.
+ */
+export const getTelegramGroupMappings = (id) =>
+  API.get(`/telegram-groups/${id}/mappings`).then((res) => {
+    if (res.data?.code === 200) return res.data.data;
+    return fail(res, "Failed to fetch the group's mappings");
+  });
+
+/**
+ * `body` is the composite rule - `{ outlet_id?, department_id?, designation_id? }`,
+ * built by `util/telegramGroupMapping#rulePayload`. Every dimension is
+ * optional and an omitted one means "All"; a body with none of them is the
+ * rule that covers everybody.
+ *
+ * `mapping_type` IS NO LONGER A FIELD and must not be sent: the server
+ * refuses an unknown one rather than ignoring it, which is deliberate -
+ * silently dropping it would save "All Employees" for somebody who asked for
+ * one outlet.
+ *
+ * The server's refusal is thrown verbatim, because "An identical rule is
+ * already on this group" and "That outlet no longer exists" are the exact
+ * sentences the user has to act on.
+ */
+export const addTelegramGroupMapping = (id, body) =>
+  API.post(`/telegram-groups/${id}/mappings`, body).then((res) => {
+    if (res.data?.code === 200) return res.data;
+    return fail(res, "Failed to add the mapping");
+  });
+
+export const deleteTelegramGroupMapping = (id, mappingId) =>
+  API.delete(`/telegram-groups/${id}/mappings/${mappingId}`).then((res) => {
+    if (res.data?.code === 200) return res.data;
+    return fail(res, "Failed to remove the mapping");
+  });
+
+/**
+ * PREVIEW - who a rule WOULD cover, before it is saved.
+ *
+ * POST because the body is the rule, and the server validates it with the
+ * same code that validates it at save time - so a rule the preview accepted
+ * cannot be refused by Save for a reason the operator never saw.
+ *
+ * IT WRITES NOTHING. `view_telegram_groups`, like every other read on this
+ * screen, and NO BRANCH IS SENT: the server resolves the caller's scope from
+ * its own live lookup.
+ */
+export const previewTelegramGroupMapping = (id, body) =>
+  API.post(`/telegram-groups/${id}/mapping-preview`, body).then((res) => {
+    if (res.data?.code === 200) return res.data.data;
+    return fail(res, "Failed to preview this rule");
+  });
+
+/**
+ * The people a group's rules resolve to.
+ *
+ * NO BRANCH IS SENT, and none may be: the server resolves the caller's scope
+ * from its own live lookup and refuses a request that names one. Omitting
+ * `mappingId` asks for the deduplicated union of every rule.
+ */
+export const getTelegramGroupMatchedEmployees = (id, mappingId) =>
+  API.get(`/telegram-groups/${id}/matched-employees`, {
+    params: mappingId ? { mapping_id: mappingId } : {},
+  }).then((res) => {
+    if (res.data?.code === 200) return res.data.data;
+    return fail(res, "Failed to fetch the matched employees");
+  });
+
+/* ------------------------------------------- Phase 3C: managed membership */
+/**
+ * MANAGED MEMBERSHIP lives here, in the Group Map's API surface, because it
+ * is `manage_telegram_groups` work: granting somebody a company group is
+ * granting ACCESS, not recording a detail about them. Nothing in
+ * `helper/employeeTelegram.js` may write it.
+ */
+export const getTelegramGroupMembership = (id) =>
+  API.get(`/telegram-groups/${id}/membership`).then((res) => {
+    if (res.data?.code === 200) return Array.isArray(res.data.data) ? res.data.data : [];
+    return fail(res, "Failed to load this group's managed membership");
+  });
+
+export const grantTelegramGroupMembership = (id, employeeId) =>
+  API.post(`/telegram-groups/${id}/membership`, { employee_id: employeeId }).then((res) => {
+    if (res.data?.code === 200) return res.data;
+    return fail(res, "Failed to add the employee to this group");
+  });
+
+export const revokeTelegramGroupMembership = (id, employeeId) =>
+  API.delete(`/telegram-groups/${id}/membership/${employeeId}`).then((res) => {
+    if (res.data?.code === 200) return res.data;
+    return fail(res, "Failed to remove the employee from this group");
+  });
+
+/**
+ * ADD MANY, IN ONE REQUEST AND ONE TRANSACTION.
+ *
+ * NEVER A LOOP OVER `grantTelegramGroupMembership`. Eighteen uncontrolled
+ * requests are eighteen independent transactions: a dropped connection
+ * halfway leaves nine granted and nine not, with nothing on screen saying
+ * which nine. One request is all of them or none of them.
+ *
+ * The server bounds the list and re-checks the caller's branch scope, so a
+ * selection reaching outside it fails the whole request rather than being
+ * silently trimmed.
+ */
+export const grantTelegramGroupMembershipBulk = (id, employeeIds) =>
+  API.post(`/telegram-groups/${id}/membership/bulk`, { employee_ids: employeeIds }).then((res) => {
+    if (res.data?.code === 200) return res.data;
+    return fail(res, "Failed to add the selected employees to this group");
+  });

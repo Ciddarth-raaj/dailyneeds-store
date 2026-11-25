@@ -58,21 +58,57 @@ export function vendorRowPrKey(row) {
  * Aggregate purchase register rows by supplier (GSTIN when present).
  * docCount = number of purchase records for that supplier.
  */
-function periodDateRange(period) {
+function parsePeriod(period) {
   const m = moment(period, "YYYY-MM", true);
-  if (!m.isValid()) return null;
+  return m.isValid() ? m : null;
+}
 
-  const startOfDay = m.clone().startOf("month").toDate();
+/**
+ * Order the two ends of a return-period range, so a from later than the to
+ * still reads as a range rather than returning nothing.
+ * `toPeriod` defaults to `fromPeriod` (a single month).
+ */
+export function normalizePeriodRange(fromPeriod, toPeriod) {
+  const from = parsePeriod(fromPeriod);
+  const to = parsePeriod(toPeriod ?? fromPeriod);
+  if (!from || !to) return null;
+  return from.isAfter(to) ? { from: to, to: from } : { from, to };
+}
+
+/** Inclusive calendar range covering whole months, from month start to month end. */
+function periodDateRange(fromPeriod, toPeriod) {
+  const range = normalizePeriodRange(fromPeriod, toPeriod);
+  if (!range) return null;
+
+  const startOfDay = range.from.clone().startOf("month").toDate();
   startOfDay.setHours(0, 0, 0, 0);
-  const endOfDay = m.clone().endOf("month").toDate();
+  const endOfDay = range.to.clone().endOf("month").toDate();
   endOfDay.setHours(23, 59, 59, 999);
 
   return { startOfDay, endOfDay };
 }
 
+/** "September 2026", or "April 2025 – March 2026" across a range. */
+export function formatPeriodRangeLabel(fromPeriod, toPeriod) {
+  const range = normalizePeriodRange(fromPeriod, toPeriod);
+  if (!range) return "";
+  const from = range.from.format("MMMM YYYY");
+  const to = range.to.format("MMMM YYYY");
+  return from === to ? from : `${from} – ${to}`;
+}
+
+/** Stable grid/table key for the selected range. */
+export function periodRangeKey(fromPeriod, toPeriod) {
+  const range = normalizePeriodRange(fromPeriod, toPeriod);
+  if (!range) return "";
+  const from = range.from.format("YYYY-MM");
+  const to = range.to.format("YYYY-MM");
+  return from === to ? from : `${from}_${to}`;
+}
+
 /** GSTR-2A PR page: filter purchases by dist bill date (`mmh_dist_bill_dt`). */
-export function purchasePeriodFilters(period) {
-  const range = periodDateRange(period);
+export function purchasePeriodFilters(fromPeriod, toPeriod) {
+  const range = periodDateRange(fromPeriod, toPeriod);
   if (!range) return null;
 
   return {
@@ -81,14 +117,14 @@ export function purchasePeriodFilters(period) {
   };
 }
 
-/** GSTR-2A PR page: matches for invoices in the selected GSTR return period. */
-export function purchaseMatchPeriodFilters(period) {
-  const m = moment(period, "YYYY-MM", true);
-  if (!m.isValid()) return null;
+/** GSTR-2A PR page: matches for invoices in the selected GSTR return periods. */
+export function purchaseMatchPeriodFilters(fromPeriod, toPeriod) {
+  const range = normalizePeriodRange(fromPeriod, toPeriod);
+  if (!range) return null;
 
   return {
-    year: m.year(),
-    month: m.month() + 1,
+    from_period: range.from.format("YYYY-MM"),
+    to_period: range.to.format("YYYY-MM"),
   };
 }
 
@@ -377,6 +413,9 @@ export function getAutoMatchCompareFlags(documentRow, purchase) {
  */
 export function getDocumentMatchStatusBadge(row) {
   if (!row?.isMatched) {
+    if (row?.isNo2aAccepted) {
+      return { label: "Accepted", colorScheme: "green" };
+    }
     return { label: "Unmatched", colorScheme: "gray" };
   }
 
@@ -556,6 +595,9 @@ export function buildPrOnlyDocumentRows(purchases, matches) {
     rows.push({
       _rowId: `pr-only:${rowKey}`,
       gst_b2b_invoice_id: null,
+      gst_tally_purchase_id:
+        purchase.gst_tally_purchase_id ?? purchase.purchase_id ?? null,
+      isZeroTax: isZeroTaxPurchase(purchase),
       isPrOnly: true,
       isMatched: false,
       gst_purchase_match_id: null,
@@ -574,6 +616,41 @@ export function buildPrOnlyDocumentRows(purchases, matches) {
   }
 
   return rows;
+}
+
+/**
+ * A purchase carrying no tax. Its supplier files nothing against it in
+ * GSTR-2A - nil-rated, exempt or composition - so no 2A document will ever
+ * arrive to match it. Same figure as getPurchaseTotalTax, which is also what
+ * the server re-checks before accepting one.
+ */
+export function isZeroTaxPurchase(purchase) {
+  if (!purchase) return false;
+  return getPurchaseTotalTax(purchase) === 0;
+}
+
+/** Purchase ids accepted as never appearing in 2A. */
+export function buildAcceptedNo2aIds(acceptedRows) {
+  const ids = new Set();
+  for (const row of acceptedRows || []) {
+    const id = Number(row?.gst_tally_purchase_id);
+    if (Number.isFinite(id)) ids.add(id);
+  }
+  return ids;
+}
+
+/** Flag PR-only rows the reviewer has accepted as expected to have no 2A. */
+export function enrichRowsWithNo2aAcceptance(rows, acceptedIds) {
+  if (!acceptedIds?.size) {
+    return (rows || []).map((row) => ({ ...row, isNo2aAccepted: false }));
+  }
+  return (rows || []).map((row) => {
+    const id = Number(row?.gst_tally_purchase_id);
+    return {
+      ...row,
+      isNo2aAccepted: Number.isFinite(id) && acceptedIds.has(id),
+    };
+  });
 }
 
 /** 2A document rows plus PR-only rows (no B2B invoice link). */

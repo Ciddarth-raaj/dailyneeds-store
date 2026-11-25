@@ -1,0 +1,317 @@
+import React, { useEffect, useState } from "react";
+import GlobalWrapper from "../../../components/globalWrapper/globalWrapper";
+import CustomContainer from "../../../components/CustomContainer";
+import { Formik } from "formik";
+import CustomInput from "../../../components/customInput/customInput";
+import styles from "./branchModal.module.css";
+import { BranchValidation } from "../../../util/validation";
+import { normalizeRetailPilotId } from "../../../util/retailPilotId";
+import useDesignations from "../../../customHooks/useDesignations";
+import usePermissions from "../../../customHooks/usePermissions";
+import { Button } from "@chakra-ui/button";
+import { Grid } from "@chakra-ui/react";
+import OutletHelper from "../../../helper/outlets";
+import BranchIpAccessSection from "../../../components/BranchIpAccess";
+import toast from "react-hot-toast";
+import { useRouter } from "next/router";
+
+const VIEW_PERMISSION = "view_branch";
+const IP_PERMISSION = "manage_ip_restrictions";
+
+function BranchEditor() {
+  const router = useRouter();
+  const { mode, id: paramId } = router.query;
+  const viewMode = mode === "view";
+  const editable = !viewMode;
+
+  // The IP section talks to a permission-gated endpoint, and the app treats
+  // any 403 as a dead session, so it must not even mount without the right.
+  const canManageIp = usePermissions(IP_PERMISSION);
+
+  const [initialValues, setInitialValues] = useState({
+    outlet_name: null,
+    outlet_nickname: null,
+    outlet_phone: null,
+    telegram_username: null,
+    phone: null,
+    outlet_address: null,
+    store_id: null,
+    gofrugal_id: null,
+    retailpilot_id: null,
+    outlet_code: null,
+    budget: [],
+  });
+
+  const { designations } = useDesignations();
+
+  useEffect(() => {
+    if (designations && !paramId) {
+      const updatedBudget = designations.map((item) => ({
+        count: null,
+        designation: item.designation_name,
+        designation_id: item.designation_id,
+      }));
+      setInitialValues((prev) => ({
+        ...prev,
+        budget: updatedBudget,
+      }));
+    }
+  }, [designations, paramId]);
+
+  const getMergedBudgetArray = (existingBudget, designations) => {
+    const mergedBudget = [...existingBudget];
+
+    designations.forEach((designation) => {
+      const exists = existingBudget.some(
+        (budget) => budget.designation_id === designation.id
+      );
+
+      if (!exists) {
+        mergedBudget.push({
+          count: null,
+          designation: designation.designation_name,
+          designation_id: designation.designation_id,
+        });
+      }
+    });
+
+    return mergedBudget;
+  };
+
+  useEffect(() => {
+    async function fetchOoutlet() {
+      if (paramId && designations) {
+        const response = await OutletHelper.getOutletByOutletId(paramId);
+
+        if (!response.code) {
+          const modifiedResponse = response[0];
+          modifiedResponse.budget = modifiedResponse.budget.map((item) => ({
+            count: parseInt(item.budget),
+            designation: item.designation_name,
+            designation_id: item.designation_id,
+            budget_id: item.budget_id,
+          }));
+
+          // Merge with missing designations
+          modifiedResponse.budget = getMergedBudgetArray(
+            modifiedResponse.budget,
+            designations
+          );
+
+          setInitialValues(modifiedResponse);
+        }
+      }
+    }
+    fetchOoutlet();
+  }, [paramId, designations]);
+
+  const handleCreate = (values) => {
+    const params = {
+      outlet_details: {
+        outlet_name: values.outlet_name,
+        outlet_nickname: values.outlet_nickname,
+        outlet_phone: values.outlet_phone,
+        phone: values.phone,
+        outlet_address: values.outlet_address,
+        telegram_username: values.telegram_username,
+        opening_cash: values.opening_cash,
+        gofrugal_id: values.gofrugal_id,
+        retailpilot_id: normalizeRetailPilotId(values.retailpilot_id),
+        outlet_code: values.outlet_code,
+      },
+      budget: values.budget,
+    };
+
+    toast.promise(OutletHelper.createOutlet(params), {
+      loading: "Creating new outlet",
+      success: (response) => {
+        if (response.code === 200) {
+          router.push("/master/branch");
+          return "Outlet Created!";
+        } else {
+          throw response;
+        }
+      },
+      error: (err) => {
+        console.log(err);
+        return err?.msg || "Error creating Outlet!";
+      },
+    });
+  };
+
+  const handleEdit = (values) => {
+    const params = {
+      outlet_id: paramId,
+      outlet_details: {
+        outlet_name: values.outlet_name,
+        outlet_nickname: values.outlet_nickname,
+        outlet_phone: values.outlet_phone,
+        phone: values.phone,
+        outlet_address: values.outlet_address,
+        telegram_username: values.telegram_username,
+        opening_cash: values.opening_cash,
+        gofrugal_id: values.gofrugal_id,
+        retailpilot_id: normalizeRetailPilotId(values.retailpilot_id),
+        outlet_code: values.outlet_code,
+      },
+      budget: values.budget,
+    };
+
+    toast.promise(OutletHelper.updateOutlet(params), {
+      loading: "Updating outlet",
+      success: (response) => {
+        console.log(response);
+        if (response.code === 200) {
+          router.push("/master/branch");
+          return "Outlet Updated!";
+        } else {
+          throw response;
+        }
+      },
+      error: (err) => {
+        console.log(err);
+        return err?.msg || "Error updating Outlet!";
+      },
+    });
+  };
+
+  const handleSubmit = (values) => {
+    if (mode === "edit") {
+      handleEdit(values);
+    } else {
+      handleCreate(values);
+    }
+  };
+
+  return (
+    <GlobalWrapper title="Branch Details" permissionKey={VIEW_PERMISSION}>
+      <CustomContainer title="Branch Details" filledHeader>
+        <Formik
+          enableReinitialize
+          initialValues={initialValues}
+          validationSchema={BranchValidation}
+          onSubmit={handleSubmit}
+        >
+          {(formikProps) => {
+            const { handleSubmit, handleReset } = formikProps;
+
+            return (
+              <div>
+                <div className={styles.inputHolder}>
+                  <CustomInput
+                    label="Branch Name"
+                    name="outlet_name"
+                    type="text"
+                    editable={editable}
+                  />
+                  <CustomInput
+                    label="Branch Nickname"
+                    name="outlet_nickname"
+                    type="text"
+                    editable={editable}
+                  />
+                  <CustomInput
+                    label="Primary Phone Number"
+                    name="outlet_phone"
+                    type="number"
+                    editable={editable}
+                  />
+                </div>
+
+                <div className={styles.inputHolder}>
+                  <CustomInput
+                    label="Telegram Username"
+                    name="telegram_username"
+                    type="text"
+                    editable={editable}
+                  />
+                  <CustomInput
+                    label="Opening Cash"
+                    name="opening_cash"
+                    type="number"
+                    editable={editable}
+                  />
+
+                  <CustomInput
+                    label="Phone Numbers (Separated by ,)"
+                    name="phone"
+                    type="text"
+                    editable={editable}
+                  />
+                </div>
+
+                <CustomInput
+                  label="Address"
+                  name="outlet_address"
+                  type="text"
+                  method="TextArea"
+                  editable={editable}
+                />
+
+                <CustomContainer title="Configuration IDs" smallHeader filledHeader style={{ marginBottom: "22px" }}>
+                  <Grid templateColumns="1fr 1fr 1fr">
+                    <CustomInput
+                      label="GoFrugal ID"
+                      name="gofrugal_id"
+                      type="text"
+                      editable={editable}
+                    />
+                    <CustomInput
+                      label="RetailPilot ID"
+                      name="retailpilot_id"
+                      type="text"
+                      editable={editable}
+                    />
+                    <CustomInput
+                      label="Outlet Code"
+                      name="outlet_code"
+                      type="text"
+                      editable={editable}
+                    />
+                  </Grid>
+                </CustomContainer>
+
+                <CustomContainer title="Employee Count" smallHeader toggleChildren defaultOpen={false} >
+                  <div className={styles.contentHolder}>
+                    {designations.map((m, i) => (
+                      <div className={styles.inputHolder} key={i}>
+                        <CustomInput
+                          placeholder="0"
+                          name={`budget[${i}].count`}
+                          type="number"
+                          label={`${m.designation_name} Count`}
+                          editable={editable}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </CustomContainer>
+
+                {!viewMode && (
+                  <div className={styles.buttonContainer}>
+                    <Button
+                      colorScheme="red"
+                      variant="outline"
+                      onClick={handleReset}
+                    >
+                      Reset
+                    </Button>
+                    <Button colorScheme="purple" onClick={handleSubmit}>
+                      {mode === "edit" ? "Update" : "Create"}
+                    </Button>
+                  </div>
+                )}
+              </div>
+            );
+          }}
+        </Formik>
+
+        {mode !== "create" && paramId && canManageIp ? (
+          <BranchIpAccessSection outletId={paramId} editable={editable} />
+        ) : null}
+      </CustomContainer>
+    </GlobalWrapper>
+  );
+}
+
+export default BranchEditor;

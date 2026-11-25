@@ -1,18 +1,24 @@
 import { useEffect, useState } from "react";
 import department from "../helper/department";
+import unwrapList from "../util/apiList";
 
 export function useProductDepartments() {
   const [departmentsList, setDepartmentsList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [accessDenied, setAccessDenied] = useState(false);
 
   const fetchDepartments = async () => {
     try {
       setLoading(true);
-      const response = await department.getProductDepartment();
-      const data = response || [];
+      // `/department/product-department` is B2-gated on `view_department`.
+      // A refusal used to reach `.map` and throw; the try/catch below caught
+      // it, so the page survived but reported a TypeError instead of "you do
+      // not have access".
+      const result = unwrapList(await department.getProductDepartment());
+      setAccessDenied(result.accessDenied);
       setDepartmentsList(
-        data.map((d) => ({
+        result.items.map((d) => ({
           id: d.id || d.department_id,
           value: d.value || d.department_name,
         }))
@@ -29,6 +35,6 @@ export function useProductDepartments() {
     fetchDepartments();
   }, []);
 
-  return { departmentsList, loading, error, refetch: fetchDepartments };
+  return { departmentsList, loading, error, accessDenied, refetch: fetchDepartments };
 }
 

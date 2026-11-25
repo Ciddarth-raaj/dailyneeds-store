@@ -56,7 +56,12 @@ class CreateDepartment extends React.Component {
 	createDepartment(values) {
 		this.setState({ loading: true });
 		const { router } = this.props;
-		DepartmentHelper.createDepartment(values)
+		// Only the name. `POST /department/create` validates with Joi, which
+		// rejects unknown keys, and its schema is `{ department_name }` alone -
+		// so passing the form's `status` straight through would turn every
+		// department creation into a 422. A new department is Active by the
+		// column default.
+		DepartmentHelper.createDepartment({ department_name: values.department_name })
 			.then((data) => {
 				if (data == 200) {
 					toast.success("Successfully Added Department!");
@@ -99,7 +104,17 @@ class CreateDepartment extends React.Component {
 				<Formik
 					enableReinitialize
 					initialValues={{
-						department_name: this.state.data[0]?.department_name
+						department_name: this.state.data[0]?.department_name,
+						// Read from the record. The form had no status at all, so this
+						// page could rename a department but never retire one - and the
+						// backend schema would have rejected a status even if it had sent
+						// one. A new department starts Active, matching the column default.
+						status:
+							this.state.id === null
+								? 1
+								: Number(this.state.data[0]?.status) === 0
+								? 0
+								: 1,
 					}}
 					validationSchema={DepartmentValidation}
 					onSubmit={(values) => {
@@ -119,6 +134,22 @@ class CreateDepartment extends React.Component {
 										<div className={styles.inputHolder}>
 											<CustomInput label="Department Name" name="department_name" type="text" />	
 										</div>
+									{/* Only when editing: a department being created is Active by
+									    definition, and the create endpoint takes no status. */}
+									{id !== null && (
+										<div className={styles.inputHolder}>
+											<CustomInput
+												label="Status"
+												name="status"
+												values={[
+													{ id: 1, value: "Active" },
+													{ id: 0, value: "Inactive" },
+												]}
+												type="text"
+												method="switch"
+											/>
+										</div>
+									)}
 										<ButtonGroup
 											spacing="6"
 											mt={10}

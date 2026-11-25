@@ -1,0 +1,330 @@
+import API from "../util/api";
+
+/**
+ * Attendance v2 - calculated attendance, as `routes/attendance_calculation.js`
+ * and `routes/attendance_regularization.js` define it.
+ *
+ * TWO READ PATHS, ONE SHAPE.
+ *
+ *   My Attendance        GET /attendance/me                no permission key
+ *                        the caller's own days. The backend takes the
+ *                        employee from the session token and REFUSES an
+ *                        employee_id parameter, so nothing here sends one.
+ *   Employee Attendance  GET /attendance/calculated         view_calculated_attendance
+ *                        any employee, for HR/Admin.
+ *
+ * Both resolve `{ code: 200, days: [...] }` and both are read-only: neither
+ * stores nor recalculates anything.
+ *
+ *   Regularize           POST /attendance/me/regularization  self only
+ *                        the missing punch time and a reason. Existing
+ *                        punches are not sent and cannot be: the body has no
+ *                        field for one.
+ *   (no Request OT)      OT is sent for approval automatically by the
+ *                        attendance engine; POST /attendance/me/ot-request
+ *                        answers 410 and nothing here calls it.
+ *   Edit Shift           POST /attendance/calculated/date-shift
+ *                        edit_attendance_date_shift; one employee, one date,
+ *                        one shift. The options for its dropdown come from
+ *                        the sibling GET.
+ *
+ * Refusals arrive as `{ code: 403, msg }` like every other helper; the
+ * screens read `code` rather than assuming success.
+ */
+const call = (method, url, config) =>
+  new Promise((resolve, reject) => {
+    API[method](url, config)
+      .then((res) => resolve(res.data))
+      .catch(reject);
+  });
+
+const attendanceV2 = {
+  /** `{ from_date, to_date }` only. Never an employee id. */
+  getMyAttendance: ({ from_date, to_date }) =>
+    call("get", "/attendance/me", { params: { from_date, to_date } }),
+
+  getEmployeeAttendance: ({ employee_id, from_date, to_date }) =>
+    call("get", "/attendance/calculated", { params: { employee_id, from_date, to_date } }),
+
+  /** `{ attendance_date, punch_time, reason }`. */
+  raiseMyRegularization: (body) =>
+    new Promise((resolve, reject) => {
+      API.post("/attendance/me/regularization", body)
+        .then((res) => resolve(res.data))
+        .catch(reject);
+    }),
+
+  /* ---------------------------------------------- the approval screens */
+
+  /**
+   * `{ request_type, status, filters }` - ONE type per call, which is what
+   * the unified approval centre's Attendance | OT | Shift selector chooses.
+   *
+   * The filters NARROW what the caller may already see and can never widen
+   * it: the outlets a user has rights to are resolved on the server from
+   * their own branch scope, and an outlet asked for outside it simply
+   * matches nothing. Nothing here sends an employee id the caller could use
+   * to reach somebody they are not entitled to see.
+   */
+  getApprovals: ({
+    request_type,
+    status = "PENDING",
+    limit = 200,
+    offset = 0,
+    outlet_ids = null,
+    employee_id = null,
+    designation_id = null,
+  }) =>
+    call("get", "/attendance/approvals", {
+      params: {
+        request_type,
+        status,
+        limit,
+        offset,
+        ...(outlet_ids && outlet_ids.length > 0 ? { outlet_ids: outlet_ids.join(",") } : {}),
+        ...(employee_id ? { employee_id } : {}),
+        ...(designation_id ? { designation_id } : {}),
+      },
+    }),
+
+  /**
+   * "Pending with me", counted on the server - under the SAME filters the
+   * table is showing, so the number is a count of what the reader can see.
+   */
+  /**
+   * HISTORICAL OT REVIEW. The preview is read only; `authoriseHistoricalOt`
+   * creates PENDING OT for the named dates of the preview whose hash it
+   * names (refused, 409, if the data has moved since) - it approves nothing.
+   */
+  previewHistoricalOt: ({ from_date = null, to_date = null, employee_id = null } = {}) =>
+    call("get", "/attendance/ot/historical-review/preview", {
+      params: {
+        ...(from_date ? { from_date } : {}),
+        ...(to_date ? { to_date } : {}),
+        ...(employee_id ? { employee_id } : {}),
+      },
+    }),
+  authoriseHistoricalOt: ({ from_date, to_date, preview_hash, items, note = null }) =>
+    new Promise((resolve, reject) => {
+      API.post("/attendance/ot/historical-review/authorise", {
+        from_date,
+        to_date,
+        preview_hash,
+        items,
+        ...(note ? { note } : {}),
+        confirm: true,
+      })
+        .then((res) => resolve(res.data))
+        // A refusal the screen must show (a stale preview is 409) comes back as data.
+        .catch((err) => (err && err.response && err.response.data ? resolve(err.response.data) : reject(err)));
+    }),
+  listHistoricalOtBatches: () => call("get", "/attendance/ot/historical-review/batches", {}),
+
+  /**
+   * OT AUTO-APPROVAL (manage_ot_auto_approval). `max_minutes` null = no cap.
+   * A refusal comes back as data, like the review's authorise.
+   */
+  getOtAutoApproval: () => call("get", "/attendance/ot/auto-approval", {}),
+  saveOtAutoApproval: ({ auto_approve, max_minutes = null }) =>
+    new Promise((resolve, reject) => {
+      API.put("/attendance/ot/auto-approval", { auto_approve, max_minutes })
+        .then((res) => resolve(res.data))
+        .catch((err) => (err && err.response && err.response.data ? resolve(err.response.data) : reject(err)));
+    }),
+
+  getApprovalCount: (request_type, filters = {}) =>
+    call("get", "/attendance/approvals/count", {
+      params: {
+        request_type,
+        ...(filters.outlet_ids && filters.outlet_ids.length > 0 ? { outlet_ids: filters.outlet_ids.join(",") } : {}),
+        ...(filters.employee_id ? { employee_id: filters.employee_id } : {}),
+        ...(filters.designation_id ? { designation_id: filters.designation_id } : {}),
+      },
+    }),
+
+  /* ------------------------------------- the one-day shift change request */
+
+  /**
+   * The shifts I MAY ask for on a date: active, running that weekday, and
+   * LONGER than my own. The server re-derives every one of those conditions
+   * when the request is submitted, so this dropdown is a convenience and not
+   * the rule.
+   */
+  getMyShiftChangeOptions: (attendance_date) =>
+    call("get", "/attendance/me/shift-change/options", { params: { attendance_date } }),
+
+  /**
+   * `{ attendance_date, work_shift_id, reason }`. Self only: the employee is
+   * the session's, and the body has no field that could name anybody else.
+   * It RAISES a request - nothing is changed until the last required
+   * approval.
+   */
+  raiseMyShiftChange: ({ attendance_date, work_shift_id, reason }) =>
+    new Promise((resolve, reject) => {
+      API.post("/attendance/me/shift-change", { attendance_date, work_shift_id, reason })
+        .then((res) => resolve(res.data))
+        .catch(reject);
+    }),
+
+  /** Decide the current stage. Takes NO minutes: an approver cannot change OT. */
+  // `expected_ot_minutes` (OT only): the minutes the approver was shown. The
+  // server refuses a figure a recalculation has moved since (409
+  // `ot_minutes_changed`); it is compared, never paid.
+  decideApproval: (request_id, { decision, remarks, expected_ot_minutes }) =>
+    new Promise((resolve, reject) => {
+      API.post(`/attendance/regularization/${request_id}/decision`, {
+        decision,
+        remarks: remarks || "",
+        ...(expected_ot_minutes === undefined || expected_ot_minutes === null
+          ? {}
+          : { expected_ot_minutes: Math.max(0, Math.trunc(Number(expected_ot_minutes) || 0)) }),
+      })
+        .then((res) => resolve(res.data))
+        .catch(reject);
+    }),
+
+  /**
+   * ADMINISTRATORS ONLY: VOID an Attendance or OT request's decision - the
+   * request becomes CANCELLED and the employee may raise a fresh one. The
+   * reason and nothing else: the type, the employee, the decision, the stage
+   * and the minutes are read from the stored request, and the server checks
+   * the account itself.
+   */
+  revokeApproval: (request_id, { reason }) =>
+    new Promise((resolve, reject) => {
+      API.post(`/attendance/approvals/${request_id}/revoke`, { reason })
+        .then((res) => resolve(res.data))
+        .catch(reject);
+    }),
+
+  /**
+   * BULK Approve / Reject / Revoke on one tab: `{ action, request_type,
+   * items: [{ request_id, current_stage_no?, status? }], reason? }`. The server
+   * runs each id through the single-record action and answers per record.
+   */
+  bulkApprovals: ({ action, request_type, items, reason }) =>
+    new Promise((resolve, reject) => {
+      API.post("/attendance/approvals/bulk", { action, request_type, items, ...(reason ? { reason } : {}) })
+        .then((res) => resolve(res.data))
+        .catch(reject);
+    }),
+
+  /** "Select all matching the filters": the ids this caller could `action` now. */
+  getBulkTargets: ({ request_type, status, action, outlet_ids = null, employee_id = null, designation_id = null }) =>
+    call("get", "/attendance/approvals/bulk-targets", {
+      params: {
+        request_type,
+        status,
+        action,
+        ...(outlet_ids && outlet_ids.length > 0 ? { outlet_ids: outlet_ids.join(",") } : {}),
+        ...(employee_id ? { employee_id } : {}),
+        ...(designation_id ? { designation_id } : {}),
+      },
+    }),
+
+  /* ---------------------------------------------- bulk recalculation */
+
+  /** `{ from_date, to_date, employee_id?, store_id?, designation_id? }` - only the filters set. */
+  recalculateBulk: (body) =>
+    new Promise((resolve, reject) => {
+      API.post("/attendance/calculated/recalculate-bulk", body)
+        .then((res) => resolve(res.data))
+        .catch(reject);
+    }),
+
+  getRecalculationRuns: (limit = 20) =>
+    call("get", "/attendance/calculated/recalculate-runs", { params: { limit } }),
+
+  /** One run, for polling a propagation a Work Shift save queued. */
+  getRecalculationRun: (runId) =>
+    call("get", `/attendance/calculated/recalculate-runs/${runId}`, {}),
+
+  /** Put a failed run - or one that finished with errors - back in the queue. */
+  retryRecalculationRun: (runId) =>
+    new Promise((resolve, reject) => {
+      API.post("/attendance/calculated/recalculate-runs/retry", { run_id: runId })
+        .then((res) => resolve(res.data))
+        .catch(reject);
+    }),
+
+  /* ------------------------------------------------------ PERMISSION */
+
+  /**
+   * Request a Permission for YOURSELF: `{ attendance_date, windows, reason }`,
+   * windows `[{ from_time, to_time } | { from_time, to_shift_end: true }]`.
+   * Never an employee id - the backend takes the employee from the session.
+   */
+  raiseMyPermissionRequest: (body) =>
+    new Promise((resolve, reject) => {
+      API.post("/attendance/me/permission-request", body)
+        .then((res) => resolve(res.data))
+        .catch(reject);
+    }),
+
+  /** For an employee in your outlet scope: the same body plus `employee_id`. */
+  raisePermissionRequestFor: (body) =>
+    new Promise((resolve, reject) => {
+      API.post("/attendance/permission-request", body)
+        .then((res) => resolve(res.data))
+        .catch(reject);
+    }),
+
+  /** DIRECT grant: who it would reach. Writes nothing. */
+  previewPermissionGrant: (body) =>
+    new Promise((resolve, reject) => {
+      API.post("/attendance/permissions/preview", body)
+        .then((res) => resolve(res.data))
+        .catch(reject);
+    }),
+
+  /** DIRECT grant: exactly what was previewed, identified by its fingerprint. */
+  applyPermissionGrant: (body) =>
+    new Promise((resolve, reject) => {
+      API.post("/attendance/permissions/apply", body)
+        .then((res) => resolve(res.data))
+        .catch(reject);
+    }),
+
+  /** The Permission register, inside the caller's outlet scope. */
+  getPermissions: ({ from_date, to_date, outlet_ids = null, employee_id = null, source = null, bulk_operation_id = null }) =>
+    call("get", "/attendance/permissions", {
+      params: {
+        from_date,
+        to_date,
+        ...(outlet_ids && outlet_ids.length ? { outlet_ids: outlet_ids.join(",") } : {}),
+        ...(employee_id ? { employee_id } : {}),
+        ...(source ? { source } : {}),
+        ...(bulk_operation_id ? { bulk_operation_id } : {}),
+      },
+    }),
+
+  revokePermission: (id, { reason }) =>
+    new Promise((resolve, reject) => {
+      API.post(`/attendance/permissions/${id}/revoke`, { reason })
+        .then((res) => resolve(res.data))
+        .catch(reject);
+    }),
+
+  getPermissionBulkOperations: () => call("get", "/attendance/permissions/bulk-operations", {}),
+
+  getPermissionBulkOperation: (id) => call("get", `/attendance/permissions/bulk-operations/${id}`, {}),
+
+  revokePermissionBulkOperation: (id, { reason }) =>
+    new Promise((resolve, reject) => {
+      API.post(`/attendance/permissions/bulk-operations/${id}/revoke`, { reason })
+        .then((res) => resolve(res.data))
+        .catch(reject);
+    }),
+
+  getDateShiftOptions: () => call("get", "/attendance/calculated/date-shift/options", {}),
+
+  /** `{ employee_id, attendance_date, work_shift_id }`. */
+  setDateShift: (body) =>
+    new Promise((resolve, reject) => {
+      API.post("/attendance/calculated/date-shift", body)
+        .then((res) => resolve(res.data))
+        .catch(reject);
+    }),
+};
+
+export default attendanceV2;

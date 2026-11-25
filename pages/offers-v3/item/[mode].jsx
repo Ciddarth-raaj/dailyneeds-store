@@ -1,0 +1,295 @@
+import React, { useEffect, useMemo, useCallback, useState } from "react";
+import { useRouter } from "next/router";
+import GlobalWrapper from "../../../components/globalWrapper/globalWrapper";
+import CustomContainer from "../../../components/CustomContainer";
+import CustomInput from "../../../components/customInput/customInput";
+import { Button, Flex, Grid, Text, Box, Image } from "@chakra-ui/react";
+import { Formik } from "formik";
+import * as Yup from "yup";
+import toast from "react-hot-toast";
+import offersV3 from "../../../helper/offersV3";
+import usePermissions from "../../../customHooks/usePermissions";
+import { useProducts } from "../../../customHooks/useProducts";
+import { useOffersV3ById } from "../../../customHooks/useOffersV3ById";
+import { OFFER_TYPE_OPTIONS, ITEM_STATUS_LABELS } from "../../../constants/offersV3";
+
+const initialValues = {
+  item_code: "",
+  offer_type: "",
+  value: "",
+  threshold_qty: "",
+};
+
+const validationSchema = Yup.object({
+  item_code: Yup.mixed()
+    .required("Required")
+    .test("is-product", "Select a product", (v) => v != null && v !== "" && Number(v) > 0),
+  offer_type: Yup.string().required("Required"),
+  value: Yup.number()
+    .moreThan(0, "Must be > 0")
+    .required("Required")
+    .transform((v) => (v === "" || Number.isNaN(Number(v)) ? null : Number(v))),
+  threshold_qty: Yup.number()
+    .integer("Must be a whole number")
+    .min(0, "Must be 0 or greater")
+    .required("Required")
+    .transform((v) => (v === "" || Number.isNaN(Number(v)) ? null : Number(v))),
+});
+
+function OffersV3ItemForm() {
+  const router = useRouter();
+  const { mode, id: idQuery } = router.query;
+  const id = typeof idQuery === "string" ? idQuery : idQuery?.[0];
+
+  const viewMode = mode === "view";
+  const editMode = mode === "edit";
+  const createMode = mode === "create";
+  const canAdd = usePermissions("add_offers_v3");
+
+  // The item picker is only editable in create mode, so only pull the full
+  // (potentially very large) product list when it's actually needed. In
+  // edit/view mode the offer's own item_code/item_name is enough to render
+  // the (disabled) selected value.
+  const { products, loading: productsLoading } = useProducts({
+    limit: 10000,
+    fetchAll: true,
+    enabled: createMode,
+  });
+  const { offer, loading, refetch } = useOffersV3ById(id, "item", {
+    enabled: (editMode || viewMode) && !!id,
+  });
+
+  const productOptions = useMemo(() => {
+    if (createMode) {
+      return (products || []).map((p) => ({
+        id: p.product_id,
+        value: `${p.de_name ?? ""} (${p.product_id})`,
+        product_id: p.product_id,
+        product_name: p.de_name,
+        image_url: p.image_url,
+      }));
+    }
+    if (offer) {
+      return [
+        {
+          id: offer.item_code,
+          value: `${offer.item_name ?? ""} (${offer.item_code})`,
+          product_id: offer.item_code,
+          product_name: offer.item_name,
+          image_url: null,
+        },
+      ];
+    }
+    return [];
+  }, [createMode, products, offer]);
+
+  const productCustomRenderer = useCallback(
+    (option) => (
+      <Flex align="center" gap={3} py={1}>
+        <Box flexShrink={0} w="40px" h="40px" borderRadius="md" overflow="hidden" bg="gray.100">
+          {option.image_url ? (
+            <Image src={option.image_url} alt="" w="100%" h="100%" objectFit="cover" />
+          ) : (
+            <Flex w="100%" h="100%" align="center" justify="center" fontSize="xs" color="gray.400">
+              No image
+            </Flex>
+          )}
+        </Box>
+        <Flex direction="column" minW={0} flex={1}>
+          <Text fontSize="sm" fontWeight={500} noOfLines={1}>
+            {option.product_name ?? option.value}
+          </Text>
+          <Text fontSize="xs" color="gray.500">
+            ID: {option.product_id}
+          </Text>
+        </Flex>
+      </Flex>
+    ),
+    []
+  );
+
+  const productRenderSelected = useCallback(
+    (option) => (option ? `${option.product_name ?? option.value} (ID: ${option.product_id})` : ""),
+    []
+  );
+
+  const [formInitialValues, setFormInitialValues] = useState(initialValues);
+
+  useEffect(() => {
+    if (createMode) {
+      setFormInitialValues(initialValues);
+      return;
+    }
+    if (offer) {
+      setFormInitialValues({
+        item_code: offer.item_code ?? "",
+        offer_type: offer.offer_type ?? "",
+        value: offer.value != null ? String(offer.value) : "",
+        threshold_qty: offer.threshold_qty != null ? String(offer.threshold_qty) : "",
+      });
+    }
+  }, [createMode, offer]);
+
+  const isReadOnly = viewMode;
+  const formDisabled = createMode && productsLoading;
+
+  const handleSubmit = async (values) => {
+    const payload = {
+      item_code: Number(values.item_code),
+      offer_type: values.offer_type,
+      value: Number(values.value),
+      threshold_qty: Number(values.threshold_qty),
+    };
+
+    if (createMode) {
+      try {
+        await offersV3.items.create(payload);
+        toast.success("Item-level offer created");
+        router.push("/offers-v3");
+      } catch (err) {
+        toast.error(err?.message ?? "Failed to create offer");
+      }
+      return;
+    }
+
+    if (editMode && id) {
+      try {
+        await offersV3.items.update(id, payload);
+        toast.success("Offer updated");
+        router.push("/offers-v3");
+      } catch (err) {
+        toast.error(err?.message ?? "Failed to update offer");
+      }
+    }
+  };
+
+  const handleToggleStatus = async () => {
+    try {
+      await offersV3.items.update(id, { status: offer.status === "active" ? "inactive" : "active" });
+      toast.success(offer.status === "active" ? "Offer marked inactive" : "Offer reactivated");
+      refetch();
+    } catch (err) {
+      toast.error(err?.message ?? "Failed to update status");
+    }
+  };
+
+  if ((editMode || viewMode) && loading && !offer && id) {
+    return (
+      <GlobalWrapper title="Item Offer" permissionKey="view_offers_v3">
+        <CustomContainer title="Loading..." filledHeader>
+          <Flex py={4}>Loading...</Flex>
+        </CustomContainer>
+      </GlobalWrapper>
+    );
+  }
+
+  if ((editMode || viewMode) && !loading && !offer && id) {
+    return (
+      <GlobalWrapper title="Item Offer" permissionKey="view_offers_v3">
+        <CustomContainer title="Offer not found" filledHeader>
+          <Text py={4}>No item-level offer found for ID {id}.</Text>
+          <Button colorScheme="purple" onClick={() => router.push("/offers-v3")}>
+            Back to list
+          </Button>
+        </CustomContainer>
+      </GlobalWrapper>
+    );
+  }
+
+  const title = viewMode ? "View Item Offer" : editMode ? "Edit Item Offer" : "Create Item-Level Offer";
+
+  return (
+    <GlobalWrapper title={title} permissionKey="view_offers_v3">
+      <CustomContainer title={title} filledHeader>
+        {viewMode && offer ? (
+          <Flex mb={4} align="center" gap={3}>
+            <Text fontSize="sm" color="gray.600">
+              Status: <b>{ITEM_STATUS_LABELS[offer.status] ?? offer.status}</b>
+            </Text>
+            {canAdd && offer.status !== "inactive" ? (
+              <Button size="sm" colorScheme="red" variant="outline" onClick={handleToggleStatus}>
+                Make Inactive
+              </Button>
+            ) : null}
+            {canAdd && offer.status === "inactive" ? (
+              <Button size="sm" colorScheme="green" variant="outline" onClick={handleToggleStatus}>
+                Reactivate
+              </Button>
+            ) : null}
+          </Flex>
+        ) : null}
+        <Box opacity={formDisabled ? 0.6 : 1} pointerEvents={formDisabled ? "none" : "auto"} aria-busy={formDisabled}>
+          <Formik
+            enableReinitialize
+            initialValues={formInitialValues}
+            validationSchema={validationSchema}
+            onSubmit={handleSubmit}
+          >
+            {({ handleSubmit: formikSubmit }) => (
+              <form onSubmit={formikSubmit}>
+                <Grid templateColumns={{ base: "1fr", md: "1fr 1fr" }} gap={4} mb={6}>
+                  <CustomInput
+                    label="Item (Product)"
+                    name="item_code"
+                    method="searchable-dropdown"
+                    values={productOptions}
+                    placeholder="Search and select a product"
+                    editable={!isReadOnly && !formDisabled && createMode}
+                    customRenderer={productCustomRenderer}
+                    renderSelected={productRenderSelected}
+                  />
+                  <CustomInput
+                    label="Offer Type"
+                    name="offer_type"
+                    method="switch"
+                    values={OFFER_TYPE_OPTIONS}
+                    editable={!isReadOnly && !formDisabled}
+                  />
+                  <CustomInput
+                    label="Value"
+                    name="value"
+                    type="number"
+                    placeholder="Value"
+                    editable={!isReadOnly && !formDisabled}
+                  />
+                  <CustomInput
+                    label="Threshold Qty (low-stock warning)"
+                    name="threshold_qty"
+                    type="number"
+                    placeholder="Threshold Qty"
+                    editable={!isReadOnly && !formDisabled}
+                  />
+                </Grid>
+
+                <Flex gap={3} justify="flex-end" mt={6}>
+                  {viewMode || !canAdd ? (
+                    <Button type="button" colorScheme="purple" onClick={() => router.push("/offers-v3")}>
+                      Back
+                    </Button>
+                  ) : (
+                    <>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        colorScheme="purple"
+                        isDisabled={formDisabled}
+                        onClick={() => router.push("/offers-v3")}
+                      >
+                        Cancel
+                      </Button>
+                      <Button type="submit" colorScheme="purple" isDisabled={formDisabled}>
+                        {createMode ? "Create offer" : "Update"}
+                      </Button>
+                    </>
+                  )}
+                </Flex>
+              </form>
+            )}
+          </Formik>
+        </Box>
+      </CustomContainer>
+    </GlobalWrapper>
+  );
+}
+
+export default OffersV3ItemForm;

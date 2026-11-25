@@ -30,3 +30,8 @@ Use short kebab-case names derived from the request, for example:
 - `feat/grn-highlight`
 - `fix/login-redirect`
 - `chore/autodeploy-agents`
+
+## Code changes
+
+- Make the smallest change that solves the request. Do not edit unrelated files.
+- Add or update tests only when the change needs them.

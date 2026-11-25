@@ -6,6 +6,7 @@ import {
   ButtonGroup,
   Badge,
   Switch,
+  Text,
 } from "@chakra-ui/react";
 import styles from "../../styles/admin.module.css";
 import Head from "../../util/head";
@@ -17,7 +18,6 @@ import ResignationHelper from "../../helper/resignation";
 import Link from "next/link";
 import exportCSVFile from "../../util/exportCSVFile";
 import moment from "moment";
-import { toast } from "react-toastify";
 
 let valuesNew = [];
 export default class viewResignation extends React.Component {
@@ -37,18 +37,6 @@ export default class viewResignation extends React.Component {
     ResignationHelper.getResignation()
       .then((data) => {
         this.setState({ resignation: data });
-      })
-      .catch((err) => console.log(err));
-  }
-  deleteResignation(m) {
-    ResignationHelper.deleteResignation(m.id)
-      .then((data) => {
-        if (data === 200) {
-          toast.success("Successfully Removed");
-          this.getResignationData();
-        } else {
-          toast.error("Error Removing Resignation Value");
-        }
       })
       .catch((err) => console.log(err));
   }
@@ -78,7 +66,6 @@ export default class viewResignation extends React.Component {
 
   render() {
     const {} = this.state;
-    let permission_array = global.config.permissions;
     const initialValue = {
       dob_1: "",
       dob_2: "",
@@ -88,20 +75,12 @@ export default class viewResignation extends React.Component {
       employee_name: "Employee Name",
       reason_type: "Reason",
       resignation_date: "Resignation Date",
-      delete: "Delete",
     };
     const onClick = (m) => {
       return (
         <Link href={`/resignation/${m.id}`}>
           <a>{m.value}</a>
         </Link>
-      );
-    };
-    const remove = (m) => {
-      return (
-        <Button colorScheme={"red"} onClick={() => this.deleteResignation(m)}>
-          Remove
-        </Button>
       );
     };
     valuesNew = this.state.resignation.map((m) => ({
@@ -112,7 +91,6 @@ export default class viewResignation extends React.Component {
         id: m.id,
         value: moment(m.resignation_date).format("DD/MM/YYYY"),
       }),
-      delete: remove({ id: m.id }),
     }));
 
     return (
@@ -140,26 +118,16 @@ export default class viewResignation extends React.Component {
                                         ))}
                                     </div>
                                 </div> */}
-                  {permission_array.length > 0 ? (
-                    permission_array.map((m) => (
-                      <>
-                        {m.permission_key === "add_resignation" && (
-                          <div style={{ paddingRight: 10 }}>
-                            <Link href="/resignation/create">
-                              <Button colorScheme="purple">{"Add"}</Button>
-                            </Link>
-                          </div>
-                        )}
-                      </>
-                    ))
-                  ) : (
-                    <div style={{ paddingRight: 10 }}>
-                      <Link href="/resignation/create">
-                        <Button colorScheme="purple">{"Add"}</Button>
-                      </Link>
-                    </div>
-                  )}
                 </p>
+                {/*
+                  READ-ONLY. Exits are recorded with Resign, and returns with
+                  Rejoin, in Employee Master - Rejoin applies the rehire
+                  assessment. The server refuses legacy create / edit / delete.
+                */}
+                <Text fontSize="sm" color="gray.600" mt={2}>
+                  Historical resignation records (read-only). Record an exit with Resign, and a return with Rejoin,
+                  in Employee Master.
+                </Text>
                 <div style={{ paddingTop: 30 }}>
                   <Table
                     heading={table_title}

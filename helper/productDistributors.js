@@ -14,6 +14,17 @@ export const getProductDistributors = () => {
   });
 };
 
+/**
+ * Suppliers from RetailPilot, by hand. dryRun: every step, then rolled back -
+ * the counts, no change.
+ */
+export const runRetailPilotSupplierSync = async ({ dryRun }) => {
+  const res = await API.post("/product-distributors/retailpilot-sync", {
+    dry_run: !!dryRun,
+  });
+  return res.data;
+};
+
 export const getProductDistributorByCid = (cid) => {
   return API.get(
     `/product-distributors/${encodeURIComponent(cid)}`

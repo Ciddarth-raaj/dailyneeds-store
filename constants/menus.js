@@ -14,17 +14,23 @@ const ALL_PAGES_MENU = {
         selected: false,
         location: "/",
       },
-      view_products_dashboard: {
-        title: "Products Dashboard",
-        permission: "view_products_dashboard",
+      view_business_dashboard: {
+        title: "Business Dashboard",
+        permission: "view_sales_dashboard",
         selected: false,
-        location: "/dashboard/products",
+        location: "/dashboard/business",
       },
-      view_purchase_return_dashboard: {
-        title: "Purchase Return Dashboard",
-        permission: "view_purchase_return_dashboard",
+      view_invoice_pipeline: {
+        title: "Invoice Pipeline",
+        permission: "view_invoice_pipeline",
         selected: false,
-        location: "/dashboard/purchase-return",
+        location: "/dashboard/invoice-pipeline",
+      },
+      view_transfers: {
+        title: "Transfers",
+        permission: "view_sales_dashboard",
+        selected: false,
+        location: "/dashboard/transfers",
       },
       view_stock_dashboard: {
         title: "Stock Dashboard",
@@ -40,91 +46,17 @@ const ALL_PAGES_MENU = {
       },
     },
   },
-  employee: {
-    title: "Employees",
-    selected: true,
-    openPage: true,
-    icon: "fa-users",
-    subMenu: {
-      view: {
-        title: "Employee",
-        permission: "view_employees",
-        selected: false,
-        location: "/employee",
-      },
-      view_departments: {
-        title: "Department",
-        permission: "view_department",
-        selected: false,
-        location: "/department",
-      },
-      view_designation: {
-        title: "Designation",
-        permission: "view_designation",
-        selected: false,
-        location: "/designation",
-      },
-      // view_shift: {
-      //   title: "Shift",
-      //   permission: "view_shift",
-      //   selected: false,
-      //   location: "/shift",
-      // },
-      // view_family: {
-      //   title: "Family",
-      //   permission: "view_family",
-      //   selected: false,
-      //   location: "/family",
-      // },
-      // // view_adhaar: {
-      // //     title: "View Adhaar",
-      // //     selected: false,
-      // //     location: "/adhaar",
-      // // },
-      // view_documents: {
-      //   title: "Document",
-      //   permission: "view_documents",
-      //   selected: false,
-      //   location: "/document",
-      // },
-      // view_withoutAdhaar: {
-      //   title: "Without Adhaar",
-      //   permission: "view_without_adhaar",
-      //   selected: false,
-      //   location: "/without-adhaar",
-      // },
-      // view_bank: {
-      //   title: "Without Bank Details",
-      //   permission: "view_banks",
-      //   selected: false,
-      //   location: "/bank",
-      // },
-      // view_salary: {
-      //   title: "Salary Advance",
-      //   permission: "view_salary_advance",
-      //   selected: false,
-      //   location: "/salary",
-      // },
-      // view_resignation: {
-      //   title: "Resignation",
-      //   permission: "view_resignation",
-      //   selected: false,
-      //   location: "/resignation",
-      // },
-      // view_storebudget: {
-      //   title: "Employee Count",
-      //   permission: "view_store_budget",
-      //   selected: false,
-      //   location: "/store-budget",
-      // },
-      // view_whatsapporder: {
-      //   title: "Whatsapp Orders",
-      //   permission: "view_whatsapp_order",
-      //   selected: false,
-      //   location: "/whatsapp",
-      // },
-    },
-  },
+  // Stage 0C / C3. Employees, Department and Designation have MOVED to the HR
+  // module (`HR_MENU` below), which is a top-level module on the rail beside
+  // WMS and GST. There is one employee master now, at /hr/employees, and the
+  // old top-level Employees section is gone rather than left beside it - two
+  // employee lists in the navigation is how two employee masters begin.
+  //
+  // /employee still resolves: it redirects to /hr/employees, so a bookmark or
+  // a pasted link keeps working. The commented-out HR entries that used to sit
+  // here (Shift, Family, Documents, Salary Advance, Resignation, ...) were
+  // already switched off before C3 and were removed with the section; they are
+  // in git history if any of them is revived.
   master: {
     title: "Master",
     selected: false,
@@ -142,6 +74,50 @@ const ALL_PAGES_MENU = {
         permission: "view_remarks_master",
         selected: false,
         location: "/master/remarks",
+      },
+      // One Transporter Master for every LR follow-up, advance or manual.
+      view_transporter_master: {
+        title: "Transporters",
+        permission: "view_transporter_master",
+        selected: false,
+        location: "/master/transporters",
+      },
+      // The Telegram Group Registry: which Telegram groups the bot posts to,
+      // what each is for, and whether the bot can act in them. Behind
+      // `view_telegram_groups`, which the migration grants to NO designation,
+      // so it is invisible to everyone but administrators until somebody is
+      // given the key deliberately - the same posture as Biomax Devices.
+      view_telegram_groups: {
+        title: "Telegram Groups",
+        permission: "view_telegram_groups",
+        selected: false,
+        location: "/master/telegram-groups",
+      },
+      // The company payslips are issued by (and its statutory codes). Behind
+      // `manage_company_details`, which its migration grants to NO
+      // designation: administrators only until somebody is given the key.
+      company_details: {
+        title: "Company Details",
+        permission: "manage_company_details",
+        selected: false,
+        location: "/master/company-details",
+      },
+      branch_and_restrictions: {
+        title: "Branch and Restrictions",
+        subMenu: {
+          view_branch: {
+            title: "Branches",
+            permission: "view_branch",
+            selected: false,
+            location: "/master/branch",
+          },
+          manage_ip_restrictions: {
+            title: "IP Restrictions",
+            permission: "manage_ip_restrictions",
+            selected: false,
+            location: "/master/ip-restrictions",
+          },
+        },
       },
     },
   },
@@ -217,20 +193,6 @@ const ALL_PAGES_MENU = {
       },
     },
   },
-  cleaning: {
-    title: "Cleaning and Packing",
-    selected: false,
-    openPage: false,
-    icon: "fa-boxes-packing", // Changed to a more relevant icon for materials
-    subMenu: {
-      view_cleaning: {
-        title: "View List",
-        permission: "view_cleaning_packing",
-        selected: false,
-        location: "/cleaning-packing",
-      },
-    },
-  },
   eb_consumption: {
     title: "EB Consumption",
     selected: false,
@@ -257,23 +219,52 @@ const ALL_PAGES_MENU = {
       },
     },
   },
-  lr_workflow: {
-    title: "LR Workflow",
+  advance_request: {
+    title: "Advance Request",
     selected: false,
     openPage: false,
     icon: "fa-truck",
     subMenu: {
       view_advance_request: {
-        title: "Advance Requests",
+        title: "All Requests",
         permission: "view_advance_request",
         selected: false,
-        location: "/lr-workflow/advance-request",
+        location: "/advance-request",
       },
       create_advance_request: {
-        title: "Create Advance Request",
+        title: "Create Request",
         permission: "create_advance_request",
         selected: false,
-        location: "/lr-workflow/advance-request/create",
+        location: "/advance-request/create",
+      },
+    },
+  },
+  // LR Follow-up: what has been paid for (advance) or dispatched by a
+  // supplier on credit and has not physically arrived yet.
+  lr_followup: {
+    title: "LR Follow-up",
+    selected: false,
+    openPage: false,
+    icon: "fa-truck-loading",
+    subMenu: {
+      view_lr_followup: {
+        title: "LR Follow-up List / Dashboard",
+        permission: "view_lr_followup",
+        selected: false,
+        location: "/lr-followup",
+      },
+      // The key keeps the name it shipped with (create_credit_purchase).
+      create_credit_purchase: {
+        title: "Create LR Follow-up",
+        permission: "create_credit_purchase",
+        selected: false,
+        location: "/lr-followup/create",
+      },
+      manage_lr_legacy_verification: {
+        title: "Legacy Follow-up Verification",
+        permission: "manage_lr_legacy_verification",
+        selected: false,
+        location: "/lr-followup/legacy",
       },
     },
   },
@@ -301,6 +292,16 @@ const ALL_PAGES_MENU = {
         permission: "add_account_sheet",
         selected: false,
         location: "/accounts/epayment/create",
+      },
+      // A standalone Penny-Less check of any account number, saved to no
+      // employee. ALL three keys, matching the backend's
+      // `requireAll(verify_employee_bank, view_employee_sensitive,
+      // edit_employee_sensitive)` on POST /hr/bank/check.
+      bank_check: {
+        title: "Check Bank Account",
+        permission: ["verify_employee_bank", "view_employee_sensitive", "edit_employee_sensitive"],
+        selected: false,
+        location: "/accounts/bank-check",
       },
       view_purchase_order: {
         title: "All Purchases",
@@ -372,12 +373,6 @@ const ALL_PAGES_MENU = {
         selected: false,
         location: "/purchase/purchase-return",
       },
-      view_purchase_acknowledgement: {
-        title: "Purchase Acknowledgement",
-        permission: "view_purchase_acknowledgement",
-        selected: false,
-        location: "/purchase/purchase-acknowledgement",
-      },
     },
   },
   debit_note: {
@@ -421,36 +416,6 @@ const ALL_PAGES_MENU = {
     openPage: false,
     icon: "fa-archive",
     subMenu: {
-      view_products_report: {
-        title: "Product Image Report",
-        permission: "view_products",
-        selected: false,
-        location: "/products/report",
-      },
-      view_product_changes: {
-        title: "Changes",
-        permission: "view_product_changes",
-        selected: false,
-        location: "/products/changes",
-      },
-      view_receiving_stock: {
-        title: "Receiving Stock",
-        permission: "view_stock_received",
-        selected: false,
-        location: "/products/receiving-stock",
-      },
-      view_product_offers: {
-        title: "Offers",
-        permission: "view_product_offers",
-        selected: false,
-        location: "/product-offers",
-      },
-      view_offers_v2: {
-        title: "Offers V2",
-        permission: "view_hq_offers",
-        selected: false,
-        location: "/offers-v2",
-      },
       // view_departments: {
       //   title: 'View Deapartments',
       //   selected: false,
@@ -539,16 +504,28 @@ const ALL_PAGES_MENU = {
   //   },
   // },
   tickets: {
-    title: "Tickets",
+    title: "Tickets & Tasks",
     selected: false,
     openPage: false,
     icon: "fa-ticket",
     subMenu: {
+      my_work: {
+        title: "My Work",
+        permission: "view_my_tickets",
+        selected: false,
+        location: "/my-work",
+      },
       open_issue: {
-        title: "View All",
+        title: "All Tickets",
         permission: "view_tickets",
         selected: false,
         location: "/tickets",
+      },
+      tasks: {
+        title: "All Tasks",
+        permission: "view_tasks",
+        selected: false,
+        location: "/tasks",
       },
       my_tickets: {
         title: "My Tickets",
@@ -593,29 +570,17 @@ const ALL_PAGES_MENU = {
     openPage: false,
     icon: "fa-book",
     subMenu: {
-      sto_comparison: {
-        title: "STO Comparison",
-        permission: "view_sto",
-        selected: false,
-        location: "/sto",
-      },
-      price_checker: {
-        title: "Price Checker",
-        permission: "view_price_checker",
-        selected: false,
-        location: "/price-checker",
-      },
-      images_download_log: {
-        title: "Image Download Log",
-        permission: "view_images_download_log",
-        selected: false,
-        location: "/products/image-download-log",
-      },
       api_logs: {
         title: "API Logs",
         permission: "view_api_logs",
         selected: false,
         location: "/misc/api-logs",
+      },
+      retailpilot_sync: {
+        title: "RetailPilot Sync",
+        permission: "sync_retailpilot_stock",
+        selected: false,
+        location: "/retailpilot-sync",
       },
       stock_checker: {
         title: "Stock Checker",
@@ -655,14 +620,178 @@ const ALL_PAGES_MENU = {
   },
 };
 
-/** Menu tree for the Pick & Pack module (module rail → Pick & Pack). */
-const PICK_PACK_MENU = {
-  pick_pack: {
+/** Menu tree for the WMS module (module rail → WMS). */
+const WMS_MENU = {
+  dashboard: {
+    title: "Dashboard",
+    selected: false,
+    openPage: false,
+    icon: "fa-pie-chart",
+    subMenu: {
+      view_purchase_return_dashboard: {
+        title: "Purchase Return Dashboard",
+        permission: "view_purchase_return_dashboard",
+        selected: false,
+        location: "/dashboard/purchase-return",
+      },
+    },
+  },
+  master: {
+    title: "Master",
+    selected: false,
+    openPage: false,
+    icon: "fa-list-alt",
+    subMenu: {
+      view_product_distributors: {
+        title: "Product Distributors",
+        permission: "view_product_distributors",
+        selected: false,
+        location: "/master/distributors",
+      },
+      view_products: {
+        title: "All Products",
+        permission: "view_products",
+        selected: false,
+        location: "/products",
+      },
+      view_items: {
+        title: "Repack Items Master",
+        permission: "view_items",
+        selected: false,
+        location: "/items",
+      },
+      view_products_report: {
+        title: "Product Image Report",
+        permission: "view_products",
+        selected: false,
+        location: "/products/report",
+      },
+      view_article_store_master: {
+        title: "Article Store Master",
+        permission: "view_products",
+        selected: false,
+        location: "/products/article-store-master",
+      },
+      images_download_log: {
+        title: "Image Download Log",
+        permission: "view_images_download_log",
+        selected: false,
+        location: "/products/image-download-log",
+      },
+      view_products_dashboard: {
+        title: "Products Dashboard",
+        permission: "view_products_dashboard",
+        selected: false,
+        location: "/dashboard/products",
+      },
+    },
+  },
+  grn: {
+    title: "GRN",
+    selected: false,
+    openPage: false,
+    icon: "fa-truck-loading",
+    subMenu: {
+      view_all_grn: {
+        title: "All GRN",
+        permission: "view_all_grn",
+        selected: false,
+        location: "/grn",
+      },
+      view_purchase_uom: {
+        title: "Purchase UOM",
+        permission: "view_purchase_uom",
+        selected: false,
+        location: "/grn/purchase-uom",
+      },
+      view_issue_grn: {
+        title: "Issue GRN",
+        permission: "view_issue_grn",
+        selected: false,
+        location: "/grn/issue",
+      },
+    },
+  },
+  purchase_order: {
+    title: "Purchase Order",
+    selected: false,
+    openPage: false,
+    icon: "fa-credit-card",
+    subMenu: {
+      view_po_tracker: {
+        title: "PO Tracker",
+        permission: "view_po_tracker",
+        selected: false,
+        location: "/purchase-order/tracker",
+      },
+    },
+  },
+  warehouse_reports: {
+    title: "Warehouse Reports",
+    selected: false,
+    openPage: false,
+    icon: "fa-clipboard-list",
+    subMenu: {
+      wh_daily_uploads: {
+        title: "Daily Uploads",
+        permission: "upload_wh_daily_reports",
+        selected: false,
+        location: "/warehouse-reports/daily-uploads",
+      },
+      wh_reports_analysis: {
+        title: "Analysis",
+        permission: "view_wh_daily_reports",
+        selected: false,
+        location: "/warehouse-reports/analysis",
+      },
+    },
+  },
+  purchase_ref: {
+    title: "Purchase Ref",
+    selected: false,
+    openPage: false,
+    icon: "fa-file-invoice",
+    subMenu: {
+      view_purchase_ref: {
+        title: "Purchase Ref",
+        permission: "view_purchase_ref",
+        selected: false,
+        location: "/purchase-ref",
+      },
+    },
+  },
+  uploads: {
+    title: "Uploads",
+    selected: false,
+    openPage: false,
+    icon: "fa-upload",
+    subMenu: {
+      view_stock_holding_report: {
+        title: "Stock Holding Report",
+        permission: "view_stock_holding_report",
+        selected: false,
+        location: "/uploads/stock-holding-report",
+      },
+    },
+  },
+  pick_and_pack: {
     title: "Pick and Pack",
     selected: false,
     openPage: false,
     icon: "fa-boxes-packing",
     subMenu: {
+      price_checker: {
+        title: "Price Checker",
+        permission: "view_price_checker",
+        selected: false,
+        location: "/price-checker",
+      },
+      view_warehouse_health: {
+        title: "Pick Pack Daily Report",
+        permission: "view_warehouse_health",
+        selected: false,
+        location: "/pick-pack/daily-report",
+      },
       view_pick_pack_remarks: {
         title: "Remarks Master",
         permission: "view_pick_pack_remarks",
@@ -709,61 +838,23 @@ const PICK_PACK_MENU = {
       },
     },
   },
-};
-
-/** Menu tree for the WMS module (module rail → WMS). */
-const WMS_MENU = {
-  master: {
-    title: "Master",
+  offer: {
+    title: "Offer",
     selected: false,
     openPage: false,
-    icon: "fa-list-alt",
+    icon: "fa-tags",
     subMenu: {
-      view_product_distributors: {
-        title: "Product Distributors",
-        permission: "view_product_distributors",
+      view_offers_v2: {
+        title: "Offers V2",
+        permission: "view_hq_offers",
         selected: false,
-        location: "/master/distributors",
+        location: "/offers-v2",
       },
-      view_products: {
-        title: "All Products",
-        permission: "view_products",
+      view_offers_v3: {
+        title: "Offers V3",
+        permission: "view_offers_v3",
         selected: false,
-        location: "/products",
-      },
-      view_items: {
-        title: "Repack Items Master",
-        permission: "view_items",
-        selected: false,
-        location: "/items",
-      },
-    },
-  },
-  grn: {
-    title: "GRN",
-    selected: false,
-    openPage: false,
-    icon: "fa-truck-loading",
-    subMenu: {
-      view_all_grn: {
-        title: "All GRN",
-        permission: "view_all_grn",
-        selected: false,
-        location: "/grn",
-      },
-    },
-  },
-  uploads: {
-    title: "Uploads",
-    selected: false,
-    openPage: false,
-    icon: "fa-upload",
-    subMenu: {
-      view_stock_holding_report: {
-        title: "Stock Holding Report",
-        permission: "view_stock_holding_report",
-        selected: false,
-        location: "/uploads/stock-holding-report",
+        location: "/offers-v3",
       },
     },
   },
@@ -828,6 +919,454 @@ const GST_MENU = {
 };
 
 /**
+ * Stage 0C / C3 — HR, the single top-level module for everything about the
+ * people who work here: who they are, when they worked, and (later) what they
+ * are paid for it.
+ *
+ *   Employee Master   who works here, and everything true of them
+ *   Shifts            the roster they are expected to keep
+ *   Attendance        when they worked (Part 1: the raw Biomax punch flow)
+ *   Payroll           what they are paid for it. M4: Salary Revision &
+ *                     History, and Salary Approval. A SECTION here, never a
+ *                     module of its own - and it waited until it had screens,
+ *                     because an empty section is a promise the navigation
+ *                     cannot keep.
+ *
+ * Attendance used to be a module beside HR on the rail. It is a section of HR
+ * now so that employee, attendance and payroll screens are found in one
+ * place. Its routes and permissions did not move: /attendance/list,
+ * /attendance/list?tab=audit and /attendance/devices, each behind the same
+ * key as before.
+ *
+ * Employees, Department and Designation moved here from the old top-level
+ * Employees section, which is gone. `/employee` redirects to `/hr/employees`,
+ * so existing links and bookmarks still resolve.
+ */
+const HR_MENU = {
+  // ONE DASHBOARD: Attendance Today, Attendance & Staffing, Payroll and My
+  // Attendance as tabs of /dashboard. No key: every signed-in user has at
+  // least My Attendance, and the page offers each tab on its own screen's
+  // rule. It REPLACES the Attendance & Staffing, My Attendance and Payroll
+  // Dashboard entries that used to sit under Attendance and Payroll; their
+  // old routes redirect to the matching tab (next.config.js).
+  dashboard: {
+    title: "Dashboard",
+    selected: false,
+    isDirect: true,
+    icon: "fa-pie-chart",
+    location: "/dashboard",
+  },
+  employee_master: {
+    title: "Employee Master",
+    selected: true,
+    openPage: true,
+    icon: "fa-users",
+    subMenu: {
+      view_employees: {
+        title: "Employees",
+        permission: "view_employees",
+        selected: false,
+        location: "/hr/employees",
+      },
+      // The compliance half of the employee master: whose record HR has not
+      // finished, and what is missing.
+      //
+      // THE SAME TWO RIGHTS THE SCREEN ITSELF CHECKS, and in the same
+      // conjunction: `util/hrProfile.js#canViewOnboardingQueue` reads
+      // `view_hr_onboarding_dashboard` and the page checks `view_employees`
+      // beside it. This used to say `view_employees` alone, so a store
+      // manager without the dashboard right was offered a menu entry that
+      // could only turn them away - a menu that advertises a refusal.
+      //
+      // AN ARRAY MEANS ALL OF THEM (`util/menuPermissions.js`), which is the
+      // AND the screen applies. Holding the list right alone is Employee
+      // Master and not this.
+      //
+      // BRANCH SCOPE IS DELIBERATELY ABSENT. Whether this entry EXISTS is an
+      // access question and the two rights answer it; which employees are
+      // behind it is the branch scope, decided on the server after entry. A
+      // store manager granted the dashboard right sees this entry and their
+      // own branch's queue behind it.
+      //
+      // AN ADMINISTRATOR IS UNAFFECTED: `user_type = 2` is served every
+      // declared key by `GET /designation/permissions`, and the onboarding
+      // migration declares this one in `all_permissions`.
+      hr_onboarding: {
+        title: "Onboarding / Pending HR",
+        permission: ["view_hr_onboarding_dashboard", "view_employees"],
+        selected: false,
+        location: "/hr/onboarding",
+      },
+      view_departments: {
+        title: "Department",
+        permission: "view_department",
+        selected: false,
+        location: "/department",
+      },
+      view_designation: {
+        title: "Designation",
+        permission: "view_designation",
+        selected: false,
+        location: "/designation",
+      },
+      // HR maps the RetailPilot user ids the warehouse reports record (who
+      // picked, packed, loaded, verified) to employees.
+      manage_wh_staff_map: {
+        title: "RetailPilot Staff Mapping",
+        permission: "manage_wh_staff_map",
+        selected: false,
+        location: "/hr/retailpilot-staff",
+      },
+      // Staff Budget - the APPROVED HEADCOUNT PLAN: positions management has
+      // approved, whether or not anybody is in them. Gated on its own
+      // `view_staff_budget`, which the backend's /staff-budget routes require
+      // on every endpoint. The legacy /store-budget "Employee Count" screen
+      // stays unlisted; this supersedes it.
+      view_staff_budget: {
+        title: "Staff Budget",
+        permission: "view_staff_budget",
+        selected: false,
+        location: "/staff-budget",
+      },
+      // The payroll/attendance shift master, on `work_shift`, gated on the
+      // Work Shift system's OWN keys - never the legacy `view_shift`, which is
+      // granted to designations with no payroll role. The legacy /shift
+      // screen stays unlisted: two shift masters would put the choice of
+      // which one to edit in front of people who cannot make it.
+      view_work_shift: {
+        title: "Work Shift Master",
+        permission: "view_work_shifts",
+        selected: false,
+        location: "/work-shift",
+      },
+      // Where employees are put ONTO those shifts. An array means ALL of the
+      // keys (util/menuPermissions.js), matching the backend's
+      // `requireAll(view_employees, view_shift_assignments)`.
+      employee_shift_assignment: {
+        title: "Employee Shift Assignment",
+        permission: ["view_employees", "view_shift_assignments"],
+        selected: false,
+        location: "/employee-shift-assignment",
+      },
+    },
+  },
+  // Attendance - Part 1, the raw Biomax punch flow. Same three screens, same
+  // routes and same permission keys as when this was a module of its own.
+  //
+  //   Attendance List   one row per employee per attendance date, every punch
+  //                     of the day merged whichever terminal recorded it.
+  //                     Filtered by HOME outlet, never by device.
+  //   Punch Audit       one row per physical punch, filtered by device / punch
+  //                     location. Its own permission (D7), because seeing
+  //                     which terminal and IP every punch came from is a
+  //                     different decision from reading attendance.
+  //   Biomax Devices    the terminal registry with effective-dated locations.
+  //                     Administrators only at go-live: the backend grants
+  //                     `view_biomax_devices` / `manage_biomax_devices` to no
+  //                     designation, and administrators bypass the table.
+  //
+  // Nothing here calculates attendance. IN/OUT, hours, lateness, OT, status
+  // and payroll are Part 2 and have no entry until they have screens.
+  attendance: {
+    title: "Attendance",
+    selected: false,
+    openPage: true,
+    icon: "fa-clock-o",
+    subMenu: {
+      attendance_list: {
+        title: "Attendance List",
+        permission: "view_raw_attendance",
+        selected: false,
+        location: "/attendance/list",
+      },
+      punch_audit: {
+        title: "Punch Audit",
+        permission: "view_attendance_punch_audit",
+        selected: false,
+        location: "/attendance/list?tab=audit",
+      },
+      biomax_devices: {
+        title: "Biomax Devices",
+        permission: "view_biomax_devices",
+        selected: false,
+        location: "/attendance/devices",
+      },
+      // DEVICE TIME CORRECTION: correcting punches an attendance machine
+      // stamped while its clock was wrong. ADMINISTRATORS ONLY - the backend
+      // checks `user_type` 2 on every route and nothing grantable. The entry
+      // rides on `manage_biomax_devices`, the device-administration key the
+      // backend grants to no designation, so it is drawn for administrators
+      // (who receive every key) and the page itself re-checks `user_type`.
+      device_time_correction: {
+        title: "Device Time Correction",
+        permission: "manage_biomax_devices",
+        selected: false,
+        location: "/attendance/device-time-correction",
+      },
+      // The permanent DigiSME fallback: an Excel export of the same punches,
+      // imported into the same table. Administrators only - the backend
+      // grants `manage_attendance_import` to no designation - so this entry
+      // is invisible to everyone else, like Biomax Devices beside it.
+      import_attendance: {
+        title: "Import Attendance",
+        permission: "manage_attendance_import",
+        selected: false,
+        location: "/attendance/imports",
+      },
+      // Employee Attendance is the HR/Admin view of somebody else's month,
+      // behind the key the backend checks on that read. Attendance & Staffing
+      // and My Attendance are tabs of the Dashboard entry at the top of HR.
+      employee_attendance: {
+        title: "Employee Attendance",
+        permission: "view_calculated_attendance",
+        selected: false,
+        location: "/attendance/calculated",
+      },
+      // ATTENDANCE REPORTS. The chasing list: every completed past date on
+      // which an eligible employee recorded a POSITIVE, ODD number of punches
+      // - one punch of a pair never arrived. A day with NO punches is an
+      // absence and is deliberately not on it, and the current attendance
+      // date is never on it because the day is still being punched.
+      //
+      // Its own key, granted to nobody by migration. It is not
+      // `view_attendance_dashboard` (one date across the company) and not
+      // `view_calculated_attendance` (one employee's month): this is a third
+      // question, and a designation can be given it without either. Branch
+      // scope is resolved on the server exactly as it is for the dashboard,
+      // so this entry appearing widens nobody.
+      missing_attendance_report: {
+        title: "Missing Attendance Report",
+        permission: "view_missing_attendance_report",
+        selected: false,
+        location: "/attendance/missing-attendance",
+      },
+      // SHIFT CHANGE ELIGIBILITY. Who can raise a one-day shift change right
+      // now, and who already has. "Can Raise Shift Change?" is the SERVER's
+      // production rule - the same one that accepts or refuses the employee's
+      // own request - and "Worked Longer Than Assigned Shift?" is measured
+      // separately from the punches, because a long day is not a permission.
+      //
+      // Its own key, granted to nobody by migration, and NOT
+      // `raise_shift_change_request` or `approve_shift_change_request`:
+      // reading this list neither raises nor decides anything. Branch scope is
+      // resolved on the server exactly as it is for the dashboard, so this
+      // entry appearing widens nobody.
+      shift_change_eligibility_report: {
+        title: "Shift Change Eligibility",
+        permission: "view_shift_change_eligibility_report",
+        selected: false,
+        location: "/attendance/shift-change-eligibility",
+      },
+      // ONE approval screen, with Attendance | OT | Shift on it. What each
+      // approver sees is their own role's and outlet's, decided on the
+      // server. ONE entry for all three tabs: a separate OT entry opened the
+      // same screen and only looked like a second one. Links that need the OT
+      // tab still deep-link with ?type=OT. Recalculate is behind the key the
+      // backend grants to nobody by migration.
+      attendance_approval: {
+        title: "Approvals",
+        permission: "view_attendance_approvals",
+        selected: false,
+        location: "/attendance/approval",
+      },
+      // PERMISSION: the register, the management grant (one employee, a
+      // list, outlets, or everybody in scope - the festival early release)
+      // and the bulk grant log. Drawn for anybody who can read the register;
+      // the page offers Grant and Revoke only to the keys that allow them,
+      // and the server checks every key and the outlet scope again.
+      attendance_permissions: {
+        title: "Permissions",
+        permission: "view_attendance_permissions",
+        selected: false,
+        location: "/attendance/permissions",
+      },
+      recalculate_attendance: {
+        title: "Recalculate Attendance",
+        permission: "recalculate_attendance",
+        selected: false,
+        location: "/attendance/recalculate",
+      },
+      // The employee-level approver chain (First / Second / Final) that
+      // governs Attendance Regularization and OT approvals. Behind the key
+      // the backend grants to nobody; it is never handed to HR or managers
+      // by any rule here.
+      attendance_approver_setup: {
+        title: "Attendance Approver Setup",
+        permission: "manage_attendance_approvers",
+        selected: false,
+        location: "/attendance/approver-setup",
+      },
+      // Historical OT Review: calculated OT the automatic-OT cutover left
+      // without an approval request. Preview, then an authorised creation of
+      // PENDING OT on the normal chain - it approves and pays nothing. Behind
+      // a key the backend grants to nobody (administrators by bypass).
+      attendance_ot_historical_review: {
+        title: "Historical OT Review",
+        permission: "attendance_ot_historical_review",
+        selected: false,
+        location: "/attendance/ot-historical-review",
+      },
+      // OT Auto-Approval: the switch (and optional daily cap) under which the
+      // system approves pending OT itself. Behind a key the backend grants to
+      // nobody (administrators by bypass).
+      attendance_ot_auto_approval: {
+        title: "OT Auto-Approval",
+        permission: "manage_ot_auto_approval",
+        selected: false,
+        location: "/attendance/ot-auto-approval",
+      },
+    },
+  },
+  // M4 — Payroll. A SECTION OF HR, never a module of its own, exactly as the
+  // note above this tree has said since C3: employee, attendance and payroll
+  // screens are found in one place.
+  //
+  // It is declared NOW because it now has screens. The rule it waited for was
+  // "an empty section is a promise the navigation cannot keep" - M2 built the
+  // salary engine with no screens at all and M3 built a read-only card on the
+  // employee profile, so there was nothing to list. M4 builds the two screens
+  // where salary is entered and decided, and they are listed.
+  //
+  // TWO ENTRIES, AND THEY ARE TWO DECISIONS. Proposing a pay change and
+  // agreeing to it are separate permissions on the server and separate screens
+  // here; one screen doing both would make `approve_salary_revision`
+  // decorative.
+  //
+  // SEPARATE FROM EMPLOYEE MASTER, which is the approved rule and not a filing
+  // preference. The profile's Payroll section stays READ-ONLY and shows the
+  // current approved figure; a second place to type a salary is a second
+  // salary.
+  //
+  // BOTH ENTRIES CARRY ARRAYS, WHICH MEAN *ALL* OF THESE KEYS (see
+  // util/menuPermissions.js), matching the `requireAll(...)` each backend
+  // route uses. An entry shown to somebody holding only one key would put a
+  // screen on their rail that 403s the moment they open it.
+  //
+  // The monthly-payroll keys `process_payroll` and `hr_reports` are
+  // deliberately NOT used here: nothing in this section runs a payroll period
+  // or produces a report, and gating these screens on a key they do not need
+  // would make them ungrantable without handing out one that opens nothing.
+  //
+  // M5 ADDS A THIRD ENTRY AND STILL NO FOURTH. Bulk Salary Upload is a faster
+  // way to raise the proposals the first entry raises one at a time; it is not
+  // a payroll run, a payslip, a report or a bank payment, none of which have an
+  // entry here because none of them has a screen.
+  payroll: {
+    title: "Payroll",
+    selected: false,
+    openPage: true,
+    icon: "fa-money",
+    subMenu: {
+      // The Payroll Dashboard is the Payroll tab of the Dashboard entry at
+      // the top of HR; this section holds the screens where payroll is done.
+      salary_revision: {
+        title: "Salary Revision & History",
+        permission: ["view_employees", "view_salary"],
+        selected: false,
+        location: "/payroll/salary-revision",
+      },
+      // The approver's worklist: every outstanding pay proposal in the
+      // company, which is why it takes the approver's key on top of the two
+      // that open the screen beside it.
+      salary_approval: {
+        title: "Salary Approval",
+        permission: ["view_employees", "view_salary", "approve_salary_revision"],
+        selected: false,
+        location: "/payroll/salary-approval",
+      },
+      // M5 - Bulk Salary Upload, beside the screen where one salary is typed.
+      // It PROPOSES faster and decides nothing: every row it creates lands
+      // Pending and is approved or rejected on Salary Approval above.
+      //
+      // `add_salary` on top of the reading pair, matching the two
+      // /hr/salary/bulk endpoints exactly. Not a `bulk_salary_upload` key of
+      // its own: uploading a hundred proposals and typing a hundred proposals
+      // are the same authority at different speeds, and a second key to grant
+      // is the one somebody forgets.
+      bulk_salary_upload: {
+        title: "Bulk Salary Upload",
+        permission: ["view_employees", "view_salary", "add_salary"],
+        selected: false,
+        location: "/payroll/bulk-salary-upload",
+      },
+      // Payrun Initialization - the first stage of the Monthly Payrun, and
+      // the first entry in this section that is about a MONTH rather than
+      // about one employee's pay.
+      //
+      // THREE KEYS, ALL OF THEM, matching `GET /payrun/month` exactly. The
+      // third, `view_salary`, is not decoration: the screen's table carries an
+      // Approved Monthly Gross column, so opening it is company-wide salary
+      // disclosure and must not be reachable through a payroll key somebody
+      // was granted to look at headcounts.
+      //
+      // `process_payroll` is deliberately NOT on the entry. The screen is
+      // genuinely useful read-only - it is the list of what payroll is waiting
+      // on - and requiring the initialize key to SEE it would hide that from
+      // everybody who is meant to clear the blockers rather than run the month.
+      // The Initialize buttons are gated on that key inside the screen, and
+      // re-checked by the server.
+      //
+      // ONE ENTRY, NOT FOUR. Recalculate, approval, finalize and payslips have
+      // no screens, so they have no entries: an entry that leads nowhere is a
+      // promise the navigation cannot keep.
+      payrun: {
+        title: "Payrun",
+        permission: ["view_employees", "view_payroll", "view_salary"],
+        selected: false,
+        location: "/payroll/payrun",
+      },
+      // Full & Final Settlement - every exit of a month and where its F&F
+      // stands. The three keys `GET /payrun/fnf/month` requires: the list
+      // carries net pay, which is the `view_salary` disclosure.
+      fnf_settlement: {
+        title: "F&F Settlement",
+        permission: ["view_employees", "view_salary", "view_fnf_settlement"],
+        selected: false,
+        location: "/payroll/fnf",
+      },
+    },
+  },
+  // HR > Reports - every HR report in one section: Payroll's month-wise
+  // reports and the Employee Master report builder. Routes and keys are the
+  // ones the screens and the backend already check.
+  reports: {
+    title: "Reports",
+    selected: false,
+    openPage: true,
+    icon: "fa-file-text-o",
+    subMenu: {
+      // Month-wise reports read from the FINALIZED payrun (Register, EPF, ESI,
+      // Bank, OT, Deductions, Attendance / Payroll Days). The Payrun's three
+      // read keys plus `view_reports`, exactly as `routes/payroll_report.js`
+      // requires them; exporting and the statutory files are further keys
+      // checked inside the screen and on the server.
+      payroll_reports: {
+        title: "Payroll Reports",
+        permission: ["view_reports", "view_employees", "view_payroll", "view_salary"],
+        selected: false,
+        location: "/payroll/reports",
+      },
+      // Employee Master reports: the saved-report catalogue and the builder.
+      // BOTH keys on each, not either - `view_reports` is a capability, the
+      // dataset is HR's, and the backend requires exactly this pair with
+      // `requireAll`.
+      saved_reports: {
+        title: "Employee Master Reports",
+        permission: ["view_reports", "view_employees"],
+        selected: false,
+        location: "/reports/employee-master",
+      },
+      create_report: {
+        title: "Create Employee Report",
+        permission: ["view_reports", "view_employees"],
+        selected: false,
+        location: "/reports/employee-master/new",
+      },
+    },
+  },
+};
+
+/**
  * Top-level app modules; each has its own sidebar menu tree.
  * `accent` drives module-rail colors and the main menu panel (see sideBar `data-menu-accent`).
  * Rail icon: set `iconClass` (full FA6 classes, e.g. "fa-solid fa-chart-line") or `icon` (legacy suffix, e.g. "fa-users" → "fa fa-users").
@@ -840,6 +1379,14 @@ export const MENU_MODULES = {
     accent: "purple",
     menu: ALL_PAGES_MENU,
   },
+  // Stage 0C / C3. Purple, like the rest of the application shell - HR is not
+  // a different product, it is where the employee master now lives.
+  hr: {
+    title: "HR",
+    iconClass: "fa-solid fa-users",
+    accent: "purple",
+    menu: HR_MENU,
+  },
   wms: {
     title: "WMS",
     iconClass: "fa-solid fa-warehouse",
@@ -851,12 +1398,6 @@ export const MENU_MODULES = {
     iconClass: "fa-solid fa-file-invoice-dollar",
     accent: "blue",
     menu: GST_MENU,
-  },
-  pick_pack: {
-    title: "Pick & Pack",
-    iconClass: "fa-solid fa-boxes-packing",
-    accent: "orange",
-    menu: PICK_PACK_MENU,
   },
 };
 

@@ -1,0 +1,515 @@
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import {
+  Button,
+  ButtonGroup,
+  Input,
+  Select,
+  SimpleGrid,
+  Stack,
+  Text,
+  Spinner,
+  Alert,
+  AlertIcon,
+} from "@chakra-ui/react";
+import GlobalWrapper from "../../../components/globalWrapper/globalWrapper";
+import CustomContainer from "../../../components/CustomContainer";
+import Table from "../../../components/table/table";
+import EmployeeCard from "../../../components/hr/EmployeeCard";
+import {
+  AadhaarListBadge,
+  BankListBadge,
+  EmploymentBadge,
+  HrOnboardingBadge,
+} from "../../../components/hr/StatusBadges";
+import usePermissions from "../../../customHooks/usePermissions";
+import usePayrollActor from "../../../customHooks/usePayrollActor";
+import { canViewOnboardingQueue } from "../../../util/hrProfile";
+import useEmployeeOutlets from "../../../customHooks/useEmployeeOutlets";
+import useDesignations from "../../../customHooks/useDesignations";
+import EmployeeHelper from "../../../helper/employee";
+import HrHelper from "../../../helper/hr";
+import unwrapList from "../../../util/apiList";
+import { statusSummaryIndex } from "../../../util/hrStatus";
+import BulkExportImport from "../../../components/Employee/BulkExportImport";
+
+/**
+ * Stage 0C / C3 — the HR employee master list.
+ *
+ * The operational list HR works from: who is employed, where, and how to reach
+ * them, with one click through to everything else about them.
+ *
+ * SOURCE: GET /employee/employees (`view_employees`), which already returns
+ * name, outlet, designation, department, mobile, status and joining date, and
+ * has B3 stripping salary, bank, PAN and Aadhaar for anyone without
+ * `view_employee_sensitive`. There is deliberately no new backend endpoint.
+ *
+ * The Aadhaar, Bank and HR columns come from GET /hr/employees/status-summary
+ * (`view_employees`), fetched ONCE for the whole list and merged by
+ * employee_id. The per-employee reads still exist and are what the profile
+ * uses; calling them from here would be 1,260 requests to draw one screen,
+ * which is the reason the bulk endpoint exists.
+ *
+ * THE HR COLUMN is the other half of the manager's Add Employee wizard: a
+ * store manager creates the employee and stops at stage 3, so somebody has to
+ * be able to see which records HR has not finished. It is DERIVED by the
+ * backend from the statutory and bank sections themselves - there is no new
+ * status column and nothing to backfill - and it says only that a section is
+ * outstanding, never anything in one.
+ *
+ * IF THE SUMMARY FAILS the list still renders. The two statuses fall back to a
+ * neutral dash - "not known" rather than "not verified" - because the list is
+ * useful without them and useless if a status request can blank it.
+ *
+ * TWO VIEWS, ONE DATA SET. Cards are the default, because the everyday task is
+ * "find this person", and a card answers that at a glance. The table is kept
+ * for the other task - scanning several hundred rows for the ones that need
+ * chasing - and shows the detail a card deliberately leaves off. The choice is
+ * remembered per browser; the filters, the search and the data are shared, so
+ * switching view never changes what is shown, only how.
+ *
+ * THE CARD CARRIES NO COMPLIANCE BADGES. Aadhaar, Bank and HR status are still
+ * fetched here - the table's columns and the HR filter below are built from
+ * them, and nothing about the data changed - but the card is for finding
+ * somebody, not for chasing them. Chasing has a screen of its own now:
+ * Onboarding / Pending HR at `/hr/onboarding`, built from this very summary.
+ *
+ * THERE IS NO SYNC BUTTON, and this is the point of C1/C2 rather than an
+ * omission: dnds.co.in IS the employee master now. Employees are created,
+ * edited, resigned and rejoined here. A "Sync" action and a "Last Sync" line
+ * would describe Digisme owning these records and this screen showing a copy,
+ * which stopped being true.
+ */
+const VIEW_STORAGE_KEY = "hr.employees.view";
+function HrEmployeeList() {
+  const canView = usePermissions(["view_employees"]);
+  const canCreate = usePermissions(["employee_create"]);
+  /*
+   * BULK EXPORT / IMPORT is shown behind `employee_edit` because that is what
+   * the import half requires. A display decision only: the server demands
+   * `view_employees` for the export and `view_employees` AND `employee_edit`
+   * for the preview and the confirm, per request, whatever this says.
+   */
+  const canBulkUpdate = usePermissions(["employee_edit"]);
+  const [bulkOpen, setBulkOpen] = useState(false);
+  // The Onboarding / Pending HR queue is HR and administrators only, so the
+  // link to it is too. Same rule the screen itself enforces.
+  const canOpenQueue = canViewOnboardingQueue(usePayrollActor());
+
+  const [rows, setRows] = useState([]);
+  // Keyed by employee_id. Empty until it arrives, and empty forever if the
+  // request is refused - neither of which may stop the list rendering.
+  const [statuses, setStatuses] = useState({});
+  const [statusUnavailable, setStatusUnavailable] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [denied, setDenied] = useState(false);
+  const [error, setError] = useState(false);
+
+  // Cards by default. Read from localStorage after mount rather than during
+  // the first render, so the server-rendered markup and the client's first
+  // render agree - a mismatch is a hydration error, not a preference.
+  const [view, setView] = useState("card");
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(VIEW_STORAGE_KEY);
+      if (saved === "card" || saved === "list") setView(saved);
+    } catch (err) {
+      // A browser with site data blocked still gets the default.
+    }
+  }, []);
+
+  const chooseView = (next) => {
+    setView(next);
+    try {
+      window.localStorage.setItem(VIEW_STORAGE_KEY, next);
+    } catch (err) {
+      // Not remembering the choice is not a reason to refuse to make it.
+    }
+  };
+
+  // 630 cards at once is a lot of DOM for a screen somebody is scanning the
+  // top of. Shown in pages, with the count always visible so nobody mistakes
+  // the first batch for the whole answer.
+  const CARD_PAGE = 48;
+  const [cardsShown, setCardsShown] = useState(CARD_PAGE);
+
+  const [search, setSearch] = useState("");
+  const [outlet, setOutlet] = useState("");
+  const [designation, setDesignation] = useState("");
+  const [status, setStatus] = useState("active");
+  // "Who is HR still to finish?" is a real question about several hundred
+  // rows, so the derived flag is filterable rather than only visible.
+  const [hrOnboarding, setHrOnboarding] = useState("all");
+
+  /**
+   * THE BRANCHES THIS USER MAY FILTER BY, NARROWED ON THE SERVER.
+   *
+   * Not the company-wide `/outlet/directory`: this list names branches on a
+   * screen whose employee rows the server already scopes, so a branch-scoped
+   * manager was being sent every outlet name in the company for a filter they
+   * could not use. `/hr/employees/outlets` applies the same
+   * `employee_branch_scope` as the employee list itself.
+   */
+  const { outlets } = useEmployeeOutlets();
+  const { designations } = useDesignations();
+
+  /*
+   * Hoisted out of the effect below so a completed bulk update can ask for
+   * the list again. Otherwise the screen would keep showing the branch and
+   * the grade the import had just changed, which reads as the update not
+   * having worked.
+   *
+   * `isCancelled` keeps the mount-time behaviour EXACTLY as it was: the
+   * effect passes its own flag so a response arriving after unmount still
+   * sets nothing, and the bulk-update caller passes nothing and always
+   * applies. Hoisting this must not quietly drop the guard that was here.
+   */
+  const loadEmployees = useCallback(async (isCancelled = () => false) => {
+    setLoading(true);
+    try {
+      // `include_resigned`: this screen's "Resigned" view filters
+      // `status !== 1` over this list, so it needs the leavers whose
+      // resignation was RECORDED - the default list drops anyone whose name
+      // is in `resignation`. Asked for here and nowhere else; the shared
+      // pickers and the Onboarding queue keep the default list.
+      const result = unwrapList(await EmployeeHelper.getEmployee({ include_resigned: true }));
+      if (isCancelled()) return;
+      setRows(result.items);
+      setDenied(result.accessDenied);
+      setError(result.error);
+    } catch (err) {
+      if (!isCancelled()) {
+        setRows([]);
+        setError(true);
+      }
+    } finally {
+      if (!isCancelled()) setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    loadEmployees(() => cancelled);
+    return () => {
+      cancelled = true;
+    };
+  }, [loadEmployees]);
+
+  /**
+   * ONE request for the whole list, never one per employee. It is deliberately
+   * a separate effect from the employee list above: the two are independent,
+   * and a refusal or failure here must not touch `rows`.
+   */
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        // The SAME population as the list above, so the restored leavers
+        // carry their HR badges rather than an unknown one.
+        const summary = await HrHelper.getStatusSummary({ include_resigned: 1 });
+        if (cancelled) return;
+        if (!Array.isArray(summary)) {
+          // A B2 refusal arrives as `{ code: 403, msg }` rather than a list.
+          setStatuses({});
+          setStatusUnavailable(true);
+          return;
+        }
+        setStatuses(statusSummaryIndex(summary));
+        setStatusUnavailable(false);
+      } catch (err) {
+        if (cancelled) return;
+        setStatuses({});
+        setStatusUnavailable(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const filtered = useMemo(() => {
+    const needle = search.trim().toLowerCase();
+    return rows.filter((e) => {
+      if (status === "active" && Number(e.status) !== 1) return false;
+      if (status === "inactive" && Number(e.status) === 1) return false;
+      if (outlet && String(e.store_id) !== String(outlet)) return false;
+      if (designation && String(e.designation_id) !== String(designation)) return false;
+      if (hrOnboarding !== "all") {
+        const pending = (statuses[String(e.employee_id)] || {}).hr_onboarding_pending;
+        // Unknown is never matched by either filter: an employee whose state
+        // this server does not derive must not be presented as an answer to a
+        // question about it.
+        if (hrOnboarding === "pending" && pending !== true) return false;
+        if (hrOnboarding === "complete" && pending !== false) return false;
+      }
+      if (!needle) return true;
+      return (
+        String(e.employee_id).includes(needle) ||
+        String(e.employee_name || "").toLowerCase().includes(needle) ||
+        String(e.primary_contact_number || "").includes(needle)
+      );
+    });
+  }, [rows, search, outlet, designation, status, hrOnboarding, statuses]);
+
+  // A new filter is a new question; it starts at the first page of answers.
+  useEffect(() => {
+    setCardsShown(CARD_PAGE);
+  }, [search, outlet, designation, status, hrOnboarding]);
+
+  const heading = {
+    employee_id: "ID",
+    employee_name: "Name",
+    store_name: "Outlet",
+    designation_name: "Designation",
+    department_name: "Department",
+    primary_contact_number: "Mobile",
+    date_of_joining: "Joined",
+    status: "Status",
+    aadhaar: "Aadhaar",
+    bank: "Bank",
+    hr_onboarding: "HR",
+    open: "",
+  };
+
+  // Built only for the view that uses it: in card view this would be several
+  // hundred table cells nobody is going to look at.
+  const tableRows = view !== "list" ? [] : filtered.map((e) => {
+    // `undefined` when the summary has not loaded, or was refused. The badges
+    // treat that as unknown rather than as Pending.
+    const s = statuses[String(e.employee_id)] || {};
+    return {
+      employee_id: e.employee_id,
+      employee_name: e.employee_name,
+      store_name: e.store_name || "—",
+      designation_name: e.designation_name || "—",
+      department_name: e.department_name || "—",
+      primary_contact_number: e.primary_contact_number || "—",
+      date_of_joining: e.date_of_joining || "—",
+      status: <EmploymentBadge status={e.status} />,
+      aadhaar: <AadhaarListBadge status={s.aadhaar_status} />,
+      bank: <BankListBadge status={s.bank_status} payrollReady={s.bank_payroll_ready} />,
+      // Blank where the server does not derive it, rather than a dash: unlike
+      // the two beside it, this is not a column every employee has an answer
+      // for, and it exists to be scanned for the ones that do.
+      hr_onboarding: (
+        <HrOnboardingBadge pending={s.hr_onboarding_pending} missing={s.hr_onboarding_missing} />
+      ),
+      open: (
+        <Link href={`/hr/employees/${e.employee_id}`} passHref>
+          <Button size="xs" colorScheme="purple" variant="outline">
+            Open
+          </Button>
+        </Link>
+      ),
+    };
+  });
+
+  return (
+    <GlobalWrapper title="Employees">
+      <CustomContainer
+        title="Employees"
+        filledHeader
+        rightSection={
+          <Stack direction="row" spacing={3} align="center">
+            {/* Card / List. Not a setting buried somewhere - the two views
+                serve two different tasks, so the switch sits on both. */}
+            <ButtonGroup size="sm" isAttached variant="outline">
+              <Button
+                onClick={() => chooseView("card")}
+                colorScheme={view === "card" ? "purple" : "gray"}
+                variant={view === "card" ? "solid" : "outline"}
+                aria-pressed={view === "card"}
+                leftIcon={<i className="fa fa-th-large" aria-hidden="true" />}
+              >
+                Cards
+              </Button>
+              <Button
+                onClick={() => chooseView("list")}
+                colorScheme={view === "list" ? "purple" : "gray"}
+                variant={view === "list" ? "solid" : "outline"}
+                aria-pressed={view === "list"}
+                leftIcon={<i className="fa fa-list" aria-hidden="true" />}
+              >
+                List
+              </Button>
+            </ButtonGroup>
+            {/* The compliance half of this screen, where it now lives - and
+                HR's alone. That queue is company-wide by design, so a store
+                manager is refused it; offering them a button to a screen that
+                will turn them away is worse than not offering it. The link
+                and the screen read the ONE rule, so they cannot disagree. */}
+            {canOpenQueue ? (
+              <Link href="/hr/onboarding" passHref>
+                <Button size="sm" variant="outline" colorScheme="purple">
+                  Onboarding / Pending HR
+                </Button>
+              </Link>
+            ) : null}
+            {canBulkUpdate ? (
+              <Button
+                size="sm"
+                variant="outline"
+                colorScheme="purple"
+                onClick={() => setBulkOpen(true)}
+              >
+                Bulk Export / Import
+              </Button>
+            ) : null}
+            {canCreate ? (
+              <Link href="/hr/employees/new" passHref>
+                <Button colorScheme="purple" size="sm">
+                  Add Employee
+                </Button>
+              </Link>
+            ) : null}
+          </Stack>
+        }
+      >
+        {!canView ? (
+          <Alert status="warning" fontSize="sm">
+            <AlertIcon />
+            You do not have permission to view the employee list.
+          </Alert>
+        ) : (
+          <>
+            <Stack direction={{ base: "column", md: "row" }} spacing={3} mb={4}>
+              <Input
+                size="sm"
+                placeholder="Search name, ID or mobile"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                maxW={{ base: "100%", md: "260px" }}
+              />
+              <Select size="sm" value={status} onChange={(e) => setStatus(e.target.value)} maxW={{ md: "160px" }}>
+                <option value="active">Active</option>
+                <option value="inactive">Resigned</option>
+                <option value="all">All</option>
+              </Select>
+              <Select
+                size="sm"
+                placeholder="All outlets"
+                value={outlet}
+                onChange={(e) => setOutlet(e.target.value)}
+                maxW={{ md: "200px" }}
+              >
+                {outlets.map((o) => (
+                  <option key={o.outlet_id} value={o.outlet_id}>
+                    {o.outlet_name}
+                  </option>
+                ))}
+              </Select>
+              <Select
+                size="sm"
+                value={hrOnboarding}
+                onChange={(e) => setHrOnboarding(e.target.value)}
+                maxW={{ md: "190px" }}
+                aria-label="HR onboarding"
+              >
+                <option value="all">Any HR status</option>
+                <option value="pending">HR onboarding pending</option>
+                <option value="complete">HR onboarding complete</option>
+              </Select>
+              <Select
+                size="sm"
+                placeholder="All designations"
+                value={designation}
+                onChange={(e) => setDesignation(e.target.value)}
+                maxW={{ md: "200px" }}
+              >
+                {(designations || []).map((d) => (
+                  <option key={d.designation_id} value={d.designation_id}>
+                    {d.designation_name}
+                  </option>
+                ))}
+              </Select>
+            </Stack>
+
+            {loading ? (
+              <Stack align="center" py={8}>
+                <Spinner />
+              </Stack>
+            ) : denied ? (
+              <Alert status="warning" fontSize="sm">
+                <AlertIcon />
+                You do not have permission to view the employee list.
+              </Alert>
+            ) : error ? (
+              <Alert status="error" fontSize="sm">
+                <AlertIcon />
+                The employee list could not be loaded. Try again.
+              </Alert>
+            ) : (
+              <>
+                {statusUnavailable ? (
+                  <Alert status="info" fontSize="sm" mb={3}>
+                    <AlertIcon />
+                    Aadhaar and bank status could not be loaded, so they show a dash. Everything
+                    else on this page is unaffected, and each employee&apos;s status is on their
+                    profile.
+                  </Alert>
+                ) : null}
+                <Text fontSize="sm" color="gray.600" mb={3}>
+                  {filtered.length} employee{filtered.length === 1 ? "" : "s"}
+                </Text>
+
+                {filtered.length === 0 ? (
+                  <Alert status="info" fontSize="sm">
+                    <AlertIcon />
+                    No employee matches these filters.
+                  </Alert>
+                ) : view === "card" ? (
+                  <>
+                    <SimpleGrid columns={{ base: 1, sm: 2, lg: 3, xl: 4 }} spacing={4}>
+                      {filtered.slice(0, cardsShown).map((e) => (
+                        <EmployeeCard key={e.employee_id} employee={e} />
+                      ))}
+                    </SimpleGrid>
+                    {filtered.length > cardsShown ? (
+                      <Stack align="center" mt={5} spacing={2}>
+                        <Text fontSize="sm" color="gray.600">
+                          Showing {cardsShown} of {filtered.length}
+                        </Text>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          colorScheme="purple"
+                          onClick={() => setCardsShown((n) => n + CARD_PAGE)}
+                        >
+                          Show more
+                        </Button>
+                      </Stack>
+                    ) : null}
+                  </>
+                ) : (
+                  <Table heading={heading} rows={tableRows} showPagination defaultRowsPerPage={50} />
+                )}
+              </>
+            )}
+          </>
+        )}
+      </CustomContainer>
+
+      {/*
+        THE EXPORT FOLLOWS THE FILTERS THIS SCREEN IS SHOWING, so "export"
+        means what is in front of the user rather than quietly widening to
+        every employee. `search` and the HR-onboarding filter are deliberately
+        NOT sent: the first is a name, which the bulk audit must never record,
+        and the second is a derived status the export endpoint knows nothing
+        about. The server scopes the population by branch again regardless, and
+        refuses a branch outside the caller's scope rather than narrowing it.
+      */}
+      <BulkExportImport
+        isOpen={bulkOpen}
+        onClose={() => setBulkOpen(false)}
+        filters={{
+          status: status === "active" ? 1 : status === "inactive" ? 0 : null,
+          ...(outlet ? { store_ids: [Number(outlet)] } : {}),
+          ...(designation ? { designation_ids: [Number(designation)] } : {}),
+        }}
+        onApplied={() => loadEmployees()}
+      />
+    </GlobalWrapper>
+  );
+}
+
+export default HrEmployeeList;

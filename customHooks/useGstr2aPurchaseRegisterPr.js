@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from "react";
 import { usePurchaseGst } from "./usePurchaseGst";
 import { usePurchaseGstMatch } from "./usePurchaseGstMatch";
+import { usePurchaseGstNo2a } from "./usePurchaseGstNo2a";
 import {
   aggregatePurchasesByVendor,
   normalizeTallyPurchases,
@@ -12,16 +13,17 @@ import {
  * Purchase register (PR) data for GSTR-2A v Purchase Register.
  * Uses Tally GST purchases (`usePurchaseGst`) and purchase-gst matches.
  *
- * @param {string} period - `YYYY-MM` return month
+ * @param {string} fromPeriod - `YYYY-MM` first return month
+ * @param {string} [toPeriod] - `YYYY-MM` last return month; defaults to `fromPeriod`
  */
-export function useGstr2aPurchaseRegisterPr(period) {
+export function useGstr2aPurchaseRegisterPr(fromPeriod, toPeriod) {
   const purchaseFilters = useMemo(
-    () => purchasePeriodFilters(period),
-    [period]
+    () => purchasePeriodFilters(fromPeriod, toPeriod),
+    [fromPeriod, toPeriod]
   );
   const matchFilters = useMemo(
-    () => purchaseMatchPeriodFilters(period),
-    [period]
+    () => purchaseMatchPeriodFilters(fromPeriod, toPeriod),
+    [fromPeriod, toPeriod]
   );
 
   const {
@@ -38,6 +40,13 @@ export function useGstr2aPurchaseRegisterPr(period) {
     refetch: refetchMatches,
   } = usePurchaseGstMatch(matchFilters);
 
+  const {
+    accepted: acceptedNo2a,
+    loading: acceptedLoading,
+    error: acceptedError,
+    refetch: refetchAccepted,
+  } = usePurchaseGstNo2a(purchaseFilters ?? {});
+
   const purchases = useMemo(
     () => normalizeTallyPurchases(purchaseGst ?? []),
     [purchaseGst]
@@ -51,7 +60,7 @@ export function useGstr2aPurchaseRegisterPr(period) {
   const loading =
     purchaseFilters == null || matchFilters == null
       ? false
-      : purchaseGstLoading || matchLoading;
+      : purchaseGstLoading || matchLoading || acceptedLoading;
 
   const error = useMemo(() => {
     if (purchaseGstError) {
@@ -60,16 +69,24 @@ export function useGstr2aPurchaseRegisterPr(period) {
     if (matchError) {
       return matchError?.message ?? String(matchError);
     }
+    if (acceptedError) {
+      return acceptedError?.message ?? String(acceptedError);
+    }
     return null;
-  }, [purchaseGstError, matchError]);
+  }, [purchaseGstError, matchError, acceptedError]);
 
   const refetch = useCallback(async () => {
-    await Promise.all([refetchPurchaseGst(true), refetchMatches(true)]);
-  }, [refetchPurchaseGst, refetchMatches]);
+    await Promise.all([
+      refetchPurchaseGst(true),
+      refetchMatches(true),
+      refetchAccepted(true),
+    ]);
+  }, [refetchPurchaseGst, refetchMatches, refetchAccepted]);
 
   return {
     purchases,
     matches,
+    acceptedNo2a,
     vendorPrByGstin,
     loading,
     error,

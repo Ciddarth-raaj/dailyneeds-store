@@ -48,3 +48,61 @@ export function parseYYYYMM(value) {
   if (month < 1 || month > 12) return null;
   return { year, month };
 }
+
+/** FY start year for a calendar year/month pair (April starts the year). */
+export function financialYearStartYear(year, month) {
+  return month >= 4 ? year : year - 1;
+}
+
+/** FY start year containing a `YYYY-MM` period, or null when unparseable. */
+export function financialYearOfPeriod(period) {
+  const parsed = parseYYYYMM(period);
+  if (!parsed) return null;
+  return financialYearStartYear(parsed.year, parsed.month);
+}
+
+/** Label e.g. "FY 2026-27". */
+export function formatFinancialYearLabel(fyStartYear) {
+  const end = String((fyStartYear + 1) % 100).padStart(2, "0");
+  return `FY ${fyStartYear}-${end}`;
+}
+
+/**
+ * `YYYY-MM` bounds of a financial year: April of the start year to March of
+ * the next. A financial year still running is cut off at `maxPeriod`, so the
+ * range never reaches into months that cannot have a return yet.
+ * @returns {{ from: string, to: string } | null} null when the FY has not started
+ */
+export function financialYearPeriodRange(fyStartYear, maxPeriod) {
+  const from = `${fyStartYear}-04`;
+  const to = `${fyStartYear + 1}-03`;
+  if (!maxPeriod) return { from, to };
+  if (from > maxPeriod) return null;
+  return { from, to: to > maxPeriod ? maxPeriod : to };
+}
+
+/**
+ * Financial years available to pick, newest first: the one containing
+ * `maxPeriod` and the `previousCount` before it.
+ */
+export function listFinancialYears(maxPeriod, previousCount = 5) {
+  const latest = financialYearOfPeriod(maxPeriod);
+  if (latest == null) return [];
+  const years = [];
+  for (let i = 0; i <= previousCount; i += 1) {
+    years.push(latest - i);
+  }
+  return years;
+}
+
+/**
+ * The financial year a period range covers exactly, or null when the range is
+ * a custom span. Compared against the same clamping selection applies.
+ */
+export function financialYearForPeriodRange(fromPeriod, toPeriod, maxPeriod) {
+  const fy = financialYearOfPeriod(fromPeriod);
+  if (fy == null) return null;
+  const range = financialYearPeriodRange(fy, maxPeriod);
+  if (!range) return null;
+  return range.from === fromPeriod && range.to === toPeriod ? fy : null;
+}

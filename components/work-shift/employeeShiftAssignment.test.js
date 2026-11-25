@@ -1,0 +1,243 @@
+/**
+ * Employee Shift Assignment — the screen and the API contract behind it.
+ *
+ *   node --test components/work-shift/employeeShiftAssignment.test.js
+ *
+ * There is no component renderer wired up in this repo, so these read the
+ * sources, the way `workShiftScreens.test.js` does. That suits what needs
+ * proving here, which is largely about what is ABSENT: no change to the
+ * employee profile, no touch on the legacy shift, no unassign action, and no
+ * screen-side permission shortcut that would let a page open and then 403.
+ *
+ * The arithmetic and payload shapes are tested for real in
+ * util/employeeShiftAssignment.test.js, against the module itself.
+ */
+const test = require("node:test");
+const assert = require("node:assert");
+const fs = require("fs");
+const path = require("path");
+
+const read = (rel) => fs.readFileSync(path.join(__dirname, "..", "..", rel), "utf8");
+/** Comments explain the decisions; only code makes them. */
+const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+
+const page = read("pages/employee-shift-assignment/index.jsx");
+const pageCode = strip(page);
+const helper = read("helper/employeeWorkShift.js");
+const helperCode = strip(helper);
+const workShiftHelperCode = strip(read("helper/workShift.js"));
+const profile = strip(read("pages/hr/employees/[id].jsx"));
+const employeeForm = strip(read("pages/hr/employees/new.jsx"));
+
+/* ================================================== the API contract === */
+
+test("the helper calls exactly the two endpoints the backend defines", () => {
+  assert.match(helperCode, /API\.get\("\/hr\/work-shift-assignments"/);
+  assert.match(helperCode, /API\.post\("\/hr\/work-shift-assignments\/bulk"/);
+});
+
+test("the write sends employee_ids and work_shift_id, and nothing else", () => {
+  const body = helperCode.slice(
+    helperCode.indexOf("work-shift-assignments/bulk"),
+    helperCode.indexOf("then((res)", helperCode.indexOf("work-shift-assignments/bulk"))
+  );
+  assert.match(body, /employee_ids:\s*employeeIds/);
+  assert.match(body, /work_shift_id:\s*workShiftId/);
+  // The legacy columns must not appear in a payload from this screen.
+  assert.ok(!/\bshift_id\b/.test(body), "the legacy shift_id must not be sent");
+  assert.ok(!/shift_code/.test(body), "shift_code must not be sent");
+});
+
+test("the shift dropdown asks the backend for ACTIVE shifts", () => {
+  assert.match(pageCode, /getWorkShifts\(\{\s*active:\s*true\s*\}\)/);
+  assert.match(workShiftHelperCode, /params\s*=\s*active === undefined \? undefined : \{ active: active \? 1 : 0 \}/);
+});
+
+test("GET /work-shift is unchanged for callers that pass nothing", () => {
+  // The Work Shift Master list needs the inactive shifts too - the switch in
+  // its Status column is the only way to bring one back.
+  assert.match(workShiftHelperCode, /getWorkShifts:\s*\(\{ active \} = \{\}\)/);
+  const list = strip(read("pages/work-shift/index.jsx"));
+  assert.match(list, /WorkShiftHelper\.getWorkShifts\(\)/);
+});
+
+/* ======================================================== the filters == */
+
+test("the page offers all five filters", () => {
+  for (const filter of ["store_id", "department_id", "designation_id", "search", "assignment_status"]) {
+    assert.ok(pageCode.includes(filter), `${filter} must be a filter`);
+  }
+  // The OUTLET filter, from the SCOPED employee outlet source. It used to be
+  // `useOutlets({ directory: true })`, which is company-wide: this screen's
+  // rows are narrowed by `employee_branch_scope` on the server, so a
+  // branch-scoped user was being offered - and sent the names of - branches
+  // whose employees the same screen refuses to show.
+  assert.match(pageCode, /useEmployeeOutlets\(/);
+  assert.ok(!/useOutlets\(/.test(pageCode), "not the company-wide directory");
+  assert.match(pageCode, /useDepartments\(/);
+  assert.match(pageCode, /useDesignations\(/);
+});
+
+test("filtering happens on the SERVER, not by narrowing a full download", () => {
+  assert.match(pageCode, /getAssignments\(buildListQuery\(filters\)\)/);
+  // The list is every employee. A `.filter(` over rows here would mean the
+  // browser had been handed all of them first.
+  assert.ok(!/rows\.filter\(/.test(pageCode), "rows must not be filtered client-side");
+});
+
+/* ========================================================== the table == */
+
+test("the table shows the approved columns", () => {
+  const heading = pageCode.slice(pageCode.indexOf("const heading = {"), pageCode.indexOf("const tableRows"));
+  for (const column of [
+    "Employee ID",
+    "Employee Name",
+    "Outlet",
+    "Department",
+    "Designation",
+    "Current Work Shift",
+  ]) {
+    assert.ok(heading.includes(column), `${column} must be a column`);
+  }
+  assert.match(heading, /Select all listed employees/, "and a select-all in the header");
+});
+
+test("every row carries its own checkbox, and the count is visible", () => {
+  assert.match(pageCode, /aria-label=\{`Select \$\{row\.employee_name\}`\}/);
+  assert.match(pageCode, /\{selectedIds\.length\} selected/);
+});
+
+test("the selection is narrowed whenever the list changes", () => {
+  assert.match(pageCode, /setSelectedIds\(\(current\) => reconcileSelection\(current, rows\)\)/);
+});
+
+/* ==================================================== the bulk action == */
+
+test("the button says Assign to Selected and is refused without a shift or a selection", () => {
+  assert.match(pageCode, /Assign to Selected/);
+  // `canAssignSelection` carries the empty-selection case as well as the
+  // permission: it is false at zero selected, whichever assign key is held.
+  assert.match(pageCode, /isDisabled=\{!canAssignSelection \|\| !targetShiftId\}/);
+  assert.match(
+    pageCode,
+    /selectedIds\.length === 1\s*\?\s*canAssignOne\s*:\s*selectedIds\.length > 1 && canAssignMany/
+  );
+});
+
+test("NOTHING IS WRITTEN WITHOUT A CONFIRMATION", () => {
+  // The button opens the dialog; only the dialog calls the helper.
+  assert.match(pageCode, /onClick=\{\(\) => setConfirmOpen\(true\)\}/);
+  assert.match(pageCode, /confirmationMessage\(selectedIds\.length, targetShift\)/);
+  const assignCalls = pageCode.match(/EmployeeWorkShiftHelper\.assignWorkShift\(/g) || [];
+  assert.strictEqual(assignCalls.length, 1, "one call site, inside the confirmed action");
+});
+
+test("a successful assignment refreshes the list and clears the selection", () => {
+  const success = pageCode.slice(pageCode.indexOf("const assign = async"), pageCode.indexOf("const heading"));
+  assert.match(success, /setSelectedIds\(\[\]\)/);
+  assert.match(success, /await load\(\)/);
+  // A refusal must leave the selection alone so it can be corrected.
+  const refusal = success.slice(success.indexOf("if (!res || res.code !== 200)"), success.indexOf("toast({\n        title: `"));
+  assert.ok(!/setSelectedIds\(\[\]\)/.test(refusal), "a failed assignment keeps the selection");
+});
+
+test("the app's own toast is used for success and for failure", () => {
+  assert.match(pageCode, /status:\s*"success"/);
+  assert.match(pageCode, /status:\s*"error"/);
+  assert.match(pageCode, /useToast\(\)/);
+});
+
+/* ================================================== what is NOT here === */
+
+test("THERE IS NO UNASSIGN", () => {
+  // Changing a shift means assigning another active one. Clearing a payroll
+  // input outright is not part of this phase.
+  assert.ok(!/unassign/i.test(pageCode.replace(/isUnassigned/g, "")), "no unassign action");
+  assert.ok(!/unassign/i.test(helperCode), "and none in the helper");
+});
+
+test("THE ASSIGNMENT SCREEN DOES NOT OWN THE COLUMN THE EMPLOYEE MASTER NOW SHOWS", () => {
+  // This assertion used to read "the field is not on it yet", from the phase
+  // where the mapping existed only on this screen. M1 moved Shift onto
+  // Employment Details, so the Add Employee wizard now sends an OPTIONAL
+  // initial `default_work_shift_id` with the create, and the profile reads
+  // the current one through `useCurrentWorkShift`. Both are approved M1
+  // behaviour, so what is worth pinning is narrower and still true:
+  //
+  //   - the profile never names the raw column; it goes through the hook, so
+  //     there is one reader of the mapping rather than two;
+  //   - the create form carries it as a plain form value only - it never
+  //     posts to this screen's assign endpoint to set an initial shift.
+  assert.ok(!/default_work_shift_id/.test(profile), "the profile reads it through the hook, not raw");
+  assert.ok(
+    !/work-shift-assignments\/bulk/.test(employeeForm),
+    "the create form never reaches the assign endpoint - the initial shift rides with the create"
+  );
+});
+
+test("THE LEGACY SHIFT IS NEVER READ OR WRITTEN BY THIS SCREEN", () => {
+  assert.ok(!/shift_master/.test(pageCode));
+  // `\b` does not match inside `work_shift_id` or `default_work_shift_id`.
+  assert.ok(!/\bshift_id\b/.test(pageCode), "the legacy shift_id must not appear");
+  assert.ok(!/helper\/shift/.test(page), "helper/shift.js is not imported");
+});
+
+test("THE OLD /shift PAGE IS UNCHANGED", () => {
+  const legacy = read("pages/shift/index.js");
+  assert.ok(!/default_work_shift_id/.test(legacy), "the legacy screen knows nothing of this");
+  assert.ok(!/work-shift-assignments/.test(legacy));
+});
+
+/* ====================================================== permissions ==== */
+
+test("the screen asks for BOTH keys, not either", () => {
+  // `usePermissions` defaults to ANY. One key here would open a screen whose
+  // every request the backend then refuses.
+  assert.match(
+    pageCode,
+    /usePermissions\(\["view_employees",\s*"view_shift_assignments"\],\s*\{\s*all:\s*true,?\s*\}\)/
+  );
+  assert.match(
+    pageCode,
+    /usePermissions\(\["employee_edit",\s*"assign_employee_shift"\],\s*\{\s*all:\s*true,?\s*\}\)/
+  );
+  assert.match(
+    pageCode,
+    /usePermissions\(\s*\["employee_edit",\s*"bulk_assign_employee_shift"\],\s*\{\s*all:\s*true\s*\}\s*\)/
+  );
+});
+
+test("the screen is NOT gated on the legacy shift master's key", () => {
+  // `view_shift` is granted to designations with no payroll role at all, so
+  // it must not be what opens the roster.
+  assert.ok(
+    !/usePermissions\(\[[^\]]*"view_shift"[,\]]/.test(pageCode),
+    "view_shift no longer gates this screen"
+  );
+  assert.ok(
+    !/permissionKey=\{\[[^\]]*"view_shift"[,\]]/.test(pageCode),
+    "and does not wrap it either"
+  );
+  assert.match(pageCode, /permissionKey=\{\["view_shift_assignments"\]\}/);
+});
+
+test("one employee and many are separate decisions, decided by the selection", () => {
+  // The backend picks the key from the request's own `employee_ids`; this is
+  // the same rule, so the button is disabled exactly when the server would
+  // refuse rather than a moment before or after.
+  assert.match(
+    pageCode,
+    /selectedIds\.length === 1\s*\?\s*canAssignOne\s*:\s*selectedIds\.length > 1 && canAssignMany/
+  );
+  assert.match(pageCode, /isDisabled=\{!canAssignSelection \|\| !targetShiftId\}/);
+});
+
+test("holding one assign key but not the other says so, rather than dying silently", () => {
+  assert.match(pageCode, /You do not have permission to assign a single employee's shift/);
+  assert.match(pageCode, /You do not have permission to assign shifts in bulk/);
+});
+
+test("someone who may look but not change sees the list, with the actions off", () => {
+  assert.match(pageCode, /You can see these assignments but not change them/);
+  assert.match(pageCode, /isDisabled=\{!canAssign\}/);
+});

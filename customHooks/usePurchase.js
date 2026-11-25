@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import {
-  deletePurchaseTallyResponse,
+  deletePurchaseTallyResponseForPurchase,
   getAllPurchases,
   updatePurchase,
   updatePurchaseFlags,
@@ -29,12 +29,19 @@ export function usePurchase(filters) {
     }
   };
 
+  // Save, then approve. A save or an approval the server refuses (e.g. a
+  // GST discrepancy still open, or an MRC ref no taken in that financial
+  // year) is returned as it is, so the screen shows why.
   const updatePurchaseHandler = async (purchase_id, data) => {
     try {
       const response = await updatePurchase(purchase_id, data);
-      await approvePurchase(purchase_id);
-      if (response.code === 200) {
-        await fetchPurchase(true);
+      if (response?.code !== 200) {
+        return response;
+      }
+      const approval = await approvePurchase(purchase_id);
+      await fetchPurchase(true);
+      if (approval?.code !== 200) {
+        return approval;
       }
 
       return response;
@@ -43,9 +50,9 @@ export function usePurchase(filters) {
     }
   };
 
-  const deletePurchaseTallyResponseHandler = async (VoucherNo) => {
+  const deletePurchaseTallyResponseHandler = async (purchaseId) => {
     try {
-      const response = await deletePurchaseTallyResponse(VoucherNo);
+      const response = await deletePurchaseTallyResponseForPurchase(purchaseId);
 
       if (response.code === 200) {
         await fetchPurchase(true);
@@ -71,7 +78,7 @@ export function usePurchase(filters) {
   };
 
   const approvePurchase = async (purchase_id) => {
-    await updatePurchaseFlags(purchase_id, {
+    return updatePurchaseFlags(purchase_id, {
       is_approved: true,
       has_updated: false,
     });

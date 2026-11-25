@@ -1,0 +1,1746 @@
+/**
+ * Stage 0C / C3 — the HR screens are wired to the real contracts.
+ *
+ *   node --test components/hr/hrScreens.test.js
+ *
+ * There is no React test runner in this repo, so the screens are checked as
+ * source. That is weaker than rendering them, but it catches the failures that
+ * actually happen in this codebase: a screen calling an endpoint that does not
+ * exist, a screen quietly rendering something it must not, and a screen
+ * offering an action the backend will refuse.
+ *
+ * The endpoint list below is checked against the BACKEND ROUTER, not against a
+ * list I typed - so if a path is renamed on the server, this fails rather than
+ * the UI 404ing in production.
+ */
+const test = require("node:test");
+const assert = require("node:assert");
+const fs = require("fs");
+const path = require("path");
+
+const ROOT = path.join(__dirname, "..", "..");
+const read = (p) => fs.readFileSync(path.join(ROOT, p), "utf8");
+
+const helper = read("helper/hr.js");
+const list = read("pages/hr/employees/index.jsx");
+const add = read("pages/hr/employees/new.jsx");
+const profile = read("pages/hr/employees/[id].jsx");
+const bankCard = read("components/hr/BankCard.jsx");
+const aadhaarModal = read("components/hr/AadhaarVerifyModal.jsx");
+const lifecycleModals = read("components/hr/LifecycleActionModals.jsx");
+const timeline = read("components/hr/LifecycleTimeline.jsx");
+
+/* ============================================== the contracts are real == */
+const BACKEND_ROUTES = path.join(ROOT, "..", "dailyneeds-store-backend", "routes");
+// BOTH /hr routers, because the surface is genuinely split across two of them:
+// the existing-employee Aadhaar verification pair lives on its own router,
+// mounted ahead of the master one so that B3's blanket `guardWrite` - which
+// the master router applies to everything entering it - does not refuse the
+// one request that legitimately carries an Aadhaar number.
+const BACKEND_ROUTERS = [
+  path.join(BACKEND_ROUTES, "employee_master.js"),
+  path.join(BACKEND_ROUTES, "employee_aadhaar_verification.js"),
+];
+const backendAvailable = BACKEND_ROUTERS.every((f) => fs.existsSync(f));
+
+test("every /hr path the helper calls exists in the backend router", { skip: !backendAvailable }, () => {
+  const router = BACKEND_ROUTERS.map((f) => fs.readFileSync(f, "utf8")).join("\n");
+
+  // Parameters are generalised on BOTH sides rather than assumed to be an
+  // employee id: `/bank/ifsc/:ifsc` is parameterised too, and comparing a
+  // frontend `${code}` against a literal `:employee_id` would either miss a
+  // real route or demand the wrong name for one.
+  const generalise = (p) => p.replace(/\$\{[^}]+\}/g, ":param").replace(/:[A-Za-z_]\w*/g, ":param");
+
+  const called = [...helper.matchAll(/API\.(?:get|post)\(`?"?\/hr([^"`,)]*)/g)]
+    .map((m) => m[1])
+    .map((p) => p.replace(/\/$/, ""))
+    .map(generalise);
+
+  assert.ok(called.length >= 12, `expected the full surface, found ${called.length}`);
+
+  // Every path string the router declares, likewise generalised.
+  const declared = new Set(
+    [...router.matchAll(/router\.(?:get|post|put|delete)\(\s*"([^"]+)"/g)].map((m) => generalise(m[1]))
+  );
+
+  for (const p of called) {
+    // The router mounts at /hr, so its own paths omit the prefix.
+    const routerPath = p === "" ? "/" : p;
+    assert.ok(
+      declared.has(routerPath),
+      `${routerPath} is called by the frontend but is declared by no /hr router`
+    );
+  }
+});
+
+test("the helper covers the whole workflow", () => {
+  for (const method of [
+    "createEmployee",
+    "editEmployee",
+    "resignEmployee",
+    "rejoinEmployee",
+    "getLifecycle",
+    "checkDuplicate",
+    "initiateAadhaar",
+    "completeAadhaar",
+    "getAadhaarStatus",
+    "attachAadhaar",
+    "getBankStatus",
+    "verifyBank",
+    "confirmBankName",
+    "overrideDuplicateBank",
+  ]) {
+    assert.match(helper, new RegExp(`\\b${method}:`), `helper/hr.js must expose ${method}`);
+  }
+});
+
+test("the create never sends an employee_id - the database allocates it", () => {
+  // The body is built by `util/hrOnboarding.js` rather than inline, so that
+  // what it contains can be asserted directly - see hrOnboarding.test.js,
+  // which pins both halves of this: no employee_id, and nothing sensitive.
+  const payload = read("util/hrOnboarding.js");
+  const builder = payload.slice(payload.indexOf("function buildCreatePayload"));
+  assert.ok(!/employee_id:/.test(builder), "a client-supplied employee_id is refused by the backend");
+  assert.match(builder, /aadhaar_verification_id/, "a verified Aadhaar is attached at create time");
+  assert.match(add, /buildCreatePayload\(form, verification\)/, "the screen builds it no other way");
+});
+
+/* ================================================= nothing secret leaks = */
+/** Comments may NAME a secret field to explain why it is absent; code may not. */
+const codeOf = (src) => src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+
+test("no screen renders a full Aadhaar, an account number or a fingerprint", () => {
+  const screens = { list, add, profile, bankCard, aadhaarModal, timeline };
+  for (const [name, src] of Object.entries(screens)) {
+    const code = codeOf(src);
+    for (const forbidden of [
+      "account_no",
+      "account_fingerprint",
+      "aadhaar_fingerprint",
+      "aadhaar_ciphertext",
+      "BANK_FINGERPRINT_KEY",
+      "AADHAAR_ENCRYPTION_KEY",
+    ]) {
+      assert.ok(!new RegExp(`\\b${forbidden}\\b`).test(code), `${name} must not reference ${forbidden}`);
+    }
+  }
+});
+
+test("`aadhaar_number` appears ONLY as the outbound request field, never rendered", () => {
+  // The modal has to send it once. What it must never do is put it in JSX, in
+  // state that outlives the request, or in a URL.
+  const code = codeOf(aadhaarModal);
+  const uses = code.match(/aadhaar_number/g) || [];
+  assert.strictEqual(uses.length, 1, "exactly one use: the POST payload");
+  assert.match(code, /aadhaar_number: aadhaar\.replace/);
+
+  // The typed number is bound to its own <Input> - that is the controlled
+  // input, and is both necessary and safe. What must never happen is the
+  // number appearing anywhere else in the JSX, i.e. rendered back as text.
+  const bindings = code.match(/value=\{aadhaar\}/g) || [];
+  assert.strictEqual(bindings.length, 1, "exactly one controlled input holds the number");
+  const withoutBinding = code.replace(/value=\{aadhaar\}/g, "");
+  assert.ok(
+    !/\{aadhaar\}/.test(withoutBinding),
+    "the number is never interpolated into the page as text"
+  );
+
+  // And no other screen mentions it at all.
+  for (const [name, src] of Object.entries({ list, add, profile, bankCard, timeline })) {
+    assert.ok(!/aadhaar_number/.test(codeOf(src)), `${name} must not reference aadhaar_number`);
+  }
+});
+
+test("the Aadhaar number is sent, never stored or logged", () => {
+  // The modal holds it in local state only long enough to POST it.
+  assert.match(aadhaarModal, /aadhaar_number: aadhaar\.replace/);
+  assert.match(aadhaarModal, /setAadhaar\(""\)/, "the number is dropped once DigiLocker is started");
+  assert.ok(!/console\.log/.test(aadhaarModal), "nothing here is logged");
+  assert.ok(!/localStorage/.test(aadhaarModal), "and nothing is persisted");
+});
+
+test("there is no full-Aadhaar reveal anywhere - the permission is granted to nobody", () => {
+  for (const src of [list, add, profile, bankCard, aadhaarModal]) {
+    const code = codeOf(src);
+    assert.ok(!/view_aadhaar_full/.test(code), "C3 must not build for a permission nobody has");
+    assert.ok(!/aadhaar\/full/.test(code), "and must not call the full-number endpoint");
+  }
+  assert.match(read("components/hr/profile/AadhaarSection.jsx"), /encrypted and is not shown/, "and the profile says so plainly");
+});
+
+/* ==================================================== permission gating = */
+test("the profile decides actions from the shared rules, not ad hoc checks", () => {
+  assert.match(profile, /lifecycleActions\(/);
+  // The card now asks `bankActions`, which composes `canVerifyBank` rather
+  // than restating it - so the card and the editor cannot disagree about
+  // whether this user may run the paid check.
+  assert.match(bankCard, /bankActions\(/);
+  assert.match(bankCard, /canReviewBankName\(/);
+  assert.match(bankCard, /canOverrideDuplicateBank\(/);
+  const rules = read("util/hrStatus.js");
+  const decision = rules.slice(rules.indexOf("function bankActions"));
+  assert.match(decision.slice(0, 900), /canVerifyBank\(\{ permissions, isAdmin \}\)/);
+});
+
+test("the override button is behind the permission check, not the status alone", () => {
+  const block = bankCard.slice(bankCard.indexOf("mayOverride"), bankCard.indexOf("</Stack>"));
+  assert.match(bankCard, /const mayOverride = canOverrideDuplicateBank\(/);
+  assert.match(block, /mayOverride/);
+  // And it demands a reason before it can be submitted.
+  assert.match(bankCard, /reason\.trim\(\)\.length < 3/);
+});
+
+test("the list and the add screen gate on the permissions they need", () => {
+  assert.match(list, /usePermissions\(\["view_employees"\]\)/);
+  assert.match(list, /usePermissions\(\["employee_create"\]\)/);
+  assert.match(add, /usePermissions\(\["employee_create"\]\)/);
+  // The profile now has several differently-governed sections, so it resolves
+  // its rules through util/hrProfile.js rather than one usePermissions call
+  // per section. The keys those rules check are pinned in hrProfile.test.js.
+  assert.match(profile, /canEditEmployee\(actor\)/);
+  assert.match(profile, /usePermissions\(\["view_employee_lifecycle"\]\)/);
+});
+
+test("a permission refusal is shown as a refusal, not as empty data", () => {
+  assert.match(list, /do not have permission/);
+  assert.match(profile, /do not have permission/);
+  assert.match(list, /unwrapList/, "the B2 refusal shape is unwrapped rather than rendered");
+});
+
+/* ========================================================= the workflow = */
+test("the duplicate check is advisory and cannot stop the create", () => {
+  assert.match(add, /HrHelper\.checkDuplicate/);
+  assert.match(add, /advice, not a block/);
+  // The create button's disabled state depends only on the required fields.
+  assert.match(add, /isDisabled=\{!required\}/);
+  assert.ok(
+    !/isDisabled=\{[^}]*duplicat/i.test(add),
+    "no duplicate state may disable the create button"
+  );
+});
+
+test("an inactive duplicate is offered as a Rejoin", () => {
+  assert.match(add, /suggested_action === "rejoin"/);
+  assert.match(add, /Rejoin this employee/);
+});
+
+test("Skip for now is a real choice, and Aadhaar is not required to create", () => {
+  assert.match(add, /Skip for now/);
+  assert.match(add, /Aadhaar can be completed later if skipped/);
+  // The required-fields gate is name and joining date. Nothing Aadhaar.
+  assert.match(add, /const required = form\.employee_name\.trim\(\) && form\.date_of_joining/);
+});
+
+/**
+ * Stage 1 is two actions and nothing else. The long explanation that used to
+ * sit above them - why verification matters, and what skipping does not hold
+ * up - is what made the screen heavy for a store manager, and the decision it
+ * asks for was being confirmed twice: once on an action, once on a Next.
+ */
+test("STAGE 1 IS A DECISION, AND THE DECISION IS WHAT MOVES THE MANAGER ON", () => {
+  const code = codeOf(add);
+
+  // Both answers advance by themselves.
+  assert.match(code, /const leaveAadhaar = \(\) => goTo\(stage \+ 1\)/);
+  assert.match(code, /const skipAadhaar = \(\) => \{[\s\S]{0,120}setAadhaarSkipped\(true\);[\s\S]{0,80}leaveAadhaar\(\)/);
+  assert.match(code, /applyVerifiedDemographics\(f, decision\)\);[\s\S]{0,200}leaveAadhaar\(\)/);
+
+  // So stage 1 offers no generic Next of its own.
+  assert.match(code, /stageKey === "aadhaar" \? null : \(/);
+
+  // Skipping still means Aadhaar Pending, and is still never required.
+  assert.match(add, /Aadhaar Pending/);
+  assert.ok(!/isDisabled=\{!verification/.test(code), "Aadhaar must not gate anything");
+});
+
+test("the heavy stage 1 copy is gone, and the concise copy is what is left", () => {
+  const stages = read("util/hrOnboarding.js");
+  const stage1 = stages.slice(stages.indexOf('key: "aadhaar"'), stages.indexOf('key: "personal"'));
+  assert.match(stage1, /title: "Aadhaar Verification"/);
+  assert.match(stage1, /identify existing\/rejoining employees and avoid duplicate Employee IDs/);
+
+  // The two paragraphs the managers were reading past.
+  assert.ok(!/Preferred, but not required/.test(add), "the preamble is gone");
+  assert.ok(!/attendance or payroll/.test(add), "the bank/attendance/payroll paragraph is gone");
+  assert.ok(
+    !/keeps their original ID instead of getting a second one/.test(stages),
+    "the rejoining explanation is gone from the stage blurb"
+  );
+
+  // Cancel is still there.
+  assert.match(add, /<Button variant="ghost">\s*Cancel/);
+});
+
+/* ================================= the manager's onboarding wizard ====== */
+/**
+ * Add Employee is a staged flow, not one long form. What these defend is the
+ * division of labour it exists to express: the manager does three stages and
+ * stops, and HR's sections are somewhere else entirely.
+ */
+test("Add Employee is the four manager stages, Aadhaar first and Telegram last", () => {
+  const stages = read("util/hrOnboarding.js");
+  assert.match(stages, /key: "aadhaar"[\s\S]*key: "personal"[\s\S]*key: "employment"[\s\S]*key: "telegram"/);
+  assert.match(add, /OnboardingStepper/, "the stages are shown as a stepper");
+  // Each stage renders on its own, so this is not the old single long form
+  // with Aadhaar at the bottom of it.
+  assert.match(add, /stageKey === "aadhaar"/);
+  assert.match(add, /stageKey === "personal"/);
+  assert.match(add, /stageKey === "employment"/);
+  assert.match(add, /stageKey === "telegram"/);
+  // EDUCATION IS NOT ONE OF THEM ANY MORE. The manager's job ends at
+  // Telegram; HR carries the record on through Employee Master.
+  assert.ok(!/stageKey === "education"/.test(add), "Education is not a manager stage");
+});
+
+test("A STORE MANAGER IS NEVER SHOWN AN HR-ONLY SECTION HERE, not even disabled", () => {
+  // Statutory, bank and documents are HR's, and are completed afterwards on
+  // the employee profile against the same employee_id.
+  const code = codeOf(add);
+  for (const forbidden of [
+    "StatutorySection",
+    "BankDetailsEditor",
+    "BankCard",
+    "pf_applicable",
+    "esi_applicable",
+    "pf_number",
+    "esi_number",
+    "pan_no",
+    "salary",
+    "bank_name",
+  ]) {
+    assert.ok(!new RegExp(`\\b${forbidden}\\b`).test(code), `${forbidden} is not the manager's to see`);
+  }
+});
+
+test("exactly one employee is created, and only on the EMPLOYMENT stage (M1: stage 3 of 4)", () => {
+  const code = codeOf(add);
+  const creates = code.match(/HrHelper\.createEmployee\(/g) || [];
+  assert.strictEqual(creates.length, 1, "one create, at one point in the flow");
+  // The create button exists only inside the create-stage branch - which is
+  // NOT the final stage any more: Education follows, against the new ID.
+  assert.match(code, /isCreateStage\(stage\)[\s\S]{0,400}onClick=\{create\}/);
+  assert.ok(!/isFinalStage\(stage\)[\s\S]{0,200}onClick=\{create\}/.test(code), "the create is not on the last stage");
+  assert.match(add, /Create employee &amp; generate ID/, "and it says what it does");
+  // Nothing is written on the way there: no draft, no placeholder record.
+  // (`editEmployee` is the profile's editor; stage 4 uses the onboarding
+  // education endpoint, which is a different call under a different key.)
+  for (const forbidden of ["editEmployee", "attachAadhaar", "draft"]) {
+    assert.ok(!new RegExp(`\\b${forbidden}\\b`).test(code), `${forbidden} has no business in a create flow`);
+  }
+});
+
+test("THE MANAGER FINISHES AT TELEGRAM AND LANDS ON THE EMPLOYEE'S PROFILE", () => {
+  const code = codeOf(add);
+  // Whether Telegram connected or was skipped, the employee exists and HR
+  // carries on from the profile - which is where the rest of the work is.
+  assert.match(code, /router\.push\(`\/hr\/employees\/\$\{created\.employee_id\}`\)/);
+  // No second completion screen, and no education request from this wizard.
+  assert.ok(!/createdSummary/.test(code), "there is no separate success screen");
+  assert.ok(!/saveOnboardingEducation/.test(code), "the manager records no education");
+  // Once created, Back and the stepper cannot return across the create.
+  assert.match(code, /const back = \(\) => \{[\s\S]{0,200}if \(created\) return;/);
+  assert.match(code, /index < stage && !created/);
+  // The endpoint itself is untouched - HR still uses it from the profile.
+  assert.match(helper, /onboarding-education/);
+});
+
+test("M1: the initial shift on stage 3 comes from the NEW work shift master, is optional, and is never the legacy shift_id", () => {
+  const code = codeOf(add);
+  assert.match(code, /useWorkShiftOptions\(canCreate\)/);
+  assert.match(code, /default_work_shift_id/);
+  assert.ok(!/\bshift_id\b/.test(code), "the legacy column is never named");
+  assert.ok(!/useShifts|helper\/shift"/.test(code), "the legacy /shift master is not loaded");
+  assert.match(code, /Select shift \(optional\)/);
+  // A failed options read does not stop the create.
+  assert.match(add, /The employee can still be created and assigned a shift later/);
+  const helperWs = read("helper/employeeWorkShift.js");
+  assert.match(helperWs, /\/hr\/work-shift-assignments\/options/);
+});
+
+test("Back preserves what was entered - it moves the stage and nothing else", () => {
+  const code = codeOf(add);
+  const backFn = code.slice(code.indexOf("const back = ()"), code.indexOf("const create = async"));
+  assert.match(backFn, /setStage\(/);
+  assert.ok(!/setForm\(/.test(backFn), "going back must never clear the form");
+  assert.ok(!/setVerification\(/.test(backFn), "nor throw away a verified Aadhaar");
+});
+
+test("Next validates the stage in front of the manager, and only that one", () => {
+  const code = codeOf(add);
+  assert.match(code, /validateStage\(stageKey, form, stageContext\)/);
+  // The create re-checks its own stage rather than trusting the walk here.
+  assert.match(code, /validateStage\("employment", form, stageContext\)/);
+});
+
+test("EDUCATION SURVIVES IN EMPLOYEE MASTER, it is only the manager's step that went", () => {
+  // Removing a wizard stage must not remove the employee data behind it.
+  const profile = read("pages/hr/employees/[id].jsx");
+  assert.match(profile, /<EducationSection/, "the profile still edits Education");
+  assert.match(read("components/hr/profile/EducationSection.jsx"), /qualification/);
+  const { EMPLOYEE_MASTER_SECTIONS } = require("../../util/hrProfile");
+  assert.ok(EMPLOYEE_MASTER_SECTIONS.some((section) => section.key === "education"));
+});
+
+test("verifying later attaches to the same employee, and never creates one", () => {
+  assert.match(profile, /HrHelper\.attachAadhaar\(identity\.employee_id/);
+  assert.ok(!/createEmployee/.test(profile), "the profile must never create an employee");
+  assert.match(profile, /already belongs to employee/, "a clash names the holder");
+});
+
+test("resign and rejoin keep the permanent employee ID, and invent no dates", () => {
+  assert.match(lifecycleModals, /HrHelper\.resignEmployee\(employee\.employee_id/);
+  assert.match(lifecycleModals, /HrHelper\.rejoinEmployee\(employee\.employee_id/);
+  assert.match(lifecycleModals, /is kept\./, "resigning says the ID survives");
+  assert.match(lifecycleModals, /same employee ID/, "rejoining says so too");
+  assert.match(lifecycleModals, /NO DATE IS EVER INVENTED/);
+  // The previous-end field appears only when the backend genuinely needs it.
+  assert.match(lifecycleModals, /rejoinNeedsPreviousEnd\(lifecycle\)/);
+  assert.match(lifecycleModals, /it is not guessed for you/);
+});
+
+test("the timeline shows every period, and marks the ones that could not be dated", () => {
+  assert.match(timeline, /periods\.map/);
+  assert.match(timeline, /needs_review/);
+  assert.match(timeline, /not recorded/);
+});
+
+test("the profile reloads after every action rather than guessing the new state", () => {
+  for (const handler of ["onBankChanged={load}", "onDone={load}"]) {
+    assert.ok(profile.includes(handler), `${handler} must refresh from the server`);
+  }
+});
+
+/* ============================ C3: the list's Aadhaar and Bank columns == */
+test("the status summary is fetched ONCE, never once per employee", () => {
+  const code = codeOf(list);
+
+  // Exactly one call site, and it is not inside anything that maps over the
+  // employees. This is the whole reason the bulk endpoint exists.
+  const calls = code.match(/HrHelper\.getStatusSummary\(/g) || [];
+  assert.strictEqual(calls.length, 1, "one call for the whole list");
+
+  // The per-employee reads belong to the profile, not here.
+  for (const perEmployee of ["getAadhaarStatus", "getBankStatus"]) {
+    assert.ok(
+      !new RegExp(`HrHelper\\.${perEmployee}\\(`).test(code),
+      `the list must not call ${perEmployee} - that is 630 requests`
+    );
+  }
+
+  // And the call is not reachable from inside a .map(...) over the rows.
+  const mapBodies = code.split(/\.map\(/).slice(1);
+  for (const body of mapBodies) {
+    assert.ok(
+      !body.slice(0, body.indexOf("})")).includes("getStatusSummary"),
+      "the summary must not be fetched per row"
+    );
+  }
+});
+
+test("the helper's summary path is the one the backend declares", { skip: !backendAvailable }, () => {
+  const router = fs.readFileSync(BACKEND_ROUTERS[0], "utf8");
+  assert.match(helper, /getStatusSummary:/);
+  assert.match(helper, /API\.get\("\/hr\/employees\/status-summary"/);
+  assert.ok(
+    router.includes('"/employees/status-summary"'),
+    "the frontend calls a path the backend does not declare"
+  );
+  // And the backend gates it on the list's own permission.
+  const route = router.slice(router.indexOf('"/employees/status-summary"'));
+  assert.match(route.slice(0, 200), /P\.VIEW_EMPLOYEES/);
+});
+
+test("the statuses are merged by employee_id, through the shared index", () => {
+  const code = codeOf(list);
+  assert.match(code, /statusSummaryIndex\(/, "the merge rule is shared, not re-typed here");
+  assert.match(code, /statuses\[String\(e\.employee_id\)\]/, "merged by id, not by row order");
+});
+
+test("the columns use the shared badges rather than their own mapping", () => {
+  const code = codeOf(list);
+  assert.match(code, /<AadhaarListBadge status=\{s\.aadhaar_status\}/);
+  assert.match(code, /<BankListBadge status=\{s\.bank_status\} payrollReady=\{s\.bank_payroll_ready\}/);
+  // No colour or label decided in the page itself.
+  assert.ok(!/colorScheme="(green|red|orange|yellow)"/.test(code), "badge colours belong in hrStatus");
+});
+
+test("A FAILED SUMMARY LEAVES THE EMPLOYEE LIST INTACT", () => {
+  const code = codeOf(list);
+
+  // The summary lives in its own effect, and its failure path touches only
+  // the status state - never `setRows`, which is what would empty the page.
+  const effect = code.slice(code.indexOf("getStatusSummary"), code.indexOf("const filtered"));
+  assert.ok(!/setRows\(/.test(effect), "a status failure must never touch the employee rows");
+  assert.match(effect, /catch/, "and it must catch");
+  assert.match(effect, /setStatuses\(\{\}\)/, "falling back to no statuses");
+  assert.match(effect, /setStatusUnavailable\(true\)/);
+
+  // A B2 refusal arrives as an object, not a list, and is handled as such.
+  assert.match(effect, /Array\.isArray\(summary\)/, "the 403 shape is not rendered as data");
+});
+
+test("the status columns are compact, and the list did not become a dashboard", () => {
+  const heading = list.slice(list.indexOf("const heading = {"), list.indexOf("const tableRows"));
+  assert.match(heading, /aadhaar: "Aadhaar"/);
+  assert.match(heading, /bank: "Bank"/);
+  // The third is the HR-onboarding one, and it is headed with two letters for
+  // the same reason the other two are one word: this is a list to scan.
+  assert.match(heading, /hr_onboarding: "HR"/);
+  const columns = (heading.match(/^\s+\w+:/gm) || []).length;
+  assert.ok(columns <= 12, `the list has ${columns} columns; it is meant to stay compact`);
+});
+
+test("the HR column says a section is outstanding, never anything in one", () => {
+  const code = codeOf(list);
+  assert.match(code, /<HrOnboardingBadge pending=\{s\.hr_onboarding_pending\}/);
+  // The flag and the section names are all the list receives; the values
+  // behind them are sensitive and stay on the server.
+  for (const forbidden of ["pf_applicable", "esi_applicable", "pf_number", "esi_number", "uan", "pan_no"]) {
+    assert.ok(!new RegExp(`\\b${forbidden}\\b`).test(code), `the list must not reference ${forbidden}`);
+  }
+});
+
+test("the summary carries no sensitive value into the list", () => {
+  const code = codeOf(list);
+  for (const forbidden of [
+    "aadhaar_number", "aadhaar_last4", "account_no", "account_last4",
+    "account_fingerprint", "aadhaar_fingerprint", "aadhaar_ciphertext",
+    "ifsc", "name_at_bank", "verification_id",
+  ]) {
+    assert.ok(!new RegExp(forbidden).test(code), `the list must not reference ${forbidden}`);
+  }
+  // What it does read is exactly the three status fields.
+  assert.match(code, /s\.aadhaar_status/);
+  assert.match(code, /s\.bank_status/);
+  assert.match(code, /s\.bank_payroll_ready/);
+});
+
+/* ================================ C3 revision: Card view and the toggle = */
+const card = read("components/hr/EmployeeCard.jsx");
+
+test("the list opens in CARD view by default", () => {
+  const code = codeOf(list);
+  assert.match(code, /useState\("card"\)/, "cards are the default, not the fallback");
+  // And the default is a literal, not read from storage during render - doing
+  // that server-side and client-side gives two different first renders.
+  const initial = code.slice(code.indexOf('useState("card")'), code.indexOf('useState("card")') + 40);
+  assert.ok(!/localStorage/.test(initial), "the first render must not read storage");
+  assert.match(code, /useEffect\(\(\) => \{[\s\S]{0,200}localStorage\.getItem/, "it is read after mount");
+});
+
+test("both views are offered, and the choice is remembered", () => {
+  const code = codeOf(list);
+  assert.match(code, /chooseView\("card"\)/);
+  assert.match(code, /chooseView\("list"\)/);
+  assert.match(code, /localStorage\.setItem\(VIEW_STORAGE_KEY/);
+  // Storage being unavailable must not stop the toggle working.
+  const chooser = code.slice(code.indexOf("const chooseView"), code.indexOf("const [search"));
+  assert.match(chooser, /try \{/);
+  assert.match(chooser, /catch/);
+  assert.ok(chooser.indexOf("setView(next)") < chooser.indexOf("localStorage"), "the view changes first");
+});
+
+test("the two views share one data set, so switching cannot change the answer", () => {
+  const code = codeOf(list);
+  // Both render from `filtered`; neither re-fetches or re-filters.
+  assert.match(code, /filtered\.slice\(0, cardsShown\)\.map/, "cards come from the filtered rows");
+  assert.match(code, /view !== "list" \? \[\] : filtered\.map/, "so does the table");
+  const fetches = (code.match(/EmployeeHelper\.getEmployee\(/g) || []).length;
+  assert.strictEqual(fetches, 1, "one fetch, whichever view is showing");
+});
+
+test("THE CARD IS FOR FINDING SOMEBODY: ID FIRST, THEN PHOTO, NAME AND PLACEMENT", () => {
+  const code = codeOf(card);
+  for (const field of [
+    "employee.employee_id",
+    "employee.employee_image",
+    "employee.employee_name",
+    "employee.store_name",
+    "employee.department_name",
+    "employee.designation_name",
+    "employee.status",
+  ]) {
+    assert.ok(code.includes(field), `the card must show ${field}`);
+  }
+  // The Employee ID leads the card and is the most prominent thing on it -
+  // it is what everybody refers to an employee by.
+  assert.ok(
+    code.indexOf("employee.employee_id") < code.indexOf("employee.employee_name"),
+    "the Employee ID comes before the name"
+  );
+  assert.match(code, /fontWeight="bold"[\s\S]{0,80}fontSize="xl"/, "and is bold and large");
+  // Detail belongs in the list view and on the profile, not on a card meant
+  // to be scanned.
+  for (const notOnACard of ["primary_contact_number", "date_of_joining", "shift", "salary"]) {
+    assert.ok(!code.includes(notOnACard), `${notOnACard} does not belong on the card`);
+  }
+});
+
+test("THE CARD SHOWS NO ROLE", () => {
+  // Designation is what the employee master records and what the rest of the
+  // application is organised by. A "role" beside it is a second answer to the
+  // same question.
+  const code = codeOf(card);
+  assert.ok(!/\brole\b/i.test(code), "the card must not show a role");
+});
+
+test("THE COMPLIANCE BADGES ARE OFF THE CARD, AND NOT OUT OF THE SYSTEM", () => {
+  const code = codeOf(card);
+  // Nothing about Aadhaar, bank or HR onboarding is on the card any more, and
+  // the card is not even handed the statuses.
+  for (const gone of [
+    "AadhaarListBadge", "BankListBadge", "HrOnboardingBadge",
+    "aadhaar_status", "bank_status", "hr_onboarding_pending",
+  ]) {
+    assert.ok(!code.includes(gone), `${gone} does not belong on the employee card`);
+  }
+  assert.match(codeOf(list), /<EmployeeCard key=\{e\.employee_id\} employee=\{e\} \/>/);
+  // They are still derived, still fetched, still rendered - by the list view's
+  // columns and by the work queue that exists for them.
+  const listCode = codeOf(list);
+  assert.match(listCode, /HrHelper\.getStatusSummary\(/);
+  assert.match(listCode, /<AadhaarListBadge status=\{s\.aadhaar_status\}/);
+  assert.ok(fs.existsSync(path.join(ROOT, "pages/hr/onboarding/index.jsx")), "the queue exists");
+  // And the employment status stays: it is who the person is, not a chase.
+  assert.match(code, /<EmploymentBadge/);
+});
+
+test("the card renders nothing sensitive", () => {
+  const code = codeOf(card);
+  for (const forbidden of [
+    "aadhaar_number", "aadhaar_last4", "account_no", "account_last4",
+    "ifsc", "fingerprint", "ciphertext", "name_at_bank",
+  ]) {
+    assert.ok(!new RegExp(forbidden).test(code), `the card must not render ${forbidden}`);
+  }
+});
+
+test("every card opens that employee's profile", () => {
+  assert.match(codeOf(card), /href=\{`\/hr\/employees\/\$\{employee\.employee_id\}`\}/);
+});
+
+test("the list view keeps the detail a card leaves off", () => {
+  const heading = list.slice(list.indexOf("const heading = {"), list.indexOf("const tableRows"));
+  for (const detail of ["primary_contact_number", "date_of_joining"]) {
+    assert.ok(heading.includes(detail), `the table is for bulk scanning; it keeps ${detail}`);
+  }
+  assert.match(heading, /aadhaar: "Aadhaar"/);
+  assert.match(heading, /bank: "Bank"/);
+});
+
+test("the card grid is paged, so 630 employees do not all mount at once", () => {
+  const code = codeOf(list);
+  assert.match(code, /const CARD_PAGE = \d+/);
+  assert.match(code, /Showing \{cardsShown\} of \{filtered\.length\}/, "the true total stays visible");
+  // A new filter is a new question and starts from the first page.
+  assert.match(code, /setCardsShown\(CARD_PAGE\)/);
+});
+
+/* ============================== the complete employee master profile ==== */
+const personal = read("components/hr/profile/PersonalSection.jsx");
+const employment = read("components/hr/profile/EmploymentSection.jsx");
+const statutory = read("components/hr/profile/StatutorySection.jsx");
+const education = read("components/hr/profile/EducationSection.jsx");
+const bankEditor = read("components/hr/profile/BankDetailsEditor.jsx");
+
+test("THE PROFILE STILL EDITS EVERY FIELD THE OLD FORM OWNED", () => {
+  // The regression this section exists to prevent: the old /employee/[id]
+  // form was the only editor for these, and deleting it removed them.
+  for (const section of [
+    "PersonalSection", "EmploymentSection", "StatutorySection", "EducationSection",
+  ]) {
+    assert.ok(profile.includes(`<${section}`), `the profile must render ${section}`);
+  }
+  // And the C2/C3 flows that were already there are untouched. The bank card
+  // now lives inside Payment Details (M1), unchanged.
+  for (const kept of ["<PaymentDetailsSection", "<AadhaarVerifyModal", "<LifecycleTimeline", "<ResignModal", "<RejoinModal"]) {
+    assert.ok(profile.includes(kept), `${kept} must still be rendered`);
+  }
+  assert.match(read("components/hr/profile/PaymentDetailsSection.jsx"), /<BankCard/, "the bank card is rendered by Payment Details");
+});
+
+/* ================================================ M1: the eight sections == */
+test("M1: THE PROFILE RENDERS THE EIGHT SECTIONS IN THE ONE ORDER, AND NO LEGACY LAYOUT REMAINS", () => {
+  const order = [
+    "<AadhaarSection",
+    "<PersonalSection",
+    "<EducationSection",
+    "<EmploymentSection",
+    "<PaymentDetailsSection",
+    "<StatutorySection",
+    "<PayrollSection",
+    "<DocumentsSection",
+  ];
+  const positions = order.map((tag) => profile.indexOf(tag));
+  for (let i = 0; i < order.length; i += 1) {
+    assert.ok(positions[i] >= 0, `${order[i]} must be rendered`);
+    if (i > 0) assert.ok(positions[i] > positions[i - 1], `${order[i]} must come after ${order[i - 1]}`);
+  }
+  // The rendered order IS the declared one.
+  const { EMPLOYEE_MASTER_SECTIONS } = require("../../util/hrProfile");
+  const { ONBOARDING_STAGES } = require("../../util/hrOnboarding");
+  assert.deepStrictEqual(
+    EMPLOYEE_MASTER_SECTIONS.slice(0, 4).map((s) => s.key),
+    ["aadhaar", "personal", "education", "employment"]
+  );
+  // THE WIZARD COVERS THE SAME FOUR SECTIONS - checked as a SET, not a
+  // sequence. Its Employment stage is the one that creates the employee and
+  // allocates the ID, and its Education stage records against that ID, so it
+  // cannot put Education first without inventing a record to attach to. Add
+  // and Edit are still the same employee master; only that constraint
+  // separates their order.
+  //
+  // TELEGRAM IS THE FOURTH WIZARD STAGE AND IS NOT ONE OF THE SECTIONS. It
+  // writes no column on `new_employee` - it connects an identity in its own
+  // tables - so it is not part of the employee master's section vocabulary,
+  // and the profile renders it as a card of its own rather than as a ninth
+  // section in this sequence.
+  assert.deepStrictEqual(
+    ONBOARDING_STAGES.map((s) => s.key).filter((k) => k !== "telegram").sort(),
+    EMPLOYEE_MASTER_SECTIONS.slice(0, 4).map((s) => s.key).filter((k) => k !== "education").sort()
+  );
+  assert.ok(profile.includes("<TelegramSection"), "and the profile does render the Telegram card");
+  // Aadhaar is a full-width first section, not a half-width card beside Statutory.
+  assert.ok(!/SimpleGrid/.test(codeOf(profile)), "no side-by-side grid on the profile");
+  // The old /employee/[id] form is not resurrected as an edit layout: that
+  // route is a redirect to the canonical profile and renders no employee.
+  const legacy = codeOf(read("pages/employee/[id].jsx"));
+  assert.match(legacy, /canonicalPathFor/);
+  assert.ok(!/EmployeeHelper|Formik|<Form\b|updateEmployeeDetails/.test(legacy), "the legacy route renders no form");
+});
+
+test("M1: each section is gated on the right it needs, and employee_create opens nothing on the profile", () => {
+  const code = codeOf(profile);
+  assert.match(code, /const mayEditPayment = canEditPaymentDetails\(actor\)/);
+  assert.match(code, /const mayEditStatutory = canEditStatutoryDetails\(actor\)/);
+  assert.match(code, /const mayAssignShift = canAssignShift\(actor\)/);
+  assert.match(code, /const mayViewDocuments = canViewDocuments\(actor\)/);
+  const block = (tag) => profile.slice(profile.indexOf(tag), profile.indexOf(tag) + 700);
+  assert.match(block("<PaymentDetailsSection"), /canView=\{mayViewSensitive\}/);
+  assert.match(block("<PaymentDetailsSection"), /canEdit=\{mayEditPayment/);
+  assert.match(block("<PaymentDetailsSection"), /canEditBank=\{mayEditPayment\}/);
+  assert.match(block("<StatutorySection"), /canView=\{mayViewSensitive\}/);
+  assert.match(block("<StatutorySection"), /canEdit=\{mayEditStatutory/);
+  assert.match(block("<EmploymentSection"), /canAssignShift=\{mayAssignShift\}/);
+  assert.match(block("<DocumentsSection"), /canView=\{mayViewDocuments\}/);
+  assert.ok(!/employee_create/.test(code), "the onboarding key is not a profile right");
+});
+
+test("M1: Payment Details is Cash / Bank, asks for the bank only when Bank, and never shows a store manager the choice", () => {
+  const payment = read("components/hr/profile/PaymentDetailsSection.jsx");
+  assert.match(payment, /title="Payment Details"/);
+  assert.match(payment, /PAYMENT_TYPE_OPTIONS/);
+  assert.match(payment, /isBankPayment\(type\)/);
+  assert.match(payment, /Paid in cash\. No bank account is required\./);
+  // Existing bank behaviour is reused, not rebuilt.
+  assert.match(payment, /<BankCard/);
+  assert.ok(!/account_no|ifsc/.test(codeOf(payment)), "the account fields stay in the existing editor");
+  // Not in the wizard, not on the Employment section.
+  assert.ok(!/payment_type|PaymentDetails|PAYMENT_TYPE/.test(codeOf(add)), "a store manager is never asked Cash/Bank");
+  assert.ok(!/payment_type/.test(codeOf(employment)), "Payment Type is not on Employment Details");
+  // Stored as the legacy values, through the sensitive path.
+  const rules = read("util/hrProfile.js");
+  assert.match(rules, /payment_type: "payment_type"/);
+  assert.match(rules, /\{ value: 1, label: "Bank" \}/);
+  assert.match(rules, /\{ value: 2, label: "Cash" \}/);
+});
+
+test("M3/M5: Payroll holds its place and edits no employee field; Documents is last and read-only", () => {
+  // M1 put the section in the order and left it empty; M3 filled it with the
+  // current approved salary; M5 adds the OPENING salary entry, which is the one
+  // moment an employee has no salary at all.
+  //
+  // What is defended here is the half that did not change. The card is not a
+  // field editor: it does not edit the employee record, and it does not revise
+  // a salary that already exists - see the surface test further down, which
+  // pins the endpoints it may and may not call.
+  const payroll = codeOf(read("components/hr/profile/PayrollSection.jsx"));
+  assert.ok(!/EditField|onSave|onEdit|editing/.test(payroll), "no employee-field editor");
+  assert.ok(!/HrHelper|EmployeeHelper|updateEmployeeDetails/.test(payroll), "no employee write path");
+  const documents = read("components/hr/profile/DocumentsSection.jsx");
+  assert.match(documents, /DocumentHelper\.getDocType\(employeeId\)/, "the existing read is reused");
+  assert.ok(!/upload|approveDocument|updateStatus|EditField|onSave/.test(codeOf(documents)), "read-only");
+  assert.match(documents, /maskIdentifier\(d\.card_number\)/, "numbers are masked");
+  const sections = read("util/hrProfile.js");
+  assert.match(sections, /\{ key: "payroll", title: "Payroll" \},\s*\{ key: "documents", title: "Documents" \},\s*\]/);
+});
+
+test("SALARY IS GONE FROM THE PROFILE, NOT MERELY HIDDEN", () => {
+  // Salary belongs to Payroll, which owns the structure and the payslip; one
+  // editable figure here was a second, quieter place to change pay. The M1
+  // Payroll section is position only - see the M1 tests above.
+  const profileCode = codeOf(profile);
+  for (const gone of ["CompensationSection", "Salary Master"]) {
+    assert.ok(!profileCode.includes(gone), `${gone} must not be rendered or imported`);
+  }
+  assert.ok(!fs.existsSync(path.join(ROOT, "components/hr/profile/CompensationSection.jsx")));
+  // Documents (M1, section 8) is read-only: no upload was built on the profile.
+  for (const forbidden of ["uploadDocument", "approveDocument"]) {
+    assert.ok(!profileCode.includes(forbidden), `${forbidden} must not appear on the profile`);
+  }
+});
+
+test("EMPLOYMENT HISTORY APPEARS ONLY WHERE THERE IS A HISTORY", () => {
+  // One period repeated the joining date the Employment card already carries,
+  // so the screen said the same thing twice. Two periods means a resign and a
+  // rejoin - the service record the panel exists for.
+  assert.match(profile, /const hasEmploymentHistory = periodCount > 1/);
+  assert.match(profile, /canViewLifecycle && hasEmploymentHistory/);
+  // And the Employment card no longer repeats the count or the start date.
+  const code = codeOf(employment);
+  assert.ok(!/employment period/i.test(code), "the period badge is gone");
+  assert.ok(!/Current period began/.test(code), "and so is the redundant start date");
+});
+
+test("THE SHIFT SHOWN IS THE NEW ASSIGNMENT, NOT THE LEGACY DEFAULT - and changed only under the assignment pair (M1)", () => {
+  const code = codeOf(employment);
+  assert.match(code, /label="Shift"/);
+  assert.match(code, /currentShiftLabel\(currentShift\)/);
+  // Not merely relabelled: the legacy column is neither read nor written.
+  assert.ok(!/(?<!work_)shift_id/.test(code), "the legacy shift_id must not appear");
+  // The dropdown exists ONLY behind `canAssignShift`, and saving goes through
+  // the existing single assign - the same act as Employee Shift Assignment.
+  assert.match(code, /\{canAssignShift \? \(\s*<EditField\s+label="Shift"/);
+  assert.match(code, /onAssignShift\(Number\(work_shift_id\)\)/);
+  assert.match(codeOf(profile), /EmployeeWorkShiftHelper\.assignWorkShift\(\[Number\(id\)\], workShiftId\)/);
+  // The profile reads it through the new endpoint's hook, not `/shift`.
+  assert.match(profile, /useCurrentWorkShift\(id, shiftVersion\)/);
+  assert.ok(!/useShifts/.test(codeOf(profile)), "the legacy shift master is not loaded here");
+});
+
+test("each section saves through the path its fields actually belong to", () => {
+  const code = codeOf(profile);
+  // Ordinary fields: the C2 lifecycle-aware editor.
+  assert.match(code, /const saveOrdinary[\s\S]{0,400}HrHelper\.editEmployee\(id, patch\)/);
+  // Sensitive fields: the only route that writes those columns.
+  assert.match(code, /const saveSensitive[\s\S]{0,500}EmployeeHelper\.updateEmployeeDetails\(payload\)/);
+  // The mapping is shared, not restated per section.
+  assert.match(code, /buildHrPatch\(/);
+  assert.match(code, /buildSensitivePayload\(/);
+});
+
+test("AN EMPTY UPDATE IS NEVER SENT", () => {
+  // `UPDATE new_employee SET ?` with {} is invalid SQL, and the HR editor
+  // refuses "nothing to change" - so both are stopped before the request.
+  const code = codeOf(profile);
+  assert.match(code, /if \(Object\.keys\(patch\)\.length === 0\) return nothingToSave\(\)/);
+  assert.match(code, /if \(!payload\) return nothingToSave\(\)/);
+});
+
+test("the sensitive sections are gated on BOTH viewing and editing", () => {
+  const code = codeOf(profile);
+  assert.match(code, /canViewSensitive\(actor\)/);
+  // M1: editing is per section, and each section rule builds on the
+  // sensitive pair - pinned in hrProfile.test.js.
+  assert.match(code, /canEditStatutoryDetails\(actor\)/);
+  assert.match(code, /canEditPaymentDetails\(actor\)/);
+  for (const section of ["StatutorySection"]) {
+    const block = profile.slice(profile.indexOf(`<${section}`), profile.indexOf(`<${section}`) + 320);
+    assert.match(block, /canView=\{mayViewSensitive\}/, `${section} must gate viewing`);
+    assert.match(block, /canEdit=\{mayEditStatutory/, `${section} must gate editing`);
+  }
+});
+
+test("a section the caller may not see says so, rather than looking empty", () => {
+  // B3 removes the keys entirely, so a blank field and a hidden one are
+  // indistinguishable from the data - the UI must not imply "no PAN".
+  const shell = read("components/hr/profile/SectionCard.jsx");
+  assert.match(shell, /\{!canView \? \([\s\S]{0,200}deniedMessage/, "a locked section renders its reason");
+  assert.match(statutory, /deniedMessage="You do not have permission to view this employee's statutory/);
+});
+
+test("STATUTORY IDENTIFIERS ARE MASKED WHEN DISPLAYED", () => {
+  assert.match(statutory, /maskIdentifier\(employee\.pan_no\)/);
+  // The scheme-bound numbers go through `statutoryValue`, which masks them
+  // exactly as before whenever it shows them at all.
+  for (const field of ["uan", "pf_number", "esi_number"]) {
+    assert.match(
+      statutory,
+      new RegExp(`statutoryValue\\((employee\\.pf_applicable|employee\\.esi_applicable), employee\\.${field}\\)`),
+      `${field} must be shown through statutoryValue`
+    );
+  }
+  const rules = read("util/hrProfile.js");
+  const fn = rules.slice(rules.indexOf("function statutoryValue"));
+  assert.match(fn.slice(0, 300), /return maskIdentifier\(value\)/, "and statutoryValue masks");
+  // The raw value appears only inside the editor, for whoever may change it.
+  const readMode = statutory.slice(statutory.indexOf("} else {") >= 0 ? statutory.indexOf("} else {") : 0);
+  assert.ok(!/value=\{employee\.pan_no\}/.test(readMode), "the full PAN is not rendered as text");
+});
+
+test("NOT APPLICABLE AND NOT RECORDED ARE DIFFERENT ANSWERS", () => {
+  // The whole reason the flags exist. Running the two together made a
+  // finished record indistinguishable from an outstanding chase, for good.
+  const { statutoryValue, applicabilityLabel } = require(path.join(ROOT, "util/hrProfile.js"));
+  assert.strictEqual(statutoryValue(0, ""), "Not applicable");
+  assert.strictEqual(statutoryValue(0, "PF-9"), "Not applicable");
+  // In the scheme with the number still pending is a real and common state,
+  // and it must keep reading as outstanding rather than as finished.
+  assert.strictEqual(statutoryValue(1, ""), null);
+  // Nobody has said yet - which is every employee on file today.
+  assert.strictEqual(statutoryValue(null, ""), null);
+  assert.strictEqual(applicabilityLabel(null), null);
+  assert.strictEqual(applicabilityLabel(1), "Yes");
+  assert.strictEqual(applicabilityLabel(0), "No");
+
+  // And the flags are editable Yes/No, not free text.
+  for (const flag of ["pf_applicable", "esi_applicable"]) {
+    assert.match(statutory, new RegExp(`name="${flag}"`), `${flag} must be editable`);
+  }
+  assert.match(statutory, /options=\{APPLICABILITY_OPTIONS\}/);
+});
+
+test("employee ID and status are never editable; the joining date only through its own action", () => {
+  const code = codeOf(employment);
+  assert.match(code, /<Field label="Employee ID"/);
+  for (const owned of ["employee_id", "status"]) {
+    assert.ok(
+      !new RegExp(`EditField[^>]*name="${owned}"`).test(code),
+      `${owned} is lifecycle or database state, not a form field`
+    );
+  }
+  // The joining date is corrected through POST /hr/employee/:id/joining-date,
+  // behind employee_edit, never folded into the ordinary edit body.
+  assert.match(code, /name="date_of_joining"/, "the joining date is editable");
+  assert.match(code, /onSaveJoiningDate\(toDateInputValue\(date_of_joining\)\)/, "through its own action");
+  // Attendance Calculation Type's two fields are held out beside it: they
+  // have their own endpoint too.
+  assert.match(
+    code,
+    /const \{\s*work_shift_id,\s*date_of_joining,[\s\S]*?\.\.\.placement\s*\} = form/,
+    "and never in the ordinary edit body"
+  );
+  const { HR_EDITABLE_FIELDS } = require("../../util/hrProfile");
+  assert.ok(!HR_EDITABLE_FIELDS.includes("date_of_joining"));
+  assert.match(read("helper/hr.js"), /\/hr\/employee\/\$\{employeeId\}\/joining-date/);
+  assert.match(profile, /onSaveJoiningDate=\{saveJoiningDate\}/);
+  // The same user-based right as the rest of the card gates it.
+  const section = profile.slice(profile.indexOf("<EmploymentSection"), profile.indexOf("<EmploymentSection") + 700);
+  assert.match(section, /canEdit=\{canEdit && Boolean\(employee\)\}/);
+});
+
+test("a transfer edits the one record and warns that authorisation changes", () => {
+  const code = codeOf(employment);
+  for (const placement of ["store_id", "department_id", "designation_id"]) {
+    assert.ok(new RegExp(`name="${placement}"`).test(code), `${placement} must be editable`);
+  }
+  assert.ok(!/createEmployee/.test(code), "changing branch must never create an employee");
+  assert.match(employment, /sign in again/, "the re-authorisation is stated before saving");
+});
+
+test("the emergency contact is the existing column, labelled honestly", () => {
+  assert.match(personal, /label="Alternate \/ Emergency Contact"/);
+  assert.match(personal, /name="alternate_contact_number"/);
+  assert.match(personal, /no separate emergency-contact field/);
+  // No invented column.
+  assert.ok(!/emergency_contact/.test(codeOf(personal)), "no field that does not exist");
+});
+
+test("FAMILY IS STILL DEFERRED, AND THE SCREEN NO LONGER EXPLAINS THE SCHEMA", () => {
+  // The deferral is unchanged and correct. What went is the blue panel that
+  // explained a VARCHAR key to HR, who cannot act on it and did not ask.
+  const code = codeOf(education);
+  assert.ok(!/Family details are not shown here/.test(education), "the warning is gone");
+  // The reason survives in the file's own comment, where developers read it -
+  // it is the rendered panel that had no business being on an HR screen.
+  assert.ok(!/employee_family|VARCHAR|schema change/i.test(code), "and so is the schema talk");
+  assert.ok(!/<Alert/.test(code), "there is no technical notice left in the section");
+  assert.ok(!/FamilyHelper/.test(profile), "the name-keyed family API is still not used");
+  // Education itself is safe - plain columns on the employee master.
+  for (const field of ["qualification", "additional_course", "previous_experience"]) {
+    assert.ok(education.includes(field), `${field} belongs in Education`);
+  }
+});
+
+test("bank details can be entered, which is what makes C2 verification possible", () => {
+  assert.match(profile, /<BankDetailsEditor/);
+  // Entry is still gated on the B3 sensitive permission; the button moved into
+  // the bank card's action row, so the gate travels as a prop rather than
+  // wrapping a second button under the card.
+  assert.match(profile, /canEditBank=\{mayEditPayment\}/);
+  assert.match(profile, /onEditBankDetails=\{\(\) => setBankEditOpen\(true\)\}/);
+  assert.match(read("components/hr/profile/PaymentDetailsSection.jsx"), /canEditSensitive=\{canEditBank\}/);
+  // Changing the account invalidates the verification, and it says so first.
+  assert.match(bankEditor, /back to <strong>Pending<\/strong>/);
+  assert.match(bankEditor, /account_no/);
+  assert.match(bankEditor, /ifsc/);
+});
+
+test("nothing in the new sections renders a secret", () => {
+  const sections = { personal, employment, statutory, education, bankEditor };
+  for (const [name, src] of Object.entries(sections)) {
+    const code = codeOf(src);
+    for (const forbidden of [
+      "aadhaar_number", "aadhaar_ciphertext", "aadhaar_fingerprint",
+      "account_fingerprint", "BANK_FINGERPRINT_KEY", "AADHAAR_ENCRYPTION_KEY",
+      "view_aadhaar_full",
+    ]) {
+      assert.ok(!new RegExp(forbidden).test(code), `${name} must not reference ${forbidden}`);
+    }
+  }
+  // The account number is entered in the editor and never displayed back.
+  assert.ok(!/masked_account.*account_no/.test(codeOf(bankEditor)));
+  assert.match(bankEditor, /never shown again in full/);
+});
+
+test("NO PAY AND NO DOCUMENT WORKFLOW LIVES ON THIS PROFILE", () => {
+  // What the two removed cards used to guard, now guarded at the profile
+  // rather than inside them: no salary figure, no arithmetic on one, and no
+  // proof-document handling of any kind. Employee details are verified
+  // separately, so a second upload path here would duplicate that and hold
+  // the scans for the privilege.
+  const code = codeOf(profile);
+  // Payment Type (Cash / Bank) is Payment Details' (M1) and lives in its own
+  // section; the salary figure stays with Payroll.
+  for (const field of ["salary"]) {
+    assert.ok(!new RegExp(`\\b${field}\\b`).test(code), `${field} belongs to Payroll`);
+  }
+  for (const derived of ["gross_", "net_pay", "total_deduction", "payslip", "esi_amount", "pf_amount"]) {
+    assert.ok(!new RegExp(derived, "i").test(code), `${derived} belongs to Payroll, not HR`);
+  }
+  for (const doc of ["card_type", "card_no", "uploadDocument", "aadhaar_card_image", "s3"]) {
+    assert.ok(!new RegExp(doc, "i").test(code), `${doc} is not part of the employee profile`);
+  }
+  // The mapping refuses to carry salary either, so a future component cannot
+  // reopen the write path by accident.
+  const rules = read("util/hrProfile.js");
+  const map = rules.slice(rules.indexOf("const SENSITIVE_FIELD_API_KEY"));
+  assert.ok(!/salary/.test(map.slice(0, 600)), "salary has no sensitive-field mapping any more");
+});
+
+test("M1 review fix: NO Employee Master screen can write salary, anywhere on the surface", () => {
+  // The backend removed `salary` from /employee/updatedata's schema, so the
+  // column is not writable through the Employee Master at all - it belongs to
+  // the dedicated Payroll / Salary Revision system. This sweeps the WHOLE M1
+  // surface rather than the profile alone, so a new section or a new stage
+  // cannot quietly reintroduce the field.
+  const surface = [
+    "pages/hr/employees/[id].jsx",
+    "pages/hr/employees/new.jsx",
+    "util/hrProfile.js",
+    "util/hrOnboarding.js",
+    "helper/hr.js",
+    ...fs
+      .readdirSync(path.join(ROOT, "components/hr/profile"))
+      .filter((f) => f.endsWith(".jsx"))
+      .map((f) => `components/hr/profile/${f}`),
+  ];
+
+  for (const file of surface) {
+    const code = codeOf(read(file));
+    // A payload key, an assignment or a form field - the three shapes a write
+    // would actually take. Prose about Payroll is fine and is stripped by
+    // `codeOf` anyway.
+    assert.ok(
+      !/\bsalary\b\s*[:=]/.test(code),
+      `${file} must not put salary into a payload or form state`
+    );
+    assert.ok(
+      !/name=["']salary["']/.test(code),
+      `${file} must not render an editable salary field`
+    );
+  }
+
+  // And the editable-field contract itself never names it.
+  const rules = read("util/hrProfile.js");
+  const editable = rules.slice(
+    rules.indexOf("const HR_EDITABLE_FIELDS"),
+    rules.indexOf("const NUMERIC_HR_FIELDS")
+  );
+  assert.ok(!/"salary"/.test(editable), "salary is not an HR-editable field");
+});
+
+/* ---------------------- M2. Existing / Previous PF Member ----------------- */
+
+test("M2 — Previous PF Member is on Statutory Details, as a tri-state", () => {
+  // The ONLY frontend change in M2. It is a third statutory fact, not a
+  // rewording of PF applicable and not the legacy free-text `pf` column.
+  assert.match(statutory, /name="previous_pf_member"/, "it is editable");
+  assert.match(
+    statutory,
+    /label="Existing \/ Previous PF member"/,
+    "labelled as the approved rule names it"
+  );
+
+  // Yes / No / blank, through the same dropdown the other two flags use. The
+  // blank option is what records "not known" - and the backend depends on it,
+  // because it reports an unrecorded membership as an UNRESOLVED EPS split
+  // rather than guessing. A two-state control would force an answer nobody has.
+  const block = statutory.slice(statutory.indexOf('name="previous_pf_member"'));
+  assert.match(block.slice(0, 400), /options=\{APPLICABILITY_OPTIONS\}/);
+
+  // Read mode shows Yes / No / not recorded.
+  assert.match(
+    statutory,
+    /applicabilityLabel\(employee\.previous_pf_member\)/,
+    "displayed as a standalone fact"
+  );
+
+  // NOT through `statutoryValue`: that reads "Not applicable" the moment the
+  // PF flag is off, which would erase an answer somebody actually gave about
+  // a previous employer's scheme.
+  assert.ok(
+    !/statutoryValue\([^)]*employee\.previous_pf_member\)/.test(statutory),
+    "it is a history, not an identifier waiting on this employer"
+  );
+});
+
+test("M2 — Previous PF Member is sent as a tri-state number, under the statutory right", () => {
+  const {
+    buildSensitivePayload,
+    canEditStatutoryDetails,
+  } = require(path.join(ROOT, "util/hrProfile.js"));
+
+  // Yes and No go as numbers, because the backend's Joi schema says so.
+  assert.deepStrictEqual(
+    buildSensitivePayload(5, { previous_pf_member: null }, { previous_pf_member: 1 }),
+    { employee_id: 5, employee_details: { previous_pf_member: 1 } }
+  );
+  assert.deepStrictEqual(
+    buildSensitivePayload(5, { previous_pf_member: 1 }, { previous_pf_member: 0 }),
+    { employee_id: 5, employee_details: { previous_pf_member: 0 } }
+  );
+
+  // AN EMPTIED DROPDOWN CLEARS IT TO null, NOT TO 0. This is the assertion
+  // that matters most on this field: 0 means "first-time member", which is a
+  // statutory position, and null means nobody has said.
+  assert.deepStrictEqual(
+    buildSensitivePayload(5, { previous_pf_member: 1 }, { previous_pf_member: "" }),
+    { employee_id: 5, employee_details: { previous_pf_member: null } }
+  );
+
+  // Unchanged means nothing is sent - that endpoint turns an empty body into
+  // invalid SQL, and resending rewrites an audit trail for an edit nobody made.
+  assert.strictEqual(
+    buildSensitivePayload(5, { previous_pf_member: 1 }, { previous_pf_member: 1 }),
+    null
+  );
+
+  // It travels on the SENSITIVE path (so B3 and the section key apply), never
+  // on the ordinary HR editor patch.
+  assert.strictEqual(typeof canEditStatutoryDetails, "function");
+  const rules = read("util/hrProfile.js");
+  const editable = rules.slice(rules.indexOf("HR_EDITABLE_FIELDS"), rules.indexOf("NUMERIC_HR_FIELDS"));
+  assert.ok(
+    !/previous_pf_member/.test(editable),
+    "it must not be in the ordinary editable list - it is sensitive"
+  );
+});
+
+/* --------------------- M2 review fix. Previous EPS Member ----------------- */
+
+test("M2 review fix — Previous EPS Member is its OWN tri-state field", () => {
+  // Official EPFO Form 11 asks about previous EPF membership and previous EPS
+  // membership separately, because the answers differ: somebody can have been
+  // in a previous employer's provident fund without ever having been in the
+  // pension scheme. Two fields, not one reused.
+  assert.match(statutory, /name="previous_eps_member"/, "it is editable");
+  assert.match(
+    statutory,
+    /label="Existing \/ Previous EPS member"/,
+    "labelled as the approved rule names it"
+  );
+  assert.match(statutory, /name="previous_pf_member"/, "and the PF fact is still there");
+
+  const block = statutory.slice(statutory.indexOf('name="previous_eps_member"'));
+  assert.match(block.slice(0, 400), /options=\{APPLICABILITY_OPTIONS\}/);
+
+  // Read mode shows Yes / No / not recorded, as its own answer.
+  assert.match(
+    statutory,
+    /applicabilityLabel\(employee\.previous_eps_member\)/,
+    "displayed as a standalone fact"
+  );
+
+  // NOT through `statutoryValue`, for the same reason as its neighbour: that
+  // reads "Not applicable" the moment the PF flag is off.
+  assert.ok(
+    !/statutoryValue\([^)]*employee\.previous_eps_member\)/.test(statutory),
+    "it is a history, not an identifier waiting on this employer"
+  );
+
+  // AND IT IS NEVER FILLED IN FROM THE PF ANSWER. The whole point of the fix:
+  // the screen may not quietly copy one answer into the other field.
+  assert.ok(
+    !/previous_eps_member:\s*(employee|form)\.previous_pf_member/.test(statutory),
+    "the EPS answer is never seeded from the PF one"
+  );
+  assert.ok(
+    !/previous_pf_member:\s*(employee|form)\.previous_eps_member/.test(statutory),
+    "nor the other way round"
+  );
+});
+
+test("M2 review fix — Previous EPS Member is sent as a tri-state number, under the statutory right", () => {
+  const {
+    buildSensitivePayload,
+  } = require(path.join(ROOT, "util/hrProfile.js"));
+
+  assert.deepStrictEqual(
+    buildSensitivePayload(5, { previous_eps_member: null }, { previous_eps_member: 1 }),
+    { employee_id: 5, employee_details: { previous_eps_member: 1 } }
+  );
+  assert.deepStrictEqual(
+    buildSensitivePayload(5, { previous_eps_member: 1 }, { previous_eps_member: 0 }),
+    { employee_id: 5, employee_details: { previous_eps_member: 0 } }
+  );
+
+  // AN EMPTIED DROPDOWN CLEARS IT TO null, NOT TO 0. 0 means "never an EPS
+  // member", which files a third of the employer contribution; null means
+  // nobody has said, and the backend keeps reporting the split as unresolved.
+  assert.deepStrictEqual(
+    buildSensitivePayload(5, { previous_eps_member: 1 }, { previous_eps_member: "" }),
+    { employee_id: 5, employee_details: { previous_eps_member: null } }
+  );
+
+  assert.strictEqual(
+    buildSensitivePayload(5, { previous_eps_member: 1 }, { previous_eps_member: 1 }),
+    null
+  );
+
+  // THE TWO FACTS TRAVEL INDEPENDENTLY. Changing one must not send the other,
+  // and both may be sent together with different answers.
+  assert.deepStrictEqual(
+    buildSensitivePayload(
+      5,
+      { previous_pf_member: 1, previous_eps_member: 1 },
+      { previous_pf_member: 1, previous_eps_member: 0 }
+    ),
+    { employee_id: 5, employee_details: { previous_eps_member: 0 } }
+  );
+  assert.deepStrictEqual(
+    buildSensitivePayload(
+      5,
+      { previous_pf_member: null, previous_eps_member: null },
+      { previous_pf_member: 1, previous_eps_member: 0 }
+    ),
+    { employee_id: 5, employee_details: { previous_pf_member: 1, previous_eps_member: 0 } }
+  );
+
+  // It travels on the SENSITIVE path, never on the ordinary HR editor patch.
+  const rules = read("util/hrProfile.js");
+  const editable = rules.slice(rules.indexOf("HR_EDITABLE_FIELDS"), rules.indexOf("NUMERIC_HR_FIELDS"));
+  assert.ok(
+    !/previous_eps_member/.test(editable),
+    "it must not be in the ordinary editable list - it is sensitive"
+  );
+});
+
+test("M5 — the Payroll section enters the FIRST salary and never revises one", () => {
+  // The product rule, as a test. Employee Master is where an employee's opening
+  // salary is entered during onboarding, because the person filling in their
+  // record is the person who knows what they are being paid. It is never a
+  // second salary-revision screen: once a proposal exists, this card displays
+  // and signposts, and every later change happens on Payroll > Salary Revision
+  // & History.
+  const payroll = read("components/hr/profile/PayrollSection.jsx");
+  const code = payroll.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\{\/\*[\s\S]*?\*\/\}/g, "");
+
+  // The card itself renders the states and holds no form. Checked as
+  // CAPABILITIES rather than as words: the card legitimately says "amend it
+  // there" in the sentence that points at the revision screen, and a blacklist
+  // of nouns would forbid explaining the rule while permitting breaking it.
+  for (const forbidden of [
+    "EditField",
+    "onSave",
+    "amendPending",
+    "PayrollSalaryHelper",
+    "payrollSalary",
+    "salaryApprovalQueue",
+    "BulkSalary",
+    "bulkValidate",
+    "bulkSubmit",
+  ]) {
+    assert.ok(!code.includes(forbidden), `the Payroll card must not carry ${forbidden}`);
+  }
+  // Its only route to the revision screen is a LINK, and there is exactly one.
+  assert.match(code, /REVISION_SCREEN_PATH/);
+  assert.ok(!/<Button/.test(code), "the card presses nothing itself");
+  assert.match(code, /<OpeningSalaryForm/, "the opening-salary entry is rendered");
+  assert.match(
+    code,
+    /resolved\.state === STATE\.NO_SALARY[\s\S]{0,200}<OpeningSalaryForm/,
+    "and ONLY in the state where the employee has no salary at all"
+  );
+
+  // It reads through the one hook, and makes no request of its own.
+  assert.match(code, /useEmployeeMasterSalary\(\s*employeeId,\s*canView\s*\)/);
+  assert.ok(!/axios|API\./.test(code), "the card does not call the API itself");
+
+  // The form beside it may preview and create. It may not amend, approve or
+  // reject, and it offers no effective date: an opening salary is dated by the
+  // server.
+  const form = read("components/hr/profile/OpeningSalaryForm.jsx");
+  const formCode = form.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\{\/\*[\s\S]*?\*\/\}/g, "");
+  for (const forbidden of ["amendPending", "approve", "reject", "bulk", "PayrollSalaryHelper"]) {
+    assert.ok(
+      !new RegExp(forbidden, "i").test(formCode),
+      `the opening-salary form must not carry ${forbidden}`
+    );
+  }
+  assert.match(formCode, /EmployeeSalaryHelper\.preview/);
+  assert.match(formCode, /EmployeeSalaryHelper\.createOpeningSalary/);
+  assert.match(formCode, /is_opening: true/, "the shared validator is told which this is");
+
+  // NO DATE INPUT. An opening salary is dated by the server - the later of the
+  // opening floor and the date of joining - and it ignores any date sent with
+  // the request, so a field here would be a box somebody typed into and watched
+  // be disregarded. The form holds a blank `effective_from`, which is what
+  // `toRequestBody` reads to decide to send none at all.
+  assert.ok(!/type="date"/.test(formCode), "there is no effective-date picker");
+  assert.match(formCode, /effective_from: ""/);
+  assert.match(formCode, /previewEffectiveFrom\(preview\)/, "the server's date is displayed");
+});
+
+/* ================== the joining date reads DD/MM/YYYY and still saves == */
+test("THE JOINING DATE IS DISPLAYED DD/MM/YYYY AND HELD AS ISO", () => {
+  const code = codeOf(employment);
+  // Rendered through the shared formatter, at the read-only field only.
+  assert.match(code, /import \{ displayDate \} from "\.\.\/\.\.\/\.\.\/util\/displayDate"/);
+  assert.match(code, /<Field label="Joining date" value=\{displayDate\(joiningDate\)\} \/>/);
+  const uses = code.match(/displayDate\(/g) || [];
+  assert.strictEqual(uses.length, 1, "formatting happens once, at the point of display");
+
+  // EDITING AND SAVING: the input is a native date input, and everything it
+  // touches is ISO - because a native date input renders EMPTY for anything
+  // else, which is exactly how the joining date came to "disappear" the
+  // moment Employment Details entered Edit mode. `toDateInputValue` parses;
+  // it never truncates, which is what `slice(0, 10)` did.
+  assert.match(code, /type="date"/);
+  assert.match(code, /value=\{toDateInputValue\(form\.date_of_joining\)\}/);
+  assert.match(code, /date_of_joining: toDateInputValue\(joiningDate\)/, "the form is seeded with the ISO value");
+  assert.match(code, /joiningDateChanged\(date_of_joining, joiningDate\)/, "compared as parsed dates");
+  assert.match(code, /onSaveJoiningDate\(toDateInputValue\(date_of_joining\)\)/, "and sent as ISO");
+  assert.match(
+    code,
+    /import \{ toDateInputValue, joiningDateChanged \} from "\.\.\/\.\.\/\.\.\/util\/joiningDate"/,
+    "one parser, shared with currentPlacement"
+  );
+  assert.ok(!/slice\(0, ?10\)/.test(code), "ten characters of a date is not a date");
+  // The single `displayDate(` above is on the READ-ONLY <Field>, so nothing
+  // formatted can reach a form value, a comparison or a request body.
+  assert.ok(!/EditField[\s\S]{0,200}displayDate\(/.test(code), "an edit field never binds a formatted date");
+});
+
+test("the display convention is one module, not a copy per screen", () => {
+  const shared = read("util/displayDate.js");
+  assert.match(shared, /function displayDate\(iso\)/);
+  // The attendance screens take it from the same place.
+  assert.match(read("util/attendanceRaw.js"), /require\("\.\/displayDate"\)/);
+});
+
+/* ============ the profile opens for anyone who may see the employee ==== */
+test("EDIT EMPLOYEE IS NOT BLOCKED BY THE EMPLOYMENT-HISTORY PERMISSION", () => {
+  const code = codeOf(profile);
+  // THE BUG: the page used to return a permission wall unless the LIFECYCLE
+  // read succeeded, and that read is gated on `view_employee_lifecycle`. A
+  // designation with View Employees + Edit Employee, and not that key, could
+  // never reach the editor its permission was for.
+  assert.match(code, /if \(!lifecycle && !employee\)/, "either read opens the page");
+  assert.ok(!/if \(!lifecycle\) \{/.test(code), "the lifecycle read is no longer a gate");
+  // The header no longer reads from the lifecycle record alone.
+  assert.match(code, /const identity = \{/);
+  assert.match(code, /employee_id: \(lifecycle && lifecycle\.employee_id\) \|\| \(employee && employee\.employee_id\)/);
+  // NOTHING IS WIDENED. Edit is still `employee_edit` and nothing else, the
+  // timeline is still behind its own key, and the sections still carry the
+  // permissions they carried before.
+  assert.match(code, /const canEdit = canEditEmployee\(actor\)/);
+  assert.match(code, /usePermissions\(\["view_employee_lifecycle"\]\)/);
+  assert.match(code, /canViewLifecycle && hasEmploymentHistory \? \(/);
+  // Resign and Rejoin act on the lifecycle record, so without it they are not
+  // offered rather than offered against a guess.
+  assert.match(code, /lifecycle\s*\n?\s*\? lifecycleActions\(/);
+  assert.match(code, /\{ canResign: false, canRejoin: false \}/);
+});
+
+/* ================== Onboarding / Pending HR: the work queue ============ */
+const queue = read("pages/hr/onboarding/index.jsx");
+
+test("THE QUEUE ADDS NO ENDPOINT, NO PERMISSION AND NO SOURCE OF TRUTH", () => {
+  const code = codeOf(queue);
+  // Exactly the two reads the employee list already makes, each once.
+  assert.strictEqual((code.match(/EmployeeHelper\.getEmployee\(/g) || []).length, 1);
+  assert.strictEqual((code.match(/HrHelper\.getStatusSummary\(/g) || []).length, 1);
+  assert.ok(!/getAadhaarStatus|getBankStatus/.test(code), "no per-employee reads");
+  // The list's own permission - it is the same data, asked a different
+  // question.
+  assert.match(code, /usePermissions\(\["view_employees"\]\)/);
+  // Plus ONE existing key, for the one sensitive fact on the screen: whether
+  // an employee is paid in cash. `payment_type` is sensitive under B3, so the
+  // route reuses `view_employee_sensitive` rather than inventing a key.
+  assert.match(code, /usePermissions\(\["view_employee_sensitive"\]\)/);
+  const invented = code.match(/usePermissions\(\[([^\]]*)\]/g) || [];
+  assert.strictEqual(invented.length, 2, "exactly two permission reads, both existing keys");
+  for (const call of invented) {
+    assert.ok(
+      /"view_employees"|"view_employee_sensitive"/.test(call),
+      `no new permission key may be invented: ${call}`
+    );
+  }
+  // Every rule lives in the tested module, not in the screen.
+  assert.match(code, /from "\.\.\/\.\.\/\.\.\/util\/hrOnboardingQueue"/);
+  for (const rule of ["queueRow", "queueCounts", "filterQueue", "statusBadge", "queueFilters"]) {
+    assert.ok(code.includes(rule), `the screen must use the shared ${rule}`);
+  }
+});
+
+test("the queue shows what HR needs to act, and nothing sensitive", () => {
+  const code = codeOf(queue);
+  // The five statuses the dashboard is specified on. PF and ESI are ONE
+  // Statutory column here now - which of the two is outstanding is a filter
+  // and a fact on the employee's own profile, not a column on this screen.
+  for (const shown of [
+    "employee_id", "employee_image", "employee_name", "store_name",
+    "row.aadhaar", "row.bank", "row.statutory", "row.payroll", "row.hr",
+    // How they are paid, so a Bank chip reading "Not applicable" is legible
+    // as "they are on cash" rather than as something failing to load.
+    "row.cashToBank",
+  ]) {
+    assert.ok(code.includes(shown), `the queue must show ${shown}`);
+  }
+  for (const forbidden of [
+    "aadhaar_number", "aadhaar_last4", "account_no", "account_last4", "ifsc",
+    "pan_no", "uan", "pf_number", "esi_number", "salary", "pf_applicable", "esi_applicable",
+  ]) {
+    assert.ok(!new RegExp(`\\b${forbidden}\\b`).test(code), `the queue must not reference ${forbidden}`);
+  }
+});
+
+test("NOTHING IS MARKED DONE ON THE QUEUE - the work is done on the profile", () => {
+  const code = codeOf(queue);
+  for (const write of ["editEmployee", "updateEmployeeDetails", "attachAadhaar", "verifyBank", "onSave"]) {
+    assert.ok(!code.includes(write), `the queue must not ${write}`);
+  }
+  assert.match(code, /href=\{`\/hr\/employees\/\$\{row\.employee_id\}`\}/, "it links to the profile");
+});
+
+test("the counts are derived and no example number is hardcoded", () => {
+  const code = codeOf(queue);
+  // The six cards are rendered FROM `QUEUE_CARDS`, each reading the count it
+  // names - so the screen cannot pair a card with the wrong number, and
+  // adding a card cannot mean forgetting to render one.
+  assert.match(code, /cards\.map\(/, "the cards come from the shared definition");
+  assert.match(code, /queueCards\(\{ canSeePaymentRoute \}\)/, "and are gated in one place");
+  assert.match(code, /value=\{counts\[card\.count\]\}/, "each card shows its own count");
+  assert.match(code, /queueCounts\(queue, \{ outlet, department \}\)/, "counts ignore the work filter");
+  assert.ok(!/value=\{\d+\}/.test(code), "no count is a literal");
+});
+
+test("EVERY CARD IS CLICKABLE, AND SETS THE SAME FILTER THE DROPDOWN SETS", () => {
+  const code = codeOf(queue);
+  // One piece of state, two controls - which is what stops the page showing
+  // a selected card beside a dropdown that contradicts it.
+  assert.match(code, /onSelect=\{\(\) => setFilter\(card\.filter\)\}/, "a card selects its filter");
+  assert.match(code, /selected=\{filter === card\.filter\}/, "and reports that it is selected");
+  assert.match(code, /value=\{filter\}[\s\S]{0,120}onChange=\{\(e\) => setFilter\(e\.target\.value\)\}/,
+    "the dropdown reads and writes that same filter");
+  // Reachable and announced, not a div with a click handler.
+  assert.match(code, /as="button"/);
+  assert.match(code, /aria-pressed=\{selected\}/);
+});
+
+test("CASH IS A ROUTE ON THIS SCREEN, NEVER AN HR FAILURE", () => {
+  const code = codeOf(queue);
+  const card = codeOf(require("fs").readFileSync(__dirname + "/OnboardingQueueCard.jsx", "utf8"));
+  // Labelled by the route on both layouts - "Cash" / "Bank", not
+  // "Pending" / "Complete" - because it is a migration, not an outstanding
+  // item on this employee's record.
+  for (const src of [code, card]) {
+    assert.match(src, /pendingLabel: "Cash", completeLabel: "Bank"/);
+  }
+  // And the raw payment column never reaches the browser: the screen reads
+  // the derived flag, not `payment_type`.
+  for (const src of [code, card]) {
+    assert.ok(!/\bpayment_type\b/.test(src), "the screen must not reference payment_type");
+  }
+});
+
+test("THE QUEUE IS READABLE ON A PHONE - cards, not a squeezed table", () => {
+  const code = codeOf(queue);
+  // The same rows either way; the breakpoint chooses in CSS so the server and
+  // the first client render agree.
+  assert.match(code, /display=\{\{ base: "none", lg: "block" \}\}/, "the table is desktop only");
+  assert.match(code, /display=\{\{ base: "block", lg: "none" \}\}/, "the cards are mobile only");
+  assert.match(code, /OnboardingQueueCard/, "mobile renders the employee card");
+  assert.ok(code.includes("visible.slice(0, cardsShown)"), "and pages them rather than rendering hundreds");
+  // Two cards per row on a phone keeps each summary card a real tap target.
+  assert.match(code, /columns=\{\{ base: 2,/);
+});
+
+test("a failed summary shows dashes, never a queue of invented work", () => {
+  const code = codeOf(queue);
+  assert.match(code, /Array\.isArray\(summary\)/, "a 403 is not rendered as data");
+  assert.match(code, /setStatusUnavailable\(true\)/);
+  assert.match(code, /every row reads a dash/);
+});
+
+test("the two screens point at each other", () => {
+  assert.match(codeOf(list), /href="\/hr\/onboarding"/);
+  assert.match(codeOf(queue), /href="\/hr\/employees"/);
+});
+
+/* ====== the Onboarding queue: rights-based access, branch-based data ==== */
+/**
+ * ACCESS IS RIGHTS BASED. The queue is gated on `view_hr_onboarding_dashboard`
+ * and `view_employees` and on NOTHING ELSE - not a designation, not a user
+ * type, not "HR only". A store manager granted the right opens it; a user
+ * without the right is refused, and the refusal must reach them BEFORE any
+ * data is requested, not as a dashboard of zeroes after it arrives.
+ *
+ * DATA IS BRANCH BASED, and that is the server's existing employee branch
+ * scope applied to both requests. The screen's job is not to widen it: the
+ * outlet dropdown is built from the rows it was given rather than from the
+ * company-wide outlet directory.
+ */
+
+test("THE QUEUE IS GATED ON ITS OWN DEDICATED RIGHT, NOT ON A DESIGNATION", () => {
+  const code = codeOf(queue);
+  assert.match(code, /canViewOnboardingQueue\(actor\)/, "it reads the shared rule");
+  assert.match(code, /usePayrollActor\(\)/, "from the shared actor");
+  // The rule itself lives in the tested module; the screen invents nothing,
+  // and in particular names neither the dashboard key nor the scope key.
+  assert.ok(
+    !/view_hr_onboarding_dashboard/.test(code),
+    "the screen must not restate the permission key - the rule module owns it"
+  );
+  assert.ok(
+    !/employee_scope_all_branches/.test(code),
+    "and the screen must never be gated on company-wide employee scope"
+  );
+  // And it is NOT the sensitive key: that still gates only the cash route.
+  assert.match(code, /canSeePaymentRoute = usePermissions\(\["view_employee_sensitive"\]\)/);
+  // No designation or user-type test of its own beyond the shared actor's
+  // administrator bypass - "HR only" must not come back in another shape.
+  assert.ok(!/designation/i.test(code), "the screen must not decide access by designation");
+});
+
+test("THE OUTLET DROPDOWN IS SCOPED ON THE SERVER, NOT FILTERED IN REACT", () => {
+  const code = codeOf(queue);
+  // `/outlet/directory` is authenticated but DELIBERATELY company-wide - it
+  // was widened so a purchase filter could name every branch. An employee
+  // screen reading it was sent every outlet in the company and hid the rest
+  // in React, which is not a boundary: the names had already crossed the
+  // wire and sat in the network tab. So this screen must not use that hook
+  // at all.
+  assert.ok(
+    !/useOutlets/.test(code),
+    "the company-wide outlet directory must not be read by this screen"
+  );
+  assert.match(code, /useEmployeeOutlets\(\{ skip: !canOpenQueue \}\)/);
+
+  // And the hook must hold no rule of its own - the narrowing is the
+  // server's `employee_branch_scope`, not a second implementation here.
+  const hook = require("fs").readFileSync(
+    __dirname + "/../../customHooks/useEmployeeOutlets.js",
+    "utf8"
+  );
+  assert.match(hook, /getEmployeeOutlets\(\)/);
+  assert.ok(
+    !/store_id|branch|filter\(/.test(hook.replace(/\/\*[\s\S]*?\*\//g, "")),
+    "the hook must not re-implement any branch rule"
+  );
+
+  // A selection made before the scope arrived must not survive it - but it
+  // must not be cleared while the scope is still loading either.
+  assert.match(code, /if \(!outlets\.length\) return;/);
+  assert.match(code, /setOutlet\(""\)/);
+});
+
+test("THE OUTLET OPTIONS ARE THE SCOPE, NOT THE ROWS ON SCREEN", () => {
+  const code = codeOf(queue);
+  // The options come from the hook and are never recomputed from `queue`,
+  // `visible` or any filter state, so a search or a status filter cannot
+  // make an authorised outlet disappear from the dropdown.
+  assert.ok(
+    !/queueOutlets/.test(code),
+    "the outlet list must not be derived from the employee rows"
+  );
+  const rules = require("fs").readFileSync(__dirname + "/../../util/hrOnboardingQueue.js", "utf8");
+  assert.ok(!/function queueOutlets/.test(rules), "and the row-derived helper is gone");
+  // The dropdown renders exactly what the hook returned.
+  assert.match(code, /\(outlets \|\| \[\]\)\.map/);
+});
+
+test("THE SIDEBAR ENTRY CARRIES THE SCREEN'S OWN RIGHTS", () => {
+  const hasMenuPermission = require("../../util/menuPermissions");
+  const src = require("fs").readFileSync(__dirname + "/../../constants/menus.js", "utf8");
+  assert.match(
+    src,
+    /permission: \["view_hr_onboarding_dashboard", "view_employees"\],\s*\n\s*selected: false,\s*\n\s*location: "\/hr\/onboarding"/,
+    "the menu entry requires BOTH of the screen's rights"
+  );
+
+  const rows = (...keys) => keys.map((permission_key) => ({ permission_key }));
+  const NEEDED = ["view_hr_onboarding_dashboard", "view_employees"];
+
+  // Dashboard right + list right -> the entry may appear.
+  assert.equal(hasMenuPermission(NEEDED, rows(...NEEDED)), true);
+  // `view_employees` ALONE -> no entry. This is the regression: a manager
+  // was offered a link to a screen that could only refuse them.
+  assert.equal(hasMenuPermission(NEEDED, rows("view_employees")), false);
+  // The dashboard right alone is not enough either - the screen reads
+  // employees and says so.
+  assert.equal(hasMenuPermission(NEEDED, rows("view_hr_onboarding_dashboard")), false);
+  // Branch scope is not a menu input at all: an own-branch manager holding
+  // both rights still gets the entry, and the scope decides what is behind it.
+  assert.equal(
+    hasMenuPermission(NEEDED, rows(...NEEDED, "employee_scope_all_branches")),
+    true
+  );
+  assert.equal(hasMenuPermission(NEEDED, rows(...NEEDED)), true);
+});
+
+test("A DENIED USER CAUSES NO REQUEST AND SEES NO ZEROES", () => {
+  const code = codeOf(queue);
+  // Both fetch effects return before asking for anything.
+  const guards = code.match(/if \(!canOpenQueue\)/g) || [];
+  assert.ok(guards.length >= 2, `both loaders must bail out early, found ${guards.length}`);
+  assert.match(code, /if \(!canOpenQueue\) return undefined;/);
+  // The refusal is the FIRST branch, ahead of loading and ahead of the cards.
+  const refusal = code.indexOf("!canOpenQueue ? (");
+  const loading = code.indexOf("loading ? (");
+  const cards = code.indexOf("cards.map(");
+  assert.ok(refusal > -1, "there is a refusal branch");
+  assert.ok(refusal < loading, "refusal is decided before loading");
+  assert.ok(refusal < cards, "refusal is decided before any card renders");
+  assert.match(code, /You do not have permission to view the HR onboarding dashboard\./);
+});
+
+test("EMPLOYEE MASTER SHOWS THE QUEUE LINK TO WHOEVER HOLDS THE RIGHT", () => {
+  const code = codeOf(list);
+  // Gated on the dedicated right, through the shared rule - so a manager
+  // WITHOUT it sees no button, and a manager granted it does.
+  assert.ok(
+    !/employee_scope_all_branches/.test(code),
+    "the link must not be gated on company-wide employee scope"
+  );
+  // The same rule as the screen, so a button cannot offer a screen that will
+  // turn the user away.
+  assert.match(code, /canViewOnboardingQueue\(usePayrollActor\(\)\)/);
+  // One rule, one key, read from the module that owns it.
+  const rule = require("fs").readFileSync(__dirname + "/../../util/hrProfile.js", "utf8");
+  assert.match(rule, /has\(permissions, "view_hr_onboarding_dashboard"\)/);
+  assert.match(code, /\{canOpenQueue \? \(/, "the link is conditional");
+  // The link is still there for those who may use it.
+  assert.match(code, /href="\/hr\/onboarding"/);
+});
+
+test("THE EMPLOYEE MASTER LIST ITSELF IS NOT RESTRICTED BY THIS", () => {
+  const code = codeOf(list);
+  // Employee Master stays exactly as it was - branch-scoped on the server for
+  // managers, and gated here on `view_employees`. Only the LINK carries the
+  // dashboard right.
+  assert.match(code, /usePermissions\(\["view_employees"\]\)/);
+  assert.ok(
+    !/if \(!canOpenQueue\)/.test(code),
+    "the queue rule must not gate the employee list's own data"
+  );
+});
+
+/* ========== no employee screen reads the company-wide directory ========= */
+/**
+ * THE CLASS OF BUG, NOT ONE INSTANCE OF IT. The onboarding queue was fixed
+ * first; Employee Master, New Employee, the employee profile and Employee
+ * Shift Assignment had exactly the same exposure, and on the create and edit
+ * forms the stakes are higher than a filter - the Outlet field IS the branch
+ * the employee is created into, and changing it on the profile is a branch
+ * transfer.
+ *
+ * These assert the SOURCE each screen reads. What the server then returns is
+ * asserted in the backend's `routes/hr_onboarding_branch_scope.test.js`,
+ * against the raw response body, because that is where the boundary is.
+ */
+test("NO EMPLOYEE-BRANCH-SCOPED SCREEN READS THE COMPANY-WIDE DIRECTORY", () => {
+  const fs = require("fs");
+  // Every screen whose ROWS are narrowed by `employee_branch_scope` on the
+  // server - HR, shift assignment and the two payroll surfaces whose data
+  // comes through that same middleware.
+  const screens = [
+    "pages/hr/onboarding/index.jsx",
+    "pages/hr/employees/index.jsx",
+    "pages/hr/employees/new.jsx",
+    "pages/hr/employees/[id].jsx",
+    "pages/employee-shift-assignment/index.jsx",
+    "pages/payroll/payrun.jsx",
+    "components/payroll/EmployeePicker.jsx",
+  ];
+  for (const rel of screens) {
+    const code = fs.readFileSync(__dirname + "/../../" + rel, "utf8");
+    assert.ok(
+      !/useOutlets/.test(code),
+      `${rel} must not read the company-wide outlet directory`
+    );
+    assert.match(code, /useEmployeeOutlets/, `${rel} must read the scoped employee outlet source`);
+  }
+});
+
+test("THE SCOPED OUTLET HOOK IS THE ONLY EMPLOYEE OUTLET SOURCE", () => {
+  const fs = require("fs");
+  const hook = fs.readFileSync(__dirname + "/../../customHooks/useEmployeeOutlets.js", "utf8");
+  // It calls the scoped endpoint and holds no rule of its own - the
+  // narrowing is the server's, and a second copy of it here would be a
+  // second branch-scope implementation to keep in step.
+  assert.match(hook, /HrHelper\.getEmployeeOutlets\(\)/);
+  const helper = fs.readFileSync(__dirname + "/../../helper/hr.js", "utf8");
+  assert.match(helper, /API\.get\("\/hr\/employees\/outlets"\)/);
+  // Comments stripped first: the hook EXPLAINS why it is not
+  // `/outlet/directory`, and that prose must not read as a call to it.
+  const hookCode = hook.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  assert.ok(
+    !/outlet\/directory/.test(hookCode),
+    "the scoped hook must never fall back to the company-wide directory"
+  );
+  assert.ok(!/getOutletDirectory/.test(hookCode));
+});
+
+test("THE CREATE AND EDIT FORMS TREAT THE DROPDOWN AS UX, NOT AS THE GUARD", () => {
+  const fs = require("fs");
+  // The comment is the contract a future reader needs: narrowing the
+  // dropdown is a courtesy, and the server refuses a foreign branch
+  // regardless. If either screen ever starts relying on the dropdown, this
+  // is the line that should have stopped it.
+  for (const rel of ["pages/hr/employees/new.jsx", "pages/hr/employees/[id].jsx"]) {
+    const code = fs.readFileSync(__dirname + "/../../" + rel, "utf8");
+    assert.match(code, /checkTargetBranch/, `${rel} must name the server-side guard`);
+  }
+});
+
+/* ========== payroll: the same scope, and the one screen that differs ==== */
+
+test("THE PAYROLL OUTLET PICKERS USE THE SCOPED EMPLOYEE SOURCE", () => {
+  const fs = require("fs");
+  // Payrun Initialization reads `/payrun/*`, which `routes/payrun.js`
+  // resolves through `employee_branch_scope`; the payroll employee picker
+  // reads `/employee/employees`, narrowed by the same middleware. Both
+  // therefore take the scoped outlet source, like every other screen on that
+  // scope.
+  for (const rel of ["pages/payroll/payrun.jsx", "components/payroll/EmployeePicker.jsx"]) {
+    const code = fs.readFileSync(__dirname + "/../../" + rel, "utf8");
+    assert.match(code, /useEmployeeOutlets/, `${rel} must use the scoped source`);
+    assert.ok(!/useOutlets/.test(code), `${rel} must not use the company-wide directory`);
+  }
+});
+
+test("SALARY APPROVAL STAYS COMPANY-WIDE, ON THE EVIDENCE", () => {
+  const fs = require("fs");
+  // NOT AN OVERSIGHT AND NOT AN EXCEPTION FOR CONVENIENCE. Its queue is
+  // `GET /hr/salary/pending`, which takes NO branch scope - it is gated on
+  // three keys together instead and documents itself as spanning all
+  // employees. Narrowing this dropdown to the caller's branch would build a
+  // filter that cannot select most of the rows on screen, which is a bug and
+  // not a fix. A picker must match the scope of the data beside it.
+  const code = fs.readFileSync(__dirname + "/../../pages/payroll/salary-approval.jsx", "utf8");
+  assert.match(code, /useOutlets\(\{ directory: true \}\)/, "it is deliberately company-wide");
+  assert.match(code, /usePendingSalaryQueue/, "and its rows are the company-wide queue");
+});
+
+test("PAYROLL CALCULATION AND APPROVAL LOGIC IS UNTOUCHED BY THIS CHANGE", () => {
+  const fs = require("fs");
+  // The outlet source is a dropdown. If a change to it ever reached the
+  // figures or the approval rules, that would be the thing to catch.
+  const picker = fs.readFileSync(__dirname + "/../../components/payroll/EmployeePicker.jsx", "utf8");
+  for (const forbidden of ["monthly_gross", "monthly_ctc", "approve", "basic"]) {
+    assert.ok(!picker.includes(forbidden), `the picker must not touch ${forbidden}`);
+  }
+});

@@ -75,8 +75,21 @@ function compareColPair(flagKey, field2A, fieldPr, formatPr, format2A) {
   ];
 }
 
+/** Pinned supplier column, shared by both grids in this modal. */
+const SUPPLIER_COLUMN_DEF = {
+  field: "supplierName",
+  headerName: "Supplier",
+  type: "capitalized",
+  pinned: "left",
+  lockPosition: true,
+  width: 200,
+  flex: 0,
+  sortable: false,
+};
+
 function buildMatchedColumnDefs() {
   return [
+    SUPPLIER_COLUMN_DEF,
     {
       headerName: "Document Number",
       children: compareColPair("invoice", "docNo2A", "docNoPr"),
@@ -149,6 +162,7 @@ function buildMatchedColumnDefs() {
 }
 
 const UNMATCHED_COLUMN_DEFS = [
+  SUPPLIER_COLUMN_DEF,
   {
     field: "docNo2A",
     headerName: "Document No.",

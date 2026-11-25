@@ -260,8 +260,13 @@ const AgGrid = React.forwardRef(function AgGrid(
     onSortChange,
     onExportAll,
     exportLoading = false,
+    // Hide the grid's own CSV/XLSX export. For screens whose export is a
+    // server-side file with the same filters as the query (Attendance), so
+    // there is one export path and one audit trail.
+    hideExport = false,
     filterMode = "client",
     onFilterChange,
+    height,
     ...props
   },
   ref
@@ -276,6 +281,17 @@ const AgGrid = React.forwardRef(function AgGrid(
     () => buildAgGridTheme(effectiveColorScheme),
     [effectiveColorScheme]
   );
+
+  // Without a `height` the grid grows to fit every row and the page does the
+  // scrolling -- the long-standing behaviour for every table here. Given one,
+  // the grid scrolls inside itself instead, which is what keeps the header and
+  // any pinned columns in view on a tall table. minHeight 0 lets it shrink
+  // within the flex column rather than pushing the pagination bar out.
+  const scrollsInternally = Boolean(height);
+  const scrollBoxProps = scrollsInternally
+    ? { height, display: "flex", flexDirection: "column" }
+    : {};
+  const gridStyle = scrollsInternally ? { flex: 1, minHeight: 0 } : undefined;
 
   const gridRef = React.useRef(null);
   const onSelectionChangedRef = React.useRef(onSelectionChanged);
@@ -382,6 +398,30 @@ const AgGrid = React.forwardRef(function AgGrid(
       return { ...colDef, sort: null };
     });
   }, [resolvedColumnDefs, isServerSort, sortState]);
+
+  // A colDef's own `sort` is the page's opening order. columnDefsForGrid above
+  // clears `sort` on every column - it has to, or each re-render would re-apply
+  // it and undo the user's own sort click - so the default is applied once
+  // through the API when the grid is ready instead.
+  const defaultSortState = React.useMemo(
+    () =>
+      leafColumnMeta
+        .filter(({ colDef }) => colDef.sort)
+        .map(({ colDef, colId }) => ({
+          colId,
+          sort: colDef.sort,
+          sortIndex: colDef.sortIndex ?? null,
+        })),
+    [leafColumnMeta]
+  );
+
+  const applyDefaultSort = React.useCallback(() => {
+    if (isServerSort || defaultSortState.length === 0) return;
+    gridRef.current?.api?.applyColumnState?.({
+      state: defaultSortState,
+      defaultState: { sort: null },
+    });
+  }, [defaultSortState, isServerSort]);
 
   const handleSortChanged = React.useCallback(() => {
     if (!isServerSort || !onSortChange) return;
@@ -514,6 +554,19 @@ const AgGrid = React.forwardRef(function AgGrid(
         },
         date: {
           filter: "agDateColumnFilter",
+          // The browser's own calendar, which navigates by month and year
+          // rather than one month at a time.
+          filterParams: { browserDatePicker: true },
+          // Rows with no date stay at the bottom whichever way the column is
+          // sorted, so a newest-first column opens on the newest real date
+          // rather than on the blanks. The grid inverts a comparator's result
+          // for descending, so the null branch has to invert with it.
+          comparator: (a, b, nodeA, nodeB, isDescending) => {
+            if (a == null && b == null) return 0;
+            if (a == null) return isDescending ? -1 : 1;
+            if (b == null) return isDescending ? 1 : -1;
+            return a.getTime() - b.getTime();
+          },
           valueGetter: (params) => {
             const field = params.colDef?.field;
             if (!field || !params.data) return null;
@@ -622,6 +675,12 @@ const AgGrid = React.forwardRef(function AgGrid(
               view: "fa-solid fa-eye",
               edit: "fa-solid fa-pen",
               delete: "fa-solid fa-trash",
+              // A PEOPLE-AND-HIERARCHY icon, deliberately NOT a second
+              // pencil. Two identical pencils on one row make the more
+              // consequential action - the one that decides who belongs in a
+              // company Telegram group - indistinguishable from editing a
+              // group's name, and a person picks whichever they land on.
+              map: "fa-solid fa-sitemap",
             };
 
             return (
@@ -695,6 +754,12 @@ const AgGrid = React.forwardRef(function AgGrid(
           filter: {
             component: BadgeFilter,
             handler: "badgeFilterHandler",
+          },
+        },
+        "dropdown-column": {
+          filter: {
+            component: DropdownFilter,
+            handler: "dropdownFilterHandler",
           },
         },
       },
@@ -850,6 +915,7 @@ const AgGrid = React.forwardRef(function AgGrid(
         borderRadius="md"
         overflow="hidden"
         bg="white"
+        {...scrollBoxProps}
       >
         <AgGridReact
           ref={combinedRef}
@@ -862,6 +928,7 @@ const AgGrid = React.forwardRef(function AgGrid(
             !isServerPagination ? handleClientPaginationChanged : undefined
           }
           onGridReady={() => {
+            applyDefaultSort();
             syncClientPagination();
           }}
           rowSelection={
@@ -884,7 +951,8 @@ const AgGrid = React.forwardRef(function AgGrid(
               : undefined
           }
           gridOptions={mergedGridOptions}
-          domLayout="autoHeight"
+          domLayout={scrollsInternally ? "normal" : "autoHeight"}
+          style={gridStyle}
           theme={agGridTheme}
           className={className}
           {...props}
@@ -925,7 +993,8 @@ const AgGrid = React.forwardRef(function AgGrid(
           }
         >
           <Box px={4} pb={4}>
-            <Accordion allowMultiple defaultIndex={[0, 1]}>
+            <Accordion allowMultiple defaultIndex={hideExport ? [0] : [0, 1]}>
+              {hideExport ? null : (
               <AccordionItem
                 border="none"
                 borderBottomWidth="1px"
@@ -984,6 +1053,7 @@ const AgGrid = React.forwardRef(function AgGrid(
                   </VStack>
                 </AccordionPanel>
               </AccordionItem>
+              )}
 
               <AccordionItem
                 border="none"

@@ -142,7 +142,7 @@ const product = {
         });
     }),
 
-  // Trigger product sync (Delium/GoFrugal)
+  // Trigger the product master sync from RetailPilot (takes about a minute)
   sync: () =>
     new Promise(function (resolve, reject) {
       API.post("/product/sync")

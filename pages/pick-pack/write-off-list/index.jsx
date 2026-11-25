@@ -247,6 +247,15 @@ function PickPackWriteOffListPage() {
           headerName: "Mismatch Qty",
           type: "number",
         },
+        {
+          field: "stores",
+          headerName: "Store",
+          type: "capitalized",
+          flex: 1.5,
+          wrapText: true,
+          autoHeight: true,
+          valueGetter: (params) => params.data?.stores || "—",
+        },
       ];
 
       if (isShortage) {

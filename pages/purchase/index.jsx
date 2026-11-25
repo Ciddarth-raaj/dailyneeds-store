@@ -9,6 +9,8 @@ import { Button } from "@chakra-ui/button";
 import { Checkbox, Flex, Input, Text } from "@chakra-ui/react";
 
 import PurchaseModal from "../../components/Purchase/PurchaseModal";
+import RetailPilotSync from "../../components/Purchase/RetailPilotSync";
+import { compareRefno } from "../../util/purchaseRefno";
 import FromToDateOutletPicker from "../../components/DateOutletPicker/FromToDateOutletPicker";
 import { exportToExcel } from "../../util/exportCSVFile";
 
@@ -25,6 +27,18 @@ function getStatusBadge(item) {
 
 function getStatusLabel(item) {
   return getStatusBadge(item)?.label ?? "";
+}
+
+/** The bill's discrepancies (util/purchaseDiscrepancy.js), as one badge. */
+function getCheckBadge(item) {
+  const list = item?.discrepancies || [];
+  if (list.some((d) => d.severity === "block")) {
+    return { label: "Correct before approval", colorScheme: "red" };
+  }
+  if (list.length) {
+    return { label: "Check", colorScheme: "orange" };
+  }
+  return null;
 }
 
 function Purchase() {
@@ -92,6 +106,7 @@ function Purchase() {
     updatePurchase,
     unapprovePurchase,
     deletePurchaseTallyResponse,
+    refetch,
   } = usePurchase(filters);
 
   const filteredPurchases = useMemo(() => {
@@ -123,6 +138,7 @@ function Purchase() {
       {
         field: "mmh_mrc_refno",
         headerName: "MRC Ref No",
+        comparator: compareRefno,
       },
       {
         field: "supplier_name",
@@ -162,6 +178,15 @@ function Purchase() {
         valueGetter: (params) => getStatusBadge(params.data),
       },
       {
+        colId: "check",
+        headerName: "Check",
+        type: "badge-column",
+        minWidth: 170,
+        valueGetter: (params) => getCheckBadge(params.data),
+        tooltipValueGetter: (params) =>
+          (params.data?.discrepancies || []).map((d) => d.message).join("\n"),
+      },
+      {
         field: "purchase_id",
         headerName: "Action",
         type: "action-icons",
@@ -181,7 +206,7 @@ function Purchase() {
               label: "Delete Tally Response",
               icon: "fa-solid fa-trash",
               colorScheme: "red",
-              onClick: () => deletePurchaseTallyResponse(item.VoucherNo),
+              onClick: () => deletePurchaseTallyResponse(item.purchase_id),
             });
           }
           return actions;
@@ -236,9 +261,12 @@ function Purchase() {
         title="All Purchases"
         filledHeader
         rightSection={
-          <Button colorScheme="purple" onClick={exportData} size="sm">
-            Export
-          </Button>
+          <Flex gap="12px">
+            <RetailPilotSync onSynced={() => refetch(true)} />
+            <Button colorScheme="purple" onClick={exportData} size="sm">
+              Export
+            </Button>
+          </Flex>
         }
       >
         <Input

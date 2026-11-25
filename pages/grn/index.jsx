@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useCallback } from "react";
+import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import moment from "moment";
 import { useRouter } from "next/router";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
@@ -6,16 +6,46 @@ import CustomContainer from "../../components/CustomContainer";
 import AgGrid from "../../components/AgGrid";
 import GrnMonthCalendar from "../../components/grn/GrnMonthCalendar";
 import GrnHighlightLoader from "../../components/grn/GrnHighlightLoader";
-import { Flex, useToken } from "@chakra-ui/react";
+import GrnSearchBar from "../../components/grn/GrnSearchBar";
+import {
+  Badge,
+  Flex,
+  IconButton,
+  Text,
+  Tooltip,
+  useToken,
+} from "@chakra-ui/react";
 import { useGrnList } from "../../customHooks/useGrnList";
-import { useGrnDetailsByRefno } from "../../customHooks/useGrnDetailsByRefno";
-import { useGrnPriceCheckerItemsMap } from "../../customHooks/useGrnPriceCheckerItemsMap";
+import { useGrnSearch } from "../../customHooks/useGrnSearch";
+import { useGrnIssues } from "../../customHooks/useGrnIssues";
 import {
   getMismatchRowStyle,
   grnDetailHasPriceMismatch,
   sortRowsMismatchFirst,
 } from "../../util/grn";
+import {
+  formatGrnVerifiedAt,
+  grnVerificationStatusLabel,
+  grnVerifiedByLabel,
+  isGrnVerificationApplicable,
+  isGrnVerified,
+} from "../../util/grnVerification";
 import toast from "react-hot-toast";
+
+function queryDate(value) {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return null;
+  }
+  return moment(value, "YYYY-MM-DD", true).isValid() ? value : null;
+}
+
+/** Wait this long after the last keystroke before searching; Enter is immediate. */
+const SEARCH_DEBOUNCE_MS = 350;
+
+function querySearch(value) {
+  const raw = Array.isArray(value) ? value[0] : value;
+  return typeof raw === "string" ? raw.trim() : "";
+}
 
 function GrnListing() {
   const router = useRouter();
@@ -26,6 +56,85 @@ function GrnListing() {
   const [viewingMonth, setViewingMonth] = useState(() =>
     moment().clone().startOf("month")
   );
+  // GRN No search runs across every date. While a term is active the table
+  // shows its results; the selected date and month are left exactly as they
+  // were, so clearing the search puts the date list straight back.
+  const [searchInput, setSearchInput] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const searching = searchTerm !== "";
+  const hydratedFromQuery = useRef(false);
+
+  useEffect(() => {
+    if (!router.isReady || hydratedFromQuery.current) return;
+    hydratedFromQuery.current = true;
+    const dateFromQuery = queryDate(router.query.date);
+    if (dateFromQuery) {
+      setSelectedDate(dateFromQuery);
+      setViewingMonth(moment(dateFromQuery, "YYYY-MM-DD").startOf("month"));
+    }
+    // Coming Back from a GRN opened out of a search returns to that search.
+    const searchFromQuery = querySearch(router.query.q);
+    if (searchFromQuery) {
+      setSearchInput(searchFromQuery);
+      setSearchTerm(searchFromQuery);
+    }
+  }, [router.isReady, router.query.date, router.query.q]);
+
+  useEffect(() => {
+    if (!router.isReady || !hydratedFromQuery.current) return;
+    if (
+      router.query.date === selectedDate &&
+      querySearch(router.query.q) === searchTerm
+    ) {
+      return;
+    }
+    const query = { date: selectedDate };
+    if (searchTerm) query.q = searchTerm;
+    router.replace({ pathname: "/grn", query }, undefined, { shallow: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDate, searchTerm, router.isReady]);
+
+  // Debounced while typing; emptying the box ends the search at once.
+  useEffect(() => {
+    const next = searchInput.trim();
+    if (!next) {
+      setSearchTerm("");
+      return undefined;
+    }
+    const timer = setTimeout(() => setSearchTerm(next), SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
+  const clearSearch = useCallback(() => {
+    setSearchInput("");
+    setSearchTerm("");
+  }, []);
+
+  const submitSearch = useCallback(() => {
+    setSearchTerm(searchInput.trim());
+  }, [searchInput]);
+
+  // Picking a day on the calendar is a request to browse that day.
+  const handleSelectDate = useCallback(
+    (date) => {
+      setSelectedDate(date);
+      clearSearch();
+    },
+    [clearSearch]
+  );
+
+  const {
+    results: searchResults,
+    truncated: searchTruncated,
+    loading: searchLoading,
+    error: searchError,
+  } = useGrnSearch(searchTerm);
+
+  useEffect(() => {
+    if (searchError) {
+      toast.error(searchError?.message || "Failed to search GRNs.");
+    }
+  }, [searchError]);
 
   const viewingMonthDateRange = useMemo(() => {
     const start = moment(viewingMonth).startOf("month");
@@ -53,39 +162,41 @@ function GrnListing() {
     });
   }, [grnList, selectedDate]);
 
-  const refnos = useMemo(
-    () => rowData.map((row) => row?.mmh_mrc_refno).filter(Boolean),
-    [rowData]
+  // The selected day's lines and their price-upload batches in one request --
+  // the same payload the Issue GRN page runs on. Fetching a detail per GRN and
+  // then a batch lookup per product used to cost hundreds of round trips
+  // before this grid could paint.
+  const dayRange = useMemo(
+    () => ({ from_date: selectedDate, to_date: selectedDate }),
+    [selectedDate]
   );
 
-  const { detailsByRefno, loading: detailsLoading } = useGrnDetailsByRefno(
-    refnos,
-    { enabled: !loading && refnos.length > 0 }
-  );
+  const {
+    items: dayItems,
+    itemsByProductId,
+    loading: detailsLoading,
+  } = useGrnIssues(dayRange, { enabled: !loading && rowData.length > 0 });
 
-  const productIds = useMemo(() => {
-    const ids = new Set();
-    detailsByRefno.forEach((detail) => {
-      (detail?.items ?? []).forEach((item) => {
-        if (item?.product_id != null) ids.add(item.product_id);
-      });
+  // listGrnIssues drops ignored lines server-side, which is what the highlight
+  // wants anyway -- getGrnLinePriceMismatch already ignores them too.
+  const itemsByRefno = useMemo(() => {
+    const map = new Map();
+    (dayItems ?? []).forEach((item) => {
+      const key = item?.mmh_mrc_refno != null ? String(item.mmh_mrc_refno) : "";
+      if (!key) return;
+      if (!map.has(key)) map.set(key, []);
+      map.get(key).push(item);
     });
-    return [...ids];
-  }, [detailsByRefno]);
+    return map;
+  }, [dayItems]);
 
-  const { itemsByProductId, loading: pcLoading } = useGrnPriceCheckerItemsMap(
-    productIds,
-    { enabled: !detailsLoading && productIds.length > 0 }
-  );
-
-  const highlightReady = !detailsLoading && !pcLoading;
-  const highlightLoading =
-    !loading && refnos.length > 0 && (detailsLoading || pcLoading);
+  const highlightReady = !detailsLoading;
+  const highlightLoading = !loading && rowData.length > 0 && detailsLoading;
 
   const displayRowData = useMemo(() => {
     const withFlags = rowData.map((row) => {
       const refno = row?.mmh_mrc_refno != null ? String(row.mmh_mrc_refno) : "";
-      const items = detailsByRefno.get(refno)?.items ?? [];
+      const items = itemsByRefno.get(refno) ?? [];
       return {
         ...row,
         _priceMismatch:
@@ -94,7 +205,7 @@ function GrnListing() {
       };
     });
     return sortRowsMismatchFirst(withFlags, (row) => row._priceMismatch);
-  }, [rowData, detailsByRefno, itemsByProductId, highlightReady]);
+  }, [rowData, itemsByRefno, itemsByProductId, highlightReady]);
 
   const colDefs = useMemo(
     () => [
@@ -128,15 +239,87 @@ function GrnListing() {
         type: "number",
         maxWidth: 160,
       },
+      {
+        colId: "verification_status",
+        headerName: "Status",
+        maxWidth: 170,
+        // Sorting and filtering read the label, so "Verified" and "Pending
+        // Verification" behave like any other text column.
+        valueGetter: (params) =>
+          grnVerificationStatusLabel(params.data?.verification),
+        cellRenderer: (params) => {
+          // A GRN from before verification started shows an empty cell: it is
+          // not pending anything, and a badge here would read as work owed.
+          const verification = params.data?.verification;
+          if (!isGrnVerificationApplicable(verification)) return null;
+          const verified = isGrnVerified(verification);
+          return (
+            <Badge colorScheme={verified ? "green" : "orange"}>
+              {grnVerificationStatusLabel(verification)}
+            </Badge>
+          );
+        },
+      },
+      {
+        colId: "verified_by",
+        headerName: "Verified By",
+        type: "capitalized",
+        flex: 1,
+        // The API resolves the verifier's display name, so no row here makes
+        // a lookup of its own.
+        valueGetter: (params) => grnVerifiedByLabel(params.data?.verification),
+      },
+      {
+        colId: "verified_at",
+        headerName: "Verified At",
+        maxWidth: 180,
+        valueGetter: (params) =>
+          isGrnVerificationApplicable(params.data?.verification)
+            ? formatGrnVerifiedAt(params.data?.verification?.verified_at)
+            : "",
+      },
+      {
+        colId: "purchase_uom_action",
+        headerName: "",
+        flex: 0,
+        minWidth: 60,
+        maxWidth: 60,
+        sortable: false,
+        filter: false,
+        cellRenderer: (params) => {
+          const refno = params.data?.mmh_mrc_refno;
+          if (refno == null || refno === "") return null;
+          return (
+            <Tooltip label="Purchase UOM" hasArrow>
+              <IconButton
+                aria-label="Purchase UOM"
+                icon={<i className="fa fa-ruler-combined" />}
+                size="xs"
+                variant="outline"
+                colorScheme="purple"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  router.push(
+                    `/grn/purchase-uom?refno=${encodeURIComponent(String(refno))}`
+                  );
+                }}
+              />
+            </Tooltip>
+          );
+        },
+      },
     ],
-    []
+    [router]
   );
 
   const handleRowClicked = useCallback(
     (event) => {
       const refno = event?.data?.mmh_mrc_refno;
       if (refno == null || refno === "") return;
-      router.push(`/grn/view?refno=${encodeURIComponent(String(refno))}`);
+      const from = encodeURIComponent(router.asPath);
+      router.push(
+        `/grn/view?refno=${encodeURIComponent(String(refno))}&from=${from}`
+      );
     },
     [router]
   );
@@ -155,37 +338,80 @@ function GrnListing() {
   return (
     <GlobalWrapper title="All GRN" permissionKey="view_all_grn">
       <Flex flexDirection="column" gap={6}>
+        <GrnSearchBar
+          value={searchInput}
+          onChange={setSearchInput}
+          onSubmit={submitSearch}
+          onClear={clearSearch}
+        />
+
         <GrnMonthCalendar
           grnList={grnList}
           selectedDate={selectedDate}
-          onSelectDate={setSelectedDate}
+          onSelectDate={handleSelectDate}
           viewingMonth={viewingMonth}
           onViewingMonthChange={setViewingMonth}
           loading={loading}
         />
 
-        <CustomContainer
-          title={`All GRN (${moment(selectedDate).format("DD/MM/YYYY")})`}
-          filledHeader
-        >
-          {loading || highlightLoading ? (
-            <GrnHighlightLoader
-              label={
-                loading
-                  ? "Loading GRN list..."
-                  : "Checking price mismatches..."
-              }
-              minH={loading ? "120px" : "240px"}
-            />
-          ) : (
-            <AgGrid
-              rowData={displayRowData}
-              columnDefs={colDefs}
-              tableKey="grn-list"
-              gridOptions={gridOptions}
-            />
-          )}
-        </CustomContainer>
+        {searching ? (
+          <CustomContainer
+            title={
+              searchLoading
+                ? `Search GRN No "${searchTerm}" (all dates)`
+                : `Search GRN No "${searchTerm}" (all dates) - ${searchResults.length} found`
+            }
+            filledHeader
+          >
+            {searchLoading ? (
+              <GrnHighlightLoader label="Searching GRNs..." minH="120px" />
+            ) : searchError ? (
+              <Text color="red.500">Could not search GRNs. Please try again.</Text>
+            ) : searchResults.length === 0 ? (
+              <Text color="gray.600">
+                No GRN found with a GRN No starting with &quot;{searchTerm}&quot;.
+              </Text>
+            ) : (
+              <Flex flexDirection="column" gap={2}>
+                {searchTruncated ? (
+                  <Text fontSize="sm" color="gray.600">
+                    Showing the first {searchResults.length} matches. Type
+                    more of the GRN No to narrow the results.
+                  </Text>
+                ) : null}
+                <AgGrid
+                  rowData={searchResults}
+                  columnDefs={colDefs}
+                  tableKey="grn-list"
+                  gridOptions={gridOptions}
+                />
+              </Flex>
+            )}
+          </CustomContainer>
+        ) : (
+          <CustomContainer
+            title={`All GRN (${moment(selectedDate).format("DD/MM/YYYY")})`}
+            filledHeader
+          >
+            {loading || highlightLoading ? (
+              <GrnHighlightLoader
+                label={
+                  loading
+                    ? "Loading GRN list..."
+                    : "Checking price mismatches..."
+                }
+                minH={loading ? "120px" : "240px"}
+              />
+            ) : (
+              <AgGrid
+                rowData={displayRowData}
+                columnDefs={colDefs}
+                tableKey="grn-list"
+                gridOptions={gridOptions}
+              />
+            )}
+          </CustomContainer>
+        )}
       </Flex>
     </GlobalWrapper>
   );

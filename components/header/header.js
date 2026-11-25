@@ -1,8 +1,11 @@
 /* eslint-disable @next/next/no-img-element */
 import React, { useEffect, useState } from "react";
+import UserHelper from "../../helper/user";
 import styles from "./header.module.css";
 import Head from "../../util/head";
 import { useUser } from "../../contexts/UserContext";
+import ChangePasswordModal from "../ChangePassword";
+import TelegramLinkModal from "../TelegramLink";
 import { useBreakpointValue } from "@chakra-ui/react";
 
 /** Menu column widths; rail width comes from `sidebarRailWidth` event (0 or 40). */
@@ -33,11 +36,6 @@ export default function Header() {
     //   icon: "fa-regular fa-building",
     //   link: "/company-details",
     // },
-    branch: {
-      title: "Branch Details",
-      icon: "fa-solid fa-sitemap",
-      link: "/branch-details",
-    },
     // sms: {
     //   title: "SMS Config",
     //   icon: "fa-regular fa-comment",
@@ -91,6 +89,8 @@ export default function Header() {
   const [token, setToken] = React.useState(null);
   const [loginVisibility, setLoginVisibility] = React.useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+  const [isTelegramLinkOpen, setIsTelegramLinkOpen] = useState(false);
   const isMobile = useBreakpointValue({ base: true, md: false });
   const [isSidebarMinimized, setIsSidebarMinimized] = useState(
     readDesktopSidebarMinimized
@@ -145,7 +145,14 @@ export default function Header() {
     }
   }, [isMobile, isDropdownOpen]);
 
-  const logout = () => {
+  const logout = async () => {
+    // Stage 0A / C5: tell the server first so the token stops verifying,
+    // then clear the client. Clearing happens even if the call fails.
+    try {
+      await UserHelper.logout();
+    } catch (err) {
+      // ignore - the client-side clear below still happens
+    }
     localStorage.removeItem("Token");
     localStorage.removeItem("Designation_id");
     localStorage.removeItem("Store_id");
@@ -171,6 +178,36 @@ export default function Header() {
       window.location.href = link;
     }
     setIsDropdownOpen(false);
+  };
+
+  /**
+   * Keep the menu up long enough for a press to become a click.
+   *
+   * The menu closes on blur, and pressing an item moves focus off the
+   * wrapper — so without this the menu is already hidden by the time the
+   * click is dispatched, and the click lands on whatever is underneath.
+   * Suppressing the focus shift is enough; the item still receives its click.
+   *
+   * This is why the Log Out item acts on touchstart. That fires before the
+   * blur, but it is the wrong event for anything that opens a dialog: the
+   * dialog appears under the still-down finger and the follow-up click
+   * dismisses it through the overlay, which on a phone looks like a screen
+   * that opens and vanishes.
+   */
+  const keepMenuOpenOnPress = (event) => {
+    event.preventDefault();
+  };
+
+  const openChangePassword = (event) => {
+    event?.stopPropagation();
+    setIsDropdownOpen(false);
+    setIsChangePasswordOpen(true);
+  };
+
+  const openTelegramLink = (event) => {
+    event?.stopPropagation();
+    setIsDropdownOpen(false);
+    setIsTelegramLinkOpen(true);
   };
 
   const handleKeyDown = (event) => {
@@ -227,6 +264,26 @@ export default function Header() {
               }`}
             style={{ display: isDropdownOpen ? "block" : "none" }}
           >
+            <a
+              className={styles.menuItem}
+              onMouseDown={keepMenuOpenOnPress}
+              onClick={openChangePassword}
+              role="button"
+              tabIndex={0}
+            >
+              <i className="fa-solid fa-key" aria-hidden="true" />
+              Change Password
+            </a>
+            <a
+              className={styles.menuItem}
+              onMouseDown={keepMenuOpenOnPress}
+              onClick={openTelegramLink}
+              role="button"
+              tabIndex={0}
+            >
+              <i className="fa-brands fa-telegram" aria-hidden="true" />
+              Link Telegram
+            </a>
             {Object.keys(settings).map((key) => (
               <React.Fragment key={key}>
                 {settings[key].title !== "Log In" ? (
@@ -262,6 +319,14 @@ export default function Header() {
           </div>
         </div>
       </div>
+      <ChangePasswordModal
+        isOpen={isChangePasswordOpen}
+        onClose={() => setIsChangePasswordOpen(false)}
+      />
+      <TelegramLinkModal
+        isOpen={isTelegramLinkOpen}
+        onClose={() => setIsTelegramLinkOpen(false)}
+      />
     </div>
   );
 }

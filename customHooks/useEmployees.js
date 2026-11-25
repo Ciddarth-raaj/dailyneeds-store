@@ -38,7 +38,16 @@ function useEmployees(filterProps = {}) {
       setLoading(true);
       const data = await EmployeeHelper.getEmployee(filters);
       if (!data.code) {
-        setEmployees(data);
+        // Guard against the same employee arriving more than once (the API
+        // used to fan rows out on a name-keyed join). One entry per id.
+        const seen = new Set();
+        setEmployees(
+          data.filter((item) => {
+            if (seen.has(item.employee_id)) return false;
+            seen.add(item.employee_id);
+            return true;
+          })
+        );
       }
     } catch (err) {
       setError(err);

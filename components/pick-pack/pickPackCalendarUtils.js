@@ -19,7 +19,21 @@ export function aggregatePickPackDaysByReason(recordsList = []) {
   return map;
 }
 
-export function getPickPackDayVisual(agg) {
+/**
+ * @param agg   the day's { total, filled } from aggregatePickPackDaysByReason
+ * @param opts  { uploadedNoWriteOff } - the day's report was uploaded (Warehouse
+ *              Reports > Daily Uploads) and gave nothing to this list
+ */
+export function getPickPackDayVisual(agg, { uploadedNoWriteOff = false } = {}) {
+  if ((!agg || agg.total === 0) && uploadedNoWriteOff) {
+    return {
+      kind: "uploaded_no_write_off",
+      bg: "blue.50",
+      border: "blue.300",
+      text: "blue.700",
+      hint: "Report uploaded - no write-off",
+    };
+  }
   if (!agg || agg.total === 0) {
     return {
       kind: "empty",

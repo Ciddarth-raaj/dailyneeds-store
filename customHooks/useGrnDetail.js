@@ -4,6 +4,9 @@ import { getGrnDetail } from "../helper/grnList";
 export function useGrnDetail(refno, { enabled = true } = {}) {
   const [header, setHeader] = useState(null);
   const [items, setItems] = useState([]);
+  // Sits beside header/items in the payload rather than inside the header,
+  // and is always present -- an unverified GRN arrives as PENDING.
+  const [verification, setVerification] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -12,6 +15,7 @@ export function useGrnDetail(refno, { enabled = true } = {}) {
     if (!enabled || !key) {
       setHeader(null);
       setItems([]);
+      setVerification(null);
       setLoading(false);
       setError(null);
       return;
@@ -24,10 +28,12 @@ export function useGrnDetail(refno, { enabled = true } = {}) {
       const payload = res?.data ?? {};
       setHeader(payload.header ?? null);
       setItems(Array.isArray(payload.items) ? payload.items : []);
+      setVerification(payload.verification ?? null);
     } catch (err) {
       setError(err);
       setHeader(null);
       setItems([]);
+      setVerification(null);
     } finally {
       setLoading(false);
     }
@@ -40,6 +46,7 @@ export function useGrnDetail(refno, { enabled = true } = {}) {
   return {
     header,
     items,
+    verification,
     loading,
     error,
     refetch: fetchDetail,

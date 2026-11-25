@@ -77,7 +77,8 @@ function Difference() {
     };
   }, [storeId, fromDate, toDate]);
 
-  const { outlets } = useOutlets();
+  // Only `outlet_name` is read, for the Sales Difference table.
+  const { outlets } = useOutlets({ directory: true });
   const { sales } = useSalesReconciliation(filters);
   const { epayments, refetch } = useEpaymentReconciliation(filters);
   const { accounts } = useAccounts(filters);
@@ -89,10 +90,20 @@ function Difference() {
 
   console.log(epayments);
 
+  // A row lands in these tables when *any* of its columns differs, so the
+  // columns that reconciled cleanly still render. Printing those as a coloured
+  // 0.00 made them read as differences of their own.
+  // DECIMAL columns arrive from the API as strings, so compare on parseFloat.
   const DifferenceWrapper = (value) => {
+    const amount = parseFloat(value ?? 0);
+
+    if (!Number.isFinite(amount) || amount === 0) {
+      return <span style={{ color: "var(--chakra-colors-gray-400)" }}>-</span>;
+    }
+
     return (
-      <span style={{ color: value <= 0 ? "green" : "red" }}>
-        {currencyFormatter(value)}
+      <span style={{ color: amount < 0 ? "green" : "red" }}>
+        {currencyFormatter(amount)}
       </span>
     );
   };
@@ -143,17 +154,27 @@ function Difference() {
       }));
 
     const unsavedAccounts =
-      Object.keys(groupedAccounts)?.map((key) => {
-        const item = groupedAccounts[key];
+      Object.keys(groupedAccounts)
+        ?.filter((key) => {
+          // A store day with nothing on it carries no information.
+          const { totals } = groupedAccounts[key];
+          return (
+            totals.loyalty !== 0 ||
+            totals.total_sales !== 0 ||
+            totals.sales_return !== 0
+          );
+        })
+        .map((key) => {
+          const item = groupedAccounts[key];
 
-        return {
-          bill_date: moment(item.date).format("DD-MM-YYYY"),
-          outlet_name: OUTLET_MAP[item.store_id]?.outlet_name ?? "N/A",
-          loyalty_diff: DifferenceWrapper(item.totals.loyalty),
-          sales_diff: DifferenceWrapper(item.totals.total_sales),
-          return_diff: DifferenceWrapper(item.totals.sales_return),
-        };
-      }) ?? [];
+          return {
+            bill_date: moment(item.date).format("DD-MM-YYYY"),
+            outlet_name: OUTLET_MAP[item.store_id]?.outlet_name ?? "N/A",
+            loyalty_diff: DifferenceWrapper(item.totals.loyalty),
+            sales_diff: DifferenceWrapper(item.totals.total_sales),
+            return_diff: DifferenceWrapper(item.totals.sales_return),
+          };
+        }) ?? [];
 
     const combinedList = [...salesList, ...unsavedAccounts];
     return combinedList;
@@ -173,7 +194,8 @@ function Difference() {
               );
 
               rows.push({
-                particulars: employee?.employee_name ?? "N/A",
+                particulars:
+                  item.employee_name ?? employee?.employee_name ?? "N/A",
                 narration: item.description,
                 debit: item.payment_type === 2 ? item.amount : "",
                 credit: item.payment_type === 1 ? item.amount : "",

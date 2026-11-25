@@ -1,0 +1,714 @@
+/**
+ * THE TELEGRAM SCREENS' WIRING, asserted against the source.
+ *
+ *   node --test components/hr/telegramWiring.test.js
+ *
+ * `util/employeeTelegram.test.js` proves the RULES. This proves the screens
+ * are plugged into them, and that the things which must NEVER appear in the
+ * page do not - which is not something a rules test can see.
+ *
+ * Source-text assertions, in the style of `employeeProfileWiring.test.js`,
+ * because these are Chakra/Next components and this repository has no React
+ * test runner.
+ */
+const test = require("node:test");
+const assert = require("node:assert/strict");
+const fs = require("fs");
+const path = require("path");
+
+const repoRoot = path.join(__dirname, "..", "..");
+const read = (p) => fs.readFileSync(path.join(repoRoot, p), "utf8");
+/** Comments explain the old patterns verbatim, so assertions read CODE only. */
+const codeOf = (src) => src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+
+const panel = read("components/hr/TelegramSetupPanel.jsx");
+const panelCode = codeOf(panel);
+const hook = read("customHooks/useEmployeeTelegram.js");
+const hookCode = codeOf(hook);
+const helper = read("helper/employeeTelegram.js");
+const helperCode = codeOf(helper);
+const wizard = read("pages/hr/employees/new.jsx");
+const wizardCode = codeOf(wizard);
+const profile = read("pages/hr/employees/[id].jsx");
+const profileCode = codeOf(profile);
+const section = read("components/hr/profile/TelegramSection.jsx");
+const dashboard = read("pages/hr/onboarding/index.jsx");
+const dashboardCode = codeOf(dashboard);
+const queue = read("util/hrOnboardingQueue.js");
+
+/* ============================================================ the API === */
+
+test("the three endpoints are the deployed ones, and the bodies are empty", () => {
+  assert.match(helperCode, /API\.get\(`\/hr\/employee\/\$\{employeeId\}\/telegram`\)/);
+  assert.match(helperCode, /API\.post\(`\/hr\/employee\/\$\{employeeId\}\/telegram\/link-token`, \{\}\)/);
+  assert.match(helperCode, /API\.post\(`\/hr\/employee\/\$\{employeeId\}\/telegram\/disconnect`, \{\}\)/);
+});
+
+test("THE LINK-TOKEN BODY CARRIES NOTHING - the server refuses a body that names anything", () => {
+  const call = /link-token`,\s*(\{[^}]*\})/.exec(helperCode);
+  assert.ok(call, "the call is there");
+  assert.equal(call[1].replace(/\s/g, ""), "{}");
+});
+
+/* ======================================================== the credential = */
+
+test("THE RAW LINK IS NEVER WRITTEN ANYWHERE PERSISTENT", () => {
+  // It is a working one-time credential. Memory only, for as long as the QR
+  // is on screen.
+  for (const [name, src] of [
+    ["the panel", panelCode],
+    ["the hook", hookCode],
+    ["the helper", helperCode],
+    ["the wizard", wizardCode],
+    ["the profile", profileCode],
+  ]) {
+    for (const forbidden of ["localStorage", "sessionStorage", "document.cookie", "console.log"]) {
+      assert.ok(!src.includes(forbidden), `${name} must not use ${forbidden}`);
+    }
+  }
+});
+
+test("the link is encoded into the QR and used as an href - never printed as text", () => {
+  assert.match(panelCode, /<QRCodeSVG\s+value=\{link\}/, "encoded into the QR");
+  assert.match(panelCode, /<Link href=\{link\}/, "and used as the Open Telegram href");
+  // The one thing that must not exist: the value rendered as readable text.
+  assert.ok(!/>\s*\{link\}\s*</.test(panelCode), "the link must never be rendered as text");
+  assert.ok(!/toast[\s\S]{0,80}\{link\}/.test(panelCode), "and never put in a toast");
+});
+
+test("an expired link is DROPPED from state, not merely hidden", () => {
+  assert.match(hookCode, /setExpired\(true\);\s*setLink\(null\);/);
+});
+
+test("the hook holds the link in React state and nowhere else", () => {
+  assert.match(hookCode, /const \[link, setLink\] = useState\(null\)/);
+});
+
+/* ============================================================ polling === */
+
+test("polling is decided by the shared rule, not by the component", () => {
+  assert.match(hookCode, /shouldPollTelegram\(\{[\s\S]*?\}\)/);
+  assert.match(hookCode, /TELEGRAM_POLL_INTERVAL_MS/);
+});
+
+test("THE POLL WATCHES THE ATTEMPT, NOT THE IDENTITY - which is what makes reconnect work", () => {
+  // During a reconnect the employee stays CONNECTED on their old account, so
+  // a rule that stopped at CONNECTED would stop the instant the QR appeared.
+  assert.match(hookCode, /const attempt = \(status && status\.link_attempt\) \|\| null;/);
+  assert.match(hookCode, /shouldPollTelegram\(\{[\s\S]*?attemptIsCurrent: statusIsCurrent,[\s\S]*?\}\)/);
+});
+
+test("a settled attempt closes the QR - but only one that belongs to THIS QR", () => {
+  assert.match(hookCode, /const settled = statusIsCurrent && attemptSettled\(attempt\);/);
+  assert.match(hookCode, /if \(!link \|\| !settled\) return;/);
+});
+
+/* ============================================ no read before declaration = */
+
+test("EVERY DERIVED VALUE IS DECLARED BEFORE ANY EFFECT READS IT", () => {
+  // An effect's dependency array is evaluated during render, so an effect
+  // placed above one of these throws a ReferenceError before the component
+  // can mount. That cost a runtime crash on the employee profile once.
+  const code = hookCode;
+  for (const name of ["attempt", "hasLiveLink", "settled", "polling"]) {
+    const declaration = code.indexOf(`const ${name} =`);
+    assert.ok(declaration > 0, `${name} is declared`);
+    const earlier = [...code.matchAll(new RegExp(`\\b${name}\\b`, "g"))]
+      .map((match) => match.index)
+      .filter((index) => index < declaration);
+    assert.equal(earlier.length, 0, `${name} must not be read before it is declared`);
+  }
+});
+
+test("the hook parses and evaluates without a temporal-dead-zone error", () => {
+  // The crash was a ReferenceError at render, which a source grep alone
+  // cannot see: this evaluates the module body the way the bundler does.
+  const fs = require("fs");
+  const source = fs.readFileSync(path.join(repoRoot, "customHooks/useEmployeeTelegram.js"), "utf8");
+  assert.doesNotThrow(() => new Function(source.replace(/^import[\s\S]*?;$/gm, "").replace(/export default/, "return")));
+});
+
+test("THE POLL IS CLEARED WHEN THE EFFECT ENDS - which is what unmount does", () => {
+  const effect = /if \(!polling\) return undefined;[\s\S]*?\}, \[polling, refresh\]\);/.exec(hookCode);
+  assert.ok(effect, "the polling effect is there");
+  assert.match(effect[0], /setInterval\(/);
+  assert.match(effect[0], /return \(\) => clearInterval\(timer\)/, "and cleaned up");
+});
+
+test("there is no global or background poller", () => {
+  // Every interval in the hook belongs to an effect that cleans it up.
+  const intervals = (hookCode.match(/setInterval\(/g) || []).length;
+  const clears = (hookCode.match(/clearInterval\(/g) || []).length;
+  assert.equal(intervals, clears, "every interval is cleared");
+  assert.ok(!hookCode.includes("window."), "nothing is hung off the window");
+});
+
+test("a request that resolves after unmount cannot set state", () => {
+  assert.match(hookCode, /alive\.current = false/);
+  assert.match(hookCode, /if \(!alive\.current\) return/);
+});
+
+/* ===================================================== what is rendered = */
+
+test("NO MOBILE NUMBER, TELEGRAM USER ID OR CHAT ID IS EVER RENDERED", () => {
+  for (const forbidden of [
+    "primary_contact_number",
+    "telegram_user_id",
+    "private_chat_id",
+    "chat_id",
+    "verified_mobile",
+    "mobile_number",
+  ]) {
+    assert.ok(!panelCode.includes(forbidden), `the panel must not render ${forbidden}`);
+    assert.ok(!codeOf(section).includes(forbidden), `the card must not render ${forbidden}`);
+  }
+});
+
+test("the mismatch message names NEITHER number", () => {
+  const mismatch = /\{mismatched &&[\s\S]*?\n      \)\}/.exec(panel);
+  assert.ok(mismatch, "the mismatch branch is there");
+  assert.match(mismatch[0], /does not match the mobile recorded for this employee/);
+  assert.match(mismatch[0], /Correct the employee mobile number and generate a new QR/);
+  assert.ok(!/\d{6,}/.test(mismatch[0]), "no run of digits that could be a number");
+});
+
+test("connected says Groups Pending, and never claims completion", () => {
+  assert.match(panelCode, /telegramLabel/);
+  assert.match(panel, /Group assignment will be completed after Telegram Group\s*\n?\s*Mapping is configured/);
+  assert.ok(!/Telegram Complete/.test(panel), "nothing claims Telegram is complete");
+});
+
+test("the instruction tells the employee to use the button, not to type", () => {
+  assert.match(panel, /tap Share Phone Number\. Do not type the number manually/);
+});
+
+test("the QR fits a phone - no horizontal scrolling", () => {
+  assert.match(panelCode, /maxWidth: "100%"/);
+});
+
+/* ========================================================== reconnect === */
+
+test("CHANGE TELEGRAM GENERATES A LINK AND DOES NOT DISCONNECT FIRST", () => {
+  // The backend replaces an identity atomically only once the new account has
+  // verified, so disconnecting first would throw away a working connection
+  // for a verification that might never happen.
+  const change = /\{connected \? "Change Telegram" : "Generate Telegram QR"\}/.exec(panelCode);
+  assert.ok(change, "the Change Telegram button is there");
+  const button = /<Button size="sm" colorScheme="telegram" onClick=\{generate\}[\s\S]*?<\/Button>/.exec(panelCode);
+  assert.ok(button, "and it is wired to generate");
+  assert.ok(!button[0].includes("disconnect"), "it must never call disconnect");
+});
+
+test("ONLY the explicit Disconnect action calls the disconnect endpoint", () => {
+  const calls = (panelCode.match(/disconnect\(\)/g) || []).length;
+  assert.equal(calls, 1, "exactly one call site");
+  const confirm = /Disconnect this employee&apos;s Telegram account\?[\s\S]*?disconnect\(\)/.exec(panel);
+  assert.ok(confirm, "and it is behind the confirmation");
+});
+
+test("the disconnect is confirmed before it runs", () => {
+  assert.match(panelCode, /confirmingDisconnect/);
+  assert.match(panel, /Disconnect this employee&apos;s Telegram account\?/);
+});
+
+test("the status is refreshed after a disconnect", () => {
+  const fn = /const disconnect = useCallback\(async \(\) => \{[\s\S]*?\}, \[employeeId, refresh\]\);/.exec(hookCode);
+  assert.ok(fn);
+  assert.match(fn[0], /await refresh\(\)/);
+});
+
+/* ======================================================== the onboarding = */
+
+test("TELEGRAM COMES AFTER THE EMPLOYEE EXISTS, AND IS THE MANAGER'S LAST STAGE", () => {
+  const { ONBOARDING_STAGES, CREATE_STAGE_KEY, isFinalStage } = require("../../util/hrOnboarding");
+  const keys = ONBOARDING_STAGES.map((s) => s.key);
+  assert.deepEqual(keys, ["aadhaar", "personal", "employment", "telegram"]);
+  assert.ok(keys.indexOf("telegram") > keys.indexOf(CREATE_STAGE_KEY), "after the create stage");
+  assert.equal(keys[keys.indexOf("telegram") - 1], "employment");
+  assert.ok(isFinalStage(keys.indexOf("telegram")), "and nothing follows it");
+});
+
+test("the wizard's Telegram stage runs against the CREATED employee id", () => {
+  const stage = /stageKey === "telegram" \? \([\s\S]*?\) : null\}/.exec(wizardCode);
+  assert.ok(stage, "the stage is rendered");
+  assert.match(stage[0], /employeeId=\{created\.employee_id\}/);
+  assert.match(stage[0], /canManage/);
+});
+
+test("and refuses to offer setup when there is no employee yet", () => {
+  const stage = /stageKey === "telegram" \? \([\s\S]*?\) : null\}/.exec(wizardCode);
+  assert.match(stage[0], /created \?/, "it is conditional on the employee existing");
+  assert.match(stage[0], /has to be created before Telegram can be connected/);
+});
+
+test("CONNECTED OFFERS Finish; NOT CONNECTED OFFERS Skip for now & Finish", () => {
+  const footer = /stageKey === "telegram" \? \([\s\S]*?\) : stageKey === "aadhaar"/.exec(wizardCode);
+  assert.ok(footer, "the Telegram footer button is there");
+  assert.match(
+    footer[0],
+    /\{telegramConnected \? "Finish" : "Skip for now & Finish"\}/,
+    "offering to skip something already done would be a puzzle"
+  );
+  assert.match(footer[0], /onClick=\{finish\}/);
+});
+
+test("EITHER ENDING GOES TO THE CREATED EMPLOYEE'S PROFILE", () => {
+  const finish = /const finish = \(\) => \{[\s\S]*?\};/.exec(wizardCode);
+  assert.ok(finish, "there is one finish path");
+  assert.match(finish[0], /router\.push\(`\/hr\/employees\/\$\{created\.employee_id\}`\)/);
+  // It writes nothing: skipping creates no Telegram state at all.
+  assert.ok(!/telegram/i.test(finish[0]), "the finish path touches no Telegram API");
+  // No TELEGRAM skipped flag is invented - skipping means only that no
+  // connected identity exists. (`aadhaarSkipped` is the pre-existing Aadhaar
+  // decision and is a different thing entirely.)
+  assert.ok(
+    !/telegram_skipped|telegramSkipped/i.test(wizardCode),
+    "skipping records nothing about Telegram"
+  );
+});
+
+test("the connected state comes from the BACKEND, never from having generated a QR", () => {
+  assert.match(wizardCode, /onStatusChange=\{setTelegramConnected\}/);
+  const panel = panelCode;
+  assert.match(panel, /onStatusChange\(connected\)/);
+  assert.match(panel, /const connected = isConnected\(current\)/, "read off the status the server sent");
+});
+
+test("EDUCATION IS GONE FROM THE WIZARD AND STILL PRESENT IN EMPLOYEE MASTER", () => {
+  assert.ok(!/stageKey === "education"/.test(wizardCode));
+  assert.ok(!/saveOnboardingEducation/.test(wizardCode));
+  assert.match(profileCode, /<EducationSection/);
+});
+
+/* ==================================================== the employee master */
+
+test("the profile renders the Telegram card, reusing the same panel", () => {
+  assert.match(profileCode, /<TelegramSection/);
+  assert.match(codeOf(section), /<TelegramSetupPanel/, "one implementation, not two");
+});
+
+test("the card's actions are gated on the same AND the backend enforces", () => {
+  assert.match(profileCode, /const mayManageTelegram = canManageTelegram\(actor\)/);
+  assert.match(profileCode, /canManage=\{mayManageTelegram/);
+});
+
+test("THE WIZARD'S TELEGRAM STAGE IS GATED TOO - it no longer assumes", () => {
+  /*
+   * Stage 5 used to pass a bare `canManage`, which was true for anybody who
+   * reached it. Under the conjunction a create-only manager reaches that
+   * stage legitimately and must be offered no QR, so the wizard asks the same
+   * function the profile does rather than assuming its own answer.
+   */
+  assert.ok(
+    !/canManage\s*\n/.test(wizardCode.replace(/canManage=\{[^}]*\}/g, "")),
+    "no bare `canManage` prop survives in the wizard"
+  );
+  assert.match(wizardCode, /canManageTelegram\(/, "the wizard asks the shared rule");
+  assert.match(wizardCode, /canManage=\{mayManageTelegram\}/);
+});
+
+test("THE RULE IS THE CONJUNCTION, AND READS THE REAL PERMISSION SHAPE", () => {
+  /*
+   * Asserted against the source as well as behaviourally in
+   * `util/employeeTelegram.test.js`, because both halves of this correction
+   * are easy to undo by accident: an `||` restores the old OR, and an
+   * `includes` restores the bug where `[{ permission_key }]` rows compared
+   * unequal to strings and no non-administrator was ever offered the buttons.
+   */
+  const rule = codeOf(read("util/employeeTelegram.js"));
+  assert.match(
+    rule,
+    /function canManageTelegram[\s\S]*?holds\(permissions, "employee_edit"\) &&\s*holds\(permissions, "employee_create"\)/,
+    "both keys, joined by AND"
+  );
+  assert.ok(
+    !/function canManageTelegram[\s\S]*?\|\|[\s\S]*?\n}/.test(rule),
+    "and no OR anywhere in it"
+  );
+  assert.match(rule, /p\.permission_key/, "the production row shape is read");
+});
+
+test("a view-only user is offered no mutation at all", () => {
+  // Every action in the panel sits behind `canManage`.
+  for (const action of ["Generate Telegram QR", "Disconnect Telegram", "Generate New QR"]) {
+    assert.ok(panel.includes(action), `${action} exists`);
+  }
+  const gated = panelCode.split("{canManage &&").length - 1;
+  assert.ok(gated >= 3, "the QR, the actions and the expiry notice are all gated");
+});
+
+/* ======================================================== the dashboard = */
+
+test("THE DASHBOARD READS TELEGRAM FROM THE STATUS SUMMARY, not per employee", () => {
+  assert.ok(
+    !dashboardCode.includes("/telegram"),
+    "the dashboard must not call the per-employee Telegram endpoint"
+  );
+  assert.ok(
+    !dashboardCode.includes("EmployeeTelegramHelper") && !dashboardCode.includes("useEmployeeTelegram"),
+    "and must not reach for the single-employee hook"
+  );
+  // IT RENDERS SUMMARY FIELDS, THROUGH THE SHARED BADGE HELPER. The literal
+  // `telegramLabel(row.telegram_status` moved into
+  // `util/employeeTelegramGroups.js#telegramQueueBadge` when Phase 3B gave
+  // the mobile card the same chip - one function so the two views cannot
+  // drift. The guarantee this test exists for is unchanged and is asserted
+  // above: no per-employee call, no single-employee hook.
+  assert.match(dashboardCode, /telegramQueueBadge\(row\)/, "it renders the summary's fields");
+  const badgeHelper = codeOf(read("util/employeeTelegramGroups.js"));
+  assert.match(badgeHelper, /row\.telegram_completion/, "completion comes from the summary row");
+  assert.match(badgeHelper, /telegram_status/, "and the Phase 2 field is still the fallback");
+});
+
+test("the summary's Telegram fields are carried through the index", () => {
+  const status = codeOf(read("util/hrStatus.js"));
+  assert.match(status, /entry\.telegram_status = row\.telegram_status/);
+  assert.match(status, /entry\.telegram_connected = Boolean\(row\.telegram_connected\)/);
+});
+
+test("TELEGRAM IS NOT PART OF THE HR COUNT - it is tracked, not gating", () => {
+  // Asserted as BEHAVIOUR rather than by grepping near the assignment: a
+  // proximity regex matches the Telegram block that merely sits next to it.
+  const { queueRow, queueCounts } = require("../../util/hrOnboardingQueue");
+  const hrComplete = { hr_onboarding_pending: false };
+
+  const connected = queueRow({ employee_id: 1, status: 1 }, { ...hrComplete, telegram_status: "CONNECTED" });
+  const notConnected = queueRow({ employee_id: 2, status: 1 }, { ...hrComplete, telegram_status: "PENDING" });
+
+  assert.equal(connected.overall, notConnected.overall, "Telegram does not move the HR answer");
+  assert.equal(notConnected.hr, "COMPLETE", "an HR-complete employee stays complete");
+  const counts = queueCounts([connected, notConnected]);
+  assert.equal(counts.hr, 0, "neither is HR pending");
+  assert.equal(counts.telegram, 1, "and exactly one is Telegram pending");
+});
+
+test("an employee the server did not answer for is not put on the queue", () => {
+  const { queueRow, queueCounts } = require("../../util/hrOnboardingQueue");
+  const row = queueRow({ employee_id: 1, status: 1 }, {});
+  assert.equal(row.telegram, "UNKNOWN");
+  assert.equal(queueCounts([row]).telegram, 0);
+});
+
+test("the dashboard's population rule is untouched - inactive rows stay out", () => {
+  const { filterQueue, queueRow } = require("../../util/hrOnboardingQueue");
+  const resigned = queueRow({ employee_id: 2, status: 0 }, {});
+  const active = queueRow({ employee_id: 3, status: 1 }, { telegram_status: "PENDING" });
+  const shown = filterQueue([resigned, active], { filter: "telegram" });
+  assert.deepEqual(shown.map((r) => r.employee_id), [3], "a resigned employee is never pulled in");
+});
+
+test("each Telegram state maps to the label the dashboard shows", () => {
+  const { queueRow } = require("../../util/hrOnboardingQueue");
+  const { telegramLabel } = require("../../util/employeeTelegram");
+  const cases = {
+    PENDING: "Pending",
+    AWAITING_CONTACT: "Waiting for Verification",
+    MOBILE_MISMATCH: "Mobile Mismatch",
+    CONNECTED: "Connected - Groups Pending",
+  };
+  for (const [status, label] of Object.entries(cases)) {
+    const row = queueRow({ employee_id: 1, status: 1 }, { telegram_status: status });
+    assert.equal(row.telegram_status, status);
+    assert.equal(telegramLabel(row.telegram_status, { short: true }), label);
+  }
+});
+
+/* ========================================================== reconnect === */
+
+test("A LIVE RECONNECT QR KEEPS POLLING THOUGH THE EMPLOYEE IS CONNECTED", () => {
+  const { shouldPollTelegram } = require("../../util/employeeTelegram");
+  assert.equal(
+    shouldPollTelegram({ status: "CONNECTED", attempt: "AWAITING_CONTACT", hasLiveLink: true }),
+    true,
+    "the new account has not verified yet"
+  );
+  assert.equal(
+    shouldPollTelegram({ status: "CONNECTED", attempt: "PENDING", hasLiveLink: true }),
+    true,
+    "nor has it even been opened"
+  );
+});
+
+test("THE OLD IDENTITY'S CONNECTED STATE IS NEVER TAKEN AS THE NEW QR SUCCEEDING", () => {
+  const { isReconnectInFlight } = require("../../util/employeeTelegram");
+  assert.equal(
+    isReconnectInFlight({ status: "CONNECTED", attempt: "AWAITING_CONTACT", hasLiveLink: true }),
+    true
+  );
+  // And the panel says so rather than showing the old success beside a QR.
+  assert.match(panelCode, /const reconnecting = isReconnectInFlight\(/);
+  assert.match(panelCode, /\{connected && !reconnecting &&/, "the success block yields to it");
+  assert.match(panel, /Waiting for the new Telegram account to be verified/);
+});
+
+test("a successful reconnect is detected, and stops the poll", () => {
+  const { shouldPollTelegram, attemptVerified } = require("../../util/employeeTelegram");
+  assert.ok(attemptVerified("VERIFIED"));
+  assert.equal(
+    shouldPollTelegram({ status: "CONNECTED", attempt: "VERIFIED", hasLiveLink: true }),
+    false
+  );
+});
+
+test("a mismatched reconnect is detected, and stops the poll", () => {
+  const { shouldPollTelegram, attemptMismatched } = require("../../util/employeeTelegram");
+  assert.ok(attemptMismatched("MOBILE_MISMATCH"));
+  assert.equal(
+    shouldPollTelegram({ status: "CONNECTED", attempt: "MOBILE_MISMATCH", hasLiveLink: true }),
+    false
+  );
+});
+
+test("EXPIRY STOPS RECONNECT POLLING TOO", () => {
+  const { shouldPollTelegram } = require("../../util/employeeTelegram");
+  assert.equal(
+    shouldPollTelegram({ status: "CONNECTED", attempt: "AWAITING_CONTACT", hasLiveLink: false }),
+    false
+  );
+});
+
+test("a failed reconnect leaves the old connection intact and displayed", () => {
+  // Nothing in the frontend disconnects on failure: the backend keeps the old
+  // identity, and the panel falls back to showing it.
+  assert.equal((panelCode.match(/disconnect\(\)/g) || []).length, 1, "one disconnect call site");
+  const confirm = /confirmingDisconnect[\s\S]*?disconnect\(\)/.exec(panelCode);
+  assert.ok(confirm, "and it is the confirmed one");
+});
+
+/* ========================================================== dashboard === */
+
+test("THE CARD AND THE FILTER BOTH READ 'Telegram Connection Pending'", () => {
+  const { QUEUE_CARDS, QUEUE_FILTERS } = require("../../util/hrOnboardingQueue");
+  assert.equal(QUEUE_CARDS.find((c) => c.filter === "telegram").label, "Telegram Connection Pending");
+  assert.equal(QUEUE_FILTERS.find((f) => f.value === "telegram").label, "Telegram Connection Pending");
+});
+
+test("connection work is counted, and a connected employee is NOT", () => {
+  const { queueRow, queueCounts } = require("../../util/hrOnboardingQueue");
+  const row = (id, status) => queueRow({ employee_id: id, status: 1 }, { telegram_status: status });
+  const counts = queueCounts([
+    row(1, "PENDING"),
+    row(2, "AWAITING_CONTACT"),
+    row(3, "MOBILE_MISMATCH"),
+    row(4, "CONNECTED"),
+  ]);
+  assert.equal(counts.telegram, 3, "the three that still need connecting");
+});
+
+test("and the connected row still reads Connected - Groups Pending", () => {
+  const { queueRow } = require("../../util/hrOnboardingQueue");
+  const { telegramLabel } = require("../../util/employeeTelegram");
+  const row = queueRow({ employee_id: 4, status: 1 }, { telegram_status: "CONNECTED" });
+  assert.equal(telegramLabel(row.telegram_status, { short: true }), "Connected - Groups Pending");
+});
+
+/* ================================================= no stale manager copy = */
+
+test("NO MANAGER-WIZARD COPY SAYS EDUCATION COMES NEXT", () => {
+  // The manager's job ends at Telegram. Copy that still promises Education is
+  // a promise the wizard no longer keeps.
+  for (const stale of [
+    "Record their education next",
+    "Education follows on the next stage",
+    "Education is stage 4",
+    "education next",
+  ]) {
+    assert.ok(!wizard.includes(stale), `stale copy: "${stale}"`);
+  }
+  // And the replacements say what actually happens.
+  assert.match(wizard, /Complete Telegram setup next, or skip it for now/);
+  assert.match(wizard, /Telegram setup follows, once the Employee ID exists/);
+});
+
+test("EDUCATION IS STILL EMPLOYEE-MASTER DATA", () => {
+  // Removing a wizard stage must not remove the data behind it.
+  assert.match(profileCode, /<EducationSection/);
+  const { EMPLOYEE_MASTER_SECTIONS } = require("../../util/hrProfile");
+  assert.ok(EMPLOYEE_MASTER_SECTIONS.some((section) => section.key === "education"));
+});
+
+/* ========================================================= FAILED in UI = */
+
+test("A FAILED ATTEMPT SHOWS ONE SENTENCE AND NO REASON", () => {
+  assert.match(panel, /This Telegram setup attempt could not be completed\. Generate a new QR and try again\./);
+  // It must not disclose what the bot itself refuses to say in the chat.
+  const failedBlock = /\{failed &&[\s\S]*?\)\}/.exec(panel);
+  assert.ok(failedBlock, "the failed branch is there");
+  for (const forbidden of ["DUPLICATE", "INELIGIBLE", "employee_id", "already connected to"]) {
+    assert.ok(!failedBlock[0].includes(forbidden), `must not name ${forbidden}`);
+  }
+});
+
+test("failure is never rendered as success", () => {
+  // The success block is gated on `connected`, which a failed attempt does
+  // not set - and on `!reconnecting`, so a live reconnect does not show it
+  // either.
+  assert.match(panelCode, /\{connected && !reconnecting &&/);
+  assert.match(panelCode, /const failed = statusIsCurrent && attemptFailed\(attempt\);/);
+});
+
+/* ================================================= request ownership ==== */
+
+test("THE HOOK CHECKS A RESPONSE BEFORE IT APPLIES ANY OF IT", () => {
+  // The rule itself is tested for real, with promises resolved out of order,
+  // in `util/telegramRequestOwnership.test.js`. This asserts the hook is
+  // actually plugged into it - and, specifically, that the gate comes BEFORE
+  // the first state update rather than after.
+  assert.match(hookCode, /const ticket = ownership\.begin\(\);/);
+  const body = /const res = await EmployeeTelegramHelper\.getStatus[\s\S]*?return data;/.exec(hookCode);
+  assert.ok(body, "the success path is there");
+  const gate = body[0].indexOf("ownership.accept(ticket)");
+  const firstWrite = Math.min(
+    ...["setStatus(", "setStatusIsCurrent(", "setError("]
+      .map((setter) => body[0].indexOf(setter))
+      .filter((index) => index >= 0)
+  );
+  assert.ok(gate >= 0, "the gate is there");
+  assert.ok(gate < firstWrite, "and nothing is written before it");
+});
+
+test("a refused response writes nothing at all - not even the error", () => {
+  const catchBlock = /\} catch \(err\) \{[\s\S]*?\} finally \{/.exec(hookCode);
+  assert.ok(catchBlock, "the failure path is there");
+  const gate = catchBlock[0].indexOf("ownership.accept(ticket)");
+  const write = catchBlock[0].indexOf("setError(");
+  assert.ok(gate >= 0 && gate < write, "a stale failure cannot replace a newer answer");
+});
+
+test("only the newest request may report that loading finished", () => {
+  assert.match(hookCode, /if \(alive\.current && ownership\.isNewest\(ticket\)\) setLoading\(false\);/);
+});
+
+test("generating a QR moves the generation on, so requests in flight are stale", () => {
+  assert.match(hookCode, /ownershipRef\.current\.newGeneration\(\);/);
+  assert.match(hookCode, /setStatusIsCurrent\(false\);/);
+});
+
+test("THE MANAGER FLOW COMMENT MATCHES THE FLOW", () => {
+  assert.match(wizard, /1 Aadhaar {2}→ {2}2 Personal {2}→ {2}3 Employment {2}→ {2}Employee ID {2}→ {2}4 Telegram/);
+  assert.ok(!/→ {2}4 Education/.test(wizard), "no comment still calls stage 4 Education");
+});
+
+/* ================================================= reconnect mismatch === */
+
+/**
+ * THE BUG THIS SECTION EXISTS FOR.
+ *
+ * A first connection leaves the EMPLOYEE at MOBILE_MISMATCH - there is no
+ * identity to be connected to. A reconnect does not: the old account is
+ * deliberately kept, so the employee stays CONNECTED and only the ATTEMPT is
+ * mismatched. A warning gated on the employee status alone therefore showed a
+ * plain "Telegram Connected" after a failed reconnect and hid the failure, and
+ * the manager would have walked away believing the new number was accepted.
+ */
+
+/** The panel's derivation, read from the source it is written in. */
+const mismatchDerivation = /const mismatched =\n?\s*([\s\S]*?);/.exec(panelCode);
+
+test("MISMATCH IS DERIVED FROM BOTH THE EMPLOYEE STATUS AND THE ATTEMPT", () => {
+  assert.ok(mismatchDerivation, "there is one derivation");
+  assert.match(mismatchDerivation[1], /current === TELEGRAM_STATUS\.MOBILE_MISMATCH/, "first connection");
+  assert.match(mismatchDerivation[1], /statusIsCurrent && attemptMismatched\(attempt\)/, "reconnect");
+});
+
+test("a first-time mismatch still renders the warning", () => {
+  // status MOBILE_MISMATCH, attempt MOBILE_MISMATCH - both true, one warning.
+  const mismatched = (current, attempt, statusIsCurrent = true) =>
+    current === "MOBILE_MISMATCH" || (statusIsCurrent && require("../../util/employeeTelegram").attemptMismatched(attempt));
+  assert.equal(mismatched("MOBILE_MISMATCH", "MOBILE_MISMATCH"), true);
+});
+
+test("A RECONNECT MISMATCH IS DETECTED THOUGH THE EMPLOYEE READS CONNECTED", () => {
+  const { attemptMismatched } = require("../../util/employeeTelegram");
+  const mismatched = (current, attempt, statusIsCurrent = true) =>
+    current === "MOBILE_MISMATCH" || (statusIsCurrent && attemptMismatched(attempt));
+  assert.equal(
+    mismatched("CONNECTED", "MOBILE_MISMATCH"),
+    true,
+    "the failure must not be invisible behind a connected badge"
+  );
+});
+
+test("and it does NOT require the employee status to become MOBILE_MISMATCH", () => {
+  // Which is the whole point: the backend deliberately leaves the employee
+  // CONNECTED on their old account, so demanding that status would mean the
+  // warning could never appear for a reconnect.
+  assert.ok(
+    !/mismatched =[^;]*current === TELEGRAM_STATUS\.MOBILE_MISMATCH &&/.test(panelCode),
+    "the two sources are an OR, never an AND"
+  );
+});
+
+test("ONE WARNING BRANCH, not a second reconnect-specific one", () => {
+  assert.equal(
+    (panel.match(/Telegram mobile does not match the mobile recorded for this employee\./g) || []).length,
+    1,
+    "exactly one mismatch warning exists"
+  );
+  assert.equal((panelCode.match(/\{mismatched &&/g) || []).length, 1, "rendered from one branch");
+});
+
+test("THE WARNING SAYS WHICH ATTEMPT FAILED, and that the old account survives", () => {
+  const mismatch = /\{mismatched &&[\s\S]*?\n      \)\}/.exec(panel);
+  assert.ok(mismatch);
+  assert.match(mismatch[0], /The new Telegram account was not verified\./);
+  assert.match(mismatch[0], /stays connected until a new one is verified/);
+  // Both of those lines are for the connected case only - a first-time
+  // mismatch has no account to talk about.
+  assert.match(mismatch[0], /\{connected && \(/);
+});
+
+test("the warning never implies the existing identity was disconnected", () => {
+  const mismatch = /\{mismatched &&[\s\S]*?\n      \)\}/.exec(panel);
+  for (const forbidden of ["disconnected", "removed", "unlinked", "lost"]) {
+    assert.ok(!mismatch[0].toLowerCase().includes(forbidden), `must not say ${forbidden}`);
+  }
+});
+
+test("A RECONNECT MISMATCH DISCLOSES NO NUMBER AND NO IDENTIFIER", () => {
+  const mismatch = /\{mismatched &&[\s\S]*?\n      \)\}/.exec(panel);
+  assert.ok(!/\d{4,}/.test(mismatch[0]), "no run of digits that could be a mobile or an id");
+  for (const forbidden of [
+    "MOBILE_MISMATCH",
+    "link_attempt",
+    "telegram_user_id",
+    "chat_id",
+    "primary_contact_number",
+  ]) {
+    assert.ok(!mismatch[0].includes(forbidden), `must not expose ${forbidden}`);
+  }
+});
+
+test("MISMATCH AND FAILED STAY DISTINCT", () => {
+  assert.match(panelCode, /const failed = statusIsCurrent && attemptFailed\(attempt\);/);
+  assert.match(panelCode, /const mismatched =/);
+  // Different branches, different words.
+  assert.match(panel, /This Telegram setup attempt could not be completed\./);
+  assert.match(panel, /Telegram mobile does not match the mobile recorded for this employee\./);
+  const failedBlock = /\{failed &&[\s\S]*?\)\}/.exec(panel);
+  assert.ok(!failedBlock[0].includes("does not match the mobile"), "FAILED is not the mismatch copy");
+});
+
+test("a VERIFIED reconnect shows no mismatch and no failure", () => {
+  const { attemptMismatched, attemptFailed } = require("../../util/employeeTelegram");
+  assert.equal(attemptMismatched("VERIFIED"), false);
+  assert.equal(attemptFailed("VERIFIED"), false);
+  // And with no live QR the reconnect banner is gone too, so the panel is
+  // back to a plain connected state - which is then the truth.
+  const { isReconnectInFlight } = require("../../util/employeeTelegram");
+  assert.equal(
+    isReconnectInFlight({ status: "CONNECTED", attempt: "VERIFIED", hasLiveLink: false }),
+    false
+  );
+});
+
+test("A STALE MOBILE_MISMATCH CANNOT WARN ABOUT A FRESH QR", () => {
+  // Same ownership rule as everything else: an answer from before this QR
+  // says nothing about it. `statusIsCurrent` gates the attempt half of the
+  // derivation for exactly this reason.
+  const { attemptMismatched } = require("../../util/employeeTelegram");
+  const mismatched = (current, attempt, statusIsCurrent) =>
+    current === "MOBILE_MISMATCH" || (statusIsCurrent && attemptMismatched(attempt));
+  assert.equal(mismatched("CONNECTED", "MOBILE_MISMATCH", false), false, "stale answer, no warning");
+  assert.match(mismatchDerivation[1], /statusIsCurrent &&/, "and the panel gates it that way");
+});

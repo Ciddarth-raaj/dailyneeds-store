@@ -15,6 +15,7 @@ import {
   FormControl,
   FormLabel,
   Input,
+  Select,
   Tab,
   TabList,
   TabPanel,
@@ -27,6 +28,7 @@ import GlobalWrapper from "../../../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../../../components/CustomContainer";
 import AgGrid from "../../../../components/AgGrid";
 import GstModuleWrapper from "../../../../components/gst/GstModuleWrapper";
+import Gstr2aAcceptZeroTaxModal from "../../../../components/gst/Gstr2aAcceptZeroTaxModal";
 import Gstr2aAutoMatchPreviewModal from "../../../../components/gst/Gstr2aAutoMatchPreviewModal";
 import Gstr2aMatchModal from "../../../../components/gst/Gstr2aMatchModal";
 import Gstr2aPrSummaryTable from "../../../../components/gst/Gstr2aPrSummaryTable";
@@ -36,17 +38,31 @@ import { useGstB2bInvoices } from "../../../../customHooks/useGstB2bInvoices";
 import { useGstr2aPurchaseRegisterPr } from "../../../../customHooks/useGstr2aPurchaseRegisterPr";
 import { upsertPurchaseGstMatch } from "../../../../helper/purchaseGstMatch";
 import {
+  acceptPurchaseGstNo2a,
+  deletePurchaseGstNo2a,
+} from "../../../../helper/purchaseGstNo2a";
+import {
+  financialYearForPeriodRange,
+  financialYearPeriodRange,
+  formatFinancialYearLabel,
+  listFinancialYears,
+} from "../../../../util/gstFinancialYear";
+import {
   aggregateGstr2aPeriodSummary,
   aggregatePurchasePeriodSummary,
+  buildAcceptedNo2aIds,
   buildAutoMatchPairs,
   buildDocumentViewRows,
   computeTaxDiff,
   enrichDocumentRowsWithMatches,
+  enrichRowsWithNo2aAcceptance,
   enrichVendorRowsWithMatchPct,
+  formatPeriodRangeLabel,
   getDocumentMatchStatusBadge,
   getPurchaseMatchIds,
   isTaxDiffOutOfRange,
   mergeVendorRowsWithPr,
+  periodRangeKey,
 } from "../../../../util/gstr2aPurchaseRegister";
 
 function parseDecimal(v) {
@@ -185,13 +201,18 @@ function buildDocumentRows(invoices) {
 
 export default function GstGstr2aPurchaseRegisterPage() {
   const { colorScheme } = useModuleTableTheme();
-  const [period, setPeriod] = useState(() =>
+  const [fromPeriod, setFromPeriod] = useState(() =>
+    moment().subtract(1, "month").format("YYYY-MM")
+  );
+  const [toPeriod, setToPeriod] = useState(() =>
     moment().subtract(1, "month").format("YYYY-MM")
   );
   const [tabIndex, setTabIndex] = useState(0);
   const [filterCtin, setFilterCtin] = useState(null);
   const [matchDocument, setMatchDocument] = useState(null);
   const [autoMatching, setAutoMatching] = useState(false);
+  const [accepting, setAccepting] = useState(false);
+  const [acceptPreviewOpen, setAcceptPreviewOpen] = useState(false);
   const [autoMatchPreviewOpen, setAutoMatchPreviewOpen] = useState(false);
   const [autoMatchPairs, setAutoMatchPairs] = useState([]);
   const [autoMatchUnmatched, setAutoMatchUnmatched] = useState([]);
@@ -199,11 +220,24 @@ export default function GstGstr2aPurchaseRegisterPage() {
   const documentTabFromGstinLinkRef = useRef(false);
   const { userConfig } = useUser();
 
-  const { invoices, loading, error } = useGstB2bInvoices(period);
+  const { invoices, loading, error } = useGstB2bInvoices(
+    fromPeriod,
+    toPeriod
+  );
+
+  const periodKey = useMemo(
+    () => periodRangeKey(fromPeriod, toPeriod),
+    [fromPeriod, toPeriod]
+  );
+
+  const periodLabel = useMemo(
+    () => formatPeriodRangeLabel(fromPeriod, toPeriod),
+    [fromPeriod, toPeriod]
+  );
 
   useEffect(() => {
     setFilterCtin(null);
-  }, [period]);
+  }, [periodKey]);
 
   const onGstinNavigate = useCallback((ctin) => {
     const c = (ctin || "").trim();
@@ -233,11 +267,12 @@ export default function GstGstr2aPurchaseRegisterPage() {
   const {
     purchases,
     matches,
+    acceptedNo2a,
     vendorPrByGstin,
     loading: prLoading,
     error: prError,
     refetch: refetchPr,
-  } = useGstr2aPurchaseRegisterPr(period);
+  } = useGstr2aPurchaseRegisterPr(fromPeriod, toPeriod);
 
   const vendorRows = useMemo(() => {
     const from2A = aggregateVendors(invoices);
@@ -245,20 +280,41 @@ export default function GstGstr2aPurchaseRegisterPage() {
     return enrichVendorRowsWithMatchPct(merged, invoices, matches);
   }, [invoices, vendorPrByGstin, matches]);
 
+  const acceptedNo2aIds = useMemo(
+    () => buildAcceptedNo2aIds(acceptedNo2a),
+    [acceptedNo2a]
+  );
+
   const documentRows = useMemo(() => {
-    const rows = buildDocumentViewRows(
-      enrichDocumentRowsWithMatches(
-        buildDocumentRows(invoices),
+    const rows = enrichRowsWithNo2aAcceptance(
+      buildDocumentViewRows(
+        enrichDocumentRowsWithMatches(
+          buildDocumentRows(invoices),
+          purchases,
+          matches
+        ),
         purchases,
         matches
       ),
-      purchases,
-      matches
+      acceptedNo2aIds
     );
     const f = (filterCtin || "").trim();
     if (!f) return rows;
     return rows.filter((r) => (r.ctin || "").trim() === f);
-  }, [invoices, filterCtin, purchases, matches]);
+  }, [invoices, filterCtin, purchases, matches, acceptedNo2aIds]);
+
+  /** PR-only, zero-tax and not yet accepted - what "Accept zero-tax" would take. */
+  const acceptableRows = useMemo(
+    () =>
+      documentRows.filter(
+        (r) =>
+          r.isPrOnly &&
+          r.isZeroTax &&
+          !r.isNo2aAccepted &&
+          r.gst_tally_purchase_id != null
+      ),
+    [documentRows]
+  );
 
   const summary2A = useMemo(
     () => aggregateGstr2aPeriodSummary(invoices),
@@ -275,6 +331,90 @@ export default function GstGstr2aPurchaseRegisterPage() {
       documentRows.filter((r) => !r.isMatched && r.gst_b2b_invoice_id != null)
         .length,
     [documentRows]
+  );
+
+  const employeeId = useMemo(
+    () => parseInt(String(userConfig?.employeeId ?? ""), 10),
+    [userConfig]
+  );
+
+  const acceptNo2aRows = useCallback(
+    async (rows) => {
+      if (!Number.isFinite(employeeId)) {
+        toast.error("Employee ID not found. Please sign in again.");
+        return;
+      }
+      const ids = rows
+        .map((r) => r.gst_tally_purchase_id)
+        .filter((id) => id != null);
+      if (!ids.length) return;
+
+      setAccepting(true);
+      try {
+        const data = await acceptPurchaseGstNo2a({
+          gst_tally_purchase_ids: ids,
+          accepted_by: employeeId,
+        });
+        if (data.code !== 200) {
+          toast.error(data?.msg || "Could not accept");
+          return;
+        }
+        await refetchPr();
+        const count = data.accepted_count ?? ids.length;
+        const skipped = (data.rejected ?? []).length;
+        toast.success(
+          `Accepted ${count} invoice${count === 1 ? "" : "s"} as not in 2A` +
+            (skipped ? `. ${skipped} skipped - tax is not zero.` : "")
+        );
+      } catch (e) {
+        toast.error(e?.message || "Could not accept");
+      } finally {
+        setAccepting(false);
+      }
+    },
+    [employeeId, refetchPr]
+  );
+
+  const handleAcceptRow = useCallback(
+    (row) => acceptNo2aRows([row]),
+    [acceptNo2aRows]
+  );
+
+  const handleOpenAcceptPreview = useCallback(() => {
+    if (!acceptableRows.length) return;
+    setAcceptPreviewOpen(true);
+  }, [acceptableRows]);
+
+  const handleCloseAcceptPreview = useCallback(() => {
+    if (accepting) return;
+    setAcceptPreviewOpen(false);
+  }, [accepting]);
+
+  const handleConfirmAcceptZeroTax = useCallback(async () => {
+    await acceptNo2aRows(acceptableRows);
+    setAcceptPreviewOpen(false);
+  }, [acceptableRows, acceptNo2aRows]);
+
+  const handleUnacceptRow = useCallback(
+    async (row) => {
+      const id = row?.gst_tally_purchase_id;
+      if (id == null) return;
+      setAccepting(true);
+      try {
+        const data = await deletePurchaseGstNo2a(id);
+        if (data.code !== 200) {
+          toast.error(data?.msg || "Could not undo");
+          return;
+        }
+        await refetchPr();
+        toast.success("Back to unmatched");
+      } catch (e) {
+        toast.error(e?.message || "Could not undo");
+      } finally {
+        setAccepting(false);
+      }
+    },
+    [refetchPr]
   );
 
   const handleOpenAutoMatchPreview = useCallback(() => {
@@ -305,7 +445,6 @@ export default function GstGstr2aPurchaseRegisterPage() {
   }, [autoMatching]);
 
   const handleConfirmAutoMatch = useCallback(async () => {
-    const employeeId = parseInt(String(userConfig?.employeeId ?? ""), 10);
     if (!Number.isFinite(employeeId)) {
       toast.error("Employee ID not found. Please sign in again.");
       return;
@@ -349,7 +488,7 @@ export default function GstGstr2aPurchaseRegisterPage() {
     } finally {
       setAutoMatching(false);
     }
-  }, [autoMatchPairs, userConfig?.employeeId, refetchPr]);
+  }, [autoMatchPairs, employeeId, refetchPr]);
 
   const vendorColDefs = useMemo(
     () => [
@@ -482,8 +621,33 @@ export default function GstGstr2aPurchaseRegisterPage() {
         filter: false,
         sortable: false,
         valueGetter: (params) => {
-          const matched = Boolean(params.data?.isMatched);
-          const prOnly = Boolean(params.data?.isPrOnly);
+          const row = params.data;
+          const matched = Boolean(row?.isMatched);
+          const prOnly = Boolean(row?.isPrOnly);
+
+          // A zero-tax purchase has no 2A document to match, so its action is
+          // to accept that absence rather than to open the match modal.
+          if (prOnly && row?.isNo2aAccepted) {
+            return [
+              {
+                label: "Accepted - undo",
+                icon: "fa-solid fa-rotate-left",
+                colorScheme: "green",
+                onClick: () => handleUnacceptRow(row),
+              },
+            ];
+          }
+          if (prOnly && row?.isZeroTax) {
+            return [
+              {
+                label: "Accept - no 2A expected",
+                icon: "fa-solid fa-circle-check",
+                colorScheme: "green",
+                onClick: () => handleAcceptRow(row),
+              },
+            ];
+          }
+
           return [
             {
               label: matched ? "Matched" : "Match",
@@ -681,7 +845,55 @@ export default function GstGstr2aPurchaseRegisterPage() {
         ],
       },
     ],
-    [onOpenMatch, colorScheme]
+    [onOpenMatch, colorScheme, handleAcceptRow, handleUnacceptRow]
+  );
+
+  const currentMonth = moment().format("YYYY-MM");
+
+  const financialYears = useMemo(
+    () => listFinancialYears(currentMonth),
+    [currentMonth]
+  );
+
+  /** The FY the range covers exactly, or "" while the range is a custom span. */
+  const selectedFinancialYear = useMemo(() => {
+    const fy = financialYearForPeriodRange(fromPeriod, toPeriod, currentMonth);
+    return fy == null ? "" : String(fy);
+  }, [fromPeriod, toPeriod, currentMonth]);
+
+  const handleFinancialYearChange = useCallback(
+    (e) => {
+      const value = e.target.value;
+      if (!value) return;
+      const range = financialYearPeriodRange(Number(value), currentMonth);
+      if (!range) return;
+      setFromPeriod(range.from);
+      setToPeriod(range.to);
+    },
+    [currentMonth]
+  );
+
+  /** Keep the range ordered: moving one end past the other drags the other with it. */
+  const handleFromPeriodChange = useCallback(
+    (e) => {
+      const next = e.target.value;
+      setFromPeriod(next);
+      if (next && toPeriod && next > toPeriod) {
+        setToPeriod(next);
+      }
+    },
+    [toPeriod]
+  );
+
+  const handleToPeriodChange = useCallback(
+    (e) => {
+      const next = e.target.value;
+      setToPeriod(next);
+      if (next && fromPeriod && next < fromPeriod) {
+        setFromPeriod(next);
+      }
+    },
+    [fromPeriod]
   );
 
   const monthPicker = (
@@ -693,15 +905,40 @@ export default function GstGstr2aPurchaseRegisterPage() {
         color={`${colorScheme}.700`}
         fontWeight="medium"
       >
-        Return month
+        Return period
       </FormLabel>
+      <Select
+        size="sm"
+        maxW="150px"
+        value={selectedFinancialYear}
+        onChange={handleFinancialYearChange}
+        placeholder="Custom"
+      >
+        {financialYears.map((fy) => (
+          <option key={fy} value={fy}>
+            {formatFinancialYearLabel(fy)}
+          </option>
+        ))}
+      </Select>
       <Input
         type="month"
         size="sm"
         maxW="168px"
-        value={period}
-        max={moment().format("YYYY-MM")}
-        onChange={(e) => setPeriod(e.target.value)}
+        value={fromPeriod}
+        max={toPeriod || currentMonth}
+        onChange={handleFromPeriodChange}
+      />
+      <Text fontSize="xs" color="gray.600">
+        to
+      </Text>
+      <Input
+        type="month"
+        size="sm"
+        maxW="168px"
+        value={toPeriod}
+        min={fromPeriod || undefined}
+        max={currentMonth}
+        onChange={handleToPeriodChange}
       />
     </FormControl>
   );
@@ -716,12 +953,20 @@ export default function GstGstr2aPurchaseRegisterPage() {
           isOpen={matchDocument != null}
           onClose={onCloseMatch}
           documentRow={matchDocument}
-          period={period}
+          fromPeriod={fromPeriod}
+          toPeriod={toPeriod}
           purchases={purchases}
           matches={matches}
           prLoading={prLoading}
           prError={prError}
           onMatchChanged={refetchPr}
+        />
+        <Gstr2aAcceptZeroTaxModal
+          isOpen={acceptPreviewOpen}
+          onClose={handleCloseAcceptPreview}
+          rows={acceptableRows}
+          confirming={accepting}
+          onConfirm={handleConfirmAcceptZeroTax}
         />
         <Gstr2aAutoMatchPreviewModal
           isOpen={autoMatchPreviewOpen}
@@ -745,6 +990,9 @@ export default function GstGstr2aPurchaseRegisterPage() {
             </Alert>
           ) : (
             <>
+              <Text fontSize="xs" color="gray.600" mb={2}>
+                Return period: {periodLabel}
+              </Text>
               <Gstr2aPrSummaryTable
                 summary2A={summary2A}
                 summaryPD={summaryPD}
@@ -765,7 +1013,7 @@ export default function GstGstr2aPurchaseRegisterPage() {
                     <AgGrid
                       rowData={vendorRows}
                       columnDefs={vendorColDefs}
-                      tableKey={`gst-gstr2a-pr-vendor-${period}`}
+                      tableKey={`gst-gstr2a-pr-vendor-${periodKey}`}
                       gridOptions={{
                         getRowId: (params) => String(params.data?._rowId ?? ""),
                       }}
@@ -799,27 +1047,47 @@ export default function GstGstr2aPurchaseRegisterPage() {
                           </Text>
                         ) : null}
                       </Box>
-                      <Button
-                        type="button"
-                        colorScheme={colorScheme}
-                        size="sm"
-                        leftIcon={
-                          <i className="fa-solid fa-wand-magic-sparkles" />
-                        }
-                        onClick={handleOpenAutoMatchPreview}
-                        isLoading={autoMatching && !autoMatchPreviewOpen}
-                        isDisabled={pageLoading || unmatchedDocumentCount === 0}
-                      >
-                        Auto match
-                        {unmatchedDocumentCount > 0
-                          ? ` (${unmatchedDocumentCount} unmatched)`
-                          : ""}
-                      </Button>
+                      <Flex gap={2}>
+                        {acceptableRows.length > 0 ? (
+                          <Button
+                            type="button"
+                            colorScheme="green"
+                            variant="outline"
+                            size="sm"
+                            leftIcon={
+                              <i className="fa-solid fa-circle-check" />
+                            }
+                            onClick={handleOpenAcceptPreview}
+                            isLoading={accepting}
+                            isDisabled={pageLoading}
+                          >
+                            {`Accept zero-tax (${acceptableRows.length})`}
+                          </Button>
+                        ) : null}
+                        <Button
+                          type="button"
+                          colorScheme={colorScheme}
+                          size="sm"
+                          leftIcon={
+                            <i className="fa-solid fa-wand-magic-sparkles" />
+                          }
+                          onClick={handleOpenAutoMatchPreview}
+                          isLoading={autoMatching && !autoMatchPreviewOpen}
+                          isDisabled={
+                            pageLoading || unmatchedDocumentCount === 0
+                          }
+                        >
+                          Auto match
+                          {unmatchedDocumentCount > 0
+                            ? ` (${unmatchedDocumentCount} unmatched)`
+                            : ""}
+                        </Button>
+                      </Flex>
                     </Flex>
                     <AgGrid
                       rowData={documentRows}
                       columnDefs={documentColDefs}
-                      tableKey={`gst-gstr2a-pr-doc-${period}`}
+                      tableKey={`gst-gstr2a-pr-doc-${periodKey}`}
                       gridOptions={{
                         getRowId: (params) => String(params.data?._rowId ?? ""),
                       }}

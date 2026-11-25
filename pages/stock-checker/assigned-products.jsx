@@ -12,7 +12,12 @@ import toast from "react-hot-toast";
 
 function AssignedProductsPage() {
   const { storeId } = useUser().userConfig;
-  const { outlets } = useOutlets({ skipIds: [1] });
+  // Id and name only - the rows below use nothing else. Switching to the
+  // directory removes the `view_stores` requirement WITHOUT widening what this
+  // screen shows: the `storeId` restriction is applied to the result, below,
+  // exactly as before. A branch user still sees only their own outlet; the
+  // directory merely means the name of their outlet can be resolved at all.
+  const { outlets } = useOutlets({ skipIds: [1], directory: true });
   const { stockCheckers, loading, refetch } = useStockCheckers();
   const [drawerState, setDrawerState] = useState({
     row: null,

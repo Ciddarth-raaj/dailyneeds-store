@@ -17,7 +17,10 @@ function StockCheckerListing() {
   const canAdd = usePermissions("add_stock_checker");
   const { stockCheckers, loading, deleteStockChecker, refetch } =
     useStockCheckers();
-  const { outlets } = useOutlets({ skipIds: [1] });
+  // Only used for the branch COUNT below, so id and name are more than
+  // enough. Same reason as the other Stock Checker screens: the `view_stores`
+  // gate on `/outlet` made this read 0 for anyone without it.
+  const { outlets } = useOutlets({ skipIds: [1], directory: true });
   const { confirmDelete, ConfirmDeleteDialog } = useConfirmDelete();
   const [itemDrawerRow, setItemDrawerRow] = useState(null);
 

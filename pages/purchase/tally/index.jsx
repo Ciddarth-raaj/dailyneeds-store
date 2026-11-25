@@ -8,12 +8,18 @@ import { usePurchaseGst } from "../../../customHooks/usePurchaseGst";
 import moment from "moment";
 import currencyFormatter from "../../../util/currencyFormatter";
 import { Button } from "@chakra-ui/button";
-import { Input, Text } from "@chakra-ui/react";
+import { Flex, Input, Text } from "@chakra-ui/react";
 import toast from "react-hot-toast";
 
 import PurchaseModal from "../../../components/Purchase/PurchaseModal";
+import { useUser } from "../../../contexts/UserContext";
 import FromToDateOutletPicker from "../../../components/DateOutletPicker/FromToDateOutletPicker";
 import { exportToExcel } from "../../../util/exportCSVFile";
+import { getPurchaseTotalTax } from "../../../util/gstr2aPurchaseRegister";
+import {
+  bulkDeletePurchaseGst,
+  deletePurchaseGst,
+} from "../../../helper/purchaseGst";
 import { capitalize } from "../../../util/string";
 
 function getSourceBadge(item) {
@@ -51,6 +57,18 @@ function AllTallyPurchases() {
   const [selectedOutlet, setSelectedOutlet] = useState(null);
   const [selectedPurchase, setSelectedPurchase] = useState(null);
   const [viewLoading, setViewLoading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [selectedRows, setSelectedRows] = useState([]);
+  const { userConfig } = useUser();
+
+  const canDelete = useMemo(
+    () =>
+      Array.isArray(userConfig?.permissions) &&
+      userConfig.permissions.some(
+        (p) => p?.permission_key === "delete_tally_purchases"
+      ),
+    [userConfig]
+  );
 
   const isOpen = selectedPurchase !== null;
   const onClose = () => setSelectedPurchase(null);
@@ -74,7 +92,12 @@ function AllTallyPurchases() {
     return filterItem;
   }, [selectedOutlet, fromDate, toDate]);
 
-  const { purchaseGst, loading, fetchPurchaseGstById } = usePurchaseGst(filters);
+  const {
+    purchaseGst,
+    loading,
+    fetchPurchaseGstById,
+    refetch,
+  } = usePurchaseGst(filters);
 
   const filteredPurchases = useMemo(() => {
     if (!search.trim()) return purchaseGst ?? [];
@@ -122,6 +145,85 @@ function AllTallyPurchases() {
     },
     [fetchPurchaseGstById]
   );
+
+  const handleDelete = useCallback(
+    async (row) => {
+      const id = row?.gst_tally_purchase_id;
+      if (id == null) return;
+
+      const label = [row.mmh_mrc_refno, row.supplier_name]
+        .filter(Boolean)
+        .join(" - ");
+      const ok = window.confirm(
+        `Delete ${label || "this purchase"}? It is removed from this list along ` +
+          `with any GSTR-2A match against it. Tally is not touched - if the ` +
+          `voucher still exists there, the next sync brings it back.`
+      );
+      if (!ok) return;
+
+      setDeleting(true);
+      try {
+        const data = await deletePurchaseGst(id);
+        if (data?.code !== 200) {
+          toast.error(data?.msg || "Could not delete");
+          return;
+        }
+        await refetch(true);
+        setSelectedRows([]);
+        toast.success("Deleted");
+      } catch (e) {
+        toast.error(e?.message || "Could not delete");
+      } finally {
+        setDeleting(false);
+      }
+    },
+    [refetch]
+  );
+
+  const handleSelectionChanged = useCallback((rows) => {
+    setSelectedRows(Array.isArray(rows) ? rows : []);
+  }, []);
+
+  /** Only what Tally owns can go, so only those rows can be ticked. */
+  const isRowSelectable = useCallback(
+    (node) => canDelete && node?.data?.source === "tally",
+    [canDelete]
+  );
+
+  const handleBulkDelete = useCallback(async () => {
+    const ids = selectedRows
+      .map((r) => r?.gst_tally_purchase_id)
+      .filter((id) => id != null);
+    if (!ids.length) return;
+
+    const ok = window.confirm(
+      `Delete ${ids.length} purchase${ids.length === 1 ? "" : "s"}? They are ` +
+        `removed from this list along with any GSTR-2A match against them. ` +
+        `Tally is not touched - any voucher that still exists there comes ` +
+        `back on the next sync.`
+    );
+    if (!ok) return;
+
+    setDeleting(true);
+    try {
+      const data = await bulkDeletePurchaseGst(ids);
+      if (data?.code !== 200) {
+        toast.error(data?.msg || "Could not delete");
+        return;
+      }
+      await refetch(true);
+      setSelectedRows([]);
+      const skipped = (data.skipped ?? []).length;
+      toast.success(
+        `Deleted ${data.deleted}` +
+          (skipped ? `. ${skipped} skipped - not synced from Tally.` : "")
+      );
+    } catch (e) {
+      toast.error(e?.message || "Could not delete");
+    } finally {
+      setDeleting(false);
+    }
+  }, [selectedRows, refetch]);
 
   const columnDefs = useMemo(
     () => [
@@ -183,6 +285,17 @@ function AllTallyPurchases() {
         minWidth: 120,
       },
       {
+        colId: "totalTax",
+        headerName: "Total Tax",
+        type: "currency",
+        sortable: true,
+        minWidth: 120,
+        // IGST for an interstate supplier, CGST + SGST otherwise - the same
+        // figure the GSTR-2A pages compare against, so the two agree.
+        valueGetter: (params) =>
+          params.data ? getPurchaseTotalTax(params.data) : null,
+      },
+      {
         field: "total_amount",
         headerName: "Total Amount",
         type: "currency",
@@ -213,7 +326,7 @@ function AllTallyPurchases() {
         valueGetter: (params) => {
           const item = params.data;
           if (!item) return [];
-          return [
+          const actions = [
             {
               label: "View",
               icon: "fa-solid fa-eye",
@@ -221,10 +334,23 @@ function AllTallyPurchases() {
               onClick: () => handleView(item),
             },
           ];
+
+          // A system row is the snapshot of a purchase in our own system;
+          // only what Tally owns can be removed from here.
+          if (canDelete && item.source === "tally") {
+            actions.push({
+              label: "Delete",
+              icon: "fa-solid fa-trash",
+              colorScheme: "red",
+              onClick: () => handleDelete(item),
+            });
+          }
+
+          return actions;
         },
       },
     ],
-    [handleView]
+    [handleView, handleDelete, canDelete]
   );
 
   const exportData = useCallback(() => {
@@ -237,6 +363,7 @@ function AllTallyPurchases() {
       "Dist Bill Date": moment(item.mmh_dist_bill_dt).format("DD-MM-YYYY"),
       "Dist Bill No": item.mmh_dist_bill_no,
       "MRC Amount": currencyFormatter(item.mmh_mrc_amt),
+      "Total Tax": currencyFormatter(getPurchaseTotalTax(item)),
       "Total Amount": item.total_amount
         ? currencyFormatter(item.total_amount)
         : "-",
@@ -271,14 +398,27 @@ function AllTallyPurchases() {
             filledHeader
             colorScheme="blue"
             rightSection={
-              <Button
-                colorScheme="blue"
-                onClick={exportData}
-                size="sm"
-                isDisabled={viewLoading}
-              >
-                Export
-              </Button>
+              <Flex gap={2}>
+                {canDelete && selectedRows.length > 0 ? (
+                  <Button
+                    colorScheme="red"
+                    variant="outline"
+                    onClick={handleBulkDelete}
+                    size="sm"
+                    isLoading={deleting}
+                  >
+                    {`Delete selected (${selectedRows.length})`}
+                  </Button>
+                ) : null}
+                <Button
+                  colorScheme="blue"
+                  onClick={exportData}
+                  size="sm"
+                  isDisabled={viewLoading || deleting}
+                >
+                  Export
+                </Button>
+              </Flex>
             }
           >
             <Input
@@ -305,6 +445,9 @@ function AllTallyPurchases() {
                 rowData={filteredPurchases}
                 columnDefs={columnDefs}
                 tableKey="purchase-tally-all"
+                selectMode={canDelete}
+                isRowSelectable={isRowSelectable}
+                onSelectionChanged={handleSelectionChanged}
                 gridOptions={{
                   getRowId: (params) =>
                     String(params.data?.gst_tally_purchase_id ?? ""),

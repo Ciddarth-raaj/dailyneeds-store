@@ -11,6 +11,7 @@ import {
 } from "@chakra-ui/react";
 import moment from "moment";
 import CustomContainer from "../CustomContainer";
+import PickPackCalendarLegend from "./PickPackCalendarLegend";
 import { useModuleTableTheme } from "../../contexts/ModuleTableThemeContext";
 import {
   aggregatePickPackDaysByReason,
@@ -36,6 +37,7 @@ function VerificationMonthCalendar({
   selectedDate,
   onSelectDate,
   verificationsList = [],
+  uploadedDates = null,
   viewingMonth,
   onViewingMonthChange,
 }) {
@@ -116,7 +118,9 @@ function VerificationMonthCalendar({
       <Flex flexWrap="wrap" gap="8px">
         {dates.map((date, index) => {
           const key = date.format("YYYY-MM-DD");
-          const visual = getPickPackDayVisual(dayAggregation[key]);
+          const visual = getPickPackDayVisual(dayAggregation[key], {
+            uploadedNoWriteOff: Boolean(uploadedDates && uploadedDates.has(key)),
+          });
           const selected = isSelected(date);
 
           return (
@@ -154,6 +158,7 @@ function VerificationMonthCalendar({
           );
         })}
       </Flex>
+      <PickPackCalendarLegend />
     </CustomContainer>
   );
 }

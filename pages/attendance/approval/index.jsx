@@ -1,0 +1,554 @@
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/router";
+import {
+  Alert,
+  AlertIcon,
+  Badge,
+  Button,
+  Flex,
+  Select,
+  SimpleGrid,
+  Stack,
+  Tab,
+  TabList,
+  TabPanel,
+  TabPanels,
+  Tabs,
+  Text,
+  useToast,
+} from "@chakra-ui/react";
+import GlobalWrapper from "../../../components/globalWrapper/globalWrapper";
+import usePermissions from "../../../customHooks/usePermissions";
+import CustomContainer from "../../../components/CustomContainer";
+import ApprovalQueue from "../../../components/attendance/ApprovalQueue";
+import RevokeDecisionModal from "../../../components/attendance/RevokeDecisionModal";
+import BulkActionBar from "../../../components/attendance/BulkActionBar";
+import BulkActionModal from "../../../components/attendance/BulkActionModal";
+import { useUser } from "../../../contexts/UserContext";
+import AttendanceV2Helper from "../../../helper/attendanceV2";
+import useDesignations from "../../../customHooks/useDesignations";
+import { apiMessage, isOk } from "../../../util/attendanceV2";
+import {
+  bulkActionsFor,
+  isSelectable,
+  pageState,
+  selectionFromTargets,
+  selectionScope,
+  togglePage,
+  toggleRow,
+} from "../../../util/approvalBulk";
+
+/**
+ * THE ATTENDANCE APPROVAL CENTRE - Attendance, OT and Shift in one place.
+ *
+ * There were two screens and a third was asked for. Three screens would have
+ * been three copies of the same queue, the same filters, the same decide
+ * flow and the same "pending with me" counter, differing in four columns -
+ * so this is one screen with a REQUEST TYPE selector, and `/attendance/
+ * ot-approval` now redirects here with OT preselected rather than being
+ * maintained beside it.
+ *
+ * THE FILTERS NARROW; THEY DO NOT WIDEN. Every dropdown on this screen is
+ * built from the rows the server returned, and the server applies the
+ * caller's own branch scope to every query regardless: asking for an outlet
+ * outside it returns nothing rather than returning it. Nothing here can reach
+ * a request - or even the NAME of an outlet - the caller was not already
+ * entitled to see, which is why the filter state is safe to keep in the URL.
+ *
+ * FILTERS SURVIVE THE TAB. Switching Attendance -> OT -> Shift keeps the
+ * outlet, employee and designation, because a manager looking at one outlet's
+ * pending work wants the same outlet's OT next, not everybody's.
+ *
+ * "PENDING WITH ME" IS COUNTED UNDER THE SAME FILTERS as the table, so the
+ * number is always a count of what is on the screen.
+ */
+const TYPES = [
+  { key: "REGULARIZATION", label: "Attendance" },
+  { key: "OT", label: "OT" },
+  { key: "SHIFT_CHANGE", label: "Shift" },
+  { key: "PERMISSION", label: "Permission" },
+];
+const STATUSES = ["PENDING", "APPROVED", "REJECTED", "ALL"];
+
+/**
+ * THE SHIFT TAB CARRIES ITS OWN KEYS, ON TOP OF THE PAGE'S.
+ *
+ * The screen stays behind `view_attendance_approvals` as it always was, and
+ * Attendance and OT are unchanged. Shift is the one type that needs a second
+ * key: `view_shift_change_requests` to see the selector at all, and
+ * `approve_shift_change_request` - beside the ordinary approval key - before
+ * Approve and Reject are offered on a Shift row.
+ *
+ * THIS HIDES BUTTONS; IT IS NOT THE SECURITY BOUNDARY. The same two keys are
+ * enforced on `/attendance/approvals`, `/attendance/approvals/count`, the
+ * detail route and the decision route, where the type is taken from the
+ * stored request rather than from anything the client sent. A caller who
+ * reaches past this UI is refused there.
+ */
+const SHIFT_VIEW_KEYS = ["view_attendance_approvals", "view_shift_change_requests"];
+const SHIFT_DECIDE_KEYS = ["approve_attendance_regularization", "approve_shift_change_request"];
+// PERMISSION: the same shape - its own view and approve keys on top of the
+// page's. Enforced again on every approval route, per stored request type.
+const PERMISSION_VIEW_KEYS = ["view_attendance_approvals", "view_attendance_permissions"];
+const PERMISSION_DECIDE_KEYS = ["approve_attendance_regularization", "approve_attendance_permission"];
+const EMPTY_FILTERS = { outlet_id: "", employee_id: "", designation_id: "" };
+
+/** The URL's `type`, accepting the short word the old links and Telegram use. */
+const typeFromQuery = (value) => {
+  const asked = String(value || "").toUpperCase();
+  if (asked === "SHIFT" || asked === "SHIFT_CHANGE") return "SHIFT_CHANGE";
+  if (asked === "OT") return "OT";
+  if (asked === "PERMISSION") return "PERMISSION";
+  if (asked === "ATTENDANCE" || asked === "REGULARIZATION") return "REGULARIZATION";
+  return null;
+};
+
+const decisionMessage = (type, res) => {
+  if (res.status === "PENDING") return "Passed to the next stage.";
+  if (res.status === "REJECTED") return "The request is closed.";
+  if (type === "SHIFT_CHANGE") {
+    return "Approved. The requested shift applies to that date only, and the date has been recalculated.";
+  }
+  if (type === "OT") {
+    // Approved after the month's payroll was locked: the locked payroll is
+    // not touched; the OT is paid forward as Prior-Month OT.
+    if (res.late_settlement && res.late_settlement.message) return res.late_settlement.message;
+    return "Finally approved. Only this approved OT reaches payroll.";
+  }
+  if (type === "PERMISSION") {
+    return res.attendance_persisted
+      ? "Permission approved. The date has been recalculated: the permitted time is paid, not counted as worked."
+      : "Permission approved. It is applied when the attendance day closes.";
+  }
+  const raised = res.ot_auto_pending && Array.isArray(res.ot_auto_pending.created) ? res.ot_auto_pending.created.length : 0;
+  return raised > 0 || res.ot_now_available > 0
+    ? "Attendance corrected. The corrected day's OT has been sent for approval automatically."
+    : "Attendance corrected.";
+};
+
+export default function AttendanceApprovalCentrePage() {
+  const toast = useToast();
+  const router = useRouter();
+  const { designations } = useDesignations();
+
+  const canViewShift = usePermissions(SHIFT_VIEW_KEYS, { all: true });
+  // REVOKE is for administrators (user_type 2) only, on every type. This
+  // only decides whether the control is offered; the endpoint decides again.
+  const { userConfig } = useUser();
+  const isAdmin = String(userConfig && userConfig.userType) === "2";
+  const [revoking, setRevoking] = useState(null);
+  const canDecideShift = usePermissions(SHIFT_DECIDE_KEYS, { all: true });
+  const canViewPermission = usePermissions(PERMISSION_VIEW_KEYS, { all: true });
+  const canDecidePermission = usePermissions(PERMISSION_DECIDE_KEYS, { all: true });
+  const types = useMemo(
+    () =>
+      TYPES.filter(
+        (t) => (t.key !== "SHIFT_CHANGE" || canViewShift) && (t.key !== "PERMISSION" || canViewPermission)
+      ),
+    [canViewShift, canViewPermission]
+  );
+
+  const [type, setType] = useState("REGULARIZATION");
+  const [tab, setTab] = useState(0);
+  const [filters, setFilters] = useState(EMPTY_FILTERS);
+  const [rows, setRows] = useState([]);
+  /*
+   * HOW MANY REQUESTS MATCH, not how many arrived. The API pages (200 a
+   * page) and returns `total`; the screen used to ignore it, so on a busy
+   * Approved or All tab everything past the first page - oldest dates last -
+   * was silently missing. It now says "Showing N of M" and loads the rest.
+   */
+  const [total, setTotal] = useState(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [count, setCount] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [deciding, setDeciding] = useState(null);
+  /**
+   * The OUTLETS and EMPLOYEES the filters offer, taken from the requests the
+   * server has already returned.
+   *
+   * NOT from `/outlet/directory`, and not from `/hr/employees/outlets`
+   * either. The directory is authenticated but deliberately COMPANY-WIDE, and
+   * this screen's rows are narrowed by the caller's `employee_branch_scope` on
+   * the server - so reading it here would send a branch-scoped approver the
+   * name of every outlet in the company for a screen that refuses to show
+   * their requests, which is the leak `useEmployeeOutlets` was introduced to
+   * close. The scoped employee endpoint is the right answer for the employee
+   * screens and the wrong one here: it needs `view_employees`, which a store
+   * manager holding `view_attendance_approvals` need not have, and they would
+   * lose the filter entirely.
+   *
+   * The rows themselves are the honest source. They have already passed the
+   * server's scope, they need no second permission, and an outlet or a person
+   * that appears in them is by definition one this approver may filter by.
+   * Both lists refresh on every load that is not itself filtered by that
+   * field, which is what stops a list collapsing to the one value just chosen.
+   */
+  const [roster, setRoster] = useState([]);
+  const [outlets, setOutlets] = useState([]);
+  const status = STATUSES[tab];
+
+  /**
+   * BULK SELECTION. One selection per view: the type, the tab and every
+   * filter make up its scope, and a new scope starts an empty one, so ids
+   * ticked under one filter can never be actioned under another. The page's
+   * own rows decide what may be ticked (the server's `actionable` /
+   * `revocable`); the bulk endpoint re-checks every id regardless.
+   */
+  const [selected, setSelected] = useState(() => new Map());
+  const [allMatching, setAllMatching] = useState(null);
+  const [selectingAll, setSelectingAll] = useState(false);
+  const [bulk, setBulk] = useState(null);
+  const scope = selectionScope({ type, status, filters });
+  useEffect(() => {
+    setSelected(new Map());
+    setAllMatching(null);
+  }, [scope]);
+  // The Request Type may arrive in the URL: from the redirect that replaced
+  // the old OT screen, and from the View button on a Telegram message.
+  useEffect(() => {
+    if (!router.isReady) return;
+    const asked = typeFromQuery(router.query.type);
+    // A link into the Shift tab is no way around the key. Without it the
+    // deep link lands on Attendance rather than on a tab whose every call
+    // the server would refuse.
+    if (asked === "SHIFT_CHANGE" && !canViewShift) return;
+    if (asked === "PERMISSION" && !canViewPermission) return;
+    if (asked) setType(asked);
+  }, [router.isReady, router.query.type, canViewShift, canViewPermission]);
+
+  // The keys arrive with the user config, which can land after the first
+  // render, so a tab that was reachable a moment ago is stepped back off.
+  useEffect(() => {
+    if (type === "SHIFT_CHANGE" && !canViewShift) setType("REGULARIZATION");
+    if (type === "PERMISSION" && !canViewPermission) setType("REGULARIZATION");
+  }, [type, canViewShift, canViewPermission]);
+
+  const queryFilters = useMemo(
+    () => ({
+      outlet_ids: filters.outlet_id ? [Number(filters.outlet_id)] : null,
+      employee_id: filters.employee_id ? Number(filters.employee_id) : null,
+      designation_id: filters.designation_id ? Number(filters.designation_id) : null,
+    }),
+    [filters]
+  );
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [list, counted] = await Promise.all([
+        AttendanceV2Helper.getApprovals({ request_type: type, status, ...queryFilters }),
+        AttendanceV2Helper.getApprovalCount(type, queryFilters),
+      ]);
+      if (!isOk(list)) {
+        setRows([]);
+        setError(apiMessage(list, "Requests could not be loaded"));
+      } else {
+        const loaded = Array.isArray(list.rows) ? list.rows : [];
+        setRows(loaded);
+        setTotal(Number.isFinite(Number(list.total)) ? Number(list.total) : loaded.length);
+        if (!queryFilters.employee_id) {
+          const seen = new Map();
+          loaded.forEach((r) => {
+            if (!seen.has(r.employee_id)) {
+              seen.set(r.employee_id, { employee_id: r.employee_id, employee_name: r.employee_name });
+            }
+          });
+          setRoster([...seen.values()].sort((a, b) => ("" + a.employee_name).localeCompare(b.employee_name)));
+        }
+        if (!queryFilters.outlet_ids) {
+          const seen = new Map();
+          loaded.forEach((r) => {
+            if (r.outlet_id !== null && r.outlet_id !== undefined && !seen.has(r.outlet_id)) {
+              seen.set(r.outlet_id, { outlet_id: r.outlet_id, outlet_name: r.outlet_name });
+            }
+          });
+          setOutlets([...seen.values()].sort((a, b) => ("" + a.outlet_name).localeCompare(b.outlet_name)));
+        }
+      }
+      setCount(isOk(counted) ? Number(counted.pending_with_me) || 0 : null);
+    } catch (err) {
+      setRows([]);
+      setError("Could not reach the server. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }, [type, status, queryFilters]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  /** The next page under the same tab and filters, appended. */
+  const loadMore = useCallback(async () => {
+    setLoadingMore(true);
+    try {
+      const list = await AttendanceV2Helper.getApprovals({
+        request_type: type,
+        status,
+        ...queryFilters,
+        offset: rows.length,
+      });
+      if (isOk(list)) {
+        const more = Array.isArray(list.rows) ? list.rows : [];
+        const seen = new Set(rows.map((r) => r.attendance_approval_request_id));
+        setRows([...rows, ...more.filter((r) => !seen.has(r.attendance_approval_request_id))]);
+        if (Number.isFinite(Number(list.total))) setTotal(Number(list.total));
+      } else {
+        toast({ status: "error", title: apiMessage(list, "More requests could not be loaded") });
+      }
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [type, status, queryFilters, rows, toast]);
+
+  const setFilter = (key, value) => setFilters((current) => ({ ...current, [key]: value }));
+
+  /**
+   * Choosing an outlet re-queries, so the roster it rebuilds is already that
+   * outlet's - the employee options follow the outlet without a second rule.
+   * An employee chosen from a different outlet is cleared rather than left as
+   * a filter whose effect the reader can no longer see the reason for.
+   */
+  useEffect(() => {
+    if (!filters.employee_id) return;
+    if (roster.some((e) => Number(e.employee_id) === Number(filters.employee_id))) return;
+    setFilter("employee_id", "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters.outlet_id]);
+
+  const onDecide = async (row, decision, remarks) => {
+    setDeciding({ id: row.attendance_approval_request_id, decision });
+    try {
+      const res = await AttendanceV2Helper.decideApproval(row.attendance_approval_request_id, {
+        decision,
+        remarks,
+        // OT: the minutes this row showed, so a figure a recalculation moved
+        // meanwhile is refused rather than decided unseen.
+        expected_ot_minutes: type === "OT" ? row.claimed_ot_minutes : undefined,
+      });
+      if (!isOk(res)) {
+        toast({ title: "Could not record the decision", description: apiMessage(res), status: "error", duration: 6000 });
+        // The OT moved, its date's attendance is being corrected, or the
+        // attendance is incomplete (the OT is withdrawn - no OT until it is
+        // complete): show the current state.
+        if (res && (res.ot_minutes_changed || res.waiting_for_correction || res.attendance_incomplete)) await load();
+        return;
+      }
+      toast({
+        title: decision === "APPROVED" ? "Approved" : "Rejected",
+        description: decisionMessage(type, res),
+        status: "success",
+        duration: 5000,
+      });
+      await load();
+    } catch (err) {
+      toast({ title: "Could not reach the server", status: "error", duration: 5000 });
+    } finally {
+      setDeciding(null);
+    }
+  };
+
+  const onRevoked = async (res) => {
+    setRevoking(null);
+    toast({
+      title: "Decision revoked",
+      description:
+        res && res.status === "PENDING"
+          ? `The rejection is withdrawn and the request is back in approval at stage ${res.reopened_stage_no}.`
+          : "The request is cancelled and the date has been recalculated. The employee can raise a fresh request for it.",
+      status: "success",
+      duration: 6000,
+    });
+    await load();
+  };
+
+  const filtered = filters.outlet_id || filters.employee_id || filters.designation_id;
+
+  const canDecideHere =
+    (type !== "SHIFT_CHANGE" || canDecideShift) && (type !== "PERMISSION" || canDecidePermission);
+  const bulkActions = bulkActionsFor({ status, type, canDecide: canDecideHere, isAdmin });
+  const selection =
+    bulkActions.length > 0
+      ? {
+          selectable: (row) => isSelectable(row, status),
+          isSelected: (id) => selected.has(Number(id)),
+          toggle: (row) => {
+            setAllMatching(null);
+            setSelected((current) => toggleRow(current, row, status));
+          },
+          togglePage: () => {
+            setAllMatching(null);
+            setSelected((current) => togglePage(current, rows, status));
+          },
+          pageState: pageState(selected, rows, status),
+        }
+      : null;
+
+  const selectAllMatching = async () => {
+    setSelectingAll(true);
+    try {
+      // Revoke on the Approved / Rejected tabs; Approve covers Reject too -
+      // both act on the same pending rows.
+      const res = await AttendanceV2Helper.getBulkTargets({
+        request_type: type,
+        status,
+        action: status === "PENDING" ? "APPROVE" : "REVOKE",
+        ...queryFilters,
+      });
+      if (!isOk(res)) {
+        toast({ title: "Could not select all", description: apiMessage(res), status: "error", duration: 6000 });
+        return;
+      }
+      const next = selectionFromTargets(res.items);
+      setSelected(next);
+      setAllMatching({ count: next.size, truncated: !!res.truncated });
+    } catch (err) {
+      toast({ title: "Could not reach the server", status: "error", duration: 5000 });
+    } finally {
+      setSelectingAll(false);
+    }
+  };
+
+  const onBulkFinished = async (report) => {
+    setBulk(null);
+    const { succeeded, skipped, failed } = report.summary;
+    toast({
+      title: `${succeeded} done${skipped ? `, ${skipped} skipped` : ""}${failed ? `, ${failed} failed` : ""}`,
+      status: failed || skipped ? "warning" : "success",
+      duration: 6000,
+    });
+    setSelected(new Map());
+    setAllMatching(null);
+    await load();
+  };
+  const rowById = new Map(rows.map((r) => [Number(r.attendance_approval_request_id), r]));
+  const describeRow = (result) => {
+    const row = rowById.get(Number(result.request_id));
+    return row ? row.employee_name || `Employee ${row.employee_id}` : result.employee_id ? `Employee ${result.employee_id}` : "";
+  };
+
+  return (
+    <GlobalWrapper title="Approvals" permissionKey={["view_attendance_approvals"]}>
+      <CustomContainer
+        title="Approvals"
+        filledHeader
+        rightSection={
+          <Flex align="center" gap={2}>
+            <Text fontSize="sm" color="gray.600">Pending with me:</Text>
+            <Badge colorScheme="purple" fontSize="sm" px={2}>{count === null ? "—" : count}</Badge>
+          </Flex>
+        }
+      >
+        <Stack spacing={3}>
+          <Flex gap={2} wrap="wrap">
+            {types.map((t) => (
+              <Button
+                key={t.key}
+                size="sm"
+                colorScheme="purple"
+                variant={type === t.key ? "solid" : "outline"}
+                onClick={() => setType(t.key)}
+              >
+                {t.label}
+              </Button>
+            ))}
+          </Flex>
+
+          <SimpleGrid columns={{ base: 1, md: 4 }} spacing={2}>
+            <Select size="sm" placeholder="All outlets" value={filters.outlet_id} onChange={(e) => setFilter("outlet_id", e.target.value)}>
+              {outlets.map((o) => (
+                <option key={o.outlet_id} value={o.outlet_id}>{o.outlet_name}</option>
+              ))}
+            </Select>
+            <Select size="sm" placeholder="All employees" value={filters.employee_id} onChange={(e) => setFilter("employee_id", e.target.value)}>
+              {roster.map((e) => (
+                <option key={e.employee_id} value={e.employee_id}>{e.employee_id} — {e.employee_name}</option>
+              ))}
+            </Select>
+            <Select size="sm" placeholder="All designations" value={filters.designation_id} onChange={(e) => setFilter("designation_id", e.target.value)}>
+              {(designations || []).map((d) => (
+                <option key={d.designation_id} value={d.designation_id}>{d.designation_name}</option>
+              ))}
+            </Select>
+            <Button size="sm" variant="ghost" onClick={() => setFilters(EMPTY_FILTERS)} isDisabled={!filtered}>
+              Clear Filters
+            </Button>
+          </SimpleGrid>
+
+          <Tabs index={tab} onChange={setTab} colorScheme="purple" isLazy>
+            <TabList mb={3} overflowX="auto">
+              <Tab>Pending</Tab>
+              <Tab>Approved</Tab>
+              <Tab>Rejected</Tab>
+              <Tab>All</Tab>
+            </TabList>
+            <TabPanels>
+              {STATUSES.map((name) => (
+                <TabPanel key={name} p={0}>
+                  <Stack spacing={3}>
+                    {error ? (
+                      <Alert status="error" fontSize="sm" borderRadius="md"><AlertIcon />{error}</Alert>
+                    ) : null}
+                    {name === status && selection ? (
+                      <BulkActionBar
+                        count={selected.size}
+                        actions={bulkActions}
+                        onAction={(action) => setBulk({ action, type, status, items: [...selected.values()] })}
+                        onClear={() => {
+                          setSelected(new Map());
+                          setAllMatching(null);
+                        }}
+                        onSelectAllMatching={selectAllMatching}
+                        selectingAll={selectingAll}
+                        allMatching={allMatching}
+                      />
+                    ) : null}
+                    <ApprovalQueue
+                      rows={rows}
+                      kind={type}
+                      loading={loading}
+                      onDecide={
+                        (name === "PENDING" || name === "ALL") && canDecideHere
+                          ? onDecide
+                          : null
+                      }
+                      deciding={deciding}
+                      onRevoke={isAdmin ? (row) => setRevoking({ row }) : null}
+                      selection={name === status ? selection : null}
+                    />
+                    {name === status && total !== null && total > rows.length ? (
+                      <Flex align="center" justify="space-between" gap={2} data-approvals-more="">
+                        <Text fontSize="sm" color="gray.600">
+                          Showing {rows.length} of {total}
+                        </Text>
+                        <Button size="sm" onClick={loadMore} isLoading={loadingMore}>
+                          Load more
+                        </Button>
+                      </Flex>
+                    ) : null}
+                  </Stack>
+                </TabPanel>
+              ))}
+            </TabPanels>
+          </Tabs>
+        </Stack>
+      </CustomContainer>
+      <RevokeDecisionModal
+        target={revoking}
+        isOpen={!!revoking}
+        onClose={() => setRevoking(null)}
+        onRevoked={onRevoked}
+      />
+      <BulkActionModal
+        target={bulk}
+        isOpen={!!bulk}
+        onClose={() => setBulk(null)}
+        onFinished={onBulkFinished}
+        describeRow={describeRow}
+      />
+    </GlobalWrapper>
+  );
+}

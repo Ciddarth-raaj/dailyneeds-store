@@ -40,6 +40,8 @@ function NormalOutletForm() {
     card_sales: null,
     loyalty: null,
     sales_return: null,
+    wallet_receipt: "0.00",
+    wallet_payment: "0.00",
     accounts: [EMPTY_ACCOUNT_OBJECT],
     cashier_id: null,
   });
@@ -154,6 +156,9 @@ function NormalOutletForm() {
         if (response.code === 200) {
           const data = response.data;
           data.accounts = data.sales;
+          // A sheet saved before Wallet Transactions existed reads 0.00.
+          data.wallet_receipt = data.wallet_receipt ?? "0.00";
+          data.wallet_payment = data.wallet_payment ?? "0.00";
 
           setIsSaved(response.is_saved);
           setInitialValues(data);

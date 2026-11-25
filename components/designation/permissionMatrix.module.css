@@ -1,0 +1,246 @@
+.wrapper {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ---------- Toolbar : summary + search ---------- */
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 10px 12px;
+  border: 1px solid var(--chakra-colors-gray-200);
+  border-radius: 8px;
+  background-color: var(--chakra-colors-gray-50);
+}
+
+.summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.summaryCount {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--module-accent-600, var(--chakra-colors-purple-600));
+}
+
+.summaryLabel {
+  font-size: 12px;
+  color: var(--chakra-colors-gray-500);
+}
+
+.progressTrack {
+  display: inline-block;
+  width: 90px;
+  height: 5px;
+  border-radius: 999px;
+  background-color: var(--chakra-colors-gray-200);
+  overflow: hidden;
+}
+
+.progressBar {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background-color: var(--module-accent-500, var(--chakra-colors-purple-500));
+  transition: width 150ms ease;
+}
+
+.toolbarActions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1 1 320px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.searchGroup {
+  max-width: 320px;
+}
+
+.searchIcon {
+  font-size: 12px;
+  color: var(--chakra-colors-gray-400);
+}
+
+.clearButton {
+  font-size: 12px;
+  color: var(--chakra-colors-gray-400);
+  padding: 4px;
+  line-height: 1;
+}
+
+.clearButton:hover {
+  color: var(--chakra-colors-gray-600);
+}
+
+/* ---------- Modules ---------- */
+
+.moduleList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.module {
+  border: 1px solid var(--chakra-colors-gray-200);
+  border-radius: 8px;
+  background-color: white;
+  overflow: hidden;
+}
+
+.moduleOpen {
+  border-color: var(--module-accent-200, var(--chakra-colors-purple-200));
+}
+
+.moduleHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  cursor: pointer;
+  user-select: none;
+  background-color: var(--module-accent-50, var(--chakra-colors-purple-50));
+  transition: background-color 120ms ease;
+}
+
+.moduleHeader:hover {
+  background-color: var(--module-accent-100, var(--chakra-colors-purple-100));
+}
+
+.moduleHeader:focus-visible {
+  outline: 2px solid var(--module-accent-400, var(--chakra-colors-purple-400));
+  outline-offset: -2px;
+}
+
+.chevron {
+  font-size: 10px;
+  width: 10px;
+  color: var(--module-accent-500, var(--chakra-colors-purple-500));
+}
+
+.moduleIcon {
+  font-size: 12px;
+  color: var(--module-accent-400, var(--chakra-colors-purple-400));
+}
+
+.moduleTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--module-accent-700, var(--chakra-colors-purple-700));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.moduleCount {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--chakra-colors-gray-500);
+  background-color: white;
+  border: 1px solid var(--chakra-colors-gray-200);
+  border-radius: 999px;
+  padding: 1px 8px;
+  white-space: nowrap;
+}
+
+.moduleCountActive {
+  color: var(--module-accent-600, var(--chakra-colors-purple-600));
+  border-color: var(--module-accent-200, var(--chakra-colors-purple-200));
+}
+
+.selectAll {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+}
+
+.selectAllLabel {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--chakra-colors-gray-600);
+  white-space: nowrap;
+}
+
+/* ---------- Permissions grid ---------- */
+
+.permissionGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  column-gap: 16px;
+  row-gap: 8px;
+  padding: 12px 14px 14px 32px;
+  border-top: 1px solid var(--chakra-colors-gray-100);
+}
+
+.permission {
+  align-items: flex-start;
+}
+
+.permissionLabel {
+  font-size: 13px;
+  color: var(--chakra-colors-gray-700);
+  line-height: 1.35;
+}
+
+.mark {
+  background-color: var(--chakra-colors-yellow-200);
+  color: inherit;
+  padding: 0 1px;
+  border-radius: 2px;
+}
+
+/* ---------- Empty state ---------- */
+
+.emptyState {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px;
+  font-size: 13px;
+  color: var(--chakra-colors-gray-500);
+  border: 1px dashed var(--chakra-colors-gray-200);
+  border-radius: 8px;
+}
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 1100px) {
+  .permissionGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .permissionGrid {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 12px 14px;
+  }
+
+  .toolbarActions {
+    justify-content: flex-start;
+  }
+
+  .searchGroup {
+    flex: 1 1 100%;
+    max-width: 100%;
+  }
+
+  .moduleTitle {
+    white-space: normal;
+  }
+
+  .selectAllLabel {
+    display: none;
+  }
+}

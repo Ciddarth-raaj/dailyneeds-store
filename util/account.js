@@ -1,5 +1,10 @@
 import { WAREHHOUSE_ID } from "../constants";
 import currencyFormatter from "./currencyFormatter";
+import {
+  getAccountDifference,
+  getTotalCashHandover as getCashHandoverTotal,
+} from "./accountDifference";
+import { getWalletTotals } from "./accountWallet";
 
 export function getCashSales(accountData) {
   const { total_sales, card_sales, loyalty } = accountData;
@@ -88,8 +93,14 @@ export function getTotals(accounts, noFormat = false) {
     return totals;
   }
 
+  // Wallet totals are shown in their own columns, apart from sales and cash.
+  const walletTotals = getWalletTotals(accounts);
+
   // Format all values
   return {
+    wallet_receipt: <b>{currencyFormatter(walletTotals.wallet_receipt)}</b>,
+    wallet_payment: <b>{currencyFormatter(walletTotals.wallet_payment)}</b>,
+    net_wallet: <b>{currencyFormatter(walletTotals.net_wallet)}</b>,
     total_sales: (
       <b style={{ color: "var(--chakra-colors-purple-500)" }}>
         {currencyFormatter(totals.total_sales)}
@@ -142,28 +153,7 @@ export function getDenominations(accounts) {
 }
 
 export const getTotalCashHandover = (values, noFormat = false) => {
-  const {
-    cash_handover_1,
-    cash_handover_2,
-    cash_handover_5,
-    cash_handover_10,
-    cash_handover_20,
-    cash_handover_50,
-    cash_handover_100,
-    cash_handover_200,
-    cash_handover_500,
-  } = values;
-  let totalCashHandover = 0;
-
-  totalCashHandover += parseInt(cash_handover_1) * 1;
-  totalCashHandover += parseInt(cash_handover_2) * 2;
-  totalCashHandover += parseInt(cash_handover_5) * 5;
-  totalCashHandover += parseInt(cash_handover_10) * 10;
-  totalCashHandover += parseInt(cash_handover_20) * 20;
-  totalCashHandover += parseInt(cash_handover_50) * 50;
-  totalCashHandover += parseInt(cash_handover_100) * 100;
-  totalCashHandover += parseInt(cash_handover_200) * 200;
-  totalCashHandover += parseInt(cash_handover_500) * 500;
+  const totalCashHandover = getCashHandoverTotal(values);
 
   if (noFormat) {
     return totalCashHandover;
@@ -172,35 +162,9 @@ export const getTotalCashHandover = (values, noFormat = false) => {
   return currencyFormatter(totalCashHandover);
 };
 
-export const getAmmountDifference = (values) => {
-  try {
-    const { total_sales, card_sales, loyalty, sales_return, accounts, sales } =
-      values;
-
-    let calculated_sales =
-      getTotalCashHandover(values, true) +
-      (card_sales ? parseFloat(card_sales) : 0) +
-      (loyalty ? parseFloat(loyalty) : 0) +
-      (sales_return ? parseFloat(sales_return) : 0);
-
-    if (accounts || sales) {
-      (accounts ?? sales).forEach((item) => {
-        if (item.payment_type == 1) {
-          // Payment
-          calculated_sales += item.amount ? parseFloat(item.amount) : 0;
-        } else {
-          // Receipt
-          calculated_sales -= item.amount ? parseFloat(item.amount) : 0;
-        }
-      });
-    }
-
-    return parseInt(total_sales) - calculated_sales;
-  } catch (err) {
-    console.log(err);
-    return "Invalid!";
-  }
-};
+// Total Difference of one outlet Account Sheet, exact to the paisa. The rule
+// itself lives in util/accountDifference.js.
+export const getAmmountDifference = (values) => getAccountDifference(values);
 
 export function getCashBook(accounts, outletData, allEmployees) {
   const totals = getTotals(accounts, true);
@@ -240,7 +204,8 @@ export function getCashBook(accounts, outletData, allEmployees) {
           );
 
           rows.push({
-            particulars: employee?.employee_name ?? "N/A",
+            particulars:
+              item.employee_name ?? employee?.employee_name ?? "N/A",
             narration: item.description,
             debit: item.payment_type === 2 ? item.amount : "",
             credit: item.payment_type === 1 ? item.amount : "",
@@ -565,9 +530,11 @@ export function getWarehouseCashbook(
     sales.forEach((item) => {
       let person_name = item.person_name;
       if (item.person_type === 5) {
-        person_name = allEmployees.find(
-          (employee) => employee.employee_id === item.person_id
-        )?.employee_name;
+        person_name =
+          item.employee_name ??
+          allEmployees.find(
+            (employee) => employee.employee_id === item.person_id
+          )?.employee_name;
       }
 
       modified.push({
