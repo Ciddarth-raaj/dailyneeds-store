@@ -219,55 +219,6 @@ const ALL_PAGES_MENU = {
       },
     },
   },
-  advance_request: {
-    title: "Advance Request",
-    selected: false,
-    openPage: false,
-    icon: "fa-truck",
-    subMenu: {
-      view_advance_request: {
-        title: "All Requests",
-        permission: "view_advance_request",
-        selected: false,
-        location: "/advance-request",
-      },
-      create_advance_request: {
-        title: "Create Request",
-        permission: "create_advance_request",
-        selected: false,
-        location: "/advance-request/create",
-      },
-    },
-  },
-  // LR Follow-up: what has been paid for (advance) or dispatched by a
-  // supplier on credit and has not physically arrived yet.
-  lr_followup: {
-    title: "LR Follow-up",
-    selected: false,
-    openPage: false,
-    icon: "fa-truck-loading",
-    subMenu: {
-      view_lr_followup: {
-        title: "LR Follow-up List / Dashboard",
-        permission: "view_lr_followup",
-        selected: false,
-        location: "/lr-followup",
-      },
-      // The key keeps the name it shipped with (create_credit_purchase).
-      create_credit_purchase: {
-        title: "Create LR Follow-up",
-        permission: "create_credit_purchase",
-        selected: false,
-        location: "/lr-followup/create",
-      },
-      manage_lr_legacy_verification: {
-        title: "Legacy Follow-up Verification",
-        permission: "manage_lr_legacy_verification",
-        selected: false,
-        location: "/lr-followup/legacy",
-      },
-    },
-  },
   accounts: {
     title: "Accounts",
     selected: false,
@@ -751,6 +702,55 @@ const WMS_MENU = {
         permission: "view_purchase_ref",
         selected: false,
         location: "/purchase-ref",
+      },
+    },
+  },
+  advance_request: {
+    title: "Advance Request",
+    selected: false,
+    openPage: false,
+    icon: "fa-truck",
+    subMenu: {
+      view_advance_request: {
+        title: "All Requests",
+        permission: "view_advance_request",
+        selected: false,
+        location: "/advance-request",
+      },
+      create_advance_request: {
+        title: "Create Request",
+        permission: "create_advance_request",
+        selected: false,
+        location: "/advance-request/create",
+      },
+    },
+  },
+  // LR Follow-up: what has been paid for (advance) or dispatched by a
+  // supplier on credit and has not physically arrived yet.
+  lr_followup: {
+    title: "LR Follow-up",
+    selected: false,
+    openPage: false,
+    icon: "fa-truck-loading",
+    subMenu: {
+      view_lr_followup: {
+        title: "LR Follow-up List / Dashboard",
+        permission: "view_lr_followup",
+        selected: false,
+        location: "/lr-followup",
+      },
+      // The key keeps the name it shipped with (create_credit_purchase).
+      create_credit_purchase: {
+        title: "Create LR Follow-up",
+        permission: "create_credit_purchase",
+        selected: false,
+        location: "/lr-followup/create",
+      },
+      manage_lr_legacy_verification: {
+        title: "Legacy Follow-up Verification",
+        permission: "manage_lr_legacy_verification",
+        selected: false,
+        location: "/lr-followup/legacy",
       },
     },
   },
