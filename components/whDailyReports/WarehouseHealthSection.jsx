@@ -778,8 +778,8 @@ function Detail({ open, h }) {
         </Text>
         <Text fontSize="sm" color="gray.600" mb={3}>
           {plural(w.boxes, "box", "boxes")} · {num(w.qty)} qty ·{" "}
-          {rupees(w.value)}. The loading job ended LOADING_WRITEOFF in
-          RetailPilot - trace the box and escalate to tech.
+          {rupees(w.value)}. The loading job was closed as written off
+          (LOADING_WRITEOFF) in RetailPilot.
         </Text>
         <SimpleTable
           head={[
