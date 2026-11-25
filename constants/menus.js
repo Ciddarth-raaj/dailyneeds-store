@@ -570,12 +570,6 @@ const ALL_PAGES_MENU = {
     openPage: false,
     icon: "fa-book",
     subMenu: {
-      api_logs: {
-        title: "API Logs",
-        permission: "view_api_logs",
-        selected: false,
-        location: "/misc/api-logs",
-      },
       retailpilot_sync: {
         title: "RetailPilot Sync",
         permission: "sync_retailpilot_stock",
