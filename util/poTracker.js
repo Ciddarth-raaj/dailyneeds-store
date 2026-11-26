@@ -24,7 +24,7 @@ const STAGES = [
 ];
 
 /** The follow-up view: not a stage - a PO in it is also in Awaiting delivery or Expired. */
-const FOLLOW_UP_VIEW = { key: "followup", label: "Needs follow-up", hint: "Approved 2+ days ago, not chased recently", color: "purple" };
+const FOLLOW_UP_VIEW = { key: "followup", label: "Needs follow-up", hint: "From the 3rd day after the PO, not chased recently", color: "purple" };
 
 const CHANNELS = [
   { key: "CALL", label: "Call" },
