@@ -19,6 +19,7 @@ import GlobalWrapper from "../../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../../components/CustomContainer";
 import AttendanceV2Helper from "../../../helper/attendanceV2";
 import { apiMessage, isOk } from "../../../util/attendanceV2";
+import { displayIstDateTime } from "../../../util/displayDate";
 
 /**
  * OT AUTO-APPROVAL.
@@ -172,7 +173,7 @@ export default function OtAutoApprovalPage() {
               </Button>
               {saved && saved.updated_at ? (
                 <Text fontSize="xs" color="gray.500">
-                  Last changed {saved.updated_at}
+                  Last changed {displayIstDateTime(saved.updated_at)} IST
                   {saved.updated_by_employee_id ? ` by employee ${saved.updated_by_employee_id}` : ""}
                 </Text>
               ) : null}
