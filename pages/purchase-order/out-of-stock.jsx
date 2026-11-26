@@ -34,7 +34,6 @@ import toast from "react-hot-toast";
 import moment from "moment";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../components/CustomContainer";
-import AgGrid from "../../components/AgGrid";
 import usePermissions from "../../customHooks/usePermissions";
 import OosFollowupHelper from "../../helper/oosFollowup";
 import { importFileToJSON } from "../../util/fileImport";
@@ -101,33 +100,119 @@ const MOBILE_PAGE = 30;
 
 const rupees = (n) => `₹${Math.round(Number(n) || 0).toLocaleString("en-IN")}`;
 const title = (s) => String(s || "").replace(/\b\w/g, (c) => c.toUpperCase());
+const CLASS_ORDER = { A: 0, B: 1, C: 2, X: 3 };
 
-function UpdateModal({ line, onClose, onSaved }) {
-  const [reason, setReason] = useState(line?.reason || "");
+/**
+ * Lines (one per store) -> items: one per article, with its stores, total
+ * value, longest days out, and the causes and answers of its stores.
+ * Ordered by tier, class, then total value.
+ */
+function groupItems(lines) {
+  const byArticle = new Map();
+  for (const l of lines) {
+    if (!byArticle.has(l.article_id)) byArticle.set(l.article_id, []);
+    byArticle.get(l.article_id).push(l);
+  }
+  const items = [...byArticle.values()].map((ls) => {
+    const first = ls[0];
+    const causes = [];
+    for (const l of ls) {
+      if (!causes.some((c) => c.cause === l.cause && c.detail === l.cause_detail)) causes.push({ cause: l.cause, detail: l.cause_detail });
+    }
+    const reasons = [...new Set(ls.map((l) => l.reason || ""))];
+    const noted = ls.filter((l) => l.last_note).sort((a, b) => String(b.last_note_at).localeCompare(String(a.last_note_at)))[0];
+    const cls = ls.map((l) => l.class).sort((a, b) => (CLASS_ORDER[a] ?? 9) - (CLASS_ORDER[b] ?? 9))[0];
+    return {
+      key: String(first.article_id),
+      article_id: first.article_id,
+      article_name: first.article_name,
+      category: first.category,
+      class: cls,
+      supplier_name: first.supplier_name,
+      buyer_name: first.buyer_name,
+      lines: ls,
+      ids: ls.map((l) => l.id),
+      stores_text: ls.map((l) => title(l.store)).join(", "),
+      value: ls.reduce((t, l) => t + (Number(l.value) || 0), 0),
+      days_out: Math.max(...ls.map((l) => l.days_out || 0)),
+      tier: Math.min(...ls.map((l) => l.tier || 9)),
+      is_new: ls.every((l) => l.is_new),
+      causes,
+      cause: causes.length === 1 ? causes[0].cause : "",
+      reason: reasons.length === 1 ? reasons[0] || null : null,
+      mixed_reasons: reasons.length > 1,
+      last_note: noted ? noted.last_note : null,
+      needs_update: ls.some((l) => l.needs_update),
+    };
+  });
+  items.sort((a, b) => a.tier - b.tier || (CLASS_ORDER[a.class] ?? 9) - (CLASS_ORDER[b.class] ?? 9) || b.value - a.value);
+  return items;
+}
+
+function CauseLine({ c, size = "xs" }) {
+  const k = CAUSES[c.cause] || { label: c.cause, color: "gray" };
+  return (
+    <Box>
+      <Badge colorScheme={k.color}>{k.label}</Badge>{" "}
+      <Text as="span" fontSize={size}>
+        {c.detail}
+      </Text>
+    </Box>
+  );
+}
+
+function AnswerLine({ item }) {
+  if (item.reason || item.last_note || item.mixed_reasons) {
+    return (
+      <Text fontSize="xs">
+        {item.reason ? <b>{REASONS[item.reason] || item.reason}</b> : item.mixed_reasons ? <b>Answers differ by store</b> : null}
+        {item.last_note ? ` "${item.last_note}"` : ""}
+      </Text>
+    );
+  }
+  return item.needs_update ? <Badge colorScheme="red">No update</Badge> : null;
+}
+
+function UpdateModal({ item, onClose, onSaved }) {
+  const [reason, setReason] = useState("");
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
   const [events, setEvents] = useState(null);
 
   useEffect(() => {
-    if (!line) return;
-    setReason(line.reason || "");
+    if (!item) return;
+    setReason(item.reason || "");
     setNote("");
     setEvents(null);
-    OosFollowupHelper.events(line.id)
-      .then((b) => setEvents(b.data || []))
+    if (item.kind === "supplier") {
+      setEvents([]); // a supplier's history is on each of its items
+      return;
+    }
+    const storeOf = new Map(item.lines.map((l) => [l.id, title(l.store)]));
+    Promise.all(item.ids.map((id) => OosFollowupHelper.events(id).then((b) => (b.data || []).map((e) => ({ ...e, store: storeOf.get(id) })))))
+      .then((lists) => {
+        // One answer saved for several stores shows once, with its stores.
+        const merged = new Map();
+        for (const e of lists.flat()) {
+          const k = `${moment(e.created_at).format("YYYY-MM-DD HH:mm")}|${e.employee_id}|${e.reason || ""}|${e.note || ""}`;
+          if (merged.has(k)) merged.get(k).stores.push(e.store);
+          else merged.set(k, { ...e, stores: [e.store] });
+        }
+        setEvents([...merged.values()].sort((x, y) => String(x.created_at).localeCompare(String(y.created_at))));
+      })
       .catch(() => setEvents([]));
-  }, [line]);
+  }, [item]);
 
   const save = async () => {
-    const changedReason = reason && reason !== line.reason ? reason : null;
+    const changedReason = reason && (reason !== item.reason || item.mixed_reasons) ? reason : null;
     if (!changedReason && !note.trim()) {
       toast.error("Choose a reason or write a note");
       return;
     }
     setSaving(true);
     try {
-      await OosFollowupHelper.answer(line.id, { reason: changedReason, note: note.trim() || null });
-      toast.success("Saved");
+      await OosFollowupHelper.answerMany(item.ids, { reason: changedReason, note: note.trim() || null });
+      toast.success(item.ids.length > 1 ? `Saved for ${item.ids.length} stores` : "Saved");
       onSaved();
     } catch (err) {
       toast.error(err.message);
@@ -136,26 +221,55 @@ function UpdateModal({ line, onClose, onSaved }) {
     }
   };
 
+  const many = item && item.ids.length > 1;
+  const isSupplier = item && item.kind === "supplier";
   return (
-    <Modal isOpen={Boolean(line)} onClose={onClose} size="lg">
+    <Modal isOpen={Boolean(item)} onClose={onClose} size="lg">
       <ModalOverlay />
       <ModalContent>
         <ModalHeader fontSize="md">
-          {line ? title(line.article_name) : ""}
+          {item ? title(isSupplier ? item.supplier_name : item.article_name) : ""}
           <Text fontSize="sm" fontWeight="normal" color="gray.600">
-            {line ? `${title(line.store)} · ${line.supplier_name || "no supplier"} · out ${line.days_out} day(s)` : ""}
+            {item
+              ? isSupplier
+                ? `${item.items.length} item(s) · ${item.ids.length} store line(s) · ${rupees(item.value)}`
+                : `${item.supplier_name || "no supplier"} · out up to ${item.days_out} day(s)`
+              : ""}
           </Text>
         </ModalHeader>
         <ModalCloseButton />
         <ModalBody>
-          {line ? (
+          {item ? (
             <VStack align="stretch" spacing={3}>
-              <Box>
-                <Badge colorScheme={CAUSES[line.cause]?.color || "gray"}>{CAUSES[line.cause]?.label || line.cause}</Badge>{" "}
-                <Text as="span" fontSize="sm">
-                  {line.cause_detail}
-                </Text>
-              </Box>
+              {isSupplier ? (
+                <Box maxH="160px" overflowY="auto">
+                  <Text fontSize="sm" fontWeight="semibold">
+                    Every item below gets this answer
+                  </Text>
+                  {item.items.map((it) => (
+                    <Text key={it.key} fontSize="xs">
+                      {title(it.article_name)} · {it.stores_text}
+                    </Text>
+                  ))}
+                </Box>
+              ) : (
+                <>
+                  <Box>
+                    <Text fontSize="sm" fontWeight="semibold">
+                      Out in {item.lines.length} {item.lines.length === 1 ? "store" : "stores"}
+                    </Text>
+                    {item.lines.map((l) => (
+                      <Text key={l.id} fontSize="xs">
+                        {title(l.store)} · {l.days_out} day(s) · {rupees(l.value)}
+                        {l.reason ? ` · ${REASONS[l.reason] || l.reason}` : ""}
+                      </Text>
+                    ))}
+                  </Box>
+                  {item.causes.map((c) => (
+                    <CauseLine key={`${c.cause}|${c.detail}`} c={c} size="sm" />
+                  ))}
+                </>
+              )}
               <Select size="sm" placeholder="Reason…" value={reason} onChange={(e) => setReason(e.target.value)}>
                 {Object.entries(REASONS).map(([k, v]) => (
                   <option key={k} value={k}>
@@ -164,6 +278,16 @@ function UpdateModal({ line, onClose, onSaved }) {
                 ))}
               </Select>
               <Textarea size="sm" placeholder="Note (optional) – e.g. supplier delivers Friday" value={note} maxLength={500} onChange={(e) => setNote(e.target.value)} />
+              {many && !isSupplier ? (
+                <Text fontSize="xs" color="gray.600">
+                  Saved for all {item.ids.length} stores above.
+                </Text>
+              ) : null}
+              {isSupplier ? (
+                <Text fontSize="xs" color="gray.600">
+                  Each item's history is under its own Update button.
+                </Text>
+              ) : (
               <Box>
                 <Text fontSize="sm" fontWeight="semibold" mb={1}>
                   History
@@ -173,8 +297,9 @@ function UpdateModal({ line, onClose, onSaved }) {
                 ) : events.length ? (
                   <VStack align="stretch" spacing={1}>
                     {events.map((e) => (
-                      <Text key={e.oos_case_event_id} fontSize="xs">
+                      <Text key={`${e.oos_case_event_id}`} fontSize="xs">
                         <b>{moment(e.created_at).format("DD-MM HH:mm")}</b> · {e.employee_name || "?"}
+                        {many ? ` · ${e.stores.join(", ")}` : ""}
                         {e.reason ? ` · ${REASONS[e.reason] || e.reason}` : ""}
                         {e.note ? ` · "${e.note}"` : ""}
                       </Text>
@@ -186,6 +311,7 @@ function UpdateModal({ line, onClose, onSaved }) {
                   </Text>
                 )}
               </Box>
+              )}
             </VStack>
           ) : null}
         </ModalBody>
@@ -202,49 +328,136 @@ function UpdateModal({ line, onClose, onSaved }) {
   );
 }
 
-/** One line as a card, for phones. */
-function LineCard({ line, showBuyer, onUpdate }) {
-  const c = CAUSES[line.cause] || { label: line.cause, color: "gray" };
+/** One item (all its stores) as a card, for phones. */
+function ItemCard({ item, showBuyer, showSupplier = true, onUpdate }) {
   return (
     <Box borderWidth="1px" borderRadius="md" p={3} bg="white">
       <Flex justify="space-between" align="flex-start" gap={2}>
         <Box minW={0}>
           <Text fontWeight="semibold" fontSize="sm">
-            {title(line.article_name)}{" "}
-            {line.is_new ? (
+            {title(item.article_name)}{" "}
+            {item.is_new ? (
               <Badge colorScheme="purple" fontSize="0.6em">
                 NEW
               </Badge>
             ) : null}
           </Text>
           <Text fontSize="xs" color="gray.600">
-            {title(line.store)} · Class {line.class || "-"} · {line.days_out} day(s) out · {rupees(line.value)}
-            {line.stores_out > 1 ? ` · out in ${line.stores_out} loc.` : ""}
+            Class {item.class || "-"} · {rupees(item.value)} · up to {item.days_out} day(s) out
           </Text>
         </Box>
-        <Button size="xs" colorScheme="purple" variant="outline" flexShrink={0} onClick={() => onUpdate(line)}>
+        <Button size="xs" colorScheme="purple" variant="outline" flexShrink={0} onClick={() => onUpdate(item)}>
           Update
         </Button>
       </Flex>
       <Text fontSize="xs" mt={1}>
-        {line.supplier_name || "No supplier"}
-        {showBuyer ? ` · ${line.buyer_name || "No buyer"}` : ""}
+        <b>Out in:</b> {item.stores_text}
       </Text>
+      {showSupplier ? (
+        <Text fontSize="xs">
+          {item.supplier_name || "No supplier"}
+          {showBuyer ? ` · ${item.buyer_name || "No buyer"}` : ""}
+        </Text>
+      ) : null}
+      <VStack align="stretch" spacing={0.5} mt={1}>
+        {item.causes.map((c) => (
+          <CauseLine key={`${c.cause}|${c.detail}`} c={c} />
+        ))}
+      </VStack>
       <Box mt={1}>
-        <Badge colorScheme={c.color}>{c.label}</Badge>{" "}
-        <Text as="span" fontSize="xs">
-          {line.cause_detail}
-        </Text>
+        <AnswerLine item={item} />
       </Box>
-      {line.reason || line.last_note ? (
-        <Text fontSize="xs" mt={1}>
-          {line.reason ? <b>{REASONS[line.reason] || line.reason}</b> : null}
-          {line.last_note ? ` "${line.last_note}"` : ""}
-        </Text>
-      ) : line.needs_update ? (
-        <Badge colorScheme="red" mt={1}>
-          No update
-        </Badge>
+    </Box>
+  );
+}
+
+/**
+ * Items -> suppliers: one per supplier, with its items, every store line
+ * (for "Update all"), total value, class A items and items with no update.
+ * Ordered by tier, class A count, then value.
+ */
+function groupSuppliers(items) {
+  const bySupplier = new Map();
+  for (const it of items) {
+    const key = it.supplier_name || "";
+    if (!bySupplier.has(key)) bySupplier.set(key, []);
+    bySupplier.get(key).push(it);
+  }
+  const groups = [...bySupplier.entries()].map(([key, its]) => {
+    const lines = its.flatMap((i) => i.lines);
+    const reasons = [...new Set(lines.map((l) => l.reason || ""))];
+    return {
+      key: key || "__none",
+      kind: "supplier",
+      supplier_name: key || "No supplier",
+      buyer_name: its[0].buyer_name,
+      items: its,
+      lines,
+      ids: lines.map((l) => l.id),
+      value: its.reduce((t, i) => t + i.value, 0),
+      class_a: its.filter((i) => i.class === "A").length,
+      no_update: its.filter((i) => i.needs_update).length,
+      new_items: its.filter((i) => i.is_new).length,
+      tier: Math.min(...its.map((i) => i.tier)),
+      days_out: Math.max(...its.map((i) => i.days_out)),
+      reason: reasons.length === 1 ? reasons[0] || null : null,
+      mixed_reasons: reasons.length > 1,
+    };
+  });
+  groups.sort((a, b) => (a.key === "__none") - (b.key === "__none") || a.tier - b.tier || b.class_a - a.class_a || b.value - a.value);
+  return groups;
+}
+
+function SupplierSection({ group, open, onToggle, showBuyer, onUpdate }) {
+  return (
+    <Box borderWidth="1px" borderRadius="md" bg="white" overflow="hidden">
+      <Flex
+        p={3}
+        gap={2}
+        align="flex-start"
+        justify="space-between"
+        cursor="pointer"
+        bg={open ? "purple.50" : undefined}
+        onClick={onToggle}
+      >
+        <Box minW={0}>
+          <Text fontWeight="bold" fontSize="sm">
+            {open ? "▾" : "▸"} {title(group.supplier_name)}
+          </Text>
+          <Text fontSize="xs" color="gray.600">
+            {group.items.length} item{group.items.length === 1 ? "" : "s"} · {rupees(group.value)}
+            {group.class_a ? ` · ${group.class_a} class A` : ""}
+            {group.new_items ? ` · ${group.new_items} new` : ""}
+            {showBuyer ? ` · ${group.buyer_name || "No buyer"}` : ""}
+          </Text>
+          {group.no_update ? (
+            <Badge colorScheme="red" mt={1}>
+              {group.no_update} no update
+            </Badge>
+          ) : group.reason ? (
+            <Text fontSize="xs" mt={1}>
+              <b>{REASONS[group.reason] || group.reason}</b>
+            </Text>
+          ) : null}
+        </Box>
+        <Button
+          size="xs"
+          colorScheme="purple"
+          flexShrink={0}
+          onClick={(e) => {
+            e.stopPropagation();
+            onUpdate(group);
+          }}
+        >
+          Update all
+        </Button>
+      </Flex>
+      {open ? (
+        <SimpleGrid columns={{ base: 1, md: 2, xl: 3 }} spacing={2} p={2} pt={0}>
+          {group.items.map((it) => (
+            <ItemCard key={it.key} item={it} showBuyer={false} showSupplier={false} onUpdate={onUpdate} />
+          ))}
+        </SimpleGrid>
       ) : null}
     </Box>
   );
@@ -319,7 +532,9 @@ export default function OutOfStockFollowupPage() {
   const [cause, setCause] = useState("");
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState(null);
-  const [mobileCount, setMobileCount] = useState(MOBILE_PAGE);
+  const [shownCount, setShownCount] = useState(MOBILE_PAGE);
+  const [openSuppliers, setOpenSuppliers] = useState(() => new Set());
+  const [allOpen, setAllOpen] = useState(false);
   const isMobile = useBreakpointValue({ base: true, md: false });
   const fileRef = useRef(null);
 
@@ -375,10 +590,14 @@ export default function OutOfStockFollowupPage() {
   const cases = data?.cases || [];
   const stores = useMemo(() => [...new Set(cases.map((c) => c.store))].sort(), [cases]);
   const listKey = LISTS[list].key;
+  // Tab counts are items (an item out in 3 stores counts once).
   const counts = useMemo(() => {
-    const c = { chase: 0, waiting: 0, review: 0, all: cases.length };
-    for (const x of cases) c[x.list] += 1;
-    return c;
+    const sets = { chase: new Set(), waiting: new Set(), review: new Set(), all: new Set() };
+    for (const x of cases) {
+      sets[x.list].add(x.article_id);
+      sets.all.add(x.article_id);
+    }
+    return Object.fromEntries(Object.entries(sets).map(([k, v]) => [k, v.size]));
   }, [cases]);
   const shown = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -391,73 +610,20 @@ export default function OutOfStockFollowupPage() {
     );
   }, [cases, listKey, store, cause, search]);
 
-  useEffect(() => setMobileCount(MOBILE_PAGE), [list, store, cause, search, buyer, showHidden]);
+  const suppliers = useMemo(() => groupSuppliers(groupItems(shown)), [shown]);
 
-  const colDefs = useMemo(
-    () => [
-      {
-        headerName: "Item",
-        field: "article_name",
-        minWidth: 260,
-        cellRenderer: (p) => (
-          <span>
-            {title(p.data.article_name)}{" "}
-            <span style={{ color: "#888", fontSize: 11 }}>{p.data.article_id}</span>
-            {p.data.is_new ? (
-              <Badge ml={1} colorScheme="purple" fontSize="0.6em">
-                NEW
-              </Badge>
-            ) : null}
-          </span>
-        ),
-      },
-      { headerName: "Store", field: "store", width: 120, valueFormatter: (p) => title(p.value) },
-      { headerName: "Class", field: "class", width: 80 },
-      { headerName: "Days out", field: "days_out", width: 95 },
-      { headerName: "Value", field: "value", width: 110, valueFormatter: (p) => rupees(p.value) },
-      { headerName: "Out in", field: "stores_out", width: 85, valueFormatter: (p) => `${p.value} loc.` },
-      { headerName: "Supplier", field: "supplier_name", minWidth: 200 },
-      ...(canChase ? [{ headerName: "Buyer", field: "buyer_name", width: 140 }] : []),
-      {
-        headerName: "Likely cause",
-        field: "cause",
-        minWidth: 320,
-        cellRenderer: (p) => (
-          <span title={p.data.cause_detail || ""}>
-            <Badge colorScheme={CAUSES[p.value]?.color || "gray"}>{CAUSES[p.value]?.label || p.value}</Badge>{" "}
-            <span style={{ fontSize: 12 }}>{p.data.cause_detail}</span>
-          </span>
-        ),
-      },
-      {
-        headerName: "Answer",
-        field: "reason",
-        minWidth: 220,
-        cellRenderer: (p) =>
-          p.data.reason || p.data.last_note ? (
-            <span title={p.data.last_note || ""}>
-              {p.data.reason ? <b>{REASONS[p.data.reason] || p.data.reason}</b> : null}
-              {p.data.last_note ? <span style={{ fontSize: 12 }}> {`"${p.data.last_note}"`}</span> : null}
-            </span>
-          ) : p.data.needs_update ? (
-            <Badge colorScheme="red">No update</Badge>
-          ) : (
-            ""
-          ),
-      },
-      {
-        headerName: "",
-        field: "id",
-        width: 100,
-        cellRenderer: (p) => (
-          <Button size="xs" colorScheme="purple" variant="outline" onClick={() => setEditing(p.data)}>
-            Update
-          </Button>
-        ),
-      },
-    ],
-    [canChase]
-  );
+  useEffect(() => {
+    setShownCount(MOBILE_PAGE);
+    setOpenSuppliers(new Set());
+  }, [list, store, cause, search, buyer, showHidden]);
+  const isOpen = (key) => allOpen || openSuppliers.has(key) || suppliers.length === 1;
+  const toggle = (key) =>
+    setOpenSuppliers((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
 
   const upload = data?.upload;
   return (
@@ -544,29 +710,40 @@ export default function OutOfStockFollowupPage() {
             ))}
           </TabList>
         </Tabs>
-        {isMobile ? (
-          <VStack align="stretch" spacing={2}>
-            {loading && !shown.length ? <Spinner /> : null}
-            {!loading && !shown.length ? (
-              <Text fontSize="sm" color="gray.500">
-                Nothing here.
-              </Text>
-            ) : null}
-            {shown.slice(0, mobileCount).map((l) => (
-              <LineCard key={l.id} line={l} showBuyer={canChase} onUpdate={setEditing} />
-            ))}
-            {shown.length > mobileCount ? (
-              <Button size="sm" variant="outline" onClick={() => setMobileCount((n) => n + MOBILE_PAGE)}>
-                Show more ({shown.length - mobileCount} left)
-              </Button>
-            ) : null}
-          </VStack>
-        ) : (
-          <AgGrid tableKey="oos-followup-lines" rowData={shown} colDefs={colDefs} getRowId={(p) => String(p.data.id)} loading={loading} />
-        )}
+        <Flex justify="space-between" align="center" mb={2} gap={2} wrap="wrap">
+          <Text fontSize="xs" color="gray.600">
+            {suppliers.length} supplier(s) · {counts[listKey] != null && listKey !== "all" ? `${counts[listKey]} item(s)` : `${counts.all} item(s)`}
+          </Text>
+          <Button size="xs" variant="ghost" colorScheme="purple" onClick={() => setAllOpen((v) => !v)}>
+            {allOpen ? "Collapse all" : "Expand all"}
+          </Button>
+        </Flex>
+        <VStack align="stretch" spacing={2}>
+          {loading && !suppliers.length ? <Spinner /> : null}
+          {!loading && !suppliers.length ? (
+            <Text fontSize="sm" color="gray.500">
+              Nothing here.
+            </Text>
+          ) : null}
+          {suppliers.slice(0, shownCount).map((g) => (
+            <SupplierSection
+              key={g.key}
+              group={g}
+              open={isOpen(g.key)}
+              onToggle={() => toggle(g.key)}
+              showBuyer={canChase}
+              onUpdate={setEditing}
+            />
+          ))}
+          {suppliers.length > shownCount ? (
+            <Button size="sm" variant="outline" onClick={() => setShownCount((n) => n + MOBILE_PAGE)}>
+              Show more suppliers ({suppliers.length - shownCount} left)
+            </Button>
+          ) : null}
+        </VStack>
       </CustomContainer>
       <UpdateModal
-        line={editing}
+        item={editing}
         onClose={() => setEditing(null)}
         onSaved={() => {
           setEditing(null);
