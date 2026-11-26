@@ -87,7 +87,7 @@ const CLASS_ORDER = { A: 0, B: 1, C: 2, X: 3 };
 /**
  * Lines (one per store) -> items: one per article, with its stores, total
  * value, longest days out, and the causes and answers of its stores.
- * Ordered by tier, class, then total value.
+ * Ordered by total value, highest first.
  */
 function groupItems(lines) {
   const byArticle = new Map();
@@ -121,7 +121,7 @@ function groupItems(lines) {
       cause: causes.length === 1 ? causes[0].cause : "",
     };
   });
-  items.sort((a, b) => a.tier - b.tier || (CLASS_ORDER[a.class] ?? 9) - (CLASS_ORDER[b.class] ?? 9) || b.value - a.value);
+  items.sort((a, b) => b.value - a.value);
   return items;
 }
 
@@ -176,9 +176,8 @@ function ItemCard({ item, showBuyer, showSupplier = true }) {
 }
 
 /**
- * Items -> suppliers: one per supplier, with its items, every store line
- * (for "Update all"), total value, class A items and items with no update.
- * Ordered by tier, class A count, then value.
+ * Items -> suppliers: one per supplier, with its items, total value and
+ * class A items (ordered by sortSuppliers).
  */
 function groupSuppliers(items) {
   const bySupplier = new Map();
@@ -204,8 +203,20 @@ function groupSuppliers(items) {
       days_out: Math.max(...its.map((i) => i.days_out)),
     };
   });
-  groups.sort((a, b) => (a.key === "__none") - (b.key === "__none") || a.tier - b.tier || b.class_a - a.class_a || b.value - a.value);
   return groups;
+}
+
+// How the supplier sections are ordered; "No supplier" is always last.
+const SUPPLIER_SORTS = {
+  value: { label: "Value (highest first)", cmp: (a, b) => b.value - a.value },
+  class_a: { label: "Class A items", cmp: (a, b) => b.class_a - a.class_a || b.value - a.value },
+  items: { label: "Number of items", cmp: (a, b) => b.items.length - a.items.length || b.value - a.value },
+  name: { label: "Supplier name A-Z", cmp: (a, b) => a.supplier_name.localeCompare(b.supplier_name) },
+};
+
+function sortSuppliers(groups, by) {
+  const cmp = (SUPPLIER_SORTS[by] || SUPPLIER_SORTS.value).cmp;
+  return [...groups].sort((a, b) => (a.key === "__none") - (b.key === "__none") || cmp(a, b));
 }
 
 function SupplierSection({ group, open, onToggle, showBuyer }) {
@@ -306,6 +317,7 @@ export default function OutOfStockFollowupPage() {
   const [store, setStore] = useState("");
   const [cause, setCause] = useState("");
   const [search, setSearch] = useState("");
+  const [sortBy, setSortBy] = useState("value");
   const [shownCount, setShownCount] = useState(MOBILE_PAGE);
   const [openSuppliers, setOpenSuppliers] = useState(() => new Set());
   const [allOpen, setAllOpen] = useState(false);
@@ -383,7 +395,7 @@ export default function OutOfStockFollowupPage() {
     );
   }, [cases, listKey, store, cause, search]);
 
-  const suppliers = useMemo(() => groupSuppliers(groupItems(shown)), [shown]);
+  const suppliers = useMemo(() => sortSuppliers(groupSuppliers(groupItems(shown)), sortBy), [shown, sortBy]);
 
   useEffect(() => {
     setShownCount(MOBILE_PAGE);
@@ -441,7 +453,7 @@ export default function OutOfStockFollowupPage() {
 
         {canChase ? <Scoreboard rows={data?.scoreboard} selected={buyer} onSelect={setBuyer} compact={isMobile} /> : null}
 
-        <SimpleGrid columns={{ base: 1, md: canChase ? 4 : 3 }} spacing={2} mb={3}>
+        <SimpleGrid columns={{ base: 1, md: canChase ? 5 : 4 }} spacing={2} mb={3}>
           {canChase ? (
             <Select size="sm" value={buyer} onChange={(e) => setBuyer(e.target.value)}>
               <option value="">All buyers</option>
@@ -469,6 +481,13 @@ export default function OutOfStockFollowupPage() {
             ))}
           </Select>
           <Input size="sm" placeholder="Search item, supplier, category" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <Select size="sm" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+            {Object.entries(SUPPLIER_SORTS).map(([k, v]) => (
+              <option key={k} value={k}>
+                Sort: {v.label}
+              </option>
+            ))}
+          </Select>
         </SimpleGrid>
 
         <Tabs size="sm" colorScheme="purple" index={list} onChange={setList} mb={2}>
