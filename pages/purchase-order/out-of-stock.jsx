@@ -58,6 +58,21 @@ const HEADER_KEYS = {
   Value: "value",
 };
 
+// Extensions AND file types: Android's picker filters on the type and greys
+// out a .csv it cannot match to ".csv" alone (it calls it
+// text/comma-separated-values). The file name is checked again on upload.
+const FILE_ACCEPT = [
+  ".csv",
+  ".xlsx",
+  ".xls",
+  "text/csv",
+  "text/comma-separated-values",
+  "application/csv",
+  "text/plain",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+].join(",");
+
 const CAUSES = {
   warehouse_stock: { label: "Warehouse has stock", color: "teal" },
   po_pending: { label: "PO pending", color: "orange" },
@@ -274,6 +289,10 @@ export default function OutOfStockFollowupPage() {
     const file = e.target.files && e.target.files[0];
     e.target.value = "";
     if (!file) return;
+    if (!/\.(csv|xlsx|xls)$/i.test(file.name)) {
+      toast.error("Choose the out-of-stock report (.csv or Excel)");
+      return;
+    }
     setUploading(true);
     try {
       const parsed = await importFileToJSON(file, ["Article ID", "Store"], 1);
@@ -394,7 +413,7 @@ export default function OutOfStockFollowupPage() {
             </Button>
             {canUpload ? (
               <>
-                <input ref={fileRef} type="file" accept=".csv,.xlsx,.xls" style={{ display: "none" }} onChange={onFile} />
+                <input ref={fileRef} type="file" accept={FILE_ACCEPT} style={{ display: "none" }} onChange={onFile} />
                 <Button size="sm" colorScheme="purple" onClick={() => fileRef.current && fileRef.current.click()} isLoading={uploading}>
                   Upload today's report
                 </Button>
