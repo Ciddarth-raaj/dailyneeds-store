@@ -665,6 +665,14 @@ const WMS_MENU = {
         selected: false,
         location: "/purchase-order/tracker",
       },
+      // The morning out-of-stock report, routed to buyers. view_my_oos opens
+      // it; chase_oos adds every buyer's lines, upload_oos_report the upload.
+      view_oos_followup: {
+        title: "Out of Stock Follow-up",
+        permission: "view_my_oos",
+        selected: false,
+        location: "/purchase-order/out-of-stock",
+      },
     },
   },
   warehouse_reports: {

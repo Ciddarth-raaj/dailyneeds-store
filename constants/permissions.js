@@ -418,6 +418,9 @@ export const PERMISSIONS = {
     view_po_tracker: "View PO Tracker",
     add_po_followup: "Add PO Follow-up Remarks",
     receive_po_daily_summary: "Receive PO Daily Summary (Telegram, 7 pm)",
+    view_my_oos: "Open Out of Stock Follow-up (own suppliers' lines)",
+    chase_oos: "Chase Out of Stock (every buyer's lines, scoreboard)",
+    upload_oos_report: "Upload Out of Stock Report",
   },
 
   // Warehouse Daily Reports (WMS > Warehouse Reports)
