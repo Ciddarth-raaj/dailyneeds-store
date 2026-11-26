@@ -27,6 +27,7 @@ import {
   Th,
   Thead,
   Tr,
+  useBreakpointValue,
   VStack,
 } from "@chakra-ui/react";
 import toast from "react-hot-toast";
@@ -91,11 +92,12 @@ const REASONS = {
 };
 
 const LISTS = [
-  { key: "chase", label: "To chase" },
-  { key: "waiting", label: "Waiting (C, under 5 days)" },
-  { key: "review", label: "Slow-moving review (X)" },
-  { key: "all", label: "All open" },
+  { key: "chase", label: "To chase", short: "Chase" },
+  { key: "waiting", label: "Waiting (C, under 5 days)", short: "Waiting" },
+  { key: "review", label: "Slow-moving review (X)", short: "Slow (X)" },
+  { key: "all", label: "All open", short: "All" },
 ];
+const MOBILE_PAGE = 30;
 
 const rupees = (n) => `₹${Math.round(Number(n) || 0).toLocaleString("en-IN")}`;
 const title = (s) => String(s || "").replace(/\b\w/g, (c) => c.toUpperCase());
@@ -200,7 +202,56 @@ function UpdateModal({ line, onClose, onSaved }) {
   );
 }
 
-function Scoreboard({ rows, selected, onSelect }) {
+/** One line as a card, for phones. */
+function LineCard({ line, showBuyer, onUpdate }) {
+  const c = CAUSES[line.cause] || { label: line.cause, color: "gray" };
+  return (
+    <Box borderWidth="1px" borderRadius="md" p={3} bg="white">
+      <Flex justify="space-between" align="flex-start" gap={2}>
+        <Box minW={0}>
+          <Text fontWeight="semibold" fontSize="sm">
+            {title(line.article_name)}{" "}
+            {line.is_new ? (
+              <Badge colorScheme="purple" fontSize="0.6em">
+                NEW
+              </Badge>
+            ) : null}
+          </Text>
+          <Text fontSize="xs" color="gray.600">
+            {title(line.store)} · Class {line.class || "-"} · {line.days_out} day(s) out · {rupees(line.value)}
+            {line.stores_out > 1 ? ` · out in ${line.stores_out} loc.` : ""}
+          </Text>
+        </Box>
+        <Button size="xs" colorScheme="purple" variant="outline" flexShrink={0} onClick={() => onUpdate(line)}>
+          Update
+        </Button>
+      </Flex>
+      <Text fontSize="xs" mt={1}>
+        {line.supplier_name || "No supplier"}
+        {showBuyer ? ` · ${line.buyer_name || "No buyer"}` : ""}
+      </Text>
+      <Box mt={1}>
+        <Badge colorScheme={c.color}>{c.label}</Badge>{" "}
+        <Text as="span" fontSize="xs">
+          {line.cause_detail}
+        </Text>
+      </Box>
+      {line.reason || line.last_note ? (
+        <Text fontSize="xs" mt={1}>
+          {line.reason ? <b>{REASONS[line.reason] || line.reason}</b> : null}
+          {line.last_note ? ` "${line.last_note}"` : ""}
+        </Text>
+      ) : line.needs_update ? (
+        <Badge colorScheme="red" mt={1}>
+          No update
+        </Badge>
+      ) : null}
+    </Box>
+  );
+}
+
+function Scoreboard({ rows, selected, onSelect, compact = false }) {
+  const full = !compact;
   if (!rows || !rows.length) return null;
   return (
     <Box borderWidth="1px" borderRadius="md" overflowX="auto" mb={4} bg="white">
@@ -209,13 +260,14 @@ function Scoreboard({ rows, selected, onSelect }) {
           <Tr>
             <Th>Buyer</Th>
             <Th isNumeric>To chase</Th>
-            <Th isNumeric>Class A</Th>
-            <Th isNumeric>Value to chase</Th>
+            {full ? <Th isNumeric>Class A</Th> : null}
+            {full ? <Th isNumeric>Value to chase</Th> : null}
             <Th isNumeric>No update</Th>
-            <Th isNumeric>New today</Th>
-            <Th isNumeric>Oldest (days)</Th>
-            <Th isNumeric>Back in stock</Th>
-            <Th isNumeric>Slow-moving</Th>
+            {compact ? <Th isNumeric>Value</Th> : null}
+            {full ? <Th isNumeric>New today</Th> : null}
+            {full ? <Th isNumeric>Oldest (days)</Th> : null}
+            {full ? <Th isNumeric>Back in stock</Th> : null}
+            {full ? <Th isNumeric>Slow-moving</Th> : null}
           </Tr>
         </Thead>
         <Tbody>
@@ -231,17 +283,20 @@ function Scoreboard({ rows, selected, onSelect }) {
               >
                 <Td fontWeight="semibold">{r.buyer_name}</Td>
                 <Td isNumeric>{r.to_chase}</Td>
-                <Td isNumeric>{r.class_a}</Td>
-                <Td isNumeric>{rupees(r.value_to_chase)}</Td>
+                {full ? <Td isNumeric>{r.class_a}</Td> : null}
+                {full ? <Td isNumeric>{rupees(r.value_to_chase)}</Td> : null}
                 <Td isNumeric color={r.not_updated ? "red.600" : undefined} fontWeight={r.not_updated ? "bold" : undefined}>
                   {r.not_updated}
                 </Td>
-                <Td isNumeric>{r.new_today}</Td>
-                <Td isNumeric>{r.oldest_days}</Td>
-                <Td isNumeric color="green.600">
-                  {r.back_in_stock}
-                </Td>
-                <Td isNumeric>{r.review}</Td>
+                {compact ? <Td isNumeric>{rupees(r.value_to_chase)}</Td> : null}
+                {full ? <Td isNumeric>{r.new_today}</Td> : null}
+                {full ? <Td isNumeric>{r.oldest_days}</Td> : null}
+                {full ? (
+                  <Td isNumeric color="green.600">
+                    {r.back_in_stock}
+                  </Td>
+                ) : null}
+                {full ? <Td isNumeric>{r.review}</Td> : null}
               </Tr>
             );
           })}
@@ -264,6 +319,8 @@ export default function OutOfStockFollowupPage() {
   const [cause, setCause] = useState("");
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState(null);
+  const [mobileCount, setMobileCount] = useState(MOBILE_PAGE);
+  const isMobile = useBreakpointValue({ base: true, md: false });
   const fileRef = useRef(null);
 
   const load = useCallback(async () => {
@@ -333,6 +390,8 @@ export default function OutOfStockFollowupPage() {
         (!q || `${c.article_name} ${c.article_id} ${c.supplier_name || ""} ${c.category || ""}`.toLowerCase().includes(q))
     );
   }, [cases, listKey, store, cause, search]);
+
+  useEffect(() => setMobileCount(MOBILE_PAGE), [list, store, cause, search, buyer, showHidden]);
 
   const colDefs = useMemo(
     () => [
@@ -441,7 +500,7 @@ export default function OutOfStockFollowupPage() {
           </Box>
         ) : null}
 
-        {canChase ? <Scoreboard rows={data?.scoreboard} selected={buyer} onSelect={setBuyer} /> : null}
+        {canChase ? <Scoreboard rows={data?.scoreboard} selected={buyer} onSelect={setBuyer} compact={isMobile} /> : null}
 
         <SimpleGrid columns={{ base: 1, md: canChase ? 5 : 4 }} spacing={2} mb={3}>
           {canChase ? (
@@ -477,15 +536,34 @@ export default function OutOfStockFollowupPage() {
         </SimpleGrid>
 
         <Tabs size="sm" colorScheme="purple" index={list} onChange={setList} mb={2}>
-          <TabList>
+          <TabList overflowX="auto" overflowY="hidden">
             {LISTS.map((l) => (
-              <Tab key={l.key}>
-                {l.label} ({counts[l.key] || 0})
+              <Tab key={l.key} whiteSpace="nowrap" px={isMobile ? 2 : 4}>
+                {isMobile ? l.short : l.label} ({counts[l.key] || 0})
               </Tab>
             ))}
           </TabList>
         </Tabs>
-        <AgGrid tableKey="oos-followup-lines" rowData={shown} colDefs={colDefs} getRowId={(p) => String(p.data.id)} loading={loading} />
+        {isMobile ? (
+          <VStack align="stretch" spacing={2}>
+            {loading && !shown.length ? <Spinner /> : null}
+            {!loading && !shown.length ? (
+              <Text fontSize="sm" color="gray.500">
+                Nothing here.
+              </Text>
+            ) : null}
+            {shown.slice(0, mobileCount).map((l) => (
+              <LineCard key={l.id} line={l} showBuyer={canChase} onUpdate={setEditing} />
+            ))}
+            {shown.length > mobileCount ? (
+              <Button size="sm" variant="outline" onClick={() => setMobileCount((n) => n + MOBILE_PAGE)}>
+                Show more ({shown.length - mobileCount} left)
+              </Button>
+            ) : null}
+          </VStack>
+        ) : (
+          <AgGrid tableKey="oos-followup-lines" rowData={shown} colDefs={colDefs} getRowId={(p) => String(p.data.id)} loading={loading} />
+        )}
       </CustomContainer>
       <UpdateModal
         line={editing}
