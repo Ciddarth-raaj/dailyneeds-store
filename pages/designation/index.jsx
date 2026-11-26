@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from "react";
-import { useToast } from "@chakra-ui/react";
+import React, { useState, useEffect, useMemo } from "react";
+import { Badge, Box, Button, Flex, Input, Text, useBreakpointValue, useToast, VStack } from "@chakra-ui/react";
+import NextLink from "next/link";
 import DesignationHelper from "../../helper/designation";
 import GlobalWrapper from "../../components/globalWrapper/globalWrapper";
 import CustomContainer from "../../components/CustomContainer";
@@ -30,6 +31,8 @@ function DesignationView() {
   const [designations, setDesignations] = useState([]);
   const [editing, setEditing] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [search, setSearch] = useState("");
+  const isMobile = useBreakpointValue({ base: true, md: false });
 
   function getDesignationData() {
     DesignationHelper.getDesignation()
@@ -142,7 +145,17 @@ function DesignationView() {
   return (
     <GlobalWrapper title="Designation Details">
       <CustomContainer title="Designations" filledHeader>
-        <AgGrid rowData={designations} colDefs={colDefs} />
+        {isMobile ? (
+          <MobileList
+            designations={designations}
+            search={search}
+            setSearch={setSearch}
+            canManage={canManage}
+            onEdit={(d) => setEditing({ id: d.designation_id, name: d.designation_name, status: d.status })}
+          />
+        ) : (
+          <AgGrid rowData={designations} colDefs={colDefs} />
+        )}
       </CustomContainer>
 
       <MasterEditModal
@@ -154,6 +167,53 @@ function DesignationView() {
         onSave={saveDesignation}
       />
     </GlobalWrapper>
+  );
+}
+
+const capitalize = (v) => String(v || "").replace(/\b\w/g, (c) => c.toUpperCase());
+
+/** Phones: one row per designation with its full name, instead of the grid. */
+function MobileList({ designations, search, setSearch, canManage, onEdit }) {
+  const shown = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return q ? designations.filter((d) => String(d.designation_name || "").toLowerCase().includes(q)) : designations;
+  }, [designations, search]);
+  return (
+    <VStack align="stretch" spacing={2}>
+      <Input size="sm" placeholder="Search designation" value={search} onChange={(e) => setSearch(e.target.value)} />
+      {shown.map((d) => (
+        <Flex key={d.designation_id} borderWidth="1px" borderRadius="md" p={3} bg="white" align="center" justify="space-between" gap={2}>
+          <Box minW={0}>
+            <Text fontWeight="semibold" fontSize="sm">
+              {capitalize(d.designation_name)}
+            </Text>
+            <Text fontSize="xs" color="gray.500">
+              ID {d.designation_id}{" "}
+              <Badge colorScheme={d.status === 1 ? "green" : "red"} ml={1}>
+                {d.status === 1 ? "Active" : "Inactive"}
+              </Badge>
+            </Text>
+          </Box>
+          <Flex gap={2} flexShrink={0}>
+            <NextLink href={`/designation/${d.designation_id}`} passHref>
+              <Button as="a" size="xs" variant="outline" colorScheme="purple">
+                View
+              </Button>
+            </NextLink>
+            {canManage ? (
+              <Button size="xs" colorScheme="purple" onClick={() => onEdit(d)}>
+                Edit
+              </Button>
+            ) : null}
+          </Flex>
+        </Flex>
+      ))}
+      {!shown.length ? (
+        <Text fontSize="sm" color="gray.500">
+          No designation matches.
+        </Text>
+      ) : null}
+    </VStack>
   );
 }
 
